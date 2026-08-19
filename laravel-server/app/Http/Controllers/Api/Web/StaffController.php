@@ -221,7 +221,15 @@ class StaffController extends Controller
             ],
             'role' => 'string|in:admin,manager,specialist,sales_staff,auditor',
             'pin' => 'string|size:4',
-            'store_id' => 'exists:stores,id',
+            // A store owner's own row legitimately has a null store_id (they
+            // aren't tied to one store the way staff are) — without
+            // `nullable` here, editing that "Main Account" row for any
+            // reason fails this check whenever store_id ends up null/empty,
+            // and Laravel's default `exists` message ("The selected store id
+            // is invalid") is identical in shape to the `in` rule's message
+            // above, so it reads as if whatever field was actually being
+            // changed (e.g. role) was the problem.
+            'store_id' => 'nullable|exists:stores,id',
         ]);
 
         $data = $request->only(['first_name', 'last_name', 'email', 'username', 'role', 'pin', 'store_id', 'is_active']);

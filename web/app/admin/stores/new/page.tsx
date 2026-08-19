@@ -47,8 +47,7 @@ const registerSchema = z
     email: z.string().email({ message: "Invalid email address" }),
     username: z
       .string()
-      .min(3, { message: "Username must be at least 3 characters" })
-      .optional(),
+      .min(3, { message: "Username must be at least 3 characters" }),
     phone: z
       .string()
       .min(10, { message: "Phone number must be at least 10 digits" }),
@@ -238,6 +237,7 @@ export default function AdminNewStorePage() {
                         <Input
                           placeholder="store_owner"
                           className="pl-11 bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-800 rounded-2xl h-12 font-bold focus-visible:ring-indigo-500"
+                          required
                           {...field}
                         />
                       </div>

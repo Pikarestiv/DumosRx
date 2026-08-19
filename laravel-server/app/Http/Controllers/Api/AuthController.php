@@ -259,11 +259,22 @@ class AuthController extends Controller
         $tokenModel->user_agent = $userAgent;
         $tokenModel->save();
 
-        // Dispatch security email if device is unrecognized
+        // Dispatch security email if device is unrecognized — best-effort:
+        // authentication has already succeeded and the token is already
+        // saved above, so a mail failure (bad address, SMTP rejection, etc.)
+        // must not fail the whole login response. Previously unguarded, this
+        // turned an undeliverable email on the account into a 500 on every
+        // login from a new device, even though the user was in fact
+        // authenticated (confirmed via Sentry: SMTP 550 "No Such User Here"
+        // crashing the request past the point the token was already saved).
         if ($isNewDevice) {
-            Mail::to($user->email)->send(
-                new NewDeviceLoginEmail($user, $userAgent, $ipAddress, now()->toDateTimeString())
-            );
+            try {
+                Mail::to($user->email)->send(
+                    new NewDeviceLoginEmail($user, $userAgent, $ipAddress, now()->toDateTimeString())
+                );
+            } catch (Exception $e) {
+                Log::error("Failed to send new-device login email to {$user->email}: " . $e->getMessage());
+            }
         }
 
         $response = response()->json([
@@ -674,8 +685,15 @@ class AuthController extends Controller
 
         DB::table('password_reset_tokens')->where('email', $request->email)->delete();
 
-        // Send confirmation email
-        \Illuminate\Support\Facades\Mail::to($user->email)->send(new \App\Mail\PasswordChangedEmail($user));
+        // Send confirmation email — best-effort: the password is already
+        // changed and saved above, so a mail failure must not turn a
+        // successful reset into a 500 (same class of bug as the new-device
+        // login email below).
+        try {
+            \Illuminate\Support\Facades\Mail::to($user->email)->send(new \App\Mail\PasswordChangedEmail($user));
+        } catch (Exception $e) {
+            Log::error("Failed to send password-changed confirmation email to {$user->email}: " . $e->getMessage());
+        }
 
         return response()->json(['message' => 'Password has been reset successfully.']);
     }

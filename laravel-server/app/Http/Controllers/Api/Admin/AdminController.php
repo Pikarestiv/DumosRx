@@ -92,12 +92,13 @@ class AdminController extends Controller
         tags: ['Admin'],
         security: [['sanctum' => []]],
         requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
-            required: ['store_name', 'first_name', 'last_name', 'email', 'phone', 'password'],
+            required: ['store_name', 'first_name', 'last_name', 'email', 'username', 'phone', 'password'],
             properties: [
                 new OA\Property(property: 'store_name', type: 'string', minLength: 2),
                 new OA\Property(property: 'first_name', type: 'string', minLength: 2),
                 new OA\Property(property: 'last_name', type: 'string', minLength: 2),
                 new OA\Property(property: 'email', type: 'string', format: 'email'),
+                new OA\Property(property: 'username', type: 'string', minLength: 3, description: 'Local terminal login username — same field the self-serve register flow collects.'),
                 new OA\Property(property: 'phone', type: 'string', minLength: 10),
                 new OA\Property(property: 'password', type: 'string', format: 'password', minLength: 8),
             ],
@@ -124,6 +125,7 @@ class AdminController extends Controller
             'first_name' => 'required|string|min:2',
             'last_name' => 'required|string|min:2',
             'email' => 'required|email|unique:users,email',
+            'username' => 'required|string|max:255|unique:users,username',
             'phone' => 'required|string|min:10',
             'password' => 'required|string|min:8',
             'is_demo' => 'nullable|boolean',

@@ -777,6 +777,7 @@ class AdminService
                 'first_name' => $data['first_name'],
                 'last_name' => $data['last_name'],
                 'email' => $data['email'],
+                'username' => $data['username'],
                 'phone' => $data['phone'],
                 'password' => Hash::make($data['password']),
                 'role' => 'store_owner',

@@ -24,16 +24,19 @@ export function useLogin() {
       const success = await login(cleanUsername, pin);
       if (success) {
         toast.success("Welcome back!");
+        // Left `isLoading` true — router.push() doesn't await the route
+        // transition, so resetting it here would flip the form back to its
+        // idle state for one frame while /dashboard is still loading.
         router.push("/dashboard");
       } else {
         setPin("");
         setHasError(true);
         setTimeout(() => setHasError(false), 500);
         toast.error("Invalid credentials. Please try again.");
+        setIsLoading(false);
       }
     } catch {
       toast.error("Login failed. Database might not be initialized.");
-    } finally {
       setIsLoading(false);
     }
   };

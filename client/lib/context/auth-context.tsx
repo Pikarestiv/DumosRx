@@ -187,6 +187,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         store_id: dbUser.store_id,
       };
 
+      // Covers the "switch user" lock-screen flow (selecting a different
+      // recent user and unlocking with their PIN), which calls login()
+      // directly without ever going through logout() first — without this,
+      // the outgoing user's cached queries (dashboard, BI, etc.) would keep
+      // rendering under the incoming user's session until they went stale.
+      // cancelQueries() first since clear() alone doesn't abort a fetch
+      // already in flight from the outgoing user.
+      queryClient.cancelQueries();
+      queryClient.clear();
+
       setUser(userProfile);
       setDbUser(userProfile);
       Sentry.setUser({ id: userProfile.id, username: userProfile.username, role: userProfile.role });
@@ -315,6 +325,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Without this, cached query results (dashboard metrics, BI, etc.) from
     // the outgoing account stay in memory and get served to whichever
     // account logs in next, until their staleTime/gcTime lapses.
+    // cancelQueries() first — clear() alone doesn't abort an in-flight
+    // fetch, which could otherwise resolve after the next login and
+    // repopulate a store/user-unscoped query key.
+    queryClient.cancelQueries();
     queryClient.clear();
   };
 

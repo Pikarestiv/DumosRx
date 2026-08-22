@@ -53,9 +53,11 @@ export function LoginForm({ redirectPath = "/dashboard" }: { redirectPath?: stri
       setToken(response.token);
       setUser(response.user);
       router.push(redirectPath);
+      // Left `loading` true on success — the button/spinner would otherwise
+      // flip back to "Sign In" for one frame while the route transition is
+      // still in flight, since router.push() doesn't await the navigation.
     } catch (err) {
       setError(err instanceof Error ? err.message : "Invalid credentials. Please try again.");
-    } finally {
       setLoading(false);
     }
   }

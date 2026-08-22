@@ -19,6 +19,7 @@ import { SharedGrantTrialDialog } from "@/components/admin/shared-grant-trial-di
 import { toast } from "sonner";
 import { AdminSkeleton } from "@/components/admin/admin-skeleton";
 import type { AdminStoreSummary } from "@/lib/types/admin";
+import { queryClient } from "@/lib/query-client";
 
 export default function StoresManagement() {
   const searchParams = useSearchParams();
@@ -155,7 +156,15 @@ export default function StoresManagement() {
         // Set the new token for the dashboard
         localStorage.setItem("drx_token", data.token);
         localStorage.setItem("drx_user", JSON.stringify(data.user));
-        
+
+        // This is an SPA navigation, not a reload — without this, any
+        // dashboard/query cache already sitting in the module-level
+        // queryClient (from the admin's own session, or a previous
+        // impersonation) would render under the impersonated store's
+        // dashboard until it happened to go stale.
+        queryClient.cancelQueries();
+        queryClient.clear();
+
         // Redirect to dashboard
         router.push("/dashboard");
       },

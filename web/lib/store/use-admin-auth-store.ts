@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { webApiClient } from "@/lib/api/client";
+import { queryClient } from "@/lib/query-client";
 
 interface User {
   id: string;
@@ -66,6 +67,10 @@ export const useAdminAuthStore = create<AdminAuthState>()(
         set({ user: null, token: null });
         // The backend should clear the cookie on its logout route
         webApiClient.request("/logout", { method: "POST" });
+        // Without this, cached admin/platform query data from the outgoing
+        // session stays in memory and gets served to whoever logs in next.
+        queryClient.cancelQueries();
+        queryClient.clear();
       },
     }),
     {

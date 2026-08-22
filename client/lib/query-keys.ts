@@ -19,10 +19,26 @@
  * invalidateQueriesForTable. That makes adopting this factory incremental
  * and safe: an unmigrated query is never LESS correct than before, only
  * less precisely invalidated.
+ *
+ * Every key is also suffixed with the active store id and current user id
+ * (lib/db/core.ts) — every query function reads its scope from those
+ * module-level resolvers at execution time rather than from the query key,
+ * so without this suffix a switch of store or user could read/write a
+ * cache slot the previous store/user's queries already own. This makes
+ * cross-account/cross-store leakage structural rather than dependent on
+ * every switch/logout path remembering to clear the cache: even if a
+ * clear() call were ever missed, the new store/user simply never resolves
+ * to the old cache slot to begin with. Appending it here, once, means the
+ * ~40+ call sites across the app never have to think about it.
  */
 
+import { getActiveStoreId, getCurrentUserId } from "./db/core";
+
 function resource<K extends readonly unknown[]>(queryKey: K, tables: string[]) {
-  return { queryKey, meta: { tables } };
+  return {
+    queryKey: [...queryKey, getActiveStoreId(), getCurrentUserId()] as const,
+    meta: { tables },
+  };
 }
 
 export const queryKeys = {

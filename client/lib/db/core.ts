@@ -33,6 +33,13 @@ export function setCurrentUser(
   currentUser = user;
 }
 
+// Used to scope React Query cache keys (see lib/query-keys.ts's `resource`)
+// so a switch between logged-in users on this device can never read a
+// cache slot the outgoing user's queries wrote into.
+export function getCurrentUserId(): string | null {
+  return currentUser?.id ?? null;
+}
+
 // The store every domain query should be scoped to. Set from
 // store-context.tsx's effect mirroring `user?.store_id || activeStoreId` —
 // a staff member's fixed store_id always wins over any switcher state, same

@@ -1,32 +1,33 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { webApiClient } from "./client";
+import { useScopedKey } from "./query-scope";
 import type { ActivityLog } from "@/lib/types/activity";
 import type { UserSession, AppNotification, BillingTransaction, SubscriptionStatus } from "@/lib/types/dashboard";
 
 export const useStores = () => {
   return useQuery({
-    queryKey: ["stores"],
+    queryKey: useScopedKey(["stores"]),
     queryFn: () => webApiClient.getDashboardSummary().then(data => data.stores),
   });
 };
 
 export const useDashboardSummary = () => {
   return useQuery({
-    queryKey: ["dashboard-summary"],
+    queryKey: useScopedKey(["dashboard-summary"]),
     queryFn: () => webApiClient.getDashboardSummary(),
   });
 };
 
 export const useStaff = (storeId?: string) => {
   return useQuery({
-    queryKey: ["staff", storeId],
+    queryKey: useScopedKey(["staff", storeId]),
     queryFn: () => webApiClient.getStaff(storeId),
   });
 };
 
 export const useNotifications = (options?: { refetchInterval?: number; hideLogs?: boolean }) => {
   return useQuery({
-    queryKey: ["notifications", options?.hideLogs],
+    queryKey: useScopedKey(["notifications", options?.hideLogs]),
     queryFn: () => webApiClient.getNotifications().then((data): AppNotification[] => {
       if (!Array.isArray(data)) return [];
       return options?.hideLogs
@@ -49,14 +50,14 @@ export const useReadNotificationMutation = () => {
 
 export const useLogs = () => {
   return useQuery({
-    queryKey: ["logs"],
+    queryKey: useScopedKey(["logs"]),
     queryFn: () => webApiClient.request<ActivityLog[] | { data: ActivityLog[] }>("logs"),
   });
 };
 
 export const useBroadcasts = () => {
   return useQuery({
-    queryKey: ["broadcasts"],
+    queryKey: useScopedKey(["broadcasts"]),
     queryFn: () => webApiClient.getBroadcasts(),
   });
 };
@@ -128,14 +129,14 @@ export const useDeleteStoreMutation = () => {
 
 export const useSubscriptionStatus = () => {
   return useQuery({
-    queryKey: ["subscription-status"],
+    queryKey: useScopedKey(["subscription-status"]),
     queryFn: () => webApiClient.getSubscriptionStatus() as Promise<SubscriptionStatus>,
   });
 };
 
 export const useReferralStats = () => {
   return useQuery({
-    queryKey: ["referral-stats"],
+    queryKey: useScopedKey(["referral-stats"]),
     queryFn: () => webApiClient.getReferralStats(),
   });
 };
@@ -159,7 +160,7 @@ export const useVerifyPaymentMutation = () => {
 
 export const useBillingHistory = () => {
   return useQuery({
-    queryKey: ["billing-history"],
+    queryKey: useScopedKey(["billing-history"]),
     queryFn: () => webApiClient.getBillingHistory() as Promise<{ transactions: BillingTransaction[] }>,
   });
 };
@@ -170,7 +171,7 @@ export const useBillingHistory = () => {
 
 export const useSessions = () => {
   return useQuery({
-    queryKey: ["sessions"],
+    queryKey: useScopedKey(["sessions"]),
     queryFn: () => webApiClient.getSessions() as Promise<UserSession[]>,
   });
 };

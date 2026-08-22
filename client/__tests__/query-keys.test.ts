@@ -18,8 +18,10 @@ vi.mock('../lib/db/core', async () => {
 
 describe('queryKeys factory', () => {
   it('produces a queryKey + meta.tables pair for a single-table resource', () => {
+    // Trailing [activeStoreId, currentUserId] suffix — see lib/query-keys.ts's
+    // resource() — both null here since no store/user is set in this test.
     const result = queryKeys.products.detail('prod-1');
-    expect(result.queryKey).toEqual(['products', 'detail', 'prod-1']);
+    expect(result.queryKey).toEqual(['products', 'detail', 'prod-1', null, null]);
     expect(result.meta.tables).toEqual(['products']);
   });
 

@@ -128,6 +128,7 @@ class AdminController extends Controller
             'username' => 'required|string|max:255|unique:users,username',
             'phone' => 'required|string|min:10',
             'password' => 'required|string|min:8',
+            'pin' => 'nullable|string|size:4',
             'is_demo' => 'nullable|boolean',
         ]);
 

@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { webApiClient } from "./client";
+import { useScopedKey } from "./query-scope";
 import type {
   AdminSummary,
   AdminHealth,
@@ -22,7 +23,7 @@ import type {
 
 export const useAdminSummary = (options?: { enabled?: boolean }) => {
   return useQuery({
-    queryKey: ["admin-summary"],
+    queryKey: useScopedKey(["admin-summary"]),
     queryFn: () => webApiClient.request<AdminSummary>("admin/summary"),
     staleTime: 5 * 60 * 1000, // 5 minutes
     ...options,
@@ -31,28 +32,28 @@ export const useAdminSummary = (options?: { enabled?: boolean }) => {
 
 export const useAdminStores = (page = 1, search = "", status = "", plan = "") => {
   return useQuery({
-    queryKey: ["admin-stores", page, search, status, plan],
+    queryKey: useScopedKey(["admin-stores", page, search, status, plan]),
     queryFn: () => webApiClient.request<PaginatedResponse<AdminStoreSummary>>(`admin/stores?page=${page}${search ? `&search=${search}` : ""}${status ? `&status=${status}` : ""}${plan ? `&plan=${plan}` : ""}`),
   });
 };
 
 export const useAdminProducts = (page = 1, search = "", category = "") => {
   return useQuery({
-    queryKey: ["admin-products", page, search, category],
+    queryKey: useScopedKey(["admin-products", page, search, category]),
     queryFn: () => webApiClient.request<AdminProductsResponse>(`admin/products?page=${page}${search ? `&search=${search}` : ""}${category ? `&category=${category}` : ""}`),
   });
 };
 
 export const useAdminUsers = (page = 1, search = "") => {
   return useQuery({
-    queryKey: ["admin-users", page, search],
+    queryKey: useScopedKey(["admin-users", page, search]),
     queryFn: () => webApiClient.request<PaginatedResponse<AdminUser>>(`admin/users?page=${page}${search ? `&search=${search}` : ""}`),
   });
 };
 
 export const useMyReferrals = (userId?: string) => {
   return useQuery({
-    queryKey: ["admin-my-referrals", userId],
+    queryKey: useScopedKey(["admin-my-referrals", userId]),
     queryFn: () => webApiClient.request<PlatformReferrals>(`admin/my-referrals${userId ? `?user_id=${userId}` : ""}`),
   });
 };
@@ -78,7 +79,7 @@ export const useUpdateReferralCodeMutation = () => {
 
 export const useAdminHealth = () => {
   return useQuery({
-    queryKey: ["admin-health"],
+    queryKey: useScopedKey(["admin-health"]),
     queryFn: () => webApiClient.request<AdminHealth>("admin/health"),
     refetchInterval: 30000, // Every 30 seconds
   });
@@ -86,7 +87,7 @@ export const useAdminHealth = () => {
 
 export const useAdminErrors = () => {
   return useQuery({
-    queryKey: ["admin-errors"],
+    queryKey: useScopedKey(["admin-errors"]),
     queryFn: () => webApiClient.request<AdminErrors>("admin/errors"),
     refetchInterval: 60000, // Every minute — Sentry issue counts don't need 30s freshness
   });
@@ -254,7 +255,7 @@ export const useRestoreSessionMutation = () => {
 
 export const useAdminFeedback = (status: string = "all") => {
   return useQuery({
-    queryKey: ["admin-feedback", status],
+    queryKey: useScopedKey(["admin-feedback", status]),
     queryFn: () => webApiClient.getFeedback(status) as Promise<{ data: FeedbackItem[] }>,
   });
 };
@@ -273,28 +274,28 @@ export const useUpdateFeedbackStatusMutation = () => {
 // Referrals Manager Hooks
 export const useReferralsSummary = () => {
   return useQuery({
-    queryKey: ["referrals-summary"],
+    queryKey: useScopedKey(["referrals-summary"]),
     queryFn: () => webApiClient.request<ReferralSummary>("admin/referrals/summary"),
   });
 };
 
 export const useReferralsSettings = () => {
   return useQuery({
-    queryKey: ["referrals-settings"],
+    queryKey: useScopedKey(["referrals-settings"]),
     queryFn: () => webApiClient.request<ReferralProgramSettings>("admin/referrals/settings"),
   });
 };
 
 export const useReferralsRelationships = () => {
   return useQuery({
-    queryKey: ["referrals-relationships"],
+    queryKey: useScopedKey(["referrals-relationships"]),
     queryFn: () => webApiClient.request<PaginatedResponse<ReferralRelationship>>("admin/referrals"),
   });
 };
 
 export const useReferralsTransactions = () => {
   return useQuery({
-    queryKey: ["referrals-transactions"],
+    queryKey: useScopedKey(["referrals-transactions"]),
     queryFn: () => webApiClient.request<PaginatedResponse<CreditTransaction>>("admin/referrals/transactions"),
   });
 };
@@ -337,7 +338,7 @@ export const useAdjustReferralsCreditsMutation = () => {
 // Coupons Manager Hooks
 export const useAdminCoupons = () => {
   return useQuery({
-    queryKey: ["admin-coupons"],
+    queryKey: useScopedKey(["admin-coupons"]),
     queryFn: () => webApiClient.request<Coupon[] | { data: Coupon[] }>("admin/coupons"),
   });
 };
@@ -399,7 +400,7 @@ export const useDeleteCouponMutation = () => {
 // Email Templates Hooks
 export const useAdminEmailTemplates = () => {
   return useQuery({
-    queryKey: ["admin-email-templates"],
+    queryKey: useScopedKey(["admin-email-templates"]),
     queryFn: () => webApiClient.request<EmailTemplatesResponse>("admin/email-templates"),
   });
 };

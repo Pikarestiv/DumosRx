@@ -209,6 +209,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     // cache the old store's data under the same query keys, and never
     // refetch again — the exact "needs a reload to reflect" bug.
     setResolvedStoreId(storeId);
+    // Cancels in-flight fetches from the outgoing store before
+    // invalidating — invalidateQueries() alone doesn't abort a request
+    // already in flight, and every query function reads the active store
+    // id from lib/db/core.ts's module-level resolver at execution time
+    // rather than from its React Query key. Without this, a request
+    // issued (and still pending) before the switch could resolve after
+    // resolvedStoreId flips and get cached as "fresh" under a store-
+    // unscoped key, momentarily showing the previous store's data.
+    queryClient.cancelQueries();
     queryClient.invalidateQueries();
 
     // Pulls this store's data down if this device has never synced it

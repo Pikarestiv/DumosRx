@@ -7,7 +7,19 @@ import { apiClient } from "@/lib/api/client";
 import { getUserByUsernameOrEmail, createDefaultAdmin, getUserPin, updateUserPin } from "@/lib/db/queries/auth";
 import { useAutoLockStore } from "@/lib/hooks/use-auto-lock";
 import { AUDIT_ACTIONS } from "@/lib/db/audit-actions";
-import { sync } from "@/lib/db/sync-engine";
+import { sync, isSyncing } from "@/lib/db/sync-engine";
+import { queryClient } from "@/lib/query-client";
+
+// Polls until any in-flight sync finishes, so a caller that just triggered
+// (or piggybacked on) a sync can safely read fresh local data afterward.
+// isSyncing() flips false the instant the in-flight sync's finally block
+// runs, so this only ever waits out the current run — never itself starts one.
+async function waitForSyncToFinish(timeoutMs = 8000, pollMs = 150) {
+  const deadline = Date.now() + timeoutMs;
+  while (isSyncing() && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, pollMs));
+  }
+}
 
 // Throttles the PIN-mismatch recovery sync below (module-scope, not per
 // component instance, since a locked screen can remount). Without this, a
@@ -140,7 +152,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           typeof window !== "undefined" && !!localStorage.getItem("auth_token");
         if (hasCloudLink && now - lastPinRecoverySyncAt > PIN_RECOVERY_SYNC_COOLDOWN_MS) {
           lastPinRecoverySyncAt = now;
-          await sync().catch(() => {});
+          const result = await sync().catch(() => null);
+          // If a background/setup sync was already in flight, our call above
+          // was a no-op — the pull we're relying on may still be running.
+          // Wait for it instead of rechecking against data it hasn't written yet.
+          if (result?.error === "Sync already in progress") {
+            await waitForSyncToFinish();
+          }
           dbUser = await getUserByUsernameOrEmail(cleanIdentifier);
         }
       }
@@ -168,6 +186,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         role: dbUser.role as User["role"],
         store_id: dbUser.store_id,
       };
+
+      // Covers the "switch user" lock-screen flow (selecting a different
+      // recent user and unlocking with their PIN), which calls login()
+      // directly without ever going through logout() first — without this,
+      // the outgoing user's cached queries (dashboard, BI, etc.) would keep
+      // rendering under the incoming user's session until they went stale.
+      // cancelQueries() first since clear() alone doesn't abort a fetch
+      // already in flight from the outgoing user.
+      queryClient.cancelQueries();
+      queryClient.clear();
 
       setUser(userProfile);
       setDbUser(userProfile);
@@ -294,6 +322,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     Sentry.setUser(null);
     localStorage.removeItem("dumos_user");
     sessionStorage.removeItem("dumos_session_authenticated");
+    // Without this, cached query results (dashboard metrics, BI, etc.) from
+    // the outgoing account stay in memory and get served to whichever
+    // account logs in next, until their staleTime/gcTime lapses.
+    // cancelQueries() first — clear() alone doesn't abort an in-flight
+    // fetch, which could otherwise resolve after the next login and
+    // repopulate a store/user-unscoped query key.
+    queryClient.cancelQueries();
+    queryClient.clear();
   };
 
   const changePin = async (currentPin: string, newPin: string) => {

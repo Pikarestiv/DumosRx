@@ -780,6 +780,7 @@ class AdminService
                 'username' => $data['username'],
                 'phone' => $data['phone'],
                 'password' => Hash::make($data['password']),
+                'pin' => $data['pin'] ?? null,
                 'role' => 'store_owner',
                 'role_id' => $roleObj ? $roleObj->id : null,
                 'registered_by_id' => $registeredById,

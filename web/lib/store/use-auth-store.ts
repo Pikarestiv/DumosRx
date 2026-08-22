@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { webApiClient } from "@/lib/api/client";
+import { queryClient } from "@/lib/query-client";
 
 interface User {
   id: string;
@@ -54,6 +55,10 @@ export const useAuthStore = create<AuthState>()(
       logout: () => {
         localStorage.removeItem("drx_token");
         set({ user: null, token: null });
+        // Without this, cached dashboard/query data from the outgoing
+        // account stays in memory and gets served to whichever account
+        // logs in next, until its staleTime lapses.
+        queryClient.clear();
       },
     }),
     {

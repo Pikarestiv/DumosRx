@@ -3,6 +3,7 @@ import { useRouter, useParams } from "next/navigation";
 import { useDashboardSummary } from "@/lib/api/hooks";
 import { useLatestRelease } from "@/lib/api/release-hooks";
 import { APP_VERSION } from "@/lib/constants";
+import { queryClient } from "@/lib/query-client";
 
 export function useDashboard() {
   const router = useRouter();
@@ -28,6 +29,10 @@ export function useDashboard() {
 
   const logout = () => {
     localStorage.removeItem("drx_token");
+    // Without this, cached dashboard/query data from the outgoing account
+    // stays in memory and gets served to whichever account logs in next,
+    // until its staleTime lapses.
+    queryClient.clear();
     router.push("/login");
   };
 

@@ -159,7 +159,10 @@ export function StaffModal({
 
     if (isEditing && staffMember) {
       updateMutation.mutate(
-        { id: staffMember.id, payload: getChangedFields(formData, staffMember) },
+        {
+          id: staffMember.id,
+          payload: getChangedFields(formData, staffMember),
+        },
         { onSuccess: onMutationSuccess, onError: onMutationError, onSettled },
       );
     } else {
@@ -173,7 +176,7 @@ export function StaffModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[550px] border-none shadow-2xl overflow-hidden p-0">
+      <DialogContent className="sm:max-w-137.5 border-none shadow-2xl overflow-hidden p-0">
         <div className="h-2 bg-primary w-full" />
         <div className="p-8">
           <DialogHeader className="mb-6">

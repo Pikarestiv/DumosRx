@@ -237,10 +237,15 @@ class AdminService
 
     public function getStores($page = 1, $search = null, $status = null, $plan = null)
     {
+        // No payment_status filter, matching every other revenue figure in
+        // the app (the platform-wide total above, and the store owner's own
+        // dashboard in DashboardService) — filtering to only 'completed'
+        // here silently dropped pending and partial-payment credit sales
+        // (a real, actively-used status; see the sales payment_status enum
+        // migration), making a store's fleet-list revenue disagree with
+        // both the platform total and what its own owner sees.
         $query = Store::with(['user.subscriptions'])
-            ->withSum(['sales as total_revenue' => function ($q) {
-                $q->where('payment_status', 'completed');
-            }], 'total_amount');
+            ->withSum('sales as total_revenue', 'total_amount');
 
         if ($search) {
             $query->where(function ($q) use ($search) {

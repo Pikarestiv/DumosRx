@@ -349,7 +349,7 @@ class AdminService
                     'name' => $product->name,
                     'category' => $product->generic_name ?: 'General',
                     'instances' => $inventory->count(),
-                    'avgPrice' => '₦'.number_format($inventory->avg('selling_price') ?: 0, 2),
+                    'avgPrice' => '₦'.number_format($product->selling_price ?: 0, 2),
                     'stockLevel' => $stockLevel,
                     'status' => $status,
                 ];

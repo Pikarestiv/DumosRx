@@ -237,15 +237,42 @@ class AdminService
 
     public function getStores($page = 1, $search = null, $status = null, $plan = null)
     {
-        // No payment_status filter, matching every other revenue figure in
-        // the app (the platform-wide total above, and the store owner's own
-        // dashboard in DashboardService) — filtering to only 'completed'
-        // here silently dropped pending and partial-payment credit sales
-        // (a real, actively-used status; see the sales payment_status enum
-        // migration), making a store's fleet-list revenue disagree with
-        // both the platform total and what its own owner sees.
+        // Correlated subquery instead of a plain withSum('sales', ...), for
+        // two reasons:
+        //
+        // 1. No payment_status filter — matching every other revenue figure
+        //    in the app (the platform-wide total above, and the store
+        //    owner's own dashboard in DashboardService). Filtering to only
+        //    'completed' here silently dropped pending and partial-payment
+        //    credit sales (a real, actively-used status; see the sales
+        //    payment_status enum migration).
+        //
+        // 2. Sales are matched by sales.store_id when present (the
+        //    sync-populated, unambiguous scoping — see Store::sales()'s
+        //    doc comment), falling back to the legacy cashier-based match
+        //    (store staff, or the store owner's own sales) only for rows
+        //    synced before the store_id column existed and still null.
+        //    Without this fallback, a store's revenue depends entirely on
+        //    whether Sale::sales() alone is used — which used to miss
+        //    every owner-rung-up sale outright.
         $query = Store::with(['user.subscriptions'])
-            ->withSum('sales as total_revenue', 'total_amount');
+            ->addSelect(['total_revenue' => DB::table('sales')
+                ->selectRaw('COALESCE(SUM(sales.total_amount), 0)')
+                ->where(function ($q) {
+                    $q->whereColumn('sales.store_id', 'stores.id')
+                        ->orWhere(function ($fallback) {
+                            $fallback->whereNull('sales.store_id')
+                                ->where(function ($cashierMatch) {
+                                    $cashierMatch->whereColumn('sales.cashier_id', 'stores.user_id')
+                                        ->orWhereIn('sales.cashier_id', function ($staffIds) {
+                                            $staffIds->select('id')
+                                                ->from('users')
+                                                ->whereColumn('users.store_id', 'stores.id');
+                                        });
+                                });
+                        });
+                }),
+            ]);
 
         if ($search) {
             $query->where(function ($q) use ($search) {

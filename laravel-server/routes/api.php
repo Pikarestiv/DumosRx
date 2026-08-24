@@ -38,6 +38,11 @@ Route::prefix('v1')->group(function () {
         Route::post('/reset-password', [AuthController::class, 'resetPassword']);
         Route::post('/verify-email', [AuthController::class, 'verifyEmail']);
         Route::post('/resend-verification', [AuthController::class, 'resendVerification']);
+    });
+    // Own (more generous) limiter — one impersonation round trip is already 6
+    // handoff calls from a single IP, which the 5/min `auth` limiter would
+    // starve. See the 'handoff' limiter in AppServiceProvider.
+    Route::middleware('throttle:handoff')->group(function () {
         Route::post('/auth/handoff', [AuthHandoffController::class, 'create']);
         Route::post('/auth/handoff/consume', [AuthHandoffController::class, 'consume']);
     });

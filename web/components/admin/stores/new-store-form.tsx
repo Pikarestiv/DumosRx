@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
+import type { z } from "zod";
 import { Loader2, AlertCircle, Building, Mail, Phone, Lock, Save, User, ShieldCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCreateStoreMutation } from "@/lib/api/admin-hooks";
@@ -21,40 +21,16 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAdminStore } from "@/lib/store/use-admin-store";
-
-const registerSchema = z
-  .object({
-    store_name: z
-      .string()
-      .min(2, { message: "Store name must be at least 2 characters" }),
-    first_name: z
-      .string()
-      .min(2, { message: "First name must be at least 2 characters" }),
-    last_name: z
-      .string()
-      .min(2, { message: "Last name must be at least 2 characters" }),
-    email: z.string().email({ message: "Invalid email address" }),
-    username: z
-      .string()
-      .min(3, { message: "Username must be at least 3 characters" }),
-    phone: z
-      .string()
-      .min(10, { message: "Phone number must be at least 10 digits" }),
-    pin: z.string().length(4, { message: "PIN must be exactly 4 digits" }),
-    password: z
-      .string()
-      .min(8, { message: "Password must be at least 8 characters" }),
-    password_confirmation: z.string(),
-    is_demo: z.boolean(),
-  })
-  .refine((data) => data.password === data.password_confirmation, {
-    message: "Passwords do not match",
-    path: ["password_confirmation"],
-  });
+import { StoreRegisteredPanel } from "./store-registered-panel";
+import { registerSchema } from "./new-store-schema";
 
 export function NewStoreForm() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
+  const [registeredStore, setRegisteredStore] = useState<{
+    storeName: string;
+    username: string;
+  } | null>(null);
   const { fetchSummary } = useAdminStore();
 
   const form = useForm<z.infer<typeof registerSchema>>({
@@ -81,12 +57,25 @@ export function NewStoreForm() {
     createStoreMutation.mutate(values, {
       onSuccess: () => {
         fetchSummary(true);
-        router.push("/admin/stores");
+        setRegisteredStore({
+          storeName: values.store_name,
+          username: values.username,
+        });
       },
       onError: (err) => {
         setError(err.message || "Registration failed. Please try again.");
       },
     });
+  }
+
+  if (registeredStore) {
+    return (
+      <StoreRegisteredPanel
+        storeName={registeredStore.storeName}
+        username={registeredStore.username}
+        onDone={() => router.push("/admin/stores")}
+      />
+    );
   }
 
   return (

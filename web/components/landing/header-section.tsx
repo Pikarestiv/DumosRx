@@ -3,13 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import {
-  Menu,
-  Zap,
-  Shield,
-  CreditCard,
-  UserPlus,
-} from "lucide-react";
+import { Menu, Zap, Shield, CreditCard, UserPlus } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -88,7 +82,7 @@ export function HeaderSection() {
             </SheetTrigger>
             <SheetContent
               side="right"
-              className="w-[300px] sm:w-[400px] border-l-border/40 bg-background/95 backdrop-blur-xl p-0"
+              className="w-75 sm:w-100 border-l-border/40 bg-background/95 backdrop-blur-xl p-0"
             >
               <div className="flex flex-col h-full">
                 <SheetHeader className="p-6 border-b border-border/40 text-left">

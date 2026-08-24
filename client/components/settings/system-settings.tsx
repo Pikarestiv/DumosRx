@@ -15,12 +15,14 @@ import { APP_NAME, APP_VERSION, SUPPORT_EMAIL, WEB_APP_URL } from "@/lib/constan
 import { isTauri } from "@/lib/db/core";
 import { IosInstallCard } from "./ios-install-card";
 import { AndroidInstallCard } from "./android-install-card";
+import { DownloadAppsCard } from "./download-apps-card";
 
 export function SystemSettings() {
   return (
     <div className="space-y-6">
       <IosInstallCard />
       <AndroidInstallCard />
+      {!isTauri() && <DownloadAppsCard />}
 
       <Card>
         <CardHeader>

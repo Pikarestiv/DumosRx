@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { isTauri } from "@/lib/db/core";
+import { isStandalonePwa } from "@/lib/utils/platform";
 
 function isIos() {
   if (typeof window === "undefined") return false;
@@ -30,14 +31,6 @@ function isIosSafari() {
   const ua = navigator.userAgent;
   const isOtherIosBrowser = /CriOS|FxiOS|EdgiOS|OPiOS|mercury/i.test(ua);
   return /Safari/.test(ua) && !isOtherIosBrowser;
-}
-
-function isStandalone() {
-  if (typeof window === "undefined") return false;
-  return (
-    window.matchMedia("(display-mode: standalone)").matches ||
-    window.navigator.standalone === true
-  );
 }
 
 const steps = [
@@ -74,7 +67,7 @@ export function IosInstallCard() {
   const [visibility, setVisibility] = useState<"hidden" | "safari" | "other-browser">("hidden");
 
   useEffect(() => {
-    if (isTauri() || !isIos() || isStandalone()) {
+    if (isTauri() || !isIos() || isStandalonePwa()) {
       setVisibility("hidden");
     } else {
       setVisibility(isIosSafari() ? "safari" : "other-browser");

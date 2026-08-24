@@ -65,6 +65,24 @@ class ApiClient extends BaseApiClient {
     return this.request<unknown>("/user");
   }
 
+  async createHandoffCode(token: string) {
+    return this.request<{ code: string; expires_in: number }>("/auth/handoff", {
+      method: "POST",
+      body: JSON.stringify({ token }),
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  }
+
+  async consumeHandoffCode(code: string) {
+    return this.request<{
+      token: string;
+      user: { id: string; email: string; name: string; role: string };
+    }>("/auth/handoff/consume", {
+      method: "POST",
+      body: JSON.stringify({ code }),
+    });
+  }
+
   // NOTE: the endpoints below (products/sales/customers/categories/suppliers/
   // stock-movements/purchase-orders/stock-adjustments/prescriptions cloud CRUD)
   // predate the offline-first SQLite architecture and have no callers left in

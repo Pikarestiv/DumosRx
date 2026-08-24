@@ -18,6 +18,17 @@ export default function AdminLayout({
     : typeof window !== "undefined"
       ? window.location.pathname.includes("/admin/login")
       : false;
+  // /admin/handoff restores a super_admin session from a handoff code
+  // (returning from store impersonation) — it has no token yet when it
+  // loads, so it must run outside this guard or the auth check below
+  // redirects to /admin/login before the handoff page's own effect can
+  // consume the code and establish the session.
+  const isHandoffPage = pathname
+    ? pathname.includes("/admin/handoff")
+    : typeof window !== "undefined"
+      ? window.location.pathname.includes("/admin/handoff")
+      : false;
+  const bypassGuard = isLoginPage || isHandoffPage;
 
   const {
     user,
@@ -32,7 +43,7 @@ export default function AdminLayout({
 
   useEffect(() => {
     const checkAuth = async () => {
-      if (isLoginPage) {
+      if (bypassGuard) {
         setChecking(false);
         return;
       }
@@ -43,18 +54,18 @@ export default function AdminLayout({
       setChecking(false);
     };
     checkAuth();
-  }, [user, fetchUser, isLoginPage]);
+  }, [user, fetchUser, bypassGuard]);
 
   useEffect(() => {
-    if (isLoginPage) return;
+    if (bypassGuard) return;
 
     if (!checking && (!user || !checkCanAccessAdmin(user.role))) {
       router.push("/admin/login");
     }
-  }, [user, checking, router, isLoginPage]);
+  }, [user, checking, router, bypassGuard]);
 
-  // If on login page, just render children without further checks
-  if (isLoginPage) {
+  // If on login or handoff page, just render children without further checks
+  if (bypassGuard) {
     return <>{children}</>;
   }
 

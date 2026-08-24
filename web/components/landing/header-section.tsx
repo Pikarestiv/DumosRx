@@ -9,7 +9,6 @@ import {
   Shield,
   CreditCard,
   UserPlus,
-  LogIn,
 } from "lucide-react";
 import {
   Sheet,
@@ -66,14 +65,11 @@ export function HeaderSection() {
           </Link>
           <div className="h-6 w-px bg-border mx-2" />
           <div className="flex items-center gap-4">
-            <Button variant="ghost" className="font-semibold" asChild>
-              <Link href={`${APP_URL}/login`}>Log in</Link>
-            </Button>
             <Button
               className="font-semibold shadow-lg shadow-primary/20"
               asChild
             >
-              <Link href="/register">Start Free Trial</Link>
+              <Link href={APP_URL}>Get Started</Link>
             </Button>
             <ServerSelector />
             <ModeToggle />
@@ -144,21 +140,9 @@ export function HeaderSection() {
                         className="w-full font-bold shadow-lg shadow-primary/20 h-12"
                         asChild
                       >
-                        <Link href="/register">
+                        <Link href={APP_URL}>
                           <UserPlus className="h-4 w-4 mr-2" />
-                          Start Free Trial
-                        </Link>
-                      </Button>
-                    </SheetClose>
-                    <SheetClose asChild>
-                      <Button
-                        variant="outline"
-                        className="w-full font-bold h-12 border-border/40 hover:bg-muted"
-                        asChild
-                      >
-                        <Link href={`${APP_URL}/login`}>
-                          <LogIn className="h-4 w-4 mr-2" />
-                          Log in
+                          Get Started
                         </Link>
                       </Button>
                     </SheetClose>

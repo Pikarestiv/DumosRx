@@ -1,6 +1,7 @@
+"use client";
+
 import Image from "next/image";
-import Link from "next/link";
-import { WEB_APP_DASHBOARD_URL, APP_URL } from "@/lib/constants";
+import { WEB_APP_DASHBOARD_URL, getAppURL } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 
 export function HeroSection() {
@@ -30,9 +31,9 @@ export function HeroSection() {
           <Button
             size="lg"
             className="h-14 px-8 text-lg font-bold shadow-xl shadow-primary/20"
-            asChild
+            onClick={() => (window.location.href = getAppURL())}
           >
-            <Link href={APP_URL}>Get Started</Link>
+            Get Started
           </Button>
         </div>
 

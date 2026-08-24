@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/sheet";
 import { ModeToggle } from "@/components/mode-toggle";
 import { ServerSelector } from "@/components/ui/server-selector";
-import { APP_URL } from "@/lib/constants";
+import { getAppURL } from "@/lib/constants";
 
 export function HeaderSection() {
   return (
@@ -67,9 +67,9 @@ export function HeaderSection() {
           <div className="flex items-center gap-4">
             <Button
               className="font-semibold shadow-lg shadow-primary/20"
-              asChild
+              onClick={() => (window.location.href = getAppURL())}
             >
-              <Link href={APP_URL}>Get Started</Link>
+              Get Started
             </Button>
             <ServerSelector />
             <ModeToggle />
@@ -138,12 +138,10 @@ export function HeaderSection() {
                     <SheetClose asChild>
                       <Button
                         className="w-full font-bold shadow-lg shadow-primary/20 h-12"
-                        asChild
+                        onClick={() => (window.location.href = getAppURL())}
                       >
-                        <Link href={APP_URL}>
-                          <UserPlus className="h-4 w-4 mr-2" />
-                          Get Started
-                        </Link>
+                        <UserPlus className="h-4 w-4 mr-2" />
+                        Get Started
                       </Button>
                     </SheetClose>
                   </div>

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { getBaseURL, setBaseURL } from "@/lib/api/base-client";
+import { APP_URL, getAppURL, setAppURL } from "@/lib/constants";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Server, Check } from "lucide-react";
 import { toast } from "sonner";
 
@@ -42,9 +44,11 @@ const ENVIRONMENTS = [
 
 export function ServerSelector() {
   const [currentUrl, setCurrentUrl] = useState<string>("");
+  const [appUrl, setAppUrlInput] = useState<string>("");
 
   useEffect(() => {
     setCurrentUrl(getBaseURL());
+    setAppUrlInput(getAppURL());
   }, []);
 
   const handleSelect = (url: string) => {
@@ -53,6 +57,13 @@ export function ServerSelector() {
     toast.success("Server environment updated");
     // Reload the page to ensure all instances/fetchers use the new URL
     window.location.reload();
+  };
+
+  const handleSaveAppUrl = () => {
+    const trimmed = appUrl.trim().replace(/\/$/, "");
+    setAppURL(trimmed);
+    setAppUrlInput(trimmed || APP_URL);
+    toast.success("App URL updated");
   };
 
   if (!currentUrl) return null;
@@ -92,6 +103,28 @@ export function ServerSelector() {
             )}
           </DropdownMenuItem>
         ))}
+        <DropdownMenuSeparator />
+        <DropdownMenuLabel className="text-xs">
+          App URL (app.dumosrx.com)
+        </DropdownMenuLabel>
+        <div
+          className="flex items-center gap-1 px-2 py-1.5"
+          onKeyDown={(e) => e.stopPropagation()}
+        >
+          <Input
+            value={appUrl}
+            onChange={(e) => setAppUrlInput(e.target.value)}
+            placeholder="http://localhost:3001"
+            className="h-7 text-xs"
+          />
+          <Button
+            size="sm"
+            className="h-7 px-2 text-xs shrink-0"
+            onClick={handleSaveAppUrl}
+          >
+            Save
+          </Button>
+        </div>
       </DropdownMenuContent>
     </DropdownMenu>
   );

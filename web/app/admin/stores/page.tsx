@@ -20,7 +20,7 @@ import { toast } from "sonner";
 import { AdminSkeleton } from "@/components/admin/admin-skeleton";
 import type { AdminStoreSummary } from "@/lib/types/admin";
 import { webApiClient } from "@/lib/api/client";
-import { APP_URL } from "@/lib/constants";
+import { getAppURL } from "@/lib/constants";
 
 export default function StoresManagement() {
   const searchParams = useSearchParams();
@@ -162,7 +162,7 @@ export default function StoresManagement() {
             description: `Logged in as ${data.user.name}. Redirecting...`,
           });
 
-          window.location.href = `${APP_URL}/auth/callback?code=${userCode}&return_code=${returnCode}`;
+          window.location.href = `${getAppURL()}/auth/callback?code=${userCode}&return_code=${returnCode}`;
         } catch (_err) {
           toast.error("Impersonation Failed", {
             description: "Could not hand off session to the app.",

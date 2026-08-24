@@ -2,11 +2,11 @@
 
 import { useEffect } from "react";
 import { Loader2 } from "lucide-react";
-import { APP_URL } from "@/lib/constants";
+import { getAppURL } from "@/lib/constants";
 
 export default function LoginPage() {
   useEffect(() => {
-    window.location.href = `${APP_URL}/login`;
+    window.location.href = `${getAppURL()}/login`;
   }, []);
 
   return (

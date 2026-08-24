@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\App\StockBatchController;
 use App\Http\Controllers\Api\App\SupplierController;
 use App\Http\Controllers\Api\App\SyncController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\AuthHandoffController;
 // Admin Controllers
 use App\Http\Controllers\Api\BroadcastController;
 use App\Http\Controllers\Api\SystemConfigController;
@@ -37,6 +38,8 @@ Route::prefix('v1')->group(function () {
         Route::post('/reset-password', [AuthController::class, 'resetPassword']);
         Route::post('/verify-email', [AuthController::class, 'verifyEmail']);
         Route::post('/resend-verification', [AuthController::class, 'resendVerification']);
+        Route::post('/auth/handoff', [AuthHandoffController::class, 'create']);
+        Route::post('/auth/handoff/consume', [AuthHandoffController::class, 'consume']);
     });
     // Documented via App\OpenApi\ClosureRoutes (swagger-php doesn't scan inline
     // closure docblocks — see that file for why).

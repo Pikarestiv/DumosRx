@@ -196,6 +196,23 @@ class WebApiClient {
     return data;
   }
 
+  async createHandoffCode(token: string) {
+    const { data } = await apiClient.post<{ code: string; expires_in: number }>(
+      "/auth/handoff",
+      { token },
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+    return data;
+  }
+
+  async consumeHandoffCode(code: string) {
+    const { data } = await apiClient.post<{
+      token: string;
+      user: Record<string, unknown>;
+    }>("/auth/handoff/consume", { code });
+    return data;
+  }
+
   // Feedback (Admin)
   async getFeedback(status?: string) {
     const url = status && status !== 'all' ? `/admin/feedback?status=${status}` : `/admin/feedback`;

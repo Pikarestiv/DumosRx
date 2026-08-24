@@ -8,7 +8,6 @@ import {
   InputOTPSlot,
 } from "@/components/ui/input-otp";
 import { User, Loader2 } from "lucide-react";
-import { APP_VERSION } from "@/lib/constants";
 import { motion } from "framer-motion";
 
 interface TraditionalLoginFormProps {

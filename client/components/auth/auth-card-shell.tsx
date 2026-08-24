@@ -3,7 +3,6 @@
 import type { ReactNode } from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
-import { Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 
@@ -19,9 +18,6 @@ interface AuthCardShellProps {
    * so the logo always shows, sized larger to read as the primary heading.
    */
   variant: "page" | "overlay";
-  /** Overlay always shows it; on the page it's caller-driven (only shown
-   * once the traditional login form or account-switch mode is active). */
-  showFooter?: boolean;
   /** Card-level padding override — the onboarding steps (register/cloud/
    * backup) manage their own inner CardHeader/CardContent/CardFooter
    * padding instead, so they pass a tighter value here rather than getting

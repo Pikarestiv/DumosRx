@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { insert, update } from "@/lib/db/local-database";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/context/auth-context";
-import { Info } from "lucide-react";
 import { DatePickerInput } from "@/components/ui/date-picker-input";
 import type { Expense } from "@/lib/db/queries/finance";
 

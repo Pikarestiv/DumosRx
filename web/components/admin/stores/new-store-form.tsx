@@ -1,0 +1,360 @@
+"use client";
+
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { Loader2, AlertCircle, Building, Mail, Phone, Lock, Save, User, ShieldCheck } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useCreateStoreMutation } from "@/lib/api/admin-hooks";
+
+import { Button } from "@/components/ui/button";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useAdminStore } from "@/lib/store/use-admin-store";
+
+const registerSchema = z
+  .object({
+    store_name: z
+      .string()
+      .min(2, { message: "Store name must be at least 2 characters" }),
+    first_name: z
+      .string()
+      .min(2, { message: "First name must be at least 2 characters" }),
+    last_name: z
+      .string()
+      .min(2, { message: "Last name must be at least 2 characters" }),
+    email: z.string().email({ message: "Invalid email address" }),
+    username: z
+      .string()
+      .min(3, { message: "Username must be at least 3 characters" }),
+    phone: z
+      .string()
+      .min(10, { message: "Phone number must be at least 10 digits" }),
+    pin: z.string().length(4, { message: "PIN must be exactly 4 digits" }),
+    password: z
+      .string()
+      .min(8, { message: "Password must be at least 8 characters" }),
+    password_confirmation: z.string(),
+    is_demo: z.boolean(),
+  })
+  .refine((data) => data.password === data.password_confirmation, {
+    message: "Passwords do not match",
+    path: ["password_confirmation"],
+  });
+
+export function NewStoreForm() {
+  const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
+  const { fetchSummary } = useAdminStore();
+
+  const form = useForm<z.infer<typeof registerSchema>>({
+    resolver: zodResolver(registerSchema),
+    defaultValues: {
+      store_name: "",
+      first_name: "",
+      last_name: "",
+      email: "",
+      username: "",
+      phone: "",
+      pin: "",
+      password: "",
+      password_confirmation: "",
+      is_demo: false,
+    },
+  });
+
+  const createStoreMutation = useCreateStoreMutation();
+  const loading = createStoreMutation.isPending;
+
+  function onSubmit(values: z.infer<typeof registerSchema>) {
+    setError(null);
+    createStoreMutation.mutate(values, {
+      onSuccess: () => {
+        fetchSummary(true);
+        router.push("/admin/stores");
+      },
+      onError: (err) => {
+        setError(err.message || "Registration failed. Please try again.");
+      },
+    });
+  }
+
+  return (
+    <div className="bg-white dark:bg-slate-900 rounded-[2rem] p-8 shadow-sm border border-slate-200 dark:border-slate-800">
+      {error && (
+        <Alert
+          variant="destructive"
+          className="mb-6 bg-rose-500/10 border-rose-500/20 text-rose-500 rounded-2xl"
+        >
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Registration Error</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <FormField
+              control={form.control}
+              name="store_name"
+              render={({ field }) => (
+                <FormItem className="md:col-span-2">
+                  <FormLabel className="text-slate-600 dark:text-slate-400 font-bold uppercase text-[10px] tracking-widest">
+                    Store / Store Name
+                  </FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                      <Building className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      <Input
+                        placeholder="Dumos Store"
+                        className="pl-11 bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-800 rounded-2xl h-12 font-bold focus-visible:ring-indigo-500"
+                        {...field}
+                      />
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="first_name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-slate-600 dark:text-slate-400 font-bold uppercase text-[10px] tracking-widest">
+                    Owner First Name
+                  </FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="John"
+                      className="bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-800 rounded-2xl h-12 font-bold focus-visible:ring-indigo-500"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="last_name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-slate-600 dark:text-slate-400 font-bold uppercase text-[10px] tracking-widest">
+                    Owner Last Name
+                  </FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="Doe"
+                      className="bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-800 rounded-2xl h-12 font-bold focus-visible:ring-indigo-500"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-slate-600 dark:text-slate-400 font-bold uppercase text-[10px] tracking-widest">
+                    Email Address
+                  </FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      <Input
+                        placeholder="owner@store.com"
+                        type="email"
+                        className="pl-11 bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-800 rounded-2xl h-12 font-bold focus-visible:ring-indigo-500"
+                        {...field}
+                      />
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="username"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-slate-600 dark:text-slate-400 font-bold uppercase text-[10px] tracking-widest">
+                    Login Username
+                  </FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                      <User className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      <Input
+                        placeholder="store_owner"
+                        className="pl-11 bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-800 rounded-2xl h-12 font-bold focus-visible:ring-indigo-500"
+                        required
+                        {...field}
+                      />
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="phone"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-slate-600 dark:text-slate-400 font-bold uppercase text-[10px] tracking-widest">
+                    Phone Number
+                  </FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                      <Phone className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      <Input
+                        placeholder="08012345678"
+                        type="tel"
+                        className="pl-11 bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-800 rounded-2xl h-12 font-bold focus-visible:ring-indigo-500"
+                        {...field}
+                      />
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="pin"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-slate-600 dark:text-slate-400 font-bold uppercase text-[10px] tracking-widest">
+                    Terminal PIN (4 Digits)
+                  </FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                      <ShieldCheck className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      <Input
+                        placeholder="1234"
+                        maxLength={4}
+                        className="pl-11 bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-800 rounded-2xl h-12 font-bold font-mono tracking-widest focus-visible:ring-indigo-500"
+                        {...field}
+                        onChange={(e) =>
+                          field.onChange(e.target.value.replace(/\D/g, ""))
+                        }
+                      />
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="password"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-slate-600 dark:text-slate-400 font-bold uppercase text-[10px] tracking-widest">
+                    Default Password
+                  </FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      <Input
+                        type="password"
+                        placeholder="******"
+                        className="pl-11 bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-800 rounded-2xl h-12 font-bold focus-visible:ring-indigo-500"
+                        {...field}
+                      />
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="password_confirmation"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-slate-600 dark:text-slate-400 font-bold uppercase text-[10px] tracking-widest">
+                    Confirm Password
+                  </FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      <Input
+                        type="password"
+                        placeholder="******"
+                        className="pl-11 bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-800 rounded-2xl h-12 font-bold focus-visible:ring-indigo-500"
+                        {...field}
+                      />
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+
+          <FormField
+            control={form.control}
+            name="is_demo"
+            render={({ field }) => (
+              <FormItem className="flex items-center justify-between rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 p-4">
+                <div>
+                  <FormLabel className="text-slate-900 dark:text-white font-bold">
+                    Demo account
+                  </FormLabel>
+                  <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">
+                    Flags this store as a demo account so it can be seeded with demo data from the client app.
+                  </p>
+                </div>
+                <FormControl>
+                  <Switch
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+
+          <div className="flex justify-end pt-4">
+            <Button
+              type="submit"
+              className="bg-indigo-600 hover:bg-indigo-700 h-14 px-8 rounded-2xl text-lg font-black shadow-lg shadow-indigo-600/20 active:scale-95 transition-all"
+              disabled={loading}
+            >
+              {loading ? (
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+              ) : (
+                <Save className="mr-2 h-5 w-5" />
+              )}
+              Complete Registration
+            </Button>
+          </div>
+        </form>
+      </Form>
+    </div>
+  );
+}

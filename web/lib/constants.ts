@@ -4,6 +4,7 @@ export const GITHUB_REPO = "Pikarestiv/DumosRx";
 
 export const WEB_APP_URL = process.env.NEXT_PUBLIC_WEB_APP_URL || "https://dumosrx.com";
 export const WEB_APP_DASHBOARD_URL = process.env.NEXT_PUBLIC_WEB_APP_DASHBOARD_URL || "https://app.dumosrx.com/dashboard";
+export const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://app.dumosrx.com";
 export const STOREFRONT_BASE_URL = process.env.NEXT_PUBLIC_STOREFRONT_BASE_URL || "dumosrx.com/store";
 export const SYSTEM_EMAIL = "system-logs@dumosrx.com";
 export const SUPPORT_EMAIL = "support@dumosrx.com";

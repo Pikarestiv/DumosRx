@@ -9,6 +9,7 @@ import { useAuth, type RecentUser } from "@/lib/context/auth-context";
 import { FeedbackForm } from "@/components/feedback/feedback-form";
 import { OnlineOrdersModal } from "@/components/pos/online-orders-modal";
 import { BroadcastBanner } from "./broadcast-banner";
+import { ImpersonationBanner } from "./impersonation-banner";
 import { DashboardHeader } from "./dashboard-header";
 import { DashboardSidebar } from "./dashboard-sidebar";
 import { MobileBottomNav } from "./mobile-bottom-nav";
@@ -289,6 +290,7 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
             paddingTop: !isPosRoute ? "var(--tauri-top, 0px)" : undefined,
           }}
         >
+          <ImpersonationBanner />
           <BroadcastBanner />
           {!isPosRoute && (
             <DashboardHeader onOpenFeedback={() => setFeedbackOpen(true)} />

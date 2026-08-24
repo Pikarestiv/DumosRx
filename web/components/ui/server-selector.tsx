@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Server, Check } from "lucide-react";
 import { toast } from "sonner";
 
-const ENVIRONMENTS = [
+export const ENVIRONMENTS = [
   {
     name: "Production Server",
     url:
@@ -41,6 +41,10 @@ const ENVIRONMENTS = [
       "http://localhost:8000/api/v1",
   },
 ];
+
+export const getCurrentEnvironmentName = (baseURL: string) => {
+  return ENVIRONMENTS.find((env) => env.url === baseURL)?.name || "Custom Server";
+};
 
 export function ServerSelector() {
   const [currentUrl, setCurrentUrl] = useState<string>("");

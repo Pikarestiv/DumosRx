@@ -1,10 +1,13 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { Menu, Zap, Globe, Loader2, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAdminStore } from "@/lib/store/use-admin-store";
 import { useAdminSummary } from "@/lib/api/admin-hooks";
+import { getBaseURL } from "@/lib/api/base-client";
+import { getCurrentEnvironmentName } from "@/components/ui/server-selector";
 import { ModeToggle } from "@/components/mode-toggle";
 import { AdminHeaderSearch } from "./admin-header-search";
 import { AdminHeaderNotifications } from "./admin-header-notifications";
@@ -21,7 +24,6 @@ import {
 import { sidebarItems } from "./admin-sidebar";
 import { cn } from "@/lib/utils";
 import { useAdminAuthStore } from "@/lib/store/use-admin-auth-store";
-import { useState } from "react";
 
 export function AdminHeader() {
   const { latency } = useAdminStore();
@@ -29,6 +31,21 @@ export function AdminHeader() {
   const pathname = usePathname();
   const { logout } = useAdminAuthStore();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const deployedEnv = process.env.NEXT_PUBLIC_APP_ENV;
+  const [environmentName, setEnvironmentName] = useState(
+    deployedEnv === "development" ? "Staging / Dev" : "Production",
+  );
+
+  useEffect(() => {
+    // Deployed builds (dumosrx.com / dev.dumosrx.com) bake NEXT_PUBLIC_APP_ENV
+    // in at build time, so trust it there. Locally that var isn't set, so fall
+    // back to inspecting whichever API server the Server Config selector points at.
+    if (!deployedEnv) {
+      setEnvironmentName(getCurrentEnvironmentName(getBaseURL()).replace(" Server", ""));
+    }
+  }, [deployedEnv]);
+
+  const isProduction = environmentName === "Production";
 
   return (
     <header className="h-20 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-4 lg:px-8 z-10 shadow-sm">
@@ -63,10 +80,15 @@ export function AdminHeader() {
           )}
           <Badge
             variant="outline"
-            className="bg-indigo-500/10 text-indigo-500 border-indigo-500/20 gap-1 font-bold"
+            className={cn(
+              "gap-1 font-bold",
+              isProduction
+                ? "bg-indigo-500/10 text-indigo-500 border-indigo-500/20"
+                : "bg-amber-500/10 text-amber-500 border-amber-500/20",
+            )}
           >
             <Globe className="h-3 w-3" />
-            Production
+            {environmentName}
           </Badge>
         </div>
       </div>
@@ -83,7 +105,7 @@ export function AdminHeader() {
           </SheetTrigger>
           <SheetContent
             side="left"
-            className="w-[280px] sm:w-[300px] p-0 bg-slate-50 dark:bg-slate-950 border-r-slate-200 dark:border-r-slate-800 flex flex-col h-full"
+            className="w-70 sm:w-75 p-0 bg-slate-50 dark:bg-slate-950 border-r-slate-200 dark:border-r-slate-800 flex flex-col h-full"
           >
             <SheetHeader className="p-6 border-b border-slate-200 dark:border-slate-800 text-left">
               <SheetTitle className="flex items-center gap-3">

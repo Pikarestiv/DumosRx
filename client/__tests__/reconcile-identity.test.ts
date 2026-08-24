@@ -86,7 +86,7 @@ describe("reconcile-identity.ts", () => {
       newUserId: NEW_USER,
     });
 
-    // The user row is renamed in place, not soft-deleted — deleting it
+    // The user row is renamed in place, not soft-deleted: deleting it
     // outright would remove the device's only local login credential.
     const renamedUser = db.exec(`SELECT username, _deleted FROM users WHERE id = '${NEW_USER}'`);
     expect(renamedUser[0].values[0][0]).toBe("olduser");

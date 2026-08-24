@@ -14,7 +14,7 @@ class NotificationController extends Controller
     #[OA\Get(
         path: '/alerts',
         summary: 'Get merged in-app notifications + recent relevant activity for the caller',
-        description: 'For `super_admin`, activity entries are global security alerts (login failures, unauthorized access, deletions) across all users. For everyone else, it\'s their own non-technical activity log. Never errors to the client — failures degrade to an empty array.',
+        description: 'For `super_admin`, activity entries are global security alerts (login failures, unauthorized access, deletions) across all users. For everyone else, it\'s their own non-technical activity log. Never errors to the client; failures degrade to an empty array.',
         tags: ['Notifications'],
         security: [['sanctum' => []]],
         responses: [

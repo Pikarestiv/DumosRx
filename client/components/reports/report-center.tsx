@@ -220,7 +220,7 @@ export function ReportCenter() {
           </div>
         </Card>
 
-        {/* Recent Downloads — min-h-0 stops this card's own content from
+        {/* Recent Downloads: min-h-0 stops this card's own content from
             growing the shared grid row taller than Report Center's natural
             height; the list scrolls internally instead once it overflows
             whatever height that row ends up being. */}

@@ -23,7 +23,7 @@ vi.mock("@tauri-apps/api/path", () => ({
 /**
  * These tests exercise the real orchestration logic in
  * backupDatabaseToFile()/restoreDatabaseFromFile() (lib/db/core.ts) against
- * a fake `db` connection and mocked Tauri plugins — they can't prove the
+ * a fake `db` connection and mocked Tauri plugins. They can't prove the
  * native dialogs or VACUUM INTO actually work inside a real Tauri runtime
  * (that needs a live desktop/mobile build), but they do prove the JS-side
  * control flow is correct: the right calls happen in the right order with
@@ -109,7 +109,7 @@ describe("Tauri backup/restore orchestration", () => {
         "/fake/appdata/dumosrx.db",
       );
 
-      // The close() call must happen before the copy, not after — copying
+      // The close() call must happen before the copy, not after: copying
       // over a file that's still open/locked by the old connection is
       // exactly the kind of bug that would only surface on a real desktop
       // run, not in a mock that doesn't enforce ordering by default.

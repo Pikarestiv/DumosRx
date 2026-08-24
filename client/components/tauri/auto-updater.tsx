@@ -11,7 +11,7 @@ import type { Update, DownloadEvent } from "@tauri-apps/plugin-updater";
 
 type UpdateStatus = "idle" | "checking" | "available" | "downloading" | "downloading-silent" | "ready-to-restart" | "error" | "up-to-date" | "mobile-available";
 
-/** Mobile update-check response shape from UPDATER_JSON_URL — not a real
+/** Mobile update-check response shape from UPDATER_JSON_URL, not a real
  * Tauri `Update`, just enough to prompt the user to update from the store. */
 interface MobileUpdateInfo {
   version: string;

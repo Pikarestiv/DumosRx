@@ -3,7 +3,7 @@ import { apiClient } from "@/lib/api/client";
 import { queryKeys } from "@/lib/query-keys";
 
 /**
- * Shared by BroadcastBanner and NotificationBell — both need the same
+ * Shared by BroadcastBanner and NotificationBell: both need the same
  * broadcasts list (banner shows danger/warning as a top banner, the
  * notification dropdown shows everything else), so this is one query instead
  * of each component independently fetching + polling on its own interval.

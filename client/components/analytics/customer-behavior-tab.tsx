@@ -77,7 +77,7 @@ export function CustomerBehaviorTab({
           </div>
         ) : (
           <div className="w-full overflow-x-auto border rounded-xl">
-            {/* Div-based table — ARIA roles stand in for real <table> semantics */}
+            {/* Div-based table; ARIA roles stand in for real <table> semantics */}
             <div role="table" aria-label="Customer purchase patterns" className="w-full text-[13px] text-left">
               <div role="rowgroup">
                 <div role="row" className="grid grid-cols-4 bg-primary/5 border-b text-primary font-semibold text-[11.5px] uppercase">

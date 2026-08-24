@@ -1,4 +1,4 @@
-/** snake_case payload built by AddSupplierDialog's submit handler — the
+/** snake_case payload built by AddSupplierDialog's submit handler: the
  * shape createSupplier()/updateSupplier() insert into the `suppliers` table. */
 export interface SupplierPayload {
   [key: string]: unknown;
@@ -14,7 +14,7 @@ export interface SupplierPayload {
 }
 
 /** Display/view-model shape used by the supplier directory (stock-batch
- * management) — camelCase, with derived order-history fields joined in. */
+ * management), camelCase, with derived order-history fields joined in. */
 export interface SupplierViewModel {
   id: string;
   name: string;
@@ -33,7 +33,7 @@ export interface SupplierViewModel {
   taxId?: string;
 }
 
-/** Row shape returned by getSuppliers() — the raw `suppliers` table joined
+/** Row shape returned by getSuppliers(): the raw `suppliers` table joined
  * with each supplier's total outstanding debt across unpaid purchase orders,
  * plus its overall order count/value across all (non-deleted) purchase orders. */
 export interface SupplierDbRow {

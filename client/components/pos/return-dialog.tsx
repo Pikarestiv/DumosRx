@@ -106,7 +106,7 @@ export function ReturnDialog({
     0,
   );
   // Refund proportionally includes the tax and discount the customer actually
-  // paid on these items, not just their raw unit price — otherwise a full
+  // paid on these items, not just their raw unit price, otherwise a full
   // return of a sale refunds less than the customer paid (the tax/discount
   // share is left behind as phantom "revenue" everywhere downstream: the
   // dashboard, POS today's-sales tile, and BI reports all derive their
@@ -174,8 +174,8 @@ export function ReturnDialog({
           payment_status: allItemsReturned ? "refunded" : "partially_refunded",
         });
 
-        // A full return of a prescription-linked sale undoes the dispense —
-        // send it back to "ready" so it re-enters the dispense queue instead
+        // A full return of a prescription-linked sale undoes the dispense.
+        // Send it back to "ready" so it re-enters the dispense queue instead
         // of staying "completed" with no sale to show for it. Partial returns
         // (e.g. one med out of several) leave the prescription's status alone.
         if (sale.prescription_id && allItemsReturned) {
@@ -183,7 +183,7 @@ export function ReturnDialog({
         }
 
         // If any part of this sale was paid on credit, returning goods must also
-        // reduce what the customer owes — otherwise they're still on the hook
+        // reduce what the customer owes, otherwise they're still on the hook
         // for items they gave back. Prorate by the credit share of the original
         // sale for mixed-payment sales; a plain "credit" sale is 100% credit.
         if (sale.customer_id) {
@@ -203,7 +203,7 @@ export function ReturnDialog({
               creditFraction =
                 sale.total_amount > 0 ? creditAmount / sale.total_amount : 0;
             } catch {
-              // payment_details wasn't valid JSON — no credit portion to reduce
+              // payment_details wasn't valid JSON, no credit portion to reduce
             }
           }
 

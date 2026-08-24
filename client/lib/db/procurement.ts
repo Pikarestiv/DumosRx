@@ -37,11 +37,11 @@ export interface PurchaseOrderItem {
   product_name: string;
   base_unit: string;
   bulk_unit: string;
-  /** Live conversion factor from the product record — always used for receiving math, since units_per_bulk above is a point-in-time snapshot that can go stale if the product's packaging is edited later. */
+  /** Live conversion factor from the product record; always used for receiving math, since units_per_bulk above is a point-in-time snapshot that can go stale if the product's packaging is edited later. */
   product_units_per_bulk: number;
 }
 
-/** Per-line-item receiving overrides submitted from the "Receive Order" form —
+/** Per-line-item receiving overrides submitted from the "Receive Order" form:
  * only po_item_id is required, the rest default to the ordered quantity/PO id. */
 export interface ReceivedItem {
   po_item_id: string;
@@ -51,13 +51,13 @@ export interface ReceivedItem {
   /** Overrides the PO line's unit cost for this receipt, if the actual
    * invoiced cost differs from what was ordered. */
   cost_price?: number | string;
-  /** When set, updates the product's global selling price — lets a price
+  /** When set, updates the product's global selling price; lets a price
    * change discovered while receiving stock be applied immediately instead
    * of requiring a separate trip to the product's edit screen. */
   selling_price?: number | string;
 }
 
-/** A line item as it exists in the create/edit PO form before submission —
+/** A line item as it exists in the create/edit PO form before submission:
  * not yet persisted, so it has no `id`/`po_id` (those are assigned by
  * createPurchaseOrder()/updatePurchaseOrder()). */
 export interface DraftPOLineItem {
@@ -78,7 +78,7 @@ export interface PODetailItem {
   total_price: number;
 }
 
-/** Line items for the purchase order detail view — aliased to the display
+/** Line items for the purchase order detail view: aliased to the display
  * field names the dialog renders directly. */
 export async function getPurchaseOrderItemsForDetail(poId: string) {
   return query<PODetailItem>(
@@ -96,7 +96,7 @@ export async function getPurchaseOrderItemsForDetail(poId: string) {
 }
 
 /**
- * Loads every purchase order, not a page of them — the caller runs search/filter
+ * Loads every purchase order, not a page of them: the caller runs search/filter
  * over the result, and this data set is small enough (dozens to low hundreds per
  * store) that in-memory filtering stays correct without needing SQL-level WHERE
  * clauses, matching the pattern used by getCustomers()/getDebtors() etc.
@@ -280,7 +280,7 @@ export async function receivePurchaseOrder(id: string, receivedItems?: ReceivedI
       // Default to the original ordered bulk quantity if not provided in payload
       const bulkQty = receivedItem?.quantity !== undefined ? Number(receivedItem.quantity) : Number(item.bulk_quantity);
       // Always use the product's current conversion factor, not the snapshot stored on the
-      // PO line item — the product's packaging may have been corrected since the order was placed.
+      // PO line item: the product's packaging may have been corrected since the order was placed.
       const unitsPerBulk = Number(item.product_units_per_bulk) || Number(item.units_per_bulk) || 1;
       const totalBaseUnits = bulkQty * unitsPerBulk;
 
@@ -316,7 +316,7 @@ export async function receivePurchaseOrder(id: string, receivedItems?: ReceivedI
         quantity: totalBaseUnits,
         unit_cost: baseUnitCost,
         // Recalculated from what was actually received, not item.subtotal (the full
-        // ordered-line total) — those diverge whenever this is a partial receipt.
+        // ordered-line total): those diverge whenever this is a partial receipt.
         total_cost: baseUnitCost * totalBaseUnits,
         reference_id: poData.id,
         reference_type: "purchase_order",
@@ -342,7 +342,7 @@ export async function receivePurchaseOrder(id: string, receivedItems?: ReceivedI
 }
 
 /**
- * Loads every supplier, not a page of them — the caller runs search/filter over
+ * Loads every supplier, not a page of them: the caller runs search/filter over
  * the result, and suppliers stay small by nature (tens, rarely hundreds), so
  * in-memory filtering stays correct without needing SQL-level WHERE clauses,
  * matching the pattern used by getCustomers()/getPurchaseOrders() etc.

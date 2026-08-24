@@ -96,7 +96,7 @@ export async function getLoyaltyRedemptionOptions() {
 
 /**
  * Seeds the app's default tiers/redemption options as real, editable rows the
- * first time settings are opened on a store that has never customized them —
+ * first time settings are opened on a store that has never customized them;
  * keeps existing stores' behavior unchanged until they actually edit something.
  */
 export async function ensureLoyaltyDefaultsSeeded(userId?: string) {

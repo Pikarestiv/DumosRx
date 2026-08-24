@@ -19,7 +19,7 @@ export function ScrollFade({ children, className, containerClassName }: ScrollFa
   const scrollRef = useRef<HTMLDivElement>(null);
   // Content grows asynchronously (data loads after mount) without the
   // scroll container's own box size changing, so we watch the unclipped
-  // content wrapper instead — that's what actually reflects scrollHeight.
+  // content wrapper instead: that's what actually reflects scrollHeight.
   const contentRef = useRef<HTMLDivElement>(null);
   const [showTop, setShowTop] = useState(false);
   const [showBottom, setShowBottom] = useState(false);

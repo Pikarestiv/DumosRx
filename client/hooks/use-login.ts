@@ -4,8 +4,8 @@ import { toast } from "sonner";
 import { useAuth } from "@/lib/context/auth-context";
 
 // Device/account status (userCount, recentUsers, isChecking) now lives in
-// useDeviceAuthStatus, shared with the setup tab on the merged /login page —
-// this hook only owns the login form itself.
+// useDeviceAuthStatus, shared with the setup tab on the merged /login page.
+// This hook only owns the login form itself.
 export function useLogin() {
   const [username, setUsername] = useState("");
   const [pin, setPin] = useState("");
@@ -24,7 +24,7 @@ export function useLogin() {
       const success = await login(cleanUsername, pin);
       if (success) {
         toast.success("Welcome back!");
-        // Left `isLoading` true — router.push() doesn't await the route
+        // Left `isLoading` true: router.push() doesn't await the route
         // transition, so resetting it here would flip the form back to its
         // idle state for one frame while /dashboard is still loading.
         router.push("/dashboard");

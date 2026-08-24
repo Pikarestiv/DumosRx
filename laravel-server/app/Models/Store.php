@@ -80,12 +80,12 @@ class Store extends Model
     }
 
     /** Scoped by sales.store_id (populated by the client's sync engine on
-     * every push, and by SyncController::pull's own scoping — see its
+     * every push, and by SyncController::pull's own scoping; see its
      * 'sales' => $query->whereIn('store_id', $storeIds) case), NOT by
      * reconstructing store membership through cashier_id/users.store_id.
      * That reconstruction misses a store owner's own sales entirely,
      * since an owner's own User row never gets store_id set to their own
-     * store (only hired staff do — see StaffController::store) — a store
+     * store (only hired staff do; see StaffController::store). A store
      * owner ringing up their own sales showed zero revenue through the
      * old version of this relation.
      *

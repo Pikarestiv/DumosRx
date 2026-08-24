@@ -57,9 +57,9 @@ export function AdminLoginForm() {
       setToken(response.token);
       setUser(response.user);
       // Overview (/admin) is super_admin-only (admin/summary requires it
-      // server-side) — platform_admin/agent would land on a 403 immediately.
+      // server-side): platform_admin/agent would land on a 403 immediately.
       router.push(checkIsSuperAdmin(response.user.role) ? "/admin" : "/admin/referrals");
-      // Left `loading` true on success — see LoginForm for why.
+      // Left `loading` true on success: see LoginForm for why.
     } catch (err) {
       setError(err instanceof Error ? err.message : "Invalid administrative credentials.");
       setLoading(false);

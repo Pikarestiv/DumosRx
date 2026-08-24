@@ -43,7 +43,7 @@ interface ReceivePOPanelProps {
   onConfirm: (poId: string, receivedItems: ReceivedItemPayload[]) => void;
 }
 
-/** One-item-at-a-time cards — used on phones, where the ledger table's
+/** One-item-at-a-time cards, used on phones, where the ledger table's
  * columns would be too cramped to use even with horizontal scroll. */
 const ReceiveItemCard = React.memo(
   ({
@@ -142,7 +142,7 @@ const ReceiveItemCard = React.memo(
 );
 ReceiveItemCard.displayName = "ReceiveItemCard";
 
-/** Embedded, full-height replacement for the old Receive Goods modal — it
+/** Embedded, full-height replacement for the old Receive Goods modal. It
  * takes over the same side panel used for PO details so the ledger table
  * gets the panel's full width/height instead of being cramped inside a
  * centered dialog. */
@@ -151,7 +151,7 @@ export function ReceivePOPanel({ po, onBack, onConfirm }: ReceivePOPanelProps) {
     Record<string, ReceivedItemPayload>
   >({});
   const [showWarningModal, setShowWarningModal] = useState(false);
-  // Ledger needs room for a dense multi-column table — tablet and up have
+  // Ledger needs room for a dense multi-column table. Tablet and up have
   // it, phones get the one-item-at-a-time card flow instead.
   const isTabletUp = useMediaQuery("(min-width: 640px)");
   const mode = isTabletUp ? "ledger" : "standard";
@@ -171,7 +171,7 @@ export function ReceivePOPanel({ po, onBack, onConfirm }: ReceivePOPanelProps) {
       };
     });
     setReceivedItems(initial);
-    // po object identity changes on every refetch — key off the id instead
+    // po object identity changes on every refetch; key off the id instead
     // so we don't wipe in-progress edits while the underlying query revalidates.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [po?.id]);

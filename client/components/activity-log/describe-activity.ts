@@ -1,6 +1,6 @@
 import { formatActionLabel } from "./format-action-label";
 
-/** Human-readable noun for each syncable table — used to turn "table_name"
+/** Human-readable noun for each syncable table. Turns "table_name"
  * into something a non-technical reader recognizes instead of a raw SQL
  * table identifier. */
 const TABLE_NOUNS: Record<string, string> = {
@@ -57,7 +57,7 @@ const STANDALONE_ACTIONS: Record<string, string> = {
 };
 
 // Short, friendly verb for the generic CRUD ops (see base-helpers.ts) and
-// the remaining named actions — used both standalone (filter labels) and as
+// the remaining named actions. Used both standalone (filter labels) and as
 // the first word of the full per-row sentence.
 const ACTION_VERBS: Record<string, string> = {
   INSERT: "Created",
@@ -67,14 +67,14 @@ const ACTION_VERBS: Record<string, string> = {
   STOCK_ADJUSTMENT: "Adjusted",
 };
 
-/** Short verb label for an action — used for the Action filter pill. */
+/** Short verb label for an action, used for the Action filter pill. */
 export function describeActionVerb(action: string): string {
   const key = (action || "").toUpperCase();
   return STANDALONE_ACTIONS[key] || ACTION_VERBS[key] || formatActionLabel(action);
 }
 
 /** Full human sentence for an activity_log row, e.g. "Added a category",
- * "Removed a purchase order", "Signed in" — this is what a non-technical
+ * "Removed a purchase order", "Signed in". This is what a non-technical
  * reader sees instead of raw "INSERT" / "purchase_orders". */
 export function describeActivity(row: {
   action: string;

@@ -12,7 +12,7 @@ interface UsePullToRefreshOptions {
 }
 
 /**
- * Gated to pointerType === "touch" — this is the mobile-only signal we want
+ * Gated to pointerType === "touch": this is the mobile-only signal we want
  * (unlike viewport-width checks, it also correctly fires under Chrome's
  * mobile device emulation and ignores mouse/trackpad drags on desktop).
  */

@@ -8,7 +8,7 @@ vi.mock("idb-keyval", () => ({
 
 /**
  * Exercises logRequestedProduct()/getRequestedProducts() against a genuine
- * in-memory SQLite engine (sql.js), not a mocked query() — the dedup/merge
+ * in-memory SQLite engine (sql.js), not a mocked query(). The dedup/merge
  * logic in logRequestedProduct (case-insensitive name match, incrementing
  * request_count, merging customer names and notes without duplicating them)
  * is exactly the kind of business logic a mock can't verify.
@@ -68,7 +68,7 @@ describe("requested-products-queries.ts", () => {
   it("appends new customer names to the existing list without duplicating a name already present", async () => {
     await logRequestedProduct("Loratadine", "Jane");
     await logRequestedProduct("Loratadine", "Bob");
-    await logRequestedProduct("Loratadine", "Jane"); // repeat customer — should not duplicate
+    await logRequestedProduct("Loratadine", "Jane"); // repeat customer, should not duplicate
 
     const rows = await getRequestedProducts("all");
     expect(rows[0].requested_by_customer).toBe("Jane, Bob");
@@ -83,7 +83,7 @@ describe("requested-products-queries.ts", () => {
     expect(rows[0].notes).toBe("Out of stock everywhere | Prefers the syrup form");
   });
 
-  it("does NOT merge into a request that's already been marked ordered — opens a fresh pending one instead", async () => {
+  it("does NOT merge into a request that's already been marked ordered; opens a fresh pending one instead", async () => {
     const firstId = await logRequestedProduct("Amoxicillin", "Jane", 1);
     await markRequestedProductAsOrdered(firstId);
 

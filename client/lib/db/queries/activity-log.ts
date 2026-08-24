@@ -17,10 +17,10 @@ export interface ActivityLogResult {
 }
 
 /** The general-purpose, paginated version of what getProductHistory() does
- * for a single product — every audit_logs row, across every table, with
+ * for a single product: every audit_logs row, across every table, with
  * optional date/action/user filters. Distinct from the dashboard's small
  * "Recent Activity" widget (which reads from sales/stock_movements/etc.
- * directly, not audit_logs) — this is the full trail. */
+ * directly, not audit_logs); this is the full trail. */
 export async function getActivityLog(
   filters: ActivityLogFilters = {},
 ): Promise<ActivityLogResult> {

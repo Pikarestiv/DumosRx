@@ -59,7 +59,7 @@ export function StockMovements() {
   // Default view is bounded to recent activity since this log grows every sale/receive/adjustment.
   // Respects whatever window is currently active (30-day, custom range, or full history), so a
   // manual/pull refresh doesn't quietly revert someone back out of it. An explicit date range
-  // takes precedence over full-history mode — it's a bounded window the user picked on purpose.
+  // takes precedence over full-history mode: it's a bounded window the user picked on purpose.
   const fetchMovements = async () => {
     setLoading(true);
     try {
@@ -86,7 +86,7 @@ export function StockMovements() {
   usePullToRefreshHandler(fetchMovements);
 
   // Searching or filtering must match the entire log, not just the recent-activity window
-  // that's loaded by default — so upgrade to full history the first time either is used.
+  // that's loaded by default, so upgrade to full history the first time either is used.
   // Skipped while a custom date range is active: that's a bounded window the user picked on
   // purpose, so search/filter should stay scoped within it rather than silently discarding it.
   useEffect(() => {
@@ -148,7 +148,7 @@ export function StockMovements() {
 
   // Only the very first load shows the full-page skeleton. Later refetches
   // (date-range picks, pull-to-refresh, search-driven full-history upgrade)
-  // must NOT swap out the whole component tree — that would unmount the
+  // must NOT swap out the whole component tree: that would unmount the
   // DateRangePicker's open Popover mid-selection, closing it before the
   // user can click a second date to complete the range.
   if (loading && initialLoad) {
@@ -215,7 +215,7 @@ export function StockMovements() {
             />
             <div className="flex items-center gap-1.5 text-[11.5px] text-muted-foreground/70 whitespace-nowrap shrink-0">
               <Lock className="w-3.5 h-3.5" />
-              Immutable log — entries can&apos;t be edited
+              Immutable log, entries can&apos;t be edited
             </div>
           </div>
           {dateRange.from && (

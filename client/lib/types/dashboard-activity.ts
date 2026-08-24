@@ -1,4 +1,4 @@
-/** A recent-activity feed row — the shared shape after tagging heterogeneous
+/** A recent-activity feed row: the shared shape after tagging heterogeneous
  * rows (sales, stock movements, purchase orders, expenses, prescriptions)
  * with `activity_type` and merging them into one sorted feed. Every field
  * beyond `id`/`activity_type` only applies to some activity types. */
@@ -29,7 +29,7 @@ export interface DashboardActivity {
   // product
   name?: string;
   selling_price?: number;
-  // Actor display name joined in per activity type — differs by source table.
+  // Actor display name joined in per activity type; differs by source table.
   cashier_name?: string;
   performed_by_name?: string;
   ordered_by_name?: string;

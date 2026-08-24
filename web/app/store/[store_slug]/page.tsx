@@ -21,7 +21,7 @@ async function getStorefrontData(store_slug: string) {
   });
 
   // A misbehaving/misconfigured API (wrong URL, an outage, a proxy's error
-  // page) can return an HTML error page with a 200/OK status — res.json()
+  // page) can return an HTML error page with a 200/OK status. res.json()
   // would throw on that, and at build time that throw takes down the
   // entire production build, not just this one page.
   if (!res.ok || !res.headers.get("content-type")?.includes("application/json")) {

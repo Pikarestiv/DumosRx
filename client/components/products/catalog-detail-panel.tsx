@@ -162,7 +162,7 @@ export function CatalogDetailPanel({
       </div>
 
       <Tabs defaultValue="details" className="flex flex-col flex-1 min-h-0">
-        {/* Fixed tab header — stays in place while tab content scrolls */}
+        {/* Fixed tab header, stays in place while tab content scrolls */}
         <div className="shrink-0 bg-primary/5 border-b border-border px-4 py-3">
           <ProductDetailTabNav />
         </div>

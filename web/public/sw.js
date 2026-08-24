@@ -8,7 +8,7 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (_event) => {
-  // Let the browser handle fetches normally — this dashboard is API-driven,
+  // Let the browser handle fetches normally: this dashboard is API-driven,
   // so we don't cache anything here. We just need a registered fetch handler
   // to qualify as an installable PWA.
 });

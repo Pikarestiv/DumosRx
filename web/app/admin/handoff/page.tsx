@@ -33,7 +33,7 @@ function HandoffHandler() {
     })();
     // Intentionally run once on mount only. Next.js patches window.history
     // to keep its router state in sync, so the replaceState() call above
-    // produces a new `searchParams` object on the next render — if that's a
+    // produces a new `searchParams` object on the next render. If that's a
     // dependency here, the effect re-fires with the now-stripped (empty)
     // code and can loop / clobber the real result before it lands.
   }, []);

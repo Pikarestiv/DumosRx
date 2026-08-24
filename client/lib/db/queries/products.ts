@@ -127,7 +127,7 @@ export interface ProductCreator {
 }
 
 /** Earliest audit_logs entry for this product, for the Details tab's
- * "Created by / Date created" line — the fuller trail lives in the
+ * "Created by / Date created" line; the fuller trail lives in the
  * History tab via getProductHistory() below. */
 export async function getProductCreator(
   productId: string,

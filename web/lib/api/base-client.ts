@@ -172,7 +172,7 @@ apiClient.interceptors.response.use(
 
     // Rewrite the message actually surfaced to UI code (login form, toasts,
     // etc.) once logging/telemetry above has already captured the real
-    // technical detail — axios's own "Network Error"/"timeout of Xms
+    // technical detail. axios's own "Network Error"/"timeout of Xms
     // exceeded" wording is accurate but meaningless to a non-technical user,
     // and doesn't tell them what to actually do about it.
     if (!error.response && !serverMessage) {

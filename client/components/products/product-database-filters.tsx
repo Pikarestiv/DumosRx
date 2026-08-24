@@ -26,8 +26,8 @@ export function ProductDatabaseFilters({
   statuses,
   onManageCategories,
 }: ProductDatabaseFiltersProps) {
-  // Search bar + filter pills render standalone above the card on mobile (see ProductDatabase) —
-  // this whole panel is desktop-only to avoid leaving an empty padded/bordered row on mobile.
+  // Search bar + filter pills render standalone above the card on mobile (see ProductDatabase).
+  // This whole panel is desktop-only to avoid leaving an empty padded/bordered row on mobile.
   return (
     <div className="hidden lg:block p-4 border-b border-border space-y-3">
       <div className="flex items-center gap-2">

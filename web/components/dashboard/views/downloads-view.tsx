@@ -202,7 +202,7 @@ export function DownloadsView({
               <h4 className="text-lg font-bold">{app.os}</h4>
               <p className="text-sm text-muted-foreground">{app.description}</p>
               {/* Nudge Android users toward the one-tap PWA install even
-                  though the native APK above is the primary path — it skips
+                  though the native APK above is the primary path: it skips
                   enabling "install from unknown sources" and auto-updates. */}
               {app.os === "Android" && canInstall && (
                 <button
@@ -241,7 +241,7 @@ export function DownloadsView({
           </div>
         ))}
 
-        {/* iOS has no downloadable file — Safari only lets users add the
+        {/* iOS has no downloadable file. Safari only lets users add the
             dashboard to the Home Screen via its Share sheet, so this opens
             instructions instead of linking to anything. */}
         <div className="flex items-center p-6 bg-muted/60 rounded-3xl border border-transparent hover:border-border transition-colors">

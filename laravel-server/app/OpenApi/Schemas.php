@@ -7,7 +7,7 @@ use OpenApi\Attributes as OA;
 /**
  * Reusable response/schema components referenced across controllers via
  * `ref: '#/components/responses/...'` or `'#/components/schemas/...'`.
- * No runtime behavior — annotation-only, picked up by swagger-php's scan.
+ * No runtime behavior: annotation-only, picked up by swagger-php's scan.
  */
 #[OA\Response(
     response: 'Unauthorized',

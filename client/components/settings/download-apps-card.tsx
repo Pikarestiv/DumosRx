@@ -18,7 +18,7 @@ const PLATFORMS = [
   { os: "Android (APK)", icon: Smartphone, key: "android" as const },
 ];
 
-/** Lets a store owner grab a native build for another device — paired with
+/** Lets a store owner grab a native build for another device, paired with
  * the PWA install cards above, which cover this device instead. The Android
  * APK here is a fallback for devices/browsers where the PWA install prompt
  * (AndroidInstallCard) isn't available. */

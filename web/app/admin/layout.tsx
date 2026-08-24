@@ -19,7 +19,7 @@ export default function AdminLayout({
       ? window.location.pathname.includes("/admin/login")
       : false;
   // /admin/handoff restores a super_admin session from a handoff code
-  // (returning from store impersonation) — it has no token yet when it
+  // (returning from store impersonation). It has no token yet when it
   // loads, so it must run outside this guard or the auth check below
   // redirects to /admin/login before the handoff page's own effect can
   // consume the code and establish the session.

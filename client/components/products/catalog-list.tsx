@@ -138,7 +138,7 @@ export function CatalogList({
                     </span>
                   </div>
                   <div className="text-[13px] font-medium text-muted-foreground">
-                    {product.costPrice > 0 ? formatCurrency(product.costPrice) : "—"}
+                    {product.costPrice > 0 ? formatCurrency(product.costPrice) : "-"}
                   </div>
                   <div className="text-[13px] font-semibold">
                     {formatCurrency(product.sellingPrice)}

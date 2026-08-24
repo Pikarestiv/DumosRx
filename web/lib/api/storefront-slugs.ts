@@ -2,7 +2,7 @@
  * Build-time-only helper for the two `[store_slug]` static routes
  * (storefront + checkout). `web/` is a static export (`output: "export"`),
  * so `generateStaticParams` can only ever render the exact slugs returned
- * here — there's no server to render an arbitrary store_slug at request
+ * here: there's no server to render an arbitrary store_slug at request
  * time. Falls back to the "demo" placeholder (a valid dynamic route needs
  * at least one entry) if the fetch fails or no store has an online store
  * enabled yet.

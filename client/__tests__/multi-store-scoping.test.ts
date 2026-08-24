@@ -7,11 +7,11 @@ vi.mock("idb-keyval", () => ({
 }));
 
 /**
- * Regression coverage for the multi-store query-scoping mechanism itself —
+ * Regression coverage for the multi-store query-scoping mechanism itself:
  * the module-scope getActiveStoreId()/setActiveStoreId() resolver in
  * lib/db/core.ts, and the read/write scoping pattern built on it
  * (products.ts as the reference implementation, insert()'s auto-injection).
- * Real in-memory SQLite (sql.js), not a mocked query() — a wrong ternary or
+ * Real in-memory SQLite (sql.js), not a mocked query(). A wrong ternary or
  * a forgotten `AND store_id = ?` would silently leak one store's data into
  * another's view, which only shows up by asserting on actual returned rows.
  */
@@ -37,7 +37,7 @@ describe("multi-store query scoping", () => {
     db = new SQL.Database();
     db.run(SCHEMA_SQL);
     // store_id is added via core.ts's runtime ALTER TABLE migration, not the
-    // base CREATE TABLE statements in SCHEMA_SQL — replicate it here since
+    // base CREATE TABLE statements in SCHEMA_SQL. Replicate it here since
     // __setDatabaseForTesting bypasses initDatabase()'s migration loop.
     db.run(`ALTER TABLE products ADD COLUMN store_id TEXT;`);
     core.__setDatabaseForTesting(db);
@@ -106,7 +106,7 @@ describe("multi-store query scoping", () => {
 
   it("insert() never injects store_id into a table that has no such column", async () => {
     core.setActiveStoreId("store-a");
-    // stores itself has no store_id column — should not throw.
+    // stores itself has no store_id column; should not throw.
     await expect(
       insert("stores", { name: "Test Store", store_type: "pharmacy", currency: "NGN" }),
     ).resolves.toBeDefined();

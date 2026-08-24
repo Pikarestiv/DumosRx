@@ -36,7 +36,7 @@ export function downloadBlob(blob: Blob, filename: string): number {
 
 /**
  * Opens the PDF in a new tab so the user can print from the browser's native
- * PDF viewer — same document as the download, so "Print" and "Download PDF"
+ * PDF viewer: same document as the download, so "Print" and "Download PDF"
  * can never produce different-looking output for the same report.
  */
 export function openBlobForPrint(blob: Blob): void {

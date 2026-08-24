@@ -6,7 +6,7 @@ import type { SyncChange } from "@/lib/types/sync";
 const SYNC_BATCH_SIZE = 50;
 
 // Matches ISO 8601 datetimes as produced by Date#toISOString(), e.g.
-// "2026-07-25T03:35:07.593Z" — MySQL DATETIME columns reject the 'T'/'Z'
+// "2026-07-25T03:35:07.593Z". MySQL DATETIME columns reject the 'T'/'Z'
 // and fractional seconds, so every such field (not just one hardcoded
 // column name) needs to become "2026-07-25 03:35:07" before it's sent.
 const ISO_DATETIME_REGEX = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z?$/;
@@ -33,7 +33,7 @@ export async function pushChanges(
 
   // Categories are batched by created_at like everything else, so a product
   // whose category was (re)created after it chronologically can land in a
-  // *later* request than the category referencing it — by which point the
+  // *later* request than the category referencing it, by which point the
   // category's server-side id-remap (from SyncController::push's duplicate-
   // name handling) no longer applies, since it only lives in that earlier
   // request's in-memory $idMap. Move every category change to the front of
@@ -54,7 +54,7 @@ export async function pushChanges(
       const mapped: SyncChange[] = batch.map((item) => {
         const payload = JSON.parse(item.payload);
         delete payload._deleted;
-        // _version is intentionally kept — the server's conflict resolution
+        // _version is intentionally kept: the server's conflict resolution
         // compares it against its own copy to decide whether this update is
         // stale (see SyncController::push). Stripping it here used to force
         // every conflict check onto the weaker updated_at-timestamp fallback,
@@ -77,7 +77,7 @@ export async function pushChanges(
           // two columns (2026_07_23_182355_remove_brand_and_supplier_from_
           // products.php) still carries them in its queued payload snapshot,
           // since a snapshot taken at write time never picks up later schema
-          // changes. Strip rather than reject — the row itself is otherwise
+          // changes. Strip rather than reject: the row itself is otherwise
           // fine, only these two fields are stale.
           delete item.payload.brand_name;
           delete item.payload.supplier_id;
@@ -135,7 +135,7 @@ export async function pushChanges(
 
       // The server isolates each change to its own savepoint (see
       // SyncController::push), so `response.success` reflects the batch
-      // request succeeding, not every change within it — `response.failed`
+      // request succeeding, not every change within it: `response.failed`
       // lists which specific changes were rolled back individually. Only
       // mark the ones NOT in that list as synced; items filtered out above
       // (e.g. malformed payloads) were never sent and must NOT be marked
@@ -153,7 +153,7 @@ export async function pushChanges(
         }
       }
     } catch (error) {
-      // Don't abort the whole push run over one bad batch — record backoff
+      // Don't abort the whole push run over one bad batch; record backoff
       // for this batch's items and continue with the remaining batches.
       console.error("Push sync failed for batch:", error);
       const message = error instanceof Error ? error.message : String(error);

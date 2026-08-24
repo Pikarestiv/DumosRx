@@ -20,7 +20,7 @@ export interface Product {
   is_controlled?: number;
 }
 
-/** Row shape returned by getProductsWithDetails() — the `products` table
+/** Row shape returned by getProductsWithDetails(): the `products` table
  * joined with its category name and current stock_batches aggregates
  * (on-hand quantity, latest cost, soonest-expiring batch). */
 export interface ProductWithDetails extends Product {
@@ -31,7 +31,7 @@ export interface ProductWithDetails extends Product {
   last_audited_at?: string | null;
 }
 
-/** Row shape returned by getProductsWithStock()'s raw query — `products`
+/** Row shape returned by getProductsWithStock()'s raw query: `products`
  * joined with the category name and stock_batches aggregates (on-hand
  * quantity, concatenated batch numbers, average cost across active batches). */
 export interface ProductWithStockRow extends Product {
@@ -56,7 +56,7 @@ export interface POSProduct {
   reorder_level?: number;
 }
 
-/** snake_case payload built by AddProductDialog's submit handler — the shape
+/** snake_case payload built by AddProductDialog's submit handler: the shape
  * createProduct()/updateProduct() actually insert into the `products` table. */
 export interface NewProductPayload {
   [key: string]: unknown;

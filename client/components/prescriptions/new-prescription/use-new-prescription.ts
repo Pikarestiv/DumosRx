@@ -230,7 +230,7 @@ export function useNewPrescription() {
 
   const cancelEdit = () => {
     const params = new URLSearchParams(searchParams.toString());
-    // Both must go — showNewPrescription in PrescriptionManagement is
+    // Both must go: showNewPrescription in PrescriptionManagement is
     // action==="add" OR edit_rx present, and handleEdit sets both.
     params.delete("edit_rx");
     params.delete("action");
@@ -307,8 +307,8 @@ export function useNewPrescription() {
 
         // updatePrescriptionRecord/deletePrescriptionItems/insertPrescriptionItem
         // all write via raw query() and don't go through the insert/update
-        // helpers that auto-invalidate — do it explicitly so the detail
-        // panel reflects the edited medications.
+        // helpers that auto-invalidate, so invalidate explicitly here to make
+        // the detail panel reflect the edited medications.
         queryClient.invalidateQueries(queryKeys.prescriptions.all());
 
         toast.success("Prescription updated successfully!");

@@ -126,7 +126,7 @@ export function useReportExport() {
         ? (config.fetch as (from?: string, to?: string) => Promise<Record<string, unknown>[]>)(dateFrom, dateTo)
         : (config.fetch as () => Promise<Record<string, unknown>[]>)());
 
-      // The DB stores these as raw date/datetime strings — format them
+      // The DB stores these as raw date/datetime strings; format them
       // consistently (dd/mm/yyyy) instead of leaking whatever precision
       // the underlying column happens to have (e.g. full ISO timestamps)
       // into the exported CSV/PDF.

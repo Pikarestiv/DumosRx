@@ -43,7 +43,7 @@ export function RequestItemDialog({
   const { data: customers = [] } = useQuery({
     // getAllCustomers() (a flat list for POS-style pickers) is a different
     // shape from getCustomers() (used by useCustomerData, with joined
-    // total_spent/last_visit) — this must NOT share a cache key with that
+    // total_spent/last_visit). This must NOT share a cache key with that
     // one, or whichever query runs second overwrites the cache with an
     // incompatible shape for the other's consumers. Reuses the same key as
     // use-pos-data.ts's identical getAllCustomers() call for consistency.
@@ -59,7 +59,7 @@ export function RequestItemDialog({
   });
 
   // Warn (non-blocking) when the typed name looks like something already in
-  // the catalog — staff should double check before logging a duplicate
+  // the catalog: staff should double check before logging a duplicate
   // "missing product" request for stock that's already on hand.
   const possibleExistingMatch = useMemo(() => {
     const term = productName.trim();
@@ -144,7 +144,7 @@ export function RequestItemDialog({
                     <span className="font-semibold">
                       {possibleExistingMatch.name}
                     </span>
-                    . Check the catalog before logging a new request — continue
+                    . Check the catalog before logging a new request; continue
                     anyway if this is genuinely a different or out-of-stock
                     item.
                   </span>

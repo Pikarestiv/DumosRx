@@ -55,7 +55,7 @@ export function printNode(node: HTMLElement, pageStyle?: string): void {
     return;
   }
 
-  // Give the stylesheets a moment to apply before printing — onload fires
+  // Give the stylesheets a moment to apply before printing: onload fires
   // once the HTML is parsed, not once external stylesheet links resolve.
   iframe.onload = () => {
     setTimeout(() => {

@@ -66,7 +66,7 @@ export function POOrderFormFields({
   onOpenAddSupplier,
 }: POOrderFormFieldsProps) {
   // Controlled so the empty-state "Add a supplier first" link can force this
-  // closed before opening the add-supplier dialog — stopPropagation() on
+  // closed before opening the add-supplier dialog. stopPropagation() on
   // that click (needed to stop it from also selecting a SelectItem) also
   // blocks Radix Select's own outside-click-close detection, so left
   // uncontrolled the popover stayed open behind the dialog and ate its clicks.

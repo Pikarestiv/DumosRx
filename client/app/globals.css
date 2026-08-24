@@ -7,7 +7,7 @@
  * Redefines hover: project-wide to only apply on devices that actually have a
  * mouse/trackpad. Without this, iOS WebKit (including Chrome on iOS, which is
  * WebKit under the hood) requires a first tap to "enter" :hover and a second
- * tap to actually fire the click on any element with a hover: style — the
+ * tap to actually fire the click on any element with a hover: style: the
  * classic touch double-tap bug. Every existing hover: utility across the app
  * picks this up automatically; no component changes needed.
  */
@@ -291,7 +291,7 @@ header .group:hover svg,
 .responsive-modal-fields [data-slot="input"],
 .responsive-modal-fields [data-slot="select-trigger"],
 .responsive-modal-fields textarea {
-  /* A visible edge, not just the muted fill — the fill alone can wash out
+  /* A visible edge, not just the muted fill: the fill alone can wash out
      against the modal background (especially in dark mode), leaving fields
      with no perceptible outline. */
   border: 1px solid var(--border);

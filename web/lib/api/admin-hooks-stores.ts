@@ -45,7 +45,7 @@ export const useAdminErrors = () => {
   return useQuery({
     queryKey: useScopedKey(["admin-errors"]),
     queryFn: () => webApiClient.request<AdminErrors>("admin/errors"),
-    refetchInterval: 60000, // Every minute — Sentry issue counts don't need 30s freshness
+    refetchInterval: 60000, // Every minute: Sentry issue counts don't need 30s freshness
   });
 };
 

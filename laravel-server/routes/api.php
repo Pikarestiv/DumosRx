@@ -39,7 +39,7 @@ Route::prefix('v1')->group(function () {
         Route::post('/verify-email', [AuthController::class, 'verifyEmail']);
         Route::post('/resend-verification', [AuthController::class, 'resendVerification']);
     });
-    // Own (more generous) limiter — one impersonation round trip is already 6
+    // Own (more generous) limiter: one impersonation round trip is already 6
     // handoff calls from a single IP, which the 5/min `auth` limiter would
     // starve. See the 'handoff' limiter in AppServiceProvider.
     Route::middleware('throttle:handoff')->group(function () {
@@ -47,7 +47,7 @@ Route::prefix('v1')->group(function () {
         Route::post('/auth/handoff/consume', [AuthHandoffController::class, 'consume']);
     });
     // Documented via App\OpenApi\ClosureRoutes (swagger-php doesn't scan inline
-    // closure docblocks — see that file for why).
+    // closure docblocks; see that file for why).
     Route::get('/health', function () {
         return response()->json(['status' => 'ok', 'timestamp' => now()]);
     });

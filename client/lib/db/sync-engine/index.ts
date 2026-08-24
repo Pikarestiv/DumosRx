@@ -53,7 +53,7 @@ export async function sync(
 
     try {
       // getSystemConfig() already unwraps the server's {success, data}
-      // envelope, so the fetched value itself is the suggestions payload —
+      // envelope, so the fetched value itself is the suggestions payload,
       // not a nested {success, data} object.
       const value = await apiClient
         .getSystemConfig("global_suggestions")
@@ -72,7 +72,7 @@ export async function sync(
 
     if (typeof window !== "undefined") {
       // Invalidate exactly the queries tagged (via meta.tables, see
-      // lib/query-keys.ts) as depending on any table that changed —
+      // lib/query-keys.ts) as depending on any table that changed,
       // same predicate-based approach as base-helpers.ts's
       // invalidateQueriesForTable. Untagged queries still fall back to
       // always invalidating, so this stays safe for anything not yet
@@ -122,8 +122,8 @@ export async function sync(
  * table from the server so the local app always has the latest
  * subscription_tier, status, suspension_reason and license_token.
  *
- * This ensures that plan downgrades, suspensions and renewals are reflected
- * locally even when full cloud sync is disabled for free-tier users.
+ * Keeps plan downgrades, suspensions, and renewals reflected locally even
+ * when full cloud sync is disabled for free-tier users.
  */
 export async function syncSubscriptionStatus(): Promise<{
   success: boolean;
@@ -138,8 +138,8 @@ export async function syncSubscriptionStatus(): Promise<{
 
   try {
     // Always pass empty string so the server returns the full current store
-    // record regardless of when the last sync happened. This ensures that
-    // plan downgrades/upgrades written on the server are never missed due
+    // record regardless of when the last sync happened, so plan
+    // downgrades/upgrades written on the server are never missed due
     // to timestamp delta logic.
     // We pass isSetup=true as the 3rd arg to bypass the backend sync block for free tier.
     const response = (await apiClient.pullChanges(
@@ -201,7 +201,7 @@ export async function syncSubscriptionStatus(): Promise<{
     // Invalidate React Query cache so UI re-renders with new tier/status.
     // Prefix-only keys (no targetId/userStoreId arg) so this matches every
     // variant of these queries regardless of which store/user they're
-    // scoped to — invalidateQueries does prefix matching by default.
+    // scoped to: invalidateQueries does prefix matching by default.
     if (typeof window !== "undefined") {
       queryClient.invalidateQueries({ queryKey: ["storeProfile"] });
       queryClient.invalidateQueries({ queryKey: ["allStores"] });

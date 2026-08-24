@@ -134,7 +134,7 @@ export function StoreProfileSection({
                   <Info className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>When off, your storefront link above is unreachable — customers see a 404 even with the correct URL. Products also need &quot;Show Online&quot; turned on individually in each product&apos;s Additional Details.</p>
+                  <p>When off, your storefront link above is unreachable: customers see a 404 even with the correct URL. Products also need &quot;Show Online&quot; turned on individually in each product&apos;s Additional Details.</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>

@@ -8,7 +8,7 @@ vi.mock("idb-keyval", () => ({
 
 /**
  * Exercises the revenue/COGS/expense aggregation queries against a genuine
- * in-memory SQLite engine (sql.js), not a mocked query() — these are the
+ * in-memory SQLite engine (sql.js), not a mocked query(). These are the
  * numbers that feed the P&L report and dashboard, so a silent aggregation
  * bug here (wrong join, wrong sign, wrong date filter) is exactly the class
  * of bug that showed 0s in the suppliers table without ever throwing.

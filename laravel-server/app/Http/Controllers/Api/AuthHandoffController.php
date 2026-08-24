@@ -17,7 +17,7 @@ use Laravel\Sanctum\PersonalAccessToken;
  * RestoreSessionTest for the same trust pattern (validate via
  * PersonalAccessToken::findToken, not raw string comparison).
  *
- * Credentials: both endpoints authenticate purely off the REQUEST BODY —
+ * Credentials: both endpoints authenticate purely off the REQUEST BODY:
  * `create` off its `token` field, `consume` off its `code` field. Neither
  * reads or requires an `Authorization` header. `create` deliberately cannot
  * require header == body: impersonation legitimately mints a handoff code for

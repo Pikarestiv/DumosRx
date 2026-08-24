@@ -50,7 +50,7 @@ export function OnlineOrdersModal() {
       // 1. Mark as fulfilled on server
       await apiClient.fulfillOnlineOrder(order.id);
 
-      // 2. Record locally in SQLite (as an online sale) — via the standard
+      // 2. Record locally in SQLite (as an online sale), via the standard
       // insert()/update() helpers, not raw execute(), so this gets audit
       // logging and cache invalidation like every other mutation.
       const saleId = generateId();
@@ -135,7 +135,7 @@ export function OnlineOrdersModal() {
                   </div>
 
                   <div className="bg-muted/50 rounded p-3">
-                    {/* Div-based table — ARIA roles stand in for real <table> semantics */}
+                    {/* Div-based table; ARIA roles stand in for real <table> semantics */}
                     <div role="table" aria-label="Order items" className="w-full text-sm">
                       <div role="rowgroup">
                         {order.items.map((item) => (

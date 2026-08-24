@@ -1,4 +1,4 @@
-/** The fixed set of staff system roles — shared between the staff editor
+/** The fixed set of staff system roles: shared between the staff editor
  * (assigning a role) and anywhere roles need to be listed/filtered (e.g.
  * Activity Log), so the two can't drift out of sync. */
 export const STAFF_ROLES = [

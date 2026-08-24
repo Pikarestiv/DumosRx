@@ -36,7 +36,7 @@ export function usePnLReport() {
         getCurrentMonthCOGS(),
         getCurrentMonthExpensesByCategory(),
         // Category breakdown above still shows each expense's full amount in
-        // whichever category/month it was logged — only this headline total
+        // whichever category/month it was logged; only this headline total
         // (and therefore Net Profit) accounts for prepaid smoothing.
         getSmoothedExpensesTotal({ from: monthStart, to: nextMonthStart }),
       ]);

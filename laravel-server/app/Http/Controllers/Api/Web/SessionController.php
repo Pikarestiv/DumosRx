@@ -55,7 +55,7 @@ class SessionController extends Controller
     #[OA\Delete(
         path: '/sessions/{id}',
         summary: 'Revoke a specific session (log another device out)',
-        description: 'Cannot revoke the session making the request — use `/logout` for that.',
+        description: 'Cannot revoke the session making the request; use `/logout` for that.',
         tags: ['Sessions'],
         security: [['sanctum' => []]],
         parameters: [new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'string'))],

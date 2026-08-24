@@ -76,7 +76,7 @@ const PRESETS: { label: string; getRange: () => DateRangeValue }[] = [
 ];
 
 /** Dual-month range calendar + preset sidebar + editable start/end text
- * inputs in one popover — modeled on Moniebook's date-range picker
+ * inputs in one popover, modeled on Moniebook's date-range picker
  * (refs/refs-jpg/MB-Date-Picker.jpg), which the pilot user specifically
  * called out as better than this app's single preset dropdown. Uses
  * DD/MM/YYYY (not Moniebook's MM/DD/YYYY) to stay consistent with every
@@ -151,7 +151,7 @@ export function DateRangePicker({ value, onChange, className }: DateRangePickerP
         ? format(range.from, "d MMM yyyy")
         : "Select date range";
 
-  // Desktop check, not mobile check — matches ResponsiveModal's convention
+  // Desktop check, not mobile check: matches ResponsiveModal's convention
   // (defaults to the mobile/Drawer branch during SSR and before the media
   // query resolves, which is the safer default on a touch-first app).
   const isDesktop = useMediaQuery("(min-width: 768px)");
@@ -215,7 +215,7 @@ export function DateRangePicker({ value, onChange, className }: DateRangePickerP
                 selected={range}
                 onSelect={applyRange}
                 defaultMonth={range?.from}
-                // The shared Calendar highlights today's cell by default —
+                // The shared Calendar highlights today's cell by default,
                 // easy to mistake for a 3rd selection alongside a real
                 // from/to pick in range mode, so switch it off here only.
                 classNames={{ today: "" }}
@@ -228,7 +228,7 @@ export function DateRangePicker({ value, onChange, className }: DateRangePickerP
   }
 
   // Mobile: a dual-month calendar + sidebar of presets doesn't fit a phone
-  // viewport (it was opening off-screen, unreachable — see the bug this
+  // viewport (it was opening off-screen, unreachable: see the bug this
   // replaced). A bottom Drawer with a single month and presets as a
   // horizontal chip row, matching ResponsiveModal's established
   // Popover-on-desktop/Drawer-on-mobile split, fixes that.

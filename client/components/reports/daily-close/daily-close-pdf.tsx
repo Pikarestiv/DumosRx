@@ -68,7 +68,7 @@ export function DailyClosePdf({
         <Text style={styles.storeName}>{storeName}</Text>
         <Text style={styles.title}>Daily Close Report</Text>
         <Text style={styles.subtitle}>
-          {reportDate} — Generated {generatedAt}
+          {reportDate}, generated {generatedAt}
         </Text>
 
         <View style={styles.metricsRow}>

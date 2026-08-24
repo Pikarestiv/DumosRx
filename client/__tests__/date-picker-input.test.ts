@@ -9,7 +9,7 @@ describe('sanitizeDateDigits', () => {
   it('rejects the "11/2027" month/year-only attempt at the first invalid month digit', () => {
     // "11/2027" -> raw digits "112027" -> day "11" is fine, but the next
     // digit ("2") would make the month segment start with 2, which is
-    // impossible (no month > 12) — so it gets dropped there.
+    // impossible (no month > 12), so it gets dropped there.
     expect(sanitizeDateDigits('112027')).toBe('11');
   });
 

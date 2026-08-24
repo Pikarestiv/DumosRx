@@ -27,10 +27,10 @@ interface RecordPaymentModalProps {
     notes: string,
   ) => Promise<void>;
   /** Prefill amount when it should differ from the customer's full
-   * outstanding_balance — e.g. opened from one specific sale's remaining
+   * outstanding_balance, e.g. opened from one specific sale's remaining
    * balance rather than their total debt across every sale. */
   defaultAmount?: number;
-  /** Extra note shown under the description — e.g. warning that payments
+  /** Extra note shown under the description, e.g. warning that payments
    * settle the customer's oldest outstanding sale first (FIFO), which may
    * not be the sale this modal was opened from. */
   helperNote?: string;

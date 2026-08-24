@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 // The client's customers table has only ever required first_name (see
-// lib/db/schema.ts) — last_name has always been optional there. The
+// lib/db/schema.ts); last_name has always been optional there. The
 // server's original migration made it required and nothing since has
 // reconciled the two, so any customer created client-side with no last
 // name fails to sync, forever, with an integrity-constraint error. Raw SQL

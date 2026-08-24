@@ -6,7 +6,7 @@ export interface CurrencyOption {
 
 export const DEFAULT_CURRENCY_CODE = "NGN";
 
-/** Canonical currency list — single source of truth for code/name/symbol across the app. */
+/** Canonical currency list: single source of truth for code/name/symbol across the app. */
 export const CURRENCIES: CurrencyOption[] = [
   { code: "NGN", name: "Nigerian Naira", symbol: "₦" },
   { code: "USD", name: "US Dollar", symbol: "$" },

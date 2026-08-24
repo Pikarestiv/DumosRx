@@ -24,14 +24,14 @@ import { APP_VERSION } from "@/lib/constants";
 
 // Everything platform_admin/agent can't reach is still enforced server-side
 // per endpoint (AdminController), but hiding it from nav avoids dead links
-// that just 403. Items with no `roles` are super_admin-only, the default —
+// that just 403. Items with no `roles` are super_admin-only, the default:
 // only explicitly list roles for what platform_admin/agent should see.
 export const sidebarItems = [
   // Overview's data (admin/summary) is super_admin-only server-side (platform
-  // revenue, etc.) — no roles override here, so it stays super_admin-only too.
+  // revenue, etc.). No roles override here, so it stays super_admin-only too.
   { id: "dashboard", name: "Overview", icon: LayoutDashboard, href: "/admin" },
   // The full fleet list (GET /admin/stores) surfaces platform-wide revenue
-  // and every store's data — stays super_admin-only. platform_admin/agent
+  // and every store's data, stays super_admin-only. platform_admin/agent
   // get a direct link to registration instead (create_accounts permission
   // covers that endpoint), not the list.
   {

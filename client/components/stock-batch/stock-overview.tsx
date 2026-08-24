@@ -31,10 +31,10 @@ interface StockItem {
 export function StockOverview() {
   const { storeProfile: _storeProfile } = useStore();
 
-  // Shared stats hook — single source of truth for all stat cards
+  // Shared stats hook: single source of truth for all stat cards
   const stats = useStockBatchStats();
 
-  // Stock list — read aggregated batch details
+  // Stock list: read aggregated batch details
   const { data: stockDataRaw, isLoading: stockLoading } = useQuery({
     ...queryKeys.stockBatches.overview(),
     queryFn: () => getStockOverviewData()

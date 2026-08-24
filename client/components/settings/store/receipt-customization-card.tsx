@@ -99,7 +99,7 @@ export function ReceiptCustomizationCard({
           <div className="space-y-0.5">
             <Label className="text-base">Printer Paper Size</Label>
             <p className="text-sm text-muted-foreground">
-              This device only — a receipt printer is a property of this
+              This device only: a receipt printer is a property of this
               terminal, not your account.
             </p>
           </div>

@@ -150,7 +150,7 @@ export function SupplierDetailPane({
             <div className="text-[13.5px] text-foreground font-semibold">
               {selectedSupplier.lastOrderDate
                 ? formatDate(selectedSupplier.lastOrderDate)
-                : "—"}
+                : "-"}
             </div>
           </div>
         </div>

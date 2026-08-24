@@ -12,12 +12,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // information_schema.TABLE_CONSTRAINTS is MySQL-only — invalid SQL on
+        // information_schema.TABLE_CONSTRAINTS is MySQL-only; invalid SQL on
         // SQLite (used for the test suite). SQLite doesn't enforce FK
         // constraints the same way MySQL does, so there's nothing to
         // introspect/drop there; skip straight to the idempotent column drop.
         if (DB::getDriverName() !== 'sqlite') {
-            // Introspect existing FKs via information_schema (Laravel 11 compatible — no Doctrine DBAL).
+            // Introspect existing FKs via information_schema (Laravel 11 compatible, no Doctrine DBAL).
             $existingFks = collect(
                 DB::select(
                     "SELECT CONSTRAINT_NAME FROM information_schema.TABLE_CONSTRAINTS
@@ -49,7 +49,7 @@ return new class extends Migration
 
         // SQLite defines foreign keys inline in the CREATE TABLE statement
         // rather than as separately-droppable constraints, so its native
-        // DROP COLUMN refuses on a column referenced by one — regardless of
+        // DROP COLUMN refuses on a column referenced by one, regardless of
         // the foreign_keys pragma, which only controls runtime enforcement,
         // not this schema-validity check. Test DBs are rebuilt from scratch
         // every run, so leaving supplier_id in place there is harmless;

@@ -1,4 +1,4 @@
-# Cross-Origin Auth Handoff + Impersonation Fix — Implementation Plan
+# Cross-Origin Auth Handoff + Impersonation Fix: Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -6,21 +6,21 @@
 
 **Architecture:** Laravel issues a short-lived (60s), single-use, opaque code that wraps an already-valid Sanctum token. The origin initiating a cross-domain jump mints a code (authenticated call, proving it already possesses the token) and puts only the code in the redirect URL. The destination origin exchanges the code for the real token via an unauthenticated, throttled endpoint, then immediately strips the code from the URL via `history.replaceState`. No JWT/bearer token is ever placed in a URL. This is Steps 1–2 of a larger dashboard-consolidation migration (audited separately); Steps 3–7 (feature migration, nav consolidation, dashboard deletion, redirects) are out of scope for this plan and will be written up after this one lands and is checked in on.
 
-**Tech Stack:** Laravel 10 (Sanctum, `Cache` facade, PHPUnit) for the backend; Next.js 14 App Router with static export (`output: 'export'`) for both `web/` (dumosrx.com) and `client/` (app.dumosrx.com, also the Tauri desktop build); Vitest for client-side unit tests (`web/` has no test runner — verification there is manual/documented, not automated).
+**Tech Stack:** Laravel 10 (Sanctum, `Cache` facade, PHPUnit) for the backend; Next.js 14 App Router with static export (`output: 'export'`) for both `web/` (dumosrx.com) and `client/` (app.dumosrx.com, also the Tauri desktop build); Vitest for client-side unit tests (`web/` has no test runner: verification there is manual/documented, not automated).
 
 **Spec:** This plan implements Steps 1–2 of the approved migration plan discussed in-conversation (Phase 1 audit + migration decisions, 2026-08-24). No separate spec file exists; the decisions are restated in Global Constraints below.
 
 ## Global Constraints
 
 - Exchange codes are single-use, 60-second TTL, opaque (random, not a JWT or derivable from one).
-- Burn the code server-side on first lookup attempt — success or failure — so it can never be retried. Achieved via `Cache::pull()` (atomic get-and-delete), not `Cache::get()` + separate `forget()`.
+- Burn the code server-side on first lookup attempt: success or failure: so it can never be retried. Achieved via `Cache::pull()` (atomic get-and-delete), not `Cache::get()` + separate `forget()`.
 - Never place a real bearer token/JWT in a URL query string, only the opaque code.
 - On landing, the destination page strips the `code`/`return_code` query params via `history.replaceState` before doing anything else (before the exchange network call completes, so a slow network doesn't leave the code sitting in the visible URL/history any longer than unavoidable).
-- Redirect target origins (`app.dumosrx.com`, `dumosrx.com`) must come from configurable env-backed constants, never hardcoded literals in component code — mirrors the existing `WEB_APP_URL` / `WEB_APP_DASHBOARD_URL` pattern already in both `web/lib/constants.ts` and `client/lib/constants.ts`.
-- Do not modify or remove the existing `/admin/stores/{id}/impersonate` or `/admin/restore-session` endpoints, or the `drx_admin_session` cookie they set — `AuthenticateFromCookie` middleware depends on that cookie for same-origin admin requests and is out of scope here. The new handoff endpoints are additive.
-- Backend is Laravel (`laravel-server/`), not NestJS — all new server-side logic goes there.
-- Both `web/` and `client/` build with `output: 'export'` — no new API routes, middleware, or Server Actions in either Next.js app. All new routes are plain static pages that do their work client-side.
-- Do not set up a pnpm workspace or shared package as part of this work (deferred per migration decision) — the two Next.js apps get parallel, independently-written (not copy-pasted-then-forgotten) client code for the handoff calls.
+- Redirect target origins (`app.dumosrx.com`, `dumosrx.com`) must come from configurable env-backed constants, never hardcoded literals in component code: mirrors the existing `WEB_APP_URL` / `WEB_APP_DASHBOARD_URL` pattern already in both `web/lib/constants.ts` and `client/lib/constants.ts`.
+- Do not modify or remove the existing `/admin/stores/{id}/impersonate` or `/admin/restore-session` endpoints, or the `drx_admin_session` cookie they set: `AuthenticateFromCookie` middleware depends on that cookie for same-origin admin requests and is out of scope here. The new handoff endpoints are additive.
+- Backend is Laravel (`laravel-server/`), not NestJS: all new server-side logic goes there.
+- Both `web/` and `client/` build with `output: 'export'`: no new API routes, middleware, or Server Actions in either Next.js app. All new routes are plain static pages that do their work client-side.
+- Do not set up a pnpm workspace or shared package as part of this work (deferred per migration decision): the two Next.js apps get parallel, independently-written (not copy-pasted-then-forgotten) client code for the handoff calls.
 
 ---
 
@@ -41,8 +41,8 @@
 | `web/app/admin/handoff/page.tsx` | New. Lands the return trip from client back to admin; consumes a code into `drx_admin_token`. |
 | `web/app/admin/stores/page.tsx` | Modified. `handleImpersonate` mints two codes and redirects to `app.dumosrx.com/auth/callback` instead of same-origin `router.push("/dashboard")`. |
 | `web/components/auth/login-form.tsx` | **Deleted** (Task 9, revised). dumosrx.com no longer performs authentication itself. |
-| `web/app/login/page.tsx` | Modified (Task 9, revised). Becomes an immediate client-side redirect to `${APP_URL}/login` — no form, no auth call. |
-| `web/components/landing/header-section.tsx`, `web/components/landing/hero-section.tsx` | Modified (Task 9, revised). Auth-state-conditional links removed; unconditional "Log in" / "Get Started" links point at `APP_URL` directly — no handoff code involved. |
+| `web/app/login/page.tsx` | Modified (Task 9, revised). Becomes an immediate client-side redirect to `${APP_URL}/login`: no form, no auth call. |
+| `web/components/landing/header-section.tsx`, `web/components/landing/hero-section.tsx` | Modified (Task 9, revised). Auth-state-conditional links removed; unconditional "Log in" / "Get Started" links point at `APP_URL` directly: no handoff code involved. |
 
 ---
 
@@ -54,8 +54,8 @@
 - Test: `laravel-server/tests/Feature/AuthHandoffTest.php`
 
 **Interfaces:**
-- Produces: `POST /api/v1/auth/handoff` — body `{ token: string }` is the sole credential (no `Authorization` header is read or required; the body token may be any currently-valid token, not necessarily the caller's own — impersonation depends on that — see step 3), returns `{ code: string, expires_in: 60 }` on 200, `{ error: string }` on 403/422.
-- Produces: `POST /api/v1/auth/handoff/consume` — body `{ code: string }`, no auth required, returns `{ token: string, user: {...} }` on 200, `{ error: string }` on 403/410/422.
+- Produces: `POST /api/v1/auth/handoff`: body `{ token: string }` is the sole credential (no `Authorization` header is read or required; the body token may be any currently-valid token, not necessarily the caller's own, impersonation depends on that, see step 3), returns `{ code: string, expires_in: 60 }` on 200, `{ error: string }` on 403/422.
+- Produces: `POST /api/v1/auth/handoff/consume`: body `{ code: string }`, no auth required, returns `{ token: string, user: {...} }` on 200, `{ error: string }` on 403/410/422.
 
 - [ ] **Step 1: Write the failing feature test**
 
@@ -171,7 +171,7 @@ class AuthHandoffTest extends TestCase
 
         $response->assertStatus(403);
         $response->assertJson(['error' => 'Token no longer valid.']);
-        // Burned even though it failed — a retry with the same code is also rejected, not re-validated.
+        // Burned even though it failed: a retry with the same code is also rejected, not re-validated.
         $this->assertNull(Cache::get("auth_handoff:{$code}"));
     }
 
@@ -193,7 +193,7 @@ class AuthHandoffTest extends TestCase
 - [ ] **Step 2: Run the test to verify it fails**
 
 Run: `cd laravel-server && ./vendor/bin/phpunit tests/Feature/AuthHandoffTest.php`
-Expected: FAIL — route `/api/v1/auth/handoff` does not exist (404s), or class `AuthHandoffController` not found.
+Expected: FAIL: route `/api/v1/auth/handoff` does not exist (404s), or class `AuthHandoffController` not found.
 
 - [ ] **Step 3: Implement the controller**
 
@@ -303,7 +303,7 @@ git commit -m "feat(auth): add one-time cross-origin handoff endpoints"
 - Modify: `client/lib/constants.ts:6`
 
 **Interfaces:**
-- Produces: `APP_URL` (string, e.g. `https://app.dumosrx.com`) — the base origin of the app, no trailing slash, no path. Used by Task 5/6 (client callback route base) and Task 8/9 (web redirect targets).
+- Produces: `APP_URL` (string, e.g. `https://app.dumosrx.com`): the base origin of the app, no trailing slash, no path. Used by Task 5/6 (client callback route base) and Task 8/9 (web redirect targets).
 
 - [ ] **Step 1: Add the constant to `web/lib/constants.ts`**
 
@@ -464,7 +464,7 @@ describe('handoff code API methods', () => {
 - [ ] **Step 2: Run the test to verify it fails**
 
 Run: `cd client && npx vitest run __tests__/handoff-client.test.ts`
-Expected: FAIL — `apiClient.createHandoffCode is not a function`.
+Expected: FAIL: `apiClient.createHandoffCode is not a function`.
 
 - [ ] **Step 3: Implement the methods**
 
@@ -513,7 +513,7 @@ git commit -m "feat(client): add handoff code create/consume API client methods"
 
 **Interfaces:**
 - Consumes: `apiClient.consumeHandoffCode` (Task 4), `apiClient.setToken` (existing, `client/lib/api/base-client.ts:46-48`), `APP_URL`/other constants as needed (Task 2).
-- Produces: sets `localStorage.impersonator_token` when a `return_code` param is present (consumed by Task 6's banner) — this is `client/`'s equivalent of web's `drx_impersonator_token`, deliberately a different key name since it lives in a different app's localStorage namespace.
+- Produces: sets `localStorage.impersonator_token` when a `return_code` param is present (consumed by Task 6's banner): this is `client/`'s equivalent of web's `drx_impersonator_token`, deliberately a different key name since it lives in a different app's localStorage namespace.
 
 This route sits outside the `client/app/(dashboard)` route group (which requires local PIN auth to render), as a sibling of `client/app/login` and `client/app/setup`, so it can run before any local session exists.
 
@@ -596,12 +596,12 @@ export default function AuthCallbackPage() {
 }
 ```
 
-Note on `return_code`: it is stored as-is (still an opaque, unconsumed code — one further exchange, not the raw admin token) under a distinct key (`impersonator_handoff_return_code`), not consumed yet. Task 6 consumes it lazily, only if/when the user actually clicks "End Session" — minting a *fresh* pair only happens once at handoff time in Task 8; this stored code is redeemed at most once, whenever the session ends. If unused, it simply expires after 60s and "End Session" will need to re-derive a path back to admin some other way — flagged as a follow-up limitation below, not solved in this task (see note at the end of Task 6).
+Note on `return_code`: it is stored as-is (still an opaque, unconsumed code, one further exchange, not the raw admin token) under a distinct key (`impersonator_handoff_return_code`), not consumed yet. Task 6 consumes it lazily, only if/when the user actually clicks "End Session"; minting a *fresh* pair only happens once at handoff time in Task 8; this stored code is redeemed at most once, whenever the session ends. If unused, it simply expires after 60s and "End Session" will need to re-derive a path back to admin some other way, flagged as a follow-up limitation below, not solved in this task (see note at the end of Task 6).
 
 - [ ] **Step 2: Build to confirm the static export succeeds**
 
 Run: `cd client && npm run build`
-Expected: succeeds. `useSearchParams` requires the `Suspense` boundary during static export prerendering — this page has one — so this build must not fail with the "should be wrapped in a suspense boundary" error.
+Expected: succeeds. `useSearchParams` requires the `Suspense` boundary during static export prerendering: this page has one: so this build must not fail with the "should be wrapped in a suspense boundary" error.
 
 - [ ] **Step 3: Manual verification**
 
@@ -630,7 +630,7 @@ git commit -m "feat(client): add cross-origin auth handoff callback route"
 - Consumes: `localStorage.impersonator_handoff_return_code` (set by Task 5), `apiClient.createHandoffCode`/`consumeHandoffCode` (Task 4), `WEB_APP_URL` (existing constant in `client/lib/constants.ts:5`).
 - Produces: a rendered banner + "End Session" button whenever an impersonation session is active; on click, redirects the browser to `web/app/admin/handoff` (Task 7).
 
-This is the re-homed equivalent of `web/components/dashboard/header.tsx`'s `handleEndImpersonation` (which lived inside `components/dashboard/**`, the directory slated for deletion in a later step of the overall migration — re-homing it here is what un-breaks the round-trip before that deletion happens).
+This is the re-homed equivalent of `web/components/dashboard/header.tsx`'s `handleEndImpersonation` (which lived inside `components/dashboard/**`, the directory slated for deletion in a later step of the overall migration: re-homing it here is what un-breaks the round-trip before that deletion happens).
 
 - [ ] **Step 1: Create the banner component**
 
@@ -663,7 +663,7 @@ export function ImpersonationBanner() {
     setEnding(true);
     try {
       // The stored value from the original handoff is itself a one-time
-      // code (see client/app/auth/callback/page.tsx) — redeem it now to get
+      // code (see client/app/auth/callback/page.tsx): redeem it now to get
       // the admin's real token back, then immediately re-wrap it in a fresh
       // code for the trip back to dumosrx.com. Two hops, but neither origin
       // ever sees the other's raw token, and each code is single-use.
@@ -726,7 +726,7 @@ localStorage.setItem("impersonator_handoff_return_code", "fake-code-for-visual-c
 location.reload();
 ```
 
-Expected: the banner renders at the top of the dashboard. Clicking "End Session" should attempt the network call and fail gracefully (toast error), since `"fake-code-for-visual-check"` isn't a real code — that's expected at this stage; full end-to-end verification happens once Task 7 and Task 8 are also done (see Task 8's final verification step).
+Expected: the banner renders at the top of the dashboard. Clicking "End Session" should attempt the network call and fail gracefully (toast error), since `"fake-code-for-visual-check"` isn't a real code: that's expected at this stage; full end-to-end verification happens once Task 7 and Task 8 are also done (see Task 8's final verification step).
 
 - [ ] **Step 4: Commit**
 
@@ -895,7 +895,7 @@ Replace `handleImpersonate` (lines 143-177) with:
   };
 ```
 
-Note: `data.token` (the impersonated store's token, returned by `POST /admin/stores/{id}/impersonate`) and the admin's own `drx_admin_token` are each wrapped in their own code and never written to `localStorage` for the new origin to read — this replaces the old `localStorage.setItem("drx_token", ...)` / `localStorage.setItem("drx_impersonator_token", ...)` same-origin approach entirely. The `queryClient.cancelQueries()/.clear()` calls from the old implementation are dropped too — they existed to avoid app.dumosrx.com's *own* different query-cache instance rendering stale data, which is moot now that the browser does a full cross-origin navigation instead of an SPA route push.
+Note: `data.token` (the impersonated store's token, returned by `POST /admin/stores/{id}/impersonate`) and the admin's own `drx_admin_token` are each wrapped in their own code and never written to `localStorage` for the new origin to read. This replaces the old `localStorage.setItem("drx_token", ...)` / `localStorage.setItem("drx_impersonator_token", ...)` same-origin approach entirely. The `queryClient.cancelQueries()/.clear()` calls from the old implementation are dropped too, they existed to avoid app.dumosrx.com's *own* different query-cache instance rendering stale data, which is moot now that the browser does a full cross-origin navigation instead of an SPA route push.
 
 - [ ] **Step 2: Manual verification**
 
@@ -920,18 +920,18 @@ git commit -m "feat(web): route impersonation through cross-origin auth handoff"
 
 ### Task 9 (revised 2026-08-24, post-Task-5 session resume): Point all dumosrx.com auth entry points at `app.dumosrx.com`, redirect-only
 
-**Ruling — supersedes this task's original text below the line "Decision superseded" was never reached during execution; this is a plan correction made mid-session, not a fix-loop finding.** The user clarified the intended login architecture after Tasks 1-5 were already built (Tasks 1-8 are unaffected — they only depend on the handoff-code mechanism itself, not on how a user first authenticates). The original Task 9 had dumosrx.com perform real authentication via its own `LoginForm` (`webApiClient.login`) and then hand off to `app.dumosrx.com` post-success. That is not the intended design.
+**Ruling: supersedes this task's original text below the line "Decision superseded" was never reached during execution; this is a plan correction made mid-session, not a fix-loop finding.** The user clarified the intended login architecture after Tasks 1-5 were already built (Tasks 1-8 are unaffected: they only depend on the handoff-code mechanism itself, not on how a user first authenticates). The original Task 9 had dumosrx.com perform real authentication via its own `LoginForm` (`webApiClient.login`) and then hand off to `app.dumosrx.com` post-success. That is not the intended design.
 
-**Corrected design:** dumosrx.com never authenticates anyone and never holds a token. `app.dumosrx.com` already has its own complete, working login flow (`client/lib/context/auth-context.tsx:376` calls `apiClient.login(email, password)` directly, and `client/app/page.tsx` already branches on local login state to skip straight to `/dashboard` when appropriate). dumosrx.com's job is only to point visitors at `app.dumosrx.com` — it does not check or track whether they're logged in (confirmed with the user: always show a neutral CTA, never conditionally render "Dashboard" vs "Log in" based on local auth state). This makes the handoff-code mechanism (Tasks 1-5) irrelevant to the *normal login* path entirely — it remains exactly as needed for admin impersonation (Tasks 6-8), which is a different flow (an already-authenticated admin session jumping origins), untouched by this correction.
+**Corrected design:** dumosrx.com never authenticates anyone and never holds a token. `app.dumosrx.com` already has its own complete, working login flow (`client/lib/context/auth-context.tsx:376` calls `apiClient.login(email, password)` directly, and `client/app/page.tsx` already branches on local login state to skip straight to `/dashboard` when appropriate). dumosrx.com's job is only to point visitors at `app.dumosrx.com`; it does not check or track whether they're logged in (confirmed with the user: always show a neutral CTA, never conditionally render "Dashboard" vs "Log in" based on local auth state). This makes the handoff-code mechanism (Tasks 1-5) irrelevant to the *normal login* path entirely. It remains exactly as needed for admin impersonation (Tasks 6-8), which is a different flow (an already-authenticated admin session jumping origins), untouched by this correction.
 
 **Files:**
-- Modify: `web/app/login/page.tsx` — replace its content entirely with an immediate client-side redirect to `${APP_URL}/login`.
-- Delete: `web/components/auth/login-form.tsx` — becomes fully orphaned once `app/login/page.tsx` no longer imports it (verified: no other file imports `LoginForm`; `components/auth/admin-login-form.tsx` is a separate component for the admin path and is untouched).
-- Modify: `web/components/landing/header-section.tsx` — remove the `isLoggedIn` local-storage check (`useEffect` reading `drx_token`) and the two conditional branches it drives (desktop nav around the old lines 82-95, mobile sheet around the old lines 167-180); replace both with a single unconditional "Log in" link and unconditional CTA, both pointing at `app.dumosrx.com`.
-- Modify: `web/components/landing/hero-section.tsx:39` — same treatment: whatever conditional "Open Dashboard" vs. other CTA logic exists there collapses to one unconditional link to `${APP_URL}`.
+- Modify: `web/app/login/page.tsx`: replace its content entirely with an immediate client-side redirect to `${APP_URL}/login`.
+- Delete: `web/components/auth/login-form.tsx`, becomes fully orphaned once `app/login/page.tsx` no longer imports it (verified: no other file imports `LoginForm`; `components/auth/admin-login-form.tsx` is a separate component for the admin path and is untouched).
+- Modify: `web/components/landing/header-section.tsx`: remove the `isLoggedIn` local-storage check (`useEffect` reading `drx_token`) and the two conditional branches it drives (desktop nav around the old lines 82-95, mobile sheet around the old lines 167-180); replace both with a single unconditional "Log in" link and unconditional CTA, both pointing at `app.dumosrx.com`.
+- Modify: `web/components/landing/hero-section.tsx:39`, same treatment: whatever conditional "Open Dashboard" vs. other CTA logic exists there collapses to one unconditional link to `${APP_URL}`.
 
 **Interfaces:**
-- Consumes: `APP_URL` (Task 2). No `webApiClient.createHandoffCode` call anywhere in this task — that API remains used only by Task 8 (impersonation) and Task 3 exists for that purpose.
+- Consumes: `APP_URL` (Task 2). No `webApiClient.createHandoffCode` call anywhere in this task: that API remains used only by Task 8 (impersonation) and Task 3 exists for that purpose.
 - Produces: nothing new is exported; this task only removes dead-end same-origin auth UI and repoints links.
 
 - [ ] **Step 1: Redirect `web/app/login` to `app.dumosrx.com/login`**
@@ -958,7 +958,7 @@ export default function LoginPage() {
 }
 ```
 
-No `Suspense` boundary is needed here — this page reads no search params.
+No `Suspense` boundary is needed here: this page reads no search params.
 
 - [ ] **Step 2: Delete the now-orphaned login form**
 
@@ -981,7 +981,7 @@ In `web/components/landing/header-section.tsx`:
 </Button>
 ```
 
-(Keep the existing "Start Free Trial" / `/register` link as-is if registration stays on dumosrx.com — that flow was not part of this correction and is out of scope here. Only the login/dashboard-state branching is being removed.)
+(Keep the existing "Start Free Trial" / `/register` link as-is if registration stays on dumosrx.com: that flow was not part of this correction and is out of scope here. Only the login/dashboard-state branching is being removed.)
 
 Add `import { APP_URL } from "@/lib/constants";` alongside the file's other imports.
 
@@ -998,7 +998,7 @@ cd web && npm run dev
 ```
 
 1. Visit `/login`. Expected: an immediate redirect to `app.dumosrx.com/login` (or the `APP_URL` dev override), no login form ever renders on dumosrx.com.
-2. Visit `/` (marketing home). Expected: header and hero CTAs always point at `app.dumosrx.com` — never conditionally rendered based on any dumosrx.com-local auth state, regardless of whether `localStorage.drx_token` is set or not.
+2. Visit `/` (marketing home). Expected: header and hero CTAs always point at `app.dumosrx.com`: never conditionally rendered based on any dumosrx.com-local auth state, regardless of whether `localStorage.drx_token` is set or not.
 
 - [ ] **Step 6: Commit**
 
@@ -1012,7 +1012,7 @@ git commit -m "feat(web): route all auth entry points to app.dumosrx.com, drop l
 
 ## Self-Review Notes
 
-- **Spec coverage:** impersonation start (Task 8) and end (Task 6/7) both use the exchange-code flow; codes are single-use/60s-TTL/burned-on-first-attempt (Task 1); codes are stripped from the URL via `replaceState` before the exchange call (Task 5/7); no raw token ever appears in a URL (Tasks 1, 5, 6, 7, 8); dumosrx.com's auth entry points (`/login`, header, hero) target `app.dumosrx.com` via the configurable `APP_URL` env var, not a hardcoded literal (Task 2, Task 9 — revised).
-- **Task 9 was revised mid-session (2026-08-24), after Tasks 1-5 were already built:** the original text had dumosrx.com perform real login via its own form and hand off a token post-success, mirroring the impersonation mechanism. The user clarified the actual intent: dumosrx.com never authenticates anyone — it only redirects to `app.dumosrx.com`, which already has its own complete login flow. dumosrx.com also does not track or branch on login state (confirmed: always a neutral CTA, never a conditional "Dashboard" vs "Log in" render). This is a plan correction, not a fix-loop finding — see the ruling inline in Task 9's text. The handoff-code mechanism (Tasks 1-5) is retained in full because Tasks 6-8 (admin impersonation) genuinely need it; only the *normal user login* path stopped using it.
-- **Known follow-up, not solved here:** if a user lands via Task 5's callback with a `return_code` but never clicks "End Session" within 60 seconds, that stored code silently expires — clicking "End Session" later will fail with a toast error and no path back to admin except manually re-navigating to `dumosrx.com/admin/login`. Acceptable for this phase (matches the original same-origin implementation's lack of any timeout handling either), but worth a product-level decision later (e.g. re-mint on demand by keeping the admin's *own* session alive independently, which Task 6 partially relies on already).
+- **Spec coverage:** impersonation start (Task 8) and end (Task 6/7) both use the exchange-code flow; codes are single-use/60s-TTL/burned-on-first-attempt (Task 1); codes are stripped from the URL via `replaceState` before the exchange call (Task 5/7); no raw token ever appears in a URL (Tasks 1, 5, 6, 7, 8); dumosrx.com's auth entry points (`/login`, header, hero) target `app.dumosrx.com` via the configurable `APP_URL` env var, not a hardcoded literal (Task 2, Task 9: revised).
+- **Task 9 was revised mid-session (2026-08-24), after Tasks 1-5 were already built:** the original text had dumosrx.com perform real login via its own form and hand off a token post-success, mirroring the impersonation mechanism. The user clarified the actual intent: dumosrx.com never authenticates anyone; it only redirects to `app.dumosrx.com`, which already has its own complete login flow. dumosrx.com also does not track or branch on login state (confirmed: always a neutral CTA, never a conditional "Dashboard" vs "Log in" render). This is a plan correction, not a fix-loop finding, see the ruling inline in Task 9's text. The handoff-code mechanism (Tasks 1-5) is retained in full because Tasks 6-8 (admin impersonation) genuinely need it; only the *normal user login* path stopped using it.
+- **Known follow-up, not solved here:** if a user lands via Task 5's callback with a `return_code` but never clicks "End Session" within 60 seconds, that stored code silently expires: clicking "End Session" later will fail with a toast error and no path back to admin except manually re-navigating to `dumosrx.com/admin/login`. Acceptable for this phase (matches the original same-origin implementation's lack of any timeout handling either), but worth a product-level decision later (e.g. re-mint on demand by keeping the admin's *own* session alive independently, which Task 6 partially relies on already).
 - **Type consistency:** `createHandoffCode`/`consumeHandoffCode` signatures match exactly between `web/lib/api/client.ts` (Task 3) and `client/lib/api/client.ts` (Task 4) in shape (`{ code, expires_in }` / `{ token, user }`), even though they're deliberately separate implementations per the "defer shared package" decision. Post-revision, these methods are exercised only by the impersonation path (Task 8), not by normal login.

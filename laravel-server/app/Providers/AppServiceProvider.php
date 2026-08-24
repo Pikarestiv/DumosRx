@@ -35,7 +35,7 @@ class AppServiceProvider extends ServiceProvider
         // a single impersonation round trip from one admin IP is already 6
         // handoff calls (2 mints out, 1 consume on arrival, 1 consume + 1 mint
         // to end the session, 1 consume on return). Sharing the 5/min `auth`
-        // limiter would 429 the final call — the one that restores the admin's
+        // limiter would 429 the final call, the one that restores the admin's
         // own session, after the return code has already been burned.
         RateLimiter::for('handoff', function (Request $request) {
             return Limit::perMinute(30)->by($request->ip());

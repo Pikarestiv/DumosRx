@@ -1,7 +1,7 @@
 /**
  * Query-key factory + table-dependency tagging convention.
  *
- * Every entry returns `{ queryKey, meta: { tables } }` — spread straight
+ * Every entry returns `{ queryKey, meta: { tables } }`, spread straight
  * into useQuery's options (`useQuery({ ...queryKeys.products.all(), queryFn
  * })`). Bundling the key and its table dependencies into the same function
  * means they can't drift apart the way they would if `tables` were passed
@@ -9,19 +9,19 @@
  *
  * `meta.tables` is what base-helpers.ts's mutation helpers use (via a
  * predicate, not prefix-matching) to invalidate exactly the queries that
- * could be affected by a given table's insert/update/delete — including
+ * could be affected by a given table's insert/update/delete, including
  * queries that read from several tables at once (dashboard, BI, and
  * daily-close all do), which a plain "queryKey starts with the table name"
  * convention can't express.
  *
  * A query with no `meta.tables` (i.e. not yet migrated to this factory)
- * falls back to being invalidated on every mutation — see base-helpers.ts's
+ * falls back to being invalidated on every mutation; see base-helpers.ts's
  * invalidateQueriesForTable. That makes adopting this factory incremental
  * and safe: an unmigrated query is never LESS correct than before, only
  * less precisely invalidated.
  *
  * Every key is also suffixed with the active store id and current user id
- * (lib/db/core.ts) — every query function reads its scope from those
+ * (lib/db/core.ts); every query function reads its scope from those
  * module-level resolvers at execution time rather than from the query key,
  * so without this suffix a switch of store or user could read/write a
  * cache slot the previous store/user's queries already own. This makes
@@ -116,7 +116,7 @@ export const queryKeys = {
     count: () => resource(["heldTransactionsCount"] as const, ["held_transactions"]),
   },
   onlineOrders: {
-    // Remote API data, not a local table — never invalidated by local
+    // Remote API data, not a local table: never invalidated by local
     // mutations, only ever refetched explicitly.
     all: () => resource(["online_orders"] as const, []),
   },

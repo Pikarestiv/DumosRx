@@ -162,7 +162,7 @@ export class BaseApiClient {
           const isAuthEndpoint =
             endpoint.includes("/login") || endpoint.includes("/refresh");
 
-          // A 401 doesn't necessarily mean the session is truly dead — most
+          // A 401 doesn't necessarily mean the session is truly dead; most
           // of the time it just means the access token expired sooner than
           // the proactive 7-day age check above expected. Try one silent
           // refresh-and-retry before forcing the user to re-link; clearing

@@ -18,7 +18,7 @@ interface IosInstallDialogProps {
 
 /**
  * iOS forces every browser to use WebKit, but "Add to Home Screen" only
- * produces a real standalone-mode install in Safari itself — Chrome/Firefox/
+ * produces a real standalone-mode install in Safari itself. Chrome/Firefox/
  * Edge on iOS (CriOS/FxiOS/EdgiOS) expose either no equivalent or a plain
  * bookmark shortcut that reopens inside their own browser chrome. So this
  * needs to detect actual Safari, not just "is this an iOS device".
@@ -31,7 +31,7 @@ function isIosSafari() {
 }
 
 /** iOS can't install arbitrary native apps, so the dashboard is offered as a
- * home-screen PWA instead — Safari only exposes "Add to Home Screen" via the
+ * home-screen PWA instead. Safari only exposes "Add to Home Screen" via the
  * Share sheet, with no install prompt to trigger programmatically. */
 export function IosInstallDialog({ open, onOpenChange }: IosInstallDialogProps) {
   const [isSafari, setIsSafari] = useState(true);
@@ -107,13 +107,13 @@ export function IosInstallDialog({ open, onOpenChange }: IosInstallDialogProps) 
             </ol>
 
             <p className="text-xs text-muted-foreground border-t border-border pt-4">
-              Must be opened in Safari — Chrome and other iOS browsers don&apos;t
+              Must be opened in Safari. Chrome and other iOS browsers don&apos;t
               support adding to the Home Screen.
             </p>
           </>
         ) : (
           <p className="text-sm text-muted-foreground py-2">
-            This browser can&apos;t install DumosRx as an app — iOS only
+            This browser can&apos;t install DumosRx as an app. iOS only
             supports adding apps to the Home Screen from{" "}
             <span className="font-semibold text-foreground">Safari</span>.
             Open{" "}

@@ -14,7 +14,7 @@ export function saleToReceiptTransaction(
           : sale.payment_details;
       paymentSplits = Array.isArray(parsed) ? parsed : parsed?.splits;
     } catch {
-      // payment_details wasn't valid JSON — fall back to the plain method line
+      // payment_details wasn't valid JSON, fall back to the plain method line
     }
   }
 

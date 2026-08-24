@@ -1,7 +1,7 @@
 import { TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ResponsiveTabLabel } from "@/components/ui/responsive-tab-label";
 
-/** Tab nav only — pairs with sibling <TabsContent> panels owned by the parent, which switches page content on selection. */
+/** Tab nav only; pairs with sibling <TabsContent> panels owned by the parent, which switches page content on selection. */
 export function CustomerTabNav() {
   return (
     <TabsList className="w-full md:w-max bg-background border rounded-[11px] p-1 h-auto overflow-x-auto justify-start">

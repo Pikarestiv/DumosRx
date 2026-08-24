@@ -240,7 +240,7 @@ class AdminService
         // Correlated subquery instead of a plain withSum('sales', ...), for
         // two reasons:
         //
-        // 1. No payment_status filter — matching every other revenue figure
+        // 1. No payment_status filter, matching every other revenue figure
         //    in the app (the platform-wide total above, and the store
         //    owner's own dashboard in DashboardService). Filtering to only
         //    'completed' here silently dropped pending and partial-payment
@@ -248,12 +248,12 @@ class AdminService
         //    payment_status enum migration).
         //
         // 2. Sales are matched by sales.store_id when present (the
-        //    sync-populated, unambiguous scoping — see Store::sales()'s
+        //    sync-populated, unambiguous scoping; see Store::sales()'s
         //    doc comment), falling back to the legacy cashier-based match
         //    (store staff, or the store owner's own sales) only for rows
         //    synced before the store_id column existed and still null.
         //    Without this fallback, a store's revenue depends entirely on
-        //    whether Sale::sales() alone is used — which used to miss
+        //    whether Sale::sales() alone is used, which used to miss
         //    every owner-rung-up sale outright.
         $query = Store::with(['user.subscriptions'])
             ->addSelect(['total_revenue' => DB::table('sales')
@@ -541,7 +541,7 @@ class AdminService
     /**
      * Recent unresolved issues across both Sentry projects (client + server),
      * for the super-admin dashboard. Requires SENTRY_API_TOKEN (an internal
-     * integration token scoped to event:read/project:read) — never exposed
+     * integration token scoped to event:read/project:read), never exposed
      * to the browser, since `web/` is a static export with no server of its
      * own to keep it secret.
      */
@@ -672,7 +672,7 @@ class AdminService
                     'name' => $user->first_name.' '.$user->last_name,
                     'email' => $user->email,
                     'role' => ucwords(str_replace('_', ' ', $user->role)),
-                    // Raw slug alongside the humanized label above — the
+                    // Raw slug alongside the humanized label above. The
                     // frontend was comparing against display-text literals
                     // like 'Store Admin' that ucwords() never actually
                     // produces for the 'admin' role slug (it produces
@@ -697,7 +697,7 @@ class AdminService
     }
 
     /**
-     * Platform-wide activity log, unscoped by store owner — unlike
+     * Platform-wide activity log, unscoped by store owner. Unlike
      * Api\Web\ActivityLogController@index, which only shows a store owner
      * their own stores' staff. This is the superadmin equivalent, spanning
      * every store on the platform.
@@ -798,7 +798,7 @@ class AdminService
     public function registerStore($data, $registeredById = null)
     {
         return DB::transaction(function () use ($data, $registeredById) {
-            // Create the owner user — 'store_owner', matching the role
+            // Create the owner user with role 'store_owner', matching the role
             // self-serve signup assigns (AuthController::register), so an
             // admin-registered store reads identically to one a customer
             // signed up for themselves. Permissions are the same either way
@@ -934,7 +934,7 @@ class AdminService
 
     /** Resolves an admin-picked trial duration string (e.g. "3 months") into
      * an absolute end Carbon instant. An explicit $endDate always wins when
-     * present — used for exact-date grants instead of a preset window. */
+     * present, used for exact-date grants instead of a preset window. */
     private function resolveTrialEndDate(?string $durationString, ?string $endDate)
     {
         if ($endDate) {

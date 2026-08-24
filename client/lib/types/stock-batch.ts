@@ -13,7 +13,7 @@ export interface StockBatch {
   created_at?: string;
 }
 
-/** Row shape returned by getAvailableStockBatches() — active stock_batches
+/** Row shape returned by getAvailableStockBatches(): active stock_batches
  * joined with their product's name/strength/selling price, for pickers that
  * need to prescribe/sell against available batches. */
 export interface AvailableStockBatch extends StockBatch {

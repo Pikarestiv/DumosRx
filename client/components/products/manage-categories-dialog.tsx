@@ -120,7 +120,7 @@ export function ManageCategoriesDialog({ open, onOpenChange }: ManageCategoriesD
 
         {!isLoading && categories.length === 0 && (
           <div className="text-center py-6 text-sm text-muted-foreground">
-            No categories yet — add one above, or use the starter set below.
+            No categories yet. Add one above, or use the starter set below.
           </div>
         )}
 

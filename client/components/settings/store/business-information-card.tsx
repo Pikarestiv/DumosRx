@@ -76,7 +76,7 @@ export function BusinessInformationCard({
         <div className="space-y-1.5">
           <CardTitle>Business Information</CardTitle>
           <CardDescription>
-            Your business identity — shown on receipts, reports, and your public storefront.
+            Your business identity, shown on receipts, reports, and your public storefront.
           </CardDescription>
         </div>
         <Button

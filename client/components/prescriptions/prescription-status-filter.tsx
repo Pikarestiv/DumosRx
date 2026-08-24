@@ -15,7 +15,7 @@ interface PrescriptionStatusFilterProps {
   onChange: (value: string) => void;
 }
 
-/** Same filter state rendered as chips on mobile and tabs on desktop — no content switch, just narrows the list. */
+/** Same filter state rendered as chips on mobile and tabs on desktop: no content switch, just narrows the list. */
 export function PrescriptionStatusFilter({
   filters,
   value,

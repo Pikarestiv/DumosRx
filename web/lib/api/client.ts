@@ -197,7 +197,7 @@ class WebApiClient {
   }
 
   async createHandoffCode(token: string) {
-    // The request body's `token` is the sole credential here — the endpoint
+    // The request body's `token` is the sole credential here. The endpoint
     // does not read the Authorization header at all (see AuthHandoffController),
     // and base-client's request interceptor would overwrite any per-call
     // Authorization header from localStorage anyway.

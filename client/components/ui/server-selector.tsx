@@ -92,7 +92,7 @@ export function ServerSelector() {
     }
   };
 
-  // Dev/staging tool only — lets you repoint the API base URL, including to
+  // Dev/staging tool only: lets you repoint the API base URL, including to
   // an arbitrary custom IP. Must never render in production.
   if (!currentUrl || process.env.NODE_ENV === "production") return null;
 

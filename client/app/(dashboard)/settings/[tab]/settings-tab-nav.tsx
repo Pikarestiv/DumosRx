@@ -6,7 +6,7 @@ interface SettingsTabNavProps {
   isDesktop: boolean;
 }
 
-/** Tab nav only — pairs with sibling <TabsContent> panels owned by the parent, which switches page content on selection. */
+/** Tab nav only. Pairs with sibling <TabsContent> panels owned by the parent, which switches page content on selection. */
 export function SettingsTabNav({ isAdmin, isDesktop }: SettingsTabNavProps) {
   return (
     <TabsList

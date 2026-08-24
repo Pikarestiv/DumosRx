@@ -62,8 +62,8 @@ export async function deletePrescriptionItems(prescriptionId: string) {
 }
 
 export async function insertPrescriptionItem(data: PrescriptionItemInsertPayload) {
-  // Raw INSERT (not base-helpers' insert()), so store_id isn't auto-injected
-  // — set it explicitly here to stay scoped like every other write path.
+  // Raw INSERT (not base-helpers' insert()), so store_id isn't auto-injected;
+  // set it explicitly here to stay scoped like every other write path.
   const storeId = getActiveStoreId();
   return await query(
     `INSERT INTO prescription_items (id, prescription_id, product_name, strength, dosage, quantity, instructions, cost, refills_authorized, refill_interval_days, next_refill_date, created_at, updated_at, store_id)
@@ -135,7 +135,7 @@ export async function getRefillManagementData() {
 }
 
 export async function getActivePrescriptions() {
-  // Includes completed prescriptions too — the queue view filters by status
+  // Includes completed prescriptions too: the queue view filters by status
   // client-side (including the "History" chip), so excluding completed here
   // made that chip always render empty.
   const storeId = getActiveStoreId();

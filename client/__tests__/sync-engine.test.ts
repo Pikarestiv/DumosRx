@@ -173,7 +173,7 @@ describe('Sync Engine & Local Database', () => {
 
       const executeMock = vi.mocked(execute);
 
-      // No UPDATE/INSERT was issued for the conflicted record — the user's
+      // No UPDATE/INSERT was issued for the conflicted record; the user's
       // own unsynced edit must survive until the next push resolves it.
       const touchedProducts = executeMock.mock.calls.some(
         (call) =>

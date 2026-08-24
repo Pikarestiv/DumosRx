@@ -19,13 +19,13 @@ export async function getCustomers() {
 }
 
 /**
- * Combined feed of every customer's transactions store-wide — grows the same way
+ * Combined feed of every customer's transactions store-wide: grows the same way
  * stock_movements does (a row per sale), so `sinceDays` bounds the default recent
  * view. Omit it for full history, which the caller should only do when the user
  * is actively searching or filtering to a specific customer, so those still
  * match against every record, not just what's been loaded for browsing.
  *
- * `from`/`to` (YYYY-MM-DD) take precedence over `sinceDays` when both are passed —
+ * `from`/`to` (YYYY-MM-DD) take precedence over `sinceDays` when both are passed:
  * an explicit date-range pick from the UI overrides the relative window.
  */
 export async function getCustomerTransactions(
@@ -93,7 +93,7 @@ export async function getCustomerById(id: string) {
 }
 
 /** Applies a credit payment to a customer's oldest outstanding credit sales
- * first (FIFO) — a sale is marked "completed" once its cumulative amount_paid
+ * first (FIFO): a sale is marked "completed" once its cumulative amount_paid
  * reaches its total, otherwise "partial". Doesn't touch the customer's
  * outstanding_balance; the caller (recordCustomerPayment) does that. */
 async function applyCreditPaymentFIFO(customerId: string, amount: number) {
@@ -124,7 +124,7 @@ async function applyCreditPaymentFIFO(customerId: string, amount: number) {
   }
 }
 
-/** Single source of truth for recording a customer debt payment — used by
+/** Single source of truth for recording a customer debt payment: used by
  * both the Customer Directory and the Record Payment button on a specific
  * sale's transaction details. Self-contained (re-reads the customer's
  * current balance rather than trusting caller-held state) since it's called

@@ -39,7 +39,7 @@ export function StoreRegisteredPanel({
         {storeName} is registered
       </h2>
       <p className="text-slate-500 dark:text-slate-400 font-medium mt-1">
-        Login: <span className="font-bold text-slate-700 dark:text-slate-300">{username}</span> — share these download links with the store owner to get set up.
+        Login: <span className="font-bold text-slate-700 dark:text-slate-300">{username}</span>. Share these download links with the store owner to get set up.
       </p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-8 max-w-md mx-auto">

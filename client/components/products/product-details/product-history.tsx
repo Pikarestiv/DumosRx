@@ -120,7 +120,7 @@ export function ProductHistory({ productId }: { productId: string }) {
 
 /** audit_logs.action is usually the raw DB op ("INSERT"/"UPDATE"/"DELETE"/
  * "HARD_DELETE") from the generic insert()/update()/softDelete() helpers,
- * not a friendly verb — normalize case so both that and any hand-picked
+ * not a friendly verb. Normalize case so both that and any hand-picked
  * AUDIT_ACTIONS value map to a readable title. */
 function normalizeAction(action: string) {
   return (action || "").toLowerCase();
@@ -171,7 +171,7 @@ const AUDIT_DETAIL_LABELS: Record<string, string> = {
 };
 
 function formatAuditValue(value: unknown): string {
-  if (value === null || value === undefined || value === "") return "—";
+  if (value === null || value === undefined || value === "") return "-";
   if (typeof value === "boolean") return value ? "Yes" : "No";
   if (value === 1 || value === 0) return value === 1 ? "Yes" : "No";
   return String(value);
@@ -209,7 +209,7 @@ function describeAuditDetails(action: string, details: string | null) {
     })
     .join(" • ");
 
-  return (a === "insert" ? "Created with — " : "Changed — ") + summary;
+  return (a === "insert" ? "Created with: " : "Changed: ") + summary;
 }
 
 function getIconForAction(item: HistoryItem) {

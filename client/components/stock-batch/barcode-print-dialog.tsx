@@ -152,7 +152,7 @@ export function BarcodePrintDialog({
           </div>
         )}
 
-        {/* Off-screen — printed via printNode, not display:none (that would
+        {/* Off-screen, printed via printNode, not display:none (that would
             carry over into the printed clone and hide it there too). */}
         {product && (
           <div

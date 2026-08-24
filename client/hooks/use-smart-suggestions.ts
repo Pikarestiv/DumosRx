@@ -23,14 +23,14 @@ export function useSmartSuggestions(cart: CartItem[], products: Product[]) {
     // Process each cart item to find matched rules
     for (const item of cart) {
       const nameLower = item.name.toLowerCase();
-      // Rules are authored against human-readable category names, not category_id (a UUID) — match on category_name.
+      // Rules are authored against human-readable category names, not category_id (a UUID), so match on category_name.
       const categoryLower = item.category_name ? item.category_name.toLowerCase() : "";
       if (categoryLower) cartCategories.add(categoryLower);
 
       for (const rule of SMART_SUGGESTIONS_RULES) {
         let isMatched = false;
 
-        // Match category (lenient substring match — see categoriesMatch)
+        // Match category (lenient substring match, see categoriesMatch)
         if (rule.triggerCategory && categoriesMatch(categoryLower, rule.triggerCategory.toLowerCase())) {
           isMatched = true;
         }
@@ -80,7 +80,7 @@ export function useSmartSuggestions(cart: CartItem[], products: Product[]) {
 
     if (ruleMatches.length > 0) return ruleMatches.slice(0, 4);
 
-    // Fallback: no curated rule fired (small/uncatalogued store) — suggest other
+    // Fallback: no curated rule fired (small/uncatalogued store). Suggest other
     // in-stock products from the same category as what's already in the cart,
     // so the feature stays useful even without a matching rule.
     if (cartCategories.size > 0) {

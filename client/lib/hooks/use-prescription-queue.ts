@@ -112,7 +112,7 @@ export function usePrescriptionQueue() {
 
   // Tagged with meta.tables: ["prescriptions"] (see lib/query-keys.ts) so it
   // auto-refetches whenever insert/update/softDelete touches that table
-  // anywhere in the app — no manual refetch wiring needed.
+  // anywhere in the app; no manual refetch wiring needed.
   const { data, isLoading: loading, refetch } = useQuery({
     ...queryKeys.prescriptions.all(),
     queryFn: fetchPrescriptions,
@@ -137,7 +137,7 @@ export function usePrescriptionQueue() {
         return prescription.status === "dispensed" || prescription.status === "completed";
       }
 
-      // "refill_due" isn't a prescription status — it's derived from whether
+      // "refill_due" isn't a prescription status: it's derived from whether
       // any medication has refills remaining and its next_refill_date has passed.
       if (statusFilter === "refill_due") {
         return prescription.hasRefillDue;
@@ -162,7 +162,7 @@ export function usePrescriptionQueue() {
   const updatePrescriptionStatus = async (id: string, newStatus: Prescription["status"]) => {
     try {
       // update() already invalidates queryKey: ["prescriptions"], triggering a
-      // refetch — selectedPrescription is derived from that data, so it picks
+      // refetch. selectedPrescription is derived from that data, so it picks
       // up the new status automatically once the refetch lands.
       await updateDbPrescriptionStatus(id, newStatus);
     } catch (err) {

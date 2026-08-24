@@ -5,7 +5,7 @@ import { logCrash } from "@/lib/utils/error-logger";
 import { devLog } from "@/lib/utils/dev-log";
 
 // Benign browser-internal notices that show up as window "error" events but
-// don't indicate anything actually broke — e.g. ResizeObserver's loop-limit
+// don't indicate anything actually broke, e.g. ResizeObserver's loop-limit
 // warnings, which commonly fire when a dropdown/popover measures itself on
 // open. Not real crashes; don't log them as ones.
 const IGNORED_ERROR_PATTERNS = [/^ResizeObserver loop/i];

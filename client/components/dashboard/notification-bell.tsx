@@ -78,12 +78,12 @@ export function NotificationBell() {
   >([]);
   const [readBroadcastIds, setReadBroadcastIds] = useState<string[]>([]);
   const { onOpen } = useOnlineOrdersModal();
-  // Touch capability decides Drawer vs Dropdown, not viewport width — a wide
+  // Touch capability decides Drawer vs Dropdown, not viewport width. A wide
   // touch device (like iPad landscape) still needs the Drawer. Radix's
   // DropdownMenu has a known iOS WebKit bug where the dismissable-layer's
   // outside-tap-to-close races the trigger's own click-to-toggle on iOS's
   // delayed synthetic click, so the same tap that should close the menu can
-  // silently reopen it — needing a genuinely separate second tap to close.
+  // silently reopen it, needing a genuinely separate second tap to close.
   const isTouchDevice = useIsTouchDevice();
   const [open, setOpen] = useState(false);
 

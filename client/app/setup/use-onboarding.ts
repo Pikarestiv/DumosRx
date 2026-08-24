@@ -35,13 +35,13 @@ export function useOnboarding() {
   const searchParams = useSearchParams();
 
   // `isCloudLinked` from auth-context is a device-wide flag (true whenever a
-  // cloud auth token is cached in localStorage) — it can be stale from an
+  // cloud auth token is cached in localStorage); it can be stale from an
   // earlier session on this device. "Set Up New Business" and "Create an
   // account" always mean "create a brand-new cloud account," regardless of
   // any leftover token, so they must never be treated as already-linked.
   // Only the automatic zero-local-users fallback inside startSyncProcess
   // (reached right after this session's own successful cloud link) is a
-  // genuine already-linked case — it sets this flag itself.
+  // genuine already-linked case: it sets this flag itself.
   const [justCloudLinkedForRegister, setJustCloudLinkedForRegister] = useState(false);
   const registerIsCloudLinked = isCloudLinked && justCloudLinkedForRegister;
 
@@ -56,7 +56,7 @@ export function useOnboarding() {
 
   const setStep = (step: OnboardingStep) => {
     const params = new URLSearchParams(searchParams.toString());
-    // Always land on the setup tab — setStep can now be called from the
+    // Always land on the setup tab. setStep can now be called from the
     // login tab (e.g. TraditionalLoginForm's "Create account" / "Restore
     // Backup" links), which has no `tab=setup` in its URL yet, unlike every
     // other setStep caller that's already inside the setup tab.
@@ -69,7 +69,7 @@ export function useOnboarding() {
     router.push(`?${params.toString()}`);
   };
 
-  // Explicit entry point for "Set Up New Business" / "Create an account" —
+  // Explicit entry point for "Set Up New Business" / "Create an account":
   // always a fresh cloud account, never the already-linked local-admin-only
   // variant, no matter what stale token this device might be holding.
   const goToRegister = () => {
@@ -96,7 +96,7 @@ export function useOnboarding() {
       // Brand-new setup (no cloud account linked yet): always create the
       // account + store in the cloud first, then seed local SQLite with the
       // server's real ids. A local-only id generated before a cloud identity
-      // exists can never be reconciled later — every row that references it
+      // exists can never be reconciled later: every row that references it
       // as a foreign key (sales.cashier_id, stock_movements.performed_by,
       // etc.) becomes permanently unsyncable. See reconcile-identity.ts for
       // the one-time recovery this exact failure mode required.
@@ -156,7 +156,7 @@ export function useOnboarding() {
         return;
       }
 
-      // Already cloud-linked — reached via the "sync completed but found no
+      // Already cloud-linked: reached via the "sync completed but found no
       // local accounts" fallback (see startSyncProcess below). Generating a
       // fresh local id here is safe: the cloud identity already exists, and
       // the subsequent sync() push adopts this same id server-side.

@@ -270,7 +270,7 @@ export function useSettings() {
       await syncSubscriptionStatus();
       await refetchStore();
     } catch (_e) {
-      // Non-fatal — continue with the full sync regardless
+      // Non-fatal, continue with the full sync regardless
     }
 
     toast.promise(sync(true), {

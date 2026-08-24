@@ -5,11 +5,11 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * The client actively uses 'partial' as a real payment_status (POS credit
- * sales with only some of the total collected — see
+ * sales with only some of the total collected; see
  * components/pos/transaction-details-dialog.tsx and
  * lib/db/queries/customers.ts), but the server's enum never had a matching
  * value, so every such sale failed to sync with "Data truncated for column
- * 'payment_status'". 'pending' isn't an equivalent substitute — it means no
+ * 'payment_status'". 'pending' isn't an equivalent substitute: it means no
  * payment was made at all, not that payment is partially collected.
  */
 return new class extends Migration

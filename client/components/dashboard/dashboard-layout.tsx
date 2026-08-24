@@ -61,7 +61,7 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
   const pathname = usePathname();
   const { user } = useAuth();
   const [feedbackOpen, setFeedbackOpen] = useState(false);
-  // Selectors, not a destructured whole-store call — see the comment in
+  // Selectors, not a destructured whole-store call. See the comment in
   // useAutoLockTimer for why (this component wraps the entire app).
   const isLocked = useAutoLockStore((s) => s.isLocked);
   const forceAccountSelection = useAutoLockStore(
@@ -92,10 +92,10 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
 
   const isPosRoute = pathname.startsWith("/pos");
   // Create Purchase Order gets a POS-style full-screen takeover, but only on
-  // mobile (<lg) — desktop keeps the normal dashboard chrome since the page
+  // mobile (<lg). Desktop keeps the normal dashboard chrome since the page
   // already renders as a self-contained bordered panel there.
   const isCreatePORoute = pathname.startsWith("/procurement/new");
-  // Excludes the bare "/settings" index (mobile menu list) — only the inner
+  // Excludes the bare "/settings" index (mobile menu list); only the inner
   // tab detail routes ("/settings/appearance", etc.) get this treatment,
   // since those are the ones with their own sticky mobile back-button header.
   const isSettingsInnerRoute = pathname.startsWith("/settings/");
@@ -103,7 +103,7 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
   const [userNavOpen, setUserNavOpen] = useState(false);
   const { peekEnabled } = useSidebarPeekPreference();
   // Touch devices (tablets/iPads at the lg: breakpoint where the desktop
-  // sidebar shows) don't get real hover intent — a tap can synthesize a
+  // sidebar shows) don't get real hover intent. A tap can synthesize a
   // hover-like event, which makes peek stick or flicker. Hard-disabled here
   // regardless of the peekEnabled preference, since it doesn't make sense on
   // touch at all: those devices only ever see plain collapsed or expanded.
@@ -154,8 +154,8 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
   // standard page gutter. Each takeover's restore breakpoint must match the
   // breakpoint that page itself uses to switch to its desktop layout:
   // create-PO uses lg: (see procurement/new/page.tsx), settings inner tabs
-  // use md: (see hooks/use-settings.ts's isDesktop, which flips at 768px) —
-  // using the wrong one here left settings content unpadded between 768–1023px.
+  // use md: (see hooks/use-settings.ts's isDesktop, which flips at 768px).
+  // Using the wrong one here left settings content unpadded between 768-1023px.
   const mainClassName = isPosRoute
     ? ""
     : isCreatePORoute
@@ -186,7 +186,7 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
       },
     });
 
-  // Single lookup — avoids indexing DIRECTION_ANIMATION twice (once to check,
+  // Single lookup: avoids indexing DIRECTION_ANIMATION twice (once to check,
   // once to interpolate) and keeps the `direction === null` case contained
   // to this one spot instead of repeating `?? ""` at each usage site.
   const animationClass = shouldAnimate
@@ -197,7 +197,7 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
     <div className="min-h-screen bg-background relative">
       {isLocked && (
         <div
-          // z-[9000], not higher than TauriTitleBar's z-[9999] — otherwise
+          // z-[9000], not higher than TauriTitleBar's z-[9999], otherwise
           // this full-viewport background paints over the title bar (and
           // its close/minimize/maximize controls) instead of just sitting
           // below it the way the paddingTop below already visually implies.
@@ -264,7 +264,7 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
       <FeedbackForm open={feedbackOpen} onOpenChange={setFeedbackOpen} />
       <OnlineOrdersModal />
 
-      {/* Main content — shifts right to clear the sidebar */}
+      {/* Main content: shifts right to clear the sidebar */}
       <div
         className={cn(
           "flex flex-col overflow-hidden transition-all duration-300",
@@ -272,7 +272,7 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
         )}
         style={{
           height: "100dvh",
-          // On POS routes there's no header to carry the inset — keep it here.
+          // On POS routes there's no header to carry the inset, so keep it here.
           // Elsewhere it moves onto the banner/header block below so its own
           // background (not this wrapper's, which can be a different shade)
           // paints all the way up under the status bar, avoiding a seam.
@@ -297,7 +297,7 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
           )}
         </div>
 
-        {/* Page content — scrolls internally */}
+        {/* Page content: scrolls internally */}
         <div
           ref={scrollRef}
           className={cn(

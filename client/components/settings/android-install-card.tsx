@@ -13,7 +13,7 @@ import { useInstallPrompt } from "@/lib/hooks/use-install-prompt";
 import { isTauri } from "@/lib/db/core";
 
 /** Nudges Android/Chrome users to install the PWA even though a native APK
- * also exists — the PWA install is one tap, doesn't require enabling
+ * also exists: the PWA install is one tap, doesn't require enabling
  * "install from unknown sources", and stays current automatically. Only
  * renders once Chrome has judged the site installable and fired
  * beforeinstallprompt; hidden entirely in the Tauri-wrapped desktop/native

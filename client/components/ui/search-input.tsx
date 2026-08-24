@@ -8,7 +8,7 @@ interface SearchInputProps {
   inputClassName?: string;
 }
 
-/** Search input with a leading icon — shared across list pages (product catalog, activity log, ...). */
+/** Search input with a leading icon, shared across list pages (product catalog, activity log, ...). */
 export function SearchInput({
   value,
   onChange,

@@ -29,7 +29,7 @@ export function ProductPackagingFields({ formData, onInputChange }: Props) {
               <p>
                 You buy in bulk (e.g., Carton) but sell and track stock in base
                 units (e.g., Tablet). Reorder level, stock counts, and sales are
-                always in base units — this section just defines the conversion.
+                always in base units. This section just defines the conversion.
               </p>
             </TooltipContent>
           </Tooltip>

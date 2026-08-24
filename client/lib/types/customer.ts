@@ -9,7 +9,7 @@ export interface Customer {
   address?: string;
 }
 
-/** Row shape returned by getCustomers() — the raw `customers` table joined
+/** Row shape returned by getCustomers(): the raw `customers` table joined
  * with each customer's lifetime spend and most recent visit. */
 export interface CustomerDbRow {
   id: string;

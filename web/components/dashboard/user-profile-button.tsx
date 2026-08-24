@@ -68,7 +68,7 @@ export function UserProfileButton({
     return <UserProfileSkeleton />;
   }
 
-  // Distinct from the normal profile view — a failed fetch shouldn't be
+  // Distinct from the normal profile view: a failed fetch shouldn't be
   // indistinguishable from "you're logged in as a generic account with no
   // email" (the fallback data used to render as exactly that). Tell the
   // user their session might be stale instead of guessing.

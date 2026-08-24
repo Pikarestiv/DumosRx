@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Schema;
 // referral_credits columns, which already power a live customer-to-customer
 // referral program (store owners referring other store owners for account
 // credit). Platform staff (super_admin/platform_admin/agent) onboarding new
-// pharmacies on the company's behalf is a different relationship — sharing
+// pharmacies on the company's behalf is a different relationship; sharing
 // the customer columns would risk agents surfacing in customer-facing
 // referral UI or becoming eligible for credit redemption.
 return new class extends Migration

@@ -72,7 +72,7 @@ class StockMovementController extends Controller
     #[OA\Get(
         path: '/stock-adjustments',
         summary: 'List stock movements filtered to adjustment/expired/damaged types',
-        description: 'Same shape as `/stock-movements` but pre-filtered, plus an `adjustment_type` (increase/decrease) derived from quantity sign. `approved` is always hard-coded `true` — there is no approval workflow.',
+        description: 'Same shape as `/stock-movements` but pre-filtered, plus an `adjustment_type` (increase/decrease) derived from quantity sign. `approved` is always hard-coded `true`; there is no approval workflow.',
         tags: ['Stock Movements'],
         security: [['sanctum' => []]],
         parameters: [new OA\Parameter(name: 'limit', in: 'query', schema: new OA\Schema(type: 'integer', default: 50))],

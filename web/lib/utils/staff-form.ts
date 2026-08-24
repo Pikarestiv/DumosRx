@@ -17,7 +17,7 @@ export interface StaffFormData {
 
 /**
  * Only the fields that actually differ from the staff member's current
- * values — an update should express intent to change something, not
+ * values. An update should express intent to change something, not
  * silently resubmit the whole form. This matters beyond tidiness: fields
  * the dropdown/inputs pre-fill from the record but can't actually represent
  * as an option (e.g. a store owner's role is "store_owner", which isn't a
@@ -25,7 +25,7 @@ export interface StaffFormData {
  * every save regardless of whether the user touched them, tripping
  * validation that was never meant to reject that field in the first place.
  * `store_id` deliberately compares against the record's *raw* value, not
- * the dropdown's pre-filled fallback (first store in the list) — so an
+ * the dropdown's pre-filled fallback (first store in the list), so an
  * owner with no store_id doesn't get silently assigned one just because
  * they saved an unrelated field.
  */
@@ -50,7 +50,7 @@ export function getChangedFields(
     }
   });
 
-  // No "original" to diff a password against — only send it if the user
+  // No "original" to diff a password against. Only send it if the user
   // actually typed a new one.
   if (formData.password) {
     changed.password = formData.password;

@@ -59,7 +59,7 @@ export function StoreTable({
   handleToggleDemo,
   router,
 }: StoreTableProps) {
-  // Suspend/unsuspend is super_admin-exclusive server-side — hiding it for
+  // Suspend/unsuspend is super_admin-exclusive server-side. Hiding it for
   // platform_admin/agent avoids a dead menu item that would just 403.
   const { user } = useAdminAuthStore();
   const isSuperAdmin = checkIsSuperAdmin(user?.role);

@@ -66,7 +66,7 @@ export function SmartSuppWidget({ chatKey }: SmartSuppWidgetProps) {
         userId: { label: "User ID", value: user.id },
       });
     } else {
-      // Guest — reset identity so agents don't see stale data
+      // Guest: reset identity so agents don't see stale data
       try {
         window.smartsupp("name", "");
         window.smartsupp("email", "");

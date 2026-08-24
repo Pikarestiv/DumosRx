@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input";
 /**
  * Walks a raw digit string one character at a time and drops the first
  * digit that would make the day or month segment impossible to complete
- * validly (day > 31, month > 12, or a "00" segment) — rather than accepting
+ * validly (day > 31, month > 12, or a "00" segment), rather than accepting
  * every digit and only checking validity once all 8 are in. This is what
  * makes typing a month/year-only date (e.g. "11/2027", read as day 11 +
  * "month" 20) get stopped immediately instead of silently discarding the
@@ -56,13 +56,13 @@ interface DatePickerInputProps {
   className?: string;
   placeholder?: string;
   disabled?: boolean;
-  // Bounds for the calendar's quick month/year dropdown jump — pick years
+  // Bounds for the calendar's quick month/year dropdown jump: pick years
   // that make sense for what's being entered (e.g. a birthdate needs the
   // past; a batch expiry needs the future). Defaults span 100 years back to
   // 10 years ahead, wide enough to never block a legitimate date.
   fromYear?: number;
   toYear?: number;
-  // Blocks dates before/after today — e.g. an expense date can't be in the
+  // Blocks dates before/after today, e.g. an expense date can't be in the
   // future, a batch expiry can't be in the past.
   disablePast?: boolean;
   disableFuture?: boolean;
@@ -103,12 +103,12 @@ export function DatePickerInput({
   }, [value]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Work from digits only — a slash can only ever come from the mask
+    // Work from digits only: a slash can only ever come from the mask
     // itself, never from what the user types, so there's no way to end up
     // with a stray or doubled "/" no matter where they type or paste.
     const rawDigits = e.target.value.replace(/\D/g, "").slice(0, 8);
     // Reject (don't just clamp) any digit that would make the day or month
-    // segment impossible to complete validly — e.g. typing "9" as the first
+    // segment impossible to complete validly, e.g. typing "9" as the first
     // day digit, or "2" as the first month digit, is dropped rather than
     // producing a nonsense date like day 39 or month 20. Anyone trying to
     // type a month/year-only date (e.g. "11/2027") hits this on the very
@@ -133,7 +133,7 @@ export function DatePickerInput({
         return;
       }
     }
-    // Incomplete or invalid so far — clear the external value but keep
+    // Incomplete or invalid so far: clear the external value but keep
     // their typing on screen.
     onChange?.("");
   };

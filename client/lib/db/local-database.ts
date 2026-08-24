@@ -132,7 +132,7 @@ export async function createSale(saleData: Record<string, unknown>, items: Creat
   return transaction(async () => {
     const saleId = await insert("sales", saleData);
     // stock_movements.performed_by is a required foreign key on the cloud
-    // DB (no default) — reading it here the same way receivePurchaseOrder()
+    // DB (no default); reading it here the same way receivePurchaseOrder()
     // does, since it was never set on this insert before and every sale's
     // movement row was silently failing to sync as a result.
     const dumosUser = JSON.parse(localStorage.getItem("dumos_user") || "{}");
@@ -219,7 +219,7 @@ const STAFF_LIST_COLUMNS = "id, first_name, last_name, username, email, role, st
 
 export async function getUsers(storeId?: string | null) {
   // Fall back to the module-scope resolver (same one every other query file
-  // uses) when the caller doesn't pass an explicit id — keeps this in step
+  // uses) when the caller doesn't pass an explicit id, keeping this in step
   // with the rest of the app's store-scoping instead of being its own thing.
   storeId = storeId ?? getActiveStoreId();
   if (storeId) {
@@ -257,14 +257,14 @@ export async function deleteUser(id: string) {
  */
 /**
  * Stock movements log a row per sale/receive/adjustment, so it's the fastest-growing
- * table in the schema — unlike other lists, we can't just load the full table forever.
+ * table in the schema; unlike other lists, we can't just load the full table forever.
  * Pass `sinceDays` for the default recent-activity view (cheap, bounded); omit it to
  * load full history, which the caller should only do when the user is actively
  * searching/filtering, so those still match against every record, not just what's
  * been loaded for browsing.
  */
 /**
- * `from`/`to` (YYYY-MM-DD) take precedence over `sinceDays` when both are passed —
+ * `from`/`to` (YYYY-MM-DD) take precedence over `sinceDays` when both are passed:
  * an explicit date-range pick from the UI overrides the relative window.
  */
 export async function getStockMovements(

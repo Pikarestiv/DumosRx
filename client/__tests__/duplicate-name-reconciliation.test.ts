@@ -18,7 +18,7 @@ vi.mock("@/lib/api/client", () => ({
  * already has for the same owner (see its "duplicate name" handling),
  * remapping the id only in that single request's in-memory $idMap. A local
  * row created before this reconciliation runs was otherwise permanently
- * unresolvable — every retry re-attempted the same insert, got skipped
+ * unresolvable: every retry re-attempted the same insert, got skipped
  * again, and anything referencing it by the old local id kept failing its
  * foreign key check forever. This proves pull.ts detects the same
  * collision (by name) and remaps every local reference to the server's id.

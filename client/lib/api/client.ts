@@ -7,7 +7,7 @@ import type { SyncChange } from "@/lib/types/sync";
 import type { StoreOption } from "@/lib/types/store";
 import type { OnlineOrder } from "@/lib/types/online-order";
 
-/** Loose shape shared by the legacy cloud list/aggregate endpoints below —
+/** Loose shape shared by the legacy cloud list/aggregate endpoints below:
  * callers only ever read `.total`/`.count`/`.data?.length`/`.revenue`. */
 interface CloudListResponse {
   total?: number;
@@ -65,7 +65,7 @@ class ApiClient extends BaseApiClient {
     return this.request<unknown>("/user");
   }
 
-  // The request body's `token` is the sole credential here — the endpoint
+  // The request body's `token` is the sole credential here; the endpoint
   // does not read the Authorization header at all (see AuthHandoffController),
   // so no explicit header override is set.
   async createHandoffCode(token: string) {
@@ -99,7 +99,7 @@ class ApiClient extends BaseApiClient {
   // NOTE: the endpoints below (products/sales/customers/categories/suppliers/
   // stock-movements/purchase-orders/stock-adjustments/prescriptions cloud CRUD)
   // predate the offline-first SQLite architecture and have no callers left in
-  // the app (superseded by lib/db/queries/*) — typed loosely since their
+  // the app (superseded by lib/db/queries/*); typed loosely since their
   // response shape is unused, not because it's unknowable.
   async getProducts(page = 1, limit = 50) {
     return this.request<CloudListResponse>(`/app/products?page=${page}&limit=${limit}`);

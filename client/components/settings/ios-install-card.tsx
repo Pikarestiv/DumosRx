@@ -21,7 +21,7 @@ function isIos() {
 
 /**
  * iOS forces every browser to use WebKit, but "Add to Home Screen" only
- * produces a real standalone-mode install in Safari itself — Chrome/Firefox/
+ * produces a real standalone-mode install in Safari itself. Chrome/Firefox/
  * Edge on iOS (CriOS/FxiOS/EdgiOS) expose either no equivalent or a plain
  * bookmark shortcut that reopens inside their own browser chrome. So this
  * needs to detect actual Safari, not just "is this an iOS device".
@@ -59,7 +59,7 @@ const steps = [
 ];
 
 /** Shown only on iOS Safari when not already running as an installed
- * PWA/desktop app — iOS has no automatic install prompt (unlike Android
+ * PWA/desktop app. iOS has no automatic install prompt (unlike Android
  * Chrome's beforeinstallprompt), so this is the only way to guide users
  * to a full-screen, app-like experience. */
 export function IosInstallCard() {
@@ -82,7 +82,7 @@ export function IosInstallCard() {
         <CardHeader>
           <CardTitle>Install on iPhone/iPad</CardTitle>
           <CardDescription>
-            This browser can&apos;t install DumosRx as an app — iOS only
+            This browser can&apos;t install DumosRx as an app. iOS only
             supports adding apps to the Home Screen from{" "}
             <span className="font-semibold text-foreground">Safari</span>.
             Open this page in Safari instead to continue.
@@ -99,7 +99,7 @@ export function IosInstallCard() {
           <CardTitle>Install on iPhone/iPad</CardTitle>
           <CardDescription>
             Add DumosRx to your Home Screen for a full-screen, app-like
-            experience — no App Store needed.
+            experience, no App Store needed.
           </CardDescription>
         </CardHeader>
         <CardContent>

@@ -26,7 +26,7 @@ interface FakeAudit {
 /** In-memory fake for stock_batches / stock_movements / stock_audits so
  * submitStockAudit's real reconciliation logic (FEFO deduction, new-batch
  * creation, quantity math) runs against something stateful, instead of
- * asserting on mock call args alone — this is what would have caught the
+ * asserting on mock call args alone. This is what would have caught the
  * double-delta bug in the old updateStockBatchQuantity. */
 let batches: Record<string, FakeBatch>;
 let movements: FakeMovement[];
@@ -138,7 +138,7 @@ describe('submitStockAudit (Cycle Count persistence)', () => {
     batches['b1'] = { id: 'b1', product_id: 'p1', quantity: 3, expiry_date: '2027-01-01' };
 
     // Counted 0 but system batches only cover 3 units total (data was
-    // already inconsistent) — deduction should stop at what's available.
+    // already inconsistent); deduction should stop at what's available.
     await submitStockAudit(
       [{ productId: 'p1', systemQty: 3, countedQty: 0 }],
       'user-1',

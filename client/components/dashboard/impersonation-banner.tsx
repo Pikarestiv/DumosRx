@@ -26,7 +26,7 @@ export function ImpersonationBanner() {
     setEnding(true);
     try {
       // The stored value from the original handoff is itself a one-time
-      // code (see client/app/auth/callback/page.tsx) — redeem it now to get
+      // code (see client/app/auth/callback/page.tsx). Redeem it now to get
       // the admin's real token back, then immediately re-wrap it in a fresh
       // code for the trip back to dumosrx.com. Two hops, but neither origin
       // ever sees the other's raw token, and each code is single-use.

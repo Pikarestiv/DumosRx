@@ -10,7 +10,7 @@ const LICENSE_TIERS = ["free", "local", "pro", "enterprise"] as const;
 export type LicenseTier = (typeof LICENSE_TIERS)[number];
 
 /** Narrows a raw tier string (from the store profile or a license token) to a
- * known LicenseTier, falling back to "free" for anything unrecognized —
+ * known LicenseTier, falling back to "free" for anything unrecognized:
  * this gates paid-feature access, so an unchecked cast could grant tiers
  * that don't exist. */
 function toLicenseTier(value: string | null | undefined): LicenseTier {

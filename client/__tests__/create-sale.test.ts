@@ -8,11 +8,11 @@ vi.mock("idb-keyval", () => ({
 
 /**
  * Regression test for the bug where createSale()'s stock_movements insert
- * never set `performed_by` — harmless locally (that column is nullable in
+ * never set `performed_by`. Harmless locally (that column is nullable in
  * SCHEMA_SQL), but the cloud MySQL column is a required FK with no default,
  * so every sale's movement silently failed to sync in production. Real
  * in-memory SQLite against the app's actual SCHEMA_SQL, not a mocked
- * execute() — asserting only "insert was called" would never have caught a
+ * execute(): asserting only "insert was called" would never have caught a
  * missing column the way asserting on the persisted row's actual value does.
  */
 describe("createSale", () => {

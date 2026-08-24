@@ -70,7 +70,7 @@ export function StaffModal({
     e.preventDefault();
     setLoading(true);
 
-    // A PIN change writes straight to the cloud DB — the terminal that
+    // A PIN change writes straight to the cloud DB. The terminal that
     // account actually logs in on only sees it once its device pulls that
     // change down, which the login screen itself has no way to prompt for.
     // Flag it here instead, where the person making the change can act on it.

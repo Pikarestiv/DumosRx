@@ -114,7 +114,7 @@ export function UserNav({
 }: UserNavProps) {
   const { user } = useAuth();
   const router = useRouter();
-  // Touch capability decides Drawer vs Dropdown, not viewport width — see the
+  // Touch capability decides Drawer vs Dropdown, not viewport width. See the
   // comment in notification-bell.tsx for why (Radix DropdownMenu's outside-tap
   // close vs iOS's delayed synthetic click).
   const isTouchDevice = useIsTouchDevice();
@@ -138,7 +138,7 @@ export function UserNav({
 
   // A broken/incomplete auth state (e.g. a corrupted localStorage write from
   // a connection drop mid-save) shouldn't leave this spot blank with no way
-  // out — that traps the user on a dashboard shell they can't act on. Give
+  // out, since that traps the user on a dashboard shell they can't act on. Give
   // them a direct way to get back to a clean login instead of vanishing.
   if (!user) {
     return (
@@ -235,7 +235,7 @@ export function UserNav({
           ))}
         </DropdownMenuContent>
       </DropdownMenu>
-      {/* Direct settings shortcut disabled on desktop for now — re-enable by
+      {/* Direct settings shortcut disabled on desktop for now, re-enable by
           uncommenting once we're happy with where it lands next to the trigger.
       {!!showDetails && <SettingsIconButton onClick={() => router.push("/settings")} />}
       */}

@@ -4,7 +4,7 @@ const PEEK_KEY = "sidebar_peek_enabled";
 
 /**
  * Whether the collapsed sidebar expands on hover ("peek"), or stays fully
- * collapsed. Independent from the collapsed/expanded state itself — combined,
+ * collapsed. Independent from the collapsed/expanded state itself: combined,
  * they produce the three states: expanded, collapsed+peek, collapsed+locked.
  * Device-local (localStorage), matching how sidebar_collapsed is stored.
  */

@@ -80,7 +80,7 @@ export function SupplierManagement() {
   const handleAddSupplier = async (payload: SupplierPayload) => {
     try {
       // insert()'s global cache invalidation refreshes the `suppliers`
-      // query automatically — no need to hand-splice the new row into
+      // query automatically, no need to hand-splice the new row into
       // local state.
       const newId = await createSupplier(payload);
       setSelectedSupplierId(newId);

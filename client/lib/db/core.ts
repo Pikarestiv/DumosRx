@@ -9,7 +9,7 @@ import { get, set } from "idb-keyval";
 import { SCHEMA_SQL } from "./schema";
 
 // Dual-backend handle: sql.js's Database in the browser, @tauri-apps/plugin-sql's
-// Database (a different, incompatible shape — .execute()/.select() vs sql.js's
+// Database (a different, incompatible shape: .execute()/.select() vs sql.js's
 // .exec()/.run()) when running inside Tauri. Deliberately untyped rather than a
 // misleading union, since callers already branch on isTauri() before touching it.
 let SQL: SqlJsStatic | null = null;
@@ -41,7 +41,7 @@ export function getCurrentUserId(): string | null {
 }
 
 // The store every domain query should be scoped to. Set from
-// store-context.tsx's effect mirroring `user?.store_id || activeStoreId` —
+// store-context.tsx's effect mirroring `user?.store_id || activeStoreId`;
 // a staff member's fixed store_id always wins over any switcher state, same
 // precedence the UI already uses. Module-scope (not threaded as a function
 // param) because the query layer is plain async functions with no React
@@ -84,7 +84,7 @@ export function generateId(): string {
 
 // Tables that just gained a `store_id` column (see syncColumns below) and
 // need every pre-existing local row backfilled to the device's one
-// pre-migration store — today's local DB is single-store-per-device by
+// pre-migration store: today's local DB is single-store-per-device by
 // construction, so there's exactly one store to backfill to.
 export const STORE_SCOPED_TABLES = [
   "products",
@@ -469,7 +469,7 @@ export async function initDatabase(): Promise<any> {
       db = await Database.load("sqlite:dumosrx.db");
 
       // The Tauri SQL plugin hands out a pooled sqlx connection, and SQLite's
-      // default (rollback-journal) mode only allows one writer at a time —
+      // default (rollback-journal) mode only allows one writer at a time:
       // two pooled connections writing close together can lock each other
       // out for multiple seconds, or fail outright with "database is
       // locked", with no PRAGMA tuning applied by default. WAL lets readers
@@ -517,13 +517,13 @@ export async function initDatabase(): Promise<any> {
       }
 
       // sale_items.inventory_id was renamed to stock_batch_id, but unlike the
-      // medicine_id->product_id rename above this one was never migrated —
+      // medicine_id->product_id rename above this one was never migrated:
       // createSale() has written to stock_batch_id for a while now, so any
       // database that predates the rename still has the old inventory_id
       // column and no stock_batch_id at all, breaking every sale with "no
       // column named stock_batch_id". Try the rename first (databases that
       // still have inventory_id); fall back to adding stock_batch_id fresh
-      // (databases old enough to have neither) — whichever doesn't apply
+      // (databases old enough to have neither); whichever doesn't apply
       // just throws and is ignored, same pattern as the other migrations here.
       try {
         await db.execute("ALTER TABLE sale_items RENAME COLUMN inventory_id TO stock_batch_id");
@@ -549,7 +549,7 @@ export async function initDatabase(): Promise<any> {
       // the *table*; any database created before it still carries the old
       // vendor_id NOT NULL column forever (CREATE TABLE IF NOT EXISTS is a
       // no-op on an existing table), and current code only ever writes
-      // supplier_id — so every PO insert on such a device would otherwise
+      // supplier_id, so every PO insert on such a device would otherwise
       // fail the NOT NULL constraint permanently.
       try {
         const poColumns = await db.select("SELECT name FROM pragma_table_info('purchase_orders')");
@@ -1050,19 +1050,19 @@ export async function execute(
 /**
  * Runs `fn` inside a real SQL transaction so a multi-statement operation
  * (e.g. recording a sale and deducting stock for every line item) either
- * fully applies or fully rolls back — a crash, thrown error, or early return
+ * fully applies or fully rolls back: a crash, thrown error, or early return
  * partway through can never leave the database with only some of the writes
  * applied. Every write inside `fn` must go through query()/execute() (and by
  * extension insert()/update()/etc. in base-helpers.ts) against the same `db`
  * handle used here so it participates in the transaction.
  *
  * Nested calls (a transaction() started from inside another) just run `fn`
- * inline against the already-open outer transaction — SQLite doesn't support
+ * inline against the already-open outer transaction: SQLite doesn't support
  * real nested transactions without savepoints, and callers that compose
  * smaller transactional helpers into a bigger operation don't need them.
  *
  * If BEGIN itself fails (e.g. the Tauri SQL plugin's pooled connection
- * doesn't hand back the same connection for the follow-up statements — a
+ * doesn't hand back the same connection for the follow-up statements, a
  * real risk with sqlx pooling that can't be verified from static analysis
  * alone), this falls back to running `fn` without transaction semantics
  * rather than blocking the operation entirely: no worse than the previous
@@ -1073,7 +1073,7 @@ export async function transaction<T>(fn: () => Promise<T>): Promise<T> {
     await initDatabase();
   }
   if (!db) {
-    // Database unavailable — let fn() surface whatever error it hits.
+    // Database unavailable; let fn() surface whatever error it hits.
     return fn();
   }
 
@@ -1127,7 +1127,7 @@ export async function transaction<T>(fn: () => Promise<T>): Promise<T> {
 }
 
 /**
- * Returns the raw database binary for export — sql.js (web) only. `db` is a
+ * Returns the raw database binary for export: sql.js (web) only. `db` is a
  * real Tauri SQL plugin connection on desktop/mobile, which has no
  * `.export()` method; use backupDatabaseToFile() there instead.
  */
@@ -1137,7 +1137,7 @@ export function getDatabaseBinary(): Uint8Array | null {
 }
 
 /**
- * Overwrites the current database with provided binary data — sql.js (web)
+ * Overwrites the current database with provided binary data: sql.js (web)
  * only. On desktop/mobile this would silently disconnect `db` from the real
  * file Tauri's SQL plugin manages without ever writing the restored data to
  * disk; use restoreDatabaseFromFile() there instead.
@@ -1145,7 +1145,7 @@ export function getDatabaseBinary(): Uint8Array | null {
 export async function restoreDatabase(binaryData: Uint8Array): Promise<void> {
   if (isTauri()) {
     throw new Error(
-      "restoreDatabase() is web-only — use restoreDatabaseFromFile() on desktop/mobile.",
+      "restoreDatabase() is web-only; use restoreDatabaseFromFile() on desktop/mobile.",
     );
   }
   if (!SQL) {
@@ -1163,12 +1163,12 @@ export async function restoreDatabase(binaryData: Uint8Array): Promise<void> {
  * save dialog, then writes a consistent snapshot of the live database there
  * with SQLite's VACUUM INTO. Preferred over copying the raw file directly,
  * since VACUUM INTO produces a coherent copy even if writes are landing on
- * the live database around the same time — a raw file copy could otherwise
+ * the live database around the same time; a raw file copy could otherwise
  * catch it mid-write.
  */
 export async function backupDatabaseToFile(): Promise<{ success: boolean; path?: string }> {
   if (!isTauri()) {
-    throw new Error("backupDatabaseToFile() is desktop/mobile-only — use getDatabaseBinary() on web.");
+    throw new Error("backupDatabaseToFile() is desktop/mobile-only; use getDatabaseBinary() on web.");
   }
   if (!db) {
     await initDatabase();
@@ -1209,7 +1209,7 @@ export async function backupDatabaseToFile(): Promise<{ success: boolean; path?:
  */
 export async function restoreDatabaseFromFile(): Promise<{ success: boolean }> {
   if (!isTauri()) {
-    throw new Error("restoreDatabaseFromFile() is desktop/mobile-only — use restoreDatabase() on web.");
+    throw new Error("restoreDatabaseFromFile() is desktop/mobile-only; use restoreDatabase() on web.");
   }
 
   const { open } = await import("@tauri-apps/plugin-dialog");

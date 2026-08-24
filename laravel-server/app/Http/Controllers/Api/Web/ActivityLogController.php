@@ -48,7 +48,7 @@ class ActivityLogController extends Controller
     #[OA\Post(
         path: '/logs/client-error',
         summary: 'Log a client-side API/fetch failure',
-        description: 'Public — deliberately unauthenticated so it can capture failures that happen before login (e.g. the system-config fetch on app boot). Logs to `laravel.log` always; also writes an `ActivityLog` row if a valid Sanctum token happens to be present.',
+        description: 'Public and deliberately unauthenticated so it can capture failures that happen before login (e.g. the system-config fetch on app boot). Logs to `laravel.log` always; also writes an `ActivityLog` row if a valid Sanctum token happens to be present.',
         tags: ['Activity Logs'],
         requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
             required: ['method', 'url', 'message'],

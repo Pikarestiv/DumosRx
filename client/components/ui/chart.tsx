@@ -22,7 +22,7 @@ type ChartContextProps = {
   config: ChartConfig;
 };
 
-/** A single recharts tooltip/legend payload entry — recharts' own `Payload`
+/** A single recharts tooltip/legend payload entry. Recharts' own `Payload`
  * type (component/DefaultTooltipContent.d.ts) leaves `.payload` (the
  * underlying chart datum) as `any` too, since it's genuinely whatever shape
  * the chart's `data` prop was given; only the fields this file actually
@@ -211,7 +211,7 @@ function ChartTooltipContent({
               {!!(formatter && item?.value !== undefined && item.name) && (
                 // recharts' Formatter type expects the 5th arg to be the full
                 // payload array, but this wrapper (shadcn boilerplate) passes
-                // this single item's nested `.payload` instead — pre-existing
+                // this single item's nested `.payload` instead. Pre-existing
                 // behavior, not something introduced by typing this file.
                 formatter(item.value, item.name, item, index, item.payload as never)
               )}

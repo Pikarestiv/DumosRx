@@ -33,7 +33,7 @@ export function CategoriesCard() {
             <div className="space-y-0.5">
               <p className="text-sm font-medium">Manage categories</p>
               <p className="text-xs text-muted-foreground max-w-sm">
-                Changes apply everywhere categories are used — the product
+                Changes apply everywhere categories are used: the product
                 catalog, filters, and stock audits.
               </p>
             </div>

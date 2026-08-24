@@ -85,8 +85,8 @@ export function ActivityTab({
   usePullToRefreshHandler(refetch);
 
   // Filtering to one customer or searching must match their entire history, not
-  // just the recent-activity window loaded by default — unless a custom date
-  // range is already active, in which case that's the window the user
+  // just the recent-activity window loaded by default, unless a custom date
+  // range is already active. In that case that's the window the user
   // explicitly asked for, so search/filter should stay scoped within it
   // rather than silently discarding the range for full history.
   useEffect(() => {
@@ -169,7 +169,7 @@ export function ActivityTab({
 
   return (
     <div className="flex flex-col md:flex-1 md:min-h-0 gap-4">
-      {/* Mobile — flat, no wrapping card */}
+      {/* Mobile: flat, no wrapping card */}
       <div className="flex md:hidden flex-col gap-3">
         {SearchInput}
         {FilterChip}
@@ -217,7 +217,7 @@ export function ActivityTab({
         )}
       </div>
 
-      {/* Desktop — div-based table (ARIA roles stand in for real <table> semantics, div-based so it can be virtualized) */}
+      {/* Desktop: div-based table (ARIA roles stand in for real <table> semantics, div-based so it can be virtualized) */}
       <Card className="hidden md:flex flex-col gap-0 py-0 border rounded-[14px] shadow-sm flex-1 min-h-0 overflow-hidden">
         <div className="p-4 border-b space-y-3">
           {SearchInput}

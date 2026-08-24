@@ -19,7 +19,7 @@ export function useAddProduct({
     try {
       const isEditing = !!payload.id;
 
-      // Create locally — is_active is already set correctly (0/1) by
+      // Create locally: is_active is already set correctly (0/1) by
       // AddProductDialog's submit handler, so just pass the payload through.
       const localPayload: NewProductPayload = { ...payload };
 

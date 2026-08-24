@@ -11,7 +11,7 @@ const TIME_RANGE_DAYS: Record<string, number> = {
   "1y": 365,
 };
 
-/** All business logic for the Analytics/BI dashboard — time range selection, export, and BI data. */
+/** All business logic for the Analytics/BI dashboard: time range selection, export, and BI data. */
 export function useBusinessIntelligenceDashboard() {
   const [timeRange, setTimeRange] = useState("30d");
   const [exporting, setExporting] = useState(false);

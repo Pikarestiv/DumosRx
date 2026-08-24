@@ -88,7 +88,7 @@ export function PrescriptionManagement() {
         )}
       </ResponsiveDetailPanel>
 
-      {/* Full Screen Overlay for New Prescription — top/bottom padding clears the status bar / Tauri title bar and home indicator */}
+      {/* Full Screen Overlay for New Prescription: top/bottom padding clears the status bar / Tauri title bar and home indicator */}
       {showNewPrescription && (
         <div className="fixed inset-0 z-50 bg-background flex flex-col">
           <div

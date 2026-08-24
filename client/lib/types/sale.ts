@@ -20,7 +20,7 @@ export interface Sale {
 }
 
 /** `Sale` joined with the customer/cashier/return aggregates that
- * getRecentSales() adds — the shape rendered in the transaction history list. */
+ * getRecentSales() adds: the shape rendered in the transaction history list. */
 export interface SaleWithDetails extends Sale {
   customer_name?: string;
   customer_phone?: string;
@@ -40,7 +40,7 @@ export interface SaleWithDetails extends Sale {
   receipt_number?: string;
 }
 
-/** Row shape returned by getTransactionDetails() — a sale_items row joined
+/** Row shape returned by getTransactionDetails(): a sale_items row joined
  * with the product name and cumulative returned quantity for that line. */
 export interface SaleItemDetail {
   id: string;
@@ -58,7 +58,7 @@ export interface SaleItemDetail {
   returned_quantity?: number;
 }
 
-/** returns row joined with the originating sale's payment fields — used to
+/** returns row joined with the originating sale's payment fields: used to
  * work out which payment bucket (cash/card/transfer) a refund reduces. */
 export interface ReturnRecord {
   id: string;

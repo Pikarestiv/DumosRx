@@ -9,7 +9,7 @@ export const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://app.dumosrx.c
 const APP_URL_STORAGE_KEY = "dumos_app_url";
 
 // The client/ dev server's port is whatever the developer happened to run it
-// on, unlike the API URLs (which have fixed local targets) — so instead of a
+// on, unlike the API URLs (which have fixed local targets), so instead of a
 // fixed env default, this is a runtime override in the same vein as
 // getBaseURL/setBaseURL (see ServerSelector), settable via its "App URL"
 // field.

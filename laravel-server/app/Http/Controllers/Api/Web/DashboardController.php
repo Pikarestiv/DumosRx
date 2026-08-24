@@ -47,11 +47,11 @@ class DashboardController extends Controller
     #[OA\Post(
         path: '/dashboard/reset',
         summary: "Reset (wipe) the store's data",
-        description: 'Destructive — irreversible. Exact scope of what gets wiped depends on `type`.',
+        description: 'Destructive and irreversible. Exact scope of what gets wiped depends on `type`.',
         tags: ['Dashboard'],
         security: [['sanctum' => []]],
         requestBody: new OA\RequestBody(content: new OA\JsonContent(properties: [
-            new OA\Property(property: 'type', type: 'string', default: 'all', description: 'What to reset — see DashboardService::resetData'),
+            new OA\Property(property: 'type', type: 'string', default: 'all', description: 'What to reset; see DashboardService::resetData'),
         ])),
         responses: [
             new OA\Response(response: 200, description: 'Reset result', content: new OA\JsonContent(type: 'object')),

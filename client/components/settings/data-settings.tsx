@@ -277,7 +277,7 @@ export function DataSettings({
         open={showResetConfirm}
         onOpenChange={setShowResetConfirm}
         title="Factory Reset"
-        description="This will permanently delete all local data — products, sales, customers, and expenses. Your login account will remain. This cannot be undone."
+        description="This will permanently delete all local data: products, sales, customers, and expenses. Your login account will remain. This cannot be undone."
         confirmLabel="Reset All Data"
         requirePin={true}
         onConfirm={async (pin) => {

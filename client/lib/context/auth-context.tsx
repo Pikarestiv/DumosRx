@@ -13,7 +13,7 @@ import { queryClient } from "@/lib/query-client";
 // Polls until any in-flight sync finishes, so a caller that just triggered
 // (or piggybacked on) a sync can safely read fresh local data afterward.
 // isSyncing() flips false the instant the in-flight sync's finally block
-// runs, so this only ever waits out the current run — never itself starts one.
+// runs, so this only ever waits out the current run; it never itself starts one.
 async function waitForSyncToFinish(timeoutMs = 8000, pollMs = 150) {
   const deadline = Date.now() + timeoutMs;
   while (isSyncing() && Date.now() < deadline) {
@@ -48,7 +48,7 @@ export interface RecentUser {
 }
 
 /** The user payload the cloud handoff endpoint returns (a raw App\Models\User
- * row plus its appended `name` accessor) — only the fields we map are listed. */
+ * row plus its appended `name` accessor); only the fields we map are listed. */
 export interface HandoffApiUser {
   id: string;
   first_name: string;
@@ -98,7 +98,7 @@ export const checkCanProcessSales = (role?: string) => {
 
 /** Activity/history views (audit logs, stock movements, sales, expenses,
  * purchase orders, stock audits, prescriptions, returns) are scoped to the
- * viewer's own actions unless they're a store owner or admin — everyone
+ * viewer's own actions unless they're a store owner or admin; everyone
  * else (manager, specialist, sales_staff, auditor) only sees what they
  * themselves performed. */
 export const checkCanViewAllActivity = (role?: string) => {
@@ -127,7 +127,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setDbUser(parsedUser);
       } catch (err) {
         // Corrupted/partial write (e.g. interrupted by a connection drop
-        // mid-save) — without this, the throw aborts the rest of this
+        // mid-save). Without this, the throw aborts the rest of this
         // effect silently, leaving `user` stuck null forever and the
         // token-event listeners below never attached. Clear the bad value
         // so the next reload doesn't repeat the same failure, and let the
@@ -158,7 +158,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // If PIN is provided, check it
       if (pin && dbUser.pin !== pin) {
         // A PIN reset via the web dashboard writes straight to the cloud
-        // DB — this device only sees it once it next syncs down, which
+        // DB; this device only sees it once it next syncs down, which
         // could otherwise be minutes away. Rather than make a locked-out
         // owner know to reload the app, pull once on a mismatch (throttled,
         // and only when there's a cloud link to pull from) and recheck
@@ -170,7 +170,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           lastPinRecoverySyncAt = now;
           const result = await sync().catch(() => null);
           // If a background/setup sync was already in flight, our call above
-          // was a no-op — the pull we're relying on may still be running.
+          // was a no-op; the pull we're relying on may still be running.
           // Wait for it instead of rechecking against data it hasn't written yet.
           if (result?.error === "Sync already in progress") {
             await waitForSyncToFinish();
@@ -181,7 +181,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (!dbUser || (pin && dbUser.pin !== pin)) {
         // The acting user_id on this row will be whoever was previously
-        // logged in on this device (or null), not the failed identifier —
+        // logged in on this device (or null), not the failed identifier:
         // audit_logs attributes actions to the current session, and there
         // isn't one yet at this point. record_id + details.username still
         // identify which account the attempt was against. Falls back to the
@@ -205,7 +205,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Covers the "switch user" lock-screen flow (selecting a different
       // recent user and unlocking with their PIN), which calls login()
-      // directly without ever going through logout() first — without this,
+      // directly without ever going through logout() first. Without this,
       // the outgoing user's cached queries (dashboard, BI, etc.) would keep
       // rendering under the incoming user's session until they went stale.
       // cancelQueries() first since clear() alone doesn't abort a fetch
@@ -218,12 +218,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       Sentry.setUser({ id: userProfile.id, username: userProfile.username, role: userProfile.role });
       localStorage.setItem("dumos_user", JSON.stringify(userProfile));
       // Marks this tab as already having gone through a real auth/unlock this
-      // session — DashboardLayout's fresh-load lock check reads this so it
+      // session. DashboardLayout's fresh-load lock check reads this so it
       // doesn't immediately re-lock right after a login/unlock that just
       // succeeded. Cleared on logout; sessionStorage itself clears on tab
       // close, so a genuinely new tab/session still locks correctly.
       sessionStorage.setItem("dumos_session_authenticated", "1");
-      // Any successful login means "not locked", full stop — regardless of
+      // Any successful login means "not locked", full stop, regardless of
       // which screen triggered it. Without this, a stale isLocked=true left
       // over from an earlier auto-lock timeout (persisted in localStorage)
       // would survive a fresh login untouched and immediately re-show the
@@ -243,7 +243,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         last_login: new Date().toISOString(),
       };
 
-      // Dedupe by username, not id — if this device's local DB was ever
+      // Dedupe by username, not id: if this device's local DB was ever
       // rebuilt/restored, the same real-world person can come back with a
       // brand new user id but the same username, and login() itself matches
       // by username anyway. Deduping by id alone left stale ghost tiles for
@@ -326,7 +326,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   /** Bootstraps a local session for a user who authenticated on the cloud side
-   * and arrived here via the one-time handoff code (/auth/callback) — most
+   * and arrived here via the one-time handoff code (/auth/callback); most
    * importantly the impersonated store user, who has no account (and no PIN)
    * in this device's local SQLite DB at all.
    *
@@ -335,7 +335,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
    * which is the wrong DB context for a user belonging to another store), does
    * NOT touch dumos_recent_users (would pollute this device's lock-screen
    * account tiles with foreign-store staff), and does NOT logAction() (would
-   * write into the wrong store's local audit trail — the impersonation itself
+   * write into the wrong store's local audit trail (the impersonation itself
    * is already audited server-side by AdminService::impersonateStore). */
   const loginFromHandoff = (apiUser: HandoffApiUser) => {
     const userProfile: User = {
@@ -362,7 +362,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = () => {
-    // Captured before clearing — logAction attributes to the current
+    // Captured before clearing: logAction attributes to the current
     // session's user, which is about to be cleared.
     if (user) {
       logAction(AUDIT_ACTIONS.LOGOUT, "users", user.id, {
@@ -377,7 +377,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Without this, cached query results (dashboard metrics, BI, etc.) from
     // the outgoing account stay in memory and get served to whichever
     // account logs in next, until their staleTime/gcTime lapses.
-    // cancelQueries() first — clear() alone doesn't abort an in-flight
+    // cancelQueries() first: clear() alone doesn't abort an in-flight
     // fetch, which could otherwise resolve after the next login and
     // repopulate a store/user-unscoped query key.
     queryClient.cancelQueries();

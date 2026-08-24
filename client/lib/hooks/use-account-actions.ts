@@ -49,7 +49,7 @@ export function useAccountActions({
     router.push("/login");
   };
 
-  // Not destructive — the local session/data stays intact, this just shows
+  // Not destructive: the local session/data stays intact, this just shows
   // the same lock screen used for idle re-auth, forced to account-selection
   // mode instead of defaulting to the current user's PIN entry. No
   // logout/unsynced-changes warning needed since nothing is being cleared.

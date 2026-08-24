@@ -81,7 +81,7 @@ class AuthController extends Controller
             }
         }
 
-        // Separate from the customer referral program above — attributes this
+        // Separate from the customer referral program above. Attributes this
         // signup to the platform staff member (super_admin/platform_admin/agent)
         // whose link they used, tracked via registered_by_id rather than
         // referred_by_id so it can never surface in customer-facing referral UI
@@ -259,7 +259,7 @@ class AuthController extends Controller
         $tokenModel->user_agent = $userAgent;
         $tokenModel->save();
 
-        // Dispatch security email if device is unrecognized — best-effort:
+        // Dispatch security email if device is unrecognized. Best-effort:
         // authentication has already succeeded and the token is already
         // saved above, so a mail failure (bad address, SMTP rejection, etc.)
         // must not fail the whole login response. Previously unguarded, this
@@ -685,7 +685,7 @@ class AuthController extends Controller
 
         DB::table('password_reset_tokens')->where('email', $request->email)->delete();
 
-        // Send confirmation email — best-effort: the password is already
+        // Send confirmation email. Best-effort: the password is already
         // changed and saved above, so a mail failure must not turn a
         // successful reset into a 500 (same class of bug as the new-device
         // login email below).

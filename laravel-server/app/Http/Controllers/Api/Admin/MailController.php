@@ -15,7 +15,7 @@ class MailController extends Controller
     #[OA\Post(
         path: '/admin/mail/send',
         summary: 'Send a one-off custom email to all users or a specific set',
-        description: 'Queued (not sent synchronously) — `target_type: all` chunks through every user 100 at a time.',
+        description: 'Queued (not sent synchronously); `target_type: all` chunks through every user 100 at a time.',
         tags: ['Admin: Mail'],
         security: [['sanctum' => []]],
         requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(

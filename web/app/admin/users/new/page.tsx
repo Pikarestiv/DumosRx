@@ -36,8 +36,8 @@ import {
 } from "@/components/ui/select";
 
 const ROLE_OPTIONS = [
-  { value: "platform_admin", label: "Platform Admin", description: "Partner/co-founder — can register accounts and grant trials" },
-  { value: "agent", label: "Agent", description: "Onboarding agent — can register accounts, has a referral link" },
+  { value: "platform_admin", label: "Platform Admin", description: "Partner/co-founder: can register accounts and grant trials" },
+  { value: "agent", label: "Agent", description: "Onboarding agent: can register accounts, has a referral link" },
   { value: "super_admin", label: "Super Admin", description: "Full platform access, including managing other platform accounts" },
 ] as const;
 

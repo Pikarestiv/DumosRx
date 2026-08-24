@@ -17,7 +17,7 @@ import { runDemoSeed, isStoreSeedable } from "@/lib/demo/loader";
 import { toast } from "sonner";
 
 /** Only rendered for stores flagged `is_demo` by a superadmin (see the
- * "Mark as Demo" action in the web admin panel) — never shown for a real
+ * "Mark as Demo" action in the web admin panel); never shown for a real
  * customer account. */
 export function DemoDataSettings() {
   const { user } = useAuth();
@@ -39,7 +39,7 @@ export function DemoDataSettings() {
             "Products, procurement, sales, customers and expenses have been seeded.",
         });
       } else if (result.reason === "not_empty") {
-        toast.error("Store already has data — seeding skipped.");
+        toast.error("Store already has data, seeding skipped.");
       } else {
         toast.error("Failed to seed demo data", { description: result.error });
       }

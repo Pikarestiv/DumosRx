@@ -7,7 +7,7 @@ import { Loader2 } from "lucide-react";
 // /setup used to be its own page; it's now the "setup" tab on the merged
 // /login page (see app/login/page.tsx) so switching between login and
 // setup never remounts or shows a second loading spinner. This redirect
-// exists only for old bookmarks/deep links — nothing in the app links here
+// exists only for old bookmarks/deep links; nothing in the app links here
 // anymore.
 export default function SetupRedirect() {
   const router = useRouter();

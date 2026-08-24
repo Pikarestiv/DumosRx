@@ -12,7 +12,7 @@ class TrackController extends Controller
     #[OA\Post(
         path: '/track/download',
         summary: 'Log a desktop/mobile app download event',
-        description: 'Public — fired by the marketing site\'s download buttons.',
+        description: 'Public; fired by the marketing site\'s download buttons.',
         tags: ['Tracking'],
         requestBody: new OA\RequestBody(content: new OA\JsonContent(properties: [
             new OA\Property(property: 'platform', type: 'string', maxLength: 50, nullable: true, example: 'macos'),

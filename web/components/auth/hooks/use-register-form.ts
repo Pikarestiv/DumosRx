@@ -71,8 +71,8 @@ export function useRegisterForm() {
 
     try {
       // Attribution for a platform staff member's (super_admin/platform_admin/
-      // agent) referral link, e.g. dumosrx.com/register?agent_ref=AGT-XXXXXX —
-      // separate from the customer referral program, which this form doesn't
+      // agent) referral link, e.g. dumosrx.com/register?agent_ref=AGT-XXXXXX.
+      // Separate from the customer referral program, which this form doesn't
       // currently wire up at all (a pre-existing gap, not touched here).
       const agentRef = searchParams.get("agent_ref");
       const payload = agentRef ? { ...values, agent_ref: agentRef } : values;

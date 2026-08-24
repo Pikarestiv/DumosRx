@@ -26,7 +26,7 @@ interface OnboardingOptionCardProps {
   onClick: () => void;
 }
 
-/** One tappable "how would you like to get started" option — pulled out
+/** One tappable "how would you like to get started" option, pulled out
  * since welcome-step just repeated this button markup three times. */
 function OnboardingOptionCard({
   icon: Icon,

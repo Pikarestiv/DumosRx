@@ -136,7 +136,7 @@ export function usePOSPayment({
         tax_amount: tax,
         // Derived from the actual charged amounts rather than hardcoded, so it
         // always matches whatever VAT rate was really applied (the store's
-        // configured rate, which may not be 7.5% — or may be 0).
+        // configured rate, which may not be 7.5%, or may be 0).
         tax_percentage: calculateTaxPercentage(tax, subtotal),
         total_amount: total,
         amount_paid:
@@ -180,7 +180,7 @@ export function usePOSPayment({
         const saleItemId = await insert("sale_items", {
           sale_id: saleId,
           product_id: item.id,
-          // Primary/first batch consumed — retained for backward-compat display
+          // Primary/first batch consumed; retained for backward-compat display
           // only. Accurate per-batch accounting (for FEFO splits) lives in
           // sale_item_batches below.
           stock_batch_id: batches[0]?.id || null,

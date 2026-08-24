@@ -12,7 +12,7 @@ class SystemConfigController extends Controller
     #[OA\Get(
         path: '/system-configs/{key}',
         summary: 'Get a platform configuration value by key',
-        description: 'Public — no auth required. Used by clients to fetch things like subscription plan definitions before login.',
+        description: 'Public, no auth required. Used by clients to fetch things like subscription plan definitions before login.',
         tags: ['System Config'],
         parameters: [new OA\Parameter(name: 'key', in: 'path', required: true, schema: new OA\Schema(type: 'string'))],
         responses: [

@@ -25,8 +25,8 @@ export function usePurchaseOrders() {
     isLoading: loading,
     refetch,
   } = useQuery({
-    // poTab isn't a query param — getPurchaseOrders() always fetches
-    // everything and filtering happens client-side below — so it doesn't
+    // poTab isn't a query param: getPurchaseOrders() always fetches
+    // everything and filtering happens client-side below, so it doesn't
     // belong in the key (the old effect refetched on every tab switch for
     // no reason, since the underlying data never changed).
     ...queryKeys.purchaseOrders.all(viewerId),

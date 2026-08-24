@@ -71,7 +71,7 @@ class StaffController extends Controller
     #[OA\Get(
         path: '/staff/{staff}',
         summary: 'Get a staff account',
-        description: 'Same visibility rules as the list endpoint — a staff member outside the caller\'s scope 404s rather than leaking whether the ID exists.',
+        description: 'Same visibility rules as the list endpoint: a staff member outside the caller\'s scope 404s rather than leaking whether the ID exists.',
         tags: ['Staff'],
         security: [['sanctum' => []]],
         parameters: [new OA\Parameter(name: 'staff', in: 'path', required: true, schema: new OA\Schema(type: 'string'))],
@@ -90,7 +90,7 @@ class StaffController extends Controller
     #[OA\Post(
         path: '/staff',
         summary: 'Create a staff account',
-        description: 'Blocked (422) if the store\'s plan staff limit is already reached. If no password is given, one is derived from the PIN (or "1234" if no PIN either) — not secure, treat staff accounts as PIN-first.',
+        description: 'Blocked (422) if the store\'s plan staff limit is already reached. If no password is given, one is derived from the PIN (or "1234" if no PIN either); not secure, treat staff accounts as PIN-first.',
         tags: ['Staff'],
         security: [['sanctum' => []]],
         requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
@@ -221,18 +221,18 @@ class StaffController extends Controller
             ],
             // 'store_owner' is included here (unlike the create rule above)
             // because this same endpoint is also used to edit the owner's
-            // own "Main Account" row — the web staff table explicitly
+            // own "Main Account" row; the web staff table explicitly
             // supports that (see isMainAccount in staff-table.tsx). The
             // dropdown has no option for it (you can't promote a random
             // staff member TO owner from here), but since formData.role
             // defaults to the row's real current role, any edit to that
             // row that doesn't touch the role field re-submits
-            // "store_owner" verbatim — rejecting it here broke every other
+            // "store_owner" verbatim; rejecting it here broke every other
             // field edit (e.g. adding a username) on the owner's own row.
             'role' => 'string|in:admin,manager,specialist,sales_staff,auditor,store_owner',
             'pin' => 'string|size:4',
             // A store owner's own row legitimately has a null store_id (they
-            // aren't tied to one store the way staff are) — without
+            // aren't tied to one store the way staff are). Without
             // `nullable` here, editing that "Main Account" row for any
             // reason fails this check whenever store_id ends up null/empty,
             // and Laravel's default `exists` message ("The selected store id
@@ -273,7 +273,7 @@ class StaffController extends Controller
     #[OA\Delete(
         path: '/staff/{staff}',
         summary: 'Deactivate a staff account',
-        description: 'Soft "delete" — sets `is_active: false` rather than removing the record.',
+        description: 'Soft "delete": sets `is_active: false` rather than removing the record.',
         tags: ['Staff'],
         security: [['sanctum' => []]],
         parameters: [new OA\Parameter(name: 'staff', in: 'path', required: true, schema: new OA\Schema(type: 'string'))],

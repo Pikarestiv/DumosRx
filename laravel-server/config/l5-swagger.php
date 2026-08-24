@@ -333,7 +333,7 @@ return [
 
     /*
      * HTTP Basic Auth credentials gating the docs UI and raw JSON, checked by
-     * App\Http\Middleware\RestrictApiDocs. Internal team only — if either is
+     * App\Http\Middleware\RestrictApiDocs. Internal team only; if either is
      * unset, the docs routes 404 rather than being left open.
      */
     'docs_auth' => [

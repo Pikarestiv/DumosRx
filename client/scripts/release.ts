@@ -2,7 +2,7 @@
  * Release script for DumosRx desktop/mobile (Tauri).
  *
  * Bumps the version in every file that needs to agree, commits, pushes,
- * and pushes a `vX.Y.Z` tag — which triggers .github/workflows/release.yml
+ * and pushes a `vX.Y.Z` tag, which triggers .github/workflows/release.yml
  * (builds macOS/Windows/Linux/Android and deploys the updater feed).
  *
  * Usage:
@@ -81,7 +81,7 @@ const tagName = `v${newVersion}`;
 // ---------------------------------------------------------------------------
 
 console.log(
-  `\nPreparing release ${tagName}${dryRun ? " (dry run — no writes, no git actions)" : ""}\n`,
+  `\nPreparing release ${tagName}${dryRun ? " (dry run: no writes, no git actions)" : ""}\n`,
 );
 
 const currentBranch = run("git branch --show-current");
@@ -137,14 +137,14 @@ function replaceOrThrow(
   if (typeof search === "string") {
     if (!content.includes(search)) {
       fail(
-        `Couldn't find expected text in ${fileLabel}:\n  ${search}\n(File may have changed shape — update release.ts.)`,
+        `Couldn't find expected text in ${fileLabel}:\n  ${search}\n(File may have changed shape; update release.ts.)`,
       );
     }
     return content.split(search).join(replacement);
   }
   if (!search.test(content)) {
     fail(
-      `Couldn't find expected pattern in ${fileLabel}: ${search}\n(File may have changed shape — update release.ts.)`,
+      `Couldn't find expected pattern in ${fileLabel}: ${search}\n(File may have changed shape; update release.ts.)`,
     );
   }
   return content.replace(search, replacement);
@@ -227,7 +227,7 @@ for (const edit of edits) {
 }
 
 // Regenerate Cargo.lock properly if cargo is available (the direct string
-// replace above is a safe fallback if it isn't — Cargo.lock's "app" entry
+// replace above is a safe fallback if it isn't: Cargo.lock's "app" entry
 // has no dependency-resolution implications since it's the root package).
 if (!dryRun) {
   try {
@@ -240,7 +240,7 @@ if (!dryRun) {
     );
   } catch {
     console.log(
-      "  (cargo not available or check failed — left the direct Cargo.lock edit as-is)",
+      "  (cargo not available or check failed; left the direct Cargo.lock edit as-is)",
     );
   }
 }
@@ -254,7 +254,7 @@ if (!dryRun) {
     const content = fs.readFileSync(edit.file, "utf-8");
     if (content.includes(oldVersion)) {
       fail(
-        `${path.relative(REPO_ROOT, edit.file)} still contains "${oldVersion}" after the bump — ` +
+        `${path.relative(REPO_ROOT, edit.file)} still contains "${oldVersion}" after the bump; ` +
           "something else in the file references the old version. Check it manually.",
       );
     }
@@ -274,10 +274,10 @@ if (!dryRun) {
     console.log("  typecheck passed");
   } catch (e) {
     // execSync throws an Error whose `stdout`/`stderr` (Buffer) carry the
-    // actual compiler output — more useful here than the generic message.
+    // actual compiler output; more useful here than the generic message.
     const { stdout, message } = e as Error & { stdout?: Buffer };
     fail(
-      `Typecheck failed — fix errors before releasing:\n\n${stdout?.toString() || message}`,
+      `Typecheck failed. Fix errors before releasing:\n\n${stdout?.toString() || message}`,
     );
   }
 }
@@ -320,7 +320,7 @@ console.log(
   runInherit("git", ["push", "origin", tagName]);
 
   console.log(
-    `\n✔ Released ${tagName}. Watch the Actions run at the repo's "Actions" tab — ` +
+    `\n✔ Released ${tagName}. Watch the Actions run at the repo's "Actions" tab; ` +
       "if it fails on the updater-signing-secrets check, see RELEASING.md.\n",
   );
 })();

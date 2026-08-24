@@ -73,7 +73,7 @@ export function HeaderSection() {
               className="font-semibold shadow-lg shadow-primary/20"
               asChild
             >
-              <Link href={APP_URL}>Get Started</Link>
+              <Link href="/register">Start Free Trial</Link>
             </Button>
             <ServerSelector />
             <ModeToggle />
@@ -144,9 +144,9 @@ export function HeaderSection() {
                         className="w-full font-bold shadow-lg shadow-primary/20 h-12"
                         asChild
                       >
-                        <Link href={APP_URL}>
+                        <Link href="/register">
                           <UserPlus className="h-4 w-4 mr-2" />
-                          Get Started
+                          Start Free Trial
                         </Link>
                       </Button>
                     </SheetClose>

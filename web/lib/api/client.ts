@@ -197,10 +197,13 @@ class WebApiClient {
   }
 
   async createHandoffCode(token: string) {
+    // The request body's `token` is the sole credential here — the endpoint
+    // does not read the Authorization header at all (see AuthHandoffController),
+    // and base-client's request interceptor would overwrite any per-call
+    // Authorization header from localStorage anyway.
     const { data } = await apiClient.post<{ code: string; expires_in: number }>(
       "/auth/handoff",
       { token },
-      { headers: { Authorization: `Bearer ${token}` } },
     );
     return data;
   }

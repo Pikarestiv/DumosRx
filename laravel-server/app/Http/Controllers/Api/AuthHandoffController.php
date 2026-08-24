@@ -16,6 +16,13 @@ use Laravel\Sanctum\PersonalAccessToken;
  * to put in a redirect URL; `consume` redeems it exactly once. See
  * RestoreSessionTest for the same trust pattern (validate via
  * PersonalAccessToken::findToken, not raw string comparison).
+ *
+ * Credentials: both endpoints authenticate purely off the REQUEST BODY —
+ * `create` off its `token` field, `consume` off its `code` field. Neither
+ * reads or requires an `Authorization` header. `create` deliberately cannot
+ * require header == body: impersonation legitimately mints a handoff code for
+ * a token other than the caller's own (the impersonated user's), so tying the
+ * mint to the caller's own bearer token would break it.
  */
 class AuthHandoffController extends Controller
 {

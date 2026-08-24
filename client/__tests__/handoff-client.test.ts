@@ -12,7 +12,7 @@ describe('handoff code API methods', () => {
     global.fetch = originalFetch;
   });
 
-  it('createHandoffCode posts to /auth/handoff with an explicit Authorization header', async () => {
+  it('createHandoffCode posts to /auth/handoff with the token in the body as the sole credential', async () => {
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,
       json: async () => ({ code: 'abc123', expires_in: 60 }),
@@ -23,8 +23,10 @@ describe('handoff code API methods', () => {
     expect(result).toEqual({ code: 'abc123', expires_in: 60 });
     const [url, config] = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(url).toContain('/auth/handoff');
-    expect(config.headers.Authorization).toBe('Bearer my-token');
     expect(JSON.parse(config.body)).toEqual({ token: 'my-token' });
+    // No per-call Authorization override: the endpoint authenticates off the
+    // body's `token` field only (see AuthHandoffController's docblock).
+    expect(config.headers.Authorization).toBeUndefined();
   });
 
   it('consumeHandoffCode posts to /auth/handoff/consume and returns token + user', async () => {

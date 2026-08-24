@@ -65,18 +65,31 @@ class ApiClient extends BaseApiClient {
     return this.request<unknown>("/user");
   }
 
+  // The request body's `token` is the sole credential here — the endpoint
+  // does not read the Authorization header at all (see AuthHandoffController),
+  // so no explicit header override is set.
   async createHandoffCode(token: string) {
     return this.request<{ code: string; expires_in: number }>("/auth/handoff", {
       method: "POST",
       body: JSON.stringify({ token }),
-      headers: { Authorization: `Bearer ${token}` },
     });
   }
 
   async consumeHandoffCode(code: string) {
     return this.request<{
       token: string;
-      user: { id: string; email: string; name: string; role: string };
+      // Mirrors the raw App\Models\User JSON the endpoint returns (fillable
+      // columns plus the appended `name` accessor).
+      user: {
+        id: string;
+        email: string;
+        name: string;
+        role: string;
+        first_name: string;
+        last_name: string;
+        username: string;
+        store_id?: string;
+      };
     }>("/auth/handoff/consume", {
       method: "POST",
       body: JSON.stringify({ code }),

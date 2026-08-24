@@ -4,10 +4,12 @@ import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, ShieldAlert } from "lucide-react";
 import { apiClient } from "@/lib/api/client";
+import { useAuth } from "@/lib/context/auth-context";
 
 function CallbackHandler() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { loginFromHandoff } = useAuth();
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -26,8 +28,14 @@ function CallbackHandler() {
 
     (async () => {
       try {
-        const { token } = await apiClient.consumeHandoffCode(code);
+        const { token, user } = await apiClient.consumeHandoffCode(code);
+        // Token first — downstream code/interceptors expect it to be in place
+        // before any other session state is set.
         apiClient.setToken(token);
+        // /dashboard is gated on the local auth context's `user` (see
+        // DashboardLayout), which normally only PIN login populates. Without
+        // this the arriving (impersonated) user would be bounced to /login.
+        loginFromHandoff(user);
 
         if (returnCode) {
           localStorage.setItem("impersonator_handoff_return_code", returnCode);

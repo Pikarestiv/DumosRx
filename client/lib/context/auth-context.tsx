@@ -47,9 +47,25 @@ export interface RecentUser {
   last_login: string;
 }
 
+/** The user payload the cloud handoff endpoint returns (a raw App\Models\User
+ * row plus its appended `name` accessor) — only the fields we map are listed. */
+export interface HandoffApiUser {
+  id: string;
+  first_name: string;
+  last_name: string;
+  username: string;
+  email?: string;
+  role: string;
+  store_id?: string;
+}
+
 interface AuthContextType {
   user: User | null;
   login: (username: string, pin?: string) => Promise<boolean>;
+  /** Establishes a local session directly from a cross-origin handoff
+   * (impersonation / dashboard → app), bypassing PIN entry. See the
+   * implementation for why it deliberately does less than login(). */
+  loginFromHandoff: (apiUser: HandoffApiUser) => void;
   logout: () => void;
   isAuthenticated: boolean;
   isAdmin: boolean;
@@ -309,6 +325,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return false;
   };
 
+  /** Bootstraps a local session for a user who authenticated on the cloud side
+   * and arrived here via the one-time handoff code (/auth/callback) — most
+   * importantly the impersonated store user, who has no account (and no PIN)
+   * in this device's local SQLite DB at all.
+   *
+   * Deliberately does only the *session-establishing* half of login(): it does
+   * NOT call setDbUser() (that moves the local DB's "current user" pointer,
+   * which is the wrong DB context for a user belonging to another store), does
+   * NOT touch dumos_recent_users (would pollute this device's lock-screen
+   * account tiles with foreign-store staff), and does NOT logAction() (would
+   * write into the wrong store's local audit trail — the impersonation itself
+   * is already audited server-side by AdminService::impersonateStore). */
+  const loginFromHandoff = (apiUser: HandoffApiUser) => {
+    const userProfile: User = {
+      id: apiUser.id,
+      first_name: apiUser.first_name || "",
+      last_name: apiUser.last_name || "",
+      username: apiUser.username || "",
+      email: apiUser.email,
+      role: apiUser.role as User["role"],
+      store_id: apiUser.store_id,
+    };
+
+    // Same reasoning as login(): whoever was on this device before must not
+    // have their cached queries served to the incoming session. cancelQueries()
+    // first since clear() alone doesn't abort an in-flight fetch.
+    queryClient.cancelQueries();
+    queryClient.clear();
+
+    setUser(userProfile);
+    Sentry.setUser({ id: userProfile.id, username: userProfile.username, role: userProfile.role });
+    localStorage.setItem("dumos_user", JSON.stringify(userProfile));
+    sessionStorage.setItem("dumos_session_authenticated", "1");
+    useAutoLockStore.getState().unlock();
+  };
+
   const logout = () => {
     // Captured before clearing — logAction attributes to the current
     // session's user, which is about to be cleared.
@@ -404,6 +456,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       value={{
         user,
         login,
+        loginFromHandoff,
         logout,
         isAuthenticated: !!user,
         isAdmin,

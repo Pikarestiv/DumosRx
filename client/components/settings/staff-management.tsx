@@ -8,6 +8,7 @@ import { useUsers } from "@/lib/hooks/queries/use-users";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { useStore } from "@/lib/context/store-context";
 import type { StaffListItem } from "@/lib/types/user";
+import { buildStaffCsv } from "@/lib/utils/export-staff-csv";
 
 import { StaffList } from "./staff/staff-list";
 import { StaffFormDialog } from "./staff/staff-form-dialog";
@@ -43,6 +44,17 @@ export function StaffManagement() {
     setDeleteTarget({ id, name });
   };
 
+  const handleExport = () => {
+    const csv = buildStaffCsv(users);
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `staff-list-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -72,6 +84,9 @@ export function StaffManagement() {
               ))}
             </select>
           )}
+          <Button variant="outline" onClick={handleExport} disabled={users.length === 0}>
+            Export Staff List
+          </Button>
           <Button
             className="bg-primary hover:bg-primary/90"
             disabled={users.length >= maxStaffAccounts}

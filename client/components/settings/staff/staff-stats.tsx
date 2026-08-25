@@ -4,10 +4,11 @@ import type { StaffListItem } from "@/lib/types/user";
 
 interface StaffStatsProps {
   users: StaffListItem[];
+  totalStaffCount: number;
   maxStaffAccounts: number;
 }
 
-export function StaffStats({ users, maxStaffAccounts }: StaffStatsProps) {
+export function StaffStats({ users, totalStaffCount, maxStaffAccounts }: StaffStatsProps) {
   const activeCount = users.filter((u) => u.is_active !== 0).length;
 
   return (
@@ -18,9 +19,9 @@ export function StaffStats({ users, maxStaffAccounts }: StaffStatsProps) {
             Total Staff
           </p>
           <h3 className="text-2xl font-bold mt-1">
-            {users.length}
+            {totalStaffCount}
             <span className="text-sm text-muted-foreground font-medium ml-2">
-              / {maxStaffAccounts === -1 ? "∞" : `${maxStaffAccounts} max`}
+              / {Number.isFinite(maxStaffAccounts) ? `${maxStaffAccounts} max` : "∞"}
             </span>
           </h3>
         </CardContent>

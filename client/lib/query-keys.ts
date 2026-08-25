@@ -126,7 +126,8 @@ export const queryKeys = {
   },
   staff: {
     count: () => resource(["staffCount"] as const, ["users"]),
-    users: () => resource(["users"] as const, ["users"]),
+    users: (storeId?: string | null) =>
+      resource(["users", storeId ?? "all"] as const, ["users"]),
   },
   sync: {
     queueCount: () => resource(["syncQueueCount"] as const, ["_sync_queue"]),

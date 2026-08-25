@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { UserPlus } from "lucide-react";
@@ -8,6 +9,8 @@ import { toast } from "sonner";
 import { useUsers, useMutateUser } from "@/lib/hooks/queries/use-users";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { useStore } from "@/lib/context/store-context";
+import { queryKeys } from "@/lib/query-keys";
+import { getStaffCount } from "@/lib/db/queries/auth";
 import type { StaffListItem } from "@/lib/types/user";
 import { buildStaffCsv } from "@/lib/utils/export-staff-csv";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -28,6 +31,14 @@ export function StaffManagement() {
     availableStores && availableStores.length > 1 ? filterStoreId : activeStoreId,
   );
   const { update } = useMutateUser();
+
+  // Seat-limit cap and the "Total Staff" stat must count every active
+  // account, not just the store-filtered `users` list, so they use this
+  // unfiltered, is_active-only count instead of users.length.
+  const { data: staffCount = 0 } = useQuery({
+    ...queryKeys.staff.count(),
+    queryFn: () => getStaffCount(),
+  });
 
   // Dialog States
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -66,7 +77,9 @@ export function StaffManagement() {
     const link = document.createElement("a");
     link.href = url;
     link.download = `staff-list-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
     link.click();
+    document.body.removeChild(link);
     URL.revokeObjectURL(url);
   };
 
@@ -83,7 +96,7 @@ export function StaffManagement() {
             <h2 className="text-xl font-bold font-serif">Staff Management</h2>
             <p className="text-sm text-muted-foreground">
               Create and manage sub-accounts for your team members.
-              {users.length >= maxStaffAccounts && (
+              {staffCount >= maxStaffAccounts && (
                 <span className="block mt-1 text-amber-600 font-medium">
                   You have reached your limit of {maxStaffAccounts} staff accounts on your current plan. {getUpgradeMessage('staff', "Upgrade your plan to add more.")}
                 </span>
@@ -110,7 +123,7 @@ export function StaffManagement() {
             </Button>
             <Button
               className="bg-primary hover:bg-primary/90"
-              disabled={users.length >= maxStaffAccounts}
+              disabled={staffCount >= maxStaffAccounts}
               onClick={withRestriction(handleOpenCreate)}
             >
               <UserPlus className="w-4 h-4 mr-2" />
@@ -119,7 +132,7 @@ export function StaffManagement() {
           </div>
         </div>
 
-        <StaffStats users={users} maxStaffAccounts={maxStaffAccounts} />
+        <StaffStats users={users} totalStaffCount={staffCount} maxStaffAccounts={maxStaffAccounts} />
 
         <Card>
           <CardContent className="p-0">

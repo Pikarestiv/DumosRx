@@ -114,8 +114,14 @@ export function StaffFormDialog({
           username: formData.username,
           email: formData.email,
           role: formData.role,
-          store_id: formData.store_id,
         };
+        // Only touch store_id when the selector was actually shown to the
+        // user (multi-store accounts). Single-store accounts never render
+        // it, so sending it unconditionally would silently overwrite
+        // main-account rows (store_id === null) with activeStoreId.
+        if (availableStores && availableStores.length > 1) {
+          updateData.store_id = formData.store_id;
+        }
         if (formData.pin) {
           updateData.pin = formData.pin;
         }

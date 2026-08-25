@@ -10,39 +10,34 @@ import type { StaffCreatePayload, StaffUpdatePayload } from "@/lib/types/user";
 
 export function useUsers(storeId?: string | null) {
   return useQuery({
-    ...queryKeys.staff.users(),
-    queryFn: () => {
-      // If storeId is provided, local-database expects it or we just fetch all
-      // For now, getUsers in local-database doesn't take storeId natively if it just returns all,
-      // but we should pass it if required. We'll just call getUsers().
-      return getUsers(storeId);
-    },
+    ...queryKeys.staff.users(storeId),
+    queryFn: () => getUsers(storeId),
   });
 }
 
 export function useMutateUser() {
   const queryClient = useQueryClient();
 
+  // The users key now varies by storeId (see queryKeys.staff.users), so a
+  // single mutation must invalidate every store-filtered variant at once;
+  // matching on the shared "users" prefix does that.
+  const invalidateAllUsers = () =>
+    queryClient.invalidateQueries({ queryKey: ["users"] });
+
   const create = useMutation({
     mutationFn: (data: StaffCreatePayload) => createUser(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries(queryKeys.staff.users());
-    },
+    onSuccess: invalidateAllUsers,
   });
 
   const update = useMutation({
     mutationFn: ({ id, data }: { id: string; data: StaffUpdatePayload }) =>
       updateUser(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries(queryKeys.staff.users());
-    },
+    onSuccess: invalidateAllUsers,
   });
 
   const remove = useMutation({
     mutationFn: (id: string) => deleteUser(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries(queryKeys.staff.users());
-    },
+    onSuccess: invalidateAllUsers,
   });
 
   return { create, update, remove };

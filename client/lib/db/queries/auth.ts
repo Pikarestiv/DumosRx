@@ -38,7 +38,7 @@ export async function updateUserPin(userId: string, newPin: string) {
 
 export async function getStaffCount() {
   const result = await query<{ count: number }>(
-    "SELECT COUNT(*) as count FROM users WHERE _deleted = 0 AND id != 'default-admin'"
+    "SELECT COUNT(*) as count FROM users WHERE _deleted = 0 AND is_active = 1 AND id != 'default-admin'"
   );
   return result[0]?.count || 0;
 }

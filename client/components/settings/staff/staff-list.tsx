@@ -9,7 +9,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
-import { Edit2, Trash2, Shield, Loader2, Users, Key } from "lucide-react";
+import { Edit2, Trash2, Shield, Loader2, Users, Key, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { checkIsAdmin } from "@/lib/context/auth-context";
 import type { StaffListItem } from "@/lib/types/user";
@@ -19,12 +19,13 @@ interface StaffListProps {
   isLoading: boolean;
   onEdit: (user: StaffListItem) => void;
   onDelete: (id: string, name: string) => void;
+  onReactivate: (id: string) => void;
 }
 
 function NoStaffFoundRow() {
   return (
     <TableRow>
-      <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+      <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
         <Users className="w-6 h-6 mx-auto mb-2 opacity-30" />
         No staff members found.
       </TableCell>
@@ -32,7 +33,7 @@ function NoStaffFoundRow() {
   );
 }
 
-export function StaffList({ users, isLoading, onEdit, onDelete }: StaffListProps) {
+export function StaffList({ users, isLoading, onEdit, onDelete, onReactivate }: StaffListProps) {
   const handleEditClick = (user: StaffListItem) => {
     if (user.id === "default-admin" || user.username === "admin") {
       toast.error("Default admin cannot be edited");
@@ -57,6 +58,7 @@ export function StaffList({ users, isLoading, onEdit, onDelete }: StaffListProps
           <TableHead>Name</TableHead>
           <TableHead>Username</TableHead>
           <TableHead>Role</TableHead>
+          <TableHead>Status</TableHead>
           <TableHead>Created</TableHead>
           <TableHead className="text-right">Actions</TableHead>
         </TableRow>
@@ -64,7 +66,7 @@ export function StaffList({ users, isLoading, onEdit, onDelete }: StaffListProps
       <TableBody>
         {!!(isLoading) && (
                         <TableRow>
-                          <TableCell colSpan={5} className="h-24 text-center">
+                          <TableCell colSpan={6} className="h-24 text-center">
                             <Loader2 className="w-6 h-6 animate-spin mx-auto text-muted-foreground" />
                           </TableCell>
                         </TableRow>
@@ -123,6 +125,14 @@ export function StaffList({ users, isLoading, onEdit, onDelete }: StaffListProps
                                               </Badge>
                                             </div>
                                           </TableCell>
+                                          <TableCell>
+                                            <Badge
+                                              variant="outline"
+                                              className={user.is_active === 0 ? "bg-slate-50 text-slate-500 border-slate-200" : "bg-green-50 text-green-700 border-green-200"}
+                                            >
+                                              {user.is_active === 0 ? "Inactive" : "Active"}
+                                            </Badge>
+                                          </TableCell>
                                           <TableCell className="text-muted-foreground">
                                             {!!(user.created_at) && formatDateToDDMMYYYY(user.created_at)}
                                                   {!(user.created_at) && "N/A"}
@@ -138,15 +148,26 @@ export function StaffList({ users, isLoading, onEdit, onDelete }: StaffListProps
                                               >
                                                 <Edit2 className="w-4 h-4" />
                                               </Button>
-                                              <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                onClick={() => handleDeleteClick(user)}
-                                                className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                                                disabled={user.id === "default-admin"}
-                                              >
-                                                <Trash2 className="w-4 h-4" />
-                                              </Button>
+                                              {user.is_active === 0 ? (
+                                                <Button
+                                                  variant="ghost"
+                                                  size="icon"
+                                                  onClick={() => onReactivate(user.id)}
+                                                  className="h-8 w-8 text-muted-foreground hover:text-emerald-600"
+                                                >
+                                                  <RotateCcw className="w-4 h-4" />
+                                                </Button>
+                                              ) : (
+                                                <Button
+                                                  variant="ghost"
+                                                  size="icon"
+                                                  onClick={() => handleDeleteClick(user)}
+                                                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                                  disabled={user.id === "default-admin"}
+                                                >
+                                                  <Trash2 className="w-4 h-4" />
+                                                </Button>
+                                              )}
                                             </div>
                                           </TableCell>
                                         </TableRow>

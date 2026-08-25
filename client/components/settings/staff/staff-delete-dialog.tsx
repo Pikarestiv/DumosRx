@@ -14,21 +14,21 @@ export function StaffDeleteDialog({
   onClose,
   onSuccess,
 }: StaffDeleteDialogProps) {
-  const [isDeleting, setIsDeleting] = useState(false);
-  const { remove } = useMutateUser();
+  const [isDeactivating, setIsDeactivating] = useState(false);
+  const { update } = useMutateUser();
 
-  const confirmDeleteUser = async () => {
+  const confirmDeactivateUser = async () => {
     if (!target) return;
-    setIsDeleting(true);
+    setIsDeactivating(true);
     try {
-      await remove.mutateAsync(target.id);
-      toast.success("Staff account deleted");
+      await update.mutateAsync({ id: target.id, data: { is_active: 0 } });
+      toast.success("Staff account deactivated");
       onSuccess();
     } catch (error) {
-      console.error("Failed to delete user:", error);
-      toast.error("Failed to delete staff account");
+      console.error("Failed to deactivate user:", error);
+      toast.error("Failed to deactivate staff account");
     } finally {
-      setIsDeleting(false);
+      setIsDeactivating(false);
       onClose();
     }
   };
@@ -37,10 +37,10 @@ export function StaffDeleteDialog({
     <ConfirmDialog
       open={!!target}
       onOpenChange={(open) => !open && onClose()}
-      onConfirm={confirmDeleteUser}
-      title="Delete Staff Member"
-      description={`Are you sure you want to delete the account for ${target?.name}? This action cannot be undone and will immediately revoke their access.`}
-      confirmLabel={isDeleting ? "Deleting..." : "Delete Account"}
+      onConfirm={confirmDeactivateUser}
+      title="Deactivate Staff Account"
+      description={`Are you sure you want to deactivate the account for ${target?.name}? They will no longer be able to log in, but the account can be reactivated later.`}
+      confirmLabel={isDeactivating ? "Deactivating..." : "Deactivate Account"}
       variant="destructive"
     />
   );

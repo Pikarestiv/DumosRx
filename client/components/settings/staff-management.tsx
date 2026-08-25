@@ -4,7 +4,8 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { UserPlus } from "lucide-react";
-import { useUsers } from "@/lib/hooks/queries/use-users";
+import { toast } from "sonner";
+import { useUsers, useMutateUser } from "@/lib/hooks/queries/use-users";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { useStore } from "@/lib/context/store-context";
 import type { StaffListItem } from "@/lib/types/user";
@@ -24,6 +25,7 @@ export function StaffManagement() {
   const { data: users = [], isLoading, refetch: loadUsers } = useUsers(
     availableStores && availableStores.length > 1 ? filterStoreId : activeStoreId,
   );
+  const { update } = useMutateUser();
 
   // Dialog States
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -42,6 +44,17 @@ export function StaffManagement() {
 
   const handleDeleteInitiate = (id: string, name: string) => {
     setDeleteTarget({ id, name });
+  };
+
+  const handleReactivate = async (id: string) => {
+    try {
+      await update.mutateAsync({ id, data: { is_active: 1 } });
+      toast.success("Staff account reactivated");
+      loadUsers();
+    } catch (error) {
+      console.error("Failed to reactivate user:", error);
+      toast.error("Failed to reactivate staff account");
+    }
   };
 
   const handleExport = () => {
@@ -107,6 +120,7 @@ export function StaffManagement() {
             isLoading={isLoading}
             onEdit={handleOpenEdit}
             onDelete={handleDeleteInitiate}
+            onReactivate={handleReactivate}
           />
         </CardContent>
       </Card>

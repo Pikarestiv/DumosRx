@@ -14,11 +14,15 @@ import { StaffFormDialog } from "./staff/staff-form-dialog";
 import { StaffDeleteDialog } from "./staff/staff-delete-dialog";
 
 export function StaffManagement() {
-  const { activeStoreId } = useStore();
+  const { activeStoreId, availableStores } = useStore();
   const { maxStaffAccounts, getUpgradeMessage , withRestriction } = useFeatureGate();
-  
-  const { data: users = [], isLoading, refetch: loadUsers } = useUsers(activeStoreId);
-  
+  const [selectedStore, setSelectedStore] = useState<string>("all");
+
+  const filterStoreId = selectedStore === "all" ? null : selectedStore;
+  const { data: users = [], isLoading, refetch: loadUsers } = useUsers(
+    availableStores && availableStores.length > 1 ? filterStoreId : activeStoreId,
+  );
+
   // Dialog States
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [userToEdit, setUserToEdit] = useState<StaffListItem | null>(null);
@@ -52,14 +56,30 @@ export function StaffManagement() {
             )}
           </p>
         </div>
-        <Button 
-          className="bg-primary hover:bg-primary/90"
-          disabled={users.length >= maxStaffAccounts}
-          onClick={withRestriction(handleOpenCreate)}
-        >
-          <UserPlus className="w-4 h-4 mr-2" />
-          Add Staff Member
-        </Button>
+        <div className="flex items-center gap-3">
+          {availableStores && availableStores.length > 1 && (
+            <select
+              className="bg-background border border-input px-3 py-2 rounded-lg text-sm font-medium h-10"
+              value={selectedStore}
+              onChange={(e) => setSelectedStore(e.target.value)}
+            >
+              <option value="all">All Stores</option>
+              {availableStores.map((store) => (
+                <option key={store.id} value={store.id}>
+                  {store.name}
+                </option>
+              ))}
+            </select>
+          )}
+          <Button
+            className="bg-primary hover:bg-primary/90"
+            disabled={users.length >= maxStaffAccounts}
+            onClick={withRestriction(handleOpenCreate)}
+          >
+            <UserPlus className="w-4 h-4 mr-2" />
+            Add Staff Member
+          </Button>
+        </div>
       </div>
 
       <Card>

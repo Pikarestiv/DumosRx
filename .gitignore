@@ -4,3 +4,6 @@
 .DS_Store
 
 refs/*
+
+# Worktrees for isolated agent work
+.worktrees/

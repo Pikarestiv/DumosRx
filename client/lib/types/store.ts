@@ -1,15 +1,9 @@
-/** Minimal store shape used by the setup/onboarding store picker: both the
- * local `stores` table and the server's `/stores` list return at least these
- * two fields. */
+/** Store shape returned by the server's `/stores` list. The onboarding store
+ * picker only reads `id`/`name`, but the endpoint's underlying Eloquent Store
+ * model (laravel-server's Api/Web/StoreController::index) always includes the
+ * fleet-management fields too, so they're typed here as optional rather than
+ * hidden behind a cast. */
 export interface StoreOption {
-  id: string;
-  name: string;
-}
-
-/** Fields returned/accepted by the fleet-management (Settings > Store Profile)
- * store CRUD endpoints — matches the server's Store model validation in
- * laravel-server's Api/Web/StoreController. */
-export interface FleetStore {
   id: string;
   name: string;
   location?: string | null;
@@ -17,6 +11,12 @@ export interface FleetStore {
   phone?: string | null;
   store_type?: string | null;
 }
+
+/** Fields returned/accepted by the fleet-management (Settings > Store Profile)
+ * store CRUD endpoints — matches the server's Store model validation in
+ * laravel-server's Api/Web/StoreController. Structurally identical to
+ * `StoreOption`; kept as a distinct name for call-site clarity. */
+export type FleetStore = StoreOption;
 
 export interface FleetStorePayload {
   name: string;

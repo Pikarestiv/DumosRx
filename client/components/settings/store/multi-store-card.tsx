@@ -30,7 +30,7 @@ export function MultiStoreCard() {
     setIsLoading(true);
     try {
       const data = await apiClient.getStores();
-      setStores(data as unknown as FleetStore[]);
+      setStores(data);
     } finally {
       setIsLoading(false);
     }

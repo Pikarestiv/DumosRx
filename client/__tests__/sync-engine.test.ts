@@ -53,7 +53,7 @@ describe('Sync Engine & Local Database', () => {
   describe('Local Database Operations (Queueing)', () => {
     it('should add a new record and log to _sync_queue', async () => {
       const executeMock = vi.mocked(execute);
-      
+
       const newProduct = {
         name: 'Aspirin',
         price: 100,
@@ -63,7 +63,7 @@ describe('Sync Engine & Local Database', () => {
 
       // Verify the first execute is the original insert
       expect(executeMock.mock.calls[0][0]).toContain('INSERT INTO products');
-      
+
       // Verify the second execute is logging to _sync_queue
       expect(executeMock.mock.calls[1][0]).toContain('INSERT INTO _sync_queue');
       const params = executeMock.mock.calls[1][1];
@@ -71,6 +71,27 @@ describe('Sync Engine & Local Database', () => {
       expect(params![0]).toBe('products');
       expect(params![2]).toBe('INSERT');
       expect(typeof params![3]).toBe('string');
+    });
+
+    it('should queue a users-table insert exactly like any other table (no users-specific exclusion)', async () => {
+      const executeMock = vi.mocked(execute);
+
+      const newStaffMember = {
+        first_name: 'Jane',
+        last_name: 'Doe',
+        username: 'jdoe',
+        role: 'sales_staff',
+        store_id: 'store-1',
+        pin: '1234',
+      };
+
+      await insert('users', newStaffMember);
+
+      expect(executeMock.mock.calls[0][0]).toContain('INSERT INTO users');
+      expect(executeMock.mock.calls[1][0]).toContain('INSERT INTO _sync_queue');
+      const params = executeMock.mock.calls[1][1];
+      expect(params![0]).toBe('users');
+      expect(params![2]).toBe('INSERT');
     });
   });
 
@@ -108,6 +129,26 @@ describe('Sync Engine & Local Database', () => {
       // Verify markSynced was called via execute() which does a DELETE
       const executeMock = vi.mocked(execute);
       expect(executeMock.mock.calls.some(call => call[0].includes('DELETE FROM _sync_queue'))).toBe(true);
+    });
+
+    it('should push a pending users change through the same generic path as any other table', async () => {
+      vi.mocked(query).mockResolvedValueOnce([
+        {
+          id: 1,
+          table_name: 'users',
+          record_id: 'user-1',
+          action: 'INSERT',
+          payload: JSON.stringify({ id: 'user-1', username: 'jdoe', role: 'sales_staff' }),
+        },
+      ]);
+
+      vi.mocked(apiClient.pushChanges).mockResolvedValueOnce({ success: true });
+
+      const result = await pushChanges();
+
+      expect(result.pushed).toBe(1);
+      const sentPayload = vi.mocked(apiClient.pushChanges).mock.calls[0][0];
+      expect(sentPayload.changes[0].table_name).toBe('users');
     });
   });
 

@@ -4,7 +4,7 @@ import type { Broadcast } from "@/lib/types/broadcast";
 import type { NewProductPayload } from "@/lib/types/product";
 import type { SupplierPayload } from "@/lib/types/supplier";
 import type { SyncChange } from "@/lib/types/sync";
-import type { StoreOption } from "@/lib/types/store";
+import type { StoreOption, FleetStore, FleetStorePayload } from "@/lib/types/store";
 import type { OnlineOrder } from "@/lib/types/online-order";
 
 /** Loose shape shared by the legacy cloud list/aggregate endpoints below:
@@ -317,6 +317,26 @@ class ApiClient extends BaseApiClient {
   async checkStoreSlug(slug: string, ignoreId?: string) {
     const url = `/stores/check-slug?slug=${encodeURIComponent(slug)}${ignoreId ? `&ignore_id=${ignoreId}` : ""}`;
     return this.request<{ available: boolean; slug: string }>(url);
+  }
+
+  async createStore(payload: FleetStorePayload) {
+    return this.request<{ message: string; store: FleetStore }>("/stores", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async updateStore(id: string, payload: FleetStorePayload) {
+    return this.request<{ message: string; store: FleetStore }>(`/stores/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async deleteStore(id: string) {
+    return this.request<{ message: string }>(`/stores/${id}`, {
+      method: "DELETE",
+    });
   }
 
   // Notifications

@@ -12,6 +12,7 @@ import type { StaffListItem } from "@/lib/types/user";
 import { StaffList } from "./staff/staff-list";
 import { StaffFormDialog } from "./staff/staff-form-dialog";
 import { StaffDeleteDialog } from "./staff/staff-delete-dialog";
+import { StaffStats } from "./staff/staff-stats";
 
 export function StaffManagement() {
   const { activeStoreId, availableStores } = useStore();
@@ -82,13 +83,15 @@ export function StaffManagement() {
         </div>
       </div>
 
+      <StaffStats users={users} maxStaffAccounts={maxStaffAccounts} />
+
       <Card>
         <CardContent className="p-0">
-          <StaffList 
-            users={users} 
-            isLoading={isLoading} 
-            onEdit={handleOpenEdit} 
-            onDelete={handleDeleteInitiate} 
+          <StaffList
+            users={users}
+            isLoading={isLoading}
+            onEdit={handleOpenEdit}
+            onDelete={handleDeleteInitiate}
           />
         </CardContent>
       </Card>

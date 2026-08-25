@@ -9,7 +9,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
-import { Edit2, Trash2, Shield, Loader2, Users } from "lucide-react";
+import { Edit2, Trash2, Shield, Loader2, Users, Key } from "lucide-react";
 import { toast } from "sonner";
 import { checkIsAdmin } from "@/lib/context/auth-context";
 import type { StaffListItem } from "@/lib/types/user";
@@ -102,7 +102,13 @@ export function StaffList({ users, isLoading, onEdit, onDelete }: StaffListProps
                                             </div>
                                           </TableCell>
                                           <TableCell className="font-mono text-sm">
-                                            {user.username}
+                                            <div className="flex items-center gap-2">
+                                              {user.username}
+                                              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30 px-1.5 py-0.5 rounded-full">
+                                                <Key className="w-2.5 h-2.5" />
+                                                PIN set
+                                              </span>
+                                            </div>
                                           </TableCell>
                                           <TableCell>
                                             <div className="flex items-center gap-2">

@@ -10,11 +10,13 @@ import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { useStore } from "@/lib/context/store-context";
 import type { StaffListItem } from "@/lib/types/user";
 import { buildStaffCsv } from "@/lib/utils/export-staff-csv";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 import { StaffList } from "./staff/staff-list";
 import { StaffFormDialog } from "./staff/staff-form-dialog";
 import { StaffDeleteDialog } from "./staff/staff-delete-dialog";
 import { StaffStats } from "./staff/staff-stats";
+import { StaffActivitiesTab } from "./staff/staff-activities-tab";
 
 export function StaffManagement() {
   const { activeStoreId, availableStores } = useStore();
@@ -69,75 +71,86 @@ export function StaffManagement() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-bold font-serif">Staff Management</h2>
-          <p className="text-sm text-muted-foreground">
-            Create and manage sub-accounts for your team members.
-            {users.length >= maxStaffAccounts && (
-              <span className="block mt-1 text-amber-600 font-medium">
-                You have reached your limit of {maxStaffAccounts} staff accounts on your current plan. {getUpgradeMessage('staff', "Upgrade your plan to add more.")}
-              </span>
+    <Tabs defaultValue="management" className="space-y-6">
+      <TabsList>
+        <TabsTrigger value="management">Management</TabsTrigger>
+        <TabsTrigger value="activities">Activities</TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="management" className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-bold font-serif">Staff Management</h2>
+            <p className="text-sm text-muted-foreground">
+              Create and manage sub-accounts for your team members.
+              {users.length >= maxStaffAccounts && (
+                <span className="block mt-1 text-amber-600 font-medium">
+                  You have reached your limit of {maxStaffAccounts} staff accounts on your current plan. {getUpgradeMessage('staff', "Upgrade your plan to add more.")}
+                </span>
+              )}
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            {availableStores && availableStores.length > 1 && (
+              <select
+                className="bg-background border border-input px-3 py-2 rounded-lg text-sm font-medium h-10"
+                value={selectedStore}
+                onChange={(e) => setSelectedStore(e.target.value)}
+              >
+                <option value="all">All Stores</option>
+                {availableStores.map((store) => (
+                  <option key={store.id} value={store.id}>
+                    {store.name}
+                  </option>
+                ))}
+              </select>
             )}
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          {availableStores && availableStores.length > 1 && (
-            <select
-              className="bg-background border border-input px-3 py-2 rounded-lg text-sm font-medium h-10"
-              value={selectedStore}
-              onChange={(e) => setSelectedStore(e.target.value)}
+            <Button variant="outline" onClick={handleExport} disabled={users.length === 0}>
+              Export Staff List
+            </Button>
+            <Button
+              className="bg-primary hover:bg-primary/90"
+              disabled={users.length >= maxStaffAccounts}
+              onClick={withRestriction(handleOpenCreate)}
             >
-              <option value="all">All Stores</option>
-              {availableStores.map((store) => (
-                <option key={store.id} value={store.id}>
-                  {store.name}
-                </option>
-              ))}
-            </select>
-          )}
-          <Button variant="outline" onClick={handleExport} disabled={users.length === 0}>
-            Export Staff List
-          </Button>
-          <Button
-            className="bg-primary hover:bg-primary/90"
-            disabled={users.length >= maxStaffAccounts}
-            onClick={withRestriction(handleOpenCreate)}
-          >
-            <UserPlus className="w-4 h-4 mr-2" />
-            Add Staff Member
-          </Button>
+              <UserPlus className="w-4 h-4 mr-2" />
+              Add Staff Member
+            </Button>
+          </div>
         </div>
-      </div>
 
-      <StaffStats users={users} maxStaffAccounts={maxStaffAccounts} />
+        <StaffStats users={users} maxStaffAccounts={maxStaffAccounts} />
 
-      <Card>
-        <CardContent className="p-0">
-          <StaffList
-            users={users}
-            isLoading={isLoading}
-            onEdit={handleOpenEdit}
-            onDelete={handleDeleteInitiate}
-            onReactivate={handleReactivate}
-          />
-        </CardContent>
-      </Card>
+        <Card>
+          <CardContent className="p-0">
+            <StaffList
+              users={users}
+              isLoading={isLoading}
+              onEdit={handleOpenEdit}
+              onDelete={handleDeleteInitiate}
+              onReactivate={handleReactivate}
+            />
+          </CardContent>
+        </Card>
 
-      <StaffFormDialog
-        isOpen={isFormOpen}
-        onOpenChange={setIsFormOpen}
-        userToEdit={userToEdit}
-        activeStoreId={activeStoreId}
-        onSuccess={loadUsers}
-      />
+        <StaffFormDialog
+          isOpen={isFormOpen}
+          onOpenChange={setIsFormOpen}
+          userToEdit={userToEdit}
+          activeStoreId={activeStoreId}
+          onSuccess={loadUsers}
+        />
 
-      <StaffDeleteDialog
-        target={deleteTarget}
-        onClose={() => setDeleteTarget(null)}
-        onSuccess={loadUsers}
-      />
-    </div>
+        <StaffDeleteDialog
+          target={deleteTarget}
+          onClose={() => setDeleteTarget(null)}
+          onSuccess={loadUsers}
+        />
+      </TabsContent>
+
+      <TabsContent value="activities">
+        <StaffActivitiesTab />
+      </TabsContent>
+    </Tabs>
   );
 }

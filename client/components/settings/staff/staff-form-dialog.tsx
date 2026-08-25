@@ -20,6 +20,7 @@ import { Loader2, Info } from "lucide-react";
 import { toast } from "sonner";
 import { STAFF_ROLES } from "@/lib/constants/roles";
 import { useMutateUser } from "@/lib/hooks/queries/use-users";
+import { useStore } from "@/lib/context/store-context";
 import type { StaffUpdatePayload, StaffListItem } from "@/lib/types/user";
 import {
   Tooltip,
@@ -45,6 +46,7 @@ export function StaffFormDialog({
 }: StaffFormDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { create, update } = useMutateUser();
+  const { availableStores } = useStore();
   const [formData, setFormData] = useState({
     first_name: "",
     last_name: "",
@@ -52,6 +54,7 @@ export function StaffFormDialog({
     email: "",
     pin: "",
     role: "sales_staff",
+    store_id: activeStoreId || "",
   });
 
   const isEditing = !!userToEdit;
@@ -66,6 +69,7 @@ export function StaffFormDialog({
           email: userToEdit.email || "",
           pin: "", // Leave empty unless modifying
           role: userToEdit.role || "sales_staff",
+          store_id: userToEdit.store_id || activeStoreId || "",
         });
       } else {
         setFormData({
@@ -75,6 +79,7 @@ export function StaffFormDialog({
           email: "",
           pin: "",
           role: "sales_staff",
+          store_id: activeStoreId || "",
         });
       }
     }
@@ -98,6 +103,8 @@ export function StaffFormDialog({
       return;
     }
 
+    const pinChanged = isEditing && !!formData.pin && formData.pin.length === 4;
+
     setIsSubmitting(true);
     try {
       if (isEditing) {
@@ -107,13 +114,23 @@ export function StaffFormDialog({
           username: formData.username,
           email: formData.email,
           role: formData.role,
+          store_id: formData.store_id,
         };
         if (formData.pin) {
           updateData.pin = formData.pin;
         }
 
         await update.mutateAsync({ id: userToEdit.id, data: updateData });
-        toast.success("Staff account updated successfully");
+        toast.success(
+          "Staff account updated successfully",
+          pinChanged
+            ? {
+                description:
+                  "PIN changed. Restart the app (or refresh the tab, if using it in a browser) on that person's device to apply it right away.",
+                duration: 8000,
+              }
+            : undefined,
+        );
       } else {
         const dataToSave = {
           first_name: formData.first_name.trim(),
@@ -122,7 +139,7 @@ export function StaffFormDialog({
           email: formData.email,
           pin: formData.pin,
           role: formData.role,
-          store_id: activeStoreId || "",
+          store_id: formData.store_id || activeStoreId || "",
         };
 
         await create.mutateAsync(dataToSave);
@@ -320,6 +337,28 @@ export function StaffFormDialog({
             </SelectContent>
           </Select>
         </div>
+        {availableStores && availableStores.length > 1 && (
+          <div className="grid gap-2">
+            <Label htmlFor="store_id">Assigned Store</Label>
+            <Select
+              value={formData.store_id}
+              onValueChange={(val) =>
+                setFormData((prev) => ({ ...prev, store_id: val }))
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select store" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableStores.map((store) => (
+                  <SelectItem key={store.id} value={store.id}>
+                    {store.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
       </form>
     </ResponsiveModal>
   );

@@ -71,8 +71,21 @@ export function StaffList({ users, isLoading, onEdit, onDelete }: StaffListProps
                       )}
               {(!(isLoading) && users.length === 0) && <NoStaffFoundRow />}
               {!(!(isLoading) && users.length === 0) && (
-                                      users.map((user) => (
-                                        <TableRow key={user.id}>
+                                      [...users]
+                                        .sort((a, b) => {
+                                          const isAMain = !a.store_id || a.role === "admin";
+                                          const isBMain = !b.store_id || b.role === "admin";
+                                          if (isAMain && !isBMain) return -1;
+                                          if (!isAMain && isBMain) return 1;
+                                          return 0;
+                                        })
+                                        .map((user) => {
+                                          const isMainAccount = !user.store_id || user.role === "admin";
+                                          return (
+                                        <TableRow
+                                          key={user.id}
+                                          className={isMainAccount ? "bg-indigo-50/50 dark:bg-indigo-900/10" : undefined}
+                                        >
                                           <TableCell>
                                             <div className="flex items-center gap-2">
                                               <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs">
@@ -81,6 +94,11 @@ export function StaffList({ users, isLoading, onEdit, onDelete }: StaffListProps
                                               <span className="font-medium">
                                                 {`${user.first_name || ""} ${user.last_name || ""}`.trim()}
                                               </span>
+                                              {isMainAccount && (
+                                                <Badge className="h-5 px-1.5 text-[9px] bg-indigo-500 hover:bg-indigo-600">
+                                                  Main Account
+                                                </Badge>
+                                              )}
                                             </div>
                                           </TableCell>
                                           <TableCell className="font-mono text-sm">
@@ -126,7 +144,8 @@ export function StaffList({ users, isLoading, onEdit, onDelete }: StaffListProps
                                             </div>
                                           </TableCell>
                                         </TableRow>
-                                      ))
+                                          );
+                                        })
                                     )}
       </TableBody>
     </Table>

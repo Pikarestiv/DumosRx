@@ -29,9 +29,11 @@ All three call the same `laravel-server` endpoints `web/`'s dashboard already us
 
 `client/`'s existing local staff feature (`client/components/settings/staff-management.tsx` + `staff/{staff-list,staff-form-dialog,staff-delete-dialog}.tsx`, backed by `client/lib/hooks/queries/use-users.ts` and the local SQLite `users` table, `client/lib/db/schema.ts:346-363`) already covers core CRUD (create/edit/delete, username/PIN/role) and has the same 5-role set as `web/` (`client/lib/constants/roles.ts` matches `web/`'s `ROLE_OPTIONS`). This step brings it to full parity and makes it actually sync.
 
-### A1. Wire the local `users` table into the sync engine
+### A1. Correction (found during plan drafting, 2026-08-25): `users` sync already works end-to-end
 
-Add `users` to whatever table-registration list `client/lib/db/sync-engine/{index,push,pull,schema}.ts` uses to drive bidirectional sync (the same mechanism every other synced table already uses), targeting the server's staff-scoped `users` endpoint (`laravel-server/app/Http/Controllers/Api/Web/StaffController.php`, which is a scoped view over the `users` table, not a separate `staff` table). Confirm at implementation time whether the local schema is missing any field the server model has (e.g. `role_id`) and add it if so.
+**This supersedes this section's original premise.** The design section above assumed the local `users` table needed to be wired into the sync engine, based on an earlier research pass that grepped sync-engine files for the literal string "users" and found nothing. That was a false negative: `client/lib/db/base-helpers.ts`'s `insert`/`update`/`softDelete` are table-agnostic and already queue every `users` write to `_sync_queue` (with a `users`-specific branch in `softDelete` to free unique constraints on delete); `client/lib/db/sync-engine/push.ts`/`pull.ts` are both table-agnostic with no allowlist; and `laravel-server/app/Http/Controllers/Api/App/SyncController.php` already lists `'users'` in its `$tables` array with extensive `users`-specific server-side handling (store-id assignment by role, duplicate email/username prevention, model resolution). Staff sync is fully built and working in both directions today.
+
+Task A1 in the implementation plan is therefore a **regression test confirming this**, not new sync-engine integration work. The rest of this section (A2 onward, the 9 feature-gap closures) is unaffected by this correction.
 
 ### A2. Close the feature gaps (in the existing local components, not a rewrite)
 

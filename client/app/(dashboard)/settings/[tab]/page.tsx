@@ -5,6 +5,7 @@ export function generateStaticParams() {
   return [
     { tab: "general" },
     { tab: "appearance" },
+    { tab: "account" },
     { tab: "store" },
     { tab: "alerts" },
     { tab: "notifications" },

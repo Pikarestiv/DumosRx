@@ -8,6 +8,7 @@ import {
   Globe,
   Users,
   CreditCard,
+  UserCircle,
   LucideIcon,
   ChevronRight,
 } from "lucide-react";
@@ -30,6 +31,13 @@ const MENU_ITEMS: MenuItem[] = [
     icon: Palette,
     title: "General",
     description: "Theme & Display settings",
+  },
+  {
+    href: "/settings/account",
+    icon: UserCircle,
+    title: "Account",
+    description: "Profile, sessions & account settings",
+    adminOnly: true,
   },
   {
     href: "/settings/store",

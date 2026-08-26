@@ -1,5 +1,5 @@
 import { TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Store, Bell, Shield, Database, Palette, Globe, Users, CreditCard } from "lucide-react";
+import { Store, Bell, Shield, Database, Palette, Globe, Users, CreditCard, UserCircle } from "lucide-react";
 
 interface SettingsTabNavProps {
   isAdmin: boolean;
@@ -20,6 +20,15 @@ export function SettingsTabNav({ isAdmin, isDesktop }: SettingsTabNavProps) {
         <Palette className="w-4 h-4 mr-2 md:mr-3" />
         <span className="text-sm">General</span>
       </TabsTrigger>
+      {isAdmin && (
+        <TabsTrigger
+          value="account"
+          className="flex-none !justify-start w-full px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm border border-transparent rounded-lg"
+        >
+          <UserCircle className="w-4 h-4 mr-2 md:mr-3" />
+          <span className="text-sm">Account</span>
+        </TabsTrigger>
+      )}
       {isAdmin && (
         <TabsTrigger
           value="store"

@@ -15,6 +15,7 @@ import { DemoDataSettings } from "@/components/settings/demo-data-settings";
 import { SecuritySettings } from "@/components/settings/security-settings";
 import { SystemSettings } from "@/components/settings/system-settings";
 import { BillingSettings } from "@/components/settings/billing/billing-settings";
+import { AccountSettings } from "@/components/settings/account/account-settings";
 import { useSettings } from "@/hooks/use-settings";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
@@ -173,6 +174,12 @@ export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
                 isAdmin={isAdmin}
               />
             </TabsContent>
+
+            {isAdmin && (
+              <TabsContent value="account">
+                <AccountSettings />
+              </TabsContent>
+            )}
 
             {isAdmin && (
               <TabsContent value="store">

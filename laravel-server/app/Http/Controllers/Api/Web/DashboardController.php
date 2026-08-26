@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Web;
 use App\Http\Controllers\Controller;
 use App\Services\Web\DashboardService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use OpenApi\Attributes as OA;
 
@@ -52,6 +53,7 @@ class DashboardController extends Controller
         security: [['sanctum' => []]],
         requestBody: new OA\RequestBody(content: new OA\JsonContent(properties: [
             new OA\Property(property: 'type', type: 'string', default: 'all', description: 'What to reset; see DashboardService::resetData'),
+            new OA\Property(property: 'password', type: 'string', description: "The user's current password, required to confirm this destructive action"),
         ])),
         responses: [
             new OA\Response(response: 200, description: 'Reset result', content: new OA\JsonContent(type: 'object')),
@@ -61,6 +63,18 @@ class DashboardController extends Controller
     )]
     public function resetData(Request $request)
     {
+        $request->validate([
+            'type' => 'nullable|string',
+            'password' => 'required|string',
+        ]);
+
+        if (!Hash::check($request->password, $request->user()->password)) {
+            return response()->json([
+                'error' => 'Invalid Password',
+                'message' => 'The password you entered is incorrect.',
+            ], 403);
+        }
+
         try {
             $type = $request->input('type', 'all');
             $result = $this->dashboardService->resetData($request->user(), $type);

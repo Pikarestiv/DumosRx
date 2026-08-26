@@ -705,8 +705,11 @@ class AuthController extends Controller
         tags: ['Auth'],
         security: [['sanctum' => []]],
         requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
-            required: ['reason'],
-            properties: [new OA\Property(property: 'reason', type: 'string', maxLength: 1000)],
+            required: ['reason', 'password'],
+            properties: [
+                new OA\Property(property: 'reason', type: 'string', maxLength: 1000),
+                new OA\Property(property: 'password', type: 'string', description: "The user's current password, required to confirm this destructive action"),
+            ],
         )),
         responses: [
             new OA\Response(response: 200, description: 'Requested', content: new OA\JsonContent(ref: '#/components/schemas/MessageOnly')),
@@ -718,9 +721,18 @@ class AuthController extends Controller
     {
         $request->validate([
             'reason' => 'required|string|max:1000',
+            'password' => 'required|string',
         ]);
 
         $user = $request->user();
+
+        if (!Hash::check($request->password, $user->password)) {
+            return response()->json([
+                'error' => 'Invalid Password',
+                'message' => 'The password you entered is incorrect.',
+            ], 403);
+        }
+
         $user->deletion_requested_at = now();
         $user->deletion_reason = $request->reason;
         $user->save();

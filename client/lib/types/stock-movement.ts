@@ -1,4 +1,4 @@
-/** Row shape returned by getStockMovements()/getStockAdjustments() — the raw
+/** Row shape returned by getStockMovements()/getStockAdjustments(): the raw
  * `stock_movements` table joined with the product's name, the performing
  * user's display name, and (via stock_batch_id) the batch number and its
  * originating supplier's name. */
@@ -21,6 +21,6 @@ export interface StockMovementDbRow {
   supplier_name?: string;
 }
 
-/** Row shape returned by getProductHistory()'s stockMovements query — a
+/** Row shape returned by getProductHistory()'s stockMovements query: a
  * stock_movements row joined with the performing user's display name. */
 export type StockMovementHistoryRow = StockMovementDbRow;

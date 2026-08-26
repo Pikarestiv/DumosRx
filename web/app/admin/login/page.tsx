@@ -13,15 +13,19 @@ import { APP_VERSION } from "@/lib/constants";
 
 export default function AdminLoginPage() {
   const router = useRouter();
-  const { token: _token, user: _user, fetchUser } = useAdminAuthStore();
+  const { token: _token, user: _user, initSession } = useAdminAuthStore();
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
     const checkAuth = async () => {
       try {
         const currentUser = useAdminAuthStore.getState().user;
+        // Same reasoning as the admin layout guard: the access token is
+        // memory-only, so a reload always starts with none. Try to restore
+        // via the refresh cookie so an already-logged-in visitor gets
+        // bounced away from the login form instead of seeing it again.
         if (!currentUser) {
-          await fetchUser();
+          await initSession();
         }
       } catch (e) {
         console.error("Auto-auth check failed:", e);
@@ -35,7 +39,7 @@ export default function AdminLoginPage() {
       }
     };
     checkAuth();
-     
+
   }, []);
 
   if (checking) {

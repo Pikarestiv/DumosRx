@@ -76,7 +76,7 @@ export function SharedGrantTrialDialog({
               <SelectTrigger className="w-full h-12 rounded-xl">
                 <SelectValue placeholder="Select duration" />
               </SelectTrigger>
-              <SelectContent className="rounded-xl max-h-[200px]">
+              <SelectContent className="rounded-xl max-h-50">
                 {TRIAL_DURATIONS.map((d) => (
                   <SelectItem key={d} value={d}>
                     {d}

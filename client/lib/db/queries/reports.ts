@@ -13,9 +13,9 @@ import type { PrescriptionRow } from "@/lib/types/prescription";
  * stock movements, purchase orders, expenses, prescriptions) to entries
  * performed by this user (pass undefined for viewers allowed to see everyone's
  * activity, i.e. checkCanViewAllActivity(role) === true). Today's revenue/
- * refund totals are NOT scoped by this — those stay store-wide regardless of
+ * refund totals are NOT scoped by this: those stay store-wide regardless of
  * role, since cashiers need accurate shift/till totals for reconciliation.
- * Product-catalog additions are also unscoped by viewerId — products have no
+ * Product-catalog additions are also unscoped by viewerId: products have no
  * creator/user column, unlike the other feed sources. */
 export async function getDashboardOverviewData(viewerId?: string) {
   const today = getLocalTodayDate();
@@ -66,7 +66,7 @@ export async function getDashboardOverviewData(viewerId?: string) {
   );
 
   // Excludes movements already represented by their own richer feed entry
-  // below (a sale's stock deduction, a PO's receipt, a return's restock) —
+  // below (a sale's stock deduction, a PO's receipt, a return's restock);
   // otherwise every one of those events produced two feed rows for the same
   // action, one showing revenue/refund and one showing cost basis, with
   // nothing distinguishing them. Movements with no reference_type (manual
@@ -235,10 +235,10 @@ export async function fetchStockBatchReportData() {
   );
 }
 
-/** Ranked by revenue, not quantity — a product that sells a lot of cheap
+/** Ranked by revenue, not quantity: a product that sells a lot of cheap
  * units and one that sells fewer expensive units both matter to the
  * business, and revenue is the one number that makes them comparable.
- * Unlike getFastMovers() (inventory.ts — a fixed rolling-N-days window with
+ * Unlike getFastMovers() (inventory.ts: a fixed rolling-N-days window with
  * a week-over-week trend, capped at 5, for a small dashboard widget), this
  * takes an arbitrary date range for a full report. */
 export async function fetchTopSellersReportData(dateFrom?: string, dateTo?: string) {

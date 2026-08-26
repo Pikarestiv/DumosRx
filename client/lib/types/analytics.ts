@@ -19,7 +19,7 @@ export interface TopSellingProduct {
 }
 
 /** A category's share of revenue, returned by getBIMetrics()'s
- * categoryDistribution query — `color` is assigned client-side for charting. */
+ * categoryDistribution query; `color` is assigned client-side for charting. */
 export interface CategoryDistributionItem {
   name: string;
   value: number;

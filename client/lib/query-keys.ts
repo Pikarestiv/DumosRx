@@ -1,7 +1,7 @@
 /**
  * Query-key factory + table-dependency tagging convention.
  *
- * Every entry returns `{ queryKey, meta: { tables } }` — spread straight
+ * Every entry returns `{ queryKey, meta: { tables } }`, spread straight
  * into useQuery's options (`useQuery({ ...queryKeys.products.all(), queryFn
  * })`). Bundling the key and its table dependencies into the same function
  * means they can't drift apart the way they would if `tables` were passed
@@ -9,19 +9,19 @@
  *
  * `meta.tables` is what base-helpers.ts's mutation helpers use (via a
  * predicate, not prefix-matching) to invalidate exactly the queries that
- * could be affected by a given table's insert/update/delete — including
+ * could be affected by a given table's insert/update/delete, including
  * queries that read from several tables at once (dashboard, BI, and
  * daily-close all do), which a plain "queryKey starts with the table name"
  * convention can't express.
  *
  * A query with no `meta.tables` (i.e. not yet migrated to this factory)
- * falls back to being invalidated on every mutation — see base-helpers.ts's
+ * falls back to being invalidated on every mutation; see base-helpers.ts's
  * invalidateQueriesForTable. That makes adopting this factory incremental
  * and safe: an unmigrated query is never LESS correct than before, only
  * less precisely invalidated.
  *
  * Every key is also suffixed with the active store id and current user id
- * (lib/db/core.ts) — every query function reads its scope from those
+ * (lib/db/core.ts); every query function reads its scope from those
  * module-level resolvers at execution time rather than from the query key,
  * so without this suffix a switch of store or user could read/write a
  * cache slot the previous store/user's queries already own. This makes
@@ -116,7 +116,7 @@ export const queryKeys = {
     count: () => resource(["heldTransactionsCount"] as const, ["held_transactions"]),
   },
   onlineOrders: {
-    // Remote API data, not a local table — never invalidated by local
+    // Remote API data, not a local table: never invalidated by local
     // mutations, only ever refetched explicitly.
     all: () => resource(["online_orders"] as const, []),
   },
@@ -126,7 +126,8 @@ export const queryKeys = {
   },
   staff: {
     count: () => resource(["staffCount"] as const, ["users"]),
-    users: () => resource(["users"] as const, ["users"]),
+    users: (storeId?: string | null) =>
+      resource(["users", storeId ?? "all"] as const, ["users"]),
   },
   sync: {
     queueCount: () => resource(["syncQueueCount"] as const, ["_sync_queue"]),
@@ -207,5 +208,20 @@ export const queryKeys = {
     list: (filtersKey: string) =>
       resource(["activityLog", filtersKey] as const, ["audit_logs"]),
     actions: () => resource(["activityLogActions"] as const, ["audit_logs"]),
+  },
+  billing: {
+    // Remote API data, not a local table.
+    status: () => resource(["billing", "status"] as const, []),
+    history: () => resource(["billing", "history"] as const, []),
+    referrals: () => resource(["billing", "referrals"] as const, []),
+  },
+  account: {
+    // Remote API data, not a local table.
+    currentUser: () => resource(["currentUser"] as const, []),
+    sessions: () => resource(["accountSessions"] as const, []),
+  },
+  fleet: {
+    // Remote API data, not a local table.
+    stats: () => resource(["fleetStats"] as const, []),
   },
 } as const;

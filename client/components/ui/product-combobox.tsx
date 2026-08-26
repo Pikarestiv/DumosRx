@@ -28,7 +28,7 @@ interface ProductComboboxProps {
   value: string;
   onChange: (product: SelectedProduct) => void;
   /** Called only when the value is cleared via the explicit clear (X)
-   * button, not when the user backspaces the field to empty — lets
+   * button, not when the user backspaces the field to empty. Lets
    * consumers reset fields that were autofilled from the selection
    * without wiping them out on incidental retyping. */
   onClear?: () => void;
@@ -213,7 +213,7 @@ export function ProductCombobox({
         ]).results.slice(0, 50);
 
     // Always show products already in this store's inventory before global
-    // suggestions/other stores' products, regardless of fuzzy-match score —
+    // suggestions/other stores' products, regardless of fuzzy-match score:
     // that's almost always the correct pick (it's the one with real stock
     // and pricing), and a new user shouldn't have to know to look for it.
     // Array.sort is stable, so this only reorders across the two groups,

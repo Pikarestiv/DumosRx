@@ -49,7 +49,7 @@ const ordinalSuffix = (day: number): string => {
 
 /**
  * Format a date string or object as a long, unambiguously day-first string,
- * e.g. "14th August, 2026" — for contexts that don't use DD/MM/YYYY or
+ * e.g. "14th August, 2026", for contexts that don't use DD/MM/YYYY or
  * DD-MM-YYYY but still shouldn't read as the US month-first convention.
  */
 export const formatDateLong = (

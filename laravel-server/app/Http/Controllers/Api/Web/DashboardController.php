@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Web;
 use App\Http\Controllers\Controller;
 use App\Services\Web\DashboardService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use OpenApi\Attributes as OA;
 
@@ -44,14 +45,40 @@ class DashboardController extends Controller
         }
     }
 
+    #[OA\Get(
+        path: '/dashboard/stats',
+        summary: 'Slim cross-store fleet stats for client dashboards',
+        tags: ['Dashboard'],
+        security: [['sanctum' => []]],
+        responses: [
+            new OA\Response(response: 200, description: 'Fleet stats', content: new OA\JsonContent(type: 'object')),
+            new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
+            new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
+        ],
+    )]
+    public function stats(Request $request)
+    {
+        try {
+            $data = $this->dashboardService->getStats($request->user());
+            return response()->json($data);
+        } catch (\Exception $e) {
+            Log::critical("Dashboard Stats Error: " . $e->getMessage());
+            return response()->json([
+                'error' => 'Internal Server Error',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
     #[OA\Post(
         path: '/dashboard/reset',
         summary: "Reset (wipe) the store's data",
-        description: 'Destructive — irreversible. Exact scope of what gets wiped depends on `type`.',
+        description: 'Destructive and irreversible. Exact scope of what gets wiped depends on `type`.',
         tags: ['Dashboard'],
         security: [['sanctum' => []]],
         requestBody: new OA\RequestBody(content: new OA\JsonContent(properties: [
-            new OA\Property(property: 'type', type: 'string', default: 'all', description: 'What to reset — see DashboardService::resetData'),
+            new OA\Property(property: 'type', type: 'string', default: 'all', description: 'What to reset; see DashboardService::resetData'),
+            new OA\Property(property: 'password', type: 'string', description: "The user's current password, required to confirm this destructive action"),
         ])),
         responses: [
             new OA\Response(response: 200, description: 'Reset result', content: new OA\JsonContent(type: 'object')),
@@ -61,6 +88,18 @@ class DashboardController extends Controller
     )]
     public function resetData(Request $request)
     {
+        $request->validate([
+            'type' => 'nullable|string|in:all,sales,logs,customers,inventories,stores',
+            'password' => 'required|string',
+        ]);
+
+        if (!Hash::check($request->password, $request->user()->password)) {
+            return response()->json([
+                'error' => 'Invalid Password',
+                'message' => 'The password you entered is incorrect.',
+            ], 403);
+        }
+
         try {
             $type = $request->input('type', 'all');
             $result = $this->dashboardService->resetData($request->user(), $type);

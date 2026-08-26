@@ -20,7 +20,7 @@ export default function HomePage() {
   const router = useRouter();
   // If this device has logged in before, skip straight past the marketing
   // page to /dashboard, whose own lock overlay is the one canonical place PIN
-  // entry happens — going via /login here would just add an extra redirect
+  // entry happens. Going via /login here would just add an extra redirect
   // hop, since /login itself now bounces straight to /dashboard too.
   const [checkingAccount, setCheckingAccount] = useState(true);
 
@@ -32,7 +32,7 @@ export default function HomePage() {
         return;
       }
     } catch {
-      // localStorage unavailable or malformed — fall through to the marketing page
+      // localStorage unavailable or malformed; fall through to the marketing page
     }
     setCheckingAccount(false);
   }, [router]);

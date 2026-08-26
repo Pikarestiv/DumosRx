@@ -1,6 +1,6 @@
 import type { ApiLogEntry } from "@/lib/api/logger";
 
-/** Callable Smartsupp global — the loader snippet attaches a `_` queue array
+/** Callable Smartsupp global. The loader snippet attaches a `_` queue array
  * directly onto the function itself before the real script has loaded. */
 export interface SmartsuppFn {
   (...args: unknown[]): void;

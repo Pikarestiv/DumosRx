@@ -108,7 +108,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   // Lazy-initialized (not a useEffect) so the saved choice is already in
   // state on the very first render, before `user` has even hydrated from
   // its own localStorage read. Previously this started at null and was
-  // only populated by a later effect gated on `user` — during that gap,
+  // only populated by a later effect gated on `user`. During that gap,
   // targetId below was null, so the profile query fell back to
   // getFirstStore() (arbitrary row), and the "sync activeStoreId back"
   // effect further down then persisted THAT as the real choice, silently
@@ -124,7 +124,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const targetId = user?.store_id || activeStoreId;
 
   // Mirror this same precedence into the query layer's module-scope resolver
-  // (lib/db/core.ts) — plain async query functions have no React context, so
+  // (lib/db/core.ts): plain async query functions have no React context, so
   // this is how they learn which store to filter by. Must stay in lockstep
   // with `targetId` above: a staff member's fixed store_id always wins.
   React.useEffect(() => {
@@ -138,7 +138,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         const profile = await getStoreById(targetId);
         if (profile) return profile;
 
-        // The active/fixed store no longer exists locally — most likely
+        // The active/fixed store no longer exists locally, most likely
         // pruned by the sync-engine's reconciliation step because the
         // server no longer recognizes it (a stale local-only store, or one
         // this account lost access to). For an owner/admin (no fixed
@@ -194,23 +194,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
 
     // Every store-scoped query reads the active store from lib/db/core.ts's
-    // module-scope resolver at call time, not from its React Query key — so
+    // module-scope resolver at call time, not from its React Query key, so
     // without this, screens would keep showing the previous store's cached
     // results until something else happened to invalidate them. Broad
     // invalidation (not a table-filtered one) because switching stores is a
-    // deliberate, infrequent action, not a hot path — correctness here is
+    // deliberate, infrequent action, not a hot path; correctness here is
     // worth more than avoiding a refetch.
     //
     // Must set the resolver synchronously here rather than relying on the
-    // useEffect above (which mirrors targetId into it) — that effect only
+    // useEffect above (which mirrors targetId into it): that effect only
     // runs after React commits the re-render, which is after
     // invalidateQueries() below has already kicked off refetches. Without
     // this, those refetches would read the OLD store id (stale resolver),
     // cache the old store's data under the same query keys, and never
-    // refetch again — the exact "needs a reload to reflect" bug.
+    // refetch again: the exact "needs a reload to reflect" bug.
     setResolvedStoreId(storeId);
     // Cancels in-flight fetches from the outgoing store before
-    // invalidating — invalidateQueries() alone doesn't abort a request
+    // invalidating: invalidateQueries() alone doesn't abort a request
     // already in flight, and every query function reads the active store
     // id from lib/db/core.ts's module-level resolver at execution time
     // rather than from its React Query key. Without this, a request
@@ -221,7 +221,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     queryClient.invalidateQueries();
 
     // Pulls this store's data down if this device has never synced it
-    // before (X-Store-Id now points at the newly-selected store — see
+    // before (X-Store-Id now points at the newly-selected store; see
     // lib/api/client.ts). Best-effort: offline/unauthenticated devices still
     // work from whatever's already local.
     import("@/lib/db/sync-engine").then(({ sync }) => sync()).catch(() => {});
@@ -285,9 +285,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     };
   }, [refetch]);
 
-  // Privileged subscription status sync — always runs regardless of tier.
-  // This ensures plan downgrades, suspensions and renewals written on the
-  // server are reflected locally even when full cloud sync is gated off.
+  // Privileged subscription status sync: always runs regardless of tier,
+  // so plan downgrades, suspensions, and renewals written on the server
+  // are reflected locally even when full cloud sync is gated off.
   React.useEffect(() => {
     if (typeof window === "undefined") return;
 

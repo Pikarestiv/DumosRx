@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Schema;
 /**
  * The client's STORE_SCOPED_TABLES list (client/lib/db/core.ts) auto-injects
  * store_id into every insert for these tables, including "child" tables that
- * only need it to satisfy the client's own insert() helper — pull-side
+ * only need it to satisfy the client's own insert() helper; pull-side
  * scoping still derives them through their parent (see SyncController::pull).
  * Missing the column outright made every push for these tables fail with an
  * unknown-column error, which (since push runs as one transaction per batch)

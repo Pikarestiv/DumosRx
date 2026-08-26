@@ -226,7 +226,7 @@ export default function MyReferralsPage() {
                     </td>
                     <td className="py-3 pr-4 text-slate-500">{a.email}</td>
                     <td className="py-3 pr-4 text-slate-500">
-                      {a.store_name || "—"}
+                      {a.store_name || "N/A"}
                     </td>
                     <td className="py-3 text-slate-500">
                       {new Date(a.registered_at).toLocaleDateString()}

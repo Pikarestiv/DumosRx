@@ -54,7 +54,7 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
   const [items, setItems] = useState<AuditItem[]>([]);
 
   // Reconcile against the latest server state as soon as the count screen
-  // opens — otherwise a stale local snapshot could make an already-corrected
+  // opens, otherwise a stale local snapshot could make an already-corrected
   // discrepancy look like a fresh one, or hide a real one that happened
   // elsewhere since this device last synced.
   useEffect(() => {
@@ -68,7 +68,7 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
       } catch (error) {
         console.error("Pre-audit sync failed:", error);
         toast.warning(
-          "Couldn't sync before starting — continuing with the data already on this device.",
+          "Couldn't sync before starting: continuing with the data already on this device.",
         );
       } finally {
         setIsSyncing(false);
@@ -80,7 +80,7 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
 
   // Every row is editable from the moment it loads, pre-filled with the
   // system's current values, so counted/adjusted stats only reflect rows
-  // someone actually changed. Only runs on the first load — a later
+  // someone actually changed. Only runs on the first load: a later
   // background refetch (e.g. after the sync above) must not clobber counts
   // already in progress.
   useEffect(() => {
@@ -173,7 +173,7 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-background w-full h-full">
-      {/* Header — top padding clears the status bar / Tauri title bar */}
+      {/* Header, top padding clears the status bar / Tauri title bar */}
       <div
         className="flex items-center gap-3 px-4 md:px-6 pb-4 md:pb-5 border-b border-border bg-card"
         style={{ paddingTop: "calc(var(--tauri-top, 0px) + 1rem)" }}

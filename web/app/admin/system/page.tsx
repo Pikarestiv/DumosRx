@@ -255,7 +255,7 @@ export default function SystemPage() {
           <p className="text-sm text-slate-500 font-medium">Loading…</p>
         ) : errorsData && !errorsData.configured ? (
           <p className="text-sm text-slate-500 font-medium">
-            Sentry API token not configured — set{" "}
+            Sentry API token not configured. Set{" "}
             <code className="text-xs bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
               SENTRY_API_TOKEN
             </code>{" "}
@@ -285,7 +285,7 @@ export default function SystemPage() {
                     <p className="font-bold truncate">{issue.title}</p>
                     <p className="text-xs text-slate-500 truncate">
                       {issue.project}
-                      {issue.culprit ? ` — ${issue.culprit}` : ""}
+                      {issue.culprit ? ` (${issue.culprit})` : ""}
                     </p>
                   </div>
                 </div>

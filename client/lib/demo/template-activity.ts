@@ -1,5 +1,5 @@
 /**
- * Demo activity data — customers, sales, expenses, staff, and in-flight
+ * Demo activity data: customers, sales, expenses, staff, and in-flight
  * purchase orders. Split out from template.ts purely to stay under the
  * project's max-lines lint rule; see template.ts for the catalog
  * (categories/supplier/products/receiving plan) this data references by ref.
@@ -63,8 +63,8 @@ export interface DemoExpense {
 }
 
 export const DEMO_EXPENSES: DemoExpense[] = [
-  { category: "Rent", description: "Shop rent — annual lease", amount: 1200000, dayOffset: 200, paymentMethod: "Transfer", coversMonths: 12 },
-  { category: "Insurance", description: "Business & stock insurance — annual premium", amount: 360000, dayOffset: 300, paymentMethod: "Transfer", coversMonths: 12 },
+  { category: "Rent", description: "Shop rent, annual lease", amount: 1200000, dayOffset: 200, paymentMethod: "Transfer", coversMonths: 12 },
+  { category: "Insurance", description: "Business & stock insurance, annual premium", amount: 360000, dayOffset: 300, paymentMethod: "Transfer", coversMonths: 12 },
   { category: "Salaries", description: "Staff salaries", amount: 250000, dayOffset: 60, paymentMethod: "Transfer" },
   { category: "Salaries", description: "Staff salaries", amount: 250000, dayOffset: 30, paymentMethod: "Transfer" },
   { category: "Salaries", description: "Staff salaries", amount: 250000, dayOffset: 2, paymentMethod: "Transfer" },

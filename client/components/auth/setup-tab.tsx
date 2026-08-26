@@ -17,7 +17,7 @@ export interface SetupTabProps {
 
 // Every setup step renders through AuthCardShell now, so the header is
 // always injected inside the step's own Card (see each step's `header`
-// prop) — no per-step special-casing needed here to decide where it goes.
+// prop). No per-step special-casing needed here to decide where it goes.
 export function SetupTab({ authHeader, onboarding }: SetupTabProps) {
   return (
     <>

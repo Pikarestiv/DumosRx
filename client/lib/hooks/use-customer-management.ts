@@ -64,8 +64,8 @@ function buildFallbackTiers(isStore: boolean): LoyaltyTier[] {
 }
 
 /**
- * All business logic for the Customer Management page — data fetching, tab/URL
- * sync, search/filter derivation, and modal/selection state — so the component
+ * All business logic for the Customer Management page: data fetching, tab/URL
+ * sync, search/filter derivation, and modal/selection state, so the component
  * itself only has to render what this hook returns.
  */
 export function useCustomerManagement() {

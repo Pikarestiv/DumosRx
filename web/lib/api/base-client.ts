@@ -1,5 +1,6 @@
 import axios, { type InternalAxiosRequestConfig, type AxiosResponse } from "axios";
 import { addLogToBuffer, sanitizePayload, reportClientError } from "./logger";
+import { useAdminAuthStore } from "@/lib/store/use-admin-auth-store";
 
 interface RequestMetadata {
   metadata?: { startTime: number };
@@ -49,9 +50,12 @@ apiClient.interceptors.request.use((config: ConfigWithMetadata) => {
 
   if (typeof window !== "undefined") {
     const isAdminPath = window.location.pathname.startsWith('/admin');
-    const tokenKey = isAdminPath ? "drx_admin_token" : "drx_token";
-    const token = localStorage.getItem(tokenKey);
-    
+    // Admin access token lives in memory only (zustand), never localStorage -
+    // see use-admin-auth-store.ts for why.
+    const token = isAdminPath
+      ? useAdminAuthStore.getState().token
+      : localStorage.getItem("drx_token");
+
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -172,7 +176,7 @@ apiClient.interceptors.response.use(
 
     // Rewrite the message actually surfaced to UI code (login form, toasts,
     // etc.) once logging/telemetry above has already captured the real
-    // technical detail — axios's own "Network Error"/"timeout of Xms
+    // technical detail. axios's own "Network Error"/"timeout of Xms
     // exceeded" wording is accurate but meaningless to a non-technical user,
     // and doesn't tell them what to actually do about it.
     if (!error.response && !serverMessage) {
@@ -184,25 +188,40 @@ apiClient.interceptors.response.use(
 
     if (error.response?.status === 401 && !originalRequest._retry && !originalRequest.url.includes('/login') && !originalRequest.url.includes('/refresh')) {
       originalRequest._retry = true;
-      
+      const isAdminPath = typeof window !== "undefined" && window.location.pathname.startsWith('/admin');
+
       try {
+        if (isAdminPath) {
+          // Admin sessions refresh via the HttpOnly refresh cookie, not a
+          // bearer token - see use-admin-auth-store.ts's initSession().
+          const { data } = await axios.post(
+            `${API_URL}/admin/session/refresh`,
+            {},
+            { withCredentials: true },
+          );
+          if (!data.token) throw new Error("No token in refresh response");
+          useAdminAuthStore.getState().setToken(data.token);
+          useAdminAuthStore.getState().setUser(data.user);
+          originalRequest.headers.Authorization = `Bearer ${data.token}`;
+          return apiClient(originalRequest);
+        }
+
         const { data } = await axios.post(`${API_URL}/refresh`, {}, { withCredentials: true });
-        
         if (data.token && typeof window !== "undefined") {
-          const isAdminPath = window.location.pathname.startsWith('/admin');
-          const tokenKey = isAdminPath ? "drx_admin_token" : "drx_token";
-          localStorage.setItem(tokenKey, data.token);
-          
+          localStorage.setItem("drx_token", data.token);
           originalRequest.headers.Authorization = `Bearer ${data.token}`;
           return apiClient(originalRequest);
         }
       } catch (_refreshError) {
         if (typeof window !== "undefined") {
-          const isAdminPath = window.location.pathname.startsWith('/admin');
           const cleanPath = window.location.pathname.replace(/\/$/, "");
           const isAlreadyOnLoginPage = cleanPath === "/admin/login" || cleanPath === "/login";
-          const tokenKey = isAdminPath ? "drx_admin_token" : "drx_token";
-          localStorage.removeItem(tokenKey);
+          if (isAdminPath) {
+            useAdminAuthStore.getState().setToken(null);
+            useAdminAuthStore.getState().setUser(null);
+          } else {
+            localStorage.removeItem("drx_token");
+          }
           if (!isAlreadyOnLoginPage) {
             const redirectParam = `?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`;
             window.location.href = isAdminPath ? `/admin/login${redirectParam}` : `/login${redirectParam}`;

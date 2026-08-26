@@ -18,10 +18,21 @@ export default function AdminLayout({
     : typeof window !== "undefined"
       ? window.location.pathname.includes("/admin/login")
       : false;
+  // /admin/handoff restores a super_admin session from a handoff code
+  // (returning from store impersonation). It has no token yet when it
+  // loads, so it must run outside this guard or the auth check below
+  // redirects to /admin/login before the handoff page's own effect can
+  // consume the code and establish the session.
+  const isHandoffPage = pathname
+    ? pathname.includes("/admin/handoff")
+    : typeof window !== "undefined"
+      ? window.location.pathname.includes("/admin/handoff")
+      : false;
+  const bypassGuard = isLoginPage || isHandoffPage;
 
   const {
     user,
-    fetchUser,
+    initSession,
     loading: authLoading,
     token: _token,
   } = useAdminAuthStore();
@@ -32,29 +43,32 @@ export default function AdminLayout({
 
   useEffect(() => {
     const checkAuth = async () => {
-      if (isLoginPage) {
+      if (bypassGuard) {
         setChecking(false);
         return;
       }
 
+      // The access token lives in memory only, so it never survives a page
+      // reload - attempt to restore the session via the HttpOnly refresh
+      // cookie directly instead of checking a token that was never persisted.
       if (!user) {
-        await fetchUser();
+        await initSession();
       }
       setChecking(false);
     };
     checkAuth();
-  }, [user, fetchUser, isLoginPage]);
+  }, [user, initSession, bypassGuard]);
 
   useEffect(() => {
-    if (isLoginPage) return;
+    if (bypassGuard) return;
 
     if (!checking && (!user || !checkCanAccessAdmin(user.role))) {
       router.push("/admin/login");
     }
-  }, [user, checking, router, isLoginPage]);
+  }, [user, checking, router, bypassGuard]);
 
-  // If on login page, just render children without further checks
-  if (isLoginPage) {
+  // If on login or handoff page, just render children without further checks
+  if (bypassGuard) {
     return <>{children}</>;
   }
 

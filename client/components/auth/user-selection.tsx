@@ -12,7 +12,7 @@ interface UserSelectionProps {
 }
 
 // Deterministic per-user accent so avatars aren't all the same flat primary
-// tint — cycles through a small curated set rather than hashing to anything
+// tint. Cycles through a small curated set rather than hashing to anything
 // unbounded, so the palette stays on-brand.
 const AVATAR_ACCENTS = [
   {
@@ -60,14 +60,14 @@ const tileVariants = {
 // Netflix/Apple-TV-style profile picker: floating avatar + label, no card
 // chrome, colored glow bloom behind each avatar on hover. Chosen over a
 // bordered-card grid because the previous design read as "the same" at a
-// glance — this reads unmistakably different even in a quick screenshot.
+// glance. This reads unmistakably different even in a quick screenshot.
 export function UserSelection({
   recentUsers,
   onSelectUser,
   onLoginAsOther,
 }: UserSelectionProps) {
   // Determined client-side only (defaults to the Windows/Linux label on
-  // first render) to avoid a hydration mismatch — navigator isn't available
+  // first render) to avoid a hydration mismatch: navigator isn't available
   // during SSR.
   const [lockShortcutLabel, setLockShortcutLabel] = useState("Ctrl+L");
   useEffect(() => {
@@ -80,7 +80,7 @@ export function UserSelection({
   const avatarSize = isSingle
     ? "h-28 w-28 sm:h-32 sm:w-32"
     : "h-20 w-20 sm:h-24 sm:w-24";
-  // Tile width must be >= the avatar's own width at every breakpoint — a
+  // Tile width must be >= the avatar's own width at every breakpoint. A
   // narrower fixed tile (there used to be a flat w-24 here regardless of
   // avatarSize) lets the circle overflow its own slot, silently eating into
   // whatever gap-x is set and, worse, compounding with the hover scale below
@@ -116,7 +116,7 @@ export function UserSelection({
           variants={listVariants}
           initial="hidden"
           animate="show"
-          // Grid, not flex-wrap — flex-wrap re-centers each wrapped row
+          // Grid, not flex-wrap: flex-wrap re-centers each wrapped row
           // independently, so a trailing row with just one or two tiles (e.g.
           // 3 users + the "Someone else" tile) ends up visually orphaned with
           // a big centered gap under it. A fixed-column grid keeps every row

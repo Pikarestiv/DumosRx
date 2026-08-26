@@ -19,7 +19,9 @@ import { SharedGrantTrialDialog } from "@/components/admin/shared-grant-trial-di
 import { toast } from "sonner";
 import { AdminSkeleton } from "@/components/admin/admin-skeleton";
 import type { AdminStoreSummary } from "@/lib/types/admin";
-import { queryClient } from "@/lib/query-client";
+import { webApiClient } from "@/lib/api/client";
+import { getAppURL } from "@/lib/constants";
+import { useAdminAuthStore } from "@/lib/store/use-admin-auth-store";
 
 export default function StoresManagement() {
   const searchParams = useSearchParams();
@@ -142,31 +144,31 @@ export default function StoresManagement() {
 
   const handleImpersonate = (store: AdminStoreSummary) => {
     impersonateMutation.mutate(store.id, {
-      onSuccess: (data) => {
-        toast.success("Impersonation Successful", {
-          description: `Logged in as ${data.user.name}. Redirecting...`,
-        });
-        
-        // Store current admin token as 'impersonator_token' for easy return
-        const adminToken = localStorage.getItem("drx_admin_token");
-        if (adminToken) {
-           localStorage.setItem("drx_impersonator_token", adminToken);
+      onSuccess: async (data) => {
+        try {
+          const adminToken = useAdminAuthStore.getState().token;
+          if (!adminToken) {
+            toast.error("Impersonation Failed", {
+              description: "No active admin session to hand back to.",
+            });
+            return;
+          }
+
+          const [{ code: userCode }, { code: returnCode }] = await Promise.all([
+            webApiClient.createHandoffCode(data.token),
+            webApiClient.createHandoffCode(adminToken),
+          ]);
+
+          toast.success("Impersonation Successful", {
+            description: `Logged in as ${data.user.name}. Redirecting...`,
+          });
+
+          window.location.href = `${getAppURL()}/auth/callback?code=${userCode}&return_code=${returnCode}`;
+        } catch (_err) {
+          toast.error("Impersonation Failed", {
+            description: "Could not hand off session to the app.",
+          });
         }
-
-        // Set the new token for the dashboard
-        localStorage.setItem("drx_token", data.token);
-        localStorage.setItem("drx_user", JSON.stringify(data.user));
-
-        // This is an SPA navigation, not a reload — without this, any
-        // dashboard/query cache already sitting in the module-level
-        // queryClient (from the admin's own session, or a previous
-        // impersonation) would render under the impersonated store's
-        // dashboard until it happened to go stale.
-        queryClient.cancelQueries();
-        queryClient.clear();
-
-        // Redirect to dashboard
-        router.push("/dashboard");
       },
       onError: (err) => {
         toast.error("Impersonation Failed", {

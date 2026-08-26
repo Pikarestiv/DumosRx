@@ -17,11 +17,11 @@ interface ReceiveLedgerTableProps {
 
 const GRID_COLS = "grid-cols-[220px_90px_110px_120px_140px_150px_150px]";
 
-/** Dense, single-screen alternative to the per-item receiving cards — every
+/** Dense, single-screen alternative to the per-item receiving cards. Every
  * line is visible and editable at once (qty, cost price, an optional new
  * selling price, batch #, expiry), matching the QuickBooks POS / Moniebook
  * receiving-ledger style Cynthia asked for. Div-based, ARIA roles standing
- * in for real <table> semantics — see stock-batch/supplier-table.tsx. */
+ * in for real <table> semantics; see stock-batch/supplier-table.tsx. */
 export function ReceiveLedgerTable({
   items,
   receivedItems,

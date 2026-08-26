@@ -9,7 +9,7 @@ import { remapForeignKey } from "../reconcile-identity";
  * Tables whose server-side push handling silently skips an INSERT when the
  * name collides with an existing row for the same owner (see
  * SyncController::push's "duplicate name" handling for categories and
- * suppliers) rather than creating a second row — but that skip's id-remap
+ * suppliers) rather than creating a second row, but that skip's id-remap
  * only lives in the memory of that single push request. A local row created
  * before this reconciliation runs is otherwise permanently unresolvable:
  * every later push retries the same insert, gets skipped again, and
@@ -88,12 +88,12 @@ export async function pullChanges(
 
         // If any record in this table's batch gets skipped below (because a
         // local edit for it hasn't been pushed yet), the per-table sync
-        // cursor must not advance past it — otherwise the server's copy of
+        // cursor must not advance past it; otherwise the server's copy of
         // that record would never be re-offered on a future pull (its
         // updated_at is already older than the new cursor), and the local
         // row would be stuck showing stale, already-superseded data forever.
         // Leaving the cursor where it was just means this same batch gets
-        // re-fetched and re-applied next time, which is harmless — applying
+        // re-fetched and re-applied next time, which is harmless: applying
         // an already-applied change again is a no-op.
         let anySkipped = false;
 
@@ -127,7 +127,7 @@ export async function pullChanges(
 
           if (exists.length > 0) {
             // Don't blindly overwrite a row that has a local edit still
-            // waiting to be pushed — otherwise the user's own not-yet-synced
+            // waiting to be pushed; otherwise the user's own not-yet-synced
             // change gets silently discarded here, before the server ever
             // gets a chance to compare versions and decide which edit should
             // win. Defer to the next push (now that push preserves _version
@@ -219,7 +219,7 @@ export async function pullChanges(
 
         // 'stores' is always a full, unfiltered snapshot of every store this
         // account owns (see SyncController::pull, which deliberately exempts
-        // it from the last-synced cursor other tables use) — so, unlike
+        // it from the last-synced cursor other tables use), so, unlike
         // every other table, a local store row NOT in this response isn't
         // just "not updated yet," it's confirmed stale: created on this
         // device before it was ever cloud-linked, or left over from a
@@ -231,7 +231,7 @@ export async function pullChanges(
           const serverStoreIds = records.map((r) => r.id as string);
           const placeholders = serverStoreIds.map(() => "?").join(", ");
           // Never silently prune a store that has real accumulated business
-          // data attached — a store the server doesn't currently recognize
+          // data attached; a store the server doesn't currently recognize
           // is still not "safe to hide" if it's the one everything on this
           // device's local history is actually attributed to (e.g. the
           // original pre-cloud-link store on a device, before it was ever
@@ -279,7 +279,7 @@ export async function pullChanges(
               }
             });
 
-            // The local duplicate is now redundant — every reference points
+            // The local duplicate is now redundant: every reference points
             // at the server's row instead. Soft-delete it rather than leave
             // an orphaned, unreferenced duplicate in the local table.
             const deleteSql = `UPDATE ${table} SET _deleted = 1 WHERE id = ?`;

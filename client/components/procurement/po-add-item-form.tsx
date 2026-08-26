@@ -36,8 +36,8 @@ export function POAddItemForm({
   const [currentCost, setCurrentCost] = useState<number | "">("");
 
   const selectedProduct = products.find((m) => m.id === currentProductId);
-  // Always sourced live from the product's own Packaging & Units setting — never a
-  // per-order snapshot — so it can't go stale if the product is edited later.
+  // Always sourced live from the product's own Packaging & Units setting, never a
+  // per-order snapshot, so it can't go stale if the product is edited later.
   const unitsPerBulk = selectedProduct?.units_per_bulk || 1;
 
   // Automatically select the product if it's created externally and its ID is passed down
@@ -146,7 +146,7 @@ export function POAddItemForm({
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>
-                    How many bulk units (e.g. Cartons) you&apos;re ordering — not
+                    How many bulk units (e.g. Cartons) you&apos;re ordering, not
                     individual base units.
                   </p>
                 </TooltipContent>
@@ -211,7 +211,7 @@ export function POAddItemForm({
               </TooltipTrigger>
               <TooltipContent>
                 <p>
-                  Pulled from the product&apos;s Packaging &amp; Units setting — to
+                  Pulled from the product&apos;s Packaging &amp; Units setting. To
                   change it, edit the product, not this order.
                 </p>
               </TooltipContent>

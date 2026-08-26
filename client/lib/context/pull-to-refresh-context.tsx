@@ -37,7 +37,7 @@ export function PullToRefreshProvider({
 /**
  * Lets the currently-mounted page register extra refresh logic (e.g. its own
  * manual refetch function) that runs when the user pulls-to-refresh at the
- * DashboardLayout level. Only one page's handler is active at a time — the
+ * DashboardLayout level. Only one page's handler is active at a time: the
  * most recently mounted one wins, and it's cleared on unmount so a stale
  * page's refresh logic doesn't run after navigating away.
  */

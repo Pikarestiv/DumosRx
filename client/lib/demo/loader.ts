@@ -1,5 +1,5 @@
 /**
- * Demo data loader — replays lib/demo/template.ts through the app's real
+ * Demo data loader: replays lib/demo/template.ts through the app's real
  * local-database create functions (the same ones the UI calls), so seeded
  * data gets the same batches/movements/sync-queue side effects as data a
  * real user would enter by hand. Only ever run against a store flagged
@@ -50,7 +50,7 @@ export interface DemoSeedResult {
 }
 
 /** Cheap guard against accidentally double-seeding a store that already has
- * real/seeded data — the caller should surface this as a confirm dialog and
+ * real/seeded data; the caller should surface this as a confirm dialog and
  * retry with `force: true` if the operator really wants to layer on more. */
 export async function isStoreSeedable(): Promise<boolean> {
   const rows = await query<{ count: number }>(
@@ -116,7 +116,7 @@ export async function runDemoSeed(
     const mainPoTotal = mainPoItems.reduce((sum, i) => sum + i.subtotal, 0);
     const mainPoId = await createPurchaseOrder(
       supplierId,
-      "Initial stock — full catalog restock",
+      "Initial stock: full catalog restock",
       mainPoItems,
       "partial",
       Math.round(mainPoTotal * 0.35),
@@ -154,7 +154,7 @@ export async function runDemoSeed(
       const bulkCost = product.cost_price * product.units_per_bulk;
       const poId = await createPurchaseOrder(
         supplierId,
-        `Restock — ${product.name}`,
+        `Restock: ${product.name}`,
         [
           {
             product_id: productIdByRef.get(po.productRef)!,
@@ -239,7 +239,7 @@ export async function runDemoSeed(
         });
       }
 
-      // createSale() doesn't record which batch(es) funded each sale_item —
+      // createSale() doesn't record which batch(es) funded each sale_item;
       // the POS UI does that separately. Fill it in here so returns (below)
       // can restore stock to the right batch via restoreReturnedStock().
       const insertedItems = await query<{ id: string; product_id: string; quantity: number }>(

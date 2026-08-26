@@ -39,8 +39,8 @@ export function POSTransactionHistory({
   const [paymentFilter, setPaymentFilter] = useState<string>("All");
 
   const { user } = useAuth();
-  // Was only checking the literal strings "store_owner"/"admin"/"manager" —
-  // silently excluded super_admin (a real bug: the platform's own top role
+  // Was only checking the literal strings "store_owner"/"admin"/"manager".
+  // Silently excluded super_admin (a real bug: the platform's own top role
   // couldn't process a return) and every other seeded role, since exact-
   // string checks don't recognize role variants the way checkIsAdmin does.
   const canReturn = checkIsAdmin(user?.role);
@@ -51,7 +51,7 @@ export function POSTransactionHistory({
       (s) => s.created_at && isToday(parseISO(s.created_at)),
     );
 
-    // Net of refunds — a fully-returned sale should not still count toward
+    // Net of refunds: a fully-returned sale should not still count toward
     // today's revenue, here or anywhere else that reads this figure.
     const totalSales = todaySales.reduce(
       (acc, s) =>

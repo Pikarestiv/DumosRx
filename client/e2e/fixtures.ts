@@ -8,8 +8,8 @@ import path from 'path';
  * instead of each spec guessing its own copy that can drift out of sync. */
 export async function login(page: Page) {
   await page.goto('/login');
-  // Skip the first-login onboarding tour (components/dashboard/dashboard-tour.tsx)
-  // — its react-joyride overlay otherwise intercepts pointer events on the
+  // Skip the first-login onboarding tour (components/dashboard/dashboard-tour.tsx):
+  // its react-joyride overlay otherwise intercepts pointer events on the
   // sidebar/header for every fresh test-store session and blocks clicks.
   await page.evaluate(() => {
     localStorage.setItem('dumos_client_tour_completed', 'true');

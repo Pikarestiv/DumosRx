@@ -63,7 +63,7 @@ export async function logCrash(error: unknown, isFatal = false) {
 
   console.error(`[CRASH LOGGER] Capturing error: ${message}`, info);
 
-  // Forward to Sentry — never let it break local crash logging, which must
+  // Forward to Sentry; never let it break local crash logging, which must
   // keep working offline regardless of network/DSN availability.
   try {
     Sentry.captureException(error instanceof Error ? error : new Error(message), {

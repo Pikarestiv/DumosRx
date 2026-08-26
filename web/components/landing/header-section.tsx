@@ -1,18 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import {
-  Menu,
-  Zap,
-  Shield,
-  CreditCard,
-  LayoutDashboard,
-  UserPlus,
-  LogIn,
-} from "lucide-react";
+import { Menu, Zap, Shield, CreditCard, UserPlus } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -23,15 +14,9 @@ import {
 } from "@/components/ui/sheet";
 import { ModeToggle } from "@/components/mode-toggle";
 import { ServerSelector } from "@/components/ui/server-selector";
+import { getAppURL } from "@/lib/constants";
 
 export function HeaderSection() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-
-  useEffect(() => {
-    const token = localStorage.getItem("drx_token");
-    setIsLoggedIn(!!token);
-  }, []);
-
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
       <div className="container px-6 md:px-12 flex h-20 items-center justify-between mx-auto">
@@ -74,26 +59,12 @@ export function HeaderSection() {
           </Link>
           <div className="h-6 w-px bg-border mx-2" />
           <div className="flex items-center gap-4">
-            {isLoggedIn ? (
-              <Button
-                className="font-semibold shadow-lg shadow-primary/20"
-                asChild
-              >
-                <Link href="/dashboard">Go to Dashboard</Link>
-              </Button>
-            ) : (
-              <>
-                <Button variant="ghost" className="font-semibold" asChild>
-                  <Link href="/login">Log in</Link>
-                </Button>
-                <Button
-                  className="font-semibold shadow-lg shadow-primary/20"
-                  asChild
-                >
-                  <Link href="/register">Start Free Trial</Link>
-                </Button>
-              </>
-            )}
+            <Button
+              className="font-semibold shadow-lg shadow-primary/20"
+              onClick={() => (window.location.href = getAppURL())}
+            >
+              Get Started
+            </Button>
             <ServerSelector />
             <ModeToggle />
           </div>
@@ -111,7 +82,7 @@ export function HeaderSection() {
             </SheetTrigger>
             <SheetContent
               side="right"
-              className="w-[300px] sm:w-[400px] border-l-border/40 bg-background/95 backdrop-blur-xl p-0"
+              className="w-75 sm:w-100 border-l-border/40 bg-background/95 backdrop-blur-xl p-0"
             >
               <div className="flex flex-col h-full">
                 <SheetHeader className="p-6 border-b border-border/40 text-left">
@@ -158,45 +129,15 @@ export function HeaderSection() {
                 </div>
                 <div className="p-6 border-t border-border/40 bg-muted/20">
                   <div className="flex flex-col gap-3">
-                    {isLoggedIn ? (
-                      <SheetClose asChild>
-                        <Button
-                          className="w-full font-bold shadow-lg shadow-primary/20 h-12"
-                          asChild
-                        >
-                          <Link href="/dashboard">
-                            <LayoutDashboard className="h-4 w-4 mr-2" />
-                            Dashboard
-                          </Link>
-                        </Button>
-                      </SheetClose>
-                    ) : (
-                      <>
-                        <SheetClose asChild>
-                          <Button
-                            className="w-full font-bold shadow-lg shadow-primary/20 h-12"
-                            asChild
-                          >
-                            <Link href="/register">
-                              <UserPlus className="h-4 w-4 mr-2" />
-                              Start Free Trial
-                            </Link>
-                          </Button>
-                        </SheetClose>
-                        <SheetClose asChild>
-                          <Button
-                            variant="outline"
-                            className="w-full font-bold h-12 border-border/40 hover:bg-muted"
-                            asChild
-                          >
-                            <Link href="/login">
-                              <LogIn className="h-4 w-4 mr-2" />
-                              Log in
-                            </Link>
-                          </Button>
-                        </SheetClose>
-                      </>
-                    )}
+                    <SheetClose asChild>
+                      <Button
+                        className="w-full font-bold shadow-lg shadow-primary/20 h-12"
+                        onClick={() => (window.location.href = getAppURL())}
+                      >
+                        <UserPlus className="h-4 w-4 mr-2" />
+                        Get Started
+                      </Button>
+                    </SheetClose>
                   </div>
                 </div>
               </div>

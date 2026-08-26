@@ -94,10 +94,10 @@ export interface AdminUser {
   first_name?: string;
   last_name?: string;
   email: string;
-  /** Humanized for display (e.g. "Store Owner") — use `role_slug` for any
+  /** Humanized for display (e.g. "Store Owner"). Use `role_slug` for any
    * role-gated logic, not this. */
   role: string;
-  /** Raw role slug (e.g. "store_owner", "admin") — the source of truth for
+  /** Raw role slug (e.g. "store_owner", "admin"): the source of truth for
    * role-based UI logic. */
   role_slug?: string;
   store?: string;
@@ -268,7 +268,7 @@ export interface ActivityLog {
   store?: { name: string };
 }
 
-/** A platform user's (super_admin/platform_admin/agent) own attribution —
+/** A platform user's (super_admin/platform_admin/agent) own attribution,
  * separate from the customer-facing ReferralSummary in marketing/types.ts,
  * which is a different program (customer-to-customer, account credit). */
 export interface PlatformReferrals {

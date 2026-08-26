@@ -60,11 +60,11 @@ export function useSwipeNavigation(
     if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 50) {
       if (currentIndex !== -1) {
         if (diffX > 0 && currentIndex > 0) {
-          // Swiped right — go to the previous tab
+          // Swiped right: go to the previous tab
           setDirection("right");
           router.push(tabs[currentIndex - 1]);
         } else if (diffX < 0) {
-          // Swiped left — go to the next tab, or past the end (e.g. "More")
+          // Swiped left: go to the next tab, or past the end (e.g. "More")
           if (currentIndex < tabs.length - 1) {
             setDirection("left");
             router.push(tabs[currentIndex + 1]);

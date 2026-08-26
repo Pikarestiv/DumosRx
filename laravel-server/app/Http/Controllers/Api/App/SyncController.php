@@ -29,7 +29,7 @@ class SyncController extends Controller
     #[OA\Post(
         path: '/app/sync/push',
         summary: 'Push offline-first client changes to the server',
-        description: 'Applies a batch of INSERT/UPDATE/DELETE changes from the client\'s local SQLite database. Conflict resolution uses `_version` (falling back to `updated_at`) — an incoming UPDATE older than the server\'s copy is silently ignored, EXCEPT for `stock_batches.quantity`, which is never trusted from the client at all (INSERT or UPDATE): it is always derived by applying `stock_movements` deltas on top of the server\'s current value, since concurrent quantity changes are commutative and both should apply rather than one winning by version. May reject the whole request (403/429) if the store\'s plan disables cloud sync or the sync-interval throttle hasn\'t elapsed yet.',
+        description: 'Applies a batch of INSERT/UPDATE/DELETE changes from the client\'s local SQLite database. Conflict resolution uses `_version` (falling back to `updated_at`): an incoming UPDATE older than the server\'s copy is silently ignored, EXCEPT for `stock_batches.quantity`, which is never trusted from the client at all (INSERT or UPDATE): it is always derived by applying `stock_movements` deltas on top of the server\'s current value, since concurrent quantity changes are commutative and both should apply rather than one winning by version. May reject the whole request (403/429) if the store\'s plan disables cloud sync or the sync-interval throttle hasn\'t elapsed yet.',
         tags: ['Sync'],
         security: [['sanctum' => []]],
         parameters: [new OA\HeaderParameter(name: 'X-Store-Id', description: 'Which of the caller\'s stores to sync (defaults to their primary store)', schema: new OA\Schema(type: 'string'))],
@@ -51,7 +51,7 @@ class SyncController extends Controller
             new OA\Response(response: 200, description: 'Changes applied', content: new OA\JsonContent(properties: [
                 new OA\Property(property: 'success', type: 'boolean'),
                 new OA\Property(property: 'processed', type: 'integer'),
-                new OA\Property(property: 'failed', type: 'array', description: 'Changes that failed and were skipped individually (each one isolated to its own savepoint, so it never blocks the rest of the batch) — the client should call recordSyncFailure for each rather than treating the whole push as failed.', items: new OA\Items(properties: [
+                new OA\Property(property: 'failed', type: 'array', description: 'Changes that failed and were skipped individually (each one isolated to its own savepoint, so it never blocks the rest of the batch). The client should call recordSyncFailure for each rather than treating the whole push as failed.', items: new OA\Items(properties: [
                     new OA\Property(property: 'id', type: 'integer', description: 'The client-side _sync_queue id'),
                     new OA\Property(property: 'table_name', type: 'string'),
                     new OA\Property(property: 'record_id', type: 'string'),
@@ -89,7 +89,7 @@ class SyncController extends Controller
         // point at a batch created earlier in this very same payload. FK
         // constraints are checked per-statement, not deferred to commit, so
         // if a client happens to send the movement before the batch, the
-        // INSERT fails outright — not just the quantity reconciliation.
+        // INSERT fails outright, not just the quantity reconciliation.
         // Stable-sort (PHP's sort functions are stable as of 8.0) all
         // stock_movements changes to the end so every batch/product they
         // could reference is guaranteed to exist by the time they're
@@ -125,7 +125,7 @@ class SyncController extends Controller
             $idMap = [];
 
             // stock_batches.quantity is never trusted from a client payload
-            // (see the INSERT/UPDATE handling below) — it is always derived
+            // (see the INSERT/UPDATE handling below); it is always derived
             // by applying stock_movements deltas on top of whatever the
             // server currently has. Deltas are accumulated here and applied
             // in one atomic pass after the main loop, rather than inline,
@@ -145,9 +145,9 @@ class SyncController extends Controller
 
                 // Each change gets its own SAVEPOINT (Laravel nests
                 // automatically inside the outer transaction) so one bad row
-                // — a legacy schema mismatch, a dangling FK from an earlier
+                // (a legacy schema mismatch, a dangling FK from an earlier
                 // partial sync, anything data-quality-related rather than a
-                // real conflict — only loses its own change instead of
+                // real conflict) only loses its own change instead of
                 // rolling back every other change sharing this batch. Before
                 // this, a single unresolvable row could permanently block an
                 // entire device's backlog, since every retry hit the exact
@@ -240,7 +240,7 @@ class SyncController extends Controller
                     }
 
                 // Inject device_id for stores if missing. device_id is NOT NULL +
-                // UNIQUE — a shared literal fallback ('web-client' for every browser
+                // UNIQUE; a shared literal fallback ('web-client' for every browser
                 // session with no X-Device-Id header) collides the instant a second
                 // store hits this same path, permanently failing that store's every
                 // sync (confirmed in production via a stuck-sync-item Sentry alert).
@@ -268,7 +268,7 @@ class SyncController extends Controller
 
                 // stock_movements.performed_by is a required FK on the cloud
                 // DB with no default, but createSale() on the client never
-                // set it — every sale-triggered movement has been failing
+                // set it, so every sale-triggered movement has been failing
                 // this INSERT and sitting stuck in _sync_queue. Fixed
                 // client-side too, but this backfills already-queued rows
                 // from devices that haven't picked up that fix yet.
@@ -297,7 +297,7 @@ class SyncController extends Controller
                 if ($change['table_name'] === 'audit_logs') {
                     // The client always sends a user_id (whoever was locally
                     // logged in when the action happened), but that id might
-                    // not exist server-side — a local-only/offline-created
+                    // not exist server-side: a local-only/offline-created
                     // account, or one since deleted. activity_logs.user_id
                     // has an ON DELETE CASCADE foreign key, so an unknown id
                     // isn't just wrong, it fails the insert entirely and (since
@@ -354,7 +354,7 @@ class SyncController extends Controller
                     // Prevent duplicate email/username crashes for users.
                     // Local staff accounts are explicitly allowed to have no
                     // email ("Optional for local staff" in the web staff
-                    // form) — $payload['email'] is then simply absent, so
+                    // form), so $payload['email'] is then simply absent, and
                     // this must not access it unguarded like the sibling
                     // username/store_id checks already don't.
                     if (!$exists && $change['table_name'] === 'users') {
@@ -455,7 +455,7 @@ class SyncController extends Controller
                         }
 
                         // A brand-new batch's quantity is never trusted from the client
-                        // either — a batch created locally and already partially sold
+                        // either: a batch created locally and already partially sold
                         // before its first-ever sync would arrive with an already-net
                         // value, and applying the accompanying stock_movements delta on
                         // top of that would double-count exactly like it used to (see
@@ -474,7 +474,7 @@ class SyncController extends Controller
 
                         // stock_batches.quantity is derived from stock_movements deltas,
                         // never trusted directly from a client payload (INSERT above, or
-                        // UPDATE below) — see the comment on $stockBatchDeltas. Accumulate
+                        // UPDATE below); see the comment on $stockBatchDeltas. Accumulate
                         // rather than apply immediately: a client is not guaranteed to
                         // order a new batch's INSERT before its movement in the same
                         // payload, and incrementing against a batch row that doesn't
@@ -517,7 +517,7 @@ class SyncController extends Controller
                         if ($isOlder) {
                             Log::info("Sync push: Ignored older update for {$change['table_name']} {$recordId}");
                             // Must close the per-change savepoint opened above
-                            // before skipping to the next change — a bare
+                            // before skipping to the next change. A bare
                             // `continue` here left it dangling every time an
                             // older update was ignored (a routine, expected
                             // occurrence in multi-device sync, not an edge
@@ -602,7 +602,7 @@ class SyncController extends Controller
                 DB::commit();
                 } catch (\Exception $e) {
                     DB::rollBack();
-                    Log::warning("Sync push: skipped {$change['table_name']} " . ($change['record_id'] ?? '?') . " — " . $e->getMessage());
+                    Log::warning("Sync push: skipped {$change['table_name']} " . ($change['record_id'] ?? '?') . ": " . $e->getMessage());
                     $failed[] = [
                         'id' => $change['id'] ?? null,
                         'table_name' => $change['table_name'],
@@ -624,7 +624,7 @@ class SyncController extends Controller
                     ->increment('quantity', $delta);
 
                 if (!$affected) {
-                    Log::warning("Sync push: stock_movements delta of {$delta} referenced unknown stock_batch_id {$stockBatchId} — no batch to apply it to.");
+                    Log::warning("Sync push: stock_movements delta of {$delta} referenced unknown stock_batch_id {$stockBatchId}, no batch to apply it to.");
                 }
             }
 
@@ -673,7 +673,7 @@ class SyncController extends Controller
     #[OA\Post(
         path: '/app/sync/pull',
         summary: 'Pull server-side changes down to the client',
-        description: 'Returns, per table, every row changed since the client\'s last-known sync timestamp for that table (max 500 rows/table/call — clients should loop until a response comes back empty). Soft-deleted rows are included with `_deleted: 1` so the client can remove them locally too.',
+        description: 'Returns, per table, every row changed since the client\'s last-known sync timestamp for that table (max 500 rows/table/call; clients should loop until a response comes back empty). Soft-deleted rows are included with `_deleted: 1` so the client can remove them locally too.',
         tags: ['Sync'],
         security: [['sanctum' => []]],
         parameters: [new OA\HeaderParameter(name: 'X-Store-Id', description: 'Which of the caller\'s stores to sync (defaults to their primary store)', schema: new OA\Schema(type: 'string'))],
@@ -749,7 +749,7 @@ class SyncController extends Controller
                 match ($table) {
                     'users' => $query->whereIn('id', $userIds),
                     // Unlike every other table, 'stores' isn't scoped to the
-                    // X-Store-Id-narrowed $storeIds — it IS the "which stores
+                    // X-Store-Id-narrowed $storeIds: it IS the "which stores
                     // do I own" discovery list the store switcher is built
                     // from, so narrowing it to whichever single store happens
                     // to be active meant a newly created store (or any store
@@ -762,7 +762,7 @@ class SyncController extends Controller
                         $user->store_id ? $storeIds : Store::where('user_id', $ownerId)->pluck('id')->toArray()
                     )->with(['user.subscriptions']),
                     // These 11 tables now carry a real store_id column (see
-                    // add_store_id_to_domain_tables migration) — scope directly
+                    // add_store_id_to_domain_tables migration); scope directly
                     // by store rather than by an owner/cashier user-id chain, so
                     // a multi-store owner's stores actually stay separated
                     // instead of merging under "anything this owner touched."
@@ -778,7 +778,7 @@ class SyncController extends Controller
                     'stock_movements' => $query->whereIn('store_id', $storeIds),
                     'supplier_payments' => $query->whereIn('store_id', $storeIds),
                     // Child tables still derive scoping through their now
-                    // correctly store-scoped parent — no store_id of their own.
+                    // correctly store-scoped parent, no store_id of their own.
                     'sale_items' => $query->whereIn('sale_id', Sale::whereIn('store_id', $storeIds)->pluck('id')),
                     'return_items' => $query->whereIn('return_id', \App\Models\SaleReturn::whereIn('store_id', $storeIds)->pluck('id')),
                     'prescription_items' => $query->whereIn('prescription_id', \App\Models\Prescription::whereIn('store_id', $storeIds)->pluck('id')),

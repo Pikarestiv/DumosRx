@@ -22,7 +22,7 @@ test.describe('Customers Module', () => {
     await login(page);
     await page.goto('/customers');
 
-    // Overview is the default tab — confirm we start there, not on Directory.
+    // Overview is the default tab; confirm we start there, not on Directory.
     await expect(page.getByRole('tab', { name: 'Overview' })).toHaveAttribute('data-state', 'active');
 
     await page.getByRole('button', { name: /Add Customer/i }).click();

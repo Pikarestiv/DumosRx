@@ -17,7 +17,7 @@ function getLocalIps() {
 const localIps = getLocalIps();
 // Tauri sets TAURI_DEV_HOST to the LAN IP when running `tauri android dev` /
 // `tauri ios dev` (this is the documented mechanism, not a guess). Only set
-// assetPrefix when it's present — the mobile webview loads pages from the LAN
+// assetPrefix when it's present: the mobile webview loads pages from the LAN
 // devUrl and needs an absolute prefix to resolve JS chunks/HMR correctly.
 // Setting it unconditionally (including for plain `npm run dev`) broke Fast
 // Refresh and caused a full reload on every navigation instead.

@@ -8,7 +8,7 @@ interface SupplierStatusFilterProps {
   setFilter: (val: string) => void;
 }
 
-/** Filter chips, not tabs — narrows the list/table above; no content switch of its own. */
+/** Filter chips, not tabs. Narrows the list/table above; no content switch of its own. */
 export function SupplierStatusFilter({
   filter,
   setFilter,

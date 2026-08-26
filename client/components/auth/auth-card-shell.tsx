@@ -3,7 +3,6 @@
 import type { ReactNode } from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
-import { Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 
@@ -11,18 +10,15 @@ interface AuthCardShellProps {
   children: ReactNode;
   header?: ReactNode;
   /**
-   * "page" — /login itself: mobile gets a separate full-bleed hero logo
+   * "page": /login itself. Mobile gets a separate full-bleed hero logo
    * elsewhere on the page, so the in-card logo only shows on desktop, and
    * the card uses the bottom-sheet radius/shadow that matches the rest of
    * that page's mobile chrome.
-   * "overlay" — the dashboard's auto-lock overlay: there's no separate hero,
+   * "overlay": the dashboard's auto-lock overlay. There's no separate hero,
    * so the logo always shows, sized larger to read as the primary heading.
    */
   variant: "page" | "overlay";
-  /** Overlay always shows it; on the page it's caller-driven (only shown
-   * once the traditional login form or account-switch mode is active). */
-  showFooter?: boolean;
-  /** Card-level padding override — the onboarding steps (register/cloud/
+  /** Card-level padding override. The onboarding steps (register/cloud/
    * backup) manage their own inner CardHeader/CardContent/CardFooter
    * padding instead, so they pass a tighter value here rather than getting
    * this default doubled up on top of it. Defaults to the login tab's
@@ -30,11 +26,11 @@ interface AuthCardShellProps {
   padding?: string;
   /**
    * The single desktop-only visual shown above the header (page variant
-   * only — overlay always shows its own mobile-only logo regardless of
+   * only; overlay always shows its own mobile-only logo regardless of
    * this). Defaults to the DumosRx logo; a step can pass its own icon
    * instead (e.g. a UserPlus/CloudDownload glyph in a tinted box) for
    * visual variety, or pass `null` to show nothing at all. Either way it's
-   * hidden below `sm` and — unlike a CSS-only hide — never reserves layout
+   * hidden below `sm` and, unlike a CSS-only hide, never reserves layout
    * space when hidden, since the wrapper simply isn't rendered.
    */
   icon?: ReactNode | null;
@@ -51,8 +47,8 @@ const DEFAULT_LOGO = (
   />
 );
 
-// Shared by /login's login/setup tabs and the dashboard's auto-lock overlay —
-// was previously several hand-copied implementations that drifted (the
+// Shared by /login's login/setup tabs and the dashboard's auto-lock overlay.
+// Was previously several hand-copied implementations that drifted (the
 // overlay never got the max-h/overflow-y-auto short-viewport scroll fix
 // applied everywhere else this session, silently reintroducing that
 // clipping bug).
@@ -83,7 +79,7 @@ export function AuthCardShell({
             usual "don't shrink below content size" protection. On a step
             with enough content to exceed max-h-[85dvh] (register, with its
             long form), the flex children get shrunk to fit instead of the
-            browser leaving them full-size and scrolling the overflow — and
+            browser leaving them full-size and scrolling the overflow, and
             since this wrapper also has overflow-hidden, that shrink
             silently clips the icon to invisible rather than scrolling past
             it. shrink-0 forces the header/icon to keep their natural size

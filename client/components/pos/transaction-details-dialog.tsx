@@ -251,7 +251,7 @@ export function TransactionDetailsDialog({
           }
           currencyCode={currencyCode}
           defaultAmount={saleRemaining}
-          helperNote="Payments settle this customer's oldest outstanding sale first — if they have older unpaid sales, this payment may not fully clear this one."
+          helperNote="Payments settle this customer's oldest outstanding sale first; if they have older unpaid sales, this payment may not fully clear this one."
           onClose={() => setShowPaymentModal(false)}
           onSubmit={handleRecordPayment}
         />

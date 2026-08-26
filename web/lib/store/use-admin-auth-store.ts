@@ -3,7 +3,7 @@ import { persist } from "zustand/middleware";
 import { webApiClient } from "@/lib/api/client";
 import { queryClient } from "@/lib/query-client";
 
-interface User {
+export interface User {
   id: string;
   email: string;
   first_name: string;
@@ -17,12 +17,12 @@ interface User {
  * dashboard (web/app/admin/*) regardless of how permissive their store-level
  * role is. Single source of truth instead of raw `role !== 'super_admin'`
  * literals across layout/login files. Kept narrow (super_admin only) for
- * actions that are genuinely super_admin-exclusive — suspending/deactivating
+ * actions that are genuinely super_admin-exclusive: suspending/deactivating
  * other platform accounts, creating new platform accounts. */
 export const checkIsSuperAdmin = (role?: string) => role === "super_admin";
 
 /** The three platform-level roles (no store of their own) that can reach
- * *some* part of the admin dashboard — super_admin sees everything, while
+ * *some* part of the admin dashboard. super_admin sees everything, while
  * platform_admin/agent see a narrower nav scoped to their own permissions
  * (create_accounts / grant_trials), enforced server-side per endpoint. This
  * only gates whether the dashboard shell loads at all. */
@@ -33,10 +33,16 @@ interface AdminAuthState {
   user: User | null;
   token: string | null;
   loading: boolean;
-  
+
   setUser: (user: User | null) => void;
   setToken: (token: string | null) => void;
   fetchUser: () => Promise<void>;
+  /** Re-establishes a session after a page reload via the HttpOnly refresh
+   * cookie, since the access token itself lives in memory only and doesn't
+   * survive one. Replaces fetchUser() as the "am I logged in" check on
+   * mount - it's a single request instead of a doomed /user call cascading
+   * into a /refresh attempt. */
+  initSession: () => Promise<void>;
   logout: () => void;
 }
 
@@ -44,7 +50,7 @@ export const useAdminAuthStore = create<AdminAuthState>()(
   persist(
     (set) => ({
       user: null,
-      token: null, // Token is handled by HttpOnly cookie
+      token: null, // Access token: memory-only, never persisted (see partialize below)
       loading: false,
 
       setUser: (user) => set({ user }),
@@ -58,6 +64,19 @@ export const useAdminAuthStore = create<AdminAuthState>()(
         try {
           const user = await webApiClient.request<User>("user");
           set({ user, loading: false });
+        } catch (_error) {
+          set({ user: null, token: null, loading: false });
+        }
+      },
+
+      initSession: async () => {
+        set({ loading: true });
+        try {
+          const data = await webApiClient.request<{ token: string; user: User }>(
+            "admin/session/refresh",
+            { method: "POST" },
+          );
+          set({ token: data.token, user: data.user, loading: false });
         } catch (_error) {
           set({ user: null, token: null, loading: false });
         }

@@ -9,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('expenses', function (Blueprint $table) {
-            // Optional reporting hint — a lump-sum expense (e.g. a year's
+            // Optional reporting hint: a lump-sum expense (e.g. a year's
             // rent) spread over this many months for P&L smoothing, not a
             // real accrual ledger. Null means "recognize entirely in the
             // period it was logged," today's existing behavior.

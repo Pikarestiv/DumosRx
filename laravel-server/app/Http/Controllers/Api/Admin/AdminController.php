@@ -98,7 +98,7 @@ class AdminController extends Controller
                 new OA\Property(property: 'first_name', type: 'string', minLength: 2),
                 new OA\Property(property: 'last_name', type: 'string', minLength: 2),
                 new OA\Property(property: 'email', type: 'string', format: 'email'),
-                new OA\Property(property: 'username', type: 'string', minLength: 3, description: 'Local terminal login username — same field the self-serve register flow collects.'),
+                new OA\Property(property: 'username', type: 'string', minLength: 3, description: 'Local terminal login username, same field the self-serve register flow collects.'),
                 new OA\Property(property: 'phone', type: 'string', minLength: 10),
                 new OA\Property(property: 'password', type: 'string', format: 'password', minLength: 8),
             ],
@@ -114,7 +114,7 @@ class AdminController extends Controller
     {
         // hasRole('super_admin') checks the raw `role` string column, so it
         // can't be blocked by stale/missing role_id or permission_role data
-        // the way hasPermission() can — matches the bypass the route's own
+        // the way hasPermission() can. Matches the bypass the route's own
         // `permission:manage_platform` middleware already grants super_admin.
         if (!$request->user()->hasRole('super_admin') && !$request->user()->hasPermission('create_accounts')) {
             return response()->json(['error' => 'Unauthorized'], 403);
@@ -342,7 +342,7 @@ class AdminController extends Controller
         description: 'Available to super_admin/platform_admin/agent (the manage_platform gate on this whole route group already covers that). Defaults to the caller\'s own attribution; super_admin may pass user_id to view any platform user\'s.',
         tags: ['Admin'],
         security: [['sanctum' => []]],
-        parameters: [new OA\Parameter(name: 'user_id', in: 'query', description: 'super_admin only — view another platform user\'s referrals', schema: new OA\Schema(type: 'string'))],
+        parameters: [new OA\Parameter(name: 'user_id', in: 'query', description: 'super_admin only: view another platform user\'s referrals', schema: new OA\Schema(type: 'string'))],
         responses: [
             new OA\Response(response: 200, description: 'Referral code + attributed accounts', content: new OA\JsonContent(type: 'object')),
             new OA\Response(response: 403, description: 'Requested another user\'s referrals without being super_admin'),
@@ -397,7 +397,7 @@ class AdminController extends Controller
     #[OA\Post(
         path: '/admin/referral-code',
         summary: 'Set a custom platform referral code',
-        description: 'Self-service — defaults to the caller\'s own code. super_admin may pass user_id to set another platform user\'s.',
+        description: 'Self-service: defaults to the caller\'s own code. super_admin may pass user_id to set another platform user\'s.',
         tags: ['Admin'],
         security: [['sanctum' => []]],
         requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
@@ -577,7 +577,7 @@ class AdminController extends Controller
     #[OA\Post(
         path: '/admin/stores/{id}/grant-trial',
         summary: 'Grant a store a trial subscription',
-        description: 'Pass either `duration` (a preset like "14 days", "1 month", "1 year") or an explicit `end_date` — exactly one is required. `end_date` always wins if both are somehow present.',
+        description: 'Pass either `duration` (a preset like "14 days", "1 month", "1 year") or an explicit `end_date`; exactly one is required. `end_date` always wins if both are somehow present.',
         tags: ['Admin'],
         security: [['sanctum' => []]],
         parameters: [new OA\Parameter(name: 'id', in: 'path', description: 'Store ID', required: true, schema: new OA\Schema(type: 'string'))],
@@ -620,7 +620,7 @@ class AdminController extends Controller
     #[OA\Post(
         path: '/admin/users/{id}/grant-trial',
         summary: 'Grant a user (rather than a store) a trial subscription',
-        description: 'Same semantics as `/admin/stores/{id}/grant-trial` — pass either `duration` or `end_date`.',
+        description: 'Same semantics as `/admin/stores/{id}/grant-trial`: pass either `duration` or `end_date`.',
         tags: ['Admin'],
         security: [['sanctum' => []]],
         parameters: [new OA\Parameter(name: 'id', in: 'path', description: 'User ID', required: true, schema: new OA\Schema(type: 'string'))],
@@ -663,7 +663,7 @@ class AdminController extends Controller
     #[OA\Post(
         path: '/admin/users',
         summary: 'Create a new platform-level account (super_admin, platform_admin, or agent)',
-        description: 'super_admin-only — creating platform-level accounts (including other super_admins) is a privilege-escalation-sensitive action kept exclusive to super_admin, unlike account creation for customers (create_accounts permission, shared with platform_admin/agent).',
+        description: 'super_admin-only: creating platform-level accounts (including other super_admins) is a privilege-escalation-sensitive action kept exclusive to super_admin, unlike account creation for customers (create_accounts permission, shared with platform_admin/agent).',
         tags: ['Admin'],
         security: [['sanctum' => []]],
         requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
@@ -768,7 +768,7 @@ class AdminController extends Controller
     #[OA\Delete(
         path: '/admin/users/{id}',
         summary: 'Permanently delete a user and all associated data',
-        description: 'Irreversible — not a soft delete.',
+        description: 'Irreversible; not a soft delete.',
         tags: ['Admin'],
         security: [['sanctum' => []]],
         parameters: [new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'string'))],
@@ -796,7 +796,7 @@ class AdminController extends Controller
     #[OA\Post(
         path: '/admin/users/{id}/reset-password',
         summary: "Force-reset a user's password to a temporary one",
-        description: 'Returns the temp password in the response — surface it to the admin so they can relay it out-of-band.',
+        description: 'Returns the temp password in the response; surface it to the admin so they can relay it out-of-band.',
         tags: ['Admin'],
         security: [['sanctum' => []]],
         parameters: [new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'string'))],
@@ -877,7 +877,7 @@ class AdminController extends Controller
             properties: [
                 new OA\Property(property: 'title', type: 'string', minLength: 3, maxLength: 100),
                 new OA\Property(property: 'message', type: 'string', minLength: 5),
-                new OA\Property(property: 'filters', type: 'object', nullable: true, description: 'Recipient filter criteria (plan, status, etc.) — see AdminService::bulkNotify'),
+                new OA\Property(property: 'filters', type: 'object', nullable: true, description: 'Recipient filter criteria (plan, status, etc.); see AdminService::bulkNotify'),
             ],
         )),
         responses: [
@@ -917,7 +917,7 @@ class AdminController extends Controller
     #[OA\Post(
         path: '/admin/stores/{id}/impersonate',
         summary: "Start impersonating a store's owner session",
-        description: 'Sets the `drx_admin_session` cookie to the impersonated user\'s token — use `/admin/restore-session` to end it.',
+        description: 'Sets the `drx_admin_session` cookie to the impersonated user\'s token; use `/admin/restore-session` to end it.',
         tags: ['Admin'],
         security: [['sanctum' => []]],
         parameters: [new OA\Parameter(name: 'id', in: 'path', description: 'Store ID', required: true, schema: new OA\Schema(type: 'string'))],
@@ -961,7 +961,7 @@ class AdminController extends Controller
     #[OA\Post(
         path: '/admin/restore-session',
         summary: "End impersonation and restore the admin's own session",
-        description: 'The supplied token must resolve to a real Sanctum token owned by a super_admin — it is not trusted blindly, since this cookie doubles as the bearer token for every subsequent request (see AuthenticateFromCookie middleware).',
+        description: 'The supplied token must resolve to a real Sanctum token owned by a super_admin; it is not trusted blindly, since this cookie doubles as the bearer token for every subsequent request (see AuthenticateFromCookie middleware).',
         tags: ['Admin'],
         security: [['sanctum' => []]],
         requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(

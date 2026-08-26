@@ -4,10 +4,19 @@ import type { Broadcast } from "@/lib/types/broadcast";
 import type { NewProductPayload } from "@/lib/types/product";
 import type { SupplierPayload } from "@/lib/types/supplier";
 import type { SyncChange } from "@/lib/types/sync";
-import type { StoreOption } from "@/lib/types/store";
+import type { StoreOption, FleetStore, FleetStorePayload, FleetStats } from "@/lib/types/store";
 import type { OnlineOrder } from "@/lib/types/online-order";
+import type { CurrentUser, Session } from "@/lib/types/user";
+import type {
+  SubscriptionStatus,
+  PaymentPayload,
+  PaymentResponse,
+  ReferralStats,
+  CouponValidationResponse,
+  BillingTransaction,
+} from "@/lib/types/subscription-plans";
 
-/** Loose shape shared by the legacy cloud list/aggregate endpoints below —
+/** Loose shape shared by the legacy cloud list/aggregate endpoints below:
  * callers only ever read `.total`/`.count`/`.data?.length`/`.revenue`. */
 interface CloudListResponse {
   total?: number;
@@ -62,13 +71,67 @@ class ApiClient extends BaseApiClient {
   }
 
   async getProfile() {
-    return this.request<unknown>("/user");
+    return this.request<CurrentUser>("/user");
+  }
+
+  async updateProfile(payload: { first_name: string; last_name: string; phone?: string | null }) {
+    return this.request<{ message: string; user: CurrentUser }>("/profile/update", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async getSessions() {
+    return this.request<Session[]>("/sessions");
+  }
+
+  async revokeSession(id: string) {
+    return this.request<{ message: string }>(`/sessions/${id}`, {
+      method: "DELETE",
+    });
+  }
+
+  async revokeAllSessions() {
+    return this.request<{ message: string }>("/sessions/revoke-all", {
+      method: "POST",
+    });
+  }
+
+  // The request body's `token` is the sole credential here; the endpoint
+  // does not read the Authorization header at all (see AuthHandoffController),
+  // so no explicit header override is set.
+  async createHandoffCode(token: string) {
+    return this.request<{ code: string; expires_in: number }>("/auth/handoff", {
+      method: "POST",
+      body: JSON.stringify({ token }),
+    });
+  }
+
+  async consumeHandoffCode(code: string) {
+    return this.request<{
+      token: string;
+      // Mirrors the raw App\Models\User JSON the endpoint returns (fillable
+      // columns plus the appended `name` accessor).
+      user: {
+        id: string;
+        email: string;
+        name: string;
+        role: string;
+        first_name: string;
+        last_name: string;
+        username: string;
+        store_id?: string;
+      };
+    }>("/auth/handoff/consume", {
+      method: "POST",
+      body: JSON.stringify({ code }),
+    });
   }
 
   // NOTE: the endpoints below (products/sales/customers/categories/suppliers/
   // stock-movements/purchase-orders/stock-adjustments/prescriptions cloud CRUD)
   // predate the offline-first SQLite architecture and have no callers left in
-  // the app (superseded by lib/db/queries/*) — typed loosely since their
+  // the app (superseded by lib/db/queries/*); typed loosely since their
   // response shape is unused, not because it's unknowable.
   async getProducts(page = 1, limit = 50) {
     return this.request<CloudListResponse>(`/app/products?page=${page}&limit=${limit}`);
@@ -288,6 +351,70 @@ class ApiClient extends BaseApiClient {
     return this.request<{ available: boolean; slug: string }>(url);
   }
 
+  async createStore(payload: FleetStorePayload) {
+    return this.request<{ message: string; store: FleetStore }>("/stores", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async updateStore(id: string, payload: FleetStorePayload) {
+    return this.request<{ message: string; store: FleetStore }>(`/stores/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async deleteStore(id: string) {
+    return this.request<{ message: string }>(`/stores/${id}`, {
+      method: "DELETE",
+    });
+  }
+
+  async getFleetStats() {
+    return this.request<FleetStats>("/dashboard/stats");
+  }
+
+  async sendEndOfDaySummary() {
+    return this.request<{ message: string }>("/dashboard/send-summary", {
+      method: "POST",
+    });
+  }
+
+  // Subscription & Billing
+  async getSubscriptionStatus() {
+    return this.request<SubscriptionStatus>("/subscription/status");
+  }
+
+  async pay(payload: PaymentPayload) {
+    return this.request<PaymentResponse>("/subscription/pay", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async getReferralStats() {
+    return this.request<ReferralStats>("/subscription/referral-stats");
+  }
+
+  async validateCoupon(payload: { code: string; plan_name?: string; interval?: string }) {
+    return this.request<CouponValidationResponse>("/subscription/validate-coupon", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async verifyPayment(reference: string) {
+    return this.request<{ success: boolean; message?: string }>("/subscription/verify", {
+      method: "POST",
+      body: JSON.stringify({ reference }),
+    });
+  }
+
+  async getBillingHistory() {
+    return this.request<{ transactions: BillingTransaction[] }>("/subscription/billing-history");
+  }
+
   // Notifications
   async getNotifications() {
     return this.request<unknown>("/alerts");
@@ -308,6 +435,27 @@ class ApiClient extends BaseApiClient {
     return this.request<unknown>(`/app/online-orders/${id}/fulfill`, {
       method: "POST",
       body: JSON.stringify({ status: "fulfilled" }),
+    });
+  }
+
+  // Danger zone
+  async resetData(type: string, password: string) {
+    return this.request<{ message: string }>("/dashboard/reset", {
+      method: "POST",
+      body: JSON.stringify({ type, password }),
+    });
+  }
+
+  async requestAccountDeletion(payload: { reason: string; password: string }) {
+    return this.request<{ message: string }>("/profile/request-deletion", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async cancelAccountDeletion() {
+    return this.request<{ message: string }>("/profile/cancel-deletion", {
+      method: "POST",
     });
   }
 }

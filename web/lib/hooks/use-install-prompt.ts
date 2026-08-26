@@ -10,7 +10,7 @@ interface BeforeInstallPromptEvent extends Event {
  * it and trigger the native install prompt from our own "Install App" button
  * instead of relying on the browser's own (easy-to-miss) mini-infobar.
  * Fires only on Chromium-based browsers that judge the site installable
- * (valid manifest + registered service worker + https) — Safari/iOS never
+ * (valid manifest + registered service worker + https). Safari/iOS never
  * fires this, which is why that platform gets its own instructions modal.
  */
 export function useInstallPrompt() {

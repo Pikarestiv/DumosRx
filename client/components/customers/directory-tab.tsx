@@ -130,7 +130,7 @@ export function DirectoryTab({
 
   return (
     <div className="flex flex-col h-full gap-4 relative">
-      {/* Mobile List — flat, no wrapping card */}
+      {/* Mobile List: flat, no wrapping card */}
       <div className="flex lg:hidden flex-col w-full gap-4">
         {SearchInput}
         <div className="flex items-center justify-between gap-2 flex-wrap">

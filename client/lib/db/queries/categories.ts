@@ -6,7 +6,7 @@ export interface CategoryRow {
   name: string;
 }
 
-/** All active categories, flat — matches how her current tool (Moniebook)
+/** All active categories, flat: matches how her current tool (Moniebook)
  * models categories, and avoids the cognitive overhead of a parent/child
  * tree for a business this size. A `parent_id` column exists on the table
  * (kept for potential future use) but nothing here reads or writes it. */
@@ -36,7 +36,7 @@ export async function deleteCategory(id: string) {
 }
 
 /** A pharmacy/general-store starter set matching the broad groupings
- * Cynthia's own Moniebook data uses (refs/MB-inventory-*.csv) — inserted
+ * Cynthia's own Moniebook data uses (refs/MB-inventory-*.csv); inserted
  * only when she explicitly asks for it via the management screen, never
  * automatically, so nothing appears or changes without her choosing it. */
 export const DEFAULT_CATEGORIES = [

@@ -9,9 +9,9 @@ import { useOnboarding } from "@/app/setup/use-onboarding";
 import { AuthTabHeader } from "@/components/auth/auth-tab-header";
 
 /**
- * All derived state/orchestration for /login — which tab is active, whether
- * setup is a safe entry point, back-button rules, and the shared header —
- * pulled out of page.tsx so that file is just layout/JSX. Composes the
+ * All derived state/orchestration for /login: which tab is active, whether
+ * setup is a safe entry point, back-button rules, and the shared header.
+ * Pulled out of page.tsx so that file is just layout/JSX. Composes the
  * page's sub-hooks (auth status, login form, onboarding) itself, the same
  * way those sub-hooks compose their own lower-level pieces.
  */
@@ -19,7 +19,7 @@ export function useLoginPageState() {
   const router = useRouter();
   const searchParams = useSearchParams();
   // "New credentials" mode (from the dashboard lock overlay's "Login as
-  // someone else") — distinct from a plain /login visit, which otherwise
+  // someone else"), distinct from a plain /login visit, which otherwise
   // redirects straight to the dashboard's own lock overlay when recent
   // accounts already exist, to avoid ever showing two separate lock screens.
   const isNewCredentialsMode = searchParams.get("mode") === "new";
@@ -30,14 +30,14 @@ export function useLoginPageState() {
   const { showTraditionalLogin } = loginState;
   const onboarding = useOnboarding();
 
-  // Login and Setup are tabs on this one page, not separate routes — no
+  // Login and Setup are tabs on this one page, not separate routes: no
   // navigation, no remount, no second loading spinner when switching.
   // Guard: a device that already has accounts can't land on setup's
   // welcome/select-store steps (that flow assumes a brand-new device and
-  // risks clobbering real local data) — only backup/cloud/syncing/register
+  // risks clobbering real local data); only backup/cloud/syncing/register
   // are safe entry points there. `register` is included because
   // handleRegister() is purely additive (inserts a new store + admin) even
-  // when the device already has other local accounts — unlike
+  // when the device already has other local accounts. Unlike
   // select-store's cloud-switch flow, it never wipes existing data.
   // Computed here instead of redirecting after mount, so an unsafe request
   // never flashes setup content before bouncing back.
@@ -57,11 +57,11 @@ export function useLoginPageState() {
     userCount > 0 ? "/login?tab=setup&step=cloud" : "/login?tab=setup";
 
   // Only bounce to the dashboard's own lock overlay when there's actually a
-  // live (but idle-locked) session to hand off to — i.e. `isAuthenticated`.
+  // live (but idle-locked) session to hand off to, i.e. `isAuthenticated`.
   // Without this check, a real logout (user cleared, recentUsers/userCount
   // untouched) looked identical to "idle-locked", so /login redirected to
   // /dashboard, which immediately redirected back to /login (no `user`),
-  // forever — the flicker loop. When there's no live session, this page
+  // forever: the flicker loop. When there's no live session, this page
   // renders its own account-tile picker (LockScreen) instead of redirecting.
   const canHandOffToDashboardLock =
     activeTab === "login" &&
@@ -87,7 +87,7 @@ export function useLoginPageState() {
     if (activeTab === "setup") {
       onboarding.goBack();
     } else if (isNewCredentialsMode) {
-      // Arrived here via "Login as someone else" — that only calls
+      // Arrived here via "Login as someone else": that only calls
       // unlock() before navigating, it never logs the current user out, so
       // `user` is still set and /dashboard renders normally. Backing out
       // just cancels the account switch and resumes the existing session,
@@ -101,7 +101,7 @@ export function useLoginPageState() {
   const headerActiveTab: "login" | "setup" =
     activeTab === "login" ? "login" : "setup";
 
-  // Header (Back + Login/Setup switcher) is hidden entirely for ?mode=new —
+  // Header (Back + Login/Setup switcher) is hidden entirely for ?mode=new:
   // a lone back arrow with no switcher looked unbalanced, especially on
   // mobile. The way off this screen instead is a secondary "Cancel" button
   // in the login form itself (see TraditionalLoginForm's onCancel).
@@ -115,7 +115,7 @@ export function useLoginPageState() {
   );
 
   // ?mode=new only re-authenticates as a different existing user on an
-  // already-set-up device — registering, cloud setup, and cancelling all
+  // already-set-up device: registering, cloud setup, and cancelling all
   // mean something else there (or nothing), so these are only wired up
   // outside that mode.
   const registerHandler = isNewCredentialsMode

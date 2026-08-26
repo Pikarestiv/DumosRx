@@ -3,7 +3,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/context/auth-context";
 import { useStockBatchStats } from "@/lib/hooks/use-stock-batch-stats";
 
-/** All business logic for the Inventory Dashboard page — tab routing, stats, and the audit overlay. */
+/** All business logic for the Inventory Dashboard page: tab routing, stats, and the audit overlay. */
 export function useStockBatchManagement(currentTab: string) {
   const { isAdmin } = useAuth();
   const router = useRouter();

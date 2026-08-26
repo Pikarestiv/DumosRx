@@ -41,7 +41,7 @@ export function CameraScannerDialog({
       try {
         await scanner.stop();
       } catch {
-        // Already stopped or never fully started — safe to ignore.
+        // Already stopped or never fully started, safe to ignore.
       }
     }
   }, []);
@@ -66,7 +66,7 @@ export function CameraScannerDialog({
             onClose();
           },
           () => {
-            // Per-frame "no barcode found" — expected on nearly every frame, ignore.
+            // Per-frame "no barcode found": expected on nearly every frame, ignore.
           },
         );
 
@@ -192,7 +192,7 @@ export function CameraScannerDialog({
             <div>
               <p className="font-semibold">Camera access needed</p>
               <p className="text-sm text-muted-foreground mt-1">
-                We only use your camera to scan barcodes — nothing is recorded or stored.
+                We only use your camera to scan barcodes; nothing is recorded or stored.
               </p>
             </div>
             <Button onClick={() => startScanner(0)}>Enable Camera</Button>

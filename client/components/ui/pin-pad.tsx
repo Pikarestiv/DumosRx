@@ -25,7 +25,7 @@ export function PinPad({
       const newValue = value + digit;
       onChange(newValue);
       if (newValue.length === maxLength && onSubmit) {
-        // Passed explicitly rather than relying on the `value` prop — this fires
+        // Passed explicitly rather than relying on the `value` prop: this fires
         // synchronously right after onChange, before React applies the state
         // update, so the `value` closure here would still be one digit behind.
         onSubmit(newValue);

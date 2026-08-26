@@ -9,9 +9,9 @@
 
 ## Overview
 
-DumosRx is a retail and pharmacy management system for Nigerian stores, covering inventory, point-of-sale, prescriptions, procurement, and multi-store business analytics — with NAFDAC-aware medicine data, Naira formatting, and 7.5% VAT built in.
+DumosRx is a retail and pharmacy management system for Nigerian stores, covering inventory, point-of-sale, prescriptions, procurement, and multi-store business analytics, with NAFDAC-aware medicine data, Naira formatting, and 7.5% VAT built in.
 
-The defining architectural choice is that the store-floor app (`client/`) is **offline-first**: it runs against a local SQLite database and keeps working with no internet connection, syncing to the cloud in the background whenever one's available. It ships as a native desktop/mobile app via Tauri, and — from the exact same codebase — as a static web build.
+The defining architectural choice is that the store-floor app (`client/`) is **offline-first**: it runs against a local SQLite database and keeps working with no internet connection, syncing to the cloud in the background whenever one's available. It ships as a native desktop/mobile app via Tauri, and, from the exact same codebase, as a static web build.
 
 ## Applications
 
@@ -24,7 +24,7 @@ DumosRx/
 │   ├── components/     # UI components (shadcn/ui)
 │   ├── lib/db/          # Local SQLite layer + sync engine (push.ts/pull.ts)
 │   ├── src-tauri/       # Tauri native shell (desktop + Android/iOS)
-│   └── next.config.mjs  # output: "export" — static build, no server
+│   └── next.config.mjs  # output: "export": static build, no server
 ├── web/                # Account, subscription & admin dashboard (Next.js)
 └── laravel-server/     # API backend (Laravel)
     ├── app/              # Models, controllers, services
@@ -32,9 +32,11 @@ DumosRx/
     └── routes/           # API routes
 ```
 
-- **`client/`** — the actual point-of-sale/inventory app used in-store. A local SQLite database (via `sql.js` in the browser, the native Tauri SQL plugin in packaged builds) is the source of truth at runtime; a sync engine reconciles it against the backend whenever online. Ships three ways from one codebase: Tauri desktop app, Tauri Android/iOS, and a static web build deployed to `app.dumosrx.com`.
-- **`web/`** — the cloud-side dashboard for account owners: subscriptions, cross-store oversight, staff management. Deployed to `dumosrx.com`.
-- **`laravel-server/`** — the API every store's data syncs through: auth, multi-store/multi-tenant scoping, subscriptions, and sync push/pull endpoints. Deployed to `api.dumosrx.com`.
+- **`client/`**: the actual point-of-sale/inventory app used in-store, and the only place a store owner authenticates or manages their dashboard. A local SQLite database (via `sql.js` in the browser, the native Tauri SQL plugin in packaged builds) is the source of truth at runtime; a sync engine reconciles it against the backend whenever online. Ships three ways from one codebase: Tauri desktop app, Tauri Android/iOS, and a static web build deployed to `app.dumosrx.com`.
+- **`web/`**: the public marketing site and platform-admin console, deployed to `dumosrx.com`. It no longer performs store-owner authentication itself: `/login` and every "Go to Dashboard" link redirect straight to `app.dumosrx.com`. Admin actions that need to act as a specific store (impersonation) cross that origin boundary via a short-lived, single-use handoff code (`AuthHandoffController`, `client/app/auth/callback`, `web/app/admin/handoff`) rather than passing a real token through the URL.
+- **`laravel-server/`**: the API every store's data syncs through: auth, multi-store/multi-tenant scoping, subscriptions, sync push/pull endpoints, and the cross-origin auth handoff. Deployed to `api.dumosrx.com`.
+
+> **In progress:** `web/` still has its own copy of the store dashboard (staff, store profile, etc.) inherited from before this consolidation. It's being migrated into `client/` in phases; the auth handoff above is phase 1. Don't build new dashboard features in `web/`, they belong in `client/` now.
 
 ## Quick Start
 
@@ -43,7 +45,7 @@ DumosRx/
 - Node.js 20+ and npm
 - PHP 8.2+ and Composer
 - MySQL 5.7+ or 8.0+
-- Rust (only if building the Tauri desktop/mobile app — not needed for `next dev`)
+- Rust (only if building the Tauri desktop/mobile app; not needed for `next dev`)
 
 ### 1. Clone & install
 
@@ -77,7 +79,7 @@ php artisan serve
 ```
 Runs on `http://127.0.0.1:8000`.
 
-### 3. Client (`client/`) — the POS app
+### 3. Client (`client/`): the POS app
 
 ```bash
 cd client
@@ -101,6 +103,8 @@ cd web
 npm install
 npm run dev
 ```
+
+Runs on `http://localhost:3001` (Next.js picks the next free port after `client/`'s 3000). Since `web/`'s login and admin-impersonation flows now redirect into `client/`, point it at your local `client/` instead of the production `app.dumosrx.com`: open `web`'s login screen, use its "Server Config" panel to set the App URL to `http://localhost:3000`, or run `localStorage.setItem("dumos_app_url", "http://localhost:3000")` in the browser console.
 
 ### Default login (after seeding)
 
@@ -126,11 +130,11 @@ Branch convention: feature work merges into `dev`; a `dev → main` PR is raised
 
 ## Tech Stack
 
-**`client/`** — Next.js 15 (static export), TypeScript, Tailwind CSS, shadcn/ui, Zustand, TanStack Query, Tauri 2 (Rust), sql.js / `@tauri-apps/plugin-sql`, Sentry.
+**`client/`**: Next.js 15 (static export), TypeScript, Tailwind CSS, shadcn/ui, Zustand, TanStack Query, Tauri 2 (Rust), sql.js / `@tauri-apps/plugin-sql`, Sentry.
 
-**`web/`** — Next.js 16, TypeScript, Tailwind CSS, shadcn/ui, TanStack Query.
+**`web/`**: Next.js 16, TypeScript, Tailwind CSS, shadcn/ui, TanStack Query.
 
-**`laravel-server/`** — Laravel 11, PHP 8.2, MySQL, Sanctum (API auth), Eloquent, PHPUnit/Pest.
+**`laravel-server/`**: Laravel 11, PHP 8.2, MySQL, Sanctum (API auth), Eloquent, PHPUnit/Pest.
 
 ## Contributing
 
@@ -141,4 +145,4 @@ Branch convention: feature work merges into `dev`; a `dev → main` PR is raised
 
 ## License
 
-Proprietary — All rights reserved.
+Proprietary. All rights reserved.

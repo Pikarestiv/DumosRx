@@ -8,7 +8,7 @@ test.describe('Sales Module', () => {
     await page.locator('a[href="/pos"]').first().click();
 
     // Check that POS interface loads (components/pos/pos-cart.tsx renders "Charge <amount>").
-    // The search input renders twice (desktop header + mobile row) — scope to the first.
+    // The search input renders twice (desktop header + mobile row); scope to the first.
     await expect(page.getByRole('button', { name: /Charge/i })).toBeVisible();
     await expect(page.getByPlaceholder(/Search products/i).first()).toBeVisible();
   });
@@ -17,7 +17,7 @@ test.describe('Sales Module', () => {
     await login(page);
 
     // The seeded test store has no products yet, so create one via the catalog.
-    // The quick-add form has no initial-stock fields (removed by design — stock
+    // The quick-add form has no initial-stock fields (removed by design: stock
     // is only ever added via receiving a purchase order or a stock audit), so
     // a freshly created product always starts at zero stock.
     await page.goto('/inventory/catalog');
@@ -27,7 +27,7 @@ test.describe('Sales Module', () => {
     await page.getByRole('button', { name: /^Add Product$/i }).last().click();
 
     // Selling Price / Reorder Level were left blank, so the app warns before
-    // saving ("Missing details ... Continue anyway?") — confirm through it.
+    // saving ("Missing details ... Continue anyway?"); confirm through it.
     await page.getByRole('button', { name: /Continue Anyway/i }).click();
     await expect(page.getByText('Add New Product', { exact: true })).not.toBeVisible();
 

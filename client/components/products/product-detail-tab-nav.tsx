@@ -1,6 +1,6 @@
 import { TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-/** Tab nav only — pairs with sibling <TabsContent> panels owned by the parent, which switches page content on selection. */
+/** Tab nav only; pairs with sibling <TabsContent> panels owned by the parent, which switches page content on selection. */
 export function ProductDetailTabNav() {
   return (
     <TabsList className="w-full flex justify-between bg-transparent border-none !shadow-none p-0 h-auto space-x-2">

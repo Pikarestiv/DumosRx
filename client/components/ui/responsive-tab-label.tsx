@@ -1,4 +1,4 @@
-/** Short label below md, full label at md+ — the "abbreviate on mobile" pattern used across tab bars. */
+/** Short label below md, full label at md+: the "abbreviate on mobile" pattern used across tab bars. */
 export function ResponsiveTabLabel({
   short,
   long,

@@ -14,7 +14,7 @@ class StorefrontController extends Controller
     #[OA\Get(
         path: '/storefront-slugs',
         summary: 'List every store slug with an active online store',
-        description: 'Used at build time by the static-export storefront site (web/) to enumerate which `[store_slug]` pages to pre-render — a static export cannot render arbitrary dynamic routes at request time, so any slug missing from this list 404s in production regardless of whether the store itself exists.',
+        description: 'Used at build time by the static-export storefront site (web/) to enumerate which `[store_slug]` pages to pre-render. A static export cannot render arbitrary dynamic routes at request time, so any slug missing from this list 404s in production regardless of whether the store itself exists.',
         tags: ['Storefront'],
         responses: [
             new OA\Response(response: 200, description: 'Slugs', content: new OA\JsonContent(properties: [
@@ -83,7 +83,7 @@ class StorefrontController extends Controller
     #[OA\Post(
         path: '/storefront/{store_slug}/checkout',
         summary: 'Place a public storefront order',
-        description: 'For `payment_method: paystack`, `paystack_reference` is verified server-side against the Paystack API (status must be successful and the paid amount must cover the order total) before the order is marked paid — a fabricated or under-paying reference is rejected with a 422.',
+        description: 'For `payment_method: paystack`, `paystack_reference` is verified server-side against the Paystack API (status must be successful and the paid amount must cover the order total) before the order is marked paid. A fabricated or under-paying reference is rejected with a 422.',
         tags: ['Storefront'],
         parameters: [new OA\Parameter(name: 'store_slug', in: 'path', required: true, schema: new OA\Schema(type: 'string'))],
         requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
@@ -139,7 +139,7 @@ class StorefrontController extends Controller
         $orderItems = [];
 
         foreach ($validated['items'] as $item) {
-            // Scoped to this store's own catalog — a product ID belonging to
+            // Scoped to this store's own catalog. A product ID belonging to
             // a different store must not be purchasable through this store's
             // checkout.
             $product = Product::where('user_id', $store->user_id)->findOrFail($item['product_id']);

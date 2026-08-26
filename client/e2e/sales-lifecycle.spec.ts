@@ -8,7 +8,7 @@ import { test, expect, login } from './fixtures';
  *
  * Stock is added via Inventory -> Cycle Count rather than Procurement,
  * because Procurement is gated behind a paid subscription tier (Starter and
- * above) — a fresh free-tier store like this test's seeded fixture can't
+ * above); a fresh free-tier store like this test's seeded fixture can't
  * reach it. Cycle Count isn't tier-gated and is the other real path to
  * getting stock into the system. */
 test.describe('Sales Lifecycle (realistic data)', () => {
@@ -25,7 +25,7 @@ test.describe('Sales Lifecycle (realistic data)', () => {
     await dialog.getByRole('textbox').first().fill(productName);
 
     // Selling Price and Reorder Level fields (labeled, not placeholder-matched
-    // reliably across breakpoints — locate by nearby label text).
+    // reliably across breakpoints; locate by nearby label text).
     await page.getByLabel(/Selling Price/i).first().fill('1500');
     await page.getByLabel(/Reorder Level/i).first().fill('10');
     await page.getByRole('button', { name: /^Add Product$/i }).last().click();

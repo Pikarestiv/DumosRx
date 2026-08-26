@@ -49,7 +49,7 @@ export function ProductPricingInfo({
         <div>
           <p className="text-sm text-muted-foreground">Profit Margin</p>
           <p className="font-bold text-lg text-primary">
-            {profitMargin !== null ? `${profitMargin}%` : "—"}
+            {profitMargin !== null ? `${profitMargin}%` : "-"}
           </p>
           <p className="text-xs text-muted-foreground">Based on avg. cost</p>
         </div>
@@ -58,7 +58,7 @@ export function ProductPricingInfo({
           <p className="font-bold text-lg text-primary">
             {product.costPrice > 0
               ? formatPrice(product.sellingPrice - product.costPrice)
-              : "—"}
+              : "-"}
           </p>
         </div>
       </CardContent>

@@ -8,7 +8,7 @@ use Symfony\Component\HttpFoundation\Response;
 
 /**
  * Gates the generated Swagger/OpenAPI docs (UI + raw JSON) behind a simple
- * shared HTTP Basic Auth credential. This is internal documentation only —
+ * shared HTTP Basic Auth credential. This is internal documentation only:
  * it describes implementation details and, in places, known vulnerabilities
  * in unfixed routes, so it must not be reachable by regular customer
  * accounts or the public, independent of the main app's user auth.

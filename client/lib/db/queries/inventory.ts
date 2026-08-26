@@ -276,7 +276,7 @@ export interface StockAuditSubmission {
 /** Persists a completed cycle count: for each product whose counted quantity
  * and/or counted cost/selling price differs from what's on record, records a
  * reconciled stock_audits entry capturing every deviation. Quantity
- * differences are applied to stock_batches (FEFO — soonest-expiring batch
+ * differences are applied to stock_batches (FEFO: soonest-expiring batch
  * first, same convention as sale consumption/returns) with a matching
  * stock_movements("adjustment") entry; a corrected cost price is applied to
  * the product's active batches (cost is a per-batch acquisition cost, but an
@@ -322,7 +322,7 @@ export async function submitStockAudit(
 
       if (costDiff !== 0 && item.countedCostPrice !== undefined) {
         // A cost-price audit correction is a master-data fix, not a new
-        // purchase at a new cost — apply it to every active batch of this
+        // purchase at a new cost; apply it to every active batch of this
         // product rather than trying to attribute it to one batch.
         const activeBatches = await getBatchesForProduct(item.productId);
         for (const batch of activeBatches) {
@@ -344,7 +344,7 @@ export async function submitStockAudit(
       const batches = await getBatchesForProduct(item.productId);
 
       if (diff > 0) {
-        // Found more stock than recorded — add it to the soonest-expiring
+        // Found more stock than recorded: add it to the soonest-expiring
         // active batch, or open a new one if the product has none.
         if (batches.length > 0) {
           await updateStockBatchQuantity(batches[0].id, remaining);
@@ -380,7 +380,7 @@ export async function submitStockAudit(
           });
         }
       } else {
-        // Found less stock than recorded — deduct FEFO across batches until
+        // Found less stock than recorded: deduct FEFO across batches until
         // the shortfall is accounted for or stock runs out.
         for (const batch of batches) {
           if (remaining <= 0) break;
@@ -407,7 +407,7 @@ export async function submitStockAudit(
 }
 
 export async function getFastMovers(days: number = 7) {
-  // Returned quantities/amounts are netted out of both periods below — a
+  // Returned quantities/amounts are netted out of both periods below: a
   // sale that was largely returned shouldn't still count as a "fast mover".
   const storeId = getActiveStoreId();
   const result = await query<FastMoverRow>(

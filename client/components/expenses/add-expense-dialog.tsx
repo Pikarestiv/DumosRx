@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { insert, update } from "@/lib/db/local-database";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/context/auth-context";
-import { Info } from "lucide-react";
 import { DatePickerInput } from "@/components/ui/date-picker-input";
 import type { Expense } from "@/lib/db/queries/finance";
 
@@ -295,7 +294,7 @@ export function AddExpenseDialog({
 
           {/* <div className="text-[11.5px] text-muted-foreground bg-primary/5 border border-primary/20 rounded-[10px] px-3.5 py-3 flex gap-2 items-start mt-2">
             <Info className="w-[15px] h-[15px] text-primary shrink-0 mt-0.5" />
-            Attach a receipt later from the expense detail view — file upload
+            Attach a receipt later from the expense detail view. File upload
             coming soon.
           </div> */}
         </div>

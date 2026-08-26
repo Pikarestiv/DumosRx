@@ -7,12 +7,12 @@ import { queryClient } from "../query-client";
 import type { SyncQueueItem } from "@/lib/types/sync";
 
 // Invalidates exactly the queries that could be affected by a mutation on
-// `table` — matched via each query's `meta.tables` (see lib/query-keys.ts),
+// `table`, matched via each query's `meta.tables` (see lib/query-keys.ts),
 // not queryKey prefix matching, since several queries (dashboard, BI,
 // daily-close) legitimately depend on more than one table and a prefix
 // match can only ever express one. A query with no `meta.tables` hasn't
-// been migrated to the factory yet, so it falls back to always invalidating
-// — that's the same broad behavior this replaced, just scoped down to the
+// been migrated to the factory yet, so it falls back to always invalidating.
+// That's the same broad behavior this replaced, just scoped down to the
 // queries that haven't opted into precise tagging yet, so adopting the
 // factory anywhere is strictly an improvement, never a regression.
 function invalidateQueriesForTable(table: string) {
@@ -65,7 +65,7 @@ export async function insert(
 
   await addToSyncQueue(table, id, "INSERT", record);
   // "feedback" holds background crash/error telemetry (see error-logger.ts),
-  // not a user action — logging it here would surface every silent crash
+  // not a user action; logging it here would surface every silent crash
   // report as a "Created feedback" entry in the Activity Log.
   if (table !== "feedback") {
     await logAction(options?.action || "INSERT", table, id, record);
@@ -141,7 +141,7 @@ export async function remove(
   options?: { action?: string },
 ): Promise<void> {
   // Fetched before the delete so the audit trail still has a record of what
-  // was destroyed — this is a hard, unrecoverable delete (unlike softDelete),
+  // was destroyed. This is a hard, unrecoverable delete (unlike softDelete),
   // so it's the one place where NOT capturing this would leave a real blind
   // spot in the audit log.
   const existing = await query<Record<string, unknown>>(
@@ -211,7 +211,7 @@ export async function recordSyncFailure(queueId: number, errorMessage: string): 
   const alreadyReported = item.last_error?.startsWith("[REPORTED]");
   const shouldReport = nextRetryCount >= SYNC_FAILURE_REPORT_THRESHOLD && !alreadyReported;
 
-  // Preserve the "[REPORTED]" marker once it's set — writing the bare
+  // Preserve the "[REPORTED]" marker once it's set: writing the bare
   // errorMessage here unconditionally used to clobber it on every later
   // call, so `alreadyReported` flipped back to false every other retry and
   // logCrash() fired again and again instead of exactly once.

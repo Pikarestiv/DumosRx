@@ -30,13 +30,13 @@ interface AuditLedgerStepProps {
   setSearch: (val: string) => void;
 }
 
-/** Dense, single-screen count flow — every item is visible and editable at
+/** Dense, single-screen count flow: every item is visible and editable at
  * once (qty, cost price, selling price), matching the QuickBooks POS /
  * Moniebook physical-inventory style Cynthia asked for. The category picker
- * is just a lens on this one continuous session, not a scope gate — every
+ * is just a lens on this one continuous session, not a scope gate: every
  * item is pre-filled and counted from the moment the screen opens, so
  * switching categories mid-count never loses anything already entered.
- * Div-based, ARIA roles standing in for real <table> semantics — see
+ * Div-based, ARIA roles standing in for real <table> semantics; see
  * stock-batch/supplier-table.tsx. */
 export function AuditLedgerStep({
   items,
@@ -217,7 +217,7 @@ export function AuditLedgerStep({
                     >
                       {item.costPrice !== undefined
                         ? formatCurrency(item.costPrice)
-                        : "—"}
+                        : "-"}
                     </div>
                     <div
                       role="cell"
@@ -248,7 +248,7 @@ export function AuditLedgerStep({
                     >
                       {item.costPrice !== undefined
                         ? formatDiffCurrency(diffCost)
-                        : "—"}
+                        : "-"}
                     </div>
                     <div
                       role="cell"
@@ -256,7 +256,7 @@ export function AuditLedgerStep({
                     >
                       {item.sellingPrice !== undefined
                         ? formatCurrency(item.sellingPrice)
-                        : "—"}
+                        : "-"}
                     </div>
                     <div
                       role="cell"
@@ -291,7 +291,7 @@ export function AuditLedgerStep({
                     >
                       {item.sellingPrice !== undefined
                         ? formatDiffCurrency(diffSelling)
-                        : "—"}
+                        : "-"}
                     </div>
                   </div>
                 );

@@ -7,7 +7,7 @@ vi.mock("idb-keyval", () => ({
 
 /**
  * Regression coverage for the query-key scoping fix in lib/query-keys.ts's
- * `resource()` — every key is suffixed with the active store id and current
+ * `resource()`. Every key is suffixed with the active store id and current
  * user id (lib/db/core.ts) precisely so a switch of store/user can never
  * resolve to a cache slot the previous store/user's queries already own.
  * This is the structural guarantee behind the "cross-account data spill"
@@ -49,7 +49,7 @@ describe("query key scoping (store + user)", () => {
   });
 
   it("simulates the race: a key captured before a switch can never collide with the post-switch key", () => {
-    // A dashboard fetch is issued under store A / user 1 — this is the key
+    // A dashboard fetch is issued under store A / user 1. This is the key
     // React Query would use to cache whatever that in-flight request
     // eventually resolves with, even if it resolves after the switch below.
     core.setActiveStoreId("store-a");

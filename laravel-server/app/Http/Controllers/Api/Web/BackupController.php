@@ -11,7 +11,7 @@ use OpenApi\Attributes as OA;
 class BackupController extends Controller
 {
     /**
-     * The tenant-owning user's ID — matches the scoping convention used
+     * The tenant-owning user's ID; matches the scoping convention used
      * throughout SyncController: staff (store_id set) resolve to their
      * store's owner, store owners resolve to themselves.
      */
@@ -26,7 +26,7 @@ class BackupController extends Controller
     #[OA\Post(
         path: '/backups/upload',
         summary: 'Upload a manual data backup file',
-        description: 'Stored under a per-tenant directory (`backups/{owner_id}/`) — not visible to other stores.',
+        description: 'Stored under a per-tenant directory (`backups/{owner_id}/`), not visible to other stores.',
         tags: ['Backups'],
         security: [['sanctum' => []]],
         requestBody: new OA\RequestBody(required: true, content: new OA\MediaType(mediaType: 'multipart/form-data', schema: new OA\Schema(
@@ -72,7 +72,7 @@ class BackupController extends Controller
     #[OA\Get(
         path: '/backups/{backup}/download',
         summary: 'Download one of the caller\'s own backup files',
-        description: 'The filename is resolved only within the caller\'s own `backups/{owner_id}/` directory — a filename from another store\'s backups cannot be downloaded regardless of whether it\'s guessed correctly.',
+        description: 'The filename is resolved only within the caller\'s own `backups/{owner_id}/` directory; a filename from another store\'s backups cannot be downloaded regardless of whether it\'s guessed correctly.',
         tags: ['Backups'],
         security: [['sanctum' => []]],
         parameters: [new OA\Parameter(name: 'backup', in: 'path', required: true, schema: new OA\Schema(type: 'string'))],

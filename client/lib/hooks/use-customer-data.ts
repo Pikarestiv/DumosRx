@@ -154,7 +154,7 @@ export function useCustomerData() {
       };
 
       // insert()'s global cache invalidation refreshes the `customers`
-      // query in the background — no need to hand-splice the new row into
+      // query in the background, so no need to hand-splice the new row into
       // local state, we just return it for the caller's immediate use.
       await insert("customers", customerData);
 

@@ -15,7 +15,7 @@ const CATEGORIES = [
   "Other",
 ];
 
-/** All business logic for the Expenses page — data, search/category filtering, and derived stats. */
+/** All business logic for the Expenses page: data, search/category filtering, and derived stats. */
 export function useExpensesPage() {
   const { expenses, isLoading, refetch: fetchExpenses } = useExpenseList();
   const { storeProfile } = useStore();
@@ -47,7 +47,7 @@ export function useExpensesPage() {
   }, [expenses, searchTerm, selectedCategory]);
 
   // Lifetime total: a real ledger figure (how much cash has actually been
-  // recorded as spent, ever), deliberately NOT smoothed — smoothing only
+  // recorded as spent, ever), deliberately NOT smoothed: smoothing only
   // makes sense when attributing an expense to a specific period.
   const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
 
@@ -83,7 +83,7 @@ export function useExpensesPage() {
       ? Object.keys(categoryTotals).reduce((a, b) =>
           categoryTotals[a] > categoryTotals[b] ? a : b,
         )
-      : "—";
+      : "N/A";
 
   const selectedExpense =
     expenses.find((e) => e.id === selectedExpenseId) || null;

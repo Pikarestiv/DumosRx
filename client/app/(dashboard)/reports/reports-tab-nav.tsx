@@ -8,7 +8,7 @@ interface ReportsTabNavProps {
 const tabTriggerClass =
   "h-10 px-5 rounded-lg text-[13px] font-semibold gap-1.5 whitespace-nowrap shrink-0 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent shadow-none";
 
-/** Tab nav only — pairs with sibling <TabsContent> panels owned by the parent, which switches page content on selection. */
+/** Tab nav only. Pairs with sibling <TabsContent> panels owned by the parent, which switches page content on selection. */
 export function ReportsTabNav({ isAdmin }: ReportsTabNavProps) {
   return (
     <TabsList className="w-full md:w-max inline-flex gap-1 bg-background border rounded-[11px] p-1 h-auto overflow-x-auto">

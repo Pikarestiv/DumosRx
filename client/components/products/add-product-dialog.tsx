@@ -21,7 +21,7 @@ interface AddProductDialogProps {
   onAddProduct: (product: NewProductPayload, keepOpen?: boolean) => void;
   editingProduct?: Product | null;
   initialData?: Partial<Product>;
-  /** Hide "Save & Add Another" — for flows (e.g. quick-adding a product from
+  /** Hide "Save & Add Another", for flows (e.g. quick-adding a product from
    * a purchase order) where the user just wants to create one product and
    * get back to what they were doing. */
   hideAddAnother?: boolean;

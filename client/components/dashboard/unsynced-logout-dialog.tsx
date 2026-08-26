@@ -9,7 +9,7 @@ interface UnsyncedLogoutDialogProps {
   onConfirm: () => void;
 }
 
-// Paired with useAccountActions — shown when a full logout is attempted
+// Paired with useAccountActions. Shown when a full logout is attempted
 // while offline changes are still queued for sync.
 export function UnsyncedLogoutDialog({
   open,

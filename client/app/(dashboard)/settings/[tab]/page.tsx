@@ -5,6 +5,7 @@ export function generateStaticParams() {
   return [
     { tab: "general" },
     { tab: "appearance" },
+    { tab: "account" },
     { tab: "store" },
     { tab: "alerts" },
     { tab: "notifications" },
@@ -13,6 +14,7 @@ export function generateStaticParams() {
     { tab: "staff" },
     { tab: "system" },
     { tab: "cloud" },
+    { tab: "billing" },
   ];
 }
 

@@ -41,7 +41,7 @@ interface POMobileCreateViewProps {
   handleSubmit: () => void;
 }
 
-/** Mobile full-screen takeover for creating a purchase order — same
+/** Mobile full-screen takeover for creating a purchase order. Same
  * interaction model as POS: fixed header, scrollable form, and a floating
  * summary/save drawer instead of an always-visible footer. */
 export function POMobileCreateView(props: POMobileCreateViewProps) {

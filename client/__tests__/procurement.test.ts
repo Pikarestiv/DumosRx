@@ -8,12 +8,12 @@ vi.mock("idb-keyval", () => ({
 
 /**
  * Exercises getSuppliers()/getPurchaseOrders() against a genuine in-memory
- * SQLite engine (sql.js) built from the app's real schema — not a mocked
- * query() — so these tests actually prove the SQL's join/aggregation math is
+ * SQLite engine (sql.js) built from the app's real schema, not a mocked
+ * query(), so these tests actually prove the SQL's join/aggregation math is
  * correct. This is a regression test for the bug where the Vendors &
  * Suppliers table showed "0" for every supplier's Orders/Total Value: those
  * fields were hardcoded client-side rather than derived from any query, so a
- * test that only asserted "query() was called" would never have caught it —
+ * test that only asserted "query() was called" would never have caught it;
  * only asserting on the actual returned numbers does.
  */
 describe("procurement.ts", () => {
@@ -88,7 +88,7 @@ describe("procurement.ts", () => {
       const { data } = await getSuppliers();
 
       expect(data).toHaveLength(1);
-      // Orders/value must count BOTH orders (100k + 50k), not just the unpaid one —
+      // Orders/value must count BOTH orders (100k + 50k), not just the unpaid one:
       // this is the exact aggregate that was hardcoded to 0 before the fix.
       expect(data[0].total_orders).toBe(2);
       expect(data[0].total_value).toBe(150000);

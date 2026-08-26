@@ -38,7 +38,7 @@ export function ProductBasicInfo({ product, creator, formatDate }: ProductBasicI
         <div>
           <p className="text-sm text-muted-foreground">Created By</p>
           <p className="font-medium">
-            {creator?.user_name?.trim() || "—"}
+            {creator?.user_name?.trim() || "-"}
             {creator?.created_at && (
               <span className="block text-xs text-muted-foreground font-normal mt-0.5">
                 {formatDate(creator.created_at)}

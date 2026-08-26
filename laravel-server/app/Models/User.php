@@ -186,7 +186,7 @@ class User extends Authenticatable
                 $user->referral_code = self::generateUniqueReferralCode();
             }
 
-            // Platform-level referral code — separate program from the customer
+            // Platform-level referral code, separate program from the customer
             // one above. Every super_admin/platform_admin/agent gets one so
             // stores they onboard (in person via "Register Store", or self-serve
             // via their link) can be attributed to them.
@@ -236,7 +236,7 @@ class User extends Authenticatable
     }
 
     /** The platform staff member (super_admin/platform_admin/agent) who
-     * registered this account — either directly via the admin "Register
+     * registered this account, either directly via the admin "Register
      * Store" tool, or via this user signing up themselves using that
      * platform user's referral link. */
     public function registeredBy()

@@ -92,8 +92,8 @@ export function StockBatchInsightsTab({
                   <p className="text-[12px] text-red-700 mt-0.5">
                     {alert.issue}
                     {alert.quantity !== undefined &&
-                      ` — ${alert.quantity} ${alert.unit || "unit"}(s) in stock (min: ${alert.threshold} ${alert.unit || "unit"}(s))`}
-                    {alert.daysLeft !== undefined && ` — ${alert.daysLeft} day${alert.daysLeft !== 1 ? "s" : ""} left`}
+                      `: ${alert.quantity} ${alert.unit || "unit"}(s) in stock (min: ${alert.threshold} ${alert.unit || "unit"}(s))`}
+                    {alert.daysLeft !== undefined && `: ${alert.daysLeft} day${alert.daysLeft !== 1 ? "s" : ""} left`}
                   </p>
                 </div>
                 <div className={`shrink-0 text-[10px] uppercase font-bold px-2 py-1 rounded-md ${getSeverityVariant(alert.severity)}`}>

@@ -1,12 +1,12 @@
 /**
- * Demo data template — declarative description of what a "Seed Demo Data"
+ * Demo data template: declarative description of what a "Seed Demo Data"
  * run creates for a store flagged `is_demo`.
  *
  * Modeled on the real test@dumosrx.com demo account (see
  * refs/dumomvte_dumosrx_db.sql), but kept as data (not a frozen SQL dump) so
  * it's replayed through the app's real create functions in lib/demo/loader.ts.
  * When a schema/field changes, fix it once in the loader/create-functions and
- * this template keeps working — that's the whole point of not just
+ * this template keeps working, which is the whole point of not just
  * replaying the dump.
  *
  * All dates are expressed as day offsets from "now" (the moment the seed
@@ -40,7 +40,7 @@ export const DEMO_SUPPLIER = {
 };
 
 export interface DemoProduct {
-  /** Stable key used to cross-reference this product from POs/sales below — not persisted. */
+  /** Stable key used to cross-reference this product from POs/sales below; not persisted. */
   ref: string;
   name: string;
   category: (typeof DEMO_CATEGORIES)[number];
@@ -56,7 +56,7 @@ export interface DemoProduct {
   units_per_bulk: number;
   requires_prescription?: 0 | 1;
   is_controlled?: 0 | 1;
-  /** Cost per base unit when first stocked — drives the receiving batch's cost_price. */
+  /** Cost per base unit when first stocked; drives the receiving batch's cost_price. */
   cost_price: number;
 }
 
@@ -291,7 +291,7 @@ export const DEMO_PRODUCTS: DemoProduct[] = [
   },
 ];
 
-/** One row per product in the fully-received seed PO — the batch/expiry
+/** One row per product in the fully-received seed PO: the batch/expiry
  * spread deliberately covers every expiry-alert state, including one
  * already-expired batch (Gaviscon) kept on purpose so expiry alerts/
  * notifications have something to show immediately after seeding. */

@@ -34,6 +34,10 @@ jobs:
           # Dev API URL
           NEXT_PUBLIC_API_URL: https://api.dev.dumosrx.com/api/v1
           NEXT_PUBLIC_APP_ENV: "development"
+          # This site's own origin and the dashboard app it hands off to
+          NEXT_PUBLIC_WEB_APP_URL: https://dev.dumosrx.com
+          NEXT_PUBLIC_APP_URL: https://app.dev.dumosrx.com
+          NEXT_PUBLIC_WEB_APP_DASHBOARD_URL: https://app.dev.dumosrx.com/dashboard
           # Ignore SSL errors during build (since new subdomains might still be provisioning AutoSSL)
           NODE_TLS_REJECT_UNAUTHORIZED: "0"
 
@@ -78,6 +82,7 @@ jobs:
           npm run build
         env:
           NEXT_PUBLIC_API_URL: https://api.dev.dumosrx.com/api/v1
+          NEXT_PUBLIC_WEB_APP_URL: https://dev.dumosrx.com
           NEXT_PUBLIC_SENTRY_DSN: https://8be353a77abf446cb9f6a52e08fb89b3@o4511910923796480.ingest.us.sentry.io/4511910931464192
           NEXT_PUBLIC_SENTRY_ENVIRONMENT: development
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}

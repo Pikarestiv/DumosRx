@@ -16,7 +16,7 @@ vi.mock("@/lib/api/client", () => ({
  * Regression test for a real incident: pull.ts's store-reconciliation step
  * (which soft-deletes local stores the server no longer recognizes) once
  * pruned a store that still had every one of a device's real products/sales
- * attributed to it — silently making all of it invisible. This test proves,
+ * attributed to it, silently making all of it invisible. This test proves,
  * against a genuine in-memory SQLite engine (not a mocked execute() call),
  * that a store with real business data attached can never be pruned by this
  * step, regardless of what the server's stores response says.
@@ -41,7 +41,7 @@ describe("pull.ts store-reconciliation safety guard", () => {
     db = new SQL.Database();
     db.run(SCHEMA_SQL);
     // store_id is added via core.ts's runtime ALTER TABLE migration, not the
-    // base CREATE TABLE statements in SCHEMA_SQL — replicate it here since
+    // base CREATE TABLE statements in SCHEMA_SQL. Replicate it here since
     // __setDatabaseForTesting bypasses initDatabase()'s migration loop.
     db.run(`ALTER TABLE products ADD COLUMN store_id TEXT;`);
     db.run(`ALTER TABLE sales ADD COLUMN store_id TEXT;`);

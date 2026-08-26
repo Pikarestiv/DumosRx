@@ -86,7 +86,7 @@ export function ReportPdfDocument({
         <Text style={styles.storeName}>{storeName}</Text>
         <Text style={styles.title}>{title}</Text>
         <Text style={styles.subtitle}>
-          {subtitle ? `${subtitle} — ` : ""}Generated {generatedAt}
+          {subtitle ? `${subtitle}, ` : ""}Generated {generatedAt}
         </Text>
 
         <View style={styles.table}>

@@ -196,6 +196,26 @@ class WebApiClient {
     return data;
   }
 
+  async createHandoffCode(token: string) {
+    // The request body's `token` is the sole credential here. The endpoint
+    // does not read the Authorization header at all (see AuthHandoffController),
+    // and base-client's request interceptor would overwrite any per-call
+    // Authorization header from localStorage anyway.
+    const { data } = await apiClient.post<{ code: string; expires_in: number }>(
+      "/auth/handoff",
+      { token },
+    );
+    return data;
+  }
+
+  async consumeHandoffCode(code: string) {
+    const { data } = await apiClient.post<{
+      token: string;
+      user: Record<string, unknown>;
+    }>("/auth/handoff/consume", { code });
+    return data;
+  }
+
   // Feedback (Admin)
   async getFeedback(status?: string) {
     const url = status && status !== 'all' ? `/admin/feedback?status=${status}` : `/admin/feedback`;

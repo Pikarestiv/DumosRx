@@ -95,8 +95,8 @@ export function useSettings() {
         if (internalTab === "cloud" && !isCloudLinked) {
           syncState.setIsCloudLinkOpen(true);
         }
-      } else if (["appearance", "store", "notifications", "security", "staff", "system"].includes(internalTab)) {
-        if (!isAdmin && ["store", "data", "staff", "system", "cloud"].includes(internalTab)) {
+      } else if (["appearance", "account", "store", "notifications", "security", "staff", "system", "billing"].includes(internalTab)) {
+        if (!isAdmin && ["account", "store", "data", "staff", "system", "cloud", "billing"].includes(internalTab)) {
           setActiveTab("appearance");
           return;
         }
@@ -172,8 +172,8 @@ export function useSettings() {
       receipt_footer: localReceiptFooter,
       show_logo_on_receipt: showLogo ? 1 : 0,
       show_contact_on_receipt: showContact ? 1 : 0,
-      // Only plans with canRemoveBranding may actually persist this as hidden —
-      // enforced here (not just in the UI) so a stale/tampered local value can't sneak past the gate.
+      // Only plans with canRemoveBranding may actually persist this as hidden.
+      // Enforced here (not just in the UI) so a stale/tampered local value can't sneak past the gate.
       hide_powered_by: hidePoweredBy && canRemoveBranding ? 1 : 0,
     });
     toast.success("Receipt settings updated");

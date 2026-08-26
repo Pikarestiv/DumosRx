@@ -14,6 +14,8 @@ import { DataSettings } from "@/components/settings/data-settings";
 import { DemoDataSettings } from "@/components/settings/demo-data-settings";
 import { SecuritySettings } from "@/components/settings/security-settings";
 import { SystemSettings } from "@/components/settings/system-settings";
+import { BillingSettings } from "@/components/settings/billing/billing-settings";
+import { AccountSettings } from "@/components/settings/account/account-settings";
 import { useSettings } from "@/hooks/use-settings";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
@@ -145,7 +147,7 @@ export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
         >
           {/*
             The aside/TabsList live inside the page's own scrollable
-            container (not behind a fixed header — the dashboard header is a
+            container (not behind a fixed header: the dashboard header is a
             normal sibling above it), so sticking to `top: 0` (plus a small
             gap on desktop to match the page's own top padding) is enough;
             no header-height offset needed.
@@ -172,6 +174,12 @@ export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
                 isAdmin={isAdmin}
               />
             </TabsContent>
+
+            {isAdmin && (
+              <TabsContent value="account">
+                <AccountSettings />
+              </TabsContent>
+            )}
 
             {isAdmin && (
               <TabsContent value="store">
@@ -276,6 +284,12 @@ export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
             {isAdmin && (
               <TabsContent value="system">
                 <SystemSettings />
+              </TabsContent>
+            )}
+
+            {isAdmin && (
+              <TabsContent value="billing">
+                <BillingSettings />
               </TabsContent>
             )}
           </div>

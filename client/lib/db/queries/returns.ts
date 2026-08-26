@@ -25,7 +25,7 @@ async function restoreBatchQuantity(
   }
 
   // unit_cost/total_cost record the stock's cost basis, matching how sale
-  // and purchase-order movements populate these fields — using the sale's
+  // and purchase-order movements populate these fields: using the sale's
   // selling price here (as this used to) mixed cost and revenue figures
   // under the same field, showing e.g. a refund's revenue value right next
   // to a sale's cost-of-goods value on the dashboard activity feed.

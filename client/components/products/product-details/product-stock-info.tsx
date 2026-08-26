@@ -3,7 +3,7 @@ import { Separator } from "@/components/ui/separator";
 import { AlertTriangle, Calendar, ClipboardCheck } from "lucide-react";
 import type { Product } from "./use-product-details";
 
-// Cycle counts older than this are treated as stale — flagged so staff know
+// Cycle counts older than this are treated as stale, flagged so staff know
 // to prioritize this product next time they run a count.
 const STALE_AUDIT_DAYS = 90;
 
@@ -161,7 +161,7 @@ export function ProductStockInfo({
             </p>
             <p className="text-xs text-orange-600">
               {product.lastAuditedAt
-                ? `Last physically counted ${daysSinceAudit} days ago — consider a cycle count.`
+                ? `Last physically counted ${daysSinceAudit} days ago, consider a cycle count.`
                 : "This product has never been through a cycle count."}
             </p>
           </div>

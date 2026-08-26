@@ -4,7 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
-// stores.logo_url was added as the default `string()` VARCHAR(255) — nowhere
+// stores.logo_url was added as the default `string()` VARCHAR(255), nowhere
 // near enough for the base64 data URI the client actually stores there (up
 // to ~1.4MB for a 1MB upload). Every real logo save would have failed or
 // truncated silently at the DB layer even once it reached here. doctrine/dbal

@@ -1,4 +1,4 @@
-/** Row shape returned by getProductHistory()'s auditLogs query — the raw
+/** Row shape returned by getProductHistory()'s auditLogs query: the raw
  * `audit_logs` table joined with the acting user's display name. */
 export interface AuditLogRow {
   id: string;

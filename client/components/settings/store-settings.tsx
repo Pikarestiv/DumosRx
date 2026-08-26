@@ -9,6 +9,7 @@ import { ReceiptCustomizationCard } from "./store/receipt-customization-card";
 import { PaymentSettingsCard } from "./store/payment-settings-card";
 import { PaymentAccountsCard } from "./store/payment-accounts-card";
 import { MultiStoreCard } from "./store/multi-store-card";
+import { FleetOverview } from "./store/fleet-overview";
 
 interface StoreSettingsProps {
   storeType: StoreType;
@@ -155,6 +156,8 @@ export function StoreSettings({
       />
 
       <PaymentAccountsCard />
+
+      <FleetOverview />
 
       <MultiStoreCard />
     </div>

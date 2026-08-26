@@ -4,7 +4,7 @@ test.describe('Products Module', () => {
   test('should log in and navigate to products page', async ({ page }) => {
     await login(page);
 
-    // Navigate to products via sidebar — /inventory redirects to /inventory/overview,
+    // Navigate to products via sidebar: /inventory redirects to /inventory/overview,
     // so go to the Catalog tab directly (a click-through would pass the mouse near
     // the collapsed sidebar's hover-peek strip and risk intercepting the tab click).
     await page.locator('a[href="/inventory"]').first().click();
@@ -33,7 +33,7 @@ test.describe('Products Module', () => {
 
     await page.getByRole('button', { name: /Add Product/i }).click();
     await expect(page.getByText('Add New Product', { exact: true })).toBeVisible();
-    // Confirm the primary action button is visible without needing to scroll —
+    // Confirm the primary action button is visible without needing to scroll:
     // regression check for the ResponsiveModal clipping bug fixed this session.
     await expect(page.getByRole('button', { name: /^Add Product$/i }).last()).toBeVisible();
 

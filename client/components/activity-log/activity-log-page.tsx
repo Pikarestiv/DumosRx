@@ -26,7 +26,7 @@ const GRID_COLS = "grid-cols-[1fr_180px_190px]";
 
 // When searching, fetch a large unpaginated batch matching the other filters
 // so fuzzy search has the full set to search across, not just the current
-// page — capped rather than truly unbounded so a very old/busy store can't
+// page. Capped rather than truly unbounded so a very old/busy store can't
 // pull its entire history into memory at once.
 const SEARCH_FETCH_CAP = 2000;
 
@@ -194,7 +194,7 @@ export function ActivityLogPage() {
           </div>
         </div>
 
-        {/* Div-based table — ARIA roles stand in for real <table> semantics */}
+        {/* Div-based table; ARIA roles stand in for real <table> semantics */}
         <div
           role="table"
           aria-label="Activity log"
@@ -262,7 +262,7 @@ export function ActivityLogPage() {
                   >
                     {row.created_at
                       ? format(new Date(row.created_at), "d MMM yyyy, h:mm a")
-                      : "—"}
+                      : "N/A"}
                   </div>
                 </div>
               ))}

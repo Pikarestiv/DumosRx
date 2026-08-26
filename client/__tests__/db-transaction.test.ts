@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, vi } from "vitest";
 import initSqlJs from "sql.js";
 
-// transaction() persists via idb-keyval when not running in Tauri — stub it
+// transaction() persists via idb-keyval when not running in Tauri; stub it
 // out since jsdom has no real IndexedDB and we only care about the SQL
 // transaction semantics here, not persistence.
 vi.mock("idb-keyval", () => ({
@@ -11,8 +11,8 @@ vi.mock("idb-keyval", () => ({
 
 /**
  * Exercises the real transaction()/query()/execute() implementation in
- * lib/db/core.ts against a genuine in-memory SQLite engine (sql.js) — not a
- * mock — so these tests actually prove BEGIN/COMMIT/ROLLBACK behave
+ * lib/db/core.ts against a genuine in-memory SQLite engine (sql.js), not a
+ * mock, so these tests actually prove BEGIN/COMMIT/ROLLBACK behave
  * correctly, which is exactly what mocking query()/execute() elsewhere in
  * the suite can't tell us.
  */

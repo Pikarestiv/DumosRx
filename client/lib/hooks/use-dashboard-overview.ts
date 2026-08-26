@@ -12,7 +12,7 @@ export type SalesComparison =
   | { state: "none" }
   | { state: "up" | "down"; percent: number };
 
-/** All business logic for the Dashboard home page — stats, recent activity feed, and the sales-vs-yesterday comparison. */
+/** All business logic for the Dashboard home page: stats, recent activity feed, and the sales-vs-yesterday comparison. */
 export function useDashboardOverview() {
   const { t, storeProfile } = useStore();
   const { user } = useAuth();
@@ -107,7 +107,7 @@ export function useDashboardOverview() {
       id: activity.id,
       type: activity.activity_type,
       // Distinguishes a prescription-dispensed sale from a walk-in sale for
-      // icon/color purposes only — `type` stays "sale" so the transaction
+      // icon/color purposes only; `type` stays "sale" so the transaction
       // details dialog click-handler (keyed on type === "sale") still works.
       displayType:
         activity.activity_type === "sale" && activity.prescription_id

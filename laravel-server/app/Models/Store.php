@@ -79,8 +79,25 @@ class Store extends Model
         return $this->belongsTo(User::class);
     }
 
+    /** Scoped by sales.store_id (populated by the client's sync engine on
+     * every push, and by SyncController::pull's own scoping; see its
+     * 'sales' => $query->whereIn('store_id', $storeIds) case), NOT by
+     * reconstructing store membership through cashier_id/users.store_id.
+     * That reconstruction misses a store owner's own sales entirely,
+     * since an owner's own User row never gets store_id set to their own
+     * store (only hired staff do; see StaffController::store). A store
+     * owner ringing up their own sales showed zero revenue through the
+     * old version of this relation.
+     *
+     * Caveat: sales synced before the store_id column existed
+     * (2026-08-14, see add_store_id_to_domain_tables migration) may still
+     * have store_id null on rows that haven't been touched since. Admin
+     * reporting that needs to be correct across that boundary (see
+     * AdminService::getStores()) falls back to the legacy cashier-based
+     * match for those rows rather than relying on this relation alone.
+     */
     public function sales()
     {
-        return $this->hasManyThrough(Sale::class, User::class, 'store_id', 'cashier_id');
+        return $this->hasMany(Sale::class);
     }
 }

@@ -10,7 +10,7 @@ import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
 interface ResponsiveDetailPanelProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Optional — every consumer's body already renders its own header/close row. */
+  /** Optional; every consumer's body already renders its own header/close row. */
   title?: React.ReactNode;
   children: React.ReactNode;
   className?: string;

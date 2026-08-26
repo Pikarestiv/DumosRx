@@ -3,7 +3,7 @@
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { WEB_APP_URL } from "@/lib/constants";
+import Link from "next/link";
 
 interface LockedModuleOverlayProps {
   featureName: string;
@@ -39,17 +39,11 @@ export function LockedModuleOverlay({ featureName, featureKey }: LockedModuleOve
             The <span className="font-semibold text-foreground">{featureName}</span> module is locked. {getUpgradeMessage(featureKey, "Upgrade now to keep your store organized.")}
           </p>
         </div>
-        <Button 
-          className="w-full bg-primary hover:bg-primary/95 text-primary-foreground font-bold shadow-lg shadow-primary/20 h-11" 
+        <Button
+          className="w-full bg-primary hover:bg-primary/95 text-primary-foreground font-bold shadow-lg shadow-primary/20 h-11"
           asChild
         >
-          <a
-            href={`${WEB_APP_URL}/dashboard/billing`}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Upgrade Plan
-          </a>
+          <Link href="/settings/billing">Upgrade Plan</Link>
         </Button>
       </div>
     </div>

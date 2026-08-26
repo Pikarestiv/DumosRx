@@ -14,7 +14,7 @@ interface UsePOSReturnDeepLinkProps {
 
 /**
  * Deep-link from the prescription detail panel's "Process Return" action
- * (?return_sale=<id>) — jumps straight into the return dialog for that sale
+ * (?return_sale=<id>): jumps straight into the return dialog for that sale
  * instead of making the cashier hunt for it in the history tab.
  */
 export function usePOSReturnDeepLink({

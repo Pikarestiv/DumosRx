@@ -167,7 +167,7 @@ export function PrescriptionDetailPanel({
         </span>
       </div>
 
-      {/* Actions Row — fixed, doesn't scroll away with the content below */}
+      {/* Actions Row: fixed, doesn't scroll away with the content below */}
       {renderActions() && (
         <div className="shrink-0 flex flex-wrap gap-2 items-center justify-end p-4 lg:p-3 bg-accent/20 border-b border-accent">
           {renderActions()}

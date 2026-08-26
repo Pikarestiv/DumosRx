@@ -50,7 +50,7 @@ export function useSettingsSync(
           toast.success(`Backup saved to ${result.path}`);
         }
         // result.success === false with no error means the user just closed
-        // the save dialog without picking a destination — nothing to report.
+        // the save dialog without picking a destination; nothing to report.
       } catch (err) {
         console.error("Failed to back up database:", err);
         toast.error("Failed to export database");
@@ -64,7 +64,7 @@ export function useSettingsSync(
       return;
     }
     // TS's DOM lib expects ArrayBufferView<ArrayBuffer>, but sql.js's Uint8Array
-    // is typed against the wider ArrayBufferLike — functionally a valid BlobPart.
+    // is typed against the wider ArrayBufferLike (functionally a valid BlobPart).
     const blob = new Blob([binary as BlobPart], { type: "application/x-sqlite3" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -88,7 +88,7 @@ export function useSettingsSync(
         setTimeout(() => window.location.reload(), 1500);
       }
       // result.success === false with no error means the user cancelled the
-      // open dialog — nothing to report.
+      // open dialog; nothing to report.
     } catch (err) {
       console.error("Failed to restore database:", err);
       toast.error("Failed to restore database. Invalid file?");

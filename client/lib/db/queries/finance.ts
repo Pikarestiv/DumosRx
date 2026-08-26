@@ -48,12 +48,12 @@ export async function getCurrentMonthExpensesByCategory() {
  * How much of a single expense counts toward a [windowStart, windowEnd)
  * period. A plain expense counts in full if its date falls in the window.
  * A "prepaid" expense (`covers_months` set) is never counted as a lump sum
- * in whichever single period it was logged — it's split into
+ * in whichever single period it was logged; it's split into
  * `covers_months` equal calendar-month installments starting from its own
  * date, and only the installments whose calendar month overlaps the window
  * are counted. A ₦270,000 rent payment logged in January with
  * covers_months=12 contributes ₦22,500 to January's total, ₦22,500 to
- * February's, and so on through December — never the full ₦270,000 to any
+ * February's, and so on through December; never the full ₦270,000 to any
  * single period. Pure/synchronous so it works equally on a DB row or an
  * already-loaded in-memory `Expense`, without a second query.
  */
@@ -108,7 +108,7 @@ export async function getSmoothedExpensesTotal({
     [from, to, ...scopeParams],
   );
 
-  // Fetched unconditionally by date, not windowed — a prepaid expense
+  // Fetched unconditionally by date, not windowed: a prepaid expense
   // logged well before this window can still have unrecognized months
   // falling inside it.
   const amortized = await query<{ amount: number; date: string; covers_months: number }>(

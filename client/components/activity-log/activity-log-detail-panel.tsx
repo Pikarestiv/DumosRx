@@ -9,7 +9,7 @@ interface ActivityLogDetailPanelProps {
 }
 
 // Internal/bookkeeping columns that aren't useful to show in the "what
-// changed" breakdown — every synced table carries these.
+// changed" breakdown; every synced table carries these.
 const HIDDEN_KEYS = new Set([
   "id",
   "created_at",
@@ -19,6 +19,7 @@ const HIDDEN_KEYS = new Set([
   "_synced_at",
   "_deleted",
   "store_id",
+  "pin",
 ]);
 
 function humanizeKey(key: string) {
@@ -30,12 +31,12 @@ function humanizeKey(key: string) {
 }
 
 function formatValue(value: unknown): string {
-  if (value === null || value === undefined || value === "") return "—";
+  if (value === null || value === undefined || value === "") return "N/A";
   if (typeof value === "boolean") return value ? "Yes" : "No";
   return String(value);
 }
 
-/** Slide-in detail view for a single activity_log row — surfaces the raw
+/** Slide-in detail view for a single activity_log row. Surfaces the raw
  * `details` JSON payload (captured by logAction() for every insert/update/
  * delete) as a readable field list instead of leaving it invisible. Covers
  * every table generically (no per-table label map), since Activity Log spans
@@ -67,7 +68,7 @@ export function ActivityLogDetailPanel({ entry, onClose }: ActivityLogDetailPane
             {describeActivity(entry)}
           </h3>
           <p className="text-[13px] text-muted-foreground font-medium truncate">
-            {entry.table_name || "—"}
+            {entry.table_name || "N/A"}
             {entry.created_at && (
               <> · {format(new Date(entry.created_at), "d MMM yyyy, h:mm a")}</>
             )}

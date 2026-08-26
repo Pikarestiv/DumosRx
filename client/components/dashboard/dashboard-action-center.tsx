@@ -8,6 +8,8 @@ import { useQuery } from "@tanstack/react-query";
 import { getStaffCount } from "@/lib/db/queries/auth";
 import { getSyncQueueCount } from "@/lib/db/queries/setup";
 import { checkLicenseStatus } from "@/lib/licensing/licensing-manager";
+import { isTauri } from "@/lib/db/core";
+import { isStandalonePwa } from "@/lib/utils/platform";
 import {
   CloudOff,
   UserPlus,
@@ -17,6 +19,7 @@ import {
   Clock,
   RefreshCw,
   ShieldAlert,
+  Download,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { pluralize } from "@/lib/utils";
@@ -46,8 +49,9 @@ function useActionCenterAlerts(
   lowStockCount: number,
   missingExpiryCount: number,
 ) {
-  const { isAuthenticated, isAdmin } = useAuth();
+  const { isAuthenticated, isAdmin, user } = useAuth();
   const { storeProfile } = useStore();
+  const isStoreOwner = user?.role === "store_owner";
 
   const { data: staffCountData } = useQuery({
     ...queryKeys.staff.count(),
@@ -97,7 +101,7 @@ function useActionCenterAlerts(
             icon: ShieldAlert,
             priority: "critical",
             actionLabel: "Renew Now",
-            actionRoute: "/settings/cloud",
+            actionRoute: "/settings/billing",
           });
         } else if (licenseStatus.expiryDate) {
           const daysLeft = Math.floor(
@@ -115,7 +119,7 @@ function useActionCenterAlerts(
               icon: ShieldAlert,
               priority: "warning",
               actionLabel: "Renew Now",
-              actionRoute: "/settings/cloud",
+              actionRoute: "/settings/billing",
             });
           }
         }
@@ -205,6 +209,18 @@ function useActionCenterAlerts(
         });
       }
 
+      if (isStoreOwner && !isTauri() && !isStandalonePwa()) {
+        items.push({
+          id: "get-the-app",
+          title: "Get the App",
+          description: "Install or download DumosRx for faster access.",
+          icon: Download,
+          priority: "info",
+          actionLabel: "View Options",
+          actionRoute: "/settings/system",
+        });
+      }
+
       if (pendingSyncCount > 0) {
         items.push({
           id: "pending-sync",
@@ -225,6 +241,7 @@ function useActionCenterAlerts(
   }, [
     isAuthenticated,
     isAdmin,
+    isStoreOwner,
     staffCount,
     pendingSyncCount,
     storeProfile,

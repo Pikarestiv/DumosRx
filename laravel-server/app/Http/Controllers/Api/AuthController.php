@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Log;
 use Exception;
+use Laravel\Sanctum\PersonalAccessToken;
 use OpenApi\Attributes as OA;
 
 class AuthController extends Controller
@@ -81,7 +82,7 @@ class AuthController extends Controller
             }
         }
 
-        // Separate from the customer referral program above — attributes this
+        // Separate from the customer referral program above. Attributes this
         // signup to the platform staff member (super_admin/platform_admin/agent)
         // whose link they used, tracked via registered_by_id rather than
         // referred_by_id so it can never surface in customer-facing referral UI
@@ -259,7 +260,7 @@ class AuthController extends Controller
         $tokenModel->user_agent = $userAgent;
         $tokenModel->save();
 
-        // Dispatch security email if device is unrecognized — best-effort:
+        // Dispatch security email if device is unrecognized. Best-effort:
         // authentication has already succeeded and the token is already
         // saved above, so a mail failure (bad address, SMTP rejection, etc.)
         // must not fail the whole login response. Previously unguarded, this
@@ -285,23 +286,59 @@ class AuthController extends Controller
             'require_email_verification' => \App\Models\SystemConfig::getVal('require_email_verification', false) === true || \App\Models\SystemConfig::getVal('require_email_verification', false) === 'true'
         ]);
 
-        if ($request->device_name === 'web' || $user->hasRole('super_admin')) {
-            // Set an HttpOnly cookie for admin sessions
-            // expire in 24 hours
-            $response->withCookie(cookie(
-                'drx_admin_session',
-                $token,
-                60 * 24,
-                '/',
-                $request->getHost() === 'localhost' || filter_var($request->getHost(), FILTER_VALIDATE_IP) ? null : '.' . implode('.', array_slice(explode('.', $request->getHost()), -2)),
-                $request->isSecure(), // secure
-                true, // httpOnly
-                false,
-                $request->isSecure() ? 'None' : 'Lax'
-            ));
+        if ($request->device_name === 'web') {
+            // The browser admin panel never sees this token or stores it -
+            // it exists only to let /admin/session/refresh mint a fresh
+            // access token after a page reload (the access token itself
+            // lives in JS memory only). Restricted to the 'refresh'
+            // ability so it can't be used as a general bearer credential.
+            $refreshToken = $user->createToken('admin-refresh', ['refresh'])->plainTextToken;
+            $response->withCookie($this->buildAdminSessionCookie($request, $refreshToken));
         }
 
         return $response;
+    }
+
+    private function adminSessionCookieDomain(Request $request): ?string
+    {
+        return $request->getHost() === 'localhost' || filter_var($request->getHost(), FILTER_VALIDATE_IP)
+            ? null
+            : '.' . implode('.', array_slice(explode('.', $request->getHost()), -2));
+    }
+
+    private function buildAdminSessionCookie(Request $request, string $value)
+    {
+        return cookie(
+            'drx_admin_session',
+            $value,
+            60 * 24,
+            '/',
+            $this->adminSessionCookieDomain($request),
+            $request->isSecure(),
+            true, // httpOnly
+            false,
+            // Strict: this cookie now only ever needs to be sent to our own
+            // /admin/session/refresh endpoint from our own admin panel, so
+            // it never needs to travel cross-site. Closes off the CSRF-shaped
+            // hole the old SameSite=None + global cookie-to-header promotion
+            // combination left open.
+            'Strict'
+        );
+    }
+
+    private function forgetAdminSessionCookie(Request $request)
+    {
+        return cookie(
+            'drx_admin_session',
+            '',
+            -1,
+            '/',
+            $this->adminSessionCookieDomain($request),
+            $request->isSecure(),
+            true,
+            false,
+            'Strict'
+        );
     }
 
     #[OA\Post(
@@ -318,9 +355,14 @@ class AuthController extends Controller
     {
         $request->user()->currentAccessToken()->delete();
 
+        $refreshTokenRaw = $request->cookie('drx_admin_session');
+        if ($refreshTokenRaw) {
+            PersonalAccessToken::findToken($refreshTokenRaw)?->delete();
+        }
+
         return response()->json([
             'message' => 'Logged out successfully',
-        ]);
+        ])->withCookie($this->forgetAdminSessionCookie($request));
     }
 
     #[OA\Post(
@@ -456,6 +498,52 @@ class AuthController extends Controller
                     false,
                     $request->isSecure() ? "None" : "Lax"
                 ));
+    }
+
+    #[OA\Post(
+        path: '/admin/session/refresh',
+        summary: 'Silently restore an admin browser session after a page reload',
+        description: 'The admin panel keeps its access token in memory only (never localStorage), so it does not survive a reload. This reads the HttpOnly, SameSite=Strict `drx_admin_session` cookie directly - a token scoped to the `refresh` ability only, never a general bearer credential - and rotates it for a fresh access token + refresh cookie.',
+        tags: ['Auth'],
+        responses: [
+            new OA\Response(response: 200, description: 'New access token issued', content: new OA\JsonContent(properties: [
+                new OA\Property(property: 'token', type: 'string'),
+                new OA\Property(property: 'user', type: 'object'),
+            ])),
+            new OA\Response(response: 401, description: 'No/invalid/expired session', content: new OA\JsonContent(ref: '#/components/schemas/MessageOnly')),
+        ],
+    )]
+    public function refreshAdminSession(Request $request)
+    {
+        $raw = $request->cookie('drx_admin_session');
+        if (!$raw) {
+            return response()->json(['message' => 'No active session.'], 401);
+        }
+
+        $refreshToken = PersonalAccessToken::findToken($raw);
+        if (!$refreshToken || !$refreshToken->can('refresh')) {
+            return response()->json(['message' => 'Session expired.'], 401)
+                ->withCookie($this->forgetAdminSessionCookie($request));
+        }
+
+        $user = $refreshToken->tokenable;
+        if (!$user || !$user->is_active) {
+            $refreshToken->delete();
+            return response()->json(['message' => 'Session expired.'], 401)
+                ->withCookie($this->forgetAdminSessionCookie($request));
+        }
+
+        // Rotate on every use: the old refresh token is single-use, limiting
+        // the blast radius if it's ever intercepted.
+        $refreshToken->delete();
+
+        $accessToken = $user->createToken('web')->plainTextToken;
+        $newRefreshToken = $user->createToken('admin-refresh', ['refresh'])->plainTextToken;
+
+        return response()->json([
+            'token' => $accessToken,
+            'user' => $user,
+        ])->withCookie($this->buildAdminSessionCookie($request, $newRefreshToken));
     }
 
     #[OA\Get(
@@ -685,7 +773,7 @@ class AuthController extends Controller
 
         DB::table('password_reset_tokens')->where('email', $request->email)->delete();
 
-        // Send confirmation email — best-effort: the password is already
+        // Send confirmation email. Best-effort: the password is already
         // changed and saved above, so a mail failure must not turn a
         // successful reset into a 500 (same class of bug as the new-device
         // login email below).
@@ -705,8 +793,11 @@ class AuthController extends Controller
         tags: ['Auth'],
         security: [['sanctum' => []]],
         requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
-            required: ['reason'],
-            properties: [new OA\Property(property: 'reason', type: 'string', maxLength: 1000)],
+            required: ['reason', 'password'],
+            properties: [
+                new OA\Property(property: 'reason', type: 'string', maxLength: 1000),
+                new OA\Property(property: 'password', type: 'string', description: "The user's current password, required to confirm this destructive action"),
+            ],
         )),
         responses: [
             new OA\Response(response: 200, description: 'Requested', content: new OA\JsonContent(ref: '#/components/schemas/MessageOnly')),
@@ -718,9 +809,18 @@ class AuthController extends Controller
     {
         $request->validate([
             'reason' => 'required|string|max:1000',
+            'password' => 'required|string',
         ]);
 
         $user = $request->user();
+
+        if (!Hash::check($request->password, $user->password)) {
+            return response()->json([
+                'error' => 'Invalid Password',
+                'message' => 'The password you entered is incorrect.',
+            ], 403);
+        }
+
         $user->deletion_requested_at = now();
         $user->deletion_reason = $request->reason;
         $user->save();

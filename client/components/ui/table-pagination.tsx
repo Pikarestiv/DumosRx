@@ -18,7 +18,7 @@ interface TablePaginationProps {
   pageSizeOptions?: number[];
 }
 
-/** Standard footer for any paginated table — rows-per-page selector, the
+/** Standard footer for any paginated table: rows-per-page selector, the
  * current range being shown, and page A of B with prev/next. Shared so
  * every paginated table in the app looks and behaves the same way. */
 export function TablePagination({

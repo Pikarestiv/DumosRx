@@ -56,7 +56,7 @@ const PAGE_ROUTES = [
   {
     path: "/inventory/ledger",
     title: "Stock Movements",
-    desc: "Full audit trail of every stock movement — sales, receipts, and adjustments.",
+    desc: "Full audit trail of every stock movement: sales, receipts, and adjustments.",
     action: { label: "Add Product", path: "/inventory/catalog?action=add" },
   },
   {
@@ -100,7 +100,7 @@ const PAGE_ROUTES = [
     path: "/procurement/new",
     title: "Create Purchase Order",
     desc: "Make new purchase orders.",
-    // No header action — the page itself already has a back button, title,
+    // No header action: the page itself already has a back button, title,
     // and item count in its own panel header (desktop), and this header is
     // hidden entirely on mobile for this route (full-screen takeover).
   },

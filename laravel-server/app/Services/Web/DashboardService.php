@@ -311,6 +311,152 @@ class DashboardService
     }
 
     /**
+     * Slim stats + stores payload for client/'s Fleet Overview, using the
+     * same underlying figures as getSummary()'s 'stats'/'stores' keys, computed
+     * independently rather than by refactoring getSummary (which has no
+     * test coverage to refactor safely against), and without the heavy
+     * per-store recent_transactions/recent_activities getSummary() includes.
+     */
+    public function getStats($user)
+    {
+        $userId = $user->id;
+        $now = Carbon::now();
+        $currentStartDate = $now->copy()->subDays(7);
+        $previousStartDate = $now->copy()->subDays(14);
+        $previousEndDate = $now->copy()->subDays(7);
+
+        $storeIds = Store::where('user_id', $userId)->pluck('id')->toArray();
+        $userIds = User::whereIn('store_id', $storeIds)->pluck('id')->push($userId)->toArray();
+
+        $totalSales = 0;
+        $salesGrowth = 0;
+        try {
+            $totalSales = (float) Sale::whereIn('cashier_id', $userIds)->sum('total_amount');
+            $salesThisPeriod = (float) Sale::whereIn('cashier_id', $userIds)
+                ->where('created_at', '>=', $currentStartDate)
+                ->sum('total_amount');
+            $salesPrevPeriod = (float) Sale::whereIn('cashier_id', $userIds)
+                ->where('created_at', '>=', $previousStartDate)
+                ->where('created_at', '<', $previousEndDate)
+                ->sum('total_amount');
+            if ($salesPrevPeriod > 0) {
+                $salesGrowth = (($salesThisPeriod - $salesPrevPeriod) / $salesPrevPeriod) * 100;
+            } elseif ($salesThisPeriod > 0) {
+                $salesGrowth = 100;
+            }
+        } catch (\Exception $e) {
+            Log::error('DashboardService::getStats [Sales]: '.$e->getMessage());
+        }
+
+        $inventoryValue = 0;
+        try {
+            $inventoryStats = DB::table('stock_batches')
+                ->whereIn('user_id', $userIds)
+                ->select(DB::raw('SUM(quantity * cost_price) as total_value'))
+                ->first();
+            $inventoryValue = (float) ($inventoryStats->total_value ?? 0);
+        } catch (\Exception $e) {
+            Log::error('DashboardService::getStats [Inventory]: '.$e->getMessage());
+        }
+
+        $totalCustomers = 0;
+        $newCustomersThisPeriod = 0;
+        try {
+            $totalCustomers = Customer::whereIn('user_id', $userIds)->count();
+            $newCustomersThisPeriod = Customer::whereIn('user_id', $userIds)->where('created_at', '>=', $currentStartDate)->count();
+        } catch (\Exception $e) {
+            Log::error('DashboardService::getStats [Customers]: '.$e->getMessage());
+        }
+
+        $userStores = collect([]);
+        try {
+            if (Schema::hasTable('stores')) {
+                $userStores = Store::where('user_id', $userId)->get();
+            }
+        } catch (\Exception $e) {
+            Log::error('DashboardService::getStats [Stores]: '.$e->getMessage());
+        }
+
+        $lastSyncTime = 'Never';
+        try {
+            if ($userStores->count() > 0) {
+                $latestStore = $userStores->sortByDesc('last_sync_at')->first();
+                if ($latestStore && $latestStore->last_sync_at) {
+                    $lastSyncTime = Carbon::parse($latestStore->last_sync_at)->diffForHumans();
+                }
+            }
+        } catch (\Exception $e) {
+            Log::error('DashboardService::getStats [Sync]: '.$e->getMessage());
+        }
+
+        $storesCount = $userStores->count();
+        $stores = $userStores->map(function ($store) use ($storesCount, $userId) {
+            $storeStaffIds = User::where('store_id', $store->id)->pluck('id')->toArray();
+            $cashierIds = $storeStaffIds;
+            if ($storesCount === 1) {
+                $cashierIds[] = $userId;
+            }
+            $cashierIds = array_unique($cashierIds);
+
+            $storeTotalSales = (float) Sale::whereIn('cashier_id', $cashierIds)->sum('total_amount');
+
+            $lowStock = DB::table('products')
+                ->whereIn('products.user_id', $cashierIds)
+                ->whereNull('products.deleted_at')
+                ->leftJoin('stock_batches', 'products.id', '=', 'stock_batches.product_id')
+                ->select('products.id', 'products.reorder_level', DB::raw('SUM(COALESCE(stock_batches.quantity, 0)) as total_stock'))
+                ->groupBy('products.id', 'products.reorder_level')
+                ->get()
+                ->filter(fn ($product) => $product->total_stock <= $product->reorder_level)
+                ->count();
+
+            $warningDays = $store->expiry_warning_days ?? 90;
+            $expiringItems = DB::table('stock_batches')
+                ->whereIn('user_id', $cashierIds)
+                ->where('quantity', '>', 0)
+                ->where('expiry_date', '<=', now()->addDays($warningDays))
+                ->where('expiry_date', '>=', now()->toDateString())
+                ->count();
+
+            return [
+                'id' => $store->id,
+                'name' => $store->name,
+                'location' => $store->location,
+                'status' => $store->last_sync_at && Carbon::parse($store->last_sync_at)->gt(now()->subMinutes(30)) ? 'online' : 'offline',
+                'lastSync' => $store->last_sync_at ? Carbon::parse($store->last_sync_at)->diffForHumans() : 'Never',
+                'sales' => '₦'.number_format($storeTotalSales, 2),
+                'staff_count' => count($storeStaffIds),
+                'low_stock_alerts' => $lowStock,
+                'expiring_items' => $expiringItems,
+            ];
+        })->values();
+
+        $storageUsedGB = 0.05;
+        try {
+            $salesCount = Sale::whereIn('cashier_id', $userIds)->count();
+            $customersCount = Customer::where('user_id', $userId)->count();
+            $logsCount = Schema::hasTable('activity_logs') ? ActivityLog::where('user_id', $userId)->count() : 0;
+            $storageUsedMB = 50 + (($salesCount + $customersCount + $logsCount) * 0.005);
+            $storageUsedGB = round($storageUsedMB / 1024, 3);
+        } catch (\Exception $e) {
+        }
+        $storageLimitGB = 10;
+        $storagePercentage = min(100, round(($storageUsedGB / $storageLimitGB) * 100));
+
+        return [
+            'stats' => [
+                'total_sales' => ['value' => $totalSales, 'growth' => round($salesGrowth, 1).'%'],
+                'inventory_value' => ['value' => $inventoryValue],
+                'customers' => ['value' => $totalCustomers, 'growth' => '+'.$newCustomersThisPeriod.' new'],
+                'stores_count' => $storesCount,
+                'last_sync' => $lastSyncTime,
+                'cloud_storage' => ['used_gb' => $storageUsedGB, 'limit_gb' => $storageLimitGB, 'percentage' => $storagePercentage],
+            ],
+            'stores' => $stores,
+        ];
+    }
+
+    /**
      * Reset account data.
      */
     public function resetData($user, $type = 'all')

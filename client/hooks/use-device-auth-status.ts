@@ -3,10 +3,10 @@ import { checkIfTableExists, getActiveUserCount } from "@/lib/db/queries/setup";
 import type { RecentUser } from "@/lib/context/auth-context";
 
 // Shared by the merged /login page's login and setup tabs so switching
-// between them never re-runs this check or shows a second loading spinner —
-// each used to run this independently (useLogin + useOnboarding both had
-// their own copy), which is exactly what caused a "loading" flash on every
-// tab switch even though the underlying answer never changes mid-session.
+// between them never re-runs this check or shows a second loading spinner.
+// Each used to run this independently (useLogin + useOnboarding both had
+// their own copy), which caused a "loading" flash on every tab switch even
+// though the underlying answer never changes mid-session.
 export function useDeviceAuthStatus() {
   const [isChecking, setIsChecking] = useState(true);
   const [userCount, setUserCount] = useState(0);

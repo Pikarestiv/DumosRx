@@ -38,7 +38,7 @@ export interface ReceiptTransaction {
 
 interface ReceiptProps {
   transaction: ReceiptTransaction;
-  // Thermal (80mm roll) is narrower and tighter than a standard-paper copy —
+  // Thermal (80mm roll) is narrower and tighter than a standard-paper copy;
   // affects on-screen preview width too, not just the print @page size.
   paperSize?: ReceiptPaperSize;
 }

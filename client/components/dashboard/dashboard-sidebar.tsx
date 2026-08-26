@@ -103,7 +103,7 @@ export function DashboardSidebar({
 
   const allItems = navigationItems;
 
-  /** Shared nav link renderer — collapses to icon + tooltip when sidebar is narrow */
+  /** Shared nav link renderer; collapses to icon + tooltip when sidebar is narrow */
   const NavItem = ({
     href,
     icon: Icon,
@@ -248,7 +248,7 @@ export function DashboardSidebar({
               <NavItem href="/settings" icon={Settings} name="Settings" />
             )}
 
-            {/* Collapse toggle — only on desktop */}
+            {/* Collapse toggle: only on desktop */}
             <div className="pt-2 hidden lg:block">
               <Tooltip delayDuration={100}>
                 <TooltipTrigger asChild>

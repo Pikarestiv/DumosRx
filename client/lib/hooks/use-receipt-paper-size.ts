@@ -8,7 +8,7 @@ export type ReceiptPaperSize = "thermal" | "a4";
  * Which physical paper the receipt prints to. Defaults to thermal (58/80mm
  * roll) since that's what a POS terminal is printing to day-to-day; a store
  * owner who wants a standard-paper copy (e.g. for filing/invoicing) can
- * switch to A4 instead. Device-local — a receipt printer is a property of
+ * switch to A4 instead. Device-local: a receipt printer is a property of
  * the physical terminal, not the account.
  */
 export function useReceiptPaperSize() {

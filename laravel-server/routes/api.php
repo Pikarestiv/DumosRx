@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\App\StockBatchController;
 use App\Http\Controllers\Api\App\SupplierController;
 use App\Http\Controllers\Api\App\SyncController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\AuthHandoffController;
 // Admin Controllers
 use App\Http\Controllers\Api\BroadcastController;
 use App\Http\Controllers\Api\SystemConfigController;
@@ -37,9 +38,19 @@ Route::prefix('v1')->group(function () {
         Route::post('/reset-password', [AuthController::class, 'resetPassword']);
         Route::post('/verify-email', [AuthController::class, 'verifyEmail']);
         Route::post('/resend-verification', [AuthController::class, 'resendVerification']);
+        // Cookie-authenticated (no bearer token - the admin panel's access
+        // token is memory-only and doesn't survive a reload). See AuthController.
+        Route::post('/admin/session/refresh', [AuthController::class, 'refreshAdminSession']);
+    });
+    // Own (more generous) limiter: one impersonation round trip is already 6
+    // handoff calls from a single IP, which the 5/min `auth` limiter would
+    // starve. See the 'handoff' limiter in AppServiceProvider.
+    Route::middleware('throttle:handoff')->group(function () {
+        Route::post('/auth/handoff', [AuthHandoffController::class, 'create']);
+        Route::post('/auth/handoff/consume', [AuthHandoffController::class, 'consume']);
     });
     // Documented via App\OpenApi\ClosureRoutes (swagger-php doesn't scan inline
-    // closure docblocks — see that file for why).
+    // closure docblocks; see that file for why).
     Route::get('/health', function () {
         return response()->json(['status' => 'ok', 'timestamp' => now()]);
     });
@@ -84,6 +95,7 @@ Route::prefix('v1')->group(function () {
         // --- WEB DASHBOARD ROUTES ---
         Route::prefix('dashboard')->group(function () {
             Route::get('/summary', [DashboardController::class, 'summary']);
+            Route::get('/stats', [DashboardController::class, 'stats']);
             Route::post('/reset', [DashboardController::class, 'resetData']);
             Route::post('/send-summary', [\App\Http\Controllers\Api\StoreSummaryController::class, 'sendSummary'])->middleware('subscription:web_dashboard');
         });

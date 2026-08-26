@@ -402,7 +402,7 @@ class SubscriptionController extends Controller
     #[OA\Post(
         path: '/subscription/verify',
         summary: 'Verify a payment provider transaction reference and activate the subscription',
-        description: 'Called after redirect back from Paystack/Flutterwave checkout. Idempotent — calling again after success just returns "already verified". On success, also awards referral credit to the referrer if applicable and records coupon usage.',
+        description: 'Called after redirect back from Paystack/Flutterwave checkout. Idempotent: calling again after success just returns "already verified". On success, also awards referral credit to the referrer if applicable and records coupon usage.',
         tags: ['Subscription'],
         security: [['sanctum' => []]],
         requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(

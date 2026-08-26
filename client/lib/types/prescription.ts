@@ -14,7 +14,7 @@ export const PRESCRIPTION_STATUSES = [
 export type PrescriptionStatus = (typeof PRESCRIPTION_STATUSES)[number];
 
 /** Narrows a raw DB string to a known PrescriptionPriority, falling back to
- * "normal" for anything unrecognized — prescriptions are healthcare data, so
+ * "normal" for anything unrecognized: prescriptions are healthcare data, so
  * an unchecked cast here could silently misrepresent urgency. */
 export function toPrescriptionPriority(value: string | null | undefined): PrescriptionPriority {
   return (PRESCRIPTION_PRIORITIES as readonly string[]).includes(value ?? "")
@@ -67,7 +67,7 @@ export interface PrescriptionRow {
   created_by_name?: string;
 }
 
-/** Payload accepted by updatePrescriptionRecord() — the editable fields from
+/** Payload accepted by updatePrescriptionRecord(): the editable fields from
  * the prescription form, plus the caller-supplied updated_at timestamp. */
 export interface PrescriptionUpdatePayload {
   patient_name?: string;
@@ -82,7 +82,7 @@ export interface PrescriptionUpdatePayload {
   updated_at: string;
 }
 
-/** Payload accepted by insertPrescriptionItem() — a PrescriptionItem plus the
+/** Payload accepted by insertPrescriptionItem(): a PrescriptionItem plus the
  * id/timestamps the caller assigns before insert. */
 export interface PrescriptionItemInsertPayload extends PrescriptionItem {
   created_at?: string;

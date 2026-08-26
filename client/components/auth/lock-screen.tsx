@@ -35,7 +35,7 @@ export function LockScreen({
   // Separated from the form's submit handler so it can also be triggered
   // directly once the 4th digit is entered (auto-submit), not just via the
   // Unlock button. Takes the pin value explicitly rather than reading `pin`
-  // from closure — PinPad's onSubmit fires synchronously right after its
+  // from closure. PinPad's onSubmit fires synchronously right after its
   // onChange, before React has applied the state update, so closure `pin`
   // there would be stale by one digit.
   const attemptLogin = async (pinValue: string) => {

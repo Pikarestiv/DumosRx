@@ -21,7 +21,7 @@ export function SmartSuppProvider() {
         }
       })
       .catch(() => {
-        // Silently fail — chat is non-critical
+        // Silently fail: chat is non-critical
       });
   }, []);
 

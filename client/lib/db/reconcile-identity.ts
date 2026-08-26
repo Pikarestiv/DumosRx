@@ -10,7 +10,7 @@ import { execute, query, transaction, STORE_SCOPED_TABLES } from "./core";
  * permanently unsyncable, since the server never had a matching row to
  * satisfy the FK constraint.
  *
- * Not a permanent code path — new setups can no longer create this state
+ * Not a permanent code path: new setups can no longer create this state
  * (handleRegister now always creates the account+store in the cloud first),
  * so this only exists to repair devices affected before that fix shipped.
  * Invoke manually (e.g. via a temporary browser debug hook), not from any
@@ -53,7 +53,7 @@ export interface ReconcileIdentityResult {
  * Separate, narrower repair for a related symptom found on the same device:
  * some rows created during the same pre-cloud-link period are marked
  * `_synced = 0` locally but have no corresponding `_sync_queue` entry at
- * all — so `pushChanges()` (which only ever reads from `_sync_queue`, never
+ * all, so `pushChanges()` (which only ever reads from `_sync_queue`, never
  * scans tables directly) has silently never attempted to push them. Backfill
  * a fresh INSERT queue entry for any such row so it's picked up on the next
  * push, using the row's current column values as the payload (matching the
@@ -113,7 +113,7 @@ export async function columnExists(table: string, column: string): Promise<boole
 /**
  * Rewrites every reference to `oldId` (across the given table/column pairs)
  * to `newId`, including any already-queued `_sync_queue` payload that still
- * has the old id baked into its frozen JSON snapshot — marking a live row
+ * has the old id baked into its frozen JSON snapshot: marking a live row
  * `_synced = 0` alone doesn't requeue it, since push only ever reads from
  * `_sync_queue`, never re-scans the table. Shared by both the one-time
  * device-identity repair below and pull.ts's ongoing duplicate-name
@@ -122,12 +122,12 @@ export async function columnExists(table: string, column: string): Promise<boole
  * `runSql` lets a caller that already manages its own raw transaction (e.g.
  * pull.ts, which issues `rawDb.run("BEGIN")` directly rather than going
  * through this module's `transaction()` wrapper) supply its own statement
- * runner. Defaults to this module's `execute()` — safe there because every
+ * runner. Defaults to this module's `execute()`, safe there because every
  * call site that omits `runSql` is already wrapped in `transaction()`,
  * which sets the `inTransaction` flag `execute()` checks before triggering
  * a `saveDatabase()` export. Calling `execute()` directly from *outside*
  * that wrapper (as pull.ts's manual transaction does) would trigger an
- * unwanted mid-transaction `saveDatabase()` — sql.js's `db.export()`
+ * unwanted mid-transaction `saveDatabase()`: sql.js's `db.export()`
  * implicitly closes the open transaction, so pull.ts's own later `COMMIT`
  * would then fail with "cannot commit - no transaction is active".
  */
@@ -199,7 +199,7 @@ export async function reconcileIdentity(
       }
     }
 
-    // Rename the local user's own id in place (not soft-delete) — this row
+    // Rename the local user's own id in place (not soft-delete); this row
     // holds the only local username/PIN credential for this device's login,
     // so deleting it outright would lock the device out. Also point it at
     // the real store and re-flag for sync so the identity fix itself reaches
@@ -211,13 +211,13 @@ export async function reconcileIdentity(
 
     await execute("UPDATE stores SET _deleted = 1 WHERE id = ?", [oldStoreId]);
 
-    // Marking table rows _synced = 0 above does NOT requeue them — push.ts
+    // Marking table rows _synced = 0 above does NOT requeue them: push.ts
     // reads straight from `_sync_queue.payload`, a JSON snapshot frozen at
     // the moment the row was originally inserted/updated, independent of
     // the row's current `_synced` flag. Any already-queued entry for these
     // rows still has the old ids baked into its stored payload and would
     // keep failing the same FK check server-side. Rewrite those payloads in
-    // place — a plain string substitution is safe here since UUIDs are
+    // place; a plain string substitution is safe here since UUIDs are
     // unique, unambiguous tokens with no risk of colliding with other JSON
     // content.
     await execute("UPDATE _sync_queue SET payload = REPLACE(payload, ?, ?) WHERE payload LIKE ?", [

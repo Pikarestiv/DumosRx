@@ -192,7 +192,7 @@ export default function AdminActivityLogPage() {
                       )}
                     </TableCell>
                     <TableCell className="max-w-xs truncate text-slate-500 dark:text-slate-400">
-                      {log.description || "—"}
+                      {log.description || "N/A"}
                     </TableCell>
                     <TableCell className="text-right text-slate-500 dark:text-slate-400 whitespace-nowrap">
                       {new Date(log.created_at).toLocaleString()}

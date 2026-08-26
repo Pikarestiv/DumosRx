@@ -1,12 +1,10 @@
-import Image from "next/image";
-import Link from "next/link";
-import { WEB_APP_DASHBOARD_URL } from "@/lib/constants";
-import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
-import { useSystemConfig } from "@/lib/api/hooks";
+"use client";
 
-export function HeroSection({ isLoggedIn }: { isLoggedIn: boolean }) {
-  const { data: config, isLoading } = useSystemConfig("subscription_plans");
+import Image from "next/image";
+import { WEB_APP_DASHBOARD_URL, getAppURL } from "@/lib/constants";
+import { Button } from "@/components/ui/button";
+
+export function HeroSection() {
   return (
     <section className="relative pt-20 pb-32 overflow-hidden">
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full -z-10 opacity-10 dark:opacity-20 pointer-events-none">
@@ -30,43 +28,13 @@ export function HeroSection({ isLoggedIn }: { isLoggedIn: boolean }) {
           internet connectivity
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-20">
-          {isLoggedIn ? (
-            <Button
-              size="lg"
-              className="h-14 px-8 text-lg font-bold shadow-xl shadow-primary/20"
-              asChild
-            >
-              <Link href="/dashboard">Open Dashboard</Link>
-            </Button>
-          ) : (
-            <>
-              <Button
-                size="lg"
-                className="h-14 px-8 text-lg font-bold shadow-xl shadow-primary/20"
-                asChild
-              >
-                <Link href="/register">
-                  {isLoading ? (
-                    <span className="flex items-center gap-2">
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                    </span>
-                  ) : config?.trial_days ? (
-                    `Start ${config.trial_days}-Day Free Trial`
-                  ) : (
-                    "Start 7-Day Free Trial"
-                  )}
-                </Link>
-              </Button>
-              <Button
-                size="lg"
-                variant="outline"
-                className="h-14 px-8 text-lg font-bold"
-                asChild
-              >
-                <Link href="/login">Log in</Link>
-              </Button>
-            </>
-          )}
+          <Button
+            size="lg"
+            className="h-14 px-8 text-lg font-bold shadow-xl shadow-primary/20"
+            onClick={() => (window.location.href = getAppURL())}
+          >
+            Get Started
+          </Button>
         </div>
 
         {/* App Mockup */}

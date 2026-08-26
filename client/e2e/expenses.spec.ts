@@ -6,7 +6,7 @@ test.describe('Expenses Module', () => {
 
     // Navigate to expenses via sidebar
     await page.locator('a[href="/expenses"]').first().click();
-    // Scoped to <header> — the sidebar nav link is also literally "Expenses".
+    // Scoped to <header>: the sidebar nav link is also literally "Expenses".
     await expect(page.locator('header').getByText('Expenses', { exact: true })).toBeVisible();
 
     // Test the "Add Expense" dialog functionality
@@ -14,7 +14,7 @@ test.describe('Expenses Module', () => {
     await expect(page.getByRole('dialog')).toBeVisible();
 
     // The Date field is pre-filled with today by default (components/expenses/add-expense-dialog.tsx),
-    // so only Description and Amount need filling — the form's other two required fields.
+    // so only Description and Amount need filling: the form's other two required fields.
     const description = `Playwright test expense ${Date.now()}`;
     await page.getByPlaceholder('e.g. July shop rent').fill(description);
     await page.getByPlaceholder('0.00').fill('5000');

@@ -48,7 +48,7 @@ class SaleController extends Controller
     #[OA\Post(
         path: '/app/sales',
         summary: 'Record a sale (POS checkout)',
-        description: 'NOTE: item price is trusted from the request body (`unit_price`) rather than looked up server-side from the current product/batch price — client is responsible for sending the correct price.',
+        description: 'NOTE: item price is trusted from the request body (`unit_price`) rather than looked up server-side from the current product/batch price; client is responsible for sending the correct price.',
         tags: ['Sales'],
         security: [['sanctum' => []]],
         requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(

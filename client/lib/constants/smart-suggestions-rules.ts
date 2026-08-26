@@ -10,7 +10,7 @@ export interface SuggestionRule {
  * same ailment episode (e.g. malaria + typhoid are frequently treated together,
  * plus fever and immune support). Unlike SMART_SUGGESTIONS_RULES (one-directional
  * "trigger X, suggest Y"), every category in a cluster suggests every other
- * category in the same cluster — buying any one of them surfaces the rest.
+ * category in the same cluster: buying any one of them surfaces the rest.
  */
 export const SMART_SUGGESTIONS_CLUSTERS: string[][] = [
   // Fever / malaria-typhoid episode

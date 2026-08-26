@@ -22,7 +22,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-/** Substring-matched first — covers common pharmacy/retail category names with a purpose-built icon. */
+/** Substring-matched first: covers common pharmacy/retail category names with a purpose-built icon. */
 const KEYWORD_ICONS: [string, LucideIcon][] = [
   ["pain", Pill],
   ["antibiotic", ShieldPlus],

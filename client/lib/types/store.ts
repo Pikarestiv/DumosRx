@@ -14,9 +14,16 @@ export interface StoreOption {
 
 /** Fields returned/accepted by the fleet-management (Settings > Store Profile)
  * store CRUD endpoints — matches the server's Store model validation in
- * laravel-server's Api/Web/StoreController. Structurally identical to
- * `StoreOption`; kept as a distinct name for call-site clarity. */
-export type FleetStore = StoreOption;
+ * laravel-server's Api/Web/StoreController. Extends `StoreOption` with the
+ * optional fleet-overview stats-table fields returned by `/dashboard/stats`. */
+export interface FleetStore extends StoreOption {
+  status?: "online" | "offline";
+  lastSync?: string;
+  sales?: string;
+  staff_count?: number;
+  low_stock_alerts?: number;
+  expiring_items?: number;
+}
 
 export interface FleetStorePayload {
   name: string;
@@ -24,4 +31,18 @@ export interface FleetStorePayload {
   address?: string;
   phone?: string;
   store_type?: string;
+}
+
+/** Shape returned by the `/dashboard/stats` endpoint powering the fleet
+ * overview page (Settings > Store Profile fleet summary). */
+export interface FleetStats {
+  stats: {
+    total_sales: { value: number; growth: string };
+    inventory_value: { value: number };
+    customers: { value: number; growth: string };
+    stores_count: number;
+    last_sync: string;
+    cloud_storage: { used_gb: number; limit_gb: number; percentage: number };
+  };
+  stores: FleetStore[];
 }

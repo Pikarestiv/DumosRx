@@ -4,7 +4,7 @@ import type { Broadcast } from "@/lib/types/broadcast";
 import type { NewProductPayload } from "@/lib/types/product";
 import type { SupplierPayload } from "@/lib/types/supplier";
 import type { SyncChange } from "@/lib/types/sync";
-import type { StoreOption, FleetStore, FleetStorePayload } from "@/lib/types/store";
+import type { StoreOption, FleetStore, FleetStorePayload, FleetStats } from "@/lib/types/store";
 import type { OnlineOrder } from "@/lib/types/online-order";
 import type { CurrentUser } from "@/lib/types/user";
 import type {
@@ -353,6 +353,10 @@ class ApiClient extends BaseApiClient {
     return this.request<{ message: string }>(`/stores/${id}`, {
       method: "DELETE",
     });
+  }
+
+  async getFleetStats() {
+    return this.request<FleetStats>("/dashboard/stats");
   }
 
   // Subscription & Billing

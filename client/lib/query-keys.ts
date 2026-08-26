@@ -220,4 +220,8 @@ export const queryKeys = {
     currentUser: () => resource(["currentUser"] as const, []),
     sessions: () => resource(["accountSessions"] as const, []),
   },
+  fleet: {
+    // Remote API data, not a local table.
+    stats: () => resource(["fleetStats"] as const, []),
+  },
 } as const;

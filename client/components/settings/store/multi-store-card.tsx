@@ -29,7 +29,10 @@ export function MultiStoreCard() {
   const [isLoading, setIsLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [storeToEdit, setStoreToEdit] = useState<FleetStore | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
 
   const loadStores = async () => {
     setIsLoading(true);
@@ -109,7 +112,9 @@ export function MultiStoreCard() {
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
           <CardTitle>Multiple Stores</CardTitle>
-          <CardDescription>Manage every store location on this account.</CardDescription>
+          <CardDescription>
+            Manage every store location on this account.
+          </CardDescription>
         </div>
         <Button
           onClick={() => {
@@ -121,7 +126,7 @@ export function MultiStoreCard() {
           Add Store
         </Button>
       </CardHeader>
-      <CardContent className="p-0">
+      <CardContent>
         <FleetList
           stores={stores}
           isLoading={isLoading}

@@ -437,6 +437,27 @@ class ApiClient extends BaseApiClient {
       body: JSON.stringify({ status: "fulfilled" }),
     });
   }
+
+  // Danger zone
+  async resetData(type: string, password: string) {
+    return this.request<{ message: string }>("/dashboard/reset", {
+      method: "POST",
+      body: JSON.stringify({ type, password }),
+    });
+  }
+
+  async requestAccountDeletion(payload: { reason: string; password: string }) {
+    return this.request<{ message: string }>("/profile/request-deletion", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async cancelAccountDeletion() {
+    return this.request<{ message: string }>("/profile/cancel-deletion", {
+      method: "POST",
+    });
+  }
 }
 
 export const apiClient = new ApiClient();

@@ -61,6 +61,7 @@ export function PasswordConfirmDialog({
             <Input
               id="password-confirm"
               type="password"
+              autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />

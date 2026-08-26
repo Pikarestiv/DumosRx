@@ -5,6 +5,8 @@ export interface SubscriptionPlanTier {
   name?: string;
   features?: Record<string, boolean | undefined>;
   limits?: Record<string, number | undefined>;
+  price_monthly?: number;
+  price_yearly?: number;
 }
 
 /** The `subscription_plans` system config blob: fetched from the server

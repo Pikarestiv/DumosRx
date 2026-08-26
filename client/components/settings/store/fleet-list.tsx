@@ -13,6 +13,7 @@ import type { FleetStore } from "@/lib/types/store";
 interface FleetListProps {
   stores: FleetStore[];
   isLoading: boolean;
+  activeStoreId: string | null;
   onEdit: (store: FleetStore) => void;
   onDelete: (id: string, name: string) => void;
 }
@@ -28,7 +29,13 @@ function NoStoresRow() {
   );
 }
 
-export function FleetList({ stores, isLoading, onEdit, onDelete }: FleetListProps) {
+export function FleetList({
+  stores,
+  isLoading,
+  activeStoreId,
+  onEdit,
+  onDelete,
+}: FleetListProps) {
   return (
     <Table>
       <TableHeader>
@@ -49,25 +56,34 @@ export function FleetList({ stores, isLoading, onEdit, onDelete }: FleetListProp
         )}
         {!isLoading && stores.length === 0 && <NoStoresRow />}
         {!isLoading &&
-          stores.map((store) => (
-            <TableRow key={store.id}>
-              <TableCell className="font-medium">{store.name}</TableCell>
-              <TableCell>{store.location || "—"}</TableCell>
-              <TableCell className="capitalize">{store.store_type || "—"}</TableCell>
-              <TableCell className="text-right space-x-2">
-                <Button variant="ghost" size="icon" onClick={() => onEdit(store)}>
-                  <Edit2 className="w-4 h-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => onDelete(store.id, store.name)}
-                >
-                  <Trash2 className="w-4 h-4 text-destructive" />
-                </Button>
-              </TableCell>
-            </TableRow>
-          ))}
+          stores.map((store) => {
+            const isActiveStore = store.id === activeStoreId;
+            return (
+              <TableRow key={store.id}>
+                <TableCell className="font-medium">{store.name}</TableCell>
+                <TableCell>{store.location || "—"}</TableCell>
+                <TableCell className="capitalize">{store.store_type || "—"}</TableCell>
+                <TableCell className="text-right space-x-2">
+                  <Button variant="ghost" size="icon" onClick={() => onEdit(store)}>
+                    <Edit2 className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    disabled={isActiveStore}
+                    title={
+                      isActiveStore
+                        ? "Cannot delete the store this device is currently operating"
+                        : undefined
+                    }
+                    onClick={() => onDelete(store.id, store.name)}
+                  >
+                    <Trash2 className="w-4 h-4 text-destructive" />
+                  </Button>
+                </TableCell>
+              </TableRow>
+            );
+          })}
       </TableBody>
     </Table>
   );

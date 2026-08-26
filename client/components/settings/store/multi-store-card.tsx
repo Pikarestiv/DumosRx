@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { Store, Lock, Plus } from "lucide-react";
+import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Card,
   CardContent,
@@ -11,6 +13,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
+import { useStore } from "@/lib/context/store-context";
 import { WEB_APP_URL } from "@/lib/constants";
 import { apiClient } from "@/lib/api/client";
 import type { FleetStore } from "@/lib/types/store";
@@ -20,6 +23,8 @@ import { FleetDeleteDialog } from "./fleet-delete-dialog";
 
 export function MultiStoreCard() {
   const { canManageMultiStore, getUpgradeMessage } = useFeatureGate();
+  const { activeStoreId } = useStore();
+  const queryClient = useQueryClient();
   const [stores, setStores] = useState<FleetStore[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -31,9 +36,29 @@ export function MultiStoreCard() {
     try {
       const data = await apiClient.getStores();
       setStores(data);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to load stores",
+      );
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Fleet writes go straight to the cloud API and never touch local SQLite,
+  // so React Query's own store caches never learn a write happened. This
+  // won't surface the change before the next sync pull lands (Fleet stays
+  // cloud-only), but it ensures mounted components re-fetch fresh local
+  // data as soon as that pull does complete, instead of serving a cache
+  // that never refreshes.
+  const invalidateStoreCaches = () => {
+    queryClient.invalidateQueries({ queryKey: ["allStores"] });
+    queryClient.invalidateQueries({ queryKey: ["storeProfile"] });
+  };
+
+  const handleMutationSuccess = () => {
+    loadStores();
+    invalidateStoreCaches();
   };
 
   useEffect(() => {
@@ -100,6 +125,7 @@ export function MultiStoreCard() {
         <FleetList
           stores={stores}
           isLoading={isLoading}
+          activeStoreId={activeStoreId}
           onEdit={(store) => {
             setStoreToEdit(store);
             setIsFormOpen(true);
@@ -112,12 +138,13 @@ export function MultiStoreCard() {
         isOpen={isFormOpen}
         onOpenChange={setIsFormOpen}
         storeToEdit={storeToEdit}
-        onSuccess={loadStores}
+        activeStoreId={activeStoreId}
+        onSuccess={handleMutationSuccess}
       />
       <FleetDeleteDialog
         target={deleteTarget}
         onClose={() => setDeleteTarget(null)}
-        onSuccess={loadStores}
+        onSuccess={handleMutationSuccess}
       />
     </Card>
   );

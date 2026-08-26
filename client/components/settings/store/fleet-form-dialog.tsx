@@ -14,6 +14,8 @@ import {
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { apiClient } from "@/lib/api/client";
+import { update } from "@/lib/db/base-helpers";
+import { useStore } from "@/lib/context/store-context";
 import type { FleetStore } from "@/lib/types/store";
 
 const STORE_TYPES = ["pharmacy", "supermarket", "grocery", "general", "retail"] as const;
@@ -22,6 +24,7 @@ interface FleetFormDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   storeToEdit?: FleetStore | null;
+  activeStoreId: string | null;
   onSuccess: () => void;
 }
 
@@ -29,8 +32,10 @@ export function FleetFormDialog({
   isOpen,
   onOpenChange,
   storeToEdit,
+  activeStoreId,
   onSuccess,
 }: FleetFormDialogProps) {
+  const { refetch } = useStore();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isEditing = !!storeToEdit;
   const [formData, setFormData] = useState({
@@ -64,6 +69,25 @@ export function FleetFormDialog({
     try {
       if (isEditing && storeToEdit) {
         await apiClient.updateStore(storeToEdit.id, formData);
+
+        // The Business Information card writes name/address/phone to the
+        // local `stores` row and queues a sync push independently of Fleet.
+        // If Fleet edits the active store's fields but the local row still
+        // holds pre-edit values, that queued push would silently revert
+        // this edit on the next sync. Writing the same fields locally too
+        // (only for the store this device is actually running) keeps local
+        // state in step with what we just wrote to the cloud.
+        if (activeStoreId && storeToEdit.id === activeStoreId) {
+          await update("stores", activeStoreId, {
+            name: formData.name,
+            location: formData.location,
+            address: formData.address,
+            phone: formData.phone,
+            store_type: formData.store_type,
+          });
+          await refetch();
+        }
+
         toast.success("Store details updated successfully");
       } else {
         await apiClient.createStore(formData);

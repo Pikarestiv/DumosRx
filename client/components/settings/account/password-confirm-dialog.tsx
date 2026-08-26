@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   Dialog,
   DialogContent,
@@ -37,6 +37,10 @@ export function PasswordConfirmDialog({
   extraField,
 }: PasswordConfirmDialogProps) {
   const [password, setPassword] = useState("");
+
+  useEffect(() => {
+    if (!open) setPassword("");
+  }, [open]);
 
   const handleClose = () => {
     setPassword("");

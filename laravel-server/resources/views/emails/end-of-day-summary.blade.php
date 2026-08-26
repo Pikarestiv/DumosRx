@@ -20,7 +20,7 @@ Here is your end-of-day store performance summary.
 ### Inventory Alerts
 - **Low Stock Items:** {{ $metrics['low_stock'] }}
 
-@component('mail::button', ['url' => config('app.frontend_url') . '/dashboard'])
+@component('mail::button', ['url' => config('app.client_app_url') . '/dashboard'])
 View Full Dashboard
 @endcomponent
 

@@ -17,6 +17,8 @@ return [
 
     'frontend_url' => env('FRONTEND_URL', 'https://dumosrx.com'),
 
+    'client_app_url' => env('CLIENT_APP_URL', 'https://app.dumosrx.com'),
+
     'timezone' => 'UTC',
 
     'locale' => 'en',

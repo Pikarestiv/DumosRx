@@ -22,7 +22,11 @@ class FunnelSetupReminderEmail extends Mailable
     public function __construct(User $user)
     {
         $this->user = $user;
-        $this->dashboardUrl = env('APP_URL', 'https://dumosrx.com') . '/dashboard/downloads';
+        // The public download portal (web/app/downloads), not the authenticated
+        // dashboard's downloads tab: config('app.url') is the API host
+        // (api.dumosrx.com), not the marketing site, so frontend_url is the
+        // correct config key here.
+        $this->dashboardUrl = config('app.frontend_url') . '/downloads';
     }
 
     /**

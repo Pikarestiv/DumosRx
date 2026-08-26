@@ -1,18 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { useSystemConfigStore } from "@/lib/store/system-config-store";
 import { useSubscriptionStatus, usePayMutation, useValidateCouponMutation, useReferralStats } from "@/lib/hooks/use-billing";
+import { queryKeys } from "@/lib/query-keys";
 import { getSubscriptionPlans } from "@/lib/constants/subscription-plans-catalog";
+import { getDiscountedPrice, isDiscounted, getChargeAmount, isCurrentPlanHigherWeight } from "@/lib/utils/billing-pricing";
 import { SubscriptionPlanCard } from "./subscription-plan-card";
 import { CouponInput } from "./coupon-input";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import type { AppliedCoupon } from "@/lib/types/subscription-plans";
-
-const PLAN_WEIGHT: Record<string, number> = { free: 0, starter: 1, pro: 2, enterprise: 3 };
 
 function formatPrice(price: number) {
   return new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", minimumFractionDigits: 0 }).format(price);
@@ -26,9 +27,10 @@ export function SubscriptionPlans() {
   const [loading, setLoading] = useState<string | null>(null);
   const [downgradePlan, setDowngradePlan] = useState<{ id: string; amount: number; name: string } | null>(null);
 
+  const queryClient = useQueryClient();
   const { subscriptionPlans } = useSystemConfigStore();
-  const { data: subStatus } = useSubscriptionStatus();
-  const { data: referralStats } = useReferralStats();
+  const { data: subStatus, isError: isStatusError } = useSubscriptionStatus();
+  const { data: referralStats, isError: isReferralError } = useReferralStats();
   const pay = usePayMutation();
   const validateCoupon = useValidateCouponMutation();
 
@@ -36,11 +38,32 @@ export function SubscriptionPlans() {
   const isYearly = billingPeriod === "yearly";
   const plans = getSubscriptionPlans(subscriptionPlans, isYearly, formatPrice);
 
+  // The payment gateway opens in a new tab/window (see handleSubscribe), so
+  // the user returns to this tab after paying without any route change to
+  // trigger a refetch. Re-checking status on visibility/focus is the
+  // cheapest way to eventually reflect a completed payment without a
+  // dedicated payment-return route.
+  useEffect(() => {
+    const refreshStatus = () => {
+      if (document.visibilityState === "visible") {
+        queryClient.invalidateQueries(queryKeys.billing.status());
+      }
+    };
+
+    document.addEventListener("visibilitychange", refreshStatus);
+    window.addEventListener("focus", refreshStatus);
+
+    return () => {
+      document.removeEventListener("visibilitychange", refreshStatus);
+      window.removeEventListener("focus", refreshStatus);
+    };
+  }, [queryClient]);
+
   const handleValidateCoupon = async () => {
     if (!couponCode) return;
     setValidatingCoupon(true);
     try {
-      const response = await validateCoupon.mutateAsync({ code: couponCode });
+      const response = await validateCoupon.mutateAsync({ code: couponCode, interval: billingPeriod });
       if (response.valid) {
         setAppliedCoupon(response.coupon);
         toast.success(`Coupon applied: ${response.coupon.type === "discount_percent" ? response.coupon.value + "% off" : "₦" + response.coupon.value.toLocaleString() + " off"}`);
@@ -56,27 +79,14 @@ export function SubscriptionPlans() {
     }
   };
 
-  const getDiscountedPrice = (numericPrice: number) => {
-    if (numericPrice === 0 || !appliedCoupon) return numericPrice;
-    let price = numericPrice;
-    if (appliedCoupon.type === "discount_percent") price -= price * (appliedCoupon.value / 100);
-    else if (appliedCoupon.type === "discount_amount") price -= appliedCoupon.value;
-    if (userCredits > 0) price -= Math.min(userCredits, Math.max(0, price));
-    return Math.max(0, price);
-  };
-
-  const isDiscounted = (numericPrice: number) => numericPrice > 0 && (appliedCoupon !== null || userCredits > 0);
-
-  const isCurrentPlanHigherWeight = (planId: string) => {
-    const currentWeight = PLAN_WEIGHT[subStatus?.plan?.toLowerCase() ?? "free"] ?? 0;
-    return (PLAN_WEIGHT[planId] ?? 0) < currentWeight;
-  };
-
   const handleSubscribe = async (planId: string, baseAmount: number, planName: string) => {
     setLoading(planId);
     try {
       const response = await pay.mutateAsync({
-        amount: getDiscountedPrice(baseAmount),
+        // Only the coupon discount reduces the amount sent client-side.
+        // Referral credits are applied server-side via `use_credits` --
+        // subtracting them here too would double-count them.
+        amount: getChargeAmount(baseAmount, appliedCoupon),
         plan_name: planName,
         coupon_code: appliedCoupon?.code,
         interval: billingPeriod,
@@ -85,7 +95,11 @@ export function SubscriptionPlans() {
 
       if (response.success) {
         if (response.payment_url) {
-          window.location.assign(response.payment_url);
+          // Never replace the app's own window location with an external
+          // payment gateway: the Tauri desktop shell runs with no window
+          // chrome (decorations: false), so doing so would strand the user
+          // with no way back into the app.
+          window.open(response.payment_url, "_blank");
         } else {
           toast.success("Subscription activated successfully!");
         }
@@ -110,6 +124,12 @@ export function SubscriptionPlans() {
         </Tabs>
       </div>
 
+      {isStatusError && (
+        <p className="text-center text-sm text-destructive">
+          Failed to load subscription status — check your connection.
+        </p>
+      )}
+
       <CouponInput
         couponCode={couponCode}
         setCouponCode={setCouponCode}
@@ -118,6 +138,12 @@ export function SubscriptionPlans() {
         validatingCoupon={validatingCoupon}
         handleValidateCoupon={handleValidateCoupon}
       />
+
+      {isReferralError && (
+        <p className="text-center text-sm text-destructive">
+          Failed to load referral credits — check your connection.
+        </p>
+      )}
 
       {userCredits > 0 && (
         <div className="max-w-md mx-auto bg-primary/5 p-4 rounded-lg flex items-center justify-between border border-primary/20">
@@ -131,13 +157,13 @@ export function SubscriptionPlans() {
           <SubscriptionPlanCard
             key={plan.id}
             plan={plan}
-            isDiscounted={isDiscounted(plan.numericPrice)}
-            discountedPrice={getDiscountedPrice(plan.numericPrice)}
+            isDiscounted={isDiscounted(plan.numericPrice, appliedCoupon, userCredits)}
+            discountedPrice={getDiscountedPrice(plan.numericPrice, appliedCoupon, userCredits)}
             formatPrice={formatPrice}
             currentPlanName={subStatus?.plan}
             onSubscribe={handleSubscribe}
             onDowngradeRequest={setDowngradePlan}
-            isCurrentPlanHigherWeight={isCurrentPlanHigherWeight}
+            isCurrentPlanHigherWeight={(planId) => isCurrentPlanHigherWeight(planId, subStatus?.plan)}
             loading={loading}
           />
         ))}

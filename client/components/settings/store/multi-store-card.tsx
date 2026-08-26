@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { Store, Lock, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
@@ -14,7 +15,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { useStore } from "@/lib/context/store-context";
-import { WEB_APP_URL } from "@/lib/constants";
 import { apiClient } from "@/lib/api/client";
 import type { FleetStore } from "@/lib/types/store";
 import { FleetList } from "./fleet-list";
@@ -93,10 +93,10 @@ export function MultiStoreCard() {
               </div>
             </div>
             <Button variant="default" className="shrink-0" asChild>
-              <a href={`${WEB_APP_URL}/dashboard/billing`} target="_blank" rel="noopener noreferrer">
+              <Link href="/settings/billing">
                 <Lock className="h-4 w-4 mr-2" />
                 Upgrade Plan
-              </a>
+              </Link>
             </Button>
           </div>
         </CardContent>

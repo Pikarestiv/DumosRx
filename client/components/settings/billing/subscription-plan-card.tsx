@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { Check, Loader2, Sparkles } from "lucide-react";
 import type { SubscriptionPlanCatalogEntry } from "@/lib/constants/subscription-plans-catalog";
+import { isCurrentPlan } from "@/lib/utils/billing-pricing";
 
 interface SubscriptionPlanCardProps {
   plan: SubscriptionPlanCatalogEntry;
@@ -28,7 +29,7 @@ export function SubscriptionPlanCard({
   isCurrentPlanHigherWeight,
   loading,
 }: SubscriptionPlanCardProps) {
-  const isCurrent = currentPlanName?.toLowerCase() === plan.name.toLowerCase();
+  const isCurrent = isCurrentPlan(currentPlanName, plan.id);
   const isDowngrade = isCurrentPlanHigherWeight(plan.id);
 
   return (
@@ -73,7 +74,7 @@ export function SubscriptionPlanCard({
       <CardFooter>
         <Button
           className="w-full font-bold"
-          disabled={isCurrent || loading === plan.id}
+          disabled={isCurrent || loading !== null}
           variant={isDowngrade ? "outline" : "default"}
           onClick={() =>
             isDowngrade

@@ -11,8 +11,18 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { useReferralStats } from "@/lib/hooks/use-billing";
 
+function formatDateSafe(dateString: string, pattern: string): string {
+  try {
+    const date = new Date(dateString);
+    if (Number.isNaN(date.getTime())) return "Unknown date";
+    return format(date, pattern);
+  } catch {
+    return "Unknown date";
+  }
+}
+
 export function ReferralTab() {
-  const { data: stats, isLoading } = useReferralStats();
+  const { data: stats, isLoading, isError } = useReferralStats();
   const [copied, setCopied] = useState(false);
 
   const referralLink = stats?.referral_code ? `${window.location.origin}/register?ref=${stats.referral_code}` : "";
@@ -29,6 +39,14 @@ export function ReferralTab() {
     return (
       <div className="flex justify-center py-12 text-muted-foreground">
         <Loader2 className="w-8 h-8 animate-spin" />
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="text-center py-12 text-sm text-destructive">
+        Failed to load referral data — check your connection.
       </div>
     );
   }
@@ -91,7 +109,7 @@ export function ReferralTab() {
                   <TableRow key={ref.id}>
                     <TableCell className="font-semibold">{ref.store_name}</TableCell>
                     <TableCell>{ref.name}</TableCell>
-                    <TableCell className="text-muted-foreground text-sm">{format(new Date(ref.created_at), "dd/MM/yyyy")}</TableCell>
+                    <TableCell className="text-muted-foreground text-sm">{formatDateSafe(ref.created_at, "dd/MM/yyyy")}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className={ref.status === "active" ? "bg-green-500/10 text-green-500 border-green-500/20" : "bg-yellow-500/10 text-yellow-500 border-yellow-500/20"}>
                         {ref.status === "active" ? "Subscribed" : "Registered / Trial"}
@@ -125,7 +143,7 @@ export function ReferralTab() {
               <TableBody>
                 {stats.transactions.map((txn) => (
                   <TableRow key={txn.id}>
-                    <TableCell className="text-muted-foreground text-sm font-mono">{format(new Date(txn.created_at), "dd/MM/yyyy HH:mm")}</TableCell>
+                    <TableCell className="text-muted-foreground text-sm font-mono">{formatDateSafe(txn.created_at, "dd/MM/yyyy HH:mm")}</TableCell>
                     <TableCell>
                       <Badge className={txn.type === "earned" ? "bg-green-500" : "bg-muted-foreground/30 text-foreground"}>
                         {txn.type === "earned" ? "Credit" : txn.type === "spent" ? "Debit" : "Adjustment"}

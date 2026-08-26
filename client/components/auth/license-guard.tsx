@@ -113,6 +113,7 @@ function MobileRestrictionGuard() {
 
 export function LicenseGuard({ children }: { children: React.ReactNode }) {
   const { storeProfile } = useStore();
+  const pathname = usePathname();
   const [license, setLicense] = useState<LicenseInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [deviceId, setDeviceId] = useState("DUMOS-OFFLINE-772X");
@@ -161,6 +162,15 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
 
   if (loading) {
     return <SplashScreen />;
+  }
+
+  // Renewing/paying must always be reachable no matter the license state --
+  // otherwise a suspended or clock-tampered lock screen (whose own "Renew
+  // Subscription" button just navigates here) could permanently strand the
+  // user on this exact page. Always let the billing page's own children
+  // through, skipping the lock screen entirely.
+  if (pathname === "/settings/billing") {
+    return <>{children}</>;
   }
 
   // Render children for valid licenses OR expired subscriptions (downgraded to free).

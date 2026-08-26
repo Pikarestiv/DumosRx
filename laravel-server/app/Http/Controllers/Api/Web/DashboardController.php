@@ -45,6 +45,31 @@ class DashboardController extends Controller
         }
     }
 
+    #[OA\Get(
+        path: '/dashboard/stats',
+        summary: 'Slim cross-store fleet stats for client dashboards',
+        tags: ['Dashboard'],
+        security: [['sanctum' => []]],
+        responses: [
+            new OA\Response(response: 200, description: 'Fleet stats', content: new OA\JsonContent(type: 'object')),
+            new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
+            new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
+        ],
+    )]
+    public function stats(Request $request)
+    {
+        try {
+            $data = $this->dashboardService->getStats($request->user());
+            return response()->json($data);
+        } catch (\Exception $e) {
+            Log::critical("Dashboard Stats Error: " . $e->getMessage());
+            return response()->json([
+                'error' => 'Internal Server Error',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
     #[OA\Post(
         path: '/dashboard/reset',
         summary: "Reset (wipe) the store's data",

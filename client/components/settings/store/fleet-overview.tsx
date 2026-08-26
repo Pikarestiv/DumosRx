@@ -1,6 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Loader2, Lock } from "lucide-react";
 import { useFleetStats } from "@/lib/hooks/use-fleet-stats";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
@@ -22,19 +24,27 @@ export function FleetOverview() {
           <CardDescription>A snapshot across every store on this account.</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center gap-3 rounded-lg border p-4">
-            <div className="p-2 rounded-full bg-primary/10 shrink-0">
-              <Lock className="h-4 w-4 text-primary" />
+          <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-full bg-primary/10 shrink-0">
+                <Lock className="h-4 w-4 text-primary" />
+              </div>
+              <div className="space-y-0.5">
+                <p className="text-sm font-medium">Fleet overview locked</p>
+                <p className="text-xs text-muted-foreground max-w-sm">
+                  {getUpgradeMessage(
+                    "multi_store",
+                    "Cross-store fleet stats are available on higher plans.",
+                  )}
+                </p>
+              </div>
             </div>
-            <div className="space-y-0.5">
-              <p className="text-sm font-medium">Fleet overview locked</p>
-              <p className="text-xs text-muted-foreground max-w-sm">
-                {getUpgradeMessage(
-                  "multi_store",
-                  "Cross-store fleet stats are available on higher plans.",
-                )}
-              </p>
-            </div>
+            <Button variant="default" className="shrink-0" asChild>
+              <Link href="/settings/billing">
+                <Lock className="h-4 w-4 mr-2" />
+                Upgrade Plan
+              </Link>
+            </Button>
           </div>
         </CardContent>
       </Card>

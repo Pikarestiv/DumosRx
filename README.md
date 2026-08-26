@@ -32,9 +32,11 @@ DumosRx/
     └── routes/           # API routes
 ```
 
-- **`client/`**: the actual point-of-sale/inventory app used in-store. A local SQLite database (via `sql.js` in the browser, the native Tauri SQL plugin in packaged builds) is the source of truth at runtime; a sync engine reconciles it against the backend whenever online. Ships three ways from one codebase: Tauri desktop app, Tauri Android/iOS, and a static web build deployed to `app.dumosrx.com`.
-- **`web/`**: the cloud-side dashboard for account owners: subscriptions, cross-store oversight, staff management. Deployed to `dumosrx.com`.
-- **`laravel-server/`**: the API every store's data syncs through: auth, multi-store/multi-tenant scoping, subscriptions, and sync push/pull endpoints. Deployed to `api.dumosrx.com`.
+- **`client/`**: the actual point-of-sale/inventory app used in-store, and the only place a store owner authenticates or manages their dashboard. A local SQLite database (via `sql.js` in the browser, the native Tauri SQL plugin in packaged builds) is the source of truth at runtime; a sync engine reconciles it against the backend whenever online. Ships three ways from one codebase: Tauri desktop app, Tauri Android/iOS, and a static web build deployed to `app.dumosrx.com`.
+- **`web/`**: the public marketing site and platform-admin console, deployed to `dumosrx.com`. It no longer performs store-owner authentication itself: `/login` and every "Go to Dashboard" link redirect straight to `app.dumosrx.com`. Admin actions that need to act as a specific store (impersonation) cross that origin boundary via a short-lived, single-use handoff code (`AuthHandoffController`, `client/app/auth/callback`, `web/app/admin/handoff`) rather than passing a real token through the URL.
+- **`laravel-server/`**: the API every store's data syncs through: auth, multi-store/multi-tenant scoping, subscriptions, sync push/pull endpoints, and the cross-origin auth handoff. Deployed to `api.dumosrx.com`.
+
+> **In progress:** `web/` still has its own copy of the store dashboard (staff, store profile, etc.) inherited from before this consolidation. It's being migrated into `client/` in phases; the auth handoff above is phase 1. Don't build new dashboard features in `web/`, they belong in `client/` now.
 
 ## Quick Start
 
@@ -101,6 +103,8 @@ cd web
 npm install
 npm run dev
 ```
+
+Runs on `http://localhost:3001` (Next.js picks the next free port after `client/`'s 3000). Since `web/`'s login and admin-impersonation flows now redirect into `client/`, point it at your local `client/` instead of the production `app.dumosrx.com`: open `web`'s login screen, use its "Server Config" panel to set the App URL to `http://localhost:3000`, or run `localStorage.setItem("dumos_app_url", "http://localhost:3000")` in the browser console.
 
 ### Default login (after seeding)
 

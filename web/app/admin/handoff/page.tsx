@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 import { webApiClient } from "@/lib/api/client";
+import { useAdminAuthStore, type User } from "@/lib/store/use-admin-auth-store";
 
 function HandoffHandler() {
   const router = useRouter();
@@ -23,8 +24,8 @@ function HandoffHandler() {
     (async () => {
       try {
         const { token, user } = await webApiClient.consumeHandoffCode(code);
-        localStorage.setItem("drx_admin_token", token);
-        localStorage.setItem("drx_admin_user", JSON.stringify(user));
+        useAdminAuthStore.getState().setToken(token);
+        useAdminAuthStore.getState().setUser(user as unknown as User);
         toast.success("Session Restored", { description: "Back to Admin Dashboard" });
         router.replace("/admin/stores/");
       } catch (e) {

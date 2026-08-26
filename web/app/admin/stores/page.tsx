@@ -21,6 +21,7 @@ import { AdminSkeleton } from "@/components/admin/admin-skeleton";
 import type { AdminStoreSummary } from "@/lib/types/admin";
 import { webApiClient } from "@/lib/api/client";
 import { getAppURL } from "@/lib/constants";
+import { useAdminAuthStore } from "@/lib/store/use-admin-auth-store";
 
 export default function StoresManagement() {
   const searchParams = useSearchParams();
@@ -145,7 +146,7 @@ export default function StoresManagement() {
     impersonateMutation.mutate(store.id, {
       onSuccess: async (data) => {
         try {
-          const adminToken = localStorage.getItem("drx_admin_token");
+          const adminToken = useAdminAuthStore.getState().token;
           if (!adminToken) {
             toast.error("Impersonation Failed", {
               description: "No active admin session to hand back to.",

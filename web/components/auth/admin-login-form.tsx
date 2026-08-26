@@ -53,7 +53,6 @@ export function AdminLoginForm() {
         throw new Error("Access Denied: Administrative privileges required.");
       }
 
-      localStorage.setItem("drx_admin_token", response.token);
       setToken(response.token);
       setUser(response.user);
       // Overview (/admin) is super_admin-only (admin/summary requires it

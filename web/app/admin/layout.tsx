@@ -32,7 +32,7 @@ export default function AdminLayout({
 
   const {
     user,
-    fetchUser,
+    initSession,
     loading: authLoading,
     token: _token,
   } = useAdminAuthStore();
@@ -48,18 +48,16 @@ export default function AdminLayout({
         return;
       }
 
-      // Only ask the server "who am I" if this browser has ever held a
-      // token — a fresh/logged-out visit has none, so /user (and the 401
-      // it triggers a /refresh attempt for) would just fail either way.
-      // A token that exists but has expired still goes through fetchUser()
-      // as before, so the refresh-on-401 recovery path is untouched.
-      if (!user && localStorage.getItem("drx_admin_token")) {
-        await fetchUser();
+      // The access token lives in memory only, so it never survives a page
+      // reload - attempt to restore the session via the HttpOnly refresh
+      // cookie directly instead of checking a token that was never persisted.
+      if (!user) {
+        await initSession();
       }
       setChecking(false);
     };
     checkAuth();
-  }, [user, fetchUser, bypassGuard]);
+  }, [user, initSession, bypassGuard]);
 
   useEffect(() => {
     if (bypassGuard) return;

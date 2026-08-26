@@ -13,21 +13,19 @@ import { APP_VERSION } from "@/lib/constants";
 
 export default function AdminLoginPage() {
   const router = useRouter();
-  const { token: _token, user: _user, fetchUser } = useAdminAuthStore();
+  const { token: _token, user: _user, initSession } = useAdminAuthStore();
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
     const checkAuth = async () => {
       try {
         const currentUser = useAdminAuthStore.getState().user;
-        // Same reasoning as the admin layout guard: only ask the server
-        // "who am I" (to auto-redirect an already-logged-in visitor away
-        // from the login form) if this browser actually holds a token.
-        // A fresh/logged-out visit has none, so skip straight to
-        // rendering the form instead of firing a 401 that was never
-        // going to succeed.
-        if (!currentUser && localStorage.getItem("drx_admin_token")) {
-          await fetchUser();
+        // Same reasoning as the admin layout guard: the access token is
+        // memory-only, so a reload always starts with none. Try to restore
+        // via the refresh cookie so an already-logged-in visitor gets
+        // bounced away from the login form instead of seeing it again.
+        if (!currentUser) {
+          await initSession();
         }
       } catch (e) {
         console.error("Auto-auth check failed:", e);

@@ -38,6 +38,9 @@ Route::prefix('v1')->group(function () {
         Route::post('/reset-password', [AuthController::class, 'resetPassword']);
         Route::post('/verify-email', [AuthController::class, 'verifyEmail']);
         Route::post('/resend-verification', [AuthController::class, 'resendVerification']);
+        // Cookie-authenticated (no bearer token - the admin panel's access
+        // token is memory-only and doesn't survive a reload). See AuthController.
+        Route::post('/admin/session/refresh', [AuthController::class, 'refreshAdminSession']);
     });
     // Own (more generous) limiter: one impersonation round trip is already 6
     // handoff calls from a single IP, which the 5/min `auth` limiter would

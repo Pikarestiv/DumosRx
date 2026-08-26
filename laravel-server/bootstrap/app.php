@@ -17,7 +17,6 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->encryptCookies(except: [
             'drx_admin_session',
         ]);
-        $middleware->prependToGroup('api', \App\Http\Middleware\AuthenticateFromCookie::class);
         $middleware->alias([
             'subscription' => \App\Http\Middleware\CheckSubscription::class,
             'permission' => \App\Http\Middleware\CheckPermission::class,

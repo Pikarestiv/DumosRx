@@ -1,3 +1,5 @@
+import { useAdminAuthStore } from "@/lib/store/use-admin-auth-store";
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 
 export interface ApiLogEntry {
@@ -97,7 +99,9 @@ export const reportClientError = (method: string, url: string, status: number | 
   
   try {
     const token = typeof window !== "undefined"
-      ? localStorage.getItem(window.location.pathname.startsWith('/admin') ? "drx_admin_token" : "drx_token")
+      ? (window.location.pathname.startsWith('/admin')
+          ? useAdminAuthStore.getState().token
+          : localStorage.getItem("drx_token"))
       : null;
       
     const headers: Record<string, string> = {

@@ -3,7 +3,7 @@ import { persist } from "zustand/middleware";
 import { webApiClient } from "@/lib/api/client";
 import { queryClient } from "@/lib/query-client";
 
-interface User {
+export interface User {
   id: string;
   email: string;
   first_name: string;
@@ -33,10 +33,16 @@ interface AdminAuthState {
   user: User | null;
   token: string | null;
   loading: boolean;
-  
+
   setUser: (user: User | null) => void;
   setToken: (token: string | null) => void;
   fetchUser: () => Promise<void>;
+  /** Re-establishes a session after a page reload via the HttpOnly refresh
+   * cookie, since the access token itself lives in memory only and doesn't
+   * survive one. Replaces fetchUser() as the "am I logged in" check on
+   * mount - it's a single request instead of a doomed /user call cascading
+   * into a /refresh attempt. */
+  initSession: () => Promise<void>;
   logout: () => void;
 }
 
@@ -44,7 +50,7 @@ export const useAdminAuthStore = create<AdminAuthState>()(
   persist(
     (set) => ({
       user: null,
-      token: null, // Token is handled by HttpOnly cookie
+      token: null, // Access token: memory-only, never persisted (see partialize below)
       loading: false,
 
       setUser: (user) => set({ user }),
@@ -58,6 +64,19 @@ export const useAdminAuthStore = create<AdminAuthState>()(
         try {
           const user = await webApiClient.request<User>("user");
           set({ user, loading: false });
+        } catch (_error) {
+          set({ user: null, token: null, loading: false });
+        }
+      },
+
+      initSession: async () => {
+        set({ loading: true });
+        try {
+          const data = await webApiClient.request<{ token: string; user: User }>(
+            "admin/session/refresh",
+            { method: "POST" },
+          );
+          set({ token: data.token, user: data.user, loading: false });
         } catch (_error) {
           set({ user: null, token: null, loading: false });
         }

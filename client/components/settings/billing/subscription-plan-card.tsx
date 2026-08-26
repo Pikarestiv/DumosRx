@@ -16,6 +16,7 @@ interface SubscriptionPlanCardProps {
   onDowngradeRequest: (plan: { id: string; amount: number; name: string }) => void;
   isCurrentPlanHigherWeight: (planId: string) => boolean;
   loading: string | null;
+  paymentTabOpen: boolean;
 }
 
 export function SubscriptionPlanCard({
@@ -28,6 +29,7 @@ export function SubscriptionPlanCard({
   onDowngradeRequest,
   isCurrentPlanHigherWeight,
   loading,
+  paymentTabOpen,
 }: SubscriptionPlanCardProps) {
   const isCurrent = isCurrentPlan(currentPlanName, plan.id);
   const isDowngrade = isCurrentPlanHigherWeight(plan.id);
@@ -74,7 +76,7 @@ export function SubscriptionPlanCard({
       <CardFooter>
         <Button
           className="w-full font-bold"
-          disabled={isCurrent || loading !== null}
+          disabled={isCurrent || loading !== null || paymentTabOpen}
           variant={isDowngrade ? "outline" : "default"}
           onClick={() =>
             isDowngrade

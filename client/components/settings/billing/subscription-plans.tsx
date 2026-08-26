@@ -25,6 +25,7 @@ export function SubscriptionPlans() {
   const [validatingCoupon, setValidatingCoupon] = useState(false);
   const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
   const [loading, setLoading] = useState<string | null>(null);
+  const [paymentTabOpen, setPaymentTabOpen] = useState(false);
   const [downgradePlan, setDowngradePlan] = useState<{ id: string; amount: number; name: string } | null>(null);
 
   const queryClient = useQueryClient();
@@ -42,11 +43,16 @@ export function SubscriptionPlans() {
   // the user returns to this tab after paying without any route change to
   // trigger a refetch. Re-checking status on visibility/focus is the
   // cheapest way to eventually reflect a completed payment without a
-  // dedicated payment-return route.
+  // dedicated payment-return route. The same handler also clears
+  // paymentTabOpen, which is what keeps plan buttons disabled while the
+  // payment tab is open in the background -- otherwise they'd re-enable
+  // the instant window.open() returns, reopening the concurrent-payment
+  // window the disabling was meant to close.
   useEffect(() => {
     const refreshStatus = () => {
       if (document.visibilityState === "visible") {
         queryClient.invalidateQueries(queryKeys.billing.status());
+        setPaymentTabOpen(false);
       }
     };
 
@@ -100,6 +106,7 @@ export function SubscriptionPlans() {
           // chrome (decorations: false), so doing so would strand the user
           // with no way back into the app.
           window.open(response.payment_url, "_blank");
+          setPaymentTabOpen(true);
         } else {
           toast.success("Subscription activated successfully!");
         }
@@ -165,6 +172,7 @@ export function SubscriptionPlans() {
             onDowngradeRequest={setDowngradePlan}
             isCurrentPlanHigherWeight={(planId) => isCurrentPlanHigherWeight(planId, subStatus?.plan)}
             loading={loading}
+            paymentTabOpen={paymentTabOpen}
           />
         ))}
       </div>

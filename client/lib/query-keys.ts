@@ -209,4 +209,10 @@ export const queryKeys = {
       resource(["activityLog", filtersKey] as const, ["audit_logs"]),
     actions: () => resource(["activityLogActions"] as const, ["audit_logs"]),
   },
+  billing: {
+    // Remote API data, not a local table.
+    status: () => resource(["billing", "status"] as const, []),
+    history: () => resource(["billing", "history"] as const, []),
+    referrals: () => resource(["billing", "referrals"] as const, []),
+  },
 } as const;

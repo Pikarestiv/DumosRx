@@ -13,6 +13,7 @@ export function generateStaticParams() {
     { tab: "staff" },
     { tab: "system" },
     { tab: "cloud" },
+    { tab: "billing" },
   ];
 }
 

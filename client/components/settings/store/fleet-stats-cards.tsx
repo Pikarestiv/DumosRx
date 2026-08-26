@@ -1,19 +1,22 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { formatCurrency } from "@/lib/utils";
 import type { FleetStats } from "@/lib/types/store";
 
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", minimumFractionDigits: 0 }).format(value);
-}
-
-export function FleetStatsCards({ stats }: { stats: FleetStats["stats"] }) {
+export function FleetStatsCards({
+  stats,
+  currencyCode,
+}: {
+  stats: FleetStats["stats"];
+  currencyCode?: string;
+}) {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-4 space-y-1">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Total Fleet Sales</p>
-            <h3 className="text-2xl font-bold">{formatCurrency(stats.total_sales.value)}</h3>
+            <h3 className="text-2xl font-bold">{formatCurrency(stats.total_sales.value, currencyCode)}</h3>
             <Badge variant="secondary">{stats.total_sales.growth}</Badge>
           </CardContent>
         </Card>
@@ -27,7 +30,7 @@ export function FleetStatsCards({ stats }: { stats: FleetStats["stats"] }) {
         <Card>
           <CardContent className="p-4 space-y-1">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Stock Value</p>
-            <h3 className="text-2xl font-bold">{formatCurrency(stats.inventory_value.value)}</h3>
+            <h3 className="text-2xl font-bold">{formatCurrency(stats.inventory_value.value, currencyCode)}</h3>
             <Badge variant="secondary">Live Stock</Badge>
           </CardContent>
         </Card>

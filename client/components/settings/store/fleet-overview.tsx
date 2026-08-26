@@ -1,14 +1,45 @@
 "use client";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2 } from "lucide-react";
+import { Loader2, Lock } from "lucide-react";
 import { useFleetStats } from "@/lib/hooks/use-fleet-stats";
+import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
+import { useStore } from "@/lib/context/store-context";
 import { FleetStatsCards } from "./fleet-stats-cards";
 import { FleetStatsTable } from "./fleet-stats-table";
 import { FleetDailySummary } from "./fleet-daily-summary";
 
 export function FleetOverview() {
-  const { data, isLoading, isError } = useFleetStats();
+  const { canManageMultiStore, getUpgradeMessage } = useFeatureGate();
+  const { storeProfile } = useStore();
+  const { data, isLoading, isError } = useFleetStats(canManageMultiStore);
+
+  if (!canManageMultiStore) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Fleet Overview</CardTitle>
+          <CardDescription>A snapshot across every store on this account.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-3 rounded-lg border p-4">
+            <div className="p-2 rounded-full bg-primary/10 shrink-0">
+              <Lock className="h-4 w-4 text-primary" />
+            </div>
+            <div className="space-y-0.5">
+              <p className="text-sm font-medium">Fleet overview locked</p>
+              <p className="text-xs text-muted-foreground max-w-sm">
+                {getUpgradeMessage(
+                  "multi_store",
+                  "Cross-store fleet stats are available on higher plans.",
+                )}
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -37,7 +68,7 @@ export function FleetOverview() {
         <CardDescription>A snapshot across every store on this account.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        <FleetStatsCards stats={data.stats} />
+        <FleetStatsCards stats={data.stats} currencyCode={storeProfile?.currency} />
         <FleetDailySummary />
         <FleetStatsTable stores={data.stores} />
       </CardContent>

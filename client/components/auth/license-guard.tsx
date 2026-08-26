@@ -26,7 +26,6 @@ import {
 import { useStore } from "@/lib/context/store-context";
 import { useAuth } from "@/lib/context/auth-context";
 import { usePathname } from "next/navigation";
-import { WEB_APP_URL } from "@/lib/constants";
 import { useTheme } from "@/components/theme-provider";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { isMobileDevice } from "@/lib/utils";
@@ -225,15 +224,15 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Check Again
               </Button>
-              <Button variant="outline" className="w-full" asChild>
-                <a
-                  href={`${WEB_APP_URL}/dashboard/billing`}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  <ExternalLink className="h-4 w-4 mr-2" />
-                  Renew Subscription
-                </a>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => {
+                  window.location.href = "/settings/billing";
+                }}
+              >
+                <ExternalLink className="h-4 w-4 mr-2" />
+                Renew Subscription
               </Button>
             </>
           )}

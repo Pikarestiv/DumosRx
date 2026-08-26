@@ -15,9 +15,7 @@ function getDeviceIcon(session: Session) {
 }
 
 function parseDeviceName(session: Session) {
-  // Prefer the device_name supplied at login (e.g. client/'s own "Client App")
-  // over UA-sniffing — client's own login already sends a meaningful name,
-  // unlike web's, which relies entirely on UA parsing as its only signal.
+  // Use device_name from login if available. Web falls back to UA parsing.
   if (session.name && session.name.toLowerCase() !== "unknown") return session.name;
   const ua = session.user_agent || "";
   if (!ua) return "Unknown Device";
@@ -81,7 +79,7 @@ export function SessionsList() {
         )}
         {isError && (
           <p className="text-sm text-destructive text-center py-6">
-            Failed to load sessions — check your connection and try again.
+            Failed to load sessions. Check your connection and try again.
           </p>
         )}
         {!isLoading && !isError && sessions.length === 0 && (

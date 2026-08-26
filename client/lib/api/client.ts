@@ -6,7 +6,7 @@ import type { SupplierPayload } from "@/lib/types/supplier";
 import type { SyncChange } from "@/lib/types/sync";
 import type { StoreOption, FleetStore, FleetStorePayload, FleetStats } from "@/lib/types/store";
 import type { OnlineOrder } from "@/lib/types/online-order";
-import type { CurrentUser } from "@/lib/types/user";
+import type { CurrentUser, Session } from "@/lib/types/user";
 import type {
   SubscriptionStatus,
   PaymentPayload,
@@ -78,6 +78,22 @@ class ApiClient extends BaseApiClient {
     return this.request<{ message: string; user: CurrentUser }>("/profile/update", {
       method: "POST",
       body: JSON.stringify(payload),
+    });
+  }
+
+  async getSessions() {
+    return this.request<Session[]>("/sessions");
+  }
+
+  async revokeSession(id: string) {
+    return this.request<{ message: string }>(`/sessions/${id}`, {
+      method: "DELETE",
+    });
+  }
+
+  async revokeAllSessions() {
+    return this.request<{ message: string }>("/sessions/revoke-all", {
+      method: "POST",
     });
   }
 

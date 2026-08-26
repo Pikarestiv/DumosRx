@@ -6,6 +6,7 @@ import type { SupplierPayload } from "@/lib/types/supplier";
 import type { SyncChange } from "@/lib/types/sync";
 import type { StoreOption, FleetStore, FleetStorePayload } from "@/lib/types/store";
 import type { OnlineOrder } from "@/lib/types/online-order";
+import type { CurrentUser } from "@/lib/types/user";
 import type {
   SubscriptionStatus,
   PaymentPayload,
@@ -70,7 +71,14 @@ class ApiClient extends BaseApiClient {
   }
 
   async getProfile() {
-    return this.request<unknown>("/user");
+    return this.request<CurrentUser>("/user");
+  }
+
+  async updateProfile(payload: { first_name: string; last_name: string; phone?: string | null }) {
+    return this.request<{ message: string; user: CurrentUser }>("/profile/update", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
   }
 
   // The request body's `token` is the sole credential here; the endpoint

@@ -215,4 +215,9 @@ export const queryKeys = {
     history: () => resource(["billing", "history"] as const, []),
     referrals: () => resource(["billing", "referrals"] as const, []),
   },
+  account: {
+    // Remote API data, not a local table.
+    currentUser: () => resource(["currentUser"] as const, []),
+    sessions: () => resource(["accountSessions"] as const, []),
+  },
 } as const;

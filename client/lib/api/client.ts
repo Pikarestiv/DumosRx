@@ -359,6 +359,12 @@ class ApiClient extends BaseApiClient {
     return this.request<FleetStats>("/dashboard/stats");
   }
 
+  async sendEndOfDaySummary() {
+    return this.request<{ message: string }>("/dashboard/send-summary", {
+      method: "POST",
+    });
+  }
+
   // Subscription & Billing
   async getSubscriptionStatus() {
     return this.request<SubscriptionStatus>("/subscription/status");

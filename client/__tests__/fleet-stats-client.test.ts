@@ -37,4 +37,18 @@ describe('fleet stats API method', () => {
     const [url] = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(url).toContain('/dashboard/stats');
   });
+
+  it('sendEndOfDaySummary posts to /dashboard/send-summary with no body', async () => {
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({ message: 'End of day summary generated and sent to owner@dumosrx.com' }),
+    });
+
+    const result = await apiClient.sendEndOfDaySummary();
+
+    expect(result).toEqual({ message: 'End of day summary generated and sent to owner@dumosrx.com' });
+    const [url, config] = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(url).toContain('/dashboard/send-summary');
+    expect(config.method).toBe('POST');
+  });
 });

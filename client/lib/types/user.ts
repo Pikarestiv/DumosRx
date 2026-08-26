@@ -34,7 +34,7 @@ export type StaffUpdatePayload = Partial<StaffCreatePayload>;
  * list/edit-form never needs it (edits always start with a blank PIN field). */
 export type StaffListItem = Omit<UserDbRow, "pin">;
 
-/** The cloud Sanctum-authenticated account (store owner/admin) — distinct
+/** The cloud Sanctum-authenticated account (store owner/admin), distinct
  * from the auth-context `User`, which represents the local, PIN-authenticated
  * device user. Only the store owner/admin has one of these; staff members
  * log in locally and have no cloud session of their own. */

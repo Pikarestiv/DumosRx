@@ -53,7 +53,7 @@ export function ProfileSettings() {
     return (
       <Card>
         <CardContent className="p-8 text-center text-sm text-destructive">
-          Failed to load your account details — check your connection and try again.
+          Failed to load your account details. Check your connection and try again.
         </CardContent>
       </Card>
     );

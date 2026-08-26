@@ -311,8 +311,8 @@ class DashboardService
     }
 
     /**
-     * Slim stats + stores payload for client/'s Fleet Overview — same
-     * underlying figures as getSummary()'s 'stats'/'stores' keys, computed
+     * Slim stats + stores payload for client/'s Fleet Overview, using the
+     * same underlying figures as getSummary()'s 'stats'/'stores' keys, computed
      * independently rather than by refactoring getSummary (which has no
      * test coverage to refactor safely against), and without the heavy
      * per-store recent_transactions/recent_activities getSummary() includes.

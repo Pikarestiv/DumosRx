@@ -26,7 +26,6 @@ import {
 import { useStore } from "@/lib/context/store-context";
 import { useAuth } from "@/lib/context/auth-context";
 import { usePathname } from "next/navigation";
-import { WEB_APP_URL } from "@/lib/constants";
 import { useTheme } from "@/components/theme-provider";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { isMobileDevice } from "@/lib/utils";
@@ -114,6 +113,7 @@ function MobileRestrictionGuard() {
 
 export function LicenseGuard({ children }: { children: React.ReactNode }) {
   const { storeProfile } = useStore();
+  const pathname = usePathname();
   const [license, setLicense] = useState<LicenseInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [deviceId, setDeviceId] = useState("DUMOS-OFFLINE-772X");
@@ -162,6 +162,15 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
 
   if (loading) {
     return <SplashScreen />;
+  }
+
+  // Renewing/paying must always be reachable no matter the license state --
+  // otherwise a suspended or clock-tampered lock screen (whose own "Renew
+  // Subscription" button just navigates here) could permanently strand the
+  // user on this exact page. Always let the billing page's own children
+  // through, skipping the lock screen entirely.
+  if (pathname === "/settings/billing") {
+    return <>{children}</>;
   }
 
   // Render children for valid licenses OR expired subscriptions (downgraded to free).
@@ -225,15 +234,15 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Check Again
               </Button>
-              <Button variant="outline" className="w-full" asChild>
-                <a
-                  href={`${WEB_APP_URL}/dashboard/billing`}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  <ExternalLink className="h-4 w-4 mr-2" />
-                  Renew Subscription
-                </a>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => {
+                  window.location.href = "/settings/billing";
+                }}
+              >
+                <ExternalLink className="h-4 w-4 mr-2" />
+                Renew Subscription
               </Button>
             </>
           )}

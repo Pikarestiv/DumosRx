@@ -19,6 +19,7 @@ const HIDDEN_KEYS = new Set([
   "_synced_at",
   "_deleted",
   "store_id",
+  "pin",
 ]);
 
 function humanizeKey(key: string) {

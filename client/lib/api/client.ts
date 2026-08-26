@@ -4,8 +4,16 @@ import type { Broadcast } from "@/lib/types/broadcast";
 import type { NewProductPayload } from "@/lib/types/product";
 import type { SupplierPayload } from "@/lib/types/supplier";
 import type { SyncChange } from "@/lib/types/sync";
-import type { StoreOption } from "@/lib/types/store";
+import type { StoreOption, FleetStore, FleetStorePayload } from "@/lib/types/store";
 import type { OnlineOrder } from "@/lib/types/online-order";
+import type {
+  SubscriptionStatus,
+  PaymentPayload,
+  PaymentResponse,
+  ReferralStats,
+  CouponValidationResponse,
+  BillingTransaction,
+} from "@/lib/types/subscription-plans";
 
 /** Loose shape shared by the legacy cloud list/aggregate endpoints below:
  * callers only ever read `.total`/`.count`/`.data?.length`/`.revenue`. */
@@ -317,6 +325,60 @@ class ApiClient extends BaseApiClient {
   async checkStoreSlug(slug: string, ignoreId?: string) {
     const url = `/stores/check-slug?slug=${encodeURIComponent(slug)}${ignoreId ? `&ignore_id=${ignoreId}` : ""}`;
     return this.request<{ available: boolean; slug: string }>(url);
+  }
+
+  async createStore(payload: FleetStorePayload) {
+    return this.request<{ message: string; store: FleetStore }>("/stores", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async updateStore(id: string, payload: FleetStorePayload) {
+    return this.request<{ message: string; store: FleetStore }>(`/stores/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async deleteStore(id: string) {
+    return this.request<{ message: string }>(`/stores/${id}`, {
+      method: "DELETE",
+    });
+  }
+
+  // Subscription & Billing
+  async getSubscriptionStatus() {
+    return this.request<SubscriptionStatus>("/subscription/status");
+  }
+
+  async pay(payload: PaymentPayload) {
+    return this.request<PaymentResponse>("/subscription/pay", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async getReferralStats() {
+    return this.request<ReferralStats>("/subscription/referral-stats");
+  }
+
+  async validateCoupon(payload: { code: string; plan_name?: string; interval?: string }) {
+    return this.request<CouponValidationResponse>("/subscription/validate-coupon", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async verifyPayment(reference: string) {
+    return this.request<{ success: boolean; message?: string }>("/subscription/verify", {
+      method: "POST",
+      body: JSON.stringify({ reference }),
+    });
+  }
+
+  async getBillingHistory() {
+    return this.request<{ transactions: BillingTransaction[] }>("/subscription/billing-history");
   }
 
   // Notifications

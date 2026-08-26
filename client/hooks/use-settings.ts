@@ -95,8 +95,8 @@ export function useSettings() {
         if (internalTab === "cloud" && !isCloudLinked) {
           syncState.setIsCloudLinkOpen(true);
         }
-      } else if (["appearance", "store", "notifications", "security", "staff", "system"].includes(internalTab)) {
-        if (!isAdmin && ["store", "data", "staff", "system", "cloud"].includes(internalTab)) {
+      } else if (["appearance", "store", "notifications", "security", "staff", "system", "billing"].includes(internalTab)) {
+        if (!isAdmin && ["store", "data", "staff", "system", "cloud", "billing"].includes(internalTab)) {
           setActiveTab("appearance");
           return;
         }

@@ -126,7 +126,8 @@ export const queryKeys = {
   },
   staff: {
     count: () => resource(["staffCount"] as const, ["users"]),
-    users: () => resource(["users"] as const, ["users"]),
+    users: (storeId?: string | null) =>
+      resource(["users", storeId ?? "all"] as const, ["users"]),
   },
   sync: {
     queueCount: () => resource(["syncQueueCount"] as const, ["_sync_queue"]),
@@ -207,5 +208,11 @@ export const queryKeys = {
     list: (filtersKey: string) =>
       resource(["activityLog", filtersKey] as const, ["audit_logs"]),
     actions: () => resource(["activityLogActions"] as const, ["audit_logs"]),
+  },
+  billing: {
+    // Remote API data, not a local table.
+    status: () => resource(["billing", "status"] as const, []),
+    history: () => resource(["billing", "history"] as const, []),
+    referrals: () => resource(["billing", "referrals"] as const, []),
   },
 } as const;

@@ -101,7 +101,7 @@ function useActionCenterAlerts(
             icon: ShieldAlert,
             priority: "critical",
             actionLabel: "Renew Now",
-            actionRoute: "/settings/cloud",
+            actionRoute: "/settings/billing",
           });
         } else if (licenseStatus.expiryDate) {
           const daysLeft = Math.floor(
@@ -119,7 +119,7 @@ function useActionCenterAlerts(
               icon: ShieldAlert,
               priority: "warning",
               actionLabel: "Renew Now",
-              actionRoute: "/settings/cloud",
+              actionRoute: "/settings/billing",
             });
           }
         }

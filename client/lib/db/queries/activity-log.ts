@@ -7,6 +7,7 @@ export interface ActivityLogFilters {
   action?: string;
   userId?: string;
   role?: string;
+  tableName?: string;
   page?: number;
   pageSize?: number;
 }
@@ -24,7 +25,7 @@ export interface ActivityLogResult {
 export async function getActivityLog(
   filters: ActivityLogFilters = {},
 ): Promise<ActivityLogResult> {
-  const { from, to, action, userId, role, page = 1, pageSize = 50 } = filters;
+  const { from, to, action, userId, role, tableName, page = 1, pageSize = 50 } = filters;
 
   const conditions: string[] = ["(al._deleted = 0 OR al._deleted IS NULL)"];
   const params: (string | number)[] = [];
@@ -48,6 +49,10 @@ export async function getActivityLog(
   if (role) {
     conditions.push("u.role = ?");
     params.push(role);
+  }
+  if (tableName) {
+    conditions.push("al.table_name = ?");
+    params.push(tableName);
   }
 
   const where = conditions.join(" AND ");

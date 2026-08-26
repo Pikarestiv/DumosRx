@@ -218,14 +218,14 @@ export async function createPrescription(
 const STAFF_LIST_COLUMNS = "id, first_name, last_name, username, email, role, store_id, is_active, created_at";
 
 export async function getUsers(storeId?: string | null) {
-  // Fall back to the module-scope resolver (same one every other query file
-  // uses) when the caller doesn't pass an explicit id, keeping this in step
-  // with the rest of the app's store-scoping instead of being its own thing.
-  storeId = storeId ?? getActiveStoreId();
-  if (storeId) {
+  // Only fall back to the module-scope resolver when the caller omits the
+  // argument entirely. An explicit `null` means "no filter, all stores" and
+  // must not be coerced back into the active store id.
+  const effectiveStoreId = storeId === undefined ? getActiveStoreId() : storeId;
+  if (effectiveStoreId) {
     return await query<StaffListItem>(
       `SELECT ${STAFF_LIST_COLUMNS} FROM users WHERE _deleted = 0 AND (store_id = ? OR store_id IS NULL OR role = 'admin' OR role = 'store_owner') ORDER BY first_name ASC`,
-      [storeId],
+      [effectiveStoreId],
     );
   }
   return await query<StaffListItem>(

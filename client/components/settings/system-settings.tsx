@@ -10,9 +10,10 @@ import {
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
-import { ExternalLink } from "lucide-react";
-import { APP_NAME, APP_VERSION, SUPPORT_EMAIL, WEB_APP_URL } from "@/lib/constants";
+import { ArrowRight } from "lucide-react";
+import { APP_NAME, APP_VERSION, SUPPORT_EMAIL } from "@/lib/constants";
 import { isTauri } from "@/lib/db/core";
+import Link from "next/link";
 import { IosInstallCard } from "./ios-install-card";
 import { AndroidInstallCard } from "./android-install-card";
 import { DownloadAppsCard } from "./download-apps-card";
@@ -26,18 +27,17 @@ export function SystemSettings() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Web Dashboard</CardTitle>
+          <CardTitle>Subscription & Billing</CardTitle>
           <CardDescription>
-            Manage your subscription, view all your stores in one place, and
-            oversee staff from your account dashboard in the cloud
+            Manage your subscription plan, payment methods, and billing history
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Button asChild variant="outline">
-            <a href={WEB_APP_URL} target="_blank" rel="noopener noreferrer">
-              Open Web Dashboard
-              <ExternalLink className="w-4 h-4 ml-2" />
-            </a>
+            <Link href="/settings/billing">
+              Manage Billing
+              <ArrowRight className="w-4 h-4 ml-2" />
+            </Link>
           </Button>
         </CardContent>
       </Card>

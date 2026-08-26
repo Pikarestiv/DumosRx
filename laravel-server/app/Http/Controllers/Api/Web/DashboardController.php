@@ -89,7 +89,7 @@ class DashboardController extends Controller
     public function resetData(Request $request)
     {
         $request->validate([
-            'type' => 'nullable|string',
+            'type' => 'nullable|string|in:all,sales,logs,customers,inventories,stores',
             'password' => 'required|string',
         ]);
 

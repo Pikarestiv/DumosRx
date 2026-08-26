@@ -63,6 +63,16 @@ class AccountSecurityTest extends TestCase
         $response->assertStatus(200);
     }
 
+    public function test_reset_data_rejects_invalid_type(): void
+    {
+        $response = $this->actingAs($this->user)->postJson('/api/v1/dashboard/reset', [
+            'type' => 'bogus_type',
+            'password' => 'correct-password',
+        ]);
+
+        $response->assertStatus(422);
+    }
+
     public function test_request_deletion_rejects_wrong_password(): void
     {
         $response = $this->actingAs($this->user)->postJson('/api/v1/profile/request-deletion', [

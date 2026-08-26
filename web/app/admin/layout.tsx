@@ -48,7 +48,12 @@ export default function AdminLayout({
         return;
       }
 
-      if (!user) {
+      // Only ask the server "who am I" if this browser has ever held a
+      // token — a fresh/logged-out visit has none, so /user (and the 401
+      // it triggers a /refresh attempt for) would just fail either way.
+      // A token that exists but has expired still goes through fetchUser()
+      // as before, so the refresh-on-401 recovery path is untouched.
+      if (!user && localStorage.getItem("drx_admin_token")) {
         await fetchUser();
       }
       setChecking(false);

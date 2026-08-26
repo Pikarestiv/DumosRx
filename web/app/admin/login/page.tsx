@@ -20,7 +20,13 @@ export default function AdminLoginPage() {
     const checkAuth = async () => {
       try {
         const currentUser = useAdminAuthStore.getState().user;
-        if (!currentUser) {
+        // Same reasoning as the admin layout guard: only ask the server
+        // "who am I" (to auto-redirect an already-logged-in visitor away
+        // from the login form) if this browser actually holds a token.
+        // A fresh/logged-out visit has none, so skip straight to
+        // rendering the form instead of firing a 401 that was never
+        // going to succeed.
+        if (!currentUser && localStorage.getItem("drx_admin_token")) {
           await fetchUser();
         }
       } catch (e) {
@@ -35,7 +41,7 @@ export default function AdminLoginPage() {
       }
     };
     checkAuth();
-     
+
   }, []);
 
   if (checking) {

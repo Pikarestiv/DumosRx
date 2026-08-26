@@ -20,13 +20,9 @@ export function SmartSuppWidget({ chatKey }: SmartSuppWidgetProps) {
   const isDashboard = pathname.startsWith("/dashboard");
   const isAdmin = pathname.startsWith("/admin") && pathname !== "/admin/login";
 
-  // Visible everywhere EXCEPT dashboard and secure admin pages
-  // But explicitly allow it on /dashboard/support
-  let isVisible = !(isDashboard || isAdmin);
-  
-  if (pathname.includes("/dashboard/support")) {
-    isVisible = true;
-  }
+  // Visible everywhere except the (now redirect-only) dashboard routes and
+  // secure admin pages.
+  const isVisible = !(isDashboard || isAdmin);
 
   useEffect(() => {
     if (!chatKey) return;

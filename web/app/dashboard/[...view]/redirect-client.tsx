@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import { getAppURL } from "@/lib/constants";
 
-export default function DashboardRedirectPage() {
+export function DashboardViewRedirect() {
   useEffect(() => {
     window.location.href = getAppURL();
   }, []);

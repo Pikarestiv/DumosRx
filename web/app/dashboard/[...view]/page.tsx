@@ -1,7 +1,9 @@
-import { use, Suspense } from "react";
-import { DashboardClient } from "../dashboard-client";
-import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton";
+import { DashboardViewRedirect } from "./redirect-client";
 
+// web/'s own dashboard is gone; every deep link (e.g. /dashboard/staff,
+// /dashboard/billing) redirects to app.dumosrx.com's root rather than to a
+// specific tab, since the old view names don't map 1:1 onto client/'s
+// Settings tabs and client/'s own nav gets the user the rest of the way.
 export const dynamicParams = false;
 
 export function generateStaticParams() {
@@ -20,13 +22,6 @@ export function generateStaticParams() {
   ];
 }
 
-export default function DashboardViewPage({ params }: { params: Promise<{ view: string[] }> }) {
-  const { view } = use(params);
-  const mainView = view[0];
-  const subView = view[1];
-  return (
-    <Suspense fallback={<DashboardSkeleton />}>
-      <DashboardClient view={mainView} subView={subView} />
-    </Suspense>
-  );
+export default function DashboardViewRedirectPage() {
+  return <DashboardViewRedirect />;
 }

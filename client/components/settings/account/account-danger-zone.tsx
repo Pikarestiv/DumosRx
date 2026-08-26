@@ -16,10 +16,10 @@ import { PasswordConfirmDialog } from "./password-confirm-dialog";
 const RESET_TYPES: { type: string; label: string; description: string }[] = [
   { type: "sales", label: "Clear Sales", description: "Permanently delete all sales records from the cloud." },
   { type: "logs", label: "Clear Logs", description: "Permanently delete all activity logs from the cloud." },
-  { type: "inventories", label: "Clear Stock Batch", description: "Permanently delete all stock batch records from the cloud." },
+  { type: "inventories", label: "Clear Inventory", description: "Permanently delete all products and stock batch records from the cloud." },
   { type: "customers", label: "Clear Customers", description: "Permanently delete all customer records from the cloud." },
   { type: "stores", label: "Clear Terminals", description: "Permanently delete all store/terminal records from the cloud." },
-  { type: "all", label: "Nuke Everything (Full Reset)", description: "WARNING: This will delete ALL cloud data (Sales, Logs, Stock Batch, Customers). This is irreversible." },
+  { type: "all", label: "Nuke Everything (Full Reset)", description: "WARNING: This will delete ALL cloud data (Sales, Logs, Products, Stock Batch, Customers, Stores). This is irreversible." },
 ];
 
 export function AccountDangerZone() {

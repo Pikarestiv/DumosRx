@@ -272,7 +272,18 @@ e2e/                       Playwright end-to-end specs
   factory shape (`query-keys.test.ts`), and various calculation/parsing
   utilities.
 - `npm run test:e2e`: Playwright, full user flows (auth, sales lifecycle,
-  procurement, products, dashboard, expenses, customers).
+  procurement, products, dashboard, expenses, customers). Since a fresh
+  browser context starts with an empty IndexedDB, don't rely on network
+  interception or the "Setup New Store" flow for initial state — a
+  `global.setup.ts` script pre-seeds `idb-keyval` with a dedicated test
+  account (`admin@dumosrx.com`, PIN `1234`) and mock data once; test files
+  import `test`/`expect` from `e2e/fixtures.ts` (not `@playwright/test`
+  directly) to inject that seeded database via `window.restoreDatabase()`
+  before navigating. Avoid `page.goto()` for internal navigation (forces a
+  full reload, resetting SPA state); click through sidebar links instead.
+  New pages should get E2E coverage alongside the existing core set
+  (Dashboard, POS, Inventory, Customers, Procurement, Expenses, Reports) so
+  the whole app stays covered, not just the area you're adding.
 - `npm run test:schema`: diffs local SQLite schema against the Laravel
   backend's live MySQL schema. Requires the sibling `../laravel-server` repo
   and a working `php artisan tinker` in it.

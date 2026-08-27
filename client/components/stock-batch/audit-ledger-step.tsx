@@ -17,6 +17,11 @@ function diffClassName(amount: number) {
   return amount > 0 ? "text-emerald-600" : "text-destructive";
 }
 
+function diffBgClassName(amount: number) {
+  if (amount === 0) return "";
+  return amount > 0 ? "bg-emerald-600/10" : "bg-destructive/10";
+}
+
 interface AuditLedgerStepProps {
   items: AuditItem[];
   totalItems: number;
@@ -50,6 +55,22 @@ export function AuditLedgerStep({
   search,
   setSearch,
 }: AuditLedgerStepProps) {
+  // Totals reflect the rows currently shown (respects the category filter
+  // and search), so switching categories gives a live subtotal for that
+  // slice as well as the whole-audit total when nothing's filtered.
+  const totals = items.reduce(
+    (acc, item) => {
+      const countedQty = item.countedQty ?? item.systemQty;
+      const diffQty = countedQty - item.systemQty;
+      acc.diffQty += diffQty;
+      acc.diffCost += item.costPrice !== undefined ? diffQty * item.costPrice : 0;
+      acc.diffSelling +=
+        item.sellingPrice !== undefined ? diffQty * item.sellingPrice : 0;
+      return acc;
+    },
+    { diffQty: 0, diffCost: 0, diffSelling: 0 },
+  );
+
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-300 pb-4">
       <div className="text-[17px] font-semibold mb-1.5">Physical inventory</div>
@@ -144,14 +165,17 @@ export function AuditLedgerStep({
               {items.map((item) => {
                 const countedQty = item.countedQty ?? item.systemQty;
                 const diffQty = countedQty - item.systemQty;
+                // Valued at the system price, not the counted one: this is
+                // the financial exposure of the quantity variance itself
+                // (shrinkage cost / lost revenue), not a price-correction
+                // diff. Counted Cost/Counted Selling still track price
+                // corrections independently via costChanged/sellingChanged
+                // below.
                 const diffCost =
-                  item.costPrice !== undefined
-                    ? (item.countedCostPrice ?? item.costPrice) - item.costPrice
-                    : 0;
+                  item.costPrice !== undefined ? diffQty * item.costPrice : 0;
                 const diffSelling =
                   item.sellingPrice !== undefined
-                    ? (item.countedSellingPrice ?? item.sellingPrice) -
-                      item.sellingPrice
+                    ? diffQty * item.sellingPrice
                     : 0;
                 const costChanged =
                   item.countedCostPrice !== undefined &&
@@ -307,6 +331,46 @@ export function AuditLedgerStep({
                 </div>
               )}
             </div>
+
+            {items.length > 0 && (
+              <div role="rowgroup">
+                <div
+                  role="row"
+                  className={`grid ${GRID_COLS} border-t-2 border-border font-semibold`}
+                >
+                  <div
+                    role="cell"
+                    className="px-3 py-2 sticky left-0 z-10 bg-muted text-muted-foreground text-[11px] uppercase"
+                  >
+                    Totals{selectedCategory !== ALL_CATEGORIES ? " (filtered)" : ""}
+                  </div>
+                  <div role="cell" className="px-3 py-2" />
+                  <div role="cell" className="px-3 py-2" />
+                  <div
+                    role="cell"
+                    className={`px-3 py-2 text-right flex items-center justify-end ${diffClassName(totals.diffQty)} ${diffBgClassName(totals.diffQty)}`}
+                  >
+                    {totals.diffQty > 0 ? `+${totals.diffQty}` : totals.diffQty}
+                  </div>
+                  <div role="cell" className="px-3 py-2" />
+                  <div role="cell" className="px-3 py-2" />
+                  <div
+                    role="cell"
+                    className={`px-3 py-2 text-right flex items-center justify-end ${diffClassName(totals.diffCost)} ${diffBgClassName(totals.diffCost)}`}
+                  >
+                    {formatDiffCurrency(totals.diffCost)}
+                  </div>
+                  <div role="cell" className="px-3 py-2" />
+                  <div role="cell" className="px-3 py-2" />
+                  <div
+                    role="cell"
+                    className={`px-3 py-2 text-right flex items-center justify-end ${diffClassName(totals.diffSelling)} ${diffBgClassName(totals.diffSelling)}`}
+                  >
+                    {formatDiffCurrency(totals.diffSelling)}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -115,9 +115,11 @@ The search box that adds rows stays pinned above the list/table in both modes; o
 3. Confirm → the existing missing-expiry warning dialog fires if applicable → `createAndReceivePurchaseOrder(..., type: 'immediate')` → PO is created already `received`, stock batches exist immediately.
 4. No separate "receive" step ever happens for this PO.
 
-## 11. Open Question for Implementation Planning
+## 11. Type Selection UI
 
-How the user picks Standard vs. Immediate at the start of `/procurement/new` (a segmented toggle at the top of the page, two distinct entry points/routes, or a radio in the vendor-select card) is a UI-layout detail, not an architectural one — left to be decided during implementation planning rather than gating this spec.
+A segmented toggle ("Immediate Purchase" / "Purchase Order") at the top of `/procurement/new`, above the vendor select. One route, one page — the toggle only changes which ledger-table column set and submit function get used downstream; it does not duplicate the page.
+
+Once the ledger table has at least one row, the toggle is **disabled** (not hidden — visibly disabled with a tooltip like "Start a new PO to change type"). The two types have different column shapes and different submit semantics (`createPurchaseOrder` vs. `createAndReceivePurchaseOrder`), so switching mid-entry risks silent data loss; disabling is simpler and safer than a warn-and-clear confirm dialog for what should be a rare case.
 
 ## 12. File Impact Summary
 

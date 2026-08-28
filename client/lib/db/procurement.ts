@@ -71,6 +71,17 @@ export interface DraftPOLineItem {
   subtotal: number;
 }
 
+export interface ImmediateLineItemDraft extends DraftPOLineItem {
+  /** Overrides unit_cost for the batch actually created, if the invoiced
+   * cost differs from what was typed while building the order. */
+  cost_price_override?: number | string;
+  lot_number?: string;
+  expiry_date?: string;
+  /** When set, updates the product's global selling price (same effect
+   * as ReceivedItem.selling_price in receivePurchaseOrder). */
+  selling_price?: number | string;
+}
+
 export interface PODetailItem {
   id: string;
   product_name?: string;
@@ -340,6 +351,111 @@ export async function receivePurchaseOrder(id: string, receivedItems?: ReceivedI
 
     await updatePurchaseOrderStatus(id, "received");
     await logAction("RECEIVE_PO", "purchase_orders", id, { total_items: poData.items.length });
+  });
+}
+
+/** Immediate Purchase: order and receipt happen in one transaction. Unlike
+ * createPurchaseOrder() + receivePurchaseOrder(), this never leaves the PO
+ * sitting in "pending" — it's created already "received", with its stock
+ * batches, in a single atomic step. Reuses the exact per-item batch/cost/
+ * expiry math receivePurchaseOrder() uses for Standard POs. */
+export async function createAndReceivePurchaseOrder(
+  supplierId: string,
+  notes: string,
+  items: ImmediateLineItemDraft[],
+  paymentStatus: string = 'unpaid',
+  amountPaid: number = 0,
+  dueDate: string | null = null
+) {
+  const poId = generateId();
+  const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+  let totalAmount = 0;
+  for (const item of items) {
+    totalAmount += item.subtotal;
+  }
+
+  return transaction(async () => {
+    await insert("purchase_orders", {
+      id: poId,
+      supplier_id: supplierId,
+      status: "received",
+      type: "immediate",
+      payment_status: paymentStatus,
+      amount_paid: amountPaid,
+      due_date: dueDate,
+      total_amount: totalAmount,
+      notes,
+      created_at: now,
+      received_at: now,
+    });
+
+    const dumosUser = JSON.parse(localStorage.getItem("dumos_user") || "{}");
+
+    for (const item of items) {
+      const poItemId = generateId();
+      await insert("purchase_order_items", {
+        id: poItemId,
+        po_id: poId,
+        product_id: item.product_id,
+        bulk_quantity: item.bulk_quantity,
+        units_per_bulk: item.units_per_bulk,
+        unit_cost: item.unit_cost,
+        subtotal: item.subtotal,
+        created_at: now,
+      });
+
+      const totalBaseUnits = item.bulk_quantity * item.units_per_bulk;
+      const batchNumber = item.lot_number?.trim() || poId.split('-')[0].toUpperCase();
+      const expiryDate = item.expiry_date ? new Date(item.expiry_date).toISOString().slice(0, 10) : null;
+
+      const safeUnitsPerBulk = item.units_per_bulk || 1;
+      const baseUnitCost =
+        item.cost_price_override !== undefined && item.cost_price_override !== ""
+          ? Number(item.cost_price_override)
+          : Number(item.unit_cost) / safeUnitsPerBulk;
+
+      const invId = await insert("stock_batches", {
+        product_id: item.product_id,
+        quantity: totalBaseUnits,
+        cost_price: baseUnitCost,
+        batch_number: batchNumber,
+        expiry_date: expiryDate,
+        created_at: now,
+        is_active: 1,
+        _version: 1,
+        _synced: 0,
+        _deleted: 0
+      });
+
+      await insert("stock_movements", {
+        id: crypto.randomUUID(),
+        product_id: item.product_id,
+        stock_batch_id: invId,
+        movement_type: "purchase",
+        quantity: totalBaseUnits,
+        unit_cost: baseUnitCost,
+        total_cost: baseUnitCost * totalBaseUnits,
+        reference_id: poId,
+        reference_type: "purchase_order",
+        reason: "Immediate purchase received",
+        performed_by: dumosUser?.id || null,
+        movement_date: now,
+        created_at: now,
+        _version: 1,
+        _synced: 0,
+        _deleted: 0
+      });
+
+      if (item.selling_price !== undefined && item.selling_price !== "") {
+        await update("products", item.product_id, {
+          selling_price: Number(item.selling_price),
+        });
+      }
+    }
+
+    await logAction("RECEIVE_PO", "purchase_orders", poId, { total_items: items.length });
+
+    return poId;
   });
 }
 

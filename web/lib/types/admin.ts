@@ -29,6 +29,8 @@ export interface AdminStoreSummary {
   stores?: number;
   revenue?: string;
   is_demo?: boolean;
+  account_manager?: { id: string; name: string } | null;
+  account_manager_is_explicit?: boolean;
 }
 
 export interface SecurityAlert {

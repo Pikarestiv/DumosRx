@@ -1,6 +1,6 @@
 import axios, { type InternalAxiosRequestConfig, type AxiosResponse } from "axios";
 import { addLogToBuffer, sanitizePayload, reportClientError } from "./logger";
-import { useAdminAuthStore } from "@/lib/store/use-admin-auth-store";
+import { getAdminToken } from "./admin-token";
 
 interface RequestMetadata {
   metadata?: { startTime: number };
@@ -53,7 +53,7 @@ apiClient.interceptors.request.use((config: ConfigWithMetadata) => {
     // Admin access token lives in memory only (zustand), never localStorage -
     // see use-admin-auth-store.ts for why.
     const token = isAdminPath
-      ? useAdminAuthStore.getState().token
+      ? getAdminToken()
       : localStorage.getItem("drx_token");
 
     if (token) {
@@ -194,6 +194,11 @@ apiClient.interceptors.response.use(
         if (isAdminPath) {
           // Admin sessions refresh via the HttpOnly refresh cookie, not a
           // bearer token - see use-admin-auth-store.ts's initSession().
+          // Dynamic import, not a static one: use-admin-auth-store.ts
+          // imports client.ts which imports this file, so a static import
+          // here would create a cycle that breaks client.ts's
+          // `export default apiClient` with a TDZ crash at module load.
+          const { useAdminAuthStore } = await import("@/lib/store/use-admin-auth-store");
           const { data } = await axios.post(
             `${API_URL}/admin/session/refresh`,
             {},
@@ -217,6 +222,7 @@ apiClient.interceptors.response.use(
           const cleanPath = window.location.pathname.replace(/\/$/, "");
           const isAlreadyOnLoginPage = cleanPath === "/admin/login" || cleanPath === "/login";
           if (isAdminPath) {
+            const { useAdminAuthStore } = await import("@/lib/store/use-admin-auth-store");
             useAdminAuthStore.getState().setToken(null);
             useAdminAuthStore.getState().setUser(null);
           } else {

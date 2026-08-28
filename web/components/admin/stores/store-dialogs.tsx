@@ -11,6 +11,18 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  useAccountManagerCandidates,
+  useUpdateAccountManagerMutation,
+} from "@/lib/api/admin-hooks-stores";
+import { toast } from "sonner";
 import type { AdminStoreSummary } from "@/lib/types/admin";
 
 interface SuspendStoreDialogProps {
@@ -92,12 +104,45 @@ interface ViewStoreDialogProps {
   selectedStore: AdminStoreSummary | null;
 }
 
+const UNASSIGNED = "__unassigned__";
+
 export function ViewStoreDialog({
   isOpen,
   onOpenChange,
   selectedStore,
 }: ViewStoreDialogProps) {
+  const { data: candidatesData } = useAccountManagerCandidates();
+  const updateAccountManager = useUpdateAccountManagerMutation();
+  const [managerId, setManagerId] = useState<string>(UNASSIGNED);
+
+  useEffect(() => {
+    setManagerId(
+      selectedStore?.account_manager_is_explicit && selectedStore.account_manager
+        ? selectedStore.account_manager.id
+        : UNASSIGNED,
+    );
+  }, [selectedStore]);
+
   if (!selectedStore) return null;
+
+  const candidates = candidatesData?.data ?? [];
+
+  const handleSaveManager = () => {
+    updateAccountManager.mutate(
+      {
+        storeId: selectedStore.id,
+        accountManagerId: managerId === UNASSIGNED ? null : managerId,
+      },
+      {
+        onSuccess: () =>
+          toast.success("Contact specialist updated", {
+            description: `${selectedStore.name}'s account manager was reassigned.`,
+          }),
+        onError: () =>
+          toast.error("Failed to update the contact specialist. Please try again."),
+      },
+    );
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -143,6 +188,62 @@ export function ViewStoreDialog({
               <p className="text-xs font-bold uppercase text-slate-500">Created At</p>
               <p className="font-medium">{selectedStore.date}</p>
             </div>
+          </div>
+
+          {/* min-w-0: DialogContent is a CSS grid, whose items default to
+              min-width:auto - without this, the Select's unbreakable long
+              candidate text (whitespace-nowrap) forces the grid track (and
+              so the whole dialog) to blow out past its own max-width. */}
+          <div className="pt-2 border-t border-slate-200 dark:border-slate-800 space-y-2 min-w-0">
+            <Label className="text-xs font-bold uppercase text-slate-500">
+              Contact Specialist / Account Manager
+            </Label>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              {selectedStore.account_manager_is_explicit
+                ? "Explicitly assigned."
+                : selectedStore.account_manager
+                  ? `Currently "${selectedStore.account_manager.name}" via referral/default, not explicitly assigned.`
+                  : "No contact specialist resolved."}
+            </p>
+            <Select value={managerId} onValueChange={setManagerId}>
+              <SelectTrigger className="rounded-xl w-full">
+                {/* Explicit children, not Radix's default auto-rendered
+                    item text: the full "Name (role) - email - phone" label
+                    is unbreakable (whitespace-nowrap) and long enough to
+                    blow out the dialog's width even with truncation
+                    classes, since SelectTrigger/SelectValue are flex-based
+                    and default to min-width:auto. A short name-only label
+                    here sidesteps that entirely; full detail stays in the
+                    dropdown list below, which has room to wrap. */}
+                <SelectValue placeholder="Use referral/default">
+                  {managerId === UNASSIGNED
+                    ? "Use referral/default"
+                    : candidates.find((c) => c.id === managerId)?.name ??
+                      "Use referral/default"}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={UNASSIGNED}>Use referral/default</SelectItem>
+                {candidates.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name} ({c.role}) - {c.email}
+                    {c.phone ? ` - ${c.phone}` : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-xl font-bold"
+              onClick={handleSaveManager}
+              disabled={updateAccountManager.isPending}
+            >
+              {updateAccountManager.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : null}
+              Save Assignment
+            </Button>
           </div>
         </div>
         <DialogFooter>

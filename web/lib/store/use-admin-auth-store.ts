@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { webApiClient } from "@/lib/api/client";
 import { queryClient } from "@/lib/query-client";
+import { setAdminToken } from "@/lib/api/admin-token";
 
 export interface User {
   id: string;
@@ -57,6 +58,11 @@ export const useAdminAuthStore = create<AdminAuthState>()(
       setToken: (token) => {
         // We still keep the token in memory for the current session
         set({ token });
+        // Mirrored into a plain, import-free module so base-client.ts/
+        // logger.ts can read it without statically importing this store,
+        // which would create a cycle (base-client -> this store ->
+        // client.ts -> base-client) and break client.ts's module init.
+        setAdminToken(token);
       },
 
       fetchUser: async () => {
@@ -66,6 +72,7 @@ export const useAdminAuthStore = create<AdminAuthState>()(
           set({ user, loading: false });
         } catch (_error) {
           set({ user: null, token: null, loading: false });
+          setAdminToken(null);
         }
       },
 
@@ -77,13 +84,16 @@ export const useAdminAuthStore = create<AdminAuthState>()(
             { method: "POST" },
           );
           set({ token: data.token, user: data.user, loading: false });
+          setAdminToken(data.token);
         } catch (_error) {
           set({ user: null, token: null, loading: false });
+          setAdminToken(null);
         }
       },
 
       logout: () => {
         set({ user: null, token: null });
+        setAdminToken(null);
         // The backend should clear the cookie on its logout route
         webApiClient.request("/logout", { method: "POST" });
         // Without this, cached admin/platform query data from the outgoing

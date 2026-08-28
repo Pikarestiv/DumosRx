@@ -20,7 +20,9 @@ import { genericFuzzySearch } from "@/lib/utils/search";
 import { ResponsiveDetailPanel } from "@/components/ui/responsive-detail-panel";
 import { ActivityLogDetailPanel } from "./activity-log-detail-panel";
 import { describeActivity, describeActionVerb } from "./describe-activity";
+import { SortableHeaderCell } from "@/components/ui/sortable-header-cell";
 import type { AuditLogRow } from "@/lib/types/audit-log";
+import type { ActivityLogSortKey } from "@/lib/db/queries/activity-log";
 
 const GRID_COLS = "grid-cols-[1fr_180px_190px]";
 
@@ -54,6 +56,18 @@ export function ActivityLogPage() {
   const [userFilter, setUserFilter] = useState<string>("all");
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [selectedEntry, setSelectedEntry] = useState<AuditLogRow | null>(null);
+  const [sortKey, setSortKey] = useState<ActivityLogSortKey>("created_at");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+
+  const toggleSort = (key: ActivityLogSortKey) => {
+    if (sortKey === key) {
+      setSortDirection((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDirection("asc");
+    }
+    setPage(1);
+  };
 
   const isSearching = search.trim().length > 0;
 
@@ -65,6 +79,8 @@ export function ActivityLogPage() {
         ? undefined
         : userFilter,
     role: canViewAll && roleFilter !== "all" ? roleFilter : undefined,
+    sortKey,
+    sortDirection,
   };
 
   const pagedFilters = { ...baseFilters, page, pageSize };
@@ -209,13 +225,28 @@ export function ActivityLogPage() {
               className={`grid ${GRID_COLS} text-muted-foreground text-[11px] uppercase font-semibold`}
             >
               <div role="columnheader" className="px-4 py-2.5">
-                Activity
+                <SortableHeaderCell
+                  label="Activity"
+                  active={sortKey === "action"}
+                  direction={sortDirection}
+                  onClick={() => toggleSort("action")}
+                />
               </div>
               <div role="columnheader" className="px-4 py-2.5">
-                By
+                <SortableHeaderCell
+                  label="By"
+                  active={sortKey === "user_name"}
+                  direction={sortDirection}
+                  onClick={() => toggleSort("user_name")}
+                />
               </div>
               <div role="columnheader" className="px-4 py-2.5">
-                When
+                <SortableHeaderCell
+                  label="When"
+                  active={sortKey === "created_at"}
+                  direction={sortDirection}
+                  onClick={() => toggleSort("created_at")}
+                />
               </div>
             </div>
           </div>

@@ -24,12 +24,12 @@ export function BIKeyMetrics({
         <div className="flex overflow-x-auto sm:grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-4 pb-4 sm:pb-0 hide-scrollbar snap-x snap-mandatory">
           <MetricCard
             className="min-w-[180px] sm:min-w-0 snap-center shrink-0 border-primary/20 hover:border-primary/40"
-            title="Total Revenue"
+            title="Net Sales"
             value={formatCurrency(totalRevenue)}
             icon={<DollarSign className="h-4 w-4" />}
             iconBgClass="bg-primary/10 text-primary"
             valueClassName="font-serif"
-            description="Gross billings"
+            description="After discounts, tax & refunds"
           />
           <MetricCard
             className={cn(

@@ -1,10 +1,11 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { formatCurrency } from "@/lib/utils";
 import { format } from "date-fns";
 import { Search, ReceiptText, ChevronRight } from "lucide-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { toast } from "sonner";
 import { useExpensesPage } from "@/lib/hooks/use-expenses-page";
 import { ExpenseDetailDialog } from "./expense-detail-dialog";
 import { AddExpenseDialog } from "./add-expense-dialog";
@@ -12,18 +13,14 @@ import { ExpenseCategoryFilter } from "./expense-category-filter";
 import { Card } from "@/components/ui/card";
 import { Expense } from "@/lib/db/queries/finance";
 import { ExpenseInsightsStrip } from "./expense-insights-strip";
+import { SortableHeaderCell } from "@/components/ui/sortable-header-cell";
+import { useSortableData } from "@/lib/hooks/use-sortable-data";
+import { update } from "@/lib/db/local-database";
+import { ExpenseDesktopRow, CATEGORY_META, type ExpenseDraft } from "./expense-desktop-row";
+
+type ExpenseSortKey = "date" | "category" | "description" | "method" | "amount";
 
 const DESKTOP_ROW_HEIGHT = 56;
-
-const CATEGORY_META: Record<string, { badgeClass: string }> = {
-  Rent: { badgeClass: "bg-chart-1/10 text-chart-1" },
-  Utilities: { badgeClass: "bg-chart-3/10 text-chart-3" },
-  Salaries: { badgeClass: "bg-emerald-600/10 text-emerald-600" },
-  Maintenance: { badgeClass: "bg-muted text-muted-foreground" },
-  Marketing: { badgeClass: "bg-chart-2/10 text-chart-2" },
-  Other: { badgeClass: "bg-muted text-muted-foreground" },
-  Unknown: { badgeClass: "bg-muted text-muted-foreground" },
-};
 
 export function ExpenseList() {
   const {
@@ -47,9 +44,43 @@ export function ExpenseList() {
     expenses,
   } = useExpensesPage();
 
+  const { sortKey, direction, toggleSort, sortedData: sortedExpenses } =
+    useSortableData<Expense, ExpenseSortKey>(filteredExpenses, {
+      date: (e) => e.date,
+      category: (e) => e.category.toLowerCase(),
+      description: (e) => (e.description || "").toLowerCase(),
+      method: (e) => (e.payment_method || "").toLowerCase(),
+      amount: (e) => e.amount,
+    });
+
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draft, setDraft] = useState<ExpenseDraft | null>(null);
+
+  const startQuickEdit = (expense: Expense) => {
+    setEditingId(expense.id);
+    setDraft({ amount: expense.amount, category: expense.category });
+  };
+
+  const saveQuickEdit = async (expense: Expense) => {
+    if (!draft) return;
+    try {
+      await update("expenses", expense.id, {
+        amount: draft.amount,
+        category: draft.category,
+      });
+      toast.success("Expense updated");
+      fetchExpenses();
+    } catch {
+      toast.error("Failed to update expense. Please try again.");
+    } finally {
+      setEditingId(null);
+      setDraft(null);
+    }
+  };
+
   const desktopScrollRef = useRef<HTMLDivElement>(null);
   const rowVirtualizer = useVirtualizer({
-    count: filteredExpenses.length,
+    count: sortedExpenses.length,
     getScrollElement: () => desktopScrollRef.current,
     estimateSize: () => DESKTOP_ROW_HEIGHT,
     overscan: 8,
@@ -149,58 +180,71 @@ export function ExpenseList() {
       <Card className="hidden md:flex flex-col gap-0 py-0 border border-border rounded-2xl flex-1 overflow-hidden">
         <div className="p-4 pb-3 border-b border-border">{SearchInput}</div>
 
-        <div className="grid grid-cols-[110px_150px_1fr_130px_120px] gap-2 px-5 py-3 text-[11px] font-bold text-muted-foreground/80 uppercase tracking-wide border-b border-border bg-muted/20">
-          <div>Date</div>
-          <div>Category</div>
-          <div>Description</div>
-          <div>Method</div>
-          <div className="text-right">Amount</div>
+        <div className="grid grid-cols-[110px_150px_1fr_130px_120px_28px] gap-2 px-5 py-3 text-[11px] font-bold text-muted-foreground/80 uppercase tracking-wide border-b border-border bg-muted/20">
+          <SortableHeaderCell
+            label="Date"
+            active={sortKey === "date"}
+            direction={direction}
+            onClick={() => toggleSort("date")}
+          />
+          <SortableHeaderCell
+            label="Category"
+            active={sortKey === "category"}
+            direction={direction}
+            onClick={() => toggleSort("category")}
+          />
+          <SortableHeaderCell
+            label="Description"
+            active={sortKey === "description"}
+            direction={direction}
+            onClick={() => toggleSort("description")}
+          />
+          <SortableHeaderCell
+            label="Method"
+            active={sortKey === "method"}
+            direction={direction}
+            onClick={() => toggleSort("method")}
+          />
+          <SortableHeaderCell
+            label="Amount"
+            active={sortKey === "amount"}
+            direction={direction}
+            onClick={() => toggleSort("amount")}
+            className="justify-end"
+          />
+          <div />
         </div>
 
         <div ref={desktopScrollRef} className="flex-1 overflow-y-auto">
-          {filteredExpenses.length === 0 && EmptyState}
-          {filteredExpenses.length > 0 && (
+          {sortedExpenses.length === 0 && EmptyState}
+          {sortedExpenses.length > 0 && (
             <div
               className="relative w-full"
               style={{ height: rowVirtualizer.getTotalSize() }}
             >
               {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-                const expense = filteredExpenses[virtualRow.index];
-                const meta =
-                  CATEGORY_META[expense.category] || CATEGORY_META["Unknown"];
+                const expense = sortedExpenses[virtualRow.index];
+                const isEditingRow = editingId === expense.id;
                 return (
-                  <div
+                  <ExpenseDesktopRow
                     key={expense.id}
-                    className="absolute top-0 left-0 w-full grid grid-cols-[110px_150px_1fr_130px_120px] gap-2 items-center px-5 py-3.5 border-b border-border/50 hover:bg-muted/50 cursor-pointer transition-colors"
+                    expense={expense}
+                    currencyCode={storeProfile?.currency}
                     style={{
                       height: virtualRow.size,
                       transform: `translateY(${virtualRow.start}px)`,
                     }}
-                    onClick={() => setSelectedExpenseId(expense.id)}
-                  >
-                    <div className="text-[13px] font-medium">
-                      {format(new Date(expense.date), "MMM dd, yyyy")}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`inline-flex items-center rounded-[6px] px-2 py-0.5 text-[11px] font-bold ${meta.badgeClass}`}
-                      >
-                        {expense.category}
-                      </span>
-                    </div>
-                    <div className="text-[13px] text-foreground truncate">
-                      {expense.description || "-"}
-                    </div>
-                    <div className="text-[13px] text-muted-foreground">
-                      {expense.payment_method}
-                    </div>
-                    <div className="text-[14px] font-bold text-foreground text-right">
-                      {formatCurrency(
-                        expense.amount,
-                        storeProfile?.currency || "NGN",
-                      )}
-                    </div>
-                  </div>
+                    isEditing={isEditingRow}
+                    draft={isEditingRow ? draft : null}
+                    onDraftChange={setDraft}
+                    onSelect={() => setSelectedExpenseId(expense.id)}
+                    onStartEdit={() => startQuickEdit(expense)}
+                    onSave={() => saveQuickEdit(expense)}
+                    onCancel={() => {
+                      setEditingId(null);
+                      setDraft(null);
+                    }}
+                  />
                 );
               })}
             </div>

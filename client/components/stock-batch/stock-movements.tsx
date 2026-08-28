@@ -17,6 +17,10 @@ import { StockMovementDetailModal } from "./stock-movement-detail-modal";
 import { usePullToRefreshHandler } from "@/lib/context/pull-to-refresh-context";
 import { DateRangePicker, type DateRangeValue } from "@/components/ui/date-range-picker";
 import type { StockMovementDbRow } from "@/lib/types/stock-movement";
+import { SortableHeaderCell } from "@/components/ui/sortable-header-cell";
+import { useSortableData } from "@/lib/hooks/use-sortable-data";
+
+type MovementSortKey = "date" | "product" | "type" | "quantity" | "reference" | "user";
 
 const RECENT_ACTIVITY_WINDOW_DAYS = 30;
 
@@ -119,9 +123,21 @@ export function StockMovements() {
     ["product", "reference", "reason", "user"],
   );
 
+  // Sorting only applies to the desktop table view; mobile's date-grouped
+  // list below is derived from the unsorted, chronological filteredMovements.
+  const { sortKey, direction, toggleSort, sortedData: sortedMovements } =
+    useSortableData<StockMovement, MovementSortKey>(filteredMovements, {
+      date: (m) => m.date,
+      product: (m) => m.product.toLowerCase(),
+      type: (m) => m.type,
+      quantity: (m) => m.quantity,
+      reference: (m) => (m.reference || m.reason || "").toLowerCase(),
+      user: (m) => m.user.toLowerCase(),
+    });
+
   const desktopScrollRef = useRef<HTMLDivElement>(null);
   const rowVirtualizer = useVirtualizer({
-    count: filteredMovements.length,
+    count: sortedMovements.length,
     getScrollElement: () => desktopScrollRef.current,
     estimateSize: () => DESKTOP_ROW_HEIGHT,
     overscan: 8,
@@ -236,24 +252,54 @@ export function StockMovements() {
 
         {/* Desktop Grid Header */}
         <div className="grid grid-cols-[100px_1fr_130px_100px_1fr_120px] gap-2 px-4 py-2.5 text-[11px] font-bold text-muted-foreground/70 uppercase tracking-wide border-b border-border">
-          <div>Time</div>
-          <div>Product</div>
-          <div>Type</div>
-          <div>Qty</div>
-          <div>Reference / Reason</div>
-          <div>User</div>
+          <SortableHeaderCell
+            label="Time"
+            active={sortKey === "date"}
+            direction={direction}
+            onClick={() => toggleSort("date")}
+          />
+          <SortableHeaderCell
+            label="Product"
+            active={sortKey === "product"}
+            direction={direction}
+            onClick={() => toggleSort("product")}
+          />
+          <SortableHeaderCell
+            label="Type"
+            active={sortKey === "type"}
+            direction={direction}
+            onClick={() => toggleSort("type")}
+          />
+          <SortableHeaderCell
+            label="Qty"
+            active={sortKey === "quantity"}
+            direction={direction}
+            onClick={() => toggleSort("quantity")}
+          />
+          <SortableHeaderCell
+            label="Reference / Reason"
+            active={sortKey === "reference"}
+            direction={direction}
+            onClick={() => toggleSort("reference")}
+          />
+          <SortableHeaderCell
+            label="User"
+            active={sortKey === "user"}
+            direction={direction}
+            onClick={() => toggleSort("user")}
+          />
         </div>
 
         {/* List */}
         <div ref={desktopScrollRef} className="flex-1 overflow-y-auto pb-6">
-          {filteredMovements.length === 0 && <NoMovementsFound />}
-          {filteredMovements.length > 0 && (
+          {sortedMovements.length === 0 && <NoMovementsFound />}
+          {sortedMovements.length > 0 && (
             <div
               className="relative w-full"
               style={{ height: rowVirtualizer.getTotalSize() }}
             >
               {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-                const movement = filteredMovements[virtualRow.index];
+                const movement = sortedMovements[virtualRow.index];
                 return (
                   <div
                     key={movement.id}

@@ -18,13 +18,27 @@ export interface Expense {
   covers_months?: number | null;
 }
 
+/** Net Sales for the current month: total_amount already excludes discounts
+ * (see pos-calculations.ts), so this only needs to also back out tax
+ * collected (pass-through, not real revenue) and refunds - same definition
+ * used by the Analytics BI dashboard's netSales, see use-bi-data.ts. */
 export async function getCurrentMonthRevenue() {
   const storeId = getActiveStoreId();
-  const res = await query<{total: number}>(
-    `SELECT SUM(total_amount) as total FROM sales WHERE _deleted = 0 AND strftime('%Y-%m', transaction_date) = strftime('%Y-%m', 'now')${storeId ? " AND store_id = ?" : ""}`,
-    storeId ? [storeId] : [],
-  );
-  return res[0]?.total || 0;
+  const params = storeId ? [storeId] : [];
+  const [salesRes, refundsRes] = await Promise.all([
+    query<{ total: number; tax: number }>(
+      `SELECT SUM(total_amount) as total, SUM(tax_amount) as tax FROM sales WHERE _deleted = 0 AND strftime('%Y-%m', transaction_date) = strftime('%Y-%m', 'now')${storeId ? " AND store_id = ?" : ""}`,
+      params,
+    ),
+    query<{ total: number }>(
+      `SELECT SUM(total_refunded) as total FROM returns WHERE (_deleted = 0 OR _deleted IS NULL) AND strftime('%Y-%m', created_at) = strftime('%Y-%m', 'now')${storeId ? " AND store_id = ?" : ""}`,
+      params,
+    ),
+  ]);
+  const gross = salesRes[0]?.total || 0;
+  const tax = salesRes[0]?.tax || 0;
+  const refunds = refundsRes[0]?.total || 0;
+  return gross - tax - refunds;
 }
 
 export async function getCurrentMonthCOGS() {

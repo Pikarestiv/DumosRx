@@ -1,15 +1,16 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Card } from "@/components/ui/card";
-import { TrendingUp, PieChart, LucideIcon } from "lucide-react";
+import { PieChart, LucideIcon } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import type { MonthlySalesDataPoint, TopSellingProduct, CategoryDistributionItem } from "@/lib/types/analytics";
+import type { MonthlySalesDataPoint, CategoryDistributionItem } from "@/lib/types/analytics";
+import { ProductPerformanceTable, type ProductPerformanceRow } from "./product-performance-table";
 
 function NoPeriodSalesData({ icon: Icon }: { icon: LucideIcon }) {
   return (
@@ -22,24 +23,15 @@ function NoPeriodSalesData({ icon: Icon }: { icon: LucideIcon }) {
 
 interface SalesAnalyticsTabProps {
   monthlySalesData: MonthlySalesDataPoint[];
-  topSellingProducts: {
-    revenue: TopSellingProduct[];
-    quantity: TopSellingProduct[];
-  };
+  productPerformance: ProductPerformanceRow[];
   formattedCategoryData: CategoryDistributionItem[];
 }
 
 export function SalesAnalyticsTab({
   monthlySalesData,
-  topSellingProducts,
+  productPerformance,
   formattedCategoryData,
 }: SalesAnalyticsTabProps) {
-  const [sortBy, setSortBy] = useState<"revenue" | "quantity">("revenue");
-  const products =
-    (sortBy === "revenue"
-      ? topSellingProducts?.revenue
-      : topSellingProducts?.quantity) || [];
-
   const categoryDistribution = useMemo(() => {
     const total = formattedCategoryData.reduce(
       (sum, c) => sum + (c.value || 0),
@@ -94,64 +86,7 @@ export function SalesAnalyticsTab({
         </div>
       </Card>
 
-      {/* Top Selling Products */}
-      <Card className="p-5 border shadow-sm rounded-2xl">
-        <div>
-          <div className="flex items-center justify-between mb-0.5">
-            <div className="text-[14.5px] font-semibold">
-              Top Selling Products
-            </div>
-            <div className="flex gap-1 bg-muted p-1 rounded-lg">
-              <button
-                onClick={() => setSortBy("revenue")}
-                className={`px-2.5 py-1 rounded-md text-[11.5px] font-semibold transition-all ${
-                  sortBy === "revenue"
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground"
-                }`}
-              >
-                Revenue
-              </button>
-              <button
-                onClick={() => setSortBy("quantity")}
-                className={`px-2.5 py-1 rounded-md text-[11.5px] font-semibold transition-all ${
-                  sortBy === "quantity"
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground"
-                }`}
-              >
-                Quantity
-              </button>
-            </div>
-          </div>
-          <div className="text-[12px] text-muted-foreground">
-            Best performing products
-          </div>
-        </div>
-
-        <div className="flex flex-col">
-          {products.length === 0 && <NoPeriodSalesData icon={TrendingUp} />}
-          {products.length > 0 &&
-            products.map((product, index) => (
-              <div
-                key={product.name}
-                className="flex items-center gap-3 py-2.5 border-b border-border last:border-0"
-              >
-                <div className="w-5 text-[12px] font-bold text-muted-foreground">
-                  {String(index + 1).padStart(2, "0")}
-                </div>
-                <div className="flex-1 text-[13px] font-medium truncate">
-                  {product.name}
-                </div>
-                <div className="text-[13px] font-semibold shrink-0">
-                  {sortBy === "revenue"
-                    ? `₦${product.sales.toLocaleString()}`
-                    : `${product.units} units`}
-                </div>
-              </div>
-            ))}
-        </div>
-      </Card>
+      <ProductPerformanceTable products={productPerformance} />
 
       {/* Sales by Category */}
       <Card className="p-5 border shadow-sm rounded-2xl lg:col-span-2">

@@ -26,7 +26,8 @@ import { formatCurrency } from "@/lib/utils";
 import type { MonthlySalesDataPoint } from "@/lib/types/analytics";
 
 interface ProfitLossTabProps {
-  totalRevenue: number;
+  grossSales: number;
+  netSales: number;
   totalCogs: number;
   totalExpenses: number;
   grossProfit: number;
@@ -50,7 +51,8 @@ const chartConfig = {
 } satisfies ChartConfig;
 
 export function ProfitLossTab({
-  totalRevenue,
+  grossSales,
+  netSales,
   totalCogs,
   totalExpenses,
   grossProfit,
@@ -70,8 +72,16 @@ export function ProfitLossTab({
 
         <div>
           <div className="flex items-center justify-between py-3 border-b text-[13.5px]">
-            <div>Total Gross Revenue</div>
-            <div className="font-semibold">{formatCurrency(totalRevenue)}</div>
+            <div>Gross Sales</div>
+            <div className="font-semibold">{formatCurrency(grossSales)}</div>
+          </div>
+          <div className="flex items-center justify-between py-3 border-b text-[13.5px] text-destructive italic">
+            <div className="flex items-center gap-1"><ArrowDownRight className="w-3.5 h-3.5" /> Discounts, Tax &amp; Refunds</div>
+            <div className="font-semibold">− {formatCurrency(Math.max(0, grossSales - netSales))}</div>
+          </div>
+          <div className="flex items-center justify-between py-3 bg-muted/40 px-3 rounded-lg my-2 text-[13.5px] font-bold">
+            <div>NET SALES</div>
+            <div>{formatCurrency(netSales)}</div>
           </div>
           <div className="flex items-center justify-between py-3 border-b text-[13.5px] text-destructive italic">
             <div className="flex items-center gap-1"><ArrowDownRight className="w-3.5 h-3.5" /> Cost of Goods Sold (COGS)</div>
@@ -95,7 +105,7 @@ export function ProfitLossTab({
           <div className="bg-background border rounded-xl px-4 py-2.5 text-center shadow-sm">
             <div className="text-[10px] font-semibold text-muted-foreground uppercase">Net Margin</div>
             <div className="text-[19px] font-bold font-['Playfair_Display']">
-              {totalRevenue > 0 ? ((netProfit / totalRevenue) * 100).toFixed(0) : 0}%
+              {netSales > 0 ? ((netProfit / netSales) * 100).toFixed(0) : 0}%
             </div>
           </div>
         </div>
@@ -136,21 +146,21 @@ export function ProfitLossTab({
               <div className="w-2.5 h-2.5 rounded-full bg-sky-500"></div>
               <div className="text-[12px] text-muted-foreground">Stock Batch Cost</div>
             </div>
-            <div className="text-[12.5px] font-semibold">{totalRevenue > 0 ? ((totalCogs / totalRevenue) * 100).toFixed(0) : 0}%</div>
+            <div className="text-[12.5px] font-semibold">{netSales > 0 ? ((totalCogs / netSales) * 100).toFixed(0) : 0}%</div>
           </div>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="w-2.5 h-2.5 rounded-full bg-amber-500"></div>
               <div className="text-[12px] text-muted-foreground">Operating Exp.</div>
             </div>
-            <div className="text-[12.5px] font-semibold">{totalRevenue > 0 ? ((totalExpenses / totalRevenue) * 100).toFixed(0) : 0}%</div>
+            <div className="text-[12.5px] font-semibold">{netSales > 0 ? ((totalExpenses / netSales) * 100).toFixed(0) : 0}%</div>
           </div>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="w-2.5 h-2.5 rounded-full bg-emerald-500"></div>
               <div className="text-[12px] font-semibold text-emerald-600">NET PROFIT</div>
             </div>
-            <div className="text-[12.5px] font-bold text-emerald-600">{totalRevenue > 0 ? ((netProfit / totalRevenue) * 100).toFixed(0) : 0}%</div>
+            <div className="text-[12.5px] font-bold text-emerald-600">{netSales > 0 ? ((netProfit / netSales) * 100).toFixed(0) : 0}%</div>
           </div>
         </div>
       </Card>

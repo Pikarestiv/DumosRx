@@ -3,11 +3,11 @@
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { StoreType } from "@/lib/context/store-context";
 import { POOrderFormFields } from "./po-order-form-fields";
 import { POMobileSummaryDrawer } from "./po-mobile-summary-drawer";
-import type { Product, ProductViewModel } from "@/lib/types/product";
-import type { DraftPOLineItem } from "@/lib/db/procurement";
+import type { ProductViewModel } from "@/lib/types/product";
+import type { POProduct } from "@/lib/db/queries/procurement";
+import type { POLineItemDraft } from "./po-item-ledger-table";
 
 interface Supplier {
   id: string;
@@ -15,6 +15,8 @@ interface Supplier {
 }
 
 interface POMobileCreateViewProps {
+  poType: "standard" | "immediate";
+  setPoType: (type: "standard" | "immediate") => void;
   suppliers: Supplier[];
   selectedSupplierId: string;
   setSelectedSupplierId: (id: string) => void;
@@ -28,15 +30,13 @@ interface POMobileCreateViewProps {
   amountPaid: string;
   setAmountPaid: (amount: string) => void;
   totalAmount: number;
-  products: Product[];
-  onAddLineItem: (item: DraftPOLineItem) => void;
+  products: POProduct[];
   onOpenAddProduct: (productData: Partial<ProductViewModel>) => void;
   newlyCreatedProductId: string | null;
   onNewlyCreatedProductConsumed: () => void;
   onOpenAddSupplier: () => void;
-  items: DraftPOLineItem[];
-  removeLineItem: (index: number) => void;
-  storeType: StoreType;
+  items: POLineItemDraft[];
+  onItemsChange: (items: POLineItemDraft[]) => void;
   isSubmitting: boolean;
   handleSubmit: () => void;
 }
@@ -46,6 +46,8 @@ interface POMobileCreateViewProps {
  * summary/save drawer instead of an always-visible footer. */
 export function POMobileCreateView(props: POMobileCreateViewProps) {
   const {
+    poType,
+    setPoType,
     suppliers,
     selectedSupplierId,
     setSelectedSupplierId,
@@ -60,14 +62,12 @@ export function POMobileCreateView(props: POMobileCreateViewProps) {
     setAmountPaid,
     totalAmount,
     products,
-    onAddLineItem,
     onOpenAddProduct,
     newlyCreatedProductId,
     onNewlyCreatedProductConsumed,
     onOpenAddSupplier,
     items,
-    removeLineItem,
-    storeType,
+    onItemsChange,
     isSubmitting,
     handleSubmit,
   } = props;
@@ -119,6 +119,8 @@ export function POMobileCreateView(props: POMobileCreateViewProps) {
         }}
       >
         <POOrderFormFields
+          poType={poType}
+          setPoType={setPoType}
           suppliers={suppliers}
           selectedSupplierId={selectedSupplierId}
           setSelectedSupplierId={setSelectedSupplierId}
@@ -132,7 +134,8 @@ export function POMobileCreateView(props: POMobileCreateViewProps) {
           setAmountPaid={setAmountPaid}
           totalAmount={totalAmount}
           products={products}
-          onAddLineItem={onAddLineItem}
+          items={items}
+          onItemsChange={onItemsChange}
           onOpenAddProduct={onOpenAddProduct}
           newlyCreatedProductId={newlyCreatedProductId}
           onNewlyCreatedProductConsumed={onNewlyCreatedProductConsumed}
@@ -141,11 +144,9 @@ export function POMobileCreateView(props: POMobileCreateViewProps) {
       </div>
 
       <POMobileSummaryDrawer
-        items={items}
+        itemCount={items.length}
         totalAmount={totalAmount}
         selectedSupplierName={selectedSupplierName}
-        storeType={storeType}
-        onRemoveItem={removeLineItem}
         onSave={handleSubmit}
         isSubmitting={isSubmitting}
       />

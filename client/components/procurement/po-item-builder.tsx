@@ -62,9 +62,8 @@ export function POItemBuilder({
     setSearchValue(option.name);
   };
 
-  // Auto-add a row for a product created via the "Add as new product" ->
-  // AddProductDialog round trip, mirroring po-add-item-form.tsx's existing
-  // newlyCreatedProductId handling.
+  // Auto-add a row once the "Add as new product" -> AddProductDialog round
+  // trip resolves and the new product shows up in the catalog list.
   useEffect(() => {
     if (newlyCreatedProductId && products.length > 0) {
       const created = products.find((p) => p.id === newlyCreatedProductId);

@@ -12,13 +12,13 @@ import {
   getPurchaseOrderById,
   updatePurchaseOrder,
 } from "@/lib/db/local-database";
-import { createSupplier, type DraftPOLineItem } from "@/lib/db/procurement";
+import { createSupplier } from "@/lib/db/procurement";
 import { toast } from "sonner";
 
-import { useStore } from "@/lib/context/store-context";
 import { useProcurementData } from "@/lib/hooks/use-procurement-data";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
+import type { POLineItemDraft } from "@/components/procurement/po-item-ledger-table";
 import type { NewProductPayload, ProductViewModel } from "@/lib/types/product";
 import type { SupplierPayload } from "@/lib/types/supplier";
 
@@ -27,11 +27,10 @@ function EditOrderContent() {
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const id = searchParams.get("id");
-  const { storeType } = useStore();
 
   const [selectedSupplierId, setSelectedSupplierId] = useState("");
   const [notes, setNotes] = useState("");
-  const [items, setItems] = useState<DraftPOLineItem[]>([]);
+  const [items, setItems] = useState<POLineItemDraft[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [paymentStatus, setPaymentStatus] = useState("unpaid");
@@ -79,10 +78,6 @@ function EditOrderContent() {
     loadPO();
   }, [id, router]);
 
-  const handleAddLineItem = (newItem: DraftPOLineItem) => {
-    setItems([...items, newItem]);
-  };
-
   const handleOpenAddProduct = (productData: Partial<ProductViewModel>) => {
     setInitialProductData(productData);
     setIsAddProductOpen(true);
@@ -118,10 +113,6 @@ function EditOrderContent() {
       console.error("Failed to add product:", error);
       toast.error("Failed to add product");
     }
-  };
-
-  const removeLineItem = (index: number) => {
-    setItems(items.filter((_, i) => i !== index));
   };
 
   const totalAmount = items.reduce((sum, item) => sum + item.subtotal, 0);
@@ -207,6 +198,9 @@ function EditOrderContent() {
         {/* Left Pane */}
         <div className="p-6 overflow-y-auto flex flex-col gap-4 bg-background/50">
           <POOrderFormFields
+            poType="standard"
+            setPoType={() => {}}
+            hideTypeToggle
             suppliers={suppliers}
             selectedSupplierId={selectedSupplierId}
             setSelectedSupplierId={setSelectedSupplierId}
@@ -220,7 +214,8 @@ function EditOrderContent() {
             setAmountPaid={setAmountPaid}
             totalAmount={totalAmount}
             products={products}
-            onAddLineItem={handleAddLineItem}
+            items={items}
+            onItemsChange={setItems}
             onOpenAddProduct={handleOpenAddProduct}
             newlyCreatedProductId={newlyCreatedProductId}
             onNewlyCreatedProductConsumed={() => setNewlyCreatedProductId(null)}
@@ -231,9 +226,7 @@ function EditOrderContent() {
         {/* Right Pane (Summary) */}
         <POSummaryPane
           selectedSupplierName={selectedSupplierName}
-          items={items}
-          onRemoveItem={removeLineItem}
-          storeType={storeType}
+          itemCount={items.length}
           totalAmount={totalAmount}
           onSave={handleSubmit}
           isSubmitting={isSubmitting}

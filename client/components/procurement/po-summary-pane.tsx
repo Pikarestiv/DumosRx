@@ -2,30 +2,25 @@
 
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/utils";
-import { StoreType } from "@/lib/context/store-context";
-import { POLineItemsList } from "./po-line-items-list";
-import type { DraftPOLineItem } from "@/lib/db/procurement";
 
 interface POSummaryPaneProps {
   selectedSupplierName: string;
-  items: DraftPOLineItem[];
-  onRemoveItem: (index: number) => void;
-  storeType: StoreType;
   totalAmount: number;
   onSave: () => void;
   isSubmitting: boolean;
+  itemCount: number;
 }
 
 /** Desktop "Order Summary" right pane shared by the create and edit
- * purchase order pages. */
+ * purchase order pages. Items are now edited inline via POItemBuilder in
+ * the left pane, so this only shows the running total/Save action, not a
+ * duplicate read-only list. */
 export function POSummaryPane({
   selectedSupplierName,
-  items,
-  onRemoveItem,
-  storeType,
   totalAmount,
   onSave,
   isSubmitting,
+  itemCount,
 }: POSummaryPaneProps) {
   return (
     <div className="bg-card border-l border-border flex-col min-h-0 hidden md:flex">
@@ -37,12 +32,8 @@ export function POSummaryPane({
           {selectedSupplierName}
         </div>
       </div>
-      <div className="flex-1 overflow-y-auto p-4 bg-muted/10">
-        <POLineItemsList
-          items={items}
-          onRemoveItem={onRemoveItem}
-          storeType={storeType}
-        />
+      <div className="flex-1 overflow-y-auto p-4 bg-muted/10 flex items-center justify-center text-[13px] text-muted-foreground">
+        {itemCount} {itemCount === 1 ? "item" : "items"} added
       </div>
       <div className="p-5 border-t border-border shrink-0 bg-card">
         <div className="flex items-center justify-between mb-4">
@@ -56,7 +47,7 @@ export function POSummaryPane({
         <Button
           className="w-full h-12 rounded-xl text-[14px] font-bold"
           onClick={onSave}
-          disabled={isSubmitting || items.length === 0}
+          disabled={isSubmitting || itemCount === 0}
         >
           {isSubmitting ? "Creating..." : "Save Purchase Order"}
         </Button>

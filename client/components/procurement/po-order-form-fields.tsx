@@ -13,9 +13,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { DatePickerInput } from "@/components/ui/date-picker-input";
-import { POAddItemForm } from "./po-add-item-form";
-import type { Product, ProductViewModel } from "@/lib/types/product";
-import type { DraftPOLineItem } from "@/lib/db/procurement";
+import { POItemBuilder } from "./po-item-builder";
+import type { ProductViewModel } from "@/lib/types/product";
+import type { POProduct } from "@/lib/db/queries/procurement";
+import type { POLineItemDraft } from "./po-item-ledger-table";
 
 interface Supplier {
   id: string;
@@ -23,6 +24,8 @@ interface Supplier {
 }
 
 interface POOrderFormFieldsProps {
+  poType: "standard" | "immediate";
+  setPoType: (type: "standard" | "immediate") => void;
   suppliers: Supplier[];
   selectedSupplierId: string;
   setSelectedSupplierId: (id: string) => void;
@@ -35,17 +38,25 @@ interface POOrderFormFieldsProps {
   amountPaid: string;
   setAmountPaid: (amount: string) => void;
   totalAmount: number;
-  products: Product[];
-  onAddLineItem: (item: DraftPOLineItem) => void;
+  products: POProduct[];
+  items: POLineItemDraft[];
+  onItemsChange: (items: POLineItemDraft[]) => void;
   onOpenAddProduct: (productData: Partial<ProductViewModel>) => void;
   newlyCreatedProductId: string | null;
   onNewlyCreatedProductConsumed: () => void;
   onOpenAddSupplier: () => void;
+  /** Editing an existing PO is only ever done for Standard POs (Immediate
+   * ones are created already "received" and never enter an editable
+   * state), so the edit page hides the toggle entirely rather than showing
+   * a control whose "Immediate" option would silently do nothing. */
+  hideTypeToggle?: boolean;
 }
 
 /** Vendor/notes/payment/due-date/add-item fields shared by the create and
  * edit purchase order desktop panels. */
 export function POOrderFormFields({
+  poType,
+  setPoType,
   suppliers,
   selectedSupplierId,
   setSelectedSupplierId,
@@ -59,11 +70,13 @@ export function POOrderFormFields({
   setAmountPaid,
   totalAmount,
   products,
-  onAddLineItem,
+  items,
+  onItemsChange,
   onOpenAddProduct,
   newlyCreatedProductId,
   onNewlyCreatedProductConsumed,
   onOpenAddSupplier,
+  hideTypeToggle,
 }: POOrderFormFieldsProps) {
   // Controlled so the empty-state "Add a supplier first" link can force this
   // closed before opening the add-supplier dialog. stopPropagation() on
@@ -74,6 +87,30 @@ export function POOrderFormFields({
 
   return (
     <>
+      {!hideTypeToggle && (
+        <div className="space-y-1.5">
+          <Label className="text-[12.5px] font-semibold text-foreground">
+            Order Type
+          </Label>
+          <div className="inline-flex rounded-[10px] border border-border bg-muted p-1">
+            {(["immediate", "standard"] as const).map((type) => (
+              <button
+                key={type}
+                type="button"
+                disabled={items.length > 0}
+                title={items.length > 0 ? "Start a new PO to change type" : undefined}
+                onClick={() => setPoType(type)}
+                className={`px-3.5 h-8 rounded-[8px] text-[12.5px] font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                  poType === type ? "bg-card shadow-sm text-foreground" : "text-muted-foreground"
+                }`}
+              >
+                {type === "immediate" ? "Immediate Purchase" : "Purchase Order"}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <Label className="text-[12.5px] font-semibold text-foreground">
@@ -197,9 +234,11 @@ export function POOrderFormFields({
           </div>
         </div>
         <div className="p-4">
-          <POAddItemForm
+          <POItemBuilder
+            poType={poType}
             products={products}
-            onAddItem={onAddLineItem}
+            items={items}
+            onItemsChange={onItemsChange}
             onOpenAddProduct={onOpenAddProduct}
             newlyCreatedProductId={newlyCreatedProductId}
             onNewlyCreatedProductConsumed={onNewlyCreatedProductConsumed}

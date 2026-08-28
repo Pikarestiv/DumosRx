@@ -8,27 +8,26 @@ import { AddSupplierDialog } from "@/components/suppliers/add-supplier-dialog";
 import { POOrderFormFields } from "@/components/procurement/po-order-form-fields";
 import { POSummaryPane } from "@/components/procurement/po-summary-pane";
 import { POMobileCreateView } from "@/components/procurement/po-mobile-create-view";
-import { createProduct, createPurchaseOrder } from "@/lib/db/local-database";
-import { createSupplier } from "@/lib/db/procurement";
+import { createProduct } from "@/lib/db/local-database";
+import { createPurchaseOrder, createAndReceivePurchaseOrder, createSupplier } from "@/lib/db/procurement";
 import { toast } from "sonner";
 
-import { useStore } from "@/lib/context/store-context";
 import { useProcurementData } from "@/lib/hooks/use-procurement-data";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
-import type { DraftPOLineItem } from "@/lib/db/procurement";
+import type { POLineItemDraft } from "@/components/procurement/po-item-ledger-table";
 import type { NewProductPayload, ProductViewModel } from "@/lib/types/product";
 import type { SupplierPayload } from "@/lib/types/supplier";
 
 export default function CreateOrderPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { storeType } = useStore();
   const queryClient = useQueryClient();
 
+  const [poType, setPoType] = useState<"standard" | "immediate">("immediate");
   const [selectedSupplierId, setSelectedSupplierId] = useState("");
   const [notes, setNotes] = useState("");
-  const [items, setItems] = useState<DraftPOLineItem[]>([]);
+  const [items, setItems] = useState<POLineItemDraft[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState("unpaid");
   const [amountPaid, setAmountPaid] = useState("");
@@ -57,10 +56,6 @@ export default function CreateOrderPage() {
       setSelectedSupplierId(defaultSupplierId);
     }
   }, [searchParams, suppliers]);
-
-  const handleAddLineItem = (newItem: DraftPOLineItem) => {
-    setItems([...items, newItem]);
-  };
 
   const handleOpenAddProduct = (productData: Partial<ProductViewModel>) => {
     setInitialProductData(productData);
@@ -99,11 +94,15 @@ export default function CreateOrderPage() {
     }
   };
 
-  const removeLineItem = (index: number) => {
-    setItems(items.filter((_, i) => i !== index));
-  };
-
-  const totalAmount = items.reduce((sum, item) => sum + item.subtotal, 0);
+  const totalAmount = items.reduce(
+    (sum, item) =>
+      sum +
+      item.bulk_quantity *
+        (poType === "immediate" && item.cost_price_override !== undefined && item.cost_price_override !== ""
+          ? Number(item.cost_price_override)
+          : item.unit_cost),
+    0,
+  );
 
   const handleSubmit = async () => {
     if (!selectedSupplierId) {
@@ -118,18 +117,33 @@ export default function CreateOrderPage() {
 
     setIsSubmitting(true);
     try {
-      const poId = await createPurchaseOrder(
-        selectedSupplierId,
-        notes,
-        items,
-        paymentStatus,
-        paymentStatus !== "unpaid" ? Number(amountPaid) || 0 : 0,
-        dueDate || null,
-      );
-      toast.success("Purchase order saved as draft", {
-        description: "Remember to mark it as sent once it's on its way to the vendor.",
-      });
-      router.push(`/procurement?selected=${poId}`);
+      if (poType === "immediate") {
+        const poId = await createAndReceivePurchaseOrder(
+          selectedSupplierId,
+          notes,
+          items,
+          paymentStatus,
+          paymentStatus !== "unpaid" ? Number(amountPaid) || 0 : 0,
+          dueDate || null,
+        );
+        toast.success("Purchase received", {
+          description: "Stock has been added to inventory.",
+        });
+        router.push(`/procurement?selected=${poId}`);
+      } else {
+        const poId = await createPurchaseOrder(
+          selectedSupplierId,
+          notes,
+          items,
+          paymentStatus,
+          paymentStatus !== "unpaid" ? Number(amountPaid) || 0 : 0,
+          dueDate || null,
+        );
+        toast.success("Purchase order saved as draft", {
+          description: "Remember to mark it as sent once it's on its way to the vendor.",
+        });
+        router.push(`/procurement?selected=${poId}`);
+      }
     } catch (error) {
       console.error("Failed to create PO:", error);
       toast.error("Error creating purchase order");
@@ -146,6 +160,8 @@ export default function CreateOrderPage() {
   }, [suppliers, selectedSupplierId]);
 
   const formFieldsProps = {
+    poType,
+    setPoType,
     suppliers,
     selectedSupplierId,
     setSelectedSupplierId,
@@ -159,7 +175,8 @@ export default function CreateOrderPage() {
     setAmountPaid,
     totalAmount,
     products,
-    onAddLineItem: handleAddLineItem,
+    items,
+    onItemsChange: setItems,
     onOpenAddProduct: handleOpenAddProduct,
     newlyCreatedProductId,
     onNewlyCreatedProductConsumed: () => setNewlyCreatedProductId(null),
@@ -172,9 +189,6 @@ export default function CreateOrderPage() {
       <POMobileCreateView
         {...formFieldsProps}
         selectedSupplierName={selectedSupplierName}
-        items={items}
-        removeLineItem={removeLineItem}
-        storeType={storeType}
         isSubmitting={isSubmitting}
         handleSubmit={handleSubmit}
       />
@@ -210,9 +224,7 @@ export default function CreateOrderPage() {
           {/* Right Pane (Summary) */}
           <POSummaryPane
             selectedSupplierName={selectedSupplierName}
-            items={items}
-            onRemoveItem={removeLineItem}
-            storeType={storeType}
+            itemCount={items.length}
             totalAmount={totalAmount}
             onSave={handleSubmit}
             isSubmitting={isSubmitting}

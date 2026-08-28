@@ -35,6 +35,13 @@ interface ProductComboboxProps {
   placeholder?: string;
   disabled?: boolean;
   className?: string;
+  /** When false, the dropdown only shows real catalog matches and the
+   * "create new" fallback — never the static reference-list ("Suggested")
+   * names. Used by PO item search, where catalog results and non-catalog
+   * name suggestions must never appear in the same list. Defaults to true
+   * to preserve existing behavior (e.g. the new-product name field, where
+   * suggesting non-catalog names is exactly the point). */
+  showGlobalSuggestions?: boolean;
 }
 
 function SourceBadge({
@@ -144,6 +151,7 @@ export function ProductCombobox({
   placeholder = "Search products...",
   disabled = false,
   className,
+  showGlobalSuggestions = true,
 }: ProductComboboxProps) {
   const [open, setOpen] = React.useState(false);
   const containerRef = React.useRef<HTMLDivElement>(null);
@@ -161,6 +169,7 @@ export function ProductCombobox({
 
   // Compile global suggestions
   const globalSuggestions = React.useMemo(() => {
+    if (!showGlobalSuggestions) return [];
     const list: SelectedProduct[] = [];
     const source = isPharmacy
       ? FORM_SUGGESTIONS.store
@@ -185,7 +194,7 @@ export function ProductCombobox({
       });
     }
     return list;
-  }, [isPharmacy]);
+  }, [isPharmacy, showGlobalSuggestions]);
 
   // Map local products
   const localSuggestions = React.useMemo(() => {

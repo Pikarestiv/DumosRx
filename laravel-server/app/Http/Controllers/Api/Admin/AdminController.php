@@ -787,7 +787,9 @@ class AdminController extends Controller
         tags: ['Admin'],
         security: [['sanctum' => []]],
         responses: [
-            new OA\Response(response: 200, description: 'List', content: new OA\JsonContent(type: 'array')),
+            new OA\Response(response: 200, description: 'List', content: new OA\JsonContent(properties: [
+                new OA\Property(property: 'data', type: 'array', items: new OA\Items(type: 'object')),
+            ])),
             new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Non-super_admin'),
         ],
     )]

@@ -1,9 +1,12 @@
-import React, { useRef } from "react";
-import { Package, ChevronRight } from "lucide-react";
+import React, { useRef, useState } from "react";
+import { Package, ChevronRight, Pencil, Check, X } from "lucide-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { toast } from "sonner";
 import { Product } from "./types";
 import { useStore } from "@/lib/context/store-context";
 import { SortableHeaderCell } from "@/components/ui/sortable-header-cell";
+import { EditableNumberCell } from "@/components/ui/editable-number-cell";
+import { update } from "@/lib/db/local-database";
 import type { SortDirection } from "@/lib/hooks/use-sortable-data";
 
 type ProductSortKey =
@@ -24,6 +27,7 @@ interface CatalogListProps {
   sortKey: ProductSortKey | null;
   sortDirection: SortDirection;
   onToggleSort: (key: ProductSortKey) => void;
+  onProductUpdated: () => void;
 }
 
 export function CatalogList({
@@ -36,9 +40,46 @@ export function CatalogList({
   sortKey,
   sortDirection,
   onToggleSort,
+  onProductUpdated,
 }: CatalogListProps) {
   const { storeType } = useStore();
   const isPharmacy = storeType === "pharmacy";
+
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draft, setDraft] = useState<{
+    sellingPrice: number;
+    reorderLevel: number;
+  } | null>(null);
+
+  const startQuickEdit = (product: Product) => {
+    setEditingId(product.id);
+    setDraft({
+      sellingPrice: product.sellingPrice,
+      reorderLevel: product.reorderLevel,
+    });
+  };
+
+  const cancelQuickEdit = () => {
+    setEditingId(null);
+    setDraft(null);
+  };
+
+  const saveQuickEdit = async (product: Product) => {
+    if (!draft) return;
+    try {
+      await update("products", product.id, {
+        selling_price: draft.sellingPrice,
+        reorder_level: draft.reorderLevel,
+      });
+      toast.success(`${product.name} updated`);
+      onProductUpdated();
+    } catch {
+      toast.error("Failed to update product. Please try again.");
+    } finally {
+      setEditingId(null);
+      setDraft(null);
+    }
+  };
 
   const scrollRef = useRef<HTMLDivElement>(null);
   // Row height differs between the stacked mobile layout and the desktop grid
@@ -60,7 +101,7 @@ export function CatalogList({
       )}
 
       {/* Header */}
-      <div className="hidden sm:grid grid-cols-[1fr_110px_90px_90px_100px_90px] gap-2 px-4 py-2.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wide border-b border-border shrink-0">
+      <div className="hidden sm:grid grid-cols-[1fr_110px_90px_90px_100px_90px_28px] gap-2 px-4 py-2.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wide border-b border-border shrink-0">
         <SortableHeaderCell
           label="Product"
           active={sortKey === "name"}
@@ -97,6 +138,7 @@ export function CatalogList({
           direction={sortDirection}
           onClick={() => onToggleSort("reorderLevel")}
         />
+        <div />
       </div>
 
       {/* Rows */}
@@ -115,6 +157,7 @@ export function CatalogList({
             {rowVirtualizer.getVirtualItems().map((virtualRow) => {
             const product = filteredProducts[virtualRow.index];
             const isSelected = selectedProductId === product.id;
+            const isEditingRow = editingId === product.id;
             return (
               <div
                 key={product.id}
@@ -124,8 +167,10 @@ export function CatalogList({
                 style={{ transform: `translateY(${virtualRow.start}px)` }}
               >
               <div
-                onClick={() => onSelectProduct(product)}
-                className={`px-4 py-3 sm:py-2 rounded-xl sm:rounded-none border sm:border-t-0 sm:border-r-0 sm:border-b border-border cursor-pointer transition-colors ${
+                onClick={() => {
+                  if (!isEditingRow) onSelectProduct(product);
+                }}
+                className={`group px-4 py-3 sm:py-2 rounded-xl sm:rounded-none border sm:border-t-0 sm:border-r-0 sm:border-b border-border cursor-pointer transition-colors ${
                   isSelected
                     ? "bg-primary/5 border-l-2 border-l-primary"
                     : "bg-card sm:bg-transparent hover:bg-muted/50 border-l-2 border-l-transparent"
@@ -164,7 +209,7 @@ export function CatalogList({
                 </div>
 
                 {/* Desktop View */}
-                <div className="hidden sm:grid grid-cols-[1fr_110px_90px_90px_100px_90px] gap-2 items-center">
+                <div className="hidden sm:grid grid-cols-[1fr_110px_90px_90px_100px_90px_28px] gap-2 items-center">
                   <div className="min-w-0 pr-2">
                     <div className="text-[13px] font-semibold truncate flex items-center gap-2">
                       {product.name}
@@ -186,18 +231,81 @@ export function CatalogList({
                   <div className="text-[13px] font-medium text-muted-foreground">
                     {product.costPrice > 0 ? formatCurrency(product.costPrice) : "-"}
                   </div>
-                  <div className="text-[13px] font-semibold">
-                    {formatCurrency(product.sellingPrice)}
-                  </div>
+                  {isEditingRow && draft ? (
+                    <div onClick={(e) => e.stopPropagation()}>
+                      <EditableNumberCell
+                        value={draft.sellingPrice}
+                        onCommit={(val) =>
+                          setDraft((d) => (d ? { ...d, sellingPrice: val } : d))
+                        }
+                        parse={parseFloat}
+                        step="0.01"
+                        widthClassName="w-20"
+                        autoFocus
+                      />
+                    </div>
+                  ) : (
+                    <div className="text-[13px] font-semibold">
+                      {formatCurrency(product.sellingPrice)}
+                    </div>
+                  )}
                   <div
                     className={`text-[13px] font-semibold ${product.stockQuantity <= product.reorderLevel ? "text-destructive" : "text-primary"}`}
                   >
                     {product.stockQuantity} {product.baseUnit || "unit"}
                     {product.stockQuantity === 1 ? "" : "s"}
                   </div>
-                  <div className="text-[13px] text-muted-foreground">
-                    {product.reorderLevel}
-                  </div>
+                  {isEditingRow && draft ? (
+                    <div onClick={(e) => e.stopPropagation()}>
+                      <EditableNumberCell
+                        value={draft.reorderLevel}
+                        onCommit={(val) =>
+                          setDraft((d) => (d ? { ...d, reorderLevel: val } : d))
+                        }
+                        parse={(raw) => parseInt(raw, 10)}
+                        widthClassName="w-16"
+                      />
+                    </div>
+                  ) : (
+                    <div className="text-[13px] text-muted-foreground">
+                      {product.reorderLevel}
+                    </div>
+                  )}
+                  {isEditingRow ? (
+                    <div
+                      className="flex items-center gap-1"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => saveQuickEdit(product)}
+                        className="p-1 rounded text-emerald-600 hover:bg-emerald-500/10"
+                        title="Save"
+                      >
+                        <Check className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={cancelQuickEdit}
+                        className="p-1 rounded text-muted-foreground hover:bg-muted"
+                        title="Cancel"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        startQuickEdit(product);
+                      }}
+                      className="p-1 rounded text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-muted hover:text-foreground transition-opacity"
+                      title="Quick edit"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
               </div>
               </div>

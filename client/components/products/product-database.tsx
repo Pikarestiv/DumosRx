@@ -218,6 +218,7 @@ export function ProductDatabase() {
             sortKey={sortKey}
             sortDirection={direction}
             onToggleSort={toggleSort}
+            onProductUpdated={refetch}
           />
         </div>
       </div>

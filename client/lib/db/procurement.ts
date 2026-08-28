@@ -12,6 +12,7 @@ export interface PurchaseOrder {
   order_date?: string;
   supplier_id: string;
   status: string;
+  type: string;
   total_amount: number;
   notes?: string;
   created_at: string;
@@ -178,6 +179,7 @@ export async function createPurchaseOrder(
       id: poId,
       supplier_id: supplierId,
       status: "pending",
+      type: "standard",
       payment_status: paymentStatus,
       amount_paid: amountPaid,
       due_date: dueDate,

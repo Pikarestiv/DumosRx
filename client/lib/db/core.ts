@@ -316,6 +316,7 @@ export async function initDatabase(): Promise<any> {
         "amount_paid REAL DEFAULT 0",
         "due_date TEXT",
         "store_id TEXT",
+        "type TEXT DEFAULT 'standard'",
       ],
     },
     {

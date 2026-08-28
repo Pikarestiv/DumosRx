@@ -385,6 +385,7 @@ CREATE TABLE IF NOT EXISTS purchase_orders (
   ordered_by TEXT,
   order_date TEXT,
   status TEXT DEFAULT 'pending',
+  type TEXT DEFAULT 'standard',
   payment_status TEXT DEFAULT 'unpaid',
   amount_paid REAL DEFAULT 0,
   due_date TEXT,

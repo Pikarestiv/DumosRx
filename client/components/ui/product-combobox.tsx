@@ -42,6 +42,10 @@ interface ProductComboboxProps {
    * to preserve existing behavior (e.g. the new-product name field, where
    * suggesting non-catalog names is exactly the point). */
   showGlobalSuggestions?: boolean;
+  /** Fired only when the user explicitly clicks "Add "X" as new product",
+   * not on every keystroke. Optional — callers that don't pass it keep the
+   * existing onChange({ source: "new" }) behavior for that click. */
+  onCreateNew?: (name: string) => void;
 }
 
 function SourceBadge({
@@ -152,6 +156,7 @@ export function ProductCombobox({
   disabled = false,
   className,
   showGlobalSuggestions = true,
+  onCreateNew,
 }: ProductComboboxProps) {
   const [open, setOpen] = React.useState(false);
   const containerRef = React.useRef<HTMLDivElement>(null);
@@ -320,7 +325,11 @@ export function ProductCombobox({
                 value={value}
                 isActive={activeIndex === filteredOptions.length}
                 onSelect={() => {
-                  onChange({ name: value, source: "new" });
+                  if (onCreateNew) {
+                    onCreateNew(value);
+                  } else {
+                    onChange({ name: value, source: "new" });
+                  }
                   setOpen(false);
                 }}
               />

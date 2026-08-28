@@ -3,6 +3,16 @@ import { Package, ChevronRight } from "lucide-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Product } from "./types";
 import { useStore } from "@/lib/context/store-context";
+import { SortableHeaderCell } from "@/components/ui/sortable-header-cell";
+import type { SortDirection } from "@/lib/hooks/use-sortable-data";
+
+type ProductSortKey =
+  | "name"
+  | "category"
+  | "costPrice"
+  | "sellingPrice"
+  | "stockQuantity"
+  | "reorderLevel";
 
 interface CatalogListProps {
   filteredProducts: Product[];
@@ -11,6 +21,9 @@ interface CatalogListProps {
   formatCurrency: (amount: number) => string;
   onSelectProduct: (product: Product) => void;
   selectedProductId?: string;
+  sortKey: ProductSortKey | null;
+  sortDirection: SortDirection;
+  onToggleSort: (key: ProductSortKey) => void;
 }
 
 export function CatalogList({
@@ -20,6 +33,9 @@ export function CatalogList({
   formatCurrency,
   onSelectProduct,
   selectedProductId,
+  sortKey,
+  sortDirection,
+  onToggleSort,
 }: CatalogListProps) {
   const { storeType } = useStore();
   const isPharmacy = storeType === "pharmacy";
@@ -45,12 +61,42 @@ export function CatalogList({
 
       {/* Header */}
       <div className="hidden sm:grid grid-cols-[1fr_110px_90px_90px_100px_90px] gap-2 px-4 py-2.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wide border-b border-border shrink-0">
-        <div>Product</div>
-        <div>Category</div>
-        <div>Avg Cost</div>
-        <div>S. Price</div>
-        <div>Stock</div>
-        <div>Reorder</div>
+        <SortableHeaderCell
+          label="Product"
+          active={sortKey === "name"}
+          direction={sortDirection}
+          onClick={() => onToggleSort("name")}
+        />
+        <SortableHeaderCell
+          label="Category"
+          active={sortKey === "category"}
+          direction={sortDirection}
+          onClick={() => onToggleSort("category")}
+        />
+        <SortableHeaderCell
+          label="Avg Cost"
+          active={sortKey === "costPrice"}
+          direction={sortDirection}
+          onClick={() => onToggleSort("costPrice")}
+        />
+        <SortableHeaderCell
+          label="S. Price"
+          active={sortKey === "sellingPrice"}
+          direction={sortDirection}
+          onClick={() => onToggleSort("sellingPrice")}
+        />
+        <SortableHeaderCell
+          label="Stock"
+          active={sortKey === "stockQuantity"}
+          direction={sortDirection}
+          onClick={() => onToggleSort("stockQuantity")}
+        />
+        <SortableHeaderCell
+          label="Reorder"
+          active={sortKey === "reorderLevel"}
+          direction={sortDirection}
+          onClick={() => onToggleSort("reorderLevel")}
+        />
       </div>
 
       {/* Rows */}

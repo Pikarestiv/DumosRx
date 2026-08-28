@@ -124,6 +124,12 @@ Surfaced during demo prep: a store logged a full year's rent (₦270,000) as one
 
 ## 🟢 Quick Wins (hours – ~1 day)
 
+### Support section with quick links to screen recordings / write-ups (Requested by client, 2026-08-27)
+
+- **Source:** Client's second store currently runs Moniebook, which has an in-app support/help section linking out to screen recordings and written guides. She'd like the same in DumosRx.
+- **Scope split:** the UI shell (a Support/Help page or settings tab with a list of linked resources, opening each in-app or in a new tab) is quick engineering-wise. The actual content — screen recordings and write-ups per feature — is authoring work, not engineering, and is the reason this is deferred rather than built now.
+- **Effort:** ~half a day for the shell once content exists; content authoring is unscoped/ongoing.
+
 ### PostHog Integration
 
 - **Description:** Add PostHog (funnel analytics, session replays) alongside the now-live Sentry crash reporting.
@@ -157,12 +163,15 @@ Surfaced during demo prep: a store logged a full year's rent (₦270,000) as one
 
 ## 🟠 Medium (3–5 days)
 
-### Migration System
+### Migration System — real client blocker, existing build doesn't cover her actual file (Flagged urgent, 2026-08-27)
 
+- **Current state, confirmed via code trace:** a "QuickBooks import" already exists (`client/components/settings/quickbooks-import-dialog.tsx` + `client/lib/utils/iif-parser.ts`) but only parses the old tab-delimited **`.IIF`** export format with fixed `!INVITEM`/`!CUST` headers. It has never actually been tested against a real client file.
+- **Why it doesn't cover her case:** the client exports **`.xls`** from QuickBooks 2013(ish), not `.IIF`, and that version lets her customize/reorder the exported columns — so a fixed-header parser can't just be pointed at her file; it needs a column-mapping UI (auto-detect + let her confirm/correct which column is which), not just a new file-format reader. There's also currently zero support for Moniebook's export format at all (needed for her second store).
+- **This blocks her porting her second store off Moniebook** — treat as the top-priority item in this list, not just "medium effort," until it's actually usable end-to-end with a real exported file from her.
 - **Description:** Guided import pipeline for stores migrating from existing systems.
-- **Supported Formats:** CSV/Excel, QuickBooks IIF, legacy POS exports.
-- **Features:** Auto-detect column schema, mapping UI, validation preview, migration report, duplicate detection.
-- **Effort:** ~3–5 days.
+- **Supported Formats:** CSV/Excel (`.xls`/`.xlsx`/`.csv`), QuickBooks IIF (already built), Moniebook export, legacy POS exports.
+- **Features:** Auto-detect column schema, mapping UI (required for QuickBooks 2013's customizable columns), validation preview, migration report, duplicate detection.
+- **Effort:** ~3–5 days, revised up from the original estimate now that column-mapping UI + a second (Moniebook) format are confirmed necessary, not optional.
 - **Cost:** None (server-side processing).
 
 ### AI Assistant Module

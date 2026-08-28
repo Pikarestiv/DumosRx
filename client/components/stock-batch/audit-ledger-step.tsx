@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { FilterPill } from "@/components/ui/filter-pill";
@@ -20,6 +21,63 @@ function diffClassName(amount: number) {
 function diffBgClassName(amount: number) {
   if (amount === 0) return "";
   return amount > 0 ? "bg-emerald-600/10" : "bg-destructive/10";
+}
+
+/** A number input that tracks its own text while typing instead of mirroring
+ * the committed number on every keystroke. Without this, clearing the field
+ * to type a fresh value immediately re-renders as "0" (parsing "" forces a
+ * 0 commit, which round-trips back into the controlled `value`), so you'd
+ * have to type a digit first then delete the stray 0 rather than just
+ * clearing and typing. Here, an empty/partial field is allowed to sit as-is
+ * until a valid number is typed (which commits immediately) or the field is
+ * blurred still empty (which reverts to the last committed value). */
+function EditableNumberCell({
+  value,
+  onCommit,
+  parse,
+  min = 0,
+  step,
+  hasError,
+  widthClassName = "w-20",
+}: {
+  value: number;
+  onCommit: (val: number) => void;
+  parse: (raw: string) => number;
+  min?: number;
+  step?: string;
+  hasError?: boolean;
+  widthClassName?: string;
+}) {
+  const [text, setText] = useState(String(value));
+
+  useEffect(() => {
+    setText(String(value));
+  }, [value]);
+
+  return (
+    <input
+      type="number"
+      min={min}
+      step={step}
+      className={`${widthClassName} text-right border rounded-md px-2 py-1 outline-none focus:border-primary bg-background ${
+        hasError
+          ? "border-destructive text-destructive font-semibold"
+          : "border-border"
+      }`}
+      value={text}
+      onChange={(e) => {
+        const raw = e.target.value;
+        setText(raw);
+        if (raw === "" || raw === "-") return;
+        const parsed = parse(raw);
+        if (!isNaN(parsed)) onCommit(Math.max(min, parsed));
+      }}
+      onBlur={() => {
+        if (text === "" || isNaN(parse(text))) setText(String(value));
+      }}
+      onFocus={(e) => e.target.select()}
+    />
+  );
 }
 
 interface AuditLedgerStepProps {
@@ -205,22 +263,14 @@ export function AuditLedgerStep({
                       role="cell"
                       className="px-2 py-1.5 text-right flex items-center justify-end"
                     >
-                      <input
-                        type="number"
-                        min="0"
-                        className={`w-20 text-right border rounded-md px-2 py-1 outline-none focus:border-primary bg-background ${
-                          diffQty !== 0
-                            ? "border-destructive text-destructive font-semibold"
-                            : "border-border"
-                        }`}
+                      <EditableNumberCell
                         value={countedQty}
-                        onChange={(e) => {
-                          const val = parseInt(e.target.value, 10);
-                          onUpdateItem(item.id, {
-                            countedQty: isNaN(val) ? 0 : Math.max(0, val),
-                          });
-                        }}
-                        onFocus={(e) => e.target.select()}
+                        onCommit={(val) =>
+                          onUpdateItem(item.id, { countedQty: val })
+                        }
+                        parse={(raw) => parseInt(raw, 10)}
+                        hasError={diffQty !== 0}
+                        widthClassName="w-20"
                       />
                     </div>
                     <div
@@ -247,23 +297,15 @@ export function AuditLedgerStep({
                       role="cell"
                       className="px-2 py-1.5 text-right flex items-center"
                     >
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        className={`w-24 text-right border rounded-md px-2 py-1 outline-none focus:border-primary bg-background ${
-                          costChanged
-                            ? "border-destructive text-destructive font-semibold"
-                            : "border-border"
-                        }`}
+                      <EditableNumberCell
                         value={item.countedCostPrice ?? item.costPrice ?? 0}
-                        onChange={(e) => {
-                          const val = parseFloat(e.target.value);
-                          onUpdateItem(item.id, {
-                            countedCostPrice: isNaN(val) ? 0 : Math.max(0, val),
-                          });
-                        }}
-                        onFocus={(e) => e.target.select()}
+                        onCommit={(val) =>
+                          onUpdateItem(item.id, { countedCostPrice: val })
+                        }
+                        parse={parseFloat}
+                        step="0.01"
+                        hasError={costChanged}
+                        widthClassName="w-24"
                       />
                     </div>
                     <div
@@ -286,27 +328,15 @@ export function AuditLedgerStep({
                       role="cell"
                       className="px-2 py-1.5 text-right flex items-center"
                     >
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        className={`w-24 text-right border rounded-md px-2 py-1 outline-none focus:border-primary bg-background ${
-                          sellingChanged
-                            ? "border-destructive text-destructive font-semibold"
-                            : "border-border"
-                        }`}
-                        value={
-                          item.countedSellingPrice ?? item.sellingPrice ?? 0
+                      <EditableNumberCell
+                        value={item.countedSellingPrice ?? item.sellingPrice ?? 0}
+                        onCommit={(val) =>
+                          onUpdateItem(item.id, { countedSellingPrice: val })
                         }
-                        onChange={(e) => {
-                          const val = parseFloat(e.target.value);
-                          onUpdateItem(item.id, {
-                            countedSellingPrice: isNaN(val)
-                              ? 0
-                              : Math.max(0, val),
-                          });
-                        }}
-                        onFocus={(e) => e.target.select()}
+                        parse={parseFloat}
+                        step="0.01"
+                        hasError={sellingChanged}
+                        widthClassName="w-24"
                       />
                     </div>
                     <div

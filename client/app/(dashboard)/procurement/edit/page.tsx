@@ -167,8 +167,14 @@ function EditOrderContent() {
   }
 
   return (
-    <div className="flex flex-col min-h-0 bg-card border border-border rounded-2xl overflow-hidden h-[calc(100vh-148px)] shadow-sm">
-      <div className="flex items-center gap-3 px-6 py-5 border-b border-border bg-card shrink-0">
+    // Full-screen takeover, same as the Cycle Count session in
+    // stock-batch/stock-audits.tsx, so the ledger table gets the whole
+    // viewport instead of being cramped inside the dashboard shell.
+    <div className="fixed inset-0 z-50 flex flex-col bg-background">
+      <div
+        className="flex items-center gap-3 px-6 pb-5 border-b border-border bg-card shrink-0"
+        style={{ paddingTop: "calc(var(--tauri-top, 0px) + 1.25rem)" }}
+      >
         <div
           className="w-[38px] h-[38px] rounded-[10px] bg-muted flex items-center justify-center cursor-pointer text-muted-foreground shrink-0 hover:bg-muted/80 transition-colors"
           onClick={() => router.push("/procurement")}

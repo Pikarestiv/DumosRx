@@ -305,9 +305,27 @@ export function ProductCombobox({
         )}
       </div>
 
-      {open && filteredOptions.length > 0 && (
+      {open && (filteredOptions.length > 0 || value) && (
         <div className="absolute z-[999] w-full mt-1 bg-popover text-popover-foreground shadow-xl rounded-md border border-border outline-none animate-in fade-in-0 zoom-in-95 overflow-hidden">
           <div className="max-h-[300px] overflow-y-auto hide-scrollbar p-1">
+            {/* Pinned above matches whenever there's typed text, regardless of
+             * whether catalog matches also exist below it: this is the only
+             * path to creating a new product from this search, so it can't be
+             * hidden just because a fuzzy match happens to also exist. */}
+            {value && (
+              <AddNewProductOption
+                value={value}
+                isActive={activeIndex === -1}
+                onSelect={() => {
+                  if (onCreateNew) {
+                    onCreateNew(value);
+                  } else {
+                    onChange({ name: value, source: "new" });
+                  }
+                  setOpen(false);
+                }}
+              />
+            )}
             {filteredOptions.map((option, idx) => (
               <ProductComboboxItem
                 key={`${option.source}_${option.name}_${idx}`}
@@ -320,20 +338,6 @@ export function ProductCombobox({
                 }}
               />
             ))}
-            {value && filteredOptions.length === 0 && (
-              <AddNewProductOption
-                value={value}
-                isActive={activeIndex === filteredOptions.length}
-                onSelect={() => {
-                  if (onCreateNew) {
-                    onCreateNew(value);
-                  } else {
-                    onChange({ name: value, source: "new" });
-                  }
-                  setOpen(false);
-                }}
-              />
-            )}
           </div>
         </div>
       )}

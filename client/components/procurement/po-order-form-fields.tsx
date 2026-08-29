@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { DatePickerInput } from "@/components/ui/date-picker-input";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { POItemBuilder } from "./po-item-builder";
 import type { ProductViewModel } from "@/lib/types/product";
 import type { POProduct } from "@/lib/db/queries/procurement";
@@ -98,22 +99,27 @@ export function POOrderFormFields({
           <Label className="text-[12.5px] font-semibold text-foreground">
             Order Type
           </Label>
-          <div className="inline-flex rounded-[10px] border border-border bg-muted p-1">
-            {(["immediate", "standard"] as const).map((type) => (
-              <button
-                key={type}
-                type="button"
+          <Tabs
+            value={poType}
+            onValueChange={(val) => setPoType(val as "immediate" | "standard")}
+          >
+            <TabsList>
+              <TabsTrigger
+                value="immediate"
                 disabled={items.length > 0}
                 title={items.length > 0 ? "Start a new PO to change type" : undefined}
-                onClick={() => setPoType(type)}
-                className={`px-3.5 h-8 rounded-[8px] text-[12.5px] font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                  poType === type ? "bg-card shadow-sm text-foreground" : "text-muted-foreground"
-                }`}
               >
-                {type === "immediate" ? "Immediate Purchase" : "Purchase Order"}
-              </button>
-            ))}
-          </div>
+                Immediate Purchase
+              </TabsTrigger>
+              <TabsTrigger
+                value="standard"
+                disabled={items.length > 0}
+                title={items.length > 0 ? "Start a new PO to change type" : undefined}
+              >
+                Purchase Order
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
       )}
 

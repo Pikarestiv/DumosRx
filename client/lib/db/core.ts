@@ -109,6 +109,9 @@ export const STORE_SCOPED_TABLES = [
   "stock_movements",
   "requested_products",
   "supplier_payments",
+  "audit_logs",
+  "loyalty_tiers",
+  "loyalty_redemption_options",
 ];
 
 export async function initDatabase(): Promise<any> {
@@ -285,7 +288,16 @@ export async function initDatabase(): Promise<any> {
         "_synced INTEGER DEFAULT 0",
         "_synced_at TEXT",
         "_deleted INTEGER DEFAULT 0",
+        "store_id TEXT",
       ],
+    },
+    {
+      table: "loyalty_tiers",
+      columns: ["store_id TEXT"],
+    },
+    {
+      table: "loyalty_redemption_options",
+      columns: ["store_id TEXT"],
     },
     {
       table: "returns",
@@ -1467,11 +1479,12 @@ export async function logAction(
   const now = new Date().toISOString();
 
   await execute(
-    `INSERT INTO audit_logs (id, user_id, action, table_name, record_id, details, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO audit_logs (id, user_id, store_id, action, table_name, record_id, details, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       currentUser?.id || null,
+      getActiveStoreId(),
       action,
       table,
       recordId,

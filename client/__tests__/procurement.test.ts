@@ -81,7 +81,7 @@ describe("procurement.ts", () => {
         operation TEXT, payload TEXT, created_at TEXT, next_retry_at TEXT
       );
       CREATE TABLE audit_logs (
-        id TEXT PRIMARY KEY, user_id TEXT, action TEXT, table_name TEXT,
+        id TEXT PRIMARY KEY, user_id TEXT, store_id TEXT, action TEXT, table_name TEXT,
         record_id TEXT, details TEXT, created_at TEXT
       );
     `);

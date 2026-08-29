@@ -1,4 +1,5 @@
 import { query } from "@/lib/db/local-database";
+import { getActiveStoreId } from "@/lib/db/core";
 import type { AuditLogRow } from "@/lib/types/audit-log";
 
 export type ActivityLogSortKey = "created_at" | "action" | "user_name";
@@ -43,6 +44,12 @@ export async function getActivityLog(
 
   const conditions: string[] = ["(al._deleted = 0 OR al._deleted IS NULL)"];
   const params: (string | number)[] = [];
+
+  const storeId = getActiveStoreId();
+  if (storeId) {
+    conditions.push("al.store_id = ?");
+    params.push(storeId);
+  }
 
   if (from) {
     conditions.push("al.created_at >= ?");
@@ -97,18 +104,24 @@ export async function getActivityLog(
 }
 
 export async function getDistinctActivityActions() {
+  const storeId = getActiveStoreId();
   const rows = await query<{ action: string }>(
-    "SELECT DISTINCT action FROM audit_logs WHERE (_deleted = 0 OR _deleted IS NULL) ORDER BY action ASC",
+    `SELECT DISTINCT action FROM audit_logs
+     WHERE (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}
+     ORDER BY action ASC`,
+    storeId ? [storeId] : [],
   );
   return rows.map((r) => r.action);
 }
 
 export async function getDistinctActivityUsers() {
+  const storeId = getActiveStoreId();
   return query<{ user_id: string; user_name: string }>(
     `SELECT DISTINCT al.user_id, TRIM(u.first_name || ' ' || u.last_name) as user_name
      FROM audit_logs al
      LEFT JOIN users u ON u.id = al.user_id
-     WHERE (al._deleted = 0 OR al._deleted IS NULL) AND al.user_id IS NOT NULL
+     WHERE (al._deleted = 0 OR al._deleted IS NULL) AND al.user_id IS NOT NULL${storeId ? " AND al.store_id = ?" : ""}
      ORDER BY user_name ASC`,
+    storeId ? [storeId] : [],
   );
 }

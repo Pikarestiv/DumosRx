@@ -365,6 +365,7 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS audit_logs (
   id TEXT PRIMARY KEY,
   user_id TEXT,
+  store_id TEXT,
   action TEXT,
   table_name TEXT,
   record_id TEXT,
@@ -488,6 +489,7 @@ CREATE TABLE IF NOT EXISTS loyalty_transactions (
 CREATE TABLE IF NOT EXISTS loyalty_tiers (
   id TEXT PRIMARY KEY,
   user_id TEXT,
+  store_id TEXT,
   name TEXT NOT NULL,
   min_spend REAL DEFAULT 0,
   points_multiplier REAL DEFAULT 1,
@@ -505,6 +507,7 @@ CREATE TABLE IF NOT EXISTS loyalty_tiers (
 CREATE TABLE IF NOT EXISTS loyalty_redemption_options (
   id TEXT PRIMARY KEY,
   user_id TEXT,
+  store_id TEXT,
   label TEXT NOT NULL,
   points_cost REAL DEFAULT 0,
   description TEXT,

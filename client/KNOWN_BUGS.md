@@ -18,8 +18,8 @@ nothing found gets lost between sessions. Status values: `open`, `fixed`, `flagg
 - [x] Reports / Analytics / Dashboard aggregates
 - [x] Customers (debt/credit/stats aggregates)
 - [x] Demo account seeding (`lib/demo/`)
-- [ ] Activity log
-- [ ] Settings / multi-store (partially covered by existing `multi-store-scoping.test.ts`)
+- [x] Activity log
+- [x] Settings / multi-store
 
 ## Open bugs
 
@@ -244,6 +244,57 @@ nothing found gets lost between sessions. Status values: `open`, `fixed`, `flagg
     bug in current behavior (today there's exactly one call site and it is gated) —
     flagged as missing defense-in-depth given the blast radius.
     Status: **flagged**
+
+### Activity Log & Settings/Multi-Store
+
+13. **Activity Log leaked every store's entries into every other store's view — `audit_logs` had no store scoping at all.**
+    `audit_logs` was the only real data table absent from `STORE_SCOPED_TABLES`
+    (`lib/db/core.ts`) and had no `store_id` column; `getActivityLog()`/
+    `getDistinctActivityActions()`/`getDistinctActivityUsers()`
+    (`lib/db/queries/activity-log.ts`) had no store-filter condition at all.
+    Repro: an owner/admin with access to Store A and Store B — switching to
+    Store A's Activity Log page showed every mutation from Store B too
+    (product edits, stock adjustments, returns, user names). Cross-store
+    data leak, not a money bug, but the same "missing from the scoping list"
+    class of oversight as the historical `getSuppliers()` bug documented in
+    `__tests__/procurement.test.ts`.
+    Status: **fixed** — added `store_id` to the `audit_logs` schema (+
+    additive migration), added `audit_logs` to `STORE_SCOPED_TABLES`, added
+    `getActiveStoreId()` to the raw `logAction()` insert in `core.ts` (it
+    bypasses the generic `insert()` helper, so needed the column set
+    explicitly), and added the store filter to all three read functions.
+    `getProductCreator()`/`getProductHistory()` in `products.ts` were
+    checked and don't need this fix — they're already scoped by a specific
+    (globally-unique) `productId`, so they can't leak cross-store.
+    Regression tests: `__tests__/activity-log-store-scoping.test.ts` (new).
+
+14. **Loyalty tiers and redemption options had zero store scoping — worse than #13, since it's live configuration, not just history.**
+    `lib/db/queries/loyalty.ts`'s `getLoyaltyTiers()`/
+    `getLoyaltyRedemptionOptions()` had no `store_id`/`user_id` filter at
+    all, and neither table had a `store_id` column — rows were only ever
+    keyed by `user_id`. In a multi-store account, every store shared the
+    exact same tiers/rewards catalog. Worse: `ensureLoyaltyDefaultsSeeded()`'s
+    "has this store been seeded yet" check (`tiers.length === 0`) was
+    evaluated globally, so only the very first store ever created received
+    default tiers/options — every other store saw store A's live,
+    editable config with no boundary at all (not "wrong store's data mixed
+    in" but "no store boundary exists for this feature").
+    Status: **fixed** — added `store_id` to both table schemas (+ additive
+    migration), added both tables to `STORE_SCOPED_TABLES` (so the existing
+    `insert()`/`update()`/`softDelete()` calls in the settings dialogs
+    auto-scope with no changes needed there), and added the store filter to
+    both read functions. `ensureLoyaltyDefaultsSeeded()` needed no direct
+    change — its emptiness check now naturally operates per-store since
+    `getLoyaltyTiers()` itself is scoped. Regression tests:
+    `__tests__/loyalty-store-scoping.test.ts` (new), including a test
+    proving each store now seeds its own defaults independently.
+
+**Follow-up checked, not a bug:** `payment_accounts` also has a `store_id`
+column but is absent from `STORE_SCOPED_TABLES` (flagged by the audit as
+worth a quick check). Confirmed its one insert call site
+(`components/settings/store/payment-accounts-card.tsx`) sets `store_id:
+activeStoreId` explicitly, so it never depended on `insert()`'s
+auto-injection in the first place — no fix needed.
 
 ## Flagged — product decisions, not bugs
 

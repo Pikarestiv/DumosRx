@@ -1,4 +1,5 @@
 import { query, insert } from "@/lib/db/local-database";
+import { getActiveStoreId } from "@/lib/db/core";
 
 export interface LoyaltyTierRow {
   id: string;
@@ -83,14 +84,18 @@ export const DEFAULT_REDEMPTION_OPTIONS: Omit<LoyaltyRedemptionOptionRow, "id">[
 ];
 
 export async function getLoyaltyTiers() {
+  const storeId = getActiveStoreId();
   return query<LoyaltyTierRow>(
-    "SELECT * FROM loyalty_tiers WHERE _deleted = 0 ORDER BY min_spend ASC"
+    `SELECT * FROM loyalty_tiers WHERE _deleted = 0${storeId ? " AND store_id = ?" : ""} ORDER BY min_spend ASC`,
+    storeId ? [storeId] : [],
   );
 }
 
 export async function getLoyaltyRedemptionOptions() {
+  const storeId = getActiveStoreId();
   return query<LoyaltyRedemptionOptionRow>(
-    "SELECT * FROM loyalty_redemption_options WHERE _deleted = 0 ORDER BY sort_order ASC, points_cost ASC"
+    `SELECT * FROM loyalty_redemption_options WHERE _deleted = 0${storeId ? " AND store_id = ?" : ""} ORDER BY sort_order ASC, points_cost ASC`,
+    storeId ? [storeId] : [],
   );
 }
 

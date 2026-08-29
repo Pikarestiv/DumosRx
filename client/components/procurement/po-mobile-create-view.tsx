@@ -46,6 +46,7 @@ interface POMobileCreateViewProps {
   onItemsChange: (items: POLineItemDraft[]) => void;
   isSubmitting: boolean;
   handleSubmit: () => void;
+  handleSaveDraft: () => void;
   detailsConfirmed: boolean;
   onContinue: () => void;
   setIsEditDetailsOpen: (open: boolean) => void;
@@ -83,6 +84,7 @@ export function POMobileCreateView(props: POMobileCreateViewProps) {
     onItemsChange,
     isSubmitting,
     handleSubmit,
+    handleSaveDraft,
     detailsConfirmed,
     onContinue,
     setIsEditDetailsOpen,
@@ -138,14 +140,27 @@ export function POMobileCreateView(props: POMobileCreateViewProps) {
           </div>
         </div>
         {detailsConfirmed && (
-          <Button
-            size="sm"
-            className="ml-auto h-9 px-4 rounded-[10px] text-[12.5px] font-semibold shrink-0"
-            onClick={handleSubmit}
-            disabled={isSubmitting || items.length === 0}
-          >
-            {isSubmitting ? "Saving..." : poType === "immediate" ? "Save" : "Save Draft"}
-          </Button>
+          <div className="ml-auto flex items-center gap-2 shrink-0">
+            {poType === "immediate" && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-9 px-3 rounded-[10px] text-[12.5px] font-semibold"
+                onClick={handleSaveDraft}
+                disabled={isSubmitting || items.length === 0}
+              >
+                Draft
+              </Button>
+            )}
+            <Button
+              size="sm"
+              className="h-9 px-4 rounded-[10px] text-[12.5px] font-semibold"
+              onClick={handleSubmit}
+              disabled={isSubmitting || items.length === 0}
+            >
+              {isSubmitting ? "Saving..." : poType === "immediate" ? "Save" : "Save Draft"}
+            </Button>
+          </div>
         )}
       </div>
 

@@ -177,22 +177,25 @@ export function PurchaseOrderDetails({
                       </span>
                     </div>
 
-                    {/* Sent Step */}
-                    <div className="flex items-center gap-3 z-10">
-                      <div
-                        className={`w-5 h-5 rounded-full flex items-center justify-center border-2 border-background ${selectedPO.status === "sent" || selectedPO.status === "received" ? "bg-primary text-primary-foreground" : "bg-muted border border-border"}`}
-                      >
-                        {(selectedPO.status === "sent" ||
-                          selectedPO.status === "received") && (
-                          <CheckCircle2 className="w-3 h-3" />
-                        )}
+                    {/* Sent Step: skipped for Immediate Purchases, which have
+                        no vendor to send anything to. */}
+                    {selectedPO.type !== "immediate" && (
+                      <div className="flex items-center gap-3 z-10">
+                        <div
+                          className={`w-5 h-5 rounded-full flex items-center justify-center border-2 border-background ${selectedPO.status === "sent" || selectedPO.status === "received" ? "bg-primary text-primary-foreground" : "bg-muted border border-border"}`}
+                        >
+                          {(selectedPO.status === "sent" ||
+                            selectedPO.status === "received") && (
+                            <CheckCircle2 className="w-3 h-3" />
+                          )}
+                        </div>
+                        <span
+                          className={`text-[13.5px] font-semibold ${selectedPO.status === "sent" || selectedPO.status === "received" ? "text-foreground" : "text-muted-foreground"}`}
+                        >
+                          Sent
+                        </span>
                       </div>
-                      <span
-                        className={`text-[13.5px] font-semibold ${selectedPO.status === "sent" || selectedPO.status === "received" ? "text-foreground" : "text-muted-foreground"}`}
-                      >
-                        Sent
-                      </span>
-                    </div>
+                    )}
 
                     {/* Received Step */}
                     <div className="flex items-center gap-3 z-10">
@@ -272,7 +275,16 @@ export function PurchaseOrderDetails({
                 </AlertDialog>
               )}
 
-              {selectedPO.status === "pending" && (
+              {selectedPO.status === "pending" && selectedPO.type === "immediate" && (
+                <Button
+                  className="flex-1 h-10 text-[13.5px] font-bold"
+                  onClick={onReceiveGoods}
+                >
+                  Receive Goods
+                </Button>
+              )}
+
+              {selectedPO.status === "pending" && selectedPO.type !== "immediate" && (
                 <Button
                   className="flex-1 h-10 text-[13.5px] font-bold"
                   onClick={() => onSendPO(selectedPO.id)}

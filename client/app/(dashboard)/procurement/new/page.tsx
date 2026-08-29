@@ -164,6 +164,45 @@ export default function CreateOrderPage() {
     }
   };
 
+  /** Lets an Immediate Purchase be parked as an ordinary draft (same call
+   * Standard POs use) instead of receiving stock right away, so entry in
+   * progress survives a restart. Item-level fields that only exist for the
+   * immediate flow (lot/expiry/price overrides) aren't persisted here — same
+   * as a Standard draft, they're re-entered later at receiving time. */
+  const handleSaveDraft = async () => {
+    if (items.length === 0) {
+      toast.error("Add at least one item to the order");
+      return;
+    }
+
+    const supplierId = selectedSupplierId === SELF_PURCHASE_VENDOR_ID ? null : selectedSupplierId;
+
+    setIsSubmitting(true);
+    try {
+      const poId = await createPurchaseOrder(
+        supplierId,
+        notes,
+        items,
+        paymentStatus,
+        paymentStatus !== "unpaid" ? Number(amountPaid) || 0 : 0,
+        dueDate || null,
+        poType,
+      );
+      toast.success("Purchase order saved as draft", {
+        description:
+          poType === "immediate"
+            ? "Pick up where you left off any time — receive it whenever you're ready."
+            : "Remember to mark it as sent once it's on its way to the vendor.",
+      });
+      router.push(`/procurement?selected=${poId}`);
+    } catch (error) {
+      console.error("Failed to save PO draft:", error);
+      toast.error("Error saving purchase order draft");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const selectedSupplierName = useMemo(() => {
     if (selectedSupplierId === SELF_PURCHASE_VENDOR_ID) return "Self / Walk-in Purchase";
     return (
@@ -204,6 +243,7 @@ export default function CreateOrderPage() {
         selectedSupplierName={selectedSupplierName}
         isSubmitting={isSubmitting}
         handleSubmit={handleSubmit}
+        handleSaveDraft={handleSaveDraft}
         detailsConfirmed={detailsConfirmed}
         onContinue={() => setDetailsConfirmed(true)}
         setIsEditDetailsOpen={setIsEditDetailsOpen}
@@ -245,6 +285,16 @@ export default function CreateOrderPage() {
                   {formatCurrency(totalAmount)}
                 </div>
               </div>
+              {poType === "immediate" && (
+                <Button
+                  variant="outline"
+                  className="h-10 px-5 rounded-[10px] text-[13px] font-bold"
+                  onClick={handleSaveDraft}
+                  disabled={isSubmitting || items.length === 0}
+                >
+                  Save as Draft
+                </Button>
+              )}
               <Button
                 className="h-10 px-5 rounded-[10px] text-[13px] font-bold"
                 onClick={handleSubmit}

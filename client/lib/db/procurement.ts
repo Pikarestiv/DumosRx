@@ -177,7 +177,8 @@ export async function createPurchaseOrder(
   items: DraftPOLineItem[],
   paymentStatus: string = 'unpaid',
   amountPaid: number = 0,
-  dueDate: string | null = null
+  dueDate: string | null = null,
+  type: "standard" | "immediate" = "standard"
 ) {
   const poId = generateId();
   const now = new Date().toISOString();
@@ -192,7 +193,7 @@ export async function createPurchaseOrder(
       id: poId,
       supplier_id: supplierId,
       status: "pending",
-      type: "standard",
+      type,
       payment_status: paymentStatus,
       amount_paid: amountPaid,
       due_date: dueDate,

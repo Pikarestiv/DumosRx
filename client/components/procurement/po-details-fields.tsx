@@ -193,6 +193,11 @@ export function PODetailsFields({
               onChange={(e) => setAmountPaid(e.target.value)}
               disabled={paymentStatus === "paid"}
             />
+            {paymentStatus === "paid" && (
+              <p className="text-[11px] text-muted-foreground">
+                Automatically set to the order total — no need to enter it.
+              </p>
+            )}
           </div>
         </div>
       )}

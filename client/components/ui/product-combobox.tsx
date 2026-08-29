@@ -46,6 +46,13 @@ interface ProductComboboxProps {
    * not on every keystroke. Optional — callers that don't pass it keep the
    * existing onChange({ source: "new" }) behavior for that click. */
   onCreateNew?: (name: string) => void;
+  /** When false, never renders the pinned "Create ... as new product" row.
+   * Used where this combobox names a product that's already being created
+   * (the Add/Edit Product dialog's own name field) — offering to "create"
+   * the very product you're naming doesn't make sense there. Defaults to
+   * true everywhere else (e.g. PO item search, where it's the only way to
+   * add a product that isn't in the catalog yet). */
+  showCreateNewOption?: boolean;
 }
 
 function SourceBadge({
@@ -157,6 +164,7 @@ export function ProductCombobox({
   className,
   showGlobalSuggestions = true,
   onCreateNew,
+  showCreateNewOption = true,
 }: ProductComboboxProps) {
   const [open, setOpen] = React.useState(false);
   const containerRef = React.useRef<HTMLDivElement>(null);
@@ -305,26 +313,31 @@ export function ProductCombobox({
         )}
       </div>
 
-      {open && (
+      {open && (showCreateNewOption || filteredOptions.length > 0) && (
         <div className="absolute z-[999] w-full mt-1 bg-popover text-popover-foreground shadow-xl rounded-md border border-border outline-none animate-in fade-in-0 zoom-in-95 overflow-hidden">
           <div className="max-h-[300px] overflow-y-auto hide-scrollbar p-1">
             {/* Always pinned above matches, whether or not anything is typed:
              * with no text it opens an empty "Add New Product" form (a real
              * discoverable entry point, not a dead end); once text exists the
              * label switches to reflect it, and it stays pinned regardless of
-             * whether a fuzzy match happens to also exist below it. */}
-            <AddNewProductOption
-              value={value}
-              isActive={activeIndex === -1}
-              onSelect={() => {
-                if (onCreateNew) {
-                  onCreateNew(value);
-                } else {
-                  onChange({ name: value, source: "new" });
-                }
-                setOpen(false);
-              }}
-            />
+             * whether a fuzzy match happens to also exist below it. Suppressed
+             * entirely when this combobox is itself the name field of the
+             * product being created (showCreateNewOption=false) — "create the
+             * product you're naming" is not a meaningful action there. */}
+            {showCreateNewOption && (
+              <AddNewProductOption
+                value={value}
+                isActive={activeIndex === -1}
+                onSelect={() => {
+                  if (onCreateNew) {
+                    onCreateNew(value);
+                  } else {
+                    onChange({ name: value, source: "new" });
+                  }
+                  setOpen(false);
+                }}
+              />
+            )}
             {filteredOptions.map((option, idx) => (
               <ProductComboboxItem
                 key={`${option.source}_${option.name}_${idx}`}

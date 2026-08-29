@@ -40,6 +40,7 @@ export function ProductBasicInfoFields({
           <Label htmlFor="name">{t("product")} Name *</Label>
           <ProductCombobox
             value={formData.name}
+            showCreateNewOption={false}
             onChange={(option) => {
               onInputChange("name", option.name);
               if (option.source === "local" || option.source === "global") {

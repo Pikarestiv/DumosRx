@@ -129,7 +129,7 @@ export function POOrderFormFields({
             <SelectContent className="bg-card border-border">
               <SelectItem value={CREATE_SUPPLIER_OPTION} className="font-semibold">
                 <span className="flex items-center gap-1.5">
-                  <Plus className="h-3.5 w-3.5" /> Create Supplier
+                  <Plus className="h-3.5 w-3.5 text-current" /> Create Supplier
                 </span>
               </SelectItem>
               <SelectItem value={SELF_PURCHASE_VENDOR_ID}>

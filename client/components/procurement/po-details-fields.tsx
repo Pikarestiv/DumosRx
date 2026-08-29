@@ -92,14 +92,18 @@ export function PODetailsFields({
               <TabsTrigger
                 value="immediate"
                 disabled={poTypeLocked}
-                title={poTypeLocked ? "Start a new PO to change type" : undefined}
+                title={
+                  poTypeLocked ? "Start a new PO to change type" : undefined
+                }
               >
                 Immediate Purchase
               </TabsTrigger>
               <TabsTrigger
                 value="standard"
                 disabled={poTypeLocked}
-                title={poTypeLocked ? "Start a new PO to change type" : undefined}
+                title={
+                  poTypeLocked ? "Start a new PO to change type" : undefined
+                }
               >
                 Purchase Order
               </TabsTrigger>
@@ -180,7 +184,7 @@ export function PODetailsFields({
 
       {paymentStatus !== "unpaid" && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="space-y-1.5">
+          <div className="space-y-1.5 md:col-span-2">
             <Label className="text-[12.5px] font-semibold text-foreground">
               Amount Paid (
               {paymentStatus === "paid" ? "Total" : "Initial Payment"})
@@ -195,7 +199,7 @@ export function PODetailsFields({
             />
             {paymentStatus === "paid" && (
               <p className="text-[11px] text-muted-foreground">
-                Automatically set to the order total — no need to enter it.
+                Automatically set to the order total. No need to enter it.
               </p>
             )}
           </div>

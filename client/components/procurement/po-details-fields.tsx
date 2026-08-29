@@ -1,7 +1,6 @@
 "use client";
 
-import { Plus, ShoppingCart } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -13,10 +12,6 @@ import {
 } from "@/components/ui/select";
 import { DatePickerInput } from "@/components/ui/date-picker-input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { POItemBuilder } from "./po-item-builder";
-import type { ProductViewModel } from "@/lib/types/product";
-import type { POProduct } from "@/lib/db/queries/procurement";
-import type { POLineItemDraft } from "./po-item-ledger-table";
 
 interface Supplier {
   id: string;
@@ -29,9 +24,10 @@ interface Supplier {
 export const SELF_PURCHASE_VENDOR_ID = "__self__";
 const CREATE_SUPPLIER_OPTION = "__create_supplier__";
 
-interface POOrderFormFieldsProps {
+interface PODetailsFieldsProps {
   poType: "standard" | "immediate";
   setPoType: (type: "standard" | "immediate") => void;
+  poTypeLocked?: boolean;
   suppliers: Supplier[];
   selectedSupplierId: string;
   setSelectedSupplierId: (id: string) => void;
@@ -44,12 +40,6 @@ interface POOrderFormFieldsProps {
   amountPaid: string;
   setAmountPaid: (amount: string) => void;
   totalAmount: number;
-  products: POProduct[];
-  items: POLineItemDraft[];
-  onItemsChange: (items: POLineItemDraft[]) => void;
-  onOpenAddProduct: (productData: Partial<ProductViewModel>) => void;
-  newlyCreatedProductId: string | null;
-  onNewlyCreatedProductConsumed: () => void;
   onOpenAddSupplier: () => void;
   /** Editing an existing PO is only ever done for Standard POs (Immediate
    * ones are created already "received" and never enter an editable
@@ -58,11 +48,12 @@ interface POOrderFormFieldsProps {
   hideTypeToggle?: boolean;
 }
 
-/** Vendor/notes/payment/due-date/add-item fields shared by the create and
- * edit purchase order desktop panels. */
-export function POOrderFormFields({
+/** Vendor/type/notes/payment/due-date fields — the "Order Details" step
+ * shown before item entry, and re-editable afterward via PODetailsDialog. */
+export function PODetailsFields({
   poType,
   setPoType,
+  poTypeLocked,
   suppliers,
   selectedSupplierId,
   setSelectedSupplierId,
@@ -75,15 +66,9 @@ export function POOrderFormFields({
   amountPaid,
   setAmountPaid,
   totalAmount,
-  products,
-  items,
-  onItemsChange,
-  onOpenAddProduct,
-  newlyCreatedProductId,
-  onNewlyCreatedProductConsumed,
   onOpenAddSupplier,
   hideTypeToggle,
-}: POOrderFormFieldsProps) {
+}: PODetailsFieldsProps) {
   const handleVendorChange = (value: string) => {
     if (value === CREATE_SUPPLIER_OPTION) {
       onOpenAddSupplier();
@@ -93,7 +78,7 @@ export function POOrderFormFields({
   };
 
   return (
-    <>
+    <div className="flex flex-col gap-4">
       {!hideTypeToggle && (
         <div className="space-y-1.5">
           <Label className="text-[12.5px] font-semibold text-foreground">
@@ -106,15 +91,15 @@ export function POOrderFormFields({
             <TabsList>
               <TabsTrigger
                 value="immediate"
-                disabled={items.length > 0}
-                title={items.length > 0 ? "Start a new PO to change type" : undefined}
+                disabled={poTypeLocked}
+                title={poTypeLocked ? "Start a new PO to change type" : undefined}
               >
                 Immediate Purchase
               </TabsTrigger>
               <TabsTrigger
                 value="standard"
-                disabled={items.length > 0}
-                title={items.length > 0 ? "Start a new PO to change type" : undefined}
+                disabled={poTypeLocked}
+                title={poTypeLocked ? "Start a new PO to change type" : undefined}
               >
                 Purchase Order
               </TabsTrigger>
@@ -214,35 +199,6 @@ export function POOrderFormFields({
           </div>
         </div>
       )}
-
-      <div className="border border-border rounded-xl bg-card mt-2 shadow-sm">
-        <div className="bg-primary/5 px-4 py-3 flex items-center gap-2 border-b border-border rounded-t-[11px]">
-          <ShoppingCart className="w-4 h-4 text-primary" />
-          <div className="text-[13.5px] font-semibold text-foreground">
-            Add Items to Order
-          </div>
-        </div>
-        <div className="p-4">
-          <POItemBuilder
-            poType={poType}
-            products={products}
-            items={items}
-            onItemsChange={onItemsChange}
-            onOpenAddProduct={onOpenAddProduct}
-            newlyCreatedProductId={newlyCreatedProductId}
-            onNewlyCreatedProductConsumed={onNewlyCreatedProductConsumed}
-          />
-        </div>
-      </div>
-      <div className="text-[11.5px] text-muted-foreground px-1">
-        <span className="lg:hidden">
-          Items appear in the Order Summary below as you add them.
-        </span>
-        <span className="hidden lg:inline">
-          Items appear in the Order Summary panel on the right as you add
-          them.
-        </span>
-      </div>
-    </>
+    </div>
   );
 }

@@ -1,12 +1,15 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AddProductDialog } from "@/components/products/add-product-dialog";
 import { AddSupplierDialog } from "@/components/suppliers/add-supplier-dialog";
-import { POOrderFormFields, SELF_PURCHASE_VENDOR_ID } from "@/components/procurement/po-order-form-fields";
+import { SELF_PURCHASE_VENDOR_ID } from "@/components/procurement/po-details-fields";
+import { PODetailsSummaryBar } from "@/components/procurement/po-details-summary-bar";
+import { PODetailsDialog } from "@/components/procurement/po-details-dialog";
+import { POItemBuilder } from "@/components/procurement/po-item-builder";
 import {
   createProduct,
   getPurchaseOrderById,
@@ -37,6 +40,7 @@ function EditOrderContent() {
   const [paymentStatus, setPaymentStatus] = useState("unpaid");
   const [amountPaid, setAmountPaid] = useState("");
   const [dueDate, setDueDate] = useState("");
+  const [isEditDetailsOpen, setIsEditDetailsOpen] = useState(false);
 
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
   const [initialProductData, setInitialProductData] =
@@ -124,11 +128,6 @@ function EditOrderContent() {
       return;
     }
 
-    if (!selectedSupplierId) {
-      toast.error("Please select a vendor");
-      return;
-    }
-
     if (items.length === 0) {
       toast.error("Add at least one item to the order");
       return;
@@ -154,6 +153,14 @@ function EditOrderContent() {
       setIsSubmitting(false);
     }
   };
+
+  const selectedSupplierName = useMemo(() => {
+    if (selectedSupplierId === SELF_PURCHASE_VENDOR_ID) return "Self / Walk-in Purchase";
+    return (
+      suppliers.find((s) => s.id === selectedSupplierId)?.name ||
+      "No vendor selected"
+    );
+  }, [suppliers, selectedSupplierId]);
 
   if (isLoading) {
     return (
@@ -212,31 +219,41 @@ function EditOrderContent() {
       </div>
 
       <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-4 bg-background/50">
-        <POOrderFormFields
+        <PODetailsSummaryBar
+          vendorName={selectedSupplierName}
+          onEdit={() => setIsEditDetailsOpen(true)}
+        />
+        <POItemBuilder
           poType="standard"
-          setPoType={() => {}}
-          hideTypeToggle
-          suppliers={suppliers}
-          selectedSupplierId={selectedSupplierId}
-          setSelectedSupplierId={setSelectedSupplierId}
-          notes={notes}
-          setNotes={setNotes}
-          paymentStatus={paymentStatus}
-          setPaymentStatus={setPaymentStatus}
-          dueDate={dueDate}
-          setDueDate={setDueDate}
-          amountPaid={amountPaid}
-          setAmountPaid={setAmountPaid}
-          totalAmount={totalAmount}
           products={products}
           items={items}
           onItemsChange={setItems}
           onOpenAddProduct={handleOpenAddProduct}
           newlyCreatedProductId={newlyCreatedProductId}
           onNewlyCreatedProductConsumed={() => setNewlyCreatedProductId(null)}
-          onOpenAddSupplier={() => setIsAddSupplierOpen(true)}
         />
       </div>
+
+      <PODetailsDialog
+        open={isEditDetailsOpen}
+        onOpenChange={setIsEditDetailsOpen}
+        poType="standard"
+        setPoType={() => {}}
+        hideTypeToggle
+        suppliers={suppliers}
+        selectedSupplierId={selectedSupplierId}
+        setSelectedSupplierId={setSelectedSupplierId}
+        notes={notes}
+        setNotes={setNotes}
+        paymentStatus={paymentStatus}
+        setPaymentStatus={setPaymentStatus}
+        dueDate={dueDate}
+        setDueDate={setDueDate}
+        amountPaid={amountPaid}
+        setAmountPaid={setAmountPaid}
+        totalAmount={totalAmount}
+        onOpenAddSupplier={() => setIsAddSupplierOpen(true)}
+      />
 
       <AddProductDialog
         open={isAddProductOpen}

@@ -6,7 +6,10 @@ import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AddProductDialog } from "@/components/products/add-product-dialog";
 import { AddSupplierDialog } from "@/components/suppliers/add-supplier-dialog";
-import { POOrderFormFields, SELF_PURCHASE_VENDOR_ID } from "@/components/procurement/po-order-form-fields";
+import { PODetailsFields, SELF_PURCHASE_VENDOR_ID } from "@/components/procurement/po-details-fields";
+import { PODetailsSummaryBar } from "@/components/procurement/po-details-summary-bar";
+import { PODetailsDialog } from "@/components/procurement/po-details-dialog";
+import { POItemBuilder } from "@/components/procurement/po-item-builder";
 import { POMobileCreateView } from "@/components/procurement/po-mobile-create-view";
 import { createProduct } from "@/lib/db/local-database";
 import { createPurchaseOrder, createAndReceivePurchaseOrder, createSupplier } from "@/lib/db/procurement";
@@ -19,6 +22,11 @@ import { queryKeys } from "@/lib/query-keys";
 import type { POLineItemDraft } from "@/components/procurement/po-item-ledger-table";
 import type { NewProductPayload, ProductViewModel } from "@/lib/types/product";
 import type { SupplierPayload } from "@/lib/types/supplier";
+
+const PO_TYPE_LABEL = {
+  immediate: "Immediate Purchase",
+  standard: "Purchase Order",
+} as const;
 
 export default function CreateOrderPage() {
   const router = useRouter();
@@ -33,6 +41,12 @@ export default function CreateOrderPage() {
   const [paymentStatus, setPaymentStatus] = useState("unpaid");
   const [amountPaid, setAmountPaid] = useState("");
   const [dueDate, setDueDate] = useState("");
+
+  // Order details (type/vendor/notes/payment/due-date) are confirmed first;
+  // item entry only becomes the dominant content of the screen afterward.
+  // Details stay editable via PODetailsDialog once confirmed.
+  const [detailsConfirmed, setDetailsConfirmed] = useState(false);
+  const [isEditDetailsOpen, setIsEditDetailsOpen] = useState(false);
 
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
   const [initialProductData, setInitialProductData] =
@@ -106,11 +120,6 @@ export default function CreateOrderPage() {
   );
 
   const handleSubmit = async () => {
-    if (!selectedSupplierId) {
-      toast.error("Please select a vendor");
-      return;
-    }
-
     if (items.length === 0) {
       toast.error("Add at least one item to the order");
       return;
@@ -163,7 +172,7 @@ export default function CreateOrderPage() {
     );
   }, [suppliers, selectedSupplierId]);
 
-  const formFieldsProps = {
+  const detailsFieldsProps = {
     poType,
     setPoType,
     suppliers,
@@ -178,12 +187,6 @@ export default function CreateOrderPage() {
     amountPaid,
     setAmountPaid,
     totalAmount,
-    products,
-    items,
-    onItemsChange: setItems,
-    onOpenAddProduct: handleOpenAddProduct,
-    newlyCreatedProductId,
-    onNewlyCreatedProductConsumed: () => setNewlyCreatedProductId(null),
     onOpenAddSupplier: () => setIsAddSupplierOpen(true),
   };
 
@@ -191,10 +194,19 @@ export default function CreateOrderPage() {
     <>
       {/* Mobile: full-screen takeover, just like POS */}
       <POMobileCreateView
-        {...formFieldsProps}
+        {...detailsFieldsProps}
+        products={products}
+        items={items}
+        onItemsChange={setItems}
+        onOpenAddProduct={handleOpenAddProduct}
+        newlyCreatedProductId={newlyCreatedProductId}
+        onNewlyCreatedProductConsumed={() => setNewlyCreatedProductId(null)}
         selectedSupplierName={selectedSupplierName}
         isSubmitting={isSubmitting}
         handleSubmit={handleSubmit}
+        detailsConfirmed={detailsConfirmed}
+        onContinue={() => setDetailsConfirmed(true)}
+        setIsEditDetailsOpen={setIsEditDetailsOpen}
       />
 
       {/* Desktop: full-screen takeover, same as the Cycle Count session in
@@ -218,32 +230,73 @@ export default function CreateOrderPage() {
               Create Purchase Order
             </div>
             <div className="text-[12px] text-muted-foreground mt-0.5">
-              Draft a formal request for stock batch replenishment
+              {detailsConfirmed
+                ? "Draft a formal request for stock batch replenishment"
+                : "Enter the order details to continue"}
             </div>
           </div>
-          <div className="ml-auto flex items-center gap-4">
-            <div className="text-right">
-              <div className="text-[10.5px] font-semibold text-muted-foreground uppercase tracking-wide">
-                Estimated total
+          {detailsConfirmed && (
+            <div className="ml-auto flex items-center gap-4">
+              <div className="text-right">
+                <div className="text-[10.5px] font-semibold text-muted-foreground uppercase tracking-wide">
+                  Estimated total
+                </div>
+                <div className="text-[15px] font-bold font-serif text-primary leading-tight">
+                  {formatCurrency(totalAmount)}
+                </div>
               </div>
-              <div className="text-[15px] font-bold font-serif text-primary leading-tight">
-                {formatCurrency(totalAmount)}
-              </div>
+              <Button
+                className="h-10 px-5 rounded-[10px] text-[13px] font-bold"
+                onClick={handleSubmit}
+                disabled={isSubmitting || items.length === 0}
+              >
+                {isSubmitting ? "Saving..." : "Save Purchase Order"}
+              </Button>
             </div>
-            <Button
-              className="h-10 px-5 rounded-[10px] text-[13px] font-bold"
-              onClick={handleSubmit}
-              disabled={isSubmitting || items.length === 0}
-            >
-              {isSubmitting ? "Saving..." : "Save Purchase Order"}
-            </Button>
-          </div>
+          )}
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-4 bg-background/50">
-          <POOrderFormFields {...formFieldsProps} />
-        </div>
+        {detailsConfirmed ? (
+          <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-4 bg-background/50">
+            <PODetailsSummaryBar
+              vendorName={selectedSupplierName}
+              poTypeLabel={PO_TYPE_LABEL[poType]}
+              onEdit={() => setIsEditDetailsOpen(true)}
+            />
+            <POItemBuilder
+              poType={poType}
+              products={products}
+              items={items}
+              onItemsChange={setItems}
+              onOpenAddProduct={handleOpenAddProduct}
+              newlyCreatedProductId={newlyCreatedProductId}
+              onNewlyCreatedProductConsumed={() => setNewlyCreatedProductId(null)}
+            />
+          </div>
+        ) : (
+          <div className="flex-1 overflow-y-auto flex flex-col">
+            <div className="flex-1 flex justify-center p-6">
+              <div className="w-full max-w-2xl">
+                <PODetailsFields {...detailsFieldsProps} />
+              </div>
+            </div>
+            <div className="border-t border-border bg-card p-4 flex justify-center shrink-0">
+              <Button
+                className="h-11 px-6 rounded-[10px] text-[13.5px] font-bold w-full max-w-2xl"
+                onClick={() => setDetailsConfirmed(true)}
+              >
+                Continue to Add Items
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
+
+      <PODetailsDialog
+        open={isEditDetailsOpen}
+        onOpenChange={setIsEditDetailsOpen}
+        {...detailsFieldsProps}
+      />
 
       <AddProductDialog
         open={isAddProductOpen}

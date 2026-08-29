@@ -3,7 +3,9 @@
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { POOrderFormFields } from "./po-order-form-fields";
+import { PODetailsFields } from "./po-details-fields";
+import { PODetailsSummaryBar } from "./po-details-summary-bar";
+import { POItemBuilder } from "./po-item-builder";
 import { POMobileSummaryDrawer } from "./po-mobile-summary-drawer";
 import type { ProductViewModel } from "@/lib/types/product";
 import type { POProduct } from "@/lib/db/queries/procurement";
@@ -13,6 +15,11 @@ interface Supplier {
   id: string;
   name: string;
 }
+
+const PO_TYPE_LABEL = {
+  immediate: "Immediate Purchase",
+  standard: "Purchase Order",
+} as const;
 
 interface POMobileCreateViewProps {
   poType: "standard" | "immediate";
@@ -39,11 +46,17 @@ interface POMobileCreateViewProps {
   onItemsChange: (items: POLineItemDraft[]) => void;
   isSubmitting: boolean;
   handleSubmit: () => void;
+  detailsConfirmed: boolean;
+  onContinue: () => void;
+  setIsEditDetailsOpen: (open: boolean) => void;
 }
 
 /** Mobile full-screen takeover for creating a purchase order. Same
  * interaction model as POS: fixed header, scrollable form, and a floating
- * summary/save drawer instead of an always-visible footer. */
+ * summary/save drawer instead of an always-visible footer. Mirrors the
+ * desktop view's two-phase flow: order details are confirmed first, then
+ * item entry becomes the dominant content, with details editable via
+ * PODetailsDialog afterward. */
 export function POMobileCreateView(props: POMobileCreateViewProps) {
   const {
     poType,
@@ -70,9 +83,30 @@ export function POMobileCreateView(props: POMobileCreateViewProps) {
     onItemsChange,
     isSubmitting,
     handleSubmit,
+    detailsConfirmed,
+    onContinue,
+    setIsEditDetailsOpen,
   } = props;
 
   const router = useRouter();
+
+  const detailsFieldsProps = {
+    poType,
+    setPoType,
+    suppliers,
+    selectedSupplierId,
+    setSelectedSupplierId,
+    notes,
+    setNotes,
+    paymentStatus,
+    setPaymentStatus,
+    dueDate,
+    setDueDate,
+    amountPaid,
+    setAmountPaid,
+    totalAmount,
+    onOpenAddSupplier,
+  };
 
   return (
     <div
@@ -98,58 +132,71 @@ export function POMobileCreateView(props: POMobileCreateViewProps) {
             Create Purchase Order
           </div>
           <div className="text-[11px] text-muted-foreground mt-0.5">
-            Draft · {items.length} {items.length === 1 ? "item" : "items"}
+            {detailsConfirmed
+              ? `Draft · ${items.length} ${items.length === 1 ? "item" : "items"}`
+              : "Enter the order details to continue"}
           </div>
         </div>
-        <Button
-          size="sm"
-          className="ml-auto h-9 px-4 rounded-[10px] text-[12.5px] font-semibold shrink-0"
-          onClick={handleSubmit}
-          disabled={isSubmitting || items.length === 0}
-        >
-          {isSubmitting ? "Saving..." : "Save"}
-        </Button>
+        {detailsConfirmed && (
+          <Button
+            size="sm"
+            className="ml-auto h-9 px-4 rounded-[10px] text-[12.5px] font-semibold shrink-0"
+            onClick={handleSubmit}
+            disabled={isSubmitting || items.length === 0}
+          >
+            {isSubmitting ? "Saving..." : "Save"}
+          </Button>
+        )}
       </div>
 
-      <div
-        className="flex-1 overflow-y-auto px-4 pt-4 flex flex-col gap-3.5"
-        style={{
-          paddingBottom:
-            "calc(7rem + var(--tauri-bottom, env(safe-area-inset-bottom, 0px)))",
-        }}
-      >
-        <POOrderFormFields
-          poType={poType}
-          setPoType={setPoType}
-          suppliers={suppliers}
-          selectedSupplierId={selectedSupplierId}
-          setSelectedSupplierId={setSelectedSupplierId}
-          notes={notes}
-          setNotes={setNotes}
-          paymentStatus={paymentStatus}
-          setPaymentStatus={setPaymentStatus}
-          dueDate={dueDate}
-          setDueDate={setDueDate}
-          amountPaid={amountPaid}
-          setAmountPaid={setAmountPaid}
-          totalAmount={totalAmount}
-          products={products}
-          items={items}
-          onItemsChange={onItemsChange}
-          onOpenAddProduct={onOpenAddProduct}
-          newlyCreatedProductId={newlyCreatedProductId}
-          onNewlyCreatedProductConsumed={onNewlyCreatedProductConsumed}
-          onOpenAddSupplier={onOpenAddSupplier}
-        />
-      </div>
+      {detailsConfirmed ? (
+        <>
+          <div
+            className="flex-1 overflow-y-auto px-4 pt-4 flex flex-col gap-3.5"
+            style={{
+              paddingBottom:
+                "calc(7rem + var(--tauri-bottom, env(safe-area-inset-bottom, 0px)))",
+            }}
+          >
+            <PODetailsSummaryBar
+              vendorName={selectedSupplierName}
+              poTypeLabel={PO_TYPE_LABEL[poType]}
+              onEdit={() => setIsEditDetailsOpen(true)}
+            />
+            <POItemBuilder
+              poType={poType}
+              products={products}
+              items={items}
+              onItemsChange={onItemsChange}
+              onOpenAddProduct={onOpenAddProduct}
+              newlyCreatedProductId={newlyCreatedProductId}
+              onNewlyCreatedProductConsumed={onNewlyCreatedProductConsumed}
+            />
+          </div>
 
-      <POMobileSummaryDrawer
-        itemCount={items.length}
-        totalAmount={totalAmount}
-        selectedSupplierName={selectedSupplierName}
-        onSave={handleSubmit}
-        isSubmitting={isSubmitting}
-      />
+          <POMobileSummaryDrawer
+            itemCount={items.length}
+            totalAmount={totalAmount}
+            selectedSupplierName={selectedSupplierName}
+            onSave={handleSubmit}
+            isSubmitting={isSubmitting}
+          />
+        </>
+      ) : (
+        <div className="flex-1 flex flex-col min-h-0">
+          <div className="flex-1 overflow-y-auto px-4 pt-4">
+            <PODetailsFields {...detailsFieldsProps} />
+          </div>
+          <div className="border-t border-border bg-card p-4 shrink-0">
+            <Button
+              className="w-full h-11 rounded-[10px] text-[13.5px] font-bold"
+              onClick={onContinue}
+            >
+              Continue to Add Items
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

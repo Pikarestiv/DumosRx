@@ -123,8 +123,21 @@ export function PODetailsFields({
           />
         </div>
         <div className="space-y-1.5">
-          <Label className="text-[12.5px] font-semibold text-foreground">
+          <Label className="text-[12.5px] font-semibold text-foreground flex items-center gap-1">
             Payment Status
+            <TooltipProvider delayDuration={0}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Info className="w-3 h-3 opacity-50 cursor-pointer" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>
+                    Whether the vendor has been paid for this order yet.
+                    Doesn&apos;t affect receiving stock or item entry.
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </Label>
           <Select value={paymentStatus} onValueChange={setPaymentStatus}>
             <SelectTrigger className="w-full border border-border rounded-[10px] px-3.5 h-11 data-[size=default]:h-11 text-[13px] bg-card shadow-sm">

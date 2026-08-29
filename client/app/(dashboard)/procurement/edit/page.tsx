@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect, useMemo, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Clock } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { AddProductDialog } from "@/components/products/add-product-dialog";
 import { AddSupplierDialog } from "@/components/suppliers/add-supplier-dialog";
 import { POOrderFormFields } from "@/components/procurement/po-order-form-fields";
-import { POSummaryPane } from "@/components/procurement/po-summary-pane";
 import {
   createProduct,
   getPurchaseOrderById,
@@ -14,6 +14,7 @@ import {
 } from "@/lib/db/local-database";
 import { createSupplier } from "@/lib/db/procurement";
 import { toast } from "sonner";
+import { formatCurrency } from "@/lib/utils";
 
 import { useProcurementData } from "@/lib/hooks/use-procurement-data";
 import { useQueryClient } from "@tanstack/react-query";
@@ -154,13 +155,6 @@ function EditOrderContent() {
     }
   };
 
-  const selectedSupplierName = useMemo(() => {
-    return (
-      suppliers.find((s) => s.id === selectedSupplierId)?.name ||
-      "No vendor selected"
-    );
-  }, [suppliers, selectedSupplierId]);
-
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center h-[calc(100vh-148px)] bg-card border border-border rounded-2xl">
@@ -189,47 +183,52 @@ function EditOrderContent() {
             Modify draft or sent purchase order
           </div>
         </div>
-        <div className="ml-auto text-[12.5px] text-muted-foreground font-medium">
-          PO-{id ? id.split("-")[0]?.toUpperCase() : ""} · {items.length} items
+        <div className="ml-auto flex items-center gap-4">
+          <div className="text-[12.5px] text-muted-foreground font-medium">
+            PO-{id ? id.split("-")[0]?.toUpperCase() : ""} · {items.length} items
+          </div>
+          <div className="text-right">
+            <div className="text-[10.5px] font-semibold text-muted-foreground uppercase tracking-wide">
+              Estimated total
+            </div>
+            <div className="text-[15px] font-bold font-serif text-primary leading-tight">
+              {formatCurrency(totalAmount)}
+            </div>
+          </div>
+          <Button
+            className="h-10 px-5 rounded-[10px] text-[13px] font-bold"
+            onClick={handleSubmit}
+            disabled={isSubmitting || items.length === 0}
+          >
+            {isSubmitting ? "Saving..." : "Save Purchase Order"}
+          </Button>
         </div>
       </div>
 
-      <div className="flex-1 grid grid-cols-1 md:grid-cols-[1fr_380px] min-h-0">
-        {/* Left Pane */}
-        <div className="p-6 overflow-y-auto flex flex-col gap-4 bg-background/50">
-          <POOrderFormFields
-            poType="standard"
-            setPoType={() => {}}
-            hideTypeToggle
-            suppliers={suppliers}
-            selectedSupplierId={selectedSupplierId}
-            setSelectedSupplierId={setSelectedSupplierId}
-            notes={notes}
-            setNotes={setNotes}
-            paymentStatus={paymentStatus}
-            setPaymentStatus={setPaymentStatus}
-            dueDate={dueDate}
-            setDueDate={setDueDate}
-            amountPaid={amountPaid}
-            setAmountPaid={setAmountPaid}
-            totalAmount={totalAmount}
-            products={products}
-            items={items}
-            onItemsChange={setItems}
-            onOpenAddProduct={handleOpenAddProduct}
-            newlyCreatedProductId={newlyCreatedProductId}
-            onNewlyCreatedProductConsumed={() => setNewlyCreatedProductId(null)}
-            onOpenAddSupplier={() => setIsAddSupplierOpen(true)}
-          />
-        </div>
-
-        {/* Right Pane (Summary) */}
-        <POSummaryPane
-          selectedSupplierName={selectedSupplierName}
-          itemCount={items.length}
+      <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-4 bg-background/50">
+        <POOrderFormFields
+          poType="standard"
+          setPoType={() => {}}
+          hideTypeToggle
+          suppliers={suppliers}
+          selectedSupplierId={selectedSupplierId}
+          setSelectedSupplierId={setSelectedSupplierId}
+          notes={notes}
+          setNotes={setNotes}
+          paymentStatus={paymentStatus}
+          setPaymentStatus={setPaymentStatus}
+          dueDate={dueDate}
+          setDueDate={setDueDate}
+          amountPaid={amountPaid}
+          setAmountPaid={setAmountPaid}
           totalAmount={totalAmount}
-          onSave={handleSubmit}
-          isSubmitting={isSubmitting}
+          products={products}
+          items={items}
+          onItemsChange={setItems}
+          onOpenAddProduct={handleOpenAddProduct}
+          newlyCreatedProductId={newlyCreatedProductId}
+          onNewlyCreatedProductConsumed={() => setNewlyCreatedProductId(null)}
+          onOpenAddSupplier={() => setIsAddSupplierOpen(true)}
         />
       </div>
 

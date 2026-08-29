@@ -3,14 +3,15 @@
 import { useState, useEffect, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { AddProductDialog } from "@/components/products/add-product-dialog";
 import { AddSupplierDialog } from "@/components/suppliers/add-supplier-dialog";
 import { POOrderFormFields } from "@/components/procurement/po-order-form-fields";
-import { POSummaryPane } from "@/components/procurement/po-summary-pane";
 import { POMobileCreateView } from "@/components/procurement/po-mobile-create-view";
 import { createProduct } from "@/lib/db/local-database";
 import { createPurchaseOrder, createAndReceivePurchaseOrder, createSupplier } from "@/lib/db/procurement";
 import { toast } from "sonner";
+import { formatCurrency } from "@/lib/utils";
 
 import { useProcurementData } from "@/lib/hooks/use-procurement-data";
 import { useQueryClient } from "@tanstack/react-query";
@@ -210,25 +211,27 @@ export default function CreateOrderPage() {
               Draft a formal request for stock batch replenishment
             </div>
           </div>
-          <div className="ml-auto text-[12.5px] text-muted-foreground font-medium">
-            Draft · {items.length} items
+          <div className="ml-auto flex items-center gap-4">
+            <div className="text-right">
+              <div className="text-[10.5px] font-semibold text-muted-foreground uppercase tracking-wide">
+                Estimated total
+              </div>
+              <div className="text-[15px] font-bold font-serif text-primary leading-tight">
+                {formatCurrency(totalAmount)}
+              </div>
+            </div>
+            <Button
+              className="h-10 px-5 rounded-[10px] text-[13px] font-bold"
+              onClick={handleSubmit}
+              disabled={isSubmitting || items.length === 0}
+            >
+              {isSubmitting ? "Saving..." : "Save Purchase Order"}
+            </Button>
           </div>
         </div>
 
-        <div className="flex-1 grid grid-cols-1 md:grid-cols-[1fr_380px] min-h-0">
-          {/* Left Pane */}
-          <div className="p-6 overflow-y-auto flex flex-col gap-4 bg-background/50">
-            <POOrderFormFields {...formFieldsProps} />
-          </div>
-
-          {/* Right Pane (Summary) */}
-          <POSummaryPane
-            selectedSupplierName={selectedSupplierName}
-            itemCount={items.length}
-            totalAmount={totalAmount}
-            onSave={handleSubmit}
-            isSubmitting={isSubmitting}
-          />
+        <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-4 bg-background/50">
+          <POOrderFormFields {...formFieldsProps} />
         </div>
       </div>
 

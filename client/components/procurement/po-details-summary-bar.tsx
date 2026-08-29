@@ -22,13 +22,13 @@ export function PODetailsSummaryBar({
   onEdit,
 }: PODetailsSummaryBarProps) {
   return (
-    <div className="flex items-center justify-between gap-3 border border-border rounded-xl bg-card px-4 py-3 shadow-sm">
-      <div className="flex items-center gap-3 min-w-0">
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border border-border rounded-xl bg-card px-4 py-3 shadow-sm">
+      <div className="flex flex-wrap items-end gap-x-3 gap-y-1.5 min-w-0">
         <div className="min-w-0">
           <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
             Vendor
           </div>
-          <div className="text-[14px] font-semibold text-foreground truncate">
+          <div className="text-[14px] font-semibold text-foreground break-words sm:truncate">
             {vendorName}
           </div>
         </div>
@@ -42,7 +42,7 @@ export function PODetailsSummaryBar({
         type="button"
         variant="outline"
         size="sm"
-        className="h-8 px-3 text-[12.5px] font-semibold shrink-0"
+        className="h-8 px-3 text-[12.5px] font-semibold shrink-0 self-start sm:self-auto"
         onClick={onEdit}
       >
         <Pencil className="w-3.5 h-3.5 mr-1.5" />

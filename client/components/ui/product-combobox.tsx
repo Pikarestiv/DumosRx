@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Check, Database, Globe, Plus, X } from "lucide-react";
+import { Check, Database, Globe, Plus, Search, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -53,6 +53,13 @@ interface ProductComboboxProps {
    * true everywhere else (e.g. PO item search, where it's the only way to
    * add a product that isn't in the catalog yet). */
   showCreateNewOption?: boolean;
+  /** Shows a leading search icon, matching the shared SearchInput
+   * component's look used on other list pages. Hidden below the `sm`
+   * breakpoint to keep the input's typing area from feeling cramped on
+   * phones. Defaults to false to preserve existing callers' appearance
+   * (e.g. the Add/Edit Product dialog's name field, which isn't a search
+   * bar). */
+  showSearchIcon?: boolean;
 }
 
 function SourceBadge({
@@ -165,6 +172,7 @@ export function ProductCombobox({
   showGlobalSuggestions = true,
   onCreateNew,
   showCreateNewOption = true,
+  showSearchIcon = false,
 }: ProductComboboxProps) {
   const [open, setOpen] = React.useState(false);
   const containerRef = React.useRef<HTMLDivElement>(null);
@@ -263,6 +271,9 @@ export function ProductCombobox({
   return (
     <div className="relative w-full" ref={containerRef}>
       <div className="relative">
+        {showSearchIcon && (
+          <Search className="hidden sm:block absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+        )}
         <Input
           value={value}
           onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
@@ -295,7 +306,12 @@ export function ProductCombobox({
           placeholder={placeholder}
           disabled={disabled}
           autoComplete="off"
-          className={cn("w-full", value && !disabled && "pr-8", className)}
+          className={cn(
+            "w-full",
+            showSearchIcon && "sm:pl-9",
+            value && !disabled && "pr-8",
+            className,
+          )}
         />
         {value && !disabled && (
           <button

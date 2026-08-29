@@ -92,6 +92,7 @@ export function POItemBuilder({
         onChange={handleProductChange}
         onCreateNew={(name) => onOpenAddProduct({ name })}
         showGlobalSuggestions={false}
+        showSearchIcon
         placeholder="Search item by name, SKU or barcode"
         className="bg-muted border-border h-10 px-3 text-[13px] rounded-[10px]"
         onClear={() => setSearchValue("")}

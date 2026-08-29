@@ -40,12 +40,12 @@ export function PODetailsSummaryBar({
         <Button
           type="button"
           variant="outline"
-          size="sm"
-          className="h-8 px-3 text-[12.5px] font-semibold shrink-0"
+          size="icon"
+          className="h-8 w-8 shrink-0"
+          title="Edit details"
           onClick={onEdit}
         >
-          <Pencil className="w-3.5 h-3.5 mr-1.5" />
-          Edit details
+          <Pencil className="w-3.5 h-3.5" />
         </Button>
       </div>
     </div>

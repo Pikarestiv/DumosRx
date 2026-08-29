@@ -143,7 +143,7 @@ function AddNewProductOption({
       )}
     >
       <Plus className="h-4 w-4 shrink-0" />
-      Create "{value}" as new product
+      {value ? `Create "${value}" as new product` : "Create New Product"}
     </div>
   );
 }
@@ -305,27 +305,26 @@ export function ProductCombobox({
         )}
       </div>
 
-      {open && (filteredOptions.length > 0 || value) && (
+      {open && (
         <div className="absolute z-[999] w-full mt-1 bg-popover text-popover-foreground shadow-xl rounded-md border border-border outline-none animate-in fade-in-0 zoom-in-95 overflow-hidden">
           <div className="max-h-[300px] overflow-y-auto hide-scrollbar p-1">
-            {/* Pinned above matches whenever there's typed text, regardless of
-             * whether catalog matches also exist below it: this is the only
-             * path to creating a new product from this search, so it can't be
-             * hidden just because a fuzzy match happens to also exist. */}
-            {value && (
-              <AddNewProductOption
-                value={value}
-                isActive={activeIndex === -1}
-                onSelect={() => {
-                  if (onCreateNew) {
-                    onCreateNew(value);
-                  } else {
-                    onChange({ name: value, source: "new" });
-                  }
-                  setOpen(false);
-                }}
-              />
-            )}
+            {/* Always pinned above matches, whether or not anything is typed:
+             * with no text it opens an empty "Add New Product" form (a real
+             * discoverable entry point, not a dead end); once text exists the
+             * label switches to reflect it, and it stays pinned regardless of
+             * whether a fuzzy match happens to also exist below it. */}
+            <AddNewProductOption
+              value={value}
+              isActive={activeIndex === -1}
+              onSelect={() => {
+                if (onCreateNew) {
+                  onCreateNew(value);
+                } else {
+                  onChange({ name: value, source: "new" });
+                }
+                setOpen(false);
+              }}
+            />
             {filteredOptions.map((option, idx) => (
               <ProductComboboxItem
                 key={`${option.source}_${option.name}_${idx}`}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -11,11 +11,14 @@ import {
   User,
   ShoppingBag,
   PauseCircle,
+  Loader2,
 } from "lucide-react";
 import { useHeldTransactions } from "@/lib/hooks/use-sales-data";
 import { remove } from "@/lib/db/local-database";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { formatCurrency } from "@/lib/utils";
+import { useStore } from "@/lib/context/store-context";
 
 import type { HeldTransaction } from "@/lib/db/queries/sales";
 
@@ -35,6 +38,8 @@ export function HeldTransactionsDialog({
     loading,
     refetch: loadHeldTransactions,
   } = useHeldTransactions();
+  const { storeProfile } = useStore();
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -43,6 +48,8 @@ export function HeldTransactionsDialog({
   }, [isOpen]);
 
   const handleDelete = async (id: string) => {
+    if (deletingId) return;
+    setDeletingId(id);
     try {
       await remove("held_transactions", id);
       toast.success("Held transaction discarded");
@@ -50,6 +57,8 @@ export function HeldTransactionsDialog({
     } catch (err) {
       console.error(err);
       toast.error("Failed to delete transaction");
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -127,7 +136,7 @@ export function HeldTransactionsDialog({
                     Total
                   </p>
                   <p className="font-bold text-sm sm:text-lg leading-none mt-0.5 sm:mt-1">
-                    NGN {item.total_amount.toLocaleString()}
+                    {formatCurrency(item.total_amount, storeProfile?.currency)}
                   </p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
@@ -136,13 +145,19 @@ export function HeldTransactionsDialog({
                     size="icon"
                     className="h-9 w-9 sm:h-10 sm:w-10 rounded-lg sm:rounded-xl shrink-0"
                     onClick={() => handleDelete(item.id)}
+                    disabled={deletingId === item.id}
                   >
-                    <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                    {deletingId === item.id ? (
+                      <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
+                    ) : (
+                      <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                    )}
                   </Button>
                   <Button
                     variant="default"
                     className="h-9 sm:h-10 px-3 sm:px-4 rounded-lg sm:rounded-xl text-xs sm:text-base font-bold bg-primary hover:bg-primary/90 shrink-0"
                     onClick={() => onRecall(item)}
+                    disabled={deletingId === item.id}
                   >
                     <PlayCircle className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
                     Recall

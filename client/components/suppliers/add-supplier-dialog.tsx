@@ -3,6 +3,7 @@
 import React from "react";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
 import { DialogFooter } from "@/components/ui/dialog";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { Input } from "@/components/ui/input";
@@ -53,6 +54,7 @@ export function AddSupplierDialog({
     isActive: initialSupplier ? initialSupplier.status === "active" : true,
   });
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Reset form when opened with new initialSupplier
   useEffect(() => {
@@ -67,6 +69,7 @@ export function AddSupplierDialog({
         paymentTerms: initialSupplier?.paymentTerms || "",
         isActive: initialSupplier ? initialSupplier.status === "active" : true,
       });
+      setIsSubmitting(false);
     }
   }, [open, initialSupplier]);
 
@@ -78,12 +81,20 @@ export function AddSupplierDialog({
       return;
     }
 
+    // onAddSupplier is fire-and-forget from here (the parent awaits its own
+    // async create call and closes this dialog on success) — without this
+    // guard, double-clicking Add Supplier before that resolves fires two
+    // separate create calls and creates a duplicate supplier record.
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+
     try {
       const existingId = await getSupplierByName(formData.name);
       if (existingId) {
         setAlertMessage(
           `A supplier with the name "${formData.name}" already exists.`,
         );
+        setIsSubmitting(false);
         return;
       }
     } catch (error) {
@@ -146,6 +157,7 @@ export function AddSupplierDialog({
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
+              disabled={isSubmitting}
             >
               Cancel
             </Button>
@@ -153,7 +165,9 @@ export function AddSupplierDialog({
               type="submit"
               form="add-supplier-form"
               className="bg-accent hover:bg-accent/90"
+              disabled={isSubmitting}
             >
+              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {initialSupplier ? "Save Changes" : "Add Supplier"}
             </Button>
           </DialogFooter>

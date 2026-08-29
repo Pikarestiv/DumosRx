@@ -88,7 +88,11 @@ export function RequestedProductsTab() {
     await fetchRequests();
   });
 
+  const [busyId, setBusyId] = useState<string | null>(null);
+
   const handleMarkAsOrdered = async (id: string) => {
+    if (busyId) return;
+    setBusyId(id);
     try {
       await markRequestedProductAsOrdered(id);
       toast.success("Marked as ordered");
@@ -96,10 +100,14 @@ export function RequestedProductsTab() {
     } catch (error) {
       console.error("Failed to mark as ordered:", error);
       toast.error("An error occurred");
+    } finally {
+      setBusyId(null);
     }
   };
 
   const handleDelete = async (id: string) => {
+    if (busyId) return;
+    setBusyId(id);
     try {
       await deleteRequestedProduct(id);
       toast.success("Request removed");
@@ -107,6 +115,8 @@ export function RequestedProductsTab() {
     } catch (error) {
       console.error("Failed to delete request:", error);
       toast.error("An error occurred");
+    } finally {
+      setBusyId(null);
     }
   };
 
@@ -168,6 +178,7 @@ export function RequestedProductsTab() {
                   req={req}
                   onMarkAsOrdered={handleMarkAsOrdered}
                   onDelete={handleDelete}
+                  busy={busyId === req.id}
                 />
               ))}
           </div>
@@ -214,6 +225,7 @@ export function RequestedProductsTab() {
                     onMarkAsOrdered={handleMarkAsOrdered}
                     onDelete={handleDelete}
                     onCopy={copyToClipboard}
+                    busy={busyId === req.id}
                   />
                 ))}
             </TableBody>

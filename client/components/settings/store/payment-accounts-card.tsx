@@ -47,6 +47,7 @@ export function PaymentAccountsCard() {
   const [accountToDelete, setAccountToDelete] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [setAsDefault, setSetAsDefault] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   
   const [formData, setFormData] = useState({
     name: "",
@@ -89,6 +90,7 @@ export function PaymentAccountsCard() {
         bank_name: "",
       });
     }
+    setIsSaving(false);
     setIsDialogOpen(true);
   };
 
@@ -97,6 +99,9 @@ export function PaymentAccountsCard() {
       toast.error("Account name is required");
       return;
     }
+
+    if (isSaving) return;
+    setIsSaving(true);
 
     try {
       if (editingId) {
@@ -134,6 +139,7 @@ export function PaymentAccountsCard() {
     } catch (error) {
       console.error(error);
       toast.error("Failed to save account");
+      setIsSaving(false);
     }
   };
 
@@ -324,8 +330,11 @@ export function PaymentAccountsCard() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleSave}>Save Account</Button>
+            <Button variant="outline" onClick={() => setIsDialogOpen(false)} disabled={isSaving}>Cancel</Button>
+            <Button onClick={handleSave} disabled={isSaving}>
+              {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Save Account
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

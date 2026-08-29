@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -37,6 +38,7 @@ interface Props {
 
 export function LoyaltyTierFormDialog({ open, onOpenChange, tier, userId, nextSortOrder, onSaved }: Props) {
   const [form, setForm] = useState(emptyForm);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -51,6 +53,7 @@ export function LoyaltyTierFormDialog({ open, onOpenChange, tier, userId, nextSo
           }
         : emptyForm
     );
+    setIsSaving(false);
   }, [open, tier]);
 
   const handleSave = async () => {
@@ -58,6 +61,8 @@ export function LoyaltyTierFormDialog({ open, onOpenChange, tier, userId, nextSo
       toast.error("Tier name is required");
       return;
     }
+    if (isSaving) return;
+    setIsSaving(true);
     const payload = {
       user_id: userId,
       name: form.name.trim(),
@@ -80,6 +85,7 @@ export function LoyaltyTierFormDialog({ open, onOpenChange, tier, userId, nextSo
     } catch (e) {
       console.error(e);
       toast.error("Failed to save tier");
+      setIsSaving(false);
     }
   };
 
@@ -143,8 +149,11 @@ export function LoyaltyTierFormDialog({ open, onOpenChange, tier, userId, nextSo
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleSave}>Save Tier</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving}>Cancel</Button>
+          <Button onClick={handleSave} disabled={isSaving}>
+            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Save Tier
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

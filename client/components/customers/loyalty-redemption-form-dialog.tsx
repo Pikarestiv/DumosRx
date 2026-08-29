@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -38,6 +39,7 @@ interface Props {
 
 export function LoyaltyRedemptionFormDialog({ open, onOpenChange, option, userId, nextSortOrder, onSaved }: Props) {
   const [form, setForm] = useState(emptyForm);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -52,6 +54,7 @@ export function LoyaltyRedemptionFormDialog({ open, onOpenChange, option, userId
           }
         : emptyForm
     );
+    setIsSaving(false);
   }, [open, option]);
 
   const handleSave = async () => {
@@ -59,6 +62,8 @@ export function LoyaltyRedemptionFormDialog({ open, onOpenChange, option, userId
       toast.error("Reward label is required");
       return;
     }
+    if (isSaving) return;
+    setIsSaving(true);
     const payload = {
       user_id: userId,
       label: form.label.trim(),
@@ -81,6 +86,7 @@ export function LoyaltyRedemptionFormDialog({ open, onOpenChange, option, userId
     } catch (e) {
       console.error(e);
       toast.error("Failed to save reward");
+      setIsSaving(false);
     }
   };
 
@@ -141,8 +147,11 @@ export function LoyaltyRedemptionFormDialog({ open, onOpenChange, option, userId
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleSave}>Save Reward</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving}>Cancel</Button>
+          <Button onClick={handleSave} disabled={isSaving}>
+            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Save Reward
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

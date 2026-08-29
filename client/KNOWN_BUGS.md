@@ -296,6 +296,84 @@ worth a quick check). Confirmed its one insert call site
 activeStoreId` explicitly, so it never depended on `insert()`'s
 auto-injection in the first place — no fix needed.
 
+### Follow-up task — do after this sweep, not during it
+
+16. **Standardize write/mutation flows on `@tanstack/react-query`'s `useMutation` instead of the current manual-`useState`-loading-flag pattern.**
+    `useQuery` is used pervasively for reads, but writes (`insert()`/
+    `update()`/`transaction()` calls) are handled almost everywhere via a
+    plain async function plus a local `useState` loading flag
+    (`isSubmitting`/`processing`/`processingPayment`, etc.) — `useMutation`
+    is only actually used in 5 files (`use-billing.ts`, `use-sessions.ts`,
+    `use-users.ts`, `use-current-user.ts`, `pos-customer-selector.tsx`).
+    Two real reasons the current pattern exists, not just inconsistency:
+    (a) this app is local-first — every "mutation" is a direct call against
+    the local SQLite database (sql.js/Tauri SQL plugin), with sync to the
+    backend happening separately/asynchronously via `_sync_queue`, so
+    `useMutation`'s main value (retry/backoff on flaky network calls,
+    dedup, optimistic rollback) targets problems that mostly don't exist
+    here; (b) many dialogs are controlled children that take an
+    `onSave`/`onAdd` *callback prop* from a parent, which is the one that
+    actually calls the DB and invalidates queries (e.g.
+    `add-supplier-dialog.tsx`) — adopting `useMutation` well means moving
+    the actual DB call into the dialog (or a shared hook) rather than a
+    line-for-line swap.
+    Given that architectural wrinkle, this needs its own scoped plan (which
+    dialogs move their DB call in-house, how shared mutation hooks are
+    organized) rather than being done piecemeal while fixing other bugs.
+    Status: **flagged** — revisit as a dedicated task once the rest of this
+    sweep is done.
+
+### UX sweep, continued: async submit/confirm safety
+
+17. **`ConfirmDialog` closed itself synchronously right after firing `onConfirm`, before an async handler (e.g. a delete) had actually finished.**
+    `components/ui/confirm-dialog.tsx`'s `handleConfirm()` called
+    `onConfirm(pin)` without awaiting it, then immediately called
+    `setPin("")` and `onOpenChange(false)`. This component is used
+    throughout the app for destructive confirmations (deletes across
+    expenses, purchase orders, suppliers, etc.) — every one of them showed
+    no in-flight feedback, and if the async action failed, the dialog had
+    already vanished as if it had succeeded, with no way to tell from the
+    dialog itself that anything went wrong.
+    Status: **fixed** — `onConfirm`'s type now allows returning
+    `Promise<void>`; `handleConfirm` awaits it in a try/finally, shows a
+    spinner on the confirm button while in flight, disables both buttons,
+    and only closes/resets after the promise settles. Backward compatible
+    with every existing sync caller (confirmed via typecheck: zero call
+    sites needed changes) and improves all of them for free — a genuine
+    single-root-cause fix.
+
+18. **`AddSupplierDialog`: no guard against double-clicking "Add Supplier".**
+    `handleSubmit` does an async uniqueness check (`getSupplierByName`)
+    before calling the fire-and-forget `onAddSupplier` prop (the parent
+    awaits its own create call and closes the dialog on success) — with no
+    loading/disabled state, a double-click before that resolves fires two
+    separate create calls and creates a duplicate supplier record.
+    Status: **fixed** — added an `isSubmitting` guard that blocks
+    re-entry into `handleSubmit`, disables both dialog buttons and shows a
+    spinner while submitting, and only clears on the "duplicate name found"
+    early-return path (so the user can retry) — otherwise stays disabled
+    until the dialog closes and reopens.
+    **Also fixed, same pattern:**
+    - `loyalty-tier-form-dialog.tsx` / `loyalty-redemption-form-dialog.tsx`
+      — identical shape to each other; both self-contained (own DB call, own
+      try/catch), added `isSaving` guard + spinner on the Save button, reset
+      on dialog reopen and on the error path.
+    - `payment-accounts-card.tsx` — its delete flow already goes through
+      `ConfirmDialog` (fixed centrally by #17); added the same `isSaving`
+      guard to the separate Save Account dialog, which doesn't use
+      `ConfirmDialog`.
+    - `held-transactions-dialog.tsx` — added a per-row `deletingId` guard so
+      deleting one held transaction disables both its own buttons (and
+      shows a spinner) without blocking other rows. Bonus find while in
+      here: this file also hardcoded `"NGN {amount.toLocaleString()}"`
+      instead of `formatCurrency()` — same class of bug as #15, now fixed
+      the same way.
+    - `requested-products-tab.tsx` (+ `requested-product-row.tsx` /
+      `requested-product-mobile-card.tsx`) — added a single `busyId` state
+      in the parent (only one mark-as-ordered/delete in flight app-wide for
+      this list at a time) threaded down as a `busy` prop to both the
+      desktop row and mobile card components.
+
 ## Flagged — product decisions, not bugs
 
 - Loyalty point redemption is fully unwired (`calculateRedemptionValue()` defined,

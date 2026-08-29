@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { DatePickerInput } from "@/components/ui/date-picker-input";
 import { EditableNumberCell } from "@/components/ui/editable-number-cell";
 import { POReviewPricePopover } from "./po-review-price-popover";
+import { getImmediateUnitCost, getLineTotal } from "./po-line-item-math";
 import { formatCurrency } from "@/lib/utils";
 import type { POProduct } from "@/lib/db/queries/procurement";
 import type { POLineItemDraft } from "./po-item-ledger-table";
@@ -44,11 +45,8 @@ export function POItemCardList({
         const product = products.find((p) => p.id === item.product_id);
         const currentCost = product?.cost_price ?? 0;
         const stock = product?.stock_quantity ?? 0;
-        const effectiveCost =
-          item.cost_price_override !== undefined && item.cost_price_override !== ""
-            ? Number(item.cost_price_override)
-            : item.unit_cost;
-        const total = item.bulk_quantity * (poType === "immediate" ? effectiveCost : item.unit_cost);
+        const effectiveUnitCost = getImmediateUnitCost(item);
+        const total = getLineTotal(item, poType);
 
         return (
           <div key={`${item.product_id}_${index}`} className="p-4 space-y-3">
@@ -144,13 +142,13 @@ export function POItemCardList({
                 {poType === "immediate" ? "Total" : "Subtotal"}
               </span>
               <span className="text-[14px] font-bold text-foreground">
-                {formatCurrency(poType === "immediate" ? total : item.subtotal)}
+                {formatCurrency(total)}
               </span>
             </div>
 
             {poType === "immediate" && (
               <POReviewPricePopover
-                costPrice={effectiveCost}
+                costPrice={effectiveUnitCost}
                 sellingPrice={item.selling_price ?? ""}
                 onSellingPriceChange={(val) => onUpdateItem(index, { selling_price: val })}
               />

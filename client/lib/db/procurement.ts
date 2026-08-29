@@ -184,8 +184,11 @@ export async function createPurchaseOrder(
   const now = new Date().toISOString();
   let totalAmount = 0;
 
+  // Derived from bulk_quantity * unit_cost, not item.subtotal: that field is
+  // only ever set once when a row is first added and goes stale the moment
+  // quantity or cost is edited afterward.
   for (const item of items) {
-    totalAmount += item.subtotal;
+    totalAmount += item.bulk_quantity * item.unit_cost;
   }
 
   return transaction(async () => {
@@ -210,7 +213,7 @@ export async function createPurchaseOrder(
         bulk_quantity: item.bulk_quantity,
         units_per_bulk: item.units_per_bulk,
         unit_cost: item.unit_cost,
-        subtotal: item.subtotal,
+        subtotal: item.bulk_quantity * item.unit_cost,
         created_at: now
       });
     }
@@ -232,7 +235,7 @@ export async function updatePurchaseOrder(
   let totalAmount = 0;
 
   for (const item of items) {
-    totalAmount += item.subtotal;
+    totalAmount += item.bulk_quantity * item.unit_cost;
   }
 
   return transaction(async () => {
@@ -266,7 +269,7 @@ export async function updatePurchaseOrder(
         bulk_quantity: item.bulk_quantity,
         units_per_bulk: item.units_per_bulk,
         unit_cost: item.unit_cost,
-        subtotal: item.subtotal,
+        subtotal: item.bulk_quantity * item.unit_cost,
         created_at: now
       });
     }
@@ -362,6 +365,29 @@ export async function receivePurchaseOrder(id: string, receivedItems?: ReceivedI
  * sitting in "pending" — it's created already "received", with its stock
  * batches, in a single atomic step. Reuses the exact per-item batch/cost/
  * expiry math receivePurchaseOrder() uses for Standard POs. */
+/** Cost per single base unit (e.g. per tablet), for an Immediate Purchase
+ * line: the override typed into "New Cost" if present, otherwise the
+ * catalog unit_cost (which is per-bulk-unit, e.g. per carton) converted
+ * down by units_per_bulk. Both this and computeImmediateLineTotal() must
+ * stay the single source of truth for this math — it's what's stored as
+ * stock_batches.cost_price, and what the order total is derived from, so
+ * a second, differently-scaled copy of this formula is how "New Cost" and
+ * "Total" drift out of sync with each other. */
+function immediateBaseUnitCost(item: ImmediateLineItemDraft): number {
+  const safeUnitsPerBulk = item.units_per_bulk || 1;
+  return item.cost_price_override !== undefined && item.cost_price_override !== ""
+    ? Number(item.cost_price_override)
+    : Number(item.unit_cost) / safeUnitsPerBulk;
+}
+
+/** Line total in currency, from the same per-base-unit cost used for stock
+ * costing — not item.subtotal, which is only ever set once when the row is
+ * first added and never kept in sync with later quantity/cost edits. */
+function computeImmediateLineTotal(item: ImmediateLineItemDraft): number {
+  const totalBaseUnits = item.bulk_quantity * (item.units_per_bulk || 1);
+  return immediateBaseUnitCost(item) * totalBaseUnits;
+}
+
 export async function createAndReceivePurchaseOrder(
   supplierId: string | null,
   notes: string,
@@ -374,7 +400,7 @@ export async function createAndReceivePurchaseOrder(
   const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
   let totalAmount = 0;
   for (const item of items) {
-    totalAmount += item.subtotal;
+    totalAmount += computeImmediateLineTotal(item);
   }
 
   return transaction(async () => {
@@ -403,7 +429,7 @@ export async function createAndReceivePurchaseOrder(
         bulk_quantity: item.bulk_quantity,
         units_per_bulk: item.units_per_bulk,
         unit_cost: item.unit_cost,
-        subtotal: item.subtotal,
+        subtotal: computeImmediateLineTotal(item),
         created_at: now,
       });
 
@@ -411,11 +437,7 @@ export async function createAndReceivePurchaseOrder(
       const batchNumber = item.lot_number?.trim() || poId.split('-')[0].toUpperCase();
       const expiryDate = item.expiry_date ? new Date(item.expiry_date).toISOString().slice(0, 10) : null;
 
-      const safeUnitsPerBulk = item.units_per_bulk || 1;
-      const baseUnitCost =
-        item.cost_price_override !== undefined && item.cost_price_override !== ""
-          ? Number(item.cost_price_override)
-          : Number(item.unit_cost) / safeUnitsPerBulk;
+      const baseUnitCost = immediateBaseUnitCost(item);
 
       const invId = await insert("stock_batches", {
         product_id: item.product_id,

@@ -11,6 +11,7 @@ import { PODetailsSummaryBar } from "@/components/procurement/po-details-summary
 import { PODetailsDialog } from "@/components/procurement/po-details-dialog";
 import { POItemBuilder } from "@/components/procurement/po-item-builder";
 import { POMobileCreateView } from "@/components/procurement/po-mobile-create-view";
+import { getLineTotal } from "@/components/procurement/po-line-item-math";
 import { createProduct } from "@/lib/db/local-database";
 import { createPurchaseOrder, createAndReceivePurchaseOrder, createSupplier } from "@/lib/db/procurement";
 import { toast } from "sonner";
@@ -109,15 +110,7 @@ export default function CreateOrderPage() {
     }
   };
 
-  const totalAmount = items.reduce(
-    (sum, item) =>
-      sum +
-      item.bulk_quantity *
-        (poType === "immediate" && item.cost_price_override !== undefined && item.cost_price_override !== ""
-          ? Number(item.cost_price_override)
-          : item.unit_cost),
-    0,
-  );
+  const totalAmount = items.reduce((sum, item) => sum + getLineTotal(item, poType), 0);
 
   const handleSubmit = async () => {
     if (items.length === 0) {

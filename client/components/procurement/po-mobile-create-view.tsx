@@ -7,6 +7,7 @@ import { PODetailsFields } from "./po-details-fields";
 import { PODetailsSummaryBar } from "./po-details-summary-bar";
 import { POItemBuilder } from "./po-item-builder";
 import { POMobileSummaryDrawer } from "./po-mobile-summary-drawer";
+import { getLineTotal } from "./po-line-item-math";
 import type { ProductViewModel } from "@/lib/types/product";
 import type { POProduct } from "@/lib/db/queries/procurement";
 import type { POLineItemDraft } from "./po-item-ledger-table";
@@ -197,13 +198,7 @@ export function POMobileCreateView(props: POMobileCreateViewProps) {
               productName: item.product_name,
               quantity: item.bulk_quantity,
               bulkUnit: item.bulk_unit,
-              lineTotal:
-                item.bulk_quantity *
-                (poType === "immediate" &&
-                item.cost_price_override !== undefined &&
-                item.cost_price_override !== ""
-                  ? Number(item.cost_price_override)
-                  : item.unit_cost),
+              lineTotal: getLineTotal(item, poType),
             }))}
           />
         </>

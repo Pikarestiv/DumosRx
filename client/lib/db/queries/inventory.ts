@@ -64,7 +64,7 @@ export async function getStockOverviewData() {
      LEFT JOIN (
        SELECT product_id,
               SUM(quantity) as total_qty,
-              AVG(cost_price) as avg_cost,
+              SUM(cost_price * quantity) * 1.0 / NULLIF(SUM(quantity), 0) as avg_cost,
               MIN(expiry_date) as earliest_expiry,
               GROUP_CONCAT(batch_number, ', ') as batches
        FROM stock_batches
@@ -78,15 +78,6 @@ export async function getStockOverviewData() {
   );
 }
 
-export interface AuditProduct {
-  id: string;
-  name: string;
-  stock_quantity: number;
-  base_unit: string;
-  cost_price?: number;
-  selling_price?: number;
-}
-
 export interface ExpiringItem {
   id: string;
   name: string;
@@ -94,18 +85,6 @@ export interface ExpiringItem {
   expiry_date: string;
   stock_quantity: number;
   base_unit?: string;
-}
-
-export async function getProductsForAudit() {
-  const storeId = getActiveStoreId();
-  return query<AuditProduct>(
-    `SELECT p.id, p.name, p.base_unit, AVG(sb.cost_price) as cost_price, p.selling_price, COALESCE(SUM(sb.quantity), 0) as stock_quantity
-    FROM products p
-    LEFT JOIN stock_batches sb ON p.id = sb.product_id AND sb._deleted = 0 AND sb.is_active = 1
-    WHERE p.is_active = 1 AND p._deleted = 0${storeId ? " AND p.store_id = ?" : ""}
-    GROUP BY p.id`,
-    storeId ? [storeId] : [],
-  );
 }
 
 export async function getBatchesForProduct(productId: string) {

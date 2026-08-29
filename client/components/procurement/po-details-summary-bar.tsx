@@ -23,31 +23,31 @@ export function PODetailsSummaryBar({
 }: PODetailsSummaryBarProps) {
   return (
     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border border-border rounded-xl bg-card px-4 py-3 shadow-sm">
-      <div className="flex flex-wrap items-end gap-x-3 gap-y-1.5 min-w-0">
-        <div className="min-w-0">
-          <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
-            Vendor
-          </div>
-          <div className="text-[14px] font-semibold text-foreground break-words sm:truncate">
-            {vendorName}
-          </div>
+      <div className="min-w-0 space-y-1">
+        <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+          Vendor
         </div>
+        <div className="text-[14px] font-semibold text-foreground break-words sm:truncate">
+          {vendorName}
+        </div>
+      </div>
+      <div className="flex flex-col items-end gap-2 shrink-0">
         {poTypeLabel && (
           <span className="shrink-0 inline-flex items-center rounded-full bg-primary/10 text-primary px-2.5 py-1 text-[11px] font-semibold">
             {poTypeLabel}
           </span>
         )}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-8 px-3 text-[12.5px] font-semibold shrink-0"
+          onClick={onEdit}
+        >
+          <Pencil className="w-3.5 h-3.5 mr-1.5" />
+          Edit details
+        </Button>
       </div>
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        className="h-8 px-3 text-[12.5px] font-semibold shrink-0 self-start sm:self-auto"
-        onClick={onEdit}
-      >
-        <Pencil className="w-3.5 h-3.5 mr-1.5" />
-        Edit details
-      </Button>
     </div>
   );
 }

@@ -161,6 +161,8 @@ export function usePOSSystem() {
     usePOSHeldTransactions({
       cart,
       total,
+      discount,
+      discountType,
       selectedCustomer,
       clearCart,
       setSelectedCustomer,

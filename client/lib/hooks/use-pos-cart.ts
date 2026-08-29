@@ -130,8 +130,14 @@ export function usePOSCart(products: Product[]) {
     setDiscount(0);
   };
 
-  const restoreCart = (items: CartItem[]) => {
+  const restoreCart = (
+    items: CartItem[],
+    restoredDiscount?: number,
+    restoredDiscountType?: "fixed" | "percentage",
+  ) => {
     setCart(items);
+    if (restoredDiscount !== undefined) setDiscount(restoredDiscount);
+    if (restoredDiscountType !== undefined) setDiscountType(restoredDiscountType);
   };
 
   return {

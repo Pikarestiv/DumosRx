@@ -462,6 +462,8 @@ CREATE TABLE IF NOT EXISTS held_transactions (
   customer_name TEXT,
   items_json TEXT NOT NULL,
   total_amount REAL NOT NULL,
+  discount REAL DEFAULT 0,
+  discount_type TEXT,
   notes TEXT,
   created_at TEXT,
   updated_at TEXT,

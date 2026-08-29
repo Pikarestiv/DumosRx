@@ -368,6 +368,8 @@ export async function initDatabase(): Promise<any> {
         "_synced_at TEXT",
         "_deleted INTEGER DEFAULT 0",
         "store_id TEXT",
+        "discount REAL DEFAULT 0",
+        "discount_type TEXT",
       ],
     },
     {

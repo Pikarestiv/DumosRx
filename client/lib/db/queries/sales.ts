@@ -61,6 +61,8 @@ export interface HeldTransaction {
   customer_name: string;
   items_json: string;
   total_amount: number;
+  discount?: number;
+  discount_type?: string | null;
   created_at: string;
 }
 

@@ -15,11 +15,12 @@ import {
 } from "@/components/ui/table";
 import { formatCurrency } from "@/lib/utils";
 import { calculateProportionalRefund } from "@/lib/utils/pos-calculations";
+import { getMaxReturnable, isFullyReturned } from "@/lib/utils/returns-calculations";
 import { insert, update, transaction } from "@/lib/db/local-database";
 import { AUDIT_ACTIONS } from "@/lib/db/audit-actions";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { getSaleItems } from "@/lib/db/queries/sales";
+import { getTransactionDetails } from "@/lib/db/queries/sales";
 import { queryKeys } from "@/lib/query-keys";
 import { restoreReturnedStock } from "@/lib/db/queries/returns";
 import { getCustomerBalance } from "@/lib/db/queries/customers";
@@ -58,13 +59,17 @@ export function ReturnDialog({
   const [processing, setProcessing] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
-  // Fetch items for this sale
-  const { data: saleItemsData } = useQuery({
-    ...queryKeys.sales.saleItems(sale?.id),
-    queryFn: () => (sale ? getSaleItems(sale.id) : Promise.resolve([])),
+  // Fetch items for this sale, including how much of each has already been
+  // returned in a prior return on this sale — getSaleItems() (the previous
+  // data source here) only returns the original sold quantity, with no way
+  // to know a customer already returned some of it, which let the same
+  // items be returned twice.
+  const { data: detailsData } = useQuery({
+    ...queryKeys.sales.transactionDetails(sale?.id),
+    queryFn: () => (sale ? getTransactionDetails(sale.id) : Promise.resolve(null)),
     enabled: !!sale,
   });
-  const saleItems = saleItemsData || [];
+  const saleItems = detailsData?.items || [];
 
   if (!sale) return null;
 
@@ -166,10 +171,13 @@ export function ReturnDialog({
           });
         }
 
-        // 3. Mark sale as returned
-        const allItemsReturned =
-          itemsToReturn.length === saleItems.length &&
-          itemsToReturn.every((i) => i.returnQuantity === i.quantity);
+        // 3. Mark sale as returned once every line item's full remaining
+        // balance has been returned (across this and any prior returns),
+        // not just when every original line item is touched in this one.
+        const allItemsReturned = isFullyReturned(
+          saleItems,
+          itemsToReturn.map((i) => ({ id: i.id, returnQuantity: i.returnQuantity })),
+        );
         await update("sales", sale.id, {
           payment_status: allItemsReturned ? "refunded" : "partially_refunded",
         });
@@ -280,21 +288,25 @@ export function ReturnDialog({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {saleItems?.map((item) => (
-                  <ReturnItemRow
-                    key={item.id}
-                    item={item}
-                    quantity={
-                      selectedItems.get(item.id)?.quantity ?? item.quantity
-                    }
-                    selected={selectedItems.get(item.id)?.selected || false}
-                    currencyCode={currencyCode}
-                    onToggle={() => handleToggleItem(item.id, item.quantity)}
-                    onQtyChange={(qty) =>
-                      handleQtyChange(item.id, qty, item.quantity)
-                    }
-                  />
-                ))}
+                {saleItems?.map((item) => {
+                  const maxQty = getMaxReturnable(item);
+                  return (
+                    <ReturnItemRow
+                      key={item.id}
+                      item={item}
+                      quantity={
+                        selectedItems.get(item.id)?.quantity ?? maxQty
+                      }
+                      selected={selectedItems.get(item.id)?.selected || false}
+                      maxQty={maxQty}
+                      currencyCode={currencyCode}
+                      onToggle={() => handleToggleItem(item.id, maxQty)}
+                      onQtyChange={(qty) =>
+                        handleQtyChange(item.id, qty, maxQty)
+                      }
+                    />
+                  );
+                })}
               </TableBody>
             </Table>
           </div>

@@ -38,7 +38,16 @@ nothing found gets lost between sessions. Status values: `open`, `fixed`, `flagg
    Also: `allItemsReturned` check in `return-dialog.tsx` compares against original
    quantity, so a sale fully returned across multiple partial returns never flips
    `payment_status` to `"refunded"`.
-   Status: **open**
+   Status: **fixed** — `return-dialog.tsx` now sources items from
+   `getTransactionDetails()` (which already computed `returned_quantity`
+   correctly) instead of `getSaleItems()`. Extracted the max-returnable and
+   fully-returned logic into a pure, tested module
+   (`lib/utils/returns-calculations.ts`: `getMaxReturnable`/`isFullyReturned`)
+   rather than leaving it ad hoc in the dialog component, per the audit's
+   flagged suggestion. `ReturnItemRow` now disables/grays out line items with
+   nothing left to return and shows an "N already returned" hint. Regression
+   tests: `__tests__/returns-calculations.test.ts`,
+   `__tests__/sales-returned-quantity.test.ts` (new).
 
 2. **POS: holding a transaction silently drops the discount.**
    `use-pos-held-transactions.ts`'s `handleHoldTransaction` persists `items_json`/
@@ -47,7 +56,16 @@ nothing found gets lost between sessions. Status values: `open`, `fixed`, `flagg
    recomputes subtotals from **current** catalog prices, never restoring the discount.
    Repro: cart total ₦1000, ₦200 fixed discount applied → total ₦800. Hold, then
    recall later → total recomputes to ₦1000, discount gone.
-   Status: **open**
+   Status: **fixed** — added `discount`/`discount_type` columns to
+   `held_transactions` (schema.ts + the additive-migration `syncColumns` list
+   in `core.ts`, so existing local databases pick it up via `ALTER TABLE ...
+   ADD COLUMN`). `handleHoldTransaction` now persists both; `restoreCart()`
+   (in `use-pos-cart.ts`) takes optional discount/discountType args and
+   `handleRecallTransaction` passes the held values through. Verified live:
+   held a ₦200 fixed discount, recalled it, discount and ₦1,300 total both
+   correctly restored. **Not changed:** items still reprice from current
+   catalog prices on recall (flagged separately below as a product decision,
+   not resolved here — only the discount-loss bug itself was fixed).
 
 3. **POS: discount type switch reinterprets the same typed number.**
    `components/pos/pos-cart.tsx` — the discount amount input and the fixed/percentage

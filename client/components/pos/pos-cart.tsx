@@ -128,19 +128,31 @@ export function POSCart({
               <div className="flex gap-1 items-center flex-1 max-w-[160px] justify-end">
                 <input
                   type="number"
+                  min={0}
+                  max={discountType === "percentage" ? 100 : undefined}
                   className="flex h-7 w-16 rounded-md border border-input bg-background px-2 py-1 text-xs text-right focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
                   value={discount || ""}
                   placeholder="0"
-                  onChange={(e) =>
-                    setDiscount?.(parseFloat(e.target.value) || 0)
-                  }
+                  onChange={(e) => {
+                    const value = parseFloat(e.target.value) || 0;
+                    setDiscount?.(
+                      discountType === "percentage"
+                        ? Math.min(100, Math.max(0, value))
+                        : Math.max(0, value),
+                    );
+                  }}
                 />
                 <select
                   className="flex h-7 rounded-md border border-input bg-background px-1 py-1 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
                   value={discountType}
-                  onChange={(e) =>
-                    setDiscountType?.(e.target.value as "fixed" | "percentage")
-                  }
+                  onChange={(e) => {
+                    // Clear the typed number on type switch instead of
+                    // silently reinterpreting it — "50" meant as a ₦50
+                    // fixed discount becomes a 50% discount otherwise, with
+                    // no warning.
+                    setDiscountType?.(e.target.value as "fixed" | "percentage");
+                    setDiscount?.(0);
+                  }}
                 >
                   <option value="fixed">Fixed</option>
                   <option value="percentage">%</option>

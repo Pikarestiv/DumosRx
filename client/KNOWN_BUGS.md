@@ -378,7 +378,36 @@ auto-injection in the first place — no fix needed.
     plausibly intentional (the SaaS vendor's own subscription charge
     currency, via Nigerian billing infra, independent of what currency a
     given store operates in for its own sales). Flagging as a product
-    decision, not fixing without confirmation.
+    decision, not fixing without confirmation. Same reasoning applied to
+    `components/settings/billing/referral-tab.tsx` (referral credits) and
+    the coupon-applied toast/credits badge in `subscription-plans.tsx` —
+    all part of the vendor's own billing system, not a store's sales.
+
+    **Second pass found the same pattern outside analytics, now also fixed:**
+    - `components/customers/overview-tab.tsx` — "Average Transaction Value"
+      built a manual `₦{...toLocaleString(...)}` string instead of using
+      `formatCurrency()`.
+    - `components/expenses/add-expense-dialog.tsx` — the "Reports will count
+      ₦X/month for N months" smoothing preview hardcoded ₦.
+    - `components/pos/online-orders-modal.tsx` — real order/item amounts
+      (`item.subtotal`, `order.total_amount`) shown to staff fulfilling
+      online orders, hardcoded ₦.
+    - `components/products/product-basic-info-fields.tsx` — the "Selling
+      Price (₦)" field label on every product's catalog entry form.
+    - `components/prescriptions/new-prescription/prescription-medications.tsx`
+      — the "Total Cost (₦)" field label (the cost *values* already used a
+      currency-aware `formatCurrency` prop from the parent; only the label
+      was hardcoded).
+    All five now derive the symbol/formatting from `storeProfile.currency`
+    via `useStore()`.
+
+    **Flagged, not fixed (cosmetic, not a live-data bug):** the default
+    loyalty redemption options seeded for a new store
+    (`lib/db/queries/loyalty.ts`'s `DEFAULT_REDEMPTION_OPTIONS`) have
+    hardcoded labels like `"₦500 Discount"`. Low priority since these are
+    just starting defaults in a fully editable rewards catalog — a store can
+    rename them immediately — but a non-Naira store's first-run defaults
+    will show the wrong currency in the label text until edited.
 
 ## Fixed
 

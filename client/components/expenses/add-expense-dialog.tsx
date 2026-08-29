@@ -7,6 +7,8 @@ import { insert, update } from "@/lib/db/local-database";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/context/auth-context";
 import { DatePickerInput } from "@/components/ui/date-picker-input";
+import { formatCurrency } from "@/lib/utils";
+import { useStore } from "@/lib/context/store-context";
 import type { Expense } from "@/lib/db/queries/finance";
 
 interface AddExpenseDialogProps {
@@ -34,6 +36,7 @@ export function AddExpenseDialog({
   onSaved,
 }: AddExpenseDialogProps) {
   const { user } = useAuth();
+  const { storeProfile } = useStore();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     category: "Rent",
@@ -263,10 +266,11 @@ export function AddExpenseDialog({
               formData.amount
             ) && (
               <p className="text-[11.5px] text-muted-foreground mt-1.5">
-                Reports will count ₦
-                {(
-                  parseFloat(formData.amount) / Number(formData.covers_months)
-                ).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                Reports will count{" "}
+                {formatCurrency(
+                  parseFloat(formData.amount) / Number(formData.covers_months),
+                  storeProfile?.currency,
+                )}
                 /month for {formData.covers_months} months starting{" "}
                 {new Date(formData.date).toLocaleDateString(undefined, {
                   month: "long",

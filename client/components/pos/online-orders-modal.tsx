@@ -15,6 +15,8 @@ import { Loader2, CheckCircle, PackageOpen } from "lucide-react";
 import { generateId } from "@/lib/db/core";
 import { insert, update } from "@/lib/db/base-helpers";
 import { getStockBatchesForProduct } from "@/lib/db/queries/sales";
+import { formatCurrency } from "@/lib/utils";
+import { useStore } from "@/lib/context/store-context";
 import type { OnlineOrder } from "@/lib/types/online-order";
 
 function NoOnlineOrdersFound() {
@@ -29,6 +31,8 @@ function NoOnlineOrdersFound() {
 export function OnlineOrdersModal() {
   const { isOpen, onClose } = useOnlineOrdersModal();
   const { user } = useAuth();
+  const { storeProfile } = useStore();
+  const currencyCode = storeProfile?.currency;
   const [fulfillingId, setFulfillingId] = useState<string | null>(null);
 
   const {
@@ -142,14 +146,14 @@ export function OnlineOrdersModal() {
                           <div key={item.id} role="row" className="flex items-center gap-2">
                             <div role="cell" className="py-1 flex-1">{item.product?.name || 'Unknown Product'}</div>
                             <div role="cell" className="py-1 text-right w-[60px] shrink-0">x{item.quantity}</div>
-                            <div role="cell" className="py-1 text-right w-[100px] shrink-0">₦{Number(item.subtotal).toLocaleString()}</div>
+                            <div role="cell" className="py-1 text-right w-[100px] shrink-0">{formatCurrency(Number(item.subtotal), currencyCode)}</div>
                           </div>
                         ))}
                       </div>
                       <div role="rowgroup">
                         <div role="row" className="flex items-center gap-2 border-t font-semibold">
                           <div role="cell" className="py-2 flex-1">Total</div>
-                          <div role="cell" className="py-2 text-right w-[100px] shrink-0 text-emerald-600">₦{Number(order.total_amount).toLocaleString()}</div>
+                          <div role="cell" className="py-2 text-right w-[100px] shrink-0 text-emerald-600">{formatCurrency(Number(order.total_amount), currencyCode)}</div>
                         </div>
                       </div>
                     </div>

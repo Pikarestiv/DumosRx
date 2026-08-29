@@ -6,6 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Pill, Plus, Trash2 } from "lucide-react";
 import { Combobox } from "@/components/ui/combobox";
+import { getCurrencySymbol } from "@/lib/utils";
+import { useStore } from "@/lib/context/store-context";
 import type {
   NewPrescriptionForm,
   PrescriptionMedication,
@@ -36,6 +38,9 @@ export function PrescriptionMedications({
   formatCurrency,
   totalCost,
 }: PrescriptionMedicationsProps) {
+  const { storeProfile } = useStore();
+  const currencySymbol = getCurrencySymbol(storeProfile?.currency);
+
   const uniqueProductNames = React.useMemo(() => {
     return Array.from(
       new Set(availableProducts.map((m) => m.name).filter(Boolean)),
@@ -134,7 +139,7 @@ export function PrescriptionMedications({
             </div>
 
             <div className="space-y-2">
-              <Label>Total Cost (₦)</Label>
+              <Label>Total Cost ({currencySymbol})</Label>
               <Input
                 type="number"
                 value={newMedication.cost}

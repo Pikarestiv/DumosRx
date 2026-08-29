@@ -250,7 +250,11 @@ export default function CreateOrderPage() {
                 onClick={handleSubmit}
                 disabled={isSubmitting || items.length === 0}
               >
-                {isSubmitting ? "Saving..." : "Save Purchase Order"}
+                {isSubmitting
+                  ? "Saving..."
+                  : poType === "immediate"
+                    ? "Save Purchase Order"
+                    : "Save as Draft"}
               </Button>
             </div>
           )}

@@ -144,7 +144,7 @@ export function POMobileCreateView(props: POMobileCreateViewProps) {
             onClick={handleSubmit}
             disabled={isSubmitting || items.length === 0}
           >
-            {isSubmitting ? "Saving..." : "Save"}
+            {isSubmitting ? "Saving..." : poType === "immediate" ? "Save" : "Save Draft"}
           </Button>
         )}
       </div>
@@ -178,8 +178,18 @@ export function POMobileCreateView(props: POMobileCreateViewProps) {
             itemCount={items.length}
             totalAmount={totalAmount}
             selectedSupplierName={selectedSupplierName}
-            onSave={handleSubmit}
-            isSubmitting={isSubmitting}
+            lineItems={items.map((item) => ({
+              productName: item.product_name,
+              quantity: item.bulk_quantity,
+              bulkUnit: item.bulk_unit,
+              lineTotal:
+                item.bulk_quantity *
+                (poType === "immediate" &&
+                item.cost_price_override !== undefined &&
+                item.cost_price_override !== ""
+                  ? Number(item.cost_price_override)
+                  : item.unit_cost),
+            }))}
           />
         </>
       ) : (

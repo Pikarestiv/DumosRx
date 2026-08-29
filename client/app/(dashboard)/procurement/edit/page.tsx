@@ -10,6 +10,7 @@ import { SELF_PURCHASE_VENDOR_ID } from "@/components/procurement/po-details-fie
 import { PODetailsSummaryBar } from "@/components/procurement/po-details-summary-bar";
 import { PODetailsDialog } from "@/components/procurement/po-details-dialog";
 import { POItemBuilder } from "@/components/procurement/po-item-builder";
+import { POMobileEditView } from "@/components/procurement/po-mobile-edit-view";
 import {
   createProduct,
   getPurchaseOrderById,
@@ -174,10 +175,26 @@ function EditOrderContent() {
   }
 
   return (
-    // Full-screen takeover, same as the Cycle Count session in
-    // stock-batch/stock-audits.tsx, so the ledger table gets the whole
-    // viewport instead of being cramped inside the dashboard shell.
-    <div className="fixed inset-0 z-50 flex flex-col bg-background">
+    <>
+      <POMobileEditView
+        poId={id}
+        selectedSupplierName={selectedSupplierName}
+        totalAmount={totalAmount}
+        products={products}
+        items={items}
+        onItemsChange={setItems}
+        onOpenAddProduct={handleOpenAddProduct}
+        newlyCreatedProductId={newlyCreatedProductId}
+        onNewlyCreatedProductConsumed={() => setNewlyCreatedProductId(null)}
+        isSubmitting={isSubmitting}
+        handleSubmit={handleSubmit}
+        onOpenEditDetails={() => setIsEditDetailsOpen(true)}
+      />
+
+      {/* Desktop: full-screen takeover, same as the Cycle Count session in
+          stock-batch/stock-audits.tsx, so the ledger table gets the whole
+          viewport instead of being cramped inside the dashboard shell. */}
+      <div className="hidden lg:flex fixed inset-0 z-50 flex-col bg-background">
       <div
         className="flex items-center gap-3 px-6 pb-5 border-b border-border bg-card shrink-0"
         style={{ paddingTop: "calc(var(--tauri-top, 0px) + 1.25rem)" }}
@@ -233,6 +250,7 @@ function EditOrderContent() {
           onNewlyCreatedProductConsumed={() => setNewlyCreatedProductId(null)}
         />
       </div>
+      </div>
 
       <PODetailsDialog
         open={isEditDetailsOpen}
@@ -268,7 +286,7 @@ function EditOrderContent() {
         onOpenChange={setIsAddSupplierOpen}
         onAddSupplier={handleCreateSupplier}
       />
-    </div>
+    </>
   );
 }
 

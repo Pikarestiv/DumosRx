@@ -7,8 +7,12 @@ import { usePurchasePatterns } from "./use-purchase-patterns";
 import { useMonthlySalesData } from "./use-monthly-sales-data";
 import { getBIMetrics } from "@/lib/db/queries/reports";
 import { queryKeys } from "@/lib/query-keys";
+import { formatCurrency } from "@/lib/utils";
+import { useStore } from "@/lib/context/store-context";
 
 export function useBIData(externalTimeRange?: string) {
+  const { storeProfile } = useStore();
+  const currencyCode = storeProfile?.currency;
   const [internalTimeRange, setInternalTimeRange] = useState("6months");
   const timeRange = externalTimeRange || internalTimeRange;
 
@@ -156,7 +160,7 @@ export function useBIData(externalTimeRange?: string) {
       },
       {
         metric: "Avg. Transaction",
-        value: `₦${Math.floor(avgTransactionValue).toLocaleString()}`,
+        value: formatCurrency(Math.floor(avgTransactionValue), currencyCode),
         change: `${avgTransactionChange >= 0 ? "+" : ""}${avgTransactionChange}%`,
         trend: avgTransactionChange >= 0 ? "up" : "down",
       },

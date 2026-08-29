@@ -22,7 +22,8 @@ import {
   ChartTooltip, 
   ChartTooltipContent 
 } from "@/components/ui/chart";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, getCurrencySymbol } from "@/lib/utils";
+import { useStore } from "@/lib/context/store-context";
 import type { MonthlySalesDataPoint } from "@/lib/types/analytics";
 
 interface ProfitLossTabProps {
@@ -59,6 +60,9 @@ export function ProfitLossTab({
   netProfit,
   monthlySalesData
 }: ProfitLossTabProps) {
+  const { storeProfile } = useStore();
+  const currencyCode = storeProfile?.currency;
+  const currencySymbol = getCurrencySymbol(currencyCode);
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-5">
       <Card className="p-5 border shadow-sm rounded-2xl">
@@ -73,34 +77,34 @@ export function ProfitLossTab({
         <div>
           <div className="flex items-center justify-between py-3 border-b text-[13.5px]">
             <div>Gross Sales</div>
-            <div className="font-semibold">{formatCurrency(grossSales)}</div>
+            <div className="font-semibold">{formatCurrency(grossSales, currencyCode)}</div>
           </div>
           <div className="flex items-center justify-between py-3 border-b text-[13.5px] text-destructive italic">
             <div className="flex items-center gap-1"><ArrowDownRight className="w-3.5 h-3.5" /> Discounts, Tax &amp; Refunds</div>
-            <div className="font-semibold">− {formatCurrency(Math.max(0, grossSales - netSales))}</div>
+            <div className="font-semibold">− {formatCurrency(Math.max(0, grossSales - netSales), currencyCode)}</div>
           </div>
           <div className="flex items-center justify-between py-3 bg-muted/40 px-3 rounded-lg my-2 text-[13.5px] font-bold">
             <div>NET SALES</div>
-            <div>{formatCurrency(netSales)}</div>
+            <div>{formatCurrency(netSales, currencyCode)}</div>
           </div>
           <div className="flex items-center justify-between py-3 border-b text-[13.5px] text-destructive italic">
             <div className="flex items-center gap-1"><ArrowDownRight className="w-3.5 h-3.5" /> Cost of Goods Sold (COGS)</div>
-            <div className="font-semibold">− {formatCurrency(totalCogs)}</div>
+            <div className="font-semibold">− {formatCurrency(totalCogs, currencyCode)}</div>
           </div>
           <div className="flex items-center justify-between py-3 bg-primary/5 px-3 rounded-lg my-2 text-[13.5px] font-bold text-primary">
             <div>GROSS PROFIT</div>
-            <div>{formatCurrency(grossProfit)}</div>
+            <div>{formatCurrency(grossProfit, currencyCode)}</div>
           </div>
           <div className="flex items-center justify-between py-3 border-b text-[13.5px] text-destructive italic">
             <div className="flex items-center gap-1"><ArrowDownRight className="w-3.5 h-3.5" /> Total Operational Expenses</div>
-            <div className="font-semibold">− {formatCurrency(totalExpenses)}</div>
+            <div className="font-semibold">− {formatCurrency(totalExpenses, currencyCode)}</div>
           </div>
         </div>
 
         <div className="bg-emerald-500/10 rounded-xl p-4 flex flex-col md:flex-row items-center justify-between gap-4">
           <div>
             <div className="text-[11px] font-bold text-emerald-600 uppercase tracking-wide">Final Net Income (Take Home)</div>
-            <div className="text-[24px] font-bold font-['Playfair_Display'] text-emerald-600">{formatCurrency(netProfit)}</div>
+            <div className="text-[24px] font-bold font-['Playfair_Display'] text-emerald-600">{formatCurrency(netProfit, currencyCode)}</div>
           </div>
           <div className="bg-background border rounded-xl px-4 py-2.5 text-center shadow-sm">
             <div className="text-[10px] font-semibold text-muted-foreground uppercase">Net Margin</div>
@@ -188,7 +192,7 @@ export function ProfitLossTab({
                 axisLine={false} 
                 tickLine={false} 
                 tick={{fill: '#94a3b8', fontSize: 11}}
-                tickFormatter={(val) => `₦${val/1000}k`}
+                tickFormatter={(val) => `${currencySymbol}${val/1000}k`}
               />
               <ChartTooltip content={<ChartTooltipContent />} />
               <Area 

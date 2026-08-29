@@ -353,6 +353,33 @@ auto-injection in the first place — no fix needed.
   today since nothing reads split data from it, but worth deciding if demo realism
   wants fabricated splits.
 
+### UX/Clarity pass (targeted code-level sweep, not a full agent-per-module audit)
+
+15. **Entire Analytics/BI dashboard hardcoded the Naira symbol regardless of the store's configured currency.**
+    Settings has a real, user-facing Currency selector
+    (`components/settings/regional-settings-card.tsx`), but `formatCurrency()`
+    (default arg `"NGN"`) was called with no currency code anywhere in
+    `components/analytics/`: `bi-key-metrics.tsx`, `profit-loss-tab.tsx`
+    (7 call sites), `product-performance-table.tsx`,
+    `staff-performance-tab.tsx`, plus two chart-axis tick formatters
+    (`profit-loss-tab.tsx`, `sales-analytics-tab.tsx`) and one metric string
+    in `lib/hooks/use-bi-data.ts` that hardcoded the `₦` character directly
+    instead of using `formatCurrency()` at all. Any store that changed its
+    currency away from NGN in Settings would still see every figure on the
+    entire BI dashboard silently mislabeled as Naira.
+    Status: **fixed** — every `formatCurrency()` call in `components/analytics/`
+    now threads `storeProfile?.currency` through via `useStore()`. Added a new
+    `getCurrencySymbol()` helper to `lib/utils.ts` (derived from the same
+    `Intl.NumberFormat` as `formatCurrency()`, so the two can't disagree) for
+    the two compact chart-tick labels that need just the symbol, not a full
+    formatted amount. Regression tests added to `__tests__/utils.test.ts`.
+    **Not touched:** `components/settings/billing/subscription-plans.tsx`
+    also hardcodes NGN for its own price display — left alone since that's
+    plausibly intentional (the SaaS vendor's own subscription charge
+    currency, via Nigerian billing infra, independent of what currency a
+    given store operates in for its own sales). Flagging as a product
+    decision, not fixing without confirmation.
+
 ## Fixed
 
 _(none yet from this sweep — Procurement's fixes predate this file; see git log)_

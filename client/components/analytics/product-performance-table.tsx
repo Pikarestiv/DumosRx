@@ -5,6 +5,7 @@ import { TrendingUp } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { SortableHeaderCell } from "@/components/ui/sortable-header-cell";
 import { useSortableData } from "@/lib/hooks/use-sortable-data";
+import { useStore } from "@/lib/context/store-context";
 
 export interface ProductPerformanceRow {
   id: string;
@@ -26,6 +27,8 @@ type SortKey = "name" | "category" | "revenue" | "units" | "margin";
  * range - replaces the old top-5-only "Top Selling Products" list so
  * underperformers (not just the winners) are visible too. */
 export function ProductPerformanceTable({ products }: ProductPerformanceTableProps) {
+  const { storeProfile } = useStore();
+  const currencyCode = storeProfile?.currency;
   const { sortKey, direction, toggleSort, sortedData } = useSortableData<
     ProductPerformanceRow,
     SortKey
@@ -108,7 +111,7 @@ export function ProductPerformanceTable({ products }: ProductPerformanceTablePro
                     {p.category}
                   </div>
                   <div role="cell" className="text-right font-semibold">
-                    {formatCurrency(p.revenue)}
+                    {formatCurrency(p.revenue, currencyCode)}
                   </div>
                   <div role="cell" className="text-right text-muted-foreground">
                     {p.units}

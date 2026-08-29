@@ -1,6 +1,7 @@
 import { DollarSign, TrendingUp, TrendingDown, Receipt, Package, Users } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
 import { MetricCard } from "@/components/ui/metric-card";
+import { useStore } from "@/lib/context/store-context";
 
 interface BIKeyMetricsProps {
   totalRevenue: number;
@@ -17,6 +18,8 @@ export function BIKeyMetrics({
   activeCustomers,
   netProfit,
 }: BIKeyMetricsProps) {
+  const { storeProfile } = useStore();
+  const currencyCode = storeProfile?.currency;
   const isProfitable = netProfit >= 0;
   return (
     <div className="flex flex-col gap-5">
@@ -25,7 +28,7 @@ export function BIKeyMetrics({
           <MetricCard
             className="min-w-[180px] sm:min-w-0 snap-center shrink-0 border-primary/20 hover:border-primary/40"
             title="Net Sales"
-            value={formatCurrency(totalRevenue)}
+            value={formatCurrency(totalRevenue, currencyCode)}
             icon={<DollarSign className="h-4 w-4" />}
             iconBgClass="bg-primary/10 text-primary"
             valueClassName="font-serif"
@@ -39,7 +42,7 @@ export function BIKeyMetrics({
                 : "border-red-200/50 hover:border-red-500/50",
             )}
             title="Net Profit"
-            value={formatCurrency(netProfit)}
+            value={formatCurrency(netProfit, currencyCode)}
             icon={isProfitable ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
             iconBgClass={isProfitable ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}
             valueClassName={cn("font-serif", isProfitable ? "text-emerald-600" : "text-red-600")}
@@ -57,7 +60,7 @@ export function BIKeyMetrics({
           <MetricCard
             className="min-w-[180px] sm:min-w-0 snap-center shrink-0 border-border"
             title="Stock Batch Value"
-            value={formatCurrency(stock_batchValue)}
+            value={formatCurrency(stock_batchValue, currencyCode)}
             icon={<Package className="h-4 w-4" />}
             iconBgClass="bg-blue-50 text-blue-700"
             valueClassName="font-serif"

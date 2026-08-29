@@ -321,6 +321,11 @@ export async function submitStockAudit(
 
       let remaining = Math.abs(diff);
       const batches = await getBatchesForProduct(item.productId);
+      // Without unit_cost/total_cost, a cycle-count adjustment's real value
+      // impact was invisible to getStockMoM()'s 30-day added/removed-value
+      // sums (they read IFNULL(unit_cost, 0)), silently treating every
+      // write-off as ₦0 regardless of the stock actually lost.
+      const unitCost = item.countedCostPrice ?? item.systemCostPrice ?? 0;
 
       if (diff > 0) {
         // Found more stock than recorded: add it to the soonest-expiring
@@ -332,6 +337,8 @@ export async function submitStockAudit(
             stock_batch_id: batches[0].id,
             movement_type: "adjustment",
             quantity: remaining,
+            unit_cost: unitCost,
+            total_cost: unitCost * remaining,
             reason: item.reason || "Cycle count adjustment",
             reference_id: auditId,
             reference_type: "stock_audit",
@@ -351,6 +358,8 @@ export async function submitStockAudit(
             stock_batch_id: newBatchId,
             movement_type: "adjustment",
             quantity: remaining,
+            unit_cost: unitCost,
+            total_cost: unitCost * remaining,
             reason: item.reason || "Cycle count adjustment",
             reference_id: auditId,
             reference_type: "stock_audit",
@@ -372,6 +381,8 @@ export async function submitStockAudit(
             stock_batch_id: batch.id,
             movement_type: "adjustment",
             quantity: -deductQty,
+            unit_cost: unitCost,
+            total_cost: unitCost * deductQty,
             reason: item.reason || "Cycle count adjustment",
             reference_id: auditId,
             reference_type: "stock_audit",

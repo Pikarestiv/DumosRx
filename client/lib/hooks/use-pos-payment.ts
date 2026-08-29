@@ -7,7 +7,12 @@ import { getBatchesForProduct } from "@/lib/db/queries/inventory";
 import { updatePrescriptionStatus, dispensePrescriptionRefill } from "@/lib/db/queries/prescriptions";
 import { CartItem } from "./use-pos-cart";
 import { calculateEarnedPoints } from "@/lib/utils/loyalty-calculator";
-import { calculateTaxPercentage } from "@/lib/utils/pos-calculations";
+import {
+  calculateTaxPercentage,
+  calculateSplitShortage,
+  calculateMixedAmountPaid,
+  calculateSalePaymentStatus,
+} from "@/lib/utils/pos-calculations";
 import type { Customer } from "@/lib/types/customer";
 import type { ReceiptTransaction } from "@/components/pos/receipt-view";
 
@@ -86,11 +91,7 @@ export function usePOSPayment({
         return;
       }
     } else if (paymentMethod === "mixed") {
-      const totalSplits = paymentSplits.reduce(
-        (acc, split) => acc + (split.amount || 0),
-        0,
-      );
-      if (totalSplits < total) {
+      if (!calculateSplitShortage(paymentSplits, total).isFullyCovered) {
         toast.error("Mixed payment splits do not cover the total amount");
         return;
       }
@@ -143,7 +144,7 @@ export function usePOSPayment({
           paymentMethod === "cash"
             ? Number.parseFloat(amountPaid) || total
             : paymentMethod === "mixed"
-              ? paymentSplits.reduce((acc, s) => acc + (s.amount || 0), 0)
+              ? calculateMixedAmountPaid(paymentSplits)
               : paymentMethod === "credit"
                 ? 0
                 : total,
@@ -160,7 +161,7 @@ export function usePOSPayment({
         points_earned: earnedPoints,
         points_redeemed: 0,
         payment_method: paymentMethod,
-        payment_status: paymentMethod === "credit" ? "pending" : "completed",
+        payment_status: calculateSalePaymentStatus(paymentMethod, paymentSplits),
         payment_details: JSON.stringify({
           splits: paymentMethod === "mixed" ? paymentSplits : [],
           accountId:

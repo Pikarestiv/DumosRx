@@ -10,6 +10,8 @@ import {
   calculateProportionalRefund,
   calculateNetSaleAmount,
   calculateAvgBasket,
+  calculateMixedAmountPaid,
+  calculateSalePaymentStatus,
 } from '@/lib/utils/pos-calculations';
 
 describe('POS Calculations', () => {
@@ -162,6 +164,53 @@ describe('POS Calculations', () => {
 
     it('returns 0 average when there are no sales today', () => {
       expect(calculateAvgBasket([])).toBe(0);
+    });
+  });
+
+  describe('Mixed-payment amount paid and status (KNOWN_BUGS.md #6)', () => {
+    it('excludes the credit split from amount actually collected', () => {
+      // Regression: a ₦1000 sale split cash ₦600 / credit ₦400 previously
+      // recorded amount_paid as 1000 (the full split sum), making the sale
+      // look fully paid when ₦400 was never actually collected.
+      const splits = [
+        { method: 'cash', amount: 600 },
+        { method: 'credit', amount: 400 },
+      ];
+      expect(calculateMixedAmountPaid(splits)).toBe(600);
+    });
+
+    it('sums all splits when none of them are credit', () => {
+      const splits = [
+        { method: 'cash', amount: 600 },
+        { method: 'card', amount: 400 },
+      ];
+      expect(calculateMixedAmountPaid(splits)).toBe(1000);
+    });
+
+    it('marks a mixed sale with a credit portion as "partial", not "completed"', () => {
+      const splits = [
+        { method: 'cash', amount: 600 },
+        { method: 'credit', amount: 400 },
+      ];
+      expect(calculateSalePaymentStatus('mixed', splits)).toBe('partial');
+    });
+
+    it('marks a mixed sale with no credit portion as "completed"', () => {
+      const splits = [
+        { method: 'cash', amount: 600 },
+        { method: 'card', amount: 400 },
+      ];
+      expect(calculateSalePaymentStatus('mixed', splits)).toBe('completed');
+    });
+
+    it('marks a pure credit sale as "pending" regardless of splits', () => {
+      expect(calculateSalePaymentStatus('credit', [])).toBe('pending');
+    });
+
+    it('marks cash/card/transfer sales as "completed"', () => {
+      expect(calculateSalePaymentStatus('cash', [])).toBe('completed');
+      expect(calculateSalePaymentStatus('card', [])).toBe('completed');
+      expect(calculateSalePaymentStatus('transfer', [])).toBe('completed');
     });
   });
 });

@@ -7,7 +7,12 @@ export async function getCustomers() {
   return query<CustomerDbRow>(
     `SELECT
       c.*,
-      COALESCE(SUM(s.total_amount), 0) as total_spent,
+      COALESCE(SUM(
+        s.total_amount - COALESCE(
+          (SELECT SUM(r.total_refunded) FROM returns r WHERE r.sale_id = s.id AND (r._deleted = 0 OR r._deleted IS NULL)),
+          0
+        )
+      ), 0) as total_spent,
       MAX(s.transaction_date) as last_visit
     FROM customers c
     LEFT JOIN sales s ON c.id = s.customer_id AND s._deleted = 0
@@ -189,7 +194,12 @@ export async function getCustomerRetentionMetrics() {
       SUM(cnt) as total_visits,
       SUM(total_spent) as total_revenue
     FROM (
-      SELECT customer_id, COUNT(*) as cnt, SUM(total_amount) as total_spent
+      SELECT customer_id, COUNT(*) as cnt, SUM(
+        total_amount - COALESCE(
+          (SELECT SUM(r.total_refunded) FROM returns r WHERE r.sale_id = sales.id AND (r._deleted = 0 OR r._deleted IS NULL)),
+          0
+        )
+      ) as total_spent
       FROM sales
       WHERE transaction_date >= ? AND (_deleted = 0 OR _deleted IS NULL) AND customer_id IS NOT NULL${storeId ? " AND store_id = ?" : ""}
       GROUP BY customer_id

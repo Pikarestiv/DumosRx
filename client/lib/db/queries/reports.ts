@@ -35,7 +35,7 @@ export async function getDashboardOverviewData(viewerId?: string) {
       SUM(CASE WHEN payment_method = 'card' THEN total_amount ELSE 0 END) as card,
       SUM(CASE WHEN payment_method = 'credit' THEN total_amount ELSE 0 END) as debt
      FROM sales
-     WHERE date(transaction_date) = ? AND (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}`,
+     WHERE date(transaction_date, 'localtime') = ? AND (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}`,
     storeId ? [today, storeId] : [today],
   );
 
@@ -52,7 +52,7 @@ export async function getDashboardOverviewData(viewerId?: string) {
       SUM(CASE WHEN s.payment_method = 'credit' THEN r.total_refunded ELSE 0 END) as debt
      FROM returns r
      JOIN sales s ON r.sale_id = s.id
-     WHERE date(r.created_at) = ? AND (r._deleted = 0 OR r._deleted IS NULL)${storeId ? " AND r.store_id = ?" : ""}`,
+     WHERE date(r.created_at, 'localtime') = ? AND (r._deleted = 0 OR r._deleted IS NULL)${storeId ? " AND r.store_id = ?" : ""}`,
     storeId ? [today, storeId] : [today],
   );
 
@@ -158,7 +158,7 @@ export async function getDashboardOverviewData(viewerId?: string) {
   const yesterday = `${dateYesterday.getFullYear()}-${String(dateYesterday.getMonth() + 1).padStart(2, '0')}-${String(dateYesterday.getDate()).padStart(2, '0')}`;
 
   const salesYesterday = await query<{ total?: number }>(
-    `SELECT SUM(total_amount) as total FROM sales WHERE date(transaction_date) = ? AND (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}`,
+    `SELECT SUM(total_amount) as total FROM sales WHERE date(transaction_date, 'localtime') = ? AND (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}`,
     storeId ? [yesterday, storeId] : [yesterday],
   );
 
@@ -188,7 +188,7 @@ export async function fetchSalesReportData(dateFrom?: string, dateTo?: string) {
   return query<Record<string, unknown>>(
     `SELECT
       s.transaction_number as "Transaction #",
-      date(s.transaction_date) as "Date",
+      date(s.transaction_date, 'localtime') as "Date",
       COALESCE(c.first_name || ' ' || COALESCE(c.last_name, ''), 'Walk-in') as "Customer",
       s.payment_method as "Payment Method",
       s.subtotal as "Subtotal",
@@ -476,7 +476,7 @@ export async function fetchCustomerReportData() {
       c.credit_limit as "Credit Limit",
       COUNT(s.id) as "Total Purchases",
       SUM(s.total_amount) as "Total Spent",
-      MAX(date(s.transaction_date)) as "Last Purchase"
+      MAX(date(s.transaction_date, 'localtime')) as "Last Purchase"
      FROM customers c
      LEFT JOIN sales s ON s.customer_id = c.id AND s._deleted = 0
      WHERE c._deleted = 0${storeId ? " AND c.store_id = ?" : ""}

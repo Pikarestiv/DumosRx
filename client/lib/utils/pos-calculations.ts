@@ -95,3 +95,37 @@ export function calculateSplitShortage(
     changeDueAmount: Math.max(0, totalSplitAmount - total),
   };
 }
+
+interface PaymentSplit {
+  method: string;
+  amount: number;
+}
+
+/** How much of a mixed-payment sale was actually collected at sale time —
+ * excludes any credit split, since that portion is owed, not paid. Using
+ * the raw split total here (including credit) is what previously made a
+ * mixed sale with an unpaid credit portion look fully paid. */
+export function calculateMixedAmountPaid(splits: PaymentSplit[]): number {
+  return splits.reduce(
+    (acc, s) => acc + (s.method === "credit" ? 0 : s.amount || 0),
+    0,
+  );
+}
+
+/** A mixed sale with a nonzero credit split still owes that amount, so it
+ * must be "partial" — the same status recordCustomerPayment()/
+ * applyCreditPaymentFIFO() already look for — not "completed", or debt
+ * repayment later can never find and settle it. */
+export function calculateSalePaymentStatus(
+  paymentMethod: "cash" | "card" | "transfer" | "credit" | "mixed",
+  splits: PaymentSplit[],
+): "pending" | "partial" | "completed" {
+  if (paymentMethod === "credit") return "pending";
+  if (
+    paymentMethod === "mixed" &&
+    splits.some((s) => s.method === "credit" && (s.amount || 0) > 0)
+  ) {
+    return "partial";
+  }
+  return "completed";
+}

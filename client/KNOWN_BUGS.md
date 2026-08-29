@@ -89,7 +89,11 @@ nothing found gets lost between sessions. Status values: `open`, `fixed`, `flagg
    `SUM(ABS(quantity) * IFNULL(unit_cost, 0))`, so every cycle-count write-off
    contributes ₦0 to that metric regardless of real value, which also corrupts the
    derived `previousVal`/`percentChange`.
-   Status: **open**
+   Status: **fixed** — all three `stock_movements` inserts in
+   `submitStockAudit()` (found-stock-into-existing-batch, found-stock-new-
+   batch, shrinkage-deduction) now set `unit_cost`/`total_cost` from
+   `countedCostPrice ?? systemCostPrice ?? 0`. Regression tests added to
+   `__tests__/stock-audit.test.ts`.
 
 5. **[ESCALATED — see #8] Inventory: per-product "cost price" shown on Cycle Count / Stock Overview is a plain average across batches, not quantity-weighted.**
    `lib/db/queries/products.ts` (two call sites) and `getStockOverviewData` in
@@ -122,7 +126,14 @@ nothing found gets lost between sessions. Status values: `open`, `fixed`, `flagg
    `payment_status` (receipt, sale detail) shows it as fully paid when it wasn't.
    Repro: ₦1000 sale, mixed payment split cash ₦600 / credit ₦400 → `sales.amount_paid
    = 1000`, `payment_status = "completed"`, but `customers.outstanding_balance += 400`.
-   Status: **open**
+   Status: **fixed** — extracted `calculateMixedAmountPaid()` (excludes the
+   credit split) and `calculateSalePaymentStatus()` (returns `"partial"` for
+   a mixed sale with a nonzero credit split) into `pos-calculations.ts`, and
+   used them in `use-pos-payment.ts`'s sale insert. Also consolidated the
+   mixed-payment shortage check in the same file to call the existing
+   `calculateSplitShortage()` helper instead of reimplementing it inline
+   (previously-flagged duplication risk). Regression tests added to
+   `__tests__/pos-calculations.test.ts`.
 
 7. **`getCustomers()`'s `total_spent` doesn't subtract refunds.**
    `lib/db/queries/customers.ts` sums `sales.total_amount` only — `sales.total_amount`
@@ -133,7 +144,13 @@ nothing found gets lost between sessions. Status values: `open`, `fixed`, `flagg
    cause likely affects `getCustomerRetentionMetrics()`'s `total_revenue`/
    `avgTransactionValue` — full impact on reporting is the Reports/Analytics audit's
    territory.
-   Status: **open**
+   Status: **fixed** — both `getCustomers()` and
+   `getCustomerRetentionMetrics()` now subtract a per-sale correlated
+   subquery summing `returns.total_refunded` (excluding soft-deleted
+   returns) before summing across sales. `sales.total_amount` itself is
+   left untouched, matching the existing convention documented in
+   `return-dialog.tsx`. Regression tests:
+   `__tests__/customers-total-spent.test.ts` (new).
 
 ### Reports / Analytics / Dashboard
 
@@ -185,7 +202,19 @@ nothing found gets lost between sessions. Status values: `open`, `fixed`, `flagg
    display-only, not a sum/total, lower severity.
    Fixing the query is sufficient — stored UTC timestamps are correct as-is; no data
    migration needed once comparisons use `'localtime'`.
-   Status: **open**
+   Status: **fixed** — added the `'localtime'` modifier to all 5 affected
+   `date(...)` comparisons in `reports.ts` (Sales Today, Refunds Today, Sales
+   Yesterday, and the two display-only date columns). Verified sql.js (the
+   browser-side SQLite engine) actually honors `'localtime'` based on the
+   environment's real timezone (tested with `TZ=Africa/Lagos`), so this isn't
+   a no-op in the WASM build. Regression test:
+   `__tests__/reports-timezone.test.ts` (new) — confirmed it fails without
+   the fix and passes with it, using a sale timestamped to cross the
+   UTC/Lagos-local midnight boundary. `getBIMetrics`'s `dateFilter`/
+   `prevDateFilter` (rolling N-day windows, not exact-date equality) were
+   checked and don't have this bug — a rolling window's hour-or-two skew at
+   the boundary doesn't misattribute individual transactions the way exact
+   date matching does.
 
 ### Demo account seeding
 

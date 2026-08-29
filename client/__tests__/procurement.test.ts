@@ -261,5 +261,41 @@ describe("procurement.ts", () => {
       const rows = db.exec(`SELECT type FROM purchase_orders WHERE id = '${poId}'`);
       expect(rows[0].values[0][0]).toBe("standard");
     });
+
+    it("accepts a null supplierId for a self/walk-in purchase with no real vendor", async () => {
+      db.run(`INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk) VALUES ('prod1', 'Panadol', 'Tablet', 'Carton', 100)`);
+
+      const poId = await createPurchaseOrder(
+        null,
+        "",
+        [{ product_id: "prod1", product_name: "Panadol", bulk_unit: "Carton", bulk_quantity: 2, units_per_bulk: 100, unit_cost: 500, subtotal: 1000 }],
+      );
+
+      const rows = db.exec(`SELECT supplier_id FROM purchase_orders WHERE id = '${poId}'`);
+      expect(rows[0].values[0][0]).toBeNull();
+    });
+  });
+
+  describe("getPurchaseOrders vendor_name fallback", () => {
+    it("shows 'Self / Walk-in Purchase' when supplier_id is null", async () => {
+      db.run(
+        `INSERT INTO purchase_orders (id, supplier_id, total_amount, created_at) VALUES ('po1', NULL, 5000, '2026-01-01')`,
+      );
+
+      const { data } = await getPurchaseOrders();
+
+      expect(data[0].vendor_name).toBe("Self / Walk-in Purchase");
+    });
+
+    it("shows the real vendor name when supplier_id is set", async () => {
+      db.run(`INSERT INTO suppliers (id, name) VALUES ('sup1', 'Emzor')`);
+      db.run(
+        `INSERT INTO purchase_orders (id, supplier_id, total_amount, created_at) VALUES ('po2', 'sup1', 5000, '2026-01-01')`,
+      );
+
+      const { data } = await getPurchaseOrders();
+
+      expect(data[0].vendor_name).toBe("Emzor");
+    });
   });
 });

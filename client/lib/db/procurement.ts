@@ -10,7 +10,9 @@ export interface PurchaseOrder {
   id: string;
   order_number?: string;
   order_date?: string;
-  supplier_id: string;
+  /** Null for a self/walk-in purchase with no real vendor on file — same
+   * convention as sales.customer_id supporting a null "Walk-in Customer". */
+  supplier_id: string | null;
   status: string;
   type: string;
   total_amount: number;
@@ -121,7 +123,7 @@ export async function getPurchaseOrders(viewerId?: string) {
   const storeId = getActiveStoreId();
   const params = [...(viewerId ? [viewerId] : []), ...(storeId ? [storeId] : [])];
   const results = await query<PurchaseOrder>(
-    `SELECT po.*, v.name as vendor_name,
+    `SELECT po.*, COALESCE(v.name, 'Self / Walk-in Purchase') as vendor_name,
        TRIM(u.first_name || ' ' || u.last_name) as ordered_by_name,
        CASE WHEN EXISTS (
          SELECT 1 FROM stock_movements sm
@@ -141,7 +143,7 @@ export async function getPurchaseOrders(viewerId?: string) {
 
 export async function getPurchaseOrderById(id: string) {
   const po = await query<PurchaseOrder>(
-    `SELECT po.*, v.name as vendor_name,
+    `SELECT po.*, COALESCE(v.name, 'Self / Walk-in Purchase') as vendor_name,
        TRIM(u.first_name || ' ' || u.last_name) as ordered_by_name,
        CASE WHEN EXISTS (
          SELECT 1 FROM stock_movements sm
@@ -170,7 +172,7 @@ export async function getPurchaseOrderById(id: string) {
 }
 
 export async function createPurchaseOrder(
-  supplierId: string,
+  supplierId: string | null,
   notes: string,
   items: DraftPOLineItem[],
   paymentStatus: string = 'unpaid',
@@ -218,7 +220,7 @@ export async function createPurchaseOrder(
 
 export async function updatePurchaseOrder(
   poId: string,
-  supplierId: string,
+  supplierId: string | null,
   notes: string,
   items: DraftPOLineItem[],
   paymentStatus: string = 'unpaid',
@@ -360,7 +362,7 @@ export async function receivePurchaseOrder(id: string, receivedItems?: ReceivedI
  * batches, in a single atomic step. Reuses the exact per-item batch/cost/
  * expiry math receivePurchaseOrder() uses for Standard POs. */
 export async function createAndReceivePurchaseOrder(
-  supplierId: string,
+  supplierId: string | null,
   notes: string,
   items: ImmediateLineItemDraft[],
   paymentStatus: string = 'unpaid',

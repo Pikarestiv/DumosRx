@@ -6,7 +6,7 @@ import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AddProductDialog } from "@/components/products/add-product-dialog";
 import { AddSupplierDialog } from "@/components/suppliers/add-supplier-dialog";
-import { POOrderFormFields } from "@/components/procurement/po-order-form-fields";
+import { POOrderFormFields, SELF_PURCHASE_VENDOR_ID } from "@/components/procurement/po-order-form-fields";
 import { POMobileCreateView } from "@/components/procurement/po-mobile-create-view";
 import { createProduct } from "@/lib/db/local-database";
 import { createPurchaseOrder, createAndReceivePurchaseOrder, createSupplier } from "@/lib/db/procurement";
@@ -116,11 +116,13 @@ export default function CreateOrderPage() {
       return;
     }
 
+    const supplierId = selectedSupplierId === SELF_PURCHASE_VENDOR_ID ? null : selectedSupplierId;
+
     setIsSubmitting(true);
     try {
       if (poType === "immediate") {
         const poId = await createAndReceivePurchaseOrder(
-          selectedSupplierId,
+          supplierId,
           notes,
           items,
           paymentStatus,
@@ -133,7 +135,7 @@ export default function CreateOrderPage() {
         router.push(`/procurement?selected=${poId}`);
       } else {
         const poId = await createPurchaseOrder(
-          selectedSupplierId,
+          supplierId,
           notes,
           items,
           paymentStatus,
@@ -154,6 +156,7 @@ export default function CreateOrderPage() {
   };
 
   const selectedSupplierName = useMemo(() => {
+    if (selectedSupplierId === SELF_PURCHASE_VENDOR_ID) return "Self / Walk-in Purchase";
     return (
       suppliers.find((s) => s.id === selectedSupplierId)?.name ||
       "No vendor selected"

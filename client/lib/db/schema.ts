@@ -381,7 +381,7 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 CREATE TABLE IF NOT EXISTS purchase_orders (
   id TEXT PRIMARY KEY,
   order_number TEXT,
-  supplier_id TEXT NOT NULL,
+  supplier_id TEXT,
   ordered_by TEXT,
   order_date TEXT,
   status TEXT DEFAULT 'pending',

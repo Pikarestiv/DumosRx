@@ -126,4 +126,15 @@ describe("createAndReceivePurchaseOrder", () => {
     const rows = db.exec(`SELECT selling_price FROM products WHERE id = 'prod1'`);
     expect(rows[0].values[0][0]).toBe(75);
   });
+
+  it("accepts a null supplierId for a self/walk-in purchase with no real vendor", async () => {
+    const poId = await createAndReceivePurchaseOrder(
+      null,
+      "",
+      [{ product_id: "prod1", product_name: "Panadol", bulk_unit: "Carton", bulk_quantity: 1, units_per_bulk: 100, unit_cost: 500, subtotal: 500 }],
+    );
+
+    const rows = db.exec(`SELECT supplier_id, status FROM purchase_orders WHERE id = '${poId}'`);
+    expect(rows[0].values[0]).toEqual([null, "received"]);
+  });
 });

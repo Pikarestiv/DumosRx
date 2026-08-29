@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { Plus, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +21,12 @@ interface Supplier {
   id: string;
   name: string;
 }
+
+/** Selecting this represents "no real vendor on file" — maps to a null
+ * supplier_id at submit time (see new/page.tsx, edit/page.tsx), the same
+ * convention sales.customer_id uses for "Walk-in Customer". */
+export const SELF_PURCHASE_VENDOR_ID = "__self__";
+const CREATE_SUPPLIER_OPTION = "__create_supplier__";
 
 interface POOrderFormFieldsProps {
   poType: "standard" | "immediate";
@@ -78,12 +83,13 @@ export function POOrderFormFields({
   onOpenAddSupplier,
   hideTypeToggle,
 }: POOrderFormFieldsProps) {
-  // Controlled so the empty-state "Add a supplier first" link can force this
-  // closed before opening the add-supplier dialog. stopPropagation() on
-  // that click (needed to stop it from also selecting a SelectItem) also
-  // blocks Radix Select's own outside-click-close detection, so left
-  // uncontrolled the popover stayed open behind the dialog and ate its clicks.
-  const [isSelectOpen, setIsSelectOpen] = useState(false);
+  const handleVendorChange = (value: string) => {
+    if (value === CREATE_SUPPLIER_OPTION) {
+      onOpenAddSupplier();
+      return;
+    }
+    setSelectedSupplierId(value);
+  };
 
   return (
     <>
@@ -116,52 +122,26 @@ export function POOrderFormFields({
           <Label className="text-[12.5px] font-semibold text-foreground">
             Select Vendor
           </Label>
-          <div className="flex gap-2">
-            <Select
-              value={selectedSupplierId}
-              onValueChange={setSelectedSupplierId}
-              open={isSelectOpen}
-              onOpenChange={setIsSelectOpen}
-            >
-              <SelectTrigger className="w-full border border-border rounded-[10px] px-3.5 h-11 data-[size=default]:h-11 text-[13px] bg-card shadow-sm">
-                <SelectValue placeholder="Choose a supplier..." />
-              </SelectTrigger>
-              <SelectContent className="bg-card border-border">
-                {suppliers.length === 0 ? (
-                  <div className="py-4 text-center text-[12.5px] text-muted-foreground px-2 flex flex-col items-center justify-center gap-1.5">
-                    <span>No suppliers available</span>
-                    <Button
-                      variant="link"
-                      className="h-auto p-0 text-[11px]"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setIsSelectOpen(false);
-                        onOpenAddSupplier();
-                      }}
-                    >
-                      Add a supplier first
-                    </Button>
-                  </div>
-                ) : (
-                  suppliers.map((v) => (
-                    <SelectItem key={v.id} value={v.id}>
-                      {v.name}
-                    </SelectItem>
-                  ))
-                )}
-              </SelectContent>
-            </Select>
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              className="h-11 w-11 shrink-0 rounded-[10px] border-border bg-card shadow-sm"
-              title="Add New Supplier"
-              onClick={onOpenAddSupplier}
-            >
-              <Plus className="h-4 w-4" />
-            </Button>
-          </div>
+          <Select value={selectedSupplierId} onValueChange={handleVendorChange}>
+            <SelectTrigger className="w-full border border-border rounded-[10px] px-3.5 h-11 data-[size=default]:h-11 text-[13px] bg-card shadow-sm">
+              <SelectValue placeholder="Choose a supplier..." />
+            </SelectTrigger>
+            <SelectContent className="bg-card border-border">
+              <SelectItem value={CREATE_SUPPLIER_OPTION} className="font-semibold text-primary focus:text-primary">
+                <span className="flex items-center gap-1.5">
+                  <Plus className="h-3.5 w-3.5" /> Create Supplier
+                </span>
+              </SelectItem>
+              <SelectItem value={SELF_PURCHASE_VENDOR_ID}>
+                Self / Walk-in Purchase
+              </SelectItem>
+              {suppliers.map((v) => (
+                <SelectItem key={v.id} value={v.id}>
+                  {v.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="space-y-1.5">
           <Label className="text-[12.5px] font-semibold text-foreground">

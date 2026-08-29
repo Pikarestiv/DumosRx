@@ -6,7 +6,7 @@ import { ArrowLeft, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AddProductDialog } from "@/components/products/add-product-dialog";
 import { AddSupplierDialog } from "@/components/suppliers/add-supplier-dialog";
-import { POOrderFormFields } from "@/components/procurement/po-order-form-fields";
+import { POOrderFormFields, SELF_PURCHASE_VENDOR_ID } from "@/components/procurement/po-order-form-fields";
 import {
   createProduct,
   getPurchaseOrderById,
@@ -59,7 +59,7 @@ function EditOrderContent() {
       try {
         const poData = await getPurchaseOrderById(id);
         if (poData) {
-          setSelectedSupplierId(poData.supplier_id);
+          setSelectedSupplierId(poData.supplier_id || SELF_PURCHASE_VENDOR_ID);
           setNotes(poData.notes || "");
           setItems(poData.items || []);
           setPaymentStatus(poData.payment_status || "unpaid");
@@ -138,7 +138,7 @@ function EditOrderContent() {
     try {
       await updatePurchaseOrder(
         id,
-        selectedSupplierId,
+        selectedSupplierId === SELF_PURCHASE_VENDOR_ID ? null : selectedSupplierId,
         notes,
         items,
         paymentStatus,

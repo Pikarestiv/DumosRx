@@ -138,12 +138,12 @@ function AddNewProductOption({
     <div
       onClick={onSelect}
       className={cn(
-        "relative flex cursor-pointer select-none items-center rounded-sm py-2 px-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground",
-        isActive && "bg-accent text-accent-foreground",
+        "relative flex cursor-pointer select-none items-center gap-1.5 rounded-sm py-2 px-2 mb-1 text-sm font-semibold outline-none bg-primary/10 text-primary hover:bg-primary/15",
+        isActive && "bg-primary/20",
       )}
     >
-      <Plus className="mr-2 h-4 w-4 shrink-0" />
-      Add "{value}" as new product
+      <Plus className="h-4 w-4 shrink-0" />
+      Create "{value}" as new product
     </div>
   );
 }

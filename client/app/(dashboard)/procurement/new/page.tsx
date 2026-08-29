@@ -26,7 +26,7 @@ export default function CreateOrderPage() {
   const queryClient = useQueryClient();
 
   const [poType, setPoType] = useState<"standard" | "immediate">("immediate");
-  const [selectedSupplierId, setSelectedSupplierId] = useState("");
+  const [selectedSupplierId, setSelectedSupplierId] = useState(SELF_PURCHASE_VENDOR_ID);
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<POLineItemDraft[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);

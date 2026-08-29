@@ -127,7 +127,7 @@ export function POOrderFormFields({
               <SelectValue placeholder="Choose a supplier..." />
             </SelectTrigger>
             <SelectContent className="bg-card border-border">
-              <SelectItem value={CREATE_SUPPLIER_OPTION} className="font-semibold text-primary focus:text-primary">
+              <SelectItem value={CREATE_SUPPLIER_OPTION} className="font-semibold">
                 <span className="flex items-center gap-1.5">
                   <Plus className="h-3.5 w-3.5" /> Create Supplier
                 </span>

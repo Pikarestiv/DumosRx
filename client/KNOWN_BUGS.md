@@ -73,7 +73,12 @@ nothing found gets lost between sessions. Status values: `open`, `fixed`, `flagg
    existing value.
    Repro: cashier types `50` meaning ₦50 fixed, switches dropdown to "percentage" —
    same `50` is now read as 50% off, silently multiplying the discount.
-   Status: **open**
+   Status: **fixed** — switching the type selector now resets the discount
+   value to 0 instead of reinterpreting it, forcing re-entry in the new
+   type's terms. Also added `min={0}`/clamping and a `max={100}` cap when
+   type is "percentage", to prevent a >100% discount. Verified live: entered
+   ₦200 fixed, switched to %, discount reset to 0 and total returned to full
+   price.
 
 ### Medium
 

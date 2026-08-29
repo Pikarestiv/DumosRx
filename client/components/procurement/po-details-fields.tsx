@@ -1,6 +1,5 @@
 "use client";
 
-import { Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -13,6 +12,7 @@ import {
 } from "@/components/ui/select";
 import { DatePickerInput } from "@/components/ui/date-picker-input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { SupplierCombobox } from "./supplier-combobox";
 
 interface Supplier {
   id: string;
@@ -23,7 +23,6 @@ interface Supplier {
  * supplier_id at submit time (see new/page.tsx, edit/page.tsx), the same
  * convention sales.customer_id uses for "Walk-in Customer". */
 export const SELF_PURCHASE_VENDOR_ID = "__self__";
-const CREATE_SUPPLIER_OPTION = "__create_supplier__";
 
 interface PODetailsFieldsProps {
   poType: "standard" | "immediate";
@@ -70,14 +69,6 @@ export function PODetailsFields({
   onOpenAddSupplier,
   hideTypeToggle,
 }: PODetailsFieldsProps) {
-  const handleVendorChange = (value: string) => {
-    if (value === CREATE_SUPPLIER_OPTION) {
-      onOpenAddSupplier();
-      return;
-    }
-    setSelectedSupplierId(value);
-  };
-
   return (
     <div className="flex flex-col gap-4">
       {!hideTypeToggle && (
@@ -115,29 +106,14 @@ export function PODetailsFields({
           <Label className="text-[12.5px] font-semibold text-foreground">
             Select Vendor
           </Label>
-          <Select value={selectedSupplierId} onValueChange={handleVendorChange}>
-            <SelectTrigger className="w-full border border-border rounded-[10px] px-3.5 h-11 data-[size=default]:h-11 text-[13px] bg-card shadow-sm">
-              <SelectValue placeholder="Choose a supplier..." />
-            </SelectTrigger>
-            <SelectContent className="bg-card border-border">
-              <SelectItem
-                value={CREATE_SUPPLIER_OPTION}
-                className="font-semibold bg-primary/10 text-primary mb-1 cursor-pointer focus:bg-primary/20 focus:text-primary"
-              >
-                <span className="flex items-center gap-1.5">
-                  <Plus className="h-3.5 w-3.5 text-current" /> Create Supplier
-                </span>
-              </SelectItem>
-              <SelectItem value={SELF_PURCHASE_VENDOR_ID}>
-                Self / Walk-in Purchase
-              </SelectItem>
-              {suppliers.map((v) => (
-                <SelectItem key={v.id} value={v.id}>
-                  {v.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <SupplierCombobox
+            value={selectedSupplierId}
+            suppliers={suppliers}
+            onChange={setSelectedSupplierId}
+            onCreateNew={onOpenAddSupplier}
+            selfPurchaseId={SELF_PURCHASE_VENDOR_ID}
+            className="border-border rounded-[10px] px-3.5 h-11 text-[13px] bg-card shadow-sm"
+          />
         </div>
         <div className="space-y-1.5">
           <Label className="text-[12.5px] font-semibold text-foreground">

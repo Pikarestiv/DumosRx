@@ -22,6 +22,7 @@ describe("procurement.ts", () => {
   let getSuppliers: typeof import("@/lib/db/procurement").getSuppliers;
   let getPurchaseOrders: typeof import("@/lib/db/procurement").getPurchaseOrders;
   let getPurchaseOrderItemsForDetail: typeof import("@/lib/db/procurement").getPurchaseOrderItemsForDetail;
+  let createPurchaseOrder: typeof import("@/lib/db/procurement").createPurchaseOrder;
 
   beforeAll(async () => {
     core = await import("@/lib/db/core");
@@ -29,6 +30,7 @@ describe("procurement.ts", () => {
     getSuppliers = procurement.getSuppliers;
     getPurchaseOrders = procurement.getPurchaseOrders;
     getPurchaseOrderItemsForDetail = procurement.getPurchaseOrderItemsForDetail;
+    createPurchaseOrder = procurement.createPurchaseOrder;
 
     const SQL = await initSqlJs({
       locateFile: () => require.resolve("sql.js/dist/sql-wasm.wasm"),
@@ -42,13 +44,16 @@ describe("procurement.ts", () => {
       );
       CREATE TABLE purchase_orders (
         id TEXT PRIMARY KEY, order_number TEXT, supplier_id TEXT, ordered_by TEXT,
-        order_date TEXT, status TEXT DEFAULT 'pending', payment_status TEXT DEFAULT 'unpaid',
+        order_date TEXT, status TEXT DEFAULT 'pending', type TEXT DEFAULT 'standard',
+        payment_status TEXT DEFAULT 'unpaid',
         amount_paid REAL DEFAULT 0, due_date TEXT, total_amount REAL DEFAULT 0, notes TEXT,
-        created_at TEXT, received_at TEXT, _deleted INTEGER DEFAULT 0
+        created_at TEXT, received_at TEXT, updated_at TEXT,
+        _version INTEGER DEFAULT 1, _synced INTEGER DEFAULT 0, _deleted INTEGER DEFAULT 0
       );
       CREATE TABLE purchase_order_items (
         id TEXT PRIMARY KEY, po_id TEXT, product_id TEXT, bulk_quantity INTEGER,
-        units_per_bulk INTEGER, unit_cost REAL, subtotal REAL, created_at TEXT, _deleted INTEGER DEFAULT 0
+        units_per_bulk INTEGER, unit_cost REAL, subtotal REAL, created_at TEXT, updated_at TEXT,
+        _version INTEGER DEFAULT 1, _synced INTEGER DEFAULT 0, _deleted INTEGER DEFAULT 0
       );
       CREATE TABLE products (
         id TEXT PRIMARY KEY, name TEXT, base_unit TEXT, bulk_unit TEXT, units_per_bulk INTEGER
@@ -61,6 +66,14 @@ describe("procurement.ts", () => {
       );
       CREATE TABLE stock_batches (
         id TEXT PRIMARY KEY, expiry_date TEXT
+      );
+      CREATE TABLE _sync_queue (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, table_name TEXT, record_id TEXT,
+        operation TEXT, payload TEXT, created_at TEXT, next_retry_at TEXT
+      );
+      CREATE TABLE audit_logs (
+        id TEXT PRIMARY KEY, user_id TEXT, action TEXT, table_name TEXT,
+        record_id TEXT, details TEXT, created_at TEXT
       );
     `);
     core.__setDatabaseForTesting(db);
@@ -231,6 +244,58 @@ describe("procurement.ts", () => {
           total_price: 5000,
         }),
       ]);
+    });
+  });
+
+  describe("createPurchaseOrder", () => {
+    it("always persists type as 'standard'", async () => {
+      db.run(`INSERT INTO suppliers (id, name) VALUES ('sup1', 'Emzor')`);
+      db.run(`INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk) VALUES ('prod1', 'Panadol', 'Tablet', 'Carton', 100)`);
+
+      const poId = await createPurchaseOrder(
+        "sup1",
+        "",
+        [{ product_id: "prod1", product_name: "Panadol", bulk_unit: "Carton", bulk_quantity: 2, units_per_bulk: 100, unit_cost: 500, subtotal: 1000 }],
+      );
+
+      const rows = db.exec(`SELECT type FROM purchase_orders WHERE id = '${poId}'`);
+      expect(rows[0].values[0][0]).toBe("standard");
+    });
+
+    it("accepts a null supplierId for a self/walk-in purchase with no real vendor", async () => {
+      db.run(`INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk) VALUES ('prod1', 'Panadol', 'Tablet', 'Carton', 100)`);
+
+      const poId = await createPurchaseOrder(
+        null,
+        "",
+        [{ product_id: "prod1", product_name: "Panadol", bulk_unit: "Carton", bulk_quantity: 2, units_per_bulk: 100, unit_cost: 500, subtotal: 1000 }],
+      );
+
+      const rows = db.exec(`SELECT supplier_id FROM purchase_orders WHERE id = '${poId}'`);
+      expect(rows[0].values[0][0]).toBeNull();
+    });
+  });
+
+  describe("getPurchaseOrders vendor_name fallback", () => {
+    it("shows 'Self / Walk-in Purchase' when supplier_id is null", async () => {
+      db.run(
+        `INSERT INTO purchase_orders (id, supplier_id, total_amount, created_at) VALUES ('po1', NULL, 5000, '2026-01-01')`,
+      );
+
+      const { data } = await getPurchaseOrders();
+
+      expect(data[0].vendor_name).toBe("Self / Walk-in Purchase");
+    });
+
+    it("shows the real vendor name when supplier_id is set", async () => {
+      db.run(`INSERT INTO suppliers (id, name) VALUES ('sup1', 'Emzor')`);
+      db.run(
+        `INSERT INTO purchase_orders (id, supplier_id, total_amount, created_at) VALUES ('po2', 'sup1', 5000, '2026-01-01')`,
+      );
+
+      const { data } = await getPurchaseOrders();
+
+      expect(data[0].vendor_name).toBe("Emzor");
     });
   });
 });

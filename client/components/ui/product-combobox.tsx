@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Check, Database, Globe, Plus, X } from "lucide-react";
+import { Check, Database, Globe, Plus, Search, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -35,6 +35,31 @@ interface ProductComboboxProps {
   placeholder?: string;
   disabled?: boolean;
   className?: string;
+  /** When false, the dropdown only shows real catalog matches and the
+   * "create new" fallback — never the static reference-list ("Suggested")
+   * names. Used by PO item search, where catalog results and non-catalog
+   * name suggestions must never appear in the same list. Defaults to true
+   * to preserve existing behavior (e.g. the new-product name field, where
+   * suggesting non-catalog names is exactly the point). */
+  showGlobalSuggestions?: boolean;
+  /** Fired only when the user explicitly clicks "Add "X" as new product",
+   * not on every keystroke. Optional — callers that don't pass it keep the
+   * existing onChange({ source: "new" }) behavior for that click. */
+  onCreateNew?: (name: string) => void;
+  /** When false, never renders the pinned "Create ... as new product" row.
+   * Used where this combobox names a product that's already being created
+   * (the Add/Edit Product dialog's own name field) — offering to "create"
+   * the very product you're naming doesn't make sense there. Defaults to
+   * true everywhere else (e.g. PO item search, where it's the only way to
+   * add a product that isn't in the catalog yet). */
+  showCreateNewOption?: boolean;
+  /** Shows a leading search icon, matching the shared SearchInput
+   * component's look used on other list pages. Hidden below the `sm`
+   * breakpoint to keep the input's typing area from feeling cramped on
+   * phones. Defaults to false to preserve existing callers' appearance
+   * (e.g. the Add/Edit Product dialog's name field, which isn't a search
+   * bar). */
+  showSearchIcon?: boolean;
 }
 
 function SourceBadge({
@@ -127,12 +152,12 @@ function AddNewProductOption({
     <div
       onClick={onSelect}
       className={cn(
-        "relative flex cursor-pointer select-none items-center rounded-sm py-2 px-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground",
-        isActive && "bg-accent text-accent-foreground",
+        "relative flex cursor-pointer select-none items-center gap-1.5 rounded-sm py-2 px-2 mb-1 text-sm font-semibold outline-none bg-primary/10 text-primary hover:bg-primary/15",
+        isActive && "bg-primary/20",
       )}
     >
-      <Plus className="mr-2 h-4 w-4 shrink-0" />
-      Add "{value}" as new product
+      <Plus className="h-4 w-4 shrink-0" />
+      {value ? `Create "${value}" as new product` : "Create New Product"}
     </div>
   );
 }
@@ -144,6 +169,10 @@ export function ProductCombobox({
   placeholder = "Search products...",
   disabled = false,
   className,
+  showGlobalSuggestions = true,
+  onCreateNew,
+  showCreateNewOption = true,
+  showSearchIcon = false,
 }: ProductComboboxProps) {
   const [open, setOpen] = React.useState(false);
   const containerRef = React.useRef<HTMLDivElement>(null);
@@ -161,6 +190,7 @@ export function ProductCombobox({
 
   // Compile global suggestions
   const globalSuggestions = React.useMemo(() => {
+    if (!showGlobalSuggestions) return [];
     const list: SelectedProduct[] = [];
     const source = isPharmacy
       ? FORM_SUGGESTIONS.store
@@ -185,7 +215,7 @@ export function ProductCombobox({
       });
     }
     return list;
-  }, [isPharmacy]);
+  }, [isPharmacy, showGlobalSuggestions]);
 
   // Map local products
   const localSuggestions = React.useMemo(() => {
@@ -241,6 +271,9 @@ export function ProductCombobox({
   return (
     <div className="relative w-full" ref={containerRef}>
       <div className="relative">
+        {showSearchIcon && (
+          <Search className="hidden sm:block absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+        )}
         <Input
           value={value}
           onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
@@ -273,7 +306,12 @@ export function ProductCombobox({
           placeholder={placeholder}
           disabled={disabled}
           autoComplete="off"
-          className={cn("w-full", value && !disabled && "pr-8", className)}
+          className={cn(
+            "w-full",
+            showSearchIcon && "sm:pl-9",
+            value && !disabled && "pr-8",
+            className,
+          )}
         />
         {value && !disabled && (
           <button
@@ -291,9 +329,31 @@ export function ProductCombobox({
         )}
       </div>
 
-      {open && filteredOptions.length > 0 && (
+      {open && (showCreateNewOption || filteredOptions.length > 0) && (
         <div className="absolute z-[999] w-full mt-1 bg-popover text-popover-foreground shadow-xl rounded-md border border-border outline-none animate-in fade-in-0 zoom-in-95 overflow-hidden">
           <div className="max-h-[300px] overflow-y-auto hide-scrollbar p-1">
+            {/* Always pinned above matches, whether or not anything is typed:
+             * with no text it opens an empty "Add New Product" form (a real
+             * discoverable entry point, not a dead end); once text exists the
+             * label switches to reflect it, and it stays pinned regardless of
+             * whether a fuzzy match happens to also exist below it. Suppressed
+             * entirely when this combobox is itself the name field of the
+             * product being created (showCreateNewOption=false) — "create the
+             * product you're naming" is not a meaningful action there. */}
+            {showCreateNewOption && (
+              <AddNewProductOption
+                value={value}
+                isActive={activeIndex === -1}
+                onSelect={() => {
+                  if (onCreateNew) {
+                    onCreateNew(value);
+                  } else {
+                    onChange({ name: value, source: "new" });
+                  }
+                  setOpen(false);
+                }}
+              />
+            )}
             {filteredOptions.map((option, idx) => (
               <ProductComboboxItem
                 key={`${option.source}_${option.name}_${idx}`}
@@ -306,16 +366,6 @@ export function ProductCombobox({
                 }}
               />
             ))}
-            {value && filteredOptions.length === 0 && (
-              <AddNewProductOption
-                value={value}
-                isActive={activeIndex === filteredOptions.length}
-                onSelect={() => {
-                  onChange({ name: value, source: "new" });
-                  setOpen(false);
-                }}
-              />
-            )}
           </div>
         </div>
       )}

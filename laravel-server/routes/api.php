@@ -77,6 +77,7 @@ Route::prefix('v1')->group(function () {
     Route::middleware(['auth:sanctum', 'account_status', \App\Http\Middleware\EnsureEmailIsVerified::class, 'throttle:60,1'])->group(function () {
         Route::post('/logout', [AuthController::class, 'logout']);
         Route::get('/user', [AuthController::class, 'user']);
+        Route::get('/account-manager', [\App\Http\Controllers\Api\AccountManagerController::class, 'show']);
         Route::post('/refresh', [AuthController::class, 'refresh']);
         Route::prefix('profile')->group(function () {
             Route::post('/update', [AuthController::class, 'updateProfile']);
@@ -162,6 +163,8 @@ Route::prefix('v1')->group(function () {
             Route::get('/referral-code/check', [AdminController::class, 'checkReferralCode']);
             Route::post('/referral-code', [AdminController::class, 'updateReferralCode']);
             Route::post('/stores/{id}/impersonate', [AdminController::class, 'impersonateStore']);
+            Route::put('/stores/{id}/account-manager', [AdminController::class, 'updateAccountManager']);
+            Route::get('/account-managers', [AdminController::class, 'accountManagerCandidates']);
 
             // Email Templates
             Route::apiResource('email-templates', \App\Http\Controllers\Api\Admin\EmailTemplateController::class)->only(['index', 'show', 'update']);

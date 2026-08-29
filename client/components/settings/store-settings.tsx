@@ -10,6 +10,7 @@ import { PaymentSettingsCard } from "./store/payment-settings-card";
 import { PaymentAccountsCard } from "./store/payment-accounts-card";
 import { MultiStoreCard } from "./store/multi-store-card";
 import { FleetOverview } from "./store/fleet-overview";
+import { ContactSpecialistCard } from "./store/contact-specialist-card";
 
 interface StoreSettingsProps {
   storeType: StoreType;
@@ -100,6 +101,8 @@ export function StoreSettings({
         storeType={storeType}
         handleSwitchVertical={handleSwitchVertical}
       />
+
+      <ContactSpecialistCard />
 
       <BusinessInformationCard
         storeType={storeType}

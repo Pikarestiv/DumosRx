@@ -255,7 +255,7 @@ class AdminService
         //    Without this fallback, a store's revenue depends entirely on
         //    whether Sale::sales() alone is used, which used to miss
         //    every owner-rung-up sale outright.
-        $query = Store::with(['user.subscriptions'])
+        $query = Store::with(['user.subscriptions', 'user.accountManager', 'user.registeredBy'])
             ->addSelect(['total_revenue' => DB::table('sales')
                 ->selectRaw('COALESCE(SUM(sales.total_amount), 0)')
                 ->where(function ($q) {
@@ -309,6 +309,8 @@ class AdminService
                     $plan = $sub->plan_name;
                 }
 
+                $manager = \App\Http\Controllers\Api\AccountManagerController::resolveFor($store->user);
+
                 return [
                     'id' => $store->id,
                     'name' => $store->name,
@@ -320,6 +322,15 @@ class AdminService
                     'revenue' => '₦'.number_format($store->total_revenue ?? 0),
                     'date' => $store->created_at->format('M d, Y'),
                     'is_demo' => (bool) $store->is_demo,
+                    'account_manager' => $manager ? [
+                        'id' => $manager->id,
+                        'name' => trim("{$manager->first_name} {$manager->last_name}"),
+                    ] : null,
+                    // Whether account_manager above came from an explicit
+                    // reassignment vs. falling back to registered_by_id/the
+                    // platform default - lets the admin UI show "(default)"
+                    // instead of implying every store was manually assigned.
+                    'account_manager_is_explicit' => (bool) ($store->user?->account_manager_id),
                 ];
             }),
             'meta' => [
@@ -648,6 +659,23 @@ class AdminService
             'users' => $users,
             'products' => $products,
         ];
+    }
+
+    /** Platform staff eligible to be a store's "contact specialist" /
+     * account manager - unpaginated (platform headcount is small), unlike
+     * getGlobalUsers() below which lists every account on the platform. */
+    public function getAccountManagerCandidates()
+    {
+        return User::whereIn('role', ['super_admin', 'platform_admin', 'agent'])
+            ->orderBy('first_name')
+            ->get(['id', 'first_name', 'last_name', 'email', 'phone', 'role'])
+            ->map(fn ($u) => [
+                'id' => $u->id,
+                'name' => trim("{$u->first_name} {$u->last_name}"),
+                'email' => $u->email,
+                'phone' => $u->phone,
+                'role' => $u->role,
+            ]);
     }
 
     public function getGlobalUsers($page = 1, $search = null)

@@ -765,6 +765,65 @@ class AdminController extends Controller
         }
     }
 
+    #[OA\Put(
+        path: '/admin/stores/{id}/account-manager',
+        summary: "Reassign a store account's contact specialist / account manager",
+        description: 'Separate from registered_by_id (referral attribution) - see User::accountManager(). Pass account_manager_id: null to clear the explicit assignment and fall back to registered_by_id / the platform default.',
+        tags: ['Admin'],
+        security: [['sanctum' => []]],
+        parameters: [new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'string'))],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
+            properties: [new OA\Property(property: 'account_manager_id', type: 'string', format: 'uuid', nullable: true)],
+        )),
+        responses: [
+            new OA\Response(response: 200, description: 'Reassigned', content: new OA\JsonContent(ref: '#/components/schemas/MessageOnly')),
+            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Non-super_admin'),
+            new OA\Response(response: 422, ref: '#/components/responses/ValidationError'),
+        ],
+    )]
+    #[OA\Get(
+        path: '/admin/account-managers',
+        summary: 'List platform staff eligible to be a contact specialist / account manager',
+        tags: ['Admin'],
+        security: [['sanctum' => []]],
+        responses: [
+            new OA\Response(response: 200, description: 'List', content: new OA\JsonContent(properties: [
+                new OA\Property(property: 'data', type: 'array', items: new OA\Items(type: 'object')),
+            ])),
+            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Non-super_admin'),
+        ],
+    )]
+    public function accountManagerCandidates(Request $request)
+    {
+        if (!$request->user()->hasRole('super_admin')) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        return response()->json(['data' => $this->adminService->getAccountManagerCandidates()]);
+    }
+
+    public function updateAccountManager(Request $request, $id)
+    {
+        if (!$request->user()->hasRole('super_admin')) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        $validated = $request->validate([
+            'account_manager_id' => 'nullable|exists:users,id',
+        ]);
+
+        $store = \App\Models\Store::findOrFail($id);
+        $owner = $store->user;
+        if (!$owner) {
+            return response()->json(['error' => 'Store owner not found.'], 404);
+        }
+
+        $owner->account_manager_id = $validated['account_manager_id'] ?? null;
+        $owner->save();
+
+        return response()->json(['message' => 'Account manager updated successfully']);
+    }
+
     #[OA\Delete(
         path: '/admin/users/{id}',
         summary: 'Permanently delete a user and all associated data',

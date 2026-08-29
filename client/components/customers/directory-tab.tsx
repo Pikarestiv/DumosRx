@@ -9,6 +9,8 @@ import { ResponsiveDetailPanel } from "@/components/ui/responsive-detail-panel";
 import { formatCurrency } from "@/lib/utils";
 import { CustomerDetailPanel } from "./customer-detail-panel";
 import { CustomerMobileRow, CustomerDesktopRow } from "./customer-list-rows";
+import { SortableHeaderCell } from "@/components/ui/sortable-header-cell";
+import { useSortableData } from "@/lib/hooks/use-sortable-data";
 
 // Matches the row's px-4 py-2.5 padding + single line of 13.5px/12px text.
 const DESKTOP_ROW_HEIGHT = 56;
@@ -53,11 +55,21 @@ export function DirectoryTab({
 
   const desktopScrollRef = useRef<HTMLDivElement>(null);
 
-  const filteredCustomers = useMemo(() => {
+  const filteredByChip = useMemo(() => {
     if (filter === "debt") return customers.filter((c) => c.outstanding_balance > 0);
     if (filter === "loyalty") return customers.filter((c) => c.points > 0);
     return customers;
   }, [customers, filter]);
+
+  const { sortKey, direction, toggleSort, sortedData: filteredCustomers } =
+    useSortableData(filteredByChip, {
+      name: (c: Customer) => c.name.toLowerCase(),
+      contact: (c: Customer) => (c.email || c.phone || "").toLowerCase(),
+      tier: (c: Customer) => c.tier.toLowerCase(),
+      points: (c: Customer) => c.points,
+      balance: (c: Customer) => c.outstanding_balance,
+      lastVisit: (c: Customer) => c.lastVisit || "",
+    });
 
   const rowVirtualizer = useVirtualizer({
     count: filteredCustomers.length,
@@ -164,12 +176,45 @@ export function DirectoryTab({
 
         {/* Desktop table header */}
         <div className="hidden lg:grid grid-cols-[1.6fr_1.1fr_80px_70px_100px_110px] gap-2 px-4 py-2 text-[10.5px] font-bold text-muted-foreground uppercase tracking-wide border-b">
-          <div>Customer</div>
-          <div>Contact</div>
-          <div>Tier</div>
-          <div className="text-right">Points</div>
-          <div className="text-right">Balance</div>
-          <div className="text-right">Last Visit</div>
+          <SortableHeaderCell
+            label="Customer"
+            active={sortKey === "name"}
+            direction={direction}
+            onClick={() => toggleSort("name")}
+          />
+          <SortableHeaderCell
+            label="Contact"
+            active={sortKey === "contact"}
+            direction={direction}
+            onClick={() => toggleSort("contact")}
+          />
+          <SortableHeaderCell
+            label="Tier"
+            active={sortKey === "tier"}
+            direction={direction}
+            onClick={() => toggleSort("tier")}
+          />
+          <SortableHeaderCell
+            label="Points"
+            active={sortKey === "points"}
+            direction={direction}
+            onClick={() => toggleSort("points")}
+            className="justify-end"
+          />
+          <SortableHeaderCell
+            label="Balance"
+            active={sortKey === "balance"}
+            direction={direction}
+            onClick={() => toggleSort("balance")}
+            className="justify-end"
+          />
+          <SortableHeaderCell
+            label="Last Visit"
+            active={sortKey === "lastVisit"}
+            direction={direction}
+            onClick={() => toggleSort("lastVisit")}
+            className="justify-end"
+          />
         </div>
 
         <div ref={desktopScrollRef} className="overflow-y-auto flex-1">

@@ -1,7 +1,15 @@
 "use client";
 
-import { Users } from "lucide-react";
+import { useState } from "react";
+import { Users, Pencil, Check, X } from "lucide-react";
+import { toast } from "sonner";
 import type { SupplierViewModel } from "@/lib/types/supplier";
+import { SortableHeaderCell } from "@/components/ui/sortable-header-cell";
+import { EditableNumberCell } from "@/components/ui/editable-number-cell";
+import { update } from "@/lib/db/local-database";
+import type { SortDirection } from "@/lib/hooks/use-sortable-data";
+
+type SupplierSortKey = "name" | "contact" | "totalOrders" | "rating" | "totalValue";
 
 interface SupplierTableProps {
   suppliers: SupplierViewModel[];
@@ -10,15 +18,11 @@ interface SupplierTableProps {
   isFuzzyFallback?: boolean;
   selectedSupplierId?: string;
   onRowClick?: (supplier: SupplierViewModel) => void;
+  sortKey: SupplierSortKey | null;
+  sortDirection: SortDirection;
+  onToggleSort: (key: SupplierSortKey) => void;
+  onSupplierUpdated: () => void;
 }
-
-const COLUMNS = [
-  { label: "Supplier", className: "w-[1.3fr]" },
-  { label: "Contact", className: "w-[1fr]" },
-  { label: "Orders", className: "w-[90px]" },
-  { label: "Rating", className: "w-[90px]" },
-  { label: "Total Value", className: "w-[100px]" },
-];
 
 function EmptyState() {
   return (
@@ -37,7 +41,33 @@ export function SupplierTable({
   isFuzzyFallback,
   selectedSupplierId,
   onRowClick,
+  sortKey,
+  sortDirection,
+  onToggleSort,
+  onSupplierUpdated,
 }: SupplierTableProps) {
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draftRating, setDraftRating] = useState(0);
+
+  const startQuickEdit = (supplier: SupplierViewModel) => {
+    setEditingId(supplier.id);
+    setDraftRating(supplier.rating);
+  };
+
+  const saveQuickEdit = async (supplier: SupplierViewModel) => {
+    try {
+      await update("suppliers", supplier.id, {
+        rating: Math.min(5, Math.max(0, draftRating)),
+      });
+      toast.success(`${supplier.name} updated`);
+      onSupplierUpdated();
+    } catch {
+      toast.error("Failed to update supplier. Please try again.");
+    } finally {
+      setEditingId(null);
+    }
+  };
+
   return (
     <div className="w-full">
       {isFuzzyFallback && suppliers.length > 0 && (
@@ -99,17 +129,44 @@ export function SupplierTable({
         <div role="rowgroup">
           <div
             role="row"
-            className="grid grid-cols-[1.3fr_1fr_90px_90px_100px] gap-2 px-4 border-b border-border"
+            className="grid grid-cols-[1.3fr_1fr_90px_90px_100px_28px] gap-2 px-4 border-b border-border text-[11px] font-bold text-muted-foreground uppercase tracking-wide"
           >
-            {COLUMNS.map((col) => (
-              <div
-                key={col.label}
-                role="columnheader"
-                className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide h-11 flex items-center"
-              >
-                {col.label}
-              </div>
-            ))}
+            <SortableHeaderCell
+              label="Supplier"
+              active={sortKey === "name"}
+              direction={sortDirection}
+              onClick={() => onToggleSort("name")}
+              className="h-11"
+            />
+            <SortableHeaderCell
+              label="Contact"
+              active={sortKey === "contact"}
+              direction={sortDirection}
+              onClick={() => onToggleSort("contact")}
+              className="h-11"
+            />
+            <SortableHeaderCell
+              label="Orders"
+              active={sortKey === "totalOrders"}
+              direction={sortDirection}
+              onClick={() => onToggleSort("totalOrders")}
+              className="h-11"
+            />
+            <SortableHeaderCell
+              label="Rating"
+              active={sortKey === "rating"}
+              direction={sortDirection}
+              onClick={() => onToggleSort("rating")}
+              className="h-11"
+            />
+            <SortableHeaderCell
+              label="Total Value"
+              active={sortKey === "totalValue"}
+              direction={sortDirection}
+              onClick={() => onToggleSort("totalValue")}
+              className="h-11"
+            />
+            <div />
           </div>
         </div>
 
@@ -123,19 +180,22 @@ export function SupplierTable({
           )}
           {suppliers.map((supplier) => {
             const isSelected = selectedSupplierId === supplier.id;
+            const isEditingRow = editingId === supplier.id;
             return (
               <div
                 key={supplier.id}
                 role="row"
                 tabIndex={0}
-                onClick={() => onRowClick?.(supplier)}
+                onClick={() => {
+                  if (!isEditingRow) onRowClick?.(supplier);
+                }}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
+                  if (!isEditingRow && (e.key === "Enter" || e.key === " ")) {
                     e.preventDefault();
                     onRowClick?.(supplier);
                   }
                 }}
-                className={`grid grid-cols-[1.3fr_1fr_90px_90px_100px] gap-2 items-center px-4 py-[14px] border-b border-border/50 cursor-pointer transition-colors group ${
+                className={`group grid grid-cols-[1.3fr_1fr_90px_90px_100px_28px] gap-2 items-center px-4 py-[14px] border-b border-border/50 cursor-pointer transition-colors ${
                   isSelected ? "bg-primary/10 hover:bg-primary/10" : "hover:bg-primary/5"
                 }`}
               >
@@ -167,16 +227,68 @@ export function SupplierTable({
                     {supplier.totalOrders}
                   </div>
                 </div>
-                <div role="cell">
-                  <div className="flex text-amber-500 text-[13px] tracking-widest">
-                    {getRatingStars(supplier.rating)}
+                {isEditingRow ? (
+                  <div role="cell" onClick={(e) => e.stopPropagation()}>
+                    <EditableNumberCell
+                      value={draftRating}
+                      onCommit={setDraftRating}
+                      parse={parseFloat}
+                      step="0.5"
+                      min={0}
+                      widthClassName="w-16"
+                      autoFocus
+                    />
                   </div>
-                </div>
+                ) : (
+                  <div role="cell">
+                    <div className="flex text-amber-500 text-[13px] tracking-widest">
+                      {getRatingStars(supplier.rating)}
+                    </div>
+                  </div>
+                )}
                 <div role="cell">
                   <div className="font-semibold text-foreground text-[13px]">
                     {formatCurrency(supplier.totalValue)}
                   </div>
                 </div>
+                {isEditingRow ? (
+                  <div
+                    role="cell"
+                    className="flex items-center gap-1"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => saveQuickEdit(supplier)}
+                      className="p-1 rounded text-emerald-600 hover:bg-emerald-500/10"
+                      title="Save"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditingId(null)}
+                      className="p-1 rounded text-muted-foreground hover:bg-muted"
+                      title="Cancel"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <div role="cell">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        startQuickEdit(supplier);
+                      }}
+                      className="p-1 rounded text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-muted hover:text-foreground transition-opacity"
+                      title="Quick edit rating"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })}

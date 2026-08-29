@@ -21,6 +21,7 @@ import { FilterPill, formatFilterLabel } from "@/components/ui/filter-pill";
 import { ManageCategoriesDialog } from "./manage-categories-dialog";
 import { ResponsiveDetailPanel } from "@/components/ui/responsive-detail-panel";
 import { queryKeys } from "@/lib/query-keys";
+import { useSortableData } from "@/lib/hooks/use-sortable-data";
 
 export function ProductDatabase() {
   const { storeType } = useStore();
@@ -136,11 +137,21 @@ export function ProductDatabase() {
     return matchesCategory && matchesStatus;
   });
 
-  const { results: filteredProducts, isFuzzyFallback } = genericFuzzySearch(
+  const { results: searchedProducts, isFuzzyFallback } = genericFuzzySearch(
     searchTerm,
     preFilteredProducts,
     ["name", "genericName", "nafdacNumber", "barcode", "id"],
   );
+
+  const { sortKey, direction, toggleSort, sortedData: filteredProducts } =
+    useSortableData(searchedProducts, {
+      name: (p: Product) => p.name.toLowerCase(),
+      category: (p: Product) => p.category.toLowerCase(),
+      costPrice: (p: Product) => p.costPrice,
+      sellingPrice: (p: Product) => p.sellingPrice,
+      stockQuantity: (p: Product) => p.stockQuantity,
+      reorderLevel: (p: Product) => p.reorderLevel,
+    });
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-NG", {
@@ -204,6 +215,10 @@ export function ProductDatabase() {
             formatCurrency={formatCurrency}
             onSelectProduct={setSelectedProduct}
             selectedProductId={selectedProduct?.id}
+            sortKey={sortKey}
+            sortDirection={direction}
+            onToggleSort={toggleSort}
+            onProductUpdated={refetch}
           />
         </div>
       </div>

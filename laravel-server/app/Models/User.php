@@ -40,6 +40,7 @@ class User extends Authenticatable
         'referral_credits',
         'platform_referral_code',
         'registered_by_id',
+        'account_manager_id',
     ];
 
     /**
@@ -249,6 +250,18 @@ class User extends Authenticatable
     public function registeredAccounts()
     {
         return $this->hasMany(User::class, 'registered_by_id');
+    }
+
+    /** The platform staff member shown to this store as its "contact
+     * specialist"/account manager. Deliberately separate from
+     * registeredBy(): a superadmin reassigning who handles an account must
+     * never rewrite registered_by_id, since that also drives referral
+     * attribution reporting. Resolution order (see
+     * AccountManagerController::resolveFor()) is account_manager_id ->
+     * registered_by_id -> the default_account_manager_id system config. */
+    public function accountManager()
+    {
+        return $this->belongsTo(User::class, 'account_manager_id');
     }
 
     public function creditTransactions()

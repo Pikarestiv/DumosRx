@@ -49,13 +49,15 @@ export function useMonthlySalesData(dateFilter: string) {
       const expenseItem = rawExpenseData.find((d) => d.month === monthKey);
 
       const rawRevenue = salesItem?.revenue || 0;
+      const rawTax = salesItem?.tax || 0;
       const rawCogs = salesItem?.cogs || 0;
-      
+
       const refundAmount = returnsItem?.refunds || 0;
       const returnedCogs = returnsItem?.returned_cogs || 0;
       const expenses = expenseItem?.expenses || 0;
 
-      const netRevenue = rawRevenue - refundAmount;
+      // Tax collected is pass-through, not real revenue - see use-bi-data.ts.
+      const netRevenue = rawRevenue - rawTax - refundAmount;
       const netCogs = rawCogs - returnedCogs;
       const grossProfit = netRevenue - netCogs;
       const netProfit = grossProfit - expenses;

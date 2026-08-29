@@ -316,6 +316,7 @@ export async function initDatabase(): Promise<any> {
         "amount_paid REAL DEFAULT 0",
         "due_date TEXT",
         "store_id TEXT",
+        "type TEXT DEFAULT 'standard'",
       ],
     },
     {
@@ -671,6 +672,53 @@ export async function initDatabase(): Promise<any> {
         console.error("Failed to migrate users username uniqueness constraint", e);
       }
 
+      // Relax purchase_orders.supplier_id to nullable, so an Immediate
+      // Purchase can be recorded without a real vendor (self/walk-in
+      // purchase) the same way sales.customer_id already supports a null
+      // "Walk-in Customer". SQLite can't ALTER a column's NOT NULL
+      // constraint, so recreate the table; runs after the syncColumns loop
+      // above so the `type` column already exists to carry over.
+      try {
+        const tableInfo = await db.select(
+          "SELECT sql FROM sqlite_master WHERE type='table' AND name='purchase_orders'"
+        );
+        const poTableSql = tableInfo?.[0]?.sql || "";
+        if (poTableSql && /supplier_id\s+TEXT\s+NOT\s+NULL/i.test(poTableSql)) {
+          await db.execute(`
+            CREATE TABLE purchase_orders_nullable_supplier (
+              id TEXT PRIMARY KEY,
+              order_number TEXT,
+              supplier_id TEXT,
+              ordered_by TEXT,
+              order_date TEXT,
+              status TEXT DEFAULT 'pending',
+              type TEXT DEFAULT 'standard',
+              payment_status TEXT DEFAULT 'unpaid',
+              amount_paid REAL DEFAULT 0,
+              due_date TEXT,
+              total_amount REAL DEFAULT 0,
+              notes TEXT,
+              created_at TEXT,
+              received_at TEXT,
+              updated_at TEXT,
+              store_id TEXT,
+              _version INTEGER DEFAULT 1,
+              _synced INTEGER DEFAULT 0,
+              _synced_at TEXT,
+              _deleted INTEGER DEFAULT 0
+            )
+          `);
+          await db.execute(`
+            INSERT INTO purchase_orders_nullable_supplier (id, order_number, supplier_id, ordered_by, order_date, status, type, payment_status, amount_paid, due_date, total_amount, notes, created_at, received_at, updated_at, store_id, _version, _synced, _synced_at, _deleted)
+            SELECT id, order_number, supplier_id, ordered_by, order_date, status, type, payment_status, amount_paid, due_date, total_amount, notes, created_at, received_at, updated_at, store_id, _version, _synced, _synced_at, _deleted FROM purchase_orders
+          `);
+          await db.execute("DROP TABLE purchase_orders");
+          await db.execute("ALTER TABLE purchase_orders_nullable_supplier RENAME TO purchase_orders");
+        }
+      } catch (e) {
+        console.error("Failed to relax purchase_orders.supplier_id to nullable", e);
+      }
+
       // One-off data clearing for legacy transactions (retaining products, batches, users, and settings)
       try {
         const hasClearedLegacy = typeof window !== "undefined" && window.localStorage
@@ -933,6 +981,53 @@ export async function initDatabase(): Promise<any> {
       }
     } catch (e) {
       console.error("Failed to migrate users username uniqueness constraint", e);
+    }
+
+    // Relax purchase_orders.supplier_id to nullable, so an Immediate
+    // Purchase can be recorded without a real vendor (self/walk-in
+    // purchase) the same way sales.customer_id already supports a null
+    // "Walk-in Customer". SQLite can't ALTER a column's NOT NULL
+    // constraint, so recreate the table; runs after the syncColumns loop
+    // above so the `type` column already exists to carry over.
+    try {
+      const tableInfoRes = db.exec(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='purchase_orders'"
+      );
+      const poTableSql = tableInfoRes?.[0]?.values?.[0]?.[0] || "";
+      if (poTableSql && /supplier_id\s+TEXT\s+NOT\s+NULL/i.test(String(poTableSql))) {
+        db.run(`
+          CREATE TABLE purchase_orders_nullable_supplier (
+            id TEXT PRIMARY KEY,
+            order_number TEXT,
+            supplier_id TEXT,
+            ordered_by TEXT,
+            order_date TEXT,
+            status TEXT DEFAULT 'pending',
+            type TEXT DEFAULT 'standard',
+            payment_status TEXT DEFAULT 'unpaid',
+            amount_paid REAL DEFAULT 0,
+            due_date TEXT,
+            total_amount REAL DEFAULT 0,
+            notes TEXT,
+            created_at TEXT,
+            received_at TEXT,
+            updated_at TEXT,
+            store_id TEXT,
+            _version INTEGER DEFAULT 1,
+            _synced INTEGER DEFAULT 0,
+            _synced_at TEXT,
+            _deleted INTEGER DEFAULT 0
+          )
+        `);
+        db.run(`
+          INSERT INTO purchase_orders_nullable_supplier (id, order_number, supplier_id, ordered_by, order_date, status, type, payment_status, amount_paid, due_date, total_amount, notes, created_at, received_at, updated_at, store_id, _version, _synced, _synced_at, _deleted)
+          SELECT id, order_number, supplier_id, ordered_by, order_date, status, type, payment_status, amount_paid, due_date, total_amount, notes, created_at, received_at, updated_at, store_id, _version, _synced, _synced_at, _deleted FROM purchase_orders
+        `);
+        db.run("DROP TABLE purchase_orders");
+        db.run("ALTER TABLE purchase_orders_nullable_supplier RENAME TO purchase_orders");
+      }
+    } catch (e) {
+      console.error("Failed to relax purchase_orders.supplier_id to nullable", e);
     }
 
     // One-off data clearing for legacy transactions (retaining products, batches, users, and settings)

@@ -15,6 +15,7 @@ import { SupplierDetailPane } from "./supplier-detail-pane";
 import { SupplierTable } from "./supplier-table";
 import { SupplierStatusFilter } from "./supplier-status-filter";
 import { genericFuzzySearch } from "@/lib/utils/search";
+import { useSortableData } from "@/lib/hooks/use-sortable-data";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { toast } from "sonner";
 import { usePullToRefreshHandler } from "@/lib/context/pull-to-refresh-context";
@@ -97,11 +98,21 @@ export function SupplierManagement() {
     return true;
   });
 
-  const { results: filteredSuppliers, isFuzzyFallback } = genericFuzzySearch(
+  const { results: searchedSuppliers, isFuzzyFallback } = genericFuzzySearch(
     searchTerm,
     preFilteredSuppliers,
     ["name", "contactPerson"],
   );
+
+  const { sortKey, direction, toggleSort, sortedData: filteredSuppliers } =
+    useSortableData(searchedSuppliers, {
+      name: (s: SupplierViewModel) => s.name.toLowerCase(),
+      contact: (s: SupplierViewModel) =>
+        (s.contactPerson || s.email || s.phone || "").toLowerCase(),
+      totalOrders: (s: SupplierViewModel) => s.totalOrders,
+      rating: (s: SupplierViewModel) => s.rating,
+      totalValue: (s: SupplierViewModel) => s.totalValue,
+    });
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-NG", {
@@ -179,6 +190,10 @@ export function SupplierManagement() {
               isFuzzyFallback={isFuzzyFallback}
               selectedSupplierId={selectedSupplier?.id}
               onRowClick={(supplier) => setSelectedSupplierId(supplier.id)}
+              sortKey={sortKey}
+              sortDirection={direction}
+              onToggleSort={toggleSort}
+              onSupplierUpdated={fetchSuppliers}
             />
           </div>
         </div>

@@ -8,6 +8,7 @@ import { SalesAnalyticsTab } from "./sales-analytics-tab";
 import { ProfitLossTab } from "./profit-loss-tab";
 import { StockBatchInsightsTab } from "./stock-batch-insights-tab";
 import { CustomerBehaviorTab } from "./customer-behavior-tab";
+import { StaffPerformanceTab } from "./staff-performance-tab";
 import { AnalyticsTabNav } from "./analytics-tab-nav";
 
 export function BusinessIntelligenceDashboard() {
@@ -16,12 +17,15 @@ export function BusinessIntelligenceDashboard() {
     setTimeRange,
     exporting,
     handleExportReports,
+    grossSales,
+    netSales,
     totalRevenue,
     totalTransactions,
     stock_batchValue,
     activeCustomers,
     monthlySalesData,
-    topSellingProducts,
+    productPerformance,
+    cashierPerformance,
     salesByCategory,
     formattedCategoryData,
     totalCogs,
@@ -74,14 +78,15 @@ export function BusinessIntelligenceDashboard() {
         <TabsContent value="sales" className="space-y-6 mt-0">
           <SalesAnalyticsTab
             monthlySalesData={monthlySalesData}
-            topSellingProducts={topSellingProducts}
+            productPerformance={productPerformance}
             formattedCategoryData={formattedCategoryData}
           />
         </TabsContent>
 
         <TabsContent value="profit-loss" className="space-y-6 mt-0">
           <ProfitLossTab
-            totalRevenue={totalRevenue}
+            grossSales={grossSales}
+            netSales={netSales}
             totalCogs={totalCogs}
             totalExpenses={totalExpenses}
             grossProfit={grossProfit}
@@ -102,6 +107,10 @@ export function BusinessIntelligenceDashboard() {
             customerMetrics={liveCustomerMetrics}
             purchasePatterns={purchasePatterns}
           />
+        </TabsContent>
+
+        <TabsContent value="staff" className="space-y-6 mt-0">
+          <StaffPerformanceTab cashierPerformance={cashierPerformance} />
         </TabsContent>
       </Tabs>
     </div>

@@ -41,11 +41,23 @@ export function useBIData(externalTimeRange?: string) {
     queryFn: () => getBIMetrics(dateFilter, prevDateFilter)
   });
 
-  const totalRevenue = (metrics?.revenueData[0]?.total || 0) - (metrics?.totalRefundsData[0]?.total || 0);
+  // Gross Sales: list-price total before discount, tax, or refunds.
+  const grossSales = metrics?.grossSalesData[0]?.total || 0;
+  const totalTax = metrics?.taxData[0]?.total || 0;
+  const totalRefunds = metrics?.totalRefundsData[0]?.total || 0;
+  // Net Sales: what the business actually keeps after discounts (already
+  // baked into total_amount), tax collected on the government's behalf
+  // (not real revenue), and refunds.
+  const netSales = (metrics?.revenueData[0]?.total || 0) - totalTax - totalRefunds;
+  // totalRevenue kept as an alias for netSales, not a separate tax-inclusive
+  // figure: every consumer of this hook (BIKeyMetrics' "Total Revenue" card,
+  // avg-transaction-value, revenue-change %) should read the corrected,
+  // tax-excluded number now, not the old tax-inclusive one.
+  const totalRevenue = netSales;
   const totalCogs = (metrics?.cogsData[0]?.total || 0) - (metrics?.returnedCogsData[0]?.total || 0);
   const totalExpenses = metrics?.expensesData[0]?.total || 0;
 
-  const grossProfit = totalRevenue - totalCogs;
+  const grossProfit = netSales - totalCogs;
   const netProfit = grossProfit - totalExpenses;
 
   const totalTransactions = metrics?.transactionData[0]?.count || 0;
@@ -92,6 +104,25 @@ export function useBIData(externalTimeRange?: string) {
       quantity: metrics?.topSellingByQuantity || [],
     }),
     [metrics?.topSellingByRevenue, metrics?.topSellingByQuantity],
+  );
+
+  const productPerformance = useMemo(
+    () =>
+      (metrics?.productPerformance || []).map((p) => ({
+        ...p,
+        margin: p.revenue > 0 ? ((p.revenue - p.cost) / p.revenue) * 100 : 0,
+      })),
+    [metrics?.productPerformance],
+  );
+
+  const cashierPerformance = useMemo(
+    () =>
+      (metrics?.cashierPerformance || []).map((c) => ({
+        ...c,
+        avgTransaction:
+          c.transactionCount > 0 ? c.totalSales / c.transactionCount : 0,
+      })),
+    [metrics?.cashierPerformance],
   );
 
   const colors = ["#0ea5e9", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"];
@@ -148,6 +179,8 @@ export function useBIData(externalTimeRange?: string) {
 
   return {
     timeRange,
+    grossSales,
+    netSales,
     totalRevenue,
     revenueChange,
     totalCogs,
@@ -164,6 +197,8 @@ export function useBIData(externalTimeRange?: string) {
     retentionRate,
     monthlySalesData,
     topSellingProducts,
+    productPerformance,
+    cashierPerformance,
     formattedCategoryData,
     salesByCategory: categoryDistribution,
     stock_batchAlerts,

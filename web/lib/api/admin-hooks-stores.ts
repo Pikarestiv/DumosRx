@@ -26,6 +26,37 @@ export const useAdminStores = (page = 1, search = "", status = "", plan = "") =>
   });
 };
 
+export interface AccountManagerCandidate {
+  id: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  role: string;
+}
+
+export const useAccountManagerCandidates = () => {
+  return useQuery({
+    queryKey: useScopedKey(["account-manager-candidates"]),
+    queryFn: () =>
+      webApiClient.request<{ data: AccountManagerCandidate[] }>("admin/account-managers"),
+    staleTime: 5 * 60 * 1000,
+  });
+};
+
+export const useUpdateAccountManagerMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ storeId, accountManagerId }: { storeId: string; accountManagerId: string | null }) =>
+      webApiClient.request<unknown>(`admin/stores/${storeId}/account-manager`, {
+        method: "PUT",
+        body: { account_manager_id: accountManagerId },
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-stores"] });
+    },
+  });
+};
+
 export const useAdminProducts = (page = 1, search = "", category = "") => {
   return useQuery({
     queryKey: useScopedKey(["admin-products", page, search, category]),

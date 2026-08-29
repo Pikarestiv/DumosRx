@@ -30,6 +30,12 @@ export function AnalyticsTabNav() {
         >
           <ResponsiveTabLabel short="Customers" long="Customer Behaviour" />
         </TabsTrigger>
+        <TabsTrigger
+          value="staff"
+          className="px-4 py-2 rounded-lg text-[13px] font-semibold whitespace-nowrap shrink-0 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground"
+        >
+          <ResponsiveTabLabel short="Staff" long="Staff Performance" />
+        </TabsTrigger>
       </TabsList>
     </div>
   );

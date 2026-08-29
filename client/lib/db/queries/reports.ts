@@ -276,6 +276,14 @@ export async function getBIMetrics(dateFilter: string, prevDateFilter: string) {
 
   // Current Period
   const revenueData = await query<{ total: number }>(`SELECT SUM(total_amount) as total FROM sales WHERE transaction_date >= ? AND (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}`, s1);
+  // Gross Sales: list-price total before any discount, tax, or refund -
+  // subtotal is captured pre-discount at sale time (see pos-calculations.ts:
+  // total_amount = subtotal + tax_amount - discount_total).
+  const grossSalesData = await query<{ total: number }>(`SELECT SUM(subtotal) as total FROM sales WHERE transaction_date >= ? AND (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}`, s1);
+  // Tax collected is pass-through, not real business revenue - subtracted
+  // out of total_amount to get Net Sales (see getBIMetrics's totalRevenue
+  // caller, use-bi-data.ts).
+  const taxData = await query<{ total: number }>(`SELECT SUM(tax_amount) as total FROM sales WHERE transaction_date >= ? AND (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}`, s1);
   const totalRefundsData = await query<{ total: number }>(`SELECT SUM(total_refunded) as total FROM returns WHERE created_at >= ? AND (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}`, s1);
   const cogsData = await query<{ total: number }>(`SELECT SUM(si.cost_price * si.quantity) as total FROM sale_items si JOIN sales s ON si.sale_id = s.id WHERE s.transaction_date >= ? AND (s._deleted = 0 OR s._deleted IS NULL)${storeId ? " AND s.store_id = ?" : ""}`, s1);
   const returnedCogsData = await query<{ total: number }>(`SELECT SUM(ri.quantity * IFNULL((SELECT AVG(cost_price) FROM stock_batches WHERE product_id = m.id AND is_active = 1), 0)) as total FROM return_items ri JOIN returns r ON ri.return_id = r.id LEFT JOIN products m ON ri.product_id = m.id WHERE r.created_at >= ? AND (r._deleted = 0 OR r._deleted IS NULL)${storeId ? " AND r.store_id = ?" : ""}`, s1);
@@ -304,11 +312,57 @@ export async function getBIMetrics(dateFilter: string, prevDateFilter: string) {
   const topSellingByQuantity = await query<{ name: string; sales: number; units: number; category: string; }>(`SELECT m.name, SUM(si.total_price) as sales, SUM(si.quantity) as units, COALESCE(c.name, 'Uncategorized') as category FROM sale_items si JOIN products m ON si.product_id = m.id LEFT JOIN categories c ON m.category_id = c.id JOIN sales s ON si.sale_id = s.id WHERE s.transaction_date >= ? AND s._deleted = 0${storeId ? " AND s.store_id = ?" : ""} GROUP BY m.id ORDER BY units DESC LIMIT 5`, s1);
   const categoryDistribution = await query<{ name: string; value: number; }>(`SELECT COALESCE(c.name, 'Uncategorized') as name, SUM(si.total_price) as value FROM sale_items si JOIN products m ON si.product_id = m.id LEFT JOIN categories c ON m.category_id = c.id JOIN sales s ON si.sale_id = s.id WHERE s.transaction_date >= ? AND s._deleted = 0${storeId ? " AND s.store_id = ?" : ""} GROUP BY COALESCE(c.name, 'Uncategorized')`, s1);
 
+  // Full product performance (not top-N): revenue/units/cost per product so
+  // the UI can sort by any column and compute margin. Doesn't net returns
+  // against a specific product, matching the existing top-selling queries
+  // above (they don't either) - the store-wide returnedCogsData/refunds
+  // above already cover the aggregate P&L correction.
+  const productPerformance = await query<{
+    id: string;
+    name: string;
+    category: string;
+    revenue: number;
+    units: number;
+    cost: number;
+  }>(
+    `SELECT m.id, m.name, COALESCE(c.name, 'Uncategorized') as category,
+       SUM(si.total_price) as revenue, SUM(si.quantity) as units,
+       SUM(si.cost_price * si.quantity) as cost
+     FROM sale_items si
+     JOIN products m ON si.product_id = m.id
+     LEFT JOIN categories c ON m.category_id = c.id
+     JOIN sales s ON si.sale_id = s.id
+     WHERE s.transaction_date >= ? AND s._deleted = 0${storeId ? " AND s.store_id = ?" : ""}
+     GROUP BY m.id
+     ORDER BY revenue DESC`,
+    s1,
+  );
+
+  // Per-cashier performance: mirrors productPerformance's shape/scope
+  // (no refund netting, same as the rest of this dashboard's per-entity
+  // breakdowns).
+  const cashierPerformance = await query<{
+    id: string;
+    name: string;
+    transactionCount: number;
+    totalSales: number;
+  }>(
+    `SELECT u.id, TRIM(u.first_name || ' ' || u.last_name) as name,
+       COUNT(*) as transactionCount, SUM(s.total_amount) as totalSales
+     FROM sales s
+     JOIN users u ON u.id = s.user_id
+     WHERE s.transaction_date >= ? AND s._deleted = 0${storeId ? " AND s.store_id = ?" : ""}
+     GROUP BY u.id
+     ORDER BY totalSales DESC`,
+    s1,
+  );
+
   return {
-    revenueData, totalRefundsData, cogsData, returnedCogsData, expensesData,
+    revenueData, grossSalesData, taxData, totalRefundsData, cogsData, returnedCogsData, expensesData,
     transactionData, stock_batchValueData, customerData, loyaltyData, retentionData,
     prevRevenueData, prevTransactionData, prevCustomerData,
-    topSellingByRevenue, topSellingByQuantity, categoryDistribution
+    topSellingByRevenue, topSellingByQuantity, categoryDistribution,
+    productPerformance, cashierPerformance
   };
 }
 
@@ -316,9 +370,21 @@ export async function getAdvancedMonthlySalesData(dateFilter: string) {
   const storeId = getActiveStoreId();
   const p1 = storeId ? [dateFilter, storeId] : [dateFilter];
 
-  const rawMonthlyData = await query<{ month: string; revenue: number; cogs: number; transactions: number; }>(
-    `SELECT strftime('%Y-%m', s.transaction_date) as month, SUM(s.total_amount) as revenue, SUM(si.cost_price * si.quantity) as cogs, COUNT(DISTINCT s.id) as transactions FROM sales s LEFT JOIN sale_items si ON s.id = si.sale_id WHERE s.transaction_date >= ? AND (s._deleted = 0 OR s._deleted IS NULL)${storeId ? " AND s.store_id = ?" : ""} GROUP BY strftime('%Y-%m', s.transaction_date) ORDER BY strftime('%Y-%m', s.transaction_date) ASC`, p1
+  // Note: SUM(si.cost_price * si.quantity) alongside SUM(s.total_amount) in
+  // one query double-counts total_amount/tax_amount once per sale_items row
+  // (the LEFT JOIN fans sales out per item) - split into two queries to
+  // avoid that, matching the non-monthly getBIMetrics queries above which
+  // already keep sales-level and sale_items-level aggregates separate.
+  const rawMonthlySales = await query<{ month: string; revenue: number; tax: number; transactions: number; }>(
+    `SELECT strftime('%Y-%m', s.transaction_date) as month, SUM(s.total_amount) as revenue, SUM(s.tax_amount) as tax, COUNT(*) as transactions FROM sales s WHERE s.transaction_date >= ? AND (s._deleted = 0 OR s._deleted IS NULL)${storeId ? " AND s.store_id = ?" : ""} GROUP BY strftime('%Y-%m', s.transaction_date) ORDER BY strftime('%Y-%m', s.transaction_date) ASC`, p1
   );
+  const rawMonthlyCogs = await query<{ month: string; cogs: number; }>(
+    `SELECT strftime('%Y-%m', s.transaction_date) as month, SUM(si.cost_price * si.quantity) as cogs FROM sale_items si JOIN sales s ON s.id = si.sale_id WHERE s.transaction_date >= ? AND (s._deleted = 0 OR s._deleted IS NULL)${storeId ? " AND s.store_id = ?" : ""} GROUP BY strftime('%Y-%m', s.transaction_date)`, p1
+  );
+  const rawMonthlyData = rawMonthlySales.map((s) => ({
+    ...s,
+    cogs: rawMonthlyCogs.find((c) => c.month === s.month)?.cogs || 0,
+  }));
 
   const rawMonthlyReturns = await query<{ month: string; refunds: number; returned_cogs: number; }>(
     `SELECT strftime('%Y-%m', r.created_at) as month, SUM(r.total_refunded) as refunds, SUM(ri.quantity * IFNULL((SELECT AVG(cost_price) FROM stock_batches WHERE product_id = m.id AND is_active = 1), 0)) as returned_cogs FROM returns r LEFT JOIN return_items ri ON ri.return_id = r.id LEFT JOIN products m ON ri.product_id = m.id WHERE r.created_at >= ? AND (r._deleted = 0 OR r._deleted IS NULL)${storeId ? " AND r.store_id = ?" : ""} GROUP BY strftime('%Y-%m', r.created_at) ORDER BY strftime('%Y-%m', r.created_at) ASC`, p1

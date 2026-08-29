@@ -1,6 +1,18 @@
 import { query } from "@/lib/db/local-database";
 import type { AuditLogRow } from "@/lib/types/audit-log";
 
+export type ActivityLogSortKey = "created_at" | "action" | "user_name";
+
+// Whitelisted, not interpolated from arbitrary caller input: sortKey/
+// sortDirection end up inside the SQL string directly (SQLite doesn't
+// support parameterized ORDER BY column/direction), so only values that
+// resolve through this map/ternary can ever reach the query.
+const SORT_COLUMNS: Record<ActivityLogSortKey, string> = {
+  created_at: "al.created_at",
+  action: "al.action",
+  user_name: "user_name",
+};
+
 export interface ActivityLogFilters {
   from?: string;
   to?: string;
@@ -10,6 +22,8 @@ export interface ActivityLogFilters {
   tableName?: string;
   page?: number;
   pageSize?: number;
+  sortKey?: ActivityLogSortKey;
+  sortDirection?: "asc" | "desc";
 }
 
 export interface ActivityLogResult {
@@ -25,7 +39,7 @@ export interface ActivityLogResult {
 export async function getActivityLog(
   filters: ActivityLogFilters = {},
 ): Promise<ActivityLogResult> {
-  const { from, to, action, userId, role, tableName, page = 1, pageSize = 50 } = filters;
+  const { from, to, action, userId, role, tableName, page = 1, pageSize = 50, sortKey = "created_at", sortDirection = "desc" } = filters;
 
   const conditions: string[] = ["(al._deleted = 0 OR al._deleted IS NULL)"];
   const params: (string | number)[] = [];
@@ -67,12 +81,14 @@ export async function getActivityLog(
   const total = countResult[0]?.count || 0;
 
   const offset = Math.max(0, (page - 1) * pageSize);
+  const orderColumn = SORT_COLUMNS[sortKey] ?? SORT_COLUMNS.created_at;
+  const orderDir = sortDirection === "asc" ? "ASC" : "DESC";
   const rows = await query<AuditLogRow>(
     `SELECT al.*, TRIM(u.first_name || ' ' || u.last_name) as user_name
      FROM audit_logs al
      LEFT JOIN users u ON u.id = al.user_id
      WHERE ${where}
-     ORDER BY al.created_at DESC
+     ORDER BY ${orderColumn} ${orderDir}
      LIMIT ? OFFSET ?`,
     [...params, pageSize, offset],
   );

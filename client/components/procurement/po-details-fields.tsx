@@ -2,6 +2,7 @@
 
 import { Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -87,6 +88,7 @@ export function PODetailsFields({
           <Tabs
             value={poType}
             onValueChange={(val) => setPoType(val as "immediate" | "standard")}
+            className="w-fit"
           >
             <TabsList>
               <TabsTrigger
@@ -108,7 +110,7 @@ export function PODetailsFields({
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="space-y-1.5">
           <Label className="text-[12.5px] font-semibold text-foreground">
             Select Vendor
@@ -137,20 +139,6 @@ export function PODetailsFields({
             </SelectContent>
           </Select>
         </div>
-        <div className="space-y-1.5">
-          <Label className="text-[12.5px] font-semibold text-foreground">
-            Internal Notes
-          </Label>
-          <Input
-            placeholder="Ref. # or special instructions"
-            className="w-full border border-border rounded-[10px] px-3.5 h-11 text-[13px] bg-card shadow-sm"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <Label className="text-[12.5px] font-semibold text-foreground">
             Payment Status
@@ -182,7 +170,7 @@ export function PODetailsFields({
       </div>
 
       {paymentStatus !== "unpaid" && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="space-y-1.5">
             <Label className="text-[12.5px] font-semibold text-foreground">
               Amount Paid (
@@ -199,6 +187,18 @@ export function PODetailsFields({
           </div>
         </div>
       )}
+
+      <div className="space-y-1.5">
+        <Label className="text-[12.5px] font-semibold text-foreground">
+          Internal Notes
+        </Label>
+        <Textarea
+          placeholder="Ref. # or special instructions"
+          className="w-full border border-border rounded-[10px] px-3.5 py-2.5 text-[13px] bg-card shadow-sm min-h-[90px] resize-none"
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+        />
+      </div>
     </div>
   );
 }

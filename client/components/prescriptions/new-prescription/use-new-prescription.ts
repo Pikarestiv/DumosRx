@@ -10,6 +10,7 @@ import { getPrescriptionById, getPrescriptionItems, updatePrescriptionRecord, de
 import { queryKeys } from "@/lib/query-keys";
 import type { PrescriptionItem, PrescriptionPriority, PrescriptionRow } from "@/lib/types/prescription";
 import { toPrescriptionPriority } from "@/lib/types/prescription";
+import { calculatePrescriptionItemCost } from "@/lib/utils/prescription-calculations";
 
 export interface AvailablePrescriptionProduct {
   name: string;
@@ -26,7 +27,7 @@ export interface NewMedicationForm {
   instructions: string;
   refillsAuthorized: number | "";
   refillIntervalDays: number | "";
-  cost: number | "";
+  unitCost: number | "";
 }
 
 export interface PrescriptionMedication {
@@ -36,6 +37,8 @@ export interface PrescriptionMedication {
   dosage: string;
   quantity: number;
   instructions: string;
+  unitCost: number;
+  /** Always unitCost * quantity — computed, never independently entered. */
   cost: number;
   refillsAuthorized: number;
   refillIntervalDays: number;
@@ -95,7 +98,7 @@ export function useNewPrescription() {
     instructions: "",
     refillsAuthorized: 0,
     refillIntervalDays: 30,
-    cost: "",
+    unitCost: "",
   });
 
   useEffect(() => {
@@ -119,17 +122,25 @@ export function useNewPrescription() {
             priority: toPrescriptionPriority(prescription.priority),
             insurance: prescription.insurance || "",
             notes: prescription.notes || "",
-            medications: itemsData.map((item: PrescriptionItem) => ({
-              id: item.id,
-              productName: item.product_name,
-              strength: item.strength || "",
-              dosage: item.dosage || "",
-              quantity: item.quantity || 1,
-              instructions: item.instructions || "",
-              cost: item.cost || 0,
-              refillsAuthorized: item.refills_authorized || 0,
-              refillIntervalDays: item.refill_interval_days || 30,
-            })),
+            medications: itemsData.map((item: PrescriptionItem) => {
+              const quantity = item.quantity || 1;
+              const cost = item.cost || 0;
+              // Older records predate the unit_cost column — derive it from
+              // the stored total so editing still prefills something sane.
+              const unitCost = item.unit_cost || (quantity > 0 ? cost / quantity : 0);
+              return {
+                id: item.id,
+                productName: item.product_name,
+                strength: item.strength || "",
+                dosage: item.dosage || "",
+                quantity,
+                instructions: item.instructions || "",
+                unitCost,
+                cost,
+                refillsAuthorized: item.refills_authorized || 0,
+                refillIntervalDays: item.refill_interval_days || 30,
+              };
+            }),
           });
         } catch (error) {
           console.error("Failed to fetch prescription to edit", error);
@@ -161,14 +172,18 @@ export function useNewPrescription() {
       return;
     }
 
+    const quantity = Number(newMedication.quantity);
+    const unitCost = newMedication.unitCost !== "" ? Number(newMedication.unitCost) : product.cost;
+
     const medication: PrescriptionMedication = {
       id: generateId(),
       productName: newMedication.productName,
       strength: newMedication.strength,
       dosage: newMedication.dosage,
-      quantity: Number(newMedication.quantity),
+      quantity,
       instructions: newMedication.instructions,
-      cost: newMedication.cost !== "" ? Number(newMedication.cost) : (product.cost * Number(newMedication.quantity)),
+      unitCost,
+      cost: calculatePrescriptionItemCost(unitCost, quantity),
       refillsAuthorized: Number(newMedication.refillsAuthorized) || 0,
       refillIntervalDays: Number(newMedication.refillIntervalDays) || 30,
     };
@@ -186,7 +201,7 @@ export function useNewPrescription() {
       instructions: "",
       refillsAuthorized: 0,
       refillIntervalDays: 30,
-      cost: "",
+      unitCost: "",
     });
   };
 
@@ -208,7 +223,7 @@ export function useNewPrescription() {
         instructions: medToEdit.instructions,
         refillsAuthorized: medToEdit.refillsAuthorized,
         refillIntervalDays: medToEdit.refillIntervalDays,
-        cost: medToEdit.cost,
+        unitCost: medToEdit.unitCost,
       });
       removeMedication(id);
     }
@@ -297,6 +312,7 @@ export function useNewPrescription() {
               quantity: med.quantity,
               instructions: med.instructions,
               cost: med.cost,
+              unit_cost: med.unitCost,
               refills_authorized: med.refillsAuthorized,
               refill_interval_days: med.refillIntervalDays,
               next_refill_date: nextRefillDate.toISOString(),
@@ -347,6 +363,7 @@ export function useNewPrescription() {
             quantity: med.quantity,
             instructions: med.instructions,
             cost: med.cost,
+            unit_cost: med.unitCost,
             refills_authorized: med.refillsAuthorized,
             refill_interval_days: med.refillIntervalDays,
             next_refill_date: nextRefillDate.toISOString(),

@@ -198,6 +198,7 @@ CREATE TABLE IF NOT EXISTS prescription_items (
   quantity INTEGER,
   instructions TEXT,
   cost REAL DEFAULT 0,
+  unit_cost REAL DEFAULT 0,
   refills_authorized INTEGER DEFAULT 0,
   refills_used INTEGER DEFAULT 0,
   refill_interval_days INTEGER DEFAULT 30,

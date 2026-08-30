@@ -254,6 +254,7 @@ export async function initDatabase(): Promise<any> {
         "quantity INTEGER DEFAULT 0",
         "instructions TEXT",
         "cost REAL DEFAULT 0",
+        "unit_cost REAL DEFAULT 0",
         "store_id TEXT",
       ],
     },

@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Pill, Plus, Trash2 } from "lucide-react";
 import { Combobox } from "@/components/ui/combobox";
 import { getCurrencySymbol } from "@/lib/utils";
+import { calculatePrescriptionItemCost } from "@/lib/utils/prescription-calculations";
 import { useStore } from "@/lib/context/store-context";
 import type {
   NewPrescriptionForm,
@@ -139,19 +140,36 @@ export function PrescriptionMedications({
             </div>
 
             <div className="space-y-2">
-              <Label>Total Cost ({currencySymbol})</Label>
+              <Label>Unit Cost ({currencySymbol})</Label>
               <Input
                 type="number"
-                value={newMedication.cost}
+                value={newMedication.unitCost}
                 onChange={(e) => {
                   const val = e.target.value;
                   setNewMedication((prev: NewMedicationForm) => ({
                     ...prev,
-                    cost: val === "" ? "" : Number.parseFloat(val) || 0,
+                    unitCost: val === "" ? "" : Number.parseFloat(val) || 0,
                   }));
                 }}
                 min="0"
-                placeholder="Leave empty to auto-calculate"
+                placeholder="Leave empty to use catalog price"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Total Cost ({currencySymbol})</Label>
+              <Input
+                type="number"
+                value={
+                  newMedication.unitCost !== "" && newMedication.quantity !== ""
+                    ? calculatePrescriptionItemCost(
+                        Number(newMedication.unitCost),
+                        Number(newMedication.quantity),
+                      )
+                    : ""
+                }
+                disabled
+                placeholder="Unit cost × quantity"
               />
             </div>
 

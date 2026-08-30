@@ -52,6 +52,8 @@ class Store extends Model
         'enabled_payment_methods',
         'online_store_enabled',
         'custom_units',
+        'require_sale_notes',
+        'display_stock_levels',
     ];
 
     protected $casts = [
@@ -60,6 +62,8 @@ class Store extends Model
         'require_payment_account' => 'boolean',
         'online_store_enabled' => 'boolean',
         'is_demo' => 'boolean',
+        'require_sale_notes' => 'boolean',
+        'display_stock_levels' => 'boolean',
         'last_sync_at' => 'datetime',
         '_synced_at' => 'datetime',
     ];

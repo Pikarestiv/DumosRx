@@ -52,6 +52,8 @@ export interface StoreProfile {
   last_monotonic_time?: string;
   device_id?: string;
   is_demo?: number;
+  require_sale_notes?: number;
+  display_stock_levels?: number;
 }
 
 interface StoreContextType {

@@ -428,6 +428,8 @@ export async function initDatabase(): Promise<any> {
         "registration_number TEXT",
         "custom_units TEXT DEFAULT '[]'",
         "is_demo INTEGER DEFAULT 0",
+        "require_sale_notes INTEGER DEFAULT 0",
+        "display_stock_levels INTEGER DEFAULT 1",
       ],
     },
     {

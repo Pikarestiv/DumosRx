@@ -320,7 +320,9 @@ CREATE TABLE IF NOT EXISTS stores (
   enabled_payment_methods TEXT DEFAULT '["cash","card","transfer","credit","mixed"]',
   online_store_enabled INTEGER DEFAULT 0,
   custom_units TEXT DEFAULT '[]',
-  is_demo INTEGER DEFAULT 0
+  is_demo INTEGER DEFAULT 0,
+  require_sale_notes INTEGER DEFAULT 0,
+  display_stock_levels INTEGER DEFAULT 1
 );
 
 CREATE TABLE IF NOT EXISTS expenses (

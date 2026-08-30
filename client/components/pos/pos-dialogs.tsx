@@ -30,11 +30,14 @@ interface POSDialogsProps {
   setSelectedAccountId: (id: string) => void;
   paymentSplits: PaymentSplit[];
   setPaymentSplits: (splits: PaymentSplit[]) => void;
+  saleNote: string;
+  setSaleNote: (note: string) => void;
   processingPayment: boolean;
   handlePayment: () => void;
   selectedCustomer: Customer | null;
   currencyCode?: string;
   requirePaymentAccount: boolean;
+  requireSaleNotes: boolean;
   enabledPaymentMethods: string[];
   paymentAccounts: PaymentAccount[];
   showReceiptDialog: boolean;
@@ -68,11 +71,14 @@ export function POSDialogs({
   setSelectedAccountId,
   paymentSplits,
   setPaymentSplits,
+  saleNote,
+  setSaleNote,
   processingPayment,
   handlePayment,
   selectedCustomer,
   currencyCode,
   requirePaymentAccount,
+  requireSaleNotes,
   enabledPaymentMethods,
   paymentAccounts,
   showReceiptDialog,
@@ -109,11 +115,14 @@ export function POSDialogs({
         setSelectedAccountId={setSelectedAccountId}
         paymentSplits={paymentSplits}
         setPaymentSplits={setPaymentSplits}
+        saleNote={saleNote}
+        setSaleNote={setSaleNote}
         processingPayment={processingPayment}
         handlePayment={handlePayment}
         selectedCustomer={selectedCustomer}
         currencyCode={currencyCode}
         requirePaymentAccount={requirePaymentAccount}
+        requireSaleNotes={requireSaleNotes}
         enabledPaymentMethods={enabledPaymentMethods}
         paymentAccounts={paymentAccounts}
       />

@@ -33,6 +33,7 @@ interface UsePOSPaymentProps {
   refetchProducts: () => void;
   refetchSales?: () => void;
   requirePaymentAccount?: boolean;
+  requireSaleNotes?: boolean;
   dispensedRxId?: string | null;
   setDispensedRxId?: (id: string | null) => void;
   isRefillDispense?: boolean;
@@ -53,6 +54,7 @@ export function usePOSPayment({
   refetchProducts,
   refetchSales,
   requirePaymentAccount = false,
+  requireSaleNotes = false,
   dispensedRxId,
   setDispensedRxId,
   isRefillDispense = false,
@@ -61,6 +63,7 @@ export function usePOSPayment({
     "cash" | "card" | "transfer" | "credit" | "mixed"
   >("cash");
   const [amountPaid, setAmountPaid] = useState("");
+  const [saleNote, setSaleNote] = useState("");
   const [selectedAccountId, setSelectedAccountId] = useState<string>("");
   const [paymentSplits, setPaymentSplits] = useState<
     { method: string; amount: number; accountId?: string }[]
@@ -77,12 +80,18 @@ export function usePOSPayment({
       setAmountPaid("");
       setSelectedAccountId("");
       setPaymentSplits([]);
+      setSaleNote("");
     }
   }, [cart.length]);
 
   const handlePayment = async () => {
     if (!paymentMethod) {
       toast.error("Please select a payment method");
+      return;
+    }
+
+    if (requireSaleNotes && !saleNote.trim()) {
+      toast.error("Please add a note for this sale");
       return;
     }
 
@@ -176,7 +185,7 @@ export function usePOSPayment({
         }),
         transaction_date: new Date().toISOString(),
         receipt_printed: 0,
-        notes: "POS Sale",
+        notes: saleNote.trim() || "POS Sale",
         prescription_id: dispensedRxId || null,
       });
 
@@ -324,6 +333,7 @@ export function usePOSPayment({
       setAmountPaid("");
       setSelectedAccountId("");
       setPaymentSplits([]);
+      setSaleNote("");
 
       // Update prescription status if this was a dispensed prescription
       if (dispensedRxId) {
@@ -355,6 +365,8 @@ export function usePOSPayment({
     setSelectedAccountId,
     paymentSplits,
     setPaymentSplits,
+    saleNote,
+    setSaleNote,
     processingPayment,
     handlePayment,
     completedTransaction,

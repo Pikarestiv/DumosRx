@@ -32,6 +32,7 @@ interface POSProductListProps {
   cart?: CartItem[];
   canUseSmartSuggestions?: boolean;
   onUpgradeClick?: () => void;
+  displayStockLevels?: boolean;
 }
 
 function POSProductCard({
@@ -39,11 +40,13 @@ function POSProductCard({
   currencyCode,
   addToCart,
   cartQuantity = 0,
+  displayStockLevels = true,
 }: {
   product: GroupedProduct;
   currencyCode?: string;
   addToCart: (product: POSProduct) => void;
   cartQuantity?: number;
+  displayStockLevels?: boolean;
 }) {
   let indicator = null;
   let cardStyle =
@@ -109,17 +112,19 @@ function POSProductCard({
         <div className="text-[12px] sm:text-[13.5px] font-bold text-primary">
           {formatCurrency(product.unit_price, currencyCode)}
         </div>
-        <div
-          className={`text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 rounded-md ${
-            isOutOfStock
-              ? "bg-destructive/10 text-destructive"
-              : isLowStock
-                ? "bg-amber-500/10 text-amber-600"
-                : "bg-emerald-500/10 text-emerald-600"
-          }`}
-        >
-          {isOutOfStock ? "Out of stock" : `${product.stock} left`}
-        </div>
+        {displayStockLevels && (
+          <div
+            className={`text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 rounded-md ${
+              isOutOfStock
+                ? "bg-destructive/10 text-destructive"
+                : isLowStock
+                  ? "bg-amber-500/10 text-amber-600"
+                  : "bg-emerald-500/10 text-emerald-600"
+            }`}
+          >
+            {isOutOfStock ? "Out of stock" : `${product.stock} left`}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -139,6 +144,7 @@ export function POSProductList({
   cart = [],
   canUseSmartSuggestions = false,
   onUpgradeClick,
+  displayStockLevels = true,
 }: POSProductListProps) {
   // Use a map for O(1) lookups
   const cartQuantityMap = new Map(
@@ -226,6 +232,7 @@ export function POSProductList({
                 currencyCode={currencyCode}
                 addToCart={addToCart}
                 cartQuantity={cartQuantityMap.get(product.id) || 0}
+                displayStockLevels={displayStockLevels}
               />
             ))}
           </div>
@@ -269,6 +276,7 @@ export function POSProductList({
                         currencyCode={currencyCode}
                         addToCart={addToCart}
                         cartQuantity={cartQuantityMap.get(product.id) || 0}
+                        displayStockLevels={displayStockLevels}
                       />
                     </div>
                   ))}
@@ -299,6 +307,7 @@ export function POSProductList({
                         currencyCode={currencyCode}
                         addToCart={addToCart}
                         cartQuantity={cartQuantityMap.get(product.id) || 0}
+                        displayStockLevels={displayStockLevels}
                       />
                     </div>
                   ))}
@@ -321,6 +330,7 @@ export function POSProductList({
                       currencyCode={currencyCode}
                       addToCart={addToCart}
                       cartQuantity={cartQuantityMap.get(product.id) || 0}
+                      displayStockLevels={displayStockLevels}
                     />
                   ))}
                 </div>

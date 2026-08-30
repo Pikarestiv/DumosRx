@@ -5,8 +5,9 @@ import { isFullyReturned } from "@/lib/utils/returns-calculations";
 import { insert, update, transaction } from "@/lib/db/local-database";
 import { AUDIT_ACTIONS } from "@/lib/db/audit-actions";
 import { restoreReturnedStock } from "@/lib/db/queries/returns";
-import { getCustomerBalance } from "@/lib/db/queries/customers";
+import { getCustomerBalance, getCustomerLoyaltyPoints } from "@/lib/db/queries/customers";
 import { updatePrescriptionStatus } from "@/lib/db/queries/prescriptions";
+import { calculateLoyaltyPointsAfterSale, calculateReturnPointsAdjustment } from "@/lib/utils/loyalty-calculator";
 import type { SaleWithDetails, SaleItemDetail } from "@/lib/types/sale";
 
 type ReturnableItem = SaleItemDetail & {
@@ -124,6 +125,58 @@ export function useProcessReturnMutation() {
                 currentBalance - creditPortionOfRefund,
               ),
             });
+          }
+
+          // A return must also undo its proportional share of whatever this
+          // sale did to the customer's points balance — otherwise a customer
+          // keeps points earned on merchandise they gave back, or loses a
+          // reward's points cost permanently even though the discount it
+          // bought is being reversed too. Prorated by the same
+          // items-returned share as the refund itself, for consistency with
+          // a partial return only undoing part of the sale.
+          const itemsSubtotal = itemsToReturn.reduce(
+            (sum, i) => sum + (i.unit_price || 0) * i.returnQuantity,
+            0,
+          );
+          const returnShare = sale.subtotal > 0 ? itemsSubtotal / sale.subtotal : 0;
+          const { clawback: pointsEarnedClawback, refund: pointsRedeemedRefund } =
+            calculateReturnPointsAdjustment(
+              sale.points_earned || 0,
+              sale.points_redeemed || 0,
+              returnShare,
+            );
+
+          if (pointsEarnedClawback > 0 || pointsRedeemedRefund > 0) {
+            const pointsRows = await getCustomerLoyaltyPoints(sale.customer_id);
+            const currentPoints = pointsRows[0]?.loyalty_points || 0;
+            await update("customers", sale.customer_id, {
+              loyalty_points: calculateLoyaltyPointsAfterSale(
+                currentPoints,
+                pointsRedeemedRefund,
+                pointsEarnedClawback,
+              ),
+            });
+
+            if (pointsEarnedClawback > 0) {
+              await insert("loyalty_transactions", {
+                id: `loyalty_${Date.now()}_return_clawback`,
+                customer_id: sale.customer_id,
+                points: -pointsEarnedClawback,
+                type: "earned",
+                transaction_id: returnId,
+                created_at: new Date().toISOString(),
+              });
+            }
+            if (pointsRedeemedRefund > 0) {
+              await insert("loyalty_transactions", {
+                id: `loyalty_${Date.now()}_return_refund`,
+                customer_id: sale.customer_id,
+                points: pointsRedeemedRefund,
+                type: "redeemed",
+                transaction_id: returnId,
+                created_at: new Date().toISOString(),
+              });
+            }
           }
         }
       });

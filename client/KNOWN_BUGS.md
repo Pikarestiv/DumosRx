@@ -23,12 +23,6 @@ clear bug).
 
 ## Flagged — product decisions, not bugs
 
-- Loyalty point redemption is fully unwired (`calculateRedemptionValue()` defined,
-  never called; `points_redeemed` hardcoded to 0 everywhere). Staff can configure a
-  rewards catalog but nothing ever spends a customer's points. Decide: is redemption
-  in scope for launch, or intentionally deferred?
-- Returns don't claw back loyalty points earned on the original (now returned) sale.
-  Depends on the intended loyalty program rules.
 - Recalling a held transaction reprices items at current catalog prices rather than a
   snapshot of prices when held.
 - Several `stock_movements` movement-type filters (`'addition'`, `'IN'`, `'OUT'`,

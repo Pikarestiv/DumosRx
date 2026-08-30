@@ -24,6 +24,21 @@ export const calculateLoyaltyPointsAfterSale = (
   return Math.max(0, currentPoints + earnedPoints - redeemedPoints);
 };
 
+/** A return must undo its proportional share of whatever the original sale
+ * did to points — points earned on returned merchandise get clawed back,
+ * and points spent on a reward get refunded since the discount it bought is
+ * being reversed too. `returnShare` is the same items-returned fraction used
+ * to prorate the refund itself (1 for a full return, less for a partial
+ * one), so a partial return only undoes its matching partial share. */
+export const calculateReturnPointsAdjustment = (
+  pointsEarned: number,
+  pointsRedeemed: number,
+  returnShare: number,
+) => ({
+  clawback: Math.floor((pointsEarned || 0) * returnShare),
+  refund: Math.floor((pointsRedeemed || 0) * returnShare),
+});
+
 export const LOYALTY_RULES = {
   MIN_REDEMPTION_POINTS: 100,
   POINTS_EXPIRY_MONTHS: 12

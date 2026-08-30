@@ -87,6 +87,13 @@ export async function getCustomerBalance(id: string) {
   );
 }
 
+export async function getCustomerLoyaltyPoints(id: string) {
+  return query<{ id: string; loyalty_points: number }>(
+    "SELECT id, loyalty_points FROM customers WHERE id = ?",
+    [id],
+  );
+}
+
 /** Minimal customer shape for contexts (e.g. POS transaction detail) that only
  * need enough to open the Record Payment modal, not the full customer record. */
 export async function getCustomerById(id: string) {

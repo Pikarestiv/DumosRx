@@ -17,6 +17,8 @@ export interface Sale {
   notes?: string;
   created_at?: string;
   updated_at?: string;
+  points_earned?: number;
+  points_redeemed?: number;
 }
 
 /** `Sale` joined with the customer/cashier/return aggregates that

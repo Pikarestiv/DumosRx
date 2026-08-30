@@ -3,6 +3,7 @@ import {
   calculateEarnedPoints,
   calculateRedemptionValue,
   calculateLoyaltyPointsAfterSale,
+  calculateReturnPointsAdjustment,
   LOYALTY_RULES,
 } from '@/lib/utils/loyalty-calculator';
 
@@ -46,6 +47,29 @@ describe('Loyalty Calculator', () => {
 
     it('floors at 0 instead of going negative', () => {
       expect(calculateLoyaltyPointsAfterSale(100, 0, 500)).toBe(0);
+    });
+  });
+
+  describe('calculateReturnPointsAdjustment', () => {
+    it('claws back the full points earned on a full return', () => {
+      expect(calculateReturnPointsAdjustment(50, 0, 1)).toEqual({ clawback: 50, refund: 0 });
+    });
+
+    it('refunds the full points redeemed on a full return', () => {
+      expect(calculateReturnPointsAdjustment(0, 500, 1)).toEqual({ clawback: 0, refund: 500 });
+    });
+
+    it('prorates both by the returned items share on a partial return', () => {
+      // Returned half the sale's items -> half the earn/redeem impact undone.
+      expect(calculateReturnPointsAdjustment(50, 500, 0.5)).toEqual({ clawback: 25, refund: 250 });
+    });
+
+    it('floors fractional point results instead of rounding', () => {
+      expect(calculateReturnPointsAdjustment(10, 10, 1 / 3)).toEqual({ clawback: 3, refund: 3 });
+    });
+
+    it('returns zero for both when nothing was earned or redeemed', () => {
+      expect(calculateReturnPointsAdjustment(0, 0, 1)).toEqual({ clawback: 0, refund: 0 });
     });
   });
 

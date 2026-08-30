@@ -3,7 +3,8 @@
  * local-database create functions (the same ones the UI calls), so seeded
  * data gets the same batches/movements/sync-queue side effects as data a
  * real user would enter by hand. Only ever run against a store flagged
- * `is_demo` (enforced by the caller / UI gate, not re-checked here).
+ * `is_demo` — enforced by the UI gate in `demo-data-settings.tsx` and
+ * re-checked inside `runDemoSeed` itself as defense-in-depth.
  */
 
 import {
@@ -22,6 +23,7 @@ import {
   getActiveStoreId,
 } from "@/lib/db/local-database";
 import { restoreReturnedStock } from "@/lib/db/queries/returns";
+import { calculateTax, calculateProportionalRefund } from "@/lib/utils/pos-calculations";
 import {
   DEMO_SUPPLIER,
   DEMO_PRODUCTS,
@@ -45,8 +47,22 @@ function daysAgoDateOnly(days: number): string {
 
 export interface DemoSeedResult {
   ok: boolean;
-  reason?: "not_empty" | "no_active_store" | "error";
+  reason?: "not_empty" | "no_active_store" | "not_demo_store" | "error";
   error?: string;
+}
+
+/** Re-checks the active store is actually flagged `is_demo` in the database,
+ * rather than trusting the caller to have replicated the UI's own
+ * `storeProfile?.is_demo` gate — the one existing call site
+ * (`demo-data-settings.tsx`) already does that check, but this is the last
+ * line of defense against a future second call site (an admin tool, a dev
+ * script) seeding fabricated data into a real paying customer's store. */
+async function isActiveStoreDemo(storeId: string): Promise<boolean> {
+  const rows = await query<{ is_demo: number }>(
+    "SELECT is_demo FROM stores WHERE id = ?",
+    [storeId],
+  );
+  return !!rows[0]?.is_demo;
 }
 
 /** Cheap guard against accidentally double-seeding a store that already has
@@ -66,6 +82,10 @@ export async function runDemoSeed(
   const storeId = getActiveStoreId();
   if (!storeId) {
     return { ok: false, reason: "no_active_store" };
+  }
+
+  if (!(await isActiveStoreDemo(storeId))) {
+    return { ok: false, reason: "not_demo_store" };
   }
 
   if (!options.force && !(await isStoreSeedable())) {
@@ -200,7 +220,7 @@ export async function runDemoSeed(
         };
       });
       const subtotal = items.reduce((sum, i) => sum + i.total_price, 0);
-      const taxAmount = Math.round((subtotal * sale.taxPercentage) / 100);
+      const taxAmount = calculateTax(subtotal, sale.taxPercentage);
       const totalAmount = subtotal + taxAmount;
       const isPending = sale.paymentStatus === "pending";
       const customerId = sale.customerRef ? customerIdByRef.get(sale.customerRef) : null;
@@ -261,7 +281,12 @@ export async function runDemoSeed(
 
       if (sale.refund) {
         const returnId = generateId();
-        const refundTotal = items.reduce((sum, i) => sum + i.total_price, 0);
+        const refundTotal = calculateProportionalRefund({
+          itemsSubtotal: subtotal,
+          saleSubtotal: subtotal,
+          saleTaxAmount: taxAmount,
+          saleDiscountAmount: 0,
+        });
         await insert("returns", {
           id: returnId,
           sale_id: saleId,

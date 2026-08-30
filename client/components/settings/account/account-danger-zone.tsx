@@ -1,16 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
-import { apiClient } from "@/lib/api/client";
-import { queryKeys } from "@/lib/query-keys";
 import { useCurrentUser } from "@/lib/hooks/use-current-user";
+import {
+  useResetDataMutation,
+  useRequestAccountDeletionMutation,
+  useCancelAccountDeletionMutation,
+} from "@/lib/hooks/use-account-danger-zone-mutations";
 import { PasswordConfirmDialog } from "./password-confirm-dialog";
 
 const RESET_TYPES: { type: string; label: string; description: string }[] = [
@@ -24,58 +26,48 @@ const RESET_TYPES: { type: string; label: string; description: string }[] = [
 
 export function AccountDangerZone() {
   const { data: user } = useCurrentUser();
-  const queryClient = useQueryClient();
   const [resetTarget, setResetTarget] = useState<{ type: string; label: string; description: string } | null>(null);
-  const [isResetting, setIsResetting] = useState(false);
   const [deletionDialogOpen, setDeletionDialogOpen] = useState(false);
   const [reason, setReason] = useState("");
-  const [isRequestingDeletion, setIsRequestingDeletion] = useState(false);
-  const [isCancelling, setIsCancelling] = useState(false);
 
-  const handleReset = async (password: string) => {
+  const resetDataMutation = useResetDataMutation();
+  const requestDeletionMutation = useRequestAccountDeletionMutation();
+  const cancelDeletionMutation = useCancelAccountDeletionMutation();
+
+  const handleReset = (password: string) => {
     if (!resetTarget) return;
-    setIsResetting(true);
-    try {
-      await apiClient.resetData(resetTarget.type, password);
-      toast.success(`${resetTarget.label} completed`);
-      setResetTarget(null);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Reset failed");
-    } finally {
-      setIsResetting(false);
-    }
+    if (resetDataMutation.isPending) return;
+    resetDataMutation.mutate(
+      { type: resetTarget.type, password },
+      {
+        onSuccess: () => {
+          toast.success(`${resetTarget.label} completed`);
+          setResetTarget(null);
+        },
+      },
+    );
   };
 
-  const handleRequestDeletion = async (password: string) => {
+  const handleRequestDeletion = (password: string) => {
     if (!reason.trim()) {
       toast.error("Please provide a reason for the deletion request");
       return;
     }
-    setIsRequestingDeletion(true);
-    try {
-      await apiClient.requestAccountDeletion({ reason: reason.trim(), password });
-      toast.success("Account deletion requested successfully.");
-      setDeletionDialogOpen(false);
-      setReason("");
-      queryClient.invalidateQueries(queryKeys.account.currentUser());
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to request account deletion");
-    } finally {
-      setIsRequestingDeletion(false);
-    }
+    if (requestDeletionMutation.isPending) return;
+    requestDeletionMutation.mutate(
+      { reason: reason.trim(), password },
+      {
+        onSuccess: () => {
+          setDeletionDialogOpen(false);
+          setReason("");
+        },
+      },
+    );
   };
 
-  const handleCancelDeletion = async () => {
-    setIsCancelling(true);
-    try {
-      await apiClient.cancelAccountDeletion();
-      toast.success("Account deletion request cancelled successfully.");
-      queryClient.invalidateQueries(queryKeys.account.currentUser());
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to cancel deletion request");
-    } finally {
-      setIsCancelling(false);
-    }
+  const handleCancelDeletion = () => {
+    if (cancelDeletionMutation.isPending) return;
+    cancelDeletionMutation.mutate();
   };
 
   return (
@@ -111,7 +103,7 @@ export function AccountDangerZone() {
                 <p className="text-xs text-muted-foreground">
                   Reason: {user.deletion_reason || "No reason provided"}
                 </p>
-                <Button variant="link" className="h-auto p-0 text-sm" onClick={handleCancelDeletion} disabled={isCancelling}>
+                <Button variant="link" className="h-auto p-0 text-sm" onClick={handleCancelDeletion} disabled={cancelDeletionMutation.isPending}>
                   Cancel Request
                 </Button>
               </div>
@@ -129,8 +121,8 @@ export function AccountDangerZone() {
         onOpenChange={(open) => !open && setResetTarget(null)}
         title={resetTarget?.label || ""}
         description={resetTarget?.description || ""}
-        confirmLabel={isResetting ? "Resetting..." : "Confirm Reset"}
-        isSubmitting={isResetting}
+        confirmLabel={resetDataMutation.isPending ? "Resetting..." : "Confirm Reset"}
+        isSubmitting={resetDataMutation.isPending}
         onConfirm={handleReset}
       />
 
@@ -139,8 +131,8 @@ export function AccountDangerZone() {
         onOpenChange={setDeletionDialogOpen}
         title="Request Account Deletion"
         description="Your account will be reviewed for deletion. This is not immediate, an admin will process your request."
-        confirmLabel={isRequestingDeletion ? "Submitting..." : "Request Deletion"}
-        isSubmitting={isRequestingDeletion}
+        confirmLabel={requestDeletionMutation.isPending ? "Submitting..." : "Request Deletion"}
+        isSubmitting={requestDeletionMutation.isPending}
         onConfirm={handleRequestDeletion}
         extraField={
           <div className="space-y-2">

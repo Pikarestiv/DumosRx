@@ -44,8 +44,8 @@ export function StaffFormDialog({
   activeStoreId,
   onSuccess,
 }: StaffFormDialogProps) {
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const { create, update } = useMutateUser();
+  const isSubmitting = create.isPending || update.isPending;
   const { availableStores } = useStore();
   const [formData, setFormData] = useState({
     first_name: "",
@@ -105,7 +105,7 @@ export function StaffFormDialog({
 
     const pinChanged = isEditing && !!formData.pin && formData.pin.length === 4;
 
-    setIsSubmitting(true);
+    if (isSubmitting) return;
     try {
       if (isEditing) {
         const updateData: StaffUpdatePayload = {
@@ -165,8 +165,6 @@ export function StaffFormDialog({
             : "Failed to create staff account",
         );
       }
-    } finally {
-      setIsSubmitting(false);
     }
   };
 

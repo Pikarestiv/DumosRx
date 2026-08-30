@@ -29,6 +29,8 @@ export function useSettingsForm(storeProfile: StoreProfile | null, minimumSyncIn
   const [enabledPaymentMethods, setEnabledPaymentMethods] = useState<string[]>(
     storeProfile?.enabled_payment_methods ? JSON.parse(storeProfile.enabled_payment_methods) : ["cash", "card", "transfer", "credit", "mixed"]
   );
+  const [requireSaleNotes, setRequireSaleNotes] = useState(storeProfile?.require_sale_notes === 1);
+  const [displayStockLevels, setDisplayStockLevels] = useState(storeProfile?.display_stock_levels !== 0);
 
   // Sync state with storeProfile
   useEffect(() => {
@@ -60,7 +62,9 @@ export function useSettingsForm(storeProfile: StoreProfile | null, minimumSyncIn
       } catch (_e) {
         setEnabledPaymentMethods(["cash", "card", "transfer", "credit", "mixed"]);
       }
-      
+      setRequireSaleNotes(storeProfile.require_sale_notes === 1);
+      setDisplayStockLevels(storeProfile.display_stock_levels !== 0);
+
       let interval = storeProfile.auto_sync_interval || minimumSyncIntervalMinutes;
       if (interval < minimumSyncIntervalMinutes) {
         interval = minimumSyncIntervalMinutes;
@@ -94,5 +98,7 @@ export function useSettingsForm(storeProfile: StoreProfile | null, minimumSyncIn
     requirePaymentAccount, setRequirePaymentAccount,
     onlineStoreEnabled, setOnlineStoreEnabled,
     enabledPaymentMethods, setEnabledPaymentMethods,
+    requireSaleNotes, setRequireSaleNotes,
+    displayStockLevels, setDisplayStockLevels,
   };
 }

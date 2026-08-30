@@ -61,6 +61,8 @@ export interface HeldTransaction {
   customer_name: string;
   items_json: string;
   total_amount: number;
+  discount?: number;
+  discount_type?: string | null;
   created_at: string;
 }
 
@@ -236,7 +238,7 @@ export async function getDailyCloseData(reportDate: string) {
   );
 
   const returnItemsToday = await query<ReturnItemDetail & { med_cost_price?: number }>(
-    `SELECT ri.*, IFNULL((SELECT AVG(cost_price) FROM stock_batches WHERE product_id = ri.product_id AND is_active = 1), 0) as med_cost_price FROM return_items ri JOIN returns r ON ri.return_id = r.id LEFT JOIN products m ON ri.product_id = m.id WHERE r.created_at >= ? AND r.created_at <= ? AND (ri._deleted = 0 OR ri._deleted IS NULL) AND (r._deleted = 0 OR r._deleted IS NULL)${storeId ? " AND ri.store_id = ?" : ""}`,
+    `SELECT ri.*, IFNULL((SELECT SUM(cost_price * quantity) * 1.0 / NULLIF(SUM(quantity), 0) FROM stock_batches WHERE product_id = ri.product_id AND is_active = 1 AND _deleted = 0), 0) as med_cost_price FROM return_items ri JOIN returns r ON ri.return_id = r.id LEFT JOIN products m ON ri.product_id = m.id WHERE r.created_at >= ? AND r.created_at <= ? AND (ri._deleted = 0 OR ri._deleted IS NULL) AND (r._deleted = 0 OR r._deleted IS NULL)${storeId ? " AND ri.store_id = ?" : ""}`,
     storeId ? [startIso, endIso, storeId] : [startIso, endIso],
   );
 

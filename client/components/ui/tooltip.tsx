@@ -7,9 +7,73 @@ import { cn } from "@/lib/utils"
 
 const TooltipProvider = TooltipPrimitive.Provider
 
-const Tooltip = TooltipPrimitive.Root
+function useIsTouchDevice() {
+  const [isTouch, setIsTouch] = React.useState(false)
+  React.useEffect(() => {
+    setIsTouch(window.matchMedia("(hover: none)").matches)
+  }, [])
+  return isTouch
+}
 
-const TooltipTrigger = TooltipPrimitive.Trigger
+interface TooltipContextValue {
+  isTouch: boolean
+  open: boolean
+  setOpen: (open: boolean) => void
+}
+const TooltipContext = React.createContext<TooltipContextValue | null>(null)
+
+/** Radix's hover/focus-based trigger doesn't respond to touch, so on
+ * touch devices this manages its own controlled `open` state and lets
+ * TooltipTrigger toggle it on tap instead. */
+function Tooltip({
+  open: openProp,
+  onOpenChange,
+  ...props
+}: React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Root>) {
+  const isTouch = useIsTouchDevice()
+  const [openState, setOpenState] = React.useState(false)
+  const open = openProp ?? openState
+
+  const setOpen = React.useCallback(
+    (next: boolean) => {
+      setOpenState(next)
+      onOpenChange?.(next)
+    },
+    [onOpenChange],
+  )
+
+  if (!isTouch) {
+    return <TooltipPrimitive.Root open={openProp} onOpenChange={onOpenChange} {...props} />
+  }
+
+  return (
+    <TooltipContext.Provider value={{ isTouch, open, setOpen }}>
+      <TooltipPrimitive.Root open={open} onOpenChange={setOpen} {...props} />
+    </TooltipContext.Provider>
+  )
+}
+
+const TooltipTrigger = React.forwardRef<
+  React.ElementRef<typeof TooltipPrimitive.Trigger>,
+  React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Trigger>
+>(({ onClick, ...props }, ref) => {
+  const ctx = React.useContext(TooltipContext)
+
+  return (
+    <TooltipPrimitive.Trigger
+      ref={ref}
+      onClick={(e) => {
+        onClick?.(e)
+        if (ctx) {
+          e.preventDefault()
+          ctx.setOpen(!ctx.open)
+        }
+      }}
+      {...props}
+    />
+  )
+})
+TooltipTrigger.displayName = TooltipPrimitive.Trigger.displayName
 
 const TooltipContent = React.forwardRef<
   React.ElementRef<typeof TooltipPrimitive.Content>,

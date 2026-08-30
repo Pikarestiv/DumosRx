@@ -15,7 +15,7 @@ import { Expense } from "@/lib/db/queries/finance";
 import { ExpenseInsightsStrip } from "./expense-insights-strip";
 import { SortableHeaderCell } from "@/components/ui/sortable-header-cell";
 import { useSortableData } from "@/lib/hooks/use-sortable-data";
-import { update } from "@/lib/db/local-database";
+import { useQuickEditExpenseMutation } from "@/lib/hooks/use-expense-mutations";
 import { ExpenseDesktopRow, CATEGORY_META, type ExpenseDraft } from "./expense-desktop-row";
 
 type ExpenseSortKey = "date" | "category" | "description" | "method" | "amount";
@@ -55,27 +55,31 @@ export function ExpenseList() {
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<ExpenseDraft | null>(null);
+  const quickEditMutation = useQuickEditExpenseMutation();
 
   const startQuickEdit = (expense: Expense) => {
     setEditingId(expense.id);
     setDraft({ amount: expense.amount, category: expense.category });
   };
 
-  const saveQuickEdit = async (expense: Expense) => {
-    if (!draft) return;
-    try {
-      await update("expenses", expense.id, {
-        amount: draft.amount,
-        category: draft.category,
-      });
-      toast.success("Expense updated");
-      fetchExpenses();
-    } catch {
-      toast.error("Failed to update expense. Please try again.");
-    } finally {
-      setEditingId(null);
-      setDraft(null);
-    }
+  const saveQuickEdit = (expense: Expense) => {
+    if (!draft || quickEditMutation.isPending) return;
+    quickEditMutation.mutate(
+      { id: expense.id, amount: draft.amount, category: draft.category },
+      {
+        onSuccess: () => {
+          toast.success("Expense updated");
+          fetchExpenses();
+        },
+        onError: () => {
+          toast.error("Failed to update expense. Please try again.");
+        },
+        onSettled: () => {
+          setEditingId(null);
+          setDraft(null);
+        },
+      },
+    );
   };
 
   const desktopScrollRef = useRef<HTMLDivElement>(null);

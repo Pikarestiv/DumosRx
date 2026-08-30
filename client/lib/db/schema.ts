@@ -198,6 +198,7 @@ CREATE TABLE IF NOT EXISTS prescription_items (
   quantity INTEGER,
   instructions TEXT,
   cost REAL DEFAULT 0,
+  unit_cost REAL DEFAULT 0,
   refills_authorized INTEGER DEFAULT 0,
   refills_used INTEGER DEFAULT 0,
   refill_interval_days INTEGER DEFAULT 30,
@@ -319,7 +320,9 @@ CREATE TABLE IF NOT EXISTS stores (
   enabled_payment_methods TEXT DEFAULT '["cash","card","transfer","credit","mixed"]',
   online_store_enabled INTEGER DEFAULT 0,
   custom_units TEXT DEFAULT '[]',
-  is_demo INTEGER DEFAULT 0
+  is_demo INTEGER DEFAULT 0,
+  require_sale_notes INTEGER DEFAULT 0,
+  display_stock_levels INTEGER DEFAULT 1
 );
 
 CREATE TABLE IF NOT EXISTS expenses (
@@ -365,6 +368,7 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS audit_logs (
   id TEXT PRIMARY KEY,
   user_id TEXT,
+  store_id TEXT,
   action TEXT,
   table_name TEXT,
   record_id TEXT,
@@ -462,6 +466,8 @@ CREATE TABLE IF NOT EXISTS held_transactions (
   customer_name TEXT,
   items_json TEXT NOT NULL,
   total_amount REAL NOT NULL,
+  discount REAL DEFAULT 0,
+  discount_type TEXT,
   notes TEXT,
   created_at TEXT,
   updated_at TEXT,
@@ -486,6 +492,7 @@ CREATE TABLE IF NOT EXISTS loyalty_transactions (
 CREATE TABLE IF NOT EXISTS loyalty_tiers (
   id TEXT PRIMARY KEY,
   user_id TEXT,
+  store_id TEXT,
   name TEXT NOT NULL,
   min_spend REAL DEFAULT 0,
   points_multiplier REAL DEFAULT 1,
@@ -503,8 +510,10 @@ CREATE TABLE IF NOT EXISTS loyalty_tiers (
 CREATE TABLE IF NOT EXISTS loyalty_redemption_options (
   id TEXT PRIMARY KEY,
   user_id TEXT,
+  store_id TEXT,
   label TEXT NOT NULL,
   points_cost REAL DEFAULT 0,
+  discount_value REAL DEFAULT 0,
   description TEXT,
   icon_key TEXT DEFAULT 'tag',
   is_active INTEGER DEFAULT 1,

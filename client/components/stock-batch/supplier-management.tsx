@@ -8,7 +8,8 @@ import { Input } from "@/components/ui/input";
 import { ResponsiveDetailPanel } from "@/components/ui/responsive-detail-panel";
 
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
-import { getSuppliers, createSupplier } from "@/lib/db/local-database";
+import { getSuppliers } from "@/lib/db/local-database";
+import { useCreateSupplierMutation, useUpdateSupplierMutation } from "@/lib/hooks/use-supplier-mutations";
 import { AddSupplierDialog } from "@/components/suppliers/add-supplier-dialog";
 import { useStore } from "@/lib/context/store-context";
 import { SupplierDetailPane } from "./supplier-detail-pane";
@@ -78,17 +79,21 @@ export function SupplierManagement() {
     await fetchSuppliers();
   });
 
-  const handleAddSupplier = async (payload: SupplierPayload) => {
-    try {
-      // insert()'s global cache invalidation refreshes the `suppliers`
-      // query automatically, no need to hand-splice the new row into
-      // local state.
-      const newId = await createSupplier(payload);
-      setSelectedSupplierId(newId);
-      setShowAddDialog(false);
-    } catch (error) {
-      console.error("Failed to create supplier:", error);
-    }
+  const createSupplierMutation = useCreateSupplierMutation();
+
+  const handleAddSupplier = (payload: SupplierPayload) => {
+    // insert()'s global cache invalidation refreshes the `suppliers`
+    // query automatically, no need to hand-splice the new row into
+    // local state.
+    createSupplierMutation.mutate(payload, {
+      onSuccess: (newId) => {
+        setSelectedSupplierId(newId);
+        setShowAddDialog(false);
+      },
+      onError: (error) => {
+        console.error("Failed to create supplier:", error);
+      },
+    });
   };
 
   const preFilteredSuppliers = suppliers.filter((s) => {
@@ -138,10 +143,23 @@ export function SupplierManagement() {
   const debtSuppliersCount = suppliers.filter((s) => s.hasDebt).length;
   const totalDebtAmount = suppliers.reduce((sum, s) => sum + s.debtAmount, 0);
 
-  const handleEditSupplier = () => {
-    // We would normally call the database update here
-    toast.success("Supplier details updated successfully!");
-    setIsEditDialogOpen(false);
+  const updateSupplierMutation = useUpdateSupplierMutation();
+
+  const handleEditSupplier = (payload: SupplierPayload) => {
+    if (!selectedSupplierId) return;
+    updateSupplierMutation.mutate(
+      { id: selectedSupplierId, payload },
+      {
+        onSuccess: () => {
+          toast.success("Supplier details updated successfully!");
+          setIsEditDialogOpen(false);
+        },
+        onError: (error) => {
+          console.error("Failed to update supplier:", error);
+          toast.error("Failed to update supplier");
+        },
+      },
+    );
   };
 
   return (
@@ -221,6 +239,7 @@ export function SupplierManagement() {
         open={showAddDialog}
         onOpenChange={setShowAddDialog}
         onAddSupplier={handleAddSupplier}
+        isSubmitting={createSupplierMutation.isPending}
       />
       {selectedSupplier && (
         <AddSupplierDialog
@@ -228,6 +247,7 @@ export function SupplierManagement() {
           onOpenChange={setIsEditDialogOpen}
           onAddSupplier={handleEditSupplier}
           initialSupplier={selectedSupplier}
+          isSubmitting={updateSupplierMutation.isPending}
         />
       )}
     </div>

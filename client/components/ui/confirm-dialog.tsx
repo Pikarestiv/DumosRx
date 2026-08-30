@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
 
 import { Label } from "@/components/ui/label";
 
@@ -23,7 +24,7 @@ interface ConfirmDialogProps {
   cancelLabel?: string;
   hideCancel?: boolean;
   variant?: "destructive" | "default";
-  onConfirm: (pin?: string) => void;
+  onConfirm: (pin?: string) => void | Promise<void>;
   requirePin?: boolean;
   /** Focus the confirm button (instead of the default first-focusable
    * element, usually Cancel) when the dialog opens, so pressing Enter
@@ -46,20 +47,33 @@ export function ConfirmDialog({
   autoFocusConfirm = false,
 }: ConfirmDialogProps) {
   const [pin, setPin] = useState("");
+  const [isConfirming, setIsConfirming] = useState(false);
   const confirmButtonRef = useRef<HTMLButtonElement>(null);
 
-  const handleConfirm = () => {
-    onConfirm(requirePin ? pin : undefined);
+  // Previously closed the dialog synchronously right after firing
+  // onConfirm, before an async handler (e.g. a delete) had actually
+  // finished — so there was no in-flight feedback, and if the action
+  // failed the dialog had already vanished as if it had succeeded. Now
+  // waits for onConfirm to settle (it may be sync or async) before
+  // closing, and shows a spinner on the confirm button meanwhile.
+  const handleConfirm = async () => {
+    setIsConfirming(true);
+    try {
+      await onConfirm(requirePin ? pin : undefined);
+    } finally {
+      setIsConfirming(false);
+    }
     setPin("");
     onOpenChange(false);
   };
 
   const handleClose = () => {
+    if (isConfirming) return;
     setPin("");
     onOpenChange(false);
   };
 
-  const isConfirmDisabled = requirePin && !pin.trim();
+  const isConfirmDisabled = (requirePin && !pin.trim()) || isConfirming;
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -105,7 +119,7 @@ export function ConfirmDialog({
 
         <DialogFooter>
           {!hideCancel && (
-            <Button variant="outline" onClick={handleClose}>
+            <Button variant="outline" onClick={handleClose} disabled={isConfirming}>
               {cancelLabel}
             </Button>
           )}
@@ -115,6 +129,7 @@ export function ConfirmDialog({
             disabled={isConfirmDisabled}
             onClick={handleConfirm}
           >
+            {isConfirming && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {confirmLabel}
           </Button>
         </DialogFooter>

@@ -1,4 +1,5 @@
 import { query, insert } from "@/lib/db/local-database";
+import { getActiveStoreId } from "@/lib/db/core";
 
 export interface LoyaltyTierRow {
   id: string;
@@ -14,6 +15,10 @@ export interface LoyaltyRedemptionOptionRow {
   id: string;
   label: string;
   points_cost: number;
+  /** Naira value this option discounts off a sale at checkout. 0 for
+   * non-monetary perks (e.g. "Free Delivery"), which are configurable here
+   * but not selectable as a POS checkout redemption. */
+  discount_value: number;
   description: string;
   icon_key: string;
   is_active: number;
@@ -59,6 +64,7 @@ export const DEFAULT_REDEMPTION_OPTIONS: Omit<LoyaltyRedemptionOptionRow, "id">[
   {
     label: "₦500 Discount",
     points_cost: 500,
+    discount_value: 500,
     description: "Get ₦500 off your next purchase",
     icon_key: "tag",
     is_active: 1,
@@ -67,6 +73,7 @@ export const DEFAULT_REDEMPTION_OPTIONS: Omit<LoyaltyRedemptionOptionRow, "id">[
   {
     label: "₦1,000 Discount",
     points_cost: 900,
+    discount_value: 1000,
     description: "Get ₦1,000 off your next purchase",
     icon_key: "tag",
     is_active: 1,
@@ -75,6 +82,7 @@ export const DEFAULT_REDEMPTION_OPTIONS: Omit<LoyaltyRedemptionOptionRow, "id">[
   {
     label: "Free Delivery",
     points_cost: 200,
+    discount_value: 0,
     description: "Free delivery on your next order",
     icon_key: "truck",
     is_active: 1,
@@ -83,14 +91,18 @@ export const DEFAULT_REDEMPTION_OPTIONS: Omit<LoyaltyRedemptionOptionRow, "id">[
 ];
 
 export async function getLoyaltyTiers() {
+  const storeId = getActiveStoreId();
   return query<LoyaltyTierRow>(
-    "SELECT * FROM loyalty_tiers WHERE _deleted = 0 ORDER BY min_spend ASC"
+    `SELECT * FROM loyalty_tiers WHERE _deleted = 0${storeId ? " AND store_id = ?" : ""} ORDER BY min_spend ASC`,
+    storeId ? [storeId] : [],
   );
 }
 
 export async function getLoyaltyRedemptionOptions() {
+  const storeId = getActiveStoreId();
   return query<LoyaltyRedemptionOptionRow>(
-    "SELECT * FROM loyalty_redemption_options WHERE _deleted = 0 ORDER BY sort_order ASC, points_cost ASC"
+    `SELECT * FROM loyalty_redemption_options WHERE _deleted = 0${storeId ? " AND store_id = ?" : ""} ORDER BY sort_order ASC, points_cost ASC`,
+    storeId ? [storeId] : [],
   );
 }
 

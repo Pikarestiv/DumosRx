@@ -3,7 +3,7 @@
 import { POSCustomerSelector } from "./pos-customer-selector";
 import { POSCart } from "./pos-cart";
 import { POSMobileCartWrapper } from "./pos-mobile-cart-wrapper";
-import type { CartItem } from "@/lib/hooks/use-pos-cart";
+import type { CartItem, RedeemedOption } from "@/lib/hooks/use-pos-cart";
 import type { Customer } from "@/lib/types/customer";
 
 interface POSCartPanelsProps {
@@ -16,6 +16,9 @@ interface POSCartPanelsProps {
   discountType?: "fixed" | "percentage";
   setDiscount?: (discount: number) => void;
   setDiscountType?: (type: "fixed" | "percentage") => void;
+  redeemedOption?: RedeemedOption | null;
+  onRedeemReward?: (option: { id: string; label: string; points_cost: number; discount_value: number }) => void;
+  onClearRedemption?: () => void;
   vatPercentage: number;
   currencyCode?: string;
   updateQuantity: (id: string, quantity: number) => void;
@@ -45,6 +48,9 @@ export function POSCartPanels(props: POSCartPanelsProps) {
     discountType,
     setDiscount,
     setDiscountType,
+    redeemedOption,
+    onRedeemReward,
+    onClearRedemption,
     vatPercentage,
     currencyCode,
     updateQuantity,
@@ -72,6 +78,10 @@ export function POSCartPanels(props: POSCartPanelsProps) {
     discountType,
     setDiscount,
     setDiscountType,
+    selectedCustomer,
+    redeemedOption,
+    onRedeemReward,
+    onClearRedemption,
     vatPercentage,
     currencyCode,
     updateQuantity,

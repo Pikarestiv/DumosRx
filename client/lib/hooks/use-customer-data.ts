@@ -3,9 +3,13 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { insert, update, generateId } from "@/lib/db/local-database";
-import { getCustomers, getCustomerRetentionMetrics, getCustomerTransactions, recordCustomerPayment } from "@/lib/db/queries/customers";
+import { getCustomers, getCustomerRetentionMetrics, getCustomerTransactions } from "@/lib/db/queries/customers";
 import { getLoyaltyTiers, LoyaltyTierRow } from "@/lib/db/queries/loyalty";
+import {
+  useCreateCustomerMutation,
+  useUpdateCustomerMutation,
+  useRecordCustomerPaymentMutation,
+} from "@/lib/hooks/use-customer-mutations";
 import { queryKeys } from "@/lib/query-keys";
 import type { CustomerDbRow, CustomerFormPayload, CustomerTransactionRow } from "@/lib/types/customer";
 export interface Customer {
@@ -132,32 +136,10 @@ export function useCustomerData() {
   const customers = data?.customers ?? [];
   const metrics = data?.metrics ?? null;
 
+  const createCustomerMutation = useCreateCustomerMutation();
   const addCustomer = async (payload: CustomerFormPayload) => {
     try {
-      const now = new Date().toISOString();
-      const customerId = generateId();
-
-      const customerData = {
-        id: customerId,
-        first_name: payload.first_name,
-        last_name: payload.last_name,
-        email: payload.email,
-        phone: payload.phone,
-        address: payload.address,
-        date_of_birth: payload.date_of_birth,
-        gender: payload.gender,
-        allergies: payload.allergies,
-        medical_conditions: payload.medical_conditions,
-        is_active: 1,
-        created_at: now,
-        updated_at: now,
-      };
-
-      // insert()'s global cache invalidation refreshes the `customers`
-      // query in the background, so no need to hand-splice the new row into
-      // local state, we just return it for the caller's immediate use.
-      await insert("customers", customerData);
-
+      const customerData = await createCustomerMutation.mutateAsync(payload);
       const newCustomer = transformCustomer(customerData, data?.tiers);
       toast.success("Customer added successfully");
       return newCustomer;
@@ -168,24 +150,13 @@ export function useCustomerData() {
     }
   };
 
+  const updateCustomerMutation = useUpdateCustomerMutation();
   const updateCustomer = async (id: string, payload: CustomerFormPayload): Promise<Customer | null> => {
     try {
       const existing = customers.find((c) => c.id === id);
       if (!existing) return null;
 
-      const customerData = {
-        first_name: payload.first_name ?? null,
-        last_name: payload.last_name ?? null,
-        email: payload.email ?? null,
-        phone: payload.phone ?? null,
-        address: payload.address ?? null,
-        date_of_birth: payload.date_of_birth || null,
-        gender: payload.gender ?? null,
-        allergies: payload.allergies ?? null,
-        medical_conditions: payload.medical_conditions ?? null,
-      };
-
-      await update("customers", id, customerData);
+      const customerData = await updateCustomerMutation.mutateAsync({ id, payload });
 
       const updatedCustomer = transformCustomer({
         ...customerData,
@@ -207,6 +178,7 @@ export function useCustomerData() {
     }
   };
 
+  const recordPaymentMutation = useRecordCustomerPaymentMutation();
   const recordPayment = async (
     id: string,
     amount: number,
@@ -217,7 +189,12 @@ export function useCustomerData() {
       const existing = customers.find((c) => c.id === id);
       if (!existing) return null;
 
-      const newBalance = await recordCustomerPayment(id, amount, paymentMethod, notes);
+      const newBalance = await recordPaymentMutation.mutateAsync({
+        customerId: id,
+        amount,
+        paymentMethod,
+        notes,
+      });
 
       const updatedCustomer: Customer = { ...existing, outstanding_balance: newBalance };
       toast.success("Payment recorded successfully");

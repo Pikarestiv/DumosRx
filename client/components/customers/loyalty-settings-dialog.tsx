@@ -14,7 +14,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useAuth } from "@/lib/context/auth-context";
-import { softDelete } from "@/lib/db/local-database";
 import {
   getLoyaltyTiers,
   getLoyaltyRedemptionOptions,
@@ -22,6 +21,10 @@ import {
   LoyaltyTierRow,
   LoyaltyRedemptionOptionRow,
 } from "@/lib/db/queries/loyalty";
+import {
+  useDeleteLoyaltyTierMutation,
+  useDeleteLoyaltyRedemptionOptionMutation,
+} from "@/lib/hooks/use-loyalty-mutations";
 import { queryClient } from "@/lib/query-client";
 import { REDEMPTION_ICONS, REDEMPTION_ICON_BG } from "./loyalty-icons";
 import { LoyaltySettingsRow } from "./loyalty-settings-row";
@@ -73,10 +76,11 @@ export function LoyaltySettingsDialog({ open, onOpenChange }: Props) {
     setTierFormOpen(true);
   };
 
+  const deleteTierMutation = useDeleteLoyaltyTierMutation();
   const deleteTier = async () => {
     if (!tierToDelete) return;
     try {
-      await softDelete("loyalty_tiers", tierToDelete);
+      await deleteTierMutation.mutateAsync(tierToDelete);
       refetchTiers();
     } finally {
       setTierToDelete(null);
@@ -88,10 +92,11 @@ export function LoyaltySettingsDialog({ open, onOpenChange }: Props) {
     setOptionFormOpen(true);
   };
 
+  const deleteOptionMutation = useDeleteLoyaltyRedemptionOptionMutation();
   const deleteOption = async () => {
     if (!optionToDelete) return;
     try {
-      await softDelete("loyalty_redemption_options", optionToDelete);
+      await deleteOptionMutation.mutateAsync(optionToDelete);
       refetchOptions();
     } finally {
       setOptionToDelete(null);

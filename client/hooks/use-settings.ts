@@ -63,6 +63,8 @@ export function useSettings() {
     autoSyncInterval,
     setAutoSyncInterval,
     setLocalLogo,
+    requireSaleNotes,
+    displayStockLevels,
   } = formState;
 
   // Responsive Effect
@@ -73,6 +75,48 @@ export function useSettings() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  // Old tab keys ("account", "store") kept working after the settings
+  // restructure so any bookmarked/shared links still land somewhere sane.
+  const TAB_ALIASES: Record<string, string> = {
+    account: "personal-info",
+    store: "business-info",
+  };
+
+  const ADMIN_ONLY_TABS = [
+    "personal-info",
+    "business-info",
+    "branches",
+    "payment-methods",
+    "receipt-settings",
+    "register-configs",
+    "product-units",
+    "categories",
+    "data",
+    "staff",
+    "system",
+    "billing",
+    "roles",
+  ];
+
+  const ALL_TABS = [
+    "appearance",
+    "personal-info",
+    "security",
+    "business-info",
+    "branches",
+    "staff",
+    "payment-methods",
+    "receipt-settings",
+    "register-configs",
+    "product-units",
+    "categories",
+    "notifications",
+    "data",
+    "system",
+    "billing",
+    "roles",
+  ];
+
   // Tab activation from URL
   useEffect(() => {
     const tab = tabParam;
@@ -82,27 +126,28 @@ export function useSettings() {
         internalTab = "appearance";
       } else if (tab === "alerts") {
         internalTab = "notifications";
+      } else if (TAB_ALIASES[tab]) {
+        internalTab = TAB_ALIASES[tab];
       }
 
-      if (internalTab === "cloud" || internalTab === "data") {
-        if (!isAdmin) {
-          setActiveTab("appearance");
-          return;
-        }
-        if (activeTab !== "data") {
-          setActiveTab("data");
-        }
-        if (internalTab === "cloud" && !isCloudLinked) {
+      if (internalTab === "cloud") {
+        internalTab = "data";
+        if (!isCloudLinked) {
           syncState.setIsCloudLinkOpen(true);
         }
-      } else if (["appearance", "account", "store", "notifications", "security", "staff", "system", "billing"].includes(internalTab)) {
-        if (!isAdmin && ["account", "store", "data", "staff", "system", "cloud", "billing"].includes(internalTab)) {
-          setActiveTab("appearance");
-          return;
-        }
-        if (activeTab !== internalTab) {
-          setActiveTab(internalTab);
-        }
+      }
+
+      if (!ALL_TABS.includes(internalTab)) {
+        return;
+      }
+
+      if (!isAdmin && ADMIN_ONLY_TABS.includes(internalTab)) {
+        setActiveTab("appearance");
+        return;
+      }
+
+      if (activeTab !== internalTab) {
+        setActiveTab(internalTab);
       }
     }
   }, [tabParam, isCloudLinked, isAdmin, activeTab, syncState]);
@@ -121,6 +166,14 @@ export function useSettings() {
     }
 
     router.replace(`/settings/${publicTab}`, { scroll: false });
+  };
+
+  const handleSaveRegisterConfig = () => {
+    updateStoreProfile({
+      require_sale_notes: requireSaleNotes ? 1 : 0,
+      display_stock_levels: displayStockLevels ? 1 : 0,
+    });
+    toast.success("Register configuration updated");
   };
 
   // Handlers
@@ -252,6 +305,7 @@ export function useSettings() {
     handleSaveReceiptSettings,
     handleSaveAlertSettings,
     handleSaveAutoSyncSettings,
+    handleSaveRegisterConfig,
     handleLogoUpload,
     handleRemoveLogo,
     handleSwitchVertical,

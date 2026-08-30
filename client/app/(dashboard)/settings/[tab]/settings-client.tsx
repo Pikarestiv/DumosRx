@@ -5,10 +5,10 @@ import { ChevronLeft } from "lucide-react";
 import { CloudLinkDialog } from "@/components/settings/cloud-link-dialog";
 import { StaffManagement } from "@/components/settings/staff-management";
 import { SettingsMobileMenu } from "@/components/settings/settings-mobile-menu";
+import { RolesPermissionsPlaceholder } from "@/components/settings/roles-permissions-placeholder";
 import { SettingsTabNav } from "./settings-tab-nav";
 
 import { AppearanceSettings } from "@/components/settings/appearance-settings";
-import { StoreSettings } from "@/components/settings/store-settings";
 import { AlertSettings } from "@/components/settings/alert-settings";
 import { DataSettings } from "@/components/settings/data-settings";
 import { DemoDataSettings } from "@/components/settings/demo-data-settings";
@@ -16,6 +16,19 @@ import { SecuritySettings } from "@/components/settings/security-settings";
 import { SystemSettings } from "@/components/settings/system-settings";
 import { BillingSettings } from "@/components/settings/billing/billing-settings";
 import { AccountSettings } from "@/components/settings/account/account-settings";
+
+import { BusinessVerticalCard } from "@/components/settings/store/business-vertical-card";
+import { BusinessInformationCard } from "@/components/settings/store/business-information-card";
+import { ContactSpecialistCard } from "@/components/settings/store/contact-specialist-card";
+import { FleetOverview } from "@/components/settings/store/fleet-overview";
+import { MultiStoreCard } from "@/components/settings/store/multi-store-card";
+import { PaymentSettingsCard } from "@/components/settings/store/payment-settings-card";
+import { PaymentAccountsCard } from "@/components/settings/store/payment-accounts-card";
+import { ReceiptCustomizationCard } from "@/components/settings/store/receipt-customization-card";
+import { CategoriesCard } from "@/components/settings/store/categories-card";
+import { RegisterConfigCard } from "@/components/settings/store/register-config-card";
+import { ProductUnitsCard } from "@/components/settings/store/product-units-card";
+
 import { useSettings } from "@/hooks/use-settings";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
@@ -90,11 +103,16 @@ export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
     setOnlineStoreEnabled,
     enabledPaymentMethods,
     setEnabledPaymentMethods,
+    requireSaleNotes,
+    setRequireSaleNotes,
+    displayStockLevels,
+    setDisplayStockLevels,
     handleSaveProfile,
     handleSaveRegional,
     handleSaveReceiptSettings,
     handleSaveAlertSettings,
     handleSaveAutoSyncSettings,
+    handleSaveRegisterConfig,
     handleLogoUpload,
     handleRemoveLogo,
     handleSwitchVertical,
@@ -117,6 +135,13 @@ export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
   const TAB_LABELS: Record<string, string> = {
     appearance: "General",
     notifications: "Alerts",
+    "personal-info": "Personal Info",
+    "business-info": "Business Info",
+    "payment-methods": "Payment Methods",
+    "receipt-settings": "Receipt Settings",
+    "register-configs": "Register Configs",
+    "product-units": "Product Units",
+    roles: "Roles & Permissions",
   };
 
   return (
@@ -153,7 +178,7 @@ export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
             no header-height offset needed.
           */}
           <aside
-            className="hidden md:block w-full md:w-48 flex-shrink-0 md:sticky z-30"
+            className="hidden md:block w-full md:w-52 flex-shrink-0 md:sticky z-30"
             style={{ top: isDesktop ? "16px" : undefined }}
           >
             <SettingsTabNav isAdmin={isAdmin} isDesktop={isDesktop} />
@@ -176,16 +201,24 @@ export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
             </TabsContent>
 
             {isAdmin && (
-              <TabsContent value="account">
+              <TabsContent value="personal-info">
                 <AccountSettings />
               </TabsContent>
             )}
 
             {isAdmin && (
-              <TabsContent value="store">
-                <StoreSettings
+              <TabsContent value="business-info" className="space-y-6">
+                <div>
+                  <h1 className="text-2xl font-black tracking-tight">Business Info</h1>
+                  <p className="text-muted-foreground">Your business identity, contact details, and logo</p>
+                </div>
+                <BusinessVerticalCard
                   storeType={storeType}
                   handleSwitchVertical={handleSwitchVertical}
+                />
+                <ContactSpecialistCard />
+                <BusinessInformationCard
+                  storeType={storeType}
                   localName={localName}
                   setLocalName={setLocalName}
                   localAddress={localAddress}
@@ -194,36 +227,32 @@ export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
                   setLocalPhone={setLocalPhone}
                   localEmail={localEmail}
                   setLocalEmail={setLocalEmail}
+                  localRegistrationNumber={localRegistrationNumber}
+                  setLocalRegistrationNumber={setLocalRegistrationNumber}
+                  localLogo={localLogo}
+                  handleLogoUpload={handleLogoUpload}
+                  handleRemoveLogo={handleRemoveLogo}
                   localStoreSlug={localStoreSlug}
                   setLocalStoreSlug={setLocalStoreSlug}
                   localPcn={localPcn}
                   setLocalPcn={setLocalPcn}
-                  localRegistrationNumber={localRegistrationNumber}
-                  setLocalRegistrationNumber={setLocalRegistrationNumber}
-                  handleSaveProfile={handleSaveProfile}
-                  localLogo={localLogo}
-                  handleLogoUpload={handleLogoUpload}
-                  handleRemoveLogo={handleRemoveLogo}
-                  localReceiptHeader={localReceiptHeader}
-                  setLocalReceiptHeader={setLocalReceiptHeader}
-                  localReceiptFooter={localReceiptFooter}
-                  setLocalReceiptFooter={setLocalReceiptFooter}
-                  showLogo={showLogo}
-                  setShowLogo={setShowLogo}
-                  showContact={showContact}
-                  setShowContact={setShowContact}
-                  hidePoweredBy={hidePoweredBy}
-                  setHidePoweredBy={setHidePoweredBy}
-                  handleSaveReceiptSettings={handleSaveReceiptSettings}
                   showRetailSuggestions={showRetailSuggestions}
                   setShowRetailSuggestions={setShowRetailSuggestions}
-                  requirePaymentAccount={requirePaymentAccount}
-                  setRequirePaymentAccount={setRequirePaymentAccount}
                   onlineStoreEnabled={onlineStoreEnabled}
                   setOnlineStoreEnabled={setOnlineStoreEnabled}
-                  enabledPaymentMethods={enabledPaymentMethods}
-                  setEnabledPaymentMethods={setEnabledPaymentMethods}
+                  handleSaveProfile={handleSaveProfile}
                 />
+                <FleetOverview />
+              </TabsContent>
+            )}
+
+            {isAdmin && (
+              <TabsContent value="branches" className="space-y-6">
+                <div>
+                  <h1 className="text-2xl font-black tracking-tight">Branches</h1>
+                  <p className="text-muted-foreground">Manage every store location on this account</p>
+                </div>
+                <MultiStoreCard />
               </TabsContent>
             )}
 
@@ -278,6 +307,82 @@ export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
             {isAdmin && (
               <TabsContent value="staff">
                 <StaffManagement />
+              </TabsContent>
+            )}
+
+            {isAdmin && (
+              <TabsContent value="roles">
+                <RolesPermissionsPlaceholder />
+              </TabsContent>
+            )}
+
+            {isAdmin && (
+              <TabsContent value="payment-methods" className="space-y-6">
+                <div>
+                  <h1 className="text-2xl font-black tracking-tight">Payment Methods</h1>
+                  <p className="text-muted-foreground">Accepted payment options and destination accounts</p>
+                </div>
+                <PaymentSettingsCard
+                  requirePaymentAccount={requirePaymentAccount}
+                  setRequirePaymentAccount={setRequirePaymentAccount}
+                  enabledPaymentMethods={enabledPaymentMethods}
+                  setEnabledPaymentMethods={setEnabledPaymentMethods}
+                />
+                <PaymentAccountsCard />
+              </TabsContent>
+            )}
+
+            {isAdmin && (
+              <TabsContent value="receipt-settings" className="space-y-6">
+                <div>
+                  <h1 className="text-2xl font-black tracking-tight">Receipt Settings</h1>
+                  <p className="text-muted-foreground">Customize what prints on every receipt</p>
+                </div>
+                <ReceiptCustomizationCard
+                  localName={localName}
+                  localAddress={localAddress}
+                  localPhone={localPhone}
+                  localLogo={localLogo}
+                  localReceiptHeader={localReceiptHeader}
+                  setLocalReceiptHeader={setLocalReceiptHeader}
+                  localReceiptFooter={localReceiptFooter}
+                  setLocalReceiptFooter={setLocalReceiptFooter}
+                  showLogo={showLogo}
+                  setShowLogo={setShowLogo}
+                  showContact={showContact}
+                  setShowContact={setShowContact}
+                  hidePoweredBy={hidePoweredBy}
+                  setHidePoweredBy={setHidePoweredBy}
+                  handleSaveReceiptSettings={handleSaveReceiptSettings}
+                />
+              </TabsContent>
+            )}
+
+            {isAdmin && (
+              <TabsContent value="register-configs">
+                <RegisterConfigCard
+                  requireSaleNotes={requireSaleNotes}
+                  setRequireSaleNotes={setRequireSaleNotes}
+                  displayStockLevels={displayStockLevels}
+                  setDisplayStockLevels={setDisplayStockLevels}
+                  handleSaveRegisterConfig={handleSaveRegisterConfig}
+                />
+              </TabsContent>
+            )}
+
+            {isAdmin && (
+              <TabsContent value="product-units">
+                <ProductUnitsCard />
+              </TabsContent>
+            )}
+
+            {isAdmin && (
+              <TabsContent value="categories" className="space-y-6">
+                <div>
+                  <h1 className="text-2xl font-black tracking-tight">Categories</h1>
+                  <p className="text-muted-foreground">Organize your product catalog</p>
+                </div>
+                <CategoriesCard />
               </TabsContent>
             )}
 

@@ -3,10 +3,12 @@
 import { useState, useEffect } from "react";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { Button } from "@/components/ui/button";
-import { insert, update } from "@/lib/db/local-database";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/context/auth-context";
 import { DatePickerInput } from "@/components/ui/date-picker-input";
+import { formatCurrency } from "@/lib/utils";
+import { useStore } from "@/lib/context/store-context";
+import { useSaveExpenseMutation } from "@/lib/hooks/use-expense-mutations";
 import type { Expense } from "@/lib/db/queries/finance";
 
 interface AddExpenseDialogProps {
@@ -34,7 +36,9 @@ export function AddExpenseDialog({
   onSaved,
 }: AddExpenseDialogProps) {
   const { user } = useAuth();
-  const [isLoading, setIsLoading] = useState(false);
+  const { storeProfile } = useStore();
+  const saveExpenseMutation = useSaveExpenseMutation();
+  const isLoading = saveExpenseMutation.isPending;
   const [formData, setFormData] = useState({
     category: "Rent",
     amount: "",
@@ -79,35 +83,22 @@ export function AddExpenseDialog({
       return;
     }
 
-    setIsLoading(true);
-    try {
-      const data = {
-        ...formData,
-        amount: parseFloat(formData.amount),
-        covers_months: formData.covers_months
-          ? parseInt(formData.covers_months, 10)
-          : null,
-        user_id: user?.id,
-      };
-
-      if (expenseToEdit) {
-        await update("expenses", expenseToEdit.id, data);
-        toast.success("Expense updated successfully");
-      } else {
-        await insert("expenses", data);
-        toast.success("Expense added successfully");
-      }
-
-      onSaved?.();
-      onOpenChange(false);
-
-      // Form reset is handled by useEffect when modal closes
-    } catch (error) {
-      console.error("Failed to save expense:", error);
-      toast.error("Failed to save expense");
-    } finally {
-      setIsLoading(false);
-    }
+    if (isLoading) return;
+    saveExpenseMutation.mutate(
+      { formData, expenseId: expenseToEdit?.id, userId: user?.id },
+      {
+        onSuccess: () => {
+          toast.success(expenseToEdit ? "Expense updated successfully" : "Expense added successfully");
+          onSaved?.();
+          onOpenChange(false);
+          // Form reset is handled by useEffect when modal closes
+        },
+        onError: (error) => {
+          console.error("Failed to save expense:", error);
+          toast.error("Failed to save expense");
+        },
+      },
+    );
   };
 
   return (
@@ -263,10 +254,11 @@ export function AddExpenseDialog({
               formData.amount
             ) && (
               <p className="text-[11.5px] text-muted-foreground mt-1.5">
-                Reports will count ₦
-                {(
-                  parseFloat(formData.amount) / Number(formData.covers_months)
-                ).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                Reports will count{" "}
+                {formatCurrency(
+                  parseFloat(formData.amount) / Number(formData.covers_months),
+                  storeProfile?.currency,
+                )}
                 /month for {formData.covers_months} months starting{" "}
                 {new Date(formData.date).toLocaleDateString(undefined, {
                   month: "long",

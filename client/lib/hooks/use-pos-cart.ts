@@ -19,13 +19,22 @@ export interface CartItem extends Product {
   subtotal: number;
 }
 
+export interface RedeemedOption {
+  id: string;
+  label: string;
+  pointsCost: number;
+  discountValue: number;
+}
+
 interface POSCartState {
   cart: CartItem[];
   discount: number;
   discountType: "fixed" | "percentage";
+  redeemedOption: RedeemedOption | null;
   setCart: (cart: CartItem[] | ((prev: CartItem[]) => CartItem[])) => void;
   setDiscount: (discount: number) => void;
   setDiscountType: (type: "fixed" | "percentage") => void;
+  setRedeemedOption: (option: RedeemedOption | null) => void;
 }
 
 const usePOSCartStore = create<POSCartState>()(
@@ -34,12 +43,14 @@ const usePOSCartStore = create<POSCartState>()(
       cart: [],
       discount: 0,
       discountType: "fixed",
+      redeemedOption: null,
       setCart: (updater) =>
         set((state) => ({
           cart: typeof updater === "function" ? updater(state.cart) : updater,
         })),
       setDiscount: (discount) => set({ discount }),
       setDiscountType: (discountType) => set({ discountType }),
+      setRedeemedOption: (redeemedOption) => set({ redeemedOption }),
     }),
     {
       name: "pos-cart-storage",
@@ -52,10 +63,41 @@ export function usePOSCart(products: Product[]) {
   const cart = usePOSCartStore((state) => state.cart);
   const setCart = usePOSCartStore((state) => state.setCart);
   const discount = usePOSCartStore((state) => state.discount);
-  const setDiscount = usePOSCartStore((state) => state.setDiscount);
+  const setStoreDiscount = usePOSCartStore((state) => state.setDiscount);
   const discountType = usePOSCartStore((state) => state.discountType);
-  const setDiscountType = usePOSCartStore((state) => state.setDiscountType);
+  const setStoreDiscountType = usePOSCartStore((state) => state.setDiscountType);
+  const redeemedOption = usePOSCartStore((state) => state.redeemedOption);
+  const setRedeemedOption = usePOSCartStore((state) => state.setRedeemedOption);
   const [isHydrated, setIsHydrated] = useState(false);
+
+  // A manual discount edit and a loyalty redemption share the same discount
+  // slot (by design, to keep a single source of truth for "the" discount) —
+  // editing the discount by hand while a reward is redeemed detaches it from
+  // that reward, since the point cost no longer corresponds to what's typed.
+  const setDiscount = (value: number) => {
+    setStoreDiscount(value);
+    setRedeemedOption(null);
+  };
+  const setDiscountType = (type: "fixed" | "percentage") => {
+    setStoreDiscountType(type);
+    setRedeemedOption(null);
+  };
+
+  const redeemReward = (option: { id: string; label: string; points_cost: number; discount_value: number }) => {
+    setStoreDiscount(option.discount_value);
+    setStoreDiscountType("fixed");
+    setRedeemedOption({
+      id: option.id,
+      label: option.label,
+      pointsCost: option.points_cost,
+      discountValue: option.discount_value,
+    });
+  };
+
+  const clearRedemption = () => {
+    setStoreDiscount(0);
+    setRedeemedOption(null);
+  };
 
   useEffect(() => {
     setIsHydrated(true);
@@ -130,8 +172,18 @@ export function usePOSCart(products: Product[]) {
     setDiscount(0);
   };
 
-  const restoreCart = (items: CartItem[]) => {
+  const restoreCart = (
+    items: CartItem[],
+    restoredDiscount?: number,
+    restoredDiscountType?: "fixed" | "percentage",
+  ) => {
     setCart(items);
+    // A held transaction never persisted a redemption (only its resulting
+    // discount amount), so any redemption tag from before this restore is
+    // now stale and must not carry over.
+    setRedeemedOption(null);
+    if (restoredDiscount !== undefined) setStoreDiscount(restoredDiscount);
+    if (restoredDiscountType !== undefined) setStoreDiscountType(restoredDiscountType);
   };
 
   return {
@@ -149,5 +201,8 @@ export function usePOSCart(products: Product[]) {
     calculatedDiscount: isHydrated ? calculatedDiscount : 0,
     setDiscount,
     setDiscountType,
+    redeemedOption: isHydrated ? redeemedOption : null,
+    redeemReward,
+    clearRedemption,
   };
 }

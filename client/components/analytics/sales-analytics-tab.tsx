@@ -10,6 +10,8 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 import type { MonthlySalesDataPoint, CategoryDistributionItem } from "@/lib/types/analytics";
+import { getCurrencySymbol } from "@/lib/utils";
+import { useStore } from "@/lib/context/store-context";
 import { ProductPerformanceTable, type ProductPerformanceRow } from "./product-performance-table";
 
 function NoPeriodSalesData({ icon: Icon }: { icon: LucideIcon }) {
@@ -32,6 +34,8 @@ export function SalesAnalyticsTab({
   productPerformance,
   formattedCategoryData,
 }: SalesAnalyticsTabProps) {
+  const { storeProfile } = useStore();
+  const currencySymbol = getCurrencySymbol(storeProfile?.currency);
   const categoryDistribution = useMemo(() => {
     const total = formattedCategoryData.reduce(
       (sum, c) => sum + (c.value || 0),
@@ -77,7 +81,7 @@ export function SalesAnalyticsTab({
                 axisLine={false}
                 tickLine={false}
                 tick={{ fill: "#94a3b8", fontSize: 11 }}
-                tickFormatter={(value) => `₦${(value / 1000).toFixed(0)}k`}
+                tickFormatter={(value) => `${currencySymbol}${(value / 1000).toFixed(0)}k`}
               />
               <ChartTooltip content={<ChartTooltipContent />} />
               <Bar dataKey="revenue" fill="#2054E0" radius={[4, 4, 0, 0]} />

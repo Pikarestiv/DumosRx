@@ -116,6 +116,40 @@ describe('submitStockAudit (Cycle Count persistence)', () => {
     expect(movements[0]).toMatchObject({ quantity: -8 });
   });
 
+  it('records unit_cost/total_cost on adjustment movements (KNOWN_BUGS.md #4)', async () => {
+    // Regression: without these fields, getStockMoM()'s 30-day added/
+    // removed-value sums (SUM(ABS(quantity) * IFNULL(unit_cost, 0))) treated
+    // every cycle-count adjustment as ₦0 impact, regardless of real cost.
+    batches['b1'] = { id: 'b1', product_id: 'p1', quantity: 50, expiry_date: '2027-01-01' };
+
+    await submitStockAudit(
+      [{ productId: 'p1', systemQty: 50, countedQty: 42, systemCostPrice: 200, reason: 'Damaged' }],
+      'user-1',
+    );
+
+    expect(movements[0]).toMatchObject({ quantity: -8, unit_cost: 200, total_cost: 1600 });
+  });
+
+  it('uses the counted cost price over the system one when both are given', async () => {
+    batches['b1'] = { id: 'b1', product_id: 'p1', quantity: 20, expiry_date: '2027-01-01' };
+
+    await submitStockAudit(
+      [
+        {
+          productId: 'p1',
+          systemQty: 20,
+          countedQty: 35,
+          systemCostPrice: 100,
+          countedCostPrice: 150,
+          reason: 'Found',
+        },
+      ],
+      'user-1',
+    );
+
+    expect(movements[0]).toMatchObject({ quantity: 15, unit_cost: 150, total_cost: 2250 });
+  });
+
   it('deducts shrinkage FEFO across multiple batches when one is not enough', async () => {
     batches['b1'] = { id: 'b1', product_id: 'p1', quantity: 5, expiry_date: '2026-09-01' };
     batches['b2'] = { id: 'b2', product_id: 'p1', quantity: 20, expiry_date: '2027-03-01' };

@@ -314,7 +314,7 @@ export async function getStockAdjustments(page = 1, limit = 50) {
      LEFT JOIN users u ON sm.performed_by = u.id
      LEFT JOIN stock_batches sb ON sm.stock_batch_id = sb.id
      LEFT JOIN suppliers sp ON sb.supplier_id = sp.id
-     WHERE sm._deleted = 0 AND sm.movement_type IN ('adjustment', 'expired', 'damaged')${storeId ? " AND sm.store_id = ?" : ""}
+     WHERE sm._deleted = 0 AND sm.movement_type = 'adjustment'${storeId ? " AND sm.store_id = ?" : ""}
      ORDER BY sm.created_at DESC
      LIMIT ? OFFSET ?`,
     storeId ? [storeId, limit, offset] : [limit, offset],

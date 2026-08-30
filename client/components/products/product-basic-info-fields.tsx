@@ -12,6 +12,8 @@ import {
 } from "@/components/ui/tooltip";
 import type { Product } from "./types";
 import type { ProductSuggestions } from "./product-form-fields";
+import { getCurrencySymbol } from "@/lib/utils";
+import { useStore } from "@/lib/context/store-context";
 
 interface Props {
   formData: Product;
@@ -30,6 +32,8 @@ export function ProductBasicInfoFields({
   t,
   onScanClick,
 }: Props) {
+  const { storeProfile } = useStore();
+  const currencySymbol = getCurrencySymbol(storeProfile?.currency);
   return (
     <div className="space-y-4">
       <h3 className="font-serif font-bold text-lg border-b pb-2">
@@ -122,7 +126,7 @@ export function ProductBasicInfoFields({
         )}
 
         <div className="space-y-2">
-          <Label htmlFor="sellingPrice">Selling Price (₦)</Label>
+          <Label htmlFor="sellingPrice">Selling Price ({currencySymbol})</Label>
           <Input
             id="sellingPrice"
             type="number"

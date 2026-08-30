@@ -64,7 +64,7 @@ export async function getStockOverviewData() {
      LEFT JOIN (
        SELECT product_id,
               SUM(quantity) as total_qty,
-              AVG(cost_price) as avg_cost,
+              SUM(cost_price * quantity) * 1.0 / NULLIF(SUM(quantity), 0) as avg_cost,
               MIN(expiry_date) as earliest_expiry,
               GROUP_CONCAT(batch_number, ', ') as batches
        FROM stock_batches
@@ -78,15 +78,6 @@ export async function getStockOverviewData() {
   );
 }
 
-export interface AuditProduct {
-  id: string;
-  name: string;
-  stock_quantity: number;
-  base_unit: string;
-  cost_price?: number;
-  selling_price?: number;
-}
-
 export interface ExpiringItem {
   id: string;
   name: string;
@@ -94,18 +85,6 @@ export interface ExpiringItem {
   expiry_date: string;
   stock_quantity: number;
   base_unit?: string;
-}
-
-export async function getProductsForAudit() {
-  const storeId = getActiveStoreId();
-  return query<AuditProduct>(
-    `SELECT p.id, p.name, p.base_unit, AVG(sb.cost_price) as cost_price, p.selling_price, COALESCE(SUM(sb.quantity), 0) as stock_quantity
-    FROM products p
-    LEFT JOIN stock_batches sb ON p.id = sb.product_id AND sb._deleted = 0 AND sb.is_active = 1
-    WHERE p.is_active = 1 AND p._deleted = 0${storeId ? " AND p.store_id = ?" : ""}
-    GROUP BY p.id`,
-    storeId ? [storeId] : [],
-  );
 }
 
 export async function getBatchesForProduct(productId: string) {
@@ -342,6 +321,11 @@ export async function submitStockAudit(
 
       let remaining = Math.abs(diff);
       const batches = await getBatchesForProduct(item.productId);
+      // Without unit_cost/total_cost, a cycle-count adjustment's real value
+      // impact was invisible to getStockMoM()'s 30-day added/removed-value
+      // sums (they read IFNULL(unit_cost, 0)), silently treating every
+      // write-off as ₦0 regardless of the stock actually lost.
+      const unitCost = item.countedCostPrice ?? item.systemCostPrice ?? 0;
 
       if (diff > 0) {
         // Found more stock than recorded: add it to the soonest-expiring
@@ -353,6 +337,8 @@ export async function submitStockAudit(
             stock_batch_id: batches[0].id,
             movement_type: "adjustment",
             quantity: remaining,
+            unit_cost: unitCost,
+            total_cost: unitCost * remaining,
             reason: item.reason || "Cycle count adjustment",
             reference_id: auditId,
             reference_type: "stock_audit",
@@ -372,6 +358,8 @@ export async function submitStockAudit(
             stock_batch_id: newBatchId,
             movement_type: "adjustment",
             quantity: remaining,
+            unit_cost: unitCost,
+            total_cost: unitCost * remaining,
             reason: item.reason || "Cycle count adjustment",
             reference_id: auditId,
             reference_type: "stock_audit",
@@ -393,6 +381,8 @@ export async function submitStockAudit(
             stock_batch_id: batch.id,
             movement_type: "adjustment",
             quantity: -deductQty,
+            unit_cost: unitCost,
+            total_cost: unitCost * deductQty,
             reason: item.reason || "Cycle count adjustment",
             reference_id: auditId,
             reference_type: "stock_audit",
@@ -497,14 +487,14 @@ export async function getStockMoM() {
   const added30 = await query<{ total_added?: number }>(`
     SELECT SUM(ABS(quantity) * IFNULL(unit_cost, 0)) as total_added
     FROM stock_movements
-    WHERE created_at >= ? AND movement_type IN ('addition', 'IN', 'purchase', 'return') AND (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}
+    WHERE created_at >= ? AND movement_type IN ('purchase', 'return') AND (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}
   `, movementParams);
 
   // Value removed in last 30 days
   const removed30 = await query<{ total_removed?: number }>(`
     SELECT SUM(ABS(quantity) * IFNULL(unit_cost, 0)) as total_removed
     FROM stock_movements
-    WHERE created_at >= ? AND movement_type IN ('deduction', 'OUT', 'sale', 'damaged', 'adjustment') AND (_deleted = 0 OR _deleted IS NULL) AND quantity < 0${storeId ? " AND store_id = ?" : ""}
+    WHERE created_at >= ? AND movement_type IN ('sale', 'adjustment') AND (_deleted = 0 OR _deleted IS NULL) AND quantity < 0${storeId ? " AND store_id = ?" : ""}
   `, movementParams);
 
   // Adjusted additions from positive adjustments

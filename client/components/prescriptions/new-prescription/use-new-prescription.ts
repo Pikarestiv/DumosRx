@@ -3,13 +3,14 @@ import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/lib/context/auth-context";
-import { queryClient } from "@/lib/query-client";
 import { getAvailableStockBatches } from "@/lib/db/queries/inventory";
-import { createPrescription, generateId } from "@/lib/db/local-database";
-import { getPrescriptionById, getPrescriptionItems, updatePrescriptionRecord, deletePrescriptionItems, insertPrescriptionItem } from "@/lib/db/queries/prescriptions";
+import { generateId } from "@/lib/db/local-database";
+import { getPrescriptionById, getPrescriptionItems } from "@/lib/db/queries/prescriptions";
 import { queryKeys } from "@/lib/query-keys";
 import type { PrescriptionItem, PrescriptionPriority, PrescriptionRow } from "@/lib/types/prescription";
 import { toPrescriptionPriority } from "@/lib/types/prescription";
+import { calculatePrescriptionItemCost } from "@/lib/utils/prescription-calculations";
+import { useSavePrescriptionMutation } from "@/lib/hooks/use-save-prescription-mutation";
 
 export interface AvailablePrescriptionProduct {
   name: string;
@@ -26,7 +27,7 @@ export interface NewMedicationForm {
   instructions: string;
   refillsAuthorized: number | "";
   refillIntervalDays: number | "";
-  cost: number | "";
+  unitCost: number | "";
 }
 
 export interface PrescriptionMedication {
@@ -36,6 +37,8 @@ export interface PrescriptionMedication {
   dosage: string;
   quantity: number;
   instructions: string;
+  unitCost: number;
+  /** Always unitCost * quantity — computed, never independently entered. */
   cost: number;
   refillsAuthorized: number;
   refillIntervalDays: number;
@@ -95,7 +98,7 @@ export function useNewPrescription() {
     instructions: "",
     refillsAuthorized: 0,
     refillIntervalDays: 30,
-    cost: "",
+    unitCost: "",
   });
 
   useEffect(() => {
@@ -119,17 +122,25 @@ export function useNewPrescription() {
             priority: toPrescriptionPriority(prescription.priority),
             insurance: prescription.insurance || "",
             notes: prescription.notes || "",
-            medications: itemsData.map((item: PrescriptionItem) => ({
-              id: item.id,
-              productName: item.product_name,
-              strength: item.strength || "",
-              dosage: item.dosage || "",
-              quantity: item.quantity || 1,
-              instructions: item.instructions || "",
-              cost: item.cost || 0,
-              refillsAuthorized: item.refills_authorized || 0,
-              refillIntervalDays: item.refill_interval_days || 30,
-            })),
+            medications: itemsData.map((item: PrescriptionItem) => {
+              const quantity = item.quantity || 1;
+              const cost = item.cost || 0;
+              // Older records predate the unit_cost column — derive it from
+              // the stored total so editing still prefills something sane.
+              const unitCost = item.unit_cost || (quantity > 0 ? cost / quantity : 0);
+              return {
+                id: item.id,
+                productName: item.product_name,
+                strength: item.strength || "",
+                dosage: item.dosage || "",
+                quantity,
+                instructions: item.instructions || "",
+                unitCost,
+                cost,
+                refillsAuthorized: item.refills_authorized || 0,
+                refillIntervalDays: item.refill_interval_days || 30,
+              };
+            }),
           });
         } catch (error) {
           console.error("Failed to fetch prescription to edit", error);
@@ -161,14 +172,18 @@ export function useNewPrescription() {
       return;
     }
 
+    const quantity = Number(newMedication.quantity);
+    const unitCost = newMedication.unitCost !== "" ? Number(newMedication.unitCost) : product.cost;
+
     const medication: PrescriptionMedication = {
       id: generateId(),
       productName: newMedication.productName,
       strength: newMedication.strength,
       dosage: newMedication.dosage,
-      quantity: Number(newMedication.quantity),
+      quantity,
       instructions: newMedication.instructions,
-      cost: newMedication.cost !== "" ? Number(newMedication.cost) : (product.cost * Number(newMedication.quantity)),
+      unitCost,
+      cost: calculatePrescriptionItemCost(unitCost, quantity),
       refillsAuthorized: Number(newMedication.refillsAuthorized) || 0,
       refillIntervalDays: Number(newMedication.refillIntervalDays) || 30,
     };
@@ -186,7 +201,7 @@ export function useNewPrescription() {
       instructions: "",
       refillsAuthorized: 0,
       refillIntervalDays: 30,
-      cost: "",
+      unitCost: "",
     });
   };
 
@@ -208,7 +223,7 @@ export function useNewPrescription() {
         instructions: medToEdit.instructions,
         refillsAuthorized: medToEdit.refillsAuthorized,
         refillIntervalDays: medToEdit.refillIntervalDays,
-        cost: medToEdit.cost,
+        unitCost: medToEdit.unitCost,
       });
       removeMedication(id);
     }
@@ -248,7 +263,9 @@ export function useNewPrescription() {
     router.push(`${pathname}${query ? `?${query}` : ""}`);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const savePrescriptionMutation = useSavePrescriptionMutation();
+
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
     if (
@@ -264,106 +281,21 @@ export function useNewPrescription() {
       return;
     }
 
-    try {
-      const now = new Date().toISOString();
-      if (isEditing && editRxId) {
-        // Handle update
-        await updatePrescriptionRecord(editRxId, {
-            patient_name: formData.patientName,
-            patient_phone: formData.patientPhone,
-            patient_age: parseInt(formData.patientAge) || 0,
-            doctor_name: formData.doctorName,
-            doctor_license: formData.doctorLicense,
-            priority: formData.priority,
-            insurance: formData.insurance,
-            notes: formData.notes,
-            total_cost: formData.medications.reduce((sum, med) => sum + med.cost, 0),
-            updated_at: now
-        });
+    if (savePrescriptionMutation.isPending) return;
 
-        // Delete old items and insert new ones
-        await deletePrescriptionItems(editRxId);
-
-        for (const med of formData.medications) {
-          const nextRefillDate = new Date();
-          nextRefillDate.setDate(nextRefillDate.getDate() + Number(med.refillIntervalDays));
-          
-          await insertPrescriptionItem({
-              id: generateId(),
-              prescription_id: editRxId,
-              product_name: med.productName,
-              strength: med.strength,
-              dosage: med.dosage,
-              quantity: med.quantity,
-              instructions: med.instructions,
-              cost: med.cost,
-              refills_authorized: med.refillsAuthorized,
-              refill_interval_days: med.refillIntervalDays,
-              next_refill_date: nextRefillDate.toISOString(),
-              created_at: now,
-              updated_at: now
-          });
-        }
-
-        // updatePrescriptionRecord/deletePrescriptionItems/insertPrescriptionItem
-        // all write via raw query() and don't go through the insert/update
-        // helpers that auto-invalidate, so invalidate explicitly here to make
-        // the detail panel reflect the edited medications.
-        queryClient.invalidateQueries(queryKeys.prescriptions.all());
-
-        toast.success("Prescription updated successfully!");
-        cancelEdit();
-      } else {
-        // Generate new prescription
-        const prescriptionId = generateId();
-
-        const prescriptionData = {
-          id: prescriptionId,
-          prescription_number: `RX-${new Date().getFullYear()}-${String(Date.now()).slice(-3)}`,
-          patient_name: formData.patientName,
-          patient_phone: formData.patientPhone,
-          patient_age: parseInt(formData.patientAge) || 0,
-          user_id: user?.id,
-          doctor_name: formData.doctorName,
-          doctor_license: formData.doctorLicense,
-          priority: formData.priority,
-          insurance: formData.insurance,
-          notes: formData.notes,
-          status: "pending",
-          total_cost: formData.medications.reduce((sum, med) => sum + med.cost, 0),
-          issued_at: now,
-          created_at: now,
-          updated_at: now,
-        };
-
-        const prescriptionItems = formData.medications.map((med) => {
-          const nextRefillDate = new Date();
-          nextRefillDate.setDate(nextRefillDate.getDate() + Number(med.refillIntervalDays));
-          return {
-            id: generateId(),
-            product_name: med.productName,
-            strength: med.strength,
-            dosage: med.dosage,
-            quantity: med.quantity,
-            instructions: med.instructions,
-            cost: med.cost,
-            refills_authorized: med.refillsAuthorized,
-            refill_interval_days: med.refillIntervalDays,
-            next_refill_date: nextRefillDate.toISOString(),
-            created_at: now,
-            updated_at: now,
-          };
-        });
-
-        await createPrescription(prescriptionData, prescriptionItems);
-        toast.success("Prescription created successfully!");
-        resetForm();
-        closeNewPrescriptionForm();
-      }
-    } catch (err) {
-      console.error("Failed to create prescription", err);
-      toast.error("Failed to save prescription");
-    }
+    savePrescriptionMutation.mutate(
+      { isEditing, editRxId, formData, userId: user?.id },
+      {
+        onSuccess: () => {
+          if (isEditing && editRxId) {
+            cancelEdit();
+          } else {
+            resetForm();
+            closeNewPrescriptionForm();
+          }
+        },
+      },
+    );
   };
 
   const formatCurrency = (amount: number) => {
@@ -388,6 +320,7 @@ export function useNewPrescription() {
     removeMedication,
     editMedication,
     handleSubmit,
+    isSaving: savePrescriptionMutation.isPending,
     resetForm,
     cancelEdit,
     formatCurrency,

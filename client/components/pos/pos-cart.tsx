@@ -11,7 +11,9 @@ import {
 import { formatCurrency } from "@/lib/utils";
 import { RequestItemDialog } from "./request-item-dialog";
 import { POSCartItem } from "./pos-cart-item";
-import type { CartItem } from "@/lib/hooks/use-pos-cart";
+import { POSRedeemReward } from "./pos-redeem-reward";
+import type { CartItem, RedeemedOption } from "@/lib/hooks/use-pos-cart";
+import type { Customer } from "@/lib/types/customer";
 
 interface POSCartProps {
   cart: CartItem[];
@@ -23,6 +25,10 @@ interface POSCartProps {
   discountType?: "fixed" | "percentage";
   setDiscount?: (discount: number) => void;
   setDiscountType?: (type: "fixed" | "percentage") => void;
+  selectedCustomer?: Customer | null;
+  redeemedOption?: RedeemedOption | null;
+  onRedeemReward?: (option: { id: string; label: string; points_cost: number; discount_value: number }) => void;
+  onClearRedemption?: () => void;
   vatPercentage: number;
   currencyCode?: string;
   updateQuantity: (id: string, quantity: number) => void;
@@ -46,6 +52,10 @@ export function POSCart({
   discountType = "fixed",
   setDiscount,
   setDiscountType,
+  selectedCustomer = null,
+  redeemedOption = null,
+  onRedeemReward,
+  onClearRedemption,
   vatPercentage,
   currencyCode,
   updateQuantity,
@@ -122,25 +132,47 @@ export function POSCart({
             <span>{formatCurrency(tax, currencyCode)}</span>
           </div>
 
-          {(showDiscount || discount > 0) && (
+          {redeemedOption && (
+            <POSRedeemReward
+              selectedCustomer={selectedCustomer}
+              redeemedOption={redeemedOption}
+              onRedeem={onRedeemReward || (() => {})}
+              onClear={onClearRedemption || (() => {})}
+              currencyCode={currencyCode}
+            />
+          )}
+
+          {!redeemedOption && (showDiscount || discount > 0) && (
             <div className="flex justify-between text-[12.5px] items-center gap-2">
               <span className="text-muted-foreground">Discount</span>
               <div className="flex gap-1 items-center flex-1 max-w-[160px] justify-end">
                 <input
                   type="number"
+                  min={0}
+                  max={discountType === "percentage" ? 100 : undefined}
                   className="flex h-7 w-16 rounded-md border border-input bg-background px-2 py-1 text-xs text-right focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
                   value={discount || ""}
                   placeholder="0"
-                  onChange={(e) =>
-                    setDiscount?.(parseFloat(e.target.value) || 0)
-                  }
+                  onChange={(e) => {
+                    const value = parseFloat(e.target.value) || 0;
+                    setDiscount?.(
+                      discountType === "percentage"
+                        ? Math.min(100, Math.max(0, value))
+                        : Math.max(0, value),
+                    );
+                  }}
                 />
                 <select
                   className="flex h-7 rounded-md border border-input bg-background px-1 py-1 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
                   value={discountType}
-                  onChange={(e) =>
-                    setDiscountType?.(e.target.value as "fixed" | "percentage")
-                  }
+                  onChange={(e) => {
+                    // Clear the typed number on type switch instead of
+                    // silently reinterpreting it — "50" meant as a ₦50
+                    // fixed discount becomes a 50% discount otherwise, with
+                    // no warning.
+                    setDiscountType?.(e.target.value as "fixed" | "percentage");
+                    setDiscount?.(0);
+                  }}
                 >
                   <option value="fixed">Fixed</option>
                   <option value="percentage">%</option>
@@ -157,7 +189,7 @@ export function POSCart({
               </div>
             </div>
           )}
-          {!(showDiscount || discount > 0) && (
+          {!redeemedOption && !(showDiscount || discount > 0) && (
             <div className="flex justify-between text-[12.5px] text-muted-foreground">
               <span
                 className="text-primary font-semibold cursor-pointer hover:underline"
@@ -167,6 +199,16 @@ export function POSCart({
               </span>
               <span>{formatCurrency(0, currencyCode)}</span>
             </div>
+          )}
+
+          {!redeemedOption && !(showDiscount || discount > 0) && (
+            <POSRedeemReward
+              selectedCustomer={selectedCustomer}
+              redeemedOption={null}
+              onRedeem={onRedeemReward || (() => {})}
+              onClear={onClearRedemption || (() => {})}
+              currencyCode={currencyCode}
+            />
           )}
 
           {calculatedDiscount > 0 && (

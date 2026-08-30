@@ -13,11 +13,11 @@ import {
   Tag,
   User,
 } from "lucide-react";
-import { softDelete } from "@/lib/db/local-database";
 import { toast } from "sonner";
 import { useState } from "react";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useStore } from "@/lib/context/store-context";
+import { useDeleteExpenseMutation } from "@/lib/hooks/use-expense-mutations";
 import type { Expense } from "@/lib/db/queries/finance";
 
 interface ExpenseDetailDialogProps {
@@ -37,14 +37,14 @@ export function ExpenseDetailDialog({
 }: ExpenseDetailDialogProps) {
   const { storeProfile } = useStore();
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
+  const deleteExpenseMutation = useDeleteExpenseMutation();
 
   if (!expense) return null;
 
   const handleDelete = async () => {
     try {
-      await softDelete("expenses", expense.id);
+      await deleteExpenseMutation.mutateAsync(expense.id);
       toast.success("Expense deleted");
-      setShowConfirmDelete(false);
       onDeleted();
     } catch (error) {
       console.error("Failed to delete expense:", error);

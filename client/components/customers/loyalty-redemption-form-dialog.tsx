@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -21,11 +22,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { insert, update } from "@/lib/db/local-database";
+import { useSaveLoyaltyRedemptionOptionMutation } from "@/lib/hooks/use-loyalty-mutations";
 import { LoyaltyRedemptionOptionRow } from "@/lib/db/queries/loyalty";
 import { REDEMPTION_ICONS } from "./loyalty-icons";
 
-const emptyForm = { label: "", points_cost: "0", description: "", icon_key: "tag", is_active: true };
+const emptyForm = { label: "", points_cost: "0", discount_value: "0", description: "", icon_key: "tag", is_active: true };
 
 interface Props {
   open: boolean;
@@ -46,6 +47,7 @@ export function LoyaltyRedemptionFormDialog({ open, onOpenChange, option, userId
         ? {
             label: option.label,
             points_cost: String(option.points_cost),
+            discount_value: String(option.discount_value || 0),
             description: option.description || "",
             icon_key: option.icon_key || "tag",
             is_active: !!option.is_active,
@@ -54,34 +56,23 @@ export function LoyaltyRedemptionFormDialog({ open, onOpenChange, option, userId
     );
   }, [open, option]);
 
-  const handleSave = async () => {
+  const saveMutation = useSaveLoyaltyRedemptionOptionMutation();
+
+  const handleSave = () => {
     if (!form.label.trim()) {
       toast.error("Reward label is required");
       return;
     }
-    const payload = {
-      user_id: userId,
-      label: form.label.trim(),
-      points_cost: Number(form.points_cost) || 0,
-      description: form.description.trim(),
-      icon_key: form.icon_key,
-      is_active: form.is_active ? 1 : 0,
-      sort_order: option?.sort_order ?? nextSortOrder,
-    };
-    try {
-      if (option) {
-        await update("loyalty_redemption_options", option.id, payload);
-        toast.success("Reward updated");
-      } else {
-        await insert("loyalty_redemption_options", payload);
-        toast.success("Reward added");
-      }
-      onOpenChange(false);
-      onSaved();
-    } catch (e) {
-      console.error(e);
-      toast.error("Failed to save reward");
-    }
+    if (saveMutation.isPending) return;
+    saveMutation.mutate(
+      { form, option, userId, nextSortOrder },
+      {
+        onSuccess: () => {
+          onOpenChange(false);
+          onSaved();
+        },
+      },
+    );
   };
 
   return (
@@ -110,6 +101,18 @@ export function LoyaltyRedemptionFormDialog({ open, onOpenChange, option, userId
                 onChange={(e) => setForm({ ...form, points_cost: e.target.value })}
               />
             </div>
+            <div className="space-y-2">
+              <Label>Discount Value (₦)</Label>
+              <Input
+                type="number"
+                min={0}
+                placeholder="0 for non-monetary perks"
+                value={form.discount_value}
+                onChange={(e) => setForm({ ...form, discount_value: e.target.value })}
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Icon</Label>
               <Select value={form.icon_key} onValueChange={(val) => setForm({ ...form, icon_key: val })}>
@@ -141,8 +144,11 @@ export function LoyaltyRedemptionFormDialog({ open, onOpenChange, option, userId
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleSave}>Save Reward</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saveMutation.isPending}>Cancel</Button>
+          <Button onClick={handleSave} disabled={saveMutation.isPending}>
+            {saveMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Save Reward
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { TableCell, TableRow } from "@/components/ui/table";
-import { Check, Copy, Trash2 } from "lucide-react";
+import { Check, Copy, Trash2, Loader2 } from "lucide-react";
 import type { RequestedProduct } from "@/lib/db/requested-products-queries";
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 
@@ -10,6 +10,10 @@ interface RequestedProductRowProps {
   onMarkAsOrdered: (id: string) => void;
   onDelete: (id: string) => void;
   onCopy: (text: string) => void;
+  /** True while this row's mark-as-ordered/delete action is in flight —
+   * disables both action buttons so a double-click can't fire the same
+   * mutation twice. */
+  busy?: boolean;
 }
 
 export function RequestedProductRow({
@@ -17,6 +21,7 @@ export function RequestedProductRow({
   onMarkAsOrdered,
   onDelete,
   onCopy,
+  busy = false,
 }: RequestedProductRowProps) {
   return (
     <TableRow className="border-b border-border/50 hover:bg-accent/20 transition-colors group">
@@ -85,6 +90,7 @@ export function RequestedProductRow({
               onClick={() => onMarkAsOrdered(req.id)}
               title="Mark as ordered"
               className="h-8 text-xs"
+              disabled={busy}
             >
               <Check className="h-3.5 w-3.5 mr-1.5 text-emerald-500" />
               Mark Ordered
@@ -96,8 +102,9 @@ export function RequestedProductRow({
             className="h-8 w-8 text-destructive/70 hover:text-destructive hover:bg-destructive/10"
             onClick={() => onDelete(req.id)}
             title="Delete request"
+            disabled={busy}
           >
-            <Trash2 className="h-4 w-4" />
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
           </Button>
         </div>
       </TableCell>

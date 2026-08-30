@@ -7,6 +7,7 @@ import { useEffect } from "react";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Loader2 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
@@ -38,6 +39,9 @@ interface POSPaymentDialogProps {
   requirePaymentAccount?: boolean;
   enabledPaymentMethods?: string[];
   paymentAccounts?: PaymentAccount[];
+  saleNote?: string;
+  setSaleNote?: (note: string) => void;
+  requireSaleNotes?: boolean;
 }
 
 export function POSPaymentDialog({
@@ -59,6 +63,9 @@ export function POSPaymentDialog({
   requirePaymentAccount,
   enabledPaymentMethods = ["cash", "card", "transfer", "credit"],
   paymentAccounts = [],
+  saleNote = "",
+  setSaleNote,
+  requireSaleNotes,
 }: POSPaymentDialogProps) {
   const { storeProfile } = useStore();
   const { defaults, setDefaultAccount, clearDefaultAccount } =
@@ -224,6 +231,22 @@ export function POSPaymentDialog({
               )}
             </div>
           )}
+
+        {setSaleNote && (
+          <div>
+            <label className="text-sm font-medium">
+              Sale Note{" "}
+              {requireSaleNotes && <span className="text-destructive">*</span>}
+            </label>
+            <Textarea
+              placeholder="Add a note for this sale..."
+              value={saleNote}
+              onChange={(e) => setSaleNote(e.target.value)}
+              className="mt-1 resize-none"
+              rows={2}
+            />
+          </div>
+        )}
 
         {paymentMethod === "mixed" && (
           <PaymentSplits

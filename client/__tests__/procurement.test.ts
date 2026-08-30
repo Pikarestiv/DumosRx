@@ -23,6 +23,8 @@ describe("procurement.ts", () => {
   let getPurchaseOrders: typeof import("@/lib/db/procurement").getPurchaseOrders;
   let getPurchaseOrderItemsForDetail: typeof import("@/lib/db/procurement").getPurchaseOrderItemsForDetail;
   let createPurchaseOrder: typeof import("@/lib/db/procurement").createPurchaseOrder;
+  let updatePurchaseOrder: typeof import("@/lib/db/procurement").updatePurchaseOrder;
+  let createAndReceivePurchaseOrder: typeof import("@/lib/db/procurement").createAndReceivePurchaseOrder;
 
   beforeAll(async () => {
     core = await import("@/lib/db/core");
@@ -31,6 +33,8 @@ describe("procurement.ts", () => {
     getPurchaseOrders = procurement.getPurchaseOrders;
     getPurchaseOrderItemsForDetail = procurement.getPurchaseOrderItemsForDetail;
     createPurchaseOrder = procurement.createPurchaseOrder;
+    updatePurchaseOrder = procurement.updatePurchaseOrder;
+    createAndReceivePurchaseOrder = procurement.createAndReceivePurchaseOrder;
 
     const SQL = await initSqlJs({
       locateFile: () => require.resolve("sql.js/dist/sql-wasm.wasm"),
@@ -62,17 +66,22 @@ describe("procurement.ts", () => {
         id TEXT PRIMARY KEY, first_name TEXT, last_name TEXT
       );
       CREATE TABLE stock_movements (
-        id TEXT PRIMARY KEY, reference_id TEXT, reference_type TEXT, stock_batch_id TEXT
+        id TEXT PRIMARY KEY, reference_id TEXT, reference_type TEXT, stock_batch_id TEXT,
+        product_id TEXT, movement_type TEXT, quantity REAL, unit_cost REAL, total_cost REAL,
+        reason TEXT, performed_by TEXT, movement_date TEXT, created_at TEXT, updated_at TEXT,
+        _version INTEGER DEFAULT 1, _synced INTEGER DEFAULT 0, _deleted INTEGER DEFAULT 0
       );
       CREATE TABLE stock_batches (
-        id TEXT PRIMARY KEY, expiry_date TEXT
+        id TEXT PRIMARY KEY, expiry_date TEXT, product_id TEXT, quantity REAL, cost_price REAL,
+        batch_number TEXT, created_at TEXT, updated_at TEXT, is_active INTEGER DEFAULT 1,
+        _version INTEGER DEFAULT 1, _synced INTEGER DEFAULT 0, _deleted INTEGER DEFAULT 0
       );
       CREATE TABLE _sync_queue (
         id INTEGER PRIMARY KEY AUTOINCREMENT, table_name TEXT, record_id TEXT,
         operation TEXT, payload TEXT, created_at TEXT, next_retry_at TEXT
       );
       CREATE TABLE audit_logs (
-        id TEXT PRIMARY KEY, user_id TEXT, action TEXT, table_name TEXT,
+        id TEXT PRIMARY KEY, user_id TEXT, store_id TEXT, action TEXT, table_name TEXT,
         record_id TEXT, details TEXT, created_at TEXT
       );
     `);
@@ -248,7 +257,7 @@ describe("procurement.ts", () => {
   });
 
   describe("createPurchaseOrder", () => {
-    it("always persists type as 'standard'", async () => {
+    it("defaults type to 'standard' when none is passed", async () => {
       db.run(`INSERT INTO suppliers (id, name) VALUES ('sup1', 'Emzor')`);
       db.run(`INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk) VALUES ('prod1', 'Panadol', 'Tablet', 'Carton', 100)`);
 
@@ -262,6 +271,43 @@ describe("procurement.ts", () => {
       expect(rows[0].values[0][0]).toBe("standard");
     });
 
+    it("preserves an explicit 'immediate' type, so a drafted Immediate Purchase keeps its identity", async () => {
+      db.run(`INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk) VALUES ('prod1', 'Panadol', 'Tablet', 'Carton', 100)`);
+
+      const poId = await createPurchaseOrder(
+        null,
+        "",
+        [{ product_id: "prod1", product_name: "Panadol", bulk_unit: "Carton", bulk_quantity: 2, units_per_bulk: 100, unit_cost: 500, subtotal: 1000 }],
+        "unpaid",
+        0,
+        null,
+        "immediate",
+      );
+
+      const rows = db.exec(`SELECT type FROM purchase_orders WHERE id = '${poId}'`);
+      expect(rows[0].values[0][0]).toBe("immediate");
+    });
+
+    it("derives total_amount and each item's subtotal from bulk_quantity * unit_cost, ignoring a stale subtotal field", async () => {
+      // Regression: item.subtotal is only ever set once when a row is first
+      // added in the UI and is never kept in sync with later quantity
+      // edits, so a stale value here (500, from an earlier 1-carton state)
+      // must not leak into what's actually persisted.
+      db.run(`INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk) VALUES ('prod1', 'Panadol', 'Tablet', 'Carton', 100)`);
+
+      const poId = await createPurchaseOrder(
+        null,
+        "",
+        [{ product_id: "prod1", product_name: "Panadol", bulk_unit: "Carton", bulk_quantity: 3, units_per_bulk: 100, unit_cost: 500, subtotal: 500 }],
+      );
+
+      const poRows = db.exec(`SELECT total_amount FROM purchase_orders WHERE id = '${poId}'`);
+      expect(poRows[0].values[0][0]).toBe(1500);
+
+      const itemRows = db.exec(`SELECT subtotal FROM purchase_order_items WHERE po_id = '${poId}'`);
+      expect(itemRows[0].values[0][0]).toBe(1500);
+    });
+
     it("accepts a null supplierId for a self/walk-in purchase with no real vendor", async () => {
       db.run(`INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk) VALUES ('prod1', 'Panadol', 'Tablet', 'Carton', 100)`);
 
@@ -273,6 +319,89 @@ describe("procurement.ts", () => {
 
       const rows = db.exec(`SELECT supplier_id FROM purchase_orders WHERE id = '${poId}'`);
       expect(rows[0].values[0][0]).toBeNull();
+    });
+  });
+
+  describe("updatePurchaseOrder", () => {
+    it("derives total_amount and each item's subtotal from bulk_quantity * unit_cost, ignoring a stale subtotal field", async () => {
+      db.run(`INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk) VALUES ('prod1', 'Panadol', 'Tablet', 'Carton', 100)`);
+      const poId = await createPurchaseOrder(
+        null,
+        "",
+        [{ product_id: "prod1", product_name: "Panadol", bulk_unit: "Carton", bulk_quantity: 1, units_per_bulk: 100, unit_cost: 500, subtotal: 500 }],
+      );
+
+      // Simulates editing the quantity in the UI without touching cost: the
+      // stale subtotal (500, from the original 1-carton row) must not carry
+      // through the edit.
+      await updatePurchaseOrder(
+        poId,
+        null,
+        "",
+        [{ product_id: "prod1", product_name: "Panadol", bulk_unit: "Carton", bulk_quantity: 4, units_per_bulk: 100, unit_cost: 500, subtotal: 500 }],
+      );
+
+      const poRows = db.exec(`SELECT total_amount FROM purchase_orders WHERE id = '${poId}'`);
+      expect(poRows[0].values[0][0]).toBe(2000);
+
+      const itemRows = db.exec(
+        `SELECT subtotal FROM purchase_order_items WHERE po_id = '${poId}' AND _deleted = 0`,
+      );
+      expect(itemRows[0].values[0][0]).toBe(2000);
+    });
+  });
+
+  describe("createAndReceivePurchaseOrder", () => {
+    it("uses unit_cost (per carton) directly for both the order total and the received stock's cost basis when there's no override", async () => {
+      db.run(`INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk) VALUES ('prod1', 'Zyrtec', 'Tablet', 'Carton', 60)`);
+
+      const poId = await createAndReceivePurchaseOrder(null, "", [
+        {
+          product_id: "prod1",
+          product_name: "Zyrtec",
+          bulk_unit: "Carton",
+          bulk_quantity: 1,
+          units_per_bulk: 60,
+          unit_cost: 37200, // 620/tablet * 60 tablets/carton
+          subtotal: 37200,
+        },
+      ]);
+
+      const poRows = db.exec(`SELECT total_amount FROM purchase_orders WHERE id = '${poId}'`);
+      expect(poRows[0].values[0][0]).toBe(37200);
+
+      const batchRows = db.exec(`SELECT quantity, cost_price FROM stock_batches WHERE product_id = 'prod1'`);
+      expect(batchRows[0].values[0]).toEqual([60, 620]);
+    });
+
+    it("scales a per-tablet cost override by units_per_bulk instead of using it as a flat per-carton price", async () => {
+      // Regression: the UI's "New Cost" override is typed per base unit
+      // (per tablet, matching the catalog's current-cost display), but the
+      // total was previously computed as bulk_quantity * override with no
+      // units_per_bulk factor — silently understating the order by 60x here.
+      db.run(`INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk) VALUES ('prod1', 'Zyrtec', 'Tablet', 'Carton', 60)`);
+
+      const poId = await createAndReceivePurchaseOrder(null, "", [
+        {
+          product_id: "prod1",
+          product_name: "Zyrtec",
+          bulk_unit: "Carton",
+          bulk_quantity: 2,
+          units_per_bulk: 60,
+          unit_cost: 37200,
+          subtotal: 37200, // stale — from before the override/quantity were set
+          cost_price_override: 650,
+        },
+      ]);
+
+      const poRows = db.exec(`SELECT total_amount FROM purchase_orders WHERE id = '${poId}'`);
+      expect(poRows[0].values[0][0]).toBe(78000); // 650 * 60 * 2
+
+      const batchRows = db.exec(`SELECT quantity, cost_price FROM stock_batches WHERE product_id = 'prod1'`);
+      expect(batchRows[0].values[0]).toEqual([120, 650]);
+
+      const itemRows = db.exec(`SELECT subtotal FROM purchase_order_items WHERE po_id = '${poId}'`);
+      expect(itemRows[0].values[0][0]).toBe(78000);
     });
   });
 

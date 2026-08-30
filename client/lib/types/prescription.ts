@@ -39,6 +39,7 @@ export interface PrescriptionItem {
   quantity?: number;
   instructions?: string;
   cost?: number;
+  unit_cost?: number;
   refills_authorized?: number;
   refills_used?: number;
   refill_interval_days?: number;

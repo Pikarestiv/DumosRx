@@ -8,10 +8,11 @@ vi.mock("idb-keyval", () => ({
 
 /**
  * Exercises getActiveProductsForPO() against a genuine in-memory SQLite
- * engine. Regression coverage for the fix where "cost_price" meant "the
- * most recently created batch's cost" instead of the same averaged cost
- * shown everywhere else (Product Catalog's "Avg Cost"), and where
- * stock_quantity wasn't selected at all.
+ * engine. Regression coverage for two fixes: "cost_price" meaning "the
+ * most recently created batch's cost" instead of a real average across
+ * batches; and that average being a plain AVG(cost_price) instead of a
+ * quantity-weighted average, which skews the result toward small/odd-cost
+ * batches (see KNOWN_BUGS.md #5/#8 — this exact query was part of that bug).
  */
 describe("getActiveProductsForPO", () => {
   let db: Database;
@@ -44,7 +45,7 @@ describe("getActiveProductsForPO", () => {
     db.run(`DELETE FROM products; DELETE FROM stock_batches;`);
   });
 
-  it("returns the averaged cost across active batches and total stock quantity", async () => {
+  it("returns the quantity-weighted average cost across active batches and total stock quantity", async () => {
     db.run(`INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk) VALUES ('prod1', 'Panadol', 'Tablet', 'Carton', 100)`);
     db.run(`INSERT INTO stock_batches (id, product_id, quantity, cost_price, is_active, _deleted) VALUES
       ('b1', 'prod1', 100, 4, 1, 0),
@@ -53,7 +54,9 @@ describe("getActiveProductsForPO", () => {
     const products = await getActiveProductsForPO();
     const panadol = products.find((p) => p.id === "prod1")!;
 
-    expect(panadol.cost_price).toBe(5);
+    // Weighted: (100*4 + 50*6) / 150 = 4.667 — a plain AVG(4, 6) = 5 would be
+    // wrong here since it ignores that the ₦4 batch is twice the size.
+    expect(panadol.cost_price).toBeCloseTo(4.6667, 4);
     expect(panadol.stock_quantity).toBe(150);
   });
 

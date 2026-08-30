@@ -13,9 +13,8 @@ import {
 } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { apiClient } from "@/lib/api/client";
-import { update } from "@/lib/db/base-helpers";
 import { useStore } from "@/lib/context/store-context";
+import { useSaveFleetStoreMutation } from "@/lib/hooks/use-fleet-mutations";
 import type { FleetStore } from "@/lib/types/store";
 
 const STORE_TYPES = ["pharmacy", "supermarket", "grocery", "general", "retail"] as const;
@@ -36,7 +35,8 @@ export function FleetFormDialog({
   onSuccess,
 }: FleetFormDialogProps) {
   const { refetch } = useStore();
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const saveStoreMutation = useSaveFleetStoreMutation();
+  const isSubmitting = saveStoreMutation.isPending;
   const isEditing = !!storeToEdit;
   const [formData, setFormData] = useState({
     name: "",
@@ -65,41 +65,30 @@ export function FleetFormDialog({
       return;
     }
 
-    setIsSubmitting(true);
-    try {
-      if (isEditing && storeToEdit) {
-        await apiClient.updateStore(storeToEdit.id, formData);
-
-        // The Business Information card writes name/address/phone to the
-        // local `stores` row and queues a sync push independently of Fleet.
-        // If Fleet edits the active store's fields but the local row still
-        // holds pre-edit values, that queued push would silently revert
-        // this edit on the next sync. Writing the same fields locally too
-        // (only for the store this device is actually running) keeps local
-        // state in step with what we just wrote to the cloud.
-        if (activeStoreId && storeToEdit.id === activeStoreId) {
-          await update("stores", activeStoreId, {
-            name: formData.name,
-            location: formData.location,
-            address: formData.address,
-            phone: formData.phone,
-            store_type: formData.store_type,
-          });
-          await refetch();
-        }
-
-        toast.success("Store details updated successfully");
-      } else {
-        await apiClient.createStore(formData);
-        toast.success("New store registered successfully");
-      }
-      onSuccess();
-      onOpenChange(false);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to save store");
-    } finally {
-      setIsSubmitting(false);
-    }
+    if (isSubmitting) return;
+    saveStoreMutation.mutate(
+      {
+        isEditing,
+        storeId: storeToEdit?.id,
+        formData,
+        activeStoreId,
+      },
+      {
+        onSuccess: async () => {
+          if (isEditing && storeToEdit && activeStoreId === storeToEdit.id) {
+            await refetch();
+          }
+          toast.success(
+            isEditing ? "Store details updated successfully" : "New store registered successfully",
+          );
+          onSuccess();
+          onOpenChange(false);
+        },
+        onError: (error) => {
+          toast.error(error instanceof Error ? error.message : "Failed to save store");
+        },
+      },
+    );
   };
 
   return (

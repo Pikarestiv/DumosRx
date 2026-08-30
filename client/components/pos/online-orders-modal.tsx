@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import { useOnlineOrdersModal } from "@/lib/store/use-online-orders-modal";
@@ -12,9 +11,9 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Loader2, CheckCircle, PackageOpen } from "lucide-react";
 
-import { generateId } from "@/lib/db/core";
-import { insert, update } from "@/lib/db/base-helpers";
-import { getStockBatchesForProduct } from "@/lib/db/queries/sales";
+import { useFulfillOnlineOrderMutation } from "@/lib/hooks/use-fulfill-online-order-mutation";
+import { formatCurrency } from "@/lib/utils";
+import { useStore } from "@/lib/context/store-context";
 import type { OnlineOrder } from "@/lib/types/online-order";
 
 function NoOnlineOrdersFound() {
@@ -29,8 +28,8 @@ function NoOnlineOrdersFound() {
 export function OnlineOrdersModal() {
   const { isOpen, onClose } = useOnlineOrdersModal();
   const { user } = useAuth();
-  const [fulfillingId, setFulfillingId] = useState<string | null>(null);
-
+  const { storeProfile } = useStore();
+  const currencyCode = storeProfile?.currency;
   const {
     data: orders = [],
     isLoading: loading,
@@ -44,64 +43,26 @@ export function OnlineOrdersModal() {
     enabled: isOpen,
   });
 
-  const handleFulfill = async (order: OnlineOrder) => {
-    setFulfillingId(order.id);
-    try {
-      // 1. Mark as fulfilled on server
-      await apiClient.fulfillOnlineOrder(order.id);
+  const fulfillOrderMutation = useFulfillOnlineOrderMutation();
+  const fulfillingId = fulfillOrderMutation.isPending
+    ? fulfillOrderMutation.variables?.order.id ?? null
+    : null;
 
-      // 2. Record locally in SQLite (as an online sale), via the standard
-      // insert()/update() helpers, not raw execute(), so this gets audit
-      // logging and cache invalidation like every other mutation.
-      const saleId = generateId();
-
-      await insert("sales", {
-        id: saleId,
-        store_id: user?.store_id,
-        total_amount: order.total_amount,
-        amount_paid: order.total_amount,
-        change_given: 0,
-        payment_method: order.payment_method,
-        payment_status: "paid",
-        receipt_number: `ONL-${order.id.split('-')[0]}`,
-        cashier_id: user?.id,
-        customer_name: order.customer_name,
-        status: "completed",
-      });
-
-      // Deduct stock for each item
-      for (const item of order.items) {
-        await insert("sale_items", {
-          sale_id: saleId,
-          product_id: item.product_id,
-          quantity: item.quantity,
-          unit_price: item.unit_price,
-          subtotal: item.subtotal,
-        });
-
-        // Reduce stock in stock_batches (simple FIFO logic or just deduct from first available)
-        // Here we just deduct from the latest active batch to keep it simple, since online order didn't pick batch.
-        const batches = await getStockBatchesForProduct(item.product_id);
-
-        let remainingToDeduct = item.quantity;
-        for (const batch of batches) {
-          if (remainingToDeduct <= 0) break;
-          const deduct = Math.min(batch.quantity, remainingToDeduct);
-          await update("stock_batches", batch.id, {
-            quantity: batch.quantity - deduct,
-          });
-          remainingToDeduct -= deduct;
-        }
-      }
-
-      toast.success("Order fulfilled and recorded locally");
-      await fetchOrders();
-    } catch (e) {
-      console.error(e);
-      toast.error(e instanceof Error ? e.message : "Failed to fulfill order");
-    } finally {
-      setFulfillingId(null);
-    }
+  const handleFulfill = (order: OnlineOrder) => {
+    if (fulfillOrderMutation.isPending) return;
+    fulfillOrderMutation.mutate(
+      { order, storeId: user?.store_id, cashierId: user?.id },
+      {
+        onSuccess: async () => {
+          toast.success("Order fulfilled and recorded locally");
+          await fetchOrders();
+        },
+        onError: (e) => {
+          console.error(e);
+          toast.error(e instanceof Error ? e.message : "Failed to fulfill order");
+        },
+      },
+    );
   };
 
   return (
@@ -142,14 +103,14 @@ export function OnlineOrdersModal() {
                           <div key={item.id} role="row" className="flex items-center gap-2">
                             <div role="cell" className="py-1 flex-1">{item.product?.name || 'Unknown Product'}</div>
                             <div role="cell" className="py-1 text-right w-[60px] shrink-0">x{item.quantity}</div>
-                            <div role="cell" className="py-1 text-right w-[100px] shrink-0">₦{Number(item.subtotal).toLocaleString()}</div>
+                            <div role="cell" className="py-1 text-right w-[100px] shrink-0">{formatCurrency(Number(item.subtotal), currencyCode)}</div>
                           </div>
                         ))}
                       </div>
                       <div role="rowgroup">
                         <div role="row" className="flex items-center gap-2 border-t font-semibold">
                           <div role="cell" className="py-2 flex-1">Total</div>
-                          <div role="cell" className="py-2 text-right w-[100px] shrink-0 text-emerald-600">₦{Number(order.total_amount).toLocaleString()}</div>
+                          <div role="cell" className="py-2 text-right w-[100px] shrink-0 text-emerald-600">{formatCurrency(Number(order.total_amount), currencyCode)}</div>
                         </div>
                       </div>
                     </div>

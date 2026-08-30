@@ -1,6 +1,7 @@
 import React from "react";
 import { POSMobileCartDrawer } from "./pos-mobile-cart-drawer";
-import type { CartItem } from "@/lib/hooks/use-pos-cart";
+import type { CartItem, RedeemedOption } from "@/lib/hooks/use-pos-cart";
+import type { Customer } from "@/lib/types/customer";
 
 interface POSMobileCartWrapperProps {
   cart: CartItem[];
@@ -12,6 +13,10 @@ interface POSMobileCartWrapperProps {
   discountType?: "percentage" | "fixed";
   setDiscount?: (discount: number) => void;
   setDiscountType?: (type: "percentage" | "fixed") => void;
+  selectedCustomer?: Customer | null;
+  redeemedOption?: RedeemedOption | null;
+  onRedeemReward?: (option: { id: string; label: string; points_cost: number; discount_value: number }) => void;
+  onClearRedemption?: () => void;
   vatPercentage: number;
   currencyCode?: string;
   updateQuantity: (id: string, qty: number) => void;
@@ -35,6 +40,10 @@ export function POSMobileCartWrapper({
   discountType,
   setDiscount,
   setDiscountType,
+  selectedCustomer,
+  redeemedOption,
+  onRedeemReward,
+  onClearRedemption,
   vatPercentage,
   currencyCode,
   updateQuantity,
@@ -62,6 +71,10 @@ export function POSMobileCartWrapper({
           discountType={discountType}
           setDiscount={setDiscount}
           setDiscountType={setDiscountType}
+          selectedCustomer={selectedCustomer}
+          redeemedOption={redeemedOption}
+          onRedeemReward={onRedeemReward}
+          onClearRedemption={onClearRedemption}
           vatPercentage={vatPercentage}
           currencyCode={currencyCode}
           updateQuantity={updateQuantity}

@@ -162,7 +162,10 @@ components/
                           - responsive-tab-label.tsx   short label <md, full label >=md
                           - responsive-detail-panel.tsx   sheet-on-mobile / inline-panel-on-desktop
   products/               Product Catalog page + product detail panel (product-details/ subfolder)
-  procurement/            Purchase orders, receiving (ledger-style dense table)
+  procurement/            Purchase orders (Standard + Immediate types), receiving
+                           (ledger-style dense table). Create/edit flow is a
+                           two-phase "details step → item entry" screen; see
+                           Domain model essentials below.
   stock-batch/             "Inventory" tab group: overview, catalog table, movements (ledger), audits (cycle count)
   pos/                    Point of sale
   settings/                One file/folder per settings card, composed by store-settings.tsx etc.
@@ -215,7 +218,62 @@ e2e/                       Playwright end-to-end specs
   `getProductsWithDetails()`), shown on the product detail panel with a
   90-day-stale warning banner.
 
+- **Purchase Orders: Standard vs Immediate** (`lib/db/procurement.ts`,
+  `components/procurement/`). `purchase_orders.type` (`'standard' |
+  'immediate'`) is separate from `status` (`'pending' | 'received'`) and is
+  set once at creation, never changed: a **Standard** PO is created
+  `pending` via `createPurchaseOrder()` and received later through the
+  existing `ReceivePOPanel`; an **Immediate Purchase** is created *and*
+  received in one atomic transaction via `createAndReceivePurchaseOrder()`
+  (status `received` from the moment it's inserted, stock batches created
+  in the same call). Both share one item-entry UI
+  (`POItemBuilder`/`POItemLedgerTable`/`POItemCardList`,
+  `POLineItemDraft` type), which renders a different column set per
+  `poType` rather than being two separate tables.
+  `purchase_orders.supplier_id` is **nullable** — a self/walk-in purchase
+  (no real vendor) is represented as `NULL`, the same convention
+  `sales.customer_id` uses for "Walk-in Customer"; the UI sentinel
+  `SELF_PURCHASE_VENDOR_ID` (`components/procurement/po-details-fields.tsx`)
+  is mapped to `null` at submit time, never stored as a real id. Never
+  reintroduce a seeded "Walk-in Purchase" supplier row — it was
+  deliberately rejected in favor of nullable FK, see the schema-migration
+  comment in `lib/db/core.ts` (search `purchase_orders_nullable_supplier`)
+  for why (per-store local DBs, sync, and the Vendors list all would have
+  to special-case a fake row).
+  The create/edit page is a **two-phase flow**: `PODetailsFields` (vendor,
+  type, notes, payment, due date) is filled first, then item entry
+  (`POItemBuilder`) becomes the dominant full-screen content; once
+  confirmed, details collapse into `PODetailsSummaryBar` with an
+  icon-only edit button that reopens `PODetailsDialog`. Don't put the
+  details form and the item table on screen at the same time again — that
+  was the exact complaint (Moniebook-inspired) this flow replaced.
+
 ## UI conventions worth knowing before changing shared components
+
+- **Full-screen page takeover**: `fixed inset-0 z-50 flex flex-col
+  bg-background` (no dashboard shell, no sidebar), used for
+  `stock-batch/stock-audits.tsx` (Cycle Count) and both
+  `app/(dashboard)/procurement/new|edit/page.tsx`. Header uses `style={{
+  paddingTop: "calc(var(--tauri-top, 0px) + 1.25rem)" }}` to clear the
+  Tauri title bar. Reach for this pattern (over an embedded
+  `rounded-2xl border` panel inside the dashboard shell) for any
+  multi-step or dense-table flow that deserves the user's full attention.
+- **Search-to-create combobox pattern**: `components/ui/product-combobox.tsx`
+  (generic, also used for the product name field) and
+  `components/procurement/supplier-combobox.tsx` (vendor-specific) both
+  follow the same shape: type to fuzzy-filter, click/scroll to pick, and a
+  pinned "Create ..." row — tinted `bg-primary/10 text-primary`,
+  `font-semibold` — that stays visible at the top of the dropdown
+  regardless of whether matches also exist below it (a "only show create
+  when zero matches" rule was tried and rejected: fuzzy search almost
+  always finds *something*, so that hid the create option in practice).
+  `ProductCombobox` has opt-in flags for reuse in different contexts:
+  `showGlobalSuggestions` (catalog matches vs. the static
+  non-catalog name-suggestion list — never mix both in one dropdown),
+  `showCreateNewOption` (off for the Add/Edit Product dialog's own name
+  field — "create the product you're naming" isn't meaningful there), and
+  `showSearchIcon` (leading `Search` icon, hidden below `sm`, for contexts
+  that are genuinely a search bar rather than a name field).
 
 - **`FilterPill`** (`components/ui/filter-pill.tsx`): a "Label: value"
   dropdown that replaces a long row of one-per-value quick-filter chips.
@@ -312,8 +370,30 @@ npm run release           # scripts/release.ts: version bump + release flow
 
 ## Current focus / recent work (update this section as work continues)
 
-Most recent work (see `git log` for full detail) has been on the
-**Inventory** area:
+Most recent work (see `git log` for full detail) was the **Procurement
+revamp**: replacing one-at-a-time PO item entry with the Moniebook-inspired
+bulk ledger table, and splitting Standard vs. Immediate PO types. Design doc
+at `docs/superpowers/specs/2026-08-29-procurement-revamp-design.md`,
+implementation plan at
+`docs/superpowers/plans/2026-08-29-procurement-revamp.md` (both worth
+reading before touching this area again — they carry the "why" behind the
+decisions summarized in Domain model essentials above). Key pieces, beyond
+what's already covered above:
+
+- `getActiveProductsForPO()` (`lib/db/queries/procurement.ts`) now returns a
+  real `AVG(cost_price)` across active batches plus `stock_quantity`,
+  fixing a prior bug where "cost" meant "most recently created batch's
+  cost" and stock wasn't selected at all.
+- `components/procurement/po-review-price-popover.tsx`: per-row sell-price
+  + live margin % popover on Immediate Purchase rows, so cost and sell
+  price can be set in one pass instead of a separate Product Catalog trip.
+- Retired/deleted: `po-add-item-form.tsx`, `po-line-items-list.tsx`,
+  `po-order-form-fields.tsx`, `po-summary-pane.tsx` — all superseded by the
+  components named in the Domain model bullet above. If you find a stale
+  reference to any of these, it's dead documentation, not a hint they still
+  exist.
+
+Before that, work focused on the **Inventory** area:
 
 - Purchase order / receiving tables: refactored for readability, fixed
   input-border visibility, made the receive-goods ledger responsive
@@ -348,6 +428,17 @@ Most recent work (see `git log` for full detail) has been on the
   section above, which used to (incorrectly) describe `<table>` as fine to use.
 
 **Known open threads / natural next steps** (not started, just discussed):
+- Settings and Reports areas were flagged for the same
+  Moniebook-reference-driven review the Procurement revamp got, but that
+  review was deferred ("Procurement first, then settings, then reports" —
+  only Procurement has actually happened so far).
+- Invoice/attachment upload and a "vendor bill" toggle on Immediate
+  Purchases (both present in Moniebook's flow) were explicitly scoped out
+  of the Procurement revamp, not forgotten — see the design doc's
+  Non-Goals section.
+- QuickBooks/Moniebook CSV/XLS catalog import (real reference file:
+  `QB POS Inventory Items Export.xls` under `refs/`) is still an open,
+  unscoped feature idea from the same requirements-gathering session.
 - "Last Received" per product (from `stock_movements` where
   `movement_type = 'purchase'`) was discussed as a good follow-up to Last
   Audited but deliberately deferred as a separate piece of work.

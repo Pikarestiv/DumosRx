@@ -2,8 +2,11 @@
 
 import { CustomerMetrics } from "@/lib/hooks/use-customer-data";
 import { Card } from "@/components/ui/card";
+import { formatCurrency } from "@/lib/utils";
+import { useStore } from "@/lib/context/store-context";
 
 export function OverviewTab({ metrics }: { metrics: CustomerMetrics | null }) {
+  const { storeProfile } = useStore();
   if (!metrics) return null;
 
   // Map tiers to our theme colors based on logic in customer-management
@@ -81,11 +84,7 @@ export function OverviewTab({ metrics }: { metrics: CustomerMetrics | null }) {
             Average Transaction Value
           </div>
           <div className="text-[16px] font-bold text-foreground">
-            ₦{" "}
-            {metrics.avgTransaction.toLocaleString(undefined, {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            })}
+            {formatCurrency(metrics.avgTransaction, storeProfile?.currency)}
           </div>
         </div>
       </Card>

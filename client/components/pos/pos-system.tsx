@@ -59,10 +59,14 @@ export function POSSystem() {
     calculatedDiscount,
     setDiscount,
     setDiscountType,
+    redeemedOption,
+    redeemReward,
+    clearRedemption,
     canUseSmartSuggestions,
     withRestriction,
     suggestions,
     requirePaymentAccount,
+    requireSaleNotes,
     enabledPaymentMethods,
     paymentMethod,
     setPaymentMethod,
@@ -72,6 +76,8 @@ export function POSSystem() {
     setSelectedAccountId,
     paymentSplits,
     setPaymentSplits,
+    saleNote,
+    setSaleNote,
     processingPayment,
     handlePayment,
     completedTransaction,
@@ -106,11 +112,14 @@ export function POSSystem() {
     setSelectedAccountId,
     paymentSplits,
     setPaymentSplits,
+    saleNote,
+    setSaleNote,
     processingPayment,
     handlePayment,
     selectedCustomer,
     currencyCode: storeProfile?.currency,
     requirePaymentAccount,
+    requireSaleNotes,
     enabledPaymentMethods,
     paymentAccounts: paymentAccounts || [],
     showReceiptDialog,
@@ -193,6 +202,7 @@ export function POSSystem() {
                   productTerm={t("product")}
                   searchTerm={searchTerm}
                   currencyCode={storeProfile?.currency}
+                  displayStockLevels={storeProfile?.display_stock_levels !== 0}
                   suggestions={suggestions}
                   recentlySoldIds={recentlySoldIds}
                   commonlySoldIds={commonlySoldIds}
@@ -239,6 +249,9 @@ export function POSSystem() {
         discountType={discountType}
         setDiscount={setDiscount}
         setDiscountType={setDiscountType}
+        redeemedOption={redeemedOption}
+        onRedeemReward={redeemReward}
+        onClearRedemption={clearRedemption}
         vatPercentage={vatPercentage}
         currencyCode={storeProfile?.currency}
         updateQuantity={updateQuantity}

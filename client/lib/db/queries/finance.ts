@@ -18,20 +18,23 @@ export interface Expense {
   covers_months?: number | null;
 }
 
-/** Net Sales for the current month: total_amount already excludes discounts
+/** Net Sales for a [from, to) window: total_amount already excludes discounts
  * (see pos-calculations.ts), so this only needs to also back out tax
  * collected (pass-through, not real revenue) and refunds - same definition
- * used by the Analytics BI dashboard's netSales, see use-bi-data.ts. */
-export async function getCurrentMonthRevenue() {
+ * used by the Analytics BI dashboard's netSales, see use-bi-data.ts.
+ * Takes an explicit local-timezone window (rather than SQLite's UTC-based
+ * strftime('now')) so "this month" agrees with the expense side of the P&L
+ * report, which is windowed the same way. */
+export async function getCurrentMonthRevenue({ from, to }: { from: string; to: string }) {
   const storeId = getActiveStoreId();
-  const params = storeId ? [storeId] : [];
+  const params = storeId ? [from, to, storeId] : [from, to];
   const [salesRes, refundsRes] = await Promise.all([
     query<{ total: number; tax: number }>(
-      `SELECT SUM(total_amount) as total, SUM(tax_amount) as tax FROM sales WHERE _deleted = 0 AND strftime('%Y-%m', transaction_date) = strftime('%Y-%m', 'now')${storeId ? " AND store_id = ?" : ""}`,
+      `SELECT SUM(total_amount) as total, SUM(tax_amount) as tax FROM sales WHERE _deleted = 0 AND transaction_date >= ? AND transaction_date < ?${storeId ? " AND store_id = ?" : ""}`,
       params,
     ),
     query<{ total: number }>(
-      `SELECT SUM(total_refunded) as total FROM returns WHERE (_deleted = 0 OR _deleted IS NULL) AND strftime('%Y-%m', created_at) = strftime('%Y-%m', 'now')${storeId ? " AND store_id = ?" : ""}`,
+      `SELECT SUM(total_refunded) as total FROM returns WHERE (_deleted = 0 OR _deleted IS NULL) AND created_at >= ? AND created_at < ?${storeId ? " AND store_id = ?" : ""}`,
       params,
     ),
   ]);
@@ -41,21 +44,15 @@ export async function getCurrentMonthRevenue() {
   return gross - tax - refunds;
 }
 
-export async function getCurrentMonthCOGS() {
+/** Same [from, to) local-timezone windowing rationale as {@link getCurrentMonthRevenue}. */
+export async function getCurrentMonthCOGS({ from, to }: { from: string; to: string }) {
   const storeId = getActiveStoreId();
+  const params = storeId ? [from, to, storeId] : [from, to];
   const res = await query<{total: number}>(
-    `SELECT SUM(si.quantity * si.cost_price) as total FROM sale_items si JOIN sales s ON si.sale_id = s.id WHERE s._deleted = 0 AND strftime('%Y-%m', s.transaction_date) = strftime('%Y-%m', 'now')${storeId ? " AND s.store_id = ?" : ""}`,
-    storeId ? [storeId] : [],
+    `SELECT SUM(si.quantity * si.cost_price) as total FROM sale_items si JOIN sales s ON si.sale_id = s.id WHERE s._deleted = 0 AND s.transaction_date >= ? AND s.transaction_date < ?${storeId ? " AND s.store_id = ?" : ""}`,
+    params,
   );
   return res[0]?.total || 0;
-}
-
-export async function getCurrentMonthExpensesByCategory() {
-  const storeId = getActiveStoreId();
-  return query<{total: number, category: string}>(
-    `SELECT SUM(amount) as total, category FROM expenses WHERE _deleted = 0 AND strftime('%Y-%m', date) = strftime('%Y-%m', 'now')${storeId ? " AND store_id = ?" : ""} GROUP BY category`,
-    storeId ? [storeId] : [],
-  );
 }
 
 /**
@@ -141,6 +138,56 @@ export async function getSmoothedExpensesTotal({
   );
 
   return (plainResult[0]?.total || 0) + smoothedTotal;
+}
+
+/**
+ * Per-category breakdown for a [from, to) window, smoothed the same way as
+ * {@link getSmoothedExpensesTotal} so the two agree — the breakdown summing
+ * to something other than the headline P&L expense total would otherwise
+ * read as a report bug, not the intentional design it's meant to be.
+ */
+export async function getCurrentMonthExpensesByCategory({
+  from,
+  to,
+  viewerId,
+}: {
+  from: string;
+  to: string;
+  viewerId?: string;
+}): Promise<{ category: string; total: number }[]> {
+  const storeId = getActiveStoreId();
+  const scopeParams = [...(viewerId ? [viewerId] : []), ...(storeId ? [storeId] : [])];
+
+  const plainRows = await query<{ category: string; total: number }>(
+    `SELECT category, SUM(amount) as total FROM expenses
+     WHERE _deleted = 0 AND date >= ? AND date < ? AND (covers_months IS NULL OR covers_months <= 0)
+     ${viewerId ? " AND user_id = ?" : ""}${storeId ? " AND store_id = ?" : ""}
+     GROUP BY category`,
+    [from, to, ...scopeParams],
+  );
+
+  const amortized = await query<{ amount: number; date: string; covers_months: number; category: string }>(
+    `SELECT amount, date, covers_months, category FROM expenses
+     WHERE _deleted = 0 AND covers_months > 0
+     ${viewerId ? " AND user_id = ?" : ""}${storeId ? " AND store_id = ?" : ""}`,
+    scopeParams,
+  );
+
+  const windowStart = new Date(from);
+  const windowEnd = new Date(to);
+
+  const totalsByCategory = new Map<string, number>();
+  for (const row of plainRows) {
+    totalsByCategory.set(row.category, (totalsByCategory.get(row.category) || 0) + (row.total || 0));
+  }
+  for (const exp of amortized) {
+    const smoothed = getSmoothedAmountInWindow(exp, windowStart, windowEnd);
+    if (smoothed > 0) {
+      totalsByCategory.set(exp.category, (totalsByCategory.get(exp.category) || 0) + smoothed);
+    }
+  }
+
+  return Array.from(totalsByCategory.entries()).map(([category, total]) => ({ category, total }));
 }
 
 /** @param viewerId - when provided, restricts results to expenses recorded by this

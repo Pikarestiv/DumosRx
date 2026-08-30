@@ -109,6 +109,9 @@ export const STORE_SCOPED_TABLES = [
   "stock_movements",
   "requested_products",
   "supplier_payments",
+  "audit_logs",
+  "loyalty_tiers",
+  "loyalty_redemption_options",
 ];
 
 export async function initDatabase(): Promise<any> {
@@ -251,6 +254,7 @@ export async function initDatabase(): Promise<any> {
         "quantity INTEGER DEFAULT 0",
         "instructions TEXT",
         "cost REAL DEFAULT 0",
+        "unit_cost REAL DEFAULT 0",
         "store_id TEXT",
       ],
     },
@@ -285,7 +289,16 @@ export async function initDatabase(): Promise<any> {
         "_synced INTEGER DEFAULT 0",
         "_synced_at TEXT",
         "_deleted INTEGER DEFAULT 0",
+        "store_id TEXT",
       ],
+    },
+    {
+      table: "loyalty_tiers",
+      columns: ["store_id TEXT"],
+    },
+    {
+      table: "loyalty_redemption_options",
+      columns: ["store_id TEXT", "discount_value REAL DEFAULT 0"],
     },
     {
       table: "returns",
@@ -368,6 +381,8 @@ export async function initDatabase(): Promise<any> {
         "_synced_at TEXT",
         "_deleted INTEGER DEFAULT 0",
         "store_id TEXT",
+        "discount REAL DEFAULT 0",
+        "discount_type TEXT",
       ],
     },
     {
@@ -413,6 +428,8 @@ export async function initDatabase(): Promise<any> {
         "registration_number TEXT",
         "custom_units TEXT DEFAULT '[]'",
         "is_demo INTEGER DEFAULT 0",
+        "require_sale_notes INTEGER DEFAULT 0",
+        "display_stock_levels INTEGER DEFAULT 1",
       ],
     },
     {
@@ -1465,11 +1482,12 @@ export async function logAction(
   const now = new Date().toISOString();
 
   await execute(
-    `INSERT INTO audit_logs (id, user_id, action, table_name, record_id, details, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO audit_logs (id, user_id, store_id, action, table_name, record_id, details, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       currentUser?.id || null,
+      getActiveStoreId(),
       action,
       table,
       recordId,

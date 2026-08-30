@@ -3,6 +3,7 @@
 import type React from "react";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { DialogFooter } from "@/components/ui/dialog";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
@@ -25,6 +26,9 @@ interface AddProductDialogProps {
    * a purchase order) where the user just wants to create one product and
    * get back to what they were doing. */
   hideAddAnother?: boolean;
+  /** True while the caller's own create/update mutation is in flight, so the
+   * buttons stay disabled for the whole round trip, not just re-entry. */
+  isSubmitting?: boolean;
 }
 
 export function AddProductDialog({
@@ -34,6 +38,7 @@ export function AddProductDialog({
   editingProduct,
   initialData,
   hideAddAnother,
+  isSubmitting = false,
 }: AddProductDialogProps) {
   const { withRestriction } = useFeatureGate();
   const { t, storeType, storeProfile } = useStore();
@@ -185,6 +190,7 @@ export function AddProductDialog({
 
   const handleSubmit = (e?: React.FormEvent, keepOpen = false) => {
     if (e) e.preventDefault();
+    if (isSubmitting) return;
 
     // Validation
     if (!formData.name) {
@@ -288,6 +294,7 @@ export function AddProductDialog({
               variant="outline"
               className="w-full sm:w-auto"
               onClick={() => onOpenChange(false)}
+              disabled={isSubmitting}
             >
               Cancel
             </Button>
@@ -298,6 +305,7 @@ export function AddProductDialog({
                   variant="outline"
                   className="border-accent text-accent hover:bg-accent/10 hover:text-primary w-full sm:w-auto"
                   onClick={withRestriction((e: React.MouseEvent) => handleSubmit(e, true))}
+                  disabled={isSubmitting}
                 >
                   {editingProduct
                     ? `Update & Add Another`
@@ -308,7 +316,9 @@ export function AddProductDialog({
                 type="submit"
                 form="add-product-form"
                 className="bg-accent hover:bg-accent/90 w-full sm:w-auto"
+                disabled={isSubmitting}
               >
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {editingProduct
                   ? `Update ${t("product")}`
                   : `Add ${t("product")}`}

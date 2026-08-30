@@ -32,6 +32,7 @@ interface PrescriptionDetailPanelProps {
   onProcessReturn: (prescription: Prescription) => void;
   isProcessingReturn?: boolean;
   updateStatus: (id: string, status: Prescription["status"]) => void;
+  isUpdatingStatus?: boolean;
 }
 
 export function PrescriptionDetailPanel({
@@ -45,6 +46,7 @@ export function PrescriptionDetailPanel({
   onProcessReturn,
   isProcessingReturn = false,
   updateStatus,
+  isUpdatingStatus = false,
 }: PrescriptionDetailPanelProps) {
   if (!prescription) {
     return (
@@ -71,9 +73,14 @@ export function PrescriptionDetailPanel({
           <div className="flex w-full justify-between gap-2">
             <Button
               size="sm"
+              disabled={isUpdatingStatus}
               onClick={() => updateStatus(prescription.id, "in_progress")}
             >
-              <CheckCircle className="w-4 h-4 mr-1" />
+              {isUpdatingStatus ? (
+                <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+              ) : (
+                <CheckCircle className="w-4 h-4 mr-1" />
+              )}
               Process
             </Button>
             <Button
@@ -91,9 +98,14 @@ export function PrescriptionDetailPanel({
           <div className="flex gap-2">
             <Button
               size="sm"
+              disabled={isUpdatingStatus}
               onClick={() => updateStatus(prescription.id, "ready")}
             >
-              <CheckCircle className="w-4 h-4 mr-1" />
+              {isUpdatingStatus ? (
+                <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+              ) : (
+                <CheckCircle className="w-4 h-4 mr-1" />
+              )}
               Mark Ready
             </Button>
           </div>

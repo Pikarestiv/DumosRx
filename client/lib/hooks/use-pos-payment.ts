@@ -5,9 +5,14 @@ import { toast } from "sonner";
 import { insert, update } from "@/lib/db/local-database";
 import { getBatchesForProduct } from "@/lib/db/queries/inventory";
 import { updatePrescriptionStatus, dispensePrescriptionRefill } from "@/lib/db/queries/prescriptions";
-import { CartItem } from "./use-pos-cart";
-import { calculateEarnedPoints } from "@/lib/utils/loyalty-calculator";
-import { calculateTaxPercentage } from "@/lib/utils/pos-calculations";
+import { CartItem, RedeemedOption } from "./use-pos-cart";
+import { calculateEarnedPoints, calculateLoyaltyPointsAfterSale } from "@/lib/utils/loyalty-calculator";
+import {
+  calculateTaxPercentage,
+  calculateSplitShortage,
+  calculateMixedAmountPaid,
+  calculateSalePaymentStatus,
+} from "@/lib/utils/pos-calculations";
 import type { Customer } from "@/lib/types/customer";
 import type { ReceiptTransaction } from "@/components/pos/receipt-view";
 
@@ -21,12 +26,14 @@ interface UsePOSPaymentProps {
   discount: number;
   rawDiscount?: number;
   discountType?: "fixed" | "percentage";
+  redeemedOption?: RedeemedOption | null;
   selectedCustomer: Customer | null;
   setSelectedCustomer?: (customer: Customer | null) => void;
   clearCart: () => void;
   refetchProducts: () => void;
   refetchSales?: () => void;
   requirePaymentAccount?: boolean;
+  requireSaleNotes?: boolean;
   dispensedRxId?: string | null;
   setDispensedRxId?: (id: string | null) => void;
   isRefillDispense?: boolean;
@@ -40,12 +47,14 @@ export function usePOSPayment({
   discount,
   rawDiscount = 0,
   discountType = "fixed",
+  redeemedOption = null,
   selectedCustomer,
   setSelectedCustomer,
   clearCart,
   refetchProducts,
   refetchSales,
   requirePaymentAccount = false,
+  requireSaleNotes = false,
   dispensedRxId,
   setDispensedRxId,
   isRefillDispense = false,
@@ -54,6 +63,7 @@ export function usePOSPayment({
     "cash" | "card" | "transfer" | "credit" | "mixed"
   >("cash");
   const [amountPaid, setAmountPaid] = useState("");
+  const [saleNote, setSaleNote] = useState("");
   const [selectedAccountId, setSelectedAccountId] = useState<string>("");
   const [paymentSplits, setPaymentSplits] = useState<
     { method: string; amount: number; accountId?: string }[]
@@ -70,12 +80,18 @@ export function usePOSPayment({
       setAmountPaid("");
       setSelectedAccountId("");
       setPaymentSplits([]);
+      setSaleNote("");
     }
   }, [cart.length]);
 
   const handlePayment = async () => {
     if (!paymentMethod) {
       toast.error("Please select a payment method");
+      return;
+    }
+
+    if (requireSaleNotes && !saleNote.trim()) {
+      toast.error("Please add a note for this sale");
       return;
     }
 
@@ -86,11 +102,7 @@ export function usePOSPayment({
         return;
       }
     } else if (paymentMethod === "mixed") {
-      const totalSplits = paymentSplits.reduce(
-        (acc, split) => acc + (split.amount || 0),
-        0,
-      );
-      if (totalSplits < total) {
+      if (!calculateSplitShortage(paymentSplits, total).isFullyCovered) {
         toast.error("Mixed payment splits do not cover the total amount");
         return;
       }
@@ -143,7 +155,7 @@ export function usePOSPayment({
           paymentMethod === "cash"
             ? Number.parseFloat(amountPaid) || total
             : paymentMethod === "mixed"
-              ? paymentSplits.reduce((acc, s) => acc + (s.amount || 0), 0)
+              ? calculateMixedAmountPaid(paymentSplits)
               : paymentMethod === "credit"
                 ? 0
                 : total,
@@ -158,9 +170,12 @@ export function usePOSPayment({
                 )
               : 0,
         points_earned: earnedPoints,
-        points_redeemed: 0,
+        // Only ever set when a customer is selected — the UI gates the
+        // redemption picker on that already, but guard here too in case a
+        // stale redemption survives a customer being cleared mid-checkout.
+        points_redeemed: selectedCustomer ? redeemedOption?.pointsCost || 0 : 0,
         payment_method: paymentMethod,
-        payment_status: paymentMethod === "credit" ? "pending" : "completed",
+        payment_status: calculateSalePaymentStatus(paymentMethod, paymentSplits),
         payment_details: JSON.stringify({
           splits: paymentMethod === "mixed" ? paymentSplits : [],
           accountId:
@@ -170,7 +185,7 @@ export function usePOSPayment({
         }),
         transaction_date: new Date().toISOString(),
         receipt_printed: 0,
-        notes: "POS Sale",
+        notes: saleNote.trim() || "POS Sale",
         prescription_id: dispensedRxId || null,
       });
 
@@ -237,19 +252,36 @@ export function usePOSPayment({
         }
       }
 
-      if (earnedPoints > 0 && selectedCustomer) {
+      if ((earnedPoints > 0 || redeemedOption) && selectedCustomer) {
         await update("customers", selectedCustomer.id, {
-          loyalty_points: (selectedCustomer.loyalty_points || 0) + earnedPoints,
+          loyalty_points: calculateLoyaltyPointsAfterSale(
+            selectedCustomer.loyalty_points || 0,
+            earnedPoints,
+            redeemedOption?.pointsCost || 0,
+          ),
         });
 
-        await insert("loyalty_transactions", {
-          id: `loyalty_${Date.now()}`,
-          customer_id: selectedCustomer.id,
-          points: earnedPoints,
-          type: "earned",
-          transaction_id: saleId,
-          created_at: new Date().toISOString(),
-        });
+        if (earnedPoints > 0) {
+          await insert("loyalty_transactions", {
+            id: `loyalty_${Date.now()}_earn`,
+            customer_id: selectedCustomer.id,
+            points: earnedPoints,
+            type: "earned",
+            transaction_id: saleId,
+            created_at: new Date().toISOString(),
+          });
+        }
+
+        if (redeemedOption) {
+          await insert("loyalty_transactions", {
+            id: `loyalty_${Date.now()}_redeem`,
+            customer_id: selectedCustomer.id,
+            points: -redeemedOption.pointsCost,
+            type: "redeemed",
+            transaction_id: saleId,
+            created_at: new Date().toISOString(),
+          });
+        }
       }
 
       refetchProducts();
@@ -301,6 +333,7 @@ export function usePOSPayment({
       setAmountPaid("");
       setSelectedAccountId("");
       setPaymentSplits([]);
+      setSaleNote("");
 
       // Update prescription status if this was a dispensed prescription
       if (dispensedRxId) {
@@ -332,6 +365,8 @@ export function usePOSPayment({
     setSelectedAccountId,
     paymentSplits,
     setPaymentSplits,
+    saleNote,
+    setSaleNote,
     processingPayment,
     handlePayment,
     completedTransaction,

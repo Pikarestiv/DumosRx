@@ -10,11 +10,17 @@ import { queryKeys } from "@/lib/query-keys";
 interface UsePOSHeldTransactionsProps {
   cart: CartItem[];
   total: number;
+  discount: number;
+  discountType: "fixed" | "percentage";
   selectedCustomer: Customer | null;
   clearCart: () => void;
   setSelectedCustomer: (customer: Customer | null) => void;
   products: Product[];
-  restoreCart: (items: CartItem[]) => void;
+  restoreCart: (
+    items: CartItem[],
+    restoredDiscount?: number,
+    restoredDiscountType?: "fixed" | "percentage",
+  ) => void;
   customers: Customer[];
   setShowHeldDialog: (show: boolean) => void;
 }
@@ -22,6 +28,8 @@ interface UsePOSHeldTransactionsProps {
 export function usePOSHeldTransactions({
   cart,
   total,
+  discount,
+  discountType,
   selectedCustomer,
   clearCart,
   setSelectedCustomer,
@@ -45,6 +53,11 @@ export function usePOSHeldTransactions({
           : "Walk-in Customer",
         items_json: JSON.stringify(cart),
         total_amount: total,
+        // Persist the discount alongside the total: clearCart() (called
+        // right below) resets live discount state to 0, so without this the
+        // total the customer was quoted couldn't be reconstructed on recall.
+        discount,
+        discount_type: discountType,
         created_at: new Date().toISOString(),
       });
 
@@ -85,7 +98,11 @@ export function usePOSHeldTransactions({
         })
         .filter((item): item is CartItem => item !== null);
 
-      restoreCart(restoredItems);
+      restoreCart(
+        restoredItems,
+        held.discount ?? 0,
+        held.discount_type === "percentage" ? "percentage" : "fixed",
+      );
 
       if (held.customer_id) {
         const customer = customers.find((c) => c.id === held.customer_id);

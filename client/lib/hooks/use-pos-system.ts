@@ -104,10 +104,14 @@ export function usePOSSystem() {
     calculatedDiscount,
     setDiscount,
     setDiscountType,
+    redeemedOption,
+    redeemReward,
+    clearRedemption,
   } = usePOSCart(products);
   const { canUseSmartSuggestions, withRestriction } = useFeatureGate();
   const { suggestions } = useSmartSuggestions(cart, products);
   const requirePaymentAccount = storeProfile?.require_payment_account === 1;
+  const requireSaleNotes = storeProfile?.require_sale_notes === 1;
   let enabledPaymentMethods = ["cash", "card", "transfer", "credit", "mixed"];
   try {
     if (storeProfile?.enabled_payment_methods)
@@ -124,6 +128,7 @@ export function usePOSSystem() {
   const {
     paymentMethod, setPaymentMethod, amountPaid, setAmountPaid,
     selectedAccountId, setSelectedAccountId, paymentSplits, setPaymentSplits,
+    saleNote, setSaleNote,
     processingPayment, handlePayment, completedTransaction,
     showPaymentDialog, setShowPaymentDialog, showReceiptDialog, setShowReceiptDialog,
   } = usePOSPayment({
@@ -134,12 +139,14 @@ export function usePOSSystem() {
     discount: calculatedDiscount,
     rawDiscount: discount,
     discountType,
+    redeemedOption,
     selectedCustomer,
     setSelectedCustomer,
     clearCart,
     refetchProducts,
     refetchSales,
     requirePaymentAccount,
+    requireSaleNotes,
     dispensedRxId,
     setDispensedRxId,
     isRefillDispense,
@@ -161,6 +168,8 @@ export function usePOSSystem() {
     usePOSHeldTransactions({
       cart,
       total,
+      discount,
+      discountType,
       selectedCustomer,
       clearCart,
       setSelectedCustomer,
@@ -237,13 +246,18 @@ export function usePOSSystem() {
     calculatedDiscount,
     setDiscount,
     setDiscountType,
+    redeemedOption,
+    redeemReward,
+    clearRedemption,
     canUseSmartSuggestions,
     withRestriction,
     suggestions,
     requirePaymentAccount,
+    requireSaleNotes,
     enabledPaymentMethods,
     paymentMethod, setPaymentMethod, amountPaid, setAmountPaid,
     selectedAccountId, setSelectedAccountId, paymentSplits, setPaymentSplits,
+    saleNote, setSaleNote,
     processingPayment, handlePayment, completedTransaction,
     showPaymentDialog, setShowPaymentDialog, showReceiptDialog, setShowReceiptDialog,
     handleHoldTransaction, handleRecallTransaction,

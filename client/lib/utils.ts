@@ -19,6 +19,19 @@ export function formatCurrency(amount: number, currencyCode: string = "NGN") {
   }).format(amount);
 }
 
+/** Just the currency symbol/prefix (e.g. "₦", "$"), for compact chart-axis
+ * labels ("₦12k") where the full formatCurrency() output would be too wide.
+ * Derived from the same Intl formatter as formatCurrency() so the two never
+ * disagree on which currency a store is actually using. */
+export function getCurrencySymbol(currencyCode: string = "NGN") {
+  const parts = new Intl.NumberFormat("en-NG", {
+    style: "currency",
+    currency: currencyCode.replace(/[^A-Z]/g, "") || "NGN",
+    minimumFractionDigits: 0,
+  }).formatToParts(0);
+  return parts.find((p) => p.type === "currency")?.value ?? "";
+}
+
 
 export function formatDateTime(dateStr: string | Date | undefined | null): string {
   if (!dateStr) return "N/A";

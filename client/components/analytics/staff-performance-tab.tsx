@@ -5,6 +5,7 @@ import { Users } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { SortableHeaderCell } from "@/components/ui/sortable-header-cell";
 import { useSortableData } from "@/lib/hooks/use-sortable-data";
+import { useStore } from "@/lib/context/store-context";
 
 export interface CashierPerformanceRow {
   id: string;
@@ -21,6 +22,8 @@ interface StaffPerformanceTabProps {
 type SortKey = "name" | "transactionCount" | "totalSales" | "avgTransaction";
 
 export function StaffPerformanceTab({ cashierPerformance }: StaffPerformanceTabProps) {
+  const { storeProfile } = useStore();
+  const currencyCode = storeProfile?.currency;
   const { sortKey, direction, toggleSort, sortedData } = useSortableData<
     CashierPerformanceRow,
     SortKey
@@ -96,10 +99,10 @@ export function StaffPerformanceTab({ cashierPerformance }: StaffPerformanceTabP
                     {c.transactionCount}
                   </div>
                   <div role="cell" className="text-right font-semibold">
-                    {formatCurrency(c.totalSales)}
+                    {formatCurrency(c.totalSales, currencyCode)}
                   </div>
                   <div role="cell" className="text-right text-muted-foreground">
-                    {formatCurrency(c.avgTransaction)}
+                    {formatCurrency(c.avgTransaction, currencyCode)}
                   </div>
                 </div>
               ))}

@@ -1,13 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { queryKeys } from "@/lib/query-keys";
 import {
-  getRequestedProducts,
-  markRequestedProductAsOrdered,
-  deleteRequestedProduct,
-} from "@/lib/db/requested-products-queries";
+  useRequestedProducts,
+  useMarkRequestedProductAsOrderedMutation,
+  useDeleteRequestedProductMutation,
+} from "@/lib/hooks/use-requested-products";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import {
@@ -55,10 +53,7 @@ export function RequestedProductsTab() {
     data: requests = [],
     isLoading: loading,
     refetch: fetchRequests,
-  } = useQuery({
-    ...queryKeys.requestedProducts.all(),
-    queryFn: () => getRequestedProducts("all"),
-  });
+  } = useRequestedProducts();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<RequestStatusFilter>("all");
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -88,36 +83,26 @@ export function RequestedProductsTab() {
     await fetchRequests();
   });
 
-  const [busyId, setBusyId] = useState<string | null>(null);
+  const markAsOrderedMutation = useMarkRequestedProductAsOrderedMutation();
+  const deleteMutation = useDeleteRequestedProductMutation();
 
-  const handleMarkAsOrdered = async (id: string) => {
+  // Only one of these two actions should ever be in flight for a given row
+  // at a time; whichever mutation is pending, its own variables (the
+  // request id it was called with) doubles as the "which row is busy" flag.
+  const busyId = markAsOrderedMutation.isPending
+    ? markAsOrderedMutation.variables
+    : deleteMutation.isPending
+      ? deleteMutation.variables
+      : null;
+
+  const handleMarkAsOrdered = (id: string) => {
     if (busyId) return;
-    setBusyId(id);
-    try {
-      await markRequestedProductAsOrdered(id);
-      toast.success("Marked as ordered");
-      fetchRequests();
-    } catch (error) {
-      console.error("Failed to mark as ordered:", error);
-      toast.error("An error occurred");
-    } finally {
-      setBusyId(null);
-    }
+    markAsOrderedMutation.mutate(id);
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = (id: string) => {
     if (busyId) return;
-    setBusyId(id);
-    try {
-      await deleteRequestedProduct(id);
-      toast.success("Request removed");
-      fetchRequests();
-    } catch (error) {
-      console.error("Failed to delete request:", error);
-      toast.error("An error occurred");
-    } finally {
-      setBusyId(null);
-    }
+    deleteMutation.mutate(id);
   };
 
   const copyToClipboard = (text: string) => {

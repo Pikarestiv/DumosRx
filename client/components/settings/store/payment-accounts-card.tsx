@@ -31,14 +31,15 @@ import {
 } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
-import { useQuery } from "@tanstack/react-query";
-import { getPaymentAccounts } from "@/lib/db/queries/setup";
-import { insert, update, remove } from "@/lib/db/local-database";
+import {
+  usePaymentAccounts,
+  useSavePaymentAccountMutation,
+  useDeletePaymentAccountMutation,
+} from "@/lib/hooks/use-payment-accounts";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { NIGERIAN_BANKS } from "@/lib/constants/suggestions";
 import { SearchableInput } from "@/components/ui/searchable-input";
 import { useDefaultPaymentAccounts } from "@/lib/hooks/use-default-payment-accounts";
-import { queryKeys } from "@/lib/query-keys";
 import type { PaymentAccount } from "@/lib/types/payment-account";
 
 export function PaymentAccountsCard() {
@@ -47,8 +48,7 @@ export function PaymentAccountsCard() {
   const [accountToDelete, setAccountToDelete] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [setAsDefault, setSetAsDefault] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  
+
   const [formData, setFormData] = useState({
     name: "",
     account_type: "bank",
@@ -63,11 +63,7 @@ export function PaymentAccountsCard() {
   const activeStoreId = storeProfile?.id;
   const activeUserId = user?.id;
 
-  const { data: accountsData, isLoading: loading, refetch } = useQuery({
-    ...queryKeys.paymentAccounts.all(activeStoreId),
-    queryFn: () => getPaymentAccounts(activeStoreId)
-  });
-  const accounts = accountsData || [];
+  const { accounts, loading } = usePaymentAccounts(activeStoreId);
 
   const handleOpenDialog = (account?: PaymentAccount) => {
     if (account) {
@@ -90,68 +86,36 @@ export function PaymentAccountsCard() {
         bank_name: "",
       });
     }
-    setIsSaving(false);
     setIsDialogOpen(true);
   };
 
-  const handleSave = async () => {
+  const saveMutation = useSavePaymentAccountMutation();
+
+  const handleSave = () => {
     if (!formData.name) {
       toast.error("Account name is required");
       return;
     }
-
-    if (isSaving) return;
-    setIsSaving(true);
-
-    try {
-      if (editingId) {
-        await update("payment_accounts", editingId, {
-          name: formData.name,
-          account_type: formData.account_type,
-          account_number: formData.account_number,
-          bank_name: formData.bank_name,
-          updated_at: new Date().toISOString(),
-        });
-        toast.success("Account updated successfully");
-        if (setAsDefault && activeStoreId) {
-          setDefaultAccount(activeStoreId, formData.account_type === "pos_terminal" ? "card" : "transfer", editingId);
-        }
-      } else {
-        const newId = `pa_${Date.now()}`;
-        await insert("payment_accounts", {
-          id: newId,
-          user_id: activeUserId,
-          store_id: activeStoreId,
-          name: formData.name,
-          account_type: formData.account_type,
-          account_number: formData.account_number,
-          bank_name: formData.bank_name,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        });
-        toast.success("Account added successfully");
-        if (setAsDefault && activeStoreId) {
-          setDefaultAccount(activeStoreId, formData.account_type === "pos_terminal" ? "card" : "transfer", newId);
-        }
-      }
-      setIsDialogOpen(false);
-      refetch();
-    } catch (error) {
-      console.error(error);
-      toast.error("Failed to save account");
-      setIsSaving(false);
-    }
+    if (saveMutation.isPending) return;
+    saveMutation.mutate(
+      { formData, editingId, activeUserId, activeStoreId },
+      {
+        onSuccess: (accountId) => {
+          if (setAsDefault && activeStoreId) {
+            setDefaultAccount(activeStoreId, formData.account_type === "pos_terminal" ? "card" : "transfer", accountId);
+          }
+          setIsDialogOpen(false);
+        },
+      },
+    );
   };
+
+  const deleteMutation = useDeletePaymentAccountMutation(activeStoreId);
 
   const handleDelete = async () => {
     if (!accountToDelete) return;
     try {
-      await remove("payment_accounts", accountToDelete);
-      toast.success("Account deleted");
-      refetch();
-    } catch (error) {
-      console.error(error);
-      toast.error("Failed to delete account");
+      await deleteMutation.mutateAsync(accountToDelete);
     } finally {
       setIsConfirmOpen(false);
       setAccountToDelete(null);
@@ -330,9 +294,9 @@ export function PaymentAccountsCard() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)} disabled={isSaving}>Cancel</Button>
-            <Button onClick={handleSave} disabled={isSaving}>
-              {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Button variant="outline" onClick={() => setIsDialogOpen(false)} disabled={saveMutation.isPending}>Cancel</Button>
+            <Button onClick={handleSave} disabled={saveMutation.isPending}>
+              {saveMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Save Account
             </Button>
           </DialogFooter>

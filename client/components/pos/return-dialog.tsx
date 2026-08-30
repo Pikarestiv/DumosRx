@@ -15,16 +15,12 @@ import {
 } from "@/components/ui/table";
 import { formatCurrency } from "@/lib/utils";
 import { calculateProportionalRefund } from "@/lib/utils/pos-calculations";
-import { getMaxReturnable, isFullyReturned } from "@/lib/utils/returns-calculations";
-import { insert, update, transaction } from "@/lib/db/local-database";
-import { AUDIT_ACTIONS } from "@/lib/db/audit-actions";
+import { getMaxReturnable } from "@/lib/utils/returns-calculations";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { getTransactionDetails } from "@/lib/db/queries/sales";
 import { queryKeys } from "@/lib/query-keys";
-import { restoreReturnedStock } from "@/lib/db/queries/returns";
-import { getCustomerBalance } from "@/lib/db/queries/customers";
-import { updatePrescriptionStatus } from "@/lib/db/queries/prescriptions";
+import { useProcessReturnMutation } from "@/lib/hooks/use-process-return-mutation";
 import { Loader2, RotateCcw } from "lucide-react";
 import { useAuth } from "@/lib/context/auth-context";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -56,7 +52,6 @@ export function ReturnDialog({
     Map<string, { selected: boolean; quantity: number }>
   >(new Map());
   const [reason, setReason] = useState("");
-  const [processing, setProcessing] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
   // Fetch items for this sale, including how much of each has already been
@@ -132,113 +127,30 @@ export function ReturnDialog({
     setShowConfirm(true);
   };
 
+  const returnMutation = useProcessReturnMutation();
+
+  // Passed as ConfirmDialog's onConfirm, which awaits it and only closes
+  // once it settles. Swallows the mutation's own rejection (already
+  // toasted via onError in the hook) so ConfirmDialog closes the same way
+  // on both success and failure, matching this dialog's original contract —
+  // it's returnMutation.isError / the outer ResponsiveModal staying open
+  // that signals failure, not an exception surfacing here.
   const handleSubmit = async () => {
-    setProcessing(true);
+    if (returnMutation.isPending) return;
     try {
-      await transaction(async () => {
-        // 1. Create return record
-        const returnId = await insert(
-          "returns",
-          {
-            sale_id: sale.id,
-            user_id: user?.id || "system",
-            reason: reason,
-            total_refunded: totalRefund,
-            created_at: new Date().toISOString(),
-          },
-          { action: AUDIT_ACTIONS.SALE_RETURN },
-        );
-
-        // 2. Create return items and restore stock
-        const dumosUser = JSON.parse(localStorage.getItem("dumos_user") || "{}");
-        for (const item of itemsToReturn) {
-          await insert("return_items", {
-            return_id: returnId,
-            product_id: item.product_id,
-            quantity: item.returnQuantity,
-            unit_price: item.unit_price,
-            subtotal: item.unit_price * item.returnQuantity,
-          });
-
-          await restoreReturnedStock({
-            saleItemId: item.id,
-            productId: item.product_id,
-            costPrice: item.cost_price || 0,
-            legacyStockBatchId: item.stock_batch_id,
-            returnQuantity: item.returnQuantity,
-            returnId,
-            performedBy: dumosUser?.id,
-          });
-        }
-
-        // 3. Mark sale as returned once every line item's full remaining
-        // balance has been returned (across this and any prior returns),
-        // not just when every original line item is touched in this one.
-        const allItemsReturned = isFullyReturned(
-          saleItems,
-          itemsToReturn.map((i) => ({ id: i.id, returnQuantity: i.returnQuantity })),
-        );
-        await update("sales", sale.id, {
-          payment_status: allItemsReturned ? "refunded" : "partially_refunded",
-        });
-
-        // A full return of a prescription-linked sale undoes the dispense.
-        // Send it back to "ready" so it re-enters the dispense queue instead
-        // of staying "completed" with no sale to show for it. Partial returns
-        // (e.g. one med out of several) leave the prescription's status alone.
-        if (sale.prescription_id && allItemsReturned) {
-          await updatePrescriptionStatus(sale.prescription_id, "ready");
-        }
-
-        // If any part of this sale was paid on credit, returning goods must also
-        // reduce what the customer owes, otherwise they're still on the hook
-        // for items they gave back. Prorate by the credit share of the original
-        // sale for mixed-payment sales; a plain "credit" sale is 100% credit.
-        if (sale.customer_id) {
-          let creditFraction = 0;
-          if (sale.payment_method === "credit") {
-            creditFraction = 1;
-          } else if (sale.payment_method === "mixed" && sale.payment_details) {
-            try {
-              const details =
-                typeof sale.payment_details === "string"
-                  ? JSON.parse(sale.payment_details)
-                  : sale.payment_details;
-              const splits = Array.isArray(details) ? details : details?.splits;
-              const creditAmount =
-                splits?.find((s: { method: string; amount: number }) => s.method === "credit")
-                  ?.amount || 0;
-              creditFraction =
-                sale.total_amount > 0 ? creditAmount / sale.total_amount : 0;
-            } catch {
-              // payment_details wasn't valid JSON, no credit portion to reduce
-            }
-          }
-
-          if (creditFraction > 0) {
-            const creditPortionOfRefund = totalRefund * creditFraction;
-            const balanceRows = await getCustomerBalance(sale.customer_id);
-            const currentBalance = balanceRows[0]?.balance || 0;
-            await update("customers", sale.customer_id, {
-              outstanding_balance: Math.max(
-                0,
-                currentBalance - creditPortionOfRefund,
-              ),
-            });
-          }
-        }
+      await returnMutation.mutateAsync({
+        sale,
+        userId: user?.id,
+        reason,
+        totalRefund,
+        itemsToReturn,
+        saleItems,
+        currencyCode,
       });
-
-      toast.success(
-        `Return processed. Refund amount: ${formatCurrency(totalRefund, currencyCode)}`,
-      );
       onSuccess();
       onOpenChange(false);
-    } catch (error) {
-      console.error("Return failed", error);
-      toast.error("Failed to process return");
-    } finally {
-      setProcessing(false);
+    } catch {
+      // no-op — already handled by onError
     }
   };
 
@@ -260,16 +172,16 @@ export function ReturnDialog({
             <Button
               variant="outline"
               onClick={() => onOpenChange(false)}
-              disabled={processing}
+              disabled={returnMutation.isPending}
             >
               Cancel
             </Button>
             <Button
               onClick={handleInitialSubmit}
-              disabled={processing}
+              disabled={returnMutation.isPending}
               className="bg-accent hover:bg-accent/90"
             >
-              {processing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {returnMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Confirm Return & Refund
             </Button>
           </DialogFooter>

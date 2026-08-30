@@ -320,8 +320,62 @@ auto-injection in the first place — no fix needed.
     Given that architectural wrinkle, this needs its own scoped plan (which
     dialogs move their DB call in-house, how shared mutation hooks are
     organized) rather than being done piecemeal while fixing other bugs.
-    Status: **flagged** — revisit as a dedicated task once the rest of this
-    sweep is done.
+    Status: **done for this session's touched set** — converted every
+    write flow touched during this UX/correctness sweep (a bounded,
+    well-understood set) to `useMutation`, verified with typecheck + full
+    test suite after each file and a live end-to-end browser check of the
+    highest-risk one. Every mutation's DB call + toast + cache invalidation
+    now lives in a dedicated hook under `lib/hooks/`, not inline in the
+    component — matching this codebase's established convention (business
+    logic in hooks, components stay thin consumers of `mutate()`/
+    `isPending`) that the first pass through this list initially missed and
+    had to be corrected once flagged:
+    - `held-transactions-dialog.tsx` — new `useDeleteHeldTransactionMutation`
+      in `use-sales-data.ts`; per-row busy state now derives from
+      `mutation.variables` instead of separate local state.
+    - `requested-products-tab.tsx` — new `lib/hooks/use-requested-products.ts`
+      bundling the read (`useRequestedProducts`) plus two write hooks
+      (mark-as-ordered, delete) sharing one derived `busyId` in the
+      component.
+    - `loyalty-tier-form-dialog.tsx` / `loyalty-redemption-form-dialog.tsx`
+      — new `lib/hooks/use-loyalty-mutations.ts` with one save mutation per
+      dialog, taking `{ form, tier/option, userId, nextSortOrder }` as
+      per-call params since those values change per render; each dialog's
+      own `.mutate(params, { onSuccess })` override just closes itself and
+      calls `onSaved()`.
+    - `payment-accounts-card.tsx` — new `lib/hooks/use-payment-accounts.ts`
+      bundling the read plus save + delete mutations; delete's `onConfirm`
+      still uses `mutateAsync` so it integrates with `ConfirmDialog`'s
+      bug-#17 fix, with the confirm-dialog-closing behavior (on both
+      success and failure) now handled by the component's own
+      try/finally instead of the hook's `onSettled`.
+    - `return-dialog.tsx` — new `lib/hooks/use-process-return-mutation.ts`
+      holding the entire return `transaction()` (returns/return_items
+      inserts, stock restore, sale/prescription/customer-balance updates);
+      `handleSubmit` (passed to `ConfirmDialog`) wraps `mutateAsync` in a
+      try/catch that swallows the rejection (already toasted via the
+      hook's `onError`), preserving the exact original behavior where
+      `ConfirmDialog` closes the same way on success and failure.
+    - `add-supplier-dialog.tsx` (the trickiest one — its DB call lives in
+      the *parent*, not the dialog) — shared `useCreateSupplierMutation()`
+      in `lib/hooks/use-supplier-mutations.ts`, used by all three real call
+      sites (`procurement/new/page.tsx`, `procurement/edit/page.tsx`,
+      `supplier-management.tsx`), each keeping its own `onSuccess` for
+      toast wording / selection / dialog-closing. The dialog itself gained
+      an `isSubmitting` prop (combined with its own local uniqueness-check
+      state via `isBusy`) so it disables for the whole round trip, not just
+      the local pre-check. Verified live: creating a supplier, and the
+      duplicate-name guard correctly re-enabling the button afterward.
+    **New finding along the way, not fixed (out of scope for this task):**
+    `supplier-management.tsx`'s `handleEditSupplier` is a stub — it shows a
+    success toast and closes the dialog but never calls the database at
+    all (comment reads "We would normally call the database update here").
+    Editing a supplier from the Supplier Directory silently does nothing.
+    Left untouched since fixing it is a functional gap, not a
+    write-pattern standardization; flagged for a separate fix.
+    **Not yet converted:** every other write flow in the app outside this
+    session's touched set (a much larger remaining surface — this was
+    deliberately scoped to avoid a blind app-wide refactor in one pass).
 
 ### UX sweep, continued: async submit/confirm safety
 

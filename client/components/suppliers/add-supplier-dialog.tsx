@@ -33,6 +33,10 @@ interface AddSupplierDialogProps {
   onOpenChange: (open: boolean) => void;
   onAddSupplier: (supplier: SupplierPayload) => void;
   initialSupplier?: SupplierViewModel;
+  /** True while the caller's own create/update mutation is in flight —
+   * combined with this dialog's own uniqueness-check state so the buttons
+   * stay disabled for the whole round trip, not just the local pre-check. */
+  isSubmitting?: boolean;
 }
 
 export function AddSupplierDialog({
@@ -40,6 +44,7 @@ export function AddSupplierDialog({
   onOpenChange,
   onAddSupplier,
   initialSupplier,
+  isSubmitting: isSubmittingProp = false,
 }: AddSupplierDialogProps) {
   const { storeType } = useStore();
   const isPharmacy = storeType === "pharmacy";
@@ -54,7 +59,11 @@ export function AddSupplierDialog({
     isActive: initialSupplier ? initialSupplier.status === "active" : true,
   });
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  // True only while this dialog's own uniqueness pre-check is running;
+  // combined with the caller's isSubmittingProp (the actual create/update
+  // mutation) below so the buttons stay disabled for the whole round trip.
+  const [isCheckingName, setIsCheckingName] = useState(false);
+  const isBusy = isCheckingName || isSubmittingProp;
 
   // Reset form when opened with new initialSupplier
   useEffect(() => {
@@ -69,7 +78,7 @@ export function AddSupplierDialog({
         paymentTerms: initialSupplier?.paymentTerms || "",
         isActive: initialSupplier ? initialSupplier.status === "active" : true,
       });
-      setIsSubmitting(false);
+      setIsCheckingName(false);
     }
   }, [open, initialSupplier]);
 
@@ -85,8 +94,8 @@ export function AddSupplierDialog({
     // async create call and closes this dialog on success) — without this
     // guard, double-clicking Add Supplier before that resolves fires two
     // separate create calls and creates a duplicate supplier record.
-    if (isSubmitting) return;
-    setIsSubmitting(true);
+    if (isBusy) return;
+    setIsCheckingName(true);
 
     try {
       const existingId = await getSupplierByName(formData.name);
@@ -94,7 +103,7 @@ export function AddSupplierDialog({
         setAlertMessage(
           `A supplier with the name "${formData.name}" already exists.`,
         );
-        setIsSubmitting(false);
+        setIsCheckingName(false);
         return;
       }
     } catch (error) {
@@ -157,7 +166,7 @@ export function AddSupplierDialog({
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
-              disabled={isSubmitting}
+              disabled={isBusy}
             >
               Cancel
             </Button>
@@ -165,9 +174,9 @@ export function AddSupplierDialog({
               type="submit"
               form="add-supplier-form"
               className="bg-accent hover:bg-accent/90"
-              disabled={isSubmitting}
+              disabled={isBusy}
             >
-              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isBusy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {initialSupplier ? "Save Changes" : "Add Supplier"}
             </Button>
           </DialogFooter>

@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { insert, update } from "@/lib/db/local-database";
+import { useSaveLoyaltyRedemptionOptionMutation } from "@/lib/hooks/use-loyalty-mutations";
 import { LoyaltyRedemptionOptionRow } from "@/lib/db/queries/loyalty";
 import { REDEMPTION_ICONS } from "./loyalty-icons";
 
@@ -39,7 +39,6 @@ interface Props {
 
 export function LoyaltyRedemptionFormDialog({ open, onOpenChange, option, userId, nextSortOrder, onSaved }: Props) {
   const [form, setForm] = useState(emptyForm);
-  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -54,40 +53,25 @@ export function LoyaltyRedemptionFormDialog({ open, onOpenChange, option, userId
           }
         : emptyForm
     );
-    setIsSaving(false);
   }, [open, option]);
 
-  const handleSave = async () => {
+  const saveMutation = useSaveLoyaltyRedemptionOptionMutation();
+
+  const handleSave = () => {
     if (!form.label.trim()) {
       toast.error("Reward label is required");
       return;
     }
-    if (isSaving) return;
-    setIsSaving(true);
-    const payload = {
-      user_id: userId,
-      label: form.label.trim(),
-      points_cost: Number(form.points_cost) || 0,
-      description: form.description.trim(),
-      icon_key: form.icon_key,
-      is_active: form.is_active ? 1 : 0,
-      sort_order: option?.sort_order ?? nextSortOrder,
-    };
-    try {
-      if (option) {
-        await update("loyalty_redemption_options", option.id, payload);
-        toast.success("Reward updated");
-      } else {
-        await insert("loyalty_redemption_options", payload);
-        toast.success("Reward added");
-      }
-      onOpenChange(false);
-      onSaved();
-    } catch (e) {
-      console.error(e);
-      toast.error("Failed to save reward");
-      setIsSaving(false);
-    }
+    if (saveMutation.isPending) return;
+    saveMutation.mutate(
+      { form, option, userId, nextSortOrder },
+      {
+        onSuccess: () => {
+          onOpenChange(false);
+          onSaved();
+        },
+      },
+    );
   };
 
   return (
@@ -147,9 +131,9 @@ export function LoyaltyRedemptionFormDialog({ open, onOpenChange, option, userId
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving}>Cancel</Button>
-          <Button onClick={handleSave} disabled={isSaving}>
-            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saveMutation.isPending}>Cancel</Button>
+          <Button onClick={handleSave} disabled={saveMutation.isPending}>
+            {saveMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Save Reward
           </Button>
         </DialogFooter>

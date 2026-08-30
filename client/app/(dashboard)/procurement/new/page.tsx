@@ -13,11 +13,12 @@ import { POItemBuilder } from "@/components/procurement/po-item-builder";
 import { POMobileCreateView } from "@/components/procurement/po-mobile-create-view";
 import { getLineTotal } from "@/components/procurement/po-line-item-math";
 import { createProduct } from "@/lib/db/local-database";
-import { createPurchaseOrder, createAndReceivePurchaseOrder, createSupplier } from "@/lib/db/procurement";
+import { createPurchaseOrder, createAndReceivePurchaseOrder } from "@/lib/db/procurement";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/utils";
 
 import { useProcurementData } from "@/lib/hooks/use-procurement-data";
+import { useCreateSupplierMutation } from "@/lib/hooks/use-supplier-mutations";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import type { POLineItemDraft } from "@/components/procurement/po-item-ledger-table";
@@ -97,17 +98,21 @@ export default function CreateOrderPage() {
     }
   };
 
-  const handleCreateSupplier = async (payload: SupplierPayload) => {
-    try {
-      const newId = await createSupplier(payload);
-      toast.success(`${payload.name} added to vendors`);
-      await fetchData();
-      setSelectedSupplierId(newId);
-      setIsAddSupplierOpen(false);
-    } catch (error) {
-      console.error("Failed to add supplier:", error);
-      toast.error("Failed to add supplier");
-    }
+  const createSupplierMutation = useCreateSupplierMutation();
+
+  const handleCreateSupplier = (payload: SupplierPayload) => {
+    createSupplierMutation.mutate(payload, {
+      onSuccess: async (newId) => {
+        toast.success(`${payload.name} added to vendors`);
+        await fetchData();
+        setSelectedSupplierId(newId);
+        setIsAddSupplierOpen(false);
+      },
+      onError: (error) => {
+        console.error("Failed to add supplier:", error);
+        toast.error("Failed to add supplier");
+      },
+    });
   };
 
   const totalAmount = items.reduce((sum, item) => sum + getLineTotal(item, poType), 0);
@@ -357,6 +362,7 @@ export default function CreateOrderPage() {
         open={isAddSupplierOpen}
         onOpenChange={setIsAddSupplierOpen}
         onAddSupplier={handleCreateSupplier}
+        isSubmitting={createSupplierMutation.isPending}
       />
     </>
   );

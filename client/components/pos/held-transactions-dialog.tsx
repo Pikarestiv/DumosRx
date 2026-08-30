@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -13,8 +13,7 @@ import {
   PauseCircle,
   Loader2,
 } from "lucide-react";
-import { useHeldTransactions } from "@/lib/hooks/use-sales-data";
-import { remove } from "@/lib/db/local-database";
+import { useHeldTransactions, useDeleteHeldTransactionMutation } from "@/lib/hooks/use-sales-data";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/utils";
@@ -39,7 +38,11 @@ export function HeldTransactionsDialog({
     refetch: loadHeldTransactions,
   } = useHeldTransactions();
   const { storeProfile } = useStore();
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const deleteMutation = useDeleteHeldTransactionMutation();
+  // Only one delete is ever in flight per dialog instance, so the pending
+  // mutation's own variables (the id it was called with) double as the
+  // "which row is busy" flag — no separate local state needed.
+  const deletingId = deleteMutation.isPending ? deleteMutation.variables : null;
 
   useEffect(() => {
     if (isOpen) {
@@ -47,19 +50,15 @@ export function HeldTransactionsDialog({
     }
   }, [isOpen]);
 
-  const handleDelete = async (id: string) => {
-    if (deletingId) return;
-    setDeletingId(id);
-    try {
-      await remove("held_transactions", id);
-      toast.success("Held transaction discarded");
-      loadHeldTransactions();
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to delete transaction");
-    } finally {
-      setDeletingId(null);
-    }
+  const handleDelete = (id: string) => {
+    if (deleteMutation.isPending) return;
+    deleteMutation.mutate(id, {
+      onSuccess: () => toast.success("Held transaction discarded"),
+      onError: (err) => {
+        console.error(err);
+        toast.error("Failed to delete transaction");
+      },
+    });
   };
 
   return (

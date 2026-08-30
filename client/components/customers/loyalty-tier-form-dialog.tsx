@@ -21,7 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { insert, update } from "@/lib/db/local-database";
+import { useSaveLoyaltyTierMutation } from "@/lib/hooks/use-loyalty-mutations";
 import { LoyaltyTierRow } from "@/lib/db/queries/loyalty";
 import { TIER_COLORS } from "./loyalty-icons";
 
@@ -38,7 +38,6 @@ interface Props {
 
 export function LoyaltyTierFormDialog({ open, onOpenChange, tier, userId, nextSortOrder, onSaved }: Props) {
   const [form, setForm] = useState(emptyForm);
-  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -53,40 +52,25 @@ export function LoyaltyTierFormDialog({ open, onOpenChange, tier, userId, nextSo
           }
         : emptyForm
     );
-    setIsSaving(false);
   }, [open, tier]);
 
-  const handleSave = async () => {
+  const saveMutation = useSaveLoyaltyTierMutation();
+
+  const handleSave = () => {
     if (!form.name.trim()) {
       toast.error("Tier name is required");
       return;
     }
-    if (isSaving) return;
-    setIsSaving(true);
-    const payload = {
-      user_id: userId,
-      name: form.name.trim(),
-      min_spend: Number(form.min_spend) || 0,
-      points_multiplier: Number(form.points_multiplier) || 1,
-      benefits: JSON.stringify(form.benefits.split(",").map((b) => b.trim()).filter(Boolean)),
-      color: form.color,
-      sort_order: tier?.sort_order ?? nextSortOrder,
-    };
-    try {
-      if (tier) {
-        await update("loyalty_tiers", tier.id, payload);
-        toast.success("Tier updated");
-      } else {
-        await insert("loyalty_tiers", payload);
-        toast.success("Tier added");
-      }
-      onOpenChange(false);
-      onSaved();
-    } catch (e) {
-      console.error(e);
-      toast.error("Failed to save tier");
-      setIsSaving(false);
-    }
+    if (saveMutation.isPending) return;
+    saveMutation.mutate(
+      { form, tier, userId, nextSortOrder },
+      {
+        onSuccess: () => {
+          onOpenChange(false);
+          onSaved();
+        },
+      },
+    );
   };
 
   return (
@@ -149,9 +133,9 @@ export function LoyaltyTierFormDialog({ open, onOpenChange, tier, userId, nextSo
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving}>Cancel</Button>
-          <Button onClick={handleSave} disabled={isSaving}>
-            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saveMutation.isPending}>Cancel</Button>
+          <Button onClick={handleSave} disabled={saveMutation.isPending}>
+            {saveMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Save Tier
           </Button>
         </DialogFooter>

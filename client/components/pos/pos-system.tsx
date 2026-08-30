@@ -59,6 +59,9 @@ export function POSSystem() {
     calculatedDiscount,
     setDiscount,
     setDiscountType,
+    redeemedOption,
+    redeemReward,
+    clearRedemption,
     canUseSmartSuggestions,
     withRestriction,
     suggestions,
@@ -239,6 +242,9 @@ export function POSSystem() {
         discountType={discountType}
         setDiscount={setDiscount}
         setDiscountType={setDiscountType}
+        redeemedOption={redeemedOption}
+        onRedeemReward={redeemReward}
+        onClearRedemption={clearRedemption}
         vatPercentage={vatPercentage}
         currencyCode={storeProfile?.currency}
         updateQuantity={updateQuantity}

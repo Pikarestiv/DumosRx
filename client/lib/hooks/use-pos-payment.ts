@@ -5,8 +5,8 @@ import { toast } from "sonner";
 import { insert, update } from "@/lib/db/local-database";
 import { getBatchesForProduct } from "@/lib/db/queries/inventory";
 import { updatePrescriptionStatus, dispensePrescriptionRefill } from "@/lib/db/queries/prescriptions";
-import { CartItem } from "./use-pos-cart";
-import { calculateEarnedPoints } from "@/lib/utils/loyalty-calculator";
+import { CartItem, RedeemedOption } from "./use-pos-cart";
+import { calculateEarnedPoints, calculateLoyaltyPointsAfterSale } from "@/lib/utils/loyalty-calculator";
 import {
   calculateTaxPercentage,
   calculateSplitShortage,
@@ -26,6 +26,7 @@ interface UsePOSPaymentProps {
   discount: number;
   rawDiscount?: number;
   discountType?: "fixed" | "percentage";
+  redeemedOption?: RedeemedOption | null;
   selectedCustomer: Customer | null;
   setSelectedCustomer?: (customer: Customer | null) => void;
   clearCart: () => void;
@@ -45,6 +46,7 @@ export function usePOSPayment({
   discount,
   rawDiscount = 0,
   discountType = "fixed",
+  redeemedOption = null,
   selectedCustomer,
   setSelectedCustomer,
   clearCart,
@@ -159,7 +161,10 @@ export function usePOSPayment({
                 )
               : 0,
         points_earned: earnedPoints,
-        points_redeemed: 0,
+        // Only ever set when a customer is selected — the UI gates the
+        // redemption picker on that already, but guard here too in case a
+        // stale redemption survives a customer being cleared mid-checkout.
+        points_redeemed: selectedCustomer ? redeemedOption?.pointsCost || 0 : 0,
         payment_method: paymentMethod,
         payment_status: calculateSalePaymentStatus(paymentMethod, paymentSplits),
         payment_details: JSON.stringify({
@@ -238,19 +243,36 @@ export function usePOSPayment({
         }
       }
 
-      if (earnedPoints > 0 && selectedCustomer) {
+      if ((earnedPoints > 0 || redeemedOption) && selectedCustomer) {
         await update("customers", selectedCustomer.id, {
-          loyalty_points: (selectedCustomer.loyalty_points || 0) + earnedPoints,
+          loyalty_points: calculateLoyaltyPointsAfterSale(
+            selectedCustomer.loyalty_points || 0,
+            earnedPoints,
+            redeemedOption?.pointsCost || 0,
+          ),
         });
 
-        await insert("loyalty_transactions", {
-          id: `loyalty_${Date.now()}`,
-          customer_id: selectedCustomer.id,
-          points: earnedPoints,
-          type: "earned",
-          transaction_id: saleId,
-          created_at: new Date().toISOString(),
-        });
+        if (earnedPoints > 0) {
+          await insert("loyalty_transactions", {
+            id: `loyalty_${Date.now()}_earn`,
+            customer_id: selectedCustomer.id,
+            points: earnedPoints,
+            type: "earned",
+            transaction_id: saleId,
+            created_at: new Date().toISOString(),
+          });
+        }
+
+        if (redeemedOption) {
+          await insert("loyalty_transactions", {
+            id: `loyalty_${Date.now()}_redeem`,
+            customer_id: selectedCustomer.id,
+            points: -redeemedOption.pointsCost,
+            type: "redeemed",
+            transaction_id: saleId,
+            created_at: new Date().toISOString(),
+          });
+        }
       }
 
       refetchProducts();

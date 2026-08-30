@@ -297,7 +297,7 @@ export async function initDatabase(): Promise<any> {
     },
     {
       table: "loyalty_redemption_options",
-      columns: ["store_id TEXT"],
+      columns: ["store_id TEXT", "discount_value REAL DEFAULT 0"],
     },
     {
       table: "returns",

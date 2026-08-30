@@ -26,7 +26,7 @@ import { useSaveLoyaltyRedemptionOptionMutation } from "@/lib/hooks/use-loyalty-
 import { LoyaltyRedemptionOptionRow } from "@/lib/db/queries/loyalty";
 import { REDEMPTION_ICONS } from "./loyalty-icons";
 
-const emptyForm = { label: "", points_cost: "0", description: "", icon_key: "tag", is_active: true };
+const emptyForm = { label: "", points_cost: "0", discount_value: "0", description: "", icon_key: "tag", is_active: true };
 
 interface Props {
   open: boolean;
@@ -47,6 +47,7 @@ export function LoyaltyRedemptionFormDialog({ open, onOpenChange, option, userId
         ? {
             label: option.label,
             points_cost: String(option.points_cost),
+            discount_value: String(option.discount_value || 0),
             description: option.description || "",
             icon_key: option.icon_key || "tag",
             is_active: !!option.is_active,
@@ -100,6 +101,18 @@ export function LoyaltyRedemptionFormDialog({ open, onOpenChange, option, userId
                 onChange={(e) => setForm({ ...form, points_cost: e.target.value })}
               />
             </div>
+            <div className="space-y-2">
+              <Label>Discount Value (₦)</Label>
+              <Input
+                type="number"
+                min={0}
+                placeholder="0 for non-monetary perks"
+                value={form.discount_value}
+                onChange={(e) => setForm({ ...form, discount_value: e.target.value })}
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Icon</Label>
               <Select value={form.icon_key} onValueChange={(val) => setForm({ ...form, icon_key: val })}>

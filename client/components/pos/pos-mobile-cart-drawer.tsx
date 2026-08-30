@@ -9,7 +9,8 @@ import {
 import { ChevronUp, ShoppingCart } from "lucide-react";
 import { POSCart } from "./pos-cart";
 import { formatCurrency } from "@/lib/utils";
-import type { CartItem } from "@/lib/hooks/use-pos-cart";
+import type { CartItem, RedeemedOption } from "@/lib/hooks/use-pos-cart";
+import type { Customer } from "@/lib/types/customer";
 
 interface POSMobileCartDrawerProps {
   cart: CartItem[];
@@ -21,6 +22,10 @@ interface POSMobileCartDrawerProps {
   discountType?: "fixed" | "percentage";
   setDiscount?: (discount: number) => void;
   setDiscountType?: (type: "fixed" | "percentage") => void;
+  selectedCustomer?: Customer | null;
+  redeemedOption?: RedeemedOption | null;
+  onRedeemReward?: (option: { id: string; label: string; points_cost: number; discount_value: number }) => void;
+  onClearRedemption?: () => void;
   vatPercentage: number;
   currencyCode?: string;
   updateQuantity: (id: string, quantity: number) => void;
@@ -44,6 +49,10 @@ export function POSMobileCartDrawer({
   discountType,
   setDiscount,
   setDiscountType,
+  selectedCustomer,
+  redeemedOption,
+  onRedeemReward,
+  onClearRedemption,
   vatPercentage,
   currencyCode,
   updateQuantity,
@@ -103,6 +112,10 @@ export function POSMobileCartDrawer({
               discountType={discountType}
               setDiscount={setDiscount}
               setDiscountType={setDiscountType}
+              selectedCustomer={selectedCustomer}
+              redeemedOption={redeemedOption}
+              onRedeemReward={onRedeemReward}
+              onClearRedemption={onClearRedemption}
               vatPercentage={vatPercentage}
               currencyCode={currencyCode}
               updateQuantity={updateQuantity}

@@ -510,6 +510,7 @@ CREATE TABLE IF NOT EXISTS loyalty_redemption_options (
   store_id TEXT,
   label TEXT NOT NULL,
   points_cost REAL DEFAULT 0,
+  discount_value REAL DEFAULT 0,
   description TEXT,
   icon_key TEXT DEFAULT 'tag',
   is_active INTEGER DEFAULT 1,

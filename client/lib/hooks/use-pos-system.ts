@@ -104,6 +104,9 @@ export function usePOSSystem() {
     calculatedDiscount,
     setDiscount,
     setDiscountType,
+    redeemedOption,
+    redeemReward,
+    clearRedemption,
   } = usePOSCart(products);
   const { canUseSmartSuggestions, withRestriction } = useFeatureGate();
   const { suggestions } = useSmartSuggestions(cart, products);
@@ -134,6 +137,7 @@ export function usePOSSystem() {
     discount: calculatedDiscount,
     rawDiscount: discount,
     discountType,
+    redeemedOption,
     selectedCustomer,
     setSelectedCustomer,
     clearCart,
@@ -239,6 +243,9 @@ export function usePOSSystem() {
     calculatedDiscount,
     setDiscount,
     setDiscountType,
+    redeemedOption,
+    redeemReward,
+    clearRedemption,
     canUseSmartSuggestions,
     withRestriction,
     suggestions,

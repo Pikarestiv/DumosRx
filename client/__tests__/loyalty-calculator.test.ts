@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { calculateEarnedPoints, calculateRedemptionValue, LOYALTY_RULES } from '@/lib/utils/loyalty-calculator';
+import {
+  calculateEarnedPoints,
+  calculateRedemptionValue,
+  calculateLoyaltyPointsAfterSale,
+  LOYALTY_RULES,
+} from '@/lib/utils/loyalty-calculator';
 
 describe('Loyalty Calculator', () => {
   describe('calculateEarnedPoints', () => {
@@ -23,6 +28,24 @@ describe('Loyalty Calculator', () => {
 
     it('calculates redemption value with custom rate', () => {
       expect(calculateRedemptionValue(100, 2)).toBe(200);
+    });
+  });
+
+  describe('calculateLoyaltyPointsAfterSale', () => {
+    it('adds earned points with nothing redeemed', () => {
+      expect(calculateLoyaltyPointsAfterSale(100, 10, 0)).toBe(110);
+    });
+
+    it('subtracts redeemed points with nothing earned', () => {
+      expect(calculateLoyaltyPointsAfterSale(500, 0, 200)).toBe(300);
+    });
+
+    it('combines earning and redeeming in the same sale', () => {
+      expect(calculateLoyaltyPointsAfterSale(500, 10, 200)).toBe(310);
+    });
+
+    it('floors at 0 instead of going negative', () => {
+      expect(calculateLoyaltyPointsAfterSale(100, 0, 500)).toBe(0);
     });
   });
 

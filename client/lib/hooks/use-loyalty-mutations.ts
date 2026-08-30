@@ -49,6 +49,7 @@ export function useSaveLoyaltyTierMutation() {
 interface RedemptionFormState {
   label: string;
   points_cost: string;
+  discount_value: string;
   description: string;
   icon_key: string;
   is_active: boolean;
@@ -68,6 +69,7 @@ export function useSaveLoyaltyRedemptionOptionMutation() {
         user_id: userId,
         label: form.label.trim(),
         points_cost: Number(form.points_cost) || 0,
+        discount_value: Number(form.discount_value) || 0,
         description: form.description.trim(),
         icon_key: form.icon_key,
         is_active: form.is_active ? 1 : 0,

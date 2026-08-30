@@ -84,4 +84,21 @@ describe("loyalty tiers/redemption options store scoping", () => {
     // Store B gets its own full set of defaults.
     expect(storeBTiers.length).toBeGreaterThan(1);
   });
+
+  it("seeds default redemption options with their monetary discount_value, where applicable", async () => {
+    db.run(`INSERT INTO stores (id, name) VALUES ('store-a', 'A')`);
+    core.setActiveStoreId("store-a");
+    await ensureLoyaltyDefaultsSeeded("user-1");
+
+    const options = await getLoyaltyRedemptionOptions();
+    const naira500 = options.find((o) => o.label === "₦500 Discount");
+    const naira1000 = options.find((o) => o.label === "₦1,000 Discount");
+    const freeDelivery = options.find((o) => o.label === "Free Delivery");
+
+    expect(naira500?.discount_value).toBe(500);
+    expect(naira1000?.discount_value).toBe(1000);
+    // Non-monetary perks seed with no discount value — not redeemable as a
+    // POS checkout discount, only configurable/informational.
+    expect(freeDelivery?.discount_value).toBe(0);
+  });
 });

@@ -31,9 +31,6 @@ clear bug).
   Depends on the intended loyalty program rules.
 - Recalling a held transaction reprices items at current catalog prices rather than a
   snapshot of prices when held.
-- Split-payment shortage check in `use-pos-payment.ts` reimplements the same logic as
-  the tested `calculateSplitShortage` helper inline instead of calling it. No current
-  drift, but worth consolidating defensively.
 - Several `stock_movements` movement-type filters (`'addition'`, `'IN'`, `'OUT'`,
   `'deduction'`, `'expired'`, `'damaged'`) are read-side dead code — never written by
   any current flow.
@@ -58,9 +55,6 @@ clear bug).
   timezone fix) be reconsidered for past reports? No data migration is needed
   (stored timestamps are correct UTC; only the comparison logic was wrong), but
   flagging in case historical report re-runs matter for the business.
-- Not fully verified: whether `dateFilter`/`prevDateFilter` passed into `getBIMetrics`
-  by its caller (constructed outside `reports.ts`) are subject to the same
-  local/UTC mismatch the dashboard had — needs a follow-up check of that call site.
 - Re-seeding demo data with `force: true` doesn't dedupe products/suppliers/customers
   by name (only the demo cashier user is deduped) — running "Seed Demo Data" twice
   layers a second full catalog/customer set on top of the first. Comment in the code

@@ -19,6 +19,7 @@ describe("finance.ts / reports.ts financial aggregates", () => {
   let getCurrentMonthRevenue: typeof import("@/lib/db/queries/finance").getCurrentMonthRevenue;
   let getCurrentMonthCOGS: typeof import("@/lib/db/queries/finance").getCurrentMonthCOGS;
   let getCurrentMonthExpensesByCategory: typeof import("@/lib/db/queries/finance").getCurrentMonthExpensesByCategory;
+  let getSmoothedExpensesTotal: typeof import("@/lib/db/queries/finance").getSmoothedExpensesTotal;
   let getAllExpenses: typeof import("@/lib/db/queries/finance").getAllExpenses;
   let fetchProfitLossReportData: typeof import("@/lib/db/queries/reports").fetchProfitLossReportData;
 
@@ -28,6 +29,7 @@ describe("finance.ts / reports.ts financial aggregates", () => {
     getCurrentMonthRevenue = finance.getCurrentMonthRevenue;
     getCurrentMonthCOGS = finance.getCurrentMonthCOGS;
     getCurrentMonthExpensesByCategory = finance.getCurrentMonthExpensesByCategory;
+    getSmoothedExpensesTotal = finance.getSmoothedExpensesTotal;
     getAllExpenses = finance.getAllExpenses;
 
     const reports = await import("@/lib/db/queries/reports");
@@ -46,13 +48,20 @@ describe("finance.ts / reports.ts financial aggregates", () => {
     db.run(`DELETE FROM sales; DELETE FROM sale_items; DELETE FROM expenses; DELETE FROM users;`);
   });
 
-  // strftime('now') is used by the "current month" queries, so fixtures use
-  // today's date rather than a fixed string.
   const todayISO = () => new Date().toISOString();
   const otherMonthISO = () => {
     const d = new Date();
     d.setMonth(d.getMonth() - 2);
     return d.toISOString();
+  };
+  // getCurrentMonthRevenue/getCurrentMonthCOGS take an explicit local-timezone
+  // window rather than relying on SQLite's UTC-based strftime('now'), matching
+  // how use-finance-data.ts derives it.
+  const currentMonthWindow = () => {
+    const now = new Date();
+    const from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const to = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString();
+    return { from, to };
   };
 
   describe("getCurrentMonthRevenue / getCurrentMonthCOGS", () => {
@@ -68,8 +77,9 @@ describe("finance.ts / reports.ts financial aggregates", () => {
           ('si1', 's1', 'prod1', 4, 1000, 4000, 500)`,
       );
 
-      expect(await getCurrentMonthRevenue()).toBe(10000);
-      expect(await getCurrentMonthCOGS()).toBe(2000); // 4 * 500, s2 excluded (wrong month)
+      const window = currentMonthWindow();
+      expect(await getCurrentMonthRevenue(window)).toBe(10000);
+      expect(await getCurrentMonthCOGS(window)).toBe(2000); // 4 * 500, s2 excluded (wrong month)
     });
 
     it("excludes soft-deleted sales from revenue", async () => {
@@ -77,12 +87,13 @@ describe("finance.ts / reports.ts financial aggregates", () => {
         todayISO(),
       ]);
 
-      expect(await getCurrentMonthRevenue()).toBe(0);
+      expect(await getCurrentMonthRevenue(currentMonthWindow())).toBe(0);
     });
 
     it("returns 0, not null, when there are no sales this month", async () => {
-      expect(await getCurrentMonthRevenue()).toBe(0);
-      expect(await getCurrentMonthCOGS()).toBe(0);
+      const window = currentMonthWindow();
+      expect(await getCurrentMonthRevenue(window)).toBe(0);
+      expect(await getCurrentMonthCOGS(window)).toBe(0);
     });
   });
 
@@ -97,11 +108,35 @@ describe("finance.ts / reports.ts financial aggregates", () => {
         [todayISO(), todayISO(), todayISO(), otherMonthISO()],
       );
 
-      const rows = await getCurrentMonthExpensesByCategory();
+      const rows = await getCurrentMonthExpensesByCategory(currentMonthWindow());
       const byCategory = Object.fromEntries(rows.map((r) => [r.category, r.total]));
 
       expect(byCategory["Rent"]).toBe(25000);
       expect(byCategory["Utilities"]).toBe(3000);
+    });
+
+    it("smooths a prepaid expense's category the same way the headline total is smoothed, so they sum together", async () => {
+      // A 12-month prepaid rent logged today contributes only 1/12th to this
+      // month's category breakdown, matching getSmoothedExpensesTotal's math
+      // for the same row — otherwise the breakdown wouldn't sum to the P&L
+      // report's headline expense total.
+      db.run(
+        `INSERT INTO expenses (id, category, amount, date, covers_months, _deleted) VALUES
+          ('e1', 'Rent', 120000, ?, 12, 0),
+          ('e2', 'Utilities', 3000, ?, NULL, 0)`,
+        [todayISO(), todayISO()],
+      );
+
+      const window = currentMonthWindow();
+      const rows = await getCurrentMonthExpensesByCategory(window);
+      const byCategory = Object.fromEntries(rows.map((r) => [r.category, r.total]));
+
+      expect(byCategory["Rent"]).toBeCloseTo(10000, 5); // 120000 / 12
+      expect(byCategory["Utilities"]).toBe(3000);
+
+      const smoothedTotal = byCategory["Rent"] + byCategory["Utilities"];
+      const headlineTotal = await getSmoothedExpensesTotal(window);
+      expect(smoothedTotal).toBeCloseTo(headlineTotal, 5);
     });
   });
 

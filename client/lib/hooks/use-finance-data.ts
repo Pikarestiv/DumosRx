@@ -32,12 +32,11 @@ export function usePnLReport() {
       const nextMonthStart = startOfMonth(addMonths(now, 1)).toISOString();
 
       const [revenue, cogs, expensesResult, totalExpenses] = await Promise.all([
-        getCurrentMonthRevenue(),
-        getCurrentMonthCOGS(),
-        getCurrentMonthExpensesByCategory(),
-        // Category breakdown above still shows each expense's full amount in
-        // whichever category/month it was logged; only this headline total
-        // (and therefore Net Profit) accounts for prepaid smoothing.
+        getCurrentMonthRevenue({ from: monthStart, to: nextMonthStart }),
+        getCurrentMonthCOGS({ from: monthStart, to: nextMonthStart }),
+        // Smoothed the same way as the headline total below, so the
+        // breakdown's line items actually sum to it.
+        getCurrentMonthExpensesByCategory({ from: monthStart, to: nextMonthStart }),
         getSmoothedExpensesTotal({ from: monthStart, to: nextMonthStart }),
       ]);
 

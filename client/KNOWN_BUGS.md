@@ -23,19 +23,6 @@ clear bug).
 
 ## Flagged — product decisions, not bugs
 
-- Should a mixed-payment sale's credit split get its own trackable status (e.g. a
-  `partial` sale status) so it can be reconciled the same way a pure-credit sale is?
-- Whether "total spent" should be gross or net-of-returns is a product call.
-- P&L report's expense category breakdown (`getCurrentMonthExpensesByCategory`, raw
-  unsmoothed monthly sum) doesn't reconcile with the report's own headline expense
-  total (`getSmoothedExpensesTotal`, which amortizes prepaid/multi-month expenses).
-  Explicitly commented as intentional in `use-finance-data.ts`, but worth deciding
-  whether the breakdown should also be smoothed per-category so it sums to the total.
-- "Current month" is computed via UTC (`strftime('%Y-%m','now')`) in
-  `getCurrentMonthExpensesByCategory`/`getCurrentMonthRevenue`/`getCurrentMonthCOGS`,
-  but via local device timezone (`date-fns startOfMonth`) in the smoothed-expense
-  helpers and the Expenses page. Narrow edge case near month boundaries for
-  non-UTC stores.
 - Prescriptions: each medication's `cost` field is a free-typed number with no
   visible `unit_cost × quantity` relationship — a data-entry ambiguity (staff must
   know to type the line total, not a per-unit price), though nothing downstream

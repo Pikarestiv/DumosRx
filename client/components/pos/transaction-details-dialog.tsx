@@ -10,7 +10,8 @@ import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { ScrollFade } from "@/components/ui/scroll-fade";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getTransactionDetails } from "@/lib/db/queries/sales";
-import { getCustomerById, recordCustomerPayment } from "@/lib/db/queries/customers";
+import { getCustomerById } from "@/lib/db/queries/customers";
+import { useRecordCustomerPaymentMutation } from "@/lib/hooks/use-customer-mutations";
 import { queryKeys } from "@/lib/query-keys";
 import { usePrintReceipt } from "./use-print-receipt";
 import { RecordPaymentModal } from "@/components/customers/record-payment-modal";
@@ -63,13 +64,19 @@ export function TransactionDetailsDialog({
     (sale.total_amount ?? sale.total ?? 0) - (sale.amount_paid || 0),
   );
 
+  const recordPaymentMutation = useRecordCustomerPaymentMutation();
   const handleRecordPayment = async (
     amount: number,
     paymentMethod: string,
     notes: string,
   ) => {
     if (!sale.customer_id) return;
-    await recordCustomerPayment(sale.customer_id, amount, paymentMethod, notes);
+    await recordPaymentMutation.mutateAsync({
+      customerId: sale.customer_id,
+      amount,
+      paymentMethod,
+      notes,
+    });
     toast.success("Payment recorded successfully");
     queryClient.invalidateQueries({ queryKey: ["customerById", sale.customer_id] });
     setShowPaymentModal(false);

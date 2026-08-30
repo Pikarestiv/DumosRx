@@ -23,11 +23,6 @@ clear bug).
 
 ## Flagged — product decisions, not bugs
 
-- Recalling a held transaction reprices items at current catalog prices rather than a
-  snapshot of prices when held.
-- Several `stock_movements` movement-type filters (`'addition'`, `'IN'`, `'OUT'`,
-  `'deduction'`, `'expired'`, `'damaged'`) are read-side dead code — never written by
-  any current flow.
 - Should a mixed-payment sale's credit split get its own trackable status (e.g. a
   `partial` sale status) so it can be reconciled the same way a pure-credit sale is?
 - Whether "total spent" should be gross or net-of-returns is a product call.

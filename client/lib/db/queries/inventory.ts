@@ -487,14 +487,14 @@ export async function getStockMoM() {
   const added30 = await query<{ total_added?: number }>(`
     SELECT SUM(ABS(quantity) * IFNULL(unit_cost, 0)) as total_added
     FROM stock_movements
-    WHERE created_at >= ? AND movement_type IN ('addition', 'IN', 'purchase', 'return') AND (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}
+    WHERE created_at >= ? AND movement_type IN ('purchase', 'return') AND (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}
   `, movementParams);
 
   // Value removed in last 30 days
   const removed30 = await query<{ total_removed?: number }>(`
     SELECT SUM(ABS(quantity) * IFNULL(unit_cost, 0)) as total_removed
     FROM stock_movements
-    WHERE created_at >= ? AND movement_type IN ('deduction', 'OUT', 'sale', 'damaged', 'adjustment') AND (_deleted = 0 OR _deleted IS NULL) AND quantity < 0${storeId ? " AND store_id = ?" : ""}
+    WHERE created_at >= ? AND movement_type IN ('sale', 'adjustment') AND (_deleted = 0 OR _deleted IS NULL) AND quantity < 0${storeId ? " AND store_id = ?" : ""}
   `, movementParams);
 
   // Adjusted additions from positive adjustments

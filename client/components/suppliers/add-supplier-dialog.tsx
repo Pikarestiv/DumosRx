@@ -99,7 +99,7 @@ export function AddSupplierDialog({
 
     try {
       const existingId = await getSupplierByName(formData.name);
-      if (existingId) {
+      if (existingId && existingId !== initialSupplier?.id) {
         setAlertMessage(
           `A supplier with the name "${formData.name}" already exists.`,
         );

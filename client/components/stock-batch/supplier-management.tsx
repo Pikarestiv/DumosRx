@@ -9,7 +9,7 @@ import { ResponsiveDetailPanel } from "@/components/ui/responsive-detail-panel";
 
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import { getSuppliers } from "@/lib/db/local-database";
-import { useCreateSupplierMutation } from "@/lib/hooks/use-supplier-mutations";
+import { useCreateSupplierMutation, useUpdateSupplierMutation } from "@/lib/hooks/use-supplier-mutations";
 import { AddSupplierDialog } from "@/components/suppliers/add-supplier-dialog";
 import { useStore } from "@/lib/context/store-context";
 import { SupplierDetailPane } from "./supplier-detail-pane";
@@ -143,10 +143,23 @@ export function SupplierManagement() {
   const debtSuppliersCount = suppliers.filter((s) => s.hasDebt).length;
   const totalDebtAmount = suppliers.reduce((sum, s) => sum + s.debtAmount, 0);
 
-  const handleEditSupplier = () => {
-    // We would normally call the database update here
-    toast.success("Supplier details updated successfully!");
-    setIsEditDialogOpen(false);
+  const updateSupplierMutation = useUpdateSupplierMutation();
+
+  const handleEditSupplier = (payload: SupplierPayload) => {
+    if (!selectedSupplierId) return;
+    updateSupplierMutation.mutate(
+      { id: selectedSupplierId, payload },
+      {
+        onSuccess: () => {
+          toast.success("Supplier details updated successfully!");
+          setIsEditDialogOpen(false);
+        },
+        onError: (error) => {
+          console.error("Failed to update supplier:", error);
+          toast.error("Failed to update supplier");
+        },
+      },
+    );
   };
 
   return (
@@ -234,6 +247,7 @@ export function SupplierManagement() {
           onOpenChange={setIsEditDialogOpen}
           onAddSupplier={handleEditSupplier}
           initialSupplier={selectedSupplier}
+          isSubmitting={updateSupplierMutation.isPending}
         />
       )}
     </div>

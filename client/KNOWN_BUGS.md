@@ -366,13 +366,21 @@ auto-injection in the first place — no fix needed.
       state via `isBusy`) so it disables for the whole round trip, not just
       the local pre-check. Verified live: creating a supplier, and the
       duplicate-name guard correctly re-enabling the button afterward.
-    **New finding along the way, not fixed (out of scope for this task):**
-    `supplier-management.tsx`'s `handleEditSupplier` is a stub — it shows a
-    success toast and closes the dialog but never calls the database at
-    all (comment reads "We would normally call the database update here").
-    Editing a supplier from the Supplier Directory silently does nothing.
-    Left untouched since fixing it is a functional gap, not a
-    write-pattern standardization; flagged for a separate fix.
+    **Fixed (follow-up, separate from write-standardization):**
+    `supplier-management.tsx`'s `handleEditSupplier` was a stub — it showed
+    a success toast and closed the dialog but never called the database
+    (comment read "We would normally call the database update here"),
+    so editing a supplier from the Supplier Directory silently did
+    nothing. Fixed by adding `updateSupplier()` in `lib/db/procurement.ts`
+    and a `useUpdateSupplierMutation()` in `use-supplier-mutations.ts`,
+    wired into `handleEditSupplier` (invalidates the `suppliers` query,
+    toasts, closes the dialog). While fixing it, also found and fixed a
+    second bug it was masking: `AddSupplierDialog`'s uniqueness pre-check
+    (`getSupplierByName`) ran on every save including edits, so saving an
+    existing supplier without changing its name always found itself and
+    blocked the save with a false "already exists" error — now skips the
+    block when the matched id is the supplier being edited
+    (`existingId !== initialSupplier?.id`).
     **Not yet converted:** every other write flow in the app outside this
     session's touched set (a much larger remaining surface — this was
     deliberately scoped to avoid a blind app-wide refactor in one pass).

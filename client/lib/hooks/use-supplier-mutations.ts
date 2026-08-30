@@ -1,5 +1,6 @@
-import { useMutation } from "@tanstack/react-query";
-import { createSupplier } from "@/lib/db/procurement";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { createSupplier, updateSupplier } from "@/lib/db/procurement";
+import { queryKeys } from "@/lib/query-keys";
 import type { SupplierPayload } from "@/lib/types/supplier";
 
 /** Shared by every "Add Supplier" call site (Procurement's new/edit PO
@@ -11,5 +12,20 @@ import type { SupplierPayload } from "@/lib/types/supplier";
 export function useCreateSupplierMutation() {
   return useMutation({
     mutationFn: (payload: SupplierPayload) => createSupplier(payload),
+  });
+}
+
+interface UpdateSupplierParams {
+  id: string;
+  payload: SupplierPayload;
+}
+
+export function useUpdateSupplierMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }: UpdateSupplierParams) => updateSupplier(id, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries(queryKeys.suppliers.all());
+    },
   });
 }

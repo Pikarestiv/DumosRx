@@ -518,6 +518,10 @@ export async function createSupplier(data: SupplierPayload) {
   return await insert("suppliers", data);
 }
 
+export async function updateSupplier(id: string, data: SupplierPayload) {
+  return await update("suppliers", id, data);
+}
+
 export async function deletePurchaseOrder(id: string) {
   return await softDelete('purchase_orders', id);
 }

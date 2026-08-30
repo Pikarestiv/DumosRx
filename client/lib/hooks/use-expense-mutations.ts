@@ -1,5 +1,5 @@
 import { useMutation } from "@tanstack/react-query";
-import { insert, update, remove } from "@/lib/db/local-database";
+import { insert, update, softDelete } from "@/lib/db/local-database";
 
 interface ExpenseFormData {
   category: string;
@@ -38,6 +38,21 @@ export function useSaveExpenseMutation() {
 
 export function useDeleteExpenseMutation() {
   return useMutation({
-    mutationFn: (id: string) => remove("expenses", id),
+    mutationFn: (id: string) => softDelete("expenses", id),
+  });
+}
+
+interface QuickEditExpenseParams {
+  id: string;
+  amount: number;
+  category: string;
+}
+
+/** The expense list's inline "quick edit" row only ever patches amount and
+ * category — a narrower mutation than the full add/edit dialog's payload. */
+export function useQuickEditExpenseMutation() {
+  return useMutation({
+    mutationFn: ({ id, amount, category }: QuickEditExpenseParams) =>
+      update("expenses", id, { amount, category }),
   });
 }

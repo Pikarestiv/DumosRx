@@ -6,7 +6,7 @@ import { Product } from "./types";
 import { useStore } from "@/lib/context/store-context";
 import { SortableHeaderCell } from "@/components/ui/sortable-header-cell";
 import { EditableNumberCell } from "@/components/ui/editable-number-cell";
-import { update } from "@/lib/db/local-database";
+import { useQuickEditProductMutation } from "@/lib/hooks/use-product-quick-edit-mutation";
 import type { SortDirection } from "@/lib/hooks/use-sortable-data";
 
 type ProductSortKey =
@@ -64,21 +64,26 @@ export function CatalogList({
     setDraft(null);
   };
 
-  const saveQuickEdit = async (product: Product) => {
-    if (!draft) return;
-    try {
-      await update("products", product.id, {
-        selling_price: draft.sellingPrice,
-        reorder_level: draft.reorderLevel,
-      });
-      toast.success(`${product.name} updated`);
-      onProductUpdated();
-    } catch {
-      toast.error("Failed to update product. Please try again.");
-    } finally {
-      setEditingId(null);
-      setDraft(null);
-    }
+  const quickEditMutation = useQuickEditProductMutation();
+
+  const saveQuickEdit = (product: Product) => {
+    if (!draft || quickEditMutation.isPending) return;
+    quickEditMutation.mutate(
+      { id: product.id, sellingPrice: draft.sellingPrice, reorderLevel: draft.reorderLevel },
+      {
+        onSuccess: () => {
+          toast.success(`${product.name} updated`);
+          onProductUpdated();
+        },
+        onError: () => {
+          toast.error("Failed to update product. Please try again.");
+        },
+        onSettled: () => {
+          setEditingId(null);
+          setDraft(null);
+        },
+      },
+    );
   };
 
   const scrollRef = useRef<HTMLDivElement>(null);

@@ -15,7 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { insert } from "@/lib/db/local-database";
+import { useSubmitFeedbackMutation } from "@/lib/hooks/use-submit-feedback-mutation";
 import { useAuth } from "@/lib/context/auth-context";
 import { MessageSquare, Bug, Lightbulb, MessageCircle } from "lucide-react";
 
@@ -32,38 +32,32 @@ export function FeedbackForm({ open, onOpenChange }: FeedbackFormProps) {
     const username = user?.username || "";
     return username.charAt(0).toUpperCase() + username.slice(1);
   });
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const submitFeedbackMutation = useSubmitFeedbackMutation();
+  const isSubmitting = submitFeedbackMutation.isPending;
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (!content.trim()) {
       toast.error("Please provide some feedback details");
       return;
     }
+    if (isSubmitting) return;
 
-    setIsSubmitting(true);
-    try {
-      await insert("feedback", {
-        id: crypto.randomUUID(),
-        user_id: user?.id || "anonymous",
-        type,
-        content,
-        contact_email: email,
-        status: "pending",
-        created_at: new Date().toISOString(),
-        _synced: 0,
-      });
-
-      toast.success(
-        "Thank you for your feedback! It has been saved locally and will sync when online.",
-      );
-      setContent("");
-      onOpenChange(false);
-    } catch (error) {
-      console.error("Feedback error:", error);
-      toast.error("Failed to save feedback");
-    } finally {
-      setIsSubmitting(false);
-    }
+    submitFeedbackMutation.mutate(
+      { userId: user?.id || "anonymous", type, content, email },
+      {
+        onSuccess: () => {
+          toast.success(
+            "Thank you for your feedback! It has been saved locally and will sync when online.",
+          );
+          setContent("");
+          onOpenChange(false);
+        },
+        onError: (error) => {
+          console.error("Feedback error:", error);
+          toast.error("Failed to save feedback");
+        },
+      },
+    );
   };
 
   return (

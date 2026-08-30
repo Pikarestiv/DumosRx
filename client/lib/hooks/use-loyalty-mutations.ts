@@ -1,6 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { insert, update } from "@/lib/db/local-database";
+import { insert, update, softDelete } from "@/lib/db/local-database";
 import type { LoyaltyTierRow, LoyaltyRedemptionOptionRow } from "@/lib/db/queries/loyalty";
 
 interface TierFormState {
@@ -88,5 +88,17 @@ export function useSaveLoyaltyRedemptionOptionMutation() {
       console.error(e);
       toast.error("Failed to save reward");
     },
+  });
+}
+
+export function useDeleteLoyaltyTierMutation() {
+  return useMutation({
+    mutationFn: (id: string) => softDelete("loyalty_tiers", id),
+  });
+}
+
+export function useDeleteLoyaltyRedemptionOptionMutation() {
+  return useMutation({
+    mutationFn: (id: string) => softDelete("loyalty_redemption_options", id),
   });
 }

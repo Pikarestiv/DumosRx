@@ -95,7 +95,7 @@ export function ProductDatabase() {
     "out_of_stock",
   ];
 
-  const { handleAddProduct } = useAddProduct({
+  const { handleAddProduct, isSaving } = useAddProduct({
     refetch,
     setShowAddDialog,
   });
@@ -243,6 +243,7 @@ export function ProductDatabase() {
         onOpenChange={setShowAddDialog}
         onAddProduct={handleAddProduct}
         editingProduct={selectedProduct}
+        isSubmitting={isSaving}
       />
       <ManageCategoriesDialog
         open={showManageCategories}

@@ -1,20 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Trash2, Sparkles } from "lucide-react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Plus, Trash2, Sparkles, Loader2 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { getCategoryList, type CategoryRow } from "@/lib/db/queries/categories";
 import {
-  getCategoryList,
-  createCategory,
-  renameCategory,
-  deleteCategory,
-  seedDefaultCategories,
-  type CategoryRow,
-} from "@/lib/db/queries/categories";
+  useCreateCategoryMutation,
+  useRenameCategoryMutation,
+  useDeleteCategoryMutation,
+  useSeedDefaultCategoriesMutation,
+} from "@/lib/hooks/use-category-mutations";
 import { queryKeys } from "@/lib/query-keys";
 
 interface ManageCategoriesDialogProps {
@@ -23,7 +22,6 @@ interface ManageCategoriesDialogProps {
 }
 
 export function ManageCategoriesDialog({ open, onOpenChange }: ManageCategoriesDialogProps) {
-  const queryClient = useQueryClient();
   const [newName, setNewName] = useState("");
 
   const { data: categories = [], isLoading } = useQuery({
@@ -32,54 +30,56 @@ export function ManageCategoriesDialog({ open, onOpenChange }: ManageCategoriesD
     enabled: open,
   });
 
-  const refresh = () => {
-    queryClient.invalidateQueries({ queryKey: queryKeys.categories.list().queryKey });
-    queryClient.invalidateQueries({ queryKey: queryKeys.categories.all().queryKey });
-  };
+  const createMutation = useCreateCategoryMutation();
+  const renameMutation = useRenameCategoryMutation();
+  const deleteMutation = useDeleteCategoryMutation();
+  const seedDefaultsMutation = useSeedDefaultCategoriesMutation();
 
-  const handleAdd = async () => {
+  const handleAdd = () => {
     const name = newName.trim();
-    if (!name) return;
-    try {
-      await createCategory(name);
-      setNewName("");
-      refresh();
-    } catch (error) {
-      console.error("Failed to add category:", error);
-      toast.error("Failed to add category");
-    }
+    if (!name || createMutation.isPending) return;
+    createMutation.mutate(name, {
+      onSuccess: () => setNewName(""),
+      onError: (error) => {
+        console.error("Failed to add category:", error);
+        toast.error("Failed to add category");
+      },
+    });
   };
 
-  const handleDelete = async (id: string) => {
-    try {
-      await deleteCategory(id);
-      refresh();
-    } catch (error) {
-      console.error("Failed to delete category:", error);
-      toast.error("Failed to delete category");
-    }
+  const handleDelete = (id: string) => {
+    deleteMutation.mutate(id, {
+      onError: (error) => {
+        console.error("Failed to delete category:", error);
+        toast.error("Failed to delete category");
+      },
+    });
   };
 
-  const handleRename = async (id: string, name: string) => {
+  const handleRename = (id: string, name: string) => {
     if (!name.trim()) return;
-    try {
-      await renameCategory(id, name);
-      refresh();
-    } catch (error) {
-      console.error("Failed to rename category:", error);
-      toast.error("Failed to rename category");
-    }
+    renameMutation.mutate(
+      { id, name },
+      {
+        onError: (error) => {
+          console.error("Failed to rename category:", error);
+          toast.error("Failed to rename category");
+        },
+      },
+    );
   };
 
-  const handleSeedDefaults = async () => {
-    try {
-      const added = await seedDefaultCategories();
-      toast.success(added > 0 ? `Added ${added} starter categories` : "Starter categories already exist");
-      refresh();
-    } catch (error) {
-      console.error("Failed to seed default categories:", error);
-      toast.error("Failed to add starter categories");
-    }
+  const handleSeedDefaults = () => {
+    if (seedDefaultsMutation.isPending) return;
+    seedDefaultsMutation.mutate(undefined, {
+      onSuccess: (added) => {
+        toast.success(added > 0 ? `Added ${added} starter categories` : "Starter categories already exist");
+      },
+      onError: (error) => {
+        console.error("Failed to seed default categories:", error);
+        toast.error("Failed to add starter categories");
+      },
+    });
   };
 
   return (
@@ -91,8 +91,19 @@ export function ManageCategoriesDialog({ open, onOpenChange }: ManageCategoriesD
       className="sm:max-w-md max-h-[85vh] overflow-hidden flex flex-col"
       footer={
         <div className="flex justify-between items-center w-full">
-          <Button type="button" variant="outline" size="sm" onClick={handleSeedDefaults} className="gap-1.5">
-            <Sparkles className="h-3.5 w-3.5" />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleSeedDefaults}
+            disabled={seedDefaultsMutation.isPending}
+            className="gap-1.5"
+          >
+            {seedDefaultsMutation.isPending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Sparkles className="h-3.5 w-3.5" />
+            )}
             Add starter categories
           </Button>
           <Button type="button" onClick={() => onOpenChange(false)}>
@@ -109,8 +120,8 @@ export function ManageCategoriesDialog({ open, onOpenChange }: ManageCategoriesD
             onChange={(e) => setNewName(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleAdd()}
           />
-          <Button type="button" size="icon" onClick={handleAdd} disabled={!newName.trim()}>
-            <Plus className="h-4 w-4" />
+          <Button type="button" size="icon" onClick={handleAdd} disabled={!newName.trim() || createMutation.isPending}>
+            {createMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
           </Button>
         </div>
 

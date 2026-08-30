@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createSupplier, updateSupplier } from "@/lib/db/procurement";
+import { update } from "@/lib/db/base-helpers";
 import { queryKeys } from "@/lib/query-keys";
 import type { SupplierPayload } from "@/lib/types/supplier";
 
@@ -24,6 +25,24 @@ export function useUpdateSupplierMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, payload }: UpdateSupplierParams) => updateSupplier(id, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries(queryKeys.suppliers.all());
+    },
+  });
+}
+
+interface UpdateSupplierRatingParams {
+  id: string;
+  rating: number;
+}
+
+/** The Supplier Directory table's inline "quick edit rating" affordance only
+ * ever patches this one field — a separate, narrower mutation than the full
+ * add/edit dialog's payload. */
+export function useUpdateSupplierRatingMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, rating }: UpdateSupplierRatingParams) => update("suppliers", id, { rating }),
     onSuccess: () => {
       queryClient.invalidateQueries(queryKeys.suppliers.all());
     },

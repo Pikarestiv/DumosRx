@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import type { SupplierViewModel } from "@/lib/types/supplier";
 import { SortableHeaderCell } from "@/components/ui/sortable-header-cell";
 import { EditableNumberCell } from "@/components/ui/editable-number-cell";
-import { update } from "@/lib/db/local-database";
+import { useUpdateSupplierRatingMutation } from "@/lib/hooks/use-supplier-mutations";
 import type { SortDirection } from "@/lib/hooks/use-sortable-data";
 
 type SupplierSortKey = "name" | "contact" | "totalOrders" | "rating" | "totalValue";
@@ -48,24 +48,30 @@ export function SupplierTable({
 }: SupplierTableProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftRating, setDraftRating] = useState(0);
+  const updateRatingMutation = useUpdateSupplierRatingMutation();
 
   const startQuickEdit = (supplier: SupplierViewModel) => {
     setEditingId(supplier.id);
     setDraftRating(supplier.rating);
   };
 
-  const saveQuickEdit = async (supplier: SupplierViewModel) => {
-    try {
-      await update("suppliers", supplier.id, {
-        rating: Math.min(5, Math.max(0, draftRating)),
-      });
-      toast.success(`${supplier.name} updated`);
-      onSupplierUpdated();
-    } catch {
-      toast.error("Failed to update supplier. Please try again.");
-    } finally {
-      setEditingId(null);
-    }
+  const saveQuickEdit = (supplier: SupplierViewModel) => {
+    if (updateRatingMutation.isPending) return;
+    updateRatingMutation.mutate(
+      { id: supplier.id, rating: Math.min(5, Math.max(0, draftRating)) },
+      {
+        onSuccess: () => {
+          toast.success(`${supplier.name} updated`);
+          onSupplierUpdated();
+        },
+        onError: () => {
+          toast.error("Failed to update supplier. Please try again.");
+        },
+        onSettled: () => {
+          setEditingId(null);
+        },
+      },
+    );
   };
 
   return (
@@ -260,7 +266,8 @@ export function SupplierTable({
                     <button
                       type="button"
                       onClick={() => saveQuickEdit(supplier)}
-                      className="p-1 rounded text-emerald-600 hover:bg-emerald-500/10"
+                      disabled={updateRatingMutation.isPending}
+                      className="p-1 rounded text-emerald-600 hover:bg-emerald-500/10 disabled:opacity-50"
                       title="Save"
                     >
                       <Check className="w-3.5 h-3.5" />
@@ -268,7 +275,8 @@ export function SupplierTable({
                     <button
                       type="button"
                       onClick={() => setEditingId(null)}
-                      className="p-1 rounded text-muted-foreground hover:bg-muted"
+                      disabled={updateRatingMutation.isPending}
+                      className="p-1 rounded text-muted-foreground hover:bg-muted disabled:opacity-50"
                       title="Cancel"
                     >
                       <X className="w-3.5 h-3.5" />

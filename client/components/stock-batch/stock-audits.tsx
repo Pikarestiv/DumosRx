@@ -6,8 +6,8 @@ import { AuditReviewStep } from "./audit-review-step";
 import { ChevronLeft, CheckCircle2, Loader2 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getProductsWithDetails } from "@/lib/db/queries/products";
-import { submitStockAudit } from "@/lib/db/queries/inventory";
 import { sync } from "@/lib/db/sync-engine";
+import { useSubmitStockAuditMutation } from "@/lib/hooks/use-stock-audit-mutation";
 import { genericFuzzySearch } from "@/lib/utils/search";
 import { queryKeys } from "@/lib/query-keys";
 import { useAuth } from "@/lib/context/auth-context";
@@ -38,7 +38,6 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
   const [selectedCategory, setSelectedCategory] =
     useState<string>(ALL_CATEGORIES);
   const [search, setSearch] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [submittedSummary, setSubmittedSummary] = useState<{
     counted: number;
@@ -136,11 +135,14 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
     setItems((prev) => prev.map((i) => (i.id === id ? { ...i, ...patch } : i)));
   };
 
-  const submitAudit = async () => {
-    setIsSubmitting(true);
-    try {
-      await submitStockAudit(
-        adjustedItems.map((i) => ({
+  const submitAuditMutation = useSubmitStockAuditMutation();
+  const isSubmitting = submitAuditMutation.isPending;
+
+  const submitAudit = () => {
+    if (isSubmitting) return;
+    submitAuditMutation.mutate(
+      {
+        items: adjustedItems.map((i) => ({
           productId: i.id,
           systemQty: i.systemQty,
           countedQty: i.countedQty as number,
@@ -150,25 +152,22 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
           countedSellingPrice: i.countedSellingPrice ?? i.sellingPrice,
           reason: i.reason,
         })),
-        user?.id || null,
-      );
-      setSubmittedSummary({
-        counted: countedItems.length,
-        adjusted: adjustedItems.length,
-      });
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.products.withDetails().queryKey,
-      });
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.stockAudits.all().queryKey,
-      });
-      setStep("done");
-    } catch (error) {
-      console.error("Failed to submit stock audit:", error);
-      toast.error("Failed to save the cycle count. Please try again.");
-    } finally {
-      setIsSubmitting(false);
-    }
+        performedBy: user?.id || null,
+      },
+      {
+        onSuccess: () => {
+          setSubmittedSummary({
+            counted: countedItems.length,
+            adjusted: adjustedItems.length,
+          });
+          setStep("done");
+        },
+        onError: (error) => {
+          console.error("Failed to submit stock audit:", error);
+          toast.error("Failed to save the cycle count. Please try again.");
+        },
+      },
+    );
   };
 
   return (

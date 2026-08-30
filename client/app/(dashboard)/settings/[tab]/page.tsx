@@ -15,6 +15,15 @@ export function generateStaticParams() {
     { tab: "system" },
     { tab: "cloud" },
     { tab: "billing" },
+    { tab: "personal-info" },
+    { tab: "business-info" },
+    { tab: "branches" },
+    { tab: "payment-methods" },
+    { tab: "receipt-settings" },
+    { tab: "register-configs" },
+    { tab: "product-units" },
+    { tab: "categories" },
+    { tab: "roles" },
   ];
 }
 

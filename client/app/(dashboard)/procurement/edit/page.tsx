@@ -11,16 +11,14 @@ import { PODetailsSummaryBar } from "@/components/procurement/po-details-summary
 import { PODetailsDialog } from "@/components/procurement/po-details-dialog";
 import { POItemBuilder } from "@/components/procurement/po-item-builder";
 import { POMobileEditView } from "@/components/procurement/po-mobile-edit-view";
-import {
-  createProduct,
-  getPurchaseOrderById,
-  updatePurchaseOrder,
-} from "@/lib/db/local-database";
+import { getPurchaseOrderById } from "@/lib/db/local-database";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/utils";
 
 import { useProcurementData } from "@/lib/hooks/use-procurement-data";
 import { useCreateSupplierMutation } from "@/lib/hooks/use-supplier-mutations";
+import { useCreateProductMutation } from "@/lib/hooks/use-product-mutations";
+import { useUpdatePurchaseOrderMutation } from "@/lib/hooks/use-purchase-order-mutations";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import type { POLineItemDraft } from "@/components/procurement/po-item-ledger-table";
@@ -36,7 +34,6 @@ function EditOrderContent() {
   const [selectedSupplierId, setSelectedSupplierId] = useState("");
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<POLineItemDraft[]>([]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [paymentStatus, setPaymentStatus] = useState("unpaid");
   const [amountPaid, setAmountPaid] = useState("");
@@ -106,28 +103,33 @@ function EditOrderContent() {
     });
   };
 
-  const handleCreateProduct = async (productData: NewProductPayload, keepOpen?: boolean) => {
-    try {
-      const newProductId = await createProduct(productData);
-      toast.success(`${productData.name} added to catalog`);
+  const createProductMutation = useCreateProductMutation();
 
-      // Refresh products list
-      await fetchData();
-      await queryClient.invalidateQueries(queryKeys.products.list());
-      setNewlyCreatedProductId(newProductId);
+  const handleCreateProduct = (productData: NewProductPayload, keepOpen?: boolean) => {
+    createProductMutation.mutate(productData, {
+      onSuccess: async (newProductId) => {
+        toast.success(`${productData.name} added to catalog`);
+        await fetchData();
+        await queryClient.invalidateQueries(queryKeys.products.list());
+        setNewlyCreatedProductId(newProductId);
 
-      if (!keepOpen) {
-        setIsAddProductOpen(false);
-      }
-    } catch (error) {
-      console.error("Failed to add product:", error);
-      toast.error("Failed to add product");
-    }
+        if (!keepOpen) {
+          setIsAddProductOpen(false);
+        }
+      },
+      onError: (error) => {
+        console.error("Failed to add product:", error);
+        toast.error("Failed to add product");
+      },
+    });
   };
 
   const totalAmount = items.reduce((sum, item) => sum + item.subtotal, 0);
 
-  const handleSubmit = async () => {
+  const updatePurchaseOrderMutation = useUpdatePurchaseOrderMutation();
+  const isSubmitting = updatePurchaseOrderMutation.isPending;
+
+  const handleSubmit = () => {
     if (!id) {
       toast.error("Purchase order ID is missing");
       return;
@@ -137,26 +139,29 @@ function EditOrderContent() {
       toast.error("Add at least one item to the order");
       return;
     }
+    if (isSubmitting) return;
 
-    setIsSubmitting(true);
-    try {
-      await updatePurchaseOrder(
-        id,
-        selectedSupplierId === SELF_PURCHASE_VENDOR_ID ? null : selectedSupplierId,
+    updatePurchaseOrderMutation.mutate(
+      {
+        poId: id,
+        supplierId: selectedSupplierId === SELF_PURCHASE_VENDOR_ID ? null : selectedSupplierId,
         notes,
         items,
         paymentStatus,
-        paymentStatus !== "unpaid" ? Number(amountPaid) || 0 : 0,
-        dueDate || null,
-      );
-      toast.success("Purchase Order updated successfully");
-      router.push(`/procurement?selected=${id}`);
-    } catch (error) {
-      console.error("Failed to create PO:", error);
-      toast.error("Error creating purchase order");
-    } finally {
-      setIsSubmitting(false);
-    }
+        amountPaid: paymentStatus !== "unpaid" ? Number(amountPaid) || 0 : 0,
+        dueDate: dueDate || null,
+      },
+      {
+        onSuccess: () => {
+          toast.success("Purchase Order updated successfully");
+          router.push(`/procurement?selected=${id}`);
+        },
+        onError: (error) => {
+          console.error("Failed to create PO:", error);
+          toast.error("Error creating purchase order");
+        },
+      },
+    );
   };
 
   const selectedSupplierName = useMemo(() => {
@@ -283,6 +288,7 @@ function EditOrderContent() {
         onAddProduct={handleCreateProduct}
         initialData={initialProductData ?? undefined}
         hideAddAnother
+        isSubmitting={createProductMutation.isPending}
       />
 
       <AddSupplierDialog

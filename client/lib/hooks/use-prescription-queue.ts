@@ -2,11 +2,12 @@
 
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getActivePrescriptions, getAllPrescriptionItems, updatePrescriptionStatus as updateDbPrescriptionStatus } from "@/lib/db/queries/prescriptions";
+import { getActivePrescriptions, getAllPrescriptionItems } from "@/lib/db/queries/prescriptions";
 import { genericFuzzySearch } from "@/lib/utils/search";
 import { queryKeys } from "@/lib/query-keys";
 import type { PrescriptionRow, PrescriptionStatus, PrescriptionPriority } from "@/lib/types/prescription";
 import { toPrescriptionStatus, toPrescriptionPriority } from "@/lib/types/prescription";
+import { useUpdatePrescriptionStatusMutation } from "@/lib/hooks/use-prescription-mutations";
 
 export interface PrescriptionMedication {
   id: string;
@@ -159,16 +160,16 @@ export function usePrescriptionQueue() {
     return { filteredPrescriptions: results, isFuzzyFallback };
   }, [searchTerm, preFilteredPrescriptions]);
 
-  const updatePrescriptionStatus = async (id: string, newStatus: Prescription["status"]) => {
-    try {
-      // update() already invalidates queryKey: ["prescriptions"], triggering a
-      // refetch. selectedPrescription is derived from that data, so it picks
-      // up the new status automatically once the refetch lands.
-      await updateDbPrescriptionStatus(id, newStatus);
-    } catch (err) {
-      console.error("Failed to update status", err);
-    }
+  // update() already invalidates queryKey: ["prescriptions"], triggering a
+  // refetch. selectedPrescription is derived from that data, so it picks up
+  // the new status automatically once the refetch lands.
+  const updateStatusMutation = useUpdatePrescriptionStatusMutation();
+  const updatePrescriptionStatus = (id: string, newStatus: Prescription["status"]) => {
+    updateStatusMutation.mutate({ id, status: newStatus });
   };
+  const updatingStatusId = updateStatusMutation.isPending
+    ? updateStatusMutation.variables?.id ?? null
+    : null;
 
   const viewPrescriptionDetails = (prescription: Prescription) => {
     setSelectedPrescription(prescription);
@@ -226,6 +227,7 @@ export function usePrescriptionQueue() {
     showDetailsDialog,
     setShowDetailsDialog,
     updatePrescriptionStatus,
+    updatingStatusId,
     viewPrescriptionDetails,
     stats,
     refetch,

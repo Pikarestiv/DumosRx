@@ -3,14 +3,14 @@ import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/lib/context/auth-context";
-import { queryClient } from "@/lib/query-client";
 import { getAvailableStockBatches } from "@/lib/db/queries/inventory";
-import { createPrescription, generateId } from "@/lib/db/local-database";
-import { getPrescriptionById, getPrescriptionItems, updatePrescriptionRecord, deletePrescriptionItems, insertPrescriptionItem } from "@/lib/db/queries/prescriptions";
+import { generateId } from "@/lib/db/local-database";
+import { getPrescriptionById, getPrescriptionItems } from "@/lib/db/queries/prescriptions";
 import { queryKeys } from "@/lib/query-keys";
 import type { PrescriptionItem, PrescriptionPriority, PrescriptionRow } from "@/lib/types/prescription";
 import { toPrescriptionPriority } from "@/lib/types/prescription";
 import { calculatePrescriptionItemCost } from "@/lib/utils/prescription-calculations";
+import { useSavePrescriptionMutation } from "@/lib/hooks/use-save-prescription-mutation";
 
 export interface AvailablePrescriptionProduct {
   name: string;
@@ -263,7 +263,9 @@ export function useNewPrescription() {
     router.push(`${pathname}${query ? `?${query}` : ""}`);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const savePrescriptionMutation = useSavePrescriptionMutation();
+
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
     if (
@@ -279,108 +281,21 @@ export function useNewPrescription() {
       return;
     }
 
-    try {
-      const now = new Date().toISOString();
-      if (isEditing && editRxId) {
-        // Handle update
-        await updatePrescriptionRecord(editRxId, {
-            patient_name: formData.patientName,
-            patient_phone: formData.patientPhone,
-            patient_age: parseInt(formData.patientAge) || 0,
-            doctor_name: formData.doctorName,
-            doctor_license: formData.doctorLicense,
-            priority: formData.priority,
-            insurance: formData.insurance,
-            notes: formData.notes,
-            total_cost: formData.medications.reduce((sum, med) => sum + med.cost, 0),
-            updated_at: now
-        });
+    if (savePrescriptionMutation.isPending) return;
 
-        // Delete old items and insert new ones
-        await deletePrescriptionItems(editRxId);
-
-        for (const med of formData.medications) {
-          const nextRefillDate = new Date();
-          nextRefillDate.setDate(nextRefillDate.getDate() + Number(med.refillIntervalDays));
-          
-          await insertPrescriptionItem({
-              id: generateId(),
-              prescription_id: editRxId,
-              product_name: med.productName,
-              strength: med.strength,
-              dosage: med.dosage,
-              quantity: med.quantity,
-              instructions: med.instructions,
-              cost: med.cost,
-              unit_cost: med.unitCost,
-              refills_authorized: med.refillsAuthorized,
-              refill_interval_days: med.refillIntervalDays,
-              next_refill_date: nextRefillDate.toISOString(),
-              created_at: now,
-              updated_at: now
-          });
-        }
-
-        // updatePrescriptionRecord/deletePrescriptionItems/insertPrescriptionItem
-        // all write via raw query() and don't go through the insert/update
-        // helpers that auto-invalidate, so invalidate explicitly here to make
-        // the detail panel reflect the edited medications.
-        queryClient.invalidateQueries(queryKeys.prescriptions.all());
-
-        toast.success("Prescription updated successfully!");
-        cancelEdit();
-      } else {
-        // Generate new prescription
-        const prescriptionId = generateId();
-
-        const prescriptionData = {
-          id: prescriptionId,
-          prescription_number: `RX-${new Date().getFullYear()}-${String(Date.now()).slice(-3)}`,
-          patient_name: formData.patientName,
-          patient_phone: formData.patientPhone,
-          patient_age: parseInt(formData.patientAge) || 0,
-          user_id: user?.id,
-          doctor_name: formData.doctorName,
-          doctor_license: formData.doctorLicense,
-          priority: formData.priority,
-          insurance: formData.insurance,
-          notes: formData.notes,
-          status: "pending",
-          total_cost: formData.medications.reduce((sum, med) => sum + med.cost, 0),
-          issued_at: now,
-          created_at: now,
-          updated_at: now,
-        };
-
-        const prescriptionItems = formData.medications.map((med) => {
-          const nextRefillDate = new Date();
-          nextRefillDate.setDate(nextRefillDate.getDate() + Number(med.refillIntervalDays));
-          return {
-            id: generateId(),
-            product_name: med.productName,
-            strength: med.strength,
-            dosage: med.dosage,
-            quantity: med.quantity,
-            instructions: med.instructions,
-            cost: med.cost,
-            unit_cost: med.unitCost,
-            refills_authorized: med.refillsAuthorized,
-            refill_interval_days: med.refillIntervalDays,
-            next_refill_date: nextRefillDate.toISOString(),
-            created_at: now,
-            updated_at: now,
-          };
-        });
-
-        await createPrescription(prescriptionData, prescriptionItems);
-        toast.success("Prescription created successfully!");
-        resetForm();
-        closeNewPrescriptionForm();
-      }
-    } catch (err) {
-      console.error("Failed to create prescription", err);
-      toast.error("Failed to save prescription");
-    }
+    savePrescriptionMutation.mutate(
+      { isEditing, editRxId, formData, userId: user?.id },
+      {
+        onSuccess: () => {
+          if (isEditing && editRxId) {
+            cancelEdit();
+          } else {
+            resetForm();
+            closeNewPrescriptionForm();
+          }
+        },
+      },
+    );
   };
 
   const formatCurrency = (amount: number) => {
@@ -405,6 +320,7 @@ export function useNewPrescription() {
     removeMedication,
     editMedication,
     handleSubmit,
+    isSaving: savePrescriptionMutation.isPending,
     resetForm,
     cancelEdit,
     formatCurrency,

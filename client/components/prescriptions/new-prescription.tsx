@@ -28,6 +28,7 @@ export function NewPrescription() {
     removeMedication,
     editMedication,
     handleSubmit,
+    isSaving,
     resetForm,
     cancelEdit,
     formatCurrency,
@@ -82,6 +83,7 @@ export function NewPrescription() {
               isEditing={isEditing}
               resetForm={resetForm}
               cancelEdit={cancelEdit}
+              isSaving={isSaving}
             />
           </form>
         </CardContent>

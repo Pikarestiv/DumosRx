@@ -27,6 +27,7 @@ export function PrescriptionManagement() {
     selectedPrescription,
     setSelectedPrescription,
     updatePrescriptionStatus,
+    updatingStatusId,
     isFuzzyFallback,
     showNewPrescription,
     closeNewPrescription,
@@ -84,6 +85,7 @@ export function PrescriptionManagement() {
               processingReturnRxId === selectedPrescription?.id
             }
             updateStatus={updatePrescriptionStatus}
+            isUpdatingStatus={updatingStatusId === selectedPrescription.id}
           />
         )}
       </ResponsiveDetailPanel>

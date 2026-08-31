@@ -54,6 +54,11 @@ export function ImportMappingDialog({
     setResult(null);
   };
 
+  const handleOpenChange = (next: boolean) => {
+    if (!next) reset();
+    onOpenChange(next);
+  };
+
   const handleFile = async (file: File) => {
     const parsed = await parseSpreadsheetFile(file);
     setHeaders(parsed.headers);
@@ -94,10 +99,7 @@ export function ImportMappingDialog({
   return (
     <ResponsiveModal
       open={open}
-      onOpenChange={(next) => {
-        if (!next) reset();
-        onOpenChange(next);
-      }}
+      onOpenChange={handleOpenChange}
       title="Import products"
       description="Upload a CSV or XLS/XLSX file exported from QuickBooks, Moniebook, or DumosRx."
     >
@@ -131,8 +133,8 @@ export function ImportMappingDialog({
             </p>
             <div className="flex flex-col gap-2 max-h-80 overflow-y-auto">
               {headers.map((header) => (
-                <div key={header} className="flex items-center gap-3">
-                  <span className="w-1/2 text-sm truncate" title={header}>
+                <div key={header} className="grid grid-cols-2 gap-3 items-center">
+                  <span className="text-sm truncate" title={header}>
                     {header}
                   </span>
                   <Combobox
@@ -179,7 +181,7 @@ export function ImportMappingDialog({
                 ))}
               </div>
             )}
-            <Button onClick={() => onOpenChange(false)}>Done</Button>
+            <Button onClick={() => handleOpenChange(false)}>Done</Button>
           </div>
         )}
       </div>

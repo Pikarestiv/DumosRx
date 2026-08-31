@@ -138,14 +138,23 @@ architecture already settles this):
 4. Pre-flight validation runs against the *whole* file before any DB write:
    - Missing/blank name → row flagged, excluded from import.
    - Non-numeric price/cost/quantity → row flagged, excluded.
-   - **Duplicate names within the file itself** (e.g. two "PARACETAMOL" rows
-     from different QB departments) → flagged as a warning listing both rows,
-     since blindly importing both would cause the second to silently
-     update/merge into the first (see Dedupe below). User can proceed anyway
-     (last one wins) or cancel and fix the source file.
+   - **Duplicate name+category within the file itself** (true collisions —
+     same name *and* same category, or same name with no category mapped at
+     all) → flagged as a warning listing both rows, since blindly importing
+     both would cause the second to silently update/merge into the first
+     (see Dedupe below). User can proceed anyway (last one wins) or cancel
+     and fix the source file. Same name in *different* categories is not
+     flagged — treated as two distinct products.
 5. On confirm, for each valid row:
-   - **Dedupe/match:** by `barcode`/item-number first (exact), else by
-     product name (trimmed, case-insensitive exact match).
+   - **Dedupe/match:** by `barcode`/item-number first (exact); else by
+     product name **plus category together** (both trimmed, case-insensitive
+     exact match) when the file has a mapped category column — this avoids
+     merging two distinct products that legitimately share a name in
+     different departments (e.g. two "PARACETAMOL" entries, one under
+     "DRUGS" and one under "OTC"). Only falls back to name-only matching if
+     no category column was mapped in the file at all. Batch number is not a
+     useful key here — it identifies a delivery/lot of an *already-known*
+     product, not a distinct product.
    - **Match found:** update product fields (`name`, `selling_price`,
      `category_id`, `supplier_id`, `reorder_level`, `barcode` if newly
      provided). **Never touch existing stock_batches** — avoids double-
@@ -163,11 +172,13 @@ architecture already settles this):
 
 Re-importing the same (or a since-updated) file is safe:
 
-- Matched rows (by barcode or normalized name) only update product fields —
-  they never create a second opening-stock batch or add to quantity.
+- Matched rows (by barcode, or by normalized name+category) only update
+  product fields — they never create a second opening-stock batch or add to
+  quantity.
 - Only genuinely new rows (no match) create products + a first batch.
-- The only failure mode is the in-file duplicate-name case above, which is
-  surfaced as a pre-flight warning rather than silently corrupting data.
+- The only failure mode is the in-file duplicate name+category case above,
+  which is surfaced as a pre-flight warning rather than silently corrupting
+  data.
 
 ## Data flow — Export
 
@@ -199,9 +210,10 @@ Re-importing the same (or a since-updated) file is safe:
   actual header rows extracted from the QuickBooks and Moniebook files
   referenced above, so the alias dictionary is verified against real data
   rather than invented examples.
-- Unit tests for dedupe/upsert logic: match-by-barcode, match-by-name
-  (case/whitespace variance), no-match-creates-new, re-import-is-idempotent,
-  in-file duplicate-name warning.
+- Unit tests for dedupe/upsert logic: match-by-barcode, match-by-name+category
+  (case/whitespace variance), same-name-different-category treated as
+  distinct products, no-match-creates-new, re-import-is-idempotent, in-file
+  duplicate name+category warning.
 - Manual end-to-end run importing the actual
   `QB-export-POS-Inventory-Items-Export.xls` file (1500+ rows) to confirm
   performance and correctness at realistic scale.

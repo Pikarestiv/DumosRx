@@ -11,13 +11,17 @@ interface SettingsHeaderProps {
 /** Shared by the mobile menu-list route and every inner tab — with the app
  * sidebar/header hidden on all settings routes, this back button is the
  * only way out. */
-export function SettingsHeader({ title, onBack, showBadge }: SettingsHeaderProps) {
+export function SettingsHeader({
+  title,
+  onBack,
+  showBadge,
+}: SettingsHeaderProps) {
   return (
     <div className="shrink-0 flex items-center gap-3 px-4 py-4 border-border/50">
       <Button
         variant="outline"
         size="icon"
-        className="h-9 w-9 rounded-xl bg-muted/50 border-border/50 text-muted-foreground hover:text-foreground shrink-0"
+        className="h-9 w-9 rounded-xl bg-muted/50 border-border/50 text-muted-foreground hover:text-accent-foreground shrink-0"
         onClick={onBack}
       >
         <ChevronLeft className="h-5 w-5" />

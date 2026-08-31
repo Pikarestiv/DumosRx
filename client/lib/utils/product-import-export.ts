@@ -98,3 +98,87 @@ export function detectColumnMapping(headers: string[]): ColumnMapping {
   }
   return mapping;
 }
+
+export interface ProductImportRow {
+  name: string;
+  category?: string;
+  supplier?: string;
+  costPrice?: number;
+  sellingPrice?: number;
+  quantity?: number;
+  reorderLevel?: number;
+  barcode?: string;
+}
+
+/** Accepts "1500", 1500, "1,500.00", "₦1,500.00"; rejects blank/non-numeric. */
+export function parseNumericValue(raw: unknown): number | undefined {
+  if (raw === null || raw === undefined || raw === "") return undefined;
+  const cleaned = String(raw).replace(/[^0-9.-]/g, "");
+  if (cleaned === "" || cleaned === "-" || cleaned === ".") return undefined;
+  const parsed = Number(cleaned);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function trimmedOrUndefined(raw: unknown): string | undefined {
+  const value = String(raw ?? "").trim();
+  return value || undefined;
+}
+
+/** Returns null (caller reports "skipped: missing name") when the row has no name. */
+export function mapRowToProduct(
+  row: Record<string, unknown>,
+  mapping: ColumnMapping,
+): ProductImportRow | null {
+  const result: Partial<ProductImportRow> = {};
+  for (const [header, field] of Object.entries(mapping)) {
+    if (field === "ignore") continue;
+    const raw = row[header];
+    switch (field) {
+      case "name":
+        result.name = String(raw ?? "").trim();
+        break;
+      case "category":
+        result.category = trimmedOrUndefined(raw);
+        break;
+      case "supplier":
+        result.supplier = trimmedOrUndefined(raw);
+        break;
+      case "barcode":
+        result.barcode = trimmedOrUndefined(raw);
+        break;
+      case "cost_price":
+        result.costPrice = parseNumericValue(raw);
+        break;
+      case "selling_price":
+        result.sellingPrice = parseNumericValue(raw);
+        break;
+      case "quantity":
+        result.quantity = parseNumericValue(raw);
+        break;
+      case "reorder_level":
+        result.reorderLevel = parseNumericValue(raw);
+        break;
+    }
+  }
+  if (!result.name) return null;
+  return result as ProductImportRow;
+}
+
+export interface ParsedSpreadsheet {
+  headers: string[];
+  rows: Record<string, unknown>[];
+}
+
+/** Reads a CSV/XLS/XLSX File (from an <input type="file">) into headers + row objects. */
+export async function parseSpreadsheetFile(file: File): Promise<ParsedSpreadsheet> {
+  const buffer = await file.arrayBuffer();
+  const workbook = XLSX.read(buffer, { type: "array" });
+  const sheet = workbook.Sheets[workbook.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
+    defval: "",
+  });
+  const [headerRow] = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
+    header: 1,
+  });
+  return { headers: (headerRow || []).map(String), rows };
+}

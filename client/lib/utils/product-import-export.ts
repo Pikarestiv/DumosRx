@@ -1,4 +1,5 @@
 import * as XLSX from "xlsx";
+import type { ExportableProduct } from "@/lib/db/queries/product-export";
 
 export type ProductField =
   | "name"
@@ -181,4 +182,45 @@ export async function parseSpreadsheetFile(file: File): Promise<ParsedSpreadshee
     header: 1,
   });
   return { headers: (headerRow || []).map(String), rows };
+}
+
+export const EXPORT_COLUMNS: { key: keyof ExportableProduct; label: string }[] = [
+  { key: "name", label: "Product Name" },
+  { key: "category", label: "Category" },
+  { key: "supplier", label: "Supplier" },
+  { key: "barcode", label: "Barcode" },
+  { key: "costPrice", label: "Cost Price" },
+  { key: "sellingPrice", label: "Selling Price" },
+  { key: "quantity", label: "Stock Quantity" },
+  { key: "reorderLevel", label: "Reorder Level" },
+];
+
+/** Column order always follows EXPORT_COLUMNS, regardless of the order the
+ * caller passed `columns` in, so the file stays predictable to re-import. */
+export function buildExportBlob(
+  products: ExportableProduct[],
+  columns: (keyof ExportableProduct)[],
+  format: "csv" | "xlsx",
+): Blob {
+  const selected = EXPORT_COLUMNS.filter((c) => columns.includes(c.key));
+  const data = products.map((product) => {
+    const row: Record<string, unknown> = {};
+    for (const col of selected) row[col.label] = product[col.key];
+    return row;
+  });
+  const sheet = XLSX.utils.json_to_sheet(data, {
+    header: selected.map((c) => c.label),
+  });
+
+  if (format === "csv") {
+    const csv = XLSX.utils.sheet_to_csv(sheet);
+    return new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  }
+
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, sheet, "Products");
+  const buffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+  return new Blob([buffer], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
 }

@@ -13,7 +13,12 @@ import {
 import { StoreType } from "@/lib/context/store-context";
 import { useState } from "react";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { StoreProfileSection } from "./store-profile-section";
 
 interface BusinessInformationCardProps {
@@ -67,7 +72,12 @@ export function BusinessInformationCard({
   setOnlineStoreEnabled,
   handleSaveProfile,
 }: BusinessInformationCardProps) {
-  const { canUseEcommerce, canCustomizeTheme, withRestriction, getUpgradeMessage } = useFeatureGate();
+  const {
+    canUseEcommerce,
+    canCustomizeTheme,
+    withRestriction,
+    getUpgradeMessage,
+  } = useFeatureGate();
   const [isEditingProfile, setIsEditingProfile] = useState(false);
 
   return (
@@ -76,7 +86,8 @@ export function BusinessInformationCard({
         <div className="space-y-1.5">
           <CardTitle>Business Information</CardTitle>
           <CardDescription>
-            Your business identity, shown on receipts, reports, and your public storefront.
+            Your business identity, shown on receipts, reports, and your public
+            storefront.
           </CardDescription>
         </div>
         <Button
@@ -84,7 +95,11 @@ export function BusinessInformationCard({
           size="icon"
           onClick={() => setIsEditingProfile(!isEditingProfile)}
         >
-          {isEditingProfile ? <X className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}
+          {isEditingProfile ? (
+            <X className="h-4 w-4" />
+          ) : (
+            <Pencil className="h-4 w-4" />
+          )}
         </Button>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -99,48 +114,62 @@ export function BusinessInformationCard({
                 onChange={(e) => setLocalName(e.target.value)}
               />
             ) : (
-              <p className="text-sm font-medium py-2">{localName || "Not set"}</p>
+              <p className="text-sm font-medium py-2">
+                {localName || "Not set"}
+              </p>
             )}
           </div>
 
-          <div className="grid gap-2">
-            <div className="flex items-center gap-2">
-              <Label htmlFor="registration-number">Business Registration / CAC Number</Label>
-              <TooltipProvider delayDuration={0}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Info className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Your business's official registration number (e.g. CAC in Nigeria). Not the same as a per-product regulatory number like NAFDAC.</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <div className="flex items-center gap-2">
+                <Label htmlFor="registration-number">
+                  Business Registration / CAC Number
+                </Label>
+                <TooltipProvider delayDuration={0}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>
+                        Your business's official registration number (e.g. CAC
+                        in Nigeria). Not the same as a per-product regulatory
+                        number like NAFDAC.
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+              {isEditingProfile ? (
+                <Input
+                  id="registration-number"
+                  placeholder="e.g. RC1234567"
+                  value={localRegistrationNumber}
+                  onChange={(e) => setLocalRegistrationNumber(e.target.value)}
+                />
+              ) : (
+                <p className="text-sm font-medium py-2">
+                  {localRegistrationNumber || "Not set"}
+                </p>
+              )}
             </div>
-            {isEditingProfile ? (
-              <Input
-                id="registration-number"
-                placeholder="e.g. RC1234567"
-                value={localRegistrationNumber}
-                onChange={(e) => setLocalRegistrationNumber(e.target.value)}
-              />
-            ) : (
-              <p className="text-sm font-medium py-2">{localRegistrationNumber || "Not set"}</p>
-            )}
-          </div>
 
-          <div className="grid gap-2">
-            <Label htmlFor="address">Address</Label>
-            {isEditingProfile ? (
-              <Input
-                id="address"
-                placeholder="123 Health Avenue, Lagos"
-                value={localAddress}
-                onChange={(e) => setLocalAddress(e.target.value)}
-              />
-            ) : (
-              <p className="text-sm font-medium py-2">{localAddress || "Not set"}</p>
-            )}
+            <div className="grid gap-2">
+              <Label htmlFor="address">Address</Label>
+              {isEditingProfile ? (
+                <Input
+                  id="address"
+                  placeholder="123 Health Avenue, Lagos"
+                  value={localAddress}
+                  onChange={(e) => setLocalAddress(e.target.value)}
+                />
+              ) : (
+                <p className="text-sm font-medium py-2">
+                  {localAddress || "Not set"}
+                </p>
+              )}
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -154,7 +183,9 @@ export function BusinessInformationCard({
                   onChange={(e) => setLocalPhone(e.target.value)}
                 />
               ) : (
-                <p className="text-sm font-medium py-2">{localPhone || "Not set"}</p>
+                <p className="text-sm font-medium py-2">
+                  {localPhone || "Not set"}
+                </p>
               )}
             </div>
             <div className="grid gap-2">
@@ -167,7 +198,9 @@ export function BusinessInformationCard({
                   onChange={(e) => setLocalEmail(e.target.value)}
                 />
               ) : (
-                <p className="text-sm font-medium py-2">{localEmail || "Not set"}</p>
+                <p className="text-sm font-medium py-2">
+                  {localEmail || "Not set"}
+                </p>
               )}
             </div>
           </div>
@@ -206,10 +239,16 @@ export function BusinessInformationCard({
                       <TooltipTrigger asChild>
                         <div className="inline-block">
                           <Label
-                            htmlFor={canCustomizeTheme ? "business-logo-upload" : undefined}
+                            htmlFor={
+                              canCustomizeTheme
+                                ? "business-logo-upload"
+                                : undefined
+                            }
                             className={`cursor-pointer inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3 ${!canCustomizeTheme ? "opacity-50 cursor-not-allowed" : ""}`}
                           >
-                            {!canCustomizeTheme && <Lock className="h-3 w-3 mr-2" />}
+                            {!canCustomizeTheme && (
+                              <Lock className="h-3 w-3 mr-2" />
+                            )}
                             {localLogo ? "Change Logo" : "Upload Logo"}
                           </Label>
                         </div>
@@ -255,10 +294,13 @@ export function BusinessInformationCard({
       </CardContent>
       {isEditingProfile && (
         <CardFooter className="border-t px-6 py-4">
-          <Button onClick={() => {
-            withRestriction(handleSaveProfile)();
-            setIsEditingProfile(false);
-          }} className="cursor-pointer">
+          <Button
+            onClick={() => {
+              withRestriction(handleSaveProfile)();
+              setIsEditingProfile(false);
+            }}
+            className="cursor-pointer"
+          >
             <Save className="w-4 h-4 mr-2" />
             Save Changes
           </Button>

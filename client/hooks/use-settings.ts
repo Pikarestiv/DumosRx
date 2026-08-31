@@ -63,8 +63,6 @@ export function useSettings() {
     autoSyncInterval,
     setAutoSyncInterval,
     setLocalLogo,
-    requireSaleNotes,
-    displayStockLevels,
   } = formState;
 
   // Responsive Effect
@@ -166,14 +164,6 @@ export function useSettings() {
     }
 
     router.replace(`/settings/${publicTab}`, { scroll: false });
-  };
-
-  const handleSaveRegisterConfig = () => {
-    updateStoreProfile({
-      require_sale_notes: requireSaleNotes ? 1 : 0,
-      display_stock_levels: displayStockLevels ? 1 : 0,
-    });
-    toast.success("Register configuration updated");
   };
 
   // Handlers
@@ -305,7 +295,6 @@ export function useSettings() {
     handleSaveReceiptSettings,
     handleSaveAlertSettings,
     handleSaveAutoSyncSettings,
-    handleSaveRegisterConfig,
     handleLogoUpload,
     handleRemoveLogo,
     handleSwitchVertical,

@@ -6,6 +6,7 @@ import { CloudLinkDialog } from "@/components/settings/cloud-link-dialog";
 import { StaffManagement } from "@/components/settings/staff-management";
 import { SettingsMobileMenu } from "@/components/settings/settings-mobile-menu";
 import { RolesPermissionsPlaceholder } from "@/components/settings/roles-permissions-placeholder";
+import { UserProfileBadge } from "@/components/dashboard/user-profile-badge";
 import { SettingsTabNav } from "./settings-tab-nav";
 
 import { AppearanceSettings } from "@/components/settings/appearance-settings";
@@ -112,7 +113,6 @@ export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
     handleSaveReceiptSettings,
     handleSaveAlertSettings,
     handleSaveAutoSyncSettings,
-    handleSaveRegisterConfig,
     handleLogoUpload,
     handleRemoveLogo,
     handleSwitchVertical,
@@ -205,6 +205,10 @@ export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
           <div className="text-lg font-semibold capitalize">
             {TAB_LABELS[activeTab] ?? activeTab}
           </div>
+
+          <div className="ml-auto hidden sm:block">
+            <UserProfileBadge />
+          </div>
         </div>
 
         <div className="flex-1 min-h-0 overflow-y-auto px-4 md:px-6">
@@ -261,12 +265,12 @@ export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
                 setOnlineStoreEnabled={setOnlineStoreEnabled}
                 handleSaveProfile={handleSaveProfile}
               />
-              <FleetOverview />
             </TabsContent>
           )}
 
           {isAdmin && (
             <TabsContent value="branches" className="space-y-6">
+              <FleetOverview />
               <MultiStoreCard />
             </TabsContent>
           )}
@@ -372,7 +376,6 @@ export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
                 setRequireSaleNotes={setRequireSaleNotes}
                 displayStockLevels={displayStockLevels}
                 setDisplayStockLevels={setDisplayStockLevels}
-                handleSaveRegisterConfig={handleSaveRegisterConfig}
               />
             </TabsContent>
           )}

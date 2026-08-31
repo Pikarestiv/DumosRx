@@ -1,6 +1,5 @@
 import { TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Store,
   Bell,
   Shield,
   Database,
@@ -116,8 +115,8 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { value: "notifications", label: "Alerts", icon: Bell },
       { value: "data", label: "Data & Sync", icon: Database, adminOnly: true },
-      { value: "system", label: "System", icon: Globe, adminOnly: true },
       { value: "billing", label: "Billing", icon: CreditCard, adminOnly: true },
+      { value: "system", label: "System", icon: Globe, adminOnly: true },
     ],
   },
 ];

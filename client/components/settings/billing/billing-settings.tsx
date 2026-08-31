@@ -15,7 +15,7 @@ export function BillingSettings() {
       <SubscriptionStatusAlert subStatus={subStatus} />
 
       <Tabs defaultValue="subscription" className="space-y-6">
-        <TabsList>
+        <TabsList className="w-full md:w-max">
           <TabsTrigger value="subscription">My Subscription</TabsTrigger>
           <TabsTrigger value="history">Billing History</TabsTrigger>
           <TabsTrigger value="referrals">Referral Program</TabsTrigger>

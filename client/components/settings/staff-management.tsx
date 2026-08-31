@@ -85,7 +85,7 @@ export function StaffManagement() {
 
   return (
     <Tabs defaultValue="management" className="space-y-6">
-      <TabsList>
+      <TabsList className="w-full md:w-max">
         <TabsTrigger value="management">Management</TabsTrigger>
         <TabsTrigger value="activities">Activities</TabsTrigger>
       </TabsList>

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Tags } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { Pencil } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -10,43 +11,51 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { ManageCategoriesDialog } from "@/components/products/manage-categories-dialog";
+import { getCategoryList } from "@/lib/db/queries/categories";
+import { queryKeys } from "@/lib/query-keys";
 
 export function CategoriesCard() {
   const [open, setOpen] = useState(false);
 
+  const { data: categories = [], isLoading } = useQuery({
+    ...queryKeys.categories.list(),
+    queryFn: () => getCategoryList(),
+  });
+
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Product Categories</CardTitle>
-        <CardDescription>
-          Add, rename, or remove the categories used across your catalog and
-          inventory filters.
-        </CardDescription>
+      <CardHeader className="flex flex-row items-start justify-between space-y-0">
+        <div className="space-y-1.5">
+          <CardTitle>Categories</CardTitle>
+          <CardDescription>
+            Categories used across your catalog, inventory filters, and stock
+            audits.
+          </CardDescription>
+        </div>
+        <Button variant="ghost" size="icon" onClick={() => setOpen(true)}>
+          <Pencil className="h-4 w-4" />
+        </Button>
       </CardHeader>
       <CardContent>
-        <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
-          <div className="flex items-start gap-3">
-            <div className="p-2 rounded-full bg-primary/10 shrink-0">
-              <Tags className="h-4 w-4 text-primary" />
-            </div>
-            <div className="space-y-0.5">
-              <p className="text-sm font-medium">Manage categories</p>
-              <p className="text-xs text-muted-foreground max-w-sm">
-                Changes apply everywhere categories are used: the product
-                catalog, filters, and stock audits.
-              </p>
-            </div>
+        {isLoading && (
+          <p className="text-sm text-muted-foreground italic">Loading...</p>
+        )}
+        {!isLoading && categories.length === 0 && (
+          <p className="text-sm text-muted-foreground italic">
+            No categories yet. Use Manage to add some.
+          </p>
+        )}
+        {!isLoading && categories.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {categories.map((cat) => (
+              <Badge key={cat.id} variant="secondary" className="py-1.5">
+                {cat.name}
+              </Badge>
+            ))}
           </div>
-
-          <Button
-            variant="outline"
-            className="shrink-0"
-            onClick={() => setOpen(true)}
-          >
-            Manage
-          </Button>
-        </div>
+        )}
       </CardContent>
 
       <ManageCategoriesDialog open={open} onOpenChange={setOpen} />

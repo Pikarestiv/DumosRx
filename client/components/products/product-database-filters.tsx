@@ -2,6 +2,7 @@ import { Settings2 } from "lucide-react";
 import { SearchInput } from "@/components/ui/search-input";
 import { FilterPill, formatFilterLabel } from "@/components/ui/filter-pill";
 import { Button } from "@/components/ui/button";
+import { ImportExportToolbar } from "@/components/stock-batch/import-export-toolbar";
 
 interface ProductDatabaseFiltersProps {
   searchTerm: string;
@@ -13,6 +14,7 @@ interface ProductDatabaseFiltersProps {
   categories: string[];
   statuses: string[];
   onManageCategories: () => void;
+  onProductsImported: () => void;
 }
 
 export function ProductDatabaseFilters({
@@ -25,6 +27,7 @@ export function ProductDatabaseFilters({
   categories,
   statuses,
   onManageCategories,
+  onProductsImported,
 }: ProductDatabaseFiltersProps) {
   // Search bar + filter pills render standalone above the card on mobile (see ProductDatabase).
   // This whole panel is desktop-only to avoid leaving an empty padded/bordered row on mobile.
@@ -36,6 +39,7 @@ export function ProductDatabaseFilters({
           onChange={setSearchTerm}
           placeholder="Search by name or SKU"
         />
+        <ImportExportToolbar onImported={onProductsImported} />
         <Button
           type="button"
           variant="outline"

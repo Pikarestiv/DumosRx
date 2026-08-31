@@ -207,6 +207,7 @@ export function ProductDatabase() {
             categories={categories}
             statuses={statuses}
             onManageCategories={() => setShowManageCategories(true)}
+            onProductsImported={refetch}
           />
           <CatalogList
             filteredProducts={filteredProducts}

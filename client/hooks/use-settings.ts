@@ -300,3 +300,7 @@ export function useSettings() {
     handleSwitchVertical,
   };
 }
+
+/** Panels take this whole bag instead of having each field threaded through
+ * as its own prop — see app/(dashboard)/settings/[tab]/panels/. */
+export type SettingsState = ReturnType<typeof useSettings>;

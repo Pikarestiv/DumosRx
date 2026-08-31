@@ -274,7 +274,7 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
             ? ""
             : contentCollapsed
               ? "lg:pl-[68px]"
-              : "lg:pl-60",
+              : "lg:pl-48",
         )}
         style={{
           height: "100dvh",

@@ -121,36 +121,35 @@ export function SubscriptionPlans() {
   };
 
   return (
-    <div className="space-y-8">
-      <div className="flex justify-center">
-        <Tabs defaultValue="monthly" className="w-[300px]" onValueChange={(val) => setBillingPeriod(val as "monthly" | "yearly")}>
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="monthly">Monthly</TabsTrigger>
-            <TabsTrigger value="yearly">Yearly</TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </div>
-
+    <div className="space-y-6">
       {isStatusError && (
         <p className="text-center text-sm text-destructive">
           Failed to load subscription status — check your connection.
         </p>
       )}
-
-      <CouponInput
-        couponCode={couponCode}
-        setCouponCode={setCouponCode}
-        appliedCoupon={appliedCoupon}
-        setAppliedCoupon={setAppliedCoupon}
-        validatingCoupon={validatingCoupon}
-        handleValidateCoupon={handleValidateCoupon}
-      />
-
       {isReferralError && (
         <p className="text-center text-sm text-destructive">
           Failed to load referral credits — check your connection.
         </p>
       )}
+
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-muted/30 border border-muted rounded-lg p-3">
+        <Tabs defaultValue="monthly" className="w-full sm:w-[220px]" onValueChange={(val) => setBillingPeriod(val as "monthly" | "yearly")}>
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="monthly">Monthly</TabsTrigger>
+            <TabsTrigger value="yearly">Yearly</TabsTrigger>
+          </TabsList>
+        </Tabs>
+
+        <CouponInput
+          couponCode={couponCode}
+          setCouponCode={setCouponCode}
+          appliedCoupon={appliedCoupon}
+          setAppliedCoupon={setAppliedCoupon}
+          validatingCoupon={validatingCoupon}
+          handleValidateCoupon={handleValidateCoupon}
+        />
+      </div>
 
       {userCredits > 0 && (
         <div className="max-w-md mx-auto bg-primary/5 p-4 rounded-lg flex items-center justify-between border border-primary/20">

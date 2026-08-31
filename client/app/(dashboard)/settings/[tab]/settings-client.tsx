@@ -129,7 +129,28 @@ export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
   console.log("[DEBUG SETTINGS]", { user, isAdmin });
 
   if (!isDesktop && isIndex) {
-    return <SettingsMobileMenu isAdmin={isAdmin} />;
+    return (
+      <div
+        className="flex flex-col w-full overflow-hidden bg-background"
+        style={{ height: "calc(100dvh - var(--tauri-top, 0px))" }}
+      >
+        <div className="shrink-0 flex items-center gap-3 px-4 py-4 border-border/50">
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-9 w-9 rounded-xl bg-muted/50 border-border/50 text-muted-foreground hover:text-foreground shrink-0"
+            onClick={() => router.push("/dashboard")}
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </Button>
+
+          <div className="text-lg font-semibold">Settings</div>
+        </div>
+        <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4">
+          <SettingsMobileMenu isAdmin={isAdmin} />
+        </div>
+      </div>
+    );
   }
 
   const TAB_LABELS: Record<string, string> = {
@@ -144,261 +165,242 @@ export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
     roles: "Roles & Permissions",
   };
 
+  // With the app sidebar/header hidden on every settings route, this
+  // header (and its back button) is the only way out — shown on desktop
+  // too now, not just mobile. Desktop has no separate menu-list route (the
+  // tab rail below is the nav), so its back button exits straight to the
+  // dashboard; mobile's inner-tab back button returns to the menu list.
+  //
+  // The whole page takes a real, explicit height (not page-flow auto) so
+  // the aside and the tab content below the header can each be given their
+  // own bounded box and scroll independently — the aside's nav list no
+  // longer scrolls away with the page, it stays put and scrolls itself
+  // only if its own content overflows.
   return (
-    <>
-      <div className="max-w-5xl">
-        {!isDesktop && !isIndex && (
-          <div className="sticky top-0 z-20 bg-background flex items-center gap-3 px-4 py-4 border-border/50">
-            <Button
-              variant="outline"
-              size="icon"
-              className="md:hidden h-9 w-9 rounded-xl bg-muted/50 border-border/50 text-muted-foreground hover:text-foreground shrink-0"
-              onClick={() => router.push("/settings")}
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </Button>
+    <Tabs
+      value={activeTab}
+      onValueChange={handleTabChange}
+      orientation="vertical"
+      className="flex flex-col md:flex-row w-full overflow-hidden bg-background"
+      style={{ height: "calc(100dvh - var(--tauri-top, 0px))" }}
+    >
+      {/* Runs the full height of the settings view — the header (unlike
+          the app's old top bar) starts to the right of this rail, not
+          above it. */}
+      <aside className="hidden md:flex md:flex-col w-full md:w-56 flex-shrink-0 h-full overflow-y-auto border-border/50 p-3 pr-0">
+        <SettingsTabNav isAdmin={isAdmin} isDesktop={isDesktop} />
+      </aside>
 
-            <div className="text-lg font-semibold capitalize">
-              {TAB_LABELS[activeTab] ?? activeTab}
-            </div>
-          </div>
-        )}
-
-        <Tabs
-          value={activeTab}
-          onValueChange={handleTabChange}
-          orientation="vertical"
-          className="flex flex-col md:flex-row gap-6 md:gap-8 md:items-start relative"
-        >
-          {/*
-            The aside/TabsList live inside the page's own scrollable
-            container (not behind a fixed header: the dashboard header is a
-            normal sibling above it), so sticking to `top: 0` (plus a small
-            gap on desktop to match the page's own top padding) is enough;
-            no header-height offset needed.
-          */}
-          <aside
-            className="hidden md:block w-full md:w-52 flex-shrink-0 md:sticky z-30"
-            style={{ top: isDesktop ? "16px" : undefined }}
+      <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+        <div className="shrink-0 flex items-center gap-3 px-4 py-4 border-border/50">
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-9 w-9 rounded-xl bg-muted/50 border-border/50 text-muted-foreground hover:text-foreground shrink-0"
+            onClick={() => router.push(isDesktop ? "/dashboard" : "/settings")}
           >
-            <SettingsTabNav isAdmin={isAdmin} isDesktop={isDesktop} />
-          </aside>
+            <ChevronLeft className="h-5 w-5" />
+          </Button>
 
-          <div className="flex-1 px-4 md:px-0 min-w-0">
-            <TabsContent value="appearance">
-              <AppearanceSettings
-                theme={theme}
-                setTheme={setTheme}
-                activeTheme={activeTheme}
-                setAppTheme={setAppTheme}
-                localCurrency={localCurrency}
-                setLocalCurrency={setLocalCurrency}
-                localVat={localVat}
-                setLocalVat={setLocalVat}
-                handleSaveRegional={handleSaveRegional}
-                isAdmin={isAdmin}
-              />
-            </TabsContent>
-
-            {isAdmin && (
-              <TabsContent value="personal-info">
-                <AccountSettings />
-              </TabsContent>
-            )}
-
-            {isAdmin && (
-              <TabsContent value="business-info" className="space-y-6">
-                <div>
-                  <h1 className="text-2xl font-black tracking-tight">Business Info</h1>
-                  <p className="text-muted-foreground">Your business identity, contact details, and logo</p>
-                </div>
-                <BusinessVerticalCard
-                  storeType={storeType}
-                  handleSwitchVertical={handleSwitchVertical}
-                />
-                <ContactSpecialistCard />
-                <BusinessInformationCard
-                  storeType={storeType}
-                  localName={localName}
-                  setLocalName={setLocalName}
-                  localAddress={localAddress}
-                  setLocalAddress={setLocalAddress}
-                  localPhone={localPhone}
-                  setLocalPhone={setLocalPhone}
-                  localEmail={localEmail}
-                  setLocalEmail={setLocalEmail}
-                  localRegistrationNumber={localRegistrationNumber}
-                  setLocalRegistrationNumber={setLocalRegistrationNumber}
-                  localLogo={localLogo}
-                  handleLogoUpload={handleLogoUpload}
-                  handleRemoveLogo={handleRemoveLogo}
-                  localStoreSlug={localStoreSlug}
-                  setLocalStoreSlug={setLocalStoreSlug}
-                  localPcn={localPcn}
-                  setLocalPcn={setLocalPcn}
-                  showRetailSuggestions={showRetailSuggestions}
-                  setShowRetailSuggestions={setShowRetailSuggestions}
-                  onlineStoreEnabled={onlineStoreEnabled}
-                  setOnlineStoreEnabled={setOnlineStoreEnabled}
-                  handleSaveProfile={handleSaveProfile}
-                />
-                <FleetOverview />
-              </TabsContent>
-            )}
-
-            {isAdmin && (
-              <TabsContent value="branches" className="space-y-6">
-                <div>
-                  <h1 className="text-2xl font-black tracking-tight">Branches</h1>
-                  <p className="text-muted-foreground">Manage every store location on this account</p>
-                </div>
-                <MultiStoreCard />
-              </TabsContent>
-            )}
-
-            <TabsContent value="notifications">
-              <AlertSettings
-                lowStockAlert={lowStockAlert}
-                setLowStockAlert={setLowStockAlert}
-                expiryAlert={expiryAlert}
-                setExpiryAlert={setExpiryAlert}
-                expiryDays={expiryDays}
-                setExpiryDays={setExpiryDays}
-                handleSaveAlertSettings={handleSaveAlertSettings}
-              />
-            </TabsContent>
-
-            {isAdmin && (
-              <TabsContent value="data">
-                <DataSettings
-                  isCloudLinked={isCloudLinked}
-                  autoSyncEnabled={autoSyncEnabled}
-                  setAutoSyncEnabled={setAutoSyncEnabled}
-                  autoSyncInterval={autoSyncInterval}
-                  setAutoSyncInterval={setAutoSyncInterval}
-                  handleSaveAutoSyncSettings={handleSaveAutoSyncSettings}
-                  handleSync={handleSync}
-                  handleDownloadBackup={handleDownloadBackup}
-                  handleRestoreBackup={handleRestoreBackup}
-                  handleRestoreBackupTauri={handleRestoreBackupTauri}
-                  isTauri={isTauri}
-                  handleResetDatabase={handleResetDatabase}
-                  setIsCloudLinkOpen={setIsCloudLinkOpen}
-                  setSyncAfterLink={setSyncAfterLink}
-                />
-                <div className="mt-6">
-                  <DemoDataSettings />
-                </div>
-              </TabsContent>
-            )}
-
-            <TabsContent value="security">
-              <SecuritySettings
-                currentPin={currentPin}
-                setCurrentPin={setCurrentPin}
-                newPin={newPin}
-                setNewPin={setNewPin}
-                confirmPin={confirmPin}
-                setConfirmPin={setConfirmPin}
-                handleUpdateSecurity={handleUpdateSecurity}
-              />
-            </TabsContent>
-
-            {isAdmin && (
-              <TabsContent value="staff">
-                <StaffManagement />
-              </TabsContent>
-            )}
-
-            {isAdmin && (
-              <TabsContent value="roles">
-                <RolesPermissionsPlaceholder />
-              </TabsContent>
-            )}
-
-            {isAdmin && (
-              <TabsContent value="payment-methods" className="space-y-6">
-                <div>
-                  <h1 className="text-2xl font-black tracking-tight">Payment Methods</h1>
-                  <p className="text-muted-foreground">Accepted payment options and destination accounts</p>
-                </div>
-                <PaymentSettingsCard
-                  requirePaymentAccount={requirePaymentAccount}
-                  setRequirePaymentAccount={setRequirePaymentAccount}
-                  enabledPaymentMethods={enabledPaymentMethods}
-                  setEnabledPaymentMethods={setEnabledPaymentMethods}
-                />
-                <PaymentAccountsCard />
-              </TabsContent>
-            )}
-
-            {isAdmin && (
-              <TabsContent value="receipt-settings" className="space-y-6">
-                <div>
-                  <h1 className="text-2xl font-black tracking-tight">Receipt Settings</h1>
-                  <p className="text-muted-foreground">Customize what prints on every receipt</p>
-                </div>
-                <ReceiptCustomizationCard
-                  localName={localName}
-                  localAddress={localAddress}
-                  localPhone={localPhone}
-                  localLogo={localLogo}
-                  localReceiptHeader={localReceiptHeader}
-                  setLocalReceiptHeader={setLocalReceiptHeader}
-                  localReceiptFooter={localReceiptFooter}
-                  setLocalReceiptFooter={setLocalReceiptFooter}
-                  showLogo={showLogo}
-                  setShowLogo={setShowLogo}
-                  showContact={showContact}
-                  setShowContact={setShowContact}
-                  hidePoweredBy={hidePoweredBy}
-                  setHidePoweredBy={setHidePoweredBy}
-                  handleSaveReceiptSettings={handleSaveReceiptSettings}
-                />
-              </TabsContent>
-            )}
-
-            {isAdmin && (
-              <TabsContent value="register-configs">
-                <RegisterConfigCard
-                  requireSaleNotes={requireSaleNotes}
-                  setRequireSaleNotes={setRequireSaleNotes}
-                  displayStockLevels={displayStockLevels}
-                  setDisplayStockLevels={setDisplayStockLevels}
-                  handleSaveRegisterConfig={handleSaveRegisterConfig}
-                />
-              </TabsContent>
-            )}
-
-            {isAdmin && (
-              <TabsContent value="product-units">
-                <ProductUnitsCard />
-              </TabsContent>
-            )}
-
-            {isAdmin && (
-              <TabsContent value="categories" className="space-y-6">
-                <div>
-                  <h1 className="text-2xl font-black tracking-tight">Categories</h1>
-                  <p className="text-muted-foreground">Organize your product catalog</p>
-                </div>
-                <CategoriesCard />
-              </TabsContent>
-            )}
-
-            {isAdmin && (
-              <TabsContent value="system">
-                <SystemSettings />
-              </TabsContent>
-            )}
-
-            {isAdmin && (
-              <TabsContent value="billing">
-                <BillingSettings />
-              </TabsContent>
-            )}
+          <div className="text-lg font-semibold capitalize">
+            {TAB_LABELS[activeTab] ?? activeTab}
           </div>
-        </Tabs>
+        </div>
+
+        <div className="flex-1 min-h-0 overflow-y-auto px-4 md:px-6">
+          <TabsContent value="appearance">
+            <AppearanceSettings
+              theme={theme}
+              setTheme={setTheme}
+              activeTheme={activeTheme}
+              setAppTheme={setAppTheme}
+              localCurrency={localCurrency}
+              setLocalCurrency={setLocalCurrency}
+              localVat={localVat}
+              setLocalVat={setLocalVat}
+              handleSaveRegional={handleSaveRegional}
+              isAdmin={isAdmin}
+            />
+          </TabsContent>
+
+          {isAdmin && (
+            <TabsContent value="personal-info">
+              <AccountSettings />
+            </TabsContent>
+          )}
+
+          {isAdmin && (
+            <TabsContent value="business-info" className="space-y-6">
+              <BusinessVerticalCard
+                storeType={storeType}
+                handleSwitchVertical={handleSwitchVertical}
+              />
+              <ContactSpecialistCard />
+              <BusinessInformationCard
+                storeType={storeType}
+                localName={localName}
+                setLocalName={setLocalName}
+                localAddress={localAddress}
+                setLocalAddress={setLocalAddress}
+                localPhone={localPhone}
+                setLocalPhone={setLocalPhone}
+                localEmail={localEmail}
+                setLocalEmail={setLocalEmail}
+                localRegistrationNumber={localRegistrationNumber}
+                setLocalRegistrationNumber={setLocalRegistrationNumber}
+                localLogo={localLogo}
+                handleLogoUpload={handleLogoUpload}
+                handleRemoveLogo={handleRemoveLogo}
+                localStoreSlug={localStoreSlug}
+                setLocalStoreSlug={setLocalStoreSlug}
+                localPcn={localPcn}
+                setLocalPcn={setLocalPcn}
+                showRetailSuggestions={showRetailSuggestions}
+                setShowRetailSuggestions={setShowRetailSuggestions}
+                onlineStoreEnabled={onlineStoreEnabled}
+                setOnlineStoreEnabled={setOnlineStoreEnabled}
+                handleSaveProfile={handleSaveProfile}
+              />
+              <FleetOverview />
+            </TabsContent>
+          )}
+
+          {isAdmin && (
+            <TabsContent value="branches" className="space-y-6">
+              <MultiStoreCard />
+            </TabsContent>
+          )}
+
+          <TabsContent value="notifications">
+            <AlertSettings
+              lowStockAlert={lowStockAlert}
+              setLowStockAlert={setLowStockAlert}
+              expiryAlert={expiryAlert}
+              setExpiryAlert={setExpiryAlert}
+              expiryDays={expiryDays}
+              setExpiryDays={setExpiryDays}
+              handleSaveAlertSettings={handleSaveAlertSettings}
+            />
+          </TabsContent>
+
+          {isAdmin && (
+            <TabsContent value="data">
+              <DataSettings
+                isCloudLinked={isCloudLinked}
+                autoSyncEnabled={autoSyncEnabled}
+                setAutoSyncEnabled={setAutoSyncEnabled}
+                autoSyncInterval={autoSyncInterval}
+                setAutoSyncInterval={setAutoSyncInterval}
+                handleSaveAutoSyncSettings={handleSaveAutoSyncSettings}
+                handleSync={handleSync}
+                handleDownloadBackup={handleDownloadBackup}
+                handleRestoreBackup={handleRestoreBackup}
+                handleRestoreBackupTauri={handleRestoreBackupTauri}
+                isTauri={isTauri}
+                handleResetDatabase={handleResetDatabase}
+                setIsCloudLinkOpen={setIsCloudLinkOpen}
+                setSyncAfterLink={setSyncAfterLink}
+              />
+              <div className="mt-6">
+                <DemoDataSettings />
+              </div>
+            </TabsContent>
+          )}
+
+          <TabsContent value="security">
+            <SecuritySettings
+              currentPin={currentPin}
+              setCurrentPin={setCurrentPin}
+              newPin={newPin}
+              setNewPin={setNewPin}
+              confirmPin={confirmPin}
+              setConfirmPin={setConfirmPin}
+              handleUpdateSecurity={handleUpdateSecurity}
+            />
+          </TabsContent>
+
+          {isAdmin && (
+            <TabsContent value="staff">
+              <StaffManagement />
+            </TabsContent>
+          )}
+
+          {isAdmin && (
+            <TabsContent value="roles">
+              <RolesPermissionsPlaceholder />
+            </TabsContent>
+          )}
+
+          {isAdmin && (
+            <TabsContent value="payment-methods" className="space-y-6">
+              <PaymentSettingsCard
+                requirePaymentAccount={requirePaymentAccount}
+                setRequirePaymentAccount={setRequirePaymentAccount}
+                enabledPaymentMethods={enabledPaymentMethods}
+                setEnabledPaymentMethods={setEnabledPaymentMethods}
+              />
+              <PaymentAccountsCard />
+            </TabsContent>
+          )}
+
+          {isAdmin && (
+            <TabsContent value="receipt-settings" className="space-y-6">
+              <ReceiptCustomizationCard
+                localName={localName}
+                localAddress={localAddress}
+                localPhone={localPhone}
+                localLogo={localLogo}
+                localReceiptHeader={localReceiptHeader}
+                setLocalReceiptHeader={setLocalReceiptHeader}
+                localReceiptFooter={localReceiptFooter}
+                setLocalReceiptFooter={setLocalReceiptFooter}
+                showLogo={showLogo}
+                setShowLogo={setShowLogo}
+                showContact={showContact}
+                setShowContact={setShowContact}
+                hidePoweredBy={hidePoweredBy}
+                setHidePoweredBy={setHidePoweredBy}
+                handleSaveReceiptSettings={handleSaveReceiptSettings}
+              />
+            </TabsContent>
+          )}
+
+          {isAdmin && (
+            <TabsContent value="register-configs">
+              <RegisterConfigCard
+                requireSaleNotes={requireSaleNotes}
+                setRequireSaleNotes={setRequireSaleNotes}
+                displayStockLevels={displayStockLevels}
+                setDisplayStockLevels={setDisplayStockLevels}
+                handleSaveRegisterConfig={handleSaveRegisterConfig}
+              />
+            </TabsContent>
+          )}
+
+          {isAdmin && (
+            <TabsContent value="product-units">
+              <ProductUnitsCard />
+            </TabsContent>
+          )}
+
+          {isAdmin && (
+            <TabsContent value="categories" className="space-y-6">
+              <CategoriesCard />
+            </TabsContent>
+          )}
+
+          {isAdmin && (
+            <TabsContent value="system">
+              <SystemSettings />
+            </TabsContent>
+          )}
+
+          {isAdmin && (
+            <TabsContent value="billing">
+              <BillingSettings />
+            </TabsContent>
+          )}
+        </div>
       </div>
 
       <CloudLinkDialog
@@ -410,6 +412,6 @@ export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
           }
         }}
       />
-    </>
+    </Tabs>
   );
 }

@@ -46,31 +46,68 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: "Account",
     items: [
-      { value: "personal-info", label: "Personal Info", icon: UserCircle, adminOnly: true },
+      {
+        value: "personal-info",
+        label: "Personal Info",
+        icon: UserCircle,
+        adminOnly: true,
+      },
       { value: "security", label: "Security", icon: Shield },
     ],
   },
   {
     label: "Business",
     items: [
-      { value: "business-info", label: "Business Info", icon: Building2, adminOnly: true },
+      {
+        value: "business-info",
+        label: "Business Info",
+        icon: Building2,
+        adminOnly: true,
+      },
       { value: "branches", label: "Branches", icon: Landmark, adminOnly: true },
       { value: "staff", label: "Staff", icon: Users, adminOnly: true },
-      { value: "roles", label: "Roles & Permissions", icon: KeyRound, adminOnly: true, disabled: true, badge: "Soon" },
+      {
+        value: "roles",
+        label: "Roles & Permissions",
+        icon: KeyRound,
+        adminOnly: true,
+        disabled: true,
+        badge: "Soon",
+      },
     ],
   },
   {
     label: "Sales",
     items: [
-      { value: "payment-methods", label: "Payment Methods", icon: Wallet, adminOnly: true },
-      { value: "receipt-settings", label: "Receipt Settings", icon: Receipt, adminOnly: true },
-      { value: "register-configs", label: "Register Configs", icon: SlidersHorizontal, adminOnly: true },
+      {
+        value: "payment-methods",
+        label: "Payment Methods",
+        icon: Wallet,
+        adminOnly: true,
+      },
+      {
+        value: "receipt-settings",
+        label: "Receipt Settings",
+        icon: Receipt,
+        adminOnly: true,
+      },
+      {
+        value: "register-configs",
+        label: "Register Configs",
+        icon: SlidersHorizontal,
+        adminOnly: true,
+      },
     ],
   },
   {
     label: "Inventory",
     items: [
-      { value: "product-units", label: "Product Units", icon: Ruler, adminOnly: true },
+      {
+        value: "product-units",
+        label: "Product Units",
+        icon: Ruler,
+        adminOnly: true,
+      },
       { value: "categories", label: "Categories", icon: Tags, adminOnly: true },
     ],
   },
@@ -88,16 +125,18 @@ const NAV_GROUPS: NavGroup[] = [
 /** Tab nav only. Pairs with sibling <TabsContent> panels owned by the parent, which switches page content on selection. */
 export function SettingsTabNav({ isAdmin, isDesktop }: SettingsTabNavProps) {
   return (
-    <TabsList
-      className="hidden md:flex flex-col h-auto overflow-x-auto scrollbar-none md:overflow-visible bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b md:border-none p-2 md:p-0 gap-1 justify-start md:w-full sticky md:relative z-30"
-      style={{ top: !isDesktop ? "0px" : undefined }}
-    >
+    <TabsList className="hidden md:flex flex-col h-auto bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 p-0 gap-1 justify-start md:w-full relative">
       {NAV_GROUPS.map((group) => {
-        const visibleItems = group.items.filter((item) => isAdmin || !item.adminOnly);
+        const visibleItems = group.items.filter(
+          (item) => isAdmin || !item.adminOnly,
+        );
         if (visibleItems.length === 0) return null;
 
         return (
-          <div key={group.label ?? "top"} className="w-full md:mt-2 first:md:mt-0">
+          <div
+            key={group.label ?? "top"}
+            className="w-full md:mt-2 first:md:mt-0"
+          >
             {group.label && (
               <div className="hidden md:block px-4 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
                 {group.label}
@@ -108,7 +147,7 @@ export function SettingsTabNav({ isAdmin, isDesktop }: SettingsTabNavProps) {
                 key={item.value}
                 value={item.value}
                 disabled={item.disabled}
-                className="flex-none !justify-start w-full px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm border border-transparent rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-none !justify-start w-full px-3 md:px-4 py-3 h-auto data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm border border-transparent rounded-none disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <item.icon className="w-4 h-4 mr-2 md:mr-3 shrink-0" />
                 <span className="text-sm truncate">{item.label}</span>

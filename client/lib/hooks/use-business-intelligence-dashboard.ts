@@ -1,29 +1,33 @@
 import { useState } from "react";
-import { subDays } from "date-fns";
+import { format, subDays } from "date-fns";
 import { toast } from "sonner";
 import { useBIData } from "@/lib/hooks/use-bi-data";
 import { useReportExport } from "@/lib/hooks/use-report-export";
+import type { ReportFiltersValue } from "@/components/reports/report-filters-bar";
 
-const TIME_RANGE_DAYS: Record<string, number> = {
-  "7d": 7,
-  "30d": 30,
-  "90d": 90,
-  "1y": 365,
-};
-
-/** All business logic for the Analytics/BI dashboard: time range selection, export, and BI data. */
+/** All business logic for the Analytics/BI dashboard: shared filter state
+ * (date range, staff, payment method - no branch/store filter, since
+ * switching stores via the header selector already re-scopes every query),
+ * export, and BI data. */
 export function useBusinessIntelligenceDashboard() {
-  const [timeRange, setTimeRange] = useState("30d");
+  const [filters, setFilters] = useState<ReportFiltersValue>({
+    dateRange: {
+      from: format(subDays(new Date(), 30), "yyyy-MM-dd"),
+      to: format(new Date(), "yyyy-MM-dd"),
+    },
+  });
   const [exporting, setExporting] = useState(false);
   const { exportReportCsv } = useReportExport();
 
   const handleExportReports = async () => {
     setExporting(true);
     try {
-      const days = TIME_RANGE_DAYS[timeRange] ?? 30;
-      const to = new Date().toISOString();
-      const from = subDays(new Date(), days).toISOString();
-      await exportReportCsv("profit-loss", from, to);
+      const from = filters.dateRange.from ? `${filters.dateRange.from}T00:00:00.000Z` : undefined;
+      const to = filters.dateRange.to ? `${filters.dateRange.to}T23:59:59.999Z` : undefined;
+      await exportReportCsv("profit-loss", from, to, {
+        staffId: filters.staffId,
+        paymentMethod: filters.paymentMethod,
+      });
       toast.success("Export successful", {
         description: "Your report has been downloaded.",
       });
@@ -37,12 +41,15 @@ export function useBusinessIntelligenceDashboard() {
     }
   };
 
-  const biData = useBIData(timeRange);
+  const biData = useBIData(filters.dateRange, {
+    staffId: filters.staffId,
+    paymentMethod: filters.paymentMethod,
+  });
 
   return {
     ...biData,
-    timeRange,
-    setTimeRange,
+    filters,
+    setFilters,
     exporting,
     handleExportReports,
   };

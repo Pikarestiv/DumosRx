@@ -171,8 +171,8 @@ export const queryKeys = {
       ]),
   },
   bi: {
-    metrics: (dateFilter: string, prevDateFilter: string) =>
-      resource(["biMetrics", dateFilter, prevDateFilter] as const, [
+    metrics: (dateFilter: string, prevDateFilter: string, staffId?: string, paymentMethod?: string) =>
+      resource(["biMetrics", dateFilter, prevDateFilter, staffId, paymentMethod] as const, [
         "sales",
         "sale_items",
         "returns",
@@ -181,15 +181,15 @@ export const queryKeys = {
         "customers",
         "stock_batches",
       ]),
-    purchasePatterns: (dateFilter: string) =>
-      resource(["purchasePatterns", dateFilter] as const, [
+    purchasePatterns: (dateFilter: string, staffId?: string, paymentMethod?: string) =>
+      resource(["purchasePatterns", dateFilter, staffId, paymentMethod] as const, [
         "sales",
         "sale_items",
         "products",
         "categories",
       ]),
-    monthlySales: (dateFilter: string) =>
-      resource(["advancedMonthlySalesData", dateFilter] as const, [
+    monthlySales: (dateFilter: string, staffId?: string, paymentMethod?: string) =>
+      resource(["advancedMonthlySalesData", dateFilter, staffId, paymentMethod] as const, [
         "sales",
         "returns",
         "expenses",

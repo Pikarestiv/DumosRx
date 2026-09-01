@@ -61,7 +61,7 @@ describe("importProductRows", () => {
       `SELECT sb.quantity, sb.cost_price, sb.batch_number, sb.expiry_date, s.name as supplier_name
        FROM stock_batches sb LEFT JOIN suppliers s ON s.id = sb.supplier_id`,
     );
-    expect(batches[0].values[0]).toEqual([3, 249.91, null, null, "System"]);
+    expect(batches[0].values[0]).toEqual([3, 249.91, "Opening Stock", null, "System"]);
   });
 
   it("updates an existing product matched by barcode without creating a second batch", async () => {

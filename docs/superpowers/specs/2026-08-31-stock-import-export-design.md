@@ -160,9 +160,12 @@ architecture already settles this):
      provided). **Never touch existing stock_batches** — avoids double-
      counting quantity on re-import.
    - **No match:** create product, then create one `stock_batches` row:
-     `batch_number: null`, `expiry_date: null`, `cost_price` from file,
-     `quantity` from file, `location: null`. This "opening stock" batch can
-     be split into real batches later via existing Batch Management.
+     `batch_number: "Opening Stock"` (the server's `stock_batches.batch_number`
+     column is `NOT NULL`, unlike the local SQLite schema — a literal `null`
+     here syncs fine locally but is permanently rejected by the server),
+     `expiry_date: null`, `cost_price` from file, `quantity` from file,
+     `location: null`. This "opening stock" batch can be split into real
+     batches later via existing Batch Management.
    - Category/Supplier: looked up by name (case-insensitive); created if not
      found.
 6. Result summary shown: counts of created / updated / skipped rows, with

@@ -118,7 +118,7 @@ export async function importProductRows(rows: ProductImportRow[]): Promise<Impor
         const supplierId = await resolveSupplierId(row.supplier);
         await insert("stock_batches", {
           product_id: productId,
-          batch_number: null,
+          batch_number: "Opening Stock",
           expiry_date: null,
           quantity: row.quantity,
           cost_price: row.costPrice ?? null,

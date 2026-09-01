@@ -158,6 +158,7 @@ export function StaffFormDialog({
           {!isEditing && "Add New Staff Member"}
         </>
       }
+      headerClassName="py-0"
       description={
         <>
           {!!isEditing && "Update sub-account details and permissions."}

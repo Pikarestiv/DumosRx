@@ -86,54 +86,56 @@ export function StaffFormFields({
           />
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div className="grid gap-2">
-          <Label htmlFor="username">Username *</Label>
-          <Input
-            id="username"
-            placeholder="johndoe"
-            value={formData.username}
-            onChange={(e) =>
+      {/* <div className="grid grid-cols-2 gap-4"> */}
+      <div className="grid gap-2">
+        <Label htmlFor="username">Username *</Label>
+        <Input
+          id="username"
+          placeholder="johndoe"
+          value={formData.username}
+          onChange={(e) =>
+            setFormData((prev) => ({
+              ...prev,
+              username: e.target.value.toLowerCase(),
+            }))
+          }
+          required
+        />
+      </div>
+
+      <div className="grid gap-2">
+        <Label htmlFor="pin">
+          {!!isEditing && "New Login PIN"}
+          {!isEditing && "Login PIN *"}
+        </Label>
+        <div className="flex justify-start">
+          <InputOTP
+            maxLength={4}
+            value={formData.pin}
+            onChange={(value) =>
               setFormData((prev) => ({
                 ...prev,
-                username: e.target.value.toLowerCase(),
+                pin: value.replace(/\D/g, ""),
               }))
             }
-            required
-          />
+            className="md:input-mode-numeric"
+          >
+            <InputOTPGroup>
+              <InputOTPSlot index={0} />
+              <InputOTPSlot index={1} />
+              <InputOTPSlot index={2} />
+              <InputOTPSlot index={3} />
+            </InputOTPGroup>
+          </InputOTP>
         </div>
-        <div className="grid gap-2">
-          <Label htmlFor="pin">
-            {!!isEditing && "New Login PIN"}
-            {!isEditing && "Login PIN *"}
-          </Label>
-          <div className="flex justify-start">
-            <InputOTP
-              maxLength={4}
-              value={formData.pin}
-              onChange={(value) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  pin: value.replace(/\D/g, ""),
-                }))
-              }
-              className="md:input-mode-numeric"
-            >
-              <InputOTPGroup>
-                <InputOTPSlot index={0} />
-                <InputOTPSlot index={1} />
-                <InputOTPSlot index={2} />
-                <InputOTPSlot index={3} />
-              </InputOTPGroup>
-            </InputOTP>
-          </div>
-          {isEditing && (
-            <p className="text-[10px] text-muted-foreground mt-1">
-              Leave blank to keep existing PIN
-            </p>
-          )}
-        </div>
+        {isEditing && (
+          <p className="text-[10px] text-muted-foreground mt-1">
+            Leave blank to keep existing PIN
+          </p>
+        )}
       </div>
+      {/* </div> */}
+
       <div className="grid gap-2">
         <Label htmlFor="email">Email (Optional)</Label>
         <Input
@@ -156,9 +158,9 @@ export function StaffFormFields({
               </TooltipTrigger>
               <TooltipContent>
                 <p>
-                  Determines what the staff member can access. Cashiers can
-                  only make sales, Managers can view stock batches, and Admins
-                  have full access.
+                  Determines what the staff member can access. Cashiers can only
+                  make sales, Managers can view stock batches, and Admins have
+                  full access.
                 </p>
               </TooltipContent>
             </Tooltip>

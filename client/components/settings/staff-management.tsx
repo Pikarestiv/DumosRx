@@ -23,12 +23,19 @@ import { StaffActivitiesTab } from "./staff/staff-activities-tab";
 
 export function StaffManagement() {
   const { activeStoreId, availableStores } = useStore();
-  const { maxStaffAccounts, getUpgradeMessage , withRestriction } = useFeatureGate();
+  const { maxStaffAccounts, getUpgradeMessage, withRestriction } =
+    useFeatureGate();
   const [selectedStore, setSelectedStore] = useState<string>("all");
 
   const filterStoreId = selectedStore === "all" ? null : selectedStore;
-  const { data: users = [], isLoading, refetch: loadUsers } = useUsers(
-    availableStores && availableStores.length > 1 ? filterStoreId : activeStoreId,
+  const {
+    data: users = [],
+    isLoading,
+    refetch: loadUsers,
+  } = useUsers(
+    availableStores && availableStores.length > 1
+      ? filterStoreId
+      : activeStoreId,
   );
   const { update } = useMutateUser();
 
@@ -43,7 +50,10 @@ export function StaffManagement() {
   // Dialog States
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [userToEdit, setUserToEdit] = useState<StaffListItem | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
 
   const handleOpenCreate = () => {
     setUserToEdit(null);
@@ -98,7 +108,9 @@ export function StaffManagement() {
               Create and manage sub-accounts for your team members.
               {staffCount >= maxStaffAccounts && (
                 <span className="block mt-1 text-amber-600 font-medium">
-                  You have reached your limit of {maxStaffAccounts} staff accounts on your current plan. {getUpgradeMessage('staff', "Upgrade your plan to add more.")}
+                  You have reached your limit of {maxStaffAccounts} staff
+                  accounts on your current plan.{" "}
+                  {getUpgradeMessage("staff", "Upgrade your plan to add more.")}
                 </span>
               )}
             </p>
@@ -118,8 +130,12 @@ export function StaffManagement() {
                 ))}
               </select>
             )}
-            <Button variant="outline" onClick={handleExport} disabled={users.length === 0}>
-              Export Staff List
+            <Button
+              variant="outline"
+              onClick={handleExport}
+              disabled={users.length === 0}
+            >
+              Export
             </Button>
             <Button
               className="bg-primary hover:bg-primary/90"
@@ -127,12 +143,16 @@ export function StaffManagement() {
               onClick={withRestriction(handleOpenCreate)}
             >
               <UserPlus className="w-4 h-4 mr-2" />
-              Add Staff Member
+              Add
             </Button>
           </div>
         </div>
 
-        <StaffStats users={users} totalStaffCount={staffCount} maxStaffAccounts={maxStaffAccounts} />
+        <StaffStats
+          users={users}
+          totalStaffCount={staffCount}
+          maxStaffAccounts={maxStaffAccounts}
+        />
 
         <Card>
           <CardContent className="p-0">

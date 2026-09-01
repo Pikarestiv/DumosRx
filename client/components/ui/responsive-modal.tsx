@@ -53,14 +53,14 @@ export function ResponsiveModal({
   if (isDesktop) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className={className}>
+        <DialogContent className={`${className} p-6 px-5.5`}>
           <DialogHeader className={headerClassName}>
             <DialogTitle>{title}</DialogTitle>
             {description && (
               <DialogDescription>{description}</DialogDescription>
             )}
           </DialogHeader>
-          <div className="responsive-modal-fields flex flex-col flex-1 min-h-0 overflow-hidden">
+          <div className="responsive-modal-fields flex flex-col flex-1 min-h-0 overflow-hidden px-0.5">
             {children}
           </div>
           {footer}

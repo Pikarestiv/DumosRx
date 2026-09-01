@@ -95,7 +95,7 @@ export function StaffActivitiesTab() {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   return (
-    <Card className="border rounded-2xl overflow-hidden gap-0 py-0">
+    <Card className="no-hover-scale border rounded-2xl overflow-hidden gap-0 py-0">
       <div className="p-4 border-b border-border space-y-3">
         <SearchInput
           value={search}
@@ -157,7 +157,9 @@ export function StaffActivitiesTab() {
         </div>
       </div>
 
-      <div className="overflow-x-auto">
+      {/* Desktop: real table, horizontally scrollable if content ever
+          demands more than the column widths naturally settle at. */}
+      <div className="hidden sm:block overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
@@ -193,6 +195,33 @@ export function StaffActivitiesTab() {
               ))}
           </TableBody>
         </Table>
+      </div>
+
+      {/* Mobile: rows become stacked cards instead of a cramped table,
+          matching the pattern used by the product catalog list. */}
+      <div className="sm:hidden divide-y divide-border">
+        {isLoading && (
+          <div className="h-24 flex items-center justify-center">
+            <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+          </div>
+        )}
+        {!isLoading && rows.length === 0 && (
+          <div className="h-24 flex items-center justify-center text-muted-foreground text-sm">
+            No staff activity found for this filter.
+          </div>
+        )}
+        {!isLoading &&
+          rows.map((row) => (
+            <div key={row.id} className="p-4 space-y-1">
+              <div className="font-medium text-foreground">{describeActivity(row)}</div>
+              <div className="flex items-center justify-between text-sm text-muted-foreground">
+                <span>{row.user_name || "System"}</span>
+                <span>
+                  {row.created_at ? format(new Date(row.created_at), "MMM d, yyyy h:mm a") : "N/A"}
+                </span>
+              </div>
+            </div>
+          ))}
       </div>
 
       <TablePagination

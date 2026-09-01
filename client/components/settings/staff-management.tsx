@@ -181,7 +181,7 @@ export function StaffManagement() {
           maxStaffAccounts={maxStaffAccounts}
         />
 
-        <Card className="border rounded-2xl overflow-hidden gap-0 py-0">
+        <Card className="no-hover-scale border rounded-2xl overflow-hidden gap-0 py-0">
           <div className="p-4 border-b border-border space-y-3">
             <SearchInput
               value={search}
@@ -213,15 +213,13 @@ export function StaffManagement() {
             </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <StaffList
-              users={filteredUsers}
-              isLoading={isLoading}
-              onEdit={handleOpenEdit}
-              onDelete={handleDeleteInitiate}
-              onReactivate={handleReactivate}
-            />
-          </div>
+          <StaffList
+            users={filteredUsers}
+            isLoading={isLoading}
+            onEdit={handleOpenEdit}
+            onDelete={handleDeleteInitiate}
+            onReactivate={handleReactivate}
+          />
         </Card>
 
         <StaffFormDialog

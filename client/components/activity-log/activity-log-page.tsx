@@ -151,7 +151,7 @@ export function ActivityLogPage() {
         </div>
       </div>
 
-      <Card className="border rounded-2xl overflow-hidden flex-1 min-h-0 flex flex-col gap-0 py-0">
+      <Card className="no-hover-scale border rounded-2xl overflow-hidden flex-1 min-h-0 flex flex-col gap-0 py-0">
         <div className="p-4 border-b border-border space-y-3 shrink-0">
           <SearchInput
             value={search}
@@ -226,11 +226,13 @@ export function ActivityLogPage() {
           </div>
         </div>
 
-        {/* Div-based table; ARIA roles stand in for real <table> semantics */}
+        {/* Desktop: div-based table (ARIA roles stand in for real <table>
+            semantics), horizontally scrollable if content ever demands more
+            than the column widths naturally settle at. */}
         <div
           role="table"
           aria-label="Activity log"
-          className="overflow-x-auto flex-1"
+          className="hidden sm:block overflow-x-auto flex-1"
         >
           <div
             role="rowgroup"
@@ -314,6 +316,54 @@ export function ActivityLogPage() {
                 </div>
               ))}
           </div>
+        </div>
+
+        {/* Mobile: rows become stacked, tappable cards instead of a
+            cramped table, matching the pattern used by the product
+            catalog list. */}
+        <div className="sm:hidden flex-1 overflow-y-auto divide-y divide-border">
+          {isLoading && (
+            <div className="h-24 flex items-center justify-center text-muted-foreground">
+              Loading...
+            </div>
+          )}
+          {!isLoading && rows.length === 0 && (
+            <div className="h-24 flex items-center justify-center text-muted-foreground text-center px-4">
+              No activity found for this filter.
+            </div>
+          )}
+          {!isLoading &&
+            rows.map((row) => (
+              <div
+                key={row.id}
+                tabIndex={0}
+                onClick={() => setSelectedEntry(row)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setSelectedEntry(row);
+                  }
+                }}
+                className="p-4 space-y-1 active:bg-accent/30 cursor-pointer"
+              >
+                <div className="font-semibold text-foreground text-[13px]">
+                  {describeActivity(row)}
+                </div>
+                {row.table_name && (
+                  <div className="text-[11px] text-muted-foreground/70">
+                    {row.table_name}
+                  </div>
+                )}
+                <div className="flex items-center justify-between text-[12.5px] text-muted-foreground">
+                  <span>{row.user_name?.trim() || "System"}</span>
+                  <span>
+                    {row.created_at
+                      ? format(new Date(row.created_at), "d MMM yyyy, h:mm a")
+                      : "N/A"}
+                  </span>
+                </div>
+              </div>
+            ))}
         </div>
 
         <TablePagination

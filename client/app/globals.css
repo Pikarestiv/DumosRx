@@ -206,6 +206,15 @@
   transform: scale(1.01) !important;
 }
 
+/* Opt-out for Card instances that wrap a large scrollable region (a data
+   table, a filter bar) rather than acting as a discrete, liftable card —
+   scaling the whole block on hover/tap there reads as broken, not lively.
+   Needs matching specificity + !important to actually beat .hover-scale:hover
+   above, since both rules apply !important. */
+.no-hover-scale.hover-scale:hover {
+  transform: none !important;
+}
+
 /* Brute-force rotation for all icons inside buttons/groups */
 button:hover svg,
 [data-slot="button"]:hover svg,

@@ -114,6 +114,311 @@ export const STORE_SCOPED_TABLES = [
   "loyalty_redemption_options",
 ];
 
+// Thin adapter over the two incompatible database handles so the migration
+// steps below (identical logic on both platforms, just different execute
+// mechanics) can be written once instead of duplicated per-branch. `all()`
+// always resolves to an array of plain row objects, matching what the Tauri
+// SQL plugin already returns natively and what sql.js's columns/values pairs
+// get normalized into.
+interface DbAdapter {
+  run(sql: string): Promise<void>;
+  all(sql: string): Promise<Record<string, unknown>[]>;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function makeTauriAdapter(handle: any): DbAdapter {
+  return {
+    async run(sql) {
+      await handle.execute(sql);
+    },
+    async all(sql) {
+      return await handle.select(sql);
+    },
+  };
+}
+
+function makeSqlJsAdapter(handle: Database): DbAdapter {
+  return {
+    async run(sql) {
+      handle.run(sql);
+    },
+    async all(sql) {
+      const res = handle.exec(sql);
+      if (!res || res.length === 0) return [];
+      const { columns, values } = res[0];
+      return values.map((row: unknown[]) =>
+        Object.fromEntries(columns.map((c: string, i: number) => [c, row[i]])),
+      );
+    },
+  };
+}
+
+// Runs one statement, silently ignoring failure (e.g. "column already
+// exists" on a re-run) — the same tolerant, idempotent-by-retry pattern
+// every migration step here has always used.
+async function tryRun(adapter: DbAdapter, sql: string): Promise<void> {
+  try {
+    await adapter.run(sql);
+  } catch (_e) {
+    // Expected on a re-run once the migration has already applied.
+  }
+}
+
+async function renameLegacyTablesAndColumns(adapter: DbAdapter): Promise<void> {
+  await tryRun(adapter, "ALTER TABLE stock_batch RENAME TO stock_batches");
+  await tryRun(adapter, "ALTER TABLE stock_batches RENAME TO stock_batches");
+  await tryRun(adapter, "ALTER TABLE medicines RENAME TO products");
+
+  const tablesWithProductId = [
+    "stock_batches",
+    "sale_items",
+    "stock_movements",
+    "purchase_order_items",
+    "prescription_items",
+    "return_items",
+  ];
+  for (const t of tablesWithProductId) {
+    await tryRun(adapter, `ALTER TABLE ${t} RENAME COLUMN medicine_id TO product_id`);
+  }
+
+  // sale_items.inventory_id was renamed to stock_batch_id, but unlike the
+  // medicine_id->product_id rename above this one was never migrated:
+  // createSale() has written to stock_batch_id for a while now, so any
+  // database that predates the rename still has the old inventory_id column
+  // and no stock_batch_id at all, breaking every sale with "no column named
+  // stock_batch_id". Try the rename first (databases that still have
+  // inventory_id); fall back to adding stock_batch_id fresh (databases old
+  // enough to have neither).
+  await tryRun(adapter, "ALTER TABLE sale_items RENAME COLUMN inventory_id TO stock_batch_id");
+  await tryRun(adapter, "ALTER TABLE sale_items ADD COLUMN stock_batch_id TEXT");
+
+  await tryRun(adapter, "ALTER TABLE vendors RENAME TO suppliers");
+  await tryRun(adapter, "UPDATE users SET role = 'store_owner' WHERE role = 'owner'");
+  await tryRun(adapter, "ALTER TABLE store_profile RENAME TO stores");
+}
+
+// Drops the legacy purchase_orders.vendor_id NOT NULL column left over from
+// the vendors->suppliers rename above. That rename only renamed the *table*;
+// any database created before it still carries the old vendor_id NOT NULL
+// column forever (CREATE TABLE IF NOT EXISTS is a no-op on an existing
+// table), and current code only ever writes supplier_id, so every PO insert
+// on such a device would otherwise fail the NOT NULL constraint permanently.
+async function dropLegacyVendorIdColumn(adapter: DbAdapter): Promise<void> {
+  try {
+    const poColumns = await adapter.all("SELECT name FROM pragma_table_info('purchase_orders')");
+    if (poColumns.some((c) => c.name === "vendor_id")) {
+      await adapter.run(`
+        CREATE TABLE purchase_orders_new (
+          id TEXT PRIMARY KEY,
+          order_number TEXT,
+          supplier_id TEXT NOT NULL,
+          ordered_by TEXT,
+          order_date TEXT,
+          status TEXT DEFAULT 'pending',
+          payment_status TEXT DEFAULT 'unpaid',
+          amount_paid REAL DEFAULT 0,
+          due_date TEXT,
+          total_amount REAL DEFAULT 0,
+          notes TEXT,
+          created_at TEXT,
+          received_at TEXT,
+          updated_at TEXT,
+          _version INTEGER DEFAULT 1,
+          _synced INTEGER DEFAULT 0,
+          _synced_at TEXT,
+          _deleted INTEGER DEFAULT 0
+        )
+      `);
+      await adapter.run(`
+        INSERT INTO purchase_orders_new (id, order_number, supplier_id, ordered_by, order_date, status, payment_status, amount_paid, due_date, total_amount, notes, created_at, received_at, updated_at, _version, _synced, _synced_at, _deleted)
+        SELECT id, order_number, COALESCE(supplier_id, vendor_id), ordered_by, order_date, status, payment_status, amount_paid, due_date, total_amount, notes, created_at, received_at, updated_at, _version, _synced, _synced_at, _deleted FROM purchase_orders
+      `);
+      await adapter.run("DROP TABLE purchase_orders");
+      await adapter.run("ALTER TABLE purchase_orders_new RENAME TO purchase_orders");
+    }
+  } catch (e) {
+    console.error("Failed to drop legacy purchase_orders.vendor_id column", e);
+  }
+}
+
+async function migrateStockQuantityToBatches(adapter: DbAdapter): Promise<void> {
+  try {
+    const hasProductsStock = await adapter.all(
+      "SELECT 1 as found FROM pragma_table_info('products') WHERE name='stock_quantity'",
+    );
+    if (hasProductsStock.length > 0) {
+      await adapter.run(`
+        INSERT INTO stock_batches (id, product_id, batch_number, quantity, cost_price, selling_price, expiry_date, is_active, created_at, updated_at)
+        SELECT lower(hex(randomblob(16))), id, 'INITIAL', stock_quantity, cost_price, selling_price, date('now', '+2 years'), 1, created_at, updated_at
+        FROM products
+        WHERE stock_quantity > 0 AND NOT EXISTS (
+          SELECT 1 FROM stock_batches WHERE stock_batches.product_id = products.id AND stock_batches.batch_number = 'INITIAL'
+        )
+      `);
+    }
+  } catch (e) {
+    console.error("Migration for stock_quantity skipped", e);
+  }
+}
+
+async function runSyncColumnMigrations(
+  adapter: DbAdapter,
+  syncColumns: { table: string; columns: string[] }[],
+): Promise<void> {
+  for (const { table, columns } of syncColumns) {
+    for (const colDef of columns) {
+      await tryRun(adapter, `ALTER TABLE ${table} ADD COLUMN ${colDef}`);
+    }
+  }
+}
+
+// Backfills store_id on every pre-existing row of newly store-scoped tables
+// to this device's one pre-migration store. WHERE store_id IS NULL makes
+// this naturally idempotent on subsequent launches.
+async function backfillStoreIdOnLegacyRows(adapter: DbAdapter): Promise<void> {
+  try {
+    for (const table of STORE_SCOPED_TABLES) {
+      await tryRun(
+        adapter,
+        `UPDATE ${table} SET store_id = (SELECT id FROM stores LIMIT 1) WHERE store_id IS NULL`,
+      );
+    }
+  } catch (e) {
+    console.error("Failed to backfill store_id on legacy rows", e);
+  }
+}
+
+// Rebuilds the users table to scope the username uniqueness constraint to
+// store_id (SQLite can't ALTER a column-level constraint, so recreate the
+// table).
+async function rebuildUsersTableForStoreScopedUsername(adapter: DbAdapter): Promise<void> {
+  try {
+    const tableInfo = await adapter.all(
+      "SELECT sql FROM sqlite_master WHERE type='table' AND name='users'",
+    );
+    const usersTableSql = String(tableInfo?.[0]?.sql || "");
+    if (usersTableSql && !/UNIQUE\s*\(\s*store_id\s*,\s*username\s*\)/i.test(usersTableSql)) {
+      await adapter.run(`
+        CREATE TABLE users_new (
+          id TEXT PRIMARY KEY,
+          first_name TEXT,
+          last_name TEXT,
+          username TEXT,
+          email TEXT UNIQUE,
+          pin TEXT,
+          role TEXT DEFAULT 'staff',
+          store_id TEXT,
+          is_active INTEGER DEFAULT 1,
+          created_at TEXT,
+          updated_at TEXT,
+          _version INTEGER DEFAULT 1,
+          _synced INTEGER DEFAULT 0,
+          _synced_at TEXT,
+          _deleted INTEGER DEFAULT 0,
+          UNIQUE(store_id, username)
+        )
+      `);
+      await adapter.run(`
+        INSERT INTO users_new (id, first_name, last_name, username, email, pin, role, store_id, is_active, created_at, updated_at, _version, _synced, _synced_at, _deleted)
+        SELECT id, first_name, last_name, username, email, pin, role, store_id, is_active, created_at, updated_at, _version, _synced, _synced_at, _deleted FROM users
+      `);
+      await adapter.run("DROP TABLE users");
+      await adapter.run("ALTER TABLE users_new RENAME TO users");
+    }
+  } catch (e) {
+    console.error("Failed to migrate users username uniqueness constraint", e);
+  }
+}
+
+// Relaxes purchase_orders.supplier_id to nullable, so an Immediate Purchase
+// can be recorded without a real vendor (self/walk-in purchase) the same way
+// sales.customer_id already supports a null "Walk-in Customer". SQLite can't
+// ALTER a column's NOT NULL constraint, so recreate the table; must run
+// after the syncColumns migration so the `type` column already exists to
+// carry over.
+async function relaxPurchaseOrdersSupplierIdNullable(adapter: DbAdapter): Promise<void> {
+  try {
+    const tableInfo = await adapter.all(
+      "SELECT sql FROM sqlite_master WHERE type='table' AND name='purchase_orders'",
+    );
+    const poTableSql = String(tableInfo?.[0]?.sql || "");
+    if (poTableSql && /supplier_id\s+TEXT\s+NOT\s+NULL/i.test(poTableSql)) {
+      await adapter.run(`
+        CREATE TABLE purchase_orders_nullable_supplier (
+          id TEXT PRIMARY KEY,
+          order_number TEXT,
+          supplier_id TEXT,
+          ordered_by TEXT,
+          order_date TEXT,
+          status TEXT DEFAULT 'pending',
+          type TEXT DEFAULT 'standard',
+          payment_status TEXT DEFAULT 'unpaid',
+          amount_paid REAL DEFAULT 0,
+          due_date TEXT,
+          total_amount REAL DEFAULT 0,
+          notes TEXT,
+          created_at TEXT,
+          received_at TEXT,
+          updated_at TEXT,
+          store_id TEXT,
+          _version INTEGER DEFAULT 1,
+          _synced INTEGER DEFAULT 0,
+          _synced_at TEXT,
+          _deleted INTEGER DEFAULT 0
+        )
+      `);
+      await adapter.run(`
+        INSERT INTO purchase_orders_nullable_supplier (id, order_number, supplier_id, ordered_by, order_date, status, type, payment_status, amount_paid, due_date, total_amount, notes, created_at, received_at, updated_at, store_id, _version, _synced, _synced_at, _deleted)
+        SELECT id, order_number, supplier_id, ordered_by, order_date, status, type, payment_status, amount_paid, due_date, total_amount, notes, created_at, received_at, updated_at, store_id, _version, _synced, _synced_at, _deleted FROM purchase_orders
+      `);
+      await adapter.run("DROP TABLE purchase_orders");
+      await adapter.run("ALTER TABLE purchase_orders_nullable_supplier RENAME TO purchase_orders");
+    }
+  } catch (e) {
+    console.error("Failed to relax purchase_orders.supplier_id to nullable", e);
+  }
+}
+
+// One-off data clear for legacy transactions (retaining products, batches,
+// users, and settings), gated on a localStorage flag so it only ever runs
+// once per device. `onCleared` lets the web caller persist the change
+// (Tauri writes land on disk directly, with no equivalent save step).
+async function clearLegacyTransactionsOnce(
+  adapter: DbAdapter,
+  onCleared?: () => Promise<void>,
+): Promise<void> {
+  try {
+    const hasClearedLegacy = typeof window !== "undefined" && window.localStorage
+      ? window.localStorage.getItem("dumosrx_cleared_legacy_v2")
+      : "true";
+    if (!hasClearedLegacy) {
+      const tablesToClear = [
+        "sales",
+        "sale_items",
+        "stock_movements",
+        "returns",
+        "return_items",
+        "prescriptions",
+        "prescription_items",
+        "expenses",
+        "purchase_orders",
+        "purchase_order_items",
+        "audit_logs",
+        "_sync_queue",
+      ];
+      for (const table of tablesToClear) {
+        await tryRun(adapter, `DELETE FROM ${table}`);
+      }
+      if (typeof window !== "undefined" && window.localStorage) {
+        window.localStorage.setItem("dumosrx_cleared_legacy_v2", "true");
+      }
+      if (onCleared) await onCleared();
+    }
+  } catch (e) {
+    console.error("Failed to clear legacy transactions", e);
+  }
+}
+
 export async function initDatabase(): Promise<any> {
   if (db) return db;
 
@@ -507,267 +812,16 @@ export async function initDatabase(): Promise<any> {
         await db.execute(statement);
       }
 
-      // Rename stock_batch to stock_batches if the old table exists
-      try {
-        await db.execute("ALTER TABLE stock_batch RENAME TO stock_batches");
-      } catch (_e) { }
-
-      try {
-        await db.execute("ALTER TABLE stock_batches RENAME TO stock_batches");
-      } catch (_e) { }
-
-      try {
-        await db.execute("ALTER TABLE medicines RENAME TO products");
-      } catch (_e) { }
-
-      const tablesWithProductId = [
-        "stock_batches",
-        "sale_items",
-        "stock_movements",
-        "purchase_order_items",
-        "prescription_items",
-        "return_items"
-      ];
-      for (const t of tablesWithProductId) {
-        try {
-          await db.execute(`ALTER TABLE ${t} RENAME COLUMN medicine_id TO product_id`);
-        } catch (_e) { }
-      }
-
-      // sale_items.inventory_id was renamed to stock_batch_id, but unlike the
-      // medicine_id->product_id rename above this one was never migrated:
-      // createSale() has written to stock_batch_id for a while now, so any
-      // database that predates the rename still has the old inventory_id
-      // column and no stock_batch_id at all, breaking every sale with "no
-      // column named stock_batch_id". Try the rename first (databases that
-      // still have inventory_id); fall back to adding stock_batch_id fresh
-      // (databases old enough to have neither); whichever doesn't apply
-      // just throws and is ignored, same pattern as the other migrations here.
-      try {
-        await db.execute("ALTER TABLE sale_items RENAME COLUMN inventory_id TO stock_batch_id");
-      } catch (_e) { }
-      try {
-        await db.execute("ALTER TABLE sale_items ADD COLUMN stock_batch_id TEXT");
-      } catch (_e) { }
-
-      try {
-        await db.execute("ALTER TABLE vendors RENAME TO suppliers");
-      } catch (_e) { }
-
-      try {
-        await db.execute("UPDATE users SET role = 'store_owner' WHERE role = 'owner'");
-      } catch (_e) { }
-
-      try {
-        await db.execute("ALTER TABLE store_profile RENAME TO stores");
-      } catch (_e) { }
-
-      // Drop the legacy purchase_orders.vendor_id NOT NULL column left over
-      // from the vendors->suppliers rename above. That rename only renamed
-      // the *table*; any database created before it still carries the old
-      // vendor_id NOT NULL column forever (CREATE TABLE IF NOT EXISTS is a
-      // no-op on an existing table), and current code only ever writes
-      // supplier_id, so every PO insert on such a device would otherwise
-      // fail the NOT NULL constraint permanently.
-      try {
-        const poColumns = await db.select("SELECT name FROM pragma_table_info('purchase_orders')");
-        if (poColumns.some((c: { name: string }) => c.name === "vendor_id")) {
-          await db.execute(`
-            CREATE TABLE purchase_orders_new (
-              id TEXT PRIMARY KEY,
-              order_number TEXT,
-              supplier_id TEXT NOT NULL,
-              ordered_by TEXT,
-              order_date TEXT,
-              status TEXT DEFAULT 'pending',
-              payment_status TEXT DEFAULT 'unpaid',
-              amount_paid REAL DEFAULT 0,
-              due_date TEXT,
-              total_amount REAL DEFAULT 0,
-              notes TEXT,
-              created_at TEXT,
-              received_at TEXT,
-              updated_at TEXT,
-              _version INTEGER DEFAULT 1,
-              _synced INTEGER DEFAULT 0,
-              _synced_at TEXT,
-              _deleted INTEGER DEFAULT 0
-            )
-          `);
-          await db.execute(`
-            INSERT INTO purchase_orders_new (id, order_number, supplier_id, ordered_by, order_date, status, payment_status, amount_paid, due_date, total_amount, notes, created_at, received_at, updated_at, _version, _synced, _synced_at, _deleted)
-            SELECT id, order_number, COALESCE(supplier_id, vendor_id), ordered_by, order_date, status, payment_status, amount_paid, due_date, total_amount, notes, created_at, received_at, updated_at, _version, _synced, _synced_at, _deleted FROM purchase_orders
-          `);
-          await db.execute("DROP TABLE purchase_orders");
-          await db.execute("ALTER TABLE purchase_orders_new RENAME TO purchase_orders");
-        }
-      } catch (e) {
-        console.error("Failed to drop legacy purchase_orders.vendor_id column", e);
-      }
-
-      // --- Data migration: stock_quantity to stock_batches ---
-      try {
-        const hasProductsStock = await db.select("SELECT 1 FROM pragma_table_info('products') WHERE name='stock_quantity'");
-        if (hasProductsStock && hasProductsStock.length > 0) {
-          await db.execute(`
-            INSERT INTO stock_batches (id, product_id, batch_number, quantity, cost_price, selling_price, expiry_date, is_active, created_at, updated_at)
-            SELECT lower(hex(randomblob(16))), id, 'INITIAL', stock_quantity, cost_price, selling_price, date('now', '+2 years'), 1, created_at, updated_at
-            FROM products 
-            WHERE stock_quantity > 0 AND NOT EXISTS (
-              SELECT 1 FROM stock_batches WHERE stock_batches.product_id = products.id AND stock_batches.batch_number = 'INITIAL'
-            )
-          `);
-        }
-      } catch (e) {
-        console.error("Migration for stock_quantity skipped", e);
-      }
-
-      // Run migrations for Tauri
-      for (const { table, columns } of syncColumns) {
-        for (const colDef of columns) {
-          try {
-            await db.execute(`ALTER TABLE ${table} ADD COLUMN ${colDef}`);
-          } catch (_e) {
-            // Column likely already exists; ignore
-          }
-        }
-      }
-
-      // Backfill store_id on every pre-existing row of newly store-scoped
-      // tables to this device's one pre-migration store. WHERE store_id IS
-      // NULL makes this naturally idempotent on subsequent launches.
-      try {
-        for (const table of STORE_SCOPED_TABLES) {
-          try {
-            await db.execute(
-              `UPDATE ${table} SET store_id = (SELECT id FROM stores LIMIT 1) WHERE store_id IS NULL`,
-            );
-          } catch (_e) {
-            // Table may not exist yet on a fresh install; ignore
-          }
-        }
-      } catch (e) {
-        console.error("Failed to backfill store_id on legacy rows", e);
-      }
-
-      // Rebuild users table to scope the username uniqueness constraint to store_id
-      // (SQLite can't ALTER a column-level constraint, so recreate the table)
-      try {
-        const tableInfo = await db.select(
-          "SELECT sql FROM sqlite_master WHERE type='table' AND name='users'"
-        );
-        const usersTableSql = tableInfo?.[0]?.sql || "";
-        if (usersTableSql && !/UNIQUE\s*\(\s*store_id\s*,\s*username\s*\)/i.test(usersTableSql)) {
-          await db.execute(`
-            CREATE TABLE users_new (
-              id TEXT PRIMARY KEY,
-              first_name TEXT,
-              last_name TEXT,
-              username TEXT,
-              email TEXT UNIQUE,
-              pin TEXT,
-              role TEXT DEFAULT 'staff',
-              store_id TEXT,
-              is_active INTEGER DEFAULT 1,
-              created_at TEXT,
-              updated_at TEXT,
-              _version INTEGER DEFAULT 1,
-              _synced INTEGER DEFAULT 0,
-              _synced_at TEXT,
-              _deleted INTEGER DEFAULT 0,
-              UNIQUE(store_id, username)
-            )
-          `);
-          await db.execute(`
-            INSERT INTO users_new (id, first_name, last_name, username, email, pin, role, store_id, is_active, created_at, updated_at, _version, _synced, _synced_at, _deleted)
-            SELECT id, first_name, last_name, username, email, pin, role, store_id, is_active, created_at, updated_at, _version, _synced, _synced_at, _deleted FROM users
-          `);
-          await db.execute("DROP TABLE users");
-          await db.execute("ALTER TABLE users_new RENAME TO users");
-        }
-      } catch (e) {
-        console.error("Failed to migrate users username uniqueness constraint", e);
-      }
-
-      // Relax purchase_orders.supplier_id to nullable, so an Immediate
-      // Purchase can be recorded without a real vendor (self/walk-in
-      // purchase) the same way sales.customer_id already supports a null
-      // "Walk-in Customer". SQLite can't ALTER a column's NOT NULL
-      // constraint, so recreate the table; runs after the syncColumns loop
-      // above so the `type` column already exists to carry over.
-      try {
-        const tableInfo = await db.select(
-          "SELECT sql FROM sqlite_master WHERE type='table' AND name='purchase_orders'"
-        );
-        const poTableSql = tableInfo?.[0]?.sql || "";
-        if (poTableSql && /supplier_id\s+TEXT\s+NOT\s+NULL/i.test(poTableSql)) {
-          await db.execute(`
-            CREATE TABLE purchase_orders_nullable_supplier (
-              id TEXT PRIMARY KEY,
-              order_number TEXT,
-              supplier_id TEXT,
-              ordered_by TEXT,
-              order_date TEXT,
-              status TEXT DEFAULT 'pending',
-              type TEXT DEFAULT 'standard',
-              payment_status TEXT DEFAULT 'unpaid',
-              amount_paid REAL DEFAULT 0,
-              due_date TEXT,
-              total_amount REAL DEFAULT 0,
-              notes TEXT,
-              created_at TEXT,
-              received_at TEXT,
-              updated_at TEXT,
-              store_id TEXT,
-              _version INTEGER DEFAULT 1,
-              _synced INTEGER DEFAULT 0,
-              _synced_at TEXT,
-              _deleted INTEGER DEFAULT 0
-            )
-          `);
-          await db.execute(`
-            INSERT INTO purchase_orders_nullable_supplier (id, order_number, supplier_id, ordered_by, order_date, status, type, payment_status, amount_paid, due_date, total_amount, notes, created_at, received_at, updated_at, store_id, _version, _synced, _synced_at, _deleted)
-            SELECT id, order_number, supplier_id, ordered_by, order_date, status, type, payment_status, amount_paid, due_date, total_amount, notes, created_at, received_at, updated_at, store_id, _version, _synced, _synced_at, _deleted FROM purchase_orders
-          `);
-          await db.execute("DROP TABLE purchase_orders");
-          await db.execute("ALTER TABLE purchase_orders_nullable_supplier RENAME TO purchase_orders");
-        }
-      } catch (e) {
-        console.error("Failed to relax purchase_orders.supplier_id to nullable", e);
-      }
-
-      // One-off data clearing for legacy transactions (retaining products, batches, users, and settings)
-      try {
-        const hasClearedLegacy = typeof window !== "undefined" && window.localStorage
-          ? window.localStorage.getItem("dumosrx_cleared_legacy_v2")
-          : "true";
-        if (!hasClearedLegacy) {
-          const tablesToClear = [
-            "sales",
-            "sale_items",
-            "stock_movements",
-            "returns",
-            "return_items",
-            "prescriptions",
-            "prescription_items",
-            "expenses",
-            "purchase_orders",
-            "purchase_order_items",
-            "audit_logs",
-            "_sync_queue"
-          ];
-          for (const table of tablesToClear) {
-            try {
-              await db.execute(`DELETE FROM ${table}`);
-            } catch (_e) { }
-          }
-          if (typeof window !== "undefined" && window.localStorage) {
-            window.localStorage.setItem("dumosrx_cleared_legacy_v2", "true");
-          }
-        }
-      } catch (e) {
-        console.error("Failed to clear legacy transactions in Tauri", e);
-      }
+      const tauriAdapter = makeTauriAdapter(db);
+      await renameLegacyTablesAndColumns(tauriAdapter);
+      await dropLegacyVendorIdColumn(tauriAdapter);
+      await migrateStockQuantityToBatches(tauriAdapter);
+      await runSyncColumnMigrations(tauriAdapter, syncColumns);
+      await backfillStoreIdOnLegacyRows(tauriAdapter);
+      await rebuildUsersTableForStoreScopedUsername(tauriAdapter);
+      await relaxPurchaseOrdersSupplierIdNullable(tauriAdapter);
+      // Tauri's SQL plugin writes land on disk directly; no save step needed.
+      await clearLegacyTransactionsOnce(tauriAdapter);
 
       return db;
     } catch (err) {
@@ -802,98 +856,17 @@ export async function initDatabase(): Promise<any> {
     if (savedData) {
       try {
         db = new SQL.Database(savedData);
-        
-        // Rename stock_batch to stock_batches if the old table exists
-        try {
-          db.run("ALTER TABLE stock_batch RENAME TO stock_batches");
-        } catch (_e) { }
 
-        try {
-          db.run("ALTER TABLE stock_batches RENAME TO stock_batches");
-        } catch (_e) { }
-
-        try {
-          db.run("ALTER TABLE medicines RENAME TO products");
-        } catch (_e) { }
-
-        const tablesWithProductId = [
-          "stock_batches",
-          "sale_items",
-          "stock_movements",
-          "purchase_order_items",
-          "prescription_items",
-          "return_items"
-        ];
-        for (const t of tablesWithProductId) {
-          try {
-            db.run(`ALTER TABLE ${t} RENAME COLUMN medicine_id TO product_id`);
-          } catch (_e) { }
-        }
-
-        // See the matching Tauri-path comment above: sale_items.inventory_id
-        // was renamed to stock_batch_id but never migrated for existing
-        // databases.
-        try {
-          db.run("ALTER TABLE sale_items RENAME COLUMN inventory_id TO stock_batch_id");
-        } catch (_e) { }
-        try {
-          db.run("ALTER TABLE sale_items ADD COLUMN stock_batch_id TEXT");
-        } catch (_e) { }
-
-        try {
-          db.run("ALTER TABLE vendors RENAME TO suppliers");
-        } catch (_e) { }
-
-        try {
-          db.run("UPDATE users SET role = 'store_owner' WHERE role = 'owner'");
-        } catch (_e) { }
-
-        try {
-          db.run("ALTER TABLE store_profile RENAME TO stores");
-        } catch (_e) { }
+        const preSchemaAdapter = makeSqlJsAdapter(db);
+        await renameLegacyTablesAndColumns(preSchemaAdapter);
 
         // Ensure new tables from schema updates are created
         db.run(SCHEMA_SQL);
 
-        // See the matching Tauri-path comment above: drop the legacy
-        // purchase_orders.vendor_id NOT NULL column on databases that
-        // predate the vendors->suppliers rename.
-        try {
-          const poColumnsRes = db.exec("SELECT name FROM pragma_table_info('purchase_orders')");
-          const poColumnNames: string[] = poColumnsRes?.[0]?.values?.map((row: unknown[]) => row[0]) || [];
-          if (poColumnNames.includes("vendor_id")) {
-            db.run(`
-              CREATE TABLE purchase_orders_new (
-                id TEXT PRIMARY KEY,
-                order_number TEXT,
-                supplier_id TEXT NOT NULL,
-                ordered_by TEXT,
-                order_date TEXT,
-                status TEXT DEFAULT 'pending',
-                payment_status TEXT DEFAULT 'unpaid',
-                amount_paid REAL DEFAULT 0,
-                due_date TEXT,
-                total_amount REAL DEFAULT 0,
-                notes TEXT,
-                created_at TEXT,
-                received_at TEXT,
-                updated_at TEXT,
-                _version INTEGER DEFAULT 1,
-                _synced INTEGER DEFAULT 0,
-                _synced_at TEXT,
-                _deleted INTEGER DEFAULT 0
-              )
-            `);
-            db.run(`
-              INSERT INTO purchase_orders_new (id, order_number, supplier_id, ordered_by, order_date, status, payment_status, amount_paid, due_date, total_amount, notes, created_at, received_at, updated_at, _version, _synced, _synced_at, _deleted)
-              SELECT id, order_number, COALESCE(supplier_id, vendor_id), ordered_by, order_date, status, payment_status, amount_paid, due_date, total_amount, notes, created_at, received_at, updated_at, _version, _synced, _synced_at, _deleted FROM purchase_orders
-            `);
-            db.run("DROP TABLE purchase_orders");
-            db.run("ALTER TABLE purchase_orders_new RENAME TO purchase_orders");
-          }
-        } catch (e) {
-          console.error("Failed to drop legacy purchase_orders.vendor_id column", e);
-        }
+        // See the matching Tauri-path comment in dropLegacyVendorIdColumn:
+        // drop the legacy purchase_orders.vendor_id NOT NULL column on
+        // databases that predate the vendors->suppliers rename.
+        await dropLegacyVendorIdColumn(preSchemaAdapter);
       } catch (_e) {
         console.error("[DB] Failed to load saved data, starting fresh", _e);
         db = new SQL.Database();
@@ -912,174 +885,18 @@ export async function initDatabase(): Promise<any> {
       // Ignore if column already exists
     }
 
-    try {
-        const hasProductsStock = db.exec("SELECT 1 FROM pragma_table_info('products') WHERE name='stock_quantity'");
-        if (hasProductsStock && hasProductsStock.length > 0 && hasProductsStock[0].values.length > 0) {
-          db.run(`
-            INSERT INTO stock_batches (id, product_id, batch_number, quantity, cost_price, selling_price, expiry_date, is_active, created_at, updated_at)
-            SELECT lower(hex(randomblob(16))), id, 'INITIAL', stock_quantity, cost_price, selling_price, date('now', '+2 years'), 1, created_at, updated_at
-            FROM products 
-            WHERE stock_quantity > 0 AND NOT EXISTS (
-              SELECT 1 FROM stock_batches WHERE stock_batches.product_id = products.id AND stock_batches.batch_number = 'INITIAL'
-            )
-          `);
-        }
-      } catch (e) {
-        console.error("Migration for stock_quantity skipped", e);
-      }
+    const webAdapter = makeSqlJsAdapter(db);
+    await migrateStockQuantityToBatches(webAdapter);
 
     try {
       db.run("UPDATE purchase_orders SET status = 'pending' WHERE status = 'draft'");
     } catch (_e) {}
 
-    // Run migrations for Web (non-Tauri)
-    for (const { table, columns } of syncColumns) {
-      for (const colDef of columns) {
-        try {
-          // Attempt to add column; will throw if it already exists
-          db.run(`ALTER TABLE ${table} ADD COLUMN ${colDef}`);
-        } catch (_e) {
-          // Column likely already exists; ignore
-        }
-      }
-    }
-
-    // Backfill store_id on every pre-existing row of newly store-scoped
-    // tables to this device's one pre-migration store. WHERE store_id IS
-    // NULL makes this naturally idempotent on subsequent launches.
-    try {
-      for (const table of STORE_SCOPED_TABLES) {
-        try {
-          db.run(
-            `UPDATE ${table} SET store_id = (SELECT id FROM stores LIMIT 1) WHERE store_id IS NULL`,
-          );
-        } catch (_e) {
-          // Table may not exist yet on a fresh install; ignore
-        }
-      }
-    } catch (e) {
-      console.error("Failed to backfill store_id on legacy rows", e);
-    }
-
-    // Rebuild users table to scope the username uniqueness constraint to store_id
-    // (SQLite can't ALTER a column-level constraint, so recreate the table)
-    try {
-      const tableInfoRes = db.exec(
-        "SELECT sql FROM sqlite_master WHERE type='table' AND name='users'"
-      );
-      const usersTableSql = tableInfoRes?.[0]?.values?.[0]?.[0] || "";
-      if (usersTableSql && !/UNIQUE\s*\(\s*store_id\s*,\s*username\s*\)/i.test(String(usersTableSql))) {
-        db.run(`
-          CREATE TABLE users_new (
-            id TEXT PRIMARY KEY,
-            first_name TEXT,
-            last_name TEXT,
-            username TEXT,
-            email TEXT UNIQUE,
-            pin TEXT,
-            role TEXT DEFAULT 'staff',
-            store_id TEXT,
-            is_active INTEGER DEFAULT 1,
-            created_at TEXT,
-            updated_at TEXT,
-            _version INTEGER DEFAULT 1,
-            _synced INTEGER DEFAULT 0,
-            _synced_at TEXT,
-            _deleted INTEGER DEFAULT 0,
-            UNIQUE(store_id, username)
-          )
-        `);
-        db.run(`
-          INSERT INTO users_new (id, first_name, last_name, username, email, pin, role, store_id, is_active, created_at, updated_at, _version, _synced, _synced_at, _deleted)
-          SELECT id, first_name, last_name, username, email, pin, role, store_id, is_active, created_at, updated_at, _version, _synced, _synced_at, _deleted FROM users
-        `);
-        db.run("DROP TABLE users");
-        db.run("ALTER TABLE users_new RENAME TO users");
-      }
-    } catch (e) {
-      console.error("Failed to migrate users username uniqueness constraint", e);
-    }
-
-    // Relax purchase_orders.supplier_id to nullable, so an Immediate
-    // Purchase can be recorded without a real vendor (self/walk-in
-    // purchase) the same way sales.customer_id already supports a null
-    // "Walk-in Customer". SQLite can't ALTER a column's NOT NULL
-    // constraint, so recreate the table; runs after the syncColumns loop
-    // above so the `type` column already exists to carry over.
-    try {
-      const tableInfoRes = db.exec(
-        "SELECT sql FROM sqlite_master WHERE type='table' AND name='purchase_orders'"
-      );
-      const poTableSql = tableInfoRes?.[0]?.values?.[0]?.[0] || "";
-      if (poTableSql && /supplier_id\s+TEXT\s+NOT\s+NULL/i.test(String(poTableSql))) {
-        db.run(`
-          CREATE TABLE purchase_orders_nullable_supplier (
-            id TEXT PRIMARY KEY,
-            order_number TEXT,
-            supplier_id TEXT,
-            ordered_by TEXT,
-            order_date TEXT,
-            status TEXT DEFAULT 'pending',
-            type TEXT DEFAULT 'standard',
-            payment_status TEXT DEFAULT 'unpaid',
-            amount_paid REAL DEFAULT 0,
-            due_date TEXT,
-            total_amount REAL DEFAULT 0,
-            notes TEXT,
-            created_at TEXT,
-            received_at TEXT,
-            updated_at TEXT,
-            store_id TEXT,
-            _version INTEGER DEFAULT 1,
-            _synced INTEGER DEFAULT 0,
-            _synced_at TEXT,
-            _deleted INTEGER DEFAULT 0
-          )
-        `);
-        db.run(`
-          INSERT INTO purchase_orders_nullable_supplier (id, order_number, supplier_id, ordered_by, order_date, status, type, payment_status, amount_paid, due_date, total_amount, notes, created_at, received_at, updated_at, store_id, _version, _synced, _synced_at, _deleted)
-          SELECT id, order_number, supplier_id, ordered_by, order_date, status, type, payment_status, amount_paid, due_date, total_amount, notes, created_at, received_at, updated_at, store_id, _version, _synced, _synced_at, _deleted FROM purchase_orders
-        `);
-        db.run("DROP TABLE purchase_orders");
-        db.run("ALTER TABLE purchase_orders_nullable_supplier RENAME TO purchase_orders");
-      }
-    } catch (e) {
-      console.error("Failed to relax purchase_orders.supplier_id to nullable", e);
-    }
-
-    // One-off data clearing for legacy transactions (retaining products, batches, users, and settings)
-    try {
-      const hasClearedLegacy = typeof window !== "undefined" && window.localStorage
-        ? window.localStorage.getItem("dumosrx_cleared_legacy_v2")
-        : "true";
-      if (!hasClearedLegacy) {
-        const tablesToClear = [
-          "sales",
-          "sale_items",
-          "stock_movements",
-          "returns",
-          "return_items",
-          "prescriptions",
-          "prescription_items",
-          "expenses",
-          "purchase_orders",
-          "purchase_order_items",
-          "audit_logs",
-          "_sync_queue"
-        ];
-        for (const table of tablesToClear) {
-          try {
-            db.run(`DELETE FROM ${table}`);
-          } catch (_e) { }
-        }
-        if (typeof window !== "undefined" && window.localStorage) {
-          window.localStorage.setItem("dumosrx_cleared_legacy_v2", "true");
-        }
-        saveDatabase();
-      }
-    } catch (e) {
-      console.error("Failed to clear legacy transactions in Web", e);
-    }
+    await runSyncColumnMigrations(webAdapter, syncColumns);
+    await backfillStoreIdOnLegacyRows(webAdapter);
+    await rebuildUsersTableForStoreScopedUsername(webAdapter);
+    await relaxPurchaseOrdersSupplierIdNullable(webAdapter);
+    await clearLegacyTransactionsOnce(webAdapter, saveDatabase);
 
     return db;
   } catch (err) {

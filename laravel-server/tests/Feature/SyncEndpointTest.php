@@ -783,4 +783,52 @@ class SyncEndpointTest extends TestCase
             'type' => 'standard',
         ]);
     }
+
+    /**
+     * Regression test for a real report: the client's local SQLite schema
+     * has always allowed purchase_orders.supplier_id to be null (see
+     * client/lib/db/schema.ts), and the app permits creating a purchase
+     * order before a supplier is picked. The server's column was NOT NULL,
+     * so any such purchase order failed to sync with "Column supplier_id
+     * cannot be null" (SQLSTATE 23000) — confirmed via a real sync failure
+     * log for a purchase order created without a supplier.
+     */
+    public function test_push_sync_handles_purchase_order_insert_without_supplier()
+    {
+        $poId = (string) \Illuminate\Support\Str::uuid();
+        $payload = [
+            'setup' => true,
+            'changes' => [
+                [
+                    'table_name' => 'purchase_orders',
+                    'operation' => 'INSERT',
+                    'record_id' => $poId,
+                    'payload' => [
+                        'id' => $poId,
+                        'order_number' => 'PO-TEST-002',
+                        'supplier_id' => null,
+                        'status' => 'pending',
+                        'type' => 'standard',
+                        'payment_status' => 'unpaid',
+                        'amount_paid' => 0,
+                        'total_amount' => 78000,
+                        'ordered_by' => $this->user->id,
+                        'order_date' => now()->toDateTimeString(),
+                        '_synced' => 0,
+                    ],
+                ],
+            ],
+        ];
+
+        $response = $this->actingAs($this->user)->postJson('/api/v1/app/sync/push', $payload);
+
+        $response->assertStatus(200);
+        $response->assertJsonCount(0, 'failed');
+
+        $this->assertDatabaseHas('purchase_orders', [
+            'id' => $poId,
+            'order_number' => 'PO-TEST-002',
+            'supplier_id' => null,
+        ]);
+    }
 }

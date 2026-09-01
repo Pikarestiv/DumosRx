@@ -1160,6 +1160,37 @@ export async function execute(
 }
 
 /**
+ * Serializes every transaction() call so their BEGIN/COMMIT pairs can never
+ * interleave. This used to be guarded only by `inTransaction`, a plain
+ * module-level boolean with no way to tell a genuinely-nested call (same
+ * synchronous call chain, safe to run inline against the already-open
+ * transaction) apart from two merely *concurrent*, unrelated calls that
+ * happen to overlap in wall-clock time — e.g. a background sync's
+ * multi-batch pushChanges() loop, which awaits between batches, still
+ * running when the cashier's createSale() also calls transaction(). Both
+ * looked identical to that boolean: the second call saw it already `true`
+ * and ran inline against the first's still-open transaction, so when the
+ * sync's block later threw and rolled back, the unrelated sale's writes
+ * were silently rolled back with it — even though createSale() had already
+ * returned successfully and the UI showed the sale as recorded.
+ *
+ * There is no reliable way to distinguish those two cases from inside this
+ * function (plain browser/Tauri JS has no async-call-chain identity to
+ * check against, unlike Node's AsyncLocalStorage), so nesting isn't
+ * supported at all: every call queues and gets its own real BEGIN/COMMIT.
+ * A composed operation that needs to run several DB writes as one atomic
+ * unit from inside code that's already executing inside a transaction()
+ * block must call query()/execute() directly instead of transaction()
+ * again — see requeueOrphanedRows() in reconcile-identity.ts for the one
+ * real example. Calling transaction() from inside another transaction()'s
+ * `fn` will deadlock (the outer call can't finish until the inner one does,
+ * but the inner one is queued behind the outer) — an intentional trade-off:
+ * a hang during testing is far easier to catch than the silent
+ * cross-transaction data loss above.
+ */
+let transactionQueue: Promise<void> = Promise.resolve();
+
+/**
  * Runs `fn` inside a real SQL transaction so a multi-statement operation
  * (e.g. recording a sale and deducting stock for every line item) either
  * fully applies or fully rolls back: a crash, thrown error, or early return
@@ -1168,10 +1199,8 @@ export async function execute(
  * extension insert()/update()/etc. in base-helpers.ts) against the same `db`
  * handle used here so it participates in the transaction.
  *
- * Nested calls (a transaction() started from inside another) just run `fn`
- * inline against the already-open outer transaction: SQLite doesn't support
- * real nested transactions without savepoints, and callers that compose
- * smaller transactional helpers into a bigger operation don't need them.
+ * Do not call this from inside another transaction()'s `fn` — see the
+ * queuing comment above for why that deadlocks instead of nesting.
  *
  * If BEGIN itself fails (e.g. the Tauri SQL plugin's pooled connection
  * doesn't hand back the same connection for the follow-up statements, a
@@ -1181,60 +1210,74 @@ export async function execute(
  * behavior, just not improved for that run.
  */
 export async function transaction<T>(fn: () => Promise<T>): Promise<T> {
-  if (!db) {
-    await initDatabase();
-  }
-  if (!db) {
-    // Database unavailable; let fn() surface whatever error it hits.
-    return fn();
-  }
+  // Reserve our place in line before awaiting anything, so two calls
+  // arriving back-to-back (no `await` between them) can't both read the
+  // same "previous" link — queue reassignment here is synchronous.
+  const previous = transactionQueue;
+  let releaseNext: () => void;
+  transactionQueue = new Promise<void>((resolve) => {
+    releaseNext = resolve;
+  });
 
-  if (inTransaction) {
-    return fn();
-  }
-
-  let began = false;
   try {
-    if (isTauri()) {
-      await db.execute("BEGIN");
-    } else {
-      db.exec("BEGIN");
-    }
-    began = true;
-  } catch (err) {
-    console.error("[DB] Failed to start transaction, running without atomicity:", err);
-  }
+    // Wait for whatever was queued ahead of us, regardless of whether it
+    // committed or rolled back — a failed transaction must not permanently
+    // block every later one.
+    await previous;
 
-  if (!began) {
-    return fn();
-  }
-
-  inTransaction = true;
-  try {
-    const result = await fn();
-    if (isTauri()) {
-      await db.execute("COMMIT");
-    } else {
-      db.exec("COMMIT");
+    if (!db) {
+      await initDatabase();
     }
-    return result;
-  } catch (err) {
+    if (!db) {
+      // Database unavailable; let fn() surface whatever error it hits.
+      return await fn();
+    }
+
+    let began = false;
     try {
       if (isTauri()) {
-        await db.execute("ROLLBACK");
+        await db.execute("BEGIN");
       } else {
-        db.exec("ROLLBACK");
+        db.exec("BEGIN");
       }
-    } catch (rollbackErr) {
-      console.error("[DB] Rollback failed after transaction error:", rollbackErr);
+      began = true;
+    } catch (err) {
+      console.error("[DB] Failed to start transaction, running without atomicity:", err);
     }
-    throw err;
+
+    if (!began) {
+      return await fn();
+    }
+
+    inTransaction = true;
+    try {
+      const result = await fn();
+      if (isTauri()) {
+        await db.execute("COMMIT");
+      } else {
+        db.exec("COMMIT");
+      }
+      return result;
+    } catch (err) {
+      try {
+        if (isTauri()) {
+          await db.execute("ROLLBACK");
+        } else {
+          db.exec("ROLLBACK");
+        }
+      } catch (rollbackErr) {
+        console.error("[DB] Rollback failed after transaction error:", rollbackErr);
+      }
+      throw err;
+    } finally {
+      inTransaction = false;
+      if (!isTauri()) {
+        // sql.js: persist once for the whole block instead of per-statement.
+        await saveDatabase();
+      }
+    }
   } finally {
-    inTransaction = false;
-    if (!isTauri()) {
-      // sql.js: persist once for the whole block instead of per-statement.
-      await saveDatabase();
-    }
+    releaseNext!();
   }
 }
 

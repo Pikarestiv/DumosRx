@@ -77,19 +77,15 @@ describe("transaction()", () => {
     expect(rows).toEqual([]);
   });
 
-  it("runs a nested transaction() call inline against the already-open outer transaction", async () => {
-    await transaction(async () => {
-      await execute("INSERT INTO items (id, qty) VALUES (?, ?)", ["f", 6]);
-      await transaction(async () => {
-        await execute("INSERT INTO items (id, qty) VALUES (?, ?)", ["g", 7]);
-      });
-    });
-
-    const rows = await query<{ id: string }>(
-      "SELECT id FROM items WHERE id IN ('f', 'g') ORDER BY id",
-    );
-    expect(rows).toEqual([{ id: "f" }, { id: "g" }]);
-  });
+  // Nesting (calling transaction() from inside another transaction()'s `fn`)
+  // used to run the inner call inline against the outer's already-open
+  // transaction. That capability is retired — see transaction()'s own
+  // comment in core.ts — because the same `inTransaction` flag that made
+  // nesting work couldn't tell it apart from two unrelated top-level calls
+  // that merely overlap in time, which was the actual bug this file's other
+  // tests cover. Composed writes that need to run inside an already-open
+  // transaction (e.g. requeueOrphanedRows() in reconcile-identity.ts) now
+  // call query()/execute() directly instead of transaction() again.
 
   it("leaves the connection usable for subsequent transactions after a rollback", async () => {
     await expect(
@@ -109,5 +105,53 @@ describe("transaction()", () => {
       "SELECT id FROM items WHERE id IN ('h', 'i') ORDER BY id",
     );
     expect(rows).toEqual([{ id: "i" }]);
+  });
+
+  /**
+   * Regression test for a real bug found via code review: `inTransaction`
+   * used to be the only guard against nested BEGINs, but it's a plain
+   * module-level boolean, not scoped to one call chain. Two *unrelated*
+   * top-level transaction() calls that merely overlap in wall-clock time
+   * (e.g. a background sync mid-flight when the cashier records a sale)
+   * both saw the same flag: the second call would see it already true and
+   * run inline against the first's still-open transaction, so the first's
+   * rollback silently took the second's already-"successful" writes down
+   * with it. transaction() now queues unrelated top-level calls so their
+   * BEGIN/COMMIT pairs can never interleave.
+   */
+  it("does not let one top-level transaction's rollback affect a separate, later-queued transaction's writes", async () => {
+    let releaseA: () => void;
+    const gate = new Promise<void>((resolve) => {
+      releaseA = resolve;
+    });
+
+    const transactionA = transaction(async () => {
+      await execute("INSERT INTO items (id, qty) VALUES (?, ?)", ["j", 10]);
+      // Pause here, still inside A's open transaction, so B can be started
+      // (and queued) while A hasn't committed or rolled back yet.
+      await gate;
+      throw new Error("A failed after B was already queued behind it");
+    });
+
+    // Let A actually reach BEGIN before queuing B behind it.
+    await new Promise((r) => setTimeout(r, 0));
+
+    const transactionB = transaction(async () => {
+      await execute("INSERT INTO items (id, qty) VALUES (?, ?)", ["k", 11]);
+    });
+
+    releaseA!();
+
+    await expect(transactionA).rejects.toThrow(
+      "A failed after B was already queued behind it",
+    );
+    await transactionB;
+
+    const rows = await query<{ id: string }>(
+      "SELECT id FROM items WHERE id IN ('j', 'k') ORDER BY id",
+    );
+    // j rolled back with A; k committed on its own once it was B's turn,
+    // independent of A's outcome.
+    expect(rows).toEqual([{ id: "k" }]);
   });
 });

@@ -1,8 +1,8 @@
-import { query, execute, transaction } from "../core";
+import { query, execute, transaction, STORE_SCOPED_TABLES } from "../core";
 import { apiClient } from "@/lib/api/client";
 import { PullResponse } from "./types";
 import { getValidColumns } from "./schema";
-import { remapForeignKey, DUPLICATE_NAME_TABLES } from "../reconcile-identity";
+import { remapForeignKey, DUPLICATE_NAME_TABLES, columnExists } from "../reconcile-identity";
 
 /**
  * Pull changes from server
@@ -216,15 +216,32 @@ export async function pullChanges(
           // device's local history is actually attributed to (e.g. the
           // original pre-cloud-link store on a device, before it was ever
           // reconciled with a server-side account). Losing visibility into
-          // real products/sales is a far worse outcome than a stale entry
-          // lingering in the switcher, so this only prunes stores that are
-          // genuinely empty locally.
+          // real data is a far worse outcome than a stale entry lingering
+          // in the switcher, so this only prunes stores that are genuinely
+          // empty locally — checked against every store-scoped table, not
+          // just products/sales: a store whose only local data is, say,
+          // expenses or customers deserves the exact same protection.
+          // Most STORE_SCOPED_TABLES only gain their store_id column via
+          // initDatabase()'s runtime ALTER TABLE migration, not the base
+          // schema (see core.ts) — a device that hasn't run that migration
+          // yet (or a test harness that bypasses it) would make this query
+          // throw "no such column: store_id", rolling back the whole pull
+          // transaction rather than just skipping the prune check for that
+          // one table.
+          const scopedTablesWithStoreId: string[] = [];
+          for (const t of STORE_SCOPED_TABLES) {
+            if (await columnExists(t, "store_id")) {
+              scopedTablesWithStoreId.push(t);
+            }
+          }
+          const noDataClauses = scopedTablesWithStoreId.map(
+            (t) => `AND id NOT IN (SELECT DISTINCT store_id FROM ${t} WHERE store_id IS NOT NULL)`,
+          ).join("\n              ");
           const pruneSql = `
             UPDATE stores SET _deleted = 1
             WHERE _deleted = 0
               AND id NOT IN (${placeholders})
-              AND id NOT IN (SELECT DISTINCT store_id FROM products WHERE store_id IS NOT NULL)
-              AND id NOT IN (SELECT DISTINCT store_id FROM sales WHERE store_id IS NOT NULL)
+              ${noDataClauses}
           `;
 
           await execute(pruneSql, serverStoreIds);

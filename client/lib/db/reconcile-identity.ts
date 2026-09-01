@@ -75,41 +75,48 @@ export interface ReconcileIdentityResult {
  * a fresh INSERT queue entry for any such row so it's picked up on the next
  * push, using the row's current column values as the payload (matching the
  * shape `insert()` in base-helpers.ts already produces).
+ *
+ * Deliberately does NOT open its own transaction(): its only caller,
+ * remapForeignKey(), is itself always invoked from inside pull.ts's or
+ * push.ts's own transaction() block. transaction() has no reliable way to
+ * tell a genuinely-nested call (safe to run inline) apart from two merely
+ * concurrent, unrelated top-level calls (which must never share one
+ * BEGIN/COMMIT — see transaction()'s own comment for the bug that caused),
+ * so keeping this the one and only nested call site lets transaction()
+ * queue every top-level call unconditionally instead of guessing.
  */
 export async function requeueOrphanedRows(
   tables: string[],
 ): Promise<Record<string, number>> {
   const requeued: Record<string, number> = {};
 
-  await transaction(async () => {
-    for (const table of tables) {
-      const rows = await query<Record<string, unknown>>(
-        `SELECT * FROM ${table}
-         WHERE (_synced = 0 OR _synced IS NULL)
-           AND (_deleted = 0 OR _deleted IS NULL)
-           AND id NOT IN (SELECT record_id FROM _sync_queue WHERE table_name = ?)`,
-        [table],
+  for (const table of tables) {
+    const rows = await query<Record<string, unknown>>(
+      `SELECT * FROM ${table}
+       WHERE (_synced = 0 OR _synced IS NULL)
+         AND (_deleted = 0 OR _deleted IS NULL)
+         AND id NOT IN (SELECT record_id FROM _sync_queue WHERE table_name = ?)`,
+      [table],
+    );
+
+    for (const row of rows) {
+      await execute(
+        `INSERT INTO _sync_queue (table_name, record_id, operation, payload, created_at)
+         VALUES (?, ?, ?, ?, ?)`,
+        [
+          table,
+          row.id as string,
+          "INSERT",
+          JSON.stringify(row),
+          (row.created_at as string) || new Date().toISOString(),
+        ],
       );
-
-      for (const row of rows) {
-        await execute(
-          `INSERT INTO _sync_queue (table_name, record_id, operation, payload, created_at)
-           VALUES (?, ?, ?, ?, ?)`,
-          [
-            table,
-            row.id as string,
-            "INSERT",
-            JSON.stringify(row),
-            (row.created_at as string) || new Date().toISOString(),
-          ],
-        );
-      }
-
-      if (rows.length > 0) {
-        requeued[table] = rows.length;
-      }
     }
-  });
+
+    if (rows.length > 0) {
+      requeued[table] = rows.length;
+    }
+  }
 
   return requeued;
 }

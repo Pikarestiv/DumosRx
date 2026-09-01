@@ -21,7 +21,11 @@ interface HeaderPageHeadingProps {
 
 /** Either a time-of-day greeting with the user's name (dashboard home), or
  * the current page's title with a tooltip for its description. */
-export function HeaderPageHeading({ pageInfo, firstName, lastName }: HeaderPageHeadingProps) {
+export function HeaderPageHeading({
+  pageInfo,
+  firstName,
+  lastName,
+}: HeaderPageHeadingProps) {
   if (!pageInfo) {
     return (
       <>
@@ -29,7 +33,8 @@ export function HeaderPageHeading({ pageInfo, firstName, lastName }: HeaderPageH
           {getGreeting()}
         </span>
         <span className="text-foreground text-base sm:text-xl font-bold hidden sm:inline-block tracking-tight font-serif truncate">
-          {firstName} {lastName}
+          {firstName}
+          {/* {lastName} */}
         </span>
         <span className="text-foreground text-base sm:text-xl font-bold sm:hidden tracking-tight font-serif truncate">
           {firstName}
@@ -55,7 +60,11 @@ export function HeaderPageHeading({ pageInfo, firstName, lastName }: HeaderPageH
               {pageInfo.title}
             </span>
           </TooltipTrigger>
-          <TooltipContent side="bottom" align="start" className="max-w-[300px] text-sm">
+          <TooltipContent
+            side="bottom"
+            align="start"
+            className="max-w-[300px] text-sm"
+          >
             <p>{pageInfo.desc}</p>
           </TooltipContent>
         </Tooltip>

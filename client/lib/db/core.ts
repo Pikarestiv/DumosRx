@@ -1210,6 +1210,118 @@ export async function restoreDatabaseFromFile(): Promise<{ success: boolean }> {
   return { success: true };
 }
 
+/**
+ * Read-only audit for whether this device's local database still carries
+ * any of the legacy artifacts initDatabase()'s migration steps
+ * (renameLegacyTablesAndColumns, dropLegacyVendorIdColumn,
+ * migrateStockQuantityToBatches, backfillStoreIdOnLegacyRows,
+ * rebuildUsersTableForStoreScopedUsername,
+ * relaxPurchaseOrdersSupplierIdNullable) exist to repair. Every one of
+ * those steps is a no-op (wrapped in try/catch, or a conditional check) on
+ * a device that's already current, so this doesn't tell you anything the
+ * app doesn't already know internally — it just surfaces it for a human to
+ * read, so a decision to eventually delete a migration step can be made
+ * from real device data instead of a guess. Run from the browser console
+ * (or Tauri's devtools) as `await window.diagnoseLegacySchema()`; safe to
+ * run anywhere, including production, since it never writes.
+ */
+export async function diagnoseLegacySchema(): Promise<{
+  clean: boolean;
+  findings: string[];
+}> {
+  if (!db) await initDatabase();
+  const findings: string[] = [];
+
+  const tableExistsLocal = async (table: string): Promise<boolean> => {
+    const rows = await query<{ name: string }>(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
+      [table],
+    );
+    return rows.length > 0;
+  };
+  const columnExistsLocal = async (table: string, column: string): Promise<boolean> => {
+    if (!(await tableExistsLocal(table))) return false;
+    const rows = await query<{ name: string }>(`PRAGMA table_info(${table})`);
+    return rows.some((r) => r.name === column);
+  };
+
+  for (const table of ["medicines", "vendors", "stock_batch", "store_profile"]) {
+    if (await tableExistsLocal(table)) {
+      findings.push(`Legacy table "${table}" still exists (should have been renamed).`);
+    }
+  }
+
+  for (const table of [
+    "stock_batches",
+    "sale_items",
+    "stock_movements",
+    "purchase_order_items",
+    "prescription_items",
+    "return_items",
+  ]) {
+    if (await columnExistsLocal(table, "medicine_id")) {
+      findings.push(`"${table}.medicine_id" still exists (should be product_id).`);
+    }
+  }
+
+  if (await columnExistsLocal("sale_items", "inventory_id")) {
+    findings.push('"sale_items.inventory_id" still exists (should be stock_batch_id).');
+  }
+
+  if (await columnExistsLocal("purchase_orders", "vendor_id")) {
+    findings.push('"purchase_orders.vendor_id" still exists (should be supplier_id only).');
+  }
+
+  if (await columnExistsLocal("products", "stock_quantity")) {
+    const unmigrated = await query<{ cnt: number }>(
+      `SELECT COUNT(*) as cnt FROM products
+       WHERE stock_quantity > 0 AND NOT EXISTS (
+         SELECT 1 FROM stock_batches WHERE stock_batches.product_id = products.id AND stock_batches.batch_number = 'INITIAL'
+       )`,
+    );
+    if ((unmigrated[0]?.cnt ?? 0) > 0) {
+      findings.push(
+        `"products.stock_quantity" column still exists with ${unmigrated[0].cnt} row(s) not yet migrated to stock_batches.`,
+      );
+    } else {
+      findings.push('"products.stock_quantity" column still exists but is fully migrated (dead column, not a blocker).');
+    }
+  }
+
+  for (const table of STORE_SCOPED_TABLES) {
+    if (await columnExistsLocal(table, "store_id")) {
+      const missing = await query<{ cnt: number }>(
+        `SELECT COUNT(*) as cnt FROM ${table} WHERE store_id IS NULL`,
+      );
+      if ((missing[0]?.cnt ?? 0) > 0) {
+        findings.push(`"${table}" has ${missing[0].cnt} row(s) with no store_id (backfill hasn't run or table predates it).`);
+      }
+    }
+  }
+
+  const usersTableInfo = await query<{ sql: string }>(
+    "SELECT sql FROM sqlite_master WHERE type='table' AND name='users'",
+  );
+  const usersSql = usersTableInfo[0]?.sql || "";
+  if (usersSql && !/UNIQUE\s*\(\s*store_id\s*,\s*username\s*\)/i.test(usersSql)) {
+    findings.push('"users" table is missing UNIQUE(store_id, username) (still on the old bare-username constraint).');
+  }
+
+  const poTableInfo = await query<{ sql: string }>(
+    "SELECT sql FROM sqlite_master WHERE type='table' AND name='purchase_orders'",
+  );
+  const poSql = poTableInfo[0]?.sql || "";
+  if (poSql && /supplier_id\s+TEXT\s+NOT\s+NULL/i.test(poSql)) {
+    findings.push('"purchase_orders.supplier_id" is still NOT NULL (Immediate Purchase without a supplier would fail).');
+  }
+
+  return { clean: findings.length === 0, findings };
+}
+
+if (typeof window !== "undefined") {
+  window.diagnoseLegacySchema = diagnoseLegacySchema;
+}
+
 if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
   window.getDatabaseBinary = getDatabaseBinary;
   window.restoreDatabase = restoreDatabase;

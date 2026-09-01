@@ -48,6 +48,16 @@ export async function pushChanges(
   let pushedCount = 0;
 
   for (let i = 0; i < pending.length; i += SYNC_BATCH_SIZE) {
+    // A manual sync (see the backoff-bypass fix) can retry a backlog spanning
+    // many batches back-to-back; the API's shared rate limit is 60
+    // requests/minute (see throttle:60,1 on this route in routes/api.php),
+    // and other app traffic shares that same budget. Pausing between batches
+    // (not before the first) keeps a large backlog from tripping "Too Many
+    // Attempts" instead of actually syncing.
+    if (i > 0) {
+      await new Promise((resolve) => setTimeout(resolve, 1100));
+    }
+
     const batch = pending.slice(i, i + SYNC_BATCH_SIZE);
 
     try {
@@ -111,6 +121,15 @@ export async function pushChanges(
         if (item.table_name === "stock_batches") {
           if (item.payload && "selling_price" in item.payload) {
             delete item.payload.selling_price;
+          }
+          // Any batch created before product-import.ts stopped writing
+          // batch_number: null still carries that literal null in its frozen
+          // _sync_queue payload snapshot — a client code fix alone can't
+          // rewrite data already queued. The server's batch_number column is
+          // NOT NULL (unlike the local SQLite schema), so this keeps failing
+          // forever on retry otherwise.
+          if (!item.payload.batch_number) {
+            item.payload.batch_number = "Opening Stock";
           }
         }
         return true;

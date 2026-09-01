@@ -817,7 +817,14 @@ class SyncController extends Controller
                 }
             }
 
-            $records = $query->limit(500)->get();
+            // 'stores' is deliberately exempt from the last_synced cursor
+            // above so the client can always treat it as a complete
+            // snapshot (see the pruning logic in the client's pull.ts) —
+            // capping it at 500 like every other (delta-filtered) table
+            // would silently contradict that for any owner with more
+            // stores than that, since a store past the cutoff would look
+            // indistinguishable from one that's genuinely gone.
+            $records = $table === 'stores' ? $query->get() : $query->limit(500)->get();
 
             $changes[$table] = $records->map(function ($item) use ($table) {
                 $array = $item->toArray();

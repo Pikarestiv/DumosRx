@@ -831,4 +831,54 @@ class SyncEndpointTest extends TestCase
             'supplier_id' => null,
         ]);
     }
+
+    /**
+     * Regression test found via a critical review of the client's sync
+     * engine: pull() capped every table, including 'stores', at
+     * ->limit(500). The client's pull.ts prunes any local store absent from
+     * the 'stores' response on the assumption that it's always a complete,
+     * unfiltered snapshot (see the comment there) — true for every other
+     * table's row count in practice, but an owner with more than 500 stores
+     * would have gotten a silently truncated list, making stores past the
+     * cutoff indistinguishable from ones that were actually deleted.
+     */
+    public function test_pull_sync_returns_more_than_500_stores()
+    {
+        // A user with no store_id set is treated as the "pure owner" whose
+        // 'stores' query resolves every store they own (see pull()'s
+        // 'stores' => whereIn(..., $user->store_id ? $storeIds : Store::
+        // where('user_id', $ownerId)->...) branch) — unlike $this->user from
+        // setUp(), which already has store_id set to its own primary store
+        // and would instead be narrowed to just that one store, a separate,
+        // pre-existing scoping nuance unrelated to this fix.
+        $owner = User::create([
+            'first_name' => 'Multi',
+            'last_name' => 'Owner',
+            'email' => 'multi-owner@dumosrx.com',
+            'password' => bcrypt('password'),
+            'role' => 'admin',
+        ]);
+
+        for ($i = 0; $i < 502; $i++) {
+            DB::table('stores')->insert([
+                'id' => (string) \Illuminate\Support\Str::uuid(),
+                'user_id' => $owner->id,
+                'name' => "Store {$i}",
+                'email' => "store{$i}@dumosrx.com",
+                'phone' => '1234567890',
+                'address' => '123 Test St',
+                'store_slug' => "store-{$i}",
+                'device_id' => "WEB-TEST-{$i}",
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        $response = $this->actingAs($owner)->postJson('/api/v1/app/sync/pull', [
+            'last_synced' => [],
+        ]);
+
+        $response->assertStatus(200);
+        $this->assertCount(502, $response->json('changes.stores'));
+    }
 }

@@ -66,7 +66,7 @@ describe("pushChanges manual bypass of retry backoff", () => {
     const result = await pushChanges(false);
 
     expect(apiClient.pushChanges).not.toHaveBeenCalled();
-    expect(result).toEqual({ pushed: 0 });
+    expect(result).toEqual({ pushed: 0, failedBatches: 0 });
   });
 
   it("a manual sync attempts items even while they're still in backoff", async () => {
@@ -76,6 +76,6 @@ describe("pushChanges manual bypass of retry backoff", () => {
     const result = await pushChanges(true);
 
     expect(apiClient.pushChanges).toHaveBeenCalled();
-    expect(result).toEqual({ pushed: 1 });
+    expect(result).toEqual({ pushed: 1, failedBatches: 0 });
   });
 });

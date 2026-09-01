@@ -28,10 +28,10 @@ function normalizeDatetimeFields(payload: Record<string, unknown>) {
 export async function pushChanges(
   isManual: boolean = false,
   isSetup: boolean = false
-): Promise<{ pushed: number }> {
+): Promise<{ pushed: number; failedBatches: number }> {
   const pending = await getPendingSyncItems(isManual);
 
-  if (pending.length === 0) return { pushed: 0 };
+  if (pending.length === 0) return { pushed: 0, failedBatches: 0 };
 
   // Categories are batched by created_at like everything else, so a product
   // whose category was (re)created after it chronologically can land in a
@@ -46,6 +46,15 @@ export async function pushChanges(
 
   // Process in batches
   let pushedCount = 0;
+  // Distinct from a normal server-reported per-item rejection (already
+  // handled gracefully via response.failed/recordSyncFailure, and doesn't
+  // affect this): a batch landing in the catch block below means something
+  // unexpected happened (a network error, corrupted queue JSON, an
+  // unrecognized response shape) before the server ever got to isolate
+  // individual items. Tracked so the caller can tell "nothing pushed
+  // because there was nothing to push" apart from "nothing pushed because
+  // it kept failing" — see sync() in index.ts.
+  let failedBatches = 0;
 
   for (let i = 0; i < pending.length; i += SYNC_BATCH_SIZE) {
     // A manual sync (see the backoff-bypass fix) can retry a backlog spanning
@@ -215,6 +224,7 @@ export async function pushChanges(
       // Don't abort the whole push run over one bad batch; record backoff
       // for this batch's items and continue with the remaining batches.
       console.error("Push sync failed for batch:", error);
+      failedBatches++;
       const message = error instanceof Error ? error.message : String(error);
       await transaction(async () => {
         for (const item of batch) {
@@ -224,5 +234,5 @@ export async function pushChanges(
     }
   }
 
-  return { pushed: pushedCount };
+  return { pushed: pushedCount, failedBatches };
 }

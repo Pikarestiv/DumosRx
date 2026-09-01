@@ -97,6 +97,23 @@ export async function sync(
       );
     }
 
+    // A batch landing in pushChanges()'s catch block (network error,
+    // corrupted queue JSON, an unrecognized response shape) is swallowed
+    // there so one bad batch can't block the rest — but that means this
+    // function would otherwise always resolve successfully even when
+    // everything failed to push, and the sync indicator showed a false
+    // "Sync completed successfully" toast. A normal server-reported
+    // per-item rejection (response.failed) is unaffected by this: those are
+    // expected, already visible via retry backoff, and don't fail the sync.
+    if (pushResult.failedBatches > 0) {
+      return {
+        success: false,
+        pushed: pushResult.pushed,
+        pulled: pullResult.pulled,
+        error: `${pushResult.failedBatches} batch(es) failed to push; will retry automatically`,
+      };
+    }
+
     return {
       success: true,
       pushed: pushResult.pushed,

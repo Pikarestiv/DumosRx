@@ -353,4 +353,41 @@ describe('Sync Engine & Local Database', () => {
       expect(predicateCall).toBeUndefined();
     });
   });
+
+  describe('sync() surfaces push failures', () => {
+    beforeEach(() => {
+      localStorage.setItem('auth_token', 'test-token');
+    });
+
+    it('reports success: false when a push batch throws, instead of a false "success" despite nothing pushing', async () => {
+      vi.mocked(query).mockImplementation(async (sql: string) => {
+        if (sql.includes('_sync_queue')) {
+          return [{
+            id: 1,
+            table_name: 'products',
+            record_id: 'p1',
+            operation: 'INSERT',
+            payload: JSON.stringify({ id: 'p1', name: 'Panadol' }),
+            created_at: '2026-08-01T00:00:00Z',
+            retry_count: 0,
+            last_error: null,
+            next_retry_at: null,
+          }];
+        }
+        return [];
+      });
+      vi.mocked(apiClient.pushChanges).mockRejectedValueOnce(new Error('Network error'));
+      vi.mocked(apiClient.pullChanges).mockResolvedValueOnce({
+        success: true,
+        changes: {},
+        server_timestamp: '2026-07-28T00:00:00Z',
+      });
+
+      const result = await sync();
+
+      expect(result.success).toBe(false);
+      expect(result.pushed).toBe(0);
+      expect(String(result.error)).toContain('1 batch');
+    });
+  });
 });

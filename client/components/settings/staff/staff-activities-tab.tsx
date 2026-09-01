@@ -15,6 +15,7 @@ import {
 import { Card } from "@/components/ui/card";
 import { SearchInput } from "@/components/ui/search-input";
 import { FilterPill } from "@/components/ui/filter-pill";
+import { DateRangePicker, type DateRangeValue } from "@/components/ui/date-range-picker";
 import { TablePagination } from "@/components/ui/table-pagination";
 import {
   getActivityLog,
@@ -23,7 +24,9 @@ import {
 } from "@/lib/db/queries/activity-log";
 import { describeActivity, describeActionVerb } from "@/components/activity-log/describe-activity";
 import { genericFuzzySearch } from "@/lib/utils/search";
+import { toQueryRange } from "@/lib/utils/date-range";
 import { queryKeys } from "@/lib/query-keys";
+import { STAFF_ROLES } from "@/lib/constants/roles";
 import type { AuditLogRow } from "@/lib/types/audit-log";
 
 const TABLE_NAME = "users";
@@ -39,6 +42,8 @@ export function StaffActivitiesTab() {
   const [search, setSearch] = useState("");
   const [actionFilter, setActionFilter] = useState("all");
   const [userFilter, setUserFilter] = useState("all");
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [dateRange, setDateRange] = useState<DateRangeValue>({});
 
   const isSearching = search.trim().length > 0;
 
@@ -46,6 +51,8 @@ export function StaffActivitiesTab() {
     tableName: TABLE_NAME,
     action: actionFilter === "all" ? undefined : actionFilter,
     userId: userFilter === "all" ? undefined : userFilter,
+    role: roleFilter === "all" ? undefined : roleFilter,
+    ...toQueryRange(dateRange),
   };
 
   const pagedFilters = { ...baseFilters, page, pageSize };
@@ -101,6 +108,14 @@ export function StaffActivitiesTab() {
         />
 
         <div className="flex flex-wrap gap-2">
+          <DateRangePicker
+            value={dateRange}
+            onChange={(v) => {
+              setDateRange(v);
+              setPage(1);
+            }}
+          />
+
           <FilterPill
             label="Action"
             value={actionFilter}
@@ -111,6 +126,19 @@ export function StaffActivitiesTab() {
             options={[
               { value: "all", label: "All Actions" },
               ...actions.map((a) => ({ value: a, label: describeActionVerb(a) })),
+            ]}
+          />
+
+          <FilterPill
+            label="Role"
+            value={roleFilter}
+            onValueChange={(v) => {
+              setRoleFilter(v);
+              setPage(1);
+            }}
+            options={[
+              { value: "all", label: "All Roles" },
+              ...STAFF_ROLES.map((r) => ({ value: r.value, label: r.label })),
             ]}
           />
 

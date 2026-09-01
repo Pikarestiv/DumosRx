@@ -7,7 +7,9 @@ import { History } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { SearchInput } from "@/components/ui/search-input";
 import { FilterPill } from "@/components/ui/filter-pill";
+import { DateRangePicker, type DateRangeValue } from "@/components/ui/date-range-picker";
 import { TablePagination } from "@/components/ui/table-pagination";
+import { toQueryRange } from "@/lib/utils/date-range";
 import {
   getActivityLog,
   getDistinctActivityActions,
@@ -55,6 +57,7 @@ export function ActivityLogPage() {
   const [actionFilter, setActionFilter] = useState<string>("all");
   const [userFilter, setUserFilter] = useState<string>("all");
   const [roleFilter, setRoleFilter] = useState<string>("all");
+  const [dateRange, setDateRange] = useState<DateRangeValue>({});
   const [selectedEntry, setSelectedEntry] = useState<AuditLogRow | null>(null);
   const [sortKey, setSortKey] = useState<ActivityLogSortKey>("created_at");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
@@ -79,6 +82,7 @@ export function ActivityLogPage() {
         ? undefined
         : userFilter,
     role: canViewAll && roleFilter !== "all" ? roleFilter : undefined,
+    ...toQueryRange(dateRange),
     sortKey,
     sortDirection,
   };
@@ -156,6 +160,14 @@ export function ActivityLogPage() {
           />
 
           <div className="flex flex-wrap gap-2">
+            <DateRangePicker
+              value={dateRange}
+              onChange={(v) => {
+                setDateRange(v);
+                setPage(1);
+              }}
+            />
+
             <FilterPill
               label="Action"
               value={actionFilter}

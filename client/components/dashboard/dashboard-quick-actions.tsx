@@ -8,6 +8,7 @@ import {
   Barcode,
   PackagePlus,
   AlertTriangle,
+  Users,
   LucideIcon,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -43,6 +44,11 @@ const quickActionsConfig: QuickAction[] = [
     label: "Scan Barcode",
     icon: Barcode,
     href: "/pos?action=scan",
+  },
+  {
+    label: "Customers",
+    icon: Users,
+    href: "/customers",
   },
   {
     label: "View Reports",

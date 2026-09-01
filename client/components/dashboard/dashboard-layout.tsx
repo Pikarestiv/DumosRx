@@ -24,6 +24,7 @@ import {
 } from "@/lib/hooks/use-auto-lock";
 import { useSwipeNavigation } from "@/lib/hooks/use-swipe-navigation";
 import { useSidebarPeekPreference } from "@/lib/hooks/use-sidebar-peek-preference";
+import { usePosFullscreenStore } from "@/lib/hooks/use-pos-fullscreen";
 import { useIsTouchDevice } from "@/lib/hooks/use-is-touch-device";
 import { usePullToRefresh } from "@/lib/hooks/use-pull-to-refresh";
 import {
@@ -91,6 +92,8 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
   );
 
   const isPosRoute = pathname.startsWith("/pos");
+  const posFullscreen = usePosFullscreenStore((s) => s.isFullscreen);
+  const isPosFullscreen = isPosRoute && posFullscreen;
   // Create Purchase Order gets a POS-style full-screen takeover, but only on
   // mobile (<lg). Desktop keeps the normal dashboard chrome since the page
   // already renders as a self-contained bordered panel there.
@@ -241,7 +244,7 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
         </div>
       )}
 
-      {!isSettingsRoute && (
+      {!isSettingsRoute && !isPosFullscreen && (
         <DashboardSidebar
           onOpenFeedback={() => setFeedbackOpen(true)}
           collapsed={effectiveCollapsed}
@@ -270,7 +273,7 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
       <div
         className={cn(
           "flex flex-col overflow-hidden transition-all duration-300",
-          isSettingsRoute
+          isSettingsRoute || isPosFullscreen
             ? ""
             : contentCollapsed
               ? "lg:pl-[68px]"

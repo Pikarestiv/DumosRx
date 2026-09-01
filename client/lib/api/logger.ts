@@ -1,3 +1,5 @@
+import { getDeviceId } from "@/lib/utils/device-id";
+
 export interface ApiLogEntry {
   timestamp: string;
   type: "request" | "response" | "error";
@@ -132,6 +134,7 @@ export const reportClientError = (
         status: status || null,
         message,
         details: sanitizePayload(details),
+        deviceId: getDeviceId(),
       }),
       keepalive: true,
     }).catch((err) => {

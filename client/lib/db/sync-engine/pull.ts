@@ -3,6 +3,7 @@ import { apiClient } from "@/lib/api/client";
 import { PullResponse } from "./types";
 import { getValidColumns } from "./schema";
 import { remapForeignKey, DUPLICATE_NAME_TABLES, columnExists } from "../reconcile-identity";
+import { logCrash } from "@/lib/utils/error-logger";
 
 /**
  * Pull changes from server
@@ -58,6 +59,11 @@ export async function pullChanges(
 
     let pulledCount = 0;
     const updatedTables: string[] = [];
+    // Collected rather than reported inline: logCrash writes to SQLite
+    // itself, and calling it from inside the transaction() callback below
+    // would nest a write transaction inside this one. Reported once the
+    // outer transaction has committed instead.
+    const skippedRecords: { table: string; recordId: string; reason: string }[] = [];
 
     // transaction() wraps this in BEGIN/COMMIT/ROLLBACK on both platforms
     // (unlike the manual sql.js-only rawDb.run("BEGIN") this replaced, which
@@ -154,6 +160,7 @@ export async function pullChanges(
                   recordId,
                   errMsg
                 );
+                skippedRecords.push({ table, recordId, reason: `update: ${errMsg}` });
               } else {
                 throw err;
               }
@@ -188,6 +195,7 @@ export async function pullChanges(
                   recordId,
                   errMsg
                 );
+                skippedRecords.push({ table, recordId, reason: `insert: ${errMsg}` });
               } else {
                 throw err;
               }
@@ -281,13 +289,24 @@ export async function pullChanges(
         }
       }
     }).catch((err) => {
+      // Not reported here: rethrown, so the outer catch below reports it
+      // once instead of twice.
       console.error("Failed to apply pull changes:", err);
       throw err;
     });
 
+    for (const s of skippedRecords) {
+      logCrash(
+        new Error(`Pull skipped ${s.table}/${s.recordId}: ${s.reason}`),
+        false,
+        { area: "sync-pull", table: s.table, recordId: s.recordId },
+      ).catch(() => {});
+    }
+
     return { pulled: pulledCount, updatedTables };
   } catch (error) {
     console.error("Pull sync failed:", error);
+    logCrash(error, false, { area: "sync-pull" }).catch(() => {});
     throw error; // Throw so sync() can catch it properly
   }
 }

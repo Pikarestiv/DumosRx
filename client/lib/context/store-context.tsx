@@ -10,6 +10,7 @@ import { getStoreById, getFirstStore, getAllStores } from "@/lib/db/queries/setu
 import { useAuth } from "@/lib/context/auth-context";
 import { queryKeys } from "@/lib/query-keys";
 import { devLog } from "@/lib/utils/dev-log";
+import { getDeviceId } from "@/lib/utils/device-id";
 
 export type StoreType = "pharmacy" | "grocery" | "supermarket" | "retail";
 
@@ -165,6 +166,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     Sentry.setTag("store_id", storeProfile?.id);
     Sentry.setTag("store_type", storeProfile?.store_type);
   }, [storeProfile]);
+
+  // Set once on mount: distinguishes which physical device/terminal at a
+  // multi-device store a remote log came from, since store_id/user_id alone
+  // are shared across every device tied to that store.
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      Sentry.setTag("device_id", getDeviceId());
+    }
+  }, []);
 
   const { data: allStores } = useQuery({
     ...queryKeys.stores.all(user?.store_id),

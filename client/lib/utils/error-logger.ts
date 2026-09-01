@@ -4,6 +4,7 @@
 
 import * as Sentry from "@sentry/nextjs";
 import { SYSTEM_EMAIL } from "@/lib/constants";
+import { getDeviceId } from "@/lib/utils/device-id";
 
 interface CrashInfo {
   message: string;
@@ -13,6 +14,15 @@ interface CrashInfo {
   platform?: string;
   timestamp: string;
   isFatal?: boolean;
+}
+
+/** Extra context callers can attach to pin down *what* failed, not just that
+ * something did — e.g. which table/record a sync failure was operating on. */
+export interface CrashContext {
+  area?: string;
+  table?: string;
+  recordId?: string;
+  [key: string]: unknown;
 }
 
 const STORAGE_KEY = "dumosrx_pending_crashes";
@@ -30,8 +40,9 @@ function queueToLocalStorage(info: CrashInfo) {
 }
 
 // Log a crash to SQLite database or local storage fallback
-export async function logCrash(error: unknown, isFatal = false) {
+export async function logCrash(error: unknown, isFatal = false, context: CrashContext = {}) {
   const timestamp = new Date().toISOString();
+  const deviceId = getDeviceId();
 
   // Extract error info
   let message = "Unknown Error";
@@ -61,15 +72,38 @@ export async function logCrash(error: unknown, isFatal = false) {
     isFatal,
   };
 
-  console.error(`[CRASH LOGGER] Capturing error: ${message}`, info);
+  console.error(`[CRASH LOGGER] Capturing error: ${message}`, info, context);
 
   // Forward to Sentry; never let it break local crash logging, which must
   // keep working offline regardless of network/DSN availability.
   try {
     Sentry.captureException(error instanceof Error ? error : new Error(message), {
-      tags: { platform: info.platform, fatal: String(isFatal) },
-      extra: { url: info.url, userAgent: info.userAgent },
+      tags: {
+        platform: info.platform,
+        fatal: String(isFatal),
+        device_id: deviceId,
+        area: context.area,
+      },
+      extra: { url: info.url, userAgent: info.userAgent, ...context },
     });
+  } catch (_) {}
+
+  // Ship directly to our own server too, independent of the local SQLite
+  // sync queue below: when the crash IS a sync failure, waiting on that same
+  // broken sync path to eventually deliver this report would mean it never
+  // arrives. keepalive fetch survives the tab closing right after a crash.
+  try {
+    const { apiClient } = await import("@/lib/api/client");
+    const { reportClientError } = await import("@/lib/api/logger");
+    reportClientError(
+      "CRASH",
+      context.area ? `client-crash/${context.area}` : "client-crash",
+      isFatal ? 500 : 200,
+      message,
+      { stack, deviceId, isFatal, ...context },
+      apiClient.getBaseURL(),
+      localStorage.getItem("auth_token"),
+    );
   } catch (_) {}
 
   // Try to find user_id
@@ -92,7 +126,7 @@ export async function logCrash(error: unknown, isFatal = false) {
       id: crypto.randomUUID(),
       user_id: userId,
       type: "bug",
-      content: `[CRASH] [${info.platform?.toUpperCase()}] ${isFatal ? 'FATAL: ' : ''}${message}\n\nStack:\n${stack}\n\nUA: ${info.userAgent}\nURL: ${info.url}`,
+      content: `[CRASH] [${info.platform?.toUpperCase()}] ${isFatal ? 'FATAL: ' : ''}${message}\n\nDevice: ${deviceId}${Object.keys(context).length ? `\nContext: ${JSON.stringify(context)}` : ''}\n\nStack:\n${stack}\n\nUA: ${info.userAgent}\nURL: ${info.url}`,
       contact_email: SYSTEM_EMAIL,
       status: "pending",
       created_at: timestamp,

@@ -24,7 +24,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { DateRangePicker, type DateRangeValue } from "@/components/ui/date-range-picker";
+import type { DateRangeValue } from "@/components/ui/date-range-picker";
+import { ReportFiltersBar, type ReportFiltersValue } from "@/components/reports/report-filters-bar";
 import {
   useReportExport,
   RecentDownload,
@@ -40,9 +41,11 @@ function toQueryRange(range: DateRangeValue): { from?: string; to?: string } {
 }
 
 export function ReportCenter() {
-  const [dateRange, setDateRange] = useState<DateRangeValue>({
-    from: format(subDays(new Date(), 30), "yyyy-MM-dd"),
-    to: format(new Date(), "yyyy-MM-dd"),
+  const [filters, setFilters] = useState<ReportFiltersValue>({
+    dateRange: {
+      from: format(subDays(new Date(), 30), "yyyy-MM-dd"),
+      to: format(new Date(), "yyyy-MM-dd"),
+    },
   });
   const [loadingReport, setLoadingReport] = useState<string | null>(null);
   const [recentDownloads, setRecentDownloads] = useState<RecentDownload[]>([]);
@@ -62,17 +65,18 @@ export function ReportCenter() {
     reportId: ReportId,
     action: "csv" | "pdf" | "print",
   ) => {
-    const { from, to } = toQueryRange(dateRange);
+    const { from, to } = toQueryRange(filters.dateRange);
+    const salesFilters = { staffId: filters.staffId, paymentMethod: filters.paymentMethod };
     setLoadingReport(reportId);
     try {
       if (action === "csv") {
-        await exportReportCsv(reportId, from, to);
+        await exportReportCsv(reportId, from, to, salesFilters);
         toast.success("Export successful", { description: "Your CSV has been downloaded." });
       } else if (action === "pdf") {
-        await downloadReportPdf(reportId, from, to);
+        await downloadReportPdf(reportId, from, to, salesFilters);
         toast.success("Export successful", { description: "Your PDF has been downloaded." });
       } else {
-        await printReport(reportId, from, to);
+        await printReport(reportId, from, to, salesFilters);
       }
       refreshRecent();
     } catch (err) {
@@ -138,11 +142,11 @@ export function ReportCenter() {
 
   return (
     <div className="space-y-5">
-      {/* Date filter */}
+      {/* Filters */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-2.5">
-        <DateRangePicker value={dateRange} onChange={setDateRange} className="w-full sm:w-auto" />
+        <ReportFiltersBar value={filters} onChange={setFilters} />
         <span className="text-[12.5px] text-muted-foreground">
-          Reports will be generated for this time range
+          Reports will be generated for these filters
         </span>
       </div>
 

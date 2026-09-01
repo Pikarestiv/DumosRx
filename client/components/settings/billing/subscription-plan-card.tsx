@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Check, Loader2, Sparkles } from "lucide-react";
+import { Check, Loader2, Sparkles, CheckCircle2 } from "lucide-react";
 import type { SubscriptionPlanCatalogEntry } from "@/lib/constants/subscription-plans-catalog";
 import { isCurrentPlan } from "@/lib/utils/billing-pricing";
 
@@ -36,8 +36,20 @@ export function SubscriptionPlanCard({
 
   return (
     <Card
-      className={`relative h-full flex flex-col ${plan.popular ? "border-primary border-2 shadow-xl" : "border-border/50"}`}
+      className={`relative h-full flex flex-col ${
+        isCurrent
+          ? "border-emerald-500 border-2 shadow-xl"
+          : plan.popular
+            ? "border-primary border-2 shadow-xl"
+            : "border-border/50"
+      }`}
     >
+      {isCurrent && (
+        <div className="absolute top-0 left-0 transform -translate-x-3 -translate-y-3 z-10 bg-emerald-500 text-white text-xs font-bold px-4 py-1.5 rounded-full uppercase tracking-widest shadow-lg flex items-center gap-1.5">
+          <CheckCircle2 className="w-3 h-3" />
+          Current Plan
+        </div>
+      )}
       {plan.popular && (
         <div className="absolute top-0 right-0 transform translate-x-3 -translate-y-3 z-10 bg-primary text-primary-foreground text-xs font-bold px-4 py-1.5 rounded-full uppercase tracking-widest shadow-lg flex items-center gap-1.5">
           <Sparkles className="w-3 h-3" />

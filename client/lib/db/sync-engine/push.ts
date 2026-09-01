@@ -2,6 +2,8 @@ import { getPendingSyncItems, markSynced, recordSyncFailure } from "../local-dat
 import { apiClient } from "@/lib/api/client";
 import { PushResponse } from "./types";
 import type { SyncChange } from "@/lib/types/sync";
+import { remapForeignKey, DUPLICATE_NAME_TABLES } from "../reconcile-identity";
+import { execute, transaction } from "../core";
 
 const SYNC_BATCH_SIZE = 50;
 
@@ -26,10 +28,10 @@ function normalizeDatetimeFields(payload: Record<string, unknown>) {
 export async function pushChanges(
   isManual: boolean = false,
   isSetup: boolean = false
-): Promise<{ pushed: number }> {
-  const pending = await getPendingSyncItems();
+): Promise<{ pushed: number; failedBatches: number }> {
+  const pending = await getPendingSyncItems(isManual);
 
-  if (pending.length === 0) return { pushed: 0 };
+  if (pending.length === 0) return { pushed: 0, failedBatches: 0 };
 
   // Categories are batched by created_at like everything else, so a product
   // whose category was (re)created after it chronologically can land in a
@@ -44,8 +46,27 @@ export async function pushChanges(
 
   // Process in batches
   let pushedCount = 0;
+  // Distinct from a normal server-reported per-item rejection (already
+  // handled gracefully via response.failed/recordSyncFailure, and doesn't
+  // affect this): a batch landing in the catch block below means something
+  // unexpected happened (a network error, corrupted queue JSON, an
+  // unrecognized response shape) before the server ever got to isolate
+  // individual items. Tracked so the caller can tell "nothing pushed
+  // because there was nothing to push" apart from "nothing pushed because
+  // it kept failing" — see sync() in index.ts.
+  let failedBatches = 0;
 
   for (let i = 0; i < pending.length; i += SYNC_BATCH_SIZE) {
+    // A manual sync (see the backoff-bypass fix) can retry a backlog spanning
+    // many batches back-to-back; the API's shared rate limit is 60
+    // requests/minute (see throttle:60,1 on this route in routes/api.php),
+    // and other app traffic shares that same budget. Pausing between batches
+    // (not before the first) keeps a large backlog from tripping "Too Many
+    // Attempts" instead of actually syncing.
+    if (i > 0) {
+      await new Promise((resolve) => setTimeout(resolve, 1100));
+    }
+
     const batch = pending.slice(i, i + SYNC_BATCH_SIZE);
 
     try {
@@ -110,15 +131,34 @@ export async function pushChanges(
           if (item.payload && "selling_price" in item.payload) {
             delete item.payload.selling_price;
           }
+          // Any batch created before product-import.ts stopped writing
+          // batch_number: null still carries that literal null in its frozen
+          // _sync_queue payload snapshot — a client code fix alone can't
+          // rewrite data already queued. The server's batch_number column is
+          // NOT NULL (unlike the local SQLite schema), so this keeps failing
+          // forever on retry otherwise.
+          if (!item.payload.batch_number) {
+            item.payload.batch_number = "Opening Stock";
+          }
         }
         return true;
       });
 
       // Filtered-out items are not silently dropped: record a backoff-tracked
       // failure so they're visible via last_error and eventually reported to
-      // superadmins if the underlying data never gets fixed.
-      for (const r of rejected) {
-        await recordSyncFailure(r.id, r.reason);
+      // superadmins if the underlying data never gets fixed. Wrapped in a
+      // single transaction so a large rejected batch defers the (expensive,
+      // whole-database) sql.js saveDatabase() export to once here instead of
+      // once per item — see transaction()'s own doc comment in core.ts. A
+      // manual sync retrying thousands of backed-off items at once without
+      // this batching can exhaust the tab's memory doing one full-database
+      // re-serialization per item.
+      if (rejected.length > 0) {
+        await transaction(async () => {
+          for (const r of rejected) {
+            await recordSyncFailure(r.id, r.reason);
+          }
+        });
       }
 
       if (changes.length === 0) {
@@ -143,25 +183,56 @@ export async function pushChanges(
       if (response.success) {
         const failedIds = new Set((response.failed ?? []).map((f) => f.id));
         const succeededIds = changes.map((c) => c.id).filter((id) => !failedIds.has(id));
-        await markSynced(succeededIds);
-        pushedCount += succeededIds.length;
 
-        for (const f of response.failed ?? []) {
-          if (f.id != null) {
-            await recordSyncFailure(f.id, f.reason);
+        // Wrapped in a single transaction: a batch of up to SYNC_BATCH_SIZE
+        // markSynced/recordSyncFailure/remapForeignKey calls each triggers
+        // its own full-database sql.js export when run outside a
+        // transaction (see the rejected-items comment above for why that
+        // matters at scale).
+        await transaction(async () => {
+          await markSynced(succeededIds);
+          pushedCount += succeededIds.length;
+
+          for (const f of response.failed ?? []) {
+            if (f.id != null) {
+              await recordSyncFailure(f.id, f.reason);
+            }
           }
-        }
+
+          // The server silently skips an INSERT (and remaps the id) when a
+          // category/supplier name collides with one it already has, but that
+          // remap only lives in the memory of this one push request server-side
+          // (see SyncController::push) — it's never reflected in this device's
+          // local rows unless applied here. Left unhandled, any row in a LATER
+          // batch that still references the old local id fails its foreign key
+          // check forever, since a future delta pull only ever reconciles
+          // categories/suppliers that appear in that pull's own response (see
+          // DUPLICATE_NAME_TABLES in reconcile-identity.ts) — a long-unchanged,
+          // already-existing row like this one never will.
+          for (const [table, mapping] of Object.entries(response.id_map ?? {})) {
+            const refs = DUPLICATE_NAME_TABLES[table];
+            if (!refs) continue;
+            for (const [oldId, newId] of Object.entries(mapping)) {
+              if (oldId === newId) continue;
+              await remapForeignKey(oldId, newId, refs);
+              await execute(`UPDATE ${table} SET _deleted = 1 WHERE id = ?`, [oldId]);
+            }
+          }
+        });
       }
     } catch (error) {
       // Don't abort the whole push run over one bad batch; record backoff
       // for this batch's items and continue with the remaining batches.
       console.error("Push sync failed for batch:", error);
+      failedBatches++;
       const message = error instanceof Error ? error.message : String(error);
-      for (const item of batch) {
-        await recordSyncFailure(item.id, message);
-      }
+      await transaction(async () => {
+        for (const item of batch) {
+          await recordSyncFailure(item.id, message);
+        }
+      });
     }
   }
 
-  return { pushed: pushedCount };
+  return { pushed: pushedCount, failedBatches };
 }

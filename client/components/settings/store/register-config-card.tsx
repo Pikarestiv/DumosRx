@@ -4,21 +4,18 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Save } from "lucide-react";
+import { useStore } from "@/lib/context/store-context";
 
 interface RegisterConfigCardProps {
   requireSaleNotes: boolean;
   setRequireSaleNotes: (val: boolean) => void;
   displayStockLevels: boolean;
   setDisplayStockLevels: (val: boolean) => void;
-  handleSaveRegisterConfig: () => void;
 }
 
 interface ConfigRow {
@@ -26,7 +23,7 @@ interface ConfigRow {
   label: string;
   description: string;
   checked: boolean;
-  onCheckedChange: (val: boolean) => void;
+  onCheckedChange: (checked: boolean) => void;
 }
 
 export function RegisterConfigCard({
@@ -34,22 +31,32 @@ export function RegisterConfigCard({
   setRequireSaleNotes,
   displayStockLevels,
   setDisplayStockLevels,
-  handleSaveRegisterConfig,
 }: RegisterConfigCardProps) {
+  const { updateStoreProfile } = useStore();
+
+  // Each row saves immediately on toggle — same as Payment Methods — rather
+  // than sitting behind a Save button, so there's nothing to persist directly
+  // via updateStoreProfile (not the (possibly stale) handleSave* closure).
   const rows: ConfigRow[] = [
     {
       id: "require-sale-notes",
       label: "Require Sale Notes",
       description: "Ensure every sale includes a note before checkout can be completed.",
       checked: requireSaleNotes,
-      onCheckedChange: setRequireSaleNotes,
+      onCheckedChange: (checked) => {
+        setRequireSaleNotes(checked);
+        updateStoreProfile({ require_sale_notes: checked ? 1 : 0 });
+      },
     },
     {
       id: "display-stock-levels",
       label: "Display Item Stock Levels",
       description: "Show available stock next to each item while selling.",
       checked: displayStockLevels,
-      onCheckedChange: setDisplayStockLevels,
+      onCheckedChange: (checked) => {
+        setDisplayStockLevels(checked);
+        updateStoreProfile({ display_stock_levels: checked ? 1 : 0 });
+      },
     },
   ];
 
@@ -81,12 +88,6 @@ export function RegisterConfigCard({
           </div>
         ))}
       </CardContent>
-      <CardFooter className="border-t px-6 py-4">
-        <Button onClick={handleSaveRegisterConfig}>
-          <Save className="w-4 h-4 mr-2" />
-          Save Changes
-        </Button>
-      </CardFooter>
     </Card>
   );
 }

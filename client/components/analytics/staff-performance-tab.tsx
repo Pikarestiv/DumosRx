@@ -6,6 +6,7 @@ import { formatCurrency } from "@/lib/utils";
 import { SortableHeaderCell } from "@/components/ui/sortable-header-cell";
 import { useSortableData } from "@/lib/hooks/use-sortable-data";
 import { useStore } from "@/lib/context/store-context";
+import { EmptyReportState } from "@/components/reports/empty-report-state";
 
 export interface CashierPerformanceRow {
   id: string;
@@ -44,10 +45,11 @@ export function StaffPerformanceTab({ cashierPerformance }: StaffPerformanceTabP
       </div>
 
       {sortedData.length === 0 ? (
-        <div className="flex flex-col items-center justify-center text-muted-foreground h-32">
-          <Users className="h-8 w-8 mb-2 opacity-50" />
-          <p className="font-medium">No transactions in this period</p>
-        </div>
+        <EmptyReportState
+          icon={Users}
+          title="No transactions for these filters"
+          description="Sales will appear here once a cashier rings up a transaction matching the selected filters."
+        />
       ) : (
         <div className="overflow-x-auto">
           <div role="table" aria-label="Staff performance" className="w-full min-w-[520px]">

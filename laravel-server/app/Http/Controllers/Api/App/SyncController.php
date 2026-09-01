@@ -57,6 +57,7 @@ class SyncController extends Controller
                     new OA\Property(property: 'record_id', type: 'string'),
                     new OA\Property(property: 'reason', type: 'string'),
                 ])),
+                new OA\Property(property: 'id_map', type: 'object', description: 'Local id -> server id, grouped by table_name, for INSERTs skipped because the name collided with an existing categories/suppliers row. The client applies this immediately to its own local rows referencing the old id, rather than relying on a future pull to ever surface the collision.'),
             ])),
             new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
             new OA\Response(response: 403, description: 'Cloud sync disabled on current plan, or store count exceeds plan limit'),
@@ -123,6 +124,15 @@ class SyncController extends Controller
 
         try {
             $idMap = [];
+            // Grouped by table_name, unlike $idMap above (which is flat and
+            // only used to remap foreign keys within payloads later in this
+            // same request): returned to the client as id_map so it can fix
+            // up its own local rows immediately, since a future delta pull
+            // only ever reconciles a collision if the pre-existing row it
+            // collided with happens to also appear in that pull's response
+            // (see DUPLICATE_NAME_TABLES in the client's reconcile-identity.ts)
+            // — a long-unchanged row like "DRUGS" or "COSMETICS" never will.
+            $idMapByTable = [];
 
             // stock_batches.quantity is never trusted from a client payload
             // (see the INSERT/UPDATE handling below); it is always derived
@@ -382,9 +392,10 @@ class SyncController extends Controller
                             Log::warning("Sync push skipped category insert due to duplicate name: {$payload['name']}");
                             $exists = true; // Pretend it exists to skip insertion
                             $idMap[$recordId] = $conflict->id;
+                            $idMapByTable['categories'][$recordId] = $conflict->id;
                         }
                     }
-                    
+
                     // Prevent duplicate supplier name crashes
                     if (!$exists && $change['table_name'] === 'suppliers' && !empty($payload['name'])) {
                         $conflict = $modelClass::where('name', $payload['name'])->first();
@@ -392,6 +403,7 @@ class SyncController extends Controller
                             Log::warning("Sync push skipped supplier insert due to duplicate name: {$payload['name']}");
                             $exists = true; // Pretend it exists to skip insertion
                             $idMap[$recordId] = $conflict->id;
+                            $idMapByTable['suppliers'][$recordId] = $conflict->id;
                         }
                     }
 
@@ -661,7 +673,7 @@ class SyncController extends Controller
             }
 
             DB::commit();
-            return response()->json(['success' => true, 'processed' => $processed, 'failed' => $failed]);
+            return response()->json(['success' => true, 'processed' => $processed, 'failed' => $failed, 'id_map' => $idMapByTable]);
 
         } catch (\Exception $e) {
             DB::rollBack();
@@ -805,7 +817,14 @@ class SyncController extends Controller
                 }
             }
 
-            $records = $query->limit(500)->get();
+            // 'stores' is deliberately exempt from the last_synced cursor
+            // above so the client can always treat it as a complete
+            // snapshot (see the pruning logic in the client's pull.ts) —
+            // capping it at 500 like every other (delta-filtered) table
+            // would silently contradict that for any owner with more
+            // stores than that, since a store past the cutoff would look
+            // indistinguishable from one that's genuinely gone.
+            $records = $table === 'stores' ? $query->get() : $query->limit(500)->get();
 
             $changes[$table] = $records->map(function ($item) use ($table) {
                 $array = $item->toArray();

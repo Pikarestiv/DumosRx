@@ -81,8 +81,8 @@ const MENU_GROUPS: MenuGroup[] = [
     items: [
       { href: "/settings/notifications", icon: Bell, title: "Alerts", description: "Stock & expiry warnings" },
       { href: "/settings/data", icon: Database, title: "Data & Sync", description: "Cloud backup & resets", adminOnly: true },
-      { href: "/settings/system", icon: Globe, title: "System", description: "App information & logs", adminOnly: true },
       { href: "/settings/billing", icon: CreditCard, title: "Billing", description: "Plan, payment history & referrals", adminOnly: true },
+      { href: "/settings/system", icon: Globe, title: "System", description: "App information & logs", adminOnly: true },
     ],
   },
 ];

@@ -22,8 +22,8 @@ export function CouponInput({
   handleValidateCoupon,
 }: CouponInputProps) {
   return (
-    <div className="max-w-md mx-auto mb-8 bg-muted/30 p-4 rounded-lg flex items-center gap-3 border border-muted">
-      <div className="flex-1 relative">
+    <div className="flex items-center gap-2 w-full sm:w-auto">
+      <div className="flex-1 sm:w-56 relative">
         <input
           type="text"
           placeholder="Have a coupon code?"

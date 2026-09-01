@@ -194,7 +194,7 @@ export function DashboardSidebar({
           onMouseLeave={onMouseLeave}
           className={cn(
             "hidden lg:flex fixed inset-y-0 left-0 z-50 bg-sidebar border-r border-sidebar-border transition-all duration-300 ease-in-out flex-col",
-            collapsed ? "w-[68px]" : "w-60",
+            collapsed ? "w-[68px]" : "w-48",
           )}
           style={{
             top: "var(--tauri-top, 0px)",

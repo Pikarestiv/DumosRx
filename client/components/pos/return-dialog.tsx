@@ -65,6 +65,7 @@ export function ReturnDialog({
     enabled: !!sale,
   });
   const saleItems = detailsData?.items || [];
+  const returnMutation = useProcessReturnMutation();
 
   if (!sale) return null;
 
@@ -126,8 +127,6 @@ export function ReturnDialog({
     }
     setShowConfirm(true);
   };
-
-  const returnMutation = useProcessReturnMutation();
 
   // Passed as ConfirmDialog's onConfirm, which awaits it and only closes
   // once it settles. Swallows the mutation's own rejection (already

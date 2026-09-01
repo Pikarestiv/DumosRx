@@ -11,6 +11,15 @@ vi.mock('../lib/db/core', async () => {
     execute: vi.fn().mockResolvedValue(undefined),
     query: vi.fn(),
     logAction: vi.fn().mockResolvedValue(undefined),
+    // push.ts wraps its per-batch local writes in transaction() to defer
+    // sql.js's saveDatabase() export to once per batch instead of once per
+    // statement (see push.ts). The real transaction() checks for an
+    // initialized `db` and lazily calls initDatabase() if there isn't one —
+    // this suite never sets up a real db (execute/query are mocked directly
+    // instead), so that lazy init would try to load the real wasm binary and
+    // fail. A passthrough is enough here: execute()/query() are already
+    // fully mocked and don't need real BEGIN/COMMIT semantics.
+    transaction: vi.fn((fn: () => unknown) => fn()),
   };
 });
 
@@ -342,6 +351,43 @@ describe('Sync Engine & Local Database', () => {
         (c) => (c[0] as { predicate?: unknown })?.predicate,
       );
       expect(predicateCall).toBeUndefined();
+    });
+  });
+
+  describe('sync() surfaces push failures', () => {
+    beforeEach(() => {
+      localStorage.setItem('auth_token', 'test-token');
+    });
+
+    it('reports success: false when a push batch throws, instead of a false "success" despite nothing pushing', async () => {
+      vi.mocked(query).mockImplementation(async (sql: string) => {
+        if (sql.includes('_sync_queue')) {
+          return [{
+            id: 1,
+            table_name: 'products',
+            record_id: 'p1',
+            operation: 'INSERT',
+            payload: JSON.stringify({ id: 'p1', name: 'Panadol' }),
+            created_at: '2026-08-01T00:00:00Z',
+            retry_count: 0,
+            last_error: null,
+            next_retry_at: null,
+          }];
+        }
+        return [];
+      });
+      vi.mocked(apiClient.pushChanges).mockRejectedValueOnce(new Error('Network error'));
+      vi.mocked(apiClient.pullChanges).mockResolvedValueOnce({
+        success: true,
+        changes: {},
+        server_timestamp: '2026-07-28T00:00:00Z',
+      });
+
+      const result = await sync();
+
+      expect(result.success).toBe(false);
+      expect(result.pushed).toBe(0);
+      expect(String(result.error)).toContain('1 batch');
     });
   });
 });

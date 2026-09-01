@@ -1,13 +1,13 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getAdvancedMonthlySalesData } from "@/lib/db/queries/reports";
+import { getAdvancedMonthlySalesData, type SalesFilters } from "@/lib/db/queries/reports";
 import { queryKeys } from "@/lib/query-keys";
 import type { MonthlySalesDataPoint } from "@/lib/types/analytics";
 
-export function useMonthlySalesData(dateFilter: string) {
+export function useMonthlySalesData(dateFilter: string, filters?: SalesFilters) {
   const { data: metrics } = useQuery({
-    ...queryKeys.bi.monthlySales(dateFilter),
-    queryFn: () => getAdvancedMonthlySalesData(dateFilter)
+    ...queryKeys.bi.monthlySales(dateFilter, filters?.staffId, filters?.paymentMethod),
+    queryFn: () => getAdvancedMonthlySalesData(dateFilter, filters)
   });
 
   const rawMonthlyData = metrics?.rawMonthlyData || [];

@@ -95,10 +95,10 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
   // mobile (<lg). Desktop keeps the normal dashboard chrome since the page
   // already renders as a self-contained bordered panel there.
   const isCreatePORoute = pathname.startsWith("/procurement/new");
-  // Excludes the bare "/settings" index (mobile menu list); only the inner
-  // tab detail routes ("/settings/appearance", etc.) get this treatment,
-  // since those are the ones with their own sticky mobile back-button header.
-  const isSettingsInnerRoute = pathname.startsWith("/settings/");
+  // Settings is a full-screen takeover on every breakpoint (like POS/create-PO):
+  // no app sidebar, no bottom nav, no dashboard header — settings-client.tsx
+  // renders its own back-button header instead.
+  const isSettingsRoute = pathname.startsWith("/settings");
   const [hoverExpanded, setHoverExpanded] = useState(false);
   const [userNavOpen, setUserNavOpen] = useState(false);
   const { peekEnabled } = useSidebarPeekPreference();
@@ -156,24 +156,24 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
   // create-PO uses lg: (see procurement/new/page.tsx), settings inner tabs
   // use md: (see hooks/use-settings.ts's isDesktop, which flips at 768px).
   // Using the wrong one here left settings content unpadded between 768-1023px.
-  const mainClassName = isPosRoute
-    ? ""
-    : isCreatePORoute
-      ? "p-0 lg:p-6 lg:pt-3"
-      : isSettingsInnerRoute
-        ? "p-0 md:p-6 md:pt-3"
+  const mainClassName =
+    isPosRoute || isSettingsRoute
+      ? ""
+      : isCreatePORoute
+        ? "p-0 lg:p-6 lg:pt-3"
         : "p-4 sm:p-6 sm:pt-3";
-  // Bottom-nav clearance isn't needed for POS (no bottom nav there) or the
-  // create-PO takeover (it has its own fixed footer/drawer instead).
+  // Bottom-nav clearance isn't needed for POS (no bottom nav there), the
+  // create-PO takeover (its own fixed footer/drawer instead), or settings
+  // (no bottom nav on that route either).
   const mainStyle =
-    !isPosRoute && !isCreatePORoute
+    !isPosRoute && !isCreatePORoute && !isSettingsRoute
       ? {
           paddingBottom:
             "calc(5.5rem + var(--tauri-bottom, env(safe-area-inset-bottom, 0px)))",
         }
       : undefined;
 
-  const shouldAnimate = !isPosRoute && !isCreatePORoute;
+  const shouldAnimate = !isPosRoute && !isCreatePORoute && !isSettingsRoute;
 
   const getRegisteredHandler = usePullToRefreshDispatcher();
   const { scrollRef, pullDistance, isRefreshing, threshold } =
@@ -241,19 +241,21 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
         </div>
       )}
 
-      <DashboardSidebar
-        onOpenFeedback={() => setFeedbackOpen(true)}
-        collapsed={effectiveCollapsed}
-        logicalCollapsed={isLogicallyCollapsed}
-        onToggleCollapse={handleToggleCollapse}
-        onMouseEnter={() =>
-          !isPosRoute && !isTouchDevice && peekEnabled && setHoverExpanded(true)
-        }
-        onMouseLeave={() => setHoverExpanded(false)}
-        onUserNavOpenChange={setUserNavOpen}
-      />
+      {!isSettingsRoute && (
+        <DashboardSidebar
+          onOpenFeedback={() => setFeedbackOpen(true)}
+          collapsed={effectiveCollapsed}
+          logicalCollapsed={isLogicallyCollapsed}
+          onToggleCollapse={handleToggleCollapse}
+          onMouseEnter={() =>
+            !isPosRoute && !isTouchDevice && peekEnabled && setHoverExpanded(true)
+          }
+          onMouseLeave={() => setHoverExpanded(false)}
+          onUserNavOpenChange={setUserNavOpen}
+        />
+      )}
 
-      {!isPosRoute && !isCreatePORoute && (
+      {!isPosRoute && !isCreatePORoute && !isSettingsRoute && (
         <MobileBottomNav
           onOpenFeedback={() => setFeedbackOpen(true)}
           moreDrawerOpen={moreDrawerOpen}
@@ -268,15 +270,23 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
       <div
         className={cn(
           "flex flex-col overflow-hidden transition-all duration-300",
-          contentCollapsed ? "lg:pl-[68px]" : "lg:pl-60",
+          isSettingsRoute
+            ? ""
+            : contentCollapsed
+              ? "lg:pl-[68px]"
+              : "lg:pl-48",
         )}
         style={{
           height: "100dvh",
-          // On POS routes there's no header to carry the inset, so keep it here.
-          // Elsewhere it moves onto the banner/header block below so its own
-          // background (not this wrapper's, which can be a different shade)
-          // paints all the way up under the status bar, avoiding a seam.
-          paddingTop: isPosRoute ? "var(--tauri-top, 0px)" : undefined,
+          // On POS/settings routes there's no header to carry the inset, so
+          // keep it here. Elsewhere it moves onto the banner/header block
+          // below so its own background (not this wrapper's, which can be a
+          // different shade) paints all the way up under the status bar,
+          // avoiding a seam.
+          paddingTop:
+            isPosRoute || isSettingsRoute
+              ? "var(--tauri-top, 0px)"
+              : undefined,
         }}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
@@ -287,12 +297,15 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
             isCreatePORoute && "hidden lg:block",
           )}
           style={{
-            paddingTop: !isPosRoute ? "var(--tauri-top, 0px)" : undefined,
+            paddingTop:
+              !isPosRoute && !isSettingsRoute
+                ? "var(--tauri-top, 0px)"
+                : undefined,
           }}
         >
           <ImpersonationBanner />
           <BroadcastBanner />
-          {!isPosRoute && (
+          {!isPosRoute && !isSettingsRoute && (
             <DashboardHeader onOpenFeedback={() => setFeedbackOpen(true)} />
           )}
         </div>

@@ -8,6 +8,7 @@
 export * from "./core";
 export * from "./base-helpers";
 export * from "./procurement";
+export * from "./procurement-receiving";
 export * from "./schema";
 
 import { query, execute, transaction, getActiveStoreId } from "./core";

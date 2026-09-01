@@ -8,6 +8,7 @@ import {
   fetchCustomerReportData,
   fetchExpensesReportData,
   fetchTopSellersReportData,
+  type SalesFilters,
 } from "@/lib/db/queries/reports";
 import { useStore } from "@/lib/context/store-context";
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
@@ -35,6 +36,7 @@ const REPORT_CONFIG = {
     headers: ["Transaction #", "Date", "Customer", "Payment Method", "Subtotal", "Tax", "Discount", "Total", "Refunded", "Net Total", "Status"],
     dateColumns: ["Date"],
     takesDateRange: true,
+    takesSalesFilters: true,
   },
   stock_batches: {
     label: "Inventory Valuation Report",
@@ -43,6 +45,7 @@ const REPORT_CONFIG = {
     headers: ["Product", "Generic Name", "Form", "Strength", "Stock Qty", "Reorder Level", "Cost Price", "Selling Price", "Stock Value", "Nearest Expiry"],
     dateColumns: ["Nearest Expiry"],
     takesDateRange: false,
+    takesSalesFilters: false,
   },
   "profit-loss": {
     label: "Profit & Loss",
@@ -51,6 +54,7 @@ const REPORT_CONFIG = {
     headers: ["Month", "Revenue", "COGS", "Gross Profit", "Expenses", "Net Profit", "Margin %"],
     dateColumns: [],
     takesDateRange: true,
+    takesSalesFilters: true,
   },
   customers: {
     label: "Customer Report",
@@ -59,6 +63,7 @@ const REPORT_CONFIG = {
     headers: ["Name", "Phone", "Email", "Loyalty Points", "Outstanding Balance", "Credit Limit", "Total Purchases", "Total Spent", "Last Purchase"],
     dateColumns: ["Last Purchase"],
     takesDateRange: false,
+    takesSalesFilters: false,
   },
   expenses: {
     label: "Expenses Report",
@@ -67,6 +72,7 @@ const REPORT_CONFIG = {
     headers: ["Date", "Category", "Description", "Vendor", "Amount", "Payment Method", "Reference"],
     dateColumns: ["Date"],
     takesDateRange: true,
+    takesSalesFilters: false,
   },
   top_sellers: {
     label: "Top Sellers Report",
@@ -75,6 +81,7 @@ const REPORT_CONFIG = {
     headers: ["Product", "Category", "Qty Sold", "Revenue", "Avg Price"],
     dateColumns: [],
     takesDateRange: true,
+    takesSalesFilters: true,
   },
 } as const;
 
@@ -120,11 +127,13 @@ export function useReportExport() {
   const { storeProfile } = useStore();
 
   const getRows = useCallback(
-    async (reportId: ReportId, dateFrom?: string, dateTo?: string) => {
+    async (reportId: ReportId, dateFrom?: string, dateTo?: string, filters?: SalesFilters) => {
       const config = REPORT_CONFIG[reportId];
-      const rows = await (config.takesDateRange
-        ? (config.fetch as (from?: string, to?: string) => Promise<Record<string, unknown>[]>)(dateFrom, dateTo)
-        : (config.fetch as () => Promise<Record<string, unknown>[]>)());
+      const rows = await (config.takesSalesFilters
+        ? (config.fetch as (from?: string, to?: string, filters?: SalesFilters) => Promise<Record<string, unknown>[]>)(dateFrom, dateTo, filters)
+        : config.takesDateRange
+          ? (config.fetch as (from?: string, to?: string) => Promise<Record<string, unknown>[]>)(dateFrom, dateTo)
+          : (config.fetch as () => Promise<Record<string, unknown>[]>)());
 
       // The DB stores these as raw date/datetime strings; format them
       // consistently (dd/mm/yyyy) instead of leaking whatever precision
@@ -147,9 +156,9 @@ export function useReportExport() {
   );
 
   const exportReportCsv = useCallback(
-    async (reportId: ReportId, dateFrom?: string, dateTo?: string) => {
+    async (reportId: ReportId, dateFrom?: string, dateTo?: string, filters?: SalesFilters) => {
       const config = REPORT_CONFIG[reportId];
-      const rows = await getRows(reportId, dateFrom, dateTo);
+      const rows = await getRows(reportId, dateFrom, dateTo, filters);
       const csv = formatCsv(config.headers as unknown as string[], rows);
       const dateStr = new Date().toISOString().slice(0, 10);
       const filename = `${config.filenamePrefix}_${dateStr}.csv`;
@@ -160,9 +169,9 @@ export function useReportExport() {
   );
 
   const buildReportPdfBlob = useCallback(
-    async (reportId: ReportId, dateFrom?: string, dateTo?: string) => {
+    async (reportId: ReportId, dateFrom?: string, dateTo?: string, filters?: SalesFilters) => {
       const config = REPORT_CONFIG[reportId];
-      const rows = await getRows(reportId, dateFrom, dateTo);
+      const rows = await getRows(reportId, dateFrom, dateTo, filters);
       const subtitle =
         dateFrom && dateTo
           ? `${formatDateToDDMMYYYY(dateFrom)} – ${formatDateToDDMMYYYY(dateTo)}`
@@ -179,9 +188,9 @@ export function useReportExport() {
   );
 
   const downloadReportPdf = useCallback(
-    async (reportId: ReportId, dateFrom?: string, dateTo?: string) => {
+    async (reportId: ReportId, dateFrom?: string, dateTo?: string, filters?: SalesFilters) => {
       const config = REPORT_CONFIG[reportId];
-      const blob = await buildReportPdfBlob(reportId, dateFrom, dateTo);
+      const blob = await buildReportPdfBlob(reportId, dateFrom, dateTo, filters);
       const dateStr = new Date().toISOString().slice(0, 10);
       const filename = `${config.filenamePrefix}_${dateStr}.pdf`;
       const bytes = downloadBlob(blob, filename);
@@ -191,8 +200,8 @@ export function useReportExport() {
   );
 
   const printReport = useCallback(
-    async (reportId: ReportId, dateFrom?: string, dateTo?: string) => {
-      const blob = await buildReportPdfBlob(reportId, dateFrom, dateTo);
+    async (reportId: ReportId, dateFrom?: string, dateTo?: string, filters?: SalesFilters) => {
+      const blob = await buildReportPdfBlob(reportId, dateFrom, dateTo, filters);
       openBlobForPrint(blob);
     },
     [buildReportPdfBlob],

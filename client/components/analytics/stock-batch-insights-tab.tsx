@@ -16,6 +16,7 @@ import {
   ChartTooltipContent
 } from "@/components/ui/chart";
 import type { CategoryDistributionItem } from "@/lib/types/analytics";
+import { EmptyReportState } from "@/components/reports/empty-report-state";
 
 const chartConfig = {
   stock_batch: {
@@ -38,16 +39,6 @@ interface StockBatchAlert {
 interface StockBatchInsightsTabProps {
   stock_batchAlerts: StockBatchAlert[];
   salesByCategory: CategoryDistributionItem[];
-}
-
-function NoCategorySalesData() {
-  return (
-    <div className="flex flex-col items-center justify-center h-[200px] text-muted-foreground">
-      <PieChart className="h-10 w-10 opacity-20 mb-3" />
-      <p className="font-semibold text-[13.5px]">No data yet</p>
-      <p className="text-[12px] mt-1">Record some sales to see category breakdown.</p>
-    </div>
-  );
 }
 
 export function StockBatchInsightsTab({
@@ -113,7 +104,7 @@ export function StockBatchInsightsTab({
         </div>
 
         {salesByCategory.length === 0 ? (
-          <NoCategorySalesData />
+          <EmptyReportState icon={PieChart} title="No data yet" description="Record some sales to see the category breakdown." className="h-[200px] justify-center" />
         ) : (
           <div className="h-[200px] w-full">
             <ChartContainer config={chartConfig} className="h-full w-full">

@@ -16,12 +16,12 @@ vi.mock("idb-keyval", () => ({
 describe("createAndReceivePurchaseOrder", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");
-  let createAndReceivePurchaseOrder: typeof import("@/lib/db/procurement").createAndReceivePurchaseOrder;
+  let createAndReceivePurchaseOrder: typeof import("@/lib/db/procurement-receiving").createAndReceivePurchaseOrder;
 
   beforeAll(async () => {
     core = await import("@/lib/db/core");
-    const procurement = await import("@/lib/db/procurement");
-    createAndReceivePurchaseOrder = procurement.createAndReceivePurchaseOrder;
+    const procurementReceiving = await import("@/lib/db/procurement-receiving");
+    createAndReceivePurchaseOrder = procurementReceiving.createAndReceivePurchaseOrder;
 
     const SQL = await initSqlJs({
       locateFile: () => require.resolve("sql.js/dist/sql-wasm.wasm"),

@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { Card } from "@/components/ui/card";
-import { PieChart, LucideIcon } from "lucide-react";
+import { PieChart } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 import {
   ChartContainer,
@@ -13,15 +13,7 @@ import type { MonthlySalesDataPoint, CategoryDistributionItem } from "@/lib/type
 import { getCurrencySymbol } from "@/lib/utils";
 import { useStore } from "@/lib/context/store-context";
 import { ProductPerformanceTable, type ProductPerformanceRow } from "./product-performance-table";
-
-function NoPeriodSalesData({ icon: Icon }: { icon: LucideIcon }) {
-  return (
-    <div className="flex flex-col items-center py-8 text-[13px] text-muted-foreground">
-      <Icon className="h-8 w-8 opacity-20 mb-2" />
-      No sales data available for this period.
-    </div>
-  );
-}
+import { EmptyReportState } from "@/components/reports/empty-report-state";
 
 interface SalesAnalyticsTabProps {
   monthlySalesData: MonthlySalesDataPoint[];
@@ -104,7 +96,7 @@ export function SalesAnalyticsTab({
         </div>
 
         {categoryDistribution.length === 0 ? (
-          <NoPeriodSalesData icon={PieChart} />
+          <EmptyReportState icon={PieChart} description="No sales data available for the selected filters." />
         ) : (
           <div className="flex flex-col gap-3.5">
             {categoryDistribution.map((category, index) => (

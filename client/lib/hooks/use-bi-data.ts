@@ -1,48 +1,39 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
+import { subDays } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
 import { useStockBatchAlerts } from "./use-stock-batch-alerts";
 import { usePurchasePatterns } from "./use-purchase-patterns";
 import { useMonthlySalesData } from "./use-monthly-sales-data";
-import { getBIMetrics } from "@/lib/db/queries/reports";
+import { getBIMetrics, type SalesFilters } from "@/lib/db/queries/reports";
 import { queryKeys } from "@/lib/query-keys";
 import { formatCurrency } from "@/lib/utils";
 import { useStore } from "@/lib/context/store-context";
+import type { DateRangeValue } from "@/components/ui/date-range-picker";
 
-export function useBIData(externalTimeRange?: string) {
+/** @param dateRange - defaults to the last 180 days when `from` is unset.
+ * The previous-period comparison window is the same length immediately
+ * before `from` (e.g. a 30-day range compares against the 30 days before
+ * that), matching the old fixed-bucket behavior this replaces. */
+export function useBIData(dateRange?: DateRangeValue, filters?: SalesFilters) {
   const { storeProfile } = useStore();
   const currencyCode = storeProfile?.currency;
-  const [internalTimeRange, setInternalTimeRange] = useState("6months");
-  const timeRange = externalTimeRange || internalTimeRange;
 
   const { dateFilter, prevDateFilter } = useMemo(() => {
     const now = new Date();
-    const filterDate = new Date();
-    const prevDate = new Date();
-
-    let days = 30;
-    if (timeRange === "7d") days = 7;
-    else if (timeRange === "30d") days = 30;
-    else if (timeRange === "90d") days = 90;
-    else if (timeRange === "1y") days = 365;
-    else if (timeRange === "1month") days = 30;
-    else if (timeRange === "3months") days = 90;
-    else if (timeRange === "6months") days = 180;
-    else if (timeRange === "1year") days = 365;
-
-    filterDate.setDate(now.getDate() - days);
-    prevDate.setDate(now.getDate() - days * 2);
-
+    const from = dateRange?.from ? new Date(dateRange.from) : subDays(now, 180);
+    const windowMs = Math.max(now.getTime() - from.getTime(), 1);
+    const prev = new Date(from.getTime() - windowMs);
     return {
-      dateFilter: filterDate.toISOString(),
-      prevDateFilter: prevDate.toISOString(),
+      dateFilter: from.toISOString(),
+      prevDateFilter: prev.toISOString(),
     };
-  }, [timeRange]);
+  }, [dateRange?.from]);
 
   const { data: metrics } = useQuery({
-    ...queryKeys.bi.metrics(dateFilter, prevDateFilter),
-    queryFn: () => getBIMetrics(dateFilter, prevDateFilter)
+    ...queryKeys.bi.metrics(dateFilter, prevDateFilter, filters?.staffId, filters?.paymentMethod),
+    queryFn: () => getBIMetrics(dateFilter, prevDateFilter, filters)
   });
 
   // Gross Sales: list-price total before discount, tax, or refunds.
@@ -100,7 +91,7 @@ export function useBIData(externalTimeRange?: string) {
     prevAvgTransaction,
   );
 
-  const monthlySalesData = useMonthlySalesData(dateFilter);
+  const monthlySalesData = useMonthlySalesData(dateFilter, filters);
 
   const topSellingProducts = useMemo(
     () => ({
@@ -139,7 +130,7 @@ export function useBIData(externalTimeRange?: string) {
   }, [categoryDistribution]);
 
   const stock_batchAlerts = useStockBatchAlerts();
-  const purchasePatterns = usePurchasePatterns(dateFilter);
+  const purchasePatterns = usePurchasePatterns(dateFilter, filters);
 
   const liveCustomerMetrics = useMemo(
     () => [
@@ -182,7 +173,6 @@ export function useBIData(externalTimeRange?: string) {
   );
 
   return {
-    timeRange,
     grossSales,
     netSales,
     totalRevenue,
@@ -208,6 +198,5 @@ export function useBIData(externalTimeRange?: string) {
     stock_batchAlerts,
     purchasePatterns,
     liveCustomerMetrics,
-    setInternalTimeRange,
   };
 }

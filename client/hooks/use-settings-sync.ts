@@ -105,6 +105,7 @@ export function useSettingsSync(
         try {
           await restoreDatabase(new Uint8Array(result));
           toast.success("Database restored successfully. Page will reload.");
+          setTimeout(() => window.location.reload(), 1500);
         } catch (err) {
           toast.error("Failed to restore database. Invalid file?");
         }

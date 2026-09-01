@@ -12,20 +12,18 @@ export function BillingSettings() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-black tracking-tight">Subscription & Billing</h1>
-        <p className="text-muted-foreground">Manage your plan, payment methods, and referrals</p>
-      </div>
-
       <SubscriptionStatusAlert subStatus={subStatus} />
 
       <Tabs defaultValue="subscription" className="space-y-6">
-        <TabsList>
+        <TabsList className="w-full md:w-max">
           <TabsTrigger value="subscription">My Subscription</TabsTrigger>
+          <TabsTrigger value="history">Billing History</TabsTrigger>
           <TabsTrigger value="referrals">Referral Program</TabsTrigger>
         </TabsList>
         <TabsContent value="subscription" className="space-y-6">
           <SubscriptionPlans />
+        </TabsContent>
+        <TabsContent value="history">
           <BillingHistory />
         </TabsContent>
         <TabsContent value="referrals">

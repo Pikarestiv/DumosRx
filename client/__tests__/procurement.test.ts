@@ -24,17 +24,18 @@ describe("procurement.ts", () => {
   let getPurchaseOrderItemsForDetail: typeof import("@/lib/db/procurement").getPurchaseOrderItemsForDetail;
   let createPurchaseOrder: typeof import("@/lib/db/procurement").createPurchaseOrder;
   let updatePurchaseOrder: typeof import("@/lib/db/procurement").updatePurchaseOrder;
-  let createAndReceivePurchaseOrder: typeof import("@/lib/db/procurement").createAndReceivePurchaseOrder;
+  let createAndReceivePurchaseOrder: typeof import("@/lib/db/procurement-receiving").createAndReceivePurchaseOrder;
 
   beforeAll(async () => {
     core = await import("@/lib/db/core");
     const procurement = await import("@/lib/db/procurement");
+    const procurementReceiving = await import("@/lib/db/procurement-receiving");
     getSuppliers = procurement.getSuppliers;
     getPurchaseOrders = procurement.getPurchaseOrders;
     getPurchaseOrderItemsForDetail = procurement.getPurchaseOrderItemsForDetail;
     createPurchaseOrder = procurement.createPurchaseOrder;
     updatePurchaseOrder = procurement.updatePurchaseOrder;
-    createAndReceivePurchaseOrder = procurement.createAndReceivePurchaseOrder;
+    createAndReceivePurchaseOrder = procurementReceiving.createAndReceivePurchaseOrder;
 
     const SQL = await initSqlJs({
       locateFile: () => require.resolve("sql.js/dist/sql-wasm.wasm"),

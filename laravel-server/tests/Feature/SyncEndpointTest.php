@@ -674,4 +674,211 @@ class SyncEndpointTest extends TestCase
             'email' => null,
         ]);
     }
+
+    /**
+     * Regression test: when a pushed category's name collides with one that
+     * already exists, the INSERT is silently skipped and the id remap used
+     * to only live in $idMap's in-request memory (see push()'s duplicate-name
+     * handling) — never reaching the client, which left any product pushed
+     * in a later request permanently unable to satisfy its category_id
+     * foreign key. The response must report the remap via id_map so the
+     * client can fix up its own local rows immediately.
+     */
+    public function test_push_sync_reports_id_map_for_duplicate_category_name()
+    {
+        // Category uses HasUuids, which assigns its own id on creation
+        // regardless of what's passed in — read the real id back afterward
+        // rather than assuming an explicitly-passed one sticks.
+        $existingCategory = \App\Models\Category::create([
+            'name' => 'DRUGS',
+            'user_id' => $this->user->id,
+        ]);
+        $existingCategoryId = $existingCategory->id;
+
+        $localCategoryId = (string) \Illuminate\Support\Str::uuid();
+        $payload = [
+            'setup' => true,
+            'changes' => [
+                [
+                    'table_name' => 'categories',
+                    'operation' => 'INSERT',
+                    'record_id' => $localCategoryId,
+                    'payload' => [
+                        'id' => $localCategoryId,
+                        'name' => 'DRUGS',
+                        '_synced' => 0,
+                    ],
+                ],
+            ],
+        ];
+
+        $response = $this->actingAs($this->user)->postJson('/api/v1/app/sync/push', $payload);
+
+        $response->assertStatus(200);
+        $response->assertJson([
+            'success' => true,
+            'id_map' => [
+                'categories' => [
+                    $localCategoryId => $existingCategoryId,
+                ],
+            ],
+        ]);
+
+        // No second row was created for the colliding name.
+        $this->assertDatabaseMissing('categories', ['id' => $localCategoryId]);
+        $this->assertDatabaseCount('categories', 1);
+    }
+
+    /**
+     * Regression test for a real report: the client's local SQLite schema
+     * has always had purchase_orders.type (see client/lib/db/schema.ts), but
+     * no server migration ever added it here, so every purchase order push
+     * failed with "Unknown column 'type'" (SQLSTATE 42S22) — confirmed via a
+     * real sync failure log predating this fix.
+     */
+    public function test_push_sync_handles_purchase_order_insert_with_type_column()
+    {
+        $supplierId = (string) \Illuminate\Support\Str::uuid();
+        DB::table('suppliers')->insert([
+            'id' => $supplierId,
+            'user_id' => $this->user->id,
+            'name' => 'Test Supplier',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $poId = (string) \Illuminate\Support\Str::uuid();
+        $payload = [
+            'setup' => true,
+            'changes' => [
+                [
+                    'table_name' => 'purchase_orders',
+                    'operation' => 'INSERT',
+                    'record_id' => $poId,
+                    'payload' => [
+                        'id' => $poId,
+                        'order_number' => 'PO-TEST-001',
+                        'supplier_id' => $supplierId,
+                        'status' => 'pending',
+                        'type' => 'standard',
+                        'payment_status' => 'unpaid',
+                        'amount_paid' => 0,
+                        'total_amount' => 78000,
+                        'ordered_by' => $this->user->id,
+                        'order_date' => now()->toDateTimeString(),
+                        '_synced' => 0,
+                    ],
+                ],
+            ],
+        ];
+
+        $response = $this->actingAs($this->user)->postJson('/api/v1/app/sync/push', $payload);
+
+        $response->assertStatus(200);
+        $response->assertJsonCount(0, 'failed');
+
+        $this->assertDatabaseHas('purchase_orders', [
+            'id' => $poId,
+            'order_number' => 'PO-TEST-001',
+            'type' => 'standard',
+        ]);
+    }
+
+    /**
+     * Regression test for a real report: the client's local SQLite schema
+     * has always allowed purchase_orders.supplier_id to be null (see
+     * client/lib/db/schema.ts), and the app permits creating a purchase
+     * order before a supplier is picked. The server's column was NOT NULL,
+     * so any such purchase order failed to sync with "Column supplier_id
+     * cannot be null" (SQLSTATE 23000) — confirmed via a real sync failure
+     * log for a purchase order created without a supplier.
+     */
+    public function test_push_sync_handles_purchase_order_insert_without_supplier()
+    {
+        $poId = (string) \Illuminate\Support\Str::uuid();
+        $payload = [
+            'setup' => true,
+            'changes' => [
+                [
+                    'table_name' => 'purchase_orders',
+                    'operation' => 'INSERT',
+                    'record_id' => $poId,
+                    'payload' => [
+                        'id' => $poId,
+                        'order_number' => 'PO-TEST-002',
+                        'supplier_id' => null,
+                        'status' => 'pending',
+                        'type' => 'standard',
+                        'payment_status' => 'unpaid',
+                        'amount_paid' => 0,
+                        'total_amount' => 78000,
+                        'ordered_by' => $this->user->id,
+                        'order_date' => now()->toDateTimeString(),
+                        '_synced' => 0,
+                    ],
+                ],
+            ],
+        ];
+
+        $response = $this->actingAs($this->user)->postJson('/api/v1/app/sync/push', $payload);
+
+        $response->assertStatus(200);
+        $response->assertJsonCount(0, 'failed');
+
+        $this->assertDatabaseHas('purchase_orders', [
+            'id' => $poId,
+            'order_number' => 'PO-TEST-002',
+            'supplier_id' => null,
+        ]);
+    }
+
+    /**
+     * Regression test found via a critical review of the client's sync
+     * engine: pull() capped every table, including 'stores', at
+     * ->limit(500). The client's pull.ts prunes any local store absent from
+     * the 'stores' response on the assumption that it's always a complete,
+     * unfiltered snapshot (see the comment there) — true for every other
+     * table's row count in practice, but an owner with more than 500 stores
+     * would have gotten a silently truncated list, making stores past the
+     * cutoff indistinguishable from ones that were actually deleted.
+     */
+    public function test_pull_sync_returns_more_than_500_stores()
+    {
+        // A user with no store_id set is treated as the "pure owner" whose
+        // 'stores' query resolves every store they own (see pull()'s
+        // 'stores' => whereIn(..., $user->store_id ? $storeIds : Store::
+        // where('user_id', $ownerId)->...) branch) — unlike $this->user from
+        // setUp(), which already has store_id set to its own primary store
+        // and would instead be narrowed to just that one store, a separate,
+        // pre-existing scoping nuance unrelated to this fix.
+        $owner = User::create([
+            'first_name' => 'Multi',
+            'last_name' => 'Owner',
+            'email' => 'multi-owner@dumosrx.com',
+            'password' => bcrypt('password'),
+            'role' => 'admin',
+        ]);
+
+        for ($i = 0; $i < 502; $i++) {
+            DB::table('stores')->insert([
+                'id' => (string) \Illuminate\Support\Str::uuid(),
+                'user_id' => $owner->id,
+                'name' => "Store {$i}",
+                'email' => "store{$i}@dumosrx.com",
+                'phone' => '1234567890',
+                'address' => '123 Test St',
+                'store_slug' => "store-{$i}",
+                'device_id' => "WEB-TEST-{$i}",
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        $response = $this->actingAs($owner)->postJson('/api/v1/app/sync/pull', [
+            'last_synced' => [],
+        ]);
+
+        $response->assertStatus(200);
+        $this->assertCount(502, $response->json('changes.stores'));
+    }
 }

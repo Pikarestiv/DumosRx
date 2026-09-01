@@ -1,29 +1,8 @@
-import { query, execute } from "../core";
-import { isTauri } from "../local-database";
+import { query, execute, transaction, STORE_SCOPED_TABLES } from "../core";
 import { apiClient } from "@/lib/api/client";
 import { PullResponse } from "./types";
 import { getValidColumns } from "./schema";
-import { remapForeignKey } from "../reconcile-identity";
-
-/**
- * Tables whose server-side push handling silently skips an INSERT when the
- * name collides with an existing row for the same owner (see
- * SyncController::push's "duplicate name" handling for categories and
- * suppliers) rather than creating a second row, but that skip's id-remap
- * only lives in the memory of that single push request. A local row created
- * before this reconciliation runs is otherwise permanently unresolvable:
- * every later push retries the same insert, gets skipped again, and
- * anything referencing it by the old local id keeps failing its foreign
- * key check forever.
- */
-const DUPLICATE_NAME_TABLES: Record<string, { table: string; column: string }[]> = {
-  categories: [{ table: "products", column: "category_id" }],
-  suppliers: [
-    { table: "stock_batches", column: "supplier_id" },
-    { table: "purchase_orders", column: "supplier_id" },
-    { table: "supplier_payments", column: "supplier_id" },
-  ],
-};
+import { remapForeignKey, DUPLICATE_NAME_TABLES, columnExists } from "../reconcile-identity";
 
 /**
  * Pull changes from server
@@ -43,10 +22,21 @@ export async function pullChanges(
       last_synced_at: string;
     }>("SELECT table_name, last_synced_at FROM _sync_state");
 
-    // Map to object { table: timestamp }
+    // Map to object { table: timestamp }. Tables in DUPLICATE_NAME_TABLES
+    // (categories, suppliers) are deliberately never given a cursor here: the
+    // server's pull() treats a table missing from last_synced as "return
+    // everything" (see SyncController::pull), and the duplicate-name
+    // reconciliation below can only fix a collision if the pre-existing row
+    // it collided with is actually present in this response. A normal delta
+    // pull (updated_at > last_synced) would never re-surface a long-unchanged
+    // row like "DRUGS", permanently hiding the collision from every future
+    // sync. Categories/suppliers are small collections by nature — tens,
+    // rarely hundreds — so always fetching them in full costs nothing.
     const lastSyncedMap = syncState.reduce(
       (acc, row) => {
-        acc[row.table_name] = row.last_synced_at;
+        if (!(row.table_name in DUPLICATE_NAME_TABLES)) {
+          acc[row.table_name] = row.last_synced_at;
+        }
         return acc;
       },
       {} as Record<string, string>
@@ -67,17 +57,15 @@ export async function pullChanges(
     }
 
     let pulledCount = 0;
+    const updatedTables: string[] = [];
 
-    // Apply changes transactionally
-    try {
-      const rawDb = isTauri() ? null : (await import("../core")).getDatabase();
-
-      if (!isTauri() && rawDb) {
-        rawDb.run("BEGIN");
-      }
-
-      const updatedTables: string[] = [];
-
+    // transaction() wraps this in BEGIN/COMMIT/ROLLBACK on both platforms
+    // (unlike the manual sql.js-only rawDb.run("BEGIN") this replaced, which
+    // left Tauri writes here fully unguarded — a mid-loop failure committed
+    // everything applied so far with no rollback) and defers sql.js's
+    // (expensive, whole-database) saveDatabase() export to once at commit
+    // instead of once per execute() call.
+    await transaction(async () => {
       for (const [table, records] of Object.entries(changes)) {
         if (!Array.isArray(records)) continue;
         if (records.length > 0) {
@@ -156,11 +144,7 @@ export async function pullChanges(
             ];
 
             try {
-              if (isTauri()) {
-                await execute(sql, params);
-              } else if (rawDb) {
-                rawDb.run(sql, params);
-              }
+              await execute(sql, params);
             } catch (err) {
               const errMsg =
                 typeof err === "string" ? err : err instanceof Error ? err.message : String(err);
@@ -194,11 +178,7 @@ export async function pullChanges(
             ];
 
             try {
-              if (isTauri()) {
-                await execute(sql, params);
-              } else if (rawDb) {
-                rawDb.run(sql, params);
-              }
+              await execute(sql, params);
             } catch (err) {
               const errMsg =
                 typeof err === "string" ? err : err instanceof Error ? err.message : String(err);
@@ -236,22 +216,35 @@ export async function pullChanges(
           // device's local history is actually attributed to (e.g. the
           // original pre-cloud-link store on a device, before it was ever
           // reconciled with a server-side account). Losing visibility into
-          // real products/sales is a far worse outcome than a stale entry
-          // lingering in the switcher, so this only prunes stores that are
-          // genuinely empty locally.
+          // real data is a far worse outcome than a stale entry lingering
+          // in the switcher, so this only prunes stores that are genuinely
+          // empty locally — checked against every store-scoped table, not
+          // just products/sales: a store whose only local data is, say,
+          // expenses or customers deserves the exact same protection.
+          // Most STORE_SCOPED_TABLES only gain their store_id column via
+          // initDatabase()'s runtime ALTER TABLE migration, not the base
+          // schema (see core.ts) — a device that hasn't run that migration
+          // yet (or a test harness that bypasses it) would make this query
+          // throw "no such column: store_id", rolling back the whole pull
+          // transaction rather than just skipping the prune check for that
+          // one table.
+          const scopedTablesWithStoreId: string[] = [];
+          for (const t of STORE_SCOPED_TABLES) {
+            if (await columnExists(t, "store_id")) {
+              scopedTablesWithStoreId.push(t);
+            }
+          }
+          const noDataClauses = scopedTablesWithStoreId.map(
+            (t) => `AND id NOT IN (SELECT DISTINCT store_id FROM ${t} WHERE store_id IS NOT NULL)`,
+          ).join("\n              ");
           const pruneSql = `
             UPDATE stores SET _deleted = 1
             WHERE _deleted = 0
               AND id NOT IN (${placeholders})
-              AND id NOT IN (SELECT DISTINCT store_id FROM products WHERE store_id IS NOT NULL)
-              AND id NOT IN (SELECT DISTINCT store_id FROM sales WHERE store_id IS NOT NULL)
+              ${noDataClauses}
           `;
 
-          if (isTauri()) {
-            await execute(pruneSql, serverStoreIds);
-          } else if (rawDb) {
-            rawDb.run(pruneSql, serverStoreIds);
-          }
+          await execute(pruneSql, serverStoreIds);
         }
 
         if (DUPLICATE_NAME_TABLES[table] && records.length > 0) {
@@ -271,59 +264,28 @@ export async function pullChanges(
             const matchedServerId = serverIdByName.get(String(row.name ?? "").trim().toLowerCase());
             if (!matchedServerId || matchedServerId === row.id) continue;
 
-            await remapForeignKey(row.id, matchedServerId, DUPLICATE_NAME_TABLES[table], (sql, params) => {
-              if (isTauri()) {
-                return execute(sql, params);
-              } else if (rawDb) {
-                rawDb.run(sql, params);
-              }
-            });
+            await remapForeignKey(row.id, matchedServerId, DUPLICATE_NAME_TABLES[table]);
 
             // The local duplicate is now redundant: every reference points
             // at the server's row instead. Soft-delete it rather than leave
             // an orphaned, unreferenced duplicate in the local table.
-            const deleteSql = `UPDATE ${table} SET _deleted = 1 WHERE id = ?`;
-            if (isTauri()) {
-              await execute(deleteSql, [row.id]);
-            } else if (rawDb) {
-              rawDb.run(deleteSql, [row.id]);
-            }
+            await execute(`UPDATE ${table} SET _deleted = 1 WHERE id = ?`, [row.id]);
           }
         }
 
         if (!anySkipped) {
-          const syncSql =
-            "INSERT OR REPLACE INTO _sync_state (table_name, last_synced_at) VALUES (?, ?)";
-          const syncParams = [table, server_timestamp];
-
-          if (isTauri()) {
-            await execute(syncSql, syncParams);
-          } else if (rawDb) {
-            rawDb.run(syncSql, syncParams);
-          }
+          await execute(
+            "INSERT OR REPLACE INTO _sync_state (table_name, last_synced_at) VALUES (?, ?)",
+            [table, server_timestamp],
+          );
         }
       }
-
-      if (!isTauri() && rawDb) {
-        rawDb.run("COMMIT");
-        (await import("../core")).saveDatabase();
-      }
-
-      return { pulled: pulledCount, updatedTables };
-    } catch (err) {
+    }).catch((err) => {
       console.error("Failed to apply pull changes:", err);
-      try {
-        const rawDb = isTauri() ? null : (await import("../core")).getDatabase();
-        if (!isTauri() && rawDb) {
-          rawDb.run("ROLLBACK");
-        }
-      } catch (_rollbackErr) {
-        // Silently fail rollback
-      }
       throw err;
-    }
+    });
 
-    return { pulled: pulledCount, updatedTables: [] }; // fallback if it reaches here
+    return { pulled: pulledCount, updatedTables };
   } catch (error) {
     console.error("Pull sync failed:", error);
     throw error; // Throw so sync() can catch it properly

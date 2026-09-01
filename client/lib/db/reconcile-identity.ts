@@ -17,6 +17,23 @@ import { execute, query, transaction, STORE_SCOPED_TABLES } from "./core";
  * normal app flow.
  */
 
+/**
+ * Tables whose server-side push handling silently skips an INSERT when the
+ * name collides with an existing row for the same owner (see
+ * SyncController::push's "duplicate name" handling for categories and
+ * suppliers) rather than creating a second row. Shared by pull.ts's ongoing
+ * delta-pull reconciliation and push.ts's immediate id_map-based fixup
+ * (see PushResponse.id_map in sync-engine/types.ts).
+ */
+export const DUPLICATE_NAME_TABLES: Record<string, { table: string; column: string }[]> = {
+  categories: [{ table: "products", column: "category_id" }],
+  suppliers: [
+    { table: "stock_batches", column: "supplier_id" },
+    { table: "purchase_orders", column: "supplier_id" },
+    { table: "supplier_payments", column: "supplier_id" },
+  ],
+};
+
 /** Tables + column(s) that can hold a reference to the acting user's id. */
 const USER_REFERENCING_COLUMNS: { table: string; column: string }[] = [
   { table: "sales", column: "user_id" },
@@ -58,41 +75,48 @@ export interface ReconcileIdentityResult {
  * a fresh INSERT queue entry for any such row so it's picked up on the next
  * push, using the row's current column values as the payload (matching the
  * shape `insert()` in base-helpers.ts already produces).
+ *
+ * Deliberately does NOT open its own transaction(): its only caller,
+ * remapForeignKey(), is itself always invoked from inside pull.ts's or
+ * push.ts's own transaction() block. transaction() has no reliable way to
+ * tell a genuinely-nested call (safe to run inline) apart from two merely
+ * concurrent, unrelated top-level calls (which must never share one
+ * BEGIN/COMMIT — see transaction()'s own comment for the bug that caused),
+ * so keeping this the one and only nested call site lets transaction()
+ * queue every top-level call unconditionally instead of guessing.
  */
 export async function requeueOrphanedRows(
   tables: string[],
 ): Promise<Record<string, number>> {
   const requeued: Record<string, number> = {};
 
-  await transaction(async () => {
-    for (const table of tables) {
-      const rows = await query<Record<string, unknown>>(
-        `SELECT * FROM ${table}
-         WHERE (_synced = 0 OR _synced IS NULL)
-           AND (_deleted = 0 OR _deleted IS NULL)
-           AND id NOT IN (SELECT record_id FROM _sync_queue WHERE table_name = ?)`,
-        [table],
+  for (const table of tables) {
+    const rows = await query<Record<string, unknown>>(
+      `SELECT * FROM ${table}
+       WHERE (_synced = 0 OR _synced IS NULL)
+         AND (_deleted = 0 OR _deleted IS NULL)
+         AND id NOT IN (SELECT record_id FROM _sync_queue WHERE table_name = ?)`,
+      [table],
+    );
+
+    for (const row of rows) {
+      await execute(
+        `INSERT INTO _sync_queue (table_name, record_id, operation, payload, created_at)
+         VALUES (?, ?, ?, ?, ?)`,
+        [
+          table,
+          row.id as string,
+          "INSERT",
+          JSON.stringify(row),
+          (row.created_at as string) || new Date().toISOString(),
+        ],
       );
-
-      for (const row of rows) {
-        await execute(
-          `INSERT INTO _sync_queue (table_name, record_id, operation, payload, created_at)
-           VALUES (?, ?, ?, ?, ?)`,
-          [
-            table,
-            row.id as string,
-            "INSERT",
-            JSON.stringify(row),
-            (row.created_at as string) || new Date().toISOString(),
-          ],
-        );
-      }
-
-      if (rows.length > 0) {
-        requeued[table] = rows.length;
-      }
     }
-  });
+
+    if (rows.length > 0) {
+      requeued[table] = rows.length;
+    }
+  }
 
   return requeued;
 }
@@ -116,30 +140,20 @@ export async function columnExists(table: string, column: string): Promise<boole
  * has the old id baked into its frozen JSON snapshot: marking a live row
  * `_synced = 0` alone doesn't requeue it, since push only ever reads from
  * `_sync_queue`, never re-scans the table. Shared by both the one-time
- * device-identity repair below and pull.ts's ongoing duplicate-name
- * reconciliation for categories/suppliers.
+ * device-identity repair below and the ongoing duplicate-name reconciliation
+ * for categories/suppliers in pull.ts and push.ts.
  *
- * `runSql` lets a caller that already manages its own raw transaction (e.g.
- * pull.ts, which issues `rawDb.run("BEGIN")` directly rather than going
- * through this module's `transaction()` wrapper) supply its own statement
- * runner. Defaults to this module's `execute()`, safe there because every
- * call site that omits `runSql` is already wrapped in `transaction()`,
- * which sets the `inTransaction` flag `execute()` checks before triggering
- * a `saveDatabase()` export. Calling `execute()` directly from *outside*
- * that wrapper (as pull.ts's manual transaction does) would trigger an
- * unwanted mid-transaction `saveDatabase()`: sql.js's `db.export()`
- * implicitly closes the open transaction, so pull.ts's own later `COMMIT`
- * would then fail with "cannot commit - no transaction is active".
+ * Callers must run inside `transaction()` (both current call sites do) so
+ * this composes into one export/save at commit instead of one per statement.
  */
 export async function remapForeignKey(
   oldId: string,
   newId: string,
   refs: { table: string; column: string }[],
-  runSql: (sql: string, params: (string | number | null)[]) => void | Promise<void> = execute,
 ): Promise<void> {
   for (const { table, column } of refs) {
     if (!(await tableExists(table)) || !(await columnExists(table, column))) continue;
-    await runSql(
+    await execute(
       `UPDATE ${table} SET ${column} = ?, _synced = 0 WHERE ${column} = ?`,
       [newId, oldId],
     );
@@ -147,11 +161,21 @@ export async function remapForeignKey(
 
   // Plain string substitution is safe here since ids are unique,
   // unambiguous tokens with no risk of colliding with other JSON content.
-  await runSql("UPDATE _sync_queue SET payload = REPLACE(payload, ?, ?) WHERE payload LIKE ?", [
+  await execute("UPDATE _sync_queue SET payload = REPLACE(payload, ?, ?) WHERE payload LIKE ?", [
     oldId,
     newId,
     `%${oldId}%`,
   ]);
+
+  // A row that was already fully synced (no _sync_queue entry at all) just
+  // had its FK flipped to _synced = 0 above, but that flag alone doesn't
+  // requeue it: push only ever reads from _sync_queue, never re-scans
+  // tables for unsynced rows. Without this, the corrected FK would never
+  // reach the server — _synced would stay 0 forever with nothing to push
+  // it. requeueOrphanedRows() backfills exactly that missing queue entry;
+  // the server already handles a requeued "INSERT" for a row it already
+  // has by converting it to an UPDATE (see SyncController::push).
+  await requeueOrphanedRows(refs.map((r) => r.table));
 }
 
 /**

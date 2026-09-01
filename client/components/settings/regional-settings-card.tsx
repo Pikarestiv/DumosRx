@@ -137,8 +137,8 @@ export function RegionalSettingsCard({
                   </TooltipTrigger>
                   <TooltipContent>
                     <p>
-                      The default Value Added Tax applied to transactions.
-                      Leave as 0 if your prices are already tax-inclusive.
+                      The default Value Added Tax applied to transactions. Leave
+                      as 0 if your prices are already tax-inclusive.
                     </p>
                   </TooltipContent>
                 </Tooltip>
@@ -154,9 +154,9 @@ export function RegionalSettingsCard({
             />
             <p className="text-xs text-muted-foreground">
               This percentage is added on top of every sale's subtotal at
-              checkout; it is not deducted from your product prices. Leave
-              this at 0 (the default) if you don't want to charge VAT, or if
-              your prices already include it.
+              checkout; it is not deducted from your product prices. Leave this
+              at 0 (the default) if you don't want to charge VAT, or if your
+              prices already include it.
             </p>
           </div>
         </CardContent>

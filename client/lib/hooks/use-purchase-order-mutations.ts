@@ -1,10 +1,11 @@
 import { useMutation } from "@tanstack/react-query";
 import {
   createPurchaseOrder,
-  createAndReceivePurchaseOrder,
   updatePurchaseOrder,
 } from "@/lib/db/procurement";
-import type { DraftPOLineItem, ImmediateLineItemDraft } from "@/lib/db/procurement";
+import { createAndReceivePurchaseOrder } from "@/lib/db/procurement-receiving";
+import type { DraftPOLineItem } from "@/lib/db/procurement";
+import type { ImmediateLineItemDraft } from "@/lib/db/procurement-receiving";
 
 interface CreatePurchaseOrderParams {
   supplierId: string | null;

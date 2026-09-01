@@ -10,6 +10,7 @@ import { useStore } from "@/lib/context/store-context";
 import { Card } from "@/components/ui/card";
 import { MetricCard } from "@/components/ui/metric-card";
 import { getCurrencyByCode } from "@/lib/constants/currencies";
+import { EmptyReportState } from "@/components/reports/empty-report-state";
 
 interface CustomerBehaviorTabProps {
   customerMetrics: {
@@ -70,11 +71,11 @@ export function CustomerBehaviorTab({
         </div>
 
         {purchasePatterns.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-            <Clock className="h-10 w-10 opacity-20 mb-3" />
-            <p className="font-semibold text-[13.5px]">No transaction data available</p>
-            <p className="text-[12px] mt-1">Sales will appear here once transactions are recorded.</p>
-          </div>
+          <EmptyReportState
+            icon={Clock}
+            title="No transaction data available"
+            description="Sales will appear here once transactions are recorded for the selected filters."
+          />
         ) : (
           <div className="w-full overflow-x-auto border rounded-xl">
             {/* Div-based table; ARIA roles stand in for real <table> semantics */}

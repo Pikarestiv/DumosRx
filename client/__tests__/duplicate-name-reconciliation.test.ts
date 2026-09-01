@@ -53,9 +53,9 @@ describe("pull.ts duplicate-name reconciliation", () => {
     vi.clearAllMocks();
   });
 
-  it("remaps a product's category_id when the local category name collides with the server's", async () => {
-    db.run(`INSERT INTO categories (id, name, _deleted) VALUES ('local-cat', 'Analgesics', 0)`);
+  it("remaps a product's category_id when the local category name collides with the server's, and requeues it since it was already fully synced with no pending queue entry", async () => {
     db.run(`INSERT INTO products (id, name, category_id, _deleted) VALUES ('p1', 'Panadol', 'local-cat', 0)`);
+    db.run(`INSERT INTO categories (id, name, _deleted) VALUES ('local-cat', 'Analgesics', 0)`);
 
     apiClient.pullChanges.mockResolvedValueOnce({
       success: true,
@@ -73,6 +73,15 @@ describe("pull.ts duplicate-name reconciliation", () => {
 
     const localCat = db.exec(`SELECT _deleted FROM categories WHERE id = 'local-cat'`);
     expect(localCat[0].values[0][0]).toBe(1);
+
+    // p1 had no _sync_queue entry at all (it was already fully synced under
+    // the old id) — without requeueing, this corrected category_id would
+    // never reach the server: _synced would stay 0 forever with nothing to
+    // push it.
+    const queued = db.exec(`SELECT operation, payload FROM _sync_queue WHERE table_name = 'products' AND record_id = 'p1'`);
+    expect(queued[0].values[0][0]).toBe("INSERT");
+    const payload = JSON.parse(queued[0].values[0][1] as string);
+    expect(payload.category_id).toBe("server-cat");
   });
 
   it("rewrites a stale _sync_queue payload that still has the old category id", async () => {

@@ -205,7 +205,7 @@ export async function pushChanges(
             if (!refs) continue;
             for (const [oldId, newId] of Object.entries(mapping)) {
               if (oldId === newId) continue;
-              await remapForeignKey(oldId, newId, refs, execute);
+              await remapForeignKey(oldId, newId, refs);
               await execute(`UPDATE ${table} SET _deleted = 1 WHERE id = ?`, [oldId]);
             }
           }

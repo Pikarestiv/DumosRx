@@ -53,6 +53,7 @@ export function TransactionDetailsDialog({
 
   const items = detailsData?.items || [];
   const returnsData = detailsData?.returnsData || [];
+  const recordPaymentMutation = useRecordCustomerPaymentMutation();
 
   if (!sale) return null;
 
@@ -64,7 +65,6 @@ export function TransactionDetailsDialog({
     (sale.total_amount ?? sale.total ?? 0) - (sale.amount_paid || 0),
   );
 
-  const recordPaymentMutation = useRecordCustomerPaymentMutation();
   const handleRecordPayment = async (
     amount: number,
     paymentMethod: string,

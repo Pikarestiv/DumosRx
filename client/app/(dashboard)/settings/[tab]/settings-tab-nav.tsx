@@ -21,7 +21,6 @@ import {
 
 interface SettingsTabNavProps {
   isAdmin: boolean;
-  isDesktop: boolean;
 }
 
 interface NavItem {
@@ -122,7 +121,7 @@ const NAV_GROUPS: NavGroup[] = [
 ];
 
 /** Tab nav only. Pairs with sibling <TabsContent> panels owned by the parent, which switches page content on selection. */
-export function SettingsTabNav({ isAdmin, isDesktop }: SettingsTabNavProps) {
+export function SettingsTabNav({ isAdmin }: SettingsTabNavProps) {
   return (
     <TabsList className="hidden md:flex flex-col h-auto bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 p-0 gap-1 justify-start md:w-full relative">
       {NAV_GROUPS.map((group) => {

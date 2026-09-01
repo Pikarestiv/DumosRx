@@ -81,7 +81,7 @@ export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
       style={{ height: "calc(100dvh - var(--tauri-top, 0px))" }}
     >
       <aside className="hidden md:flex md:flex-col w-full md:w-56 flex-shrink-0 h-full overflow-y-auto border-border/50 p-3 pr-0">
-        <SettingsTabNav isAdmin={s.isAdmin} isDesktop={s.isDesktop} />
+        <SettingsTabNav isAdmin={s.isAdmin} />
       </aside>
 
       <div className="flex-1 min-h-0 flex flex-col overflow-hidden">

@@ -7,7 +7,10 @@ import { History } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { SearchInput } from "@/components/ui/search-input";
 import { FilterPill } from "@/components/ui/filter-pill";
-import { DateRangePicker, type DateRangeValue } from "@/components/ui/date-range-picker";
+import {
+  DateRangePicker,
+  type DateRangeValue,
+} from "@/components/ui/date-range-picker";
 import { TablePagination } from "@/components/ui/table-pagination";
 import { toQueryRange } from "@/lib/utils/date-range";
 import {
@@ -139,6 +142,7 @@ export function ActivityLogPage() {
         <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
           <History className="h-5 w-5" />
         </div>
+
         <div>
           <div className="text-[17px] font-serif font-bold">Activity Log</div>
           <div className="text-[12.5px] text-muted-foreground">

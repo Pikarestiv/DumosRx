@@ -20,6 +20,7 @@ import {
   Settings,
   ClipboardPlus,
   PackagePlus,
+  History,
 } from "lucide-react";
 
 interface MobileMoreDrawerProps {
@@ -57,6 +58,7 @@ export function MobileMoreDrawer({
           { name: "Procurement", href: "/procurement", icon: PackagePlus },
           { name: "Expenses", href: "/expenses", icon: Wallet },
           { name: "Reports", href: "/reports", icon: BarChart3 },
+          { name: "Activity Log", href: "/activity-log", icon: History },
           { name: "Settings", href: "/settings", icon: Settings },
         ]
       : []),

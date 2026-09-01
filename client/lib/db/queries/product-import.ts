@@ -80,54 +80,72 @@ export interface ImportResult {
  * re-running the same import twice can't double-count quantity (see
  * docs/superpowers/specs/2026-08-31-stock-import-export-design.md).
  */
-export async function importProductRows(rows: ProductImportRow[]): Promise<ImportResult> {
+// How often (in rows) to yield to the event loop during a bulk import. Each
+// query on the web (sql.js/WASM) path resolves synchronously, so without an
+// explicit yield a 1000+ row import runs as one uninterruptible block and
+// freezes the tab for its entire duration — this hands control back to the
+// browser periodically so it can repaint (e.g. a progress bar) and stay
+// responsive, without adding per-row overhead from yielding every iteration.
+const YIELD_INTERVAL = 25;
+
+export async function importProductRows(
+  rows: ProductImportRow[],
+  onProgress?: (completed: number, total: number) => void,
+): Promise<ImportResult> {
   const result: ImportResult = { created: 0, updated: 0, skipped: [] };
 
   await transaction(async () => {
     for (let i = 0; i < rows.length; i++) {
-      const row = rows[i];
-      if (!row.name) {
-        result.skipped.push({ row: i, reason: "Missing product name" });
-        continue;
-      }
+      try {
+        const row = rows[i];
+        if (!row.name) {
+          result.skipped.push({ row: i, reason: "Missing product name" });
+          continue;
+        }
 
-      const categoryId = await resolveCategoryId(row.category);
-      const existingId = await findExistingProductId(row);
+        const categoryId = await resolveCategoryId(row.category);
+        const existingId = await findExistingProductId(row);
 
-      if (existingId) {
-        await update("products", existingId, {
+        if (existingId) {
+          await update("products", existingId, {
+            name: row.name,
+            ...(categoryId ? { category_id: categoryId } : {}),
+            ...(row.sellingPrice !== undefined ? { selling_price: row.sellingPrice } : {}),
+            ...(row.reorderLevel !== undefined ? { reorder_level: row.reorderLevel } : {}),
+            ...(row.barcode ? { barcode: row.barcode } : {}),
+          });
+          result.updated++;
+          continue;
+        }
+
+        const productId = await insert("products", {
           name: row.name,
-          ...(categoryId ? { category_id: categoryId } : {}),
-          ...(row.sellingPrice !== undefined ? { selling_price: row.sellingPrice } : {}),
-          ...(row.reorderLevel !== undefined ? { reorder_level: row.reorderLevel } : {}),
-          ...(row.barcode ? { barcode: row.barcode } : {}),
+          category_id: categoryId ?? null,
+          selling_price: row.sellingPrice ?? 0,
+          reorder_level: row.reorderLevel ?? 10,
+          barcode: row.barcode ?? null,
         });
-        result.updated++;
-        continue;
+
+        if (row.quantity !== undefined && row.quantity !== 0) {
+          const supplierId = await resolveSupplierId(row.supplier);
+          await insert("stock_batches", {
+            product_id: productId,
+            batch_number: "Opening Stock",
+            expiry_date: null,
+            quantity: row.quantity,
+            cost_price: row.costPrice ?? null,
+            supplier_id: supplierId ?? null,
+            is_active: 1,
+          });
+        }
+
+        result.created++;
+      } finally {
+        onProgress?.(i + 1, rows.length);
+        if ((i + 1) % YIELD_INTERVAL === 0) {
+          await new Promise((resolve) => setTimeout(resolve, 0));
+        }
       }
-
-      const productId = await insert("products", {
-        name: row.name,
-        category_id: categoryId ?? null,
-        selling_price: row.sellingPrice ?? 0,
-        reorder_level: row.reorderLevel ?? 10,
-        barcode: row.barcode ?? null,
-      });
-
-      if (row.quantity !== undefined && row.quantity !== 0) {
-        const supplierId = await resolveSupplierId(row.supplier);
-        await insert("stock_batches", {
-          product_id: productId,
-          batch_number: "Opening Stock",
-          expiry_date: null,
-          quantity: row.quantity,
-          cost_price: row.costPrice ?? null,
-          supplier_id: supplierId ?? null,
-          is_active: 1,
-        });
-      }
-
-      result.created++;
     }
   });
 

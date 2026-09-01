@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
+import { Progress } from "@/components/ui/progress";
 import { Upload, AlertTriangle } from "lucide-react";
 import {
   parseSpreadsheetFile,
@@ -21,7 +22,7 @@ import {
   type ImportResult,
 } from "@/lib/db/queries/product-import";
 
-type Step = "pick-file" | "map-columns" | "result";
+type Step = "pick-file" | "map-columns" | "importing" | "result";
 
 interface ImportMappingDialogProps {
   open: boolean;
@@ -43,7 +44,7 @@ export function ImportMappingDialog({
   const [headers, setHeaders] = useState<string[]>([]);
   const [rows, setRows] = useState<Record<string, unknown>[]>([]);
   const [mapping, setMapping] = useState<ColumnMapping>({});
-  const [importing, setImporting] = useState(false);
+  const [progress, setProgress] = useState({ completed: 0, total: 0 });
   const [result, setResult] = useState<ImportResult | null>(null);
 
   const reset = () => {
@@ -51,6 +52,7 @@ export function ImportMappingDialog({
     setHeaders([]);
     setRows([]);
     setMapping({});
+    setProgress({ completed: 0, total: 0 });
     setResult(null);
   };
 
@@ -82,17 +84,19 @@ export function ImportMappingDialog({
       if (!proceed) return;
     }
 
-    setImporting(true);
+    setProgress({ completed: 0, total: validRows.length });
+    setStep("importing");
     try {
-      const importResult = await importProductRows(validRows);
+      const importResult = await importProductRows(validRows, (completed, total) => {
+        setProgress({ completed, total });
+      });
       setResult(importResult);
       setStep("result");
       onImported();
     } catch (err) {
       console.error("Failed to import products:", err);
       toast.error("Import failed. No changes were saved.");
-    } finally {
-      setImporting(false);
+      setStep("map-columns");
     }
   };
 
@@ -157,11 +161,26 @@ export function ImportMappingDialog({
               <Button variant="outline" onClick={reset}>
                 Back
               </Button>
-              <Button onClick={handleConfirmImport} disabled={importing}>
-                {importing ? "Importing..." : `Import ${rows.length} Row(s)`}
+              <Button onClick={handleConfirmImport}>
+                Import {rows.length} Row(s)
               </Button>
             </div>
           </>
+        )}
+
+        {step === "importing" && (
+          <div className="flex flex-col gap-3 py-4">
+            <p className="text-sm text-muted-foreground">
+              Importing {progress.completed} of {progress.total} row(s)...
+            </p>
+            <Progress
+              value={
+                progress.total > 0
+                  ? (progress.completed / progress.total) * 100
+                  : 0
+              }
+            />
+          </div>
         )}
 
         {step === "result" && result && (

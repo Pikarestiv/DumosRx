@@ -108,4 +108,24 @@ describe("importProductRows", () => {
       skipped: [{ row: 0, reason: "Missing product name" }],
     });
   });
+
+  it("reports progress after every row and finishes at completed === total", async () => {
+    const rows = Array.from({ length: 5 }, (_, i) => ({
+      name: `PRODUCT ${i}`,
+      quantity: 1,
+    }));
+    const calls: Array<[number, number]> = [];
+
+    await importProductRows(rows, (completed, total) => {
+      calls.push([completed, total]);
+    });
+
+    expect(calls).toEqual([
+      [1, 5],
+      [2, 5],
+      [3, 5],
+      [4, 5],
+      [5, 5],
+    ]);
+  });
 });

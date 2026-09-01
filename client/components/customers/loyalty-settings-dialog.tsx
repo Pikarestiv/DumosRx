@@ -38,8 +38,15 @@ interface Props {
 }
 
 export function LoyaltySettingsDialog({ open, onOpenChange }: Props) {
-  const { user } = useAuth();
+  const { user, canManageStockBatch } = useAuth();
   const [section, setSection] = useState<"tiers" | "redemption">("tiers");
+
+  // Defense-in-depth: the only current entry point (LoyaltyTab's "Edit
+  // Settings" button) is already gated, but this closes the dialog if it's
+  // ever reached another way by a role that can't manage stock/config.
+  useEffect(() => {
+    if (open && !canManageStockBatch) onOpenChange(false);
+  }, [open, canManageStockBatch, onOpenChange]);
 
   const [tierFormOpen, setTierFormOpen] = useState(false);
   const [editingTier, setEditingTier] = useState<LoyaltyTierRow | null>(null);

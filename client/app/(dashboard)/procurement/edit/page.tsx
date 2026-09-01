@@ -19,6 +19,7 @@ import { useProcurementData } from "@/lib/hooks/use-procurement-data";
 import { useCreateSupplierMutation } from "@/lib/hooks/use-supplier-mutations";
 import { useCreateProductMutation } from "@/lib/hooks/use-product-mutations";
 import { useUpdatePurchaseOrderMutation } from "@/lib/hooks/use-purchase-order-mutations";
+import { RequireRole } from "@/components/auth/require-role";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import type { POLineItemDraft } from "@/components/procurement/po-item-ledger-table";
@@ -303,14 +304,16 @@ function EditOrderContent() {
 
 export default function EditOrderPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="p-10 flex items-center justify-center">
-          <Clock className="animate-spin text-muted-foreground w-6 h-6" />
-        </div>
-      }
-    >
-      <EditOrderContent />
-    </Suspense>
+    <RequireRole>
+      <Suspense
+        fallback={
+          <div className="p-10 flex items-center justify-center">
+            <Clock className="animate-spin text-muted-foreground w-6 h-6" />
+          </div>
+        }
+      >
+        <EditOrderContent />
+      </Suspense>
+    </RequireRole>
   );
 }

@@ -4,6 +4,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { toast } from "sonner";
 import { Product } from "./types";
 import { useStore } from "@/lib/context/store-context";
+import { useAuth } from "@/lib/context/auth-context";
 import { SortableHeaderCell } from "@/components/ui/sortable-header-cell";
 import { EditableNumberCell } from "@/components/ui/editable-number-cell";
 import { useQuickEditProductMutation } from "@/lib/hooks/use-product-quick-edit-mutation";
@@ -44,6 +45,7 @@ export function CatalogList({
 }: CatalogListProps) {
   const { storeType } = useStore();
   const isPharmacy = storeType === "pharmacy";
+  const { canManageStockBatch } = useAuth();
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<{
@@ -52,6 +54,7 @@ export function CatalogList({
   } | null>(null);
 
   const startQuickEdit = (product: Product) => {
+    if (!canManageStockBatch) return;
     setEditingId(product.id);
     setDraft({
       sellingPrice: product.sellingPrice,
@@ -299,17 +302,19 @@ export function CatalogList({
                       </button>
                     </div>
                   ) : (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        startQuickEdit(product);
-                      }}
-                      className="p-1 rounded text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-muted hover:text-foreground transition-opacity"
-                      title="Quick edit"
-                    >
-                      <Pencil className="w-3.5 h-3.5" />
-                    </button>
+                    canManageStockBatch && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          startQuickEdit(product);
+                        }}
+                        className="p-1 rounded text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-muted hover:text-foreground transition-opacity"
+                        title="Quick edit"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                    )
                   )}
                 </div>
               </div>

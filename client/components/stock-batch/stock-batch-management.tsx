@@ -15,8 +15,14 @@ export function StockBatchManagement({
 }: {
   currentTab?: string;
 }) {
-  const { isAdmin, isAuditing, setIsAuditing, stats, handleTabChange } =
-    useStockBatchManagement(currentTab);
+  const {
+    isAdmin,
+    canManageStockBatch,
+    isAuditing,
+    setIsAuditing,
+    stats,
+    handleTabChange,
+  } = useStockBatchManagement(currentTab);
 
   return (
     <div className="flex flex-col flex-1 min-h-0 gap-6 relative">
@@ -28,7 +34,7 @@ export function StockBatchManagement({
         className="flex flex-col flex-1 min-h-0 gap-6"
       >
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <StockBatchTabNav />
+          <StockBatchTabNav canManageStockBatch={canManageStockBatch} />
 
           {isAdmin && (
             <Button
@@ -55,9 +61,11 @@ export function StockBatchManagement({
           <StockOverview />
         </TabsContent>
 
-        <TabsContent value="ledger" className="flex flex-col flex-1 min-h-0 mt-0">
-          <StockMovements />
-        </TabsContent>
+        {canManageStockBatch && (
+          <TabsContent value="ledger" className="flex flex-col flex-1 min-h-0 mt-0">
+            <StockMovements />
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

@@ -5,8 +5,9 @@ import { AddExpenseDialog } from "@/components/expenses/add-expense-dialog";
 import { useState, useEffect } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { LockedModuleOverlay } from "@/components/dashboard/locked-module-overlay";
+import { RequireRole } from "@/components/auth/require-role";
 
-export default function ExpensesPage() {
+function ExpensesPageContent() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -37,5 +38,13 @@ export default function ExpensesPage() {
         </div>
       </div>
     </>
+  );
+}
+
+export default function ExpensesPage() {
+  return (
+    <RequireRole>
+      <ExpensesPageContent />
+    </RequireRole>
   );
 }

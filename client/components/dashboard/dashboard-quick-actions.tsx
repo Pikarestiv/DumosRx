@@ -11,8 +11,18 @@ import {
   LucideIcon,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useAuth } from "@/lib/context/auth-context";
 
-const quickActionsConfig = [
+interface QuickAction {
+  label: string;
+  icon: LucideIcon;
+  href?: string;
+  onClick?: () => void;
+  /** Only shown to roles with stock-management access (admin/manager/specialist/store_owner). */
+  adminOnly?: boolean;
+}
+
+const quickActionsConfig: QuickAction[] = [
   {
     label: "New Sale",
     icon: ShoppingCart,
@@ -22,6 +32,7 @@ const quickActionsConfig = [
     label: "Add Stock",
     icon: PackagePlus,
     href: "/procurement/new",
+    adminOnly: true,
   },
   {
     label: "Close Register",
@@ -37,20 +48,15 @@ const quickActionsConfig = [
     label: "View Reports",
     icon: BarChart3,
     href: "/reports",
+    adminOnly: true,
   },
   {
     label: "Reorder Stock",
     icon: AlertTriangle,
     href: "/procurement",
+    adminOnly: true,
   },
 ];
-
-interface QuickAction {
-  label: string;
-  icon: LucideIcon;
-  href?: string;
-  onClick?: () => void;
-}
 
 function QuickActionCard({ action }: { action: QuickAction }) {
   const content = (
@@ -83,6 +89,11 @@ function QuickActionCard({ action }: { action: QuickAction }) {
 }
 
 export function DashboardQuickActions() {
+  const { isAdmin, canManageStockBatch } = useAuth();
+  const visibleActions = quickActionsConfig.filter(
+    (action) => !action.adminOnly || isAdmin || canManageStockBatch,
+  );
+
   return (
     <Card className="h-full p-0 sm:p-5 gap-1 sm:gap-5 flex flex-col border-none shadow-none bg-transparent sm:border-solid sm:border-border sm:shadow-sm sm:bg-card ">
       <CardHeader className="p-0">
@@ -92,7 +103,7 @@ export function DashboardQuickActions() {
       </CardHeader>
       <CardContent className="p-0 px-2.5 sm:px-0">
         <div className="flex overflow-x-auto sm:grid sm:grid-cols-2 gap-1 sm:gap-4 pb-0 hide-scrollbar snap-x snap-mandatory -mx-4 sm:mx-0 px-4 sm:px-0">
-          {quickActionsConfig.map((action, i) => (
+          {visibleActions.map((action, i) => (
             <QuickActionCard key={i} action={action} />
           ))}
         </div>

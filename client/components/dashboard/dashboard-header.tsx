@@ -40,24 +40,28 @@ const PAGE_ROUTES = [
     title: "Product Catalog",
     desc: "Manage your pharmacy's core product database and pricing.",
     action: { label: "Add Product", path: "/inventory/catalog?action=add" },
+    actionAdminOnly: true,
   },
   {
     path: "/inventory/batches",
     title: "Stock Inventory",
     desc: "Manage inventory intake, expiration dates, and physical stock.",
     action: { label: "Add Batch", path: "/inventory/batches?action=add" },
+    actionAdminOnly: true,
   },
   {
     path: "/inventory/overview",
     title: "Inventory Dashboard",
     desc: "Overview of your inventory health and metrics.",
     action: { label: "Add Product", path: "/inventory/catalog?action=add" },
+    actionAdminOnly: true,
   },
   {
     path: "/inventory/ledger",
     title: "Stock Movements",
     desc: "Full audit trail of every stock movement: sales, receipts, and adjustments.",
     action: { label: "Add Product", path: "/inventory/catalog?action=add" },
+    actionAdminOnly: true,
   },
   {
     path: "/inventory",
@@ -86,6 +90,7 @@ const PAGE_ROUTES = [
     title: "Vendors & Suppliers",
     desc: "Manage supplier directory and view debt.",
     action: { label: "Add Supplier", path: "/procurement/vendors?action=add" },
+    actionAdminOnly: true,
   },
   {
     path: "/procurement/requests",
@@ -95,6 +100,7 @@ const PAGE_ROUTES = [
       label: "Request Product",
       path: "/procurement/requests?action=add",
     },
+    actionAdminOnly: true,
   },
   {
     path: "/procurement/new",
@@ -109,12 +115,14 @@ const PAGE_ROUTES = [
     title: "Procurement",
     desc: "Manage suppliers, create purchase orders, and track deliveries.",
     action: { label: "Create Order", path: "/procurement/new" },
+    actionAdminOnly: true,
   },
   {
     path: "/expenses",
     title: "Expenses",
     desc: "Track and manage your pharmacy's operational expenses.",
     action: { label: "Add Expense", path: "/expenses?action=add" },
+    actionAdminOnly: true,
   },
   {
     path: "/reports",
@@ -142,13 +150,19 @@ function getPageInfo(pathname: string) {
 export function DashboardHeader({ onOpenFeedback }: DashboardHeaderProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const { user } = useAuth();
+  const { user, canManageStockBatch } = useAuth();
   const { storeProfile, availableStores, activeStoreId, switchStore } = useStore();
 
   const pageInfo = getPageInfo(pathname || "/");
   // Greeting pages (dashboard home) don't use pageInfo for title/desc, but
   // can still declare an explicit action via PAGE_ROUTES.
-  const action = pageInfo?.action || getPageRoute(pathname || "/")?.action;
+  const matchedRoute = pageInfo?.action ? pageInfo : getPageRoute(pathname || "/");
+  const action =
+    matchedRoute?.action &&
+    (!("actionAdminOnly" in matchedRoute && matchedRoute.actionAdminOnly) ||
+      canManageStockBatch)
+      ? matchedRoute.action
+      : null;
 
   return (
     <header className="h-auto min-h-16 py-4 bg-card sm:bg-background border-b border-border sm:border-b-0 flex flex-col justify-center px-4 sm:px-6 shrink-0">

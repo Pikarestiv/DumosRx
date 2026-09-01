@@ -10,6 +10,7 @@ import { LoyaltySettingsDialog } from "./loyalty-settings-dialog";
 import { ResponsiveTabLabel } from "@/components/ui/responsive-tab-label";
 import { REDEMPTION_ICONS, REDEMPTION_ICON_BG } from "./loyalty-icons";
 import { queryKeys } from "@/lib/query-keys";
+import { useAuth } from "@/lib/context/auth-context";
 
 interface Tier {
   name: string;
@@ -27,6 +28,7 @@ export function LoyaltyTab({
   currencyCode?: string;
 }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const { canManageStockBatch } = useAuth();
 
   const { data: optionsData } = useQuery({
     ...queryKeys.loyalty.redemptionOptions(),
@@ -46,12 +48,14 @@ export function LoyaltyTab({
               Manage customer rewards and point multipliers
             </p>
           </div>
-          <button
-            onClick={() => setSettingsOpen(true)}
-            className="text-[13px] font-medium border px-3 py-1.5 rounded-[8px] hover:bg-primary/10"
-          >
-            <ResponsiveTabLabel short="Edit" long="Edit Settings" />
-          </button>
+          {canManageStockBatch && (
+            <button
+              onClick={() => setSettingsOpen(true)}
+              className="text-[13px] font-medium border px-3 py-1.5 rounded-[8px] hover:bg-primary/10"
+            >
+              <ResponsiveTabLabel short="Edit" long="Edit Settings" />
+            </button>
+          )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

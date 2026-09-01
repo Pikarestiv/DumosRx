@@ -23,10 +23,21 @@ export async function pullChanges(
       last_synced_at: string;
     }>("SELECT table_name, last_synced_at FROM _sync_state");
 
-    // Map to object { table: timestamp }
+    // Map to object { table: timestamp }. Tables in DUPLICATE_NAME_TABLES
+    // (categories, suppliers) are deliberately never given a cursor here: the
+    // server's pull() treats a table missing from last_synced as "return
+    // everything" (see SyncController::pull), and the duplicate-name
+    // reconciliation below can only fix a collision if the pre-existing row
+    // it collided with is actually present in this response. A normal delta
+    // pull (updated_at > last_synced) would never re-surface a long-unchanged
+    // row like "DRUGS", permanently hiding the collision from every future
+    // sync. Categories/suppliers are small collections by nature — tens,
+    // rarely hundreds — so always fetching them in full costs nothing.
     const lastSyncedMap = syncState.reduce(
       (acc, row) => {
-        acc[row.table_name] = row.last_synced_at;
+        if (!(row.table_name in DUPLICATE_NAME_TABLES)) {
+          acc[row.table_name] = row.last_synced_at;
+        }
         return acc;
       },
       {} as Record<string, string>

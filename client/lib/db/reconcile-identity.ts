@@ -17,6 +17,23 @@ import { execute, query, transaction, STORE_SCOPED_TABLES } from "./core";
  * normal app flow.
  */
 
+/**
+ * Tables whose server-side push handling silently skips an INSERT when the
+ * name collides with an existing row for the same owner (see
+ * SyncController::push's "duplicate name" handling for categories and
+ * suppliers) rather than creating a second row. Shared by pull.ts's ongoing
+ * delta-pull reconciliation and push.ts's immediate id_map-based fixup
+ * (see PushResponse.id_map in sync-engine/types.ts).
+ */
+export const DUPLICATE_NAME_TABLES: Record<string, { table: string; column: string }[]> = {
+  categories: [{ table: "products", column: "category_id" }],
+  suppliers: [
+    { table: "stock_batches", column: "supplier_id" },
+    { table: "purchase_orders", column: "supplier_id" },
+    { table: "supplier_payments", column: "supplier_id" },
+  ],
+};
+
 /** Tables + column(s) that can hold a reference to the acting user's id. */
 const USER_REFERENCING_COLUMNS: { table: string; column: string }[] = [
   { table: "sales", column: "user_id" },

@@ -3,27 +3,7 @@ import { isTauri } from "../local-database";
 import { apiClient } from "@/lib/api/client";
 import { PullResponse } from "./types";
 import { getValidColumns } from "./schema";
-import { remapForeignKey } from "../reconcile-identity";
-
-/**
- * Tables whose server-side push handling silently skips an INSERT when the
- * name collides with an existing row for the same owner (see
- * SyncController::push's "duplicate name" handling for categories and
- * suppliers) rather than creating a second row, but that skip's id-remap
- * only lives in the memory of that single push request. A local row created
- * before this reconciliation runs is otherwise permanently unresolvable:
- * every later push retries the same insert, gets skipped again, and
- * anything referencing it by the old local id keeps failing its foreign
- * key check forever.
- */
-const DUPLICATE_NAME_TABLES: Record<string, { table: string; column: string }[]> = {
-  categories: [{ table: "products", column: "category_id" }],
-  suppliers: [
-    { table: "stock_batches", column: "supplier_id" },
-    { table: "purchase_orders", column: "supplier_id" },
-    { table: "supplier_payments", column: "supplier_id" },
-  ],
-};
+import { remapForeignKey, DUPLICATE_NAME_TABLES } from "../reconcile-identity";
 
 /**
  * Pull changes from server

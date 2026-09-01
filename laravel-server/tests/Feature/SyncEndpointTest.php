@@ -674,4 +674,58 @@ class SyncEndpointTest extends TestCase
             'email' => null,
         ]);
     }
+
+    /**
+     * Regression test: when a pushed category's name collides with one that
+     * already exists, the INSERT is silently skipped and the id remap used
+     * to only live in $idMap's in-request memory (see push()'s duplicate-name
+     * handling) — never reaching the client, which left any product pushed
+     * in a later request permanently unable to satisfy its category_id
+     * foreign key. The response must report the remap via id_map so the
+     * client can fix up its own local rows immediately.
+     */
+    public function test_push_sync_reports_id_map_for_duplicate_category_name()
+    {
+        // Category uses HasUuids, which assigns its own id on creation
+        // regardless of what's passed in — read the real id back afterward
+        // rather than assuming an explicitly-passed one sticks.
+        $existingCategory = \App\Models\Category::create([
+            'name' => 'DRUGS',
+            'user_id' => $this->user->id,
+        ]);
+        $existingCategoryId = $existingCategory->id;
+
+        $localCategoryId = (string) \Illuminate\Support\Str::uuid();
+        $payload = [
+            'setup' => true,
+            'changes' => [
+                [
+                    'table_name' => 'categories',
+                    'operation' => 'INSERT',
+                    'record_id' => $localCategoryId,
+                    'payload' => [
+                        'id' => $localCategoryId,
+                        'name' => 'DRUGS',
+                        '_synced' => 0,
+                    ],
+                ],
+            ],
+        ];
+
+        $response = $this->actingAs($this->user)->postJson('/api/v1/app/sync/push', $payload);
+
+        $response->assertStatus(200);
+        $response->assertJson([
+            'success' => true,
+            'id_map' => [
+                'categories' => [
+                    $localCategoryId => $existingCategoryId,
+                ],
+            ],
+        ]);
+
+        // No second row was created for the colliding name.
+        $this->assertDatabaseMissing('categories', ['id' => $localCategoryId]);
+        $this->assertDatabaseCount('categories', 1);
+    }
 }

@@ -2,6 +2,8 @@ import { getPendingSyncItems, markSynced, recordSyncFailure } from "../local-dat
 import { apiClient } from "@/lib/api/client";
 import { PushResponse } from "./types";
 import type { SyncChange } from "@/lib/types/sync";
+import { remapForeignKey, DUPLICATE_NAME_TABLES } from "../reconcile-identity";
+import { execute } from "../core";
 
 const SYNC_BATCH_SIZE = 50;
 
@@ -149,6 +151,26 @@ export async function pushChanges(
         for (const f of response.failed ?? []) {
           if (f.id != null) {
             await recordSyncFailure(f.id, f.reason);
+          }
+        }
+
+        // The server silently skips an INSERT (and remaps the id) when a
+        // category/supplier name collides with one it already has, but that
+        // remap only lives in the memory of this one push request server-side
+        // (see SyncController::push) — it's never reflected in this device's
+        // local rows unless applied here. Left unhandled, any row in a LATER
+        // batch that still references the old local id fails its foreign key
+        // check forever, since a future delta pull only ever reconciles
+        // categories/suppliers that appear in that pull's own response (see
+        // DUPLICATE_NAME_TABLES in reconcile-identity.ts) — a long-unchanged,
+        // already-existing row like this one never will.
+        for (const [table, mapping] of Object.entries(response.id_map ?? {})) {
+          const refs = DUPLICATE_NAME_TABLES[table];
+          if (!refs) continue;
+          for (const [oldId, newId] of Object.entries(mapping)) {
+            if (oldId === newId) continue;
+            await remapForeignKey(oldId, newId, refs, execute);
+            await execute(`UPDATE ${table} SET _deleted = 1 WHERE id = ?`, [oldId]);
           }
         }
       }

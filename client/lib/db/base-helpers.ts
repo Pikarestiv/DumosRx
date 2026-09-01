@@ -173,7 +173,20 @@ async function addToSyncQueue(
   );
 }
 
-export async function getPendingSyncItems() {
+/**
+ * `ignoreBackoff` lets an explicit, user-clicked "Sync Now" attempt the
+ * whole queue immediately: a background auto-sync should respect each
+ * item's exponential backoff (see recordSyncFailure), but a manual sync is
+ * the user explicitly asking to retry right now, and should not silently
+ * skip the entire queue (and still report "success") just because a prior
+ * failure's backoff window hasn't elapsed yet.
+ */
+export async function getPendingSyncItems(ignoreBackoff = false) {
+  if (ignoreBackoff) {
+    return await query<SyncQueueItem>(
+      "SELECT * FROM _sync_queue ORDER BY created_at ASC",
+    );
+  }
   const now = new Date().toISOString();
   return await query<SyncQueueItem>(
     "SELECT * FROM _sync_queue WHERE next_retry_at IS NULL OR next_retry_at <= ? ORDER BY created_at ASC",

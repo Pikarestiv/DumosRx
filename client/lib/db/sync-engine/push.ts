@@ -29,7 +29,7 @@ export async function pushChanges(
   isManual: boolean = false,
   isSetup: boolean = false
 ): Promise<{ pushed: number }> {
-  const pending = await getPendingSyncItems();
+  const pending = await getPendingSyncItems(isManual);
 
   if (pending.length === 0) return { pushed: 0 };
 

@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
+import { SearchInput } from "@/components/ui/search-input";
+import { FilterPill } from "@/components/ui/filter-pill";
 import { UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { useUsers, useMutateUser } from "@/lib/hooks/queries/use-users";
@@ -13,6 +15,8 @@ import { queryKeys } from "@/lib/query-keys";
 import { getStaffCount } from "@/lib/db/queries/auth";
 import type { StaffListItem } from "@/lib/types/user";
 import { buildStaffCsv } from "@/lib/utils/export-staff-csv";
+import { genericFuzzySearch } from "@/lib/utils/search";
+import { STAFF_ROLES } from "@/lib/constants/roles";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 import { StaffList } from "./staff/staff-list";
@@ -26,6 +30,9 @@ export function StaffManagement() {
   const { maxStaffAccounts, getUpgradeMessage, withRestriction } =
     useFeatureGate();
   const [selectedStore, setSelectedStore] = useState<string>("all");
+  const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
 
   const filterStoreId = selectedStore === "all" ? null : selectedStore;
   const {
@@ -38,6 +45,26 @@ export function StaffManagement() {
       : activeStoreId,
   );
   const { update } = useMutateUser();
+
+  const filteredUsers = useMemo(() => {
+    let result = users;
+    if (roleFilter !== "all") {
+      result = result.filter((u) => u.role === roleFilter);
+    }
+    if (statusFilter !== "all") {
+      result = result.filter((u) =>
+        statusFilter === "active" ? u.is_active !== 0 : u.is_active === 0,
+      );
+    }
+    if (search.trim()) {
+      result = genericFuzzySearch(search, result, [
+        "first_name",
+        "last_name",
+        "username",
+      ]).results;
+    }
+    return result;
+  }, [users, roleFilter, statusFilter, search]);
 
   // Seat-limit cap and the "Total Staff" stat must count every active
   // account, not just the store-filtered `users` list, so they use this
@@ -154,16 +181,47 @@ export function StaffManagement() {
           maxStaffAccounts={maxStaffAccounts}
         />
 
-        <Card>
-          <CardContent className="p-0">
+        <Card className="border rounded-2xl overflow-hidden gap-0 py-0">
+          <div className="p-4 border-b border-border space-y-3">
+            <SearchInput
+              value={search}
+              onChange={setSearch}
+              placeholder="Search by name or username"
+              inputClassName="bg-muted border-transparent"
+            />
+
+            <div className="flex flex-wrap gap-2">
+              <FilterPill
+                label="Role"
+                value={roleFilter}
+                onValueChange={setRoleFilter}
+                options={[
+                  { value: "all", label: "All Roles" },
+                  ...STAFF_ROLES.map((r) => ({ value: r.value, label: r.label })),
+                ]}
+              />
+              <FilterPill
+                label="Status"
+                value={statusFilter}
+                onValueChange={setStatusFilter}
+                options={[
+                  { value: "all", label: "All" },
+                  { value: "active", label: "Active" },
+                  { value: "inactive", label: "Inactive" },
+                ]}
+              />
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
             <StaffList
-              users={users}
+              users={filteredUsers}
               isLoading={isLoading}
               onEdit={handleOpenEdit}
               onDelete={handleDeleteInitiate}
               onReactivate={handleReactivate}
             />
-          </CardContent>
+          </div>
         </Card>
 
         <StaffFormDialog

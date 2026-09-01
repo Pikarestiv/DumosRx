@@ -117,7 +117,7 @@ export function ActivityLogPage() {
   });
 
   const { data: users = [] } = useQuery({
-    queryKey: ["activityLogUsers"],
+    ...queryKeys.activityLog.users(),
     queryFn: () => getDistinctActivityUsers(),
     enabled: canViewAll,
   });

@@ -164,37 +164,22 @@ async function tryRun(adapter: DbAdapter, sql: string): Promise<void> {
   }
 }
 
+// The medicines->products, vendors->suppliers, store_profile->stores,
+// stock_batch->stock_batches, and owner->store_owner renames that used to
+// live here (shipped 2026-06-27/2026-06-28) were removed once every real
+// device was confirmed to postdate them by 5+ weeks (earliest account:
+// 2026-08-01) — see diagnoseLegacySchema() for the audit tool used to check.
 async function renameLegacyTablesAndColumns(adapter: DbAdapter): Promise<void> {
-  await tryRun(adapter, "ALTER TABLE stock_batch RENAME TO stock_batches");
-  await tryRun(adapter, "ALTER TABLE stock_batches RENAME TO stock_batches");
-  await tryRun(adapter, "ALTER TABLE medicines RENAME TO products");
-
-  const tablesWithProductId = [
-    "stock_batches",
-    "sale_items",
-    "stock_movements",
-    "purchase_order_items",
-    "prescription_items",
-    "return_items",
-  ];
-  for (const t of tablesWithProductId) {
-    await tryRun(adapter, `ALTER TABLE ${t} RENAME COLUMN medicine_id TO product_id`);
-  }
-
-  // sale_items.inventory_id was renamed to stock_batch_id, but unlike the
-  // medicine_id->product_id rename above this one was never migrated:
-  // createSale() has written to stock_batch_id for a while now, so any
-  // database that predates the rename still has the old inventory_id column
-  // and no stock_batch_id at all, breaking every sale with "no column named
-  // stock_batch_id". Try the rename first (databases that still have
-  // inventory_id); fall back to adding stock_batch_id fresh (databases old
-  // enough to have neither).
+  // sale_items.inventory_id was renamed to stock_batch_id (shipped
+  // 2026-08-04, only 3 days after the earliest real account — too close a
+  // margin to remove this one yet): createSale() has written to
+  // stock_batch_id for a while now, so any database that predates the
+  // rename still has the old inventory_id column and no stock_batch_id at
+  // all, breaking every sale with "no column named stock_batch_id". Try the
+  // rename first (databases that still have inventory_id); fall back to
+  // adding stock_batch_id fresh (databases old enough to have neither).
   await tryRun(adapter, "ALTER TABLE sale_items RENAME COLUMN inventory_id TO stock_batch_id");
   await tryRun(adapter, "ALTER TABLE sale_items ADD COLUMN stock_batch_id TEXT");
-
-  await tryRun(adapter, "ALTER TABLE vendors RENAME TO suppliers");
-  await tryRun(adapter, "UPDATE users SET role = 'store_owner' WHERE role = 'owner'");
-  await tryRun(adapter, "ALTER TABLE store_profile RENAME TO stores");
 }
 
 // Drops the legacy purchase_orders.vendor_id NOT NULL column left over from
@@ -241,25 +226,12 @@ async function dropLegacyVendorIdColumn(adapter: DbAdapter): Promise<void> {
   }
 }
 
-async function migrateStockQuantityToBatches(adapter: DbAdapter): Promise<void> {
-  try {
-    const hasProductsStock = await adapter.all(
-      "SELECT 1 as found FROM pragma_table_info('products') WHERE name='stock_quantity'",
-    );
-    if (hasProductsStock.length > 0) {
-      await adapter.run(`
-        INSERT INTO stock_batches (id, product_id, batch_number, quantity, cost_price, selling_price, expiry_date, is_active, created_at, updated_at)
-        SELECT lower(hex(randomblob(16))), id, 'INITIAL', stock_quantity, cost_price, selling_price, date('now', '+2 years'), 1, created_at, updated_at
-        FROM products
-        WHERE stock_quantity > 0 AND NOT EXISTS (
-          SELECT 1 FROM stock_batches WHERE stock_batches.product_id = products.id AND stock_batches.batch_number = 'INITIAL'
-        )
-      `);
-    }
-  } catch (e) {
-    console.error("Migration for stock_quantity skipped", e);
-  }
-}
+// migrateStockQuantityToBatches (the flat products.stock_quantity ->
+// stock_batches data migration, shipped 2026-06-28) was removed once every
+// real device was confirmed to postdate it by 5+ weeks; stock_quantity
+// isn't even in the current base schema anymore, so its guard condition
+// (the column existing at all) could never be true on any account created
+// after 2026-06-28.
 
 async function runSyncColumnMigrations(
   adapter: DbAdapter,
@@ -815,7 +787,6 @@ export async function initDatabase(): Promise<any> {
       const tauriAdapter = makeTauriAdapter(db);
       await renameLegacyTablesAndColumns(tauriAdapter);
       await dropLegacyVendorIdColumn(tauriAdapter);
-      await migrateStockQuantityToBatches(tauriAdapter);
       await runSyncColumnMigrations(tauriAdapter, syncColumns);
       await backfillStoreIdOnLegacyRows(tauriAdapter);
       await rebuildUsersTableForStoreScopedUsername(tauriAdapter);
@@ -886,7 +857,6 @@ export async function initDatabase(): Promise<any> {
     }
 
     const webAdapter = makeSqlJsAdapter(db);
-    await migrateStockQuantityToBatches(webAdapter);
 
     try {
       db.run("UPDATE purchase_orders SET status = 'pending' WHERE status = 'draft'");
@@ -1211,17 +1181,17 @@ export async function restoreDatabaseFromFile(): Promise<{ success: boolean }> {
 }
 
 /**
- * Read-only audit for whether this device's local database still carries
- * any of the legacy artifacts initDatabase()'s migration steps
- * (renameLegacyTablesAndColumns, dropLegacyVendorIdColumn,
- * migrateStockQuantityToBatches, backfillStoreIdOnLegacyRows,
+ * Read-only audit of legacy schema artifacts on this device's local
+ * database. Checks both what initDatabase()'s remaining migration steps
+ * (dropLegacyVendorIdColumn, backfillStoreIdOnLegacyRows,
  * rebuildUsersTableForStoreScopedUsername,
- * relaxPurchaseOrdersSupplierIdNullable) exist to repair. Every one of
- * those steps is a no-op (wrapped in try/catch, or a conditional check) on
- * a device that's already current, so this doesn't tell you anything the
- * app doesn't already know internally — it just surfaces it for a human to
- * read, so a decision to eventually delete a migration step can be made
- * from real device data instead of a guess. Run from the browser console
+ * relaxPurchaseOrdersSupplierIdNullable, and the inventory_id rename in
+ * renameLegacyTablesAndColumns) still exist to repair, AND several older
+ * artifacts (medicines/vendors/store_profile/stock_batch table names,
+ * stock_quantity) whose repair code was already removed once every real
+ * account was confirmed to postdate them by 5+ weeks — for those, a
+ * finding here would mean an actual, currently-unhandled problem on this
+ * device, not just a candidate for cleanup. Run from the browser console
  * (or Tauri's devtools) as `await window.diagnoseLegacySchema()`; safe to
  * run anywhere, including production, since it never writes.
  */
@@ -1281,7 +1251,7 @@ export async function diagnoseLegacySchema(): Promise<{
     );
     if ((unmigrated[0]?.cnt ?? 0) > 0) {
       findings.push(
-        `"products.stock_quantity" column still exists with ${unmigrated[0].cnt} row(s) not yet migrated to stock_batches.`,
+        `"products.stock_quantity" column still exists with ${unmigrated[0].cnt} row(s) not yet migrated to stock_batches — the auto-repair for this was removed, so this now needs a manual fix.`,
       );
     } else {
       findings.push('"products.stock_quantity" column still exists but is fully migrated (dead column, not a blocker).');

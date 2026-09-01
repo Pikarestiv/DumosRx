@@ -3,7 +3,7 @@ import { apiClient } from "@/lib/api/client";
 import { PushResponse } from "./types";
 import type { SyncChange } from "@/lib/types/sync";
 import { remapForeignKey, DUPLICATE_NAME_TABLES } from "../reconcile-identity";
-import { execute } from "../core";
+import { execute, transaction } from "../core";
 
 const SYNC_BATCH_SIZE = 50;
 
@@ -118,9 +118,19 @@ export async function pushChanges(
 
       // Filtered-out items are not silently dropped: record a backoff-tracked
       // failure so they're visible via last_error and eventually reported to
-      // superadmins if the underlying data never gets fixed.
-      for (const r of rejected) {
-        await recordSyncFailure(r.id, r.reason);
+      // superadmins if the underlying data never gets fixed. Wrapped in a
+      // single transaction so a large rejected batch defers the (expensive,
+      // whole-database) sql.js saveDatabase() export to once here instead of
+      // once per item — see transaction()'s own doc comment in core.ts. A
+      // manual sync retrying thousands of backed-off items at once without
+      // this batching can exhaust the tab's memory doing one full-database
+      // re-serialization per item.
+      if (rejected.length > 0) {
+        await transaction(async () => {
+          for (const r of rejected) {
+            await recordSyncFailure(r.id, r.reason);
+          }
+        });
       }
 
       if (changes.length === 0) {
@@ -145,43 +155,53 @@ export async function pushChanges(
       if (response.success) {
         const failedIds = new Set((response.failed ?? []).map((f) => f.id));
         const succeededIds = changes.map((c) => c.id).filter((id) => !failedIds.has(id));
-        await markSynced(succeededIds);
-        pushedCount += succeededIds.length;
 
-        for (const f of response.failed ?? []) {
-          if (f.id != null) {
-            await recordSyncFailure(f.id, f.reason);
-          }
-        }
+        // Wrapped in a single transaction: a batch of up to SYNC_BATCH_SIZE
+        // markSynced/recordSyncFailure/remapForeignKey calls each triggers
+        // its own full-database sql.js export when run outside a
+        // transaction (see the rejected-items comment above for why that
+        // matters at scale).
+        await transaction(async () => {
+          await markSynced(succeededIds);
+          pushedCount += succeededIds.length;
 
-        // The server silently skips an INSERT (and remaps the id) when a
-        // category/supplier name collides with one it already has, but that
-        // remap only lives in the memory of this one push request server-side
-        // (see SyncController::push) — it's never reflected in this device's
-        // local rows unless applied here. Left unhandled, any row in a LATER
-        // batch that still references the old local id fails its foreign key
-        // check forever, since a future delta pull only ever reconciles
-        // categories/suppliers that appear in that pull's own response (see
-        // DUPLICATE_NAME_TABLES in reconcile-identity.ts) — a long-unchanged,
-        // already-existing row like this one never will.
-        for (const [table, mapping] of Object.entries(response.id_map ?? {})) {
-          const refs = DUPLICATE_NAME_TABLES[table];
-          if (!refs) continue;
-          for (const [oldId, newId] of Object.entries(mapping)) {
-            if (oldId === newId) continue;
-            await remapForeignKey(oldId, newId, refs, execute);
-            await execute(`UPDATE ${table} SET _deleted = 1 WHERE id = ?`, [oldId]);
+          for (const f of response.failed ?? []) {
+            if (f.id != null) {
+              await recordSyncFailure(f.id, f.reason);
+            }
           }
-        }
+
+          // The server silently skips an INSERT (and remaps the id) when a
+          // category/supplier name collides with one it already has, but that
+          // remap only lives in the memory of this one push request server-side
+          // (see SyncController::push) — it's never reflected in this device's
+          // local rows unless applied here. Left unhandled, any row in a LATER
+          // batch that still references the old local id fails its foreign key
+          // check forever, since a future delta pull only ever reconciles
+          // categories/suppliers that appear in that pull's own response (see
+          // DUPLICATE_NAME_TABLES in reconcile-identity.ts) — a long-unchanged,
+          // already-existing row like this one never will.
+          for (const [table, mapping] of Object.entries(response.id_map ?? {})) {
+            const refs = DUPLICATE_NAME_TABLES[table];
+            if (!refs) continue;
+            for (const [oldId, newId] of Object.entries(mapping)) {
+              if (oldId === newId) continue;
+              await remapForeignKey(oldId, newId, refs, execute);
+              await execute(`UPDATE ${table} SET _deleted = 1 WHERE id = ?`, [oldId]);
+            }
+          }
+        });
       }
     } catch (error) {
       // Don't abort the whole push run over one bad batch; record backoff
       // for this batch's items and continue with the remaining batches.
       console.error("Push sync failed for batch:", error);
       const message = error instanceof Error ? error.message : String(error);
-      for (const item of batch) {
-        await recordSyncFailure(item.id, message);
-      }
+      await transaction(async () => {
+        for (const item of batch) {
+          await recordSyncFailure(item.id, message);
+        }
+      });
     }
   }
 

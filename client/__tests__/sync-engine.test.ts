@@ -11,6 +11,15 @@ vi.mock('../lib/db/core', async () => {
     execute: vi.fn().mockResolvedValue(undefined),
     query: vi.fn(),
     logAction: vi.fn().mockResolvedValue(undefined),
+    // push.ts wraps its per-batch local writes in transaction() to defer
+    // sql.js's saveDatabase() export to once per batch instead of once per
+    // statement (see push.ts). The real transaction() checks for an
+    // initialized `db` and lazily calls initDatabase() if there isn't one —
+    // this suite never sets up a real db (execute/query are mocked directly
+    // instead), so that lazy init would try to load the real wasm binary and
+    // fail. A passthrough is enough here: execute()/query() are already
+    // fully mocked and don't need real BEGIN/COMMIT semantics.
+    transaction: vi.fn((fn: () => unknown) => fn()),
   };
 });
 

@@ -728,4 +728,59 @@ class SyncEndpointTest extends TestCase
         $this->assertDatabaseMissing('categories', ['id' => $localCategoryId]);
         $this->assertDatabaseCount('categories', 1);
     }
+
+    /**
+     * Regression test for a real report: the client's local SQLite schema
+     * has always had purchase_orders.type (see client/lib/db/schema.ts), but
+     * no server migration ever added it here, so every purchase order push
+     * failed with "Unknown column 'type'" (SQLSTATE 42S22) — confirmed via a
+     * real sync failure log predating this fix.
+     */
+    public function test_push_sync_handles_purchase_order_insert_with_type_column()
+    {
+        $supplierId = (string) \Illuminate\Support\Str::uuid();
+        DB::table('suppliers')->insert([
+            'id' => $supplierId,
+            'user_id' => $this->user->id,
+            'name' => 'Test Supplier',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $poId = (string) \Illuminate\Support\Str::uuid();
+        $payload = [
+            'setup' => true,
+            'changes' => [
+                [
+                    'table_name' => 'purchase_orders',
+                    'operation' => 'INSERT',
+                    'record_id' => $poId,
+                    'payload' => [
+                        'id' => $poId,
+                        'order_number' => 'PO-TEST-001',
+                        'supplier_id' => $supplierId,
+                        'status' => 'pending',
+                        'type' => 'standard',
+                        'payment_status' => 'unpaid',
+                        'amount_paid' => 0,
+                        'total_amount' => 78000,
+                        'ordered_by' => $this->user->id,
+                        'order_date' => now()->toDateTimeString(),
+                        '_synced' => 0,
+                    ],
+                ],
+            ],
+        ];
+
+        $response = $this->actingAs($this->user)->postJson('/api/v1/app/sync/push', $payload);
+
+        $response->assertStatus(200);
+        $response->assertJsonCount(0, 'failed');
+
+        $this->assertDatabaseHas('purchase_orders', [
+            'id' => $poId,
+            'order_number' => 'PO-TEST-001',
+            'type' => 'standard',
+        ]);
+    }
 }

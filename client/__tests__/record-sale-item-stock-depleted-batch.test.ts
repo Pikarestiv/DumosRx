@@ -114,6 +114,45 @@ describe("recordSaleItemStock — depleted batch", () => {
     expect(movements.length).toBe(0);
   });
 
+  it("still logs the full quantity when a single batch only partially covers an oversold cart line", async () => {
+    // Reproduces the narrower variant of the same bug: getBatchesForProduct
+    // returns a non-empty list (one batch with 1 unit left), so the
+    // zero-batches fallback never triggers, but the cart line oversells
+    // beyond what that batch has. The normal deduction loop deducts the 1
+    // unit it can and stops — the leftover 2 units must still be picked up
+    // by the fallback instead of vanishing untracked.
+    db.run(
+      `INSERT INTO stock_batches (id, product_id, quantity, cost_price) VALUES ('batch1', 'prod1', 1, 60)`,
+    );
+
+    await recordSaleItemStock({
+      saleId: "sale1",
+      productId: "prod1",
+      quantity: 3,
+      unitPrice: 100,
+      costPrice: 60,
+      subtotal: 300,
+      cashierId: "user1",
+    });
+
+    const movements = db.exec(
+      "SELECT quantity FROM stock_movements WHERE reference_id = 'sale1' AND product_id = 'prod1'",
+    );
+    const totalDeducted = (movements[0]?.values ?? []).reduce(
+      (sum, row) => sum + Math.abs(Number(row[0])),
+      0,
+    );
+    expect(totalDeducted).toBe(3);
+
+    const batchQtyLeftInSaleItemBatches = db.exec(
+      "SELECT SUM(quantity) FROM sale_item_batches WHERE sale_item_id = (SELECT id FROM sale_items WHERE sale_id = 'sale1' AND product_id = 'prod1')",
+    );
+    expect(batchQtyLeftInSaleItemBatches[0]?.values[0]?.[0]).toBe(3);
+
+    const batch = db.exec("SELECT quantity FROM stock_batches WHERE id = 'batch1'");
+    expect(batch[0]?.values[0]?.[0]).toBe(-2);
+  });
+
   it("still picks FEFO among positive-stock batches when one exists (unaffected by the fallback)", async () => {
     db.run(
       `INSERT INTO stock_batches (id, product_id, quantity, cost_price, expiry_date) VALUES ('batch_old', 'prod1', 5, 60, '2026-01-01')`,

@@ -165,15 +165,15 @@ export async function recordSaleItemStock({
   });
 
   let remainingToDeduct = quantity;
-  for (const batch of batches) {
-    if (remainingToDeduct <= 0) break;
-    // batch.quantity can be <= 0 here when this batch only turned up via the
-    // getAnyActiveBatchForProduct fallback (nothing with positive stock left
-    // for this product); clamping to it in that case would silently drop
-    // some or all of the deduction again. Only clamp against genuinely
-    // available stock; otherwise the fallback batch absorbs the full
-    // remainder (going further negative) so the movement/audit trail still
-    // matches what was actually sold.
+
+  // batch.quantity can be <= 0 when this batch only turned up via the
+  // getAnyActiveBatchForProduct fallback (nothing with positive stock left
+  // for this product); clamping to it in that case would silently drop some
+  // or all of the deduction again. Only clamp against genuinely available
+  // stock; otherwise the batch absorbs the full remainder (going further
+  // negative) so the movement/audit trail still matches what was actually
+  // sold.
+  const deductFromBatch = async (batch: StockBatch) => {
     const deduction =
       batch.quantity > 0
         ? Math.min(batch.quantity, remainingToDeduct)
@@ -204,6 +204,26 @@ export async function recordSaleItemStock({
     });
 
     remainingToDeduct -= deduction;
+  };
+
+  for (const batch of batches) {
+    if (remainingToDeduct <= 0) break;
+    await deductFromBatch(batch);
+  }
+
+  // Partial shortfall: the positive-stock batches above didn't cover the
+  // whole quantity — e.g. a stale on-screen stock count let the cashier sell
+  // more than a single batch (or the sum of all positive batches) actually
+  // has left. This is the same untracked-shrinkage risk the zero-batches
+  // fallback above guards against, just arrived at a different way, so it
+  // gets the same fallback: attribute the leftover to the most-recently-
+  // touched active batch instead of leaving it undeducted and unlogged.
+  if (remainingToDeduct > 0) {
+    const fallbackBatches = await getAnyActiveBatchForProduct(productId);
+    for (const batch of fallbackBatches) {
+      if (remainingToDeduct <= 0) break;
+      await deductFromBatch(batch);
+    }
   }
 
   return saleItemId;

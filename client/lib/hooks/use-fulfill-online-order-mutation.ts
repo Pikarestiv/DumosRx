@@ -1,8 +1,8 @@
 import { useMutation } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
 import { generateId } from "@/lib/db/core";
-import { insert, update } from "@/lib/db/base-helpers";
-import { getStockBatchesForProduct } from "@/lib/db/queries/sales";
+import { insert } from "@/lib/db/base-helpers";
+import { getBatchesForProduct, recordSaleItemStock } from "@/lib/db/queries/inventory";
 import type { OnlineOrder } from "@/lib/types/online-order";
 
 interface FulfillOnlineOrderParams {
@@ -36,29 +36,38 @@ export function useFulfillOnlineOrderMutation() {
         status: "completed",
       });
 
-      // Deduct stock for each item
+      // Insert each sale_items row and deduct/log the stock it consumed via
+      // the same recordSaleItemStock() used by POS checkout (see
+      // lib/db/queries/inventory.ts), instead of this hook's own
+      // getStockBatchesForProduct/remainingToDeduct loop. That duplicated
+      // loop had the identical FEFO-fallback bug fixed there (a batch that
+      // only partially covers the order line silently left the rest
+      // undeducted) and, worse, never wrote stock_movements or
+      // sale_item_batches rows at all — a fulfilled online order left zero
+      // trace in the stock ledger regardless of depletion level. Routing
+      // through the shared helper closes both gaps in one place.
       for (const item of order.items) {
-        await insert("sale_items", {
-          sale_id: saleId,
-          product_id: item.product_id,
+        // Online orders don't carry a per-item cost_price (unlike POS cart
+        // items, which resolve it from batches when added to cart), so
+        // approximate it here as the quantity-weighted average cost across
+        // the product's active batches — the same average recordSaleItemStock's
+        // caller convention (see use-pos-payment.ts) expects.
+        const batches = await getBatchesForProduct(item.product_id);
+        const totalQty = batches.reduce((sum, b) => sum + b.quantity, 0);
+        const costPrice =
+          totalQty > 0
+            ? batches.reduce((sum, b) => sum + (b.cost_price || 0) * b.quantity, 0) / totalQty
+            : batches[0]?.cost_price ?? 0;
+
+        await recordSaleItemStock({
+          saleId,
+          productId: item.product_id,
           quantity: item.quantity,
-          unit_price: item.unit_price,
+          unitPrice: item.unit_price,
+          costPrice,
           subtotal: item.subtotal,
+          cashierId: cashierId ?? null,
         });
-
-        // Reduce stock in stock_batches (simple FIFO logic or just deduct from first available)
-        // Here we just deduct from the latest active batch to keep it simple, since online order didn't pick batch.
-        const batches = await getStockBatchesForProduct(item.product_id);
-
-        let remainingToDeduct = item.quantity;
-        for (const batch of batches) {
-          if (remainingToDeduct <= 0) break;
-          const deduct = Math.min(batch.quantity, remainingToDeduct);
-          await update("stock_batches", batch.id, {
-            quantity: batch.quantity - deduct,
-          });
-          remainingToDeduct -= deduct;
-        }
       }
     },
   });

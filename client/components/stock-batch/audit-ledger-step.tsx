@@ -37,8 +37,7 @@ interface AuditLedgerStepProps {
 }
 
 /** Dense, single-screen count flow: every item is visible and editable at
- * once (qty, cost price, selling price), matching the QuickBooks POS /
- * Moniebook physical-inventory style Cynthia asked for. The category picker
+ * once (qty, cost price, selling price). The category picker
  * is just a lens on this one continuous session, not a scope gate: every
  * item is pre-filled and counted from the moment the screen opens, so
  * switching categories mid-count never loses anything already entered.
@@ -64,7 +63,8 @@ export function AuditLedgerStep({
       const countedQty = item.countedQty ?? item.systemQty;
       const diffQty = countedQty - item.systemQty;
       acc.diffQty += diffQty;
-      acc.diffCost += item.costPrice !== undefined ? diffQty * item.costPrice : 0;
+      acc.diffCost +=
+        item.costPrice !== undefined ? diffQty * item.costPrice : 0;
       acc.diffSelling +=
         item.sellingPrice !== undefined ? diffQty * item.sellingPrice : 0;
       return acc;
@@ -272,7 +272,9 @@ export function AuditLedgerStep({
                       className="px-2 py-1.5 text-right flex items-center"
                     >
                       <EditableNumberCell
-                        value={item.countedSellingPrice ?? item.sellingPrice ?? 0}
+                        value={
+                          item.countedSellingPrice ?? item.sellingPrice ?? 0
+                        }
                         onCommit={(val) =>
                           onUpdateItem(item.id, { countedSellingPrice: val })
                         }
@@ -315,7 +317,8 @@ export function AuditLedgerStep({
                     role="cell"
                     className="px-3 py-2 sticky left-0 z-10 bg-muted text-muted-foreground text-[11px] uppercase"
                   >
-                    Totals{selectedCategory !== ALL_CATEGORIES ? " (filtered)" : ""}
+                    Totals
+                    {selectedCategory !== ALL_CATEGORIES ? " (filtered)" : ""}
                   </div>
                   <div role="cell" className="px-3 py-2" />
                   <div role="cell" className="px-3 py-2" />

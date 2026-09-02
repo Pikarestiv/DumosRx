@@ -1,5 +1,5 @@
 import React from "react";
-import { formatCurrency } from "@/lib/utils";
+import { formatMetricCurrency } from "@/lib/utils";
 import { MetricCard } from "@/components/ui/metric-card";
 
 interface TransactionMetricsData {
@@ -21,7 +21,7 @@ export function TransactionMetrics({
       <MetricCard
         className="min-w-[180px] md:min-w-0 snap-center shrink-0"
         title="Today's sales"
-        value={formatCurrency(metrics.totalSales, currencyCode)}
+        value={formatMetricCurrency(metrics.totalSales, currencyCode)}
         valueClassName="font-serif"
       />
       <MetricCard
@@ -39,7 +39,7 @@ export function TransactionMetrics({
       <MetricCard
         className="min-w-[180px] md:min-w-0 snap-center shrink-0"
         title="Avg. basket"
-        value={formatCurrency(metrics.avgBasket, currencyCode)}
+        value={formatMetricCurrency(metrics.avgBasket, currencyCode)}
         valueClassName="font-serif"
       />
     </div>

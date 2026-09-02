@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   PackageX,
@@ -12,6 +13,7 @@ import {
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { getCategoryIcon } from "@/lib/constants/category-icons";
+import { RequestItemDialog } from "@/components/pos/request-item-dialog";
 import type { POSProduct } from "@/lib/types/product";
 import type { CartItem } from "@/lib/hooks/use-pos-cart";
 
@@ -146,6 +148,8 @@ export function POSProductList({
   onUpgradeClick,
   displayStockLevels = true,
 }: POSProductListProps) {
+  const [showRequestDialog, setShowRequestDialog] = useState(false);
+
   // Use a map for O(1) lookups
   const cartQuantityMap = new Map(
     cart.map((item) => [item.id, item.quantity]),
@@ -218,8 +222,21 @@ export function POSProductList({
             Try a different search term or add {productTerm.toLowerCase()} to
             stock batch.
           </p>
+          <button
+            type="button"
+            onClick={() => setShowRequestDialog(true)}
+            className="mt-3 text-sm font-semibold text-primary hover:underline"
+          >
+            Request Product
+          </button>
         </div>
       )}
+
+      <RequestItemDialog
+        open={showRequestDialog}
+        onOpenChange={setShowRequestDialog}
+        initialProductName={searchTerm}
+      />
 
       {!loadingProducts &&
         filteredProducts.length > 0 &&

@@ -1,5 +1,5 @@
 import { DollarSign, Banknote, ArrowLeftRight, RotateCcw, TrendingUp } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { formatMetricCurrency } from "@/lib/utils";
 import { MetricCard } from "@/components/ui/metric-card";
 
 interface DailyCloseMetricsProps {
@@ -27,7 +27,7 @@ export function DailyCloseMetrics({
           <MetricCard
             className="min-w-[180px] sm:min-w-0 snap-center shrink-0 border-border"
             title="Total Sales"
-            value={formatCurrency(aggregatedTotals.total, currencyCode)}
+            value={formatMetricCurrency(aggregatedTotals.total, currencyCode)}
             icon={<DollarSign className="h-4 w-4" />}
             iconBgClass="bg-blue-50 text-blue-700"
             valueClassName="font-serif"
@@ -36,7 +36,7 @@ export function DailyCloseMetrics({
           <MetricCard
             className="min-w-[180px] sm:min-w-0 snap-center shrink-0 border-border"
             title="Cash Expected"
-            value={formatCurrency(aggregatedTotals.cash, currencyCode)}
+            value={formatMetricCurrency(aggregatedTotals.cash, currencyCode)}
             icon={<Banknote className="h-4 w-4" />}
             iconBgClass="bg-emerald-50 text-emerald-700"
             valueClassName="font-serif"
@@ -45,7 +45,7 @@ export function DailyCloseMetrics({
           <MetricCard
             className="min-w-[180px] sm:min-w-0 snap-center shrink-0 border-border"
             title="Transfer / Mobile"
-            value={formatCurrency(aggregatedTotals.transfer, currencyCode)}
+            value={formatMetricCurrency(aggregatedTotals.transfer, currencyCode)}
             icon={<ArrowLeftRight className="h-4 w-4" />}
             iconBgClass="bg-sky-50 text-sky-700"
             valueClassName="font-serif"
@@ -54,7 +54,7 @@ export function DailyCloseMetrics({
           <MetricCard
             className="min-w-[180px] sm:min-w-0 snap-center shrink-0 border-red-200/50 hover:border-red-500/50"
             title="Total Refunds"
-            value={formatCurrency(aggregatedTotals.refunds, currencyCode)}
+            value={formatMetricCurrency(aggregatedTotals.refunds, currencyCode)}
             icon={<RotateCcw className="h-4 w-4" />}
             iconBgClass="bg-red-50 text-red-700"
             valueClassName="font-serif text-red-700"
@@ -66,7 +66,7 @@ export function DailyCloseMetrics({
       <MetricCard
         className="border-emerald-200/50"
         title="Total Profit (Est.)"
-        value={formatCurrency(totalProfit, currencyCode)}
+        value={formatMetricCurrency(totalProfit, currencyCode)}
         icon={<TrendingUp className="h-4 w-4" />}
         iconBgClass={totalProfit >= 0 ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}
         valueClassName={`font-serif ${totalProfit >= 0 ? "text-emerald-600" : "text-destructive"}`}

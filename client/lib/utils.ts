@@ -19,6 +19,23 @@ export function formatCurrency(amount: number, currencyCode: string = "NGN") {
   }).format(amount);
 }
 
+/** Same as formatCurrency, but always rounds to whole units for currencies
+ * where sub-unit precision is no longer practically used (Naira, since kobo
+ * has fallen out of everyday use) — for dashboard/report metric cards where
+ * a rounded headline figure reads cleaner than an exact-to-the-kobo total.
+ * Line-item prices, cart totals, and receipts should keep using
+ * formatCurrency() so accounting precision isn't lost there. */
+export function formatMetricCurrency(amount: number, currencyCode: string = "NGN") {
+  const code = currencyCode.replace(/[^A-Z]/g, "") || "NGN";
+  const noDecimalCurrencies = new Set(["NGN"]);
+  return new Intl.NumberFormat("en-NG", {
+    style: "currency",
+    currency: code,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: noDecimalCurrencies.has(code) ? 0 : undefined,
+  }).format(amount);
+}
+
 /** Just the currency symbol/prefix (e.g. "₦", "$"), for compact chart-axis
  * labels ("₦12k") where the full formatCurrency() output would be too wide.
  * Derived from the same Intl formatter as formatCurrency() so the two never

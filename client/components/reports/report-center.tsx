@@ -24,21 +24,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import type { DateRangeValue } from "@/components/ui/date-range-picker";
 import { ReportFiltersBar, type ReportFiltersValue } from "@/components/reports/report-filters-bar";
 import {
   useReportExport,
   RecentDownload,
   ReportId,
 } from "@/lib/hooks/use-report-export";
+import { toQueryRange } from "@/lib/utils/date-range";
 import { toast } from "sonner";
-
-function toQueryRange(range: DateRangeValue): { from?: string; to?: string } {
-  return {
-    from: range.from ? `${range.from}T00:00:00.000Z` : undefined,
-    to: range.to ? `${range.to}T23:59:59.999Z` : undefined,
-  };
-}
 
 export function ReportCenter() {
   const [filters, setFilters] = useState<ReportFiltersValue>({

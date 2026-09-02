@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
+import { getDeviceId } from "@/lib/utils/device-id";
 import {
   checkLicenseStatus,
   LicenseInfo,
@@ -142,12 +143,7 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
   // Generate or load device ID on mount
   useEffect(() => {
     if (typeof window !== "undefined") {
-      let id = localStorage.getItem("dumos_device_id");
-      if (!id) {
-        id = "DRX-" + Math.random().toString(36).substring(2, 11).toUpperCase();
-        localStorage.setItem("dumos_device_id", id);
-      }
-      setDeviceId(id);
+      setDeviceId(getDeviceId());
     }
   }, []);
 

@@ -103,25 +103,45 @@ export async function getActivityLog(
   return { rows: rows || [], total };
 }
 
-export async function getDistinctActivityActions() {
+export async function getDistinctActivityActions(tableName?: string) {
   const storeId = getActiveStoreId();
+  const conditions = ["(_deleted = 0 OR _deleted IS NULL)"];
+  const params: string[] = [];
+  if (storeId) {
+    conditions.push("store_id = ?");
+    params.push(storeId);
+  }
+  if (tableName) {
+    conditions.push("table_name = ?");
+    params.push(tableName);
+  }
   const rows = await query<{ action: string }>(
     `SELECT DISTINCT action FROM audit_logs
-     WHERE (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}
+     WHERE ${conditions.join(" AND ")}
      ORDER BY action ASC`,
-    storeId ? [storeId] : [],
+    params,
   );
   return rows.map((r) => r.action);
 }
 
-export async function getDistinctActivityUsers() {
+export async function getDistinctActivityUsers(tableName?: string) {
   const storeId = getActiveStoreId();
+  const conditions = ["(al._deleted = 0 OR al._deleted IS NULL)", "al.user_id IS NOT NULL"];
+  const params: string[] = [];
+  if (storeId) {
+    conditions.push("al.store_id = ?");
+    params.push(storeId);
+  }
+  if (tableName) {
+    conditions.push("al.table_name = ?");
+    params.push(tableName);
+  }
   return query<{ user_id: string; user_name: string }>(
     `SELECT DISTINCT al.user_id, TRIM(u.first_name || ' ' || u.last_name) as user_name
      FROM audit_logs al
      LEFT JOIN users u ON u.id = al.user_id
-     WHERE (al._deleted = 0 OR al._deleted IS NULL) AND al.user_id IS NOT NULL${storeId ? " AND al.store_id = ?" : ""}
+     WHERE ${conditions.join(" AND ")}
      ORDER BY user_name ASC`,
-    storeId ? [storeId] : [],
+    params,
   );
 }

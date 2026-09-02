@@ -17,6 +17,14 @@ export const getDaysToExpiry = (expiryDate: string) => {
   return differenceInDays(new Date(expiryDate), new Date());
 };
 
+/** Short "Weekday, D Mon" label, e.g. "Tue, 3 Sep" — used in the dashboard
+ * header's date/clock strip. */
+export const formatHeaderDate = (date: Date = new Date()): string => {
+  const weekday = date.toLocaleDateString("en-US", { weekday: "short" });
+  const month = date.toLocaleDateString("en-US", { month: "short" });
+  return `${weekday}, ${date.getDate()} ${month}`;
+};
+
 /**
  * Format a date string or object to DD/MM/YYYY.
  */

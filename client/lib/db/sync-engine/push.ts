@@ -154,9 +154,14 @@ export async function pushChanges(
       // this batching can exhaust the tab's memory doing one full-database
       // re-serialization per item.
       if (rejected.length > 0) {
+        // reportImmediately=true: these are deterministic client-side
+        // validation failures (bad UUID, missing required column) that will
+        // fail identically on every retry, so waiting for the normal 5-retry
+        // report threshold just delays remote visibility into a store that's
+        // permanently stuck on this item for no operational reason.
         await transaction(async () => {
           for (const r of rejected) {
-            await recordSyncFailure(r.id, r.reason);
+            await recordSyncFailure(r.id, r.reason, true);
           }
         });
       }

@@ -1,7 +1,7 @@
 "use client";
 
 import { format } from "date-fns";
-import { formatCurrency } from "@/lib/utils";
+import { formatMetricCurrency } from "@/lib/utils";
 import { MetricCard } from "@/components/ui/metric-card";
 
 interface ExpenseInsightsStripProps {
@@ -24,7 +24,7 @@ export function ExpenseInsightsStrip({
       <MetricCard
         className="min-w-[180px] sm:min-w-0 shrink-0 snap-start border-border"
         title="Total expenses"
-        value={formatCurrency(totalExpenses, currencyCode || "NGN")}
+        value={formatMetricCurrency(totalExpenses, currencyCode || "NGN")}
         valueClassName="font-serif"
         icon={
           <svg
@@ -45,7 +45,7 @@ export function ExpenseInsightsStrip({
       <MetricCard
         className="min-w-[180px] sm:min-w-0 shrink-0 snap-start border-border"
         title="This month"
-        value={formatCurrency(thisMonthExpenses, currencyCode || "NGN")}
+        value={formatMetricCurrency(thisMonthExpenses, currencyCode || "NGN")}
         valueClassName="font-serif"
         icon={
           <svg

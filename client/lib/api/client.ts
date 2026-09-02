@@ -5,6 +5,7 @@ import type { NewProductPayload } from "@/lib/types/product";
 import type { SupplierPayload } from "@/lib/types/supplier";
 import type { SyncChange } from "@/lib/types/sync";
 import type { CurrentUser, Session } from "@/lib/types/user";
+import { getDeviceId } from "@/lib/utils/device-id";
 
 /** Loose shape shared by the legacy cloud list/aggregate endpoints below:
  * callers only ever read `.total`/`.count`/`.data?.length`/`.revenue`. */
@@ -281,6 +282,7 @@ class ApiClient extends FleetBillingApiClient {
       if (activeStoreId) {
         headers["X-Store-Id"] = activeStoreId;
       }
+      headers["X-Device-Id"] = getDeviceId();
     }
 
     return this.request(url, {
@@ -307,6 +309,7 @@ class ApiClient extends FleetBillingApiClient {
       if (activeStoreId) {
         headers["X-Store-Id"] = activeStoreId;
       }
+      headers["X-Device-Id"] = getDeviceId();
     }
 
     return this.request(url, {

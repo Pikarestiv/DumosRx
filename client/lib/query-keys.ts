@@ -207,7 +207,14 @@ export const queryKeys = {
   activityLog: {
     list: (filtersKey: string) =>
       resource(["activityLog", filtersKey] as const, ["audit_logs"]),
-    actions: () => resource(["activityLogActions"] as const, ["audit_logs"]),
+    // tableName distinguishes the full Activity Log page's cache slot (no
+    // arg) from a scoped tab's (e.g. Staff Activities passing "users") —
+    // without it both would collide on the same key and shadow each other's
+    // distinct actions/users list.
+    actions: (tableName?: string) =>
+      resource(["activityLogActions", tableName ?? "all"] as const, ["audit_logs"]),
+    users: (tableName?: string) =>
+      resource(["activityLogUsers", tableName ?? "all"] as const, ["audit_logs", "users"]),
   },
   billing: {
     // Remote API data, not a local table.

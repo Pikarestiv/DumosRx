@@ -38,8 +38,9 @@ function salesFilterClause(filters: SalesFilters | undefined, alias: "" | "s.") 
  * activity, i.e. checkCanViewAllActivity(role) === true). Today's revenue/
  * refund totals are NOT scoped by this: those stay store-wide regardless of
  * role, since cashiers need accurate shift/till totals for reconciliation.
- * Product-catalog additions are also unscoped by viewerId: products have no
- * creator/user column, unlike the other feed sources. */
+ * Product-catalog additions have no creator/user column to scope by, so a
+ * scoped viewer sees none of that feed source rather than everyone else's
+ * additions. */
 export async function getDashboardOverviewData(viewerId?: string) {
   const today = getLocalTodayDate();
   const storeId = getActiveStoreId();
@@ -149,18 +150,24 @@ export async function getDashboardOverviewData(viewerId?: string) {
     [...(viewerId ? [viewerId] : []), ...(storeId ? [storeId] : [])],
   );
 
-  const recentProducts = await query<{
-    id: string;
-    name: string;
-    selling_price?: number;
-    created_at: string;
-  }>(
-    `SELECT id, name, selling_price, created_at
-     FROM products
-     WHERE _deleted = 0${storeId ? " AND store_id = ?" : ""}
-     ORDER BY created_at DESC LIMIT 5`,
-    storeId ? [storeId] : [],
-  );
+  // Products have no creator/user column, so unlike every other feed source
+  // above, this can't be scoped to the viewer's own actions - skip it
+  // entirely for a scoped viewer rather than showing everyone else's
+  // catalog additions (e.g. a cashier seeing products the store owner added).
+  const recentProducts = viewerId
+    ? []
+    : await query<{
+        id: string;
+        name: string;
+        selling_price?: number;
+        created_at: string;
+      }>(
+        `SELECT id, name, selling_price, created_at
+         FROM products
+         WHERE _deleted = 0${storeId ? " AND store_id = ?" : ""}
+         ORDER BY created_at DESC LIMIT 5`,
+        storeId ? [storeId] : [],
+      );
 
   const allActivities: DashboardActivity[] = [
     ...(recentSales || []).map((s): DashboardActivity => ({ ...s, activity_type: 'sale' })),

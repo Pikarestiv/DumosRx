@@ -9,6 +9,7 @@ import { PODetailsDialog } from "@/components/procurement/po-details-dialog";
 import { POMobileCreateView } from "@/components/procurement/po-mobile-create-view";
 import { PODesktopCreateView } from "@/components/procurement/po-desktop-create-view";
 import { getLineTotal } from "@/components/procurement/po-line-item-math";
+import { RequireRole } from "@/components/auth/require-role";
 import { toast } from "sonner";
 
 import { useProcurementData } from "@/lib/hooks/use-procurement-data";
@@ -24,7 +25,7 @@ import type { POLineItemDraft } from "@/components/procurement/po-item-ledger-ta
 import type { NewProductPayload, ProductViewModel } from "@/lib/types/product";
 import type { SupplierPayload } from "@/lib/types/supplier";
 
-export default function CreateOrderPage() {
+function CreateOrderContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
@@ -320,5 +321,13 @@ export default function CreateOrderPage() {
         isSubmitting={createSupplierMutation.isPending}
       />
     </>
+  );
+}
+
+export default function CreateOrderPage() {
+  return (
+    <RequireRole>
+      <CreateOrderContent />
+    </RequireRole>
   );
 }

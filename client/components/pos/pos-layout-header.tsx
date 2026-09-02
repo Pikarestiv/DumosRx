@@ -1,7 +1,14 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { ChevronLeft, Maximize, Search, FileClock, Scan } from "lucide-react";
+import {
+  ChevronLeft,
+  Maximize,
+  Minimize,
+  Search,
+  FileClock,
+  Scan,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Store as StoreIcon } from "lucide-react";
@@ -11,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { CameraScannerDialog } from "./camera-scanner-dialog";
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
+import { usePosFullscreenStore } from "@/lib/hooks/use-pos-fullscreen";
 
 interface POSLayoutHeaderProps {
   searchTerm: string;
@@ -35,12 +43,26 @@ export function POSLayoutHeader({
   const { storeProfile } = useStore();
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const searchParams = useSearchParams();
+  const isFullscreen = usePosFullscreenStore((s) => s.isFullscreen);
+  const setFullscreen = usePosFullscreenStore((s) => s.setFullscreen);
 
   useEffect(() => {
     if (searchParams?.get("action") === "scan") {
       setIsScannerOpen(true);
     }
   }, [searchParams]);
+
+  // Keeps the store (and therefore the sidebar) in sync when fullscreen is
+  // exited some way other than this button - Esc, the browser's own exit
+  // control, or leaving the POS route entirely.
+  useEffect(() => {
+    const handleChange = () => setFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", handleChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", handleChange);
+      setFullscreen(false);
+    };
+  }, [setFullscreen]);
 
   return (
     <header className="h-auto min-h-16 py-3 bg-background flex items-center px-4 sm:px-6 sticky top-0 z-10 shrink-0 border-b border-border/50">
@@ -111,20 +133,32 @@ export function POSLayoutHeader({
 
       {/* Right side: Actions */}
       <div className="flex items-center gap-2 sm:gap-3 ml-auto">
-        {/* Fullscreen toggle (Desktop only) */}
+        {/* Fullscreen toggle (Desktop only): also hides the app sidebar so
+            the checkout screen actually gets the full viewport, not just
+            browser chrome-free. */}
         <Button
           variant="outline"
           size="icon"
           className="h-10 w-10 shrink-0 rounded-xl border-border/50 bg-background text-muted-foreground hover:text-foreground hidden lg:flex"
           onClick={() => {
             if (!document.fullscreenElement) {
-              document.documentElement.requestFullscreen().catch(() => {});
+              document.documentElement
+                .requestFullscreen()
+                .then(() => setFullscreen(true))
+                .catch(() => {});
             } else {
-              document.exitFullscreen().catch(() => {});
+              document
+                .exitFullscreen()
+                .then(() => setFullscreen(false))
+                .catch(() => {});
             }
           }}
         >
-          <Maximize className="h-4 w-4" />
+          {isFullscreen ? (
+            <Minimize className="h-4 w-4" />
+          ) : (
+            <Maximize className="h-4 w-4" />
+          )}
         </Button>
 
         {/* Held Sales Button */}

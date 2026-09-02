@@ -72,7 +72,8 @@ class ActivityLogController extends Controller
             'url' => 'required|string',
             'status' => 'nullable',
             'message' => 'required|string',
-            'details' => 'nullable|array'
+            'details' => 'nullable|array',
+            'deviceId' => 'nullable|string',
         ]);
 
         // No auth middleware guards this route (it needs to capture failures
@@ -80,10 +81,12 @@ class ActivityLogController extends Controller
         // so the caller may or may not be authenticated.
         $user = $request->user('sanctum');
         $userLabel = $user ? "{$user->id} ({$user->email})" : 'guest';
+        $deviceId = $request->input('deviceId', 'unknown');
 
         // Log to laravel.log
-        Log::error("Client API Error [User: {$userLabel}]: {$request->input('method')} {$request->input('url')} - Status: {$request->input('status')} - Message: {$request->input('message')}", [
+        Log::error("Client API Error [User: {$userLabel}] [Device: {$deviceId}]: {$request->input('method')} {$request->input('url')} - Status: {$request->input('status')} - Message: {$request->input('message')}", [
             'details' => $request->input('details'),
+            'device_id' => $deviceId,
             'ip' => $request->ip(),
             'user_agent' => $request->userAgent()
         ]);
@@ -98,7 +101,8 @@ class ActivityLogController extends Controller
                 'user_agent' => $request->userAgent(),
                 'properties' => [
                     'error_message' => $request->input('message'),
-                    'details' => $request->input('details')
+                    'details' => $request->input('details'),
+                    'device_id' => $deviceId,
                 ]
             ]);
         }

@@ -65,139 +65,258 @@ export function StaffList({
     onDelete(user.id, name);
   };
 
+  const sortedUsers = [...users].sort((a, b) => {
+    const isAMain = !a.store_id || a.role === "admin";
+    const isBMain = !b.store_id || b.role === "admin";
+    if (isAMain && !isBMain) return -1;
+    if (!isAMain && isBMain) return 1;
+    return 0;
+  });
+
+  const isEmpty = !isLoading && users.length === 0;
+
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Name</TableHead>
-          <TableHead>Username</TableHead>
-          <TableHead>Role</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead>Created</TableHead>
-          <TableHead className="text-right">Actions</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {!!isLoading && (
-          <TableRow>
-            <TableCell colSpan={6} className="h-24 text-center">
-              <Loader2 className="w-6 h-6 animate-spin mx-auto text-muted-foreground" />
-            </TableCell>
-          </TableRow>
-        )}
-        {!isLoading && users.length === 0 && <NoStaffFoundRow />}
-        {!(!isLoading && users.length === 0) &&
-          [...users]
-            .sort((a, b) => {
-              const isAMain = !a.store_id || a.role === "admin";
-              const isBMain = !b.store_id || b.role === "admin";
-              if (isAMain && !isBMain) return -1;
-              if (!isAMain && isBMain) return 1;
-              return 0;
-            })
-            .map((user) => {
-              const isMainAccount = !user.store_id || user.role === "admin";
-              return (
-                <TableRow
-                  key={user.id}
-                  className={
-                    isMainAccount
-                      ? "bg-indigo-50/50 dark:bg-indigo-900/10"
-                      : undefined
-                  }
-                >
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs">
-                        {user.first_name?.charAt(0).toUpperCase() || "U"}
+    <>
+      {/* Desktop: real table, horizontally scrollable if content ever
+          demands more than the column widths naturally settle at. */}
+      <div className="hidden sm:block overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Name</TableHead>
+              <TableHead>Username</TableHead>
+              <TableHead>Role</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Created</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {!!isLoading && (
+              <TableRow>
+                <TableCell colSpan={6} className="h-24 text-center">
+                  <Loader2 className="w-6 h-6 animate-spin mx-auto text-muted-foreground" />
+                </TableCell>
+              </TableRow>
+            )}
+            {isEmpty && <NoStaffFoundRow />}
+            {!isEmpty &&
+              sortedUsers.map((user) => {
+                const isMainAccount = !user.store_id || user.role === "admin";
+                return (
+                  <TableRow
+                    key={user.id}
+                    className={
+                      isMainAccount
+                        ? "bg-indigo-50/50 dark:bg-indigo-900/10"
+                        : undefined
+                    }
+                  >
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 shrink-0 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs">
+                          {user.first_name?.charAt(0).toUpperCase() || "U"}
+                        </div>
+                        <span className="font-medium">
+                          {`${user.first_name || ""} ${user.last_name || ""}`.trim()}
+                        </span>
+                        {isMainAccount && (
+                          <Badge className="h-5 px-1.5 text-[9px] bg-primary shrink-0">
+                            Main Account
+                          </Badge>
+                        )}
                       </div>
-                      <span className="font-medium">
-                        {`${user.first_name || ""} ${user.last_name || ""}`.trim()}
-                      </span>
-                      {isMainAccount && (
-                        <Badge className="h-5 px-1.5 text-[9px] bg-primary">
-                          Main Account
+                    </TableCell>
+                    <TableCell className="font-mono text-sm">
+                      <div className="flex items-center gap-2">
+                        {user.username}
+                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30 px-1.5 py-0.5 rounded-full shrink-0">
+                          <Key className="w-2.5 h-2.5" />
+                          PIN set
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        {checkIsAdmin(user.role) && (
+                          <Shield className="w-3 h-3 text-emerald-500" />
+                        )}
+                        <Badge
+                          variant={
+                            checkIsAdmin(user.role) ? "default" : "secondary"
+                          }
+                          className="capitalize"
+                        >
+                          {user.role?.replace("_", " ") || "Staff"}
                         </Badge>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell className="font-mono text-sm">
-                    <div className="flex items-center gap-2">
-                      {user.username}
-                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30 px-1.5 py-0.5 rounded-full">
-                        <Key className="w-2.5 h-2.5" />
-                        PIN set
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      {checkIsAdmin(user.role) && (
-                        <Shield className="w-3 h-3 text-emerald-500" />
-                      )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
                       <Badge
-                        variant={
-                          checkIsAdmin(user.role) ? "default" : "secondary"
+                        variant="outline"
+                        className={
+                          user.is_active === 0
+                            ? "bg-slate-50 text-slate-500 border-slate-200"
+                            : "bg-green-50 text-green-700 border-green-200"
                         }
-                        className="capitalize"
                       >
-                        {user.role?.replace("_", " ") || "Staff"}
+                        {user.is_active === 0 ? "Inactive" : "Active"}
                       </Badge>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {!!user.created_at && formatDateToDDMMYYYY(user.created_at)}
+                      {!user.created_at && "N/A"}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleEditClick(user)}
+                          className="h-8 w-8 text-muted-foreground hover:text-primary"
+                          disabled={user.id === "default-admin"}
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </Button>
+                        {user.is_active === 0 ? (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => onReactivate(user.id)}
+                            className="h-8 w-8 text-muted-foreground hover:text-emerald-600"
+                          >
+                            <RotateCcw className="w-4 h-4" />
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDeleteClick(user)}
+                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                            disabled={user.id === "default-admin"}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Mobile: rows become stacked cards instead of a cramped table,
+          matching the pattern used by the product catalog list. */}
+      <div className="sm:hidden divide-y divide-border">
+        {!!isLoading && (
+          <div className="h-24 flex items-center justify-center">
+            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+          </div>
+        )}
+        {isEmpty && (
+          <div className="h-24 flex flex-col items-center justify-center text-muted-foreground">
+            <Users className="w-6 h-6 mb-2 opacity-30" />
+            No staff members found.
+          </div>
+        )}
+        {!isEmpty &&
+          sortedUsers.map((user) => {
+            const isMainAccount = !user.store_id || user.role === "admin";
+            return (
+              <div
+                key={user.id}
+                className={
+                  isMainAccount
+                    ? "p-4 space-y-2 bg-indigo-50/50 dark:bg-indigo-900/10"
+                    : "p-4 space-y-2"
+                }
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-8 h-8 shrink-0 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs">
+                      {user.first_name?.charAt(0).toUpperCase() || "U"}
                     </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant="outline"
-                      className={
-                        user.is_active === 0
-                          ? "bg-slate-50 text-slate-500 border-slate-200"
-                          : "bg-green-50 text-green-700 border-green-200"
-                      }
+                    <div className="min-w-0">
+                      <div className="font-medium truncate">
+                        {`${user.first_name || ""} ${user.last_name || ""}`.trim()}
+                      </div>
+                      <div className="font-mono text-xs text-muted-foreground truncate">
+                        {user.username}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleEditClick(user)}
+                      className="h-8 w-8 text-muted-foreground hover:text-primary"
+                      disabled={user.id === "default-admin"}
                     >
-                      {user.is_active === 0 ? "Inactive" : "Active"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {!!user.created_at && formatDateToDDMMYYYY(user.created_at)}
-                    {!user.created_at && "N/A"}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-2">
+                      <Edit2 className="w-4 h-4" />
+                    </Button>
+                    {user.is_active === 0 ? (
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => handleEditClick(user)}
-                        className="h-8 w-8 text-muted-foreground hover:text-primary"
+                        onClick={() => onReactivate(user.id)}
+                        className="h-8 w-8 text-muted-foreground hover:text-emerald-600"
+                      >
+                        <RotateCcw className="w-4 h-4" />
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDeleteClick(user)}
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
                         disabled={user.id === "default-admin"}
                       >
-                        <Edit2 className="w-4 h-4" />
+                        <Trash2 className="w-4 h-4" />
                       </Button>
-                      {user.is_active === 0 ? (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => onReactivate(user.id)}
-                          className="h-8 w-8 text-muted-foreground hover:text-emerald-600"
-                        >
-                          <RotateCcw className="w-4 h-4" />
-                        </Button>
-                      ) : (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDeleteClick(user)}
-                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                          disabled={user.id === "default-admin"}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-      </TableBody>
-    </Table>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {isMainAccount && (
+                    <Badge className="h-5 px-1.5 text-[9px] bg-primary">
+                      Main Account
+                    </Badge>
+                  )}
+                  <Badge
+                    variant={checkIsAdmin(user.role) ? "default" : "secondary"}
+                    className="capitalize"
+                  >
+                    {checkIsAdmin(user.role) && <Shield className="w-3 h-3" />}
+                    {user.role?.replace("_", " ") || "Staff"}
+                  </Badge>
+                  <Badge
+                    variant="outline"
+                    className={
+                      user.is_active === 0
+                        ? "bg-slate-50 text-slate-500 border-slate-200"
+                        : "bg-green-50 text-green-700 border-green-200"
+                    }
+                  >
+                    {user.is_active === 0 ? "Inactive" : "Active"}
+                  </Badge>
+                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30 px-1.5 py-0.5 rounded-full">
+                    <Key className="w-2.5 h-2.5" />
+                    PIN set
+                  </span>
+                </div>
+
+                <div className="text-xs text-muted-foreground">
+                  Created:{" "}
+                  {user.created_at ? formatDateToDDMMYYYY(user.created_at) : "N/A"}
+                </div>
+              </div>
+            );
+          })}
+      </div>
+    </>
   );
 }

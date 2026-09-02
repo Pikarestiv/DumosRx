@@ -101,7 +101,7 @@ export function SearchableInput({ options, value, onValueChange, className, ...p
           <div className="max-h-60 overflow-y-auto p-1">
             {filteredOptions.map((option, index) => (
               <div
-                key={option.value}
+                key={`${option.value}-${index}`}
                 onClick={() => {
                   setInputValue(option.label)
                   onValueChange(option.value)

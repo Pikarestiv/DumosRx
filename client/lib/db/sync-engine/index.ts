@@ -6,6 +6,7 @@ import { queryClient } from "@/lib/query-client";
 import { query, execute } from "../core";
 import { getValidColumns } from "./schema";
 import { devLog } from "@/lib/utils/dev-log";
+import { logCrash } from "@/lib/utils/error-logger";
 
 let isSyncInProgress = false;
 
@@ -121,6 +122,7 @@ export async function sync(
     };
   } catch (error) {
     console.error("Sync failed:", error);
+    logCrash(error, false, { area: "sync-run" }).catch(() => {});
     return {
       success: false,
       pushed: 0,

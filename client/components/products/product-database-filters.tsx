@@ -3,6 +3,7 @@ import { SearchInput } from "@/components/ui/search-input";
 import { FilterPill, formatFilterLabel } from "@/components/ui/filter-pill";
 import { Button } from "@/components/ui/button";
 import { ImportExportToolbar } from "@/components/stock-batch/import-export-toolbar";
+import { useAuth } from "@/lib/context/auth-context";
 
 interface ProductDatabaseFiltersProps {
   searchTerm: string;
@@ -29,6 +30,7 @@ export function ProductDatabaseFilters({
   onManageCategories,
   onProductsImported,
 }: ProductDatabaseFiltersProps) {
+  const { canManageStockBatch } = useAuth();
   // Search bar + filter pills render standalone above the card on mobile (see ProductDatabase).
   // This whole panel is desktop-only to avoid leaving an empty padded/bordered row on mobile.
   return (
@@ -39,17 +41,21 @@ export function ProductDatabaseFilters({
           onChange={setSearchTerm}
           placeholder="Search by name or SKU"
         />
-        <ImportExportToolbar onImported={onProductsImported} />
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="shrink-0 gap-1.5 text-[12px]"
-          onClick={onManageCategories}
-        >
-          <Settings2 className="h-3.5 w-3.5" />
-          Manage
-        </Button>
+        {canManageStockBatch && (
+          <>
+            <ImportExportToolbar onImported={onProductsImported} />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="shrink-0 gap-1.5 text-[12px]"
+              onClick={onManageCategories}
+            >
+              <Settings2 className="h-3.5 w-3.5" />
+              Manage
+            </Button>
+          </>
+        )}
       </div>
       <div className="flex items-center gap-2 flex-wrap">
         <FilterPill

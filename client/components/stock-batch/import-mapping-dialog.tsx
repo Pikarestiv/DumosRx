@@ -32,7 +32,10 @@ interface ImportMappingDialogProps {
 
 const FIELD_OPTIONS = Object.values(FIELD_LABELS);
 const LABEL_TO_FIELD: Record<string, ProductField> = Object.fromEntries(
-  Object.entries(FIELD_LABELS).map(([field, label]) => [label, field as ProductField]),
+  Object.entries(FIELD_LABELS).map(([field, label]) => [
+    label,
+    field as ProductField,
+  ]),
 );
 
 export function ImportMappingDialog({
@@ -87,9 +90,12 @@ export function ImportMappingDialog({
     setProgress({ completed: 0, total: validRows.length });
     setStep("importing");
     try {
-      const importResult = await importProductRows(validRows, (completed, total) => {
-        setProgress({ completed, total });
-      });
+      const importResult = await importProductRows(
+        validRows,
+        (completed, total) => {
+          setProgress({ completed, total });
+        },
+      );
       setResult(importResult);
       setStep("result");
       onImported();
@@ -105,7 +111,7 @@ export function ImportMappingDialog({
       open={open}
       onOpenChange={handleOpenChange}
       title="Import products"
-      description="Upload a CSV or XLS/XLSX file exported from QuickBooks, Moniebook, or DumosRx."
+      description="Upload a CSV or XLS/XLSX file."
     >
       <div className="flex flex-col gap-4 p-4">
         {step === "pick-file" && (
@@ -132,12 +138,17 @@ export function ImportMappingDialog({
         {step === "map-columns" && (
           <>
             <p className="text-sm text-muted-foreground">
-              We matched {Object.values(mapping).filter((f) => f !== "ignore").length} of{" "}
-              {headers.length} columns automatically. Review or correct any below.
+              We matched{" "}
+              {Object.values(mapping).filter((f) => f !== "ignore").length} of{" "}
+              {headers.length} columns automatically. Review or correct any
+              below.
             </p>
             <div className="flex flex-col gap-2 max-h-80 overflow-y-auto">
               {headers.map((header) => (
-                <div key={header} className="grid grid-cols-2 gap-3 items-center">
+                <div
+                  key={header}
+                  className="grid grid-cols-2 gap-3 items-center"
+                >
                   <span className="text-sm truncate" title={header}>
                     {header}
                   </span>
@@ -155,7 +166,8 @@ export function ImportMappingDialog({
               ))}
             </div>
             <p className="text-xs text-muted-foreground">
-              {rows.length} row(s) will be imported; rows without a mapped Product Name are skipped.
+              {rows.length} row(s) will be imported; rows without a mapped
+              Product Name are skipped.
             </p>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={reset}>

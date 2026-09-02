@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { Loader2 } from "lucide-react";
@@ -12,61 +12,218 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Card } from "@/components/ui/card";
+import { SearchInput } from "@/components/ui/search-input";
+import { FilterPill } from "@/components/ui/filter-pill";
+import { DateRangePicker, type DateRangeValue } from "@/components/ui/date-range-picker";
 import { TablePagination } from "@/components/ui/table-pagination";
-import { getActivityLog } from "@/lib/db/queries/activity-log";
-import { describeActivity } from "@/components/activity-log/describe-activity";
+import {
+  getActivityLog,
+  getDistinctActivityActions,
+  getDistinctActivityUsers,
+} from "@/lib/db/queries/activity-log";
+import { describeActivity, describeActionVerb } from "@/components/activity-log/describe-activity";
+import { genericFuzzySearch } from "@/lib/utils/search";
+import { toQueryRange } from "@/lib/utils/date-range";
 import { queryKeys } from "@/lib/query-keys";
+import { STAFF_ROLES } from "@/lib/constants/roles";
+import type { AuditLogRow } from "@/lib/types/audit-log";
+
+const TABLE_NAME = "users";
+
+// Mirrors ActivityLogPage's approach: when searching, fetch a large
+// unpaginated batch (matching the other filters) so fuzzy search has the
+// full set to search across rather than just the current page.
+const SEARCH_FETCH_CAP = 2000;
 
 export function StaffActivitiesTab() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
+  const [search, setSearch] = useState("");
+  const [actionFilter, setActionFilter] = useState("all");
+  const [userFilter, setUserFilter] = useState("all");
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [dateRange, setDateRange] = useState<DateRangeValue>({});
 
-  const filters = { tableName: "users", page, pageSize };
-  const { data, isLoading } = useQuery({
-    ...queryKeys.activityLog.list(JSON.stringify(filters)),
-    queryFn: () => getActivityLog(filters),
+  const isSearching = search.trim().length > 0;
+
+  const baseFilters = {
+    tableName: TABLE_NAME,
+    action: actionFilter === "all" ? undefined : actionFilter,
+    userId: userFilter === "all" ? undefined : userFilter,
+    role: roleFilter === "all" ? undefined : roleFilter,
+    ...toQueryRange(dateRange),
+  };
+
+  const pagedFilters = { ...baseFilters, page, pageSize };
+  const { data: pagedData, isLoading: isPagedLoading } = useQuery({
+    ...queryKeys.activityLog.list(JSON.stringify(pagedFilters)),
+    queryFn: () => getActivityLog(pagedFilters),
+    enabled: !isSearching,
   });
 
-  const rows = data?.rows || [];
-  const total = data?.total || 0;
+  const searchFilters = { ...baseFilters, page: 1, pageSize: SEARCH_FETCH_CAP };
+  const { data: searchData, isLoading: isSearchLoading } = useQuery({
+    ...queryKeys.activityLog.list(JSON.stringify({ ...baseFilters, forSearch: true })),
+    queryFn: () => getActivityLog(searchFilters),
+    enabled: isSearching,
+  });
+
+  const { results: fuzzyResults } = useMemo(
+    () =>
+      isSearching && searchData
+        ? genericFuzzySearch(search, searchData.rows, ["action", "user_name"])
+        : { results: [] as AuditLogRow[], isFuzzyFallback: false },
+    [isSearching, searchData, search],
+  );
+
+  const { data: actions = [] } = useQuery({
+    ...queryKeys.activityLog.actions(TABLE_NAME),
+    queryFn: () => getDistinctActivityActions(TABLE_NAME),
+  });
+
+  const { data: users = [] } = useQuery({
+    ...queryKeys.activityLog.users(TABLE_NAME),
+    queryFn: () => getDistinctActivityUsers(TABLE_NAME),
+  });
+
+  const isLoading = isSearching ? isSearchLoading : isPagedLoading;
+  const rows = isSearching
+    ? fuzzyResults.slice((page - 1) * pageSize, page * pageSize)
+    : pagedData?.rows || [];
+  const total = isSearching ? fuzzyResults.length : pagedData?.total || 0;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   return (
-    <div className="space-y-4">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>When</TableHead>
-            <TableHead>Actor</TableHead>
-            <TableHead>Action</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {isLoading && (
+    <Card className="no-hover-scale border rounded-2xl overflow-hidden gap-0 py-0">
+      <div className="p-4 border-b border-border space-y-3">
+        <SearchInput
+          value={search}
+          onChange={(v) => {
+            setSearch(v);
+            setPage(1);
+          }}
+          placeholder="Search by action or staff member"
+          inputClassName="bg-muted border-transparent"
+        />
+
+        <div className="flex flex-wrap gap-2">
+          <DateRangePicker
+            value={dateRange}
+            onChange={(v) => {
+              setDateRange(v);
+              setPage(1);
+            }}
+          />
+
+          <FilterPill
+            label="Action"
+            value={actionFilter}
+            onValueChange={(v) => {
+              setActionFilter(v);
+              setPage(1);
+            }}
+            options={[
+              { value: "all", label: "All Actions" },
+              ...actions.map((a) => ({ value: a, label: describeActionVerb(a) })),
+            ]}
+          />
+
+          <FilterPill
+            label="Role"
+            value={roleFilter}
+            onValueChange={(v) => {
+              setRoleFilter(v);
+              setPage(1);
+            }}
+            options={[
+              { value: "all", label: "All Roles" },
+              ...STAFF_ROLES.map((r) => ({ value: r.value, label: r.label })),
+            ]}
+          />
+
+          <FilterPill
+            label="Staff"
+            value={userFilter}
+            onValueChange={(v) => {
+              setUserFilter(v);
+              setPage(1);
+            }}
+            options={[
+              { value: "all", label: "Everyone" },
+              ...users.map((u) => ({ value: u.user_id, label: u.user_name || "Unknown" })),
+            ]}
+          />
+        </div>
+      </div>
+
+      {/* Desktop: real table, horizontally scrollable if content ever
+          demands more than the column widths naturally settle at. */}
+      <div className="hidden sm:block overflow-x-auto">
+        <Table>
+          <TableHeader>
             <TableRow>
-              <TableCell colSpan={3} className="h-24 text-center">
-                <Loader2 className="w-5 h-5 animate-spin mx-auto text-muted-foreground" />
-              </TableCell>
+              <TableHead>When</TableHead>
+              <TableHead>Actor</TableHead>
+              <TableHead>Action</TableHead>
             </TableRow>
-          )}
-          {!isLoading && rows.length === 0 && (
-            <TableRow>
-              <TableCell colSpan={3} className="h-24 text-center text-muted-foreground">
-                No staff activity recorded yet.
-              </TableCell>
-            </TableRow>
-          )}
-          {!isLoading && rows.map((row) => (
-            <TableRow key={row.id}>
-              <TableCell className="text-muted-foreground text-sm">
-                {row.created_at ? format(new Date(row.created_at), "MMM d, yyyy h:mm a") : "N/A"}
-              </TableCell>
-              <TableCell>{row.user_name || "System"}</TableCell>
-              <TableCell>{describeActivity(row)}</TableCell>
-            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading && (
+              <TableRow>
+                <TableCell colSpan={3} className="h-24 text-center">
+                  <Loader2 className="w-5 h-5 animate-spin mx-auto text-muted-foreground" />
+                </TableCell>
+              </TableRow>
+            )}
+            {!isLoading && rows.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={3} className="h-24 text-center text-muted-foreground">
+                  No staff activity found for this filter.
+                </TableCell>
+              </TableRow>
+            )}
+            {!isLoading &&
+              rows.map((row) => (
+                <TableRow key={row.id}>
+                  <TableCell className="text-muted-foreground text-sm">
+                    {row.created_at ? format(new Date(row.created_at), "MMM d, yyyy h:mm a") : "N/A"}
+                  </TableCell>
+                  <TableCell>{row.user_name || "System"}</TableCell>
+                  <TableCell>{describeActivity(row)}</TableCell>
+                </TableRow>
+              ))}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Mobile: rows become stacked cards instead of a cramped table,
+          matching the pattern used by the product catalog list. */}
+      <div className="sm:hidden divide-y divide-border">
+        {isLoading && (
+          <div className="h-24 flex items-center justify-center">
+            <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+          </div>
+        )}
+        {!isLoading && rows.length === 0 && (
+          <div className="h-24 flex items-center justify-center text-muted-foreground text-sm">
+            No staff activity found for this filter.
+          </div>
+        )}
+        {!isLoading &&
+          rows.map((row) => (
+            <div key={row.id} className="p-4 space-y-1">
+              <div className="font-medium text-foreground">{describeActivity(row)}</div>
+              <div className="flex items-center justify-between text-sm text-muted-foreground">
+                <span>{row.user_name || "System"}</span>
+                <span>
+                  {row.created_at ? format(new Date(row.created_at), "MMM d, yyyy h:mm a") : "N/A"}
+                </span>
+              </div>
+            </div>
           ))}
-        </TableBody>
-      </Table>
+      </div>
+
       <TablePagination
         page={page}
         totalPages={totalPages}
@@ -78,6 +235,6 @@ export function StaffActivitiesTab() {
           setPage(1);
         }}
       />
-    </div>
+    </Card>
   );
 }

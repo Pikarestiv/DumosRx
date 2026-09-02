@@ -2,12 +2,11 @@
 
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { format } from "date-fns";
 import { History } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { SearchInput } from "@/components/ui/search-input";
-import { FilterPill } from "@/components/ui/filter-pill";
+import { type DateRangeValue } from "@/components/ui/date-range-picker";
 import { TablePagination } from "@/components/ui/table-pagination";
+import { toQueryRange } from "@/lib/utils/date-range";
 import {
   getActivityLog,
   getDistinctActivityActions,
@@ -15,35 +14,22 @@ import {
 } from "@/lib/db/queries/activity-log";
 import { useAuth, checkCanViewAllActivity } from "@/lib/context/auth-context";
 import { queryKeys } from "@/lib/query-keys";
-import { STAFF_ROLES } from "@/lib/constants/roles";
 import { genericFuzzySearch } from "@/lib/utils/search";
 import { ResponsiveDetailPanel } from "@/components/ui/responsive-detail-panel";
 import { ActivityLogDetailPanel } from "./activity-log-detail-panel";
-import { describeActivity, describeActionVerb } from "./describe-activity";
-import { SortableHeaderCell } from "@/components/ui/sortable-header-cell";
+import { ActivityLogFilters } from "./activity-log-filters";
+import {
+  ActivityLogDesktopTable,
+  ActivityLogMobileList,
+} from "./activity-log-rows";
 import type { AuditLogRow } from "@/lib/types/audit-log";
 import type { ActivityLogSortKey } from "@/lib/db/queries/activity-log";
-
-const GRID_COLS = "grid-cols-[1fr_180px_190px]";
 
 // When searching, fetch a large unpaginated batch matching the other filters
 // so fuzzy search has the full set to search across, not just the current
 // page. Capped rather than truly unbounded so a very old/busy store can't
 // pull its entire history into memory at once.
 const SEARCH_FETCH_CAP = 2000;
-
-function EmptyState({ message }: { message: string }) {
-  return (
-    <div role="row" className={`grid ${GRID_COLS}`}>
-      <div
-        role="cell"
-        className="col-span-3 px-4 py-8 text-center text-muted-foreground"
-      >
-        {message}
-      </div>
-    </div>
-  );
-}
 
 export function ActivityLogPage() {
   const { user } = useAuth();
@@ -55,6 +41,7 @@ export function ActivityLogPage() {
   const [actionFilter, setActionFilter] = useState<string>("all");
   const [userFilter, setUserFilter] = useState<string>("all");
   const [roleFilter, setRoleFilter] = useState<string>("all");
+  const [dateRange, setDateRange] = useState<DateRangeValue>({});
   const [selectedEntry, setSelectedEntry] = useState<AuditLogRow | null>(null);
   const [sortKey, setSortKey] = useState<ActivityLogSortKey>("created_at");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
@@ -79,6 +66,7 @@ export function ActivityLogPage() {
         ? undefined
         : userFilter,
     role: canViewAll && roleFilter !== "all" ? roleFilter : undefined,
+    ...toQueryRange(dateRange),
     sortKey,
     sortDirection,
   };
@@ -117,7 +105,7 @@ export function ActivityLogPage() {
   });
 
   const { data: users = [] } = useQuery({
-    queryKey: ["activityLogUsers"],
+    ...queryKeys.activityLog.users(),
     queryFn: () => getDistinctActivityUsers(),
     enabled: canViewAll,
   });
@@ -135,6 +123,7 @@ export function ActivityLogPage() {
         <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
           <History className="h-5 w-5" />
         </div>
+
         <div>
           <div className="text-[17px] font-serif font-bold">Activity Log</div>
           <div className="text-[12.5px] text-muted-foreground">
@@ -143,162 +132,58 @@ export function ActivityLogPage() {
         </div>
       </div>
 
-      <Card className="border rounded-2xl overflow-hidden flex-1 min-h-0 flex flex-col gap-0 py-0">
-        <div className="p-4 border-b border-border space-y-3 shrink-0">
-          <SearchInput
-            value={search}
-            onChange={(v) => {
-              setSearch(v);
-              setPage(1);
-            }}
-            placeholder="Search by action, table, or staff member"
-            inputClassName="bg-muted border-transparent"
-          />
+      <Card className="no-hover-scale border rounded-2xl overflow-hidden flex-1 min-h-0 flex flex-col gap-0 py-0">
+        <ActivityLogFilters
+          search={search}
+          onSearchChange={(v) => {
+            setSearch(v);
+            setPage(1);
+          }}
+          dateRange={dateRange}
+          onDateRangeChange={(v) => {
+            setDateRange(v);
+            setPage(1);
+          }}
+          actionFilter={actionFilter}
+          onActionFilterChange={(v) => {
+            setActionFilter(v);
+            setPage(1);
+          }}
+          actions={actions}
+          canViewAll={canViewAll}
+          roleFilter={roleFilter}
+          onRoleFilterChange={(v) => {
+            setRoleFilter(v);
+            setPage(1);
+          }}
+          userFilter={userFilter}
+          onUserFilterChange={(v) => {
+            setUserFilter(v);
+            setPage(1);
+          }}
+          users={users}
+        />
 
-          <div className="flex flex-wrap gap-2">
-            <FilterPill
-              label="Action"
-              value={actionFilter}
-              onValueChange={(v) => {
-                setActionFilter(v);
-                setPage(1);
-              }}
-              options={[
-                { value: "all", label: "All Actions" },
-                ...actions.map((a) => ({
-                  value: a,
-                  label: describeActionVerb(a),
-                })),
-              ]}
-            />
+        {/* Desktop: div-based table (ARIA roles stand in for real <table>
+            semantics), horizontally scrollable if content ever demands more
+            than the column widths naturally settle at. */}
+        <ActivityLogDesktopTable
+          rows={rows}
+          isLoading={isLoading}
+          sortKey={sortKey}
+          sortDirection={sortDirection}
+          onToggleSort={toggleSort}
+          onSelect={setSelectedEntry}
+        />
 
-            {canViewAll && (
-              <FilterPill
-                label="Role"
-                value={roleFilter}
-                onValueChange={(v) => {
-                  setRoleFilter(v);
-                  setPage(1);
-                }}
-                options={[
-                  { value: "all", label: "All Roles" },
-                  ...STAFF_ROLES.map((r) => ({
-                    value: r.value,
-                    label: r.label,
-                  })),
-                ]}
-              />
-            )}
-
-            {canViewAll && (
-              <FilterPill
-                label="Staff"
-                value={userFilter}
-                onValueChange={(v) => {
-                  setUserFilter(v);
-                  setPage(1);
-                }}
-                options={[
-                  { value: "all", label: "Everyone" },
-                  ...users.map((u) => ({
-                    value: u.user_id,
-                    label: u.user_name || "Unknown",
-                  })),
-                ]}
-              />
-            )}
-          </div>
-        </div>
-
-        {/* Div-based table; ARIA roles stand in for real <table> semantics */}
-        <div
-          role="table"
-          aria-label="Activity log"
-          className="overflow-x-auto flex-1"
-        >
-          <div
-            role="rowgroup"
-            className="sticky top-0 z-10 bg-muted/40 border-b border-border"
-          >
-            <div
-              role="row"
-              className={`grid ${GRID_COLS} text-muted-foreground text-[11px] uppercase font-semibold`}
-            >
-              <div role="columnheader" className="px-4 py-2.5">
-                <SortableHeaderCell
-                  label="Activity"
-                  active={sortKey === "action"}
-                  direction={sortDirection}
-                  onClick={() => toggleSort("action")}
-                />
-              </div>
-              <div role="columnheader" className="px-4 py-2.5">
-                <SortableHeaderCell
-                  label="By"
-                  active={sortKey === "user_name"}
-                  direction={sortDirection}
-                  onClick={() => toggleSort("user_name")}
-                />
-              </div>
-              <div role="columnheader" className="px-4 py-2.5">
-                <SortableHeaderCell
-                  label="When"
-                  active={sortKey === "created_at"}
-                  direction={sortDirection}
-                  onClick={() => toggleSort("created_at")}
-                />
-              </div>
-            </div>
-          </div>
-
-          <div role="rowgroup" className="divide-y divide-border">
-            {isLoading && <EmptyState message="Loading..." />}
-            {!isLoading && rows.length === 0 && (
-              <EmptyState message="No activity found for this filter." />
-            )}
-            {!isLoading &&
-              rows.map((row) => (
-                <div
-                  key={row.id}
-                  role="row"
-                  tabIndex={0}
-                  onClick={() => setSelectedEntry(row)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      setSelectedEntry(row);
-                    }
-                  }}
-                  className={`grid ${GRID_COLS} items-center hover:bg-accent/30 cursor-pointer text-[12.5px]`}
-                >
-                  <div role="cell" className="px-4 py-2.5">
-                    <div className="font-semibold text-foreground">
-                      {describeActivity(row)}
-                    </div>
-                    {row.table_name && (
-                      <div className="text-[11px] text-muted-foreground/70">
-                        {row.table_name}
-                      </div>
-                    )}
-                  </div>
-                  <div
-                    role="cell"
-                    className="px-4 py-2.5 text-muted-foreground"
-                  >
-                    {row.user_name?.trim() || "System"}
-                  </div>
-                  <div
-                    role="cell"
-                    className="px-4 py-2.5 text-muted-foreground"
-                  >
-                    {row.created_at
-                      ? format(new Date(row.created_at), "d MMM yyyy, h:mm a")
-                      : "N/A"}
-                  </div>
-                </div>
-              ))}
-          </div>
-        </div>
+        {/* Mobile: rows become stacked, tappable cards instead of a
+            cramped table, matching the pattern used by the product
+            catalog list. */}
+        <ActivityLogMobileList
+          rows={rows}
+          isLoading={isLoading}
+          onSelect={setSelectedEntry}
+        />
 
         <TablePagination
           page={page}

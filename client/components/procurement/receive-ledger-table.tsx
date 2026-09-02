@@ -19,8 +19,7 @@ const GRID_COLS = "grid-cols-[220px_90px_110px_120px_140px_150px_150px]";
 
 /** Dense, single-screen alternative to the per-item receiving cards. Every
  * line is visible and editable at once (qty, cost price, an optional new
- * selling price, batch #, expiry), matching the QuickBooks POS / Moniebook
- * receiving-ledger style Cynthia asked for. Div-based, ARIA roles standing
+ * selling price, batch #, expiry). Div-based, ARIA roles standing
  * in for real <table> semantics; see stock-batch/supplier-table.tsx. */
 export function ReceiveLedgerTable({
   items,
@@ -29,13 +28,25 @@ export function ReceiveLedgerTable({
 }: ReceiveLedgerTableProps) {
   return (
     <div className="border border-border rounded-xl overflow-x-auto">
-      <div role="table" aria-label="Items to receive" className="w-full text-[12.5px]">
+      <div
+        role="table"
+        aria-label="Items to receive"
+        className="w-full text-[12.5px]"
+      >
         <div role="rowgroup">
-          <div role="row" className={`grid ${GRID_COLS} bg-muted/40 text-muted-foreground text-[11px] uppercase font-semibold`}>
-            <div role="columnheader" className="text-left px-3 py-2 sticky left-0 bg-muted/40">
+          <div
+            role="row"
+            className={`grid ${GRID_COLS} bg-muted/40 text-muted-foreground text-[11px] uppercase font-semibold`}
+          >
+            <div
+              role="columnheader"
+              className="text-left px-3 py-2 sticky left-0 bg-muted/40"
+            >
               Item
             </div>
-            <div role="columnheader" className="text-right px-3 py-2">Ordered</div>
+            <div role="columnheader" className="text-right px-3 py-2">
+              Ordered
+            </div>
             <div role="columnheader" className="text-right px-3 py-2">
               <ResponsiveTabLabel short="Recv." long="Received Qty" />
             </div>
@@ -45,8 +56,12 @@ export function ReceiveLedgerTable({
             <div role="columnheader" className="text-right px-3 py-2">
               <ResponsiveTabLabel short="Sell Price" long="New Selling Price" />
             </div>
-            <div role="columnheader" className="text-left px-3 py-2">Batch #</div>
-            <div role="columnheader" className="text-left px-3 py-2">Expiry</div>
+            <div role="columnheader" className="text-left px-3 py-2">
+              Batch #
+            </div>
+            <div role="columnheader" className="text-left px-3 py-2">
+              Expiry
+            </div>
           </div>
         </div>
 
@@ -63,10 +78,16 @@ export function ReceiveLedgerTable({
                     {item.bulk_unit}(s)
                   </div>
                 </div>
-                <div role="cell" className="px-3 py-2 text-right text-muted-foreground flex items-center justify-end">
+                <div
+                  role="cell"
+                  className="px-3 py-2 text-right text-muted-foreground flex items-center justify-end"
+                >
                   {item.bulk_quantity}
                 </div>
-                <div role="cell" className="px-3 py-2 text-right flex items-center">
+                <div
+                  role="cell"
+                  className="px-3 py-2 text-right flex items-center"
+                >
                   <Input
                     type="number"
                     min="0"
@@ -81,7 +102,10 @@ export function ReceiveLedgerTable({
                     }
                   />
                 </div>
-                <div role="cell" className="px-3 py-2 text-right flex items-center">
+                <div
+                  role="cell"
+                  className="px-3 py-2 text-right flex items-center"
+                >
                   <Input
                     type="number"
                     min="0"
@@ -94,7 +118,10 @@ export function ReceiveLedgerTable({
                     }
                   />
                 </div>
-                <div role="cell" className="px-3 py-2 text-right flex items-center">
+                <div
+                  role="cell"
+                  className="px-3 py-2 text-right flex items-center"
+                >
                   <Input
                     type="number"
                     min="0"
@@ -134,7 +161,10 @@ export function ReceiveLedgerTable({
           })}
           {items.length === 0 && (
             <div role="row" className={`grid ${GRID_COLS}`}>
-              <div role="cell" className="col-span-7 px-3 py-8 text-center text-muted-foreground">
+              <div
+                role="cell"
+                className="col-span-7 px-3 py-8 text-center text-muted-foreground"
+              >
                 No items on this order.
               </div>
             </div>

@@ -17,7 +17,7 @@ import { ExpenseDetailsDialog } from "./modals/expense-details-dialog";
 import { ProcurementDetailsDialog } from "./modals/procurement-details-dialog";
 import { DashboardPrescriptionDetailsDialog } from "./modals/dashboard-prescription-details-dialog";
 import { StockMovementDetailsDialog } from "./modals/stock-movement-details-dialog";
-import { formatCurrency } from "@/lib/utils";
+import { formatMetricCurrency } from "@/lib/utils";
 import type { SaleWithDetails } from "@/lib/types/sale";
 import type { Expense } from "@/lib/db/queries/finance";
 import type { PurchaseOrder } from "@/lib/db/procurement";
@@ -59,7 +59,10 @@ export function DashboardOverview() {
   const statsCards = [
     {
       title: "Today's Sales",
-      value: formatCurrency(stats.dailySalesRevenue, storeProfile?.currency),
+      value: formatMetricCurrency(
+        stats.dailySalesRevenue,
+        storeProfile?.currency,
+      ),
       comparison: renderSalesComparison(salesComparison),
       icon: ShoppingCart,
       colorScheme: "green" as const,
@@ -73,7 +76,7 @@ export function DashboardOverview() {
     },
     {
       title: "Inventory Value",
-      value: formatCurrency(
+      value: formatMetricCurrency(
         stock_batchStats.totalStockBatchValue,
         storeProfile?.currency,
       ),

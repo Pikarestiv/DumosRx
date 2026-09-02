@@ -164,68 +164,14 @@ async function tryRun(adapter: DbAdapter, sql: string): Promise<void> {
   }
 }
 
-// The medicines->products, vendors->suppliers, store_profile->stores,
-// stock_batch->stock_batches, and owner->store_owner renames that used to
-// live here (shipped 2026-06-27/2026-06-28) were removed once every real
-// device was confirmed to postdate them by 5+ weeks (earliest account:
-// 2026-08-01) — see diagnoseLegacySchema() for the audit tool used to check.
-async function renameLegacyTablesAndColumns(adapter: DbAdapter): Promise<void> {
-  // sale_items.inventory_id was renamed to stock_batch_id (shipped
-  // 2026-08-04, only 3 days after the earliest real account — too close a
-  // margin to remove this one yet): createSale() has written to
-  // stock_batch_id for a while now, so any database that predates the
-  // rename still has the old inventory_id column and no stock_batch_id at
-  // all, breaking every sale with "no column named stock_batch_id". Try the
-  // rename first (databases that still have inventory_id); fall back to
-  // adding stock_batch_id fresh (databases old enough to have neither).
-  await tryRun(adapter, "ALTER TABLE sale_items RENAME COLUMN inventory_id TO stock_batch_id");
-  await tryRun(adapter, "ALTER TABLE sale_items ADD COLUMN stock_batch_id TEXT");
-}
-
-// Drops the legacy purchase_orders.vendor_id NOT NULL column left over from
-// the vendors->suppliers rename above. That rename only renamed the *table*;
-// any database created before it still carries the old vendor_id NOT NULL
-// column forever (CREATE TABLE IF NOT EXISTS is a no-op on an existing
-// table), and current code only ever writes supplier_id, so every PO insert
-// on such a device would otherwise fail the NOT NULL constraint permanently.
-async function dropLegacyVendorIdColumn(adapter: DbAdapter): Promise<void> {
-  try {
-    const poColumns = await adapter.all("SELECT name FROM pragma_table_info('purchase_orders')");
-    if (poColumns.some((c) => c.name === "vendor_id")) {
-      await adapter.run(`
-        CREATE TABLE purchase_orders_new (
-          id TEXT PRIMARY KEY,
-          order_number TEXT,
-          supplier_id TEXT NOT NULL,
-          ordered_by TEXT,
-          order_date TEXT,
-          status TEXT DEFAULT 'pending',
-          payment_status TEXT DEFAULT 'unpaid',
-          amount_paid REAL DEFAULT 0,
-          due_date TEXT,
-          total_amount REAL DEFAULT 0,
-          notes TEXT,
-          created_at TEXT,
-          received_at TEXT,
-          updated_at TEXT,
-          _version INTEGER DEFAULT 1,
-          _synced INTEGER DEFAULT 0,
-          _synced_at TEXT,
-          _deleted INTEGER DEFAULT 0
-        )
-      `);
-      await adapter.run(`
-        INSERT INTO purchase_orders_new (id, order_number, supplier_id, ordered_by, order_date, status, payment_status, amount_paid, due_date, total_amount, notes, created_at, received_at, updated_at, _version, _synced, _synced_at, _deleted)
-        SELECT id, order_number, COALESCE(supplier_id, vendor_id), ordered_by, order_date, status, payment_status, amount_paid, due_date, total_amount, notes, created_at, received_at, updated_at, _version, _synced, _synced_at, _deleted FROM purchase_orders
-      `);
-      await adapter.run("DROP TABLE purchase_orders");
-      await adapter.run("ALTER TABLE purchase_orders_new RENAME TO purchase_orders");
-    }
-  } catch (e) {
-    console.error("Failed to drop legacy purchase_orders.vendor_id column", e);
-  }
-}
-
+// renameLegacyTablesAndColumns (medicines/vendors/store_profile/stock_batch
+// renames, owner->store_owner, shipped 2026-06-27/06-28) and
+// dropLegacyVendorIdColumn (the purchase_orders.vendor_id NOT NULL drop,
+// shipped 2026-08-04) were both removed once diagnoseLegacySchema(), run
+// against the account that predates them (DumosRx Pharmacies,
+// 2026-08-01), confirmed neither legacy table names nor a vendor_id column
+// remained on that device.
+//
 // migrateStockQuantityToBatches (the flat products.stock_quantity ->
 // stock_batches data migration, shipped 2026-06-28) was removed once every
 // real device was confirmed to postdate it by 5+ weeks; stock_quantity
@@ -260,47 +206,11 @@ async function backfillStoreIdOnLegacyRows(adapter: DbAdapter): Promise<void> {
   }
 }
 
-// Rebuilds the users table to scope the username uniqueness constraint to
-// store_id (SQLite can't ALTER a column-level constraint, so recreate the
-// table).
-async function rebuildUsersTableForStoreScopedUsername(adapter: DbAdapter): Promise<void> {
-  try {
-    const tableInfo = await adapter.all(
-      "SELECT sql FROM sqlite_master WHERE type='table' AND name='users'",
-    );
-    const usersTableSql = String(tableInfo?.[0]?.sql || "");
-    if (usersTableSql && !/UNIQUE\s*\(\s*store_id\s*,\s*username\s*\)/i.test(usersTableSql)) {
-      await adapter.run(`
-        CREATE TABLE users_new (
-          id TEXT PRIMARY KEY,
-          first_name TEXT,
-          last_name TEXT,
-          username TEXT,
-          email TEXT UNIQUE,
-          pin TEXT,
-          role TEXT DEFAULT 'staff',
-          store_id TEXT,
-          is_active INTEGER DEFAULT 1,
-          created_at TEXT,
-          updated_at TEXT,
-          _version INTEGER DEFAULT 1,
-          _synced INTEGER DEFAULT 0,
-          _synced_at TEXT,
-          _deleted INTEGER DEFAULT 0,
-          UNIQUE(store_id, username)
-        )
-      `);
-      await adapter.run(`
-        INSERT INTO users_new (id, first_name, last_name, username, email, pin, role, store_id, is_active, created_at, updated_at, _version, _synced, _synced_at, _deleted)
-        SELECT id, first_name, last_name, username, email, pin, role, store_id, is_active, created_at, updated_at, _version, _synced, _synced_at, _deleted FROM users
-      `);
-      await adapter.run("DROP TABLE users");
-      await adapter.run("ALTER TABLE users_new RENAME TO users");
-    }
-  } catch (e) {
-    console.error("Failed to migrate users username uniqueness constraint", e);
-  }
-}
+// rebuildUsersTableForStoreScopedUsername (the users table rebuild that
+// scoped username uniqueness to store_id, shipped 2026-08-01 — the same day
+// as the earliest real account) was removed once diagnoseLegacySchema(),
+// run against that account, confirmed its users table already had
+// UNIQUE(store_id, username).
 
 // Relaxes purchase_orders.supplier_id to nullable, so an Immediate Purchase
 // can be recorded without a real vendor (self/walk-in purchase) the same way
@@ -785,11 +695,8 @@ export async function initDatabase(): Promise<any> {
       }
 
       const tauriAdapter = makeTauriAdapter(db);
-      await renameLegacyTablesAndColumns(tauriAdapter);
-      await dropLegacyVendorIdColumn(tauriAdapter);
       await runSyncColumnMigrations(tauriAdapter, syncColumns);
       await backfillStoreIdOnLegacyRows(tauriAdapter);
-      await rebuildUsersTableForStoreScopedUsername(tauriAdapter);
       await relaxPurchaseOrdersSupplierIdNullable(tauriAdapter);
       // Tauri's SQL plugin writes land on disk directly; no save step needed.
       await clearLegacyTransactionsOnce(tauriAdapter);
@@ -828,16 +735,8 @@ export async function initDatabase(): Promise<any> {
       try {
         db = new SQL.Database(savedData);
 
-        const preSchemaAdapter = makeSqlJsAdapter(db);
-        await renameLegacyTablesAndColumns(preSchemaAdapter);
-
         // Ensure new tables from schema updates are created
         db.run(SCHEMA_SQL);
-
-        // See the matching Tauri-path comment in dropLegacyVendorIdColumn:
-        // drop the legacy purchase_orders.vendor_id NOT NULL column on
-        // databases that predate the vendors->suppliers rename.
-        await dropLegacyVendorIdColumn(preSchemaAdapter);
       } catch (_e) {
         console.error("[DB] Failed to load saved data, starting fresh", _e);
         db = new SQL.Database();
@@ -864,7 +763,6 @@ export async function initDatabase(): Promise<any> {
 
     await runSyncColumnMigrations(webAdapter, syncColumns);
     await backfillStoreIdOnLegacyRows(webAdapter);
-    await rebuildUsersTableForStoreScopedUsername(webAdapter);
     await relaxPurchaseOrdersSupplierIdNullable(webAdapter);
     await clearLegacyTransactionsOnce(webAdapter, saveDatabase);
 
@@ -1182,18 +1080,17 @@ export async function restoreDatabaseFromFile(): Promise<{ success: boolean }> {
 
 /**
  * Read-only audit of legacy schema artifacts on this device's local
- * database. Checks both what initDatabase()'s remaining migration steps
- * (dropLegacyVendorIdColumn, backfillStoreIdOnLegacyRows,
- * rebuildUsersTableForStoreScopedUsername,
- * relaxPurchaseOrdersSupplierIdNullable, and the inventory_id rename in
- * renameLegacyTablesAndColumns) still exist to repair, AND several older
- * artifacts (medicines/vendors/store_profile/stock_batch table names,
- * stock_quantity) whose repair code was already removed once every real
- * account was confirmed to postdate them by 5+ weeks — for those, a
- * finding here would mean an actual, currently-unhandled problem on this
- * device, not just a candidate for cleanup. Run from the browser console
- * (or Tauri's devtools) as `await window.diagnoseLegacySchema()`; safe to
- * run anywhere, including production, since it never writes.
+ * database. Checks what initDatabase()'s one remaining legacy-repair step
+ * (backfillStoreIdOnLegacyRows — still plausibly load-bearing) exists to
+ * fix, plus several older artifacts (medicines/vendors/store_profile/
+ * stock_batch table names, stock_quantity, purchase_orders.vendor_id,
+ * sale_items.inventory_id, unscoped users.username) whose repair code has
+ * since been removed once every real account was confirmed to postdate
+ * them: for those, a finding here would mean an actual, currently-unhandled
+ * problem on this device, not just a candidate for cleanup. Run from the
+ * browser console (or Tauri's devtools) as
+ * `await window.diagnoseLegacySchema()`; safe to run anywhere, including
+ * production, since it never writes.
  */
 export async function diagnoseLegacySchema(): Promise<{
   clean: boolean;

@@ -209,8 +209,19 @@ const SYNC_FAILURE_MAX_DELAY_MS = 60 * 60_000;
  * stops being retried every cycle and blocking the rest of the queue. Once
  * retry_count crosses the report threshold, logs to superadmins exactly once
  * (via the feedback table) instead of on every subsequent retry.
+ *
+ * `reportImmediately` is for failures that are already known to be permanent
+ * (e.g. a payload that fails client-side validation before ever reaching the
+ * server) rather than possibly-transient (a network blip, a momentary server
+ * error). Those would otherwise wait out the same 5-retry threshold as a
+ * transient failure even though retrying can never fix them, silently
+ * delaying remote visibility by up to ~waiting through 5 backoff cycles.
  */
-export async function recordSyncFailure(queueId: number, errorMessage: string): Promise<void> {
+export async function recordSyncFailure(
+  queueId: number,
+  errorMessage: string,
+  reportImmediately = false,
+): Promise<void> {
   const rows = await query<{ retry_count: number; last_error: string | null; table_name: string; record_id: string }>(
     "SELECT retry_count, last_error, table_name, record_id FROM _sync_queue WHERE id = ?",
     [queueId],
@@ -222,7 +233,8 @@ export async function recordSyncFailure(queueId: number, errorMessage: string): 
   const delay = Math.min(SYNC_FAILURE_BASE_DELAY_MS * 2 ** (nextRetryCount - 1), SYNC_FAILURE_MAX_DELAY_MS);
   const nextRetryAt = new Date(Date.now() + delay).toISOString();
   const alreadyReported = item.last_error?.startsWith("[REPORTED]");
-  const shouldReport = nextRetryCount >= SYNC_FAILURE_REPORT_THRESHOLD && !alreadyReported;
+  const shouldReport =
+    (reportImmediately || nextRetryCount >= SYNC_FAILURE_REPORT_THRESHOLD) && !alreadyReported;
 
   // Preserve the "[REPORTED]" marker once it's set: writing the bare
   // errorMessage here unconditionally used to clobber it on every later
@@ -244,6 +256,7 @@ export async function recordSyncFailure(queueId: number, errorMessage: string): 
           `Sync item stuck after ${nextRetryCount} attempts on ${item.table_name}/${item.record_id}: ${errorMessage}`,
         ),
         false,
+        { area: "sync", table: item.table_name, recordId: item.record_id },
       );
     } catch (e) {
       console.error("Failed to report stuck sync item", e);

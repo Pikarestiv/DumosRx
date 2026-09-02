@@ -18,6 +18,20 @@ goes.
 There is no `is_recurring`/`recurring` boolean or cadence field. The closest
 concept to "recurring vs one-off" is **`covers_months`** — see below.
 
+## Plan gating
+
+Expenses is a paid-tier feature: `app/(dashboard)/expenses/page.tsx` wraps
+the page in `<LockedModuleOverlay featureKey="expenses" />`, which locks the
+module whenever `useFeatureGate().canUseExpenses` is false — the free tier's
+subscription-plans config (both local and remote) explicitly sets
+`"expenses": false`, and the code's own fallback for an unrecognized/missing
+config is `!isFree` (locked for free, unlocked otherwise). Same gating shape
+as Procurement. See finding #9 in `_findings-log.md` for a caveat when
+testing this against the shared free-tier e2e fixture: the overlay takes a
+moment to mount after navigation, so a fast enough click can slip through
+before it locks the page — real for any locked module, not expenses-specific,
+and not something this task's scope covers fixing.
+
 ## Insights strip
 
 Four cards above the list, backed by `useExpensesPage()`:

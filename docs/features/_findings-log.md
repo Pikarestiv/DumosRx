@@ -165,6 +165,71 @@ Newest entries at the bottom of each section.
   serially and with the default 2 parallel workers.
 - See `docs/features/procurement.md` for full detail.
 
+### 9. Expenses e2e: new edit/delete test flaked against `LockedModuleOverlay` (shared free-tier fixture race, not an invalidation bug)
+
+- **Found:** the Expenses task's own commit (`4a2b4dcb`) added
+  `e2e/expenses.spec.ts`'s "should edit an existing expense and then delete
+  it" test but was never verified against Step 6 before landing (implementer
+  session crashed). Running it revealed a real, reproducible failure: the
+  second test's `originalRow.click()` timed out after 30s, intercepted by
+  `LockedModuleOverlay`'s "Upgrade Plan" backdrop
+  (`components/dashboard/locked-module-overlay.tsx`).
+- **Investigated (and ruled out) the invalidation-storm pattern** this
+  codebase has a history of (findings #1/#2 above): traced every mutation in
+  the expense-save path (`useSaveExpenseMutation` →
+  `lib/db/local-database.ts`'s `insert`/`update` → `lib/db/base-helpers.ts`)
+  through to `invalidateQueriesForTable()`. It's correctly table-scoped via
+  each query's `meta.tables` (`lib/query-keys.ts`); the `stores.profile`
+  query is tagged `meta.tables: ["stores"]`, so an expense insert/update
+  never invalidates it. `store-context.tsx`'s unfiltered
+  `queryClient.invalidateQueries()` only runs from `switchStore()`, never
+  called in this flow. `storeProfile.subscription_tier` itself never changed
+  during the test session (confirmed via an instrumented run: `rawTier`
+  stayed `"free"` from the first render to the last).
+- **Actual root cause:** the e2e fixture DB (`e2e/.auth/test-db.bin`) is a
+  free-tier store, correctly and *deliberately* free-tier — other specs
+  (`prescriptions.spec.ts`, `pos-held-transaction.spec.ts`) rely on it to
+  test `LockedModuleOverlay` itself. Expenses, like Procurement, is
+  paid-tier-gated (`!isFree` fallback in `use-feature-gate.ts`, and
+  `"expenses": false` explicitly for the free tier in both the local fixture's
+  own `system_configs` row and the remote subscription-plans config — they
+  agree). `LockedModuleOverlay` correctly locks the module, but only *after*
+  the page has been interactive for a moment: an instrumented probe showed
+  the overlay isn't in the DOM for roughly the first second after navigating
+  to `/expenses`, even though `canUseExpenses` is `false` for the entire
+  session from the very first render. The original "add an expense" test
+  (a single click before the overlay's first paint) reliably won that race;
+  the new, slower edit-then-delete flow (create → wait → click again to open
+  the detail dialog) reliably lost it once the overlay finally mounted.
+  This is fixture/test-infrastructure fragility, not a data bug: a real
+  free-tier user sees the module consistently locked, same as this fixture
+  does once the page settles — the "unlocked" window on this fixture is a
+  narrow, incidental startup race in the overlay's own mount timing, not
+  anything this task's mutation code caused or can fix from the Expenses
+  side. (In fact `e2e/procurement.spec.ts` — a paid-tier-gated module
+  sharing the same free-tier fixture — was independently found broken
+  outright, not just flaky, against current `dev` HEAD for what looks like
+  the same reason; that's a pre-existing issue on a different spec, out of
+  scope here, not introduced by this fix.)
+- **Fix:** rather than mutate the shared fixture (would break
+  `prescriptions.spec.ts`/`pos-held-transaction.spec.ts`'s free-tier-gating
+  assertions) or paper over the race with a `waitForTimeout`, added a
+  dev-only hook (`window.__e2eSetSubscriptionTier`, gated to
+  `process.env.NODE_ENV === "development"`, alongside the existing
+  `getDatabaseBinary`/`restoreDatabase` dev hooks in `lib/db/core.ts`) that
+  `e2e/expenses.spec.ts` now calls right after login, followed by a
+  `page.reload()`, to elevate its own isolated per-test copy of the local DB
+  to a paid tier before ever touching the Expenses page. The checked-in
+  fixture file itself is untouched (confirmed via `git status` after every
+  run); every other spec's free-tier assumptions are unaffected.
+- **Regression test:** `e2e/expenses.spec.ts`'s existing "should edit an
+  existing expense and then delete it" test *is* the regression test —
+  confirmed it fails with the pre-fix code (`git stash` of the three changed
+  files reproduces the original `originalRow.click()` timeout exactly) and
+  passes reliably post-fix (2 consecutive full runs, both tests, 2 parallel
+  workers).
+- See `docs/features/expenses.md` for full detail.
+
 ## Open
 
 (Sections below add entries here as they're walked.)

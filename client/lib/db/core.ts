@@ -1248,6 +1248,19 @@ if (typeof window !== "undefined") {
 if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
   window.getDatabaseBinary = getDatabaseBinary;
   window.restoreDatabase = restoreDatabase;
+  // Test-only escape hatch: e2e specs that exercise a paid-tier-gated module
+  // (e.g. Expenses, Procurement — see use-feature-gate.ts's `!isFree`
+  // fallbacks) share one checked-in free-tier fixture (e2e/.auth/test-db.bin)
+  // with specs that deliberately rely on that same store being free-tier to
+  // test LockedModuleOverlay itself. Rather than mutate the shared fixture
+  // (which would break those other specs) or race the overlay's mount timing
+  // by clicking fast, a spec can call this once, before navigating past
+  // /login, to elevate its own isolated browser-context copy of the local DB
+  // — never the checked-in fixture file, and inert outside development
+  // builds. See e2e/expenses.spec.ts's `elevateToPaidTier`.
+  window.__e2eSetSubscriptionTier = async (tier: string) => {
+    await execute("UPDATE stores SET subscription_tier = ?", [tier]);
+  };
 }
 
 /**

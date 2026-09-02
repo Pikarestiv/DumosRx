@@ -45,11 +45,7 @@ export function DashboardHeader({ onOpenFeedback }: DashboardHeaderProps) {
           </div>
 
           <div className="flex flex-wrap items-center gap-1 sm:gap-1.5">
-            <HeaderPageHeading
-              pageInfo={pageInfo}
-              firstName={user?.first_name}
-              lastName={user?.last_name}
-            />
+            <HeaderPageHeading pageInfo={pageInfo} firstName={user?.first_name} />
           </div>
         </div>
 

@@ -4,7 +4,6 @@ import { PushResponse } from "./types";
 import type { SyncChange } from "@/lib/types/sync";
 import { remapForeignKey, DUPLICATE_NAME_TABLES } from "../reconcile-identity";
 import { execute, transaction } from "../core";
-import { logCrash } from "@/lib/utils/error-logger";
 
 const SYNC_BATCH_SIZE = 50;
 

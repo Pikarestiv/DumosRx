@@ -16,7 +16,6 @@ function getGreeting(): string {
 interface HeaderPageHeadingProps {
   pageInfo: { title: string; desc: string } | null;
   firstName?: string;
-  lastName?: string;
 }
 
 /** Either a time-of-day greeting with the user's name (dashboard home), or
@@ -24,7 +23,6 @@ interface HeaderPageHeadingProps {
 export function HeaderPageHeading({
   pageInfo,
   firstName,
-  lastName,
 }: HeaderPageHeadingProps) {
   if (!pageInfo) {
     return (
@@ -34,7 +32,6 @@ export function HeaderPageHeading({
         </span>
         <span className="text-foreground text-base sm:text-xl font-bold hidden sm:inline-block tracking-tight font-serif truncate">
           {firstName}
-          {/* {lastName} */}
         </span>
         <span className="text-foreground text-base sm:text-xl font-bold sm:hidden tracking-tight font-serif truncate">
           {firstName}

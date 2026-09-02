@@ -59,33 +59,58 @@ const PRESETS: { label: string; getRange: () => DateRangeValue }[] = [
   { label: "Today", getRange: () => preset(startOfToday(), startOfToday()) },
   {
     label: "Yesterday",
-    getRange: () => preset(subDays(startOfToday(), 1), subDays(startOfToday(), 1)),
+    getRange: () =>
+      preset(subDays(startOfToday(), 1), subDays(startOfToday(), 1)),
   },
-  { label: "Last 7 days", getRange: () => preset(subDays(startOfToday(), 6), startOfToday()) },
-  { label: "Last 30 days", getRange: () => preset(subDays(startOfToday(), 29), startOfToday()) },
-  { label: "This month", getRange: () => preset(startOfMonth(startOfToday()), startOfToday()) },
+  {
+    label: "Last 7 days",
+    getRange: () => preset(subDays(startOfToday(), 6), startOfToday()),
+  },
+  {
+    label: "Last 30 days",
+    getRange: () => preset(subDays(startOfToday(), 29), startOfToday()),
+  },
+  {
+    label: "This month",
+    getRange: () => preset(startOfMonth(startOfToday()), startOfToday()),
+  },
   {
     label: "Last month",
-    getRange: () => preset(startOfMonth(subMonths(startOfToday(), 1)), endOfMonth(subMonths(startOfToday(), 1))),
+    getRange: () =>
+      preset(
+        startOfMonth(subMonths(startOfToday(), 1)),
+        endOfMonth(subMonths(startOfToday(), 1)),
+      ),
   },
-  { label: "Year to date", getRange: () => preset(startOfYear(startOfToday()), startOfToday()) },
+  {
+    label: "Year to date",
+    getRange: () => preset(startOfYear(startOfToday()), startOfToday()),
+  },
   {
     label: "Last year",
-    getRange: () => preset(startOfYear(subYears(startOfToday(), 1)), endOfYear(subYears(startOfToday(), 1))),
+    getRange: () =>
+      preset(
+        startOfYear(subYears(startOfToday(), 1)),
+        endOfYear(subYears(startOfToday(), 1)),
+      ),
   },
 ];
 
 /** Dual-month range calendar + preset sidebar + editable start/end text
- * inputs in one popover, modeled on Moniebook's date-range picker
- * (refs/refs-jpg/MB-Date-Picker.jpg), which the pilot user specifically
- * called out as better than this app's single preset dropdown. Uses
- * DD/MM/YYYY (not Moniebook's MM/DD/YYYY) to stay consistent with every
+ * inputs in one popover. Uses DD/MM/YYYY to stay consistent with every
  * other date input already in this app. */
-export function DateRangePicker({ value, onChange, className }: DateRangePickerProps) {
+export function DateRangePicker({
+  value,
+  onChange,
+  className,
+}: DateRangePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [range, setRange] = useState<DateRange | undefined>(() =>
     value.from
-      ? { from: new Date(value.from), to: value.to ? new Date(value.to) : undefined }
+      ? {
+          from: new Date(value.from),
+          to: value.to ? new Date(value.to) : undefined,
+        }
       : undefined,
   );
   const [fromInput, setFromInput] = useState("");
@@ -160,7 +185,10 @@ export function DateRangePicker({ value, onChange, className }: DateRangePickerP
     <Button
       variant="outline"
       onClick={!isDesktop ? () => setIsOpen(true) : undefined}
-      className={cn("h-9 justify-start gap-2 text-[13px] font-normal", className)}
+      className={cn(
+        "h-9 justify-start gap-2 text-[13px] font-normal",
+        className,
+      )}
     >
       <CalendarIcon className="h-4 w-4 text-muted-foreground shrink-0 group-hover:text-accent-foreground" />
       <span className="truncate">{label}</span>

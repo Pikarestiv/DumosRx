@@ -254,10 +254,17 @@ Newest entries at the bottom of each section.
 - See `docs/features/prescriptions.md` for full detail, including a
   separately-flagged (not fixed) display discrepancy where Inventory's
   Catalog/Batches UI showed -5 units for that same batch after the sale,
-  despite the Activity Log recording the write as 142 — most likely
-  concurrent-task interference on this shared smoke-test store rather than
-  a defect in the dispense path itself, since the code-level chain was
-  independently verified correct via the Activity Log.
+  despite the Activity Log recording the write as 142. A fix-round-1
+  follow-up retracted the original "cross-task interference" theory (the
+  harness runs one implementer subagent at a time, so no second task could
+  have been writing concurrently) and instead ruled out, by reading the
+  code: a rendering bug substituting a movement's delta for the stored
+  quantity, a double-deduction write, a cache-invalidation gap, and a sync
+  pull/push reconciliation overwrite. The leading unverified candidate is
+  that the "-5" card belongs to a different, pre-existing `stock_batches`
+  row for the same product than the one the dispense actually updated to
+  142 — unconfirmed since the original observation didn't record batch IDs.
+  Left as an open question, not attributed to concurrency.
 
 ### Prescriptions: Strength selector is unusable (but harmless) for any product with a blank `strength` column
 

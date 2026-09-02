@@ -174,15 +174,50 @@ lists only the one `-5` sale movement for this product with no earlier
 movement explaining how it reached 147 in the first place (consistent with
 that starting quantity being seeded directly by a bulk import, bypassing the
 movements ledger, as documented in `docs/features/inventory.md`'s import
-finding). Given this store is being smoke-tested by multiple tasks
-concurrently and other unrelated concurrent writes to the same shared batch
-were visible in the Activity Log during this walkthrough (a "Manual UI Test
-Product XYZ2" +20 adjustment, other products' sales), this reads as
-cross-task interference on shared store state rather than a defect in the
-dispense/stock-deduction code path itself — the code-level chain
-(`recordSaleItemStock` → activity log → 142) was independently verified
-correct. Flagged here rather than fixed, since reproducing it in isolation
-(a fresh, uncontended batch) did not show the discrepancy.
+finding).
+
+A follow-up pass (fix round 1, see the task report) re-examined this and
+**retracted the original "cross-task interference" explanation** — the
+smoke-test harness that ran this task executes exactly one implementer at a
+time, so no second task's process could have been concurrently writing to
+this store; that mechanism does not exist and should never have been cited.
+What the follow-up actually checked and ruled out instead:
+
+- **Not a rendering bug.** `product-batch-history.tsx` and
+  `use-product-details.tsx` (`client/components/products/product-details/`)
+  render `batch.quantity` straight from `getStockBatchesForProductDetails()`
+  (`SELECT * FROM stock_batches WHERE product_id = ? AND _deleted = 0`,
+  `client/lib/db/queries/inventory.ts`) — there is no code path that
+  substitutes a stock movement's signed delta (e.g. the `-5` sale movement)
+  for the batch's own stored `quantity` column.
+- **Not a double-deduction.** `recordSaleItemStock()` writes an absolute
+  `quantity: batch.quantity - deduction` via the shared `update()` helper
+  (`client/lib/db/base-helpers.ts`), which issues a plain `SET quantity = ?`
+  (not an increment/delta). The only delta-based writer,
+  `updateStockBatchQuantity()`, is used solely by procurement/cycle-count
+  adjustment code — never reached from POS or prescription checkout — so it
+  cannot be the second write.
+- **Not a cache-invalidation gap.** `queryKeys.products.batches` is tagged
+  `meta.tables: ["stock_batches"]`, and every `update("stock_batches", ...)`
+  call synchronously invalidates any query carrying that tag, so a stale
+  cached pre-sale read is not the explanation either.
+- **Not the sync engine.** `pushChanges()` never writes sale/stock data back
+  into local SQLite (it only marks queue items synced or records failures),
+  and `pullChanges()` explicitly skips overwriting a record that still has a
+  pending entry in `_sync_queue` — which the just-made dispense update is,
+  until it's pushed — so a pull reverting the fresh 142 is also ruled out.
+
+**What remains a genuine open question:** `getStockBatchesForProductDetails`
+returns *every* non-deleted batch row for the product, not just the one
+`recordSaleItemStock` touched. The leading unverified candidate is that the
+"-5" card belonged to a *different*, pre-existing `stock_batches` row for
+TRAMADOL 100MG than the one whose Activity Log entry shows 147 → 142 — e.g.
+stock left negative by earlier, unrelated activity on this same persistent
+store (this account carries cumulative history across many prior,
+sequential — not concurrent — test sessions). The original observation
+didn't record either batch's `id`, so this cannot be confirmed or ruled out
+after the fact. Flagged here as unresolved, not fixed, and not attributed to
+concurrent-task interference.
 
 ## Test coverage
 

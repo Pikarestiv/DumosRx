@@ -5,7 +5,7 @@ import { test, expect, login } from './fixtures';
  *
  * The New Prescription form's medication picker only offers products with a
  * real positive-quantity stock batch (getAvailableStockBatches() in
- * lib/db/queries/prescriptions.ts's use-new-prescription.ts), and the seeded
+ * lib/db/queries/inventory.ts, used by use-new-prescription.ts), and the seeded
  * test store starts with zero products. The quick-add product dialog has no
  * initial-stock field by design (see e2e/sales.spec.ts) — Cycle Count is the
  * only stock-granting path a fresh free-tier store can reach (Procurement is

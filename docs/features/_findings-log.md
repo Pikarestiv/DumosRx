@@ -120,6 +120,29 @@ Newest entries at the bottom of each section.
   picking and the true-zero-batches edge case are unaffected.
 - See `docs/features/pos.md` for full detail.
 
+### 7. Customers: Loyalty Program tab was never gated by plan tier
+- **Found:** `lib/hooks/use-feature-gate.ts` defines
+  `canUseLoyaltyProgram` (meant to restrict the module to Pro/Enterprise,
+  mirroring `canUsePrescriptions`/`canUseProcurement`/`canUseExpenses`/
+  `canUseAuditMode`) but it had **zero call sites** anywhere else in the
+  codebase. The Loyalty Program tab in `CustomerManagement` — including full
+  tier and points-redemption CRUD via `LoyaltySettingsDialog` — rendered
+  unconditionally for every plan tier, with no lock overlay and no upgrade
+  prompt.
+- **Fix:** extended `LockedModuleOverlay`'s `featureKey` union with
+  `"loyalty_program"` and wrapped the Loyalty Program `TabsContent` in
+  `client/components/customers/customer-management.tsx` with it, matching
+  the existing pattern used by every other gated module.
+- **Verified:** `npx tsc --noEmit -p .` clean; full `vitest run` (340 tests)
+  still passes; live-confirmed on this task's Pro-tier test store that the
+  tab still renders fully unlocked post-fix (no regression). A live
+  Free/Starter "before" repro would have required changing this shared test
+  store's subscription tier via Settings → Billing, which was intentionally
+  not done; the bug is instead confirmed by direct code inspection (a dead
+  feature flag, identical in kind to the pattern every other gated module
+  relies on to actually enforce its lock).
+- See `docs/features/customers.md` for full detail.
+
 ## Open
 
 (Sections below add entries here as they're walked.)
@@ -283,4 +306,50 @@ Newest entries at the bottom of each section.
   imported products), not incorrect matching logic; the matching logic
   already degrades safely. Out of this task's scope.
 - **Coverage:** zero — no existing test exercises the Strength combobox.
+
+### Customers: points redemption is configurable but not actually redeemable anywhere
+
+- **Found while walking:** the `loyalty_redemption_options` table and its
+  Loyalty Settings UI let an owner define rewards (e.g. "₦500 Discount" for
+  500 points), but no surface in the app — Directory, customer detail panel,
+  or POS checkout — has a "redeem points" action against them. They're
+  purely configuration with no consuming feature. The `loyalty_transactions`
+  table (a ledger of points earned/redeemed) similarly has no dedicated UI;
+  points only ever show as a running balance.
+- **Not fixed:** this is a missing feature, not a regression — nothing was
+  broken by this task's changes. Out of scope to build a full redemption
+  flow during a smoke-test pass.
+
+### Customers: Points Redemption Options section is empty until Loyalty Settings is opened once
+
+- **Found while walking:** `LoyaltyTab` shows "No redemption options
+  configured yet." on a store that has never opened **Loyalty Program →
+  Edit Settings**, because `ensureLoyaltyDefaultsSeeded()` only runs as a
+  side effect of that dialog's `open` useEffect — there is no fallback list
+  for redemption options the way tiers have `buildFallbackTiers()`. Opening
+  Edit Settings once seeds the defaults and the main tab then shows them
+  correctly.
+- **Not fixed:** cosmetic/first-run-only gap, not a data bug — one click by
+  an owner/manager (the same role gated behind `canManageStockBatch` who can
+  already edit these settings) resolves it permanently for that store. Out
+  of scope to add a fallback list here to match tiers' behavior during this
+  task.
+
+### Customers: `recordCustomerPayment` checked for the recurring accumulation-bug pattern — confirmed no bug
+
+- **Checked:** per this task's brief, whether recording a customer payment
+  independently reimplemented the same category of edge-case bug found
+  duplicated elsewhere in this codebase (a `quantity > 0`-filtered batch loop
+  that silently drops/mis-attributes writes once a resource is exhausted —
+  found in POS checkout and online-order fulfillment, confirmed absent in
+  prescription dispensing).
+- **Finding:** it does not have that bug. `recordCustomerPayment`
+  (`client/lib/db/queries/customers.ts`) clamps the resulting balance to
+  `max(0, currentBalance - amount)` rather than going negative on
+  overpayment, and its FIFO sale-allocation loop (`applyCreditPaymentFIFO`)
+  stops once `remaining <= 0`, so it never over-allocates past a sale's own
+  total even when the payment exceeds everything owed. Confirmed by
+  `client/__tests__/customer-payments.test.ts` (new, 4 tests, all pass
+  against the existing implementation unmodified).
+- **Not a bug; no fix applied.**
 - See `docs/features/prescriptions.md` for full detail.

@@ -7,7 +7,7 @@ import { StockAudits } from "./stock-audits";
 import { ProductDatabase } from "@/components/products/product-database";
 import { Button } from "@/components/ui/button";
 import { StockBatchMetrics } from "./stock-batch-metrics";
-import { formatCurrency } from "@/lib/utils";
+import { formatMetricCurrency } from "@/lib/utils";
 import { useStockBatchManagement } from "@/lib/hooks/use-stock-batch-management";
 
 export function StockBatchManagement({
@@ -56,7 +56,7 @@ export function StockBatchManagement({
             lowStockCount={stats.lowStockCount}
             expiringCount={stats.expiringSoonCount}
             activeCategories={stats.activeCategories}
-            formatCurrency={formatCurrency}
+            formatCurrency={formatMetricCurrency}
           />
           <StockOverview />
         </TabsContent>

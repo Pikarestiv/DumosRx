@@ -63,7 +63,7 @@ export interface NewProductPayload {
   id?: string;
   name: string;
   generic_name?: string;
-  category_id?: string;
+  category_id?: string | null;
   nafdac_number?: string;
   strength?: string;
   dosage_form?: string;

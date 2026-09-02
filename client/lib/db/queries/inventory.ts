@@ -94,6 +94,121 @@ export async function getBatchesForProduct(productId: string) {
   );
 }
 
+/**
+ * Fallback for sale processing: getBatchesForProduct's `quantity > 0` filter
+ * is correct for FEFO picking, but if the product's true stock has already
+ * been fully depleted (e.g. a stale on-screen stock count let the cashier
+ * add one more unit than actually exists), that filter returns an empty
+ * list. Callers that only consult getBatchesForProduct then skip the whole
+ * stock_batches/stock_movements write for that line item — the sale still
+ * completes and is recorded as revenue, but the unit sold leaves no trace in
+ * the stock ledger at all (see use-pos-payment.ts's handlePayment). This
+ * returns the single most-recently-touched active batch regardless of its
+ * quantity, so that deduction can still be attributed and logged (batch and
+ * on-hand stock going negative, same way an already-negative batch does
+ * today) instead of vanishing untracked.
+ */
+export async function getAnyActiveBatchForProduct(productId: string) {
+  return query<StockBatch>(
+    "SELECT * FROM stock_batches WHERE product_id = ? AND _deleted = 0 ORDER BY updated_at DESC, created_at DESC LIMIT 1",
+    [productId],
+  );
+}
+
+interface RecordSaleItemStockParams {
+  saleId: string;
+  productId: string;
+  quantity: number;
+  unitPrice: number;
+  costPrice: number;
+  subtotal: number;
+  cashierId: string | null;
+}
+
+/**
+ * Inserts the sale_items row for one cart line and deducts/logs the stock it
+ * consumed. Extracted out of use-pos-payment.ts's handlePayment so the
+ * getBatchesForProduct-empty-list case (see getAnyActiveBatchForProduct) has
+ * a single, unit-testable place to fix and guard against regressing: every
+ * completed sale must leave a stock_movements trace for what it sold, even
+ * when the product's real stock was already fully depleted.
+ */
+export async function recordSaleItemStock({
+  saleId,
+  productId,
+  quantity,
+  unitPrice,
+  costPrice,
+  subtotal,
+  cashierId,
+}: RecordSaleItemStockParams) {
+  // Prefer FEFO picking among batches that still show positive stock; if the
+  // product's true stock is already fully depleted, fall back to whatever
+  // batch was touched most recently so the sale still leaves a trace in
+  // stock_batches/stock_movements instead of silently untracked shrinkage.
+  let batches = await getBatchesForProduct(productId);
+  if (batches.length === 0) {
+    batches = await getAnyActiveBatchForProduct(productId);
+  }
+
+  const saleItemId = await insert("sale_items", {
+    sale_id: saleId,
+    product_id: productId,
+    // Primary/first batch consumed; retained for backward-compat display
+    // only. Accurate per-batch accounting (for FEFO splits) lives in
+    // sale_item_batches below.
+    stock_batch_id: batches[0]?.id || null,
+    quantity,
+    unit_price: unitPrice,
+    cost_price: costPrice || 0,
+    total_price: subtotal,
+  });
+
+  let remainingToDeduct = quantity;
+  for (const batch of batches) {
+    if (remainingToDeduct <= 0) break;
+    // batch.quantity can be <= 0 here when this batch only turned up via the
+    // getAnyActiveBatchForProduct fallback (nothing with positive stock left
+    // for this product); clamping to it in that case would silently drop
+    // some or all of the deduction again. Only clamp against genuinely
+    // available stock; otherwise the fallback batch absorbs the full
+    // remainder (going further negative) so the movement/audit trail still
+    // matches what was actually sold.
+    const deduction =
+      batch.quantity > 0
+        ? Math.min(batch.quantity, remainingToDeduct)
+        : remainingToDeduct;
+
+    await update("stock_batches", batch.id, {
+      quantity: batch.quantity - deduction,
+    });
+
+    await insert("sale_item_batches", {
+      sale_item_id: saleItemId,
+      stock_batch_id: batch.id,
+      quantity: deduction,
+    });
+
+    await insert("stock_movements", {
+      product_id: productId,
+      stock_batch_id: batch.id,
+      movement_type: "sale",
+      quantity: -Math.abs(deduction),
+      unit_cost: costPrice || 0,
+      total_cost: (costPrice || 0) * deduction,
+      reference_id: saleId,
+      reference_type: "sale",
+      reason: "Customer sale",
+      performed_by: cashierId,
+      movement_date: new Date().toISOString(),
+    });
+
+    remainingToDeduct -= deduction;
+  }
+
+  return saleItemId;
+}
+
 export async function getExpiringBatches(days: number) {
   const storeId = getActiveStoreId();
   return query<ExpiringItem>(

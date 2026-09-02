@@ -79,6 +79,47 @@ Newest entries at the bottom of each section.
   source via `git stash`, pass after. Re-clicked "View all" live post-fix:
   lands on Catalog with the Low Stock chip pre-applied, no error overlay.
 
+### 5. POS: saving a product without a category always failed
+- **Found:** while creating fixture products for the POS held-transaction
+  test (Category has no "*" in Add Product — it's documented as optional),
+  reproduced live via Chrome DevTools console: `Failed to save Product:
+  Wrong API use : tried to bind a value of an unknown type (undefined).`
+- **Fix:** `client/lib/hooks/use-save-product-mutation.ts` was setting
+  `localPayload.category_id = undefined` when no category was chosen;
+  sql.js's `bind()` throws on JS `undefined` (it only accepts `null`).
+  Changed to `null` and extracted the mutation body into a standalone
+  `saveProductToLocalDb()` export so it's directly unit-testable.
+- **Verified by:** `client/__tests__/save-product-no-category.test.ts` —
+  confirmed to fail with the exact same sql.js error pre-fix, pass after;
+  live re-test in Chrome (product saved, tagged "Uncategorized"); the
+  pre-existing `sales-lifecycle.spec.ts` (previously blocked at this exact
+  step) now gets past it.
+- See `docs/features/pos.md` for full detail.
+
+### 6. POS: a completed sale could leave zero trace in the stock ledger
+- **Found:** while investigating unexpectedly negative stock counts during
+  the POS walkthrough, direct inspection of the synced MySQL data showed a
+  `sale_items` row with no matching `stock_movements` row for one of its
+  lines — a unit sold and charged for, with no corresponding stock
+  deduction anywhere.
+- **Root cause:** `use-pos-payment.ts`'s `handlePayment` used
+  `getBatchesForProduct()` (correctly filtered to `quantity > 0` for FEFO
+  picking) as the *only* source of batches to deduct from. Once a product's
+  real stock was fully depleted, that filter returned nothing, and the
+  per-item loop then had no batch to attribute the sale to at all — no
+  stock_batches update, no sale_item_batches row, no stock_movements row,
+  while the sale still completed and was recorded as revenue.
+- **Fix:** extracted the per-item deduction logic into
+  `recordSaleItemStock()` (`client/lib/db/queries/inventory.ts`), which now
+  falls back to `getAnyActiveBatchForProduct()` (the most-recently-touched
+  active batch, any quantity) when no batch has positive stock, so the sale
+  is still attributed and logged (going further negative) instead of
+  vanishing untracked.
+- **Verified by:** `client/__tests__/record-sale-item-stock-depleted-batch.test.ts`
+  (3 tests) — confirmed to fail pre-fix, pass after; also covers FEFO
+  picking and the true-zero-batches edge case are unaffected.
+- See `docs/features/pos.md` for full detail.
+
 ## Open
 
 (Sections below add entries here as they're walked.)
@@ -170,3 +211,20 @@ Newest entries at the bottom of each section.
   fixing it needs a product decision on test credentials and was left out
   of scope. This task's own verification reused the already-committed
   `e2e/.auth/test-db.bin` fixture directly via `--no-deps` instead.
+
+### e2e suite: `sales-lifecycle.spec.ts`'s Cycle Count steps are stale (second instance of the drift above)
+
+- **Found while writing `e2e/pos-held-transaction.spec.ts`:** that new spec
+  needed real stock, so it followed `sales-lifecycle.spec.ts`'s
+  select-a-category → "Start count" → per-product count screen → "Save
+  count" pattern for Cycle Count. Live in Chrome, "Start Audit" instead goes
+  straight to a single "Physical inventory" screen: a search box + one flat
+  grid of every product with an inline editable "Counted Qty" cell per row —
+  no per-category "Start count" step at all. `sales-lifecycle.spec.ts` (and
+  this task's first draft of `pos-held-transaction.spec.ts`) hang forever
+  waiting for a "Start count" button that no longer exists.
+- **Not fixed:** out of scope for Task 3 (POS); `sales-lifecycle.spec.ts`
+  predates this task. `pos-held-transaction.spec.ts` was written against the
+  current UI instead of copying the stale pattern, so it isn't affected.
+  Recommend updating `sales-lifecycle.spec.ts`'s Cycle Count section next
+  time that spec is touched.

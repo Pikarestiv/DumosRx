@@ -143,6 +143,28 @@ Newest entries at the bottom of each section.
   relies on to actually enforce its lock).
 - See `docs/features/customers.md` for full detail.
 
+### 8. Procurement: pre-existing `e2e/procurement.spec.ts` test was already broken by unrelated UI drift
+- **Found:** running `npx playwright test --project=chromium
+  e2e/procurement.spec.ts --no-deps` before making any changes failed
+  outright: `expect(locator).toBeVisible() failed ... locator('text="Add
+  Items to Order"')`. Commit `113a368c` ("add POItemBuilder search-to-add-row
+  component for PO item entry") replaced the old one-item-at-a-time item
+  entry form (a section labelled "Add Items to Order", a combobox with
+  placeholder `"e.g. Amoxicillin 500mg"`, and a separate "Add" button) with
+  `components/procurement/po-item-builder.tsx` — a single search box
+  (placeholder `"Search item by name, SKU or barcode"`) that adds a row the
+  instant a product is picked, no "Add" click needed. The old test's
+  selectors for that removed UI never matched anything again after that
+  refactor landed, and nothing had run/noticed since.
+- **Fix:** updated the existing test's selectors in
+  `client/e2e/procurement.spec.ts` to match the current UI. No application
+  code changed — this was a test-only regression.
+- **Verified:** both `e2e/procurement.spec.ts` tests (the fixed original
+  plus a new one added for this task, covering the full standard PO
+  create → send → receive → stock-increase cycle) pass repeatedly, both
+  serially and with the default 2 parallel workers.
+- See `docs/features/procurement.md` for full detail.
+
 ## Open
 
 (Sections below add entries here as they're walked.)
@@ -353,3 +375,30 @@ Newest entries at the bottom of each section.
   against the existing implementation unmodified).
 - **Not a bug; no fix applied.**
 - See `docs/features/prescriptions.md` for full detail.
+
+### Procurement: `receivePurchaseOrder` checked for the recurring accumulation-bug pattern — confirmed no bug, opposite failure mode
+
+- **Checked:** per this task's brief, whether a purchase order's "received"
+  status flows into `stock_batches` via the same category of edge-case bug
+  found duplicated elsewhere in this codebase (independently reimplemented
+  quantity-accumulation logic, sometimes buggy — found and fixed in POS
+  checkout / online-order fulfillment stock *deduction*, confirmed absent in
+  prescription dispensing), and specifically whether a **partial receive**
+  (less than ordered) is handled correctly.
+- **Finding:** it does not have that bug, and structurally can't have the
+  same shape of bug. `receivePurchaseOrder()`
+  (`client/lib/db/procurement-receiving.ts`) always `insert()`s a brand-new
+  `stock_batches` row per line item — a product's total stock is
+  `SUM(quantity) FROM stock_batches`, never a single mutable counter — so
+  there is no shared running total an insert could double-apply to or
+  clobber. This is the opposite failure mode from the deduction bugs found
+  elsewhere. Partial receive is honored correctly: the "Receive Goods" form
+  lets the user override `bulk_quantity` per line, and the batch/movement
+  math is entirely driven by that override, not the PO's original ordered
+  quantity — confirmed both by reading the code and live, on
+  "Pikarestiv Stores 2": ordered 3 Cartons, received 2, catalog showed
+  exactly 2 Units afterward (not 3).
+- **Not a bug; no fix applied.** New e2e coverage added instead (see
+  "Resolved" #8 above) since this path — Standard PO receiving — had zero
+  automated coverage before this task.
+- See `docs/features/procurement.md` for full detail.

@@ -125,7 +125,7 @@ export function NeedsAttention({ stockData }: { stockData: StockItem[] }) {
       </div>
       <div
         className="text-[12.5px] text-primary font-semibold cursor-pointer hover:underline"
-        onClick={() => router.push("/inventory/products")}
+        onClick={() => router.push("/inventory/catalog?status=low_stock")}
       >
         View all
       </div>

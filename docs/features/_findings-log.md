@@ -57,6 +57,28 @@ Newest entries at the bottom of each section.
   lives on the Inventory Overview tab, not the Dashboard — out of scope
   for this task. Flagged for whichever task walks the Inventory section.
 
+### 4. Inventory Overview's "Needs attention" panel had the same dead route as finding #3
+
+- **Found:** clicking "View all" on the Inventory Overview tab's Needs
+  Attention panel navigated to `/inventory/products` — the identical dead
+  route from finding #3, in a second file. It was explicitly flagged as a
+  residual issue in finding #3 ("out of scope for this task... flagged for
+  whichever task walks the Inventory section") and this is that task.
+  Reproduced live: full-page Next.js "Runtime Error: Page ... is missing
+  param ... in generateStaticParams()".
+- **Fix:** `client/components/stock-batch/needs-attention.tsx`'s "View
+  all" `onClick` now calls
+  `router.push("/inventory/catalog?status=low_stock")` — same real
+  destination as finding #3's fix.
+- **Verified by:** a second assertion added to
+  `client/__tests__/dashboard-action-center-routes.test.ts` (this file
+  calls `router.push()` directly rather than using the `actionRoute:` prop
+  pattern finding #3's regex targets, so the new assertion uses its own
+  regex against the same `allowedTabs` source of truth). Confirmed to fail
+  (`references unknown inventory tab "products"`) against the pre-fix
+  source via `git stash`, pass after. Re-clicked "View all" live post-fix:
+  lands on Catalog with the Low Stock chip pre-applied, no error overlay.
+
 ## Open
 
 (Sections below add entries here as they're walked.)
@@ -76,3 +98,75 @@ Newest entries at the bottom of each section.
   of the "fix the highest-value bug" scope for this task. Recommend a
   follow-up product-details dialog, or excluding `type: "product"` rows
   from being rendered as clickable in the interim.
+
+### Inventory > Catalog: Category filter pill and "Manage Categories" dialog disagree, neither shows this store's real categories
+
+- **Found while walking:** the Category filter pill on Catalog listed
+  Groceries/Beverages/Personal Care/Household/Snacks/Dairy — matching
+  neither the categories actually used by Store 2's 1,513 products (Drugs,
+  Cosmetics, etc., visible on every row) nor the list shown in "Manage
+  Categories" (Analgesics/Antacids/Antibiotics/Antidiabetics/
+  Antihistamines/Antihypertensives/Antimalarials).
+- **Root cause (read, not fixed):** `components/products/product-database.tsx`
+  builds the filter pill's options from `getCategoriesList()`
+  (`lib/db/queries/products.ts`), correctly scoped `WHERE store_id = ?`,
+  which returns zero rows for this store and falls back to a hardcoded
+  non-pharmacy default list. `manage-categories-dialog.tsx` instead reads
+  via `getCategoryList()` (`lib/db/queries/categories.ts`) — which has
+  **no `store_id` filter at all**, a likely multi-tenancy leak that shows
+  (and lets an owner edit/delete) another store's categories.
+- **Coverage:** zero — no `__tests__/` or `e2e/` file exercises either
+  category query or the filter-pill/Manage-dialog category lists at all.
+- **Not fixed:** root-causing why the store-scoped query returns zero rows
+  despite products clearly having categories requires investigating the
+  `categories` table's `store_id` data, which risks touching real Store 2
+  data and is bigger than this task's "fix the one bug you found" scope.
+  See `docs/features/inventory.md` for full detail.
+
+### Inventory > Movements: zero real movement history to test against
+
+- **Found while walking:** Store 2 has recorded zero stock movements (the
+  bulk product import writes products/batches directly, not through the
+  movements ledger, and no sales/restocks/audits have been submitted on
+  this store). The tab's search, type filters, date-range picker, and sort
+  could only be confirmed to render an empty state, not that they actually
+  filter/sort real rows.
+- **Coverage:** zero — no existing e2e spec drives the Movements tab at
+  all, and the new `e2e/product-import.spec.ts` added this task doesn't
+  cover it either (out of scope for Step 4, which targets Import only).
+- **Not fixed:** would need movement-row fixtures seeded into the
+  Playwright test-db (`e2e/global.setup.ts`), or a real sale/restock
+  against Store 2 (ruled out by this task's no-destructive-writes
+  constraint). Recommend seeding fixture rows in a follow-up.
+
+### e2e suite: `products.spec.ts` and shared `login()` fixture had drifted out of sync with the current UI
+
+- **Found while running this task's Step 3/6 verification:**
+  `e2e/fixtures.ts`'s `login()` helper used
+  `page.getByPlaceholder('••••')` for the PIN field, but
+  `components/auth/traditional-login-form.tsx` now uses an `InputOTP`
+  component with no such placeholder — every spec using `login()` (i.e.
+  every spec in the suite) was silently timing out at login.
+- **Fixed** (necessary to run this task's own required Playwright
+  verification): `e2e/fixtures.ts` now selects
+  `input[data-input-otp="true"]`, the same selector `global.setup.ts`
+  already used for the equivalent field on `/setup`.
+- **Found, not fixed:** once login was unblocked, two further stale
+  assertions in `e2e/products.spec.ts` surfaced: it expects `/inventory` to
+  redirect to `/inventory/overview` (it doesn't — `app/(dashboard)/
+  inventory/page.tsx` renders the Overview tab directly without changing
+  the URL, though this may be a legitimately stale test rather than a
+  product bug), and it expects the `/inventory/ledger` header text "Stock
+  Ledger" (the real title, per `lib/constants/dashboard-page-routes.ts`, is
+  "Stock Movements"). Both predate this task and are out of scope to fix
+  here.
+- **Found, not fixed (larger, suite-wide issue):** `e2e/global.setup.ts` —
+  which builds the `.auth/test-db.bin` fixture every spec's `login()`
+  restores — is itself broken against the current `/setup` wizard: it
+  clicks a "Create New Store" button that no longer exists (now "Set Up
+  New Business"), and even past that, `register-step.tsx` now requires
+  Email/Phone/Password/Confirm Password fields the setup script never
+  fills. This affects every spec in the e2e suite, not just Inventory;
+  fixing it needs a product decision on test credentials and was left out
+  of scope. This task's own verification reused the already-committed
+  `e2e/.auth/test-db.bin` fixture directly via `--no-deps` instead.

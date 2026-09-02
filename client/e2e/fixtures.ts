@@ -15,7 +15,11 @@ export async function login(page: Page) {
     localStorage.setItem('dumos_client_tour_completed', 'true');
   });
   await page.getByPlaceholder('admin').fill('admin');
-  await page.getByPlaceholder('••••').fill('1234');
+  // PIN field is an InputOTP (components/auth/traditional-login-form.tsx), not a
+  // placeholder-based text input - '••••' hasn't matched anything since that
+  // component switched to InputOTP. Same selector global.setup.ts already uses
+  // for the analogous OTP field on /setup.
+  await page.locator('input[data-input-otp="true"]').first().fill('1234');
   await page.getByRole('button', { name: /Authorize Entry/i }).click();
   await expect(page.getByText(/Today's Sales/i)).toBeVisible({ timeout: 10000 });
 }

@@ -169,6 +169,33 @@ Newest entries at the bottom of each section.
 
 (Sections below add entries here as they're walked.)
 
+### Expenses: walkthrough found no bugs; e2e coverage gap closed
+
+- **Checked:** categories (Rent/Utilities/Salaries/Maintenance/Marketing/
+  Other) via both the category filter tabs and the Add/Edit form; the
+  `covers_months` "spread over how many months?" field — the schema's actual
+  substitute for a recurring/one-off distinction (there is no
+  `is_recurring`/cadence column) — on both create and edit, confirming its
+  smoothing math (`getSmoothedAmountInWindow()`) live-updates the "This
+  month"/"Top category" Insights cards correctly; the `notes` column (added
+  per the migration comment in `core.ts`) on create, edit, and the detail
+  dialog; edit of an existing expense (full dialog); delete of an existing
+  expense (with its `ConfirmDialog`); and the desktop table's inline
+  "quick edit" pencil (category + amount only) including Cancel leaving the
+  row unmodified.
+- **Finding:** no bugs. Everything behaved as the code predicts, including
+  the smoothing math staying in sync across an edit (₦12,000/12mo → ₦1,000
+  "This month"; edited to ₦15,000/12mo → ₦1,250 live, no reload).
+- **Coverage gap confirmed (Step 3):** `e2e/expenses.spec.ts` had exactly one
+  test (add only) — edit and delete of an existing expense had zero e2e
+  coverage.
+- **Closed (Step 4):** added "should edit an existing expense and then delete
+  it" to `e2e/expenses.spec.ts` — creates its own fixture expense, edits its
+  description/amount via the full Edit dialog, asserts the update stuck, then
+  deletes it via the detail dialog's Delete → Confirm flow and asserts the
+  row is gone.
+- See `docs/features/expenses.md` for full detail.
+
 ### Dashboard: "Product added" activity rows are dead clicks
 - **Found while walking:** all 5 Recent Activity rows on the smoke-tested
   store were `activity_type: "product"` entries. Clicking one sets

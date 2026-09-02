@@ -228,3 +228,52 @@ Newest entries at the bottom of each section.
   current UI instead of copying the stale pattern, so it isn't affected.
   Recommend updating `sales-lifecycle.spec.ts`'s Cycle Count section next
   time that spec is touched.
+
+### Prescriptions: dispensing does *not* have a third copy of the stock-deduction bug — confirmed, no fix needed
+
+- **Checked:** whether prescription dispensing (Task 4) independently
+  reimplemented the "fetch positive-stock batches, loop, deduct" pattern
+  that was found duplicated (and separately fixed) in POS checkout and
+  online-order fulfillment.
+- **Finding:** it does not. `handleDispense`
+  (`client/lib/hooks/use-prescription-management.ts`) only navigates to
+  `/pos?dispense_rx=<id>`; `usePOSPrescription`
+  (`client/lib/hooks/use-pos-prescription.ts`) loads the prescription's
+  items into the POS cart; checkout then runs through the normal POS
+  payment path (`client/lib/hooks/use-pos-payment.ts`), which calls the
+  shared, already-fixed `recordSaleItemStock()`
+  (`client/lib/db/queries/inventory.ts`) for every line, then marks the
+  prescription completed/refilled on success. No prescription-specific
+  stock-deduction code exists at all.
+- **Verified live:** dispensed a real prescription (TRAMADOL 100MG × 5)
+  through Ready for pickup → Dispense → POS cash checkout. Activity Log
+  confirmed the full write chain (sale → sale item → stock batch update →
+  sale item batch → stock movement → prescription status), and the stock
+  batch's logged post-sale quantity was correct (147 → 142).
+- **Not a bug; no fix applied.**
+- See `docs/features/prescriptions.md` for full detail, including a
+  separately-flagged (not fixed) display discrepancy where Inventory's
+  Catalog/Batches UI showed -5 units for that same batch after the sale,
+  despite the Activity Log recording the write as 142 — most likely
+  concurrent-task interference on this shared smoke-test store rather than
+  a defect in the dispense path itself, since the code-level chain was
+  independently verified correct via the Activity Log.
+
+### Prescriptions: Strength selector is unusable (but harmless) for any product with a blank `strength` column
+
+- **Found while walking:** the New Prescription form's "Strength *" combobox
+  for a chosen medication is populated only from that product's non-empty
+  `strength` values. TRAMADOL 100MG (and apparently other imported products
+  on this store) has a blank `products.strength`, so the dropdown renders
+  with zero options once selected — a required-looking field the user
+  cannot interact with.
+- **Not a blocking bug:** `newMedication.strength` defaults to `""` and the
+  product-lookup match (`name && strength` equality) still succeeds against
+  the batch's own blank `strength`, so "Add Medication" works anyway.
+  Confirmed live — added TRAMADOL 100MG to a prescription without ever
+  touching the Strength field.
+- **Not fixed:** root cause is a data-quality gap (blank `strength` on
+  imported products), not incorrect matching logic; the matching logic
+  already degrades safely. Out of this task's scope.
+- **Coverage:** zero — no existing test exercises the Strength combobox.
+- See `docs/features/prescriptions.md` for full detail.

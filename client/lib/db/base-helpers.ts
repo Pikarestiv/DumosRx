@@ -2,7 +2,17 @@
  * Base CRUD Helpers
  */
 
-import { execute, query, generateId, logAction, getActiveStoreId, STORE_SCOPED_TABLES } from "./core";
+import {
+  execute,
+  query,
+  generateId,
+  logAction,
+  getActiveStoreId,
+  STORE_SCOPED_TABLES,
+  registerInvalidateTablesFn,
+  queueTableInvalidation,
+  awaitSettledTransactions,
+} from "./core";
 import { queryClient } from "../query-client";
 import type { SyncQueueItem } from "@/lib/types/sync";
 
@@ -24,6 +34,10 @@ function invalidateQueriesForTable(table: string) {
     },
   });
 }
+
+registerInvalidateTablesFn((tables) => {
+  for (const table of tables) invalidateQueriesForTable(table);
+});
 
 export async function insert(
   table: string,
@@ -71,7 +85,7 @@ export async function insert(
     await logAction(options?.action || "INSERT", table, id, record);
   }
 
-  invalidateQueriesForTable(table);
+  queueTableInvalidation(table);
 
   return id;
 }
@@ -111,8 +125,8 @@ export async function update(
 
   await addToSyncQueue(table, id, "UPDATE", record);
   await logAction(options?.action || "UPDATE", table, id, record);
-  
-  invalidateQueriesForTable(table);
+
+  queueTableInvalidation(table);
 }
 
 export async function softDelete(table: string, id: string): Promise<void> {
@@ -132,7 +146,7 @@ export async function softDelete(table: string, id: string): Promise<void> {
   await addToSyncQueue(table, id, "DELETE", { id });
   await logAction("DELETE", table, id, { id });
 
-  invalidateQueriesForTable(table);
+  queueTableInvalidation(table);
 }
 
 export async function remove(
@@ -155,7 +169,7 @@ export async function remove(
 
   await logAction(options?.action || "HARD_DELETE", table, id, existing[0] || { id });
 
-  invalidateQueriesForTable(table);
+  queueTableInvalidation(table);
 }
 
 async function addToSyncQueue(
@@ -182,6 +196,12 @@ async function addToSyncQueue(
  * failure's backoff window hasn't elapsed yet.
  */
 export async function getPendingSyncItems(ignoreBackoff = false) {
+  // See awaitSettledTransactions()'s doc comment: without this, a
+  // background auto-sync tick that lands mid-transaction (e.g. a bulk
+  // import) can read and push that transaction's not-yet-committed rows,
+  // orphaning them on the server if the transaction later rolls back.
+  await awaitSettledTransactions();
+
   if (ignoreBackoff) {
     return await query<SyncQueueItem>(
       "SELECT * FROM _sync_queue ORDER BY created_at ASC",

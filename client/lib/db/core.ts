@@ -818,6 +818,33 @@ export async function query<T = Record<string, unknown>>(
 // commit time instead of after every individual statement in the block.
 let inTransaction = false;
 
+// Registered by base-helpers.ts (which already imports from this module, so
+// this module can't import back without a cycle) so insert()/update()/
+// softDelete() can route their React Query invalidation through here instead
+// of calling queryClient directly. During a transaction() block, invalidating
+// after every single row (e.g. a 1000+ row spreadsheet import) means as many
+// refetches of whatever list is on screen — that refetch storm, not the SQL
+// work itself, is what froze the tab on a bulk import. Collecting the
+// touched table names and invalidating each one once, after the transaction
+// settles, keeps the same eventual invalidation with a bounded cost per
+// transaction instead of per row.
+let invalidateTablesFn: ((tables: Iterable<string>) => void) | null = null;
+let pendingInvalidations: Set<string> | null = null;
+
+export function registerInvalidateTablesFn(
+  fn: (tables: Iterable<string>) => void,
+): void {
+  invalidateTablesFn = fn;
+}
+
+export function queueTableInvalidation(table: string): void {
+  if (inTransaction && pendingInvalidations) {
+    pendingInvalidations.add(table);
+  } else {
+    invalidateTablesFn?.([table]);
+  }
+}
+
 export async function execute(
   sql: string,
   params: (string | number | null | Uint8Array)[] = [],
@@ -874,6 +901,29 @@ export async function execute(
  * cross-transaction data loss above.
  */
 let transactionQueue: Promise<void> = Promise.resolve();
+
+/**
+ * Waits for every transaction() call reserved so far to finish (commit or
+ * rollback) before returning. sql.js/the Tauri SQL plugin use one ambient
+ * connection, so a plain query() run while a transaction() is mid-flight
+ * doesn't see a consistent snapshot — it sees that transaction's uncommitted
+ * writes, same-connection reads-your-own-writes style. That's fine for code
+ * that already runs its own reads inside a transaction() (they naturally
+ * queue behind it), but getPendingSyncItems() reads the sync queue with a
+ * bare query() before any network call, from a periodic background timer
+ * that has no idea a multi-minute bulk import's transaction() is open. Left
+ * unguarded, it can read and push rows from that transaction before it
+ * commits — and if the transaction later rolls back (thrown error, or the
+ * app closing before COMMIT), those rows are now orphaned on the server with
+ * no corresponding local record. Awaiting this first closes that window down
+ * to the brief microtask gap between this resolving and the caller's next
+ * query() — not a full guarantee (a new transaction() can still reserve the
+ * queue in that gap), but sync only needs to miss the multi-minute case that
+ * was actually observed, not withstand adversarial timing.
+ */
+export async function awaitSettledTransactions(): Promise<void> {
+  await transactionQueue;
+}
 
 /**
  * Runs `fn` inside a real SQL transaction so a multi-statement operation
@@ -935,6 +985,7 @@ export async function transaction<T>(fn: () => Promise<T>): Promise<T> {
     }
 
     inTransaction = true;
+    pendingInvalidations = new Set();
     try {
       const result = await fn();
       if (isTauri()) {
@@ -959,6 +1010,11 @@ export async function transaction<T>(fn: () => Promise<T>): Promise<T> {
       if (!isTauri()) {
         // sql.js: persist once for the whole block instead of per-statement.
         await saveDatabase();
+      }
+      const tables = pendingInvalidations;
+      pendingInvalidations = null;
+      if (tables && tables.size > 0) {
+        invalidateTablesFn?.(tables);
       }
     }
   } finally {

@@ -7,8 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
 import { Progress } from "@/components/ui/progress";
 import { Upload, AlertTriangle } from "lucide-react";
+import type { WorkBook } from "xlsx";
 import {
-  parseSpreadsheetFile,
+  readWorkbookFile,
+  parseWorkbookSheet,
   detectColumnMapping,
   mapRowToProduct,
   FIELD_LABELS,
@@ -22,7 +24,7 @@ import {
   type ImportResult,
 } from "@/lib/db/queries/product-import";
 
-type Step = "pick-file" | "map-columns" | "importing" | "result";
+type Step = "pick-file" | "pick-sheet" | "map-columns" | "importing" | "result";
 
 interface ImportMappingDialogProps {
   open: boolean;
@@ -44,6 +46,7 @@ export function ImportMappingDialog({
   onImported,
 }: ImportMappingDialogProps) {
   const [step, setStep] = useState<Step>("pick-file");
+  const [workbook, setWorkbook] = useState<WorkBook | null>(null);
   const [headers, setHeaders] = useState<string[]>([]);
   const [rows, setRows] = useState<Record<string, unknown>[]>([]);
   const [mapping, setMapping] = useState<ColumnMapping>({});
@@ -52,6 +55,7 @@ export function ImportMappingDialog({
 
   const reset = () => {
     setStep("pick-file");
+    setWorkbook(null);
     setHeaders([]);
     setRows([]);
     setMapping({});
@@ -64,12 +68,22 @@ export function ImportMappingDialog({
     onOpenChange(next);
   };
 
-  const handleFile = async (file: File) => {
-    const parsed = await parseSpreadsheetFile(file);
+  const loadSheet = (wb: WorkBook, sheetName: string) => {
+    const parsed = parseWorkbookSheet(wb, sheetName);
     setHeaders(parsed.headers);
     setRows(parsed.rows);
     setMapping(detectColumnMapping(parsed.headers));
     setStep("map-columns");
+  };
+
+  const handleFile = async (file: File) => {
+    const wb = await readWorkbookFile(file);
+    setWorkbook(wb);
+    if (wb.SheetNames.length > 1) {
+      setStep("pick-sheet");
+    } else {
+      loadSheet(wb, wb.SheetNames[0]);
+    }
   };
 
   const mappedRows = (): ProductImportRow[] =>
@@ -135,6 +149,26 @@ export function ImportMappingDialog({
           </div>
         )}
 
+        {step === "pick-sheet" && workbook && (
+          <>
+            <p className="text-sm text-muted-foreground">
+              This file has {workbook.SheetNames.length} sheets. Select the
+              one with your product list.
+            </p>
+            <Combobox
+              options={workbook.SheetNames}
+              value=""
+              placeholder="Select a sheet"
+              onChange={(sheetName) => loadSheet(workbook, sheetName)}
+            />
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={reset}>
+                Back
+              </Button>
+            </div>
+          </>
+        )}
+
         {step === "map-columns" && (
           <>
             <p className="text-sm text-muted-foreground">
@@ -170,7 +204,14 @@ export function ImportMappingDialog({
               Product Name are skipped.
             </p>
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={reset}>
+              <Button
+                variant="outline"
+                onClick={() =>
+                  workbook && workbook.SheetNames.length > 1
+                    ? setStep("pick-sheet")
+                    : reset()
+                }
+              >
                 Back
               </Button>
               <Button onClick={handleConfirmImport}>

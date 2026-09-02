@@ -170,11 +170,18 @@ export interface ParsedSpreadsheet {
   rows: Record<string, unknown>[];
 }
 
-/** Reads a CSV/XLS/XLSX File (from an <input type="file">) into headers + row objects. */
-export async function parseSpreadsheetFile(file: File): Promise<ParsedSpreadsheet> {
+/** Reads a CSV/XLS/XLSX File (from an <input type="file">) into a workbook for sheet selection. */
+export async function readWorkbookFile(file: File): Promise<XLSX.WorkBook> {
   const buffer = await file.arrayBuffer();
-  const workbook = XLSX.read(buffer, { type: "array" });
-  const sheet = workbook.Sheets[workbook.SheetNames[0]];
+  return XLSX.read(buffer, { type: "array" });
+}
+
+/** Parses a single sheet of an already-read workbook into headers + row objects. */
+export function parseWorkbookSheet(
+  workbook: XLSX.WorkBook,
+  sheetName: string,
+): ParsedSpreadsheet {
+  const sheet = workbook.Sheets[sheetName];
   const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
     defval: "",
   });
@@ -182,6 +189,12 @@ export async function parseSpreadsheetFile(file: File): Promise<ParsedSpreadshee
     header: 1,
   });
   return { headers: (headerRow || []).map(String), rows };
+}
+
+/** Reads a CSV/XLS/XLSX File and parses its first sheet into headers + row objects. */
+export async function parseSpreadsheetFile(file: File): Promise<ParsedSpreadsheet> {
+  const workbook = await readWorkbookFile(file);
+  return parseWorkbookSheet(workbook, workbook.SheetNames[0]);
 }
 
 export const EXPORT_COLUMNS: { key: keyof ExportableProduct; label: string }[] = [

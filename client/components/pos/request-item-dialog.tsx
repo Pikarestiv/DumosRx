@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,9 +21,11 @@ import type { Product } from "@/lib/types/product";
 export function RequestItemDialog({
   open: controlledOpen,
   onOpenChange: controlledOnOpenChange,
+  initialProductName = "",
 }: {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  initialProductName?: string;
 }) {
   const [internalOpen, setInternalOpen] = useState(false);
 
@@ -34,7 +36,14 @@ export function RequestItemDialog({
       ? controlledOnOpenChange
       : setInternalOpen;
 
-  const [productName, setProductName] = useState("");
+  const [productName, setProductName] = useState(initialProductName);
+
+  // Re-seed the name field whenever the dialog is (re)opened, since the
+  // caller's initialProductName (e.g. the POS search term) can change
+  // between opens while the dialog instance itself stays mounted.
+  useEffect(() => {
+    if (open) setProductName(initialProductName);
+  }, [open, initialProductName]);
   const [customerName, setCustomerName] = useState("");
   const [quantity, setQuantity] = useState("1");
   const [notes, setNotes] = useState("");

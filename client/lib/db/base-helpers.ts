@@ -40,19 +40,25 @@ registerInvalidateTablesFn((tables) => {
 });
 
 /**
- * Enforces per-row store ownership before update()/softDelete() mutate a
- * STORE_SCOPED_TABLES row, closing the cross-tenant write gap described in
- * docs/features/_known-bugs.md item #8: without this, any store could edit
- * or delete any other store's row (or a shared legacy row forever) simply by
- * knowing its id, since every read-side `WHERE store_id = ?` filter is a
- * pure UI-level convenience with nothing enforcing it on the write path.
+ * Enforces per-row store ownership before update()/softDelete()/remove()
+ * mutate a STORE_SCOPED_TABLES row, closing the cross-tenant write gap
+ * described in docs/features/_known-bugs.md item #8: without this, any
+ * store could edit or delete any other store's row (or a shared legacy row
+ * forever) simply by knowing its id, since every read-side
+ * `WHERE store_id = ?` filter is a pure UI-level convenience with nothing
+ * enforcing it on the write path.
  *
  * Three outcomes, matching the controller's ruling exactly:
  *  - row.store_id === activeStoreId → allowed, no-op here.
  *  - row.store_id is NULL (pre-migration legacy row, see
- *    backfillStoreIdOnLegacyRows in core.ts) → allowed, AND claimed for the
- *    active store as part of this call, so a second store touching it later
- *    hits the reject branch instead of clobbering it forever.
+ *    backfillStoreIdOnLegacyRows in core.ts) → allowed, AND — for update()/
+ *    softDelete(), where `claimLegacyRow` is true — claimed for the active
+ *    store as part of this call, so a second store touching it later hits
+ *    the reject branch instead of clobbering it forever. remove() passes
+ *    `claimLegacyRow: false`: it's a hard, unrecoverable DELETE, so
+ *    claiming the row first (an UPDATE) only to destroy it in the very next
+ *    statement protects nothing — there's no row left afterward for the
+ *    claim to matter to. The delete is simply allowed outright.
  *  - row.store_id is a different, known store → rejected with a thrown
  *    Error, not a silent no-op, so a caller that ignores the failure can't
  *    mistake it for success.
@@ -66,13 +72,17 @@ registerInvalidateTablesFn((tables) => {
  * *local* module-scope resolver has nothing set, which is not something a
  * caller can trigger from outside this process.
  *
- * No bypass option is exposed here: every update()/softDelete() call site
- * in the app was audited (see the bug #8 fix commit message) and none
- * needs cross-store write access. Add one later, narrowly, only if a real
- * system-level caller is found to need it — don't pre-build the escape
+ * No bypass option is exposed here: every update()/softDelete()/remove()
+ * call site in the app was audited (see the bug #8 fix commit messages) and
+ * none needs cross-store write access. Add one later, narrowly, only if a
+ * real system-level caller is found to need it — don't pre-build the escape
  * hatch on spec.
  */
-async function assertStoreOwnership(table: string, id: string): Promise<void> {
+async function assertStoreOwnership(
+  table: string,
+  id: string,
+  claimLegacyRow: boolean = true,
+): Promise<void> {
   if (!STORE_SCOPED_TABLES.includes(table)) return;
 
   const activeStoreId = getActiveStoreId();
@@ -83,15 +93,18 @@ async function assertStoreOwnership(table: string, id: string): Promise<void> {
     [id],
   );
   const row = rows[0];
-  if (!row) return; // No such row; let the caller's UPDATE naturally no-op.
+  if (!row) return; // No such row; let the caller's own statement naturally no-op.
 
   if (row.store_id === null || row.store_id === undefined) {
-    // Legacy pre-migration row: claim it for the active store as part of
-    // this write, so it stops being shared after this first edit.
-    await execute(`UPDATE ${table} SET store_id = ? WHERE id = ?`, [
-      activeStoreId,
-      id,
-    ]);
+    if (claimLegacyRow) {
+      // Legacy pre-migration row: claim it for the active store as part of
+      // this write, so it stops being shared after this first edit.
+      await execute(`UPDATE ${table} SET store_id = ? WHERE id = ?`, [
+        activeStoreId,
+        id,
+      ]);
+    }
+    // remove(): nothing to claim — the row is about to be hard-deleted.
     return;
   }
 
@@ -219,6 +232,8 @@ export async function remove(
   id: string,
   options?: { action?: string },
 ): Promise<void> {
+  await assertStoreOwnership(table, id, /* claimLegacyRow */ false);
+
   // Fetched before the delete so the audit trail still has a record of what
   // was destroyed. This is a hard, unrecoverable delete (unlike softDelete),
   // so it's the one place where NOT capturing this would leave a real blind

@@ -24,7 +24,7 @@ export async function getProductsWithDetails() {
 export async function getCategoriesList() {
   const storeId = getActiveStoreId();
   return query<{ name: string }>(
-    `SELECT name FROM categories WHERE _deleted = 0${storeId ? " AND store_id = ?" : ""} ORDER BY name ASC`,
+    `SELECT name FROM categories WHERE _deleted = 0${storeId ? " AND (store_id = ? OR store_id IS NULL)" : ""} ORDER BY name ASC`,
     storeId ? [storeId] : [],
   );
 }

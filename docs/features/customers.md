@@ -82,16 +82,16 @@ confirmed live on this Pro-tier store.
   (`buildFallbackTiers` in `use-customer-management.ts`) if the store has no
   rows yet, so this section is never empty.
 - **Points Redemption Options**: cards for each active reward (e.g. "₦500
-  Discount" for 500 points, "Free Delivery" for 200 points). Unlike tiers,
-  this section has **no client-side fallback** — it renders "No redemption
-  options configured yet." until `ensureLoyaltyDefaultsSeeded()` has run at
-  least once for the store, which currently only happens as a side effect of
-  opening **Edit Settings** (see below). A brand-new store will see an empty
-  redemption section on this tab until an owner/manager opens Loyalty
-  Settings once — a minor, non-blocking UX quirk, not a data-integrity bug
-  (logged as a finding, not fixed, since Loyalty Settings is the only current
-  entry point to loyalty configuration and opening it is a normal part of
-  setting the program up).
+  Discount" for 500 points, "Free Delivery" for 200 points). Like tiers, this
+  section now has a client-side fallback — `buildFallbackRedemptionOptions()`
+  (`use-customer-management.ts`), mirroring `buildFallbackTiers()`'s
+  mechanism and `DEFAULT_REDEMPTION_OPTIONS`'s actual seed content — so a
+  brand-new store previews the same rewards it'll get once
+  `ensureLoyaltyDefaultsSeeded()` actually runs (still only triggered by
+  opening **Edit Settings**, see below), instead of "No redemption options
+  configured yet." Any real, active redemption-option row always takes
+  precedence over the fallback the moment one exists. See
+  `docs/features/_findings-log.md` entry #19 (Bug D).
 - **Edit Settings** (visible only when `canManageStockBatch`, i.e. owner/
   manager roles) opens `LoyaltySettingsDialog`, with two sections:
   - **Tiers**: add/edit/delete tiers (name, min spend, points multiplier,

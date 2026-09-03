@@ -62,6 +62,28 @@ export function ProductDatabase() {
 
   const products = rawProducts ? rawProducts.map(transformProduct) : [];
 
+  // Deep-link from Dashboard's "Product added" activity rows
+  // (dashboard-overview.tsx): opens that product's detail panel once its
+  // data has loaded, then cleans up the URL the same way `?action=add` does
+  // above.
+  useEffect(() => {
+    const productId = searchParams.get("productId");
+    if (!productId || !rawProducts) return;
+
+    const match = products.find((p) => p.id === productId);
+    if (match) {
+      setSelectedProduct(match);
+    }
+
+    const newParams = new URLSearchParams(searchParams.toString());
+    newParams.delete("productId");
+    const newUrl =
+      window.location.pathname +
+      (newParams.toString() ? `?${newParams.toString()}` : "");
+    router.replace(newUrl);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, rawProducts, router]);
+
   const { data: rawCategories } = useQuery({
     ...queryKeys.categories.all(),
     queryFn: () => getCategoriesList(),

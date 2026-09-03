@@ -65,7 +65,9 @@ default), and Insurance are optional.
 Per medication (Add Medication panel): **Product Name** (combobox sourced
 from `getAvailableStockBatches()` — i.e. only products with a stock batch
 `quantity > 0` are selectable), **Strength** (a second combobox populated
-from that same product's distinct non-empty `strength` values), **Quantity**,
+from that same product's distinct non-empty `strength` values — falls back
+to a free-text input when the selected product has none, see below),
+**Quantity**,
 **Dosage** (free text, required), Unit Cost (optional — defaults to the
 product's catalog selling price), Refills Authorized, Refill Interval (Days,
 defaults to 30), and Instructions.
@@ -84,22 +86,23 @@ the two records; the plan's Step 1 instruction to "link it to a customer" is
 not achievable in the current UI. Worth a follow-up if two-way
 prescription↔customer history is a desired feature.
 
-**Strength selector can go unusable per-product without blocking the form.**
-`PrescriptionMedications`' strength dropdown is populated from
-`availableProducts.filter(m => m.name === productName).map(m => m.strength)`
-— i.e. sourced from `products.strength`. For TRAMADOL 100MG (and apparently
-other products in this store's imported catalog), `products.strength` is
-blank, so once that product is chosen the Strength dropdown renders with zero
-options and cannot be interacted with, despite being marked required (`*`).
-This did **not** block adding the medication in practice: `newMedication`'s
-`strength` state defaults to `""` and is never touched, and the product
-lookup (`m.name === productName && m.strength === newMedication.strength`)
-still matches because the underlying batch's `strength` is also `""`. Net
-effect: a cosmetically-required field that silently no-ops for any product
-with a blank `strength` column. Logged as a UX/data-quality finding, not
-fixed — the underlying data-quality issue (blank `strength` on imported
-products) is out of this task's scope, and the matching logic already
-degrades safely.
+**Strength selector falls back to free text when a product has no strength
+data (fixed).** `PrescriptionMedications`' strength dropdown is populated
+from `availableProducts.filter(m => m.name === productName).map(m =>
+m.strength)` — i.e. sourced from `products.strength`. For TRAMADOL 100MG
+(and apparently other products in this store's imported catalog),
+`products.strength` is blank, so once that product is chosen there are zero
+non-empty strength values to offer. Previously this rendered an
+unselectable empty combobox despite being marked required (`*`); it did
+**not** block adding the medication (`newMedication.strength` defaults to
+`""` and the product lookup still matched a blank-`strength` batch), but the
+field itself was dead. Fixed: when the selected product has zero strength
+options, the field now renders a plain free-text `Input` instead of the
+combobox, so a pharmacist can type a strength value if they have one; when
+options exist, the original combobox is unchanged. The underlying
+data-quality issue (blank `strength` on imported products) is unchanged —
+this was a rendering fix only. See `docs/features/_findings-log.md` entry
+#19 (Bug C).
 
 ## Detail panel & status flow (`PrescriptionDetailPanel`)
 

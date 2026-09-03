@@ -977,6 +977,133 @@ sub-tabs) against real seeded data on Pikarestiv Stores 2.
   `docs/features/_known-bugs.md` (bug #2 rewritten from "Open, missing
   feature" to "Fixed" with the corrected record and both real gaps).
 
+### 19. Four independent, previously-logged findings fixed in one round: Dashboard dead-click, Catalog category filter, Prescriptions strength selector, Customers redemption-options fallback
+
+- **Bug A — Dashboard "Product added" activity rows were dead clicks.**
+  Originally logged above under "Dashboard: 'Product added' activity rows
+  are dead clicks." `dashboard-overview.tsx` had no dialog wired for
+  `type === "product"`, so clicking one set `selectedActivity` and nothing
+  opened.
+  - **Fix:** rather than build a new standalone dialog for a data shape
+    that's just a product row, clicking a "product" activity now navigates
+    to Inventory > Catalog and opens that product's *current* record —
+    `handleActivityClick()` (`components/dashboard/dashboard-overview.tsx`)
+    routes `router.push(`/inventory/catalog?productId=${activity.id}`)` for
+    `type === "product"` (every other type's existing dialog behavior is
+    unchanged). `components/products/product-database.tsx` gained a second
+    `useEffect` reading `?productId=`, resolving it against the already-
+    loaded product list, calling `setSelectedProduct()` to open the existing
+    `CatalogDetailPanel`, then cleaning up the URL — the exact same
+    deep-link/cleanup mechanism the component's pre-existing `?action=add`
+    handling already used, not a new one. This lands the user on the real,
+    live product record (name/price/stock as of now) instead of a frozen
+    `rawActivity` snapshot from when the dashboard feed was built.
+  - **Verified by:** `client/__tests__/dashboard-product-activity-click.test.ts`
+    (new, 4 tests) — source-inspection style (no render harness, matching
+    `dashboard-action-center-routes.test.ts`'s convention, since both
+    components pull in heavy DB-backed hooks): asserts the product-click
+    handler exists, routes to a real `/inventory/<tab>` (validated against
+    `app/(dashboard)/inventory/[tab]/page.tsx`'s `allowedTabs`), passes the
+    activity's own `id` as `productId`, that Catalog reads/consumes/cleans
+    up that param, and that every other activity type's existing dialog
+    wiring is untouched. RED (3/4 failing) confirmed by stashing both
+    source files before the fix; GREEN after.
+
+- **Bug B — Inventory > Catalog's category filter didn't match the real
+  store's categories.** Originally logged above under "Inventory > Catalog:
+  Category filter pill and 'Manage Categories' dialog disagree...".
+  `getCategoriesList()` (`lib/db/queries/products.ts`) used a strict `AND
+  store_id = ?`, excluding this store's legacy bulk-imported categories
+  (`store_id IS NULL`, predating the `store_id` backfill — same root cause
+  as known-bug #1's fix), so it returned zero rows and the UI silently fell
+  back to a hardcoded, wrong generic category list.
+  - **Fix:** changed the query to `WHERE _deleted = 0 AND (store_id = ? OR
+    store_id IS NULL)`, the exact NULL-inclusive pattern already
+    established (and reviewed) in `getCategoryList()`
+    (`lib/db/queries/categories.ts`, fixed for known-bug #1). One-line
+    change; `getCategoryByName()` in the same file was deliberately left
+    untouched (it has a separate, different lack of store-scoping — noted
+    as a possible follow-up, not fixed here, per this task's explicit
+    scope).
+  - **Verified by:** a new case added to
+    `client/__tests__/multi-store-scoping.test.ts` — real in-memory sql.js,
+    mirroring the exact shape of the sibling `getCategoryList` bug #1 test:
+    seeds a NULL-`store_id` legacy category alongside two store-owned ones
+    and asserts `getCategoriesList()` surfaces the legacy row to every
+    store. RED confirmed by stashing the query fix; GREEN after.
+
+- **Bug C — Prescriptions Strength selector was empty/unusable for products
+  with a blank `strength` column.** Originally logged above under
+  "Prescriptions: Strength selector is unusable (but harmless)...". The New
+  Prescription form's "Strength *" combobox
+  (`components/prescriptions/new-prescription/prescription-medications.tsx`)
+  was populated only from the selected product's own non-empty `strength`
+  values, so a product with a blank `products.strength` rendered a
+  required-looking dropdown with zero options.
+  - **Fix (chose free-text fallback over hide/optional):** when the
+    selected product has zero non-empty strength options
+    (`noStrengthOptionsAvailable`), the field now renders a plain text
+    `Input` instead of the `Combobox`, so the user can still type a
+    strength value; when options exist, the original `Combobox` renders
+    unchanged. Free text was chosen over hiding/making the field optional
+    because this form has no existing precedent for silently dropping a
+    labeled "*" required field when its backing data is empty — a visible,
+    still-fillable input keeps the field's contract ("Strength *" is always
+    present and always usable) consistent, and costs nothing since
+    `newMedication.strength` was already a plain string with no format
+    validation. Root cause (blank imported `strength` data) is unchanged —
+    this is a rendering fix only, per scope.
+  - **Verified by:** `client/__tests__/prescription-strength-fallback.test.ts`
+    (new, 3 tests) — a real component render via the manual
+    `react-dom/client` + React 19 `act()` harness this repo already uses
+    (no `@testing-library/react` installed; `useStore()` mocked since the
+    component only reads `storeProfile.currency`). Asserts: the free-text
+    input renders (and the combobox's "Select strength" text does not) for
+    a product with only a blank strength; the normal combobox still renders
+    for a product with real strength options; and the pre-selection
+    (disabled) state is unaffected. RED (blank-strength case only)
+    confirmed by stashing the component fix; GREEN after.
+
+- **Bug D — Customers' "Points Redemption Options" section was empty until
+  Loyalty Settings was opened once.** Originally logged above under
+  "Customers: Points Redemption Options section is empty until Loyalty
+  Settings is opened once". `ensureLoyaltyDefaultsSeeded()`
+  (`lib/db/queries/loyalty.ts`) only runs as a side effect of the Loyalty
+  Settings dialog's `open` `useEffect`; tiers already had a client-side
+  fallback (`buildFallbackTiers()`,
+  `lib/hooks/use-customer-management.ts`) for exactly this first-run gap,
+  but redemption options had none.
+  - **Fix:** added `buildFallbackRedemptionOptions()` to
+    `lib/hooks/use-customer-management.ts`, mirroring
+    `buildFallbackTiers()`'s shape/mechanism and mirroring
+    `DEFAULT_REDEMPTION_OPTIONS`'s actual seed content (`lib/db/queries/
+    loyalty.ts`) exactly (₦500 Discount / ₦1,000 Discount / Free Delivery,
+    same points costs and descriptions) so the pre-seed preview matches
+    what a user gets once `ensureLoyaltyDefaultsSeeded()` really runs.
+    `components/customers/loyalty-tab.tsx` now applies the same
+    real-data-wins precedence tiers already follow: `activeOptions.length >
+    0 ? activeOptions : buildFallbackRedemptionOptions()` (tiers'
+    equivalent is `dbTiers && dbTiers.length > 0 ? ... :
+    buildFallbackTiers(isStore)`), so any real, active redemption option
+    row immediately takes over from the fallback the moment one exists.
+  - **Verified by:** `client/__tests__/loyalty-redemption-fallback.test.ts`
+    (new, 4 tests) — a pure unit test on `buildFallbackRedemptionOptions()`
+    asserting it mirrors `DEFAULT_REDEMPTION_OPTIONS` field-for-field and
+    every row has a unique, stable id (used as the React list key), plus
+    source-inspection tests asserting `loyalty-tab.tsx`'s precedence
+    expression gates on `.length > 0` before falling back (not
+    unconditionally preferring the fallback). RED confirmed by stashing
+    both source files; GREEN after.
+
+- **Full-suite verification (all 4 bugs together):** `npx tsc --noEmit -p .`
+  clean; `npx vitest run` 390/390 passing across 73 files (up from 378/378
+  across 70 files at entry #18 — 3 new test files plus the extended
+  `multi-store-scoping.test.ts`).
+- **Docs updated:** `docs/features/dashboard.md`, `docs/features/
+  inventory.md`, `docs/features/prescriptions.md`, `docs/features/
+  customers.md` — each corrected to reflect its respective fix in place of
+  the prior stale/dead-click/empty-state claim.
+
 ## Open
 
 (Sections below add entries here as they're walked.)
@@ -1054,11 +1181,10 @@ sub-tabs) against real seeded data on Pikarestiv Stores 2.
 - **Coverage:** zero — `e2e/dashboard.spec.ts` never clicks a Recent
   Activity row of any type, and no `__tests__/` file covers the activity
   feed's click-to-dialog mapping.
-- **Not fixed:** this is a missing-feature gap (no `ProductDetailsDialog`
-  exists yet), not a wrong-number or broken-link regression, so it's out
-  of the "fix the highest-value bug" scope for this task. Recommend a
-  follow-up product-details dialog, or excluding `type: "product"` rows
-  from being rendered as clickable in the interim.
+- **Fixed** — see "Resolved" #19 (Bug A) above: clicking a "product"
+  activity row now navigates to Inventory > Catalog and opens that
+  product's real, current record via a `?productId=` deep link, instead of
+  building a new dialog for a frozen `rawActivity` snapshot.
 
 ### Inventory > Catalog: Category filter pill and "Manage Categories" dialog disagree, neither shows this store's real categories
 
@@ -1078,11 +1204,14 @@ sub-tabs) against real seeded data on Pikarestiv Stores 2.
   (and lets an owner edit/delete) another store's categories.
 - **Coverage:** zero — no `__tests__/` or `e2e/` file exercises either
   category query or the filter-pill/Manage-dialog category lists at all.
-- **Not fixed:** root-causing why the store-scoped query returns zero rows
-  despite products clearly having categories requires investigating the
-  `categories` table's `store_id` data, which risks touching real Store 2
-  data and is bigger than this task's "fix the one bug you found" scope.
-  See `docs/features/inventory.md` for full detail.
+- **Fixed** — see "Resolved" #19 (Bug B) above: `getCategoriesList()` now
+  uses the same NULL-inclusive `(store_id = ? OR store_id IS NULL)` pattern
+  already established in `getCategoryList()`'s known-bug #1 fix, so this
+  store's legacy bulk-imported categories (Drugs, Cosmetics, etc.) surface
+  correctly instead of falling back to a hardcoded generic list.
+  `manage-categories-dialog.tsx`'s separate lack of `store_id` scoping in
+  `getCategoryList()` was already fixed under known-bug #1, prior to this
+  task. See `docs/features/inventory.md` for full detail.
 
 ### Inventory > Movements: zero real movement history to test against
 
@@ -1199,10 +1328,13 @@ sub-tabs) against real seeded data on Pikarestiv Stores 2.
   the batch's own blank `strength`, so "Add Medication" works anyway.
   Confirmed live — added TRAMADOL 100MG to a prescription without ever
   touching the Strength field.
-- **Not fixed:** root cause is a data-quality gap (blank `strength` on
-  imported products), not incorrect matching logic; the matching logic
-  already degrades safely. Out of this task's scope.
-- **Coverage:** zero — no existing test exercises the Strength combobox.
+- **Fixed** — see "Resolved" #19 (Bug C) above: the Strength field now
+  falls back to a free-text `Input` when the selected product has zero
+  non-empty strength options, instead of rendering an unselectable empty
+  combobox. Root cause (blank imported `strength` data) is unchanged — this
+  was a rendering fix only.
+- **Coverage:** `client/__tests__/prescription-strength-fallback.test.ts`
+  (new).
 
 ### Customers: points redemption is configurable but not actually redeemable anywhere
 
@@ -1226,11 +1358,13 @@ sub-tabs) against real seeded data on Pikarestiv Stores 2.
   for redemption options the way tiers have `buildFallbackTiers()`. Opening
   Edit Settings once seeds the defaults and the main tab then shows them
   correctly.
-- **Not fixed:** cosmetic/first-run-only gap, not a data bug — one click by
-  an owner/manager (the same role gated behind `canManageStockBatch` who can
-  already edit these settings) resolves it permanently for that store. Out
-  of scope to add a fallback list here to match tiers' behavior during this
-  task.
+- **Fixed** — see "Resolved" #19 (Bug D) above: added
+  `buildFallbackRedemptionOptions()` (mirroring `buildFallbackTiers()`'s
+  mechanism and `DEFAULT_REDEMPTION_OPTIONS`'s actual seed content) to
+  `use-customer-management.ts`; `loyalty-tab.tsx` now shows it whenever the
+  real, active redemption-options list is empty, with real data always
+  taking precedence once it exists — same precedence rule tiers already
+  followed.
 
 ### Customers: `recordCustomerPayment` checked for the recurring accumulation-bug pattern — confirmed no bug
 

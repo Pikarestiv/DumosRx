@@ -82,14 +82,16 @@ clickable and opens a details dialog scoped to its `activity_type`: sale →
 `TransactionDetailsDialog`, expense → `ExpenseDetailsDialog`, purchase_order
 → `ProcurementDetailsDialog`, prescription →
 `DashboardPrescriptionDetailsDialog`, stock_movement →
-`StockMovementDetailsDialog`. **Caveat observed live:** all 5 rows on this
-store were "Product added" (`activity_type: "product"`) entries, and
-clicking any of them does nothing — `dashboard-overview.tsx` never renders
-a dialog for `selectedActivity?.type === "product"`, so the click sets
-state but no UI reacts. Not fixed as part of this task (a `product` details
-dialog would be new UI, not a broken-link/wrong-number regression), but
-worth a follow-up ticket. "View All" (top-right) navigates to `/reports`
-(confirmed live) — not to an activity-log filtered view.
+`StockMovementDetailsDialog`. A `product`-type row (`activity_type:
+"product"`, e.g. "Product added: <name>") has no dedicated dialog — instead,
+clicking it navigates to Inventory > Catalog via
+`router.push(\`/inventory/catalog?productId=${activity.id}\`)`, which opens
+that product's live `CatalogDetailPanel` record (product-database.tsx reads
+`?productId=` the same way it already reads `?action=add`, then cleans up
+the URL). This was previously a dead click (fixed — see
+`docs/features/_findings-log.md` entry #19, Bug A). "View All" (top-right)
+navigates to `/reports` (confirmed live) — not to an activity-log filtered
+view.
 
 ## Quick Actions
 

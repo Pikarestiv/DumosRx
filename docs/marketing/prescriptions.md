@@ -12,4 +12,4 @@ Built specifically for pharmacies, DumosRx's Prescriptions module helps you mana
 
 **Returns:** If a dispensed prescription needs to be reversed, DumosRx routes you straight to the original sale so stock and payment are corrected properly.
 
-Prescriptions in DumosRx isn't a bolt-on feature — it's built into the same reliable sales and inventory engine that powers the rest of your store, so every dispensed medication is tracked accurately, every time.
+Prescriptions in DumosRx isn't a bolt-on feature — it's built into the same reliable sales and inventory engine that powers the rest of your store, so dispensed medication is tracked accurately.

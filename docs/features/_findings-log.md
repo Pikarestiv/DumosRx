@@ -32,13 +32,15 @@ sub-tabs) against real seeded data on Pikarestiv Stores 2.
   (candidate causes documented, root cause not found).
 - **Test suite growth:** Vitest went from 323 tests (pre-plan baseline, per
   finding #1's note) to **346 passing tests** — 23 new unit/integration
-  tests added across the plan. Playwright e2e coverage went from 6 spec
-  files with partial coverage to the current 15 spec files (**29 individual
-  test cases**), adding first-ever e2e coverage for Prescriptions, Reports,
-  Activity Log, Settings, and the product-import sheet-picker dialog, plus
-  extending Procurement (full receive cycle) and Expenses (edit/delete).
-  Every task's own new/changed spec was verified passing in isolation as
-  part of that task's own review — see the SDD ledger
+  tests added across the plan. Playwright e2e coverage went from 8 spec
+  files (baseline, per `git ls-tree` at the plan's starting commit
+  `bb6b2723`) with partial coverage to the current 14 spec files (**29
+  individual test cases**, confirmed via `npx playwright test --project=chromium
+  --no-deps --list`), adding first-ever e2e coverage for Prescriptions,
+  Reports, Activity Log, Settings, and the product-import sheet-picker
+  dialog, plus extending Procurement (full receive cycle) and Expenses
+  (edit/delete). Every task's own new/changed spec was verified passing in
+  isolation as part of that task's own review — see the SDD ledger
   (`.superpowers/sdd/2026-09-02-full-app-smoke-test-and-docs/progress.md`)
   for each task's specific pass count.
 - **Full-suite health (found during close-out, not fixed here):** running
@@ -46,9 +48,20 @@ sub-tabs) against real seeded data on Pikarestiv Stores 2.
   --no-deps`) is NOT reliably green — repeated runs showed different failure
   sets (8–17 of 29 tests, varying by run and by parallel-vs-serial worker
   count), on top of two already-known, already-logged pre-existing issues
-  (`e2e/global.setup.ts`'s stale selectors — see finding #8's ruling — and
-  `e2e/procurement.spec.ts`'s first test, broken by unrelated UI drift, also
-  finding #8). `e2e/auth.spec.ts` in particular fails consistently (not just
+  (`e2e/global.setup.ts`'s stale selectors — see the "e2e suite:
+  `products.spec.ts` and shared `login()` fixture had drifted out of sync
+  with the current UI" entry below, not finding #8 — and
+  `e2e/procurement.spec.ts`'s first test). That first Procurement test *was*
+  previously fixed for selector drift, exactly as finding #8 describes, and
+  that fix holds. What was independently found broken again against `dev`
+  HEAD during this close-out wasn't a selector regression: it was the same
+  free-tier-fixture `LockedModuleOverlay` mount race documented in finding
+  #9 (Expenses) — Procurement, like Expenses, is paid-tier-gated and shares
+  the deliberately free-tier fixture DB. This final fix wave applied
+  finding #9's same `elevateToPaidTier`/`loginAsPaidTier` fix to
+  `e2e/procurement.spec.ts` (both tests), consolidating the helper into
+  `e2e/fixtures.ts` in the process — see that commit for details.
+  `e2e/auth.spec.ts` in particular fails consistently (not just
   flakily) across every full-suite run tried — it duplicates the same stale
   `getByPlaceholder('admin')`/`getByPlaceholder('••••')` login pattern that
   was already fixed inside the shared `login()` helper in `fixtures.ts`, but
@@ -288,6 +301,90 @@ sub-tabs) against real seeded data on Pikarestiv Stores 2.
   passes reliably post-fix (2 consecutive full runs, both tests, 2 parallel
   workers).
 - See `docs/features/expenses.md` for full detail.
+
+### 10. Reports: Profit & Loss tab showed decimal kobo precision for the same aggregate figures BIKeyMetrics rounds to whole Naira, on the same page
+
+- **Found:** while walking Reports > Analytics & Insights > Profit & Loss.
+  The `BIKeyMetrics` cards at the top of the Analytics & Insights page (Net
+  Sales, Net Profit, ...) render via `formatMetricCurrency()` — rounded to a
+  whole NGN unit, per its own doc comment in `lib/utils.ts` ("for dashboard/
+  report metric cards where a rounded headline figure reads cleaner than an
+  exact-to-the-kobo total"). `components/analytics/profit-loss-tab.tsx`'s
+  "Financial Performance Statement" panel a few rows below it renders the
+  *same* aggregate totals — Gross Sales, Discounts/Tax/Refunds, Net Sales,
+  COGS, Gross Profit, Total Operational Expenses, Final Net Income — via
+  `formatCurrency()` instead, which keeps decimal precision. Live-reproduced
+  on Store 2 real data: the "Net Profit" metric card read "₦1,420" while
+  "Final Net Income (Take Home)" a few rows down showed "₦1,420.25" for the
+  literal same underlying number, on the same page render.
+- **Fix:** `client/components/analytics/profit-loss-tab.tsx` — swapped the
+  import and all 7 call sites from `formatCurrency` to `formatMetricCurrency`,
+  matching the convention `BIKeyMetrics`/`DailyCloseMetrics` already use for
+  aggregate metric cards (line-item/detail tables elsewhere in Reports
+  correctly keep `formatCurrency`'s precision, e.g. `SalesListModal`,
+  `StaffPerformanceTab`'s per-cashier Avg Transaction — those weren't
+  touched).
+- **Verified by:** `client/__tests__/profit-loss-tab-currency-formatting.test.ts`
+  (source-inspection style, matching `dashboard-action-center-routes.test.ts`'s
+  established pattern — no component-rendering test harness exists in this
+  repo yet) — confirmed to fail pre-fix (`formatCurrency(` present in the
+  source) via `git stash`, pass post-fix. Live re-verified in Chrome:
+  post-fix, COGS/Gross Profit/Final Net Income all render as whole numbers
+  matching the BIKeyMetrics cards above them exactly.
+- **Coverage gap also closed:** zero e2e coverage existed for the whole
+  Reports section before this task (confirmed via the brief's own
+  `grep -rln "formatMetricCurrency" __tests__/ lib/ components/reports/`,
+  which matched only the function's definition and one pre-existing, partial
+  unit test). Added `client/e2e/reports.spec.ts` (Daily Close, Operational
+  Reports, and Analytics & Insights all render real Store 2 data) and
+  extended `formatMetricCurrency`'s existing unit test in
+  `client/__tests__/utils.test.ts` with negative-number, zero, and
+  large-value cases, plus a non-NGN-negative case, per the brief.
+- See `docs/features/reports.md` for full detail.
+
+### 11. Settings: `/settings/cloud`'s Link-Cloud dialog could never be dismissed on a non-linked store
+
+- **Found:** while writing `client/e2e/settings.spec.ts` for the Data/Cloud
+  tab (Task 10, Settings). The live walkthrough of Settings didn't catch this
+  — that store was already cloud-linked, so the dialog never opened at all.
+  The e2e spec's fixture store isn't linked, and hit it immediately: on
+  `/settings/cloud` with `isCloudLinked === false`, the "Link DumosRx Cloud"
+  dialog reopened on its own right after being closed (Escape or the Close
+  button), every single time, with no way to dismiss it short of navigating
+  off the page.
+- **Root cause:** `hooks/use-settings.ts`'s tab-resolution `useEffect`
+  depended on the whole `syncState` object returned by
+  `useSettingsSync(isCloudLinked, refetchStore)` — a plain object literal
+  recreated on every render, never referentially stable — instead of the one
+  setter it actually calls, `syncState.setIsCloudLinkOpen`. With the whole
+  object in the dependency array, the effect reran on every render of
+  `useSettings()`, and its body unconditionally calls
+  `syncState.setIsCloudLinkOpen(true)` whenever
+  `internalTab === "cloud" && !isCloudLinked` — which stays true for as long
+  as the route remains on the alias, regardless of whether the user just
+  manually dismissed the dialog a render ago. Same general bug shape as
+  finding #1 above (an unstable dependency/reference driving an effect to
+  refire far more than intended), just in a `useEffect` deps array rather
+  than a query-invalidation call site.
+- **Fix:** `client/hooks/use-settings.ts` — narrowed the effect's dependency
+  from the bare `syncState` object to `syncState.setIsCloudLinkOpen`, the
+  specific `useState` setter it calls (referentially stable across renders
+  by React's own guarantee). The effect now only reruns when
+  `tabParam`/`isCloudLinked`/`isAdmin`/`activeTab` genuinely change, so a
+  user-initiated close sticks.
+- **Verified by:** `client/__tests__/settings-cloud-link-dialog-loop.test.ts`
+  (source-inspection style, matching `dashboard-action-center-routes.test.ts`
+  / `profit-loss-tab-currency-formatting.test.ts`'s established pattern — no
+  component-rendering harness exists in this repo yet) — confirmed RED
+  pre-fix (dependency array literally contained bare `syncState`), GREEN
+  post-fix. Re-verified live via `e2e/settings.spec.ts`'s data/cloud test,
+  which opens the dialog via the `cloud` alias, closes it, and asserts it
+  stays closed on a subsequent render before continuing — this assertion
+  would have failed against the pre-fix code.
+- See `docs/features/settings.md`'s "Data" and "Cloud" sections for full
+  detail, including the cross-reference to Task 0's separate sync-queue
+  transaction race fix (a different bug, on the same tab, in the read path
+  this dialog's underlying auto-sync setting triggers).
 
 ## Open
 
@@ -554,46 +651,6 @@ sub-tabs) against real seeded data on Pikarestiv Stores 2.
   automated coverage before this task.
 - See `docs/features/procurement.md` for full detail.
 
-### 10. Reports: Profit & Loss tab showed decimal kobo precision for the same aggregate figures BIKeyMetrics rounds to whole Naira, on the same page
-
-- **Found:** while walking Reports > Analytics & Insights > Profit & Loss.
-  The `BIKeyMetrics` cards at the top of the Analytics & Insights page (Net
-  Sales, Net Profit, ...) render via `formatMetricCurrency()` — rounded to a
-  whole NGN unit, per its own doc comment in `lib/utils.ts` ("for dashboard/
-  report metric cards where a rounded headline figure reads cleaner than an
-  exact-to-the-kobo total"). `components/analytics/profit-loss-tab.tsx`'s
-  "Financial Performance Statement" panel a few rows below it renders the
-  *same* aggregate totals — Gross Sales, Discounts/Tax/Refunds, Net Sales,
-  COGS, Gross Profit, Total Operational Expenses, Final Net Income — via
-  `formatCurrency()` instead, which keeps decimal precision. Live-reproduced
-  on Store 2 real data: the "Net Profit" metric card read "₦1,420" while
-  "Final Net Income (Take Home)" a few rows down showed "₦1,420.25" for the
-  literal same underlying number, on the same page render.
-- **Fix:** `client/components/analytics/profit-loss-tab.tsx` — swapped the
-  import and all 7 call sites from `formatCurrency` to `formatMetricCurrency`,
-  matching the convention `BIKeyMetrics`/`DailyCloseMetrics` already use for
-  aggregate metric cards (line-item/detail tables elsewhere in Reports
-  correctly keep `formatCurrency`'s precision, e.g. `SalesListModal`,
-  `StaffPerformanceTab`'s per-cashier Avg Transaction — those weren't
-  touched).
-- **Verified by:** `client/__tests__/profit-loss-tab-currency-formatting.test.ts`
-  (source-inspection style, matching `dashboard-action-center-routes.test.ts`'s
-  established pattern — no component-rendering test harness exists in this
-  repo yet) — confirmed to fail pre-fix (`formatCurrency(` present in the
-  source) via `git stash`, pass post-fix. Live re-verified in Chrome:
-  post-fix, COGS/Gross Profit/Final Net Income all render as whole numbers
-  matching the BIKeyMetrics cards above them exactly.
-- **Coverage gap also closed:** zero e2e coverage existed for the whole
-  Reports section before this task (confirmed via the brief's own
-  `grep -rln "formatMetricCurrency" __tests__/ lib/ components/reports/`,
-  which matched only the function's definition and one pre-existing, partial
-  unit test). Added `client/e2e/reports.spec.ts` (Daily Close, Operational
-  Reports, and Analytics & Insights all render real Store 2 data) and
-  extended `formatMetricCurrency`'s existing unit test in
-  `client/__tests__/utils.test.ts` with negative-number, zero, and
-  large-value cases, plus a non-NGN-negative case, per the brief.
-- See `docs/features/reports.md` for full detail.
-
 ### Activity Log: cross-task audit trail confirmed intact; zero e2e coverage gap closed
 
 - **Checked (Step 1, per the brief's own elevated priority):** whether three
@@ -639,51 +696,7 @@ sub-tabs) against real seeded data on Pikarestiv Stores 2.
 - **Not fixed:** no bug found — Step 5 required no action.
 - See `docs/features/activity-log.md` for full detail.
 
-### 11. Settings: `/settings/cloud`'s Link-Cloud dialog could never be dismissed on a non-linked store
-
-- **Found:** while writing `client/e2e/settings.spec.ts` for the Data/Cloud
-  tab (Task 10, Settings). The live walkthrough of Settings didn't catch this
-  — that store was already cloud-linked, so the dialog never opened at all.
-  The e2e spec's fixture store isn't linked, and hit it immediately: on
-  `/settings/cloud` with `isCloudLinked === false`, the "Link DumosRx Cloud"
-  dialog reopened on its own right after being closed (Escape or the Close
-  button), every single time, with no way to dismiss it short of navigating
-  off the page.
-- **Root cause:** `hooks/use-settings.ts`'s tab-resolution `useEffect`
-  depended on the whole `syncState` object returned by
-  `useSettingsSync(isCloudLinked, refetchStore)` — a plain object literal
-  recreated on every render, never referentially stable — instead of the one
-  setter it actually calls, `syncState.setIsCloudLinkOpen`. With the whole
-  object in the dependency array, the effect reran on every render of
-  `useSettings()`, and its body unconditionally calls
-  `syncState.setIsCloudLinkOpen(true)` whenever
-  `internalTab === "cloud" && !isCloudLinked` — which stays true for as long
-  as the route remains on the alias, regardless of whether the user just
-  manually dismissed the dialog a render ago. Same general bug shape as
-  finding #1 above (an unstable dependency/reference driving an effect to
-  refire far more than intended), just in a `useEffect` deps array rather
-  than a query-invalidation call site.
-- **Fix:** `client/hooks/use-settings.ts` — narrowed the effect's dependency
-  from the bare `syncState` object to `syncState.setIsCloudLinkOpen`, the
-  specific `useState` setter it calls (referentially stable across renders
-  by React's own guarantee). The effect now only reruns when
-  `tabParam`/`isCloudLinked`/`isAdmin`/`activeTab` genuinely change, so a
-  user-initiated close sticks.
-- **Verified by:** `client/__tests__/settings-cloud-link-dialog-loop.test.ts`
-  (source-inspection style, matching `dashboard-action-center-routes.test.ts`
-  / `profit-loss-tab-currency-formatting.test.ts`'s established pattern — no
-  component-rendering harness exists in this repo yet) — confirmed RED
-  pre-fix (dependency array literally contained bare `syncState`), GREEN
-  post-fix. Re-verified live via `e2e/settings.spec.ts`'s data/cloud test,
-  which opens the dialog via the `cloud` alias, closes it, and asserts it
-  stays closed on a subsequent render before continuing — this assertion
-  would have failed against the pre-fix code.
-- See `docs/features/settings.md`'s "Data" and "Cloud" sections for full
-  detail, including the cross-reference to Task 0's separate sync-queue
-  transaction race fix (a different bug, on the same tab, in the read path
-  this dialog's underlying auto-sync setting triggers).
-
-## Settings: 21-tab coverage gap closed; `roles` tab confirmed to be an unimplemented placeholder
+### Settings: 21-tab coverage gap closed; `roles` tab confirmed to be an unimplemented placeholder
 
 - **Coverage gap confirmed (Step 3):** `grep -rl "settings" e2e/ __tests__/`
   found exactly one incidental hit (`prescriptions.spec.ts`'s
@@ -738,3 +751,20 @@ sub-tabs) against real seeded data on Pikarestiv Stores 2.
   phrasing suggested — see `docs/features/settings.md`'s Data section for
   the full breakdown of the two separate `15`-related fallbacks.
 - See `docs/features/settings.md` for full detail.
+
+### Task 6 correction: `logRequestedProduct()` does not share the fixed deduction bugs' bug shape, but has a real, different, minor substring-matching issue
+
+Task 6 flagged `logRequestedProduct()`'s de-dupe-by-name update path
+(`lib/db/requested-products-queries.ts`) as having the same
+"quantity-accumulation bug shape" as the fixed stock-deduction bugs
+(findings #6 above etc.) — on final review this is a misdiagnosis: it's
+purely additive demand-tracking (never deducts anything), structurally
+different from the deduction bugs. It does have a real, different, minor
+issue instead: its de-dupe of an existing row's `requested_by_customer`/
+`note` fields uses plain `String.includes()` (lines ~32 and ~42), so a
+customer named "Ann" is silently treated as already-present (and not
+appended) if the field already contains "Joanna" — a substring
+false-positive, same for note-text matching. Low blast radius (only affects
+the wishlist/requested-products feature), pre-existing (not introduced by
+this plan), and the function already has some test coverage — left open
+rather than fixed in this pass.

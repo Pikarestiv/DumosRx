@@ -443,7 +443,7 @@ rules around financial actions. Documented read-only.
 
 ---
 
-# Step 3: Test coverage gap (pre-existing)
+### Step 3: Test coverage gap (pre-existing)
 
 ```
 $ grep -rl "settings" client/e2e/ client/__tests__/
@@ -458,15 +458,15 @@ Settings tabs** — the single biggest, and only fully-empty, coverage gap
 found across this whole smoke-test project. See `client/e2e/settings.spec.ts`
 (added by this task) for what's now covered.
 
-# Step 4: e2e coverage added
+### Step 4: e2e coverage added
 
 `client/e2e/settings.spec.ts` covers, by blast radius (not tab count, per
 the brief):
 
 1. **Staff** — edit a staff member's System Role, reload, assert it
-   persisted, then revert.
+   persisted.
 2. **Security** — change the Auto-Lock Screen interval, reload, assert it
-   persisted, then revert.
+   persisted.
 3. **Data / Sync** — elevate to Pro tier (via the same
    `window.__e2eSetSubscriptionTier` dev-only hook `expenses.spec.ts`
    established, since Auto-Sync is a paid-tier feature and the shared

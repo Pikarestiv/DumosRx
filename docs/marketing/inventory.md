@@ -12,7 +12,7 @@ DumosRx keeps your entire stock organized, accurate, and easy to manage — from
 
 **Bulk Import & Export:** Bring your entire product catalog in from a spreadsheet — even multi-sheet workbooks — with smart column matching that recognizes common formats like QuickBooks POS and Moniebook exports. Export your catalog anytime as CSV or Excel, with the option to choose exactly which columns you need.
 
-**Stock Movements:** A complete, tamper-proof log of every stock change in your store — sales, restocks, returns, damage, and adjustments — searchable and filterable by date, type, product, or staff member.
+**Stock Movements:** An immutable log of every sale, restock, return, and adjustment in your store — entries can't be edited after the fact — searchable and filterable by date, type, product, or staff member.
 
 **Cycle Counts (Physical Inventory Audits):** Reconcile your shelves against the system anytime with a guided count. DumosRx syncs to the latest stock levels first, lets you enter counted quantities product by product, shows you exactly what changed, and logs every adjustment for a clean audit trail.
 

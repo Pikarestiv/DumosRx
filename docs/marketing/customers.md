@@ -8,7 +8,7 @@ Build lasting relationships with the people who keep your store running — Dumo
 
 **Purchase History:** View a customer's full activity — every transaction, the items purchased, and points earned — searchable and filterable by date range.
 
-**Customer Loyalty Program (Pro and Enterprise plans):** Reward repeat customers automatically. Set up tiers (like Bronze, Silver, Gold, and Platinum) with their own spending thresholds and point multipliers, and watch customers move up as they spend more with your store. Points accrue automatically on every qualifying sale, and your team can configure custom rewards for the program.
+**Customer Loyalty Program:** Reward repeat customers automatically — points accrue on every qualifying sale for every customer, on every plan. Configuring tiers (like Bronze, Silver, Gold, and Platinum) with their own spending thresholds and point multipliers, and setting up custom rewards for the program, is available on Pro and Enterprise plans.
 
 **Customer Debt Ledger:** Let trusted customers buy on credit, and track exactly what they owe. Recording a payment against a customer's balance is simple, and DumosRx applies payments correctly across their outstanding sales — so your books always reflect exactly who owes what.
 

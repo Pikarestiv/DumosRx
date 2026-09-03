@@ -26,4 +26,4 @@ DumosRx gives you complete control over how your store looks, operates, and stay
 
 **Billing:** Manage your subscription plan, review billing history, and access your referral program — all in one place.
 
-Every setting you change takes effect immediately and stays with your store, so your team is always working from the same configuration, wherever they log in.
+Every setting you change takes effect immediately. Store-wide settings — staff roles, receipts, pricing, sync — travel with your store, so your team stays on the same configuration wherever they log in. A few, like your theme and auto-lock timer, are yours alone, by design, so each device can be set up the way you like it.

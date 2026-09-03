@@ -20,4 +20,4 @@ Built for speed at the counter, DumosRx's POS lets your cashiers ring up sales q
 
 **Missing Product Log:** When a customer asks for something you don't stock, your cashier can log the request in seconds — visible to whoever manages your purchasing, so you never miss a chance to stock what your customers actually want.
 
-Every sale — whether paid in cash, by card, on credit, or held and resumed later — is tracked accurately down to the last unit of stock, so your inventory numbers are always trustworthy.
+Every sale — whether paid in cash, by card, on credit, or held and resumed later — is tracked accurately down to the last unit of stock, so your stock counts stay reconciled.

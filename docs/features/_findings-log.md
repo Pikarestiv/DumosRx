@@ -1204,6 +1204,117 @@ sub-tabs) against real seeded data on Pikarestiv Stores 2.
   --no-deps`, run 3 times, all 4 tests green every time (~9-10s each run).
   `npx tsc --noEmit -p .` clean; `npx vitest run` 390/390 passing.
 
+### 22. Backup & Restore: `_known-bugs.md` item #10 fixed — full reload after local restore, one-time post-restore cloud-link notice
+
+- **Found:** see the "Backup & Restore" Open entry above (now fixed) —
+  a live walkthrough found two related-but-independent gaps around a local
+  `.drx` restore, neither touching data integrity: (a) `handleLocalRestore()`
+  (`app/setup/use-onboarding.ts`) navigated to `/login` with a client-side
+  `router.push`, so `/login`'s account detection (`useDeviceAuthStatus`)
+  could briefly re-render the stale pre-restore "No Local Accounts Found"
+  screen right after the "Database restored successfully!" toast; (b)
+  `restoreDatabase()` (`lib/db/core.ts`) only ever swaps the sql.js
+  database — it has no way to (and, on purpose, should not) restore the
+  `auth_token` a cloud link depends on, so a device recovered from a local
+  backup silently ends up in "Local Mode (Not Linked)" with sync off and
+  nothing telling the owner that happened.
+- **Fix, Part A (stale login screen):** `handleLocalRestore()` now matches
+  the pattern already used by the other two restore paths in this codebase
+  (`hooks/use-settings-sync.ts`'s `handleRestoreBackup` /
+  `handleRestoreBackupTauri`, both of which already forced a
+  `window.location.reload()` for this exact reason) — after
+  `restoreDatabase()` resolves and the success toast fires, it now does
+  `window.location.href = "/login"` (a full browser navigation, not a
+  client-side one) instead of `router.push("/login")`. `/login`'s account
+  detection always runs fresh against the just-restored database; there is
+  no stale-screen window left to observe.
+- **Fix, Part B (cloud-link gap):** explicitly did **not** attempt to make
+  the auth token survive a restore — a portable `.drx` backup file should
+  never carry a live, device-tied session credential (let alone a
+  plaintext password), and silently reusing one device's token on another
+  would be its own security problem. Instead, made the gap loud and
+  one-time instead of silent:
+  - `lib/utils/post-restore-notice.ts` (new): a tiny pair of pure
+    functions around a short-lived `sessionStorage` marker
+    (`dumos_just_restored`) — `markRestoredForCloudLinkNotice()` sets it,
+    `consumePostRestoreCloudLinkNotice(isCloudLinked)` reads-and-clears it
+    in one call, returning `true` only when the marker was present *and*
+    the device isn't cloud-linked. Consuming (clearing) the marker
+    unconditionally, regardless of the boolean result, is what makes this
+    fire at most once per restore — a second check on the same load (or a
+    normal subsequent load with no marker at all) always returns `false`.
+  - All three restore call sites now call `markRestoredForCloudLinkNotice()`
+    immediately before their existing post-restore reload:
+    `handleLocalRestore()` (setup wizard, before the new
+    `window.location.href` navigation above), and
+    `handleRestoreBackup()` / `handleRestoreBackupTauri()`
+    (`hooks/use-settings-sync.ts`, before their existing
+    `window.location.reload()` calls — unchanged otherwise).
+  - `lib/hooks/use-post-restore-cloud-link-notice.ts` (new): a
+    `usePostRestoreCloudLinkNotice({ onLinkCloud })` hook, mounted once on
+    each screen that can be the landing spot right after a post-restore
+    reload. On mount it reads `localStorage.getItem("auth_token")`
+    directly (not `useAuth()`'s `isCloudLinked` — `AuthProvider`'s own
+    mount effect sets that from the same key, but ancestor-vs-descendant
+    effect ordering isn't guaranteed, so reading the context value here
+    risked consuming the one-shot marker against its pre-mount default of
+    `false`). If `consumePostRestoreCloudLinkNotice()` returns `true`, it
+    fires a single `sonner` `toast.warning` (20s duration, so it can't be
+    missed by mistake) explaining the data is back but the device needs
+    re-linking, with an action button that calls the caller-supplied
+    `onLinkCloud` — deliberately reusing whatever "Link DumosRx Cloud"
+    control already exists on that screen rather than building a new one.
+  - Wired into both post-restore landing spots: `app/login/use-login-page.tsx`
+    (`useLoginPageState`) passes `onLinkCloud: () => onboarding.setStep("cloud")`
+    — the same pre-login cloud-link step the setup wizard's own
+    "cloudSetupHandler" already uses; `components/dashboard/dashboard-layout.tsx`
+    (`DashboardLayoutInner`, which the in-app Settings > Data restore
+    reloads straight back into) passes
+    `onLinkCloud: () => router.push("/settings/cloud")` — the existing URL
+    alias (`hooks/use-settings.ts`) that auto-opens `CloudLinkDialog` when
+    the store isn't linked.
+  - This is intentionally **not** a persistent nag: the dashboard header's
+    `SyncIndicator` "Not Linked" state (`components/dashboard/sync-indicator.tsx`)
+    already covers "device is unlinked, full stop" on every render; this
+    notice only ever fires once, immediately after a restore that left the
+    device unlinked.
+- **Tests (TDD, all new):**
+  - `__tests__/post-restore-notice.test.ts` — pure unit tests on
+    `consumePostRestoreCloudLinkNotice()`/`markRestoredForCloudLinkNotice()`:
+    fires when just-restored and unlinked; does not fire with no marker set
+    (normal load); does not fire at all when linked; fires at most once
+    even if checked again; consumes the marker even on the linked branch so
+    a later unrelated unlink can't retroactively fire it. RED confirmed by
+    deleting the module before writing the implementation (import-resolution
+    failure), GREEN after.
+  - `__tests__/post-restore-cloud-link-notice-hook.test.ts` — drives the
+    real hook via the manual `react-dom/client` + `act()` harness this repo
+    already uses for hooks with no `@testing-library/react` installed (see
+    `__tests__/use-pos-payment-loyalty-gate.test.ts`), with `sonner` mocked:
+    shows the toast (with a working action calling `onLinkCloud`) when
+    just-restored and unlinked; suppresses it when linked; suppresses it on
+    a normal load; and fires only once even across a re-render with a new
+    callback identity. RED confirmed by the hook module not existing yet,
+    GREEN after.
+  - `__tests__/onboarding-local-restore-reload.test.ts` — same harness
+    pattern, with `next/navigation`, `@/lib/context/auth-context`,
+    `@/lib/db/core`, `@/lib/db/queries/setup`, `@/lib/db/sync-engine`,
+    `@/lib/api/client`, and `sonner` all mocked, plus a fake
+    `window.location` (jsdom's real one throws on assignment). Confirms
+    `handleLocalRestore()` calls `restoreDatabase()`, never calls
+    `router.push("/login")`, and does set `window.location.href = "/login"`.
+    RED confirmed against the pre-fix `router.push` implementation, GREEN
+    after.
+- **Full-suite verification:** `npx tsc --noEmit -p .` clean; `npx vitest
+  run` 400/400 passing across 76 files (up from 390/390 across 73 files
+  before this fix — 3 new test files). `npx playwright test
+  --project=chromium e2e/settings.spec.ts --no-deps` (the spec exercising
+  `CloudLinkDialog`/`/settings/cloud`, the reused in-app link control) —
+  4/4 passing.
+- **Docs updated:** `docs/features/_known-bugs.md` item #10 marked Fixed;
+  `docs/features/backup-restore.md`'s stale-login-screen and cloud-link-gap
+  notes updated to describe the fixed behavior.
+
 ## Open
 
 (Sections below add entries here as they're walked.)
@@ -1680,3 +1791,84 @@ rather than fixed in this pass.
   and documentation only, per its brief.
 - See `docs/features/auth.md` for full detail and
   `docs/features/_known-bugs.md` item #7 for the tracker update.
+
+### Backup & Restore: live download/restore-onto-fresh-device walkthrough, full table-by-table completeness diff, sync-after-restore check — restore data itself confirmed complete; cloud-link token and a login-screen timing gap found, documented as `_known-bugs.md` item #10
+
+- **Walked live** on "Pikarestiv Stores 2" only (never the primary
+  "Pikarestiv Stores" account): downloaded a real `.drx` backup after a
+  manual "Sync Now" (26,656,768 bytes), then restored it onto a genuinely
+  isolated fresh-device context.
+- **Isolation technique:** `localStorage`/IndexedDB are origin-scoped, not
+  tab-scoped, so a plain new tab still shares the logged-in session's
+  storage — not a valid "new device" stand-in — and incognito wasn't
+  reachable via the browser-automation tooling available. Used a second,
+  distinct origin instead — `http://127.0.0.1:3000` alongside the original
+  `http://localhost:3000` — both hitting the identical running dev server
+  but partitioned completely separately by Chrome. Verified empty
+  (`indexedDB.databases()`, `localStorage`, `sessionStorage`) before use.
+- **Fresh-device restore path confirmed smooth:** a device with zero local
+  accounts hitting `/login` shows "No Local Accounts Found" with a "Have a
+  local backup file? Restore Now" link, routing to
+  `/login?tab=setup&step=backup` (`BackupStep` component) — reachable
+  *before* any login, exactly the flow a user recovering onto a new device
+  needs. One real rough edge found here: `handleLocalRestore()`
+  (`app/setup/use-onboarding.ts`) does a client-side `router.push("/login")`
+  after restoring rather than a full reload, and `/login`'s account
+  detection hadn't re-run yet — briefly re-showed the pre-restore "No Local
+  Accounts Found" screen even though the restore had already succeeded
+  underneath. A manual reload showed the correct state immediately.
+- **Completeness check (this task's primary deliverable):** captured a
+  full table-by-table row count from the downloaded `.drx` directly (a
+  standalone Node script loading `sql.js` and running
+  `SELECT COUNT(*) FROM {table}` for every name in `sqlite_master` — the
+  authoritative pre-restore snapshot, not a UI spot-check), then did the
+  same against the restored device's live DB via the dev-only
+  `window.getDatabaseBinary()` hook (`lib/db/core.ts`) after logging in.
+  **30 of 32 tables matched exactly** (`products` 3,041/3,041,
+  `stock_batches` 2,173/2,173, `stores` 2/2, `sales` 7/7, `customers` 1/1,
+  `feedback` 2,526/2,526, etc.). The only two diffs — `audit_logs`
+  5,401→5,402 and `_sync_queue` 10→11 — are both fully explained by the one
+  login event performed on the restored device itself (one new
+  `LOGIN_SUCCESS`-shape audit row → one new queued sync row for it), not by
+  any restore data loss. **No data-completeness bug found** — the restore
+  mechanism itself (`db.export()`/`new SQL.Database(binaryData)`) is a
+  faithful whole-DB copy. Full table diff is in
+  `docs/features/backup-restore.md`.
+- **Real gap found, not data-related:** the restored device's cloud-sync
+  link does **not** survive restore. `isCloudLinked`
+  (`lib/context/auth-context.tsx`) is derived purely from an `auth_token` in
+  `localStorage`, set only by a real backend login call
+  (`linkCloudAccount(email, password)`) — never written by
+  `restoreDatabase()`, which only touches the sql.js DB. Live result:
+  Settings → Data on the freshly-restored, fully-data-correct device showed
+  "Local Mode (Not Linked)" with no "Sync Now" control at all, only
+  "Link Account"/"Link & Sync" (requiring the real account password —
+  correctly **not** entered in this test, out of scope regardless of
+  environment). This is the practically significant finding: a user
+  recovering their store onto a new device gets all their data back but
+  silent, off-by-default sync, with nothing in the restore flow itself
+  surfacing that gap.
+- **Sync-after-restore check:** with the fresh device unable to push (no
+  cloud link), verified instead that (a) its background auto-sync timer
+  does not error while unlinked (`read_console_messages` clean over several
+  minutes), and (b) the *original*, still-linked session's sync is
+  unaffected by any of this — added a uniquely-named test expense there and
+  confirmed via `read_network_requests` a clean
+  `POST .../sync/push?manual=1` → `POST .../sync/pull?manual=1` pair, both
+  200, no console errors. **Could not exercise a live push-vs-push
+  version-conflict race** (the specific scenario `push.ts`'s `_version`
+  preservation and `pull.ts`'s stale-local-edit deferral are designed for)
+  end-to-end, since that requires the restored device to actually push,
+  which the cloud-link gap above blocks without real credentials. The
+  design is read and consistent with its own code comments but was not
+  independently validated live — flagged as a follow-up, not claimed as
+  fully verified.
+- **Not fixed; no application code changed** — this task was live
+  investigation and documentation only, per its brief; the cloud-link gap
+  and login-screen timing issue are both real but neither is a small,
+  TDD-able one-liner in a high-caution area (whole-device DB replace), so
+  both are documented in `_known-bugs.md` item #10 for separate scoping
+  rather than fixed here.
+- See `docs/features/backup-restore.md` for the full walkthrough including
+  the complete table-by-table diff, and `_known-bugs.md` item #10 for the
+  tracker entry.

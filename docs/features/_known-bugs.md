@@ -323,6 +323,73 @@ Status values: **Open** (not started) → **In Progress** → **Fixed**.
   `dashboard-action-center.tsx` as its own card, matching the existing
   "Low Stock" card's pattern.
 
+---
+
+## 10. Restoring a local backup onto a fresh device does not restore cloud-sync — and the post-restore login screen briefly shows stale state
+
+- **Status:** Fixed (`e7097b6a`). Both parts fixed together — see
+  `### 22.` in `_findings-log.md` for full detail.
+- **Found:** live backup/restore test on "Pikarestiv Stores 2" (2026-09-03),
+  see `docs/features/backup-restore.md` for the full walkthrough (a
+  completeness diff confirmed the restored data itself is byte-for-byte
+  correct — this entry is about state *around* the restore, not data loss).
+- **Where (before the fix):**
+  - Cloud-link gap: `lib/context/auth-context.tsx`'s `isCloudLinked` is
+    derived solely from `localStorage.getItem("auth_token")`, set only by
+    `linkCloudAccount(email, password)` (a real backend login call).
+    `restoreDatabase()` (`lib/db/core.ts`) only swaps the sql.js DB; it
+    never touches `localStorage`, so a device's cloud-link token can never
+    survive a restore, even though it's exactly the "recover onto a new
+    device" scenario where a user would most want sync to keep working.
+  - Stale-login-screen: `app/setup/use-onboarding.ts`'s
+    `handleLocalRestore()` calls `restoreDatabase()` then
+    `router.push("/login")` (a client-side navigation, no full reload).
+    `/login`'s account-detection (`useDeviceAuthStatus`) didn't re-run
+    against the newly-restored DB before that push resolved — the live
+    walkthrough saw the pre-restore "No Local Accounts Found" screen render
+    immediately after the "Database restored successfully!" toast. A manual
+    reload of `/login` immediately showed the correct state (traditional
+    username+PIN form, since `dumos_recent_users` — a separate localStorage
+    list — is legitimately empty on a never-before-seen device).
+- **Risk:**
+  - Cloud-link gap (more severe): a store owner recovering their business
+    onto a new/replacement device via local backup gets **100% of their
+    data back but silent, off-by-default sync** — nothing on the restore
+    screen or the post-restore dashboard tells them sync is off; they'd
+    only discover it if they happened to check Settings → Data and noticed
+    "Local Mode (Not Linked)," or if they made changes that quietly never
+    left the device. Two devices independently "recovered" from the same
+    backup, both unlinked, could each accumulate local-only changes with no
+    warning that they're diverging.
+  - Stale-login-screen (minor): a real user clicking through in real time
+    (rather than an automation script reloading between steps) would very
+    plausibly see "No Local Accounts Found" for a moment right after being
+    told their restore succeeded — confusing, but self-resolving (any
+    subsequent full navigation/reload shows the correct screen), and no
+    data is actually at risk.
+- **Fix (`e7097b6a`):**
+  - Stale-login-screen: `handleLocalRestore()` now does a full browser
+    navigation (`window.location.href = "/login"`) instead of a
+    client-side `router.push`, matching `use-settings-sync.ts`'s
+    `handleRestoreBackup`/`handleRestoreBackupTauri`. `/login`'s account
+    detection now always runs fresh against the restored database.
+  - Cloud-link gap: deliberately did **not** try to make the auth token
+    survive a restore (a portable `.drx` backup should never carry a live,
+    device-tied session credential). Instead, all three restore paths
+    (pre-login setup wizard, Settings > Data, Tauri) now set a short-lived
+    `sessionStorage` marker right before their post-restore reload
+    (`lib/utils/post-restore-notice.ts`). A new hook
+    (`lib/hooks/use-post-restore-cloud-link-notice.ts`), mounted once at
+    `/login` and in the dashboard shell, consumes that marker on the very
+    next load and — only if the device isn't cloud-linked — fires a
+    one-time toast explaining the gap, with a direct action into the
+    existing "Link DumosRx Cloud" control (the setup wizard's pre-login
+    cloud step, or `CloudLinkDialog` via `/settings/cloud` in-app). It
+    never fires on a normal subsequent load, and never fires at all if the
+    device happens to still be linked — the dashboard header's
+    `SyncIndicator` "Not Linked" state remains the persistent, always-on
+    signal; this notice is only the restore-specific, one-time call-out.
+
 ## Known limitations (not bugs — honestly labeled, not silently broken)
 
 - **Settings "Roles & Permissions" tab** is a static "coming soon"

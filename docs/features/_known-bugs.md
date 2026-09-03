@@ -70,7 +70,9 @@ Status values: **Open** (not started) → **In Progress** → **Fixed**.
 
 ## 5. `logRequestedProduct()`'s substring-based dedupe can misfire
 
-- **Status:** Open
+- **Status:** Fixed (`58205f26`) — replaced `String.includes()` on the whole
+  accumulated string with a split-on-separator, case-insensitive exact
+  match per segment, for both customer names and notes.
 - **Found:** final whole-branch review (post Task 11)
 - **Where:** `client/lib/db/requested-products-queries.ts` — de-dupes
   incoming product requests by `String.includes()` on the customer-name /
@@ -78,8 +80,6 @@ Status values: **Open** (not started) → **In Progress** → **Fixed**.
   merged/attributed into an existing "Joanna" request.
 - **Risk:** low blast radius (only affects the POS empty-state "customer
   wants this" wishlist log), but a real correctness bug.
-- **Why not fixed yet:** found late (final review), not in original scope;
-  needs an exact-match or normalized-match rewrite of the dedupe key.
 
 ## 6. `recordSaleItemStock`'s partial-shortfall fallback can double-write a row
 

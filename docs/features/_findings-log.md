@@ -634,6 +634,41 @@ sub-tabs) against real seeded data on Pikarestiv Stores 2.
   `npx playwright test --project=chromium e2e/pos-held-transaction.spec.ts
   --no-deps` → 1 passed.
 
+### 14. `logRequestedProduct()`'s substring-based dedupe could misfire
+
+- **Found:** final whole-branch review (post Task 11), tracked as bug #5 in
+  `_known-bugs.md`.
+- **Root cause:** `logRequestedProduct()`
+  (`client/lib/db/requested-products-queries.ts`) deduped accumulated
+  customer names and notes with `String.includes(newValue)` against the
+  *whole* accumulated string, not a match against its individual
+  comma/pipe-separated segments. That's a substring check, not an
+  exact-match check: once a request had accumulated a customer name like
+  "Anna", a genuinely different, later customer named "Ann" would never be
+  appended (`"Anna".includes("Ann")` is `true`), silently dropping a real
+  customer from the record. Same risk on the notes field, separated by
+  `" | "` instead of `", "`.
+- **Fix:** both accumulation blocks now split the existing accumulated
+  string on its separator (`", "` for names, `" | "` for notes) into
+  segments, then check the incoming value against those segments with an
+  exact, case-insensitive match (`.toLowerCase()` on each side) before
+  appending — matching the case-insensitive dedupe convention already used
+  elsewhere in the codebase (`categories.ts`, `product-import.ts`,
+  `setup.ts` all normalize names with `.toLowerCase()` before comparing).
+  Everything else in the function (separators, append order, the
+  insert()/update() split for new-vs-existing pending requests) is
+  unchanged.
+- **Verified by:** `client/__tests__/requested-products.test.ts` — four new
+  cases added to the existing real-sql.js suite: a substring-name case
+  ("Anna" then "Ann" — both must appear, previously only "Anna" would);
+  an exact-duplicate-name case (case-insensitive "ann" after "Ann" must
+  not duplicate); and the same two cases for notes. Confirmed RED pre-fix
+  (4/4 new tests failed — the substring cases failed by silently dropping
+  the new segment, the exact-duplicate cases failed because the
+  case-insensitive check didn't exist yet) and GREEN post-fix (10/10 in
+  the file). Full suite re-verified: `npx tsc --noEmit -p .` clean,
+  `npx vitest run` 364/364 across 67 files.
+
 ## Open
 
 (Sections below add entries here as they're walked.)

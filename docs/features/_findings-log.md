@@ -439,7 +439,7 @@ sub-tabs) against real seeded data on Pikarestiv Stores 2.
   live-reproduced symptom (the Category filter pill and Manage Categories
   dialog disagreeing) and its cross-link to this fix.
 
-### 13. `update()`/`softDelete()` had zero store-ownership check — cross-tenant write risk
+### 13. `update()`/`softDelete()`/`remove()` had zero store-ownership check — cross-tenant write risk
 
 - **Found:** flagged as a follow-up concern while fixing bug #12/#1 above
   (`getCategoryList()`'s multi-tenancy leak): that fix correctly keeps
@@ -548,6 +548,84 @@ sub-tabs) against real seeded data on Pikarestiv Stores 2.
   system-level caller that needs cross-store write access, so the escape
   hatch wasn't pre-built on spec. If one is ever found, it should be added
   narrowly at that point, not reachable from UI code.
+
+#### Fix-round two: code review caught `remove()` was missed entirely
+
+- **Found:** code review of the fix above. The original audit's grep
+  pattern was literally `"update(\|softDelete("` — it searched for exactly
+  those two function names and never once searched for `remove(` calls, so
+  `remove()` (the third write helper in `base-helpers.ts`, used for hard,
+  unrecoverable deletes) wasn't evaluated-and-cleared, it was simply never
+  looked at. That mattered: `remove()` IS called on a `STORE_SCOPED_TABLES`
+  table. `lib/hooks/use-sales-data.ts` and
+  `lib/hooks/use-pos-held-transactions.ts` both call
+  `remove("held_transactions", id)`, and `held_transactions` is in
+  `STORE_SCOPED_TABLES` (`core.ts`). Until this second pass, the exact
+  devtools/direct-call threat model this bug's own writeup describes —
+  "Anyone with browser devtools... could call `update()`/`softDelete()`
+  directly with any row id... bypassing UI-level scoping entirely" — still
+  applied to `remove()`: a hard, unrecoverable cross-tenant delete of
+  another store's held transaction, callable directly by id from devtools
+  on any multi-store device. Not UI-reachable (`getHeldTransactions()`'s
+  read filter is a plain `WHERE store_id = ?`, with no `OR store_id IS
+  NULL` fallback the way `getCategoryList()` has), but the direct-call path
+  was real, and the tracking docs' "Fixed"/"closed" language for this bug
+  had overclaimed given the gap.
+- **Re-audit performed:** re-grepped comprehensively this time —
+  `grep -rn "\bremove(" client/lib client/components client/app`, plus a
+  separate pass for every `import { ... remove ... } from` across the same
+  three directories (to catch `remove` reached only via
+  `local-database.ts`'s `export * from "./base-helpers"` re-export, not
+  just direct `base-helpers` imports). Exactly three real callers of
+  `remove()` exist in the whole app:
+  - `lib/hooks/use-sales-data.ts` and
+    `lib/hooks/use-pos-held-transactions.ts` — both
+    `remove("held_transactions", id)`. `held_transactions` IS
+    store-scoped; both are now protected by this fix.
+  - `lib/hooks/use-payment-accounts.ts` — `remove("payment_accounts", id)`.
+    `"payment_accounts"` was never a member of `STORE_SCOPED_TABLES` (the
+    same pre-existing exemption `"users"` and `"stores"` have), so the
+    check is a no-op here by construction — no special-casing needed.
+  No caller needs a cross-store bypass; the "no bypass mechanism added"
+  conclusion from the first pass still holds after this second pass.
+- **Fix:** `assertStoreOwnership()` gained a third parameter,
+  `claimLegacyRow` (default `true`, so `update()`/`softDelete()`'s call
+  sites and behavior are unchanged). `remove()` now calls it with
+  `claimLegacyRow: false`. Reasoning for the difference: for
+  `update()`/`softDelete()`, claiming a legacy NULL-`store_id` row makes
+  sense because the row keeps existing afterward — the claim is what
+  prevents a second store from touching it later. For `remove()`, the row
+  is about to be hard-deleted in the very next statement; claiming it
+  first (an extra `UPDATE ... SET store_id = ?`) would protect nothing,
+  since there's no row left afterward for the claim to matter to — it
+  would be a pointless extra write on the way to destroying the row
+  anyway. So a legacy row is simply deletable outright by whichever store
+  touches it first, same effective behavior as before this fix, while a
+  different *known* store's row now correctly rejects, exactly like
+  `update()`/`softDelete()`.
+- **Verified by:** extended `client/__tests__/store-ownership.test.ts` with
+  a `remove()` describe block against `held_transactions` (the real
+  affected table, not `categories` again, so the test matches an actual
+  call site's shape) covering all four cases: own-store row deletes;
+  legacy NULL-`store_id` row deletes outright with no claim step (asserted
+  via non-existence after the call, since there's no row left to check a
+  `store_id` on); different known store's row rejects with the same thrown
+  `Error` and is confirmed byte-for-byte unmodified (`heldTransactionExists`
+  still true, `store_id` still the other store's); no-active-store fails
+  open. Confirmed RED pre-fix (10/11 passed trivially since the bug was an
+  *absence* of a check — only the reject case, which needs an actual
+  throw, failed: "promise resolved undefined instead of rejecting") and
+  GREEN post-fix (11/11). Full suite re-verified: `npx tsc --noEmit -p .`
+  clean, `npx vitest run` 360/360 across 67 files (up from 356/67 after
+  the first bug #8 commit) — the 4-test delta is exactly the new
+  `remove()` coverage, confirming nothing else in the suite relied on
+  `remove()`'s old no-check behavior.
+- **Tracking-doc correction:** `_known-bugs.md`'s bug #8 entry and this
+  entry's own "Not done, deliberately" note above were written after the
+  first pass and described the fix as covering `update()`/`softDelete()`
+  only, which was accurate then but became stale/overclaiming once
+  `remove()`'s gap was found. Both docs have been updated in this same fix
+  round to describe all three helpers.
 
 ## Open
 

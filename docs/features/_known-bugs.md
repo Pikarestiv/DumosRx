@@ -139,25 +139,35 @@ Status values: **Open** (not started) → **In Progress** → **Fixed**.
 
 ## 8. `update()`/`softDelete()` have zero store-ownership check — cross-tenant write risk (Important, trending Critical)
 
-- **Status:** Fixed (`cd1b267d`, simplified in `057ad2ed`) — `update()`/`softDelete()` in
-  `base-helpers.ts` now call a shared `assertStoreOwnership()` check before
-  any write to a `STORE_SCOPED_TABLES` table: a row owned by the active
-  store writes normally; a legacy `store_id IS NULL` row is allowed through
-  and claimed for the active store as part of that same call (so it stops
-  being editable by every store after its first edit); a row owned by a
-  different, known store throws `Error("Cannot modify a record owned by a
-  different store")` instead of silently succeeding. No active store
-  resolved (`getActiveStoreId()` returns null) fails open, matching
-  `insert()`'s existing behavior for that edge case. No call site needed a
-  bypass, and `manage-categories-dialog.tsx` needed no UI guard —
-  `getCategoryList()`'s filter (`store_id = ? OR store_id IS NULL`) already
-  makes a different known store's row un-renderable there. See `### 13.` in
-  `_findings-log.md` for full detail.
+- **Status:** Fixed (`cd1b267d`, simplified in `057ad2ed`, extended to
+  `remove()` in `90a1ec82` after code review caught the gap below) —
+  `update()`, `softDelete()`, AND `remove()` (hard delete) in
+  `base-helpers.ts` now all call a shared `assertStoreOwnership()` check
+  before any write to a `STORE_SCOPED_TABLES` table: a row owned by the
+  active store writes normally; a legacy `store_id IS NULL` row is allowed
+  through — for `update()`/`softDelete()`, claimed for the active store as
+  part of that same call (so it stops being editable by every store after
+  its first edit); for `remove()`, deleted outright with no claim step,
+  since claiming a row immediately before hard-deleting it protects
+  nothing; a row owned by a different, known store throws
+  `Error("Cannot modify a record owned by a different store")` instead of
+  silently succeeding. No active store resolved (`getActiveStoreId()`
+  returns null) fails open, matching `insert()`'s existing behavior for
+  that edge case. No call site needed a bypass — this includes the initial
+  fix's audit AND a second, `remove()`-specific audit that first-round code
+  review demanded after catching that the original grep pattern
+  (`"update(\|softDelete("`) never searched for `remove(` calls at all.
+  `manage-categories-dialog.tsx` needed no UI guard — `getCategoryList()`'s
+  filter (`store_id = ? OR store_id IS NULL`) already makes a different
+  known store's row un-renderable there. See `### 13.` in
+  `_findings-log.md` for full detail, including the fix-round-two note on
+  what the first pass missed and why.
 - **Found:** review of bug #1's fix (2026-09-03)
-- **Where:** `client/lib/db/base-helpers.ts` — both `update()` (writes
-  `UPDATE ${table} ... WHERE id = ?`) and `softDelete()` (same shape) take
-  only a row `id`, with no `store_id` check anywhere. This is the shared
-  helper used by every domain table's edit/delete path, not just categories.
+- **Where:** `client/lib/db/base-helpers.ts` — `update()` (writes
+  `UPDATE ${table} ... WHERE id = ?`), `softDelete()` (same shape), and
+  `remove()` (hard `DELETE FROM ${table} WHERE id = ?`) all took only a row
+  `id`, with no `store_id` check anywhere. These are the shared helpers used
+  by every domain table's edit/delete path, not just categories.
 - **Confirmed UI-reachable today, no tooling required:** bug #1's fix
   correctly keeps legacy (pre-migration) `store_id IS NULL` categories
   visible to every store (so old data doesn't vanish for anyone). But
@@ -174,8 +184,15 @@ Status values: **Open** (not started) → **In Progress** → **Fixed**.
   store-switcher session) could call `update()`/`softDelete()` directly
   with any row id present in the local database, bypassing UI-level
   scoping entirely. This is now closed by the fix above: `update()`/
-  `softDelete()` reject a devtools-driven cross-store write against a known
-  other store's row the same way the UI path does.
+  `softDelete()`/`remove()` all reject a devtools-driven cross-store write
+  against a known other store's row the same way the UI path does. (The
+  `remove()` gap specifically was real, not hypothetical: `remove()` is
+  called on `held_transactions` — a `STORE_SCOPED_TABLES` member — from
+  `use-pos-held-transactions.ts` and `use-sales-data.ts`; it was not
+  UI-reachable, since `getHeldTransactions()`'s read-side filter has no
+  `OR store_id IS NULL` fallback the way categories' read side does, but a
+  direct devtools call to `remove("held_transactions", <other store's id>)`
+  would have succeeded before the fix-round-two commit above.)
 
 ---
 

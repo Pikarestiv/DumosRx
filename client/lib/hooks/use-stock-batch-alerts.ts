@@ -1,6 +1,10 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getLowStockAlerts, getExpiryAlerts } from "@/lib/db/queries/inventory";
+import {
+  getLowStockAlerts,
+  getExpiryAlerts,
+  getOversoldAlerts,
+} from "@/lib/db/queries/inventory";
 import { queryKeys } from "@/lib/query-keys";
 
 export function useStockBatchAlerts() {
@@ -12,6 +16,11 @@ export function useStockBatchAlerts() {
   const { data: expiryAlerts } = useQuery({
     ...queryKeys.stockBatches.expiryAlerts(),
     queryFn: () => getExpiryAlerts(),
+  });
+
+  const { data: oversoldAlerts } = useQuery({
+    ...queryKeys.stockBatches.oversoldAlerts(),
+    queryFn: () => getOversoldAlerts(),
   });
 
   const stock_batchAlerts = useMemo(() => {
@@ -30,8 +39,17 @@ export function useStockBatchAlerts() {
       daysLeft: a.daysLeft,
       severity: a.daysLeft <= 7 ? "critical" : a.daysLeft <= 14 ? "high" : "medium",
     }));
-    return [...expiring, ...low];
-  }, [lowStockAlerts, expiryAlerts]);
+    // Always critical: it means the batch's recorded stock and its real
+    // stock have already diverged (a sale went through against more stock
+    // than the batch had), not merely that stock is running low.
+    const oversold = (oversoldAlerts || []).map((a) => ({
+      product: a.product,
+      issue: "Oversold",
+      quantity: a.quantity,
+      severity: "critical",
+    }));
+    return [...oversold, ...expiring, ...low];
+  }, [lowStockAlerts, expiryAlerts, oversoldAlerts]);
 
   return stock_batchAlerts;
 }

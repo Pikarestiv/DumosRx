@@ -79,12 +79,22 @@ describe("recordSaleItemStock — depleted batch", () => {
     expect(movements[0]?.values[0]?.[1]).toBe("batch1");
 
     const batch = db.exec("SELECT quantity FROM stock_batches WHERE id = 'batch1'");
-    expect(batch[0]?.values[0]?.[0]).toBe(-1);
+    // Floored at 0 (bug #4 fix), not left arbitrarily negative — the sale
+    // (a legitimate oversell, since the batch had 0 to give) still records
+    // the true -1 deduction in stock_movements above.
+    expect(batch[0]?.values[0]?.[0]).toBe(0);
 
     const saleItems = db.exec(
       "SELECT stock_batch_id FROM sale_items WHERE sale_id = 'sale1' AND product_id = 'prod1'",
     );
     expect(saleItems[0]?.values[0]?.[0]).toBe("batch1");
+
+    const reason = db.exec(
+      "SELECT reason FROM stock_movements WHERE reference_id = 'sale1' AND product_id = 'prod1'",
+    );
+    expect(reason[0]?.values[0]?.[0]).toBe(
+      "Customer sale (oversold — insufficient batch stock)",
+    );
   });
 
   it("still logs a stock_movements row when the product has no stock_batches row at all", async () => {
@@ -150,7 +160,16 @@ describe("recordSaleItemStock — depleted batch", () => {
     expect(batchQtyLeftInSaleItemBatches[0]?.values[0]?.[0]).toBe(3);
 
     const batch = db.exec("SELECT quantity FROM stock_batches WHERE id = 'batch1'");
-    expect(batch[0]?.values[0]?.[0]).toBe(-2);
+    // Floored at 0 (bug #4 fix) rather than -2; sale_item_batches/
+    // stock_movements above still record the true 3-unit deduction.
+    expect(batch[0]?.values[0]?.[0]).toBe(0);
+
+    const reason = db.exec(
+      "SELECT reason FROM stock_movements WHERE reference_id = 'sale1' AND stock_batch_id = 'batch1'",
+    );
+    expect(reason[0]?.values[0]?.[0]).toBe(
+      "Customer sale (oversold — insufficient batch stock)",
+    );
   });
 
   it("writes exactly one sale_item_batches row and one stock_movements row per unique batch, even when the fallback re-selects the batch the main loop just partially deducted (bug #6)", async () => {
@@ -189,7 +208,8 @@ describe("recordSaleItemStock — depleted batch", () => {
     expect(movementRows[0]?.values[0]?.[0]).toBe(-3);
 
     const batch = db.exec("SELECT quantity FROM stock_batches WHERE id = 'batch1'");
-    expect(batch[0]?.values[0]?.[0]).toBe(-2);
+    // Floored at 0 (bug #4 fix) rather than -2.
+    expect(batch[0]?.values[0]?.[0]).toBe(0);
   });
 
   it("still writes two separate sale_item_batches rows when a sale genuinely spans two different positive-stock batches", async () => {
@@ -253,5 +273,12 @@ describe("recordSaleItemStock — depleted batch", () => {
     // Earliest-expiry batch is consumed first; the later batch is untouched.
     expect(oldBatch[0]?.values[0]?.[0]).toBe(3);
     expect(newBatch[0]?.values[0]?.[0]).toBe(5);
+
+    // A normal, non-oversold sale keeps the plain reason text (bug #4 fix
+    // must not touch this case).
+    const reason = db.exec(
+      "SELECT reason FROM stock_movements WHERE reference_id = 'sale1' AND stock_batch_id = 'batch_old'",
+    );
+    expect(reason[0]?.values[0]?.[0]).toBe("Customer sale");
   });
 });

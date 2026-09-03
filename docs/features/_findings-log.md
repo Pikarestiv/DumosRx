@@ -579,3 +579,103 @@ Newest entries at the bottom of each section.
   match what was just entered and the actor is a real user, not "System".
 - **Not fixed:** no bug found — Step 5 required no action.
 - See `docs/features/activity-log.md` for full detail.
+
+### 11. Settings: `/settings/cloud`'s Link-Cloud dialog could never be dismissed on a non-linked store
+
+- **Found:** while writing `client/e2e/settings.spec.ts` for the Data/Cloud
+  tab (Task 10, Settings). The live walkthrough of Settings didn't catch this
+  — that store was already cloud-linked, so the dialog never opened at all.
+  The e2e spec's fixture store isn't linked, and hit it immediately: on
+  `/settings/cloud` with `isCloudLinked === false`, the "Link DumosRx Cloud"
+  dialog reopened on its own right after being closed (Escape or the Close
+  button), every single time, with no way to dismiss it short of navigating
+  off the page.
+- **Root cause:** `hooks/use-settings.ts`'s tab-resolution `useEffect`
+  depended on the whole `syncState` object returned by
+  `useSettingsSync(isCloudLinked, refetchStore)` — a plain object literal
+  recreated on every render, never referentially stable — instead of the one
+  setter it actually calls, `syncState.setIsCloudLinkOpen`. With the whole
+  object in the dependency array, the effect reran on every render of
+  `useSettings()`, and its body unconditionally calls
+  `syncState.setIsCloudLinkOpen(true)` whenever
+  `internalTab === "cloud" && !isCloudLinked` — which stays true for as long
+  as the route remains on the alias, regardless of whether the user just
+  manually dismissed the dialog a render ago. Same general bug shape as
+  finding #1 above (an unstable dependency/reference driving an effect to
+  refire far more than intended), just in a `useEffect` deps array rather
+  than a query-invalidation call site.
+- **Fix:** `client/hooks/use-settings.ts` — narrowed the effect's dependency
+  from the bare `syncState` object to `syncState.setIsCloudLinkOpen`, the
+  specific `useState` setter it calls (referentially stable across renders
+  by React's own guarantee). The effect now only reruns when
+  `tabParam`/`isCloudLinked`/`isAdmin`/`activeTab` genuinely change, so a
+  user-initiated close sticks.
+- **Verified by:** `client/__tests__/settings-cloud-link-dialog-loop.test.ts`
+  (source-inspection style, matching `dashboard-action-center-routes.test.ts`
+  / `profit-loss-tab-currency-formatting.test.ts`'s established pattern — no
+  component-rendering harness exists in this repo yet) — confirmed RED
+  pre-fix (dependency array literally contained bare `syncState`), GREEN
+  post-fix. Re-verified live via `e2e/settings.spec.ts`'s data/cloud test,
+  which opens the dialog via the `cloud` alias, closes it, and asserts it
+  stays closed on a subsequent render before continuing — this assertion
+  would have failed against the pre-fix code.
+- See `docs/features/settings.md`'s "Data" and "Cloud" sections for full
+  detail, including the cross-reference to Task 0's separate sync-queue
+  transaction race fix (a different bug, on the same tab, in the read path
+  this dialog's underlying auto-sync setting triggers).
+
+## Settings: 21-tab coverage gap closed; `roles` tab confirmed to be an unimplemented placeholder
+
+- **Coverage gap confirmed (Step 3):** `grep -rl "settings" e2e/ __tests__/`
+  found exactly one incidental hit (`prescriptions.spec.ts`'s
+  `page.goto('/settings/business-info')`, used only to seed a PCN license
+  number for an unrelated test — it exercises no Settings behavior itself).
+  **Zero dedicated e2e or unit coverage existed for any of the 21 Settings
+  tabs before this task** — the single biggest, and only fully-empty,
+  coverage gap found across the whole smoke-test project.
+- **Also found (Step 1):** the `roles` tab (`Roles & Permissions` in the nav,
+  shown with a disabled "Soon" badge) is not a real settings panel at all —
+  it renders `RolesPermissionsPlaceholder`, a static "coming soon" card with
+  no fields, toggles, or forms of any kind. Not a bug (the nav badge already
+  advertises this honestly), but it meant the brief's Step 4 instruction to
+  cover `roles` alongside `staff`/`security`/`data` with a "change one real
+  setting, reload, assert it persisted" test couldn't be followed literally
+  — there is no real setting on that page. `e2e/settings.spec.ts` instead
+  asserts the placeholder renders correctly, and this fact is documented
+  explicitly (both here and in `docs/features/settings.md`) rather than
+  silently adapting the test to fake a persistence assertion.
+- **Also confirmed:** most of the brief's 21 listed tab names are not 21
+  distinct panels — `general`/`account`/`store`/`alerts`/`cloud` are URL
+  aliases (`TAB_ALIASES` in `hooks/use-settings.ts`, plus two special-cased
+  renames) that resolve to `appearance`/`personal-info`/`business-info`/
+  `notifications`/`data` respectively. `docs/features/settings.md` gives
+  each brief-listed name its own `##` heading as requested, with the aliased
+  ones pointing at their canonical section instead of duplicating content.
+- **Closed (Step 4):** added `client/e2e/settings.spec.ts`, prioritized by
+  blast radius per the brief: `staff` (create a fixture account, edit its
+  System Role, reload, assert persisted), `security` (Auto-Lock interval,
+  reload, assert persisted), `data`/`cloud` (Sync Interval — directly tied
+  to Task 0's sync-queue transaction race fix — reload, assert persisted;
+  also smoke-tests the `cloud` alias route itself), and `roles` (placeholder
+  assertion, per the note above). Auto-Lock and Auto-Sync are both paid-tier
+  features and Staff account creation is capped at 0 seats on the free tier,
+  so the spec elevates its own per-test tier via the same dev-only
+  `window.__e2eSetSubscriptionTier` hook `expenses.spec.ts` established —
+  the shared fixture DB stays free-tier on purpose for other specs.
+- **Deliberately scoped out, and stated here rather than silently skipped:**
+  purely cosmetic tabs (`appearance`/`general` — device-local theme/color/
+  sidebar preferences with no business-state impact) and the read-only/
+  informational `system` tab. Matches the brief's explicit instruction to
+  prioritize by blast radius, not tab count.
+- **Fixed as part of Step 5:** see finding #11 above (the cloud-link dialog
+  loop), found while writing this spec's `data`/`cloud` test.
+- **Also confirmed live (Data tab cross-reference):** the auto-sync interval
+  UI is exactly the surface for Task 0's Finding #2 fix. This store's
+  pre-existing Sync Interval was "Every 30 Minutes" (the Pro-tier
+  `minimumSyncIntervalMinutes`, not a flat 15), and changing it to "Every 1
+  Hour" persisted correctly across a reload. The brief's claimed literal
+  `|| 15` fallback does exist in the code, but in `handleSaveAutoSyncSettings`
+  (`hooks/use-settings.ts`), not the initial-state default the brief's
+  phrasing suggested — see `docs/features/settings.md`'s Data section for
+  the full breakdown of the two separate `15`-related fallbacks.
+- See `docs/features/settings.md` for full detail.

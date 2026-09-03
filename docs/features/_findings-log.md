@@ -792,6 +792,67 @@ sub-tabs) against real seeded data on Pikarestiv Stores 2.
   step, GREEN after. Full suite re-verified: `npx tsc --noEmit -p .` clean,
   `npx vitest run` 369/369 across 68 files.
 
+### 17. Dashboard's Action Center had zero signal for an oversold/floored product
+
+- **Found:** review of bug #4's fix (finding #16), tracked as bug #9 in
+  `_known-bugs.md`.
+- **Nature of this fix:** a controller-ruled scoping decision, not just a bug
+  squash. `getStockBatchStats()`'s `low_stock_count` SQL requires
+  `total_qty > 0`, so a batch floored to exactly `0` by finding #16's fix
+  falls into a `critical_stock_count` field nothing in the codebase reads —
+  net effect, the Dashboard (the surface most staff/owners check first) was
+  blind to exactly the situation finding #16's alert was meant to surface.
+  Ruled out as the fix: changing `low_stock_count`'s `total_qty > 0` guard to
+  include `0` — that risks a silent behavior/number shift for any other
+  consumer relying on the existing boundary. Chosen instead: add a new,
+  separate "Oversold" card to the Action Center, additive only.
+- **Fix:**
+  1. `client/lib/hooks/use-dashboard-overview.ts` now also queries
+     `getOversoldAlerts()` (the same query finding #16 added) directly via
+     `useQuery(queryKeys.stockBatches.oversoldAlerts())`, and exposes
+     `stats.oversoldCount` as `oversoldAlerts?.length || 0`.
+  2. `client/components/dashboard/dashboard-overview.tsx` passes
+     `oversoldCount={stats.oversoldCount}` into `DashboardActionCenter`,
+     the same way `lowStockCount` is threaded.
+  3. `client/components/dashboard/dashboard-action-center.tsx` gained a new
+     `oversoldCount: number` prop and a new conditional card
+     (`if (oversoldCount > 0) { ... }`, modeled directly on the existing
+     Low Stock card): `id: "oversold"`, title
+     `` `${oversoldCount} ${pluralize(oversoldCount, "Item")} Oversold` ``,
+     `priority: "critical"` (destructive/red styling — visually distinct
+     from Low Stock's `"warning"`/orange), a new `AlertOctagon` icon (not
+     used elsewhere in this component, distinct from Low Stock's
+     `PackageX`), and `actionRoute: "/inventory/catalog?status=out_of_stock"`.
+- **actionRoute choice:** the catalog tab's own status classification
+  (`components/products/types.ts`) independently computes `"out_of_stock"`
+  for `stock <= 0` — the same floored-to-0 condition that produces an
+  oversold alert — and `product-database.tsx` already reads and applies a
+  `status` query param as a real, working filter chip (confirmed by reading
+  the code, same mechanism finding #16's sibling fix documented for
+  `status=low_stock`). This is a genuinely working destination, not an
+  invented/dead route. The alternative considered — deep-linking to the
+  Business Intelligence tab where `getOversoldAlerts()` is already surfaced
+  (`/reports?tab=analytics`) — was rejected: that page's inner
+  `stock_batches` tab (`business-intelligence-dashboard.tsx`) uses
+  `<Tabs defaultValue="sales">` with no URL-param wiring to select it, so a
+  link there would land on the wrong sub-tab (Sales) with no way to land
+  precisely on the stock-batch-insights view without also changing that
+  page's own tab-selection logic — out of scope for this fix.
+- **Known limitation, not fixed:** `getOversoldAlerts()` is `LIMIT 5`
+  (finding #16's design, matching `getLowStockAlerts()`/`getExpiryAlerts()`),
+  so `oversoldCount` (its `.length`) undercounts past 5 distinct oversold
+  products in the same 30-day window. Same cap already existed for the
+  Business Intelligence "Oversold" alert list; not a regression introduced
+  here, but worth a dedicated count query if this ever needs to be exact.
+- **Verified by:** `client/__tests__/dashboard-action-center-routes.test.ts`
+  — new case asserting the `oversoldCount` prop is threaded through
+  `dashboard-overview.tsx`, the card is conditional on `oversoldCount > 0`,
+  and its `id: "oversold"` card's `actionRoute` is exactly
+  `/inventory/catalog?status=out_of_stock`. Confirmed RED (failed on the
+  first two assertions) before implementation, GREEN after. Full suite
+  re-verified: `npx tsc --noEmit -p .` clean, `npx vitest run` 370/370
+  across 68 files.
+
 ## Open
 
 (Sections below add entries here as they're walked.)

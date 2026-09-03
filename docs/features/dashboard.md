@@ -55,6 +55,12 @@ card. Alerts observed live, each a clickable card that `router.push()`s to
   `stock_batchStats`), links to `/inventory/catalog?status=low_stock` (see
   Resolved bug below — the catalog tab genuinely honors the `status`
   query param and pre-filters to the "Low Stock" chip).
+- **N Items Oversold** — from `oversoldCount` (sourced from
+  `getOversoldAlerts()` directly in `useDashboardOverview`, not from
+  `stock_batchStats`), links to `/inventory/catalog?status=out_of_stock`.
+  `priority: "critical"` (destructive/red styling, distinct `AlertOctagon`
+  icon) — separate from and additive to the Low Stock card; fixes bug #9
+  (see Resolved below).
 - **N Batches Missing Expiry** — from `missingExpiryCount`, links to
   `/inventory/overview` (confirmed working live).
 - **Profile N% Complete** — from how many of
@@ -138,3 +144,17 @@ confirmed by reading the component.
   against the original code, pass after the fix. Also re-clicked the card
   live post-fix: lands on the Catalog tab with the Low Stock chip active,
   no error overlay.
+
+### Dashboard's Action Center had zero signal for an oversold/floored product (bug #9)
+- **Found:** review of bug #4's fix — a product floored to `quantity=0`
+  (bug #4's "floor + alert" fix) failed `getStockBatchStats()`'s
+  `low_stock_count` SQL's `total_qty > 0` guard, so it produced no signal
+  anywhere on the Dashboard.
+- **Fix:** added a new, separate "Oversold" card (see the "N Items Oversold"
+  entry above) rather than changing `low_stock_count`'s existing SQL/guard,
+  to avoid any silent behavior shift for other consumers of that boundary.
+- **Verified by:** `client/__tests__/dashboard-action-center-routes.test.ts`
+  — new case asserting `oversoldCount` is threaded through
+  `dashboard-overview.tsx`, the card is conditional on `oversoldCount > 0`,
+  and its route is `/inventory/catalog?status=out_of_stock`. See `### 17.`
+  in `_findings-log.md` for full detail.

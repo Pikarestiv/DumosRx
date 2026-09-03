@@ -226,7 +226,24 @@ Status values: **Open** (not started) → **In Progress** → **Fixed**.
 
 ## 9. Dashboard's Action Center has zero signal for an oversold/floored product
 
-- **Status:** Open
+- **Status:** Fixed (`<COMMIT_SHA>`) — added a new, separate "Oversold" card
+  to the Dashboard's Action Center (additive only — `getStockBatchStats()`'s
+  existing `low_stock_count`/`critical_stock_count` SQL and its
+  `total_qty > 0` guard are untouched). `use-dashboard-overview.ts` now
+  sources `stats.oversoldCount` from `getOversoldAlerts()` directly (same
+  query bug #4's fix added); `dashboard-overview.tsx` threads it into
+  `DashboardActionCenter` as a new `oversoldCount` prop, the same way
+  `lowStockCount` is threaded; `dashboard-action-center.tsx` renders a new
+  conditional card (`id: "oversold"`, `priority: "critical"`, a new
+  `AlertOctagon` icon distinct from Low Stock's `PackageX`) only when
+  `oversoldCount > 0`, routed to `/inventory/catalog?status=out_of_stock` —
+  a real working destination: the catalog tab's own status classification
+  already computes `"out_of_stock"` for `stock <= 0` (the same
+  floored-to-0 condition), and its `status` query param is already a live
+  filter chip. See `### 17.` in `_findings-log.md` for full detail,
+  including why `/reports?tab=analytics` (the Business Intelligence tab)
+  was considered and rejected, and a known limitation (`oversoldCount` is
+  capped by `getOversoldAlerts()`'s existing `LIMIT 5`).
 - **Found:** review of bug #4's fix (2026-09-03)
 - **Where:** `dashboard-overview.tsx` → `useDashboardOverview` →
   `use-stock-batch-stats.ts` → `getStockBatchStats()`

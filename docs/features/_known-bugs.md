@@ -226,7 +226,7 @@ Status values: **Open** (not started) → **In Progress** → **Fixed**.
 
 ## 9. Dashboard's Action Center has zero signal for an oversold/floored product
 
-- **Status:** Fixed (`<COMMIT_SHA>`) — added a new, separate "Oversold" card
+- **Status:** Fixed (`b92a2ecd`) — added a new, separate "Oversold" card
   to the Dashboard's Action Center (additive only — `getStockBatchStats()`'s
   existing `low_stock_count`/`critical_stock_count` SQL and its
   `total_qty > 0` guard are untouched). `use-dashboard-overview.ts` now

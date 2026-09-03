@@ -534,3 +534,48 @@ Newest entries at the bottom of each section.
   `client/__tests__/utils.test.ts` with negative-number, zero, and
   large-value cases, plus a non-NGN-negative case, per the brief.
 - See `docs/features/reports.md` for full detail.
+
+### Activity Log: cross-task audit trail confirmed intact; zero e2e coverage gap closed
+
+- **Checked (Step 1, per the brief's own elevated priority):** whether three
+  already-completed actions from earlier tasks — the product import (Task 1),
+  the purchase-order create/receive cycle (Task 6), and the expense
+  add/update/delete (Task 7) — each left a correct, traceable entry in the
+  Activity Log. This was the whole point of walking this section last.
+- **Finding:** all three were present and correct. Searching `products`
+  surfaced one "Created a product" row per imported product (1,132 rows for
+  this store, confirming the import path logs per-row through the shared
+  `insert()` helper rather than skipping audit logging for bulk operations).
+  The full PO create → update → receive-goods cycle from Task 6 appears with
+  the right named action (`RECEIVE_PO` → "Received goods for a purchase
+  order") and the right table (`purchase_orders`); filtering Action to it
+  narrowed to exactly the 3 real receive events on this store. The expense
+  create/update/delete from Task 7 all appear (`Created a expense` / `Updated
+  a expense` / `Removed a expense`), and opening the "Created" entry's detail
+  panel showed the exact Category/Amount/Description/Notes/Covers Months
+  entered at creation time. No missing entries, no silent audit-trail gap.
+- **Filters exercised live:** Search (text, matches `action`/`table_name`/
+  `user_name` only, not `details`), Date range (presets + calendar), Action
+  (dropdown populated from distinct actions present), Role and Staff
+  (owner-only, per `checkCanViewAllActivity`). All behaved correctly. Note:
+  there is no discrete "Table" filter pill in the UI despite the query layer
+  supporting a `tableName` param — the closest equivalent is typing the table
+  name into Search, since `table_name` is one of the three fuzzy-search
+  fields.
+- **Also confirmed:** Activity Log itself is not plan-gated (no
+  `LockedModuleOverlay` on its page, no `featureKey` entry for it — the
+  `"audit"` key in that union is `canUseAuditMode`, a separate stock
+  cycle-count feature, not this page).
+- **Coverage gap confirmed (Step 3):** `grep -rln "activity.log\|audit_logs"
+  __tests__/ e2e/` found existing unit coverage of the query layer
+  (`activity-log-store-scoping.test.ts`, `activity-log-filters.test.ts`) but
+  zero e2e/UI-level coverage before this task.
+- **Closed (Step 4):** added `client/e2e/activity-log.spec.ts` — adds a
+  uniquely-named expense (the traceable action; Expenses itself is
+  paid-tier-gated so the test uses the same `__e2eSetSubscriptionTier`
+  dev-only escape hatch `expenses.spec.ts` established), navigates to
+  Activity Log, and asserts the newest row is "Created a expense" /
+  `expenses`, then opens the detail panel and confirms the Description/Amount
+  match what was just entered and the actor is a real user, not "System".
+- **Not fixed:** no bug found — Step 5 required no action.
+- See `docs/features/activity-log.md` for full detail.

@@ -1,9 +1,20 @@
-import { test, expect, login } from './fixtures';
+import { test, expect, loginAsPaidTier } from './fixtures';
+
+/**
+ * Procurement is gated behind a paid tier (`!isFree` fallback in
+ * lib/hooks/use-feature-gate.ts) via `<LockedModuleOverlay featureKey="procurement" />`
+ * in app/(dashboard)/procurement/page.tsx, same as Expenses. The shared e2e
+ * fixture (e2e/.auth/test-db.bin) is deliberately free-tier, so both tests
+ * here elevate their own isolated per-test copy of the local DB via the
+ * shared `loginAsPaidTier` helper (fixtures.ts) instead of touching the
+ * shared fixture — see findings-log finding #9 (Expenses), whose exact
+ * overlay-mount race root cause also applied here.
+ */
 
 test.describe('Procurement Module', () => {
   test('should log in, navigate to procurement, and open create order flow', async ({ page }) => {
     test.setTimeout(60000);
-    await login(page);
+    await loginAsPaidTier(page);
 
     // 2. Navigate to procurement via sidebar
     await page.locator('a[href="/procurement"]').first().click();
@@ -60,7 +71,7 @@ test.describe('Procurement Module', () => {
 
   test('should create a standard purchase order, send it, receive it, and increase product stock', async ({ page }) => {
     test.setTimeout(90000);
-    await login(page);
+    await loginAsPaidTier(page);
 
     // Closes the exact gap flagged in docs/features/procurement.md: the
     // pre-existing test above only opens the Quick Add Product dialog and

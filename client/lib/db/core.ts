@@ -1254,12 +1254,16 @@ if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
   // with specs that deliberately rely on that same store being free-tier to
   // test LockedModuleOverlay itself. Rather than mutate the shared fixture
   // (which would break those other specs) or race the overlay's mount timing
-  // by clicking fast, a spec can call this once, before navigating past
-  // /login, to elevate its own isolated browser-context copy of the local DB
-  // — never the checked-in fixture file, and inert outside development
-  // builds. See e2e/expenses.spec.ts's `elevateToPaidTier`.
+  // by clicking fast, a spec can call this any time after logging in — before
+  // the tier-gated content is needed, followed by a `page.reload()` — to
+  // elevate its own isolated browser-context copy of the local DB — never the
+  // checked-in fixture file, and inert outside development builds. See
+  // e2e/fixtures.ts's `loginAsPaidTier`.
   window.__e2eSetSubscriptionTier = async (tier: string) => {
-    await execute("UPDATE stores SET subscription_tier = ?", [tier]);
+    await execute("UPDATE stores SET subscription_tier = ? WHERE id = ?", [
+      tier,
+      getActiveStoreId(),
+    ]);
   };
 }
 

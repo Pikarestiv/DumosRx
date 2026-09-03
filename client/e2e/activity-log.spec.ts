@@ -1,4 +1,4 @@
-import { test, expect, login } from './fixtures';
+import { test, expect, loginAsPaidTier } from './fixtures';
 
 /**
  * Activity Log itself is NOT plan-gated (no <LockedModuleOverlay> wraps
@@ -10,23 +10,15 @@ import { test, expect, login } from './fixtures';
  *
  * The *traceable action* used to generate an entry (adding an Expense) IS
  * gated behind the paid tier, though, so this spec still needs the same
- * `elevateToPaidTier` dev-only escape hatch expenses.spec.ts uses against
- * its own isolated per-test copy of the local DB (the shared free-tier
- * fixture, e2e/.auth/test-db.bin, is intentionally left free-tier for other
- * specs that test LockedModuleOverlay itself).
+ * `loginAsPaidTier` dev-only escape hatch (fixtures.ts) expenses.spec.ts
+ * uses against its own isolated per-test copy of the local DB (the shared
+ * free-tier fixture, e2e/.auth/test-db.bin, is intentionally left free-tier
+ * for other specs that test LockedModuleOverlay itself).
  */
-async function elevateToPaidTier(page: import('@playwright/test').Page) {
-  await page.evaluate(async () => {
-    await window.__e2eSetSubscriptionTier?.('pro');
-  });
-}
 
 test.describe('Activity Log', () => {
   test('records a traceable action (adding an expense) with correct actor/table/action', async ({ page }) => {
-    await login(page);
-    await elevateToPaidTier(page);
-    await page.reload();
-    await expect(page.getByText(/Today's Sales/i)).toBeVisible({ timeout: 10000 });
+    await loginAsPaidTier(page);
 
     // Perform a traceable action: add a uniquely-named expense (same fixture
     // pattern as e2e/expenses.spec.ts).

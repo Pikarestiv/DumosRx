@@ -1,4 +1,4 @@
-import { test, expect, login } from './fixtures';
+import { test, expect, loginAsPaidTier } from './fixtures';
 
 /**
  * Expenses is gated behind a paid tier (`!isFree` fallback in
@@ -8,30 +8,19 @@ import { test, expect, login } from './fixtures';
  * store on purpose — other specs (prescriptions.spec.ts,
  * pos-held-transaction.spec.ts) rely on that to test LockedModuleOverlay
  * itself — so this spec elevates its own isolated per-test copy of the local
- * DB instead of touching the shared fixture. Without this, these tests were
- * unknowingly racing LockedModuleOverlay's mount: the overlay took ~1s to
- * actually paint after navigation, so a fast single "Add Expense" (the
- * original test) usually beat it, but the slower edit-then-delete flow
- * (create, edit, re-open, delete) reliably lost the race and got its row
- * click intercepted by the overlay's "Upgrade Plan" backdrop once it
- * finally mounted, still correctly locked.
+ * DB instead of touching the shared fixture (via the shared `loginAsPaidTier`
+ * helper in fixtures.ts). Without this, these tests were unknowingly racing
+ * LockedModuleOverlay's mount: the overlay took ~1s to actually paint after
+ * navigation, so a fast single "Add Expense" (the original test) usually
+ * beat it, but the slower edit-then-delete flow (create, edit, re-open,
+ * delete) reliably lost the race and got its row click intercepted by the
+ * overlay's "Upgrade Plan" backdrop once it finally mounted, still correctly
+ * locked.
  */
-async function elevateToPaidTier(page: import('@playwright/test').Page) {
-  await page.evaluate(async () => {
-    await window.__e2eSetSubscriptionTier?.('pro');
-  });
-}
 
 test.describe('Expenses Module', () => {
   test('should log in, render expenses page, and add an expense', async ({ page }) => {
-    await login(page);
-    await elevateToPaidTier(page);
-    // Re-navigate so StoreContext's first storeProfile read (and every
-    // component that consumes useFeatureGate off it) picks up the elevated
-    // tier from a clean mount, instead of relying on an invalidation racing
-    // whatever's already mid-render.
-    await page.reload();
-    await expect(page.getByText(/Today's Sales/i)).toBeVisible({ timeout: 10000 });
+    await loginAsPaidTier(page);
 
     // Navigate to expenses via sidebar
     await page.locator('a[href="/expenses"]').first().click();
@@ -60,10 +49,7 @@ test.describe('Expenses Module', () => {
   });
 
   test('should edit an existing expense and then delete it', async ({ page }) => {
-    await login(page);
-    await elevateToPaidTier(page);
-    await page.reload();
-    await expect(page.getByText(/Today's Sales/i)).toBeVisible({ timeout: 10000 });
+    await loginAsPaidTier(page);
 
     await page.locator('a[href="/expenses"]').first().click();
     await expect(page.locator('header').getByText('Expenses', { exact: true })).toBeVisible();

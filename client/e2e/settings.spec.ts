@@ -1,4 +1,4 @@
-import { test, expect, login } from './fixtures';
+import { test, expect, login, loginAsPaidTier } from './fixtures';
 
 /**
  * Settings had zero dedicated e2e or unit coverage before this task (see
@@ -23,20 +23,12 @@ import { test, expect, login } from './fixtures';
  * per-test copy via the same dev-only `window.__e2eSetSubscriptionTier`
  * hook `expenses.spec.ts` established, then reloads so every
  * `useFeatureGate()` consumer picks up the elevated tier from a clean
- * mount.
+ * mount (via the shared `loginAsPaidTier` helper in fixtures.ts).
  */
-async function elevateToPaidTier(page: import('@playwright/test').Page) {
-  await page.evaluate(async () => {
-    await window.__e2eSetSubscriptionTier?.('pro');
-  });
-}
 
 test.describe('Settings', () => {
   test('staff: editing a staff member\'s role persists after reload', async ({ page }) => {
-    await login(page);
-    await elevateToPaidTier(page);
-    await page.reload();
-    await expect(page.getByText(/Today's Sales/i)).toBeVisible({ timeout: 10000 });
+    await loginAsPaidTier(page);
 
     await page.goto('/settings/staff');
     await expect(page.getByRole('heading', { name: 'Staff Management' })).toBeVisible();
@@ -90,10 +82,7 @@ test.describe('Settings', () => {
   });
 
   test('security: changing the Auto-Lock interval persists after reload', async ({ page }) => {
-    await login(page);
-    await elevateToPaidTier(page);
-    await page.reload();
-    await expect(page.getByText(/Today's Sales/i)).toBeVisible({ timeout: 10000 });
+    await loginAsPaidTier(page);
 
     await page.goto('/settings/security');
     await expect(page.getByText('Security Settings', { exact: true })).toBeVisible();
@@ -112,10 +101,7 @@ test.describe('Settings', () => {
   });
 
   test('data/cloud: changing the Sync Interval persists after reload (Task 0 cross-reference)', async ({ page }) => {
-    await login(page);
-    await elevateToPaidTier(page);
-    await page.reload();
-    await expect(page.getByText(/Today's Sales/i)).toBeVisible({ timeout: 10000 });
+    await loginAsPaidTier(page);
 
     // /settings/cloud is a URL alias for the Data tab (use-settings-form.ts's
     // TAB_ALIASES) - visit it once to smoke-test the alias route itself. The

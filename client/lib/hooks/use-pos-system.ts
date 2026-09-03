@@ -108,7 +108,7 @@ export function usePOSSystem() {
     redeemReward,
     clearRedemption,
   } = usePOSCart(products);
-  const { canUseSmartSuggestions, withRestriction } = useFeatureGate();
+  const { canUseSmartSuggestions, canUseLoyaltyProgram, withRestriction } = useFeatureGate();
   const { suggestions } = useSmartSuggestions(cart, products);
   const requirePaymentAccount = storeProfile?.require_payment_account === 1;
   const requireSaleNotes = storeProfile?.require_sale_notes === 1;
@@ -150,6 +150,7 @@ export function usePOSSystem() {
     dispensedRxId,
     setDispensedRxId,
     isRefillDispense,
+    canUseLoyaltyProgram,
   });
   usePOSKeyboardShortcuts({
     searchInputRef,

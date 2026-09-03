@@ -101,8 +101,22 @@ Panel: `BusinessInfoPanel` (`panels/business-info-panel.tsx`). Admin-only.
 - **Business Information** (edit-toggled via pencil icon) — Business Name,
   Registration/CAC Number, Address, Phone, Email, Business Logo upload.
 - **Store Profile** — Store URL Slug (public storefront link), **Enable
-  Online Store** switch, PCN License Number, **Include Retail Items in
-  Suggestions** switch.
+  Online Store** switch, **Enable Loyalty Program** switch, PCN License
+  Number, **Include Retail Items in Suggestions** switch.
+
+**Enable Loyalty Program** — next to Enable Online Store, same visual
+pattern. Backed by `stores.loyalty_program_enabled` (DEFAULT `1`/ON, so
+existing Pro/Enterprise stores saw no behavior change when this was added).
+Only meaningful on Pro/Enterprise plans (`canAccessLoyaltyProgramPlan`,
+plan-tier only — deliberately *not* the combined `canUseLoyaltyProgram`,
+since gating the switch's own visibility on the combined value would hide
+it the moment it's turned off); on a lower plan, clicking it shows an
+upgrade toast instead of enabling it, matching Enable Online Store's
+existing convention. Turning it off hides the Redeem Reward control in POS
+and stops loyalty point writes entirely — see `docs/features/pos.md`. The
+same switch (same field, same `updateStoreProfile()` mutation) also appears
+in the Loyalty Settings dialog (Customers → Loyalty tab → Edit Settings),
+for convenience.
 
 **Verified live:** toggled "Include Retail Items in Suggestions" on inside
 edit mode, saved, hard-reloaded `/settings/business-info` — the toggle

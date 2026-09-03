@@ -853,6 +853,130 @@ sub-tabs) against real seeded data on Pikarestiv Stores 2.
   re-verified: `npx tsc --noEmit -p .` clean, `npx vitest run` 370/370
   across 68 files.
 
+### 18. Loyalty Program redemption: corrected a wrong "no redemption UI" claim, fixed two real gaps found in the existing feature
+
+- **Found:** review that traced bug #2 in `_known-bugs.md` before acting on
+  it.
+- **The correction:** bug #2's original entry (from Task 5, Customers) said
+  no screen in the app — including POS checkout — let a customer redeem
+  earned points, and that redemption was "not wired up anywhere in the
+  app." That was wrong. **POS checkout already has a fully working
+  redemption UI** (`components/pos/pos-redeem-reward.tsx`, wired into
+  `pos-cart.tsx`'s cart summary) that predates this entire smoke-test
+  session — traceable to commit `2f1abfd7`. It lets a cashier, once a
+  customer is selected, pick from that customer's affordable active
+  redemption options and apply the option's naira `discount_value` as the
+  cart's discount, showing "Redeeming: <label> (N pts)" with a clear
+  button. Task 5's finding was accurate about the *Customers* module
+  (Directory, customer detail panel, and the Loyalty tab's own screens
+  genuinely have no redeem action) but never checked POS before generalizing
+  to "anywhere in the app."
+- **Two real gaps were found in the existing, working feature** while
+  verifying the correction above — grepped `pos-redeem-reward.tsx`,
+  `pos-cart.tsx`, `use-pos-cart.ts`, and `use-pos-payment.ts` for
+  `canUseLoyaltyProgram`/`useFeatureGate` and found zero references in any
+  of them:
+  1. **POS redemption bypassed the plan-tier gate entirely.**
+     `useFeatureGate().canUseLoyaltyProgram` (previously
+     `getFeature('loyalty_program', 'loyalty_program', isPro ||
+     isEnterprise)`) was wired into the Loyalty tab itself by an earlier fix
+     this session, but nothing gated the POS redemption path — a Free-tier
+     store could redeem points at checkout same as a Pro/Enterprise one.
+  2. **No independent on/off switch.** The only gate was plan tier; an
+     entitled Pro/Enterprise store had no way to pause the whole program
+     (e.g. while reconfiguring rewards, or a seasonal decision to suspend
+     it) without downgrading its plan.
+- **Fix:**
+  1. New `stores.loyalty_program_enabled INTEGER DEFAULT 1` column — added
+     to `lib/db/schema.ts`'s `CREATE TABLE stores` for fresh installs, and
+     as an `ALTER TABLE stores ADD COLUMN ...` data migration in
+     `lib/db/core.ts` for existing installs. **DEFAULT 1 (ON)**, not 0 — an
+     existing Pro/Enterprise store already using the loyalty program must
+     see zero behavior change from this migration; only a store that
+     explicitly flips the new switch off gets paused.
+  2. `useFeatureGate().canUseLoyaltyProgram` now ANDs the plan-tier
+     entitlement with the store's toggle: `isLoyaltyProgramEnabled(tierAllows,
+     storeProfile?.loyalty_program_enabled)`, a pure function (`!==
+     0`, so undefined/null pre-migration rows read as "on") extracted into
+     `lib/hooks/use-feature-gate.ts` so the AND logic is unit-testable
+     without a StoreContext/useSystemConfigStore render harness. A second,
+     tier-only value — `canAccessLoyaltyProgramPlan` — was added alongside
+     it specifically so Settings UI could decide whether to *show* the
+     toggle without a chicken-and-egg bug: gating the switch's own
+     visibility on the combined `canUseLoyaltyProgram` would hide it the
+     instant it's turned off, making it impossible to turn back on.
+  3. `components/pos/pos-redeem-reward.tsx` now calls `useFeatureGate()`
+     directly and adds `!canUseLoyaltyProgram` to its early-return
+     condition — the entire control (trigger and the active "Redeeming: X"
+     display) disappears completely when gated, matching how gated features
+     elsewhere hide rather than merely disable (though this component
+     doesn't use `LockedModuleOverlay` itself, since it's an inline
+     cart-line-item, not a full-page module).
+  4. **Mid-session gate-flip handling:** `lib/hooks/use-pos-cart.ts` now
+     also calls `useFeatureGate()` and runs a `useEffect` that calls
+     `clearRedemption()` whenever `canUseLoyaltyProgram` is false and a
+     `redeemedOption` is still staged — covering a plan downgrade or an
+     admin flipping the store's toggle in another tab while this one has a
+     redemption already picked. Without this, a gated-off session could
+     still complete a checkout with a stale redemption's discount applied
+     (the UI hides the *control* to start a new redemption, but doesn't by
+     itself un-stage one already in cart state).
+  5. **Backend defense-in-depth:** `lib/hooks/use-pos-payment.ts` gained a
+     `canUseLoyaltyProgram` param (fails closed — defaults to `false`, so a
+     caller that forgets to pass it gets no loyalty writes rather than
+     silently bypassing the gate) threaded from `use-pos-system.ts`'s
+     `useFeatureGate()` call. When it's false: `earnedPoints` is forced to
+     `0`, `sales.points_redeemed` is forced to `0`, and the whole
+     `loyalty_transactions` insert block (both `earned` and `redeemed` rows,
+     plus the `customers.loyalty_points` balance update) is skipped — even
+     if a customer and a staged redemption both somehow reach this function,
+     e.g. via a stale UI state.
+  6. **Settings UI, both places, one mutation:** an "Enable Loyalty
+     Program" switch was added to Settings → Business Info's Store Profile
+     section (`components/settings/store/store-profile-section.tsx`, next
+     to the existing "Enable Online Store" switch, same visual pattern and
+     same "always show; click-blocked with an upgrade toast if
+     `!canAccessLoyaltyProgramPlan`" convention `canUseEcommerce`/`onlineStoreEnabled`
+     already used) and to the Loyalty Settings dialog
+     (`components/customers/loyalty-settings-dialog.tsx`) as a
+     clearly-separated "Program Status" section above the Tiers/Redemption
+     Options tabs. Both read/write the exact same
+     `stores.loyalty_program_enabled` field through the exact same
+     mechanism — `useStore().updateStoreProfile()`, which is a direct
+     `update("stores", storeId, {...})` (confirmed `stores` is not one of
+     `STORE_SCOPED_TABLES`'s per-tenant-scoped domain tables — it *is* the
+     tenant) — so there is only one persistence path, never two that could
+     drift.
+- **Testing:**
+  - `client/__tests__/use-feature-gate-loyalty.test.ts` — unit tests for
+    `isLoyaltyProgramEnabled()`'s AND logic (tier-only, toggle-only,
+    both-off, undefined/null-toggle-treated-as-on). RED (function didn't
+    exist) confirmed before implementation, GREEN after.
+  - `client/__tests__/use-pos-payment-loyalty-gate.test.ts` — the most
+    important test in this fix: a real sql.js-backed `usePOSPayment()`
+    render (via a minimal `react-dom/client` + React 19 `act()` harness,
+    since this repo has no `@testing-library/react`), asserting zero
+    `loyalty_transactions` rows are written — earn or redeem — when
+    `canUseLoyaltyProgram: false`, with a customer selected and a
+    redemption staged, plus a control case confirming both rows are still
+    written when the gate is open. RED (control-case assertions passed
+    unconditionally pre-fix, i.e. the gate-off case wrote both rows exactly
+    like the control) confirmed before the fix, GREEN after.
+  - `client/__tests__/init-database-migrations.test.ts` — new case
+    confirming the `ALTER TABLE stores ADD COLUMN loyalty_program_enabled`
+    migration, run against a legacy store row that predates the column,
+    lands on `1` (not `0`), following the existing
+    `relaxPurchaseOrdersSupplierIdNullable`-style migration test pattern in
+    this file. RED (`no such column`) before, GREEN after.
+  - Full suite re-verified after all changes: `npx tsc --noEmit -p .`
+    clean, `npx vitest run` 378/378 across 70 files.
+- **Docs updated:** `docs/features/customers.md` (Loyalty Program section —
+  correction plus the new toggle), `docs/features/pos.md` (Cart section —
+  Redeem Reward control documented for the first time, with its gating),
+  `docs/features/settings.md` (Business Info section — new switch),
+  `docs/features/_known-bugs.md` (bug #2 rewritten from "Open, missing
+  feature" to "Fixed" with the corrected record and both real gaps).
+
 ## Open
 
 (Sections below add entries here as they're walked.)

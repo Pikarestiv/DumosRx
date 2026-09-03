@@ -6,6 +6,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { formatCurrency } from "@/lib/utils";
 import { getLoyaltyRedemptionOptions } from "@/lib/db/queries/loyalty";
 import { queryKeys } from "@/lib/query-keys";
+import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import type { RedeemedOption } from "@/lib/hooks/use-pos-cart";
 import type { Customer } from "@/lib/types/customer";
 
@@ -27,6 +28,7 @@ export function POSRedeemReward({
   onClear,
   currencyCode,
 }: POSRedeemRewardProps) {
+  const { canUseLoyaltyProgram } = useFeatureGate();
   const { data: options = [] } = useQuery({
     ...queryKeys.loyalty.redemptionOptions(),
     queryFn: getLoyaltyRedemptionOptions,
@@ -37,7 +39,12 @@ export function POSRedeemReward({
     (o) => o.is_active && o.discount_value > 0,
   );
 
-  if (!selectedCustomer || redeemableOptions.length === 0) return null;
+  // Hidden entirely (not just disabled) when the Loyalty Program is gated
+  // off (plan tier and/or the store's own on/off toggle) — matches how
+  // gated features elsewhere in the app disappear rather than showing a
+  // locked/disabled control, since this is an inline cart-line-item, not a
+  // full-page module that would use LockedModuleOverlay.
+  if (!canUseLoyaltyProgram || !selectedCustomer || redeemableOptions.length === 0) return null;
 
   const customerPoints = selectedCustomer.loyalty_points || 0;
 

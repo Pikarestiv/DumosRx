@@ -23,19 +23,48 @@ Status values: **Open** (not started) → **In Progress** → **Fixed**.
   follow-up: `update()`/`softDelete()` in `base-helpers.ts` do no `store_id`
   check at all, a latent cross-tenant risk across every domain table.
 
-## 2. Loyalty points have no redemption UI anywhere in the app
+## 2. Loyalty Program redemption: corrected record, plus two real gaps found and fixed
 
-- **Status:** Open
-- **Found:** Task 5 (Customers)
-- **Where:** `loyalty_redemption_options` and `loyalty_transactions` tables
-  and their Loyalty Settings config UI exist and work, but no screen
-  (Directory, customer detail, POS checkout) lets a customer actually redeem
-  earned points.
-- **Risk:** none (not a regression) — but it's advertised functionality (in
-  the pre-existing `docs/SYSTEM_FEATURES_DOCUMENTATION.md`) that doesn't
-  exist. Marketing docs already avoid claiming it works.
-- **Why not fixed yet:** this is a missing feature (a real redemption flow),
-  not a bug fix — out of proportion to build during a smoke-test pass.
+- **Status:** Fixed (`PENDING_COMMIT_HASH`)
+- **Found:** Task 5 (Customers); corrected and fixed in the loyalty-toggle task.
+- **The original entry here was wrong.** It claimed "no screen (Directory,
+  customer detail, POS checkout) lets a customer actually redeem earned
+  points" and that redemption was "not wired up anywhere in the app." That
+  is false: **POS checkout has a fully working redemption UI**
+  (`POSRedeemReward`, wired into `pos-cart.tsx`) that predates this whole
+  smoke-test session (commit `2f1abfd7`) — it lets a cashier spend a
+  customer's points against an active redemption option as a line discount
+  at checkout. The Task 5 finding that produced this entry only checked the
+  Customers module (Directory, customer detail, the Loyalty tab's own
+  screens — which genuinely have no redeem action, that part was correct)
+  and never checked POS. See `docs/features/customers.md`'s Loyalty Program
+  section and `docs/features/pos.md`'s Cart section for the corrected
+  record.
+- **Two real gaps *were* found in the existing redemption feature**, and are
+  fixed by this entry's commit:
+  1. **POS redemption bypassed the plan-tier gate.**
+     `useFeatureGate().canUseLoyaltyProgram` was wired into the Loyalty tab
+     (see the fix history above this entry) but `pos-redeem-reward.tsx`
+     never checked it at all — a Free-tier store could redeem points at
+     checkout. Fixed: `POSRedeemReward` now hides its entire UI (trigger and
+     the "Redeeming: X" display) when the gate is closed, `usePOSCart`
+     clears any already-staged redemption if the gate flips off mid-session
+     (plan downgrade, or the toggle below being flipped in another tab),
+     and `usePOSPayment` refuses to write earned/redeemed
+     `loyalty_transactions` rows (or `sales.points_earned`/
+     `points_redeemed`) when the gate is closed, as defense-in-depth against
+     a stale UI state.
+  2. **No independent on/off switch.** The only gate was plan tier — an
+     entitled Pro/Enterprise store had no way to pause the program if it
+     didn't want it running. Fixed: new `stores.loyalty_program_enabled`
+     column (DEFAULT `1`/ON, so no existing Pro/Enterprise store's behavior
+     changed), ANDed into `canUseLoyaltyProgram`, with an "Enable Loyalty
+     Program" switch in both Settings → Business Info and the Loyalty
+     Settings dialog's new Program Status section (same field, same
+     `updateStoreProfile()` mutation).
+- **Risk:** POS gating leak was real revenue/entitlement risk (a Free-tier
+  store getting a paid feature for free); the missing toggle was a product
+  gap, not a security issue. Both closed by this fix.
 
 ## 3. Prescriptions: "-5/142" stock-batch display anomaly (investigated — not a bug, two unrelated products share a name)
 

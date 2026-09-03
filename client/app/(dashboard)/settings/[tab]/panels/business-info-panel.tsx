@@ -34,6 +34,9 @@ export function BusinessInfoPanel(s: SettingsState) {
         setShowRetailSuggestions={s.setShowRetailSuggestions}
         onlineStoreEnabled={s.onlineStoreEnabled}
         setOnlineStoreEnabled={s.setOnlineStoreEnabled}
+        loyaltyProgramEnabled={s.loyaltyProgramEnabled}
+        setLoyaltyProgramEnabled={s.setLoyaltyProgramEnabled}
+        canAccessLoyaltyProgramPlan={s.canAccessLoyaltyProgramPlan}
         handleSaveProfile={s.handleSaveProfile}
       />
     </>

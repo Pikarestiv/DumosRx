@@ -24,7 +24,7 @@ export function useSettings() {
     refetch: refetchStore,
   } = useStore();
 
-  const { minimumSyncIntervalMinutes, canRemoveBranding } = useFeatureGate();
+  const { minimumSyncIntervalMinutes, canRemoveBranding, canAccessLoyaltyProgramPlan } = useFeatureGate();
 
   const router = useRouter();
   const params = useParams();
@@ -58,6 +58,7 @@ export function useSettings() {
     showRetailSuggestions,
     requirePaymentAccount,
     onlineStoreEnabled,
+    loyaltyProgramEnabled,
     enabledPaymentMethods,
     autoSyncEnabled,
     autoSyncInterval,
@@ -202,6 +203,10 @@ export function useSettings() {
       show_retail_suggestions: showRetailSuggestions ? 1 : 0,
       require_payment_account: requirePaymentAccount ? 1 : 0,
       online_store_enabled: onlineStoreEnabled ? 1 : 0,
+      // Only meaningful (and shown) for Pro/Enterprise stores — see
+      // canUseLoyaltyProgram — but persisted here regardless so the value
+      // is preserved if the store later downgrades and re-upgrades.
+      loyalty_program_enabled: loyaltyProgramEnabled ? 1 : 0,
       enabled_payment_methods: JSON.stringify(enabledPaymentMethods),
       updated_at: new Date().toISOString(),
     });
@@ -288,6 +293,7 @@ export function useSettings() {
     isAdmin,
     isCloudLinked,
     storeType,
+    canAccessLoyaltyProgramPlan,
     activeTheme,
     setAppTheme,
     activeTab,

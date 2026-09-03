@@ -21,6 +21,9 @@ interface StoreProfileSectionProps {
   onlineStoreEnabled?: boolean;
   setOnlineStoreEnabled?: (val: boolean) => void;
   canUseEcommerce: boolean;
+  loyaltyProgramEnabled?: boolean;
+  setLoyaltyProgramEnabled?: (val: boolean) => void;
+  canAccessLoyaltyProgramPlan?: boolean;
   getUpgradeMessage: (feature: string, fallback?: string) => string;
 }
 
@@ -39,6 +42,9 @@ export function StoreProfileSection({
   onlineStoreEnabled = false,
   setOnlineStoreEnabled,
   canUseEcommerce,
+  loyaltyProgramEnabled = false,
+  setLoyaltyProgramEnabled,
+  canAccessLoyaltyProgramPlan = false,
   getUpgradeMessage,
 }: StoreProfileSectionProps) {
   const [isEditingSlug, setIsEditingSlug] = useState(false);
@@ -159,6 +165,44 @@ export function StoreProfileSection({
           <p className="text-sm font-medium py-2">{onlineStoreEnabled ? "Enabled" : "Disabled"}</p>
         )}
       </div>
+
+      {setLoyaltyProgramEnabled && (
+        <div className="flex items-center justify-between rounded-lg border p-4 bg-background">
+          <div className="space-y-0.5">
+            <div className="flex items-center gap-2">
+              <Label className="text-base">Enable Loyalty Program</Label>
+              <TooltipProvider delayDuration={0}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>When off, points stop earning and the Redeem Reward option disappears from POS checkout. Tiers and rewards stay configured for whenever you turn it back on.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Let customers earn and redeem points on purchases
+            </p>
+          </div>
+          {isEditingProfile ? (
+            <Switch
+              id="loyalty-program-enabled"
+              checked={loyaltyProgramEnabled}
+              onCheckedChange={(val) => {
+                if (!canAccessLoyaltyProgramPlan) {
+                  toast.error(getUpgradeMessage('loyalty_program', "Upgrade to a premium plan to use the Loyalty Program."));
+                  return;
+                }
+                setLoyaltyProgramEnabled?.(val);
+              }}
+            />
+          ) : (
+            <p className="text-sm font-medium py-2">{loyaltyProgramEnabled ? "Enabled" : "Disabled"}</p>
+          )}
+        </div>
+      )}
 
       {storeType === "pharmacy" && (
         <>

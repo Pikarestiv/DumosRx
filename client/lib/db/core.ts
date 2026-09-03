@@ -755,6 +755,15 @@ export async function initDatabase(): Promise<any> {
       // Ignore if column already exists
     }
 
+    try {
+      // DEFAULT 1 (ON) so existing Pro/Enterprise stores already using the
+      // loyalty program see zero behavior change — only a store that
+      // explicitly flips this off in Settings gets paused.
+      db.run('ALTER TABLE stores ADD COLUMN loyalty_program_enabled INTEGER DEFAULT 1;');
+    } catch (_e) {
+      // Ignore if column already exists
+    }
+
     const webAdapter = makeSqlJsAdapter(db);
 
     try {

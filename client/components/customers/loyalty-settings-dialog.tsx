@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Plus, Loader2, Tag } from "lucide-react";
+import { Plus, Loader2, Tag, Info } from "lucide-react";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -12,8 +13,18 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useAuth } from "@/lib/context/auth-context";
+import { useStore } from "@/lib/context/store-context";
+import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import {
   getLoyaltyTiers,
   getLoyaltyRedemptionOptions,
@@ -39,7 +50,22 @@ interface Props {
 
 export function LoyaltySettingsDialog({ open, onOpenChange }: Props) {
   const { user, canManageStockBatch } = useAuth();
+  const { storeProfile, updateStoreProfile } = useStore();
+  const { canAccessLoyaltyProgramPlan, getUpgradeMessage } = useFeatureGate();
   const [section, setSection] = useState<"tiers" | "redemption">("tiers");
+
+  // Same field, same mutation mechanism as the Business Info tab's "Enable
+  // Loyalty Program" switch — both write stores.loyalty_program_enabled via
+  // updateStoreProfile() (a direct `update("stores", storeId, {...})` under
+  // the hood), so the two toggles can never drift onto separate paths.
+  const loyaltyProgramEnabled = storeProfile?.loyalty_program_enabled !== 0;
+  const handleToggleLoyaltyProgram = (val: boolean) => {
+    if (!canAccessLoyaltyProgramPlan) {
+      toast.error(getUpgradeMessage('loyalty_program', "Upgrade to a premium plan to use the Loyalty Program."));
+      return;
+    }
+    updateStoreProfile({ loyalty_program_enabled: val ? 1 : 0 });
+  };
 
   // Defense-in-depth: the only current entry point (LoyaltyTab's "Edit
   // Settings" button) is already gated, but this closes the dialog if it's
@@ -120,6 +146,32 @@ export function LoyaltySettingsDialog({ open, onOpenChange }: Props) {
               Manage tier thresholds, benefits, and points redemption rewards.
             </DialogDescription>
           </DialogHeader>
+
+          <div className="flex items-center justify-between rounded-lg border p-4 bg-background">
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-2">
+                <Label className="text-base">Program Status</Label>
+                <TooltipProvider delayDuration={0}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>When off, points stop earning and the Redeem Reward option disappears from POS checkout. Tiers and rewards below stay configured for whenever you turn it back on.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Let customers earn and redeem points on purchases
+              </p>
+            </div>
+            <Switch
+              id="loyalty-program-enabled-dialog"
+              checked={loyaltyProgramEnabled}
+              onCheckedChange={handleToggleLoyaltyProgram}
+            />
+          </div>
 
           <div className="flex gap-2 border-b pb-2">
             <button

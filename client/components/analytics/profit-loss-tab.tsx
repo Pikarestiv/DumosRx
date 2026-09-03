@@ -22,7 +22,7 @@ import {
   ChartTooltip, 
   ChartTooltipContent 
 } from "@/components/ui/chart";
-import { formatCurrency, getCurrencySymbol } from "@/lib/utils";
+import { formatMetricCurrency, getCurrencySymbol } from "@/lib/utils";
 import { useStore } from "@/lib/context/store-context";
 import type { MonthlySalesDataPoint } from "@/lib/types/analytics";
 
@@ -77,34 +77,34 @@ export function ProfitLossTab({
         <div>
           <div className="flex items-center justify-between py-3 border-b text-[13.5px]">
             <div>Gross Sales</div>
-            <div className="font-semibold">{formatCurrency(grossSales, currencyCode)}</div>
+            <div className="font-semibold">{formatMetricCurrency(grossSales, currencyCode)}</div>
           </div>
           <div className="flex items-center justify-between py-3 border-b text-[13.5px] text-destructive italic">
             <div className="flex items-center gap-1"><ArrowDownRight className="w-3.5 h-3.5" /> Discounts, Tax &amp; Refunds</div>
-            <div className="font-semibold">− {formatCurrency(Math.max(0, grossSales - netSales), currencyCode)}</div>
+            <div className="font-semibold">− {formatMetricCurrency(Math.max(0, grossSales - netSales), currencyCode)}</div>
           </div>
           <div className="flex items-center justify-between py-3 bg-muted/40 px-3 rounded-lg my-2 text-[13.5px] font-bold">
             <div>NET SALES</div>
-            <div>{formatCurrency(netSales, currencyCode)}</div>
+            <div>{formatMetricCurrency(netSales, currencyCode)}</div>
           </div>
           <div className="flex items-center justify-between py-3 border-b text-[13.5px] text-destructive italic">
             <div className="flex items-center gap-1"><ArrowDownRight className="w-3.5 h-3.5" /> Cost of Goods Sold (COGS)</div>
-            <div className="font-semibold">− {formatCurrency(totalCogs, currencyCode)}</div>
+            <div className="font-semibold">− {formatMetricCurrency(totalCogs, currencyCode)}</div>
           </div>
           <div className="flex items-center justify-between py-3 bg-primary/5 px-3 rounded-lg my-2 text-[13.5px] font-bold text-primary">
             <div>GROSS PROFIT</div>
-            <div>{formatCurrency(grossProfit, currencyCode)}</div>
+            <div>{formatMetricCurrency(grossProfit, currencyCode)}</div>
           </div>
           <div className="flex items-center justify-between py-3 border-b text-[13.5px] text-destructive italic">
             <div className="flex items-center gap-1"><ArrowDownRight className="w-3.5 h-3.5" /> Total Operational Expenses</div>
-            <div className="font-semibold">− {formatCurrency(totalExpenses, currencyCode)}</div>
+            <div className="font-semibold">− {formatMetricCurrency(totalExpenses, currencyCode)}</div>
           </div>
         </div>
 
         <div className="bg-emerald-500/10 rounded-xl p-4 flex flex-col md:flex-row items-center justify-between gap-4">
           <div>
             <div className="text-[11px] font-bold text-emerald-600 uppercase tracking-wide">Final Net Income (Take Home)</div>
-            <div className="text-[24px] font-bold font-['Playfair_Display'] text-emerald-600">{formatCurrency(netProfit, currencyCode)}</div>
+            <div className="text-[24px] font-bold font-['Playfair_Display'] text-emerald-600">{formatMetricCurrency(netProfit, currencyCode)}</div>
           </div>
           <div className="bg-background border rounded-xl px-4 py-2.5 text-center shadow-sm">
             <div className="text-[10px] font-semibold text-muted-foreground uppercase">Net Margin</div>

@@ -494,3 +494,43 @@ Newest entries at the bottom of each section.
   "Resolved" #8 above) since this path — Standard PO receiving — had zero
   automated coverage before this task.
 - See `docs/features/procurement.md` for full detail.
+
+### 10. Reports: Profit & Loss tab showed decimal kobo precision for the same aggregate figures BIKeyMetrics rounds to whole Naira, on the same page
+
+- **Found:** while walking Reports > Analytics & Insights > Profit & Loss.
+  The `BIKeyMetrics` cards at the top of the Analytics & Insights page (Net
+  Sales, Net Profit, ...) render via `formatMetricCurrency()` — rounded to a
+  whole NGN unit, per its own doc comment in `lib/utils.ts` ("for dashboard/
+  report metric cards where a rounded headline figure reads cleaner than an
+  exact-to-the-kobo total"). `components/analytics/profit-loss-tab.tsx`'s
+  "Financial Performance Statement" panel a few rows below it renders the
+  *same* aggregate totals — Gross Sales, Discounts/Tax/Refunds, Net Sales,
+  COGS, Gross Profit, Total Operational Expenses, Final Net Income — via
+  `formatCurrency()` instead, which keeps decimal precision. Live-reproduced
+  on Store 2 real data: the "Net Profit" metric card read "₦1,420" while
+  "Final Net Income (Take Home)" a few rows down showed "₦1,420.25" for the
+  literal same underlying number, on the same page render.
+- **Fix:** `client/components/analytics/profit-loss-tab.tsx` — swapped the
+  import and all 7 call sites from `formatCurrency` to `formatMetricCurrency`,
+  matching the convention `BIKeyMetrics`/`DailyCloseMetrics` already use for
+  aggregate metric cards (line-item/detail tables elsewhere in Reports
+  correctly keep `formatCurrency`'s precision, e.g. `SalesListModal`,
+  `StaffPerformanceTab`'s per-cashier Avg Transaction — those weren't
+  touched).
+- **Verified by:** `client/__tests__/profit-loss-tab-currency-formatting.test.ts`
+  (source-inspection style, matching `dashboard-action-center-routes.test.ts`'s
+  established pattern — no component-rendering test harness exists in this
+  repo yet) — confirmed to fail pre-fix (`formatCurrency(` present in the
+  source) via `git stash`, pass post-fix. Live re-verified in Chrome:
+  post-fix, COGS/Gross Profit/Final Net Income all render as whole numbers
+  matching the BIKeyMetrics cards above them exactly.
+- **Coverage gap also closed:** zero e2e coverage existed for the whole
+  Reports section before this task (confirmed via the brief's own
+  `grep -rln "formatMetricCurrency" __tests__/ lib/ components/reports/`,
+  which matched only the function's definition and one pre-existing, partial
+  unit test). Added `client/e2e/reports.spec.ts` (Daily Close, Operational
+  Reports, and Analytics & Insights all render real Store 2 data) and
+  extended `formatMetricCurrency`'s existing unit test in
+  `client/__tests__/utils.test.ts` with negative-number, zero, and
+  large-value cases, plus a non-NGN-negative case, per the brief.
+- See `docs/features/reports.md` for full detail.

@@ -83,6 +83,40 @@ describe("requested-products-queries.ts", () => {
     expect(rows[0].notes).toBe("Out of stock everywhere | Prefers the syrup form");
   });
 
+  it("appends a new customer name even when it is a substring of an already-accumulated name (Ann vs Anna)", async () => {
+    await logRequestedProduct("Ibuprofen", "Anna");
+    await logRequestedProduct("Ibuprofen", "Ann");
+
+    const rows = await getRequestedProducts("all");
+    expect(rows[0].requested_by_customer).toBe("Anna, Ann");
+  });
+
+  it("does not append an exact-duplicate customer name (case-insensitive) even after a substring name was added", async () => {
+    await logRequestedProduct("Ibuprofen", "Anna");
+    await logRequestedProduct("Ibuprofen", "Ann");
+    await logRequestedProduct("Ibuprofen", "ann"); // exact duplicate of "Ann", different case
+
+    const rows = await getRequestedProducts("all");
+    expect(rows[0].requested_by_customer).toBe("Anna, Ann");
+  });
+
+  it("appends a new note even when it is a substring of an already-accumulated note", async () => {
+    await logRequestedProduct("Ibuprofen", "Jane", 1, "Needs it soon-ish");
+    await logRequestedProduct("Ibuprofen", "Bob", 1, "Needs it soon");
+
+    const rows = await getRequestedProducts("all");
+    expect(rows[0].notes).toBe("Needs it soon-ish | Needs it soon");
+  });
+
+  it("does not append an exact-duplicate note (case-insensitive) even after a substring note was added", async () => {
+    await logRequestedProduct("Ibuprofen", "Jane", 1, "Needs it soon-ish");
+    await logRequestedProduct("Ibuprofen", "Bob", 1, "Needs it soon");
+    await logRequestedProduct("Ibuprofen", "Ann", 1, "needs it soon"); // exact duplicate of "Needs it soon", different case
+
+    const rows = await getRequestedProducts("all");
+    expect(rows[0].notes).toBe("Needs it soon-ish | Needs it soon");
+  });
+
   it("does NOT merge into a request that's already been marked ordered; opens a fresh pending one instead", async () => {
     const firstId = await logRequestedProduct("Amoxicillin", "Jane", 1);
     await markRequestedProductAsOrdered(firstId);

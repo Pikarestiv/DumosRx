@@ -29,9 +29,12 @@ export async function logRequestedProduct(product_name: string, requested_by_cus
     // Determine the new customer string if provided
     let newCustomerString = record.requested_by_customer || '';
     if (requested_by_customer) {
-      if (newCustomerString && !newCustomerString.includes(requested_by_customer)) {
-        newCustomerString += `, ${requested_by_customer}`;
-      } else if (!newCustomerString) {
+      if (newCustomerString) {
+        const existingNames = newCustomerString.split(', ').map((s) => s.toLowerCase());
+        if (!existingNames.includes(requested_by_customer.toLowerCase())) {
+          newCustomerString += `, ${requested_by_customer}`;
+        }
+      } else {
         newCustomerString = requested_by_customer;
       }
     }
@@ -39,9 +42,12 @@ export async function logRequestedProduct(product_name: string, requested_by_cus
     // Determine the new notes string if provided
     let newNotesString = record.notes || '';
     if (note) {
-      if (newNotesString && !newNotesString.includes(note)) {
-        newNotesString += ` | ${note}`;
-      } else if (!newNotesString) {
+      if (newNotesString) {
+        const existingNotes = newNotesString.split(' | ').map((s) => s.toLowerCase());
+        if (!existingNotes.includes(note.toLowerCase())) {
+          newNotesString += ` | ${note}`;
+        }
+      } else {
         newNotesString = note;
       }
     }

@@ -5,6 +5,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { toast } from "sonner";
 import { useStore } from "@/lib/context/store-context";
+import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import {
   calculateSubtotal,
   calculateTax,
@@ -60,6 +61,7 @@ const usePOSCartStore = create<POSCartState>()(
 
 export function usePOSCart(products: Product[]) {
   const { vatPercentage } = useStore();
+  const { canUseLoyaltyProgram } = useFeatureGate();
   const cart = usePOSCartStore((state) => state.cart);
   const setCart = usePOSCartStore((state) => state.setCart);
   const discount = usePOSCartStore((state) => state.discount);
@@ -102,6 +104,19 @@ export function usePOSCart(products: Product[]) {
   useEffect(() => {
     setIsHydrated(true);
   }, []);
+
+  // A redemption already staged in cart state can outlive the gate that
+  // allowed it — a plan downgrade, or an admin flipping the store's on/off
+  // toggle in another tab, mid-session. If that happens while a reward is
+  // staged, clear it immediately rather than letting checkout complete with
+  // a redemption the store is no longer entitled/willing to honor; the
+  // discount it applied is cleared along with it via clearRedemption().
+  useEffect(() => {
+    if (!canUseLoyaltyProgram && redeemedOption) {
+      clearRedemption();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canUseLoyaltyProgram, redeemedOption]);
 
   const subtotal = useMemo(() => calculateSubtotal(cart), [cart]);
   const tax = useMemo(() => calculateTax(subtotal, vatPercentage), [subtotal, vatPercentage]);

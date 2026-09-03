@@ -44,6 +44,9 @@ interface BusinessInformationCardProps {
   setShowRetailSuggestions?: (val: boolean) => void;
   onlineStoreEnabled?: boolean;
   setOnlineStoreEnabled?: (val: boolean) => void;
+  loyaltyProgramEnabled?: boolean;
+  setLoyaltyProgramEnabled?: (val: boolean) => void;
+  canAccessLoyaltyProgramPlan?: boolean;
   handleSaveProfile: () => void;
 }
 
@@ -70,6 +73,9 @@ export function BusinessInformationCard({
   setShowRetailSuggestions,
   onlineStoreEnabled = false,
   setOnlineStoreEnabled,
+  loyaltyProgramEnabled = false,
+  setLoyaltyProgramEnabled,
+  canAccessLoyaltyProgramPlan = false,
   handleSaveProfile,
 }: BusinessInformationCardProps) {
   const {
@@ -289,6 +295,9 @@ export function BusinessInformationCard({
           onlineStoreEnabled={onlineStoreEnabled}
           setOnlineStoreEnabled={setOnlineStoreEnabled}
           canUseEcommerce={canUseEcommerce}
+          loyaltyProgramEnabled={loyaltyProgramEnabled}
+          setLoyaltyProgramEnabled={setLoyaltyProgramEnabled}
+          canAccessLoyaltyProgramPlan={canAccessLoyaltyProgramPlan}
           getUpgradeMessage={getUpgradeMessage}
         />
       </CardContent>

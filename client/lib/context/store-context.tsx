@@ -47,6 +47,7 @@ export interface StoreProfile {
   require_payment_account?: number;
   enabled_payment_methods?: string;
   online_store_enabled?: number;
+  loyalty_program_enabled?: number;
   store_slug?: string;
   updated_at?: string;
   license_token?: string;

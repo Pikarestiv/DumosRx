@@ -101,16 +101,32 @@ confirmed live on this Pro-tier store.
     icon, optional monetary discount value). Inactive options show an
     "inactive" badge here but are hidden entirely from the main tab's public
     list (`redemptionOptions.filter(o => o.is_active)`).
+  - **Program Status**: a top, clearly-separated "Enable Loyalty Program"
+    switch, backed by `stores.loyalty_program_enabled` (DEFAULT `1`/ON).
+    Turning it off pauses the whole program — POS checkout stops earning
+    points and the Redeem Reward control disappears — without touching any
+    tier/reward configuration below it. The same switch (same field, same
+    `updateStoreProfile()` mutation) also appears in Settings → Business
+    Info, next to "Enable Online Store."
+
+**Correction (this task):** an earlier finding in this file (and in
+`docs/features/_known-bugs.md` #2) claimed no screen in the app lets a
+customer redeem earned points, including POS. That was wrong — it only
+checked the Customers module. **POS checkout is where redemption actually
+happens**: the cart's Redeem Reward control (`POSRedeemReward`, see
+`docs/features/pos.md`'s Cart section) lets the cashier spend a customer's
+points against an active redemption option as a line discount, and predates
+this whole smoke-test session (commit `2f1abfd7`). Directory, the customer
+detail panel, and this tab's own screens genuinely have no redeem action —
+that part of the original finding was correct — but the wider "no consuming
+UI anywhere in the app" claim was not.
 
 **Loyalty transactions** (the `loyalty_transactions` table, i.e. a ledger of
-points earned/redeemed) has no dedicated UI surface in this module — points
-are shown only as a running bal­ance (`customer.loyalty_points`) on the
-detail panel and Directory table, not as a per-event history. Redemption
-itself (spending points against a `loyalty_redemption_options` row) is also
-not wired up anywhere in the app the redemption options only configure what
-*could* be redeemed, there is no "redeem" action in the Directory, detail
-panel, or POS. This is a real feature gap worth flagging, though implementing
-redemption is out of scope for this smoke-test pass.
+points earned/redeemed) still has no dedicated UI surface in this module —
+points are shown only as a running balance (`customer.loyalty_points`) on
+the detail panel and Directory table, not as a per-event history. That part
+of the original observation stands; only the "no redemption anywhere"
+framing was corrected.
 
 ## Customer payments (`customer_payments` table)
 

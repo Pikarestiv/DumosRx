@@ -59,6 +59,25 @@ Two-pane desktop layout (`POSLayoutHeader` + product grid on the left,
 - **Clear cart** — confirmation dialog before wiping the current cart.
 - **Charge** button opens the Payment dialog; disabled with `₦0` label when
   the cart is empty.
+- **Redeem Reward** (`POSRedeemReward`) — this is where loyalty-point
+  redemption actually happens (see `docs/features/customers.md`'s Loyalty
+  tab section, which only *configures* tiers/rewards and does not itself
+  offer a redeem action). Appears once a customer is selected and at least
+  one active redemption option has a naira `discount_value` configured
+  (non-monetary perks like "Free Delivery" stay configurable but aren't
+  applicable as a POS discount). Picking an affordable option sets it as the
+  cart's discount and shows "Redeeming: <label> (N pts)" with a clear
+  button; a manual discount edit or a held-sale recall both detach any
+  active redemption (the discount and the redemption share one slot).
+  **Gated** on `useFeatureGate().canUseLoyaltyProgram` — plan tier
+  (Pro/Enterprise) AND the store's own "Enable Loyalty Program" toggle
+  (Settings → Business Info, or the Loyalty Settings dialog's Program
+  Status section) — the control is hidden entirely, not just disabled, when
+  either is off, and any already-staged redemption is cleared automatically
+  if the gate flips off mid-session (e.g. a plan downgrade). `usePOSPayment`
+  also refuses to write earned/redeemed `loyalty_transactions` rows (or the
+  sale row's `points_earned`/`points_redeemed`) when the gate is closed, as
+  defense-in-depth against a stale UI state.
 
 ## Held transactions (park & resume)
 

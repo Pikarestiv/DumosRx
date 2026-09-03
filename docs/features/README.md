@@ -19,9 +19,15 @@ found.
 8. [Reports](reports.md) — Daily Close, Operational Reports, Analytics & Insights.
 9. [Activity Log](activity-log.md) — cross-cutting audit trail for every other section.
 10. [Settings](settings.md) — all 21 sub-tabs (several are URL aliases to shared panels).
+11. [Authentication](auth.md) — PIN login, logout, auto-lock, account/store switching.
 
 ## Findings log
 
 [`_findings-log.md`](_findings-log.md) is the running record of everything
 found while walking the app — see its summary section at the top for the
 totals.
+
+## Known bugs
+
+[`_known-bugs.md`](_known-bugs.md) tracks every open/fixed issue with its
+current status and, once fixed, the commit that closed it.

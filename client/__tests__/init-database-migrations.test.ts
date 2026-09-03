@@ -92,6 +92,39 @@ describe("initDatabase() web migration path", () => {
     expect(productStoreId[0].values).toEqual([["store-1", 1]]);
   });
 
+  it("adds stores.loyalty_program_enabled to a pre-existing store, defaulting it to 1 (ON)", async () => {
+    const SQL = await initSqlJs({
+      locateFile: () => require.resolve("sql.js/dist/sql-wasm.wasm"),
+    });
+    const legacyDb = new SQL.Database();
+    legacyDb.run(`
+      CREATE TABLE products (id TEXT PRIMARY KEY, name TEXT NOT NULL);
+      CREATE TABLE purchase_orders (
+        id TEXT PRIMARY KEY,
+        order_number TEXT,
+        supplier_id TEXT,
+        status TEXT DEFAULT 'pending'
+      );
+      CREATE TABLE stores (id TEXT PRIMARY KEY, name TEXT, subscription_tier TEXT DEFAULT 'pro');
+
+      INSERT INTO stores (id, name, subscription_tier) VALUES ('store-1', 'Pro Store', 'pro');
+    `);
+    storedExport = legacyDb.export();
+    legacyDb.close();
+
+    const core = await import("@/lib/db/core");
+    const db = await core.initDatabase();
+
+    // A Pro/Enterprise store already using the loyalty program before this
+    // migration must see zero behavior change: the new column must default
+    // existing rows to 1 (ON), never 0 — 0 would silently pause the feature
+    // for every store currently using it.
+    const result = db.exec(
+      "SELECT loyalty_program_enabled FROM stores WHERE id = 'store-1'",
+    );
+    expect(result[0].values).toEqual([[1]]);
+  });
+
   it("is idempotent: re-running the same migrations against an already-migrated database is a no-op that doesn't throw", async () => {
     const core = await import("@/lib/db/core");
     const first = await core.initDatabase();

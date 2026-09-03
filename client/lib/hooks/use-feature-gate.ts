@@ -7,6 +7,22 @@ import { isMobileDevice } from "@/lib/utils";
 
 export type SubscriptionTier = "free" | "starter" | "local" | "pro" | "enterprise";
 
+/**
+ * The Loyalty Program is gated on BOTH the plan-tier entitlement
+ * (`tierAllows`, from getFeature('loyalty_program', ...)) AND the store's
+ * own on/off toggle (`stores.loyalty_program_enabled`, DEFAULT 1 so
+ * existing Pro/Enterprise stores see no behavior change). `!== 0` treats
+ * undefined/null (pre-migration rows) as "on", matching that DEFAULT 1.
+ * Extracted as a pure function so the AND logic is unit-testable without a
+ * StoreContext/useSystemConfigStore render harness.
+ */
+export function isLoyaltyProgramEnabled(
+  tierAllows: boolean,
+  storeToggle: number | undefined | null,
+): boolean {
+  return tierAllows && storeToggle !== 0;
+}
+
 export function useFeatureGate() {
   const { storeProfile } = useStore();
   const { subscriptionPlans } = useSystemConfigStore();
@@ -139,7 +155,19 @@ export function useFeatureGate() {
     
     // New Features
     canUseBarcodeGeneration: getFeature('barcode_generation', 'barcode_generation', !isFree),
-    canUseLoyaltyProgram: getFeature('loyalty_program', 'loyalty_program', isPro || isEnterprise),
+    // Plan-tier entitlement only (Pro/Enterprise), independent of the
+    // store's own on/off toggle. Settings UI uses this (not
+    // canUseLoyaltyProgram below) to decide whether to show the "Enable
+    // Loyalty Program" switch at all — gating visibility on the combined
+    // value would hide the switch the moment it's toggled off, making it
+    // impossible to turn back on.
+    canAccessLoyaltyProgramPlan: getFeature('loyalty_program', 'loyalty_program', isPro || isEnterprise),
+    // Combined gate actually enforced at runtime (POS redemption, points
+    // writes): plan tier AND the store's own toggle.
+    canUseLoyaltyProgram: isLoyaltyProgramEnabled(
+      getFeature('loyalty_program', 'loyalty_program', isPro || isEnterprise),
+      storeProfile?.loyalty_program_enabled,
+    ),
     canBroadcastCreate: getFeature('broadcast_create', 'broadcast_create', isPro || isEnterprise),
   };
 }

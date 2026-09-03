@@ -78,4 +78,39 @@ describe('dashboard action center routes', () => {
       expect(allowedTabs, `"${fullMatch}" references unknown inventory tab "${tab}"`).toContain(tab);
     }
   });
+
+  // Bug #9: a product floored to quantity=0 by bug #4's oversell fix produced
+  // zero signal on the Dashboard's Action Center (it fell into
+  // `getStockBatchStats()`'s dead `critical_stock_count` field, since
+  // `low_stock_count` requires `total_qty > 0`). Fix adds a dedicated
+  // "Oversold" card, following the exact same threaded-prop + conditional
+  // pattern as the existing "Low Stock" card, sourced from
+  // `getOversoldAlerts()` instead of `getStockBatchStats()`.
+  it('surfaces an Oversold card wired to oversoldCount, conditional and routed like Low Stock', () => {
+    const actionCenterSource = fs.readFileSync(
+      path.join(__dirname, '../components/dashboard/dashboard-action-center.tsx'),
+      'utf-8',
+    );
+    const overviewSource = fs.readFileSync(
+      path.join(__dirname, '../components/dashboard/dashboard-overview.tsx'),
+      'utf-8',
+    );
+
+    // Prop threaded through the component, same shape as lowStockCount.
+    expect(actionCenterSource).toMatch(/oversoldCount:\s*number/);
+    expect(overviewSource).toMatch(/oversoldCount=\{stats\.oversoldCount\}/);
+
+    // Card only shown when there's something to show, same conditional
+    // pattern as `if (lowStockCount > 0) { ... }`.
+    expect(actionCenterSource).toMatch(/if\s*\(oversoldCount > 0\)\s*\{/);
+
+    // Distinct card id + a real, working actionRoute (out_of_stock is a
+    // genuine status filter chip on the catalog tab, unlike the low-stock
+    // card's own status param this merely mirrors).
+    const oversoldCardMatch = actionCenterSource.match(
+      /id:\s*"oversold"[\s\S]{0,400}?actionRoute:\s*"([^"]+)"/,
+    );
+    expect(oversoldCardMatch).not.toBeNull();
+    expect(oversoldCardMatch![1]).toBe('/inventory/catalog?status=out_of_stock');
+  });
 });

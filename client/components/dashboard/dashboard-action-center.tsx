@@ -20,6 +20,7 @@ import {
   RefreshCw,
   ShieldAlert,
   Download,
+  AlertOctagon,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { pluralize } from "@/lib/utils";
@@ -29,6 +30,7 @@ export interface ActionCenterProps {
   expiringCount: number;
   lowStockCount: number;
   missingExpiryCount: number;
+  oversoldCount: number;
 }
 
 type AlertPriority = "critical" | "warning" | "info" | "success";
@@ -48,6 +50,7 @@ function useActionCenterAlerts(
   expiringCount: number,
   lowStockCount: number,
   missingExpiryCount: number,
+  oversoldCount: number,
 ) {
   const { isAuthenticated, isAdmin, user } = useAuth();
   const { storeProfile } = useStore();
@@ -197,6 +200,18 @@ function useActionCenterAlerts(
         });
       }
 
+      if (oversoldCount > 0) {
+        items.push({
+          id: "oversold",
+          title: `${oversoldCount} ${pluralize(oversoldCount, "Item")} Oversold`,
+          description: "Stock floored at zero — reconcile now.",
+          icon: AlertOctagon,
+          priority: "critical",
+          actionLabel: "Reconcile Now",
+          actionRoute: "/inventory/catalog?status=out_of_stock",
+        });
+      }
+
       if (missingExpiryCount > 0) {
         items.push({
           id: "missing-expiry",
@@ -248,6 +263,7 @@ function useActionCenterAlerts(
     expiringCount,
     lowStockCount,
     missingExpiryCount,
+    oversoldCount,
     licenseStatus,
   ]);
 
@@ -300,11 +316,13 @@ export function DashboardActionCenter({
   expiringCount,
   lowStockCount,
   missingExpiryCount,
+  oversoldCount,
 }: ActionCenterProps) {
   const alerts = useActionCenterAlerts(
     expiringCount,
     lowStockCount,
     missingExpiryCount,
+    oversoldCount,
   );
   const [isPaused, setIsPaused] = useState(false);
   const scrollRef = React.useRef<HTMLDivElement>(null);

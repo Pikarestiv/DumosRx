@@ -166,42 +166,59 @@ export async function recordSaleItemStock({
 
   let remainingToDeduct = quantity;
 
+  // Accumulates the total quantity deducted per unique batch id across BOTH
+  // the main positive-stock loop below and the partial-shortfall fallback
+  // loop that can follow it. The fallback (getAnyActiveBatchForProduct,
+  // ordered by updated_at DESC) is very likely to re-select the very batch
+  // the main loop just partially deducted from, since deductFromBatch just
+  // bumped that batch's updated_at — so a batch can legitimately be touched
+  // twice in one call. Writing sale_item_batches/stock_movements rows once
+  // per touch would then produce two rows for the same (sale_item, batch)
+  // pair with the deduction split across them. Deferring those two inserts
+  // until every batch has been fully deducted, keyed by batch id, ensures
+  // exactly one row per unique batch with the correctly summed quantity —
+  // the stock_batches update itself still happens immediately per touch
+  // (unchanged), so FEFO ordering and the fallback's updated_at-based
+  // selection behave exactly as before.
+  const deductionByBatchId = new Map<string, number>();
+
+  // Batches touched by a deduction that exceeded what they actually had
+  // available (deduction > batch.quantity at the time it was applied) —
+  // i.e. a genuine oversell, not merely "this batch was already low." A
+  // batch can be touched more than once in one call (see the fallback loop
+  // comment below), so this is a set: one oversold touch is enough to tag
+  // the batch's summed stock_movements row.
+  const oversoldBatchIds = new Set<string>();
+
   // batch.quantity can be <= 0 when this batch only turned up via the
   // getAnyActiveBatchForProduct fallback (nothing with positive stock left
   // for this product); clamping to it in that case would silently drop some
   // or all of the deduction again. Only clamp against genuinely available
-  // stock; otherwise the batch absorbs the full remainder (going further
-  // negative) so the movement/audit trail still matches what was actually
-  // sold.
+  // stock when computing `deduction`; otherwise the batch absorbs the full
+  // remainder so sale_item_batches/stock_movements still record the true
+  // amount sold. The STORED stock_batches.quantity, however, is floored at
+  // 0 (product decision: "floor + alert" — a stale on-screen stock count
+  // can let a sale legitimately oversell, but the batch's own running
+  // balance should never be written negative); the oversell itself is
+  // surfaced via the oversoldBatchIds tag below and getOversoldAlerts().
   const deductFromBatch = async (batch: StockBatch) => {
     const deduction =
       batch.quantity > 0
         ? Math.min(batch.quantity, remainingToDeduct)
         : remainingToDeduct;
 
+    if (deduction > batch.quantity) {
+      oversoldBatchIds.add(batch.id);
+    }
+
     await update("stock_batches", batch.id, {
-      quantity: batch.quantity - deduction,
+      quantity: Math.max(0, batch.quantity - deduction),
     });
 
-    await insert("sale_item_batches", {
-      sale_item_id: saleItemId,
-      stock_batch_id: batch.id,
-      quantity: deduction,
-    });
-
-    await insert("stock_movements", {
-      product_id: productId,
-      stock_batch_id: batch.id,
-      movement_type: "sale",
-      quantity: -Math.abs(deduction),
-      unit_cost: costPrice || 0,
-      total_cost: (costPrice || 0) * deduction,
-      reference_id: saleId,
-      reference_type: "sale",
-      reason: "Customer sale",
-      performed_by: cashierId,
-      movement_date: new Date().toISOString(),
-    });
+    deductionByBatchId.set(
+      batch.id,
+      (deductionByBatchId.get(batch.id) ?? 0) + deduction,
+    );
 
     remainingToDeduct -= deduction;
   };
@@ -224,6 +241,30 @@ export async function recordSaleItemStock({
       if (remainingToDeduct <= 0) break;
       await deductFromBatch(batch);
     }
+  }
+
+  for (const [batchId, deduction] of deductionByBatchId) {
+    await insert("sale_item_batches", {
+      sale_item_id: saleItemId,
+      stock_batch_id: batchId,
+      quantity: deduction,
+    });
+
+    await insert("stock_movements", {
+      product_id: productId,
+      stock_batch_id: batchId,
+      movement_type: "sale",
+      quantity: -Math.abs(deduction),
+      unit_cost: costPrice || 0,
+      total_cost: (costPrice || 0) * deduction,
+      reference_id: saleId,
+      reference_type: "sale",
+      reason: oversoldBatchIds.has(batchId)
+        ? "Customer sale (oversold — insufficient batch stock)"
+        : "Customer sale",
+      performed_by: cashierId,
+      movement_date: new Date().toISOString(),
+    });
   }
 
   return saleItemId;
@@ -290,6 +331,40 @@ export async function getExpiryAlerts() {
        AND julianday(inv.expiry_date) <= julianday('now', '+30 days')
        AND julianday(inv.expiry_date) >= julianday('now')${storeId ? " AND m.store_id = ?" : ""}
      ORDER BY inv.expiry_date ASC
+     LIMIT 5`,
+    storeId ? [storeId] : [],
+  );
+}
+
+/**
+ * Alerts for products with at least one recorded oversell — a
+ * stock_movements row recordSaleItemStock tagged with the "oversold"
+ * marker in `reason` because a batch's stored quantity couldn't fully
+ * cover what was deducted from it (see deductFromBatch). Modeled on
+ * getLowStockAlerts()/getExpiryAlerts(): store-scoped via products, and
+ * windowed to the last 30 days (mirroring getExpiryAlerts()'s date-window
+ * pattern) so a stale, long-since-reconciled oversell doesn't linger in
+ * the alerts list indefinitely.
+ */
+export async function getOversoldAlerts() {
+  const storeId = getActiveStoreId();
+  return query<{
+    product: string;
+    quantity: number;
+    movementDate: string;
+  }>(
+    `SELECT
+      m.name as product,
+      MAX(ABS(sm.quantity)) as quantity,
+      MAX(sm.movement_date) as movementDate
+     FROM stock_movements sm
+     JOIN products m ON sm.product_id = m.id
+     WHERE (sm._deleted = 0 OR sm._deleted IS NULL) AND (m._deleted = 0 OR m._deleted IS NULL)
+       AND sm.reason LIKE '%oversold%'
+       AND sm.movement_date IS NOT NULL
+       AND julianday(sm.movement_date) >= julianday('now', '-30 days')${storeId ? " AND m.store_id = ?" : ""}
+     GROUP BY m.id
+     ORDER BY movementDate DESC
      LIMIT 5`,
     storeId ? [storeId] : [],
   );

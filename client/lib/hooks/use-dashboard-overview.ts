@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getDashboardOverviewData } from "@/lib/db/queries/reports";
+import { getOversoldAlerts } from "@/lib/db/queries/inventory";
 import { useStockBatchStats } from "@/lib/hooks/use-stock-batch-stats";
 import { useStore } from "@/lib/context/store-context";
 import { useAuth, checkCanViewAllActivity } from "@/lib/context/auth-context";
@@ -26,6 +27,14 @@ export function useDashboardOverview() {
   const { data: dashboardData } = useQuery({
     ...queryKeys.dashboard.overview(viewerId),
     queryFn: () => getDashboardOverviewData(viewerId),
+  });
+
+  // Oversold products (bug #4's floor-at-zero alert): sourced separately
+  // from `getStockBatchStats()`'s low_stock_count, since a batch floored to
+  // exactly 0 fails that query's `total_qty > 0` guard.
+  const { data: oversoldAlerts } = useQuery({
+    ...queryKeys.stockBatches.oversoldAlerts(),
+    queryFn: () => getOversoldAlerts(),
   });
 
   const salesToday = dashboardData?.salesToday
@@ -56,6 +65,7 @@ export function useDashboardOverview() {
     expiringSoonCount: stock_batchStats.expiringSoonCount,
     lowStockCount: stock_batchStats.lowStockCount,
     missingExpiryCount: stock_batchStats.missingExpiryCount,
+    oversoldCount: oversoldAlerts?.length || 0,
   };
 
   const activities = recentActivities.slice(0, 5).map((activity: DashboardActivity) => {

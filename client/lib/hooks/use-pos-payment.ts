@@ -37,6 +37,13 @@ interface UsePOSPaymentProps {
   dispensedRxId?: string | null;
   setDispensedRxId?: (id: string | null) => void;
   isRefillDispense?: boolean;
+  /** Defense-in-depth: even if the POS UI's Redeem Reward control is somehow
+   * bypassed (stale tab, plan downgrade mid-session), no loyalty_transactions
+   * write — earn or redeem — happens unless the caller confirms the gate
+   * (plan tier AND the store's own on/off toggle) is currently open. Fails
+   * closed (defaults to false) — a caller that forgets to pass it gets no
+   * loyalty writes rather than silently bypassing the gate. */
+  canUseLoyaltyProgram?: boolean;
 }
 
 export function usePOSPayment({
@@ -58,6 +65,7 @@ export function usePOSPayment({
   dispensedRxId,
   setDispensedRxId,
   isRefillDispense = false,
+  canUseLoyaltyProgram = false,
 }: UsePOSPaymentProps) {
   const [paymentMethod, setPaymentMethod] = useState<
     "cash" | "card" | "transfer" | "credit" | "mixed"
@@ -134,7 +142,15 @@ export function usePOSPayment({
       const user = JSON.parse(localStorage.getItem("dumos_user") || "{}");
       const cashierId = user?.id || null;
       const transactionNumber = `TXN${Date.now()}`;
-      const earnedPoints = selectedCustomer ? calculateEarnedPoints(total) : 0;
+      // Defense-in-depth: when the Loyalty Program gate (plan tier AND the
+      // store's own on/off toggle) is closed, no points are earned or
+      // recorded as redeemed at all — not just the loyalty_transactions
+      // ledger below, but the sale row itself, so a gated-off checkout
+      // never shows earned/redeemed points anywhere.
+      const earnedPoints =
+        selectedCustomer && canUseLoyaltyProgram
+          ? calculateEarnedPoints(total)
+          : 0;
 
       const saleId = await insert("sales", {
         transaction_number: transactionNumber,
@@ -173,7 +189,10 @@ export function usePOSPayment({
         // Only ever set when a customer is selected — the UI gates the
         // redemption picker on that already, but guard here too in case a
         // stale redemption survives a customer being cleared mid-checkout.
-        points_redeemed: selectedCustomer ? redeemedOption?.pointsCost || 0 : 0,
+        points_redeemed:
+          selectedCustomer && canUseLoyaltyProgram
+            ? redeemedOption?.pointsCost || 0
+            : 0,
         payment_method: paymentMethod,
         payment_status: calculateSalePaymentStatus(paymentMethod, paymentSplits),
         payment_details: JSON.stringify({
@@ -216,7 +235,11 @@ export function usePOSPayment({
         }
       }
 
-      if ((earnedPoints > 0 || redeemedOption) && selectedCustomer) {
+      if (
+        (earnedPoints > 0 || redeemedOption) &&
+        selectedCustomer &&
+        canUseLoyaltyProgram
+      ) {
         await update("customers", selectedCustomer.id, {
           loyalty_points: calculateLoyaltyPointsAfterSale(
             selectedCustomer.loyalty_points || 0,

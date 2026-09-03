@@ -207,17 +207,86 @@ What the follow-up actually checked and ruled out instead:
   pending entry in `_sync_queue` — which the just-made dispense update is,
   until it's pushed — so a pull reverting the fresh 142 is also ruled out.
 
-**What remains a genuine open question:** `getStockBatchesForProductDetails`
-returns *every* non-deleted batch row for the product, not just the one
-`recordSaleItemStock` touched. The leading unverified candidate is that the
-"-5" card belonged to a *different*, pre-existing `stock_batches` row for
-TRAMADOL 100MG than the one whose Activity Log entry shows 147 → 142 — e.g.
-stock left negative by earlier, unrelated activity on this same persistent
-store (this account carries cumulative history across many prior,
-sequential — not concurrent — test sessions). The original observation
-didn't record either batch's `id`, so this cannot be confirmed or ruled out
-after the fact. Flagged here as unresolved, not fixed, and not attributed to
-concurrent-task interference.
+**Second investigation round — resolved with batch-id-level evidence.** A
+follow-up pass re-opened this with direct access to the live sql.js database
+(via the dev-only `window.getDatabaseBinary()` hook in `client/lib/db/core.ts`,
+loaded into a fresh in-page `sql.js` instance so the binary could be queried
+directly — see `docs/features/_findings-log.md`'s entry for the exact
+technique). This gives batch-id, product-id, and store-id ground truth the
+original observation never captured.
+
+- **The leading hypothesis (multiple `stock_batches` rows on one product,
+  one stale/negative masking the correctly-dispensed one) is ruled out.**
+  Direct SQL against the live store confirmed that, at the time of this
+  round, *every* product in the account — including both products named
+  "TRAMADOL 100MG" (see below) — has exactly one non-deleted `stock_batches`
+  row. There is no case of one product with a correct batch and a second,
+  stale, negative batch both rendering as cards. `getStockBatchesForProductDetails`,
+  `product-batch-history.tsx`, and `use-product-details.tsx` were re-confirmed
+  to do exactly what the first round found (one card per row, `batch.quantity`
+  rendered verbatim, no aggregation) — that code was never the problem.
+- **The actual mechanism: two different products, in two different stores,
+  share the exact same name "TRAMADOL 100MG".** This account's Pika Restiv
+  user has two stores — "Pikarestiv Stores" and "Pikarestiv Stores 2" — and
+  each has its own, completely independent product also named
+  "TRAMADOL 100MG":
+  - `products.id = baa87d56-5c5f-4e8e-8971-6fef38360f1c` (store
+    "Pikarestiv Stores") owns `stock_batches.id = 86c3da7b-2108-4721-b497-4320a35ed728`,
+    quantity **147**, with **zero** `stock_movements` rows ever recorded
+    against it (consistent with the earlier note that it was seeded directly
+    by bulk import, bypassing the movements ledger). This is the batch
+    referenced by the original "147 → 142" Activity Log claim.
+  - `products.id = 6992c53b-c17b-4870-b2f1-628f995fdc7e` (store
+    "Pikarestiv Stores 2") owns `stock_batches.id = 73a4ded2-7776-4225-b5c6-04e98dc6a9d3`
+    ("Opening Stock"), quantity **-5**, with exactly **one**
+    `stock_movements` row: a `sale` of `-5` at `2026-09-02T19:47:15Z`, tied
+    to a completed prescription ("Smoke Test Patient," `prescriptions.id =
+    451d3866-83e2-4a66-84f5-fdcca6136358`, `store_id` = Pikarestiv Stores 2).
+    Because this movement is the *only* one this batch ever had, and the
+    write is absolute (not delta), the batch's quantity immediately before
+    the sale was **0**, not 147 — this dispense oversold a batch that had no
+    stock, and (before bug #4's fix landed — see below) nothing floored the
+    result, so it was correctly written and correctly displayed as `-5`.
+
+  These are two unrelated products in two unrelated stores that merely
+  happen to share a display name. The "147 → 142" Activity Log entry and the
+  "-5" Inventory display documented in the first round were **never the same
+  batch, product, or store** — there is no batch that was simultaneously 142
+  and -5. The most likely explanation for how the original round conflated
+  them: this is a shared, cumulative-history test account with a store
+  switcher defaulting to whichever store was last active, and PIN-based login
+  in this second round itself landed on "Pikarestiv Stores" (no "2") by
+  default rather than "Pikarestiv Stores 2" — it is easy to compare an
+  Activity Log entry captured in one store's context against an Inventory
+  view captured in the other's without noticing the store had changed,
+  producing an apples-to-oranges "same product name, different numbers"
+  illusion. This is a documentation/process pitfall of testing on a shared
+  multi-store account with duplicate product names, not a code defect in any
+  read, write, cache, or sync path.
+- **The "-5" itself is real, and is now explained by (and was already
+  tracked as) bug #4** (`recordSaleItemStock`'s fallback batch had no floor
+  on oversell, `docs/features/_known-bugs.md`). The sale that produced it
+  (`2026-09-02T19:47:15Z`) predates the commit that fixed bug #4
+  (`2ed46c9e`, landed `2026-09-03T13:29`), so this negative batch is a
+  pre-fix artifact still sitting in the local database — new oversells after
+  that fix floor at 0 instead. This -5 row was not re-verified against the
+  post-fix code path, since it was written before the fix existed.
+- **Clean reproduction confirms the display/write path is correct under
+  normal conditions.** A fresh, single-store, single-batch product ("ZZ BUG3
+  TEST DRUG") was created, stocked to 20 units via Cycle Count (batch id
+  `7f98464f-9adf-4dee-849b-2e275feaa061`), then dispensed against via a real
+  prescription (5 units). Direct SQL confirmed one continuous batch id
+  throughout: `0 →(cycle-count adjustment, movement `dc02d09c`)→ 20
+  →(prescription sale, movement `037740c1`)→ 15`. The Catalog list, the
+  product's Batches tab card, and the raw `stock_batches.quantity` all
+  agreed on **15** with no negative figure, no phantom card, and no
+  cross-batch confusion anywhere.
+
+**Conclusion:** the original "-5/142" observation is fully explained and the
+leading hypothesis from round one is ruled out. There is no display bug to
+fix in the batch-details read path. The negative number itself is a known,
+already-fixed issue (bug #4) whose fix simply hadn't been applied yet to
+that particular pre-existing row when the first round observed it.
 
 ## Test coverage
 

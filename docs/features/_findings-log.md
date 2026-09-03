@@ -439,9 +439,583 @@ sub-tabs) against real seeded data on Pikarestiv Stores 2.
   live-reproduced symptom (the Category filter pill and Manage Categories
   dialog disagreeing) and its cross-link to this fix.
 
+### 13. `update()`/`softDelete()`/`remove()` had zero store-ownership check — cross-tenant write risk
+
+- **Found:** flagged as a follow-up concern while fixing bug #12/#1 above
+  (`getCategoryList()`'s multi-tenancy leak): that fix correctly keeps
+  legacy, pre-migration `store_id IS NULL` rows visible to every store so
+  no device silently loses data it's already using — but nothing stopped
+  ANY store from then editing or deleting one of those shared rows via a
+  completely ordinary UI action. Concretely,
+  `components/products/manage-categories-dialog.tsx` renders every row
+  `getCategoryList()` returns — including shared legacy ones — with a
+  fully-enabled rename field and delete button, no visual distinction. A
+  staff member on any store could blur-to-save a rename, or click delete,
+  on a legacy category another store was actively using. No devtools, no
+  id guessing — just the ordinary dialog. Tracked as bug #8 in
+  `_known-bugs.md`.
+- **Root cause:** `update()` and `softDelete()` in `client/lib/db/base-helpers.ts`
+  — the shared write helpers used by every domain table's edit/delete path,
+  not just categories — built `UPDATE ${table} SET ... WHERE id = ?` (and
+  the `_deleted = 1` equivalent) from only a row `id`, with no `store_id`
+  check anywhere. Tenant isolation in this local-first app lives entirely
+  in each *read* query's `WHERE store_id = ?` clause; there was no
+  equivalent enforcement on the write path. Anyone with browser devtools on
+  a device (e.g. a multi-store device, or a store-switcher session) could
+  also call `update()`/`softDelete()` directly with any row id present in
+  the local database, bypassing UI-level scoping entirely — a broader
+  exposure than just the categories dialog.
+- **Fix:** added `assertStoreOwnership()`, a private helper in
+  `base-helpers.ts` called at the top of both `update()` and `softDelete()`
+  before any write, reusing the same `STORE_SCOPED_TABLES` list and
+  `getActiveStoreId()` resolver `insert()` already uses for its own
+  `store_id` auto-injection (so the two mechanisms can't drift apart) —
+  implemented once, so every table gets it automatically instead of
+  per-caller. Three outcomes:
+  - the row's `store_id` matches the active store → write proceeds
+    normally;
+  - the row's `store_id` is `NULL` (a legacy, pre-migration row) → the
+    write proceeds AND the row is claimed for the active store as part of
+    the same call (a separate, immediate `UPDATE ... SET store_id = ?`
+    ahead of the caller's own write), so after this first edit by any
+    store the row is exclusively that store's — a second store touching it
+    afterward now hits the reject case instead of clobbering it forever;
+  - the row's `store_id` is a different, known store → the write is
+    rejected with a thrown `Error("Cannot modify a record owned by a
+    different store")`, not a silent no-op, so a caller that doesn't
+    explicitly handle it fails loudly instead of appearing to succeed.
+  Deliberately fails OPEN (skips the check) when `getActiveStoreId()`
+  returns null/undefined, matching `insert()`'s existing "only auto-scope
+  when a store is resolved" behavior for the same early-boot/unresolved
+  edge case — a narrow allowance tied to the local module-scope resolver
+  having nothing set, not something a caller can trigger from outside.
+- **Audit performed (no bypass mechanism was added):** grepped every
+  `update()`/`softDelete()` call site across `client/lib` and
+  `client/components` (not just the known importers of `base-helpers.ts`,
+  to catch anything reached only via re-export) — `lib/db/queries/
+  prescriptions.ts`, `lib/db/queries/categories.ts`,
+  `lib/db/procurement-receiving.ts`, `lib/db/procurement.ts`,
+  `lib/db/local-database.ts`, `lib/db/requested-products-queries.ts`, and
+  three hook files not on the original 8-file list
+  (`lib/hooks/use-fleet-mutations.ts`, `lib/hooks/use-supplier-mutations.ts`,
+  `lib/hooks/use-fulfill-online-order-mutation.ts`, the last of which only
+  calls `insert()`, unaffected by this fix). Every real call site operates
+  on a row the active store is expected to own (its own PO, product,
+  category, supplier, requested-product, etc.) — none needed cross-store
+  write access, so no `bypassOwnershipCheck` opt-out was added anywhere.
+  Two things confirmed this explicitly rather than by assumption:
+  `lib/hooks/use-fleet-mutations.ts`'s `update("stores", ...)` looked like
+  a plausible admin/system-level candidate (a store-owner editing a
+  *different* store's fleet entry) but needs no special-casing at all,
+  since `"stores"` was never a member of `STORE_SCOPED_TABLES` to begin
+  with — the check only applies to tables in that list. Separately,
+  `lib/db/sync-engine/{index,pull,push}.ts` (which applies incoming server
+  rows to the local DB) was grepped directly and confirmed to write only
+  through `query()`/`execute()`/`transaction()` from `core.ts`, never
+  through `update()`/`softDelete()` — so the sync path is untouched by this
+  fix and needed no bypass either.
+- **UI-guard check (none needed):** `manage-categories-dialog.tsx`'s rows
+  come solely from `getCategoryList()`, whose filter is
+  `(store_id = ? OR store_id IS NULL)` — it can never return a row owned by
+  a different, known store, only the active store's own rows or shared
+  legacy ones. So the dialog can never reach the "reject" case in the first
+  place; editing a legacy row now silently claims it for the active store
+  (the intended case-2 behavior), which is a usability improvement, not a
+  new failure mode — no UI change was needed there.
+- **Verified by:** new `client/__tests__/store-ownership.test.ts`, against
+  a real in-memory sql.js database (same pattern as
+  `multi-store-scoping.test.ts`), covering both `update()` and
+  `softDelete()` on the `categories` table for all three ownership outcomes
+  (own-store row succeeds; NULL-`store_id` row succeeds and is claimed,
+  verified via a follow-up `SELECT store_id`; a different known store's row
+  throws `"Cannot modify a record owned by a different store"` and leaves
+  the row byte-for-byte unmodified) plus the fail-open no-active-store
+  case. Confirmed RED pre-fix (4 of 7 new tests failed: both reject cases
+  resolved instead of throwing, both claim cases left `store_id` unset) and
+  GREEN post-fix. Full suite (`npx vitest run`) passed 356/356 across 67
+  files (up from 349/66 pre-fix), and `npx tsc --noEmit -p .` was clean —
+  run in full, not just the new/targeted test, since this change touches a
+  helper shared by every domain table. `e2e/settings.spec.ts` and
+  `e2e/expenses.spec.ts` (both exercise edit/delete flows through this
+  helper — staff role edit, expense edit/delete) passed 6/6 when run
+  serially (`--workers=1`); running them in parallel reproduced this repo's
+  known cross-spec Playwright flakiness (a fixture-restore timing race,
+  already logged in `_known-bugs.md`'s "Known limitations" section) rather
+  than any failure caused by this fix — both specs were also confirmed
+  green individually before this change.
+- **Not done, deliberately:** no `bypassOwnershipCheck`-style opt-out was
+  added to `update()`/`softDelete()` — the audit above found no genuinely
+  system-level caller that needs cross-store write access, so the escape
+  hatch wasn't pre-built on spec. If one is ever found, it should be added
+  narrowly at that point, not reachable from UI code.
+
+#### Fix-round two: code review caught `remove()` was missed entirely
+
+- **Found:** code review of the fix above. The original audit's grep
+  pattern was literally `"update(\|softDelete("` — it searched for exactly
+  those two function names and never once searched for `remove(` calls, so
+  `remove()` (the third write helper in `base-helpers.ts`, used for hard,
+  unrecoverable deletes) wasn't evaluated-and-cleared, it was simply never
+  looked at. That mattered: `remove()` IS called on a `STORE_SCOPED_TABLES`
+  table. `lib/hooks/use-sales-data.ts` and
+  `lib/hooks/use-pos-held-transactions.ts` both call
+  `remove("held_transactions", id)`, and `held_transactions` is in
+  `STORE_SCOPED_TABLES` (`core.ts`). Until this second pass, the exact
+  devtools/direct-call threat model this bug's own writeup describes —
+  "Anyone with browser devtools... could call `update()`/`softDelete()`
+  directly with any row id... bypassing UI-level scoping entirely" — still
+  applied to `remove()`: a hard, unrecoverable cross-tenant delete of
+  another store's held transaction, callable directly by id from devtools
+  on any multi-store device. Not UI-reachable (`getHeldTransactions()`'s
+  read filter is a plain `WHERE store_id = ?`, with no `OR store_id IS
+  NULL` fallback the way `getCategoryList()` has), but the direct-call path
+  was real, and the tracking docs' "Fixed"/"closed" language for this bug
+  had overclaimed given the gap.
+- **Re-audit performed:** re-grepped comprehensively this time —
+  `grep -rn "\bremove(" client/lib client/components client/app`, plus a
+  separate pass for every `import { ... remove ... } from` across the same
+  three directories (to catch `remove` reached only via
+  `local-database.ts`'s `export * from "./base-helpers"` re-export, not
+  just direct `base-helpers` imports). Exactly three real callers of
+  `remove()` exist in the whole app:
+  - `lib/hooks/use-sales-data.ts` and
+    `lib/hooks/use-pos-held-transactions.ts` — both
+    `remove("held_transactions", id)`. `held_transactions` IS
+    store-scoped; both are now protected by this fix.
+  - `lib/hooks/use-payment-accounts.ts` — `remove("payment_accounts", id)`.
+    `"payment_accounts"` was never a member of `STORE_SCOPED_TABLES` (the
+    same pre-existing exemption `"users"` and `"stores"` have), so the
+    check is a no-op here by construction — no special-casing needed.
+  No caller needs a cross-store bypass; the "no bypass mechanism added"
+  conclusion from the first pass still holds after this second pass.
+- **Fix:** `assertStoreOwnership()` gained a third parameter,
+  `claimLegacyRow` (default `true`, so `update()`/`softDelete()`'s call
+  sites and behavior are unchanged). `remove()` now calls it with
+  `claimLegacyRow: false`. Reasoning for the difference: for
+  `update()`/`softDelete()`, claiming a legacy NULL-`store_id` row makes
+  sense because the row keeps existing afterward — the claim is what
+  prevents a second store from touching it later. For `remove()`, the row
+  is about to be hard-deleted in the very next statement; claiming it
+  first (an extra `UPDATE ... SET store_id = ?`) would protect nothing,
+  since there's no row left afterward for the claim to matter to — it
+  would be a pointless extra write on the way to destroying the row
+  anyway. So a legacy row is simply deletable outright by whichever store
+  touches it first, same effective behavior as before this fix, while a
+  different *known* store's row now correctly rejects, exactly like
+  `update()`/`softDelete()`.
+- **Verified by:** extended `client/__tests__/store-ownership.test.ts` with
+  a `remove()` describe block against `held_transactions` (the real
+  affected table, not `categories` again, so the test matches an actual
+  call site's shape) covering all four cases: own-store row deletes;
+  legacy NULL-`store_id` row deletes outright with no claim step (asserted
+  via non-existence after the call, since there's no row left to check a
+  `store_id` on); different known store's row rejects with the same thrown
+  `Error` and is confirmed byte-for-byte unmodified (`heldTransactionExists`
+  still true, `store_id` still the other store's); no-active-store fails
+  open. Confirmed RED pre-fix (10/11 passed trivially since the bug was an
+  *absence* of a check — only the reject case, which needs an actual
+  throw, failed: "promise resolved undefined instead of rejecting") and
+  GREEN post-fix (11/11). Full suite re-verified: `npx tsc --noEmit -p .`
+  clean, `npx vitest run` 360/360 across 67 files (up from 356/67 after
+  the first bug #8 commit) — the 4-test delta is exactly the new
+  `remove()` coverage, confirming nothing else in the suite relied on
+  `remove()`'s old no-check behavior.
+- **Tracking-doc correction:** `_known-bugs.md`'s bug #8 entry and this
+  entry's own "Not done, deliberately" note above were written after the
+  first pass and described the fix as covering `update()`/`softDelete()`
+  only, which was accurate then but became stale/overclaiming once
+  `remove()`'s gap was found. Both docs have been updated in this same fix
+  round to describe all three helpers.
+- **e2e confirmed post-fix:** `e2e/pos-held-transaction.spec.ts`'s recall
+  flow exercises `remove()` on `held_transactions` end-to-end through the
+  real UI (`handleRecallTransaction` → `remove("held_transactions", ...)`,
+  `lib/hooks/use-pos-held-transactions.ts:113`) — this was initially missed
+  during the fix round's own verification pass and confirmed separately:
+  `npx playwright test --project=chromium e2e/pos-held-transaction.spec.ts
+  --no-deps` → 1 passed.
+
+### 14. `logRequestedProduct()`'s substring-based dedupe could misfire
+
+- **Found:** final whole-branch review (post Task 11), tracked as bug #5 in
+  `_known-bugs.md`.
+- **Root cause:** `logRequestedProduct()`
+  (`client/lib/db/requested-products-queries.ts`) deduped accumulated
+  customer names and notes with `String.includes(newValue)` against the
+  *whole* accumulated string, not a match against its individual
+  comma/pipe-separated segments. That's a substring check, not an
+  exact-match check: once a request had accumulated a customer name like
+  "Anna", a genuinely different, later customer named "Ann" would never be
+  appended (`"Anna".includes("Ann")` is `true`), silently dropping a real
+  customer from the record. Same risk on the notes field, separated by
+  `" | "` instead of `", "`.
+- **Fix:** both accumulation blocks now split the existing accumulated
+  string on its separator (`", "` for names, `" | "` for notes) into
+  segments, then check the incoming value against those segments with an
+  exact, case-insensitive match (`.toLowerCase()` on each side) before
+  appending — matching the case-insensitive dedupe convention already used
+  elsewhere in the codebase (`categories.ts`, `product-import.ts`,
+  `setup.ts` all normalize names with `.toLowerCase()` before comparing).
+  Everything else in the function (separators, append order, the
+  insert()/update() split for new-vs-existing pending requests) is
+  unchanged.
+- **Verified by:** `client/__tests__/requested-products.test.ts` — four new
+  cases added to the existing real-sql.js suite: a substring-name case
+  ("Anna" then "Ann" — both must appear, previously only "Anna" would);
+  an exact-duplicate-name case (case-insensitive "ann" after "Ann" must
+  not duplicate); and the same two cases for notes. Confirmed RED pre-fix
+  (4/4 new tests failed — the substring cases failed by silently dropping
+  the new segment, the exact-duplicate cases failed because the
+  case-insensitive check didn't exist yet) and GREEN post-fix (10/10 in
+  the file). Full suite re-verified: `npx tsc --noEmit -p .` clean,
+  `npx vitest run` 364/364 across 67 files.
+
+### 15. `recordSaleItemStock`'s partial-shortfall fallback could double-write a row
+
+- **Found:** final whole-branch review (post Task 11), tracked as bug #6 in
+  `_known-bugs.md`.
+- **Root cause:** `recordSaleItemStock()`
+  (`client/lib/db/queries/inventory.ts`) deducted stock in two passes: a
+  main FEFO loop over batches with positive stock, then — if that loop
+  didn't cover the full sale quantity — a fallback to
+  `getAnyActiveBatchForProduct()` (ordered by `updated_at DESC`) to attach
+  the leftover somewhere rather than leave it untracked. Each pass called
+  the same `deductFromBatch()` helper, which unconditionally inserted a new
+  `sale_item_batches` row and a new `stock_movements` row on every call.
+  Because `deductFromBatch()` also bumps the touched batch's `updated_at`,
+  the fallback query was very likely to re-select the exact batch the main
+  loop just partially deducted from (trivially guaranteed when it's the
+  product's only batch), so that batch got deducted from twice — once via
+  the main loop, once via the fallback — producing two `sale_item_batches`
+  rows and two `stock_movements` rows for the same `(sale_item, batch)`
+  pair, with the true deduction split across them. The summed quantity was
+  still correct (not a data-loss bug), but the one-row-per-batch invariant
+  any future consumer might assume was silently violated.
+- **Fix:** `sale_item_batches` and `stock_movements` inserts are no longer
+  written inline inside `deductFromBatch()`. Instead, each call accumulates
+  its deduction into a `Map<batchId, totalDeduction>` keyed by batch id;
+  after both loops finish, exactly one `sale_item_batches` insert and one
+  `stock_movements` insert are made per unique batch id, using its summed
+  deduction. The `stock_batches` `update()` (and the `updated_at` bump that
+  drives fallback selection) still happens immediately inside
+  `deductFromBatch()` on every touch, unchanged — so FEFO ordering, the
+  clamp-vs-absorb-fully logic, the zero-batches-at-all fallback, and which
+  batch the fallback query picks are all untouched by this fix; only the
+  row-writing was deferred and deduplicated.
+- **Verified by:** `client/__tests__/record-sale-item-stock-depleted-batch.test.ts`
+  — two new cases added to the existing real-sql.js suite. (1) Reproduces
+  the exact bug: a single batch with 1 unit of stock, a sale of 3 —
+  confirmed RED pre-fix (`sale_item_batches` had 2 rows instead of 1 for
+  the same batch); GREEN post-fix (exactly 1 `sale_item_batches` row with
+  `quantity = 3`, exactly 1 `stock_movements` row with `quantity = -3`, and
+  the batch's final `stock_batches.quantity` correctly at `-2`). (2) Guards
+  against the fix over-merging: a sale spanning two genuinely different
+  positive-stock batches (2 units + 5 units, sale of 5) still produces two
+  separate `sale_item_batches` rows, one per batch, with the correct
+  per-batch split (2 and 3) — confirmed this case passed both before and
+  after the fix. Full suite re-verified: `npx tsc --noEmit -p .` clean,
+  `npx vitest run` 366/366 across 67 files.
+
+### 16. `recordSaleItemStock`'s fallback batch had no floor on oversell
+
+- **Found:** Task 3 (POS), tracked as bug #4 in `_known-bugs.md`.
+- **Nature of this fix:** a user-directed product decision, not just a bug
+  squash. The fallback deduction path (`deductFromBatch`, inside
+  `recordSaleItemStock()` in `client/lib/db/queries/inventory.ts`) let a
+  batch's `stock_batches.quantity` go arbitrarily negative whenever a sale
+  oversold past what was actually available (e.g. a stale on-screen stock
+  count let a cashier ring up more units than a batch had left). Left open
+  at the time pending a UX decision: block the oversell, warn first, or
+  something else. Asked directly, the user chose **"floor + alert"**: let
+  the sale complete — don't block checkout over a stale count — but never
+  let the batch's own stored quantity go below zero, and surface an alert
+  so staff can reconcile the divergence.
+- **Root cause / mechanism:** `deductFromBatch()` computed `deduction` as
+  `Math.min(batch.quantity, remainingToDeduct)` when the batch still had
+  positive stock, or `remainingToDeduct` unconditionally when it didn't
+  (`batch.quantity <= 0`) — the latter is the only branch where `deduction`
+  can exceed `batch.quantity`, i.e. the only place an oversell can occur.
+  It then wrote `batch.quantity - deduction` straight to `stock_batches`
+  with no floor.
+- **Fix:**
+  1. The `stock_batches` `update()` now writes
+     `Math.max(0, batch.quantity - deduction)` instead of
+     `batch.quantity - deduction`. `deduction` itself — and therefore what
+     gets written to `sale_item_batches`/`stock_movements` — is completely
+     unchanged, so sales and inventory-consumed accounting stay accurate
+     even when the batch's own running balance gets floored.
+  2. A new `oversoldBatchIds` `Set<string>` records any batch id where
+     `deduction > batch.quantity` was true at the moment `deductFromBatch`
+     ran (a batch can be touched twice across the main FEFO loop and the
+     partial-shortfall fallback loop, per finding #15, so this is a set
+     rather than a single flag). When the deferred `stock_movements` insert
+     runs for a batch in that set, its `reason` is written as
+     `"Customer sale (oversold — insufficient batch stock)"` instead of the
+     plain `"Customer sale"` — confirmed against
+     `components/stock-batch/stock-movements.tsx` that `reason` is exactly
+     what the Movements/Ledger tab's "Reference/Reason" column renders, so
+     the new text reads sensibly there.
+  3. New `getOversoldAlerts()` query in the same file, modeled directly on
+     the existing `getLowStockAlerts()`/`getExpiryAlerts()`: store-scoped
+     via `getActiveStoreId()`, and windowed to `stock_movements` rows from
+     the last 30 days (same date-window pattern as `getExpiryAlerts()`) so
+     a long-since-reconciled oversell doesn't linger in the alerts list
+     indefinitely.
+  4. `useStockBatchAlerts()` (`client/lib/hooks/use-stock-batch-alerts.ts`)
+     now also queries `getOversoldAlerts()` and folds it into the combined
+     alerts array as a third category: `issue: "Oversold"`,
+     `severity: "critical"` (always critical — it means recorded and real
+     stock have already diverged, not merely that stock is running low).
+     No schema migration was needed — `stock_movements.reason` is already a
+     plain `TEXT` column, so no `ALTER TABLE` was added to `core.ts`.
+- **UI wiring — no component changes needed:** the only current consumer of
+  `useStockBatchAlerts()` is `use-bi-data.ts` → `stock_batchAlerts`, passed
+  into `business-intelligence-dashboard.tsx` → rendered generically by
+  `components/analytics/stock-batch-insights-tab.tsx` (which maps
+  `product`/`issue`/`severity`/optional `quantity`/`threshold`/
+  `expiryDate`/`daysLeft` fields with no per-category branching). The new
+  "Oversold" objects (`product`, `issue`, `severity`, `quantity`) fit that
+  shape without any edits to the rendering component. Note:
+  `components/stock-batch/needs-attention.tsx` and
+  `components/dashboard/dashboard-action-center.tsx` do **not** actually
+  consume `useStockBatchAlerts()` — they build their own attention lists
+  directly from `getExpiringBatches()`/stock-overview data — so the new
+  alert does not appear there; it appears wherever
+  `stock-batch-insights-tab.tsx` is rendered (the Business Intelligence /
+  Analytics dashboard).
+- **Verified by:** `client/__tests__/record-sale-item-stock-depleted-batch.test.ts`
+  (three existing cases updated for the new floor-at-0 expectation, one
+  case's `reason` assertion added, one new plain-`"Customer sale"`
+  regression assertion added for the non-oversold FEFO case) plus a new
+  `client/__tests__/get-oversold-alerts.test.ts` (oversold product surfaced;
+  a normally-sold product not surfaced; an oversold movement outside the
+  30-day window not surfaced). Confirmed RED before each implementation
+  step, GREEN after. Full suite re-verified: `npx tsc --noEmit -p .` clean,
+  `npx vitest run` 369/369 across 68 files.
+
+### 17. Dashboard's Action Center had zero signal for an oversold/floored product
+
+- **Found:** review of bug #4's fix (finding #16), tracked as bug #9 in
+  `_known-bugs.md`.
+- **Nature of this fix:** a controller-ruled scoping decision, not just a bug
+  squash. `getStockBatchStats()`'s `low_stock_count` SQL requires
+  `total_qty > 0`, so a batch floored to exactly `0` by finding #16's fix
+  falls into a `critical_stock_count` field nothing in the codebase reads —
+  net effect, the Dashboard (the surface most staff/owners check first) was
+  blind to exactly the situation finding #16's alert was meant to surface.
+  Ruled out as the fix: changing `low_stock_count`'s `total_qty > 0` guard to
+  include `0` — that risks a silent behavior/number shift for any other
+  consumer relying on the existing boundary. Chosen instead: add a new,
+  separate "Oversold" card to the Action Center, additive only.
+- **Fix:**
+  1. `client/lib/hooks/use-dashboard-overview.ts` now also queries
+     `getOversoldAlerts()` (the same query finding #16 added) directly via
+     `useQuery(queryKeys.stockBatches.oversoldAlerts())`, and exposes
+     `stats.oversoldCount` as `oversoldAlerts?.length || 0`.
+  2. `client/components/dashboard/dashboard-overview.tsx` passes
+     `oversoldCount={stats.oversoldCount}` into `DashboardActionCenter`,
+     the same way `lowStockCount` is threaded.
+  3. `client/components/dashboard/dashboard-action-center.tsx` gained a new
+     `oversoldCount: number` prop and a new conditional card
+     (`if (oversoldCount > 0) { ... }`, modeled directly on the existing
+     Low Stock card): `id: "oversold"`, title
+     `` `${oversoldCount} ${pluralize(oversoldCount, "Item")} Oversold` ``,
+     `priority: "critical"` (destructive/red styling — visually distinct
+     from Low Stock's `"warning"`/orange), a new `AlertOctagon` icon (not
+     used elsewhere in this component, distinct from Low Stock's
+     `PackageX`), and `actionRoute: "/inventory/catalog?status=out_of_stock"`.
+- **actionRoute choice:** the catalog tab's own status classification
+  (`components/products/types.ts`) independently computes `"out_of_stock"`
+  for `stock <= 0` — the same floored-to-0 condition that produces an
+  oversold alert — and `product-database.tsx` already reads and applies a
+  `status` query param as a real, working filter chip (confirmed by reading
+  the code, same mechanism finding #16's sibling fix documented for
+  `status=low_stock`). This is a genuinely working destination, not an
+  invented/dead route. The alternative considered — deep-linking to the
+  Business Intelligence tab where `getOversoldAlerts()` is already surfaced
+  (`/reports?tab=analytics`) — was rejected: that page's inner
+  `stock_batches` tab (`business-intelligence-dashboard.tsx`) uses
+  `<Tabs defaultValue="sales">` with no URL-param wiring to select it, so a
+  link there would land on the wrong sub-tab (Sales) with no way to land
+  precisely on the stock-batch-insights view without also changing that
+  page's own tab-selection logic — out of scope for this fix.
+- **Known limitation, not fixed:** `getOversoldAlerts()` is `LIMIT 5`
+  (finding #16's design, matching `getLowStockAlerts()`/`getExpiryAlerts()`),
+  so `oversoldCount` (its `.length`) undercounts past 5 distinct oversold
+  products in the same 30-day window. Same cap already existed for the
+  Business Intelligence "Oversold" alert list; not a regression introduced
+  here, but worth a dedicated count query if this ever needs to be exact.
+- **Verified by:** `client/__tests__/dashboard-action-center-routes.test.ts`
+  — new case asserting the `oversoldCount` prop is threaded through
+  `dashboard-overview.tsx`, the card is conditional on `oversoldCount > 0`,
+  and its `id: "oversold"` card's `actionRoute` is exactly
+  `/inventory/catalog?status=out_of_stock`. Confirmed RED (failed on the
+  first two assertions) before implementation, GREEN after. Full suite
+  re-verified: `npx tsc --noEmit -p .` clean, `npx vitest run` 370/370
+  across 68 files.
+
+### 18. Loyalty Program redemption: corrected a wrong "no redemption UI" claim, fixed two real gaps found in the existing feature
+
+- **Found:** review that traced bug #2 in `_known-bugs.md` before acting on
+  it.
+- **The correction:** bug #2's original entry (from Task 5, Customers) said
+  no screen in the app — including POS checkout — let a customer redeem
+  earned points, and that redemption was "not wired up anywhere in the
+  app." That was wrong. **POS checkout already has a fully working
+  redemption UI** (`components/pos/pos-redeem-reward.tsx`, wired into
+  `pos-cart.tsx`'s cart summary) that predates this entire smoke-test
+  session — traceable to commit `2f1abfd7`. It lets a cashier, once a
+  customer is selected, pick from that customer's affordable active
+  redemption options and apply the option's naira `discount_value` as the
+  cart's discount, showing "Redeeming: <label> (N pts)" with a clear
+  button. Task 5's finding was accurate about the *Customers* module
+  (Directory, customer detail panel, and the Loyalty tab's own screens
+  genuinely have no redeem action) but never checked POS before generalizing
+  to "anywhere in the app."
+- **Two real gaps were found in the existing, working feature** while
+  verifying the correction above — grepped `pos-redeem-reward.tsx`,
+  `pos-cart.tsx`, `use-pos-cart.ts`, and `use-pos-payment.ts` for
+  `canUseLoyaltyProgram`/`useFeatureGate` and found zero references in any
+  of them:
+  1. **POS redemption bypassed the plan-tier gate entirely.**
+     `useFeatureGate().canUseLoyaltyProgram` (previously
+     `getFeature('loyalty_program', 'loyalty_program', isPro ||
+     isEnterprise)`) was wired into the Loyalty tab itself by an earlier fix
+     this session, but nothing gated the POS redemption path — a Free-tier
+     store could redeem points at checkout same as a Pro/Enterprise one.
+  2. **No independent on/off switch.** The only gate was plan tier; an
+     entitled Pro/Enterprise store had no way to pause the whole program
+     (e.g. while reconfiguring rewards, or a seasonal decision to suspend
+     it) without downgrading its plan.
+- **Fix:**
+  1. New `stores.loyalty_program_enabled INTEGER DEFAULT 1` column — added
+     to `lib/db/schema.ts`'s `CREATE TABLE stores` for fresh installs, and
+     as an `ALTER TABLE stores ADD COLUMN ...` data migration in
+     `lib/db/core.ts` for existing installs. **DEFAULT 1 (ON)**, not 0 — an
+     existing Pro/Enterprise store already using the loyalty program must
+     see zero behavior change from this migration; only a store that
+     explicitly flips the new switch off gets paused.
+  2. `useFeatureGate().canUseLoyaltyProgram` now ANDs the plan-tier
+     entitlement with the store's toggle: `isLoyaltyProgramEnabled(tierAllows,
+     storeProfile?.loyalty_program_enabled)`, a pure function (`!==
+     0`, so undefined/null pre-migration rows read as "on") extracted into
+     `lib/hooks/use-feature-gate.ts` so the AND logic is unit-testable
+     without a StoreContext/useSystemConfigStore render harness. A second,
+     tier-only value — `canAccessLoyaltyProgramPlan` — was added alongside
+     it specifically so Settings UI could decide whether to *show* the
+     toggle without a chicken-and-egg bug: gating the switch's own
+     visibility on the combined `canUseLoyaltyProgram` would hide it the
+     instant it's turned off, making it impossible to turn back on.
+  3. `components/pos/pos-redeem-reward.tsx` now calls `useFeatureGate()`
+     directly and adds `!canUseLoyaltyProgram` to its early-return
+     condition — the entire control (trigger and the active "Redeeming: X"
+     display) disappears completely when gated, matching how gated features
+     elsewhere hide rather than merely disable (though this component
+     doesn't use `LockedModuleOverlay` itself, since it's an inline
+     cart-line-item, not a full-page module).
+  4. **Mid-session gate-flip handling:** `lib/hooks/use-pos-cart.ts` now
+     also calls `useFeatureGate()` and runs a `useEffect` that calls
+     `clearRedemption()` whenever `canUseLoyaltyProgram` is false and a
+     `redeemedOption` is still staged — covering a plan downgrade or an
+     admin flipping the store's toggle in another tab while this one has a
+     redemption already picked. Without this, a gated-off session could
+     still complete a checkout with a stale redemption's discount applied
+     (the UI hides the *control* to start a new redemption, but doesn't by
+     itself un-stage one already in cart state).
+  5. **Backend defense-in-depth:** `lib/hooks/use-pos-payment.ts` gained a
+     `canUseLoyaltyProgram` param (fails closed — defaults to `false`, so a
+     caller that forgets to pass it gets no loyalty writes rather than
+     silently bypassing the gate) threaded from `use-pos-system.ts`'s
+     `useFeatureGate()` call. When it's false: `earnedPoints` is forced to
+     `0`, `sales.points_redeemed` is forced to `0`, and the whole
+     `loyalty_transactions` insert block (both `earned` and `redeemed` rows,
+     plus the `customers.loyalty_points` balance update) is skipped — even
+     if a customer and a staged redemption both somehow reach this function,
+     e.g. via a stale UI state.
+  6. **Settings UI, both places, one mutation:** an "Enable Loyalty
+     Program" switch was added to Settings → Business Info's Store Profile
+     section (`components/settings/store/store-profile-section.tsx`, next
+     to the existing "Enable Online Store" switch, same visual pattern and
+     same "always show; click-blocked with an upgrade toast if
+     `!canAccessLoyaltyProgramPlan`" convention `canUseEcommerce`/`onlineStoreEnabled`
+     already used) and to the Loyalty Settings dialog
+     (`components/customers/loyalty-settings-dialog.tsx`) as a
+     clearly-separated "Program Status" section above the Tiers/Redemption
+     Options tabs. Both read/write the exact same
+     `stores.loyalty_program_enabled` field through the exact same
+     mechanism — `useStore().updateStoreProfile()`, which is a direct
+     `update("stores", storeId, {...})` (confirmed `stores` is not one of
+     `STORE_SCOPED_TABLES`'s per-tenant-scoped domain tables — it *is* the
+     tenant) — so there is only one persistence path, never two that could
+     drift.
+- **Testing:**
+  - `client/__tests__/use-feature-gate-loyalty.test.ts` — unit tests for
+    `isLoyaltyProgramEnabled()`'s AND logic (tier-only, toggle-only,
+    both-off, undefined/null-toggle-treated-as-on). RED (function didn't
+    exist) confirmed before implementation, GREEN after.
+  - `client/__tests__/use-pos-payment-loyalty-gate.test.ts` — the most
+    important test in this fix: a real sql.js-backed `usePOSPayment()`
+    render (via a minimal `react-dom/client` + React 19 `act()` harness,
+    since this repo has no `@testing-library/react`), asserting zero
+    `loyalty_transactions` rows are written — earn or redeem — when
+    `canUseLoyaltyProgram: false`, with a customer selected and a
+    redemption staged, plus a control case confirming both rows are still
+    written when the gate is open. RED (control-case assertions passed
+    unconditionally pre-fix, i.e. the gate-off case wrote both rows exactly
+    like the control) confirmed before the fix, GREEN after.
+  - `client/__tests__/init-database-migrations.test.ts` — new case
+    confirming the `ALTER TABLE stores ADD COLUMN loyalty_program_enabled`
+    migration, run against a legacy store row that predates the column,
+    lands on `1` (not `0`), following the existing
+    `relaxPurchaseOrdersSupplierIdNullable`-style migration test pattern in
+    this file. RED (`no such column`) before, GREEN after.
+  - Full suite re-verified after all changes: `npx tsc --noEmit -p .`
+    clean, `npx vitest run` 378/378 across 70 files.
+- **Docs updated:** `docs/features/customers.md` (Loyalty Program section —
+  correction plus the new toggle), `docs/features/pos.md` (Cart section —
+  Redeem Reward control documented for the first time, with its gating),
+  `docs/features/settings.md` (Business Info section — new switch),
+  `docs/features/_known-bugs.md` (bug #2 rewritten from "Open, missing
+  feature" to "Fixed" with the corrected record and both real gaps).
+
 ## Open
 
 (Sections below add entries here as they're walked.)
+
+### Prescriptions: "-5/142" stock-batch display anomaly (bug #3) re-investigated — explained, not a bug
+
+- **Found:** re-investigation of bug #3 in `_known-bugs.md` (originally
+  Task 4, Prescriptions), requested specifically because the first round's
+  investigation was inconclusive — it never recorded either batch's `id`.
+- **Technique used:** the app's dev-only `window.getDatabaseBinary()` hook
+  (`client/lib/db/core.ts`, gated on `NODE_ENV === "development"`) exports
+  the live sql.js database as a `Uint8Array`. Loading a matching-version
+  `sql.js` (`1.13.0`, matching `client/package.json`) via a `<script>` tag
+  into the same page and opening a fresh `SQL.Database(binary)` instance
+  from it gives direct, authoritative SQL access to whatever the running
+  app currently has in local storage — far more conclusive than reading
+  rendered UI cards, and doesn't require any app code changes. (An `esm.sh`
+  ESM import of `sql.js` was tried first and failed on both a version
+  mismatch against the locally-served `.wasm` and, at a matching version, an
+  unrelated `unenv`/`fs.readFileSync` polyfill gap in that bundler's build —
+  the plain UMD `<script>` tag from jsdelivr's `dist/sql-wasm.js` worked
+  cleanly instead.)
+- **Root cause found:** not a display, cache, or write-path bug at all. Two
+  different products, in two different stores on this account (Pikarestiv
+  Stores and Pikarestiv Stores 2), are both named "TRAMADOL 100MG" — the
+  147 (Activity Log) and -5 (Inventory) figures the first round compared
+  belonged to two entirely different `products.id`/`stock_batches.id`/
+  `store_id` combinations that happen to share a display name, not to one
+  batch being shown two ways. See `docs/features/prescriptions.md`'s
+  "Caveat on Inventory's displayed stock" section for the full batch-id
+  trail, and `_known-bugs.md`'s bug #3 entry for the closing summary.
+- **Bonus finding:** the -5 batch's one `stock_movements` row is a real
+  oversell (a batch with 0 stock, dispensed 5 units against) written
+  *before* bug #4's floor-at-0 fix (`2ed46c9e`) landed — i.e. it's a
+  pre-fix artifact, not evidence the fix doesn't work. A fresh, clean
+  reproduction (new single-store single-batch product, stocked via Cycle
+  Count, dispensed via a real prescription) showed correct behavior
+  throughout with one continuous batch id and no negative anywhere.
+- **No code changed.** Investigation-only, per task scope.
 
 ### Expenses: walkthrough found no bugs; e2e coverage gap closed
 

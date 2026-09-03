@@ -56,7 +56,29 @@ Status values: **Open** (not started) → **In Progress** → **Fixed**.
 
 ## 4. `recordSaleItemStock`'s fallback batch has no floor
 
-- **Status:** Open
+- **Status:** Fixed (`2ed46c9e`) — this was a user-directed product
+  decision, not just a bug squash: asked how an oversell should be
+  handled, the user chose **"floor + alert"** — let the sale complete
+  (don't block checkout over a stale on-screen stock count), but never
+  let the batch's stored `stock_batches.quantity` go below zero, and
+  surface it for staff to reconcile. `deductFromBatch` now writes
+  `Math.max(0, batch.quantity - deduction)` to `stock_batches`, while
+  `sale_item_batches`/`stock_movements` still record the true, unfloored
+  deduction amount (accurate sales/audit-trail accounting is preserved
+  even when the batch's own running balance gets floored). A deduction
+  that exceeded the batch's available quantity at the time (the only way
+  that can happen given the existing branching) gets its
+  `stock_movements.reason` tagged `"Customer sale (oversold — insufficient
+  batch stock)"` instead of the plain `"Customer sale"`. A new
+  `getOversoldAlerts()` query (modeled on `getLowStockAlerts()`/
+  `getExpiryAlerts()`, 30-day recency window) feeds a new "Oversold" /
+  `critical` category into `useStockBatchAlerts()`, alongside the existing
+  Low Stock and Expiring Soon categories — no UI component changes needed,
+  since both consumers (`business-intelligence-dashboard.tsx` via
+  `use-bi-data.ts`, rendered by `stock-batch-insights-tab.tsx`) already
+  render whatever `useStockBatchAlerts()` returns generically. No schema
+  migration was needed: `stock_movements.reason` is already a plain `TEXT`
+  column. See `### 16.` in `_findings-log.md` for full detail.
 - **Found:** Task 3 (POS)
 - **Where:** `client/lib/db/queries/inventory.ts` — when a sale's quantity
   exceeds all available batch stock, the fallback batch absorbs the

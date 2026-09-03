@@ -715,6 +715,83 @@ sub-tabs) against real seeded data on Pikarestiv Stores 2.
   after the fix. Full suite re-verified: `npx tsc --noEmit -p .` clean,
   `npx vitest run` 366/366 across 67 files.
 
+### 16. `recordSaleItemStock`'s fallback batch had no floor on oversell
+
+- **Found:** Task 3 (POS), tracked as bug #4 in `_known-bugs.md`.
+- **Nature of this fix:** a user-directed product decision, not just a bug
+  squash. The fallback deduction path (`deductFromBatch`, inside
+  `recordSaleItemStock()` in `client/lib/db/queries/inventory.ts`) let a
+  batch's `stock_batches.quantity` go arbitrarily negative whenever a sale
+  oversold past what was actually available (e.g. a stale on-screen stock
+  count let a cashier ring up more units than a batch had left). Left open
+  at the time pending a UX decision: block the oversell, warn first, or
+  something else. Asked directly, the user chose **"floor + alert"**: let
+  the sale complete — don't block checkout over a stale count — but never
+  let the batch's own stored quantity go below zero, and surface an alert
+  so staff can reconcile the divergence.
+- **Root cause / mechanism:** `deductFromBatch()` computed `deduction` as
+  `Math.min(batch.quantity, remainingToDeduct)` when the batch still had
+  positive stock, or `remainingToDeduct` unconditionally when it didn't
+  (`batch.quantity <= 0`) — the latter is the only branch where `deduction`
+  can exceed `batch.quantity`, i.e. the only place an oversell can occur.
+  It then wrote `batch.quantity - deduction` straight to `stock_batches`
+  with no floor.
+- **Fix:**
+  1. The `stock_batches` `update()` now writes
+     `Math.max(0, batch.quantity - deduction)` instead of
+     `batch.quantity - deduction`. `deduction` itself — and therefore what
+     gets written to `sale_item_batches`/`stock_movements` — is completely
+     unchanged, so sales and inventory-consumed accounting stay accurate
+     even when the batch's own running balance gets floored.
+  2. A new `oversoldBatchIds` `Set<string>` records any batch id where
+     `deduction > batch.quantity` was true at the moment `deductFromBatch`
+     ran (a batch can be touched twice across the main FEFO loop and the
+     partial-shortfall fallback loop, per finding #15, so this is a set
+     rather than a single flag). When the deferred `stock_movements` insert
+     runs for a batch in that set, its `reason` is written as
+     `"Customer sale (oversold — insufficient batch stock)"` instead of the
+     plain `"Customer sale"` — confirmed against
+     `components/stock-batch/stock-movements.tsx` that `reason` is exactly
+     what the Movements/Ledger tab's "Reference/Reason" column renders, so
+     the new text reads sensibly there.
+  3. New `getOversoldAlerts()` query in the same file, modeled directly on
+     the existing `getLowStockAlerts()`/`getExpiryAlerts()`: store-scoped
+     via `getActiveStoreId()`, and windowed to `stock_movements` rows from
+     the last 30 days (same date-window pattern as `getExpiryAlerts()`) so
+     a long-since-reconciled oversell doesn't linger in the alerts list
+     indefinitely.
+  4. `useStockBatchAlerts()` (`client/lib/hooks/use-stock-batch-alerts.ts`)
+     now also queries `getOversoldAlerts()` and folds it into the combined
+     alerts array as a third category: `issue: "Oversold"`,
+     `severity: "critical"` (always critical — it means recorded and real
+     stock have already diverged, not merely that stock is running low).
+     No schema migration was needed — `stock_movements.reason` is already a
+     plain `TEXT` column, so no `ALTER TABLE` was added to `core.ts`.
+- **UI wiring — no component changes needed:** the only current consumer of
+  `useStockBatchAlerts()` is `use-bi-data.ts` → `stock_batchAlerts`, passed
+  into `business-intelligence-dashboard.tsx` → rendered generically by
+  `components/analytics/stock-batch-insights-tab.tsx` (which maps
+  `product`/`issue`/`severity`/optional `quantity`/`threshold`/
+  `expiryDate`/`daysLeft` fields with no per-category branching). The new
+  "Oversold" objects (`product`, `issue`, `severity`, `quantity`) fit that
+  shape without any edits to the rendering component. Note:
+  `components/stock-batch/needs-attention.tsx` and
+  `components/dashboard/dashboard-action-center.tsx` do **not** actually
+  consume `useStockBatchAlerts()` — they build their own attention lists
+  directly from `getExpiringBatches()`/stock-overview data — so the new
+  alert does not appear there; it appears wherever
+  `stock-batch-insights-tab.tsx` is rendered (the Business Intelligence /
+  Analytics dashboard).
+- **Verified by:** `client/__tests__/record-sale-item-stock-depleted-batch.test.ts`
+  (three existing cases updated for the new floor-at-0 expectation, one
+  case's `reason` assertion added, one new plain-`"Customer sale"`
+  regression assertion added for the non-oversold FEFO case) plus a new
+  `client/__tests__/get-oversold-alerts.test.ts` (oversold product surfaced;
+  a normally-sold product not surfaced; an oversold movement outside the
+  30-day window not surfaced). Confirmed RED before each implementation
+  step, GREEN after. Full suite re-verified: `npx tsc --noEmit -p .` clean,
+  `npx vitest run` 369/369 across 68 files.
+
 ## Open
 
 (Sections below add entries here as they're walked.)

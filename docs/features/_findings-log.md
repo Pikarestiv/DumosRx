@@ -857,6 +857,42 @@ sub-tabs) against real seeded data on Pikarestiv Stores 2.
 
 (Sections below add entries here as they're walked.)
 
+### Prescriptions: "-5/142" stock-batch display anomaly (bug #3) re-investigated — explained, not a bug
+
+- **Found:** re-investigation of bug #3 in `_known-bugs.md` (originally
+  Task 4, Prescriptions), requested specifically because the first round's
+  investigation was inconclusive — it never recorded either batch's `id`.
+- **Technique used:** the app's dev-only `window.getDatabaseBinary()` hook
+  (`client/lib/db/core.ts`, gated on `NODE_ENV === "development"`) exports
+  the live sql.js database as a `Uint8Array`. Loading a matching-version
+  `sql.js` (`1.13.0`, matching `client/package.json`) via a `<script>` tag
+  into the same page and opening a fresh `SQL.Database(binary)` instance
+  from it gives direct, authoritative SQL access to whatever the running
+  app currently has in local storage — far more conclusive than reading
+  rendered UI cards, and doesn't require any app code changes. (An `esm.sh`
+  ESM import of `sql.js` was tried first and failed on both a version
+  mismatch against the locally-served `.wasm` and, at a matching version, an
+  unrelated `unenv`/`fs.readFileSync` polyfill gap in that bundler's build —
+  the plain UMD `<script>` tag from jsdelivr's `dist/sql-wasm.js` worked
+  cleanly instead.)
+- **Root cause found:** not a display, cache, or write-path bug at all. Two
+  different products, in two different stores on this account (Pikarestiv
+  Stores and Pikarestiv Stores 2), are both named "TRAMADOL 100MG" — the
+  147 (Activity Log) and -5 (Inventory) figures the first round compared
+  belonged to two entirely different `products.id`/`stock_batches.id`/
+  `store_id` combinations that happen to share a display name, not to one
+  batch being shown two ways. See `docs/features/prescriptions.md`'s
+  "Caveat on Inventory's displayed stock" section for the full batch-id
+  trail, and `_known-bugs.md`'s bug #3 entry for the closing summary.
+- **Bonus finding:** the -5 batch's one `stock_movements` row is a real
+  oversell (a batch with 0 stock, dispensed 5 units against) written
+  *before* bug #4's floor-at-0 fix (`2ed46c9e`) landed — i.e. it's a
+  pre-fix artifact, not evidence the fix doesn't work. A fresh, clean
+  reproduction (new single-store single-batch product, stocked via Cycle
+  Count, dispensed via a real prescription) showed correct behavior
+  throughout with one continuous batch id and no negative anywhere.
+- **No code changed.** Investigation-only, per task scope.
+
 ### Expenses: walkthrough found no bugs; e2e coverage gap closed
 
 - **Checked:** categories (Rent/Utilities/Salaries/Maintenance/Marketing/

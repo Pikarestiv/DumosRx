@@ -37,22 +37,44 @@ Status values: **Open** (not started) → **In Progress** → **Fixed**.
 - **Why not fixed yet:** this is a missing feature (a real redemption flow),
   not a bug fix — out of proportion to build during a smoke-test pass.
 
-## 3. Prescriptions: unresolved "-5/142" stock-batch display anomaly
+## 3. Prescriptions: "-5/142" stock-batch display anomaly (investigated — not a bug, two unrelated products share a name)
 
-- **Status:** Open
+- **Status:** Investigated — closed, no fix needed. See
+  `docs/features/prescriptions.md`'s "Caveat on Inventory's displayed stock"
+  section for full detail and evidence.
 - **Found:** Task 4 (Prescriptions)
-- **Where:** dispensing a prescription against a stock batch showed a
-  batch's remaining quantity as "-5" in one place while the same batch
-  showed "142" (the correct post-dispense count) elsewhere on the same
-  screen.
-- **Investigated:** the write path itself was confirmed correct
-  (`recordSaleItemStock` → Activity Log → 142 is right). Leading candidate:
-  `getStockBatchesForProductDetails` may be rendering a different,
-  pre-existing batch row for the same product, not the one actually
-  touched by the dispense — but this was never confirmed.
-- **Why not fixed yet:** root cause genuinely not found after one dedicated
-  investigation round; needs a fresh, focused debugging pass (reproduce,
-  log both the touched batch ID and the ID of whichever batch shows "-5").
+- **Original report:** dispensing a prescription against a stock batch
+  showed a batch's remaining quantity as "-5" in one place while "the same
+  batch" showed "142" (the correct post-dispense count) elsewhere.
+- **Round 1 (inconclusive):** confirmed the write path itself was correct
+  (`recordSaleItemStock` → Activity Log → 142 is right) but could not
+  determine why Inventory showed -5, since neither batch's `id` was
+  recorded at the time.
+- **Round 2 (resolved, with batch-id-level evidence via direct sql.js
+  queries against the live database):** the leading hypothesis — one
+  product with two `stock_batches` rows, a stale negative one masking the
+  correct one — is ruled out; every product, including both involved here,
+  had exactly one non-deleted batch row. The actual mechanism: **two
+  different products, in two different stores on this shared test account,
+  are both literally named "TRAMADOL 100MG"** — `baa87d56-...` in store
+  "Pikarestiv Stores" (batch `86c3da7b-...`, quantity 147, never touched by
+  any `stock_movements` row — a bulk-import artifact) and `6992c53b-...` in
+  store "Pikarestiv Stores 2" (batch `73a4ded2-...`, quantity -5, with
+  exactly one `stock_movements` row: a real prescription sale that oversold
+  a batch which had 0 stock). These were never the same batch, product, or
+  store — the "147 → 142" and "-5" figures being compared in round 1 came
+  from two unrelated products that merely share a display name, almost
+  certainly cross-referenced across two different active-store contexts
+  without that being noticed. No read, write, cache, or sync-path code was
+  at fault.
+- **The "-5" itself is real and is bug #4** (below): the sale that produced
+  it (`2026-09-02T19:47:15Z`) predates bug #4's fix (`2ed46c9e`,
+  `2026-09-03T13:29`), so it's a pre-fix artifact still sitting in the local
+  database from before floor-at-0 landed.
+- **Confirmed clean via fresh reproduction:** a new single-store,
+  single-batch product, stocked and dispensed against, showed one
+  continuous batch id from creation through dispense with no anomaly at any
+  point (Catalog, Batches tab, and raw `stock_batches.quantity` all agreed).
 
 ## 4. `recordSaleItemStock`'s fallback batch has no floor
 

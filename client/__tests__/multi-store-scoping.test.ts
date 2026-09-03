@@ -21,6 +21,8 @@ describe("multi-store query scoping", () => {
   let insert: typeof import("@/lib/db/base-helpers").insert;
   let getProductsWithStock: typeof import("@/lib/db/queries/products").getProductsWithStock;
   let getProductList: typeof import("@/lib/db/queries/products").getProductList;
+  let getCategoryList: typeof import("@/lib/db/queries/categories").getCategoryList;
+  let createCategory: typeof import("@/lib/db/queries/categories").createCategory;
 
   beforeAll(async () => {
     core = await import("@/lib/db/core");
@@ -29,6 +31,9 @@ describe("multi-store query scoping", () => {
     const products = await import("@/lib/db/queries/products");
     getProductsWithStock = products.getProductsWithStock;
     getProductList = products.getProductList;
+    const categories = await import("@/lib/db/queries/categories");
+    getCategoryList = categories.getCategoryList;
+    createCategory = categories.createCategory;
 
     const { SCHEMA_SQL } = await import("@/lib/db/schema");
     const SQL = await initSqlJs({
@@ -40,6 +45,8 @@ describe("multi-store query scoping", () => {
     // base CREATE TABLE statements in SCHEMA_SQL. Replicate it here since
     // __setDatabaseForTesting bypasses initDatabase()'s migration loop.
     db.run(`ALTER TABLE products ADD COLUMN store_id TEXT;`);
+    db.run(`ALTER TABLE categories ADD COLUMN store_id TEXT;`);
+    db.run(`ALTER TABLE categories ADD COLUMN is_active INTEGER DEFAULT 1;`);
     core.__setDatabaseForTesting(db);
   });
 
@@ -110,5 +117,45 @@ describe("multi-store query scoping", () => {
     await expect(
       insert("stores", { name: "Test Store", store_type: "pharmacy", currency: "NGN" }),
     ).resolves.toBeDefined();
+  });
+
+  it("getCategoryList returns only the active store's categories", async () => {
+    db.run(
+      `INSERT INTO categories (id, name, store_id, _deleted) VALUES
+        ('c1', 'Drugs', 'store-a', 0),
+        ('c2', 'Beverages', 'store-b', 0)`,
+    );
+
+    core.setActiveStoreId("store-a");
+    const storeACategories = await getCategoryList();
+    expect(storeACategories.map((c) => c.id)).toEqual(["c1"]);
+
+    core.setActiveStoreId("store-b");
+    const storeBCategories = await getCategoryList();
+    expect(storeBCategories.map((c) => c.id)).toEqual(["c2"]);
+  });
+
+  it("getCategoryList still surfaces legacy NULL-store_id categories to every store", async () => {
+    db.run(
+      `INSERT INTO categories (id, name, store_id, _deleted) VALUES
+        ('c1', 'Drugs', 'store-a', 0),
+        ('c2', 'Legacy Category', NULL, 0)`,
+    );
+
+    core.setActiveStoreId("store-a");
+    const storeACategories = await getCategoryList();
+    expect(storeACategories.map((c) => c.id).sort()).toEqual(["c1", "c2"]);
+
+    core.setActiveStoreId("store-b");
+    const storeBCategories = await getCategoryList();
+    expect(storeBCategories.map((c) => c.id)).toEqual(["c2"]);
+  });
+
+  it("createCategory auto-scopes the new row to the active store", async () => {
+    core.setActiveStoreId("store-a");
+    const id = await createCategory("New Category");
+
+    const rows = db.exec(`SELECT store_id FROM categories WHERE id = '${id}'`);
+    expect(rows[0].values[0][0]).toBe("store-a");
   });
 });

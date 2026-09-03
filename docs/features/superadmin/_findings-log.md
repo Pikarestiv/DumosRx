@@ -346,3 +346,146 @@ and a no-op re-save round-tripped a real `PUT
 admin/system-configs/default_account_manager_id` → 200 with the correct
 toast. No bugs found in either integration. Full detail in
 `docs/features/superadmin/system.md`.
+
+### Gap: Communications' User Feedback tab has no pagination UI despite a real, large paginated dataset (2,934 rows, only 50 ever visible)
+
+**Section:** Communications. **Severity:** Medium (real data is
+permanently inaccessible through this UI, not just a cosmetic gap).
+
+`FeedbackController::index` correctly paginates (`Feedback::query()->paginate(50)`)
+and the frontend's shape handling matches it exactly, but
+`components/admin/views/feedback-tab.tsx` only ever renders
+`data?.data?.map(...)` — no page control, "load more," or any element
+reads the response's pagination metadata. Live-confirmed via `php artisan
+tinker`: 2,934 real pending feedback/crash-report tickets exist
+(auto-submitted by `system-logs@dumosrx.com`, e.g. `[CRASH] [WEB] FATAL:
+Aborted(Error: [unenv] fs.readFileSync is not implemented yet!)`), of
+which only the newest 50 are ever visible; the remaining 2,884 have no way
+to be reached through this page. The "All/Pending/Resolved" status filter
+tabs work correctly but don't help here since virtually all 2,934 tickets
+are `pending`. Not fixed — investigation only. Full detail in
+`docs/features/superadmin/communications.md`.
+
+### Confirmed, not a bug: Communications' Broadcasts and Feedback actions are correctly wired; Email Campaigns deliberately not live-tested (real send risk)
+
+**Section:** Communications.
+
+Live round-trip tested Broadcasts create → toggle → delete (all real
+`admin/announcements` calls, 200s, correct UI updates), scoped to a
+`target_type: specific` broadcast targeting only the logged-in
+super_admin's own account (never a real store owner). Live-tested
+Feedback's "Resolve" action on a real ticket (`POST
+admin/feedback/{id}/status` → 200, badge updated). Response shapes for
+both match their frontend types exactly — no repeat of the Products
+`data`/`meta` nesting bug. Email Campaigns (`POST admin/mail/send`) was
+deliberately **not** submitted live: `MailController::send` queues a real
+`Mail::to($user->email)` job per targeted user, and this dev backend's
+seeded users include a real personal address
+(pikarestiv@gmail.com). Confirmed correct wiring via source read only
+(validation, queueing logic, response contract all check out). Full
+detail in `docs/features/superadmin/communications.md`.
+
+### Bug: Downloads page's Linux/Android "Coming Soon" state is dead code — always renders as available regardless of real asset existence
+
+**Section:** Downloads. **Severity:** Low-Medium (could hand a real
+superadmin/tester a Download button pointing at a 404).
+
+`app/admin/downloads/page.tsx` computes `linuxAssetExists =
+!!currentLinks.linux` (same for Android) to decide between an enabled
+"Download" button and a disabled "Coming Soon"/"Unavailable" card. But
+`useLatestRelease()` (`lib/api/release-hooks.ts`) always constructs
+`currentLinks.linux`/`.android` as a non-empty template-string URL,
+regardless of whether that file actually exists on the CDN or whether the
+`updater.json` fetch even succeeded — so `!!currentLinks.linux` is always
+`true` and the "Coming Soon" branch is unreachable in practice.
+Live-confirmed via `read_page`: both Linux and Android cards rendered live
+"Download" buttons with real-looking CDN URLs
+(`https://downloads.dumosrx.com/v0.0.35/DumosRx_0.0.35_amd64.AppImage`,
+`.../DumosRx-Android.apk`) even though this dev environment's CDN request
+(`GET https://downloads.dumosrx.com/updater.json`) returned a live 503.
+Not fixed — investigation only (no Download links were clicked, per this
+task's scope of avoiding real external/production actions with unverified
+consequences). Full detail in `docs/features/superadmin/downloads.md`.
+
+### Minor: Downloads page's per-platform "size" text is hardcoded to empty in every code path
+
+**Section:** Downloads.
+
+`useLatestRelease()`'s success-path return object sets `winSize`/
+`macSize`/`linuxSize`/`androidSize` to literal `""` unconditionally — not
+derived from `updater.json`'s response even when that fetch succeeds. The
+page's `defaultLinks` fallback (`"---"`) is dead code since `links` is
+never falsy. Net effect: the size line under each install-format label is
+always blank, regardless of environment. Full detail in
+`docs/features/superadmin/downloads.md`.
+
+### Bug: superadmin's Impersonate action defaults to the real production domain (`app.dumosrx.com`) with no in-panel way to override, in any dev session that skipped the login page's Server Config
+
+**Section:** Handoff (root cause lives in Stores' Impersonate action, but
+only became visible/relevant while investigating the Handoff round trip,
+which has no other entry point). **Severity:** Medium-High (live-observed
+real network request to production infrastructure from a dev testing
+session).
+
+`getAppURL()` (`web/lib/constants.ts`) defaults to
+`https://app.dumosrx.com` (`NEXT_PUBLIC_APP_URL` unset in this dev
+environment) and only checks a `localStorage` override that can *only* be
+set via `ServerSelector`, which is mounted on the **login page**, not
+anywhere inside the already-authenticated admin panel. This task's Chrome
+session started pre-authenticated (never touched the login form), so the
+override was never set. Live-reproduced: the first "Impersonate (Admin)"
+click hard-navigated the browser to
+`https://app.dumosrx.com/auth/callback?code=...` — real production — which
+correctly rejected the (locally-minted, production-meaningless) code with
+`410 Code expired or already used`, but only after a real handoff-code
+value had already been sent over the network to production. No account
+compromise resulted (code was for a `Demo`-flagged test store, already
+consumed/rejected by the time of the request), but this is a real,
+easily-reproduced footgun with no in-panel warning. Root-caused and
+reproduced live; then worked around for the rest of this task's testing by
+manually setting `localStorage.dumos_app_url` via the browser console.
+Not fixed — investigation only. Full detail in
+`docs/features/superadmin/handoff.md`.
+
+### Bug: handoff callback page can show a false "Missing handoff code" error even when the underlying login already succeeded (React Strict-Mode dev double-effect race)
+
+**Section:** Handoff. **Severity:** Low-Medium (confusing UX in dev; the
+code's own comments show the author anticipated and partially — but not
+fully — guarded against this exact race; likely not visible in production
+builds since Strict Mode's double-invoke is dev-only).
+
+Live-reproduced on `client/app/auth/callback/page.tsx` (the forward leg of
+the impersonation handoff into which superadmin's Impersonate action
+redirects) — `web/app/admin/handoff/page.tsx` (this task's actual target
+file, the return leg) implements the structurally identical pattern and is
+equally exposed, though its own failure during this task's testing was
+separately root-caused to `return_code` TTL expiry (see below), not a
+repeat of this exact symptom. Network log showed `POST
+/auth/handoff/consume` → **200** (the real, successful exchange), yet the
+browser visibly rendered "Missing handoff code. The link may have
+expired." — the code's `if (!code) setError(...)` branch, a different,
+earlier path than the try/catch around the real 200 call. Subsequent
+direct navigation to `/dashboard` confirmed the login had genuinely
+succeeded underneath the error screen. Consistent with React 18 Strict
+Mode's dev-only double-invoke of `useEffect`: the file's own code comment
+explicitly names the exact risk (`window.history.replaceState()` before
+the async exchange can produce an empty `searchParams` on a second render)
+but the guard (`useEffect(..., [])`) doesn't fully prevent it under
+Strict Mode. Not fixed — investigation only. Full detail in
+`docs/features/superadmin/handoff.md`.
+
+### Confirmed, not a bug: "Failed to return to admin session" on ending impersonation, when the return leg is left idle past its 60-second TTL
+
+**Section:** Handoff.
+
+`AuthHandoffController::TTL_SECONDS = 60`, no renewal. This task's manual,
+multi-minute investigation between minting the impersonation `return_code`
+and clicking "End Session" caused the code to expire (confirmed via
+network log: `POST /auth/handoff/consume` → **410**), logging the browser
+out of both the impersonated and superadmin sessions and requiring a fresh
+superadmin login. A real machine-speed impersonate→work→end cycle would
+comfortably fit in 60 seconds; this is an intentional, documented security
+control (short TTL on a bearer-token-wrapping code), not a defect. Logged
+for awareness: a superadmin who leaves an impersonated session idle for
+over a minute before ending it will hit this same error and be fully
+logged out. Full detail in `docs/features/superadmin/handoff.md`.

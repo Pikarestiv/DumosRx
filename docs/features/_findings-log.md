@@ -626,6 +626,13 @@ sub-tabs) against real seeded data on Pikarestiv Stores 2.
   only, which was accurate then but became stale/overclaiming once
   `remove()`'s gap was found. Both docs have been updated in this same fix
   round to describe all three helpers.
+- **e2e confirmed post-fix:** `e2e/pos-held-transaction.spec.ts`'s recall
+  flow exercises `remove()` on `held_transactions` end-to-end through the
+  real UI (`handleRecallTransaction` → `remove("held_transactions", ...)`,
+  `lib/hooks/use-pos-held-transactions.ts:113`) — this was initially missed
+  during the fix round's own verification pass and confirmed separately:
+  `npx playwright test --project=chromium e2e/pos-held-transaction.spec.ts
+  --no-deps` → 1 passed.
 
 ## Open
 

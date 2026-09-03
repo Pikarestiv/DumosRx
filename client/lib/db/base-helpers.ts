@@ -66,17 +66,13 @@ registerInvalidateTablesFn((tables) => {
  * *local* module-scope resolver has nothing set, which is not something a
  * caller can trigger from outside this process.
  *
- * `bypassOwnershipCheck` exists solely for genuinely system-level write
- * paths (none currently identified in this codebase's callers — see the
- * bug #8 fix commit message for the audit) and must never be threaded from
- * UI code.
+ * No bypass option is exposed here: every update()/softDelete() call site
+ * in the app was audited (see the bug #8 fix commit message) and none
+ * needs cross-store write access. Add one later, narrowly, only if a real
+ * system-level caller is found to need it — don't pre-build the escape
+ * hatch on spec.
  */
-async function assertStoreOwnership(
-  table: string,
-  id: string,
-  bypassOwnershipCheck?: boolean,
-): Promise<void> {
-  if (bypassOwnershipCheck) return;
+async function assertStoreOwnership(table: string, id: string): Promise<void> {
   if (!STORE_SCOPED_TABLES.includes(table)) return;
 
   const activeStoreId = getActiveStoreId();
@@ -159,9 +155,9 @@ export async function update(
   table: string,
   id: string,
   data: Record<string, unknown>,
-  options?: { action?: string; bypassOwnershipCheck?: boolean },
+  options?: { action?: string },
 ): Promise<void> {
-  await assertStoreOwnership(table, id, options?.bypassOwnershipCheck);
+  await assertStoreOwnership(table, id);
 
   const now = new Date().toISOString();
 
@@ -196,12 +192,8 @@ export async function update(
   queueTableInvalidation(table);
 }
 
-export async function softDelete(
-  table: string,
-  id: string,
-  options?: { bypassOwnershipCheck?: boolean },
-): Promise<void> {
-  await assertStoreOwnership(table, id, options?.bypassOwnershipCheck);
+export async function softDelete(table: string, id: string): Promise<void> {
+  await assertStoreOwnership(table, id);
 
   const now = new Date().toISOString();
 

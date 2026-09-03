@@ -1104,6 +1104,90 @@ sub-tabs) against real seeded data on Pikarestiv Stores 2.
   customers.md` — each corrected to reflect its respective fix in place of
   the prior stale/dead-click/empty-state claim.
 
+### 20. `sales-lifecycle.spec.ts`'s Cycle Count steps updated to match the current single-screen ledger flow
+
+- **Found:** see the "Open" entry above (now marked fixed) — the spec's
+  Cycle Count section still expected the old select-a-category → "Start
+  count" → per-product count screen → "Save count" flow. That flow doesn't
+  exist anymore; `StockAudits` (`client/components/stock-batch/stock-audits.tsx`)
+  opens directly onto a single "ledger" step
+  (`client/components/stock-batch/audit-ledger-step.tsx`) with a search box,
+  a `FilterPill`-based Category selector (`selectedCategory`/
+  `setSelectedCategory`, defaulting to the `ALL_CATEGORIES` sentinel), and a
+  flat grid of every product with an inline editable "Counted Qty" cell
+  (`EditableNumberCell`) per row, followed by a "Review & submit" step and a
+  "done" step.
+- **Fix:** rewrote the spec's Cycle Count section
+  (`client/e2e/sales-lifecycle.spec.ts`) to match: click "Start Audit" →
+  open the Category `FilterPill` and pick a real category (confirmed live —
+  a product created via "Add Product" with no category set lands under
+  "Uncategorized", not "All Categories", so the spec filters to
+  "Uncategorized" to both exercise the picker for real and still find the
+  product it just created) → search for the product by name → fill its
+  inline "Counted Qty" cell directly (no separate per-product screen) →
+  "Review & submit" → confirm the item and its qty change appear on the
+  review step → "Submit audit" → confirm "Audit submitted" → "Close Audit".
+  All locators scoped to the audit overlay's root panel
+  (`div.fixed.inset-0.z-50`) after discovering live that unscoped
+  `getByPlaceholder`/`getByRole('button', { name: /^Category:/ })` locators
+  ambiguously matched the *Catalog* page's own identically-labeled
+  search/filter controls still mounted underneath the full-screen overlay.
+- **Verified live in Chrome** before writing selectors: logged in as PIN
+  1111 on Pikarestiv Stores 2, opened Inventory → Start Audit, confirmed the
+  "Physical inventory" ledger screen, exercised the Category filter pill
+  (`Category: Drugs (689)` etc.), searched for TRAMADOL 100MG, edited its
+  Counted Qty inline (diff qty updated live), went through Review & submit
+  (showed "Total Counted"/"Adjusted" tiles and a "Qty: -5 → 25" line), and
+  submitted — got "Audit submitted", and the resulting stock adjustment
+  appeared correctly in Recent Activity.
+- **Verified by:** `npx playwright test --project=chromium
+  e2e/sales-lifecycle.spec.ts --no-deps`, run 3 times in isolation, all
+  green (~10-40s each). One run failed only when launched concurrently with
+  a separate full `e2e/auth.spec.ts` run against the same dev server/backend
+  — the shared `login()` helper timed out waiting for the login page under
+  that concurrent load, unrelated to this spec's own changes; re-run alone,
+  it passed immediately. `npx tsc --noEmit -p .` clean; `npx vitest run`
+  390/390 passing (unchanged — e2e-only change).
+
+### 21. `auth.spec.ts` switched off its stale inline login pattern
+
+- **Found:** see the Summary section above — `e2e/auth.spec.ts` duplicated
+  the old `getByPlaceholder('admin')`/`getByPlaceholder('••••')` login
+  pattern inline in 3 of its 4 tests instead of using the shared, already-
+  fixed `login()` helper in `e2e/fixtures.ts` (which uses the current
+  `InputOTP`-based PIN entry, `input[data-input-otp="true"]`, not a
+  placeholder-based text input).
+- **Fix (`client/e2e/auth.spec.ts`):**
+  - "should redirect unauthenticated users to login" — unchanged, never used
+    `login()` and doesn't need to.
+  - "login page should have expected fields from seeded DB" — kept as a
+    direct field-assertion test (its whole point is checking the login
+    page's real fields, so calling `login()` would defeat the purpose), but
+    swapped the stale `getByPlaceholder('••••')` PIN assertion for
+    `page.locator('input[data-input-otp="true"]').first()`, matching
+    `components/auth/traditional-login-form.tsx`'s real `InputOTP` field.
+    The username field's placeholder assertion (`getByPlaceholder('admin')`)
+    was still correct and left as-is.
+  - "rejects an incorrect PIN" — same swap applied to the fill step (fills
+    the real `InputOTP` field with `'0000'` instead of the nonexistent
+    `'••••'`-placeholder input); still doesn't use the shared `login()`
+    helper, since that helper is built to succeed, not to test rejection.
+  - "logs in successfully with the seeded admin credentials" — simplified to
+    call the shared `login(page)` helper directly. This test never needed to
+    inspect the login form's own fields (test 2 already covers that) — it
+    only needed to end up authenticated and check the dashboard result, so
+    routing it through the shared helper removes the duplicated fill-in
+    steps without changing what the test actually verifies.
+- **Verified live / by reading source:** `components/auth/traditional-login-form.tsx`
+  confirmed directly — username is still a placeholder-based `Input`
+  (`placeholder="admin"`), PIN is an `InputOTP` with 4 `InputOTPSlot`s and no
+  `'••••'` placeholder anywhere. Also confirmed via Claude-in-Chrome: logged
+  in with PIN 1111 on Pikarestiv Stores 2 through the same PIN-unlock
+  `InputOTP` pattern.
+- **Verified by:** `npx playwright test --project=chromium e2e/auth.spec.ts
+  --no-deps`, run 3 times, all 4 tests green every time (~9-10s each run).
+  `npx tsc --noEmit -p .` clean; `npx vitest run` 390/390 passing.
+
 ## Open
 
 (Sections below add entries here as they're walked.)
@@ -1261,7 +1345,7 @@ sub-tabs) against real seeded data on Pikarestiv Stores 2.
   of scope. This task's own verification reused the already-committed
   `e2e/.auth/test-db.bin` fixture directly via `--no-deps` instead.
 
-### e2e suite: `sales-lifecycle.spec.ts`'s Cycle Count steps are stale (second instance of the drift above)
+### e2e suite: `sales-lifecycle.spec.ts`'s Cycle Count steps are stale (second instance of the drift above) — fixed, see "Resolved" #20
 
 - **Found while writing `e2e/pos-held-transaction.spec.ts`:** that new spec
   needed real stock, so it followed `sales-lifecycle.spec.ts`'s
@@ -1272,11 +1356,10 @@ sub-tabs) against real seeded data on Pikarestiv Stores 2.
   no per-category "Start count" step at all. `sales-lifecycle.spec.ts` (and
   this task's first draft of `pos-held-transaction.spec.ts`) hang forever
   waiting for a "Start count" button that no longer exists.
-- **Not fixed:** out of scope for Task 3 (POS); `sales-lifecycle.spec.ts`
+- **Not fixed at the time:** out of scope for Task 3 (POS); `sales-lifecycle.spec.ts`
   predates this task. `pos-held-transaction.spec.ts` was written against the
   current UI instead of copying the stale pattern, so it isn't affected.
-  Recommend updating `sales-lifecycle.spec.ts`'s Cycle Count section next
-  time that spec is touched.
+  **Fixed in a later pass** — see "Resolved" #20 below.
 
 ### Prescriptions: dispensing does *not* have a third copy of the stock-deduction bug — confirmed, no fix needed
 

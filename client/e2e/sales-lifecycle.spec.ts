@@ -32,21 +32,52 @@ test.describe('Sales Lifecycle (realistic data)', () => {
     await expect(page.getByText('Add New Product', { exact: true })).not.toBeVisible();
 
     // 2. Stock it via a Cycle Count (physical count of 50 units found on the shelf).
+    //
+    // Current flow (components/stock-batch/stock-audits.tsx +
+    // audit-ledger-step.tsx, confirmed live in Chrome): "Start Audit" goes
+    // straight to a single "Physical inventory" ledger screen - no separate
+    // per-category "Start count" step or per-product count screen exists.
+    // That screen has a Category FilterPill (defaults to "All Categories")
+    // and a search box, filtering one flat grid of every product with an
+    // inline editable "Counted Qty" cell per row. Exercise the category
+    // filter for real (open it, pick a real category) rather than skipping
+    // it, then search for the specific product and edit its Counted Qty
+    // inline.
+    //
+    // The product created above never had a category set (the "Add
+    // Product" dialog above never touches one), so it lands under
+    // "Uncategorized" (stock-audits.tsx's `ALL_CATEGORIES` fallback) -
+    // that's the real category to filter to in order to both exercise the
+    // picker and still find this exact product afterward.
     await page.getByRole('button', { name: /Start Audit/i }).click();
-    await page.getByText('All Categories').click();
-    await page.getByRole('button', { name: /Start count/i }).click();
-    await page.getByText(productName, { exact: false }).first().click();
+    // The Cycle Count screen is a fixed full-screen overlay on top of the
+    // Catalog page, which never unmounts underneath it - so unscoped
+    // locators can double-match this overlay's controls and the identically
+    // labeled Catalog search/filter behind it. Scope every subsequent
+    // locator to this overlay.
+    const auditPanel = page.locator('div.fixed.inset-0.z-50');
+    await expect(auditPanel.getByText('Physical inventory', { exact: true })).toBeVisible();
 
-    const countInput = page.locator('input[type="number"]');
-    await countInput.fill('50');
-    await page.getByText('Found', { exact: true }).click();
-    await page.getByRole('button', { name: /Save count/i }).click();
+    const categoryFilter = auditPanel.getByRole('button', { name: /^Category:/ });
+    await categoryFilter.click();
+    await page.getByRole('menuitemradio', { name: /^Uncategorized \(\d+\)$/ }).click();
+    await expect(categoryFilter).toHaveText(/Uncategorized/);
 
-    await page.getByRole('button', { name: /Review & submit/i }).click();
-    await expect(page.getByText('1', { exact: true }).first()).toBeVisible(); // "Adjusted" count tile
-    await page.getByRole('button', { name: /Submit audit/i }).click();
-    await expect(page.getByText('Audit submitted', { exact: true })).toBeVisible({ timeout: 10000 });
-    await page.getByRole('button', { name: /Close Audit/i }).click();
+    await auditPanel.getByPlaceholder('Search by name or SKU').fill(productName);
+    const countedQtyInput = auditPanel
+      .getByRole('row')
+      .filter({ hasText: productName })
+      .locator('input[type="number"]')
+      .first();
+    await expect(countedQtyInput).toBeVisible({ timeout: 10000 });
+    await countedQtyInput.fill('50');
+
+    await auditPanel.getByRole('button', { name: /Review & submit/i }).click();
+    await expect(auditPanel.getByText('Review & submit', { exact: true })).toBeVisible();
+    await expect(auditPanel.getByText(productName, { exact: false })).toBeVisible();
+    await auditPanel.getByRole('button', { name: /Submit audit/i }).click();
+    await expect(auditPanel.getByText('Audit submitted', { exact: true })).toBeVisible({ timeout: 10000 });
+    await auditPanel.getByRole('button', { name: /Close Audit/i }).click();
 
     // 3. Sell it at POS with a discount and a cash payment.
     await page.goto('/pos');

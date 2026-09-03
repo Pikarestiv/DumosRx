@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { insert, update } from "@/lib/db/local-database";
-import { getBatchesForProduct } from "@/lib/db/queries/inventory";
+import { recordSaleItemStock } from "@/lib/db/queries/inventory";
 import { updatePrescriptionStatus, dispensePrescriptionRefill } from "@/lib/db/queries/prescriptions";
 import { CartItem, RedeemedOption } from "./use-pos-cart";
 import { calculateEarnedPoints, calculateLoyaltyPointsAfterSale } from "@/lib/utils/loyalty-calculator";
@@ -190,51 +190,15 @@ export function usePOSPayment({
       });
 
       for (const item of cart) {
-        const batches = await getBatchesForProduct(item.id);
-
-        const saleItemId = await insert("sale_items", {
-          sale_id: saleId,
-          product_id: item.id,
-          // Primary/first batch consumed; retained for backward-compat display
-          // only. Accurate per-batch accounting (for FEFO splits) lives in
-          // sale_item_batches below.
-          stock_batch_id: batches[0]?.id || null,
+        await recordSaleItemStock({
+          saleId,
+          productId: item.id,
           quantity: item.quantity,
-          unit_price: item.unit_price,
-          cost_price: item.cost_price || 0,
-          total_price: item.subtotal,
+          unitPrice: item.unit_price,
+          costPrice: item.cost_price || 0,
+          subtotal: item.subtotal,
+          cashierId,
         });
-
-        let remainingToDeduct = item.quantity;
-        for (const batch of batches) {
-          if (remainingToDeduct <= 0) break;
-          const deduction = Math.min(batch.quantity, remainingToDeduct);
-          await update("stock_batches", batch.id, {
-            quantity: batch.quantity - deduction,
-          });
-
-          await insert("sale_item_batches", {
-            sale_item_id: saleItemId,
-            stock_batch_id: batch.id,
-            quantity: deduction,
-          });
-
-          await insert("stock_movements", {
-            product_id: item.id,
-            stock_batch_id: batch.id,
-            movement_type: "sale",
-            quantity: -Math.abs(deduction),
-            unit_cost: item.cost_price || 0,
-            total_cost: (item.cost_price || 0) * deduction,
-            reference_id: saleId,
-            reference_type: "sale",
-            reason: "Customer sale",
-            performed_by: cashierId,
-            movement_date: new Date().toISOString(),
-          });
-
-          remainingToDeduct -= deduction;
-        }
       }
 
       if (paymentMethod === "credit" && selectedCustomer) {

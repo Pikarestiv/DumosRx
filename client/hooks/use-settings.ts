@@ -148,7 +148,14 @@ export function useSettings() {
         setActiveTab(internalTab);
       }
     }
-  }, [tabParam, isCloudLinked, isAdmin, activeTab, syncState]);
+    // syncState.setIsCloudLinkOpen (a useState setter, referentially stable
+    // across renders), not the whole `syncState` object: useSettingsSync()
+    // returns a fresh object literal every render, so depending on it here
+    // made this effect - including its unconditional dialog-open call below
+    // - rerun on every render for as long as the route stayed on the
+    // "cloud" alias, reopening the Link DumosRx Cloud dialog immediately
+    // after the user closed it. See __tests__/settings-cloud-link-dialog-loop.test.ts.
+  }, [tabParam, isCloudLinked, isAdmin, activeTab, syncState.setIsCloudLinkOpen]);
 
   // Tab change handler that updates URL
   const handleTabChange = (value: string) => {

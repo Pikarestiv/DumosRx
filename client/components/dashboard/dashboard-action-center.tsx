@@ -193,7 +193,7 @@ function useActionCenterAlerts(
           icon: PackageX,
           priority: "warning",
           actionLabel: "View Needs",
-          actionRoute: "/inventory/products?status=low_stock",
+          actionRoute: "/inventory/catalog?status=low_stock",
         });
       }
 

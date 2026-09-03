@@ -15,8 +15,44 @@ export async function login(page: Page) {
     localStorage.setItem('dumos_client_tour_completed', 'true');
   });
   await page.getByPlaceholder('admin').fill('admin');
-  await page.getByPlaceholder('••••').fill('1234');
+  // PIN field is an InputOTP (components/auth/traditional-login-form.tsx), not a
+  // placeholder-based text input - '••••' hasn't matched anything since that
+  // component switched to InputOTP. Same selector global.setup.ts already uses
+  // for the analogous OTP field on /setup.
+  await page.locator('input[data-input-otp="true"]').first().fill('1234');
   await page.getByRole('button', { name: /Authorize Entry/i }).click();
+  await expect(page.getByText(/Today's Sales/i)).toBeVisible({ timeout: 10000 });
+}
+
+/** Logs in, then elevates the current per-test copy of the local DB to a
+ * paid tier via the dev-only `window.__e2eSetSubscriptionTier` hook
+ * (`lib/db/core.ts`), reloading so every tier-gated component (feature-gate
+ * hooks, LockedModuleOverlay, etc.) mounts fresh already reading the
+ * elevated tier. Use this instead of a bare `login()` for any spec that
+ * exercises a paid-tier-gated module (Expenses, Procurement, Activity Log
+ * fixtures that route through Expenses, Settings' Staff/Security/Data
+ * tabs, ...) — the shared fixture DB (`e2e/.auth/test-db.bin`) is
+ * deliberately left free-tier for other specs that test the lock overlay
+ * itself, so tier elevation happens per-test, in-browser, never by mutating
+ * the checked-in fixture file. Call this any time after login, before the
+ * tier-gated content is needed — there's no requirement to call it before
+ * navigating past /login.
+ *
+ * Fails loudly (via the thrown Error inside `page.evaluate`) if the dev
+ * hook is ever missing, instead of silently no-oping and producing a
+ * confusing downstream LockedModuleOverlay-interception timeout. */
+export async function loginAsPaidTier(page: Page) {
+  await login(page);
+  await page.evaluate(async () => {
+    if (!window.__e2eSetSubscriptionTier) {
+      throw new Error(
+        '__e2eSetSubscriptionTier dev hook is missing from window - ' +
+          'expected lib/db/core.ts to expose it in development builds.',
+      );
+    }
+    await window.__e2eSetSubscriptionTier('pro');
+  });
+  await page.reload();
   await expect(page.getByText(/Today's Sales/i)).toBeVisible({ timeout: 10000 });
 }
 

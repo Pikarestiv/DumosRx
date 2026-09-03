@@ -129,6 +129,10 @@ interface CreateSaleItem {
   [key: string]: unknown;
 }
 
+// Demo-data-seeding only (reachable only from lib/demo/loader.ts); intentionally
+// NOT routed through the shared recordSaleItemStock() helper (lib/db/queries/inventory.ts)
+// that every production sale-recording path now uses — don't mistake this for a
+// second production sale-recording path that needs fixing to match it.
 export async function createSale(saleData: Record<string, unknown>, items: CreateSaleItem[]) {
   return transaction(async () => {
     const saleId = await insert("sales", saleData);

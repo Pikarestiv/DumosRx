@@ -7,3 +7,8 @@ refs/*
 
 # Worktrees for isolated agent work
 .worktrees/
+
+# dependencies (client/ and laravel-server/ have their own .gitignore for
+# their node_modules/vendor; this covers a root-level node_modules if one
+# ever gets created, e.g. by running npm install from the repo root)
+node_modules/

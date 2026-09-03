@@ -2,6 +2,7 @@
 
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { useCustomerManagement } from "@/lib/hooks/use-customer-management";
+import { LockedModuleOverlay } from "@/components/dashboard/locked-module-overlay";
 
 import { InsightsStrip } from "./insights-strip";
 import { OverviewTab } from "./overview-tab";
@@ -89,8 +90,12 @@ export function CustomerManagement() {
 
         <TabsContent
           value="loyalty"
-          className="flex-1 min-h-0 mt-0 border-none p-0"
+          className="relative flex-1 min-h-0 mt-0 border-none p-0"
         >
+          <LockedModuleOverlay
+            featureName="Loyalty Program"
+            featureKey="loyalty_program"
+          />
           <LoyaltyTab
             tiers={loyaltyTiers}
             currencyCode={storeProfile?.currency}

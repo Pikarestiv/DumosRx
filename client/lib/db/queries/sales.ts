@@ -83,13 +83,6 @@ export async function getHeldTransactionCount() {
   return result[0]?.count || 0;
 }
 
-export async function getStockBatchesForProduct(productId: string) {
-  return query<{id: string, quantity: number}>(
-    "SELECT id, quantity FROM stock_batches WHERE product_id = ? AND quantity > 0 ORDER BY created_at ASC",
-    [productId]
-  );
-}
-
 export async function getSaleItemBatches(saleItemId: string) {
   return query<{ id: string; stock_batch_id: string; quantity: number }>(
     "SELECT * FROM sale_item_batches WHERE sale_item_id = ? AND (_deleted = 0 OR _deleted IS NULL)",

@@ -14,6 +14,11 @@ declare global {
     /** Dev/debug utilities exposed by lib/db/core.ts for console access. */
     getDatabaseBinary?: () => Uint8Array | null;
     restoreDatabase?: (binaryData: Uint8Array) => Promise<void>;
+    /** Test-only (development builds only): elevates the local `stores` row's
+     * subscription_tier directly, for e2e specs that need a paid-tier-gated
+     * module unlocked without racing LockedModuleOverlay's mount timing or
+     * mutating the shared free-tier e2e fixture. See lib/db/core.ts. */
+    __e2eSetSubscriptionTier?: (tier: string) => Promise<void>;
     /** Read-only audit of which legacy migration artifacts (old table/column
      * names, unmigrated stock_quantity, missing store_id backfill, etc.)
      * remain on this device's local database. Safe to run anywhere,

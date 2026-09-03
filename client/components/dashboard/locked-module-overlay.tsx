@@ -7,15 +7,16 @@ import Link from "next/link";
 
 interface LockedModuleOverlayProps {
   featureName: string;
-  featureKey: "prescriptions" | "procurement" | "expenses" | "audit";
+  featureKey: "prescriptions" | "procurement" | "expenses" | "audit" | "loyalty_program";
 }
 
 export function LockedModuleOverlay({ featureName, featureKey }: LockedModuleOverlayProps) {
-  const { 
-    canUsePrescriptions, 
-    canUseProcurement, 
-    canUseExpenses, 
+  const {
+    canUsePrescriptions,
+    canUseProcurement,
+    canUseExpenses,
     canUseAuditMode,
+    canUseLoyaltyProgram,
     getUpgradeMessage
   } = useFeatureGate();
 
@@ -24,6 +25,7 @@ export function LockedModuleOverlay({ featureName, featureKey }: LockedModuleOve
   else if (featureKey === "procurement") isLocked = !canUseProcurement;
   else if (featureKey === "expenses") isLocked = !canUseExpenses;
   else if (featureKey === "audit") isLocked = !canUseAuditMode;
+  else if (featureKey === "loyalty_program") isLocked = !canUseLoyaltyProgram;
 
   if (!isLocked) return null;
 

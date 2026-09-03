@@ -269,3 +269,80 @@ against `first_name`, `last_name`, `email`, `id` — never a concatenated
 single column. Logged as a UX gap (a superadmin typing a full display name
 from the table will get zero results) rather than a bug, since the
 underlying columns and endpoint are working exactly as coded.
+
+### Bug: Activity Log's Store column also shows "Platform" for staff/cashier users (same root cause as the Users-page bug, second surface)
+
+**Section:** Activity. **Severity:** Medium (data-display correctness).
+
+Batch: Activity/System. Live-observed on `/admin/activity`: a `LOGIN` row
+for "Pika Store 1 Cashier 1" (a real `sales_staff` user with
+`store_id` = `8f3c150c-53ca-456d-a008-b5571ee3f6fe`, i.e. "Pikarestiv
+Stores" — same user already documented in the Users-section bug above)
+shows **Store: "Platform"** instead of the real store name, while every
+other row (all from the store-owner account) correctly shows "Pikarestiv
+Stores 2". Root cause is identical to the already-logged Users bug, just a
+second call site: `AdminService::getActivityLogs()`
+(`laravel-server/app/Services/Admin/AdminService.php:733`) resolves
+`$log->user?->store ?? $log->user?->stores?->first()`, and both
+`User::store()` (`hasOne`, default-inferred `stores.user_id` FK) and
+`User::stores()` (`hasMany`, explicit `user_id`) mean "stores this user
+**owns**," not "the store this user's own `store_id` column points at" —
+so both are always empty for any staff-tier user regardless of their real
+`store_id`. Not fixed — investigation only. Same suggested fix as the
+Users bug (resolve via `$user->store_id` directly). Full detail in
+`docs/features/superadmin/activity.md`.
+
+### Gap: Activity Log has 4 documented, working backend filter params with no UI control
+
+**Section:** Activity. **Severity:** Low.
+
+`AdminController::activityLogs` / `AdminService::getActivityLogs()` and
+the frontend hook `useAdminActivityLogs()` all already support `store_id`,
+`user_id`, `date_from`, `date_to` as real query params (confirmed by
+signature/OpenAPI-annotation read), but `app/admin/activity/page.tsx` only
+exposes UI for `search` and `action` — no store picker, user picker, or
+date range picker exists on the page. Not a wiring bug (nothing is
+mis-wired; the capability just isn't surfaced in the UI yet). Full detail
+in `docs/features/superadmin/activity.md`.
+
+### Confirmed, not a bug: System page "Memory" card always reads "Unknown" on this dev machine
+
+**Section:** System.
+
+`AdminService::getSystemHealth()` shells out to `free -m` (Linux-only;
+confirmed absent via `which free` on this macOS dev machine), and already
+degrades gracefully to the pre-seeded `'Unknown'`/`0%` defaults when that
+fails — exactly what renders live. Environment limitation of running the
+Laravel backend on macOS for local dev, not a bug in the health-check
+logic. Full detail in `docs/features/superadmin/system.md`.
+
+### Confirmed, not a bug (accuracy caveat): System page "Storage 92.3%" doesn't match this machine's real disk usage, but the backend math is internally correct
+
+**Section:** System.
+
+Live "Storage" card shows 92.3% used; cross-checked
+`disk_total_space('/')`/`disk_free_space('/')` directly via `php -r` and
+got the exact same 92.3% — so the backend's calculation is correct given
+its inputs. But `df -h /` on the same machine reports 47% capacity used.
+Root cause is a macOS APFS quirk (PHP's disk-space functions report usage
+against the whole shared APFS *container* across all its volumes, while
+`df`'s Capacity column is scoped to the one volume) — not a code defect,
+and likely a non-issue on the single-partition Linux hosts this code is
+actually written for. Flagged as a dev-environment caveat, not a bug. Full
+detail in `docs/features/superadmin/system.md`.
+
+### Confirmed, not a bug: System page's Sentry error feed and Default Contact Specialist config are both real, correctly-wired live integrations
+
+**Section:** System.
+
+`GET admin/errors` makes a genuine live server-side call to the real
+Sentry API (org `dumos-technologies`, both `dumosrx-client` and
+`dumosrx-server` projects) and rendered ~17 real unresolved historical
+issues with correct titles/projects/culprits/event counts — not a stub or
+hardcoded list. The "Refresh" button on system metrics re-issues a fresh
+`GET admin/health` (200 OK). The Default Contact Specialist widget loads
+the real current value via `GET /system-configs/default_account_manager_id`
+and a no-op re-save round-tripped a real `PUT
+admin/system-configs/default_account_manager_id` → 200 with the correct
+toast. No bugs found in either integration. Full detail in
+`docs/features/superadmin/system.md`.

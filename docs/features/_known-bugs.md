@@ -25,7 +25,7 @@ Status values: **Open** (not started) → **In Progress** → **Fixed**.
 
 ## 2. Loyalty Program redemption: corrected record, plus two real gaps found and fixed
 
-- **Status:** Fixed (`PENDING_COMMIT_HASH`)
+- **Status:** Fixed (`5f6d794c`)
 - **Found:** Task 5 (Customers); corrected and fixed in the loyalty-toggle task.
 - **The original entry here was wrong.** It claimed "no screen (Directory,
   customer detail, POS checkout) lets a customer actually redeem earned

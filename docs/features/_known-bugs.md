@@ -83,7 +83,7 @@ Status values: **Open** (not started) → **In Progress** → **Fixed**.
 
 ## 6. `recordSaleItemStock`'s partial-shortfall fallback can double-write a row
 
-- **Status:** Fixed (`<commit-hash>`) — `sale_item_batches` and
+- **Status:** Fixed (`53b4d5c5`) — `sale_item_batches` and
   `stock_movements` inserts are now deferred until every batch touched by
   the call (across both the main FEFO loop and the partial-shortfall
   fallback loop) is known, keyed and summed by batch id, so each unique

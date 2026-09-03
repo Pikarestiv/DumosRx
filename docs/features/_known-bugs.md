@@ -115,6 +115,38 @@ Status values: **Open** (not started) → **In Progress** → **Fixed**.
   code (e.g. a loading skeleton during the transition, or `placeholderData`
   tuning) or this is expected/acceptable UX.
 
+## 8. `update()`/`softDelete()` have zero store-ownership check — cross-tenant write risk (Important, trending Critical)
+
+- **Status:** Open — priority candidate, found while fixing #1
+- **Found:** review of bug #1's fix (2026-09-03)
+- **Where:** `client/lib/db/base-helpers.ts` — both `update()` (writes
+  `UPDATE ${table} ... WHERE id = ?`) and `softDelete()` (same shape) take
+  only a row `id`, with no `store_id` check anywhere. This is the shared
+  helper used by every domain table's edit/delete path, not just categories.
+- **Confirmed UI-reachable today, no tooling required:** bug #1's fix
+  correctly keeps legacy (pre-migration) `store_id IS NULL` categories
+  visible to every store (so old data doesn't vanish for anyone). But
+  `components/products/manage-categories-dialog.tsx` renders every visible
+  row — including those shared legacy ones — with a fully-enabled rename
+  field and delete button. A staff member on ANY store can rename or
+  soft-delete a legacy category that other stores are actively using, via a
+  completely ordinary blur-to-save edit or delete click. No devtools, no id
+  guessing.
+- **Broader exposure:** this is a local-first app — tenant isolation lives
+  only in each *read* query's `WHERE store_id = ?` clause. There is no
+  server-side authorization layer enforcing it on the write path. Anyone
+  with browser devtools on a device (e.g. a multi-store device, or a
+  store-switcher session) could call `update()`/`softDelete()` directly
+  with any row id present in the local database, bypassing UI-level
+  scoping entirely.
+- **Why not fixed yet:** out of scope for bug #1 (which was read/create
+  only); this needs its own scoped fix — likely adding an ownership check
+  to `update()`/`softDelete()` themselves (so the fix applies to every
+  table at once, not per-table), deciding what "ownership check" means for
+  the legacy-NULL-row case specifically, and probably a UI-level guard in
+  `manage-categories-dialog.tsx` (and any other screen that renders
+  shared/legacy rows) so a user can't attempt an edit that would fail.
+
 ---
 
 ## Known limitations (not bugs — honestly labeled, not silently broken)

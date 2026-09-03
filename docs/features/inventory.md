@@ -213,9 +213,7 @@ confirmed.
   source via `git stash`, pass after. Re-clicked "View all" live post-fix:
   lands on Catalog with the Low Stock chip pre-applied, no error overlay.
 
-## Open
-
-### Category filter pill and Manage Categories dialog disagree, and neither shows this store's real categories
+### Category filter pill and Manage Categories dialog disagreed, and neither showed this store's real categories
 
 - **Found while walking Catalog:** the Category filter pill's option list
   (Groceries/Beverages/Personal Care/Household/Snacks/Dairy) doesn't match
@@ -224,22 +222,30 @@ confirmed.
   in "Manage Categories" (Analgesics/Antacids/Antibiotics/Antidiabetics/
   Antihistamines/Antihypertensives/Antimalarials — likely another store's
   categories, or an orphaned starter-category seed).
-- **Root cause (read, not fixed):** two different, non-equivalent queries
-  both read the same `categories` table. The filter pill uses
-  `getCategoriesList()` (`lib/db/queries/products.ts`), which correctly
-  scopes `WHERE store_id = ?` — but returns zero rows for this store,
-  triggering product-database.tsx's hardcoded `defaultCategories` fallback.
-  "Manage Categories" uses a *different* function, `getCategoryList()`
-  (`lib/db/queries/categories.ts`), which has **no `store_id` filter at
-  all** — a likely multi-tenancy leak, since it can show and let a store
-  owner edit/delete categories that may belong to a different store.
-- **Not fixed:** the underlying data question (why the store-scoped query
-  returns zero rows when products clearly have categories) needs
-  investigation into the `categories` table's `store_id` population, which
-  is bigger than the "fix the one bug you found" scope for this task and
-  risks touching real Store 2 data. Flagged here for a follow-up pass
-  specifically on category data integrity and the `getCategoryList()`
-  scoping gap.
+- **Root cause:** two different, non-equivalent queries both read the same
+  `categories` table. The filter pill uses `getCategoriesList()`
+  (`lib/db/queries/products.ts`), which correctly scopes `WHERE store_id =
+  ?` — but returned zero rows for this store, triggering
+  product-database.tsx's hardcoded `defaultCategories` fallback. "Manage
+  Categories" used a *different* function, `getCategoryList()`
+  (`lib/db/queries/categories.ts`), which had **no `store_id` filter at
+  all** — a genuine multi-tenancy leak, since it could show and let a store
+  owner edit/delete categories belonging to a different store.
+- **Fixed (`be38864e`):** `getCategoryList()` now filters on `store_id`
+  (rows from before the fix with a NULL `store_id` stay visible to every
+  store, so pre-existing data isn't hidden), and `createCategory()` now
+  explicitly sets `store_id`. See bug #1 in `_known-bugs.md` and `### 12.`
+  in `_findings-log.md` for the full investigation, including a flagged
+  follow-up: `update()`/`softDelete()` in `base-helpers.ts` do no
+  `store_id` ownership check, a latent cross-tenant risk shared by every
+  domain table (not category-specific), left unfixed here.
+- **Separately, still open:** *why* the store-scoped `getCategoriesList()`
+  returned zero rows for Store 2's real categories (triggering the
+  fallback list) wasn't investigated as part of this fix — it needs a look
+  at the `categories` table's actual `store_id` population/backfill
+  history for that account, independent of the query-scoping bug above.
+
+## Open
 
 ### Stock Movements tab is untestable against a store with zero movement history
 

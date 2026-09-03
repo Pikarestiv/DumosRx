@@ -11,14 +11,17 @@ Status values: **Open** (not started) → **In Progress** → **Fixed**.
 
 ## 1. Multi-tenancy leak in `getCategoryList()`
 
-- **Status:** Open
+- **Status:** Fixed (`be38864e`)
 - **Found:** Task 2 (Inventory)
 - **Where:** category-list query has no `store_id` filter. Used by the
   Manage Categories dialog and `components/settings/store/categories-card.tsx`.
 - **Risk:** a store could see (or collide with) another store's categories.
-- **Why not fixed yet:** flagged as needing a scoped fix, not a
-  smoke-test-scale change — the query needs a `store_id` filter added and
-  every caller checked for what happens to any currently-untenanted data.
+- **Fix:** `getCategoryList()` now filters on `store_id` (NULL rows from
+  before the fix stay visible everywhere, so no existing data disappears);
+  `createCategory()` now explicitly sets `store_id`. See `### 12.` in
+  `_findings-log.md` for full detail, including a flagged-but-not-fixed
+  follow-up: `update()`/`softDelete()` in `base-helpers.ts` do no `store_id`
+  check at all, a latent cross-tenant risk across every domain table.
 
 ## 2. Loyalty points have no redemption UI anywhere in the app
 

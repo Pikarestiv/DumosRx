@@ -386,6 +386,59 @@ sub-tabs) against real seeded data on Pikarestiv Stores 2.
   transaction race fix (a different bug, on the same tab, in the read path
   this dialog's underlying auto-sync setting triggers).
 
+### 12. Multi-tenancy leak in `getCategoryList()`
+
+- **Found:** while walking Inventory > Catalog (Task 2) — the Category
+  filter pill and the "Manage Categories" dialog showed disagreeing, wrong
+  category lists for Store 2. Tracked as bug #1 in `_known-bugs.md`, fixed
+  in a dedicated follow-up pass since it was flagged as out-of-scope for a
+  smoke-test-only task.
+- **Root cause:** `getCategoryList()` (`client/lib/db/queries/categories.ts`)
+  had no `store_id` filter at all, so every store on a device (or in the
+  sql.js DB) saw every other store's categories — used by the Manage
+  Categories dialog and `components/settings/store/categories-card.tsx`.
+  The `categories` table already carries a `store_id` column: the backend
+  added it in `laravel-server/database/migrations/2026_08_14_164310_add_store_id_to_domain_tables.php`,
+  and the client's own runtime migration (`client/lib/db/core.ts`'s
+  `syncColumns`/`STORE_SCOPED_TABLES`) already adds and backfills it on
+  every device. So this wasn't a missing-column problem — it was a query
+  that never caught up to what the schema already supported. `insert()` in
+  `base-helpers.ts` already auto-scopes new rows on any `STORE_SCOPED_TABLES`
+  table to the active store, so `createCategory()`'s new-row scoping was
+  also already working implicitly; it just wasn't explicit.
+- **Fix:** `client/lib/db/queries/categories.ts` — `getCategoryList()` now
+  filters `WHERE ... AND (store_id = ? OR store_id IS NULL)` when a store is
+  active, matching the `customers.ts`/`products.ts` store-scoping pattern
+  with one deliberate difference: rows with a NULL `store_id` (categories
+  that predate this fix, or a device with an unresolved active store) stay
+  visible to every store instead of being hidden, so no device silently
+  loses access to categories it's already using. `createCategory()` now
+  explicitly sets `store_id: getActiveStoreId()` rather than relying only on
+  `insert()`'s implicit auto-scoping. `renameCategory()`/`deleteCategory()`
+  were left unchanged — they operate on `id` directly, which is unique
+  per-row — but the investigation found `update()`/`softDelete()` in
+  `base-helpers.ts` do no `store_id` ownership check at all before writing.
+  That's a latent cross-tenant risk shared by every domain table using those
+  two helpers (not category-specific), most exposed for exactly the
+  NULL-`store_id` rows this fix intentionally keeps visible across stores:
+  a store operator could rename or soft-delete a shared legacy category and
+  silently affect every other store still using it. Flagged as a follow-up
+  concern, not fixed here — fixing it would mean auditing every caller of
+  `update()`/`softDelete()` across the whole app, well beyond this bug.
+- **Verified by:** `client/__tests__/multi-store-scoping.test.ts` — three
+  new cases added to the existing real-sql.js store-scoping suite (the same
+  file/pattern used for `getProductList`/`getProductsWithStock`/`insert()`):
+  `getCategoryList` returns only the active store's rows; a legacy
+  NULL-`store_id` category surfaces to every store; `createCategory`
+  auto-scopes the new row's `store_id`. Confirmed RED pre-fix (both
+  read-side cases failed — one store saw the other's category, and the
+  NULL-store category test failed the same way) and GREEN post-fix, with
+  the full suite (`npx vitest run`, 66 files / 349 tests) and
+  `npx tsc --noEmit -p .` both clean.
+- See `docs/features/inventory.md`'s Catalog section for the original
+  live-reproduced symptom (the Category filter pill and Manage Categories
+  dialog disagreeing) and its cross-link to this fix.
+
 ## Open
 
 (Sections below add entries here as they're walked.)

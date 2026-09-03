@@ -1119,12 +1119,11 @@ sub-tabs) against real seeded data on Pikarestiv Stores 2.
   "done" step.
 - **Fix:** rewrote the spec's Cycle Count section
   (`client/e2e/sales-lifecycle.spec.ts`) to match: click "Start Audit" →
-  open the Category `FilterPill` and pick a real category (confirmed live —
-  a product created via "Add Product" with no category set lands under
-  "Uncategorized", not "All Categories", so the spec filters to
-  "Uncategorized" to both exercise the picker for real and still find the
-  product it just created) → search for the product by name → fill its
-  inline "Counted Qty" cell directly (no separate per-product screen) →
+  create the target product with a real category ("Antibiotics", typed into
+  the freeform category `SearchableInput`) plus a second, decoy product in a
+  different real category ("Vitamins") → open the Category `FilterPill` and
+  pick the target's category → search for the target product by name → fill
+  its inline "Counted Qty" cell directly (no separate per-product screen) →
   "Review & submit" → confirm the item and its qty change appear on the
   review step → "Submit audit" → confirm "Audit submitted" → "Close Audit".
   All locators scoped to the audit overlay's root panel
@@ -1132,6 +1131,17 @@ sub-tabs) against real seeded data on Pikarestiv Stores 2.
   `getByPlaceholder`/`getByRole('button', { name: /^Category:/ })` locators
   ambiguously matched the *Catalog* page's own identically-labeled
   search/filter controls still mounted underneath the full-screen overlay.
+- **Fix-round correction (code review):** the first pass of this fix picked
+  "Uncategorized" as the filter target because the product created above
+  never had a category set. Review correctly flagged that this didn't prove
+  the filter actually *narrows* anything — finding the row afterward by its
+  unique `Date.now()`-suffixed name would have passed identically even if
+  category selection were a complete no-op silently showing every product.
+  Fixed by adding the second, differently-categorized decoy product and
+  asserting, right after selecting the category filter, that the decoy is
+  now hidden (`not.toBeVisible()`) while the target product stays visible —
+  a real before/after check that only passes if the selected category
+  genuinely filtered the grid.
 - **Verified live in Chrome** before writing selectors: logged in as PIN
   1111 on Pikarestiv Stores 2, opened Inventory → Start Audit, confirmed the
   "Physical inventory" ledger screen, exercised the Category filter pill
@@ -1139,15 +1149,21 @@ sub-tabs) against real seeded data on Pikarestiv Stores 2.
   Counted Qty inline (diff qty updated live), went through Review & submit
   (showed "Total Counted"/"Adjusted" tiles and a "Qty: -5 → 25" line), and
   submitted — got "Audit submitted", and the resulting stock adjustment
-  appeared correctly in Recent Activity.
+  appeared correctly in Recent Activity. (Also discovered, via a failing
+  first-draft assertion against this e2e fixture rather than live Chrome,
+  that the isolated Playwright fixture DB starts with zero pre-existing
+  products — unlike the real Pikarestiv Stores 2 data browsed above — which
+  is what made the decoy-product approach necessary.)
 - **Verified by:** `npx playwright test --project=chromium
-  e2e/sales-lifecycle.spec.ts --no-deps`, run 3 times in isolation, all
-  green (~10-40s each). One run failed only when launched concurrently with
-  a separate full `e2e/auth.spec.ts` run against the same dev server/backend
-  — the shared `login()` helper timed out waiting for the login page under
-  that concurrent load, unrelated to this spec's own changes; re-run alone,
-  it passed immediately. `npx tsc --noEmit -p .` clean; `npx vitest run`
-  390/390 passing (unchanged — e2e-only change).
+  e2e/sales-lifecycle.spec.ts --no-deps`, run 3 times in isolation both
+  before and after the fix-round correction (6 runs total), all green
+  (~12-40s each). One earlier run failed only when launched concurrently
+  with a separate full `e2e/auth.spec.ts` run against the same dev
+  server/backend — the shared `login()` helper timed out waiting for the
+  login page under that concurrent load, unrelated to this spec's own
+  changes; re-run alone, it passed immediately. `npx tsc --noEmit -p .`
+  clean both rounds; `npx vitest run` 390/390 passing both rounds
+  (unchanged — e2e-only change).
 
 ### 21. `auth.spec.ts` switched off its stale inline login pattern
 

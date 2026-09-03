@@ -439,6 +439,116 @@ sub-tabs) against real seeded data on Pikarestiv Stores 2.
   live-reproduced symptom (the Category filter pill and Manage Categories
   dialog disagreeing) and its cross-link to this fix.
 
+### 13. `update()`/`softDelete()` had zero store-ownership check — cross-tenant write risk
+
+- **Found:** flagged as a follow-up concern while fixing bug #12/#1 above
+  (`getCategoryList()`'s multi-tenancy leak): that fix correctly keeps
+  legacy, pre-migration `store_id IS NULL` rows visible to every store so
+  no device silently loses data it's already using — but nothing stopped
+  ANY store from then editing or deleting one of those shared rows via a
+  completely ordinary UI action. Concretely,
+  `components/products/manage-categories-dialog.tsx` renders every row
+  `getCategoryList()` returns — including shared legacy ones — with a
+  fully-enabled rename field and delete button, no visual distinction. A
+  staff member on any store could blur-to-save a rename, or click delete,
+  on a legacy category another store was actively using. No devtools, no
+  id guessing — just the ordinary dialog. Tracked as bug #8 in
+  `_known-bugs.md`.
+- **Root cause:** `update()` and `softDelete()` in `client/lib/db/base-helpers.ts`
+  — the shared write helpers used by every domain table's edit/delete path,
+  not just categories — built `UPDATE ${table} SET ... WHERE id = ?` (and
+  the `_deleted = 1` equivalent) from only a row `id`, with no `store_id`
+  check anywhere. Tenant isolation in this local-first app lives entirely
+  in each *read* query's `WHERE store_id = ?` clause; there was no
+  equivalent enforcement on the write path. Anyone with browser devtools on
+  a device (e.g. a multi-store device, or a store-switcher session) could
+  also call `update()`/`softDelete()` directly with any row id present in
+  the local database, bypassing UI-level scoping entirely — a broader
+  exposure than just the categories dialog.
+- **Fix:** added `assertStoreOwnership()`, a private helper in
+  `base-helpers.ts` called at the top of both `update()` and `softDelete()`
+  before any write, reusing the same `STORE_SCOPED_TABLES` list and
+  `getActiveStoreId()` resolver `insert()` already uses for its own
+  `store_id` auto-injection (so the two mechanisms can't drift apart) —
+  implemented once, so every table gets it automatically instead of
+  per-caller. Three outcomes:
+  - the row's `store_id` matches the active store → write proceeds
+    normally;
+  - the row's `store_id` is `NULL` (a legacy, pre-migration row) → the
+    write proceeds AND the row is claimed for the active store as part of
+    the same call (a separate, immediate `UPDATE ... SET store_id = ?`
+    ahead of the caller's own write), so after this first edit by any
+    store the row is exclusively that store's — a second store touching it
+    afterward now hits the reject case instead of clobbering it forever;
+  - the row's `store_id` is a different, known store → the write is
+    rejected with a thrown `Error("Cannot modify a record owned by a
+    different store")`, not a silent no-op, so a caller that doesn't
+    explicitly handle it fails loudly instead of appearing to succeed.
+  Deliberately fails OPEN (skips the check) when `getActiveStoreId()`
+  returns null/undefined, matching `insert()`'s existing "only auto-scope
+  when a store is resolved" behavior for the same early-boot/unresolved
+  edge case — a narrow allowance tied to the local module-scope resolver
+  having nothing set, not something a caller can trigger from outside.
+- **Audit performed (no bypass mechanism was added):** grepped every
+  `update()`/`softDelete()` call site across `client/lib` and
+  `client/components` (not just the known importers of `base-helpers.ts`,
+  to catch anything reached only via re-export) — `lib/db/queries/
+  prescriptions.ts`, `lib/db/queries/categories.ts`,
+  `lib/db/procurement-receiving.ts`, `lib/db/procurement.ts`,
+  `lib/db/local-database.ts`, `lib/db/requested-products-queries.ts`, and
+  three hook files not on the original 8-file list
+  (`lib/hooks/use-fleet-mutations.ts`, `lib/hooks/use-supplier-mutations.ts`,
+  `lib/hooks/use-fulfill-online-order-mutation.ts`, the last of which only
+  calls `insert()`, unaffected by this fix). Every real call site operates
+  on a row the active store is expected to own (its own PO, product,
+  category, supplier, requested-product, etc.) — none needed cross-store
+  write access, so no `bypassOwnershipCheck` opt-out was added anywhere.
+  Two things confirmed this explicitly rather than by assumption:
+  `lib/hooks/use-fleet-mutations.ts`'s `update("stores", ...)` looked like
+  a plausible admin/system-level candidate (a store-owner editing a
+  *different* store's fleet entry) but needs no special-casing at all,
+  since `"stores"` was never a member of `STORE_SCOPED_TABLES` to begin
+  with — the check only applies to tables in that list. Separately,
+  `lib/db/sync-engine/{index,pull,push}.ts` (which applies incoming server
+  rows to the local DB) was grepped directly and confirmed to write only
+  through `query()`/`execute()`/`transaction()` from `core.ts`, never
+  through `update()`/`softDelete()` — so the sync path is untouched by this
+  fix and needed no bypass either.
+- **UI-guard check (none needed):** `manage-categories-dialog.tsx`'s rows
+  come solely from `getCategoryList()`, whose filter is
+  `(store_id = ? OR store_id IS NULL)` — it can never return a row owned by
+  a different, known store, only the active store's own rows or shared
+  legacy ones. So the dialog can never reach the "reject" case in the first
+  place; editing a legacy row now silently claims it for the active store
+  (the intended case-2 behavior), which is a usability improvement, not a
+  new failure mode — no UI change was needed there.
+- **Verified by:** new `client/__tests__/store-ownership.test.ts`, against
+  a real in-memory sql.js database (same pattern as
+  `multi-store-scoping.test.ts`), covering both `update()` and
+  `softDelete()` on the `categories` table for all three ownership outcomes
+  (own-store row succeeds; NULL-`store_id` row succeeds and is claimed,
+  verified via a follow-up `SELECT store_id`; a different known store's row
+  throws `"Cannot modify a record owned by a different store"` and leaves
+  the row byte-for-byte unmodified) plus the fail-open no-active-store
+  case. Confirmed RED pre-fix (4 of 7 new tests failed: both reject cases
+  resolved instead of throwing, both claim cases left `store_id` unset) and
+  GREEN post-fix. Full suite (`npx vitest run`) passed 356/356 across 67
+  files (up from 349/66 pre-fix), and `npx tsc --noEmit -p .` was clean —
+  run in full, not just the new/targeted test, since this change touches a
+  helper shared by every domain table. `e2e/settings.spec.ts` and
+  `e2e/expenses.spec.ts` (both exercise edit/delete flows through this
+  helper — staff role edit, expense edit/delete) passed 6/6 when run
+  serially (`--workers=1`); running them in parallel reproduced this repo's
+  known cross-spec Playwright flakiness (a fixture-restore timing race,
+  already logged in `_known-bugs.md`'s "Known limitations" section) rather
+  than any failure caused by this fix — both specs were also confirmed
+  green individually before this change.
+- **Not done, deliberately:** no `bypassOwnershipCheck`-style opt-out was
+  added to `update()`/`softDelete()` — the audit above found no genuinely
+  system-level caller that needs cross-store write access, so the escape
+  hatch wasn't pre-built on spec. If one is ever found, it should be added
+  narrowly at that point, not reachable from UI code.
+
 ## Open
 
 (Sections below add entries here as they're walked.)

@@ -139,7 +139,20 @@ Status values: **Open** (not started) → **In Progress** → **Fixed**.
 
 ## 8. `update()`/`softDelete()` have zero store-ownership check — cross-tenant write risk (Important, trending Critical)
 
-- **Status:** Open — priority candidate, found while fixing #1
+- **Status:** Fixed (`cd1b267d`, simplified in `057ad2ed`) — `update()`/`softDelete()` in
+  `base-helpers.ts` now call a shared `assertStoreOwnership()` check before
+  any write to a `STORE_SCOPED_TABLES` table: a row owned by the active
+  store writes normally; a legacy `store_id IS NULL` row is allowed through
+  and claimed for the active store as part of that same call (so it stops
+  being editable by every store after its first edit); a row owned by a
+  different, known store throws `Error("Cannot modify a record owned by a
+  different store")` instead of silently succeeding. No active store
+  resolved (`getActiveStoreId()` returns null) fails open, matching
+  `insert()`'s existing behavior for that edge case. No call site needed a
+  bypass, and `manage-categories-dialog.tsx` needed no UI guard —
+  `getCategoryList()`'s filter (`store_id = ? OR store_id IS NULL`) already
+  makes a different known store's row un-renderable there. See `### 13.` in
+  `_findings-log.md` for full detail.
 - **Found:** review of bug #1's fix (2026-09-03)
 - **Where:** `client/lib/db/base-helpers.ts` — both `update()` (writes
   `UPDATE ${table} ... WHERE id = ?`) and `softDelete()` (same shape) take
@@ -160,14 +173,9 @@ Status values: **Open** (not started) → **In Progress** → **Fixed**.
   with browser devtools on a device (e.g. a multi-store device, or a
   store-switcher session) could call `update()`/`softDelete()` directly
   with any row id present in the local database, bypassing UI-level
-  scoping entirely.
-- **Why not fixed yet:** out of scope for bug #1 (which was read/create
-  only); this needs its own scoped fix — likely adding an ownership check
-  to `update()`/`softDelete()` themselves (so the fix applies to every
-  table at once, not per-table), deciding what "ownership check" means for
-  the legacy-NULL-row case specifically, and probably a UI-level guard in
-  `manage-categories-dialog.tsx` (and any other screen that renders
-  shared/legacy rows) so a user can't attempt an edit that would fail.
+  scoping entirely. This is now closed by the fix above: `update()`/
+  `softDelete()` reject a devtools-driven cross-store write against a known
+  other store's row the same way the UI path does.
 
 ---
 

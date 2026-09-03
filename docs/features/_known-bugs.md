@@ -224,6 +224,37 @@ Status values: **Open** (not started) → **In Progress** → **Fixed**.
 
 ---
 
+## 9. Dashboard's Action Center has zero signal for an oversold/floored product
+
+- **Status:** Open
+- **Found:** review of bug #4's fix (2026-09-03)
+- **Where:** `dashboard-overview.tsx` → `useDashboardOverview` →
+  `use-stock-batch-stats.ts` → `getStockBatchStats()`
+  (`client/lib/db/queries/inventory.ts:391-392`) computes both
+  `low_stock_count` (`total_qty > 0 AND total_qty <= reorder_level`) and
+  `critical_stock_count` in one query — but a product floored to exactly
+  `0` (bug #4's fix) fails the `total_qty > 0` guard, so it's excluded from
+  `low_stock_count`. It falls into `critical_stock_count` instead, but
+  nothing in the codebase actually reads that field (confirmed via grep —
+  only the hook that computes it references the name). Net effect: a fully
+  depleted/oversold product produces **no signal at all** on the Dashboard's
+  Action Center, only on Inventory's "Needs attention" panel (which sources
+  its data differently — `stock-overview.tsx`'s `getStatus()` correctly
+  classifies a `quantity=0` batch as `"critical"`).
+- **Risk:** the surface most staff/owners check first (Dashboard) is blind
+  to exactly the situation bug #4's alert was meant to make visible.
+  Pre-existing dead-field gap, not introduced by bug #4's diff, but bug
+  #4's floor makes hitting this dead field the *normal* outcome of an
+  oversell rather than an edge case.
+- **Why not fixed yet:** found during bug #4's review, scoped out of that
+  diff to keep it focused. Needs either: (a) fix `low_stock_count`'s SQL to
+  include `total_qty = 0` (simplest, but changes existing dashboard
+  numbers/behavior for a case that may currently read as "not counted"
+  intentionally — worth confirming that wasn't deliberate), or (b) wire
+  `criticalStockCount`/the new `getOversoldAlerts()` into
+  `dashboard-action-center.tsx` as its own card, matching the existing
+  "Low Stock" card's pattern.
+
 ## Known limitations (not bugs — honestly labeled, not silently broken)
 
 - **Settings "Roles & Permissions" tab** is a static "coming soon"

@@ -95,25 +95,47 @@ Status values: **Open** (not started) → **In Progress** → **Fixed**.
 - **Why not fixed yet:** found in the final review, needs a small, carefully
   tested change (track already-deducted batch IDs and merge/skip).
 
-## 7. Account/store-switch shows a stale dashboard for ~1 second (user-reported, not yet investigated)
+## 7. Account/store-switch shows a stale dashboard for ~1 second (investigated — could not reproduce; reads as expected React Query behavior)
 
-- **Status:** Open — reported by the user, not yet reproduced/root-caused
+- **Status:** Open — investigated live (Task: Authentication), not
+  reproduced as an observable defect; see `docs/features/auth.md`'s "Item
+  #7 investigation" section for full detail and evidence.
 - **Reported:** "a small lag when one switches account or something where
   for a second or so, after switching, the old account's dashboard is shown"
-- **Where (candidate):** `client/lib/context/store-context.tsx`'s
-  `switchStore()` — it does synchronously set a module-scope store
-  resolver, cancel in-flight queries, and call `queryClient.invalidateQueries()`
-  (broad, deliberately not table-filtered), each with a detailed comment
-  explaining why. `invalidateQueries()` marks queries stale and triggers a
-  background refetch, but by default still renders the previous (stale)
-  cached data until the refetch resolves — which would produce exactly the
-  symptom described, as expected React Query behavior rather than a bug in
-  the switch logic itself. Not yet confirmed live.
-- **Needs:** live reproduction (multi-store or multi-staff-PIN account, on
-  Pikarestiv Stores 2 or a second store on the same account), a screen
-  recording/timing of the flash, and a decision on whether the fix is
-  code (e.g. a loading skeleton during the transition, or `placeholderData`
-  tuning) or this is expected/acceptable UX.
+- **Candidate mechanism (confirmed real by reading the code, but not
+  observed live):** `client/lib/context/store-context.tsx`'s
+  `switchStore()` calls `queryClient.cancelQueries()` then
+  `queryClient.invalidateQueries()` (broad, deliberately not table-filtered).
+  `invalidateQueries()` marks queries stale and triggers a background
+  refetch, but by default still renders the previous (stale) cached data
+  until the refetch resolves — which would produce exactly the symptom
+  described, as expected React Query stale-while-revalidate behavior rather
+  than a bug in the switch logic itself.
+- **What was tested live:** the store switcher (`switchStore()`'s exact
+  code path) was exercised 6 times alternating between two real stores on
+  the account, using rapid back-to-back screenshots with no manual delay;
+  a second, structurally different switching mechanism (multi-staff-PIN
+  "Switch Account," which goes through `login()`'s `queryClient.clear()`
+  instead) was also exercised. In every trial, the very first screenshot
+  taken immediately after the switch already showed the fully correct new
+  data — no stale old-store/old-user frame was ever caught, and no console
+  errors appeared during any switch.
+- **Conclusion:** could not reproduce the reported flash. The
+  `invalidateQueries()` stale-render window is real by design, but in this
+  app's local-first architecture (sql.js reads, no network round-trip for
+  dashboard/store data) it appears to resolve fast enough to be
+  imperceptible on this test device and data volume. This reads as
+  "working as designed, not currently a visible bug" rather than a
+  confirmed data-correctness defect — see auth.md for the explicit caveats
+  on what a slower device, a much larger local DB, or network-sync
+  contention could still change.
+- **Suggested follow-up (not implemented, per this task's investigate-only
+  scope):** a screen recording on the reporter's own device (screenshots
+  polled between tool calls could miss a sub-second flash), and/or adding a
+  dedicated loading/placeholder state to the store-switch transition itself
+  (distinct from `DashboardOverview`'s existing initial-load skeleton) so
+  that if a slower environment ever does hit the stale window, the user
+  sees a neutral loading state instead of a jarring pop-in either way.
 
 ## 8. `update()`/`softDelete()` have zero store-ownership check — cross-tenant write risk (Important, trending Critical)
 
@@ -162,9 +184,9 @@ Status values: **Open** (not started) → **In Progress** → **Fixed**.
 
 ## Audit gaps (not bugs — surface never got a dedicated walkthrough)
 
-- **Authentication / Login flow** was never smoke-tested as its own
-  section. It was used as a means to reach every other section (via the
-  shared `login()` test helper and manual PIN entry), but PIN-entry
-  edge cases, wrong-PIN handling, session/logout, and account/store
-  switching were never walked and documented as their own feature area.
-  This is where item #7 above should be investigated from.
+- ~~**Authentication / Login flow** was never smoke-tested as its own
+  section.~~ **Closed** — walked live and documented in
+  `docs/features/auth.md` (PIN-entry edge cases, wrong-PIN handling,
+  logout/"Switch Account", auto-lock, protected-route behavior when logged
+  out, and the multi-store/multi-staff switching mechanisms). This is also
+  where item #7 above was investigated from.

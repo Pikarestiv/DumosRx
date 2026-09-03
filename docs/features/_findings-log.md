@@ -821,3 +821,55 @@ false-positive, same for note-text matching. Low blast radius (only affects
 the wishlist/requested-products feature), pre-existing (not introduced by
 this plan), and the function already has some test coverage — left open
 rather than fixed in this pass.
+
+### Authentication: dedicated walkthrough closes the audit gap; item #7 (account/store-switch stale-dashboard report) investigated, not reproduced
+
+- **Walked live** (Pika Restiv / Store Owner, PIN `1111`, on "Pikarestiv
+  Stores 2" / "Pikarestiv Stores"): the clock-in/account-tile PIN screen
+  (`UserSelection`/`PinEntry`), correct-PIN login (from both the tile
+  picker and the "Someone else" traditional username+PIN form),
+  incorrect-PIN handling (shake animation, toast, `LOGIN_FAILED` audit log,
+  no lockout), "Switch Account" (non-destructive, reuses the lock screen),
+  "Log out completely" (destructive — clears `dumos_recent_users`, shows an
+  "Unsynced Changes Detected" confirmation when offline transactions are
+  pending), protected-route behavior when logged out (a stripped Settings
+  shell briefly renders before the client-side redirect to `/login`
+  completes — no real data exposed, since this app's `output: export` build
+  has no server-side auth gate to begin with), the store switcher
+  (`HeaderStoreSwitcher`, 2 stores on this account), the multi-staff-PIN
+  switch (3 real accounts on this device, including two Sales-Staff
+  fixtures from the Settings task), and the Ctrl/Cmd+L auto-lock trigger
+  (a faithful stand-in for the real 5-minute idle timer, since both call the
+  same `lock()` action) — confirmed a quick PIN re-entry unlock, not a full
+  logout.
+- **Item #7 investigation (this task's main focus):** exercised the store
+  switcher 6 times and the multi-staff account switch (a structurally
+  different code path — `login()`'s `queryClient.clear()` vs.
+  `switchStore()`'s `invalidateQueries()`) at least once, each time firing
+  the switch and capturing rapid back-to-back screenshots with no manual
+  delay via `browser_batch`. **Could not reproduce the reported "old
+  dashboard shown for ~1 second" flash** — every screenshot, including the
+  very first one taken immediately post-switch, already showed fully
+  correct new-store/new-user data (stat cards, Action Center contents,
+  Recent Activity rows all matched the destination context), and
+  `read_console_messages` showed no errors during any switch. The candidate
+  root cause (`switchStore()`'s untargeted `invalidateQueries()`, which by
+  React Query design renders stale cached data until a background refetch
+  resolves) is confirmed real by reading the code, but in this app's
+  local-first architecture (dashboard/store data is read from on-device
+  sql.js, not fetched over the network) the refetch appears to resolve fast
+  enough to be imperceptible on this test device/data volume. **Conclusion:
+  investigated, not confirmed as a live data-correctness bug** — reads as
+  expected React-Query stale-while-revalidate behavior that happens to be
+  fast enough here not to matter, not "working as intended and therefore
+  untouchable": a slower device, a much larger local database, or
+  network-sync contention during the switch could plausibly still surface
+  the reported symptom, which this session's environment couldn't test.
+  Suggested (not implemented) follow-up: a real screen recording on the
+  reporter's device next time it's seen, and/or a dedicated
+  loading/placeholder state on the store-switch transition itself as
+  defense-in-depth regardless of whether the report reproduces again.
+- **Not fixed; no application code changed** — this task was investigation
+  and documentation only, per its brief.
+- See `docs/features/auth.md` for full detail and
+  `docs/features/_known-bugs.md` item #7 for the tracker update.

@@ -669,6 +669,52 @@ sub-tabs) against real seeded data on Pikarestiv Stores 2.
   the file). Full suite re-verified: `npx tsc --noEmit -p .` clean,
   `npx vitest run` 364/364 across 67 files.
 
+### 15. `recordSaleItemStock`'s partial-shortfall fallback could double-write a row
+
+- **Found:** final whole-branch review (post Task 11), tracked as bug #6 in
+  `_known-bugs.md`.
+- **Root cause:** `recordSaleItemStock()`
+  (`client/lib/db/queries/inventory.ts`) deducted stock in two passes: a
+  main FEFO loop over batches with positive stock, then — if that loop
+  didn't cover the full sale quantity — a fallback to
+  `getAnyActiveBatchForProduct()` (ordered by `updated_at DESC`) to attach
+  the leftover somewhere rather than leave it untracked. Each pass called
+  the same `deductFromBatch()` helper, which unconditionally inserted a new
+  `sale_item_batches` row and a new `stock_movements` row on every call.
+  Because `deductFromBatch()` also bumps the touched batch's `updated_at`,
+  the fallback query was very likely to re-select the exact batch the main
+  loop just partially deducted from (trivially guaranteed when it's the
+  product's only batch), so that batch got deducted from twice — once via
+  the main loop, once via the fallback — producing two `sale_item_batches`
+  rows and two `stock_movements` rows for the same `(sale_item, batch)`
+  pair, with the true deduction split across them. The summed quantity was
+  still correct (not a data-loss bug), but the one-row-per-batch invariant
+  any future consumer might assume was silently violated.
+- **Fix:** `sale_item_batches` and `stock_movements` inserts are no longer
+  written inline inside `deductFromBatch()`. Instead, each call accumulates
+  its deduction into a `Map<batchId, totalDeduction>` keyed by batch id;
+  after both loops finish, exactly one `sale_item_batches` insert and one
+  `stock_movements` insert are made per unique batch id, using its summed
+  deduction. The `stock_batches` `update()` (and the `updated_at` bump that
+  drives fallback selection) still happens immediately inside
+  `deductFromBatch()` on every touch, unchanged — so FEFO ordering, the
+  clamp-vs-absorb-fully logic, the zero-batches-at-all fallback, and which
+  batch the fallback query picks are all untouched by this fix; only the
+  row-writing was deferred and deduplicated.
+- **Verified by:** `client/__tests__/record-sale-item-stock-depleted-batch.test.ts`
+  — two new cases added to the existing real-sql.js suite. (1) Reproduces
+  the exact bug: a single batch with 1 unit of stock, a sale of 3 —
+  confirmed RED pre-fix (`sale_item_batches` had 2 rows instead of 1 for
+  the same batch); GREEN post-fix (exactly 1 `sale_item_batches` row with
+  `quantity = 3`, exactly 1 `stock_movements` row with `quantity = -3`, and
+  the batch's final `stock_batches.quantity` correctly at `-2`). (2) Guards
+  against the fix over-merging: a sale spanning two genuinely different
+  positive-stock batches (2 units + 5 units, sale of 5) still produces two
+  separate `sale_item_batches` rows, one per batch, with the correct
+  per-batch split (2 and 3) — confirmed this case passed both before and
+  after the fix. Full suite re-verified: `npx tsc --noEmit -p .` clean,
+  `npx vitest run` 366/366 across 67 files.
+
 ## Open
 
 (Sections below add entries here as they're walked.)

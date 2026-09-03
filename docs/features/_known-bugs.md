@@ -83,7 +83,15 @@ Status values: **Open** (not started) → **In Progress** → **Fixed**.
 
 ## 6. `recordSaleItemStock`'s partial-shortfall fallback can double-write a row
 
-- **Status:** Open
+- **Status:** Fixed (`<commit-hash>`) — `sale_item_batches` and
+  `stock_movements` inserts are now deferred until every batch touched by
+  the call (across both the main FEFO loop and the partial-shortfall
+  fallback loop) is known, keyed and summed by batch id, so each unique
+  batch gets exactly one row of each with the correctly summed quantity.
+  The per-touch `stock_batches` `update()` (and its `updated_at` bump)
+  still happens immediately and unchanged, so FEFO ordering and the
+  fallback's batch-selection behavior are unaffected. See `### 15.` in
+  `_findings-log.md` for full detail.
 - **Found:** final whole-branch review (post Task 11)
 - **Where:** `client/lib/db/queries/inventory.ts:~212-218` — the
   fallback-batch lookup (`getAnyActiveBatchForProduct()`, ordered by
@@ -92,8 +100,6 @@ Status values: **Open** (not started) → **In Progress** → **Fixed**.
   `stock_movements` row for one `(sale_item, batch)` pair.
 - **Risk:** the arithmetic still sums correctly (not a data-loss bug), but
   any consumer assuming one row per batch per sale item will double-count.
-- **Why not fixed yet:** found in the final review, needs a small, carefully
-  tested change (track already-deducted batch IDs and merge/skip).
 
 ## 7. Account/store-switch shows a stale dashboard for ~1 second (investigated — could not reproduce; reads as expected React Query behavior)
 

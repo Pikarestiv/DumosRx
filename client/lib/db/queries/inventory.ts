@@ -166,6 +166,22 @@ export async function recordSaleItemStock({
 
   let remainingToDeduct = quantity;
 
+  // Accumulates the total quantity deducted per unique batch id across BOTH
+  // the main positive-stock loop below and the partial-shortfall fallback
+  // loop that can follow it. The fallback (getAnyActiveBatchForProduct,
+  // ordered by updated_at DESC) is very likely to re-select the very batch
+  // the main loop just partially deducted from, since deductFromBatch just
+  // bumped that batch's updated_at — so a batch can legitimately be touched
+  // twice in one call. Writing sale_item_batches/stock_movements rows once
+  // per touch would then produce two rows for the same (sale_item, batch)
+  // pair with the deduction split across them. Deferring those two inserts
+  // until every batch has been fully deducted, keyed by batch id, ensures
+  // exactly one row per unique batch with the correctly summed quantity —
+  // the stock_batches update itself still happens immediately per touch
+  // (unchanged), so FEFO ordering and the fallback's updated_at-based
+  // selection behave exactly as before.
+  const deductionByBatchId = new Map<string, number>();
+
   // batch.quantity can be <= 0 when this batch only turned up via the
   // getAnyActiveBatchForProduct fallback (nothing with positive stock left
   // for this product); clamping to it in that case would silently drop some
@@ -183,25 +199,10 @@ export async function recordSaleItemStock({
       quantity: batch.quantity - deduction,
     });
 
-    await insert("sale_item_batches", {
-      sale_item_id: saleItemId,
-      stock_batch_id: batch.id,
-      quantity: deduction,
-    });
-
-    await insert("stock_movements", {
-      product_id: productId,
-      stock_batch_id: batch.id,
-      movement_type: "sale",
-      quantity: -Math.abs(deduction),
-      unit_cost: costPrice || 0,
-      total_cost: (costPrice || 0) * deduction,
-      reference_id: saleId,
-      reference_type: "sale",
-      reason: "Customer sale",
-      performed_by: cashierId,
-      movement_date: new Date().toISOString(),
-    });
+    deductionByBatchId.set(
+      batch.id,
+      (deductionByBatchId.get(batch.id) ?? 0) + deduction,
+    );
 
     remainingToDeduct -= deduction;
   };
@@ -224,6 +225,28 @@ export async function recordSaleItemStock({
       if (remainingToDeduct <= 0) break;
       await deductFromBatch(batch);
     }
+  }
+
+  for (const [batchId, deduction] of deductionByBatchId) {
+    await insert("sale_item_batches", {
+      sale_item_id: saleItemId,
+      stock_batch_id: batchId,
+      quantity: deduction,
+    });
+
+    await insert("stock_movements", {
+      product_id: productId,
+      stock_batch_id: batchId,
+      movement_type: "sale",
+      quantity: -Math.abs(deduction),
+      unit_cost: costPrice || 0,
+      total_cost: (costPrice || 0) * deduction,
+      reference_id: saleId,
+      reference_type: "sale",
+      reason: "Customer sale",
+      performed_by: cashierId,
+      movement_date: new Date().toISOString(),
+    });
   }
 
   return saleItemId;

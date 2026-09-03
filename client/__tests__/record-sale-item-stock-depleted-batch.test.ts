@@ -153,6 +153,83 @@ describe("recordSaleItemStock — depleted batch", () => {
     expect(batch[0]?.values[0]?.[0]).toBe(-2);
   });
 
+  it("writes exactly one sale_item_batches row and one stock_movements row per unique batch, even when the fallback re-selects the batch the main loop just partially deducted (bug #6)", async () => {
+    // Same setup as the partial-shortfall test above (1 unit in stock, sale
+    // of 3): the main loop deducts 1 from batch1 and bumps its updated_at,
+    // leaving remainingToDeduct = 2. getAnyActiveBatchForProduct then finds
+    // batch1 again (it's the only/most-recently-touched active batch), so
+    // deductFromBatch runs on it a second time. Before the fix this produced
+    // a SECOND sale_item_batches row and a SECOND stock_movements row for
+    // the same (sale_item, batch) pair instead of merging into the first.
+    db.run(
+      `INSERT INTO stock_batches (id, product_id, quantity, cost_price) VALUES ('batch1', 'prod1', 1, 60)`,
+    );
+
+    const saleItemId = await recordSaleItemStock({
+      saleId: "sale1",
+      productId: "prod1",
+      quantity: 3,
+      unitPrice: 100,
+      costPrice: 60,
+      subtotal: 300,
+      cashierId: "user1",
+    });
+
+    const saleItemBatchRows = db.exec(
+      "SELECT quantity FROM sale_item_batches WHERE sale_item_id = ? AND stock_batch_id = 'batch1'",
+      [saleItemId],
+    );
+    expect(saleItemBatchRows[0]?.values.length).toBe(1);
+    expect(saleItemBatchRows[0]?.values[0]?.[0]).toBe(3);
+
+    const movementRows = db.exec(
+      "SELECT quantity FROM stock_movements WHERE reference_id = 'sale1' AND stock_batch_id = 'batch1'",
+    );
+    expect(movementRows[0]?.values.length).toBe(1);
+    expect(movementRows[0]?.values[0]?.[0]).toBe(-3);
+
+    const batch = db.exec("SELECT quantity FROM stock_batches WHERE id = 'batch1'");
+    expect(batch[0]?.values[0]?.[0]).toBe(-2);
+  });
+
+  it("still writes two separate sale_item_batches rows when a sale genuinely spans two different positive-stock batches", async () => {
+    // Two distinct batches, both with positive stock, sale quantity exceeds
+    // the first (FEFO-earliest) batch alone. The fix must not collapse
+    // legitimately different batches into a single row.
+    db.run(
+      `INSERT INTO stock_batches (id, product_id, quantity, cost_price, expiry_date) VALUES ('batch_old', 'prod1', 2, 60, '2026-01-01')`,
+    );
+    db.run(
+      `INSERT INTO stock_batches (id, product_id, quantity, cost_price, expiry_date) VALUES ('batch_new', 'prod1', 5, 60, '2027-01-01')`,
+    );
+
+    const saleItemId = await recordSaleItemStock({
+      saleId: "sale1",
+      productId: "prod1",
+      quantity: 5,
+      unitPrice: 100,
+      costPrice: 60,
+      subtotal: 500,
+      cashierId: "user1",
+    });
+
+    const saleItemBatchRows = db.exec(
+      "SELECT stock_batch_id, quantity FROM sale_item_batches WHERE sale_item_id = ? ORDER BY stock_batch_id",
+      [saleItemId],
+    );
+    expect(saleItemBatchRows[0]?.values.length).toBe(2);
+    const rows = new Map(
+      (saleItemBatchRows[0]?.values ?? []).map((r) => [r[0], r[1]]),
+    );
+    expect(rows.get("batch_old")).toBe(2);
+    expect(rows.get("batch_new")).toBe(3);
+
+    const oldBatch = db.exec("SELECT quantity FROM stock_batches WHERE id = 'batch_old'");
+    const newBatch = db.exec("SELECT quantity FROM stock_batches WHERE id = 'batch_new'");
+    expect(oldBatch[0]?.values[0]?.[0]).toBe(0);
+    expect(newBatch[0]?.values[0]?.[0]).toBe(2);
+  });
+
   it("still picks FEFO among positive-stock batches when one exists (unaffected by the fallback)", async () => {
     db.run(
       `INSERT INTO stock_batches (id, product_id, quantity, cost_price, expiry_date) VALUES ('batch_old', 'prod1', 5, 60, '2026-01-01')`,

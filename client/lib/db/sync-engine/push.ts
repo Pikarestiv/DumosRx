@@ -4,6 +4,16 @@ import { PushResponse } from "./types";
 import type { SyncChange } from "@/lib/types/sync";
 import { remapForeignKey, DUPLICATE_NAME_TABLES } from "../reconcile-identity";
 import { execute, transaction } from "../core";
+import { toast } from "sonner";
+
+// Reasons the server can report in `response.failed` that mean "this exact
+// edit can never succeed by retrying" (see SyncController::push's strict
+// version-equality check) rather than a transient failure worth backing off
+// and retrying (network blip, momentary server error). Routing either of
+// these through recordSyncFailure's exponential-backoff retry path would
+// silently loop forever — the base version this edit was computed from
+// doesn't change no matter how many times it's resent.
+const NON_RETRYABLE_CONFLICT_REASONS = new Set(["version_conflict", "stale_timestamp"]);
 
 const SYNC_BATCH_SIZE = 50;
 
@@ -20,6 +30,27 @@ function normalizeDatetimeFields(payload: Record<string, unknown>) {
       payload[key] = value.slice(0, 19).replace("T", " ");
     }
   }
+}
+
+// Best-effort, human-friendly singular label for the version-conflict toast.
+// Not exhaustive — falls back to the raw table name for anything not listed,
+// which is still an intelligible (if less polished) signal.
+const RECORD_LABELS: Record<string, string> = {
+  products: "a product",
+  stock_batches: "a stock batch",
+  customers: "a customer",
+  sales: "a sale",
+  categories: "a category",
+  suppliers: "a supplier",
+  expenses: "an expense",
+  purchase_orders: "a purchase order",
+  prescriptions: "a prescription",
+  users: "a staff account",
+  stores: "a store",
+};
+
+function describeSyncedRecord(tableName: string): string {
+  return RECORD_LABELS[tableName] ?? `a ${tableName.replace(/_/g, " ")} record`;
 }
 
 /**
@@ -189,6 +220,13 @@ export async function pushChanges(
         const failedIds = new Set((response.failed ?? []).map((f) => f.id));
         const succeededIds = changes.map((c) => c.id).filter((id) => !failedIds.has(id));
 
+        // Collected inside the transaction below, reported (toast) after it
+        // commits — same reason pull.ts defers its skippedRecords reporting:
+        // a version conflict is known-permanent the moment the server says
+        // so, not worth risking a nested write inside this batch's own
+        // transaction just to surface it a few lines earlier.
+        const versionConflicts: { table_name: string; record_id: string }[] = [];
+
         // Wrapped in a single transaction: a batch of up to SYNC_BATCH_SIZE
         // markSynced/recordSyncFailure/remapForeignKey calls each triggers
         // its own full-database sql.js export when run outside a
@@ -199,7 +237,21 @@ export async function pushChanges(
           pushedCount += succeededIds.length;
 
           for (const f of response.failed ?? []) {
-            if (f.id != null) {
+            if (f.id == null) continue;
+
+            if (NON_RETRYABLE_CONFLICT_REASONS.has(f.reason)) {
+              // A version conflict can never be resolved by retrying — the
+              // edit's base version is permanently stale no matter how many
+              // times it's resent. Drop it from the queue outright instead
+              // of routing it through recordSyncFailure's exponential-
+              // backoff retry path, which would silently loop forever (well,
+              // until the backoff cap, then a crash report — still not a
+              // real user-facing signal). The next pull will naturally bring
+              // in the winning server value now that nothing local is
+              // blocking it (see pull.ts's pendingLocalEdit skip).
+              await execute("DELETE FROM _sync_queue WHERE id = ?", [f.id]);
+              versionConflicts.push({ table_name: f.table_name, record_id: f.record_id });
+            } else {
               await recordSyncFailure(f.id, f.reason);
             }
           }
@@ -223,7 +275,31 @@ export async function pushChanges(
               await execute(`UPDATE ${table} SET _deleted = 1 WHERE id = ?`, [oldId]);
             }
           }
+
+          // Apply the server-assigned authoritative version to accepted
+          // UPDATEs right away, rather than waiting for a future pull to
+          // bring it in: without this, this same device's very next local
+          // edit (now that update() no longer increments _version locally)
+          // would still be based on the pre-push version and get spuriously
+          // rejected as a conflict against its own already-accepted change.
+          for (const [table, mapping] of Object.entries(response.versions ?? {})) {
+            for (const [recordId, newVersion] of Object.entries(mapping)) {
+              await execute(`UPDATE ${table} SET _version = ? WHERE id = ?`, [newVersion, recordId]);
+            }
+          }
         });
+
+        // Loud, not silent — matching _known-bugs.md #10's post-restore
+        // cloud-link notice, the closest existing precedent for "something
+        // happened during sync that the user needs to know about, but
+        // doesn't need a full merge UI to act on." One toast per conflicted
+        // record: this is expected to be rare (the exact conflict shape
+        // _known-bugs.md #11 was filed for), not a routine batch event.
+        for (const conflict of versionConflicts) {
+          toast.warning(
+            `A change to ${describeSyncedRecord(conflict.table_name)} conflicted with an update from another device — the other device's update was kept.`,
+          );
+        }
       }
     } catch (error) {
       // Don't abort the whole push run over one bad batch; record backoff

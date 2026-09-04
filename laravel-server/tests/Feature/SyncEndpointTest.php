@@ -112,7 +112,13 @@ class SyncEndpointTest extends TestCase
                     'payload' => [
                         'id' => $productId,
                         'name' => 'Aspirin Forte', // Changed
-                        '_version' => 2,
+                        // The real client (see base-helpers.ts's update() fix
+                        // for _known-bugs.md #11) sends its UNCHANGED base
+                        // version here, not an incremented one — this is the
+                        // server's cue that the edit was made against its
+                        // current known state. The server assigns the new
+                        // version itself (asserted below).
+                        '_version' => 1,
                         '_synced' => 0,
                     ]
                 ]
@@ -842,6 +848,308 @@ class SyncEndpointTest extends TestCase
      * would have gotten a silently truncated list, making stores past the
      * cutoff indistinguishable from ones that were actually deleted.
      */
+    /**
+     * Regression test for _known-bugs.md #11 — the confirmed live data-loss
+     * bug: two devices, each making exactly ONE edit from the same shared,
+     * already-synced ancestor row, will always compute the identical next
+     * `_version` (pure arithmetic on the same starting number under the old
+     * client behavior this test payload deliberately still models via a
+     * pre-fix-style base version, matching what MACA GUMMIES's real
+     * reproduction saw server-side: both devices' payload carrying the SAME
+     * version as the server's current one). The old `<` check only rejected
+     * a strictly-older payload and silently fell through to an updated_at
+     * comparison on equality — exactly this shape — letting Session B's
+     * later-clock push silently overwrite Session A's already-confirmed
+     * server write with zero error or signal. This proves the strict-
+     * equality fix: the second push claiming the same base version the first
+     * one already consumed is now rejected as a genuine conflict, and the
+     * first device's value survives untouched.
+     */
+    public function test_push_sync_rejects_second_device_pushing_same_base_version_as_conflict()
+    {
+        $productId = 'prod_maca_gummies';
+        DB::table('products')->insert([
+            'id' => $productId,
+            'user_id' => $this->user->id,
+            'name' => 'Maca Gummies',
+            'selling_price' => 999,
+            '_version' => 2, // Common ancestor version both devices started from.
+            'created_at' => now()->subDays(3),
+            'updated_at' => now()->subDays(3),
+        ]);
+
+        // Session A: online, edits 999 -> 1500, pushes first. Sends the
+        // unchanged base version (2), per the fixed client contract.
+        $sessionAPayload = [
+            'setup' => true,
+            'changes' => [
+                [
+                    'table_name' => 'products',
+                    'operation' => 'UPDATE',
+                    'record_id' => $productId,
+                    'payload' => [
+                        'id' => $productId,
+                        'selling_price' => 1500,
+                        '_version' => 2,
+                        '_synced' => 0,
+                        'updated_at' => now()->toDateTimeString(),
+                    ],
+                ],
+            ],
+        ];
+
+        $responseA = $this->actingAs($this->user)->postJson('/api/v1/app/sync/push', $sessionAPayload);
+        $responseA->assertStatus(200);
+        $responseA->assertJsonCount(0, 'failed');
+
+        $afterA = DB::table('products')->where('id', $productId)->first();
+        $this->assertEquals('1500.00', $afterA->selling_price);
+        $this->assertEquals(3, $afterA->_version); // Server-assigned: 2 + 1.
+        // The server hands the new authoritative version back so the client
+        // can apply it locally immediately.
+        $responseA->assertJson([
+            'versions' => ['products' => [$productId => 3]],
+        ]);
+
+        // Session B: restored from a backup taken BEFORE Session A's edit,
+        // never pulled — independently edits the same field to 777, from the
+        // same ancestor version (2) Session A started from. This is the
+        // guaranteed collision: both devices compute _version 2 as "the
+        // version this edit is based on," and by the time B's push arrives,
+        // the server's actual current version is already 3 (Session A's).
+        $sessionBPayload = [
+            'setup' => true,
+            'changes' => [
+                [
+                    'table_name' => 'products',
+                    'operation' => 'UPDATE',
+                    'record_id' => $productId,
+                    'payload' => [
+                        'id' => $productId,
+                        'selling_price' => 777,
+                        '_version' => 2,
+                        '_synced' => 0,
+                        // A LATER wall-clock timestamp than Session A's edit —
+                        // exactly what let the old updated_at fallback pick
+                        // B as the "winner" despite being based on stale data.
+                        'updated_at' => now()->addMinute()->toDateTimeString(),
+                    ],
+                ],
+            ],
+        ];
+
+        $responseB = $this->actingAs($this->user)->postJson('/api/v1/app/sync/push', $sessionBPayload);
+        $responseB->assertStatus(200);
+
+        // Rejected as a genuine conflict, not silently accepted.
+        $responseB->assertJsonCount(1, 'failed');
+        $responseB->assertJson([
+            'failed' => [
+                [
+                    'table_name' => 'products',
+                    'record_id' => $productId,
+                    'reason' => 'version_conflict',
+                ],
+            ],
+        ]);
+
+        // Session A's already-confirmed write survives untouched — the core
+        // data-loss assertion this bug was filed for.
+        $final = DB::table('products')->where('id', $productId)->first();
+        $this->assertEquals('1500.00', $final->selling_price);
+        $this->assertEquals(3, $final->_version);
+    }
+
+    /**
+     * Confirms the fix doesn't break the far more common, non-conflicting
+     * case: one device making two sequential edits, each correctly based on
+     * the version the previous push left behind (which is exactly what the
+     * client now does — see push.ts's `versions` handling applying the
+     * server's returned version to the local row immediately after each
+     * accepted push).
+     */
+    public function test_push_sync_accepts_sequential_same_device_edits()
+    {
+        $productId = 'prod_sequential';
+        DB::table('products')->insert([
+            'id' => $productId,
+            'user_id' => $this->user->id,
+            'name' => 'Panadol',
+            'selling_price' => 500,
+            '_version' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        // First edit: based on version 1.
+        $first = $this->actingAs($this->user)->postJson('/api/v1/app/sync/push', [
+            'setup' => true,
+            'changes' => [[
+                'table_name' => 'products',
+                'operation' => 'UPDATE',
+                'record_id' => $productId,
+                'payload' => [
+                    'id' => $productId,
+                    'selling_price' => 600,
+                    '_version' => 1,
+                    '_synced' => 0,
+                    'updated_at' => now()->toDateTimeString(),
+                ],
+            ]],
+        ]);
+        $first->assertStatus(200);
+        $first->assertJsonCount(0, 'failed');
+        $first->assertJson(['versions' => ['products' => [$productId => 2]]]);
+
+        // Second edit: the client applied the server's returned version (2)
+        // to its local row after the first push, so this one correctly
+        // targets version 2 — the normal, expected sequential-edit shape.
+        $second = $this->actingAs($this->user)->postJson('/api/v1/app/sync/push', [
+            'setup' => true,
+            'changes' => [[
+                'table_name' => 'products',
+                'operation' => 'UPDATE',
+                'record_id' => $productId,
+                'payload' => [
+                    'id' => $productId,
+                    'selling_price' => 700,
+                    '_version' => 2,
+                    '_synced' => 0,
+                    'updated_at' => now()->addMinute()->toDateTimeString(),
+                ],
+            ]],
+        ]);
+        $second->assertStatus(200);
+        $second->assertJsonCount(0, 'failed');
+        $second->assertJson(['versions' => ['products' => [$productId => 3]]]);
+
+        $final = DB::table('products')->where('id', $productId)->first();
+        $this->assertEquals('700.00', $final->selling_price);
+        $this->assertEquals(3, $final->_version);
+    }
+
+    /**
+     * stock_batches is deliberately exempt from the strict version-conflict
+     * check added for _known-bugs.md #11: two different terminals/devices
+     * concurrently selling from the same batch is normal, everyday store
+     * operation, not a rare edge case, and both pushes carry the same base
+     * _version by the same guaranteed-collision arithmetic as any other
+     * two-device edit on this table. Rejecting the second one would be a
+     * constant false alarm — the table's only real, version-sensitive
+     * field (quantity) is stripped from this UPDATE and never applied from
+     * it at all; the true quantity comes from separate, never-version-
+     * checked stock_movements deltas. This proves both terminals' updates
+     * are accepted, not rejected.
+     */
+    public function test_push_sync_exempts_stock_batches_from_version_conflict_check()
+    {
+        DB::table('products')->insert([
+            'id' => 'prod_multi_terminal',
+            'user_id' => $this->user->id,
+            'name' => 'Ibuprofen',
+            '_version' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $batchId = 'batch_multi_terminal';
+        DB::table('stock_batches')->insert([
+            'id' => $batchId,
+            'user_id' => $this->user->id,
+            'product_id' => 'prod_multi_terminal',
+            'quantity' => 100,
+            'cost_price' => 10.00,
+            'expiry_date' => now()->addYear()->toDateString(),
+            'batch_number' => 'B-MULTI',
+            '_version' => 2, // Common ancestor both terminals started from.
+            'created_at' => now()->subDay(),
+            'updated_at' => now()->subDay(),
+        ]);
+
+        // Terminal 1 sells 5 units, pushes first.
+        $terminal1 = $this->actingAs($this->user)->postJson('/api/v1/app/sync/push', [
+            'setup' => true,
+            'changes' => [
+                [
+                    'table_name' => 'stock_batches',
+                    'operation' => 'UPDATE',
+                    'record_id' => $batchId,
+                    'payload' => [
+                        'id' => $batchId,
+                        'quantity' => 95, // Stripped server-side either way.
+                        '_version' => 2,
+                        '_synced' => 0,
+                        'updated_at' => now()->toDateTimeString(),
+                    ],
+                ],
+                [
+                    'table_name' => 'stock_movements',
+                    'operation' => 'INSERT',
+                    'record_id' => 'mov_terminal1',
+                    'payload' => [
+                        'id' => 'mov_terminal1',
+                        'stock_batch_id' => $batchId,
+                        'product_id' => 'prod_multi_terminal',
+                        'movement_type' => 'sale',
+                        'quantity' => -5,
+                        'performed_by' => $this->user->id,
+                        'created_at' => now()->toDateTimeString(),
+                        'updated_at' => now()->toDateTimeString(),
+                    ],
+                ],
+            ],
+        ]);
+        $terminal1->assertStatus(200);
+        $terminal1->assertJsonCount(0, 'failed');
+
+        // Terminal 2, a different device, independently sells 3 units around
+        // the same time — also based on the same ancestor version (2), never
+        // having pulled Terminal 1's push yet.
+        $terminal2 = $this->actingAs($this->user)->postJson('/api/v1/app/sync/push', [
+            'setup' => true,
+            'changes' => [
+                [
+                    'table_name' => 'stock_batches',
+                    'operation' => 'UPDATE',
+                    'record_id' => $batchId,
+                    'payload' => [
+                        'id' => $batchId,
+                        'quantity' => 97,
+                        '_version' => 2,
+                        '_synced' => 0,
+                        'updated_at' => now()->addSeconds(30)->toDateTimeString(),
+                    ],
+                ],
+                [
+                    'table_name' => 'stock_movements',
+                    'operation' => 'INSERT',
+                    'record_id' => 'mov_terminal2',
+                    'payload' => [
+                        'id' => 'mov_terminal2',
+                        'stock_batch_id' => $batchId,
+                        'product_id' => 'prod_multi_terminal',
+                        'movement_type' => 'sale',
+                        'quantity' => -3,
+                        'performed_by' => $this->user->id,
+                        'created_at' => now()->toDateTimeString(),
+                        'updated_at' => now()->toDateTimeString(),
+                    ],
+                ],
+            ],
+        ]);
+        $terminal2->assertStatus(200);
+
+        // Not a false-alarm conflict — both terminals' updates are accepted.
+        $terminal2->assertJsonCount(0, 'failed');
+
+        // Both sales' deltas applied: 100 - 5 - 3 = 92, not one clobbering
+        // the other and not either being lost.
+        $this->assertDatabaseHas('stock_batches', [
+            'id' => $batchId,
+            'quantity' => 92,
+        ]);
+    }
+
     public function test_pull_sync_returns_more_than_500_stores()
     {
         // A user with no store_id set is treated as the "pure owner" whose

@@ -29,7 +29,7 @@ class SyncController extends Controller
     #[OA\Post(
         path: '/app/sync/push',
         summary: 'Push offline-first client changes to the server',
-        description: 'Applies a batch of INSERT/UPDATE/DELETE changes from the client\'s local SQLite database. Conflict resolution uses `_version` (falling back to `updated_at`): an incoming UPDATE older than the server\'s copy is silently ignored, EXCEPT for `stock_batches.quantity`, which is never trusted from the client at all (INSERT or UPDATE): it is always derived by applying `stock_movements` deltas on top of the server\'s current value, since concurrent quantity changes are commutative and both should apply rather than one winning by version. May reject the whole request (403/429) if the store\'s plan disables cloud sync or the sync-interval throttle hasn\'t elapsed yet.',
+        description: 'Applies a batch of INSERT/UPDATE/DELETE changes from the client\'s local SQLite database. Conflict resolution on UPDATE uses strict-equality optimistic concurrency on `_version` (falling back to `updated_at` only for legacy rows with no version tracking): the payload\'s `_version` must exactly equal the server\'s current version for the edit to be accepted (not merely "not older" — an equal version means two devices edited from the same ancestor, a real conflict, not a free pass); on acceptance the server assigns the new version itself, never trusting whatever `_version` value the payload carries. A rejected UPDATE (real conflict, in either the version or timestamp fallback path) is reported in `failed`, never silently dropped. EXCEPT for `stock_batches`, which is exempt from this conflict check entirely: its only version-sensitive field, `quantity`, is never trusted from the client at all (INSERT or UPDATE) and is always derived by applying `stock_movements` deltas on top of the server\'s current value, since concurrent quantity changes from multiple devices/terminals are commutative and both should apply rather than one winning by version. May reject the whole request (403/429) if the store\'s plan disables cloud sync or the sync-interval throttle hasn\'t elapsed yet.',
         tags: ['Sync'],
         security: [['sanctum' => []]],
         parameters: [new OA\HeaderParameter(name: 'X-Store-Id', description: 'Which of the caller\'s stores to sync (defaults to their primary store)', schema: new OA\Schema(type: 'string'))],
@@ -58,6 +58,7 @@ class SyncController extends Controller
                     new OA\Property(property: 'reason', type: 'string'),
                 ])),
                 new OA\Property(property: 'id_map', type: 'object', description: 'Local id -> server id, grouped by table_name, for INSERTs skipped because the name collided with an existing categories/suppliers row. The client applies this immediately to its own local rows referencing the old id, rather than relying on a future pull to ever surface the collision.'),
+                new OA\Property(property: 'versions', type: 'object', description: 'Record id -> server-assigned new _version, grouped by table_name, for UPDATE changes accepted via the version-equality check. The client applies this immediately to its local row so its very next edit is based on the true current server version, instead of waiting for a future pull.'),
             ])),
             new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
             new OA\Response(response: 403, description: 'Cloud sync disabled on current plan, or store count exceeds plan limit'),
@@ -144,6 +145,12 @@ class SyncController extends Controller
             // are not guaranteed to order changes batch-before-movement).
             $stockBatchDeltas = [];
             $failed = [];
+            // Server-assigned versions for accepted UPDATE changes, grouped by
+            // table_name like $idMapByTable, returned to the client as
+            // `versions` so it can apply the new authoritative number to its
+            // local row immediately instead of waiting for a future pull (see
+            // docs/features/_known-bugs.md #11).
+            $versions = [];
 
             foreach ($changes as $change) {
                 $modelClass = $this->getModelForTable($change['table_name']);
@@ -512,22 +519,70 @@ class SyncController extends Controller
                     $model = \method_exists($modelClass, 'trashed') ? $modelClass::withTrashed()->find($recordId) : $modelClass::find($recordId);
                     
                     if ($model) {
-                        // Conflict Resolution: Use _version if available, fallback to updated_at
+                        // Conflict Resolution: strict-equality optimistic concurrency,
+                        // not a `<` / "older" check — see docs/features/_known-bugs.md
+                        // #11. Two devices editing the same row from the same shared
+                        // ancestor version will *always* compute the identical next
+                        // version (it's just arithmetic on the same starting number),
+                        // so by the time the second push arrives its version now
+                        // EQUALS the server's current version (already bumped by the
+                        // first, already-accepted push). The old `<` check only ever
+                        // fired on strictly-older payloads and silently fell through to
+                        // comparing wall-clock updated_at on equality — exactly the
+                        // guaranteed-collision case above — which is how the second
+                        // device's edit could silently clobber the first's confirmed
+                        // write with zero signal. Now: equal versions accept (this
+                        // edit is genuinely based on the server's current state, so the
+                        // server assigns the new version itself, never trusting
+                        // whatever _version the payload carries — see below); anything
+                        // else with two known versions is a real conflict, not just
+                        // "older," and gets rejected and reported either way.
+                        //
+                        // stock_batches is exempt from this check entirely: its only
+                        // version-sensitive field (quantity) is stripped from the
+                        // payload just below and is never applied from this UPDATE at
+                        // all — it's derived separately from commutative
+                        // stock_movements deltas (see $stockBatchDeltas and this
+                        // controller's own API doc comment above), which have no
+                        // version check of their own. Two different terminals/devices
+                        // concurrently selling from the same batch is normal, everyday,
+                        // expected operation, not a rare edge case, and both pushes
+                        // carry the same base _version by the same guaranteed-collision
+                        // arithmetic as any other two-device edit — rejecting the
+                        // second one here would be a constant false alarm for a table
+                        // where nothing meaningful is actually being overwritten.
+                        $isCommutativeTable = $change['table_name'] === 'stock_batches';
+
                         $payloadVersion = isset($payload['_version']) ? (int)$payload['_version'] : null;
                         $modelVersion = isset($model->_version) ? (int)$model->_version : null;
-                        
-                        $isOlder = false;
-                        if ($payloadVersion !== null && $modelVersion !== null && $payloadVersion !== $modelVersion) {
-                            $isOlder = $payloadVersion < $modelVersion;
-                        } elseif ($model->updated_at && isset($payload['updated_at'])) {
-                            // Fallback to updated_at if versions are equal or missing
+
+                        $versionConflict = false;
+                        $conflictReason = null;
+                        // Server-assigned new version for an accepted, version-tracked
+                        // update. Left null for legacy rows with no version tracking —
+                        // there's nothing to overwrite it with.
+                        $newVersion = null;
+
+                        if ($payloadVersion !== null && $modelVersion !== null) {
+                            if ($isCommutativeTable || $payloadVersion === $modelVersion) {
+                                $newVersion = $modelVersion + 1;
+                            } else {
+                                $versionConflict = true;
+                                $conflictReason = 'version_conflict';
+                                Log::info("Sync push: version conflict for {$change['table_name']} {$recordId} (payload version {$payloadVersion}, server version {$modelVersion})");
+                            }
+                        } elseif (!$isCommutativeTable && $model->updated_at && isset($payload['updated_at'])) {
+                            // Legacy fallback for rows without version tracking at all.
                             $modelUpdatedAt = \Carbon\Carbon::parse($model->updated_at);
                             $payloadUpdatedAt = \Carbon\Carbon::parse($payload['updated_at']);
-                            $isOlder = $payloadUpdatedAt->lt($modelUpdatedAt);
+                            if ($payloadUpdatedAt->lt($modelUpdatedAt)) {
+                                $versionConflict = true;
+                                $conflictReason = 'stale_timestamp';
+                                Log::info("Sync push: Ignored older update (timestamp fallback) for {$change['table_name']} {$recordId}");
+                            }
                         }
 
-                        if ($isOlder) {
-                            Log::info("Sync push: Ignored older update for {$change['table_name']} {$recordId}");
+                        if ($versionConflict) {
                             // Must close the per-change savepoint opened above
                             // before skipping to the next change. A bare
                             // `continue` here left it dangling every time an
@@ -536,6 +591,16 @@ class SyncController extends Controller
                             // case), stacking unclosed savepoints for the
                             // rest of the request.
                             DB::commit();
+                            // Every rejection is now reported into $failed, including
+                            // the timestamp-fallback path — before this fix, EITHER
+                            // rejection reason left the client with zero signal at all,
+                            // not just the version-equality gap this bug was filed for.
+                            $failed[] = [
+                                'id' => $change['id'] ?? null,
+                                'table_name' => $change['table_name'],
+                                'record_id' => $recordId,
+                                'reason' => $conflictReason,
+                            ];
                             continue;
                         }
 
@@ -546,6 +611,13 @@ class SyncController extends Controller
                             unset($payload['_deleted']);
                         }
 
+                        // Never trust _version from the client for a write that's
+                        // actually being applied: the server is now the sole authority
+                        // for version numbers (see above). Per the client-side fix,
+                        // the payload's _version is just the unchanged base value the
+                        // edit was made from, not a real new version.
+                        unset($payload['_version']);
+
                         // Inventory Reconciliation: Ignore quantity updates for stock_batches, rely on stock_movements
                         if ($change['table_name'] === 'stock_batches') {
                             if (isset($payload['quantity'])) {
@@ -554,6 +626,9 @@ class SyncController extends Controller
                         }
 
                         $model->forceFill($payload);
+                        if ($newVersion !== null) {
+                            $model->_version = $newVersion;
+                        }
                         
                         if ($change['table_name'] === 'users') {
                             if (isset($payload['password'])) {
@@ -594,6 +669,10 @@ class SyncController extends Controller
                         }
 
                         $model->save();
+
+                        if ($newVersion !== null) {
+                            $versions[$change['table_name']][$recordId] = $newVersion;
+                        }
 
                         // Handle _deleted flag for soft deletes on update
                         if ($isDeleted !== null) {
@@ -673,7 +752,7 @@ class SyncController extends Controller
             }
 
             DB::commit();
-            return response()->json(['success' => true, 'processed' => $processed, 'failed' => $failed, 'id_map' => $idMapByTable]);
+            return response()->json(['success' => true, 'processed' => $processed, 'failed' => $failed, 'id_map' => $idMapByTable, 'versions' => $versions]);
 
         } catch (\Exception $e) {
             DB::rollBack();

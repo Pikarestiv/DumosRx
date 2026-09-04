@@ -514,8 +514,15 @@ Aborted(Error: [unenv] fs.readFileSync is not implemented yet!)`), of
 which only the newest 50 are ever visible; the remaining 2,884 have no way
 to be reached through this page. The "All/Pending/Resolved" status filter
 tabs work correctly but don't help here since virtually all 2,934 tickets
-are `pending`. Not fixed — investigation only. Full detail in
-`docs/features/superadmin/communications.md`.
+are `pending`. Full detail in `docs/features/superadmin/communications.md`.
+
+**Fixed** (commit `8d53bbd9`): `FeedbackController::index` now returns a
+`{data, meta: {current_page, last_page, total}}` envelope matching every
+other admin list endpoint (it previously returned Laravel's raw paginator
+shape, which nothing on the frontend read). `useAdminFeedback` takes a
+`page` param and `FeedbackTab` now has Prev/Next controls that only render
+when `last_page > 1`. Covered by
+`tests/Feature/Admin/AdminFeedbackPaginationTest.php`.
 
 ### Confirmed, not a bug: Communications' Broadcasts and Feedback actions are correctly wired; Email Campaigns deliberately not live-tested (real send risk)
 
@@ -674,9 +681,12 @@ admin/referral-code/check?code=pikarestiv`, no `user_id` param, → `{
 available: false }`). Effect: the only way to successfully use this
 feature is to change to a code that's never been used by this account
 before; simply re-confirming or lightly editing (e.g. casing) the existing
-code always fails. Not fixed — investigation only. Suggested fix: pass
-`user?.id` into `checkReferralCode` at the `handleSave` call site. Full
-detail in `docs/features/superadmin/referrals.md`.
+code always fails. Full detail in `docs/features/superadmin/referrals.md`.
+
+**Fixed** (commit `8d53bbd9`): `page.tsx`'s `handleSave` now passes
+`user?.id` into `checkReferralCode`, exactly the suggested fix — the
+backend's self-exclusion support was already correct and needed no
+change. Covered by `tests/Feature/Admin/ReferralCodeSelfCheckTest.php`.
 
 ### Confirmed, not a bug: Referrals page's store-name resolution happens to be correct, sharing the same root cause as an already-logged bug elsewhere
 
@@ -708,10 +718,23 @@ identical code path and would fail identically. No working path exists in
 this UI to return to the "Disabled" state once any value has ever been
 saved. Recovered the shared dev backend's state directly via `php artisan
 tinker` (`SystemConfig::setVal('smartsupp_key', '')`) after confirming the
-bug, since the UI path is provably broken. Not fixed — investigation
-only. Suggested fix: relax the backend validation for this key (e.g.
-`present` instead of `required`) or have the frontend send an explicit
-"clear" sentinel. Full detail in `docs/features/superadmin/settings.md`.
+bug, since the UI path is provably broken. Full detail in
+`docs/features/superadmin/settings.md`.
+
+**Fixed** (commit `8d53bbd9`), and turned out to be two bugs stacked, not
+one: relaxing validation from `required` to `present` alone wasn't
+sufficient — Laravel's `ConvertEmptyStringsToNull` middleware turns the
+frontend's `value: ""` into PHP `null` before validation even runs, and
+`SystemConfig::setVal()` then tried to save that `null` into a column the
+original migration made `NOT NULL`, which would have turned the 422 into
+a 500 instead of actually fixing anything. Caught by
+`tests/Feature/Admin/SystemConfigDisableTest.php` failing against the
+first-pass fix. Added a second migration
+(`2026_09_04_000000_make_system_configs_value_nullable`) making
+`system_configs.value` nullable, applied to the shared dev MySQL database
+directly (`php artisan migrate --database=mysql --force`) and verified via
+`php artisan tinker` that clearing a key now persists a real `NULL`, not
+just a not-technically-tested green checkmark.
 
 ### Bug: Settings → Billing & Plans tier `limits`/`features` UI schema doesn't match what's actually stored, on two separate axes (blank field live; unmanageable real feature flags; phantom UI-only feature flags)
 
@@ -740,6 +763,24 @@ backend PHP code reading them as gates at all. A save (never actually
 performed, to avoid corrupting the shared dev backend's real pricing
 config) would write a garbage `sync_interval: NaN` into every tier and
 leave the real `theme_customizer`/`mobile_access`/`store_url`/
-`basic_inventory` flags permanently unmanageable through this UI. Not
-fixed — investigation only. Full detail in
-`docs/features/superadmin/settings.md`.
+`basic_inventory` flags permanently unmanageable through this UI. Full
+detail in `docs/features/superadmin/settings.md`.
+
+**Partially addressed, still open** (commit `8d53bbd9`): added a
+`remove_branding` toggle to the Feature Gates list — it's a real,
+currently-enforced client gate (`canRemoveBranding` in
+`use-feature-gate.ts`) that had no admin-facing control at all, under
+either the old or new key schema, so adding it is a pure improvement with
+no downside. This does **not** fix the underlying schema-drift bug
+described above. That needs a deliberate decision this task's scope
+doesn't cover: pick one canonical key schema (the admin UI's newer
+`sync_interval`/`mobile_app`/`custom_branding`-style keys, since
+`use-feature-gate.ts`'s `getFeature(key, altKey, fallback)` already checks
+the new key before falling back to the legacy one — so the *client* side
+is already forward-compatible), then actually migrate the live
+`subscription_plans` system-config row from the legacy
+`inventories`/`mobile_access`/`theme_customizer`/`store_url` keys to it,
+and remove the now-genuinely-dead legacy-only keys
+(`broadcast_create`/`loyalty_program`/`barcode_generation` per the
+investigation above) or confirm/add real backend enforcement for them
+first. Still flagged open pending that decision.

@@ -977,6 +977,344 @@ sub-tabs) against real seeded data on Pikarestiv Stores 2.
   `docs/features/_known-bugs.md` (bug #2 rewritten from "Open, missing
   feature" to "Fixed" with the corrected record and both real gaps).
 
+### 19. Four independent, previously-logged findings fixed in one round: Dashboard dead-click, Catalog category filter, Prescriptions strength selector, Customers redemption-options fallback
+
+- **Bug A — Dashboard "Product added" activity rows were dead clicks.**
+  Originally logged above under "Dashboard: 'Product added' activity rows
+  are dead clicks." `dashboard-overview.tsx` had no dialog wired for
+  `type === "product"`, so clicking one set `selectedActivity` and nothing
+  opened.
+  - **Fix:** rather than build a new standalone dialog for a data shape
+    that's just a product row, clicking a "product" activity now navigates
+    to Inventory > Catalog and opens that product's *current* record —
+    `handleActivityClick()` (`components/dashboard/dashboard-overview.tsx`)
+    routes `router.push(`/inventory/catalog?productId=${activity.id}`)` for
+    `type === "product"` (every other type's existing dialog behavior is
+    unchanged). `components/products/product-database.tsx` gained a second
+    `useEffect` reading `?productId=`, resolving it against the already-
+    loaded product list, calling `setSelectedProduct()` to open the existing
+    `CatalogDetailPanel`, then cleaning up the URL — the exact same
+    deep-link/cleanup mechanism the component's pre-existing `?action=add`
+    handling already used, not a new one. This lands the user on the real,
+    live product record (name/price/stock as of now) instead of a frozen
+    `rawActivity` snapshot from when the dashboard feed was built.
+  - **Verified by:** `client/__tests__/dashboard-product-activity-click.test.ts`
+    (new, 4 tests) — source-inspection style (no render harness, matching
+    `dashboard-action-center-routes.test.ts`'s convention, since both
+    components pull in heavy DB-backed hooks): asserts the product-click
+    handler exists, routes to a real `/inventory/<tab>` (validated against
+    `app/(dashboard)/inventory/[tab]/page.tsx`'s `allowedTabs`), passes the
+    activity's own `id` as `productId`, that Catalog reads/consumes/cleans
+    up that param, and that every other activity type's existing dialog
+    wiring is untouched. RED (3/4 failing) confirmed by stashing both
+    source files before the fix; GREEN after.
+
+- **Bug B — Inventory > Catalog's category filter didn't match the real
+  store's categories.** Originally logged above under "Inventory > Catalog:
+  Category filter pill and 'Manage Categories' dialog disagree...".
+  `getCategoriesList()` (`lib/db/queries/products.ts`) used a strict `AND
+  store_id = ?`, excluding this store's legacy bulk-imported categories
+  (`store_id IS NULL`, predating the `store_id` backfill — same root cause
+  as known-bug #1's fix), so it returned zero rows and the UI silently fell
+  back to a hardcoded, wrong generic category list.
+  - **Fix:** changed the query to `WHERE _deleted = 0 AND (store_id = ? OR
+    store_id IS NULL)`, the exact NULL-inclusive pattern already
+    established (and reviewed) in `getCategoryList()`
+    (`lib/db/queries/categories.ts`, fixed for known-bug #1). One-line
+    change; `getCategoryByName()` in the same file was deliberately left
+    untouched (it has a separate, different lack of store-scoping — noted
+    as a possible follow-up, not fixed here, per this task's explicit
+    scope).
+  - **Verified by:** a new case added to
+    `client/__tests__/multi-store-scoping.test.ts` — real in-memory sql.js,
+    mirroring the exact shape of the sibling `getCategoryList` bug #1 test:
+    seeds a NULL-`store_id` legacy category alongside two store-owned ones
+    and asserts `getCategoriesList()` surfaces the legacy row to every
+    store. RED confirmed by stashing the query fix; GREEN after.
+
+- **Bug C — Prescriptions Strength selector was empty/unusable for products
+  with a blank `strength` column.** Originally logged above under
+  "Prescriptions: Strength selector is unusable (but harmless)...". The New
+  Prescription form's "Strength *" combobox
+  (`components/prescriptions/new-prescription/prescription-medications.tsx`)
+  was populated only from the selected product's own non-empty `strength`
+  values, so a product with a blank `products.strength` rendered a
+  required-looking dropdown with zero options.
+  - **Fix (chose free-text fallback over hide/optional):** when the
+    selected product has zero non-empty strength options
+    (`noStrengthOptionsAvailable`), the field now renders a plain text
+    `Input` instead of the `Combobox`, so the user can still type a
+    strength value; when options exist, the original `Combobox` renders
+    unchanged. Free text was chosen over hiding/making the field optional
+    because this form has no existing precedent for silently dropping a
+    labeled "*" required field when its backing data is empty — a visible,
+    still-fillable input keeps the field's contract ("Strength *" is always
+    present and always usable) consistent, and costs nothing since
+    `newMedication.strength` was already a plain string with no format
+    validation. Root cause (blank imported `strength` data) is unchanged —
+    this is a rendering fix only, per scope.
+  - **Verified by:** `client/__tests__/prescription-strength-fallback.test.ts`
+    (new, 3 tests) — a real component render via the manual
+    `react-dom/client` + React 19 `act()` harness this repo already uses
+    (no `@testing-library/react` installed; `useStore()` mocked since the
+    component only reads `storeProfile.currency`). Asserts: the free-text
+    input renders (and the combobox's "Select strength" text does not) for
+    a product with only a blank strength; the normal combobox still renders
+    for a product with real strength options; and the pre-selection
+    (disabled) state is unaffected. RED (blank-strength case only)
+    confirmed by stashing the component fix; GREEN after.
+
+- **Bug D — Customers' "Points Redemption Options" section was empty until
+  Loyalty Settings was opened once.** Originally logged above under
+  "Customers: Points Redemption Options section is empty until Loyalty
+  Settings is opened once". `ensureLoyaltyDefaultsSeeded()`
+  (`lib/db/queries/loyalty.ts`) only runs as a side effect of the Loyalty
+  Settings dialog's `open` `useEffect`; tiers already had a client-side
+  fallback (`buildFallbackTiers()`,
+  `lib/hooks/use-customer-management.ts`) for exactly this first-run gap,
+  but redemption options had none.
+  - **Fix:** added `buildFallbackRedemptionOptions()` to
+    `lib/hooks/use-customer-management.ts`, mirroring
+    `buildFallbackTiers()`'s shape/mechanism and mirroring
+    `DEFAULT_REDEMPTION_OPTIONS`'s actual seed content (`lib/db/queries/
+    loyalty.ts`) exactly (₦500 Discount / ₦1,000 Discount / Free Delivery,
+    same points costs and descriptions) so the pre-seed preview matches
+    what a user gets once `ensureLoyaltyDefaultsSeeded()` really runs.
+    `components/customers/loyalty-tab.tsx` now applies the same
+    real-data-wins precedence tiers already follow: `activeOptions.length >
+    0 ? activeOptions : buildFallbackRedemptionOptions()` (tiers'
+    equivalent is `dbTiers && dbTiers.length > 0 ? ... :
+    buildFallbackTiers(isStore)`), so any real, active redemption option
+    row immediately takes over from the fallback the moment one exists.
+  - **Verified by:** `client/__tests__/loyalty-redemption-fallback.test.ts`
+    (new, 4 tests) — a pure unit test on `buildFallbackRedemptionOptions()`
+    asserting it mirrors `DEFAULT_REDEMPTION_OPTIONS` field-for-field and
+    every row has a unique, stable id (used as the React list key), plus
+    source-inspection tests asserting `loyalty-tab.tsx`'s precedence
+    expression gates on `.length > 0` before falling back (not
+    unconditionally preferring the fallback). RED confirmed by stashing
+    both source files; GREEN after.
+
+- **Full-suite verification (all 4 bugs together):** `npx tsc --noEmit -p .`
+  clean; `npx vitest run` 390/390 passing across 73 files (up from 378/378
+  across 70 files at entry #18 — 3 new test files plus the extended
+  `multi-store-scoping.test.ts`).
+- **Docs updated:** `docs/features/dashboard.md`, `docs/features/
+  inventory.md`, `docs/features/prescriptions.md`, `docs/features/
+  customers.md` — each corrected to reflect its respective fix in place of
+  the prior stale/dead-click/empty-state claim.
+
+### 20. `sales-lifecycle.spec.ts`'s Cycle Count steps updated to match the current single-screen ledger flow
+
+- **Found:** see the "Open" entry above (now marked fixed) — the spec's
+  Cycle Count section still expected the old select-a-category → "Start
+  count" → per-product count screen → "Save count" flow. That flow doesn't
+  exist anymore; `StockAudits` (`client/components/stock-batch/stock-audits.tsx`)
+  opens directly onto a single "ledger" step
+  (`client/components/stock-batch/audit-ledger-step.tsx`) with a search box,
+  a `FilterPill`-based Category selector (`selectedCategory`/
+  `setSelectedCategory`, defaulting to the `ALL_CATEGORIES` sentinel), and a
+  flat grid of every product with an inline editable "Counted Qty" cell
+  (`EditableNumberCell`) per row, followed by a "Review & submit" step and a
+  "done" step.
+- **Fix:** rewrote the spec's Cycle Count section
+  (`client/e2e/sales-lifecycle.spec.ts`) to match: click "Start Audit" →
+  create the target product with a real category ("Antibiotics", typed into
+  the freeform category `SearchableInput`) plus a second, decoy product in a
+  different real category ("Vitamins") → open the Category `FilterPill` and
+  pick the target's category → search for the target product by name → fill
+  its inline "Counted Qty" cell directly (no separate per-product screen) →
+  "Review & submit" → confirm the item and its qty change appear on the
+  review step → "Submit audit" → confirm "Audit submitted" → "Close Audit".
+  All locators scoped to the audit overlay's root panel
+  (`div.fixed.inset-0.z-50`) after discovering live that unscoped
+  `getByPlaceholder`/`getByRole('button', { name: /^Category:/ })` locators
+  ambiguously matched the *Catalog* page's own identically-labeled
+  search/filter controls still mounted underneath the full-screen overlay.
+- **Fix-round correction (code review):** the first pass of this fix picked
+  "Uncategorized" as the filter target because the product created above
+  never had a category set. Review correctly flagged that this didn't prove
+  the filter actually *narrows* anything — finding the row afterward by its
+  unique `Date.now()`-suffixed name would have passed identically even if
+  category selection were a complete no-op silently showing every product.
+  Fixed by adding the second, differently-categorized decoy product and
+  asserting, right after selecting the category filter, that the decoy is
+  now hidden (`not.toBeVisible()`) while the target product stays visible —
+  a real before/after check that only passes if the selected category
+  genuinely filtered the grid.
+- **Verified live in Chrome** before writing selectors: logged in as PIN
+  1111 on Pikarestiv Stores 2, opened Inventory → Start Audit, confirmed the
+  "Physical inventory" ledger screen, exercised the Category filter pill
+  (`Category: Drugs (689)` etc.), searched for TRAMADOL 100MG, edited its
+  Counted Qty inline (diff qty updated live), went through Review & submit
+  (showed "Total Counted"/"Adjusted" tiles and a "Qty: -5 → 25" line), and
+  submitted — got "Audit submitted", and the resulting stock adjustment
+  appeared correctly in Recent Activity. (Also discovered, via a failing
+  first-draft assertion against this e2e fixture rather than live Chrome,
+  that the isolated Playwright fixture DB starts with zero pre-existing
+  products — unlike the real Pikarestiv Stores 2 data browsed above — which
+  is what made the decoy-product approach necessary.)
+- **Verified by:** `npx playwright test --project=chromium
+  e2e/sales-lifecycle.spec.ts --no-deps`, run 3 times in isolation both
+  before and after the fix-round correction (6 runs total), all green
+  (~12-40s each). One earlier run failed only when launched concurrently
+  with a separate full `e2e/auth.spec.ts` run against the same dev
+  server/backend — the shared `login()` helper timed out waiting for the
+  login page under that concurrent load, unrelated to this spec's own
+  changes; re-run alone, it passed immediately. `npx tsc --noEmit -p .`
+  clean both rounds; `npx vitest run` 390/390 passing both rounds
+  (unchanged — e2e-only change).
+
+### 21. `auth.spec.ts` switched off its stale inline login pattern
+
+- **Found:** see the Summary section above — `e2e/auth.spec.ts` duplicated
+  the old `getByPlaceholder('admin')`/`getByPlaceholder('••••')` login
+  pattern inline in 3 of its 4 tests instead of using the shared, already-
+  fixed `login()` helper in `e2e/fixtures.ts` (which uses the current
+  `InputOTP`-based PIN entry, `input[data-input-otp="true"]`, not a
+  placeholder-based text input).
+- **Fix (`client/e2e/auth.spec.ts`):**
+  - "should redirect unauthenticated users to login" — unchanged, never used
+    `login()` and doesn't need to.
+  - "login page should have expected fields from seeded DB" — kept as a
+    direct field-assertion test (its whole point is checking the login
+    page's real fields, so calling `login()` would defeat the purpose), but
+    swapped the stale `getByPlaceholder('••••')` PIN assertion for
+    `page.locator('input[data-input-otp="true"]').first()`, matching
+    `components/auth/traditional-login-form.tsx`'s real `InputOTP` field.
+    The username field's placeholder assertion (`getByPlaceholder('admin')`)
+    was still correct and left as-is.
+  - "rejects an incorrect PIN" — same swap applied to the fill step (fills
+    the real `InputOTP` field with `'0000'` instead of the nonexistent
+    `'••••'`-placeholder input); still doesn't use the shared `login()`
+    helper, since that helper is built to succeed, not to test rejection.
+  - "logs in successfully with the seeded admin credentials" — simplified to
+    call the shared `login(page)` helper directly. This test never needed to
+    inspect the login form's own fields (test 2 already covers that) — it
+    only needed to end up authenticated and check the dashboard result, so
+    routing it through the shared helper removes the duplicated fill-in
+    steps without changing what the test actually verifies.
+- **Verified live / by reading source:** `components/auth/traditional-login-form.tsx`
+  confirmed directly — username is still a placeholder-based `Input`
+  (`placeholder="admin"`), PIN is an `InputOTP` with 4 `InputOTPSlot`s and no
+  `'••••'` placeholder anywhere. Also confirmed via Claude-in-Chrome: logged
+  in with PIN 1111 on Pikarestiv Stores 2 through the same PIN-unlock
+  `InputOTP` pattern.
+- **Verified by:** `npx playwright test --project=chromium e2e/auth.spec.ts
+  --no-deps`, run 3 times, all 4 tests green every time (~9-10s each run).
+  `npx tsc --noEmit -p .` clean; `npx vitest run` 390/390 passing.
+
+### 22. Backup & Restore: `_known-bugs.md` item #10 fixed — full reload after local restore, one-time post-restore cloud-link notice
+
+- **Found:** see the "Backup & Restore" Open entry above (now fixed) —
+  a live walkthrough found two related-but-independent gaps around a local
+  `.drx` restore, neither touching data integrity: (a) `handleLocalRestore()`
+  (`app/setup/use-onboarding.ts`) navigated to `/login` with a client-side
+  `router.push`, so `/login`'s account detection (`useDeviceAuthStatus`)
+  could briefly re-render the stale pre-restore "No Local Accounts Found"
+  screen right after the "Database restored successfully!" toast; (b)
+  `restoreDatabase()` (`lib/db/core.ts`) only ever swaps the sql.js
+  database — it has no way to (and, on purpose, should not) restore the
+  `auth_token` a cloud link depends on, so a device recovered from a local
+  backup silently ends up in "Local Mode (Not Linked)" with sync off and
+  nothing telling the owner that happened.
+- **Fix, Part A (stale login screen):** `handleLocalRestore()` now matches
+  the pattern already used by the other two restore paths in this codebase
+  (`hooks/use-settings-sync.ts`'s `handleRestoreBackup` /
+  `handleRestoreBackupTauri`, both of which already forced a
+  `window.location.reload()` for this exact reason) — after
+  `restoreDatabase()` resolves and the success toast fires, it now does
+  `window.location.href = "/login"` (a full browser navigation, not a
+  client-side one) instead of `router.push("/login")`. `/login`'s account
+  detection always runs fresh against the just-restored database; there is
+  no stale-screen window left to observe.
+- **Fix, Part B (cloud-link gap):** explicitly did **not** attempt to make
+  the auth token survive a restore — a portable `.drx` backup file should
+  never carry a live, device-tied session credential (let alone a
+  plaintext password), and silently reusing one device's token on another
+  would be its own security problem. Instead, made the gap loud and
+  one-time instead of silent:
+  - `lib/utils/post-restore-notice.ts` (new): a tiny pair of pure
+    functions around a short-lived `sessionStorage` marker
+    (`dumos_just_restored`) — `markRestoredForCloudLinkNotice()` sets it,
+    `consumePostRestoreCloudLinkNotice(isCloudLinked)` reads-and-clears it
+    in one call, returning `true` only when the marker was present *and*
+    the device isn't cloud-linked. Consuming (clearing) the marker
+    unconditionally, regardless of the boolean result, is what makes this
+    fire at most once per restore — a second check on the same load (or a
+    normal subsequent load with no marker at all) always returns `false`.
+  - All three restore call sites now call `markRestoredForCloudLinkNotice()`
+    immediately before their existing post-restore reload:
+    `handleLocalRestore()` (setup wizard, before the new
+    `window.location.href` navigation above), and
+    `handleRestoreBackup()` / `handleRestoreBackupTauri()`
+    (`hooks/use-settings-sync.ts`, before their existing
+    `window.location.reload()` calls — unchanged otherwise).
+  - `lib/hooks/use-post-restore-cloud-link-notice.ts` (new): a
+    `usePostRestoreCloudLinkNotice({ onLinkCloud })` hook, mounted once on
+    each screen that can be the landing spot right after a post-restore
+    reload. On mount it reads `localStorage.getItem("auth_token")`
+    directly (not `useAuth()`'s `isCloudLinked` — `AuthProvider`'s own
+    mount effect sets that from the same key, but ancestor-vs-descendant
+    effect ordering isn't guaranteed, so reading the context value here
+    risked consuming the one-shot marker against its pre-mount default of
+    `false`). If `consumePostRestoreCloudLinkNotice()` returns `true`, it
+    fires a single `sonner` `toast.warning` (20s duration, so it can't be
+    missed by mistake) explaining the data is back but the device needs
+    re-linking, with an action button that calls the caller-supplied
+    `onLinkCloud` — deliberately reusing whatever "Link DumosRx Cloud"
+    control already exists on that screen rather than building a new one.
+  - Wired into both post-restore landing spots: `app/login/use-login-page.tsx`
+    (`useLoginPageState`) passes `onLinkCloud: () => onboarding.setStep("cloud")`
+    — the same pre-login cloud-link step the setup wizard's own
+    "cloudSetupHandler" already uses; `components/dashboard/dashboard-layout.tsx`
+    (`DashboardLayoutInner`, which the in-app Settings > Data restore
+    reloads straight back into) passes
+    `onLinkCloud: () => router.push("/settings/cloud")` — the existing URL
+    alias (`hooks/use-settings.ts`) that auto-opens `CloudLinkDialog` when
+    the store isn't linked.
+  - This is intentionally **not** a persistent nag: the dashboard header's
+    `SyncIndicator` "Not Linked" state (`components/dashboard/sync-indicator.tsx`)
+    already covers "device is unlinked, full stop" on every render; this
+    notice only ever fires once, immediately after a restore that left the
+    device unlinked.
+- **Tests (TDD, all new):**
+  - `__tests__/post-restore-notice.test.ts` — pure unit tests on
+    `consumePostRestoreCloudLinkNotice()`/`markRestoredForCloudLinkNotice()`:
+    fires when just-restored and unlinked; does not fire with no marker set
+    (normal load); does not fire at all when linked; fires at most once
+    even if checked again; consumes the marker even on the linked branch so
+    a later unrelated unlink can't retroactively fire it. RED confirmed by
+    deleting the module before writing the implementation (import-resolution
+    failure), GREEN after.
+  - `__tests__/post-restore-cloud-link-notice-hook.test.ts` — drives the
+    real hook via the manual `react-dom/client` + `act()` harness this repo
+    already uses for hooks with no `@testing-library/react` installed (see
+    `__tests__/use-pos-payment-loyalty-gate.test.ts`), with `sonner` mocked:
+    shows the toast (with a working action calling `onLinkCloud`) when
+    just-restored and unlinked; suppresses it when linked; suppresses it on
+    a normal load; and fires only once even across a re-render with a new
+    callback identity. RED confirmed by the hook module not existing yet,
+    GREEN after.
+  - `__tests__/onboarding-local-restore-reload.test.ts` — same harness
+    pattern, with `next/navigation`, `@/lib/context/auth-context`,
+    `@/lib/db/core`, `@/lib/db/queries/setup`, `@/lib/db/sync-engine`,
+    `@/lib/api/client`, and `sonner` all mocked, plus a fake
+    `window.location` (jsdom's real one throws on assignment). Confirms
+    `handleLocalRestore()` calls `restoreDatabase()`, never calls
+    `router.push("/login")`, and does set `window.location.href = "/login"`.
+    RED confirmed against the pre-fix `router.push` implementation, GREEN
+    after.
+- **Full-suite verification:** `npx tsc --noEmit -p .` clean; `npx vitest
+  run` 400/400 passing across 76 files (up from 390/390 across 73 files
+  before this fix — 3 new test files). `npx playwright test
+  --project=chromium e2e/settings.spec.ts --no-deps` (the spec exercising
+  `CloudLinkDialog`/`/settings/cloud`, the reused in-app link control) —
+  4/4 passing.
+- **Docs updated:** `docs/features/_known-bugs.md` item #10 marked Fixed;
+  `docs/features/backup-restore.md`'s stale-login-screen and cloud-link-gap
+  notes updated to describe the fixed behavior.
+
 ## Open
 
 (Sections below add entries here as they're walked.)
@@ -1054,11 +1392,10 @@ sub-tabs) against real seeded data on Pikarestiv Stores 2.
 - **Coverage:** zero — `e2e/dashboard.spec.ts` never clicks a Recent
   Activity row of any type, and no `__tests__/` file covers the activity
   feed's click-to-dialog mapping.
-- **Not fixed:** this is a missing-feature gap (no `ProductDetailsDialog`
-  exists yet), not a wrong-number or broken-link regression, so it's out
-  of the "fix the highest-value bug" scope for this task. Recommend a
-  follow-up product-details dialog, or excluding `type: "product"` rows
-  from being rendered as clickable in the interim.
+- **Fixed** — see "Resolved" #19 (Bug A) above: clicking a "product"
+  activity row now navigates to Inventory > Catalog and opens that
+  product's real, current record via a `?productId=` deep link, instead of
+  building a new dialog for a frozen `rawActivity` snapshot.
 
 ### Inventory > Catalog: Category filter pill and "Manage Categories" dialog disagree, neither shows this store's real categories
 
@@ -1078,11 +1415,14 @@ sub-tabs) against real seeded data on Pikarestiv Stores 2.
   (and lets an owner edit/delete) another store's categories.
 - **Coverage:** zero — no `__tests__/` or `e2e/` file exercises either
   category query or the filter-pill/Manage-dialog category lists at all.
-- **Not fixed:** root-causing why the store-scoped query returns zero rows
-  despite products clearly having categories requires investigating the
-  `categories` table's `store_id` data, which risks touching real Store 2
-  data and is bigger than this task's "fix the one bug you found" scope.
-  See `docs/features/inventory.md` for full detail.
+- **Fixed** — see "Resolved" #19 (Bug B) above: `getCategoriesList()` now
+  uses the same NULL-inclusive `(store_id = ? OR store_id IS NULL)` pattern
+  already established in `getCategoryList()`'s known-bug #1 fix, so this
+  store's legacy bulk-imported categories (Drugs, Cosmetics, etc.) surface
+  correctly instead of falling back to a hardcoded generic list.
+  `manage-categories-dialog.tsx`'s separate lack of `store_id` scoping in
+  `getCategoryList()` was already fixed under known-bug #1, prior to this
+  task. See `docs/features/inventory.md` for full detail.
 
 ### Inventory > Movements: zero real movement history to test against
 
@@ -1132,7 +1472,7 @@ sub-tabs) against real seeded data on Pikarestiv Stores 2.
   of scope. This task's own verification reused the already-committed
   `e2e/.auth/test-db.bin` fixture directly via `--no-deps` instead.
 
-### e2e suite: `sales-lifecycle.spec.ts`'s Cycle Count steps are stale (second instance of the drift above)
+### e2e suite: `sales-lifecycle.spec.ts`'s Cycle Count steps are stale (second instance of the drift above) — fixed, see "Resolved" #20
 
 - **Found while writing `e2e/pos-held-transaction.spec.ts`:** that new spec
   needed real stock, so it followed `sales-lifecycle.spec.ts`'s
@@ -1143,11 +1483,10 @@ sub-tabs) against real seeded data on Pikarestiv Stores 2.
   no per-category "Start count" step at all. `sales-lifecycle.spec.ts` (and
   this task's first draft of `pos-held-transaction.spec.ts`) hang forever
   waiting for a "Start count" button that no longer exists.
-- **Not fixed:** out of scope for Task 3 (POS); `sales-lifecycle.spec.ts`
+- **Not fixed at the time:** out of scope for Task 3 (POS); `sales-lifecycle.spec.ts`
   predates this task. `pos-held-transaction.spec.ts` was written against the
   current UI instead of copying the stale pattern, so it isn't affected.
-  Recommend updating `sales-lifecycle.spec.ts`'s Cycle Count section next
-  time that spec is touched.
+  **Fixed in a later pass** — see "Resolved" #20 below.
 
 ### Prescriptions: dispensing does *not* have a third copy of the stock-deduction bug — confirmed, no fix needed
 
@@ -1199,10 +1538,13 @@ sub-tabs) against real seeded data on Pikarestiv Stores 2.
   the batch's own blank `strength`, so "Add Medication" works anyway.
   Confirmed live — added TRAMADOL 100MG to a prescription without ever
   touching the Strength field.
-- **Not fixed:** root cause is a data-quality gap (blank `strength` on
-  imported products), not incorrect matching logic; the matching logic
-  already degrades safely. Out of this task's scope.
-- **Coverage:** zero — no existing test exercises the Strength combobox.
+- **Fixed** — see "Resolved" #19 (Bug C) above: the Strength field now
+  falls back to a free-text `Input` when the selected product has zero
+  non-empty strength options, instead of rendering an unselectable empty
+  combobox. Root cause (blank imported `strength` data) is unchanged — this
+  was a rendering fix only.
+- **Coverage:** `client/__tests__/prescription-strength-fallback.test.ts`
+  (new).
 
 ### Customers: points redemption is configurable but not actually redeemable anywhere
 
@@ -1226,11 +1568,13 @@ sub-tabs) against real seeded data on Pikarestiv Stores 2.
   for redemption options the way tiers have `buildFallbackTiers()`. Opening
   Edit Settings once seeds the defaults and the main tab then shows them
   correctly.
-- **Not fixed:** cosmetic/first-run-only gap, not a data bug — one click by
-  an owner/manager (the same role gated behind `canManageStockBatch` who can
-  already edit these settings) resolves it permanently for that store. Out
-  of scope to add a fallback list here to match tiers' behavior during this
-  task.
+- **Fixed** — see "Resolved" #19 (Bug D) above: added
+  `buildFallbackRedemptionOptions()` (mirroring `buildFallbackTiers()`'s
+  mechanism and `DEFAULT_REDEMPTION_OPTIONS`'s actual seed content) to
+  `use-customer-management.ts`; `loyalty-tab.tsx` now shows it whenever the
+  real, active redemption-options list is empty, with real data always
+  taking precedence once it exists — same precedence rule tiers already
+  followed.
 
 ### Customers: `recordCustomerPayment` checked for the recurring accumulation-bug pattern — confirmed no bug
 
@@ -1447,3 +1791,437 @@ rather than fixed in this pass.
   and documentation only, per its brief.
 - See `docs/features/auth.md` for full detail and
   `docs/features/_known-bugs.md` item #7 for the tracker update.
+
+### Backup & Restore: live download/restore-onto-fresh-device walkthrough, full table-by-table completeness diff, sync-after-restore check — restore data itself confirmed complete; cloud-link token and a login-screen timing gap found, documented as `_known-bugs.md` item #10
+
+- **Walked live** on "Pikarestiv Stores 2" only (never the primary
+  "Pikarestiv Stores" account): downloaded a real `.drx` backup after a
+  manual "Sync Now" (26,656,768 bytes), then restored it onto a genuinely
+  isolated fresh-device context.
+- **Isolation technique:** `localStorage`/IndexedDB are origin-scoped, not
+  tab-scoped, so a plain new tab still shares the logged-in session's
+  storage — not a valid "new device" stand-in — and incognito wasn't
+  reachable via the browser-automation tooling available. Used a second,
+  distinct origin instead — `http://127.0.0.1:3000` alongside the original
+  `http://localhost:3000` — both hitting the identical running dev server
+  but partitioned completely separately by Chrome. Verified empty
+  (`indexedDB.databases()`, `localStorage`, `sessionStorage`) before use.
+- **Fresh-device restore path confirmed smooth:** a device with zero local
+  accounts hitting `/login` shows "No Local Accounts Found" with a "Have a
+  local backup file? Restore Now" link, routing to
+  `/login?tab=setup&step=backup` (`BackupStep` component) — reachable
+  *before* any login, exactly the flow a user recovering onto a new device
+  needs. One real rough edge found here: `handleLocalRestore()`
+  (`app/setup/use-onboarding.ts`) does a client-side `router.push("/login")`
+  after restoring rather than a full reload, and `/login`'s account
+  detection hadn't re-run yet — briefly re-showed the pre-restore "No Local
+  Accounts Found" screen even though the restore had already succeeded
+  underneath. A manual reload showed the correct state immediately.
+- **Completeness check (this task's primary deliverable):** captured a
+  full table-by-table row count from the downloaded `.drx` directly (a
+  standalone Node script loading `sql.js` and running
+  `SELECT COUNT(*) FROM {table}` for every name in `sqlite_master` — the
+  authoritative pre-restore snapshot, not a UI spot-check), then did the
+  same against the restored device's live DB via the dev-only
+  `window.getDatabaseBinary()` hook (`lib/db/core.ts`) after logging in.
+  **30 of 32 tables matched exactly** (`products` 3,041/3,041,
+  `stock_batches` 2,173/2,173, `stores` 2/2, `sales` 7/7, `customers` 1/1,
+  `feedback` 2,526/2,526, etc.). The only two diffs — `audit_logs`
+  5,401→5,402 and `_sync_queue` 10→11 — are both fully explained by the one
+  login event performed on the restored device itself (one new
+  `LOGIN_SUCCESS`-shape audit row → one new queued sync row for it), not by
+  any restore data loss. **No data-completeness bug found** — the restore
+  mechanism itself (`db.export()`/`new SQL.Database(binaryData)`) is a
+  faithful whole-DB copy. Full table diff is in
+  `docs/features/backup-restore.md`.
+- **Real gap found, not data-related:** the restored device's cloud-sync
+  link does **not** survive restore. `isCloudLinked`
+  (`lib/context/auth-context.tsx`) is derived purely from an `auth_token` in
+  `localStorage`, set only by a real backend login call
+  (`linkCloudAccount(email, password)`) — never written by
+  `restoreDatabase()`, which only touches the sql.js DB. Live result:
+  Settings → Data on the freshly-restored, fully-data-correct device showed
+  "Local Mode (Not Linked)" with no "Sync Now" control at all, only
+  "Link Account"/"Link & Sync" (requiring the real account password —
+  correctly **not** entered in this test, out of scope regardless of
+  environment). This is the practically significant finding: a user
+  recovering their store onto a new device gets all their data back but
+  silent, off-by-default sync, with nothing in the restore flow itself
+  surfacing that gap.
+- **Sync-after-restore check:** with the fresh device unable to push (no
+  cloud link), verified instead that (a) its background auto-sync timer
+  does not error while unlinked (`read_console_messages` clean over several
+  minutes), and (b) the *original*, still-linked session's sync is
+  unaffected by any of this — added a uniquely-named test expense there and
+  confirmed via `read_network_requests` a clean
+  `POST .../sync/push?manual=1` → `POST .../sync/pull?manual=1` pair, both
+  200, no console errors. **Could not exercise a live push-vs-push
+  version-conflict race** (the specific scenario `push.ts`'s `_version`
+  preservation and `pull.ts`'s stale-local-edit deferral are designed for)
+  end-to-end, since that requires the restored device to actually push,
+  which the cloud-link gap above blocks without real credentials. The
+  design is read and consistent with its own code comments but was not
+  independently validated live — flagged as a follow-up, not claimed as
+  fully verified.
+- **Not fixed; no application code changed** — this task was live
+  investigation and documentation only, per its brief; the cloud-link gap
+  and login-screen timing issue are both real but neither is a small,
+  TDD-able one-liner in a high-caution area (whole-device DB replace), so
+  both are documented in `_known-bugs.md` item #10 for separate scoping
+  rather than fixed here.
+- See `docs/features/backup-restore.md` for the full walkthrough including
+  the complete table-by-table diff, and `_known-bugs.md` item #10 for the
+  tracker entry.
+
+### 23. Backup & Restore: sync-engine version-conflict test completed — confirmed real, silent data-loss bug (`_known-bugs.md` #11)
+
+- **Direct follow-up** to the "could not exercise a live push-vs-push
+  version-conflict race" gap two entries above, and to the immediately
+  preceding attempt at this same test, which built the full two-session
+  setup correctly but stopped short of the actual push because the provided
+  cloud credentials didn't authenticate at the time. This run used the same
+  setup approach (isolated-origin Session B, CORS-server file-upload
+  workaround for the 26.6 MB `.drx`) with now-working credentials, and
+  carried it all the way through to a real push-vs-push race, a real server
+  response, and a direct database check — **and found a genuine bug.**
+- **Safety check first:** before using the real credentials at all, checked
+  directly against the Laravel DB whether the cloud account they authenticate
+  as owns more than one store (the task's own standing rule: stop if so).
+  It does — `pikarestiv@gmail.com` owns both "Pikarestiv Stores 2" and the
+  primary "Pikarestiv Stores." Paused and reported `BLOCKED` for explicit
+  confirmation rather than assuming this was fine; user confirmed this is
+  by design (Store 2 is a deliberate testing duplicate under the real
+  account's own ownership) and authorized continuing, Store 2 only. The
+  header store-picker (`components/dashboard/header-store-switcher.tsx`)
+  was then used as an explicit, checked-at-every-step guard for the rest of
+  the test, confirming "Pikarestiv Stores 2" throughout.
+- **Setup:** Session A (fresh local-PIN login, not a leftover
+  superadmin-impersonation session that happened to already be open on this
+  device — logged all the way out and back in first) linked to the cloud,
+  synced, downloaded a backup (MACA GUMMIES at the ₦999 common-ancestor
+  price, `_version: 2`). Session B restored from that same backup onto a
+  freshly wiped isolated origin, linked to the cloud via plain "Link
+  Account" (not "Link & Sync," specifically to avoid an initial pull
+  overwriting the setup before the divergent edit), confirmed
+  "Last synced: Never" going in.
+- **The conflict:** Session A edited Selling Price ₦999→₦1,500 and synced —
+  confirmed server-side via `tinker` (`_version: 3`). Session B, still never
+  having pulled, independently edited the same field to ₦777 and synced.
+- **Result: Session B's push silently overwrote Session A's already-synced
+  edit.** No error, no rejection, no conflict signal anywhere. Direct
+  database check: server now holds ₦777, `_version` still `3` (never even
+  incremented by the "conflicting" push). `storage/logs/laravel.log` has no
+  "Sync push: Ignored older update" line for this row — the server's own
+  stale-write rejection path never fired. Session A's next sync silently
+  pulled ₦777 over its own local ₦1,500, with zero indication in the UI or
+  console that an overwrite had occurred.
+- **Root cause:** `client/lib/db/base-helpers.ts`'s `update()` computes a
+  row's new `_version` as `(local _version) + 1` — a local-only counter.
+  Two devices diverging from the same synced ancestor with exactly one edit
+  each will *always* independently compute the same next version number
+  (guaranteed arithmetic, not a rare race). When the second push's version
+  then equals the server's current version, `SyncController::push`'s
+  conflict check (`app/Http/Controllers/Api/App/SyncController.php`,
+  ~line 515) skips its version-inequality branch entirely and falls back to
+  comparing `updated_at` wall-clock timestamps — effectively last-write-wins
+  by device clock, activating specifically in the most common conflict
+  shape this whole mechanism exists to handle.
+- **Logged Open in `_known-bugs.md` as item #11** — a real, confirmed
+  silent-data-loss bug, not fixed here per this task's investigate-and-report
+  scope. Needs a deliberate design decision (server-authoritative version
+  counter, or an explicit user-facing conflict-resolution UI), not a
+  quick patch.
+- See `docs/features/backup-restore.md`'s "Sync-engine version-conflict
+  test" section for the full walkthrough, exact before/after values, and
+  the `tinker`/log evidence.
+
+### 24. `_known-bugs.md` #11 fixed — sync-engine version conflict no longer silently loses data
+
+- **Found:** entry `### 23.` immediately above (live push-vs-push
+  reproduction, MACA GUMMIES ₦999→₦1,500 vs ₦999→₦777).
+- **Root cause, confirmed:** `client/lib/db/base-helpers.ts`'s `update()`
+  conflated two different meanings of `_version` into one field: a local
+  edit counter (purely this device's own bookkeeping) and the value sent to
+  the server for conflict detection (which needs to mean "the server version
+  this edit was based on," not "the version I want it to become"). Both were
+  computed as `(local _version) + 1`, so two devices editing the same row
+  from the same shared ancestor always compute the identical next version —
+  guaranteed collision arithmetic, not a rare race. `SyncController::push`'s
+  UPDATE branch only treated a push as a conflict on strict `<` (`payload
+  version < model version`); on equality (the guaranteed-collision case) it
+  fell through to comparing `updated_at` wall-clock timestamps instead —
+  last-write-wins by device clock. The existing "clearly older" rejection
+  path also never appended anything to the response's `failed` array, so
+  even that already-working case reached the client with zero signal.
+- **Fix (decouples the local counter from the server conflict value, makes
+  the server the sole version authority, and makes every rejection loud):**
+  - **Client — stop incrementing locally.** `update()` now sends/stores the
+    row's UNCHANGED current `_version` instead of `version + 1`. The local
+    row's `_version` now only ever changes via an explicit server response
+    (see below) or a pull bringing in a newer row (`pull.ts`, unchanged —
+    it already set `_version` from the server's value correctly). Audited
+    every other `_version` consumer client-side (`grep`) before making this
+    change: the only other reads are two read-only Activity Log /
+    product-history display columns (`product-history.tsx`,
+    `activity-log-detail-panel.tsx`) and a schema-sync verification script —
+    none depend on the increment-on-every-edit behavior.
+  - **Server — strict equality, not less-than, and report every rejection.**
+    `SyncController::push`'s UPDATE branch now requires
+    `payloadVersion === modelVersion` to accept an edit (not merely "not
+    older"); anything else with two known versions — older OR, defensively,
+    somehow ahead — is a genuine conflict, rejected and logged
+    (`Log::info`, matching the existing log-message style) with an entry
+    appended to `$failed` (`reason: 'version_conflict'`, same
+    `id`/`table_name`/`record_id` shape every other `$failed[]` entry in
+    this file already uses). The pre-existing timestamp-fallback rejection
+    path (for legacy rows with no version tracking at all) now also appends
+    to `$failed` (`reason: 'stale_timestamp'`) — it never did, even before
+    this fix, so this closes a second silent-rejection gap the same pass
+    turned up. On acceptance, the server is now the sole authority for the
+    new version number: it assigns `modelVersion + 1` itself and never
+    trusts whatever `_version` the payload carries (which, per the client
+    fix, is just the unchanged base value) — `unset($payload['_version'])`
+    before `forceFill`, then `$model->_version = $newVersion` explicitly,
+    the same general pattern this controller already uses for
+    `stock_batches.quantity` (stripped/recomputed, never trusted from the
+    client).
+  - **Commutative-write exemption for `stock_batches`.** Caught by the task
+    coordinator before this shipped, not found independently: a store
+    routinely has multiple cashiers on different physical terminals
+    concurrently selling from the same `stock_batches` row — normal,
+    everyday operation, not an edge case. That UPDATE's only
+    version-sensitive field, `quantity`, is already stripped from the
+    payload and never applied from this path at all (see the immediately
+    preceding paragraph and this controller's own API doc comment) — the
+    real quantity is derived separately from commutative `stock_movements`
+    deltas (`$stockBatchDeltas`), which have no version check of their own
+    and were never part of this bug. Applying the new strict-equality check
+    to `stock_batches` UPDATEs anyway would have rejected the second
+    terminal's completely normal, correct sale as a false-alarm "conflict"
+    on every single instance of two terminals touching the same batch
+    around the same time. `stock_batches` is therefore exempt from the
+    version-conflict check entirely (`$isCommutativeTable` in
+    `SyncController::push`): its UPDATE is always accepted regardless of
+    version, matching its pre-fix behavior, since nothing meaningful is
+    actually being overwritten by it either way. Grepped the rest of this
+    controller for the same shape (a client-sent field stripped and
+    recomputed from a movements-style ledger instead of trusted directly):
+    `stock_batches.quantity` is the only table with this pattern; no other
+    table needed the same exemption.
+  - **Response carries the new authoritative version back.** `PushResponse`
+    (`client/lib/db/sync-engine/types.ts`) gained a `versions` field
+    (`Record<table, Record<record_id, new_version>>`, grouped the same way
+    the existing `id_map` field already is), populated server-side for every
+    accepted, version-tracked UPDATE. `push.ts` applies it to the local row
+    immediately via a plain `UPDATE {table} SET _version = ? WHERE id = ?`
+    right where `id_map` remapping already happens — without this, this
+    same device's very next local edit (now that `update()` no longer
+    increments locally) would still be based on the pre-push version and
+    get spuriously rejected as a conflict against its own already-accepted
+    change.
+  - **Client-side conflict handling: drop, don't retry, and say so.**
+    `push.ts` now special-cases `reason === 'version_conflict'` (and
+    `'stale_timestamp'`) in `response.failed`: instead of routing through
+    `recordSyncFailure`'s exponential-backoff retry (which can never
+    succeed here — the edit's base version is permanently stale no matter
+    how many times it's resent), the item is deleted from `_sync_queue`
+    outright, and a `sonner` toast fires naming the affected record type
+    ("A change to a product conflicted with an update from another device —
+    the other device's update was kept."), following the same "loud, not
+    silent" precedent as `_known-bugs.md` #10's post-restore cloud-link
+    notice. The next pull naturally brings in the winning server value once
+    nothing local is blocking it (`pull.ts`'s existing `pendingLocalEdit`
+    skip, unchanged).
+- **Tests (TDD, RED confirmed against the pre-fix code before GREEN):**
+  - Server (`laravel-server/tests/Feature/SyncEndpointTest.php`, PHPUnit):
+    `test_push_sync_rejects_second_device_pushing_same_base_version_as_conflict`
+    reproduces the exact MACA GUMMIES shape end-to-end against a real test
+    database — Session A's push accepted and bumps `_version` 2→3, Session
+    B's later push from the same base version 2 is rejected
+    (`failed[0].reason === 'version_conflict'`), and Session A's ₦1,500
+    value is asserted to survive untouched afterward (the core data-loss
+    assertion). `test_push_sync_accepts_sequential_same_device_edits`
+    confirms the fix doesn't break the far more common non-conflicting case
+    (one device, two edits, each correctly based on the version the
+    previous push returned).
+    `test_push_sync_exempts_stock_batches_from_version_conflict_check`
+    proves two different terminals' concurrent `stock_batches` UPDATEs from
+    the same base version are BOTH accepted, with both sales' deltas
+    correctly applied (100 − 5 − 3 = 92), confirming the commutative-write
+    exemption actually holds. The pre-existing
+    `test_push_sync_handles_updates` was updated to send the base version
+    (`1`) instead of a pre-incremented one (`2`), matching the new client
+    contract, and its own RED run (payload version `2` against model
+    version `1`, exactly the shape a not-yet-updated client would still
+    send) confirmed it would otherwise now be wrongly rejected as a
+    conflict — a real adaptation, not a loosened assertion. Full suite: 96
+    passed, 238 assertions.
+  - Client (`client/__tests__/`, Vitest, real sql.js instances, following
+    `sync-queue-transaction-race.test.ts`'s established pattern):
+    `update-preserves-base-version.test.ts` proves `update()`'s local row
+    and queued payload both keep the unchanged base `_version`, and that two
+    sequential simulated-device edits from the same ancestor queue the
+    identical version (the guaranteed-collision shape this bug was filed
+    for). `push-version-conflict-handling.test.ts` proves a
+    `version_conflict` failure deletes the `_sync_queue` row (not a
+    `recordSyncFailure` backoff bump), fires exactly one toast naming the
+    record, leaves an ordinary non-conflict failure's retry path completely
+    unaffected, and confirms `response.versions` gets applied to the local
+    row. Full suite: 78 files, 408 tests, all green;
+    `npx tsc --noEmit -p .` clean.
+- **Verified by:** RED (all new/adapted tests fail against the pre-fix code,
+  confirmed via `git stash` of the fix files on both client and server side)
+  → GREEN (fix restored, full suites clean on both sides) for every test
+  listed above.
+
+### 25. `_known-bugs.md` #11, round 2 — independent review caught a real single-device regression in the round-1 fix, plus three Important issues
+
+- **Found:** an independent deep-review pass (Opus-level) on the `### 24.`
+  fix above, requested specifically because sync-engine correctness is
+  consequential enough to warrant a second set of eyes before calling it
+  done. Confirmed the original two-device bug is genuinely fixed, and the
+  `stock_batches` multi-terminal exemption works as intended for the
+  everyday quantity-only case — but found one Critical and three Important
+  issues in what round 1 shipped.
+- **Critical — round 1 traded the two-device bug for a single-device one.**
+  Round 1's client fix (stop incrementing `_version` locally) is correct in
+  isolation, but `addToSyncQueue` (`base-helpers.ts`) appends a new
+  `_sync_queue` row per `update()` call with no coalescing by
+  `(table_name, record_id)` anywhere in `base-helpers.ts` or `push.ts`.
+  Combined, two SEQUENTIAL edits to the SAME row before any sync now freeze
+  the identical `_version` in separate queue entries: when both land in one
+  push (or even split across batches for a large backlog), the first is
+  accepted (server bumps to N+1) and the second collides —
+  `payloadVersion N !== modelVersion N+1` → rejected as a false
+  `version_conflict`, queue row deleted, edit silently lost, misleading
+  "another device" toast shown. Not a rare edge case: hit by completely
+  ordinary flows — `use-pos-payment.ts`'s credit/mixed-payment checkout does
+  `update("customers", id, {outstanding_balance})` immediately followed by
+  `update("customers", id, {loyalty_points})` on the same customer row;
+  `use-process-return-mutation.ts` has the identical shape;
+  `procurement-receiving.ts` and `product-import.ts` hit it whenever the
+  same record is touched twice in a loop.
+  - **Fix:** `push.ts` gained `coalescePendingUpdates()`, run once on the
+    full pending list before it's ever sliced into `SYNC_BATCH_SIZE`
+    batches (so batch-splitting can't reintroduce the bug for a large
+    backlog). It groups pending UPDATE entries by `(table_name,
+    record_id)` and merges every group of more than one into a single
+    change: later field values win over earlier ones for the same column
+    (the same "full overwrite of whatever fields it's given" semantics a
+    single `update()` call already has), the merged payload carries the
+    EARLIEST entry's `_version` (the true base the whole local edit chain
+    started from — none of these rows has synced yet), and a
+    `mergedIdsByRepId` map tracks every underlying queue row folded into
+    each merge. Every id-keyed path downstream (`rejected` client-side
+    validation, `response.failed` handling — both the non-retryable
+    conflict-drop and the ordinary `recordSyncFailure` branch,
+    `succeededIds`/`markSynced`, and the batch-exception catch block) was
+    updated to expand through this map so an operation on a merged change's
+    representative id acts on every underlying row it represents, not just
+    itself — the single most important part of the fix, since leaving any
+    folded-in row untouched would silently strand a real, still-pending
+    edit forever. INSERT and DELETE operations are deliberately left
+    uncoalesced: INSERT never goes through the version-conflict check at
+    all (nothing to conflict with on a fresh row), and a record is only
+    ever soft/hard-deleted once while still pending, so neither operation
+    can produce the same-row queue pile-up this fix addresses.
+- **Important #1 — the `stock_batches` exemption was broader than it needed
+  to be.** It skipped version-checking for the WHOLE table, but only
+  `quantity` is actually stripped/recomputed server-side. `stock_batches`
+  also has `batch_number`, `expiry_date`, `cost_price`, `supplier_id`,
+  `manufacture_date`, `location`, `is_active`, `notes`, `received_date` — a
+  real flow already edits these (the stock-audit cost correction,
+  `lib/db/queries/inventory.ts:518`'s `reconcileStockAudit`, loops over
+  every active batch of a product and pushes a `cost_price`-only UPDATE).
+  Two managers concurrently correcting the same batch's `cost_price` would
+  have silently last-write-won with zero conflict detection — reintroducing
+  exactly the class of silent data loss this whole fix exists to close,
+  just relocated to a different column.
+  - **Fix:** narrowed to reuse the logic already present nearby (the
+    `quantity` strip a few lines below): `SyncController::push` now builds
+    a copy of the payload, strips `quantity` and the usual
+    bookkeeping/derived fields (`id`, `_version`, `_deleted`, `_synced`,
+    `_synced_at`, `created_at`, `updated_at`) — **plus `user_id`**, caught
+    while writing the fix's own regression test: this same controller
+    auto-injects `user_id` into every `stock_batches` payload a few dozen
+    lines earlier (`$tablesWithUserId` includes `stock_batches`) regardless
+    of what the client actually sent, so without excluding it too, EVERY
+    quantity-only push would have wrongly failed the "nothing else left"
+    check and lost the exemption entirely (caught by the new
+    quantity-only-exemption test itself going red immediately after the
+    narrowing landed, before `user_id` was added to the ignore list) — and
+    only exempts the change from the version check if nothing else remains.
+    A quantity-only payload (the real multi-terminal-sale shape) is still
+    exempt; a payload touching `cost_price` or any other real column now
+    goes through the normal strict-equality check like any other table.
+    **Honest scope statement, per the review's own request:** this closes
+    the `cost_price`/`expiry_date`/etc. gap completely for any push that
+    also happens to omit `quantity` from the same payload (true for every
+    real caller found — `lib/db/queries/inventory.ts`'s cost-correction
+    call passes only `{cost_price}`) — there is no known residual gap for
+    non-quantity fields after this fix. The exemption's protection is now
+    provably scoped to quantity-only payloads, not "nothing meaningful is
+    ever overwritten" as round 1's comment overclaimed.
+- **Important #2 — unguarded table-name SQL interpolation in the client's
+  version-sync-back loop.** `push.ts`'s loop applying `response.versions`
+  did `UPDATE ${table} SET _version = ? WHERE id = ?` with `table` coming
+  straight from the server response, no whitelist — unlike the adjacent
+  `id_map` loop, guarded by `DUPLICATE_NAME_TABLES[table]`. Beyond the
+  (low, server-trusted) injection surface, an unrecognized/locally-absent
+  table name would throw inside the batch's `transaction()`, rolling back
+  the ENTIRE batch's `markSynced` calls too — undoing otherwise-successful
+  work and setting up an infinite re-push loop for every other item in the
+  batch.
+  - **Fix:** each row's `UPDATE` is now wrapped in its own try/catch,
+    `console.warn`-logged and skipped on failure rather than left to
+    propagate — one bad table name can no longer take the rest of the batch
+    down. Chose per-row try/catch over a table whitelist (the review's other
+    suggested option) because no single existing table-name constant in
+    this codebase (`STORE_SCOPED_TABLES` included) is actually a complete
+    syncable-table list — `users`/`stores`/`payment_accounts` and others all
+    carry `_version` too but aren't in that constant — so building a second,
+    parallel whitelist purely for this guard risked becoming its own source
+    of drift/bugs versus the already-established try/catch-and-warn pattern
+    this file uses elsewhere (e.g. pull.ts's `skippedRecords`).
+- **Important #3 — toast wording asserted an unverifiable cause.**
+  "conflicted with an update from another device — the other device's
+  update was kept" claims causality the client can't actually verify — even
+  after the Critical fix above, a `stale_timestamp` rejection on a legacy
+  row isn't necessarily another device.
+  - **Fix:** reworded to state what happened without naming a cause: "A
+    change to {record} could not be saved because the record changed since
+    this edit — the server's current version was kept."
+- **Tests (TDD, RED confirmed against the pre-round-2 code before GREEN, on
+  top of round 1's already-passing suite):**
+  - Server (`SyncEndpointTest.php`):
+    `test_push_sync_does_not_exempt_stock_batches_non_quantity_field_from_conflict_check`
+    — two managers correcting the same batch's `cost_price` from the same
+    base version; the second is rejected as `version_conflict`, the first's
+    value survives. RED confirmed by temporarily reverting the exemption to
+    its round-1 (whole-table) form and re-running just this test — failed
+    exactly as expected (0 `failed` entries instead of 1), then reverted
+    back to the fix. `test_push_sync_exempts_stock_batches_from_version_conflict_check`
+    (round 1's quantity-only test) re-verified still green after the
+    narrowing — proving the narrowing didn't regress the real multi-terminal
+    case. Full suite: 97 passed, 247 assertions.
+  - Client (`client/__tests__/push-coalesces-same-record-updates.test.ts`,
+    new, Vitest, real sql.js instance): reproduces the EXACT
+    `use-pos-payment.ts` shape (`outstanding_balance` then `loyalty_points`
+    on the same customer, no sync between) — proves exactly ONE change
+    reaches the server (not two), both field values are present in the
+    merged payload, the merged payload's `_version` is the earliest entry's
+    (not the second edit's), all underlying queue rows are cleared together
+    on success, all are dropped together with exactly one toast on a real
+    conflict, and two DIFFERENT records' updates are explicitly NOT merged.
+    RED confirmed against the round-1-only `push.ts` (no coalescing): the
+    core "merges into ONE change" test failed with the actual `pushed`
+    count coming back wrong (2 separate changes sent, one falsely rejected)
+    exactly as the review predicted; reverted to round-2's `push.ts`
+    afterward, GREEN. `push-version-conflict-handling.test.ts`'s toast-text
+    assertion updated to match the reworded (causality-neutral) message.
+    Full suite: 79 files, 411 tests, all green; `npx tsc --noEmit -p .`
+    clean.
+- **Verified by:** RED → GREEN for every new/adapted test above, on both
+  client and server, plus a full clean run of both complete test suites
+  (server: 97/247; client: 79 files/411 tests + clean `tsc`) after all
+  round-2 fixes landed together.

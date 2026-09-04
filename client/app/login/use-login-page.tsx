@@ -7,6 +7,7 @@ import { useLogin } from "@/hooks/use-login";
 import { useDeviceAuthStatus } from "@/hooks/use-device-auth-status";
 import { useOnboarding } from "@/app/setup/use-onboarding";
 import { AuthTabHeader } from "@/components/auth/auth-tab-header";
+import { usePostRestoreCloudLinkNotice } from "@/lib/hooks/use-post-restore-cloud-link-notice";
 
 /**
  * All derived state/orchestration for /login: which tab is active, whether
@@ -29,6 +30,16 @@ export function useLoginPageState() {
   const loginState = useLogin();
   const { showTraditionalLogin } = loginState;
   const onboarding = useOnboarding();
+
+  // Known bug #10, Part B: a device that just restored a local backup keeps
+  // 100% of its data but silently loses its cloud link (restoreDatabase()
+  // never touches auth_token). Fires once, only when that just happened -
+  // see lib/hooks/use-post-restore-cloud-link-notice.ts. Reuses the same
+  // pre-login "Link DumosRx Cloud" step the setup wizard already has
+  // (onboarding step "cloud") rather than inventing a new linking flow.
+  usePostRestoreCloudLinkNotice({
+    onLinkCloud: () => onboarding.setStep("cloud"),
+  });
 
   // Login and Setup are tabs on this one page, not separate routes: no
   // navigation, no remount, no second loading spinner when switching.

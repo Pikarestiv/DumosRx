@@ -20,6 +20,7 @@ found.
 9. [Activity Log](activity-log.md) — cross-cutting audit trail for every other section.
 10. [Settings](settings.md) — all 21 sub-tabs (several are URL aliases to shared panels).
 11. [Authentication](auth.md) — PIN login, logout, auto-lock, account/store switching.
+12. [Backup & Restore](backup-restore.md) — whole-device local `.drx` backup/restore, the pre-login fresh-device recovery flow, and a live completeness/sync-after-restore check.
 
 ## Findings log
 

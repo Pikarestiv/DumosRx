@@ -47,13 +47,15 @@ title: "Product Catalog".
 - **Search** — `SearchInput`, live-filters by name/SKU. Confirmed live:
   typing "paracetamol" narrowed 1,513 rows to the ~10 paracetamol products.
 - **Category filter pill** — populated from `getCategoriesList()`
-  (`lib/db/queries/products.ts`), which scopes to the active store
-  (`WHERE store_id = ?`). See **Open finding** below: on Store 2 this
-  returned Groceries/Beverages/Personal Care/Household/Snacks/Dairy — the
-  generic non-pharmacy fallback list, not the store's real categories
-  (Drugs, Cosmetics, etc. — visible on every product row). Selecting one of
-  the fallback categories (e.g. "Groceries") correctly shows "No products
-  found", so the filter mechanism itself works; only the option list is wrong.
+  (`lib/db/queries/products.ts`), scoped to the active store via `WHERE
+  _deleted = 0 AND (store_id = ? OR store_id IS NULL)` — the same
+  NULL-inclusive pattern `getCategoryList()` (`categories.ts`) already used.
+  Previously this was a strict `AND store_id = ?`, which excluded legacy
+  bulk-imported categories (`store_id IS NULL`, predating the `store_id`
+  backfill) and silently fell back to a hardcoded, wrong generic list
+  (Groceries/Beverages/... on this store) — fixed (see
+  `docs/features/_findings-log.md` entry #19, Bug B). The filter pill now
+  shows this store's real categories (Drugs, Cosmetics, etc.).
 - **Inventory filter pill** — All / Active / Inactive / Expiring Soon /
   Expired / Low Stock / Out Of Stock. Confirmed live: "Low Stock" narrows to
   the 473 below-reorder products and sets the `Inventory: Low Stock` chip —
@@ -239,11 +241,14 @@ confirmed.
   follow-up: `update()`/`softDelete()` in `base-helpers.ts` do no
   `store_id` ownership check, a latent cross-tenant risk shared by every
   domain table (not category-specific), left unfixed here.
-- **Separately, still open:** *why* the store-scoped `getCategoriesList()`
-  returned zero rows for Store 2's real categories (triggering the
-  fallback list) wasn't investigated as part of this fix — it needs a look
-  at the `categories` table's actual `store_id` population/backfill
-  history for that account, independent of the query-scoping bug above.
+- **Follow-up fixed too:** *why* the store-scoped `getCategoriesList()`
+  returned zero rows for Store 2's real categories (triggering the fallback
+  list) — same root cause as this section's fix: those categories are
+  legacy rows with `store_id IS NULL`, predating the backfill.
+  `getCategoriesList()` (`lib/db/queries/products.ts`) now uses the same
+  NULL-inclusive `(store_id = ? OR store_id IS NULL)` pattern as
+  `getCategoryList()` above. See `docs/features/_findings-log.md` entry
+  #19 (Bug B).
 
 ## Open
 

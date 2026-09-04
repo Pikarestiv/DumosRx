@@ -59,6 +59,14 @@ export function PrescriptionMedications({
     );
   }, [availableProducts, newMedication.productName]);
 
+  // Products imported with a blank `strength` column offer zero dropdown
+  // options once selected, leaving a required-looking combobox with nothing
+  // to pick. Fall back to a free-text input in that case so the field stays
+  // usable instead of rendering an unselectable empty dropdown.
+  const hasSelectedProduct = !!newMedication.productName;
+  const noStrengthOptionsAvailable =
+    hasSelectedProduct && strengthOptions.length === 0;
+
   return (
     <Card>
       <CardHeader>
@@ -91,21 +99,34 @@ export function PrescriptionMedications({
 
             <div className="space-y-2">
               <Label>Strength *</Label>
-              <Combobox
-                options={strengthOptions}
-                value={newMedication.strength}
-                onChange={(value) =>
-                  setNewMedication((prev: NewMedicationForm) => ({
-                    ...prev,
-                    strength: value,
-                  }))
-                }
-                disabled={
-                  !newMedication.productName || strengthOptions.length === 0
-                }
-                placeholder="Select strength"
-                emptyText="No strength found."
-              />
+              {noStrengthOptionsAvailable ? (
+                <Input
+                  value={newMedication.strength}
+                  onChange={(e) =>
+                    setNewMedication((prev: NewMedicationForm) => ({
+                      ...prev,
+                      strength: e.target.value,
+                    }))
+                  }
+                  placeholder="Enter strength (e.g. 500mg)"
+                />
+              ) : (
+                <Combobox
+                  options={strengthOptions}
+                  value={newMedication.strength}
+                  onChange={(value) =>
+                    setNewMedication((prev: NewMedicationForm) => ({
+                      ...prev,
+                      strength: value,
+                    }))
+                  }
+                  disabled={
+                    !newMedication.productName || strengthOptions.length === 0
+                  }
+                  placeholder="Select strength"
+                  emptyText="No strength found."
+                />
+              )}
             </div>
 
             <div className="space-y-2">

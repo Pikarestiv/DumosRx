@@ -13,6 +13,13 @@ export interface PushResponse {
    * instead of depending on a future pull to ever surface the collision
    * (see lib/db/reconcile-identity.ts's DUPLICATE_NAME_TABLES). */
   id_map?: Record<string, Record<string, string>>;
+  /** Record id -> server-assigned new `_version`, grouped by table_name, for
+   * UPDATE changes accepted via SyncController::push's strict version-
+   * equality check. Applied immediately to the local row (see push.ts) so
+   * this device's very next edit is based on the true current server
+   * version instead of a stale local counter — see
+   * docs/features/_known-bugs.md #11. */
+  versions?: Record<string, Record<string, number>>;
 }
 
 export interface PullResponse {

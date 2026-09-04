@@ -323,6 +323,226 @@ Status values: **Open** (not started) → **In Progress** → **Fixed**.
   `dashboard-action-center.tsx` as its own card, matching the existing
   "Low Stock" card's pattern.
 
+---
+
+## 10. Restoring a local backup onto a fresh device does not restore cloud-sync — and the post-restore login screen briefly shows stale state
+
+- **Status:** Fixed (`e7097b6a`). Both parts fixed together — see
+  `### 22.` in `_findings-log.md` for full detail.
+- **Found:** live backup/restore test on "Pikarestiv Stores 2" (2026-09-03),
+  see `docs/features/backup-restore.md` for the full walkthrough (a
+  completeness diff confirmed the restored data itself is byte-for-byte
+  correct — this entry is about state *around* the restore, not data loss).
+- **Where (before the fix):**
+  - Cloud-link gap: `lib/context/auth-context.tsx`'s `isCloudLinked` is
+    derived solely from `localStorage.getItem("auth_token")`, set only by
+    `linkCloudAccount(email, password)` (a real backend login call).
+    `restoreDatabase()` (`lib/db/core.ts`) only swaps the sql.js DB; it
+    never touches `localStorage`, so a device's cloud-link token can never
+    survive a restore, even though it's exactly the "recover onto a new
+    device" scenario where a user would most want sync to keep working.
+  - Stale-login-screen: `app/setup/use-onboarding.ts`'s
+    `handleLocalRestore()` calls `restoreDatabase()` then
+    `router.push("/login")` (a client-side navigation, no full reload).
+    `/login`'s account-detection (`useDeviceAuthStatus`) didn't re-run
+    against the newly-restored DB before that push resolved — the live
+    walkthrough saw the pre-restore "No Local Accounts Found" screen render
+    immediately after the "Database restored successfully!" toast. A manual
+    reload of `/login` immediately showed the correct state (traditional
+    username+PIN form, since `dumos_recent_users` — a separate localStorage
+    list — is legitimately empty on a never-before-seen device).
+- **Risk:**
+  - Cloud-link gap (more severe): a store owner recovering their business
+    onto a new/replacement device via local backup gets **100% of their
+    data back but silent, off-by-default sync** — nothing on the restore
+    screen or the post-restore dashboard tells them sync is off; they'd
+    only discover it if they happened to check Settings → Data and noticed
+    "Local Mode (Not Linked)," or if they made changes that quietly never
+    left the device. Two devices independently "recovered" from the same
+    backup, both unlinked, could each accumulate local-only changes with no
+    warning that they're diverging.
+  - Stale-login-screen (minor): a real user clicking through in real time
+    (rather than an automation script reloading between steps) would very
+    plausibly see "No Local Accounts Found" for a moment right after being
+    told their restore succeeded — confusing, but self-resolving (any
+    subsequent full navigation/reload shows the correct screen), and no
+    data is actually at risk.
+- **Fix (`e7097b6a`):**
+  - Stale-login-screen: `handleLocalRestore()` now does a full browser
+    navigation (`window.location.href = "/login"`) instead of a
+    client-side `router.push`, matching `use-settings-sync.ts`'s
+    `handleRestoreBackup`/`handleRestoreBackupTauri`. `/login`'s account
+    detection now always runs fresh against the restored database.
+  - Cloud-link gap: deliberately did **not** try to make the auth token
+    survive a restore (a portable `.drx` backup should never carry a live,
+    device-tied session credential). Instead, all three restore paths
+    (pre-login setup wizard, Settings > Data, Tauri) now set a short-lived
+    `sessionStorage` marker right before their post-restore reload
+    (`lib/utils/post-restore-notice.ts`). A new hook
+    (`lib/hooks/use-post-restore-cloud-link-notice.ts`), mounted once at
+    `/login` and in the dashboard shell, consumes that marker on the very
+    next load and — only if the device isn't cloud-linked — fires a
+    one-time toast explaining the gap, with a direct action into the
+    existing "Link DumosRx Cloud" control (the setup wizard's pre-login
+    cloud step, or `CloudLinkDialog` via `/settings/cloud` in-app). It
+    never fires on a normal subsequent load, and never fires at all if the
+    device happens to still be linked — the dashboard header's
+    `SyncIndicator` "Not Linked" state remains the persistent, always-on
+    signal; this notice is only the restore-specific, one-time call-out.
+
+---
+
+## 11. Sync-engine version conflict resolution silently loses data on the most common two-device conflict shape
+
+- **Status:** In Progress — round 2 (`491a5aae`, `ee686296`) correctly fixed
+  all 4 issues an independent round-1 review found, but the round-2
+  re-review found the narrowed `stock_batches` exemption is defeated in
+  production by a separate, pre-existing line (`push.ts`'s
+  `batch_number: "Opening Stock"` default, meant for legacy queued INSERTs)
+  that runs on every `stock_batches` change including ordinary quantity-only
+  sale UPDATEs — so the "strip payload to nothing → exempt" check never
+  actually finds an empty payload, and multi-terminal concurrent sales hit
+  the exact false `version_conflict` alarm the exemption exists to prevent.
+  Actual stock quantity is unaffected (still commutative-delta based via
+  `stock_movements`), but real batch numbers get clobbered with the
+  placeholder on every accepted UPDATE, and false conflict toasts fire on
+  ordinary sales. Also found: retry-backoff timing can still split a
+  same-record edit pair across two sync attempts, bypassing coalescing (a
+  narrower residual version of the round-1 Critical finding). Round 3
+  dispatched to fix both.
+  Below (unchanged, still accurate): decoupled the local-edit counter from
+  the server conflict-detection value, made the server the sole authority
+  for `_version`, made every rejection (version- or timestamp-based) reach
+  the client via `failed` instead of some paths staying silent, and — added
+  in round 2 — coalesced same-record queued edits so they can't falsely
+  collide with each other, narrowed the `stock_batches` exemption (now
+  known to be inert in production, see above), closed an unguarded
+  SQL-interpolation path, and reworded the conflict toast to not claim an
+  unverifiable cause.
+  **Round 1:** `client/lib/db/base-helpers.ts`'s `update()` now
+  sends/stores the row's UNCHANGED base `_version` instead of incrementing
+  it locally. `SyncController::push`'s UPDATE branch now requires strict
+  `payloadVersion === modelVersion` to accept (not merely "not older"); on
+  acceptance the server assigns `modelVersion + 1` itself, never trusting
+  the payload's `_version`; on a real mismatch it logs and appends a
+  `version_conflict` entry to `$failed` and rejects. The push response
+  gained a new `versions` field (server-assigned new version per accepted
+  UPDATE, grouped by table like the existing `id_map`); the client applies
+  it to the local row immediately so its next edit isn't based on a stale
+  pre-push version. A `version_conflict`/`stale_timestamp` failure is
+  dropped from the queue rather than retried (retrying can never fix a
+  permanently-stale base version) and surfaces a toast.
+  **Round 2 (review findings, all fixed):**
+  1. *(Critical)* Round 1's client fix, correct in isolation, combined with
+     `_sync_queue` never coalescing multiple pending UPDATEs for the same
+     record to produce a NEW single-device regression: two ordinary
+     sequential edits to one row before any sync (e.g. one POS credit-sale
+     flow's `update("customers", id, {outstanding_balance})` immediately
+     followed by `update("customers", id, {loyalty_points})` on the same
+     customer, in `use-pos-payment.ts`) queued two rows that both froze the
+     identical base `_version`, so the second collided with the first's own
+     server-side bump and was rejected as a false `version_conflict`,
+     silently dropping a real, non-conflicting edit with a misleading
+     "another device" toast. Fixed: `push.ts` now coalesces every pending
+     UPDATE for the same `(table_name, record_id)` into ONE change before
+     any batch is built — later field values win over earlier ones, the
+     merged payload carries the EARLIEST entry's `_version` (the true base
+     the whole local edit chain started from), and every underlying queue
+     row folded into the merge is tracked so success, ordinary-failure, and
+     conflict handling all act on the full group together (one toast per
+     conflicted record, not one per underlying edit).
+  2. *(Important)* The `stock_batches` exemption was broader than it needed
+     to be — it skipped version-checking for the WHOLE table, but only
+     `quantity` is actually stripped/recomputed server-side; a real flow
+     (the stock-audit cost correction, `lib/db/queries/inventory.ts`'s
+     `reconcileStockAudit`, ~line 518) edits `cost_price` directly, and two
+     managers concurrently correcting the same batch's cost/expiry data
+     would have silently last-write-won with zero conflict detection.
+     Fixed: the exemption now only applies when the payload — after
+     stripping `quantity` and the usual bookkeeping/derived fields
+     (including `user_id`, which this same controller auto-injects into
+     every `stock_batches` payload regardless of what the client sent) — has
+     no other meaningful fields left. A quantity-only push (the real,
+     everyday multi-terminal-sale shape) is still exempt; a push touching
+     `cost_price` or any other real column now goes through the normal
+     strict-equality check like any other table.
+  3. *(Important)* `push.ts`'s loop applying `response.versions` interpolated
+     a server-supplied table name straight into
+     `UPDATE ${table} SET _version = ? WHERE id = ?` with no whitelist,
+     unlike the adjacent `id_map` loop (guarded by
+     `DUPLICATE_NAME_TABLES[table]`) — an unrecognized/locally-absent table
+     name would throw inside the batch's `transaction()`, rolling back the
+     ENTIRE batch's `markSynced` calls too. Fixed: each row's `UPDATE` is now
+     wrapped in its own try/catch, logged and skipped on failure, so one bad
+     table name can't take the rest of the batch down.
+  4. *(Important)* The conflict toast's wording ("conflicted with an update
+     from another device") claimed a cause the client can't actually
+     verify — a `stale_timestamp` rejection on a legacy row isn't
+     necessarily another device. Reworded to state what happened without
+     naming an unverifiable cause: "…could not be saved because the record
+     changed since this edit — the server's current version was kept."
+  See `### 24.` in `_findings-log.md` for full round-1 detail and `### 25.`
+  for the round-2 review findings and fixes, including the RED/GREEN test
+  evidence on both sides for all of the above.
+- **Found:** live push-vs-push conflict test on "Pikarestiv Stores 2"
+  (2026-09-04) — see `docs/features/backup-restore.md`'s "Sync-engine
+  version-conflict test" section for the full walkthrough, exact values,
+  and code excerpts.
+- **Where:**
+  - Client: `client/lib/db/base-helpers.ts`'s `update()` sets a row's new
+    `_version` as `(current local _version) + 1` — a purely local counter,
+    blind to the server's actual current version.
+  - Server: `app/Http/Controllers/Api/App/SyncController.php`'s `push()`
+    method (~line 515-536), the `_version`-vs-`updated_at` conflict check.
+- **Root cause:** two devices that each make exactly **one** edit from a
+  shared, already-synced ancestor row will *always* compute the identical
+  next `_version` (both do `ancestor_version + 1`) — this is guaranteed,
+  not a rare timing coincidence, because it's just arithmetic on the same
+  starting number. When the second device's push arrives, its `_version`
+  now **equals** the server's current `_version` (which the first device's
+  earlier, already-accepted push had already set to that same number). The
+  server's conflict check only compares versions when they're *unequal*
+  (`if ($payloadVersion !== $modelVersion)`); on equality it silently falls
+  through to comparing `updated_at` timestamps instead — each device's own
+  local wall-clock. Whichever device's edit has the later timestamp wins,
+  regardless of which edit actually reached the server first or how stale
+  the loser's starting point was.
+- **Confirmed live, not just read from code:** Session A edited a product's
+  price ₦999 → ₦1,500 and synced successfully (server confirmed via direct
+  DB query: `_version: 3`). Session B — restored from a backup taken before
+  Session A's edit, still showing the ₦999 ancestor, never having pulled —
+  independently edited the same field to ₦777 and synced. The push
+  succeeded with **no error, no rejection, no conflict indicator anywhere**.
+  Direct database check afterward: server value is ₦777, `_version` still
+  `3` (never even incremented). `storage/logs/laravel.log` has no
+  `"Sync push: Ignored older update"` line for this row — the server never
+  identified this as a stale/conflicting write at all. Session A's next
+  "Sync Now" silently pulled ₦777, overwriting its own local copy of the
+  ₦1,500 it had itself already confirmed synced, with nothing in the UI or
+  console to indicate anything had been overwritten.
+- **Risk: real, silent data loss.** This is not a rare edge case — it's the
+  single most common shape of conflict the whole `_version` mechanism
+  exists to resolve (two devices, one edit each, from a shared ancestor),
+  and it fails in exactly that case by construction. A store owner and a
+  staff member editing the same product's price on two different devices
+  while both briefly offline (or just not yet synced) will silently end up
+  with whichever edit's *device clock* was later, with the other's
+  confirmed-synced change vanishing with no trace and no way for that user
+  to know it happened short of manually re-checking the value.
+- **Why not fixed here:** flagged and documented per this task's scope
+  (investigate and report, don't fix). A real fix needs a product decision
+  on the intended conflict UX (last-write-wins is arguably an acceptable
+  policy *if it's the deliberate design and both users get told a conflict
+  happened*, but the current behavior has neither an intentional policy
+  statement nor any user-facing signal) — plausible directions include:
+  making the server-side `_version` authoritative and server-incremented
+  (returned to the client on every successful push/pull, so a client's next
+  edit is always based on the true last-known-server-version instead of a
+  local counter that can independently collide), or explicitly surfacing a
+  conflict to the user for manual resolution instead of silently picking a
+  winner by clock time. Either way, this needs a deliberate design pass, not
+  a quick patch to this bug tracker's fix-and-move-on pattern.
+
 ## Known limitations (not bugs — honestly labeled, not silently broken)
 
 - **Settings "Roles & Permissions" tab** is a static "coming soon"

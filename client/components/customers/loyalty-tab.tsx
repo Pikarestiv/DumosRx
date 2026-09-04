@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Tag } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { getLoyaltyRedemptionOptions } from "@/lib/db/queries/loyalty";
+import { buildFallbackRedemptionOptions } from "@/lib/hooks/use-customer-management";
 import { LoyaltySettingsDialog } from "./loyalty-settings-dialog";
 import { ResponsiveTabLabel } from "@/components/ui/responsive-tab-label";
 import { REDEMPTION_ICONS, REDEMPTION_ICON_BG } from "./loyalty-icons";
@@ -34,7 +35,13 @@ export function LoyaltyTab({
     ...queryKeys.loyalty.redemptionOptions(),
     queryFn: getLoyaltyRedemptionOptions,
   });
-  const redemptionOptions = (optionsData || []).filter((o) => o.is_active);
+  const activeOptions = (optionsData || []).filter((o) => o.is_active);
+  // Real DB data always wins once it exists; the fallback is only a preview
+  // for a store that has never opened Loyalty Settings (which is what
+  // actually seeds `loyalty_redemption_options`) — same precedence rule
+  // `buildFallbackTiers()` already follows for tiers.
+  const redemptionOptions =
+    activeOptions.length > 0 ? activeOptions : buildFallbackRedemptionOptions();
 
   return (
     <div className="space-y-4">

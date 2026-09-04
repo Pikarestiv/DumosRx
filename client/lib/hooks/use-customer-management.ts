@@ -63,6 +63,60 @@ function buildFallbackTiers(isStore: boolean): LoyaltyTier[] {
   ];
 }
 
+export interface FallbackRedemptionOption {
+  id: string;
+  label: string;
+  points_cost: number;
+  discount_value: number;
+  description: string;
+  icon_key: string;
+  is_active: number;
+  sort_order: number;
+}
+
+/**
+ * Client-side preview of the Loyalty tab's redemption options for a store
+ * that has never opened Loyalty Settings (which is what actually seeds
+ * `loyalty_redemption_options` via ensureLoyaltyDefaultsSeeded()). Mirrors
+ * DEFAULT_REDEMPTION_OPTIONS (lib/db/queries/loyalty.ts) content exactly so
+ * what's previewed here matches what a user gets once it's really seeded —
+ * same mechanism/shape as buildFallbackTiers() above for loyalty tiers.
+ */
+export function buildFallbackRedemptionOptions(): FallbackRedemptionOption[] {
+  return [
+    {
+      id: "fallback-500-discount",
+      label: "₦500 Discount",
+      points_cost: 500,
+      discount_value: 500,
+      description: "Get ₦500 off your next purchase",
+      icon_key: "tag",
+      is_active: 1,
+      sort_order: 0,
+    },
+    {
+      id: "fallback-1000-discount",
+      label: "₦1,000 Discount",
+      points_cost: 900,
+      discount_value: 1000,
+      description: "Get ₦1,000 off your next purchase",
+      icon_key: "tag",
+      is_active: 1,
+      sort_order: 1,
+    },
+    {
+      id: "fallback-free-delivery",
+      label: "Free Delivery",
+      points_cost: 200,
+      discount_value: 0,
+      description: "Free delivery on your next order",
+      icon_key: "truck",
+      is_active: 1,
+      sort_order: 2,
+    },
+  ];
+}
+
 /**
  * All business logic for the Customer Management page: data fetching, tab/URL
  * sync, search/filter derivation, and modal/selection state, so the component

@@ -21,6 +21,7 @@ describe("multi-store query scoping", () => {
   let insert: typeof import("@/lib/db/base-helpers").insert;
   let getProductsWithStock: typeof import("@/lib/db/queries/products").getProductsWithStock;
   let getProductList: typeof import("@/lib/db/queries/products").getProductList;
+  let getCategoriesList: typeof import("@/lib/db/queries/products").getCategoriesList;
   let getCategoryList: typeof import("@/lib/db/queries/categories").getCategoryList;
   let createCategory: typeof import("@/lib/db/queries/categories").createCategory;
 
@@ -31,6 +32,7 @@ describe("multi-store query scoping", () => {
     const products = await import("@/lib/db/queries/products");
     getProductsWithStock = products.getProductsWithStock;
     getProductList = products.getProductList;
+    getCategoriesList = products.getCategoriesList;
     const categories = await import("@/lib/db/queries/categories");
     getCategoryList = categories.getCategoryList;
     createCategory = categories.createCategory;
@@ -149,6 +151,35 @@ describe("multi-store query scoping", () => {
     core.setActiveStoreId("store-b");
     const storeBCategories = await getCategoryList();
     expect(storeBCategories.map((c) => c.id)).toEqual(["c2"]);
+  });
+
+  it("getCategoriesList (products.ts) still surfaces legacy NULL-store_id categories, matching getCategoryList's bug #1 fix", async () => {
+    // Bug: getCategoriesList() used a strict `AND store_id = ?` while
+    // getCategoryList() (categories.ts) had already been fixed to include
+    // `OR store_id IS NULL` for legacy bulk-imported categories. Catalog's
+    // filter pill (product-database.tsx) reads via getCategoriesList(), so
+    // it saw zero categories for any store whose categories predate the
+    // store_id backfill and fell back to a hardcoded, wrong default list.
+    db.run(
+      `INSERT INTO categories (id, name, store_id, _deleted) VALUES
+        ('c1', 'Drugs', 'store-a', 0),
+        ('c2', 'Cosmetics', NULL, 0),
+        ('c3', 'Beverages', 'store-b', 0)`,
+    );
+
+    core.setActiveStoreId("store-a");
+    const storeACategories = await getCategoriesList();
+    expect(storeACategories.map((c) => c.name).sort()).toEqual([
+      "Cosmetics",
+      "Drugs",
+    ]);
+
+    core.setActiveStoreId("store-b");
+    const storeBCategories = await getCategoriesList();
+    expect(storeBCategories.map((c) => c.name).sort()).toEqual([
+      "Beverages",
+      "Cosmetics",
+    ]);
   });
 
   it("createCategory auto-scopes the new row to the active store", async () => {

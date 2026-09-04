@@ -36,6 +36,7 @@ import { sync } from "@/lib/db/sync-engine";
 import { queryClient } from "@/lib/query-client";
 import { LockScreen } from "@/components/auth/lock-screen";
 import { AuthCardShell } from "@/components/auth/auth-card-shell";
+import { usePostRestoreCloudLinkNotice } from "@/lib/hooks/use-post-restore-cloud-link-notice";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -74,6 +75,16 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
   useAutoLockTimer();
   useLockOnFreshLoad();
   useLockShortcut();
+
+  // Known bug #10, Part B: the in-app Settings > Data > "Restore Backup"
+  // path reloads straight back into this layout. Fires once, only if that
+  // restore just happened and the device isn't cloud-linked - see
+  // lib/hooks/use-post-restore-cloud-link-notice.ts. Points at the same
+  // Data tab "cloud" alias that already auto-opens CloudLinkDialog (see
+  // hooks/use-settings.ts) rather than a new linking flow.
+  usePostRestoreCloudLinkNotice({
+    onLinkCloud: () => router.push("/settings/cloud"),
+  });
 
   useEffect(() => {
     try {

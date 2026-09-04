@@ -174,6 +174,21 @@ export async function update(
 
   const now = new Date().toISOString();
 
+  // _version is deliberately NOT incremented here. This is a local-edit
+  // counter that must stay in lockstep with the value sent to the server for
+  // conflict detection (see SyncController::push's strict-equality check),
+  // not an independent local tally: two devices editing the same row from
+  // the same shared ancestor version would otherwise always compute the
+  // identical "next" version (pure arithmetic on the same starting number),
+  // guaranteeing an undetected collision instead of a rare one — see
+  // docs/features/_known-bugs.md #11. The row's `_version` now only ever
+  // changes when explicitly set by a confirmed server response (push
+  // acceptance — see sync-engine/push.ts's `versions` handling) or a pull
+  // bringing in a newer row (pull.ts). This UPDATE still sends/stores the
+  // unchanged current version as-is, so the server can tell "this edit was
+  // based on the server's actual current state" (accept) from "this edit
+  // was based on something stale" (reject) instead of the two colliding
+  // silently.
   const current = await query<{ _version: number }>(
     `SELECT _version FROM ${table} WHERE id = ?`,
     [id],
@@ -183,7 +198,7 @@ export async function update(
   const record = {
     ...data,
     updated_at: now,
-    _version: version + 1,
+    _version: version,
     _synced: 0,
   };
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 
 import { Skeleton } from "@/components/ui/skeleton";
@@ -23,6 +24,7 @@ import type { Expense } from "@/lib/db/queries/finance";
 import type { PurchaseOrder } from "@/lib/db/procurement";
 import type { PrescriptionRow } from "@/lib/types/prescription";
 import type { StockMovementHistoryRow } from "@/lib/types/stock-movement";
+import type { ActivityFeedItem } from "@/lib/types/dashboard-activity";
 
 function renderSalesComparison(comparison: SalesComparison) {
   if (comparison.state === "none") {
@@ -55,6 +57,22 @@ export function DashboardOverview() {
     getActivityColor,
     isLoading,
   } = useDashboardOverview();
+
+  const router = useRouter();
+
+  // "Product added" activity rows carry the product's own id (see
+  // use-dashboard-overview.ts) and have no dedicated details dialog wired
+  // up below — the real, current record for "a product was added" lives in
+  // Inventory > Catalog, so route there and let product-database.tsx's
+  // existing `?productId=` handling (mirrors its `?action=add` pattern)
+  // open that product's detail panel directly.
+  const handleActivityClick = (activity: ActivityFeedItem) => {
+    if (activity.type === "product") {
+      router.push(`/inventory/catalog?productId=${activity.id}`);
+      return;
+    }
+    setSelectedActivity(activity);
+  };
 
   const statsCards = [
     {
@@ -134,7 +152,7 @@ export function DashboardOverview() {
           <DashboardRecentActivity
             activities={activities}
             getActivityColor={getActivityColor}
-            onActivityClick={(activity) => setSelectedActivity(activity)}
+            onActivityClick={handleActivityClick}
           />
         </div>
 

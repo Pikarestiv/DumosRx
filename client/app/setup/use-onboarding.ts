@@ -10,6 +10,7 @@ import { sync } from "@/lib/db/sync-engine";
 import { restoreDatabase, clearDatabaseForNewStore } from "@/lib/db/core";
 import { apiClient } from "@/lib/api/client";
 import { toast } from "sonner";
+import { markRestoredForCloudLinkNotice } from "@/lib/utils/post-restore-notice";
 import type { StoreOption } from "@/lib/types/store";
 
 export type OnboardingStep = "welcome" | "register" | "cloud" | "backup" | "syncing" | "select-store";
@@ -376,8 +377,17 @@ export function useOnboarding() {
       const buffer = await file.arrayBuffer();
       await restoreDatabase(new Uint8Array(buffer));
       toast.success("Database restored successfully!");
-      // Send the user to the login screen after restoring a local backup
-      setTimeout(() => router.push("/login"), 1000);
+      // A client-side router.push resolves before /login's account
+      // detection (useDeviceAuthStatus) re-runs against the newly-restored
+      // database, so it can briefly render the pre-restore "No Local
+      // Accounts Found" screen. Force a full browser navigation instead -
+      // the same fix already used by the other restore paths in this
+      // codebase (hooks/use-settings-sync.ts's handleRestoreBackup /
+      // handleRestoreBackupTauri) - so /login always starts fresh.
+      markRestoredForCloudLinkNotice();
+      setTimeout(() => {
+        window.location.href = "/login";
+      }, 1000);
     } catch (err) {
       console.error("Local restore failed:", err);
       toast.error("Failed to restore from backup file. Ensure it is a valid .drx file.");

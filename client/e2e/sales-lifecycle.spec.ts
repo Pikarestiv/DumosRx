@@ -17,12 +17,27 @@ test.describe('Sales Lifecycle (realistic data)', () => {
     await login(page);
 
     const productName = `Amoxicillin 500mg Capsules ${Date.now()}`;
+    // A second, decoy product in a different category. Its only purpose is
+    // proving the Category filter genuinely narrows the grid: this e2e
+    // fixture DB starts with zero pre-existing products (confirmed live -
+    // the ledger showed "1 of 1 item shown" right after creating just the
+    // target product above), so without a second, differently-categorized
+    // product to exclude, a "count went down" or "label updated" assertion
+    // can't actually distinguish real filtering from a no-op.
+    const decoyProductName = `Vitamin C Chewables ${Date.now()}`;
 
-    // 1. Create a real product with pricing set.
+    // 1. Create the real product with pricing set and a real category.
     await page.goto('/inventory/catalog');
     await page.getByRole('button', { name: /Add Product/i }).click();
     const dialog = page.getByRole('dialog');
     await dialog.getByRole('textbox').first().fill(productName);
+    // Category is a freeform SearchableInput (components/ui/searchable-input.tsx)
+    // - typing a value directly commits it, no need to pick an existing
+    // suggestion. Its own suggestion popover closes on outside click (not
+    // Escape - Escape would bubble up and close the whole Add Product
+    // dialog instead), which clicking into the next field below triggers
+    // naturally.
+    await dialog.getByPlaceholder('Select or type category').fill('Antibiotics');
 
     // Selling Price and Reorder Level fields (labeled, not placeholder-matched
     // reliably across breakpoints; locate by nearby label text).
@@ -31,22 +46,71 @@ test.describe('Sales Lifecycle (realistic data)', () => {
     await page.getByRole('button', { name: /^Add Product$/i }).last().click();
     await expect(page.getByText('Add New Product', { exact: true })).not.toBeVisible();
 
-    // 2. Stock it via a Cycle Count (physical count of 50 units found on the shelf).
+    // Decoy product, deliberately in a different category ("Vitamins"), so
+    // it's excluded once the ledger is filtered to "Antibiotics" below.
+    await page.getByRole('button', { name: /Add Product/i }).click();
+    await dialog.getByRole('textbox').first().fill(decoyProductName);
+    await dialog.getByPlaceholder('Select or type category').fill('Vitamins');
+    await page.getByLabel(/Selling Price/i).first().fill('800');
+    await page.getByLabel(/Reorder Level/i).first().fill('10');
+    await page.getByRole('button', { name: /^Add Product$/i }).last().click();
+    await expect(page.getByText('Add New Product', { exact: true })).not.toBeVisible();
+
+    // 2. Stock the real product via a Cycle Count (physical count of 50
+    // units found on the shelf).
+    //
+    // Current flow (components/stock-batch/stock-audits.tsx +
+    // audit-ledger-step.tsx, confirmed live in Chrome): "Start Audit" goes
+    // straight to a single "Physical inventory" ledger screen - no separate
+    // per-category "Start count" step or per-product count screen exists.
+    // That screen has a Category FilterPill (defaults to "All Categories")
+    // and a search box, filtering one flat grid of every product with an
+    // inline editable "Counted Qty" cell per row. Exercise the category
+    // filter for real (open it, pick a real category, and confirm it
+    // actually narrows the grid) rather than skipping it, then search for
+    // the specific product and edit its Counted Qty inline.
     await page.getByRole('button', { name: /Start Audit/i }).click();
-    await page.getByText('All Categories').click();
-    await page.getByRole('button', { name: /Start count/i }).click();
-    await page.getByText(productName, { exact: false }).first().click();
+    // The Cycle Count screen is a fixed full-screen overlay on top of the
+    // Catalog page, which never unmounts underneath it - so unscoped
+    // locators can double-match this overlay's controls and the identically
+    // labeled Catalog search/filter behind it. Scope every subsequent
+    // locator to this overlay.
+    const auditPanel = page.locator('div.fixed.inset-0.z-50');
+    await expect(auditPanel.getByText('Physical inventory', { exact: true })).toBeVisible();
 
-    const countInput = page.locator('input[type="number"]');
-    await countInput.fill('50');
-    await page.getByText('Found', { exact: true }).click();
-    await page.getByRole('button', { name: /Save count/i }).click();
+    // Before filtering: both products are visible in the unfiltered grid.
+    await expect(auditPanel.getByText(productName, { exact: false })).toBeVisible();
+    await expect(auditPanel.getByText(decoyProductName, { exact: false })).toBeVisible();
 
-    await page.getByRole('button', { name: /Review & submit/i }).click();
-    await expect(page.getByText('1', { exact: true }).first()).toBeVisible(); // "Adjusted" count tile
-    await page.getByRole('button', { name: /Submit audit/i }).click();
-    await expect(page.getByText('Audit submitted', { exact: true })).toBeVisible({ timeout: 10000 });
-    await page.getByRole('button', { name: /Close Audit/i }).click();
+    const categoryFilter = auditPanel.getByRole('button', { name: /^Category:/ });
+    await categoryFilter.click();
+    await page.getByRole('menuitemradio', { name: /^Antibiotics \(\d+\)$/ }).click();
+    await expect(categoryFilter).toHaveText(/Antibiotics/);
+
+    // Prove the filter selection actually narrowed the grid, not just that
+    // the pill's own label updated: the decoy product (a different,
+    // real category) must now be hidden, while the target product (the
+    // category actually selected) stays visible. Finding the target row
+    // afterward by its unique generated name alone wouldn't catch a filter
+    // that's silently a no-op, since that search would succeed either way.
+    await expect(auditPanel.getByText(decoyProductName, { exact: false })).not.toBeVisible();
+    await expect(auditPanel.getByText(productName, { exact: false })).toBeVisible();
+
+    await auditPanel.getByPlaceholder('Search by name or SKU').fill(productName);
+    const countedQtyInput = auditPanel
+      .getByRole('row')
+      .filter({ hasText: productName })
+      .locator('input[type="number"]')
+      .first();
+    await expect(countedQtyInput).toBeVisible({ timeout: 10000 });
+    await countedQtyInput.fill('50');
+
+    await auditPanel.getByRole('button', { name: /Review & submit/i }).click();
+    await expect(auditPanel.getByText('Review & submit', { exact: true })).toBeVisible();
+    await expect(auditPanel.getByText(productName, { exact: false })).toBeVisible();
+    await auditPanel.getByRole('button', { name: /Submit audit/i }).click();
+    await expect(auditPanel.getByText('Audit submitted', { exact: true })).toBeVisible({ timeout: 10000 });
+    await auditPanel.getByRole('button', { name: /Close Audit/i }).click();
 
     // 3. Sell it at POS with a discount and a cash payment.
     await page.goto('/pos');

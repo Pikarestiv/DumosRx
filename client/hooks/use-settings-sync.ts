@@ -10,6 +10,7 @@ import {
   restoreDatabaseFromFile,
 } from "@/lib/db/core";
 import { sync, syncSubscriptionStatus } from "@/lib/db/sync-engine";
+import { markRestoredForCloudLinkNotice } from "@/lib/utils/post-restore-notice";
 
 export function useSettingsSync(
   isCloudLinked: boolean,
@@ -85,6 +86,7 @@ export function useSettingsSync(
       const result = await restoreDatabaseFromFile();
       if (result.success) {
         toast.success("Database restored successfully. Restarting app...");
+        markRestoredForCloudLinkNotice();
         setTimeout(() => window.location.reload(), 1500);
       }
       // result.success === false with no error means the user cancelled the
@@ -105,6 +107,7 @@ export function useSettingsSync(
         try {
           await restoreDatabase(new Uint8Array(result));
           toast.success("Database restored successfully. Page will reload.");
+          markRestoredForCloudLinkNotice();
           setTimeout(() => window.location.reload(), 1500);
         } catch (err) {
           toast.error("Failed to restore database. Invalid file?");

@@ -1872,3 +1872,65 @@ rather than fixed in this pass.
 - See `docs/features/backup-restore.md` for the full walkthrough including
   the complete table-by-table diff, and `_known-bugs.md` item #10 for the
   tracker entry.
+
+### 23. Backup & Restore: sync-engine version-conflict test completed — confirmed real, silent data-loss bug (`_known-bugs.md` #11)
+
+- **Direct follow-up** to the "could not exercise a live push-vs-push
+  version-conflict race" gap two entries above, and to the immediately
+  preceding attempt at this same test, which built the full two-session
+  setup correctly but stopped short of the actual push because the provided
+  cloud credentials didn't authenticate at the time. This run used the same
+  setup approach (isolated-origin Session B, CORS-server file-upload
+  workaround for the 26.6 MB `.drx`) with now-working credentials, and
+  carried it all the way through to a real push-vs-push race, a real server
+  response, and a direct database check — **and found a genuine bug.**
+- **Safety check first:** before using the real credentials at all, checked
+  directly against the Laravel DB whether the cloud account they authenticate
+  as owns more than one store (the task's own standing rule: stop if so).
+  It does — `pikarestiv@gmail.com` owns both "Pikarestiv Stores 2" and the
+  primary "Pikarestiv Stores." Paused and reported `BLOCKED` for explicit
+  confirmation rather than assuming this was fine; user confirmed this is
+  by design (Store 2 is a deliberate testing duplicate under the real
+  account's own ownership) and authorized continuing, Store 2 only. The
+  header store-picker (`components/dashboard/header-store-switcher.tsx`)
+  was then used as an explicit, checked-at-every-step guard for the rest of
+  the test, confirming "Pikarestiv Stores 2" throughout.
+- **Setup:** Session A (fresh local-PIN login, not a leftover
+  superadmin-impersonation session that happened to already be open on this
+  device — logged all the way out and back in first) linked to the cloud,
+  synced, downloaded a backup (MACA GUMMIES at the ₦999 common-ancestor
+  price, `_version: 2`). Session B restored from that same backup onto a
+  freshly wiped isolated origin, linked to the cloud via plain "Link
+  Account" (not "Link & Sync," specifically to avoid an initial pull
+  overwriting the setup before the divergent edit), confirmed
+  "Last synced: Never" going in.
+- **The conflict:** Session A edited Selling Price ₦999→₦1,500 and synced —
+  confirmed server-side via `tinker` (`_version: 3`). Session B, still never
+  having pulled, independently edited the same field to ₦777 and synced.
+- **Result: Session B's push silently overwrote Session A's already-synced
+  edit.** No error, no rejection, no conflict signal anywhere. Direct
+  database check: server now holds ₦777, `_version` still `3` (never even
+  incremented by the "conflicting" push). `storage/logs/laravel.log` has no
+  "Sync push: Ignored older update" line for this row — the server's own
+  stale-write rejection path never fired. Session A's next sync silently
+  pulled ₦777 over its own local ₦1,500, with zero indication in the UI or
+  console that an overwrite had occurred.
+- **Root cause:** `client/lib/db/base-helpers.ts`'s `update()` computes a
+  row's new `_version` as `(local _version) + 1` — a local-only counter.
+  Two devices diverging from the same synced ancestor with exactly one edit
+  each will *always* independently compute the same next version number
+  (guaranteed arithmetic, not a rare race). When the second push's version
+  then equals the server's current version, `SyncController::push`'s
+  conflict check (`app/Http/Controllers/Api/App/SyncController.php`,
+  ~line 515) skips its version-inequality branch entirely and falls back to
+  comparing `updated_at` wall-clock timestamps — effectively last-write-wins
+  by device clock, activating specifically in the most common conflict
+  shape this whole mechanism exists to handle.
+- **Logged Open in `_known-bugs.md` as item #11** — a real, confirmed
+  silent-data-loss bug, not fixed here per this task's investigate-and-report
+  scope. Needs a deliberate design decision (server-authoritative version
+  counter, or an explicit user-facing conflict-resolution UI), not a
+  quick patch.
+- See `docs/features/backup-restore.md`'s "Sync-engine version-conflict
+  test" section for the full walkthrough, exact before/after values, and
+  the `tinker`/log evidence.

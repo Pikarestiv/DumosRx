@@ -253,6 +253,234 @@ code reading only, not by a live two-writer race. This is flagged as a
 follow-up in `_known-bugs.md`/`_findings-log.md` rather than claimed as
 fully verified.
 
+## Sync-engine version-conflict test (2026-09-04) — completed: a real, confirmed data-loss bug
+
+This is the direct follow-up to the "Could not exercise a live push-vs-push
+version-conflict race" gap flagged above and in `_findings-log.md`, and to
+the same-named section below it in an earlier revision of this doc (a prior
+attempt got as far as setting up both sessions and then blocked on a cloud
+credential that didn't authenticate). That credential issue is now
+confirmed fixed (`pikarestiv@gmail.com` / the provided password
+authenticates cleanly against `http://localhost:8000`), and this retry
+carried the test all the way through to a real push-vs-push race, a
+real HTTP response, and a direct database check of the final state.
+
+**Result: conflict resolution does NOT work correctly for the single most
+common shape of conflict — two devices that each make exactly one edit from
+a shared, already-synced ancestor. The second device's push silently
+overwrites the first device's already-server-confirmed edit, with no error,
+no conflict indicator, and no way for either user to discover it happened
+short of noticing the number itself is wrong. This is a real, confirmed
+data-loss bug, filed as `_known-bugs.md` #11.**
+
+### Safety check performed first: does this cloud account own more than one store?
+
+Before touching anything with the real credentials, the account was checked
+directly against the Laravel database, per this task's own standing safety
+rule (stop if the linking credentials are tied to more than one store):
+
+```
+DB::table('stores')->where('user_id','a26b80db-f7f7-4b4d-9d7c-95fc065e27c9')->get(['id','name']);
+→ 41f6c73a-14ec-4b1c-b62d-c2652de3c3c9 | Pikarestiv Stores 2
+→ 8f3c150c-53ca-456d-a008-b5571ee3f6fe | Pikarestiv Stores
+```
+
+This *is* true — the account owns both stores — and the test was
+deliberately paused and reported as `BLOCKED` at that point for explicit
+user confirmation before proceeding, rather than the agent assuming it was
+safe. The user confirmed directly: Pikarestiv Stores 2 was deliberately set
+up as a safe testing duplicate under the same real account, and continuing
+against Store 2 only (never switching to or touching the primary store) was
+authorized. The account's own header store-picker
+(`components/dashboard/header-store-switcher.tsx`) was used as a running,
+explicit checkpoint for the rest of the test — screenshotted/confirmed
+showing "Pikarestiv Stores 2" (with a checkmark, "Pikarestiv Stores" listed
+but never selected) before every meaningful step below. One incidental
+finding while first trying to open that picker: a leftover, already-expired
+superadmin-impersonation banner from an unrelated earlier session was
+overlaying the header and silently swallowing real mouse clicks intended
+for the store-switcher button underneath it (`document.elementFromPoint()`
+at the button's own on-screen coordinates resolved to the banner's
+container div, not the button) — worked around by dispatching the pointer
+events directly against the button element instead of relying on
+literal on-screen click coordinates; not investigated further as it's a
+separate, minor UI issue from a different session, not part of this test.
+
+### Setup: two sessions from one backup point
+
+- **Session A** (`http://localhost:3000`, logged in fresh as `pika`/`1111`
+  — not reused from a leftover superadmin-impersonation tab that happened to
+  already be open on this device; logged all the way out and back in via the
+  ordinary local PIN form first, then linked to the cloud with the real
+  credentials via Settings → Data → "Link Account": **"Cloud account linked
+  successfully!"**, "Connected to Cloud"). Ran one "Sync Now" first
+  (`push?manual=1` → 200, `pull?manual=1` → 200) so the backup about to be
+  taken reflects a fully-pushed state, then downloaded it via Settings →
+  Data → "Download Local Backup" — `dumosrx_backup_2026-09-04_06-38-11.drx`,
+  26,656,768 bytes.
+- **Session B**: the isolated-origin technique from the completeness test
+  above (`http://127.0.0.1:3000`) was reused, wiped first
+  (`localStorage.clear()`, `sessionStorage.clear()`, and
+  `indexedDB.deleteDatabase()` on every database `indexedDB.databases()`
+  reported) and confirmed showing a genuine "No Local Accounts Found" screen
+  before proceeding.
+- **File upload workaround:** the `file_upload` browser tool caps combined
+  upload size at 10 MB; the `.drx` is 26.6 MB. Same workaround as the prior
+  attempt: a tiny CORS-enabled local Python HTTP server
+  (`http.server.SimpleHTTPRequestHandler` on port 8899, `cors_server.py` in
+  the task scratchpad) served the copied backup file; it was fetched
+  in-page via `fetch()` into a `Blob`, wrapped in a real `File` object, and
+  injected into the restore screen's file input via a `DataTransfer` +
+  dispatched `change` event — runs inside the page's own JS context, so the
+  10 MB tool cap doesn't apply.
+- **Restore executed via the documented pre-login path**
+  (`/login?tab=setup&step=backup`, "Restore Now"): succeeded, full
+  navigation to `/login` fired as expected (the item #10 fix), and the
+  one-time post-restore cloud-link toast fired again exactly as documented —
+  "Your data is back, but this device isn't linked to cloud sync yet...
+  Re-link your cloud account..." with a "Link DumosRx Cloud" action button.
+- Logged into Session B locally as `pika`/`1111` — landed on the correct
+  "Pikarestiv Stores 2" dashboard (header store-picker checked and
+  confirmed), Action Center showing "11 Changes Unsynced" (the backup's own
+  pending local queue, carried through the restore).
+- **Session B linked to the cloud, deliberately via the plain "Link
+  Account" button (not "Link & Sync")** so linking itself would not trigger
+  an initial pull before the independent edit below — confirmed via the
+  Data & Sync panel immediately after linking: **"Connected to Cloud" /
+  "Last synced: Never."** One real, minor gap re-confirmed from the prior
+  attempt while doing this: the freshly-wiped `127.0.0.1` origin's
+  `dumos_api_url` was `null` (defaults to the build's non-local server, not
+  Session A's actual `http://localhost:8000/api/v1`) — set explicitly to
+  match Session A before linking. Same category as the already-documented
+  cloud-link-token gap, not filed as its own numbered bug since
+  `ServerSelector` is dev/QA tooling, not end-user surface.
+
+### The conflicting edit — exact values
+
+Target: **MACA GUMMIES**, SKU `CCD8EDCB`, server id
+`ccd8edcb-cd4b-4741-896c-a7d8a90142c5`, barcode `4995`, Selling Price.
+Confirmed **₦999** in both the live UI (Catalog list and product detail
+drawer) and the freshly downloaded backup on both sessions before either
+touched it this round — this is the common ancestor value (itself the
+result of an earlier, already-verified single-writer edit from ₦200 to
+₦999 in a prior test session, confirmed via the same direct-database method
+used throughout this section; server-side `_version: 2` at this point).
+
+1. **Session A edited first, while online and linked:** Selling Price
+   ₦999 → **₦1,500** via the product edit dialog, saved ("Product updated
+   successfully"), then "Sync Now" from Settings → Data.
+   `read_network_requests` showed a clean `push?manual=1` → 200 then
+   `pull?manual=1` → 200. Verified directly against the Laravel database:
+   `selling_price: "1500.00"`, `_version: 3` (up from `2`),
+   `updated_at: "2026-09-04 06:44:25"`. Session A's edit is now confirmed,
+   server-committed, ahead of anything Session B has done.
+2. **Session B edited the same field to a different value, independently,
+   before ever pulling** — confirmed still "Last synced: Never" at the
+   moment of the edit, so this is a genuine, uninformed divergence, not a
+   race against a pull that already happened: Selling Price ₦999 → **₦777**,
+   saved, confirmed in Session B's own Catalog list afterward (₦777, still
+   pre-sync).
+3. **Session B synced ("Sync Now").** The push succeeded — no error, no
+   rejection surfaced anywhere in the UI, "Last synced" updated normally to
+   `9/4/2026, 7:46:38 AM`.
+
+### What actually happened: Session B's push silently overwrote Session A's already-synced edit
+
+Direct database check immediately after Session B's sync
+(`php artisan tinker`, same `products` row):
+
+```
+selling_price: "777.00"
+_version: 3
+updated_at:  "2026-09-04 06:45:57"
+_synced_at:  "2026-09-04 06:46:20"
+```
+
+**Session A's ₦1,500 — already reached the server first, already confirmed
+committed with its own successful sync — is gone.** The server's value is
+now Session B's ₦777, and `_version` sits at `3`, unchanged from what
+Session A's edit had already set it to — the push did not even bump it.
+`storage/logs/laravel.log` has no `"Sync push: Ignored older update"` line
+for this row at all (that's the log line `SyncController::push` emits when
+its version check *does* reject a stale update — grepped for the product's
+id specifically, found nothing), confirming Session B's push was not
+rejected or flagged as stale by the server in any way; it was accepted as a
+normal, valid update.
+
+**Root cause, confirmed by reading both sides of the sync:**
+
+- Client-side, `update()` in `client/lib/db/base-helpers.ts` sets the local
+  row's new `_version` as `(current local _version) + 1` — a purely local
+  counter, computed from whatever the device's own copy of the row already
+  says, with no knowledge of the server's current state:
+  ```
+  const current = await query<{ _version: number }>(`SELECT _version FROM ${table} WHERE id = ?`, ...);
+  const version = current[0]?._version || 0;
+  ...
+  _version: version + 1,
+  ```
+- Both sessions started this test from the identical common-ancestor row
+  (`_version: 2`). Session A's edit bumped its local copy to `3` and pushed
+  that. Session B's edit — made independently, on its own still-at-`2`
+  local copy — *also* computed `2 + 1 = 3` and pushed that. Two
+  independently diverged devices, each making exactly one edit from a
+  shared synced ancestor, will always compute the identical next version
+  number this way — this isn't a rare timing accident, it's the
+  deterministic, guaranteed outcome of the single most common conflict
+  shape (one edit each) this whole feature exists to resolve.
+- Server-side, `SyncController::push` (`app/Http/Controllers/Api/App/SyncController.php`,
+  ~line 515-536):
+  ```php
+  $isOlder = false;
+  if ($payloadVersion !== null && $modelVersion !== null && $payloadVersion !== $modelVersion) {
+      $isOlder = $payloadVersion < $modelVersion;
+  } elseif ($model->updated_at && isset($payload['updated_at'])) {
+      // Fallback to updated_at if versions are equal or missing
+      ...
+      $isOlder = $payloadUpdatedAt->lt($modelUpdatedAt);
+  }
+  ```
+  When the incoming `_version` and the server's current `_version` are
+  **equal** (both `3`, exactly as constructed above), the strict
+  version-inequality branch is skipped entirely by its own `!==` guard, and
+  conflict resolution silently falls through to comparing `updated_at`
+  timestamps instead — each device's own local wall-clock, not a causally
+  meaningful signal. Session B's edit happened later in real time than
+  Session A's, so `payloadUpdatedAt > modelUpdatedAt` → `$isOlder = false`
+  → accepted, overwriting Session A's value.
+
+**In effect: the documented design ("server-side write should generally
+win over a stale-version push, with the loser needing a pull to
+reconcile") does not hold. What actually happens is last-write-wins by
+device clock time, and it specifically activates in the exact scenario a
+real conflict is most likely to look like — two devices, one edit each,
+from a shared ancestor — because that scenario guarantees a version
+collision that disables the version check entirely.**
+
+### The loser never finds out
+
+Session A ran "Sync Now" once more afterward, to see how the "losing" side
+recovers. Its pull silently applied ₦777 — Session A's own Catalog now
+shows ₦777, matching the server, with **no conflict toast, no warning
+banner, no console error or warning** (`read_console_messages` showed only
+the routine app-boot "Global error listeners initialized" log lines around
+both syncs). From Session A's perspective, its own successfully-saved
+₦1,500 edit — which it had itself already confirmed synced — has simply
+vanished and been silently replaced, with nothing in the product's own
+edit/sync history to explain why. A user would only ever notice this by
+independently remembering they'd set a different price.
+
+### Verdict: real bug, not a rough edge — filed as `_known-bugs.md` #11
+
+**Conflict resolution does not work correctly.** This is not "works but
+with a rough edge" — it is a genuine, silent data-loss bug: an
+already-server-confirmed edit was overwritten with no error, no conflict
+signal, and no recovery path for the user who lost their change, in
+precisely the conflict shape (one edit per device from a shared ancestor)
+this feature is centrally meant to handle. See `_known-bugs.md` #11 for the
+fix-scoping writeup; not fixed as part of this investigation per this
+task's own scope (document and flag, don't fix).
+
 ## Danger Zone: full local reset
 
 Also on this same Settings → Data page: "Reset Database" (`handleResetDatabase`

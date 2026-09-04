@@ -390,6 +390,70 @@ Status values: **Open** (not started) → **In Progress** → **Fixed**.
     `SyncIndicator` "Not Linked" state remains the persistent, always-on
     signal; this notice is only the restore-specific, one-time call-out.
 
+---
+
+## 11. Sync-engine version conflict resolution silently loses data on the most common two-device conflict shape
+
+- **Status:** Open
+- **Found:** live push-vs-push conflict test on "Pikarestiv Stores 2"
+  (2026-09-04) — see `docs/features/backup-restore.md`'s "Sync-engine
+  version-conflict test" section for the full walkthrough, exact values,
+  and code excerpts.
+- **Where:**
+  - Client: `client/lib/db/base-helpers.ts`'s `update()` sets a row's new
+    `_version` as `(current local _version) + 1` — a purely local counter,
+    blind to the server's actual current version.
+  - Server: `app/Http/Controllers/Api/App/SyncController.php`'s `push()`
+    method (~line 515-536), the `_version`-vs-`updated_at` conflict check.
+- **Root cause:** two devices that each make exactly **one** edit from a
+  shared, already-synced ancestor row will *always* compute the identical
+  next `_version` (both do `ancestor_version + 1`) — this is guaranteed,
+  not a rare timing coincidence, because it's just arithmetic on the same
+  starting number. When the second device's push arrives, its `_version`
+  now **equals** the server's current `_version` (which the first device's
+  earlier, already-accepted push had already set to that same number). The
+  server's conflict check only compares versions when they're *unequal*
+  (`if ($payloadVersion !== $modelVersion)`); on equality it silently falls
+  through to comparing `updated_at` timestamps instead — each device's own
+  local wall-clock. Whichever device's edit has the later timestamp wins,
+  regardless of which edit actually reached the server first or how stale
+  the loser's starting point was.
+- **Confirmed live, not just read from code:** Session A edited a product's
+  price ₦999 → ₦1,500 and synced successfully (server confirmed via direct
+  DB query: `_version: 3`). Session B — restored from a backup taken before
+  Session A's edit, still showing the ₦999 ancestor, never having pulled —
+  independently edited the same field to ₦777 and synced. The push
+  succeeded with **no error, no rejection, no conflict indicator anywhere**.
+  Direct database check afterward: server value is ₦777, `_version` still
+  `3` (never even incremented). `storage/logs/laravel.log` has no
+  `"Sync push: Ignored older update"` line for this row — the server never
+  identified this as a stale/conflicting write at all. Session A's next
+  "Sync Now" silently pulled ₦777, overwriting its own local copy of the
+  ₦1,500 it had itself already confirmed synced, with nothing in the UI or
+  console to indicate anything had been overwritten.
+- **Risk: real, silent data loss.** This is not a rare edge case — it's the
+  single most common shape of conflict the whole `_version` mechanism
+  exists to resolve (two devices, one edit each, from a shared ancestor),
+  and it fails in exactly that case by construction. A store owner and a
+  staff member editing the same product's price on two different devices
+  while both briefly offline (or just not yet synced) will silently end up
+  with whichever edit's *device clock* was later, with the other's
+  confirmed-synced change vanishing with no trace and no way for that user
+  to know it happened short of manually re-checking the value.
+- **Why not fixed here:** flagged and documented per this task's scope
+  (investigate and report, don't fix). A real fix needs a product decision
+  on the intended conflict UX (last-write-wins is arguably an acceptable
+  policy *if it's the deliberate design and both users get told a conflict
+  happened*, but the current behavior has neither an intentional policy
+  statement nor any user-facing signal) — plausible directions include:
+  making the server-side `_version` authoritative and server-incremented
+  (returned to the client on every successful push/pull, so a client's next
+  edit is always based on the true last-known-server-version instead of a
+  local counter that can independently collide), or explicitly surfacing a
+  conflict to the user for manual resolution instead of silently picking a
+  winner by clock time. Either way, this needs a deliberate design pass, not
+  a quick patch to this bug tracker's fix-and-move-on pattern.
+
 ## Known limitations (not bugs — honestly labeled, not silently broken)
 
 - **Settings "Roles & Permissions" tab** is a static "coming soon"

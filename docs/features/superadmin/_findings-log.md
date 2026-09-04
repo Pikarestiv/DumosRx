@@ -10,6 +10,86 @@ This log spans multiple batches of this effort. Batch: Products/Marketing
 Login, Stores, Users). No fixes were made in either batch — investigation
 and documentation only, per each task's explicit scope.
 
+## Summary (close-out)
+
+Walked all 12 superadmin-panel sections across 5 batches — Products,
+Marketing, Login, Stores, Users, Activity Log, System, Communications,
+Downloads, Handoff, My Referrals, Platform Settings (6 sub-tabs) — against
+the real seeded dev backend, logged in as `admin@dumosrx.com`
+(`super_admin`). Every batch was scoped as **investigation and
+documentation only** — no application code was changed anywhere in this
+survey; every finding below is logged, not fixed.
+
+- **19 real bugs found** across the 5 batches (tallied below by section),
+  every one reproduced live and/or confirmed by source read against the
+  actual request/response contract, with root cause identified in each
+  case. None were fixed, per this survey's explicit scope.
+- **Recurring bug shape, confirmed across almost every batch:**
+  frontend/backend response-shape or schema mismatches — the same class
+  of defect found repeatedly, not a one-off: Products' `data`/`meta`
+  nesting bug, Settings' Billing & Plans tier `limits`/`features` schema
+  drift (blank UI field + phantom/missing feature-gate keys), and the
+  `User::store()` "owns a store" vs. "belongs to a store" relation
+  mismatch that independently broke 2 different pages (Users list,
+  Activity Log) via the identical root cause.
+- **Recurring bug shape #2: dead/stub controls** — buttons and filters
+  that render correctly and look wired up, but call no API at all (toast
+  stubs) or call one that's silently ignored client-side: Products' row
+  actions and Export Metrics, Users' Roles filter and Notify All, Stores'
+  View Billing History, Activity Log's undiscoverable-but-real filter
+  params, Downloads' always-available "Coming Soon" state.
+- **One security-relevant footgun:** Stores' Impersonate action defaults
+  to the real production domain (`app.dumosrx.com`) with no in-panel way
+  to override outside the login page's Server Config widget — live-
+  reproduced sending a real handoff code to production from this dev
+  session (harmlessly rejected, but the request went out for real).
+- **Per-section real-bug tally:** Global Products — 5 (list/pagination
+  always empty; Stock Flag Rate missing `%`; PCN Compliance badge always
+  says "Verified"; 3 stub row actions; Export Metrics stub). Users — 3
+  (staff/cashier store mis-resolves to "Platform Admin"; Roles filter is
+  dead; Notify All is a no-op). Stores — 1 (View Billing History stub).
+  Activity Log — 2 (same "Platform" store bug, second surface; 4 real
+  filter params with no UI). Communications — 1 (Feedback tab has no
+  pagination UI despite 2,934 real rows, only 50 ever reachable).
+  Downloads — 2 (Linux/Android "Coming Soon" dead code; per-platform size
+  text hardcoded empty). Handoff — 2 (Impersonate defaults to production
+  domain; false "Missing handoff code" error on a real successful login,
+  a Strict-Mode double-effect race). My Referrals — 1 (Save on your own
+  unchanged code always fails as "already taken", since the self-exclusion
+  `user_id` param the backend explicitly supports is never passed).
+  Platform Settings — 2 (Integrations' "Disable Widget" always 422s and
+  can never clear the Smartsupp key back to empty once set; Billing &
+  Plans' tier `limits`/`features` UI schema doesn't match what's actually
+  stored, on two axes — a permanently-blank Sync Interval field, and real
+  enforced feature gates like `theme_customizer` that are completely
+  unmanageable through this UI while the UI's own toggle list includes
+  several keys no backend code reads at all). Marketing and System — 0
+  (both fully verified correct; Marketing's coupon/referral-program CRUD
+  and System's live Sentry integration and health metrics all checked
+  out). Login — 0 confirmed (one unreproduced, likely test-harness-timing
+  observation logged for awareness, not counted as a pinned bug).
+- **Several "checked, confirmed no bug" investigations** are logged
+  alongside the real findings throughout this log — each is a place a
+  plausible-looking issue was specifically checked with evidence and
+  ruled out, not assumed absent: the "Active Users" stat undercount (an
+  intentional business-metric scope, not a bug), the two divergent
+  store-status definitions on Stores (real inconsistency, but both sides
+  individually correct), System's "Unknown" Memory card and 92.3% Storage
+  reading (both explained by real macOS dev-environment quirks, not code
+  defects), Handoff's 60-second impersonation TTL (intentional security
+  control), and this batch's Referrals store-name resolution (shares the
+  Users/Activity-Log bug's root cause but doesn't currently manifest on
+  this page's real data).
+- Every batch's mutation testing followed the same conservative rule: real
+  live round-trips were performed wherever the action was scoped,
+  reversible, and low-consequence (e.g. this batch's Smartsupp
+  key set→confirm→attempted-clear round trip, which is how the
+  Integrations bug above was actually found), while anything real,
+  unscoped, and platform-wide with no dry-run was deliberately inspected
+  only and never submitted (Products' Standardize Catalog, Settings'
+  Billing & Plans pricing/feature config, Security's email-verification
+  requirement, Communications' Email Campaigns real-send).
+
 ## Resolved
 
 *(none yet — every batch so far has been investigation-only)*
@@ -489,3 +569,91 @@ control (short TTL on a bearer-token-wrapping code), not a defect. Logged
 for awareness: a superadmin who leaves an impersonated session idle for
 over a minute before ending it will hit this same error and be fully
 logged out. Full detail in `docs/features/superadmin/handoff.md`.
+
+### Bug: "Save" on your own unchanged referral code always fails as "already taken"
+
+**Section:** Referrals ("My Referrals"). **Severity:** Medium.
+
+Batch: Referrals/Settings (final batch). `app/admin/referrals/page.tsx`'s
+`handleSave` calls `checkReferralCode(trimmed)` without passing the
+current user's id, even though `checkReferralCode`'s signature
+(`lib/api/admin-hooks-users.ts:20`) and the backend endpoint it hits both
+support an optional `user_id` specifically to "exclude this user's own
+current code from the collision check" (per the backend's own OpenAPI doc
+comment, `AdminController.php:373`). Live-reproduced: opening the editor
+on the account's real code (`pikarestiv`) and clicking Save without
+changing anything → `"pikarestiv" is already taken. Try another.`
+(confirmed via network tab: `GET
+admin/referral-code/check?code=pikarestiv`, no `user_id` param, → `{
+available: false }`). Effect: the only way to successfully use this
+feature is to change to a code that's never been used by this account
+before; simply re-confirming or lightly editing (e.g. casing) the existing
+code always fails. Not fixed — investigation only. Suggested fix: pass
+`user?.id` into `checkReferralCode` at the `handleSave` call site. Full
+detail in `docs/features/superadmin/referrals.md`.
+
+### Confirmed, not a bug: Referrals page's store-name resolution happens to be correct, sharing the same root cause as an already-logged bug elsewhere
+
+**Section:** Referrals.
+
+`AdminService::getReferralsFor()` resolves each referred account's store
+via `$u->store->name ?? null` — the same `User::store()` `hasOne`
+"stores this user **owns**" relation already documented as buggy for
+staff-tier users in the Users-list and Activity-Log bugs above. It
+resolves correctly here only because every referred account in this dev
+DB is itself a store owner (the expected case for "referred a new
+pharmacy"). Not re-logged as a new open bug — same root cause, no new
+evidence of it actually breaking on this page's data. Full detail in
+`docs/features/superadmin/referrals.md`.
+
+### Bug: Settings → Integrations "Disable Widget" always fails with a 422, permanently unable to clear the Smartsupp key back to empty once set
+
+**Section:** Settings (Integrations tab). **Severity:** Medium.
+
+`integrations-tab.tsx`'s `handleClear` saves `value: ""` via `PUT
+admin/system-configs/smartsupp_key`, but
+`SystemConfigController::update()` validates with `'value' => 'required'`
+— Laravel's `required` rule fails on an empty string. Live-reproduced:
+set a throwaway test key, saved successfully (200, UI showed "Active"),
+then clicked "Disable Widget" → toast `The value field is required.`,
+network tab confirmed `PUT admin/system-configs/smartsupp_key` → **422**.
+Manually clearing the input field and clicking "Save Key" instead hits the
+identical code path and would fail identically. No working path exists in
+this UI to return to the "Disabled" state once any value has ever been
+saved. Recovered the shared dev backend's state directly via `php artisan
+tinker` (`SystemConfig::setVal('smartsupp_key', '')`) after confirming the
+bug, since the UI path is provably broken. Not fixed — investigation
+only. Suggested fix: relax the backend validation for this key (e.g.
+`present` instead of `required`) or have the frontend send an explicit
+"clear" sentinel. Full detail in `docs/features/superadmin/settings.md`.
+
+### Bug: Settings → Billing & Plans tier `limits`/`features` UI schema doesn't match what's actually stored, on two separate axes (blank field live; unmanageable real feature flags; phantom UI-only feature flags)
+
+**Section:** Settings (Billing & Plans tab). **Severity:** Medium-High
+(silent-corruption risk on save; found by inspection, no save required to
+confirm).
+
+Every tier's "Sync Interval (Mins)" field renders blank live because the
+real stored `subscription_plans.tiers.*.limits` objects use a field called
+`inventories` (confirmed via `php artisan tinker`: `{"staff": 0, "stores":
+1, "inventories": -1}` for the Free tier) — there is no `sync_interval`
+key in the real data at all, but `plan-tier-card.tsx` and the
+`TierLimits` type hardcode `sync_interval` as the third limit field, and
+the hydration `useEffect`'s `?? default` fallback never fires because the
+real (partial) `limits` object is present, not undefined. Separately, and
+more significantly: the real stored `features` object per tier uses keys
+`basic_inventory`, `mobile_access`, `theme_customizer` (a real,
+currently-enforced gate — confirmed live in
+`client/components/ui/theme-customizer.tsx:73`), `store_url` — **none of
+which have any toggle anywhere on this tab** — while the tab's 18-item
+Feature Gates list includes keys (`mobile_app`, `ecommerce`, `smart_pos`,
+`broadcast_create`, `custom_branding`, `barcode_generation`,
+`loyalty_program`) that don't exist in the real stored config and (for at
+least `loyalty_program`/`broadcast_create`/`barcode_generation`) have no
+backend PHP code reading them as gates at all. A save (never actually
+performed, to avoid corrupting the shared dev backend's real pricing
+config) would write a garbage `sync_interval: NaN` into every tier and
+leave the real `theme_customizer`/`mobile_access`/`store_url`/
+`basic_inventory` flags permanently unmanageable through this UI. Not
+fixed — investigation only. Full detail in
+`docs/features/superadmin/settings.md`.

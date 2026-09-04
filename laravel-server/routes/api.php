@@ -144,6 +144,7 @@ Route::prefix('v1')->group(function () {
             Route::post('/stores/{id}/mark-demo', [AdminController::class, 'markStoreDemo']);
             Route::post('/stores/{id}/unmark-demo', [AdminController::class, 'unmarkStoreDemo']);
             Route::post('/stores/{id}/grant-trial', [AdminController::class, 'grantTrial']);
+            Route::get('/stores/{id}/billing-history', [AdminController::class, 'billingHistory']);
             Route::post('/users/{id}/grant-trial', [AdminController::class, 'grantUserTrial']);
             Route::get('/products', [AdminController::class, 'products']);
             Route::post('/products/standardize', [AdminController::class, 'standardize']);
@@ -151,6 +152,7 @@ Route::prefix('v1')->group(function () {
             Route::post('/users', [AdminController::class, 'createPlatformAdmin']);
             Route::get('/health', [AdminController::class, 'health']);
             Route::get('/errors', [AdminController::class, 'errors']);
+            Route::get('/downloads/manifest', [AdminController::class, 'downloadsManifest']);
             Route::delete('/users/{id}', [AdminController::class, 'deleteUser']);
             Route::post('/users/{id}/deactivate', [AdminController::class, 'deactivateUser']);
             Route::post('/users/{id}/reactivate', [AdminController::class, 'reactivateUser']);

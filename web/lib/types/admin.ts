@@ -33,6 +33,22 @@ export interface AdminStoreSummary {
   account_manager_is_explicit?: boolean;
 }
 
+export interface AdminBillingTransaction {
+  id: string;
+  date: string;
+  desc: string;
+  amount: string;
+  status: string;
+  reference: string | null;
+  receipt_url: string | null;
+}
+
+export interface AdminStoreBillingHistory {
+  store_id: string;
+  store_name: string;
+  transactions: AdminBillingTransaction[];
+}
+
 export interface SecurityAlert {
   title: string;
   source: string;

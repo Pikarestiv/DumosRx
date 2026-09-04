@@ -1,4 +1,4 @@
-import { Ban, Loader2 } from "lucide-react";
+import { Ban, Loader2, Receipt } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -21,6 +21,7 @@ import {
 import {
   useAccountManagerCandidates,
   useUpdateAccountManagerMutation,
+  useAdminStoreBillingHistory,
 } from "@/lib/api/admin-hooks-stores";
 import { toast } from "sonner";
 import type { AdminStoreSummary } from "@/lib/types/admin";
@@ -248,6 +249,108 @@ export function ViewStoreDialog({
         </div>
         <DialogFooter>
           <Button onClick={() => onOpenChange(false)} className="rounded-xl font-bold h-12 w-full">Close</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+interface BillingHistoryDialogProps {
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
+  selectedStore: AdminStoreSummary | null;
+}
+
+// Replaces the old `handleViewBilling` toast stub, which called no API at
+// all. Backed by the new admin-scoped `GET admin/stores/{id}/billing-history`
+// endpoint (AdminController::billingHistory) — the store-owner-self-service
+// `subscription/billing-history` endpoint can't be reused here since it's
+// scoped to the currently-authenticated user, not an arbitrary store.
+export function BillingHistoryDialog({
+  isOpen,
+  onOpenChange,
+  selectedStore,
+}: BillingHistoryDialogProps) {
+  const { data, isLoading, isError } = useAdminStoreBillingHistory(
+    isOpen ? (selectedStore?.id ?? null) : null,
+  );
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+      <DialogContent className="rounded-3xl border-slate-200 dark:border-slate-800 shadow-2xl max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="text-2xl font-black flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-indigo-500/10 flex items-center justify-center">
+              <Receipt className="h-5 w-5 text-indigo-500" />
+            </div>
+            Billing History
+          </DialogTitle>
+          <DialogDescription className="text-slate-500 dark:text-slate-400 font-medium pt-2">
+            Payment transactions for{" "}
+            <span className="font-bold text-slate-900 dark:text-white">
+              {selectedStore?.name}
+            </span>
+            .
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="py-2 max-h-[60vh] overflow-y-auto">
+          {isLoading && (
+            <div className="flex items-center justify-center py-10">
+              <Loader2 className="h-6 w-6 animate-spin text-indigo-500" />
+            </div>
+          )}
+
+          {isError && (
+            <p className="text-sm text-rose-500 font-medium py-6 text-center">
+              Failed to load billing history. Please try again.
+            </p>
+          )}
+
+          {!isLoading && !isError && data && data.transactions.length === 0 && (
+            <p className="text-sm text-slate-500 dark:text-slate-400 font-medium py-6 text-center">
+              No billing transactions found for this store.
+            </p>
+          )}
+
+          {!isLoading && !isError && data && data.transactions.length > 0 && (
+            <div className="space-y-2">
+              {data.transactions.map((txn) => (
+                <div
+                  key={txn.id}
+                  className="flex items-center justify-between rounded-xl border border-slate-200 dark:border-slate-800 p-4"
+                >
+                  <div>
+                    <p className="font-bold text-slate-900 dark:text-slate-100">{txn.desc}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      {txn.date}
+                      {txn.reference ? ` · Ref: ${txn.reference}` : ""}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-black">{txn.amount}</p>
+                    <p
+                      className={`text-xs font-bold ${
+                        txn.status.toLowerCase() === "success"
+                          ? "text-emerald-500"
+                          : txn.status.toLowerCase() === "failed"
+                            ? "text-rose-500"
+                            : "text-amber-500"
+                      }`}
+                    >
+                      {txn.status}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button onClick={() => onOpenChange(false)} className="rounded-xl font-bold h-12 w-full">
+            Close
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

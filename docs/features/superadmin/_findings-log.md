@@ -299,6 +299,44 @@ Category + growth, Stock Flag Rate + count, PCN Compliance rate + status),
 success toast shown. No PHPUnit coverage (frontend-only, no backend
 involved).
 
+### Gap: "View Billing History" store action was a client-only stub
+
+**Section:** Stores. **Severity:** Low (known-incomplete feature, not a
+broken wire). **Fix commit:** see git log (batch-c-downloads-billing).
+
+The Store Fleet row action "View Billing History" (`handleViewBilling` in
+`app/admin/stores/page.tsx`) used to only show a `toast.info("Billing
+History", ...)` — it called no API and navigated nowhere. The only
+pre-existing billing-history endpoint,
+`SubscriptionController::billingHistory` (`GET subscription/billing-history`),
+is store-owner self-service, hardcoded to `Auth::id()` — unusable by an
+admin viewing an arbitrary other store.
+
+**Fix:** new admin-scoped endpoint, `GET admin/stores/{id}/billing-history`
+(`AdminController::billingHistory` -> new
+`AdminService::getBillingHistoryForStore()`), reusing the identical
+`PaymentTransaction` query but scoped to the requested store's owner
+(`Store::user_id`) instead of the authenticated user, gated by the same
+`super_admin` check every other AdminController endpoint uses; 404s for a
+nonexistent store. `handleViewBilling` now opens a new
+`BillingHistoryDialog` (`components/admin/stores/store-dialogs.tsx`,
+modeled on the existing `BulkNotifyDialog` pattern) backed by a new
+`useAdminStoreBillingHistory(storeId)` hook.
+
+**Verified:**
+- PHPUnit (`tests/Feature/Admin/AdminStoreBillingHistoryTest.php`, 4 tests,
+  RED before the fix / GREEN after — confirmed by re-running against a
+  git-stashed pre-fix copy of the changed backend files, which 404'd since
+  the route didn't exist yet): super_admin can fetch any store's billing
+  history; non-super_admin gets 403; nonexistent store 404s; a store with
+  no transactions returns an empty list, not an error.
+- Live: clicked "View Billing History" on "Pikarestiv Stores" against the
+  real dev backend — network tab confirmed a real
+  `GET admin/stores/{id}/billing-history` → **200**; dialog correctly
+  showed "Payment transactions for Pikarestiv Stores." followed by an
+  honest "No billing transactions found for this store." (this dev DB's
+  `PaymentTransaction` table genuinely has no rows for this store's owner).
+
 ## Open
 
 ### Products: "Standardize Catalog" is a real, unscoped, platform-wide mutation — deliberately not exercised
@@ -338,19 +376,6 @@ expect — unlike Products, there is no `data`/`meta` nesting mismatch here.
 Live/DB cross-checks all agreed (0 coupons, 0 referred users, 0 referral
 credit transactions, matching what each screen would show). See
 `docs/features/superadmin/marketing.md`.
-
-### Gap: "View Billing History" store action is a client-only stub
-
-**Section:** Stores. **Severity:** Low (known-incomplete feature, not a
-broken wire).
-
-The Store Fleet row action "View Billing History" (`handleViewBilling` in
-`app/admin/stores/page.tsx`) only shows a `toast.info("Billing History",
-...)` — it calls no API and navigates nowhere. Distinct from a
-wrong-endpoint bug: there's no endpoint call attempted at all, so nothing is
-silently failing. Logged for visibility since a superadmin clicking this
-expecting real billing history data would see only a toast that "Fetching
-billing records for {store}..." and then nothing further happens.
 
 ### Confirmed, not a bug: "Active Users" stat (4) vs. total user count (5)
 
@@ -511,39 +536,54 @@ seeded users include a real personal address
 (validation, queueing logic, response contract all check out). Full
 detail in `docs/features/superadmin/communications.md`.
 
-### Bug: Downloads page's Linux/Android "Coming Soon" state is dead code — always renders as available regardless of real asset existence
+### RESOLVED: Downloads page's Linux/Android "Coming Soon" state was dead code; per-platform size text was hardcoded empty
 
 **Section:** Downloads. **Severity:** Low-Medium (could hand a real
-superadmin/tester a Download button pointing at a 404).
+superadmin/tester a Download button pointing at a 404 — or, as later
+investigation found, the entire "Coming Soon" branch was silently
+unreachable regardless of real CDN state either way). **Fix commit:** see
+git log (batch-c-downloads-billing).
 
-`app/admin/downloads/page.tsx` computes `linuxAssetExists =
-!!currentLinks.linux` (same for Android) to decide between an enabled
-"Download" button and a disabled "Coming Soon"/"Unavailable" card. But
-`useLatestRelease()` (`lib/api/release-hooks.ts`) always constructs
-`currentLinks.linux`/`.android` as a non-empty template-string URL,
-regardless of whether that file actually exists on the CDN or whether the
-`updater.json` fetch even succeeded — so `!!currentLinks.linux` is always
-`true` and the "Coming Soon" branch is unreachable in practice.
-Live-confirmed via `read_page`: both Linux and Android cards rendered live
-"Download" buttons with real-looking CDN URLs
-(`https://downloads.dumosrx.com/v0.0.35/DumosRx_0.0.35_amd64.AppImage`,
-`.../DumosRx-Android.apk`) even though this dev environment's CDN request
-(`GET https://downloads.dumosrx.com/updater.json`) returned a live 503.
-Not fixed — investigation only (no Download links were clicked, per this
-task's scope of avoiding real external/production actions with unverified
-consequences). Full detail in `docs/features/superadmin/downloads.md`.
+Root cause confirmed as documented below: `useLatestRelease()`
+(`lib/api/release-hooks.ts`) always constructed `currentLinks.linux`/
+`.android` as a non-empty template-string URL and hardcoded all four
+`*Size` fields to `""`, regardless of real CDN state, so
+`app/admin/downloads/page.tsx`'s `!!currentLinks.linux` gating was always
+`true` and the "Coming Soon" branch was unreachable.
 
-### Minor: Downloads page's per-platform "size" text is hardcoded to empty in every code path
+Live investigation surfaced two deeper findings that shaped the fix: (1)
+`downloads.dumosrx.com` sends no CORS headers at all, so a browser-side
+`fetch()` from this app's origin to the CDN — including the
+previously-shipped `updater.json` call — always fails with a CORS network
+error, confirmed live; the previous "graceful 503 fallback" behavior seen
+in the original survey was actually always hitting the catch branch, just
+via a different underlying cause. (2) this app is a fully static export
+(`output: "export"` in `next.config.ts`, FTP-deployed, no Node server in
+production), which rules out a same-origin Next.js proxy route as a fix.
 
-**Section:** Downloads.
+**Fix:** moved the cross-origin manifest/existence/size check to the
+existing Laravel backend (`GET admin/downloads/manifest`,
+`AdminController::downloadsManifest`), which HEAD-probes each platform's
+conventional CDN URL server-side (no CORS) via `Http::pool()`, since
+`updater.json`'s own `platforms` key only lists Tauri's auto-update target
+(currently just `darwin-aarch64`) and isn't a reliable existence signal for
+the full raw-installer set. `useLatestRelease()` now calls this backend
+endpoint instead of the CDN directly; Linux/Android URLs are only populated
+when confirmed to exist, finally making the existing "Coming Soon" gating
+meaningful; sizes are real, formatted `Content-Length` values (e.g. "81.3
+MB"), with an "Unknown size" fallback if a HEAD probe ever succeeds without
+a readable Content-Length (not currently exercised — live CDN state has
+real sizes for all four platforms today).
 
-`useLatestRelease()`'s success-path return object sets `winSize`/
-`macSize`/`linuxSize`/`androidSize` to literal `""` unconditionally — not
-derived from `updater.json`'s response even when that fetch succeeds. The
-page's `defaultLinks` fallback (`"---"`) is dead code since `links` is
-never falsy. Net effect: the size line under each install-format label is
-always blank, regardless of environment. Full detail in
-`docs/features/superadmin/downloads.md`.
+**Verified live** (`http://localhost:3002/admin/downloads`, real CDN,
+2026-09-04): all four platforms are genuinely available right now (all
+four conventional URLs independently re-confirmed via `curl -I` to return
+200 with real `Content-Length`), and the page correctly renders all four
+as real, working "Download" buttons (not "Coming Soon") with their real
+sizes — Windows "10.6 MB", macOS "10.8 MB", Linux "81.3 MB", Android "96.1
+MB". No PHPUnit coverage for the new endpoint (depends entirely on live
+external CDN state, not something a deterministic backend test should
+assert against). Full detail in `docs/features/superadmin/downloads.md`.
 
 ### Bug: superadmin's Impersonate action defaults to the real production domain (`app.dumosrx.com`) with no in-panel way to override, in any dev session that skipped the login page's Server Config
 

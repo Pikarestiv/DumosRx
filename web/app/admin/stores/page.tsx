@@ -14,7 +14,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { StoreTable } from "@/components/admin/stores/store-table";
 import { StoreToolbar } from "@/components/admin/stores/store-toolbar";
 import { StorePagination } from "@/components/admin/stores/store-pagination";
-import { SuspendStoreDialog, ViewStoreDialog } from "@/components/admin/stores/store-dialogs";
+import { SuspendStoreDialog, ViewStoreDialog, BillingHistoryDialog } from "@/components/admin/stores/store-dialogs";
 import { SharedGrantTrialDialog } from "@/components/admin/shared-grant-trial-dialog";
 import { toast } from "sonner";
 import { AdminSkeleton } from "@/components/admin/admin-skeleton";
@@ -36,6 +36,7 @@ export default function StoresManagement() {
   const [isSuspendDialogOpen, setIsSuspendDialogOpen] = useState(false);
   const [isTrialDialogOpen, setIsTrialDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [isBillingDialogOpen, setIsBillingDialogOpen] = useState(false);
   
   const debouncedSearch = useDebounce(search, 500);
 
@@ -196,9 +197,8 @@ export default function StoresManagement() {
   };
 
   const handleViewBilling = (store: AdminStoreSummary) => {
-    toast.info("Billing History", {
-      description: `Fetching billing records for ${store.name}...`,
-    });
+    setSelectedStore(store);
+    setIsBillingDialogOpen(true);
   };
 
   if (isLoading && !response) {
@@ -306,6 +306,12 @@ export default function StoresManagement() {
       <ViewStoreDialog
         isOpen={isViewDialogOpen}
         onOpenChange={setIsViewDialogOpen}
+        selectedStore={selectedStore}
+      />
+
+      <BillingHistoryDialog
+        isOpen={isBillingDialogOpen}
+        onOpenChange={setIsBillingDialogOpen}
         selectedStore={selectedStore}
       />
     </div>

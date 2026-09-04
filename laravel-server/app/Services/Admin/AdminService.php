@@ -4,10 +4,12 @@ namespace App\Services\Admin;
 
 use App\Mail\AdminNotification;
 use App\Models\ActivityLog;
+use App\Models\PaymentTransaction;
 use App\Models\Product;
 use App\Models\Role;
 use App\Models\Sale;
 use App\Models\Store;
+use App\Models\Subscription;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -232,6 +234,53 @@ class AdminService
             'recent_stores' => $recentStores,
             'live_operations' => $liveOperations,
             'security_alerts' => $securityAlerts,
+        ];
+    }
+
+    /**
+     * Admin-scoped equivalent of SubscriptionController::billingHistory,
+     * which is store-owner-self-service (scoped to Auth::id(), the
+     * currently-authenticated user's own subscriptions/transactions) and
+     * therefore unusable by a superadmin viewing an arbitrary other store.
+     * Same underlying PaymentTransaction query, but scoped to the given
+     * store's owner (Store::user_id — "the user who owns this store",
+     * distinct from staff assigned via users.store_id) instead of the
+     * authenticated user.
+     *
+     * Returns null if no store with this id exists, so the controller can
+     * 404 instead of silently returning an empty transaction list.
+     */
+    public function getBillingHistoryForStore(string $storeId): ?array
+    {
+        $store = Store::find($storeId);
+        if (!$store) {
+            return null;
+        }
+
+        $ownerId = $store->user_id;
+
+        $subscriptionIds = Subscription::where('user_id', $ownerId)->pluck('id');
+
+        $transactions = PaymentTransaction::whereIn('subscription_id', $subscriptionIds)
+            ->orWhere('metadata->user_id', $ownerId)
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($txn) {
+                return [
+                    'id' => $txn->id,
+                    'date' => $txn->created_at->format('M j, Y'),
+                    'desc' => ($txn->metadata['plan_name'] ?? 'Subscription') . ' Plan',
+                    'amount' => '₦' . number_format($txn->amount, 0),
+                    'status' => ucfirst($txn->status),
+                    'reference' => $txn->provider_reference,
+                    'receipt_url' => $txn->metadata['verification_data']['receipt_url'] ?? null,
+                ];
+            });
+
+        return [
+            'store_id' => $store->id,
+            'store_name' => $store->name,
+            'transactions' => $transactions,
         ];
     }
 

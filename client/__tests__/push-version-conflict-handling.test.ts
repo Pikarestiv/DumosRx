@@ -112,7 +112,11 @@ describe("pushChanges handles a version_conflict failure as non-retryable", () =
 
     expect(toastWarning).toHaveBeenCalledTimes(1);
     const message = toastWarning.mock.calls[0][0] as string;
-    expect(message).toContain("conflicted");
+    // Deliberately does not assert (or claim) "another device" — the client
+    // can't actually verify who/what changed the record server-side, only
+    // that this edit no longer matches what it was based on. See push.ts's
+    // toast wording comment.
+    expect(message).toContain("could not be saved");
     expect(message.toLowerCase()).toContain("product");
   });
 

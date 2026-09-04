@@ -29,7 +29,7 @@ class SyncController extends Controller
     #[OA\Post(
         path: '/app/sync/push',
         summary: 'Push offline-first client changes to the server',
-        description: 'Applies a batch of INSERT/UPDATE/DELETE changes from the client\'s local SQLite database. Conflict resolution on UPDATE uses strict-equality optimistic concurrency on `_version` (falling back to `updated_at` only for legacy rows with no version tracking): the payload\'s `_version` must exactly equal the server\'s current version for the edit to be accepted (not merely "not older" — an equal version means two devices edited from the same ancestor, a real conflict, not a free pass); on acceptance the server assigns the new version itself, never trusting whatever `_version` value the payload carries. A rejected UPDATE (real conflict, in either the version or timestamp fallback path) is reported in `failed`, never silently dropped. EXCEPT for `stock_batches`, which is exempt from this conflict check entirely: its only version-sensitive field, `quantity`, is never trusted from the client at all (INSERT or UPDATE) and is always derived by applying `stock_movements` deltas on top of the server\'s current value, since concurrent quantity changes from multiple devices/terminals are commutative and both should apply rather than one winning by version. May reject the whole request (403/429) if the store\'s plan disables cloud sync or the sync-interval throttle hasn\'t elapsed yet.',
+        description: 'Applies a batch of INSERT/UPDATE/DELETE changes from the client\'s local SQLite database. Conflict resolution on UPDATE uses strict-equality optimistic concurrency on `_version` (falling back to `updated_at` only for legacy rows with no version tracking): the payload\'s `_version` must exactly equal the server\'s current version for the edit to be accepted (not merely "not older" — an equal version means two devices edited from the same ancestor, a real conflict, not a free pass); on acceptance the server assigns the new version itself, never trusting whatever `_version` value the payload carries. A rejected UPDATE (real conflict, in either the version or timestamp fallback path) is reported in `failed`, never silently dropped. EXCEPT for a `stock_batches` UPDATE whose payload is provably quantity-only (nothing left after stripping `quantity` and the usual bookkeeping fields): `quantity` is never trusted from the client at all (INSERT or UPDATE) and is always derived by applying `stock_movements` deltas on top of the server\'s current value, since concurrent quantity changes from multiple devices/terminals are commutative and both should apply rather than one winning by version — but any OTHER `stock_batches` field (`cost_price`, `expiry_date`, `batch_number`, etc.) still goes through the normal strict-equality check, since those are genuinely overwritten by this path and a real two-manager conflict on them must still be caught. May reject the whole request (403/429) if the store\'s plan disables cloud sync or the sync-interval throttle hasn\'t elapsed yet.',
         tags: ['Sync'],
         security: [['sanctum' => []]],
         parameters: [new OA\HeaderParameter(name: 'X-Store-Id', description: 'Which of the caller\'s stores to sync (defaults to their primary store)', schema: new OA\Schema(type: 'string'))],
@@ -538,20 +538,57 @@ class SyncController extends Controller
                         // else with two known versions is a real conflict, not just
                         // "older," and gets rejected and reported either way.
                         //
-                        // stock_batches is exempt from this check entirely: its only
-                        // version-sensitive field (quantity) is stripped from the
-                        // payload just below and is never applied from this UPDATE at
+                        // stock_batches is exempt from this check, but ONLY when the
+                        // payload doesn't touch anything besides quantity (which is
+                        // stripped just below and never applied from this UPDATE at
                         // all — it's derived separately from commutative
-                        // stock_movements deltas (see $stockBatchDeltas and this
-                        // controller's own API doc comment above), which have no
-                        // version check of their own. Two different terminals/devices
+                        // stock_movements deltas, see $stockBatchDeltas and this
+                        // controller's own API doc comment above, which have no
+                        // version check of their own). Two different terminals/devices
                         // concurrently selling from the same batch is normal, everyday,
-                        // expected operation, not a rare edge case, and both pushes
-                        // carry the same base _version by the same guaranteed-collision
-                        // arithmetic as any other two-device edit — rejecting the
-                        // second one here would be a constant false alarm for a table
-                        // where nothing meaningful is actually being overwritten.
-                        $isCommutativeTable = $change['table_name'] === 'stock_batches';
+                        // expected operation, and both pushes carry the same base
+                        // _version by the same guaranteed-collision arithmetic as any
+                        // other two-device edit — rejecting a quantity-only update here
+                        // would be a constant false alarm for a field where nothing
+                        // meaningful is actually being overwritten.
+                        //
+                        // This does NOT extend to the table's other columns
+                        // (batch_number, expiry_date, cost_price, supplier_id,
+                        // manufacture_date, location, is_active, notes, received_date):
+                        // the stock-audit cost-correction flow
+                        // (lib/db/queries/inventory.ts's reconcileStockAudit, ~line
+                        // 518) really does UPDATE cost_price directly, and two managers
+                        // concurrently correcting the same batch's cost/expiry data is a
+                        // genuine conflict the version check must still catch — silently
+                        // last-write-winning THAT would reintroduce exactly the kind of
+                        // silent data loss this whole fix exists to close, just on a
+                        // different field. So: strip quantity and the usual
+                        // bookkeeping/derived fields (mirroring the quantity strip a few
+                        // lines below and the _synced/_deleted stripping done earlier in
+                        // push()) from a COPY of the payload, and only exempt this
+                        // change from the version check if nothing else is left —
+                        // i.e. this specific push is provably quantity-only.
+                        $isCommutativeTable = false;
+                        if ($change['table_name'] === 'stock_batches') {
+                            $meaningfulPayload = $payload;
+                            // Besides the client's own bookkeeping fields, this must
+                            // also ignore whatever this controller injects into the
+                            // payload itself before this point runs regardless of what
+                            // the client actually sent — user_id is auto-filled a few
+                            // dozen lines above for every table in $tablesWithUserId
+                            // (stock_batches included) whenever the client didn't
+                            // already set it, so treating it as "meaningful" here would
+                            // wrongly deny the exemption to every quantity-only push
+                            // that omitted it (which is all of them — see
+                            // updateStockBatchQuantity() etc. in
+                            // lib/db/queries/inventory.ts). store_id isn't currently
+                            // auto-injected for this table, but is included here
+                            // defensively in case that ever changes.
+                            foreach (['id', '_version', '_deleted', '_synced', '_synced_at', 'created_at', 'updated_at', 'quantity', 'user_id', 'store_id'] as $ignoredField) {
+                                unset($meaningfulPayload[$ignoredField]);
+                            }
+                            $isCommutativeTable = count($meaningfulPayload) === 0;
+                        }
 
                         $payloadVersion = isset($payload['_version']) ? (int)$payload['_version'] : null;
                         $modelVersion = isset($model->_version) ? (int)$model->_version : null;

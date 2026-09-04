@@ -1,7 +1,7 @@
 import { getPendingSyncItems, markSynced, recordSyncFailure } from "../local-database";
 import { apiClient } from "@/lib/api/client";
 import { PushResponse } from "./types";
-import type { SyncChange } from "@/lib/types/sync";
+import type { SyncChange, SyncQueueItem } from "@/lib/types/sync";
 import { remapForeignKey, DUPLICATE_NAME_TABLES } from "../reconcile-identity";
 import { execute, transaction } from "../core";
 import { toast } from "sonner";
@@ -54,6 +54,101 @@ function describeSyncedRecord(tableName: string): string {
 }
 
 /**
+ * Coalesces multiple pending UPDATE entries for the SAME (table_name,
+ * record_id) into one merged change before anything is sent to the server.
+ *
+ * Why this exists: update() (base-helpers.ts) no longer bumps `_version`
+ * locally (see the fix for _known-bugs.md #11) — it now sends/stores the
+ * row's unchanged base version, so the server can tell "this edit is based
+ * on my current state" from "this edit is based on something stale."  That
+ * fix is correct for the TWO-DEVICE case it targeted, but on its own it
+ * introduces a single-device regression: `addToSyncQueue` appends one new
+ * `_sync_queue` row per update() call with NO coalescing, so two ordinary
+ * sequential edits to the same row before the next sync (e.g. a credit/
+ * mixed-payment checkout's `update("customers", id, {outstanding_balance})`
+ * immediately followed by `update("customers", id, {loyalty_points})` in
+ * use-pos-payment.ts) queue two separate rows that both freeze the
+ * IDENTICAL base `_version`. Pushed together (or even split across batches
+ * for a large backlog), the first is accepted and the server bumps the
+ * version — the second then collides against that bump and gets rejected
+ * as a false "version_conflict," silently losing a completely ordinary,
+ * non-conflicting local edit and showing a misleading "another device"
+ * toast.
+ *
+ * The fix: fold every UPDATE queued for the same record into ONE change —
+ * later field values win over earlier ones for the same column (the same
+ * per-call "full overwrite of whatever fields it's given" semantics a
+ * single update() already has), the merged payload carries the EARLIEST
+ * entry's `_version` (the true base this whole local edit chain started
+ * from — none of these rows has synced yet, so the server has no
+ * knowledge of anything past that point), and every underlying queue row
+ * id folded into the merge is tracked in `mergedIdsByRepId` so the caller
+ * can mark them all synced (or all dropped, on a real conflict) together —
+ * never just the representative row, which would silently orphan the rest.
+ *
+ * Runs once, up front, before the pending list is sliced into
+ * SYNC_BATCH_SIZE batches, so batch-splitting can never separate two edits
+ * to the same record into different requests and reintroduce this bug for
+ * a large backlog.
+ *
+ * INSERT and DELETE entries are left untouched: INSERT never goes through
+ * the version-conflict check at all (a fresh row has nothing to conflict
+ * with yet), and a record is only ever soft/hard-deleted once while still
+ * pending, so neither operation can produce the same-row queue pile-up
+ * this function exists to fix.
+ */
+function coalescePendingUpdates(pending: SyncQueueItem[]): {
+  items: SyncQueueItem[];
+  mergedIdsByRepId: Map<number, number[]>;
+} {
+  const indicesByKey = new Map<string, number[]>();
+  pending.forEach((item, idx) => {
+    if (item.operation !== "UPDATE") return;
+    const key = `${item.table_name}::${item.record_id}`;
+    const indices = indicesByKey.get(key) ?? [];
+    indices.push(idx);
+    indicesByKey.set(key, indices);
+  });
+
+  const foldedAway = new Set<number>();
+  const mergedPayloadByIndex = new Map<number, string>();
+  const mergedIdsByRepId = new Map<number, number[]>();
+
+  for (const indices of indicesByKey.values()) {
+    if (indices.length <= 1) continue; // Nothing to coalesce for this record.
+
+    const repIndex = indices[0];
+    const merged: Record<string, unknown> = {};
+    let baseVersion: unknown;
+
+    indices.forEach((idx, position) => {
+      const parsed = JSON.parse(pending[idx].payload) as Record<string, unknown>;
+      if (position === 0) {
+        baseVersion = parsed._version;
+      }
+      Object.assign(merged, parsed);
+    });
+    merged._version = baseVersion;
+
+    mergedPayloadByIndex.set(repIndex, JSON.stringify(merged));
+    mergedIdsByRepId.set(
+      pending[repIndex].id,
+      indices.map((idx) => pending[idx].id),
+    );
+    for (let i = 1; i < indices.length; i++) foldedAway.add(indices[i]);
+  }
+
+  const items: SyncQueueItem[] = [];
+  pending.forEach((item, idx) => {
+    if (foldedAway.has(idx)) return;
+    const mergedPayload = mergedPayloadByIndex.get(idx);
+    items.push(mergedPayload ? { ...item, payload: mergedPayload } : item);
+  });
+
+  return { items, mergedIdsByRepId };
+}
+
+/**
  * Push local changes to server
  */
 export async function pushChanges(
@@ -75,6 +170,16 @@ export async function pushChanges(
   // reference them.
   pending.sort((a, b) => (a.table_name === "categories" ? -1 : b.table_name === "categories" ? 1 : 0));
 
+  // See coalescePendingUpdates()'s doc comment: folds multiple pending
+  // UPDATEs for the same record into one merged change so they can't freeze
+  // the same base _version in separate queue rows and falsely collide with
+  // each other server-side. `mergedIdsByRepId` lets every id-keyed lookup
+  // below (rejected/failed/succeeded/exception handling) act on every
+  // underlying queue row a merged change represents, not just its
+  // representative id.
+  const { items: coalesced, mergedIdsByRepId } = coalescePendingUpdates(pending);
+  const idsFor = (repId: number): number[] => mergedIdsByRepId.get(repId) ?? [repId];
+
   // Process in batches
   let pushedCount = 0;
   // Distinct from a normal server-reported per-item rejection (already
@@ -87,7 +192,7 @@ export async function pushChanges(
   // it kept failing" — see sync() in index.ts.
   let failedBatches = 0;
 
-  for (let i = 0; i < pending.length; i += SYNC_BATCH_SIZE) {
+  for (let i = 0; i < coalesced.length; i += SYNC_BATCH_SIZE) {
     // A manual sync (see the backoff-bypass fix) can retry a backlog spanning
     // many batches back-to-back; the API's shared rate limit is 60
     // requests/minute (see throttle:60,1 on this route in routes/api.php),
@@ -98,7 +203,7 @@ export async function pushChanges(
       await new Promise((resolve) => setTimeout(resolve, 1100));
     }
 
-    const batch = pending.slice(i, i + SYNC_BATCH_SIZE);
+    const batch = coalesced.slice(i, i + SYNC_BATCH_SIZE);
 
     try {
       const rejected: { id: number; reason: string }[] = [];
@@ -140,21 +245,27 @@ export async function pushChanges(
             item.payload.category_id &&
             !UUID_REGEX.test(item.payload.category_id as string)
           ) {
-            rejected.push({ id: item.id, reason: "Invalid category_id (not a UUID)" });
+            for (const id of idsFor(item.id)) {
+              rejected.push({ id, reason: "Invalid category_id (not a UUID)" });
+            }
             return false;
           }
           if (
             item.payload.supplier_id &&
             !UUID_REGEX.test(item.payload.supplier_id as string)
           ) {
-            rejected.push({ id: item.id, reason: "Invalid supplier_id (not a UUID)" });
+            for (const id of idsFor(item.id)) {
+              rejected.push({ id, reason: "Invalid supplier_id (not a UUID)" });
+            }
             return false;
           }
         }
         if (item.table_name === "stock_movements") {
           // Laravel backend requires stock_batch_id for stock_movements. Drop if null.
           if (!item.payload.stock_batch_id) {
-            rejected.push({ id: item.id, reason: "Missing required stock_batch_id" });
+            for (const id of idsFor(item.id)) {
+              rejected.push({ id, reason: "Missing required stock_batch_id" });
+            }
             return false;
           }
         }
@@ -218,13 +329,25 @@ export async function pushChanges(
       // synced here either, or they'd be silently dropped from the queue.
       if (response.success) {
         const failedIds = new Set((response.failed ?? []).map((f) => f.id));
-        const succeededIds = changes.map((c) => c.id).filter((id) => !failedIds.has(id));
+        // Expanded so a merged change's representative id marks/deletes
+        // EVERY underlying queue row it folded together, not just itself —
+        // see coalescePendingUpdates()'s doc comment for why leaving any of
+        // them behind would silently orphan a real, still-pending edit.
+        const succeededIds = changes
+          .map((c) => c.id)
+          .filter((id) => !failedIds.has(id))
+          .flatMap((id) => idsFor(id));
 
         // Collected inside the transaction below, reported (toast) after it
         // commits — same reason pull.ts defers its skippedRecords reporting:
         // a version conflict is known-permanent the moment the server says
         // so, not worth risking a nested write inside this batch's own
-        // transaction just to surface it a few lines earlier.
+        // transaction just to surface it a few lines earlier. Coalescing
+        // guarantees at most one `failed` entry per (table_name, record_id)
+        // in the whole push run (every UPDATE for a given record was merged
+        // into a single change before any batch was ever sent), so this
+        // naturally produces exactly one toast per conflicted record, never
+        // one per underlying queue row.
         const versionConflicts: { table_name: string; record_id: string }[] = [];
 
         // Wrapped in a single transaction: a batch of up to SYNC_BATCH_SIZE
@@ -238,21 +361,26 @@ export async function pushChanges(
 
           for (const f of response.failed ?? []) {
             if (f.id == null) continue;
+            const underlyingIds = idsFor(f.id);
 
             if (NON_RETRYABLE_CONFLICT_REASONS.has(f.reason)) {
               // A version conflict can never be resolved by retrying — the
               // edit's base version is permanently stale no matter how many
-              // times it's resent. Drop it from the queue outright instead
-              // of routing it through recordSyncFailure's exponential-
-              // backoff retry path, which would silently loop forever (well,
-              // until the backoff cap, then a crash report — still not a
-              // real user-facing signal). The next pull will naturally bring
-              // in the winning server value now that nothing local is
-              // blocking it (see pull.ts's pendingLocalEdit skip).
-              await execute("DELETE FROM _sync_queue WHERE id = ?", [f.id]);
+              // times it's resent. Drop it (and every queue row merged into
+              // it) from the queue outright instead of routing it through
+              // recordSyncFailure's exponential-backoff retry path, which
+              // would silently loop forever (well, until the backoff cap,
+              // then a crash report — still not a real user-facing signal).
+              // The next pull will naturally bring in the winning server
+              // value now that nothing local is blocking it (see pull.ts's
+              // pendingLocalEdit skip).
+              const placeholders = underlyingIds.map(() => "?").join(", ");
+              await execute(`DELETE FROM _sync_queue WHERE id IN (${placeholders})`, underlyingIds);
               versionConflicts.push({ table_name: f.table_name, record_id: f.record_id });
             } else {
-              await recordSyncFailure(f.id, f.reason);
+              for (const id of underlyingIds) {
+                await recordSyncFailure(id, f.reason);
+              }
             }
           }
 
@@ -282,9 +410,30 @@ export async function pushChanges(
           // edit (now that update() no longer increments _version locally)
           // would still be based on the pre-push version and get spuriously
           // rejected as a conflict against its own already-accepted change.
+          //
+          // `table` here comes straight from the server response, unlike the
+          // id_map loop just above (which is guarded by
+          // `DUPLICATE_NAME_TABLES[table]`) — the server is trusted, but an
+          // unrecognized or locally-absent table name would still throw
+          // (`no such table`) inside this transaction's callback, and an
+          // uncaught throw here rolls back the ENTIRE batch's transaction,
+          // including the markSynced() calls above — undoing otherwise-
+          // successful work and setting up an infinite re-push loop for
+          // every other item in the batch. Caught and warned per-row instead
+          // of per-table so one bad table name can't take the rest down; the
+          // affected record simply keeps its pre-push local _version until
+          // the next pull corrects it (harmless — pull.ts always trusts the
+          // server's version over whatever the local row has).
           for (const [table, mapping] of Object.entries(response.versions ?? {})) {
             for (const [recordId, newVersion] of Object.entries(mapping)) {
-              await execute(`UPDATE ${table} SET _version = ? WHERE id = ?`, [newVersion, recordId]);
+              try {
+                await execute(`UPDATE ${table} SET _version = ? WHERE id = ?`, [newVersion, recordId]);
+              } catch (err) {
+                console.warn(
+                  `[Sync] Failed to apply server-assigned _version to ${table}/${recordId}:`,
+                  err,
+                );
+              }
             }
           }
         });
@@ -295,9 +444,16 @@ export async function pushChanges(
         // doesn't need a full merge UI to act on." One toast per conflicted
         // record: this is expected to be rare (the exact conflict shape
         // _known-bugs.md #11 was filed for), not a routine batch event.
+        //
+        // Deliberately does NOT claim "another device" as the cause: a
+        // `stale_timestamp` rejection (the legacy fallback for a row with no
+        // version tracking at all) isn't necessarily a second device — this
+        // client can't actually verify who or what changed the record
+        // server-side, only that its own edit no longer matches what it was
+        // based on. State what happened, not an unverifiable cause.
         for (const conflict of versionConflicts) {
           toast.warning(
-            `A change to ${describeSyncedRecord(conflict.table_name)} conflicted with an update from another device — the other device's update was kept.`,
+            `A change to ${describeSyncedRecord(conflict.table_name)} could not be saved because the record changed since this edit — the server's current version was kept.`,
           );
         }
       }
@@ -309,7 +465,9 @@ export async function pushChanges(
       const message = error instanceof Error ? error.message : String(error);
       await transaction(async () => {
         for (const item of batch) {
-          await recordSyncFailure(item.id, message);
+          for (const id of idsFor(item.id)) {
+            await recordSyncFailure(id, message);
+          }
         }
       });
     }

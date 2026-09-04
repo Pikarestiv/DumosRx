@@ -1150,6 +1150,102 @@ class SyncEndpointTest extends TestCase
         ]);
     }
 
+    /**
+     * Regression test for a review finding on the stock_batches exemption
+     * above: it must NOT extend to fields other than quantity. The
+     * stock-audit cost-correction flow (lib/db/queries/inventory.ts's
+     * reconcileStockAudit, ~line 518) really does push a stock_batches
+     * UPDATE that only touches cost_price — a genuine two-manager conflict
+     * on that field must still be caught by the normal strict-equality
+     * check, or this table's exemption would silently reintroduce the exact
+     * class of data loss _known-bugs.md #11 was filed for, just relocated
+     * to a different column.
+     */
+    public function test_push_sync_does_not_exempt_stock_batches_non_quantity_field_from_conflict_check()
+    {
+        DB::table('products')->insert([
+            'id' => 'prod_cost_correction',
+            'user_id' => $this->user->id,
+            'name' => 'Amoxicillin',
+            '_version' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $batchId = 'batch_cost_correction';
+        DB::table('stock_batches')->insert([
+            'id' => $batchId,
+            'user_id' => $this->user->id,
+            'product_id' => 'prod_cost_correction',
+            'quantity' => 50,
+            'cost_price' => 10.00,
+            'expiry_date' => now()->addYear()->toDateString(),
+            'batch_number' => 'B-COST',
+            '_version' => 2, // Common ancestor both managers started from.
+            'created_at' => now()->subDay(),
+            'updated_at' => now()->subDay(),
+        ]);
+
+        // Manager 1's stock-audit cost correction: cost_price only, no
+        // quantity field at all — pushes first.
+        $manager1 = $this->actingAs($this->user)->postJson('/api/v1/app/sync/push', [
+            'setup' => true,
+            'changes' => [[
+                'table_name' => 'stock_batches',
+                'operation' => 'UPDATE',
+                'record_id' => $batchId,
+                'payload' => [
+                    'id' => $batchId,
+                    'cost_price' => 12.50,
+                    '_version' => 2,
+                    '_synced' => 0,
+                    'updated_at' => now()->toDateTimeString(),
+                ],
+            ]],
+        ]);
+        $manager1->assertStatus(200);
+        $manager1->assertJsonCount(0, 'failed');
+
+        $afterManager1 = DB::table('stock_batches')->where('id', $batchId)->first();
+        $this->assertEquals('12.50', $afterManager1->cost_price);
+        $this->assertEquals(3, $afterManager1->_version); // Bumped, NOT exempt.
+
+        // Manager 2, independently, also corrects cost_price from the same
+        // ancestor version (2) — never having pulled Manager 1's push yet.
+        $manager2 = $this->actingAs($this->user)->postJson('/api/v1/app/sync/push', [
+            'setup' => true,
+            'changes' => [[
+                'table_name' => 'stock_batches',
+                'operation' => 'UPDATE',
+                'record_id' => $batchId,
+                'payload' => [
+                    'id' => $batchId,
+                    'cost_price' => 9.75,
+                    '_version' => 2,
+                    '_synced' => 0,
+                    'updated_at' => now()->addMinute()->toDateTimeString(),
+                ],
+            ]],
+        ]);
+        $manager2->assertStatus(200);
+
+        // Rejected as a genuine conflict — NOT silently accepted the way a
+        // quantity-only update would be.
+        $manager2->assertJsonCount(1, 'failed');
+        $manager2->assertJson([
+            'failed' => [[
+                'table_name' => 'stock_batches',
+                'record_id' => $batchId,
+                'reason' => 'version_conflict',
+            ]],
+        ]);
+
+        // Manager 1's already-confirmed cost_price survives untouched.
+        $final = DB::table('stock_batches')->where('id', $batchId)->first();
+        $this->assertEquals('12.50', $final->cost_price);
+        $this->assertEquals(3, $final->_version);
+    }
+
     public function test_pull_sync_returns_more_than_500_stores()
     {
         // A user with no store_id set is treated as the "pure owner" whose

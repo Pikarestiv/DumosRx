@@ -15,14 +15,20 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MessageSquare, Bug, Lightbulb, User, Clock, CheckCircle2 } from "lucide-react";
+import { MessageSquare, Bug, Lightbulb, User, Clock, CheckCircle2, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 
 export function FeedbackTab() {
   const [filter, setFilter] = useState("all");
-  const { data, isLoading } = useAdminFeedback(filter);
+  const [page, setPage] = useState(1);
+  const { data, isLoading } = useAdminFeedback(filter, page);
   const updateStatus = useUpdateFeedbackStatusMutation();
+
+  const setFilterAndResetPage = (next: string) => {
+    setFilter(next);
+    setPage(1);
+  };
 
   const handleUpdateStatus = (id: string, status: string) => {
     updateStatus.mutate({ id, status }, {
@@ -64,7 +70,7 @@ export function FeedbackTab() {
           <Button
             variant={filter === "all" ? "default" : "ghost"}
             size="sm"
-            onClick={() => setFilter("all")}
+            onClick={() => setFilterAndResetPage("all")}
             className={filter === "all" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"}
           >
             All
@@ -72,7 +78,7 @@ export function FeedbackTab() {
           <Button
             variant={filter === "pending" ? "default" : "ghost"}
             size="sm"
-            onClick={() => setFilter("pending")}
+            onClick={() => setFilterAndResetPage("pending")}
             className={filter === "pending" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"}
           >
             Pending
@@ -80,7 +86,7 @@ export function FeedbackTab() {
           <Button
             variant={filter === "resolved" ? "default" : "ghost"}
             size="sm"
-            onClick={() => setFilter("resolved")}
+            onClick={() => setFilterAndResetPage("resolved")}
             className={filter === "resolved" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"}
           >
             Resolved
@@ -168,6 +174,34 @@ export function FeedbackTab() {
           ))
         )}
       </div>
+
+      {data?.meta && data.meta.last_page > 1 && (
+        <div className="flex items-center justify-between pt-2">
+          <p className="text-xs text-slate-500">
+            Page {data.meta.current_page} of {data.meta.last_page} ({data.meta.total} total)
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={data.meta.current_page <= 1}
+            >
+              <ChevronLeft className="h-4 w-4 mr-1" />
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage((p) => Math.min(data.meta!.last_page, p + 1))}
+              disabled={data.meta.current_page >= data.meta.last_page}
+            >
+              Next
+              <ChevronRight className="h-4 w-4 ml-1" />
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

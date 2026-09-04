@@ -217,9 +217,11 @@ class WebApiClient {
   }
 
   // Feedback (Admin)
-  async getFeedback(status?: string) {
-    const url = status && status !== 'all' ? `/admin/feedback?status=${status}` : `/admin/feedback`;
-    const { data } = await apiClient.get(url);
+  async getFeedback(status?: string, page: number = 1) {
+    const params = new URLSearchParams();
+    if (status && status !== 'all') params.set('status', status);
+    params.set('page', String(page));
+    const { data } = await apiClient.get(`/admin/feedback?${params.toString()}`);
     return data;
   }
 

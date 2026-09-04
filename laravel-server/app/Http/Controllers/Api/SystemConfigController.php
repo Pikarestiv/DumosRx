@@ -55,7 +55,7 @@ class SystemConfigController extends Controller
     public function update(Request $request, $key)
     {
         $validated = $request->validate([
-            'value' => 'required'
+            'value' => 'present'
         ]);
 
         $config = SystemConfig::setVal($key, $validated['value']);

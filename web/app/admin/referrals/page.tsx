@@ -51,7 +51,7 @@ export default function MyReferralsPage() {
     if (!trimmed) return;
 
     try {
-      const { available, code } = await checkReferralCode(trimmed);
+      const { available, code } = await checkReferralCode(trimmed, user?.id);
       if (!available) {
         toast.error(`"${code}" is already taken. Try another.`);
         return;

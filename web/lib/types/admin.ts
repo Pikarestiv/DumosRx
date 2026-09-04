@@ -169,6 +169,7 @@ export interface TierFeatures {
   ecommerce: boolean;
   smart_pos: boolean;
   custom_branding: boolean;
+  remove_branding: boolean;
   broadcast_create: boolean;
   auto_backup: boolean;
   multi_store: boolean;
@@ -276,6 +277,8 @@ export interface FeedbackItem {
   created_at: string;
   user_id?: string;
 }
+
+export type FeedbackResponse = PaginatedResponse<FeedbackItem>;
 
 export interface ActivityLog {
   id: string;

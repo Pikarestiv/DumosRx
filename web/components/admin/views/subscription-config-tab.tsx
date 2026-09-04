@@ -33,10 +33,10 @@ export function SubscriptionConfigTab() {
     manual_payment_account_number: "6656081317",
     manual_payment_account_name: "Dumos Technologies",
     tiers: {
-      free: { price_monthly: 0, price_yearly: 0, active: true, limits: { staff: 1, stores: 1, sync_interval: 360 }, features: { cloud_sync: false, web_dashboard: false, mobile_app: false, ecommerce: false, smart_pos: true, custom_branding: false, broadcast_create: false, auto_backup: false, multi_store: false, procurement: false, prescriptions: false, expenses: false, audit_mode: false, dark_mode: true, smart_suggestions: false, auto_lock: true, barcode_generation: false, loyalty_program: false } },
-      starter: { price_monthly: 3000, price_yearly: 30000, active: true, limits: { staff: 3, stores: 1, sync_interval: 180 }, features: { cloud_sync: true, web_dashboard: true, mobile_app: false, ecommerce: false, smart_pos: true, custom_branding: false, broadcast_create: false, auto_backup: false, multi_store: false, procurement: true, prescriptions: true, expenses: true, audit_mode: false, dark_mode: true, smart_suggestions: false, auto_lock: true, barcode_generation: true, loyalty_program: false } },
-      pro: { price_monthly: 8000, price_yearly: 80000, active: true, limits: { staff: 10, stores: 3, sync_interval: 30 }, features: { cloud_sync: true, web_dashboard: true, mobile_app: true, ecommerce: true, smart_pos: true, custom_branding: true, broadcast_create: true, auto_backup: true, multi_store: false, procurement: true, prescriptions: true, expenses: true, audit_mode: true, dark_mode: true, smart_suggestions: true, auto_lock: true, barcode_generation: true, loyalty_program: true } },
-      enterprise: { price_monthly: 15000, price_yearly: 150000, active: true, limits: { staff: -1, stores: -1, sync_interval: 15 }, features: { cloud_sync: true, web_dashboard: true, mobile_app: true, ecommerce: true, smart_pos: true, custom_branding: true, broadcast_create: true, auto_backup: true, multi_store: true, procurement: true, prescriptions: true, expenses: true, audit_mode: true, dark_mode: true, smart_suggestions: true, auto_lock: true, barcode_generation: true, loyalty_program: true } },
+      free: { price_monthly: 0, price_yearly: 0, active: true, limits: { staff: 1, stores: 1, sync_interval: 360 }, features: { cloud_sync: false, web_dashboard: false, mobile_app: false, ecommerce: false, smart_pos: true, custom_branding: false, remove_branding: false, broadcast_create: false, auto_backup: false, multi_store: false, procurement: false, prescriptions: false, expenses: false, audit_mode: false, dark_mode: true, smart_suggestions: false, auto_lock: true, barcode_generation: false, loyalty_program: false } },
+      starter: { price_monthly: 3000, price_yearly: 30000, active: true, limits: { staff: 3, stores: 1, sync_interval: 180 }, features: { cloud_sync: true, web_dashboard: true, mobile_app: false, ecommerce: false, smart_pos: true, custom_branding: false, remove_branding: false, broadcast_create: false, auto_backup: false, multi_store: false, procurement: true, prescriptions: true, expenses: true, audit_mode: false, dark_mode: true, smart_suggestions: false, auto_lock: true, barcode_generation: true, loyalty_program: false } },
+      pro: { price_monthly: 8000, price_yearly: 80000, active: true, limits: { staff: 10, stores: 3, sync_interval: 30 }, features: { cloud_sync: true, web_dashboard: true, mobile_app: true, ecommerce: true, smart_pos: true, custom_branding: true, remove_branding: true, broadcast_create: true, auto_backup: true, multi_store: false, procurement: true, prescriptions: true, expenses: true, audit_mode: true, dark_mode: true, smart_suggestions: true, auto_lock: true, barcode_generation: true, loyalty_program: true } },
+      enterprise: { price_monthly: 15000, price_yearly: 150000, active: true, limits: { staff: -1, stores: -1, sync_interval: 15 }, features: { cloud_sync: true, web_dashboard: true, mobile_app: true, ecommerce: true, smart_pos: true, custom_branding: true, remove_branding: true, broadcast_create: true, auto_backup: true, multi_store: true, procurement: true, prescriptions: true, expenses: true, audit_mode: true, dark_mode: true, smart_suggestions: true, auto_lock: true, barcode_generation: true, loyalty_program: true } },
     }
   });
 
@@ -74,28 +74,28 @@ export function SubscriptionConfigTab() {
             price_yearly: serverConfig.tiers?.free?.price_yearly ?? 0,
             active: serverConfig.tiers?.free?.active ?? true,
             limits: serverConfig.tiers?.free?.limits ?? { staff: 1, stores: 1, sync_interval: 360 },
-            features: serverConfig.tiers?.free?.features ?? { cloud_sync: false, web_dashboard: false, mobile_app: false, ecommerce: false, smart_pos: true, custom_branding: false, broadcast_create: false, auto_backup: false, multi_store: false, procurement: false, prescriptions: false, expenses: false, audit_mode: false, dark_mode: true, smart_suggestions: false, auto_lock: true, barcode_generation: false, loyalty_program: false },
+            features: serverConfig.tiers?.free?.features ?? { cloud_sync: false, web_dashboard: false, mobile_app: false, ecommerce: false, smart_pos: true, custom_branding: false, remove_branding: false, broadcast_create: false, auto_backup: false, multi_store: false, procurement: false, prescriptions: false, expenses: false, audit_mode: false, dark_mode: true, smart_suggestions: false, auto_lock: true, barcode_generation: false, loyalty_program: false },
           },
           starter: {
             price_monthly: serverConfig.tiers?.starter?.price_monthly ?? 3000,
             price_yearly: serverConfig.tiers?.starter?.price_yearly ?? 30000,
             active: serverConfig.tiers?.starter?.active ?? true,
             limits: serverConfig.tiers?.starter?.limits ?? { staff: 3, stores: 1, sync_interval: 180 },
-            features: serverConfig.tiers?.starter?.features ?? { cloud_sync: true, web_dashboard: true, mobile_app: false, ecommerce: false, smart_pos: true, custom_branding: false, broadcast_create: false, auto_backup: false, multi_store: false, procurement: true, prescriptions: true, expenses: true, audit_mode: false, dark_mode: true, smart_suggestions: false, auto_lock: true, barcode_generation: true, loyalty_program: false },
+            features: serverConfig.tiers?.starter?.features ?? { cloud_sync: true, web_dashboard: true, mobile_app: false, ecommerce: false, smart_pos: true, custom_branding: false, remove_branding: false, broadcast_create: false, auto_backup: false, multi_store: false, procurement: true, prescriptions: true, expenses: true, audit_mode: false, dark_mode: true, smart_suggestions: false, auto_lock: true, barcode_generation: true, loyalty_program: false },
           },
           pro: {
             price_monthly: serverConfig.tiers?.pro?.price_monthly ?? 8000,
             price_yearly: serverConfig.tiers?.pro?.price_yearly ?? 80000,
             active: serverConfig.tiers?.pro?.active ?? true,
             limits: serverConfig.tiers?.pro?.limits ?? { staff: 10, stores: 3, sync_interval: 30 },
-            features: serverConfig.tiers?.pro?.features ?? { cloud_sync: true, web_dashboard: true, mobile_app: true, ecommerce: true, smart_pos: true, custom_branding: true, broadcast_create: true, auto_backup: true, multi_store: false, procurement: true, prescriptions: true, expenses: true, audit_mode: true, dark_mode: true, smart_suggestions: true, auto_lock: true, barcode_generation: true, loyalty_program: true },
+            features: serverConfig.tiers?.pro?.features ?? { cloud_sync: true, web_dashboard: true, mobile_app: true, ecommerce: true, smart_pos: true, custom_branding: true, remove_branding: true, broadcast_create: true, auto_backup: true, multi_store: false, procurement: true, prescriptions: true, expenses: true, audit_mode: true, dark_mode: true, smart_suggestions: true, auto_lock: true, barcode_generation: true, loyalty_program: true },
           },
           enterprise: {
             price_monthly: serverConfig.tiers?.enterprise?.price_monthly ?? 15000,
             price_yearly: serverConfig.tiers?.enterprise?.price_yearly ?? 150000,
             active: serverConfig.tiers?.enterprise?.active ?? true,
             limits: serverConfig.tiers?.enterprise?.limits ?? { staff: -1, stores: -1, sync_interval: 15 },
-            features: serverConfig.tiers?.enterprise?.features ?? { cloud_sync: true, web_dashboard: true, mobile_app: true, ecommerce: true, smart_pos: true, custom_branding: true, broadcast_create: true, auto_backup: true, multi_store: true, procurement: true, prescriptions: true, expenses: true, audit_mode: true, dark_mode: true, smart_suggestions: true, auto_lock: true, barcode_generation: true, loyalty_program: true },
+            features: serverConfig.tiers?.enterprise?.features ?? { cloud_sync: true, web_dashboard: true, mobile_app: true, ecommerce: true, smart_pos: true, custom_branding: true, remove_branding: true, broadcast_create: true, auto_backup: true, multi_store: true, procurement: true, prescriptions: true, expenses: true, audit_mode: true, dark_mode: true, smart_suggestions: true, auto_lock: true, barcode_generation: true, loyalty_program: true },
           },
         }
       });

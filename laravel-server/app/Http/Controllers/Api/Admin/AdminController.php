@@ -155,8 +155,9 @@ class AdminController extends Controller
             new OA\Parameter(name: 'category', in: 'query', schema: new OA\Schema(type: 'string')),
         ],
         responses: [
-            new OA\Response(response: 200, description: 'Products + metrics + distinct generic-name categories', content: new OA\JsonContent(properties: [
-                new OA\Property(property: 'products', type: 'object'),
+            new OA\Response(response: 200, description: 'Paginated products (flat `data`/`meta`, matching every other admin list endpoint) + metrics + distinct generic-name categories', content: new OA\JsonContent(properties: [
+                new OA\Property(property: 'data', type: 'array', items: new OA\Items(type: 'object')),
+                new OA\Property(property: 'meta', type: 'object'),
                 new OA\Property(property: 'metrics', type: 'object'),
                 new OA\Property(property: 'categories', type: 'array', items: new OA\Items(type: 'string')),
             ])),
@@ -172,9 +173,11 @@ class AdminController extends Controller
         $page = $request->get('page', 1);
         $search = $request->get('search');
         $category = $request->get('category');
-        
+
+        $products = $this->adminService->getGlobalProducts($page, $search, $category);
+
         return response()->json([
-            'products' => $this->adminService->getGlobalProducts($page, $search, $category),
+            ...$products,
             'metrics' => $this->adminService->getProductMetrics(),
             'categories' => Product::select('generic_name')
                 ->whereNotNull('generic_name')
@@ -269,6 +272,7 @@ class AdminController extends Controller
         parameters: [
             new OA\Parameter(name: 'page', in: 'query', schema: new OA\Schema(type: 'integer', default: 1)),
             new OA\Parameter(name: 'search', in: 'query', schema: new OA\Schema(type: 'string')),
+            new OA\Parameter(name: 'role', in: 'query', description: 'Filter by exact role slug (e.g. super_admin, store_owner, specialist, sales_staff)', schema: new OA\Schema(type: 'string')),
         ],
         responses: [
             new OA\Response(response: 200, description: 'Users', content: new OA\JsonContent(type: 'object')),
@@ -285,7 +289,8 @@ class AdminController extends Controller
         try {
             $page = $request->query('page', 1);
             $search = $request->query('search');
-            $data = $this->adminService->getGlobalUsers($page, $search);
+            $role = $request->query('role');
+            $data = $this->adminService->getGlobalUsers($page, $search, $role);
             return response()->json($data);
         } catch (\Exception $e) {
             Log::error("Admin Users Error: " . $e->getMessage());

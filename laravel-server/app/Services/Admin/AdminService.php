@@ -678,7 +678,7 @@ class AdminService
             ]);
     }
 
-    public function getGlobalUsers($page = 1, $search = null)
+    public function getGlobalUsers($page = 1, $search = null, $role = null)
     {
         $query = User::query();
 
@@ -691,7 +691,11 @@ class AdminService
             });
         }
 
-        $paginator = $query->with('store')->latest()->paginate(10, ['*'], 'page', $page);
+        if ($role) {
+            $query->where('role', $role);
+        }
+
+        $paginator = $query->with(['store', 'employerStore'])->latest()->paginate(10, ['*'], 'page', $page);
 
         return [
             'data' => collect($paginator->items())->map(function ($user) {
@@ -707,7 +711,7 @@ class AdminService
                     // 'Admin'), silently breaking role-gated UI for every
                     // admin-role user. Logic should key off this, not text.
                     'role_slug' => $user->role,
-                    'store' => $user->store ? $user->store->name : 'Platform Admin',
+                    'store' => $user->displayStore ? $user->displayStore->name : 'Platform Admin',
                     'lastActive' => $user->last_login_at ? $user->last_login_at->diffForHumans() : 'Never',
                     'status' => $user->is_active ? 'Active' : 'Inactive',
                     'joinedAt' => $user->created_at->format('M d, Y'),
@@ -732,7 +736,7 @@ class AdminService
      */
     public function getActivityLogs($page = 1, $search = null, $action = null, $storeId = null, $userId = null, $dateFrom = null, $dateTo = null)
     {
-        $query = ActivityLog::with(['user.store', 'user.stores'])
+        $query = ActivityLog::with(['user.store', 'user.stores', 'user.employerStore'])
             ->where('action', '!=', 'CLIENT_API_ERROR');
 
         if ($search) {
@@ -775,7 +779,7 @@ class AdminService
 
         return [
             'data' => collect($paginator->items())->map(function (ActivityLog $log) {
-                $store = $log->user?->store ?? $log->user?->stores?->first();
+                $store = $log->user?->displayStore ?? $log->user?->stores?->first();
                 return [
                     'id' => $log->id,
                     'action' => $log->action,

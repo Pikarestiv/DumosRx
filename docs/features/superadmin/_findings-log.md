@@ -617,8 +617,26 @@ consumed/rejected by the time of the request), but this is a real,
 easily-reproduced footgun with no in-panel warning. Root-caused and
 reproduced live; then worked around for the rest of this task's testing by
 manually setting `localStorage.dumos_app_url` via the browser console.
-Not fixed — investigation only. Full detail in
-`docs/features/superadmin/handoff.md`.
+Full detail in `docs/features/superadmin/handoff.md`.
+
+**Fixed** (commit `64b4f319`), both halves: `ServerSelector` (the App URL
+override field) is now also rendered in the authenticated admin header —
+`components/admin/admin-header.tsx` — not just the login form, so no
+session is ever stuck unable to see or change the impersonation target
+without logging out. Separately, `handleImpersonate`
+(`app/admin/stores/page.tsx`) now computes the exact mismatch that caused
+the live incident — API environment badge isn't "Production Server", but
+`getAppURL()` is still sitting at its unoverridden production default —
+and requires an explicit confirmation naming the destination before
+proceeding if so. Live-verified in Chrome: the Server Config panel opens
+correctly from the authenticated Stores page and shows/saves the App URL
+field; the mismatch condition itself was verified by simulating the
+"override never set" state in the page's own `localStorage` (without
+actually triggering a live `window.confirm()`, to avoid a blocking-dialog
+automation hazard) and confirming it evaluates to "warn." A genuine
+production admin session (prod API + prod app URL, the only configuration
+a real deployed build ever has) is unaffected — `ServerSelector` itself
+still hides under `NODE_ENV === "production"`, unchanged.
 
 ### Bug: handoff callback page can show a false "Missing handoff code" error even when the underlying login already succeeded (React Strict-Mode dev double-effect race)
 

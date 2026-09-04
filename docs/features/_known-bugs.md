@@ -394,7 +394,29 @@ Status values: **Open** (not started) → **In Progress** → **Fixed**.
 
 ## 11. Sync-engine version conflict resolution silently loses data on the most common two-device conflict shape
 
-- **Status:** Fixed (`491a5aae`) — decoupled the local-edit
+- **Status:** In Progress — first fix round found Critical/Important issues in
+  review, sent back for a second round. See progress notes below.
+- **Fix round 1 review (Opus):** confirmed the original two-device bug is
+  genuinely fixed and the `stock_batches` multi-terminal exemption works as
+  intended — but found the fix introduces a NEW, single-device regression:
+  the client no longer increments `_version` locally (by design, to fix the
+  original bug), but `_sync_queue` never coalesces multiple pending UPDATEs
+  to the same record — so two sequential edits to one row before any sync
+  (e.g. one POS credit-sale flow updating `customers.outstanding_balance`
+  then `customers.loyalty_points` on the same customer) now collide with
+  each other: the second queued edit computes the identical frozen
+  `_version` as the first, gets rejected as a false `version_conflict` once
+  the first is accepted, and is silently dropped with a misleading "another
+  device" toast. Also found: the `stock_batches` version-check exemption is
+  broader than necessary (skips ALL fields, not just `quantity` — a genuine
+  two-manager conflict on `cost_price`/`expiry_date`/`batch_number` on the
+  same batch would now silently last-write-win with zero detection); an
+  unguarded server-supplied table name interpolated into raw SQL in the
+  client's version-sync-back loop (no table whitelist, unlike the adjacent
+  `id_map` loop); and toast wording that asserts an unverifiable cause
+  ("another device") for what could be a same-device or legacy-timestamp
+  rejection. Full detail in the review transcript; fix round 2 in progress.
+- **Status (superseded, kept for history):** Fixed (`491a5aae`) — decoupled the local-edit
   counter from the server conflict-detection value, made the server the
   sole authority for `_version`, and made every rejection (version- or
   timestamp-based) reach the client via `failed` instead of some paths

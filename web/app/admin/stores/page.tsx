@@ -20,7 +20,9 @@ import { toast } from "sonner";
 import { AdminSkeleton } from "@/components/admin/admin-skeleton";
 import type { AdminStoreSummary } from "@/lib/types/admin";
 import { webApiClient } from "@/lib/api/client";
-import { getAppURL } from "@/lib/constants";
+import { getAppURL, APP_URL } from "@/lib/constants";
+import { getBaseURL } from "@/lib/api/base-client";
+import { getCurrentEnvironmentName } from "@/components/ui/server-selector";
 import { useAdminAuthStore } from "@/lib/store/use-admin-auth-store";
 
 export default function StoresManagement() {
@@ -144,6 +146,26 @@ export default function StoresManagement() {
   };
 
   const handleImpersonate = (store: AdminStoreSummary) => {
+    // Guard against the case that actually bit us: a dev/staging admin
+    // session (talking to a non-production API) whose "App URL" override
+    // was never set, so getAppURL() silently falls back to the hardcoded
+    // production app.dumosrx.com — sending a real handoff code to
+    // production from a session the admin believes is fully sandboxed.
+    // Only fires on that specific mismatch; a genuine production admin
+    // session (prod API + prod app URL) is unaffected.
+    const apiEnv = getCurrentEnvironmentName(getBaseURL());
+    const appUrl = getAppURL();
+    const appUrlIsUnoverriddenProduction = appUrl === APP_URL;
+    if (apiEnv !== "Production Server" && appUrlIsUnoverriddenProduction) {
+      const proceed = window.confirm(
+        `You're on ${apiEnv}, but the impersonation "App URL" is still set ` +
+          `to production (${appUrl}). Continuing will send a real handoff ` +
+          `code there. Set the App URL under "Server Config" first unless ` +
+          `you mean to do this. Continue anyway?`,
+      );
+      if (!proceed) return;
+    }
+
     impersonateMutation.mutate(store.id, {
       onSuccess: async (data) => {
         try {

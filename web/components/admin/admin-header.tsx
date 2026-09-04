@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { useAdminStore } from "@/lib/store/use-admin-store";
 import { useAdminSummary } from "@/lib/api/admin-hooks";
 import { getBaseURL } from "@/lib/api/base-client";
-import { getCurrentEnvironmentName } from "@/components/ui/server-selector";
+import { getCurrentEnvironmentName, ServerSelector } from "@/components/ui/server-selector";
 import { ModeToggle } from "@/components/mode-toggle";
 import { AdminHeaderSearch } from "./admin-header-search";
 import { AdminHeaderNotifications } from "./admin-header-notifications";
@@ -90,6 +90,7 @@ export function AdminHeader() {
             <Globe className="h-3 w-3" />
             {environmentName}
           </Badge>
+          <ServerSelector />
         </div>
       </div>
 

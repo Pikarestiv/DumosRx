@@ -522,6 +522,22 @@ Status values: **Open** (not started) → **In Progress** → **Fixed**.
   See `### 24.` in `_findings-log.md` for full round-1 detail, `### 25.` for
   round 2, and `### 26.` for round 3's findings and fixes, including the
   RED/GREEN test evidence for all of the above.
+  **Round 3 re-review (final, clean):** both round-3 findings independently
+  hand-traced and confirmed fixed against the exact real payload shapes and
+  timing sequences; the "server needs no change" claim verified directly
+  against `SyncController.php` (unchanged, already correct once the client
+  stopped injecting the placeholder); no new Critical/Important breakage.
+  Three non-blocking Low notes for future reference, not fixed here: (a)
+  `withheldRecordsWithBackedOffSiblingsRemoved()` issues one `COUNT(*)`
+  query per distinct held-back record sequentially — cheap on web/sql.js,
+  would be worth collapsing into a single query if this ever runs under
+  Tauri with a large offline backlog; (b) a DELETE can still overtake a
+  held-back UPDATE for the same record — harmless since `_deleted` is
+  stripped from UPDATE payloads, so a later UPDATE can't un-delete a row;
+  (c) a fully-held-back sync cycle returns success with `pushed: 0` and no
+  distinct signal that edits are waiting — an intentional correctness-over-
+  immediacy trade, but worth knowing about if sync-status UI is ever built
+  to surface "N changes pending" more precisely.
 - **Found:** live push-vs-push conflict test on "Pikarestiv Stores 2"
   (2026-09-04) — see `docs/features/backup-restore.md`'s "Sync-engine
   version-conflict test" section for the full walkthrough, exact values,

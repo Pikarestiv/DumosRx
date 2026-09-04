@@ -122,7 +122,7 @@ export interface GlobalProductSummary {
 export interface GlobalProductMetrics {
   mostStockedCategory?: { name: string; growth?: string };
   stockAlerts?: { rate?: string; count?: number };
-  compliance?: { rate?: string };
+  compliance?: { rate?: string; status?: "Verified" | "Action Required" | string };
 }
 
 export interface AdminProductsResponse extends PaginatedResponse<GlobalProductSummary> {

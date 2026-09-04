@@ -439,7 +439,7 @@ class AdminService
             ],
             'stockAlerts' => [
                 'count' => $lowStockCount,
-                'rate' => $totalProducts > 0 ? round(($lowStockCount / $totalProducts) * 100, 1) : 0,
+                'rate' => ($totalProducts > 0 ? round(($lowStockCount / $totalProducts) * 100, 1) : 0).'%',
             ],
             'compliance' => [
                 'rate' => $complianceRate.'%',

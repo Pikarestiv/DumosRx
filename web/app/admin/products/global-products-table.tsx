@@ -164,14 +164,24 @@ export function GlobalProductsTable({
                   <DropdownMenuSeparator className="bg-muted/50" />
                   <DropdownMenuItem
                     className="rounded-xl font-bold cursor-pointer group"
-                    onClick={() => toast.info(`Viewing ${product.name}`)}
+                    onClick={() =>
+                      toast.info("Product detail view not yet available", {
+                        description:
+                          "There's no per-product detail page in the superadmin panel yet.",
+                      })
+                    }
                   >
                     <Eye className="h-4 w-4 mr-2 text-slate-400 group-hover:text-primary" />
                     View Details
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     className="rounded-xl font-bold cursor-pointer group"
-                    onClick={() => toast.info(`Editing ${product.name}`)}
+                    onClick={() =>
+                      toast.info("Product editing not yet available", {
+                        description:
+                          "There's no admin product-edit endpoint yet — this product belongs to a store's own inventory.",
+                      })
+                    }
                   >
                     <Plus className="h-4 w-4 mr-2 text-slate-400 group-hover:text-primary" />
                     Edit Product
@@ -180,7 +190,10 @@ export function GlobalProductsTable({
                   <DropdownMenuItem
                     className="rounded-xl font-bold cursor-pointer group text-indigo-600"
                     onClick={() =>
-                      toast.success(`${product.name} Standardized`)
+                      toast.info("Per-entry standardization not yet available", {
+                        description:
+                          "Use \"Standardize Catalog\" above to normalize the whole catalog at once.",
+                      })
                     }
                   >
                     <FileCheck className="h-4 w-4 mr-2 text-indigo-400 group-hover:text-indigo-600" />

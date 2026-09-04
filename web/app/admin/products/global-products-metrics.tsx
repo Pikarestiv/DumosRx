@@ -57,7 +57,8 @@ export function GlobalProductsMetrics({
             PCN Compliance
           </p>
           <h3 className="text-2xl font-black text-slate-900 dark:text-white">
-            Verified {productMetrics?.compliance?.rate ?? "0%"}
+            {productMetrics?.compliance?.status ?? "Unknown"}{" "}
+            {productMetrics?.compliance?.rate ?? "0%"}
           </h3>
           <div className="mt-4 w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
             <div

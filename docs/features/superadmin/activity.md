@@ -56,7 +56,7 @@ this run).
 - **Console:** no errors observed throughout (checked via
   `read_console_messages` with an unfiltered pattern after the walkthrough).
 
-## Bug (reproduction of a previously-confirmed root cause, new surface): staff/cashier users' Store column shows "Platform" instead of their real store
+## Bug (fixed — reproduction of a previously-confirmed root cause, new surface): staff/cashier users' Store column shows "Platform" instead of their real store
 
 **Severity:** Medium (data-display correctness — same root cause and
 severity class as the already-logged Users-section bug, just a second,
@@ -95,9 +95,19 @@ the real `store_id`/store-ownership facts for this same user
 ("Pika Store 1 Cashier 1", `store_id` = `8f3c150c-53ca-456d-a008-b5571ee3f6fe`
 = "Pikarestiv Stores").
 
-**Not fixed** — investigation only, per this task's scope. Suggested fix
-scope is identical to the Users-page bug: resolve via `$user->store_id`
-directly rather than through the `store()`/`stores()` ownership relations.
+**Fixed**, same fix as the Users-page bug: added `User::employerStore()`
+(`belongsTo(Store::class, 'store_id')`) plus a `getDisplayStoreAttribute()`
+accessor that prefers the owned store, falls back to the employer store.
+`AdminService::getActivityLogs()` now resolves the log's store via
+`$log->user?->displayStore ?? $log->user?->stores?->first()` and
+eager-loads `user.employerStore` alongside `user.store`/`user.stores`.
+Verified via PHPUnit
+(`tests/Feature/Admin/AdminUsersStoreResolutionTest.php::activity_log_shows_a_staff_users_real_employer_store_not_platform`,
+RED before / GREEN after) and live: a direct authenticated
+`admin/activity-logs?search=Cashier 1` call now returns
+`"store":{"id":"8f3c150c-...","name":"Pikarestiv Stores"}` for "Pika Store
+1 Cashier 1"'s `LOGIN` rows instead of `"Platform"`. Full detail in
+`_findings-log.md`'s `## Resolved` section.
 
 ## Gap: 4 of 7 backend filter params have no UI control
 

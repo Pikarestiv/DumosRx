@@ -35,27 +35,33 @@ Store, Last Active, Status.
   the first and last name together won't match either column alone. Logged
   as a UX gap, not a wiring bug.
 - **Roles filter** (`Roles` dropdown) — options for All/Super
-  Admin/Store Owner/Specialist. **Client-side only**: `roleFilter` state is
-  set but never passed into `useAdminUsers(page, debouncedSearch)` — the
-  hook's signature doesn't even accept a role parameter, and the dropdown
-  trigger's own label just echoes the selected value without re-querying or
-  re-filtering the already-rendered list. Selecting a role visibly changes
-  the button label but the table underneath does not change. **This is a
-  real bug** — logged in the findings log.
+  Admin/Store Owner/Specialist. **Fixed** (was a real bug: `roleFilter`
+  state was set but never reached the query). Now: `useAdminUsers(page,
+  search, role)` accepts a third `role` argument, `AdminService::
+  getGlobalUsers()` applies `->where('role', $role)` when present, and the
+  page maps each dropdown label to its backend role slug
+  (`super_admin`/`store_owner`/`specialist`) before passing it through.
+  Verified live: selecting "Store Owner" narrows the 5-user list to the 2
+  real store owners; confirmed at the API level too
+  (`admin/users?role=store_owner` → 2 rows, both `role_slug: "store_owner"`).
 - **Export CSV** — client-side only (`handleExportCSV`, builds a CSV Blob
   from the loaded `userList`, no network call), matching the same pattern
   as Stores' export. Confirmed it doesn't hit a broken endpoint (it hits
   none).
-- **Notify All** — opens (per the code) a bulk-notify dialog path; the
-  button sets `_isBulkNotifyDialogOpen` but that state is prefixed
-  underscore and **its setter is passed to nothing** — no dialog component
-  in the tree consumes `isBulkNotifyDialogOpen`/`setIsBulkNotifyDialogOpen`
-  as of this walkthrough, so clicking "Notify All" changes no visible UI at
-  all (silent no-op). A real, matching backend route does exist
-  (`POST admin/users/bulk-notify`, `AdminController::bulkNotify`) but the
-  frontend has no dialog wired to call it. Logged in the findings log as a
-  dead/unfinished control, not a wrong-endpoint bug (there's no endpoint
-  call attempted in the first place).
+- **Notify All** — **Fixed** (was a no-op: the button set
+  `_isBulkNotifyDialogOpen` but no dialog component consumed that state).
+  Now wired to a new `BulkNotifyDialog`
+  (`components/admin/users/bulk-notify-dialog.tsx`) via
+  `useBulkNotifyUsersMutation` → the pre-existing, complete
+  `POST admin/users/bulk-notify` route (`AdminController::bulkNotify` →
+  `AdminService::bulkNotify()`), forwarding the page's current `role`/
+  `search` filters so the send only reaches the currently-filtered set.
+  Verified live: clicking "Notify All" now opens "Notify All Filtered
+  Users" showing "Deliver a message to 5 users matching the current
+  search/role filters..."; not submitted with a real message (would email
+  all 5 real seeded accounts). Backend route itself re-confirmed via a
+  direct authenticated request with a filter matching zero users
+  (`{"message":"Notification sent to 0 users successfully","count":0}`).
 
 ## Row actions (per-user dropdown, `UserTable`)
 
@@ -107,10 +113,10 @@ route, `AdminController::createPlatformAdmin`).
 regular store user (platform-level access, not scoped to one store); out of
 this task's conservative-write policy for a shared dev backend.
 
-## Bug found: staff/cashier accounts show "Platform Admin" as their store
+## Bug (fixed): staff/cashier accounts show "Platform Admin" as their store
 
-**This is a real, confirmed bug**, found by cross-referencing the UI against
-`php artisan tinker`.
+**Fixed** — was a real, confirmed bug, found by cross-referencing the UI
+against `php artisan tinker`.
 
 Both "Pika Store1 Cashier2" and "Pika Store 1 Cashier 1" (role `sales_staff`)
 show **Parent Store: Platform Admin** in the Users list and **Affiliated
@@ -160,8 +166,14 @@ as platform-level admin accounts — directly relevant to the task's ask to
 verify "important operational data is actually being tracked/shown
 correctly," since staff-to-store attribution is exactly that kind of data.
 
-Not fixed (investigation-only task) — logged in `_findings-log.md` with
-enough detail (exact file/line, root cause, and the two affected user IDs)
-to scope a follow-up fix: `AdminService::getGlobalUsers()`'s `'store'` field
-should resolve via `$user->store_id` (a `belongsTo`/`find()` lookup) rather
-than the misnamed `store()` relation, which is really "store I own."
+**Fix applied:** added `User::employerStore()` (`belongsTo(Store::class,
+'store_id')`) and a `getDisplayStoreAttribute()` accessor that prefers the
+owned store, falls back to the employer store, then null.
+`AdminService::getGlobalUsers()` (and `::getActivityLogs()`, the second
+surface — see `activity.md`) now resolve `'store'` via `$user->displayStore`
+instead of the ownership-only `store()`/`stores()` relations. Verified via
+PHPUnit (`tests/Feature/Admin/AdminUsersStoreResolutionTest.php`, RED
+before / GREEN after) and live against the real dev backend: both
+"Pika Store1 Cashier2" and "Pika Store 1 Cashier 1" now show
+**Parent Store: Pikarestiv Stores**. Full detail in `_findings-log.md`'s
+`## Resolved` section.

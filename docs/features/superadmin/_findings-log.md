@@ -92,61 +92,252 @@ survey; every finding below is logged, not fixed.
 
 ## Resolved
 
-*(none yet — every batch so far has been investigation-only)*
+### Bug: staff/cashier users show "Platform Admin" as their affiliated store (two surfaces: Users list + Activity Log)
 
-## Open
+**Section:** Users, Activity Log. **Severity:** Medium (data-display
+correctness). **Fix commit:** (batch-b-users-activity, see git log for the
+squashed SHA at merge time).
+
+Root cause confirmed as documented below: `AdminService::getGlobalUsers()`
+and `AdminService::getActivityLogs()` both resolved a user's store via
+`User::store()`/`User::stores()` — "the store(s) this user **owns**"
+(`stores.user_id` = `users.id`) — never via the user's own `users.store_id`
+column ("the store this user is **staff at**"). For any staff-tier user
+(`sales_staff`, `specialist`, etc.), the owns-relations are always empty,
+so both call sites fell through to a `'Platform Admin'` fallback meant only
+for genuinely storeless platform accounts.
+
+**Fix:**
+- Added `User::employerStore()` (`app/Models/User.php`) —
+  `belongsTo(Store::class, 'store_id')` — alongside the existing
+  `store()`/`stores()` ownership relations, plus a
+  `getDisplayStoreAttribute()` accessor (`$user->displayStore`) that
+  prefers the owned store, falls back to the employer store, then null.
+- `AdminService::getGlobalUsers()` and `::getActivityLogs()`
+  (`app/Services/Admin/AdminService.php`) both now resolve `'store'` via
+  `$user->displayStore` instead of the ownership-only relations, and both
+  eager-load `employerStore` alongside `store`/`stores` to avoid N+1s.
+
+**Verified:**
+- PHPUnit (`tests/Feature/Admin/AdminUsersStoreResolutionTest.php`, 5
+  tests, RED before the fix / GREEN after — 3 of 5 failed pre-fix,
+  confirmed by re-running against a git-stashed pre-fix copy of the
+  changed files): a seeded `sales_staff` user with `store_id` set and no
+  owned store now resolves their real employer store's name on both the
+  Users-list and Activity-Log endpoints; a real store owner still resolves
+  their owned store; a user with neither (the `super_admin` fixture) still
+  correctly falls back to `'Platform Admin'`.
+- Live, against the real shared dev backend (both seeded `sales_staff`
+  cashiers, "Pika Store1 Cashier2" and "Pika Store 1 Cashier 1"): Platform
+  Users list and a direct authenticated `admin/activity-logs?search=Cashier`
+  call both now show `"Pikarestiv Stores"` instead of `"Platform Admin"`/
+  `"Platform"`.
+
+### Bug: "Roles" filter on Platform Users list doesn't actually filter
+
+**Section:** Users. **Severity:** Low (dead control, not data corruption).
+
+Root cause confirmed as documented below: `useAdminUsers(page, search)` had
+no `role` parameter and the backend's `getGlobalUsers()` accepted none
+either — `roleFilter` state was set on selection but never reached the
+query in any form.
+
+**Fix:**
+- `AdminService::getGlobalUsers()` now accepts a third `$role` argument
+  and applies `->where('role', $role)` when present.
+- `AdminController::users` reads `role` off the query string and passes it
+  through; documented in the endpoint's OpenAPI annotation.
+- `useAdminUsers(page, search, role)` (`lib/api/admin-hooks-users.ts`) now
+  accepts and forwards `role`.
+- `app/admin/users/page.tsx` maps the dropdown's display labels ("Super
+  Admin"/"Store Owner"/"Specialist") to the backend's raw role slugs
+  (`super_admin`/`store_owner`/`specialist`) and passes the mapped slug
+  into `useAdminUsers`; selecting a role also resets to page 1.
+
+**Verified:**
+- PHPUnit: `roles_filter_narrows_the_global_users_list_to_the_requested_role`
+  in `AdminUsersStoreResolutionTest.php` — unfiltered list returns 3 seeded
+  users, `?role=store_owner` narrows to exactly the 1 owner.
+- Live: direct authenticated `admin/users?role=store_owner` against the
+  real dev backend narrowed 5 users → 2 (both real store owners), matching
+  `role_slug` on every returned row.
+
+### Gap: "Notify All" button on Platform Users is a no-op
+
+**Section:** Users. **Severity:** Low (dead control).
+
+Root cause confirmed as documented below: the button set
+`_isBulkNotifyDialogOpen` but no dialog component in the tree consumed
+that state, so the click produced no visible effect even though a real,
+complete backend route (`POST admin/users/bulk-notify`,
+`AdminController::bulkNotify` → `AdminService::bulkNotify()`) already
+existed — in-app notification + email to every user matching an optional
+`role`/`search` filter, logged to the activity log.
+
+**Fix:** built and wired the missing dialog
+(`components/admin/users/bulk-notify-dialog.tsx`, `BulkNotifyDialog`) to
+the existing route via a new `useBulkNotifyUsersMutation`
+(`lib/api/admin-hooks-users.ts`). It shows the real recipient count (the
+current filtered list's `meta.total`) and forwards the page's current
+`role`/`search` filters as the backend's `filters` param, so "Notify All"
+notifies the currently-filtered set, not unconditionally every user on the
+platform. Renamed `_isBulkNotifyDialogOpen` → `isBulkNotifyDialogOpen`
+now that it's genuinely read.
+
+**Verified:**
+- Backend route re-confirmed live via direct authenticated request:
+  validation errors surface correctly (missing `message`/short `title`
+  → 422), and a real send with a filter matching zero users returns
+  `{"message":"Notification sent to 0 users successfully","count":0}` —
+  exercised without emailing any real seeded account.
+- Live in the browser: clicking "Notify All" now opens "Notify All
+  Filtered Users" showing "Deliver a message to 5 users matching the
+  current search/role filters..." — a real, populated dialog instead of a
+  silent no-op. Not submitted with a real message (would email all 5 real
+  seeded accounts); dialog closed via Discard.
 
 ### Products: `/admin/products` list and pagination are always empty despite a real 200 response and real data
 
-`AdminController::products` (Laravel) returns
-`{"products": {"data": [...], "meta": {...}}, "metrics": {...}, "categories": [...]}`
-— nesting the paginated `data`/`meta` one level under a `products` key. The
-frontend (`app/admin/products/page.tsx`, `AdminProductsResponse` in
-`lib/types/admin.ts`) expects them flat at the top level, matching every
-other admin list endpoint in this app (e.g. `admin/stores`). Result: the
-Global Products table always shows "No products found in the global
-catalog" and the header always reads "Global Catalog: 0 SKUs", regardless
-of the 3,041 real products in the dev DB. Metrics and categories (which are
-already top-level in both response and type) render correctly and are
-unaffected. Confirmed via a direct authenticated `fetch()` from the page's
-own console (`products.data.length === 10`, `response.data === undefined`).
-See `docs/features/superadmin/products.md` for full detail. **Not fixed**
-— out of scope for this investigation-only task.
+**Fix:** `AdminController::products`
+(`laravel-server/app/Http/Controllers/Api/Admin/AdminController.php`) used
+to return `{"products": {"data": [...], "meta": {...}}, "metrics": {...},
+"categories": [...]}`, nesting the paginated `data`/`meta` one level under a
+`products` key while the frontend's `AdminProductsResponse` type
+(`web/lib/types/admin.ts`, `extends PaginatedResponse<T>`) expects them flat
+at the response root, matching every other admin list endpoint (e.g.
+`admin/stores`). Changed the controller to spread `getGlobalProducts()`'s
+`['data' => ..., 'meta' => ...]` result directly into the response root
+alongside the existing `metrics`/`categories` keys — no changes needed to
+`AdminService::getGlobalProducts()` itself, its `data`/`meta` shape was
+already correct, just nested one level too deep by the controller. Also
+updated the two pre-existing `AdminDataAccuracyTest` assertions that read
+`products.data` to read `data` at the root, matching the corrected shape.
+
+**Verified by:** `tests/Feature/Admin/AdminProductsResponseShapeTest.php`
+(`test_products_endpoint_returns_data_and_meta_at_the_response_root`,
+`test_products_endpoint_pagination_meta_reflects_page_size_across_multiple_pages`)
+— RED before the fix (`assertArrayHasKey('data', ...)` failed, `$json['meta']`
+undefined, confirmed by re-running against a git-stashed pre-fix copy of
+the controller), GREEN after, using its own seeded fixture products, not
+the shared dev DB's 3,041 rows. Live-verified: logged in as
+`admin@dumosrx.com` on `http://localhost:3002/admin/products`, table now
+populates real rows, header reads "Global Catalog: 3041 SKUs", and the
+pagination footer renders ("Page 1 of 305") with working Prev/Next.
 
 ### Products: "Stock Flag Rate" metric card renders a bare number where its siblings render a percentage
 
-`AdminService::getProductMetrics()` returns `stockAlerts.rate` as a raw
-number (unlike `mostStockedCategory.growth` and `compliance.rate`, which
-the backend formats as `"N%"` strings). The frontend renders it verbatim
-with no `%` appended, so the "Stock Flag Rate" card shows a bare "71" next
-to two sibling cards correctly showing "-0.5%" and "0.4%". Minor
-formatting inconsistency, not a data-correctness bug. See
-`docs/features/superadmin/products.md`.
+**Fix:** `AdminService::getProductMetrics()`
+(`laravel-server/app/Services/Admin/AdminService.php`) returned
+`stockAlerts.rate` as a raw number, unlike `mostStockedCategory.growth` and
+`compliance.rate`, which are formatted as `"N%"` strings. Formatted
+`stockAlerts.rate` the same way (`.'%'` appended), matching its siblings —
+fixed at the source of the inconsistency rather than patched in the
+frontend, since all three sibling cards already render their value the
+same `value ?? "0%"` way.
+
+**Verified by:**
+`AdminProductsResponseShapeTest::test_stock_flag_rate_metric_is_formatted_as_a_percentage_string_like_its_siblings`
+(asserts `stockAlerts.rate`, `mostStockedCategory.growth`, and
+`compliance.rate` are all string-typed and end in `%`). Live-verified:
+"Stock Flag Rate" card now reads "71%".
 
 ### Products: "PCN Compliance" card always says "Verified" regardless of actual compliance status
 
-The backend computes a real `compliance.status` field (`'Verified'` above
-90%, else `'Action Required'`), but `global-products-metrics.tsx`
-hardcodes the literal word "Verified" in front of the rate instead of
-reading `status`. Live-observed: card reads "Verified 0.4%" while the true
-compliance rate is 0.4% and the backend's own `status` says "Action
-Required" — the opposite of what the card claims. See
-`docs/features/superadmin/products.md`.
+**Fix:** the backend already computed a real `compliance.status` field
+(`'Verified'` above 90%, else `'Action Required'`), but
+`global-products-metrics.tsx` hardcoded the literal word "Verified" in
+front of the rate instead of reading it. Changed the card to render
+`productMetrics?.compliance?.status ?? "Unknown"` followed by the rate, and
+added `status` to the `GlobalProductMetrics` type
+(`web/lib/types/admin.ts`).
+
+**Verified by:**
+`AdminProductsResponseShapeTest::test_compliance_status_reflects_the_real_nafdac_compliant_rate`
+(seeds 1-of-4 NAFDAC-compliant products, asserts the backend returns
+`compliance.status === 'Action Required'` at 25%). Live-verified: card now
+correctly reads "Action Required 0.4%" instead of "Verified 0.4%" for the
+dev DB's real compliance rate.
 
 ### Products: per-row "View Details" / "Edit Product" / "Standardize Entry" actions are non-functional toast stubs
 
-Confirmed via source read (`global-products-table.tsx`): all three dropdown
-actions on each product row call `toast.info(...)`/`toast.success(...)`
-with no API call, no mutation hook, and no navigation behind any of them.
-Could not additionally confirm interactively since the table is always
-empty (see the list/pagination bug above), but the absence of any hook
-wiring in source is unambiguous. See `docs/features/superadmin/products.md`.
+**Fix (judgment call — honest stubs, not fake functionality):** checked
+whether real destinations exist to wire these to. They don't: there is no
+per-product detail/edit page anywhere in `web/app/admin/**`, and the only
+product CRUD endpoints in the backend (`Api/App/ProductController`,
+`routes/api.php`'s `apiResource('products', ...)`) are tenant-scoped
+(`ScopesToTenant`) for a store's own inventory — not reachable or
+appropriate for a platform-wide superadmin view spanning arbitrary stores'
+products — and there's no per-row standardize endpoint (only the existing
+bulk `admin/products/standardize`). Rather than build new admin
+product-detail/edit surfaces (out of scope for a bug-fix batch) or leave
+the toasts silently implying success, changed all three
+`global-products-table.tsx` dropdown actions to honestly say they're not
+yet available (e.g. "Product editing not yet available — there's no admin
+product-edit endpoint yet — this product belongs to a store's own
+inventory"; "Standardize Entry" points the user at the existing
+"Standardize Catalog" bulk action instead).
+
+**Verified by:** live click-through on `http://localhost:3002/admin/products`
+— "View Details" now shows a "Product detail view not yet available" toast
+with the honest description. No PHPUnit coverage (frontend-only, no
+backend involved).
 
 ### Products: "Export Metrics" button is a stub
 
-`handleExportMetrics` in `app/admin/products/page.tsx` is
-`toast.info("Preparing export...")` with no follow-up — no download, no API
-call. Confirmed live. See `docs/features/superadmin/products.md`.
+**Fix (judgment call — implemented a real minimal export):** no backend
+export endpoint exists, but "Export Metrics" is a small, well-defined
+action over data already loaded client-side (`response.metrics` +
+`response.meta.total`), so implemented a real client-side CSV export
+(`handleExportMetrics` in `app/admin/products/page.tsx`) — builds a CSV of
+the currently-displayed metric values and triggers a browser download via
+`Blob`/`URL.createObjectURL`, rather than leaving it as a no-op stub.
+
+**Verified by:** live click on `http://localhost:3002/admin/products` — a
+real `global-product-metrics-<date>.csv` file was downloaded to disk,
+containing all displayed metrics (Global Catalog Total, Most Stocked
+Category + growth, Stock Flag Rate + count, PCN Compliance rate + status),
+success toast shown. No PHPUnit coverage (frontend-only, no backend
+involved).
+
+### Gap: "View Billing History" store action was a client-only stub
+
+**Section:** Stores. **Severity:** Low (known-incomplete feature, not a
+broken wire). **Fix commit:** see git log (batch-c-downloads-billing).
+
+The Store Fleet row action "View Billing History" (`handleViewBilling` in
+`app/admin/stores/page.tsx`) used to only show a `toast.info("Billing
+History", ...)` — it called no API and navigated nowhere. The only
+pre-existing billing-history endpoint,
+`SubscriptionController::billingHistory` (`GET subscription/billing-history`),
+is store-owner self-service, hardcoded to `Auth::id()` — unusable by an
+admin viewing an arbitrary other store.
+
+**Fix:** new admin-scoped endpoint, `GET admin/stores/{id}/billing-history`
+(`AdminController::billingHistory` -> new
+`AdminService::getBillingHistoryForStore()`), reusing the identical
+`PaymentTransaction` query but scoped to the requested store's owner
+(`Store::user_id`) instead of the authenticated user, gated by the same
+`super_admin` check every other AdminController endpoint uses; 404s for a
+nonexistent store. `handleViewBilling` now opens a new
+`BillingHistoryDialog` (`components/admin/stores/store-dialogs.tsx`,
+modeled on the existing `BulkNotifyDialog` pattern) backed by a new
+`useAdminStoreBillingHistory(storeId)` hook.
+
+**Verified:**
+- PHPUnit (`tests/Feature/Admin/AdminStoreBillingHistoryTest.php`, 4 tests,
+  RED before the fix / GREEN after — confirmed by re-running against a
+  git-stashed pre-fix copy of the changed backend files, which 404'd since
+  the route didn't exist yet): super_admin can fetch any store's billing
+  history; non-super_admin gets 403; nonexistent store 404s; a store with
+  no transactions returns an empty list, not an error.
+- Live: clicked "View Billing History" on "Pikarestiv Stores" against the
+  real dev backend — network tab confirmed a real
+  `GET admin/stores/{id}/billing-history` → **200**; dialog correctly
+  showed "Payment transactions for Pikarestiv Stores." followed by an
+  honest "No billing transactions found for this store." (this dev DB's
+  `PaymentTransaction` table genuinely has no rows for this store's owner).
+
+## Open
 
 ### Products: "Standardize Catalog" is a real, unscoped, platform-wide mutation — deliberately not exercised
 
@@ -185,104 +376,6 @@ expect — unlike Products, there is no `data`/`meta` nesting mismatch here.
 Live/DB cross-checks all agreed (0 coupons, 0 referred users, 0 referral
 credit transactions, matching what each screen would show). See
 `docs/features/superadmin/marketing.md`.
-
-### Bug: staff/cashier users show "Platform Admin" as their affiliated store
-
-**Section:** Users. **Severity:** Medium (data-display correctness, not a
-security or data-loss issue).
-
-Both `sales_staff` users on the shared dev backend ("Pika Store1 Cashier2",
-"Pika Store 1 Cashier 1") show **Parent Store: Platform Admin** in the
-Platform Users list and **Affiliated Store: Platform Admin** in their
-detail-profile dialog, despite both having a real `users.store_id` pointing
-at "Pikarestiv Stores" (confirmed via `php artisan tinker`).
-
-**Root cause:** `AdminService::getGlobalUsers()`
-(`laravel-server/app/Services/Admin/AdminService.php` line 710) does
-`'store' => $user->store ? $user->store->name : 'Platform Admin'`, where
-`$user->store` is `User::store()` (`app/Models/User.php` line 90), a
-`hasOne(Store::class)` with the default (unspecified) foreign key — Laravel
-infers `stores.user_id`, i.e. "the store this user **owns**," the same
-relationship as the existing `User::stores()` (`hasMany`, explicit
-`user_id`), not "the store this user's own `store_id` column points at."
-For store owners this happens to resolve correctly (they own a store with
-`user_id` = their own ID); for any staff-tier user (cashier, specialist,
-etc.) it always returns `null`, regardless of their real `store_id`,
-because no `stores` row has `user_id` equal to a staff member's ID. The
-`'Platform Admin'` fallback — meant for users with genuinely no store at
-all (e.g. the super_admin account) — then mislabels real store staff as
-platform-level admins.
-
-**Evidence:**
-```
-$ php artisan tinker --execute="App\Models\User::where('role','sales_staff')->get(['id','first_name','last_name','store_id'])->each(...)"
-0f5d616a-d790-4825-82b5-6a5e107fc37a | Pika Store1 Cashier2 | store_id=8f3c150c-53ca-456d-a008-b5571ee3f6fe
-ed26d57d-ffd9-430b-a669-28b607496d9d | Pika Store 1 Cashier 1 | store_id=8f3c150c-53ca-456d-a008-b5571ee3f6fe
-
-$ php artisan tinker --execute="App\Models\Store::all(['id','name'])->each(...)"
-8f3c150c-53ca-456d-a008-b5571ee3f6fe | Pikarestiv Stores   ← real store, not "Platform Admin"
-```
-Confirmed live in the browser: both rows and both dialogs display "Platform
-Admin"; the store-owner row ("Pika Restiv") on the same list correctly
-shows "Pikarestiv Stores 2".
-
-**Suggested fix scope** (not implemented — investigation only): resolve the
-`'store'` field via `$user->store_id` (a direct `find()`/`belongsTo` lookup
-against `Store`) instead of the `store()` relation, which should probably
-be renamed or left alone but not reused for this purpose. Full detail in
-`docs/features/superadmin/users.md`.
-
-### Bug: "Roles" filter on Platform Users list doesn't actually filter
-
-**Section:** Users. **Severity:** Low (UX / dead control, not data
-corruption).
-
-The Users list's "Roles" dropdown (All Roles / Super Admin / Store Owner /
-Specialist) updates its own trigger-button label when a role is selected,
-but the underlying table never changes. `useAdminUsers(page, search)`
-(`lib/api/admin-hooks-users.ts`) has no `role` parameter, and
-`app/admin/users/page.tsx`'s `roleFilter` state is never passed into the
-hook or used to client-side-filter `userList` — it's dead state connected
-to nothing. Confirmed by selecting "Super Admin" while the list showed
-mixed roles (store owners, sales staff) and observing zero change in the
-rendered rows.
-
-Not fixed — logged for a follow-up: either wire `roleFilter` into the
-`admin/users` query (mirroring how Stores' status/plan filters already
-work) or client-side filter `userList`, and add the backend query param if
-choosing the former.
-
-### Gap: "Notify All" button on Platform Users is a no-op
-
-**Section:** Users. **Severity:** Low (dead control).
-
-`app/admin/users/page.tsx` sets `_isBulkNotifyDialogOpen` (note the
-underscore prefix, a convention this codebase uses elsewhere for
-intentionally-unused values) via `setIsBulkNotifyDialogOpen(true)` when
-"Notify All" is clicked, but no dialog component in the rendered tree reads
-that state — there is no `BulkNotifyDialog` (or equivalent) mounted
-anywhere on the page. Clicking the button produces no visible effect at
-all. The backend route this presumably should call already exists and looks
-complete (`POST admin/users/bulk-notify`,
-`AdminController::bulkNotify`) — this is a frontend gap (missing dialog
-wiring), not a backend gap.
-
-Not fixed — logged for a follow-up: build/wire the missing bulk-notify
-dialog, or remove the dead button if bulk notify is deliberately
-deprioritized.
-
-### Gap: "View Billing History" store action is a client-only stub
-
-**Section:** Stores. **Severity:** Low (known-incomplete feature, not a
-broken wire).
-
-The Store Fleet row action "View Billing History" (`handleViewBilling` in
-`app/admin/stores/page.tsx`) only shows a `toast.info("Billing History",
-...)` — it calls no API and navigates nowhere. Distinct from a
-wrong-endpoint bug: there's no endpoint call attempted at all, so nothing is
-silently failing. Logged for visibility since a superadmin clicking this
-expecting real billing history data would see only a toast that "Fetching
-billing records for {store}..." and then nothing further happens.
 
 ### Confirmed, not a bug: "Active Users" stat (4) vs. total user count (5)
 
@@ -349,28 +442,6 @@ against `first_name`, `last_name`, `email`, `id` — never a concatenated
 single column. Logged as a UX gap (a superadmin typing a full display name
 from the table will get zero results) rather than a bug, since the
 underlying columns and endpoint are working exactly as coded.
-
-### Bug: Activity Log's Store column also shows "Platform" for staff/cashier users (same root cause as the Users-page bug, second surface)
-
-**Section:** Activity. **Severity:** Medium (data-display correctness).
-
-Batch: Activity/System. Live-observed on `/admin/activity`: a `LOGIN` row
-for "Pika Store 1 Cashier 1" (a real `sales_staff` user with
-`store_id` = `8f3c150c-53ca-456d-a008-b5571ee3f6fe`, i.e. "Pikarestiv
-Stores" — same user already documented in the Users-section bug above)
-shows **Store: "Platform"** instead of the real store name, while every
-other row (all from the store-owner account) correctly shows "Pikarestiv
-Stores 2". Root cause is identical to the already-logged Users bug, just a
-second call site: `AdminService::getActivityLogs()`
-(`laravel-server/app/Services/Admin/AdminService.php:733`) resolves
-`$log->user?->store ?? $log->user?->stores?->first()`, and both
-`User::store()` (`hasOne`, default-inferred `stores.user_id` FK) and
-`User::stores()` (`hasMany`, explicit `user_id`) mean "stores this user
-**owns**," not "the store this user's own `store_id` column points at" —
-so both are always empty for any staff-tier user regardless of their real
-`store_id`. Not fixed — investigation only. Same suggested fix as the
-Users bug (resolve via `$user->store_id` directly). Full detail in
-`docs/features/superadmin/activity.md`.
 
 ### Gap: Activity Log has 4 documented, working backend filter params with no UI control
 
@@ -443,8 +514,15 @@ Aborted(Error: [unenv] fs.readFileSync is not implemented yet!)`), of
 which only the newest 50 are ever visible; the remaining 2,884 have no way
 to be reached through this page. The "All/Pending/Resolved" status filter
 tabs work correctly but don't help here since virtually all 2,934 tickets
-are `pending`. Not fixed — investigation only. Full detail in
-`docs/features/superadmin/communications.md`.
+are `pending`. Full detail in `docs/features/superadmin/communications.md`.
+
+**Fixed** (commit `8d53bbd9`): `FeedbackController::index` now returns a
+`{data, meta: {current_page, last_page, total}}` envelope matching every
+other admin list endpoint (it previously returned Laravel's raw paginator
+shape, which nothing on the frontend read). `useAdminFeedback` takes a
+`page` param and `FeedbackTab` now has Prev/Next controls that only render
+when `last_page > 1`. Covered by
+`tests/Feature/Admin/AdminFeedbackPaginationTest.php`.
 
 ### Confirmed, not a bug: Communications' Broadcasts and Feedback actions are correctly wired; Email Campaigns deliberately not live-tested (real send risk)
 
@@ -465,39 +543,54 @@ seeded users include a real personal address
 (validation, queueing logic, response contract all check out). Full
 detail in `docs/features/superadmin/communications.md`.
 
-### Bug: Downloads page's Linux/Android "Coming Soon" state is dead code — always renders as available regardless of real asset existence
+### RESOLVED: Downloads page's Linux/Android "Coming Soon" state was dead code; per-platform size text was hardcoded empty
 
 **Section:** Downloads. **Severity:** Low-Medium (could hand a real
-superadmin/tester a Download button pointing at a 404).
+superadmin/tester a Download button pointing at a 404 — or, as later
+investigation found, the entire "Coming Soon" branch was silently
+unreachable regardless of real CDN state either way). **Fix commit:** see
+git log (batch-c-downloads-billing).
 
-`app/admin/downloads/page.tsx` computes `linuxAssetExists =
-!!currentLinks.linux` (same for Android) to decide between an enabled
-"Download" button and a disabled "Coming Soon"/"Unavailable" card. But
-`useLatestRelease()` (`lib/api/release-hooks.ts`) always constructs
-`currentLinks.linux`/`.android` as a non-empty template-string URL,
-regardless of whether that file actually exists on the CDN or whether the
-`updater.json` fetch even succeeded — so `!!currentLinks.linux` is always
-`true` and the "Coming Soon" branch is unreachable in practice.
-Live-confirmed via `read_page`: both Linux and Android cards rendered live
-"Download" buttons with real-looking CDN URLs
-(`https://downloads.dumosrx.com/v0.0.35/DumosRx_0.0.35_amd64.AppImage`,
-`.../DumosRx-Android.apk`) even though this dev environment's CDN request
-(`GET https://downloads.dumosrx.com/updater.json`) returned a live 503.
-Not fixed — investigation only (no Download links were clicked, per this
-task's scope of avoiding real external/production actions with unverified
-consequences). Full detail in `docs/features/superadmin/downloads.md`.
+Root cause confirmed as documented below: `useLatestRelease()`
+(`lib/api/release-hooks.ts`) always constructed `currentLinks.linux`/
+`.android` as a non-empty template-string URL and hardcoded all four
+`*Size` fields to `""`, regardless of real CDN state, so
+`app/admin/downloads/page.tsx`'s `!!currentLinks.linux` gating was always
+`true` and the "Coming Soon" branch was unreachable.
 
-### Minor: Downloads page's per-platform "size" text is hardcoded to empty in every code path
+Live investigation surfaced two deeper findings that shaped the fix: (1)
+`downloads.dumosrx.com` sends no CORS headers at all, so a browser-side
+`fetch()` from this app's origin to the CDN — including the
+previously-shipped `updater.json` call — always fails with a CORS network
+error, confirmed live; the previous "graceful 503 fallback" behavior seen
+in the original survey was actually always hitting the catch branch, just
+via a different underlying cause. (2) this app is a fully static export
+(`output: "export"` in `next.config.ts`, FTP-deployed, no Node server in
+production), which rules out a same-origin Next.js proxy route as a fix.
 
-**Section:** Downloads.
+**Fix:** moved the cross-origin manifest/existence/size check to the
+existing Laravel backend (`GET admin/downloads/manifest`,
+`AdminController::downloadsManifest`), which HEAD-probes each platform's
+conventional CDN URL server-side (no CORS) via `Http::pool()`, since
+`updater.json`'s own `platforms` key only lists Tauri's auto-update target
+(currently just `darwin-aarch64`) and isn't a reliable existence signal for
+the full raw-installer set. `useLatestRelease()` now calls this backend
+endpoint instead of the CDN directly; Linux/Android URLs are only populated
+when confirmed to exist, finally making the existing "Coming Soon" gating
+meaningful; sizes are real, formatted `Content-Length` values (e.g. "81.3
+MB"), with an "Unknown size" fallback if a HEAD probe ever succeeds without
+a readable Content-Length (not currently exercised — live CDN state has
+real sizes for all four platforms today).
 
-`useLatestRelease()`'s success-path return object sets `winSize`/
-`macSize`/`linuxSize`/`androidSize` to literal `""` unconditionally — not
-derived from `updater.json`'s response even when that fetch succeeds. The
-page's `defaultLinks` fallback (`"---"`) is dead code since `links` is
-never falsy. Net effect: the size line under each install-format label is
-always blank, regardless of environment. Full detail in
-`docs/features/superadmin/downloads.md`.
+**Verified live** (`http://localhost:3002/admin/downloads`, real CDN,
+2026-09-04): all four platforms are genuinely available right now (all
+four conventional URLs independently re-confirmed via `curl -I` to return
+200 with real `Content-Length`), and the page correctly renders all four
+as real, working "Download" buttons (not "Coming Soon") with their real
+sizes — Windows "10.6 MB", macOS "10.8 MB", Linux "81.3 MB", Android "96.1
+MB". No PHPUnit coverage for the new endpoint (depends entirely on live
+external CDN state, not something a deterministic backend test should
+assert against). Full detail in `docs/features/superadmin/downloads.md`.
 
 ### Bug: superadmin's Impersonate action defaults to the real production domain (`app.dumosrx.com`) with no in-panel way to override, in any dev session that skipped the login page's Server Config
 
@@ -588,9 +681,12 @@ admin/referral-code/check?code=pikarestiv`, no `user_id` param, → `{
 available: false }`). Effect: the only way to successfully use this
 feature is to change to a code that's never been used by this account
 before; simply re-confirming or lightly editing (e.g. casing) the existing
-code always fails. Not fixed — investigation only. Suggested fix: pass
-`user?.id` into `checkReferralCode` at the `handleSave` call site. Full
-detail in `docs/features/superadmin/referrals.md`.
+code always fails. Full detail in `docs/features/superadmin/referrals.md`.
+
+**Fixed** (commit `8d53bbd9`): `page.tsx`'s `handleSave` now passes
+`user?.id` into `checkReferralCode`, exactly the suggested fix — the
+backend's self-exclusion support was already correct and needed no
+change. Covered by `tests/Feature/Admin/ReferralCodeSelfCheckTest.php`.
 
 ### Confirmed, not a bug: Referrals page's store-name resolution happens to be correct, sharing the same root cause as an already-logged bug elsewhere
 
@@ -622,10 +718,23 @@ identical code path and would fail identically. No working path exists in
 this UI to return to the "Disabled" state once any value has ever been
 saved. Recovered the shared dev backend's state directly via `php artisan
 tinker` (`SystemConfig::setVal('smartsupp_key', '')`) after confirming the
-bug, since the UI path is provably broken. Not fixed — investigation
-only. Suggested fix: relax the backend validation for this key (e.g.
-`present` instead of `required`) or have the frontend send an explicit
-"clear" sentinel. Full detail in `docs/features/superadmin/settings.md`.
+bug, since the UI path is provably broken. Full detail in
+`docs/features/superadmin/settings.md`.
+
+**Fixed** (commit `8d53bbd9`), and turned out to be two bugs stacked, not
+one: relaxing validation from `required` to `present` alone wasn't
+sufficient — Laravel's `ConvertEmptyStringsToNull` middleware turns the
+frontend's `value: ""` into PHP `null` before validation even runs, and
+`SystemConfig::setVal()` then tried to save that `null` into a column the
+original migration made `NOT NULL`, which would have turned the 422 into
+a 500 instead of actually fixing anything. Caught by
+`tests/Feature/Admin/SystemConfigDisableTest.php` failing against the
+first-pass fix. Added a second migration
+(`2026_09_04_000000_make_system_configs_value_nullable`) making
+`system_configs.value` nullable, applied to the shared dev MySQL database
+directly (`php artisan migrate --database=mysql --force`) and verified via
+`php artisan tinker` that clearing a key now persists a real `NULL`, not
+just a not-technically-tested green checkmark.
 
 ### Bug: Settings → Billing & Plans tier `limits`/`features` UI schema doesn't match what's actually stored, on two separate axes (blank field live; unmanageable real feature flags; phantom UI-only feature flags)
 
@@ -654,6 +763,24 @@ backend PHP code reading them as gates at all. A save (never actually
 performed, to avoid corrupting the shared dev backend's real pricing
 config) would write a garbage `sync_interval: NaN` into every tier and
 leave the real `theme_customizer`/`mobile_access`/`store_url`/
-`basic_inventory` flags permanently unmanageable through this UI. Not
-fixed — investigation only. Full detail in
-`docs/features/superadmin/settings.md`.
+`basic_inventory` flags permanently unmanageable through this UI. Full
+detail in `docs/features/superadmin/settings.md`.
+
+**Partially addressed, still open** (commit `8d53bbd9`): added a
+`remove_branding` toggle to the Feature Gates list — it's a real,
+currently-enforced client gate (`canRemoveBranding` in
+`use-feature-gate.ts`) that had no admin-facing control at all, under
+either the old or new key schema, so adding it is a pure improvement with
+no downside. This does **not** fix the underlying schema-drift bug
+described above. That needs a deliberate decision this task's scope
+doesn't cover: pick one canonical key schema (the admin UI's newer
+`sync_interval`/`mobile_app`/`custom_branding`-style keys, since
+`use-feature-gate.ts`'s `getFeature(key, altKey, fallback)` already checks
+the new key before falling back to the legacy one — so the *client* side
+is already forward-compatible), then actually migrate the live
+`subscription_plans` system-config row from the legacy
+`inventories`/`mobile_access`/`theme_customizer`/`store_url` keys to it,
+and remove the now-genuinely-dead legacy-only keys
+(`broadcast_create`/`loyalty_program`/`barcode_generation` per the
+investigation above) or confirm/add real backend enforcement for them
+first. Still flagged open pending that decision.

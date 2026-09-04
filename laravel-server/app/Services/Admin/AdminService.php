@@ -4,10 +4,12 @@ namespace App\Services\Admin;
 
 use App\Mail\AdminNotification;
 use App\Models\ActivityLog;
+use App\Models\PaymentTransaction;
 use App\Models\Product;
 use App\Models\Role;
 use App\Models\Sale;
 use App\Models\Store;
+use App\Models\Subscription;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -235,6 +237,53 @@ class AdminService
         ];
     }
 
+    /**
+     * Admin-scoped equivalent of SubscriptionController::billingHistory,
+     * which is store-owner-self-service (scoped to Auth::id(), the
+     * currently-authenticated user's own subscriptions/transactions) and
+     * therefore unusable by a superadmin viewing an arbitrary other store.
+     * Same underlying PaymentTransaction query, but scoped to the given
+     * store's owner (Store::user_id — "the user who owns this store",
+     * distinct from staff assigned via users.store_id) instead of the
+     * authenticated user.
+     *
+     * Returns null if no store with this id exists, so the controller can
+     * 404 instead of silently returning an empty transaction list.
+     */
+    public function getBillingHistoryForStore(string $storeId): ?array
+    {
+        $store = Store::find($storeId);
+        if (!$store) {
+            return null;
+        }
+
+        $ownerId = $store->user_id;
+
+        $subscriptionIds = Subscription::where('user_id', $ownerId)->pluck('id');
+
+        $transactions = PaymentTransaction::whereIn('subscription_id', $subscriptionIds)
+            ->orWhere('metadata->user_id', $ownerId)
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($txn) {
+                return [
+                    'id' => $txn->id,
+                    'date' => $txn->created_at->format('M j, Y'),
+                    'desc' => ($txn->metadata['plan_name'] ?? 'Subscription') . ' Plan',
+                    'amount' => '₦' . number_format($txn->amount, 0),
+                    'status' => ucfirst($txn->status),
+                    'reference' => $txn->provider_reference,
+                    'receipt_url' => $txn->metadata['verification_data']['receipt_url'] ?? null,
+                ];
+            });
+
+        return [
+            'store_id' => $store->id,
+            'store_name' => $store->name,
+            'transactions' => $transactions,
+        ];
+    }
+
     public function getStores($page = 1, $search = null, $status = null, $plan = null)
     {
         // Correlated subquery instead of a plain withSum('sales', ...), for
@@ -439,7 +488,7 @@ class AdminService
             ],
             'stockAlerts' => [
                 'count' => $lowStockCount,
-                'rate' => $totalProducts > 0 ? round(($lowStockCount / $totalProducts) * 100, 1) : 0,
+                'rate' => ($totalProducts > 0 ? round(($lowStockCount / $totalProducts) * 100, 1) : 0).'%',
             ],
             'compliance' => [
                 'rate' => $complianceRate.'%',
@@ -678,7 +727,7 @@ class AdminService
             ]);
     }
 
-    public function getGlobalUsers($page = 1, $search = null)
+    public function getGlobalUsers($page = 1, $search = null, $role = null)
     {
         $query = User::query();
 
@@ -691,7 +740,11 @@ class AdminService
             });
         }
 
-        $paginator = $query->with('store')->latest()->paginate(10, ['*'], 'page', $page);
+        if ($role) {
+            $query->where('role', $role);
+        }
+
+        $paginator = $query->with(['store', 'employerStore'])->latest()->paginate(10, ['*'], 'page', $page);
 
         return [
             'data' => collect($paginator->items())->map(function ($user) {
@@ -707,7 +760,7 @@ class AdminService
                     // 'Admin'), silently breaking role-gated UI for every
                     // admin-role user. Logic should key off this, not text.
                     'role_slug' => $user->role,
-                    'store' => $user->store ? $user->store->name : 'Platform Admin',
+                    'store' => $user->displayStore ? $user->displayStore->name : 'Platform Admin',
                     'lastActive' => $user->last_login_at ? $user->last_login_at->diffForHumans() : 'Never',
                     'status' => $user->is_active ? 'Active' : 'Inactive',
                     'joinedAt' => $user->created_at->format('M d, Y'),
@@ -732,7 +785,7 @@ class AdminService
      */
     public function getActivityLogs($page = 1, $search = null, $action = null, $storeId = null, $userId = null, $dateFrom = null, $dateTo = null)
     {
-        $query = ActivityLog::with(['user.store', 'user.stores'])
+        $query = ActivityLog::with(['user.store', 'user.stores', 'user.employerStore'])
             ->where('action', '!=', 'CLIENT_API_ERROR');
 
         if ($search) {
@@ -775,7 +828,7 @@ class AdminService
 
         return [
             'data' => collect($paginator->items())->map(function (ActivityLog $log) {
-                $store = $log->user?->store ?? $log->user?->stores?->first();
+                $store = $log->user?->displayStore ?? $log->user?->stores?->first();
                 return [
                     'id' => $log->id,
                     'action' => $log->action,

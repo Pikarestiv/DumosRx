@@ -88,6 +88,7 @@ class FeedbackController extends Controller
     public function index(Request $request): JsonResponse
     {
         $status = $request->query('status');
+        $page = (int) $request->query('page', 1);
 
         $query = Feedback::query()->where('_deleted', false);
 
@@ -95,9 +96,16 @@ class FeedbackController extends Controller
             $query->where('status', $status);
         }
 
-        $feedback = $query->orderBy('created_at', 'desc')->paginate(50);
+        $paginator = $query->orderBy('created_at', 'desc')->paginate(50, ['*'], 'page', $page);
 
-        return response()->json($feedback);
+        return response()->json([
+            'data' => $paginator->items(),
+            'meta' => [
+                'current_page' => $paginator->currentPage(),
+                'last_page' => $paginator->lastPage(),
+                'total' => $paginator->total(),
+            ],
+        ]);
     }
 
     #[OA\Post(

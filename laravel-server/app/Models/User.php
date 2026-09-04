@@ -97,6 +97,34 @@ class User extends Authenticatable
         return $this->hasMany(Store::class, 'user_id');
     }
 
+    /**
+     * The store this user works AT as staff (users.store_id), as opposed
+     * to store()/stores() above which resolve the store(s) this user
+     * OWNS (stores.user_id pointing back at them). A store owner's own
+     * store_id column is never set to their own store (see Store::sales()
+     * doc block and StaffController::store), so this relation is null for
+     * owners even though store()/stores() cover that case; the two are
+     * complementary, not overlapping.
+     */
+    public function employerStore()
+    {
+        return $this->belongsTo(Store::class, 'store_id');
+    }
+
+    /**
+     * The store name to display for this user: the store they OWN if
+     * they own one, else the store they're STAFF AT if they have one,
+     * else 'Platform Admin' for genuine platform-level users with no
+     * store affiliation at all. Shared by AdminService::getGlobalUsers()
+     * and ::getActivityLogs() so the "staff show as Platform Admin" bug
+     * (users.store_id vs. the ownership-only store()/stores() relations)
+     * isn't fixed in one place and left broken in the other.
+     */
+    public function getDisplayStoreAttribute()
+    {
+        return $this->store ?? $this->employerStore;
+    }
+
     public function subscriptions()
     {
         return $this->hasMany(Subscription::class);

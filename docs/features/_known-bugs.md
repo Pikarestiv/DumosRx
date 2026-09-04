@@ -394,31 +394,24 @@ Status values: **Open** (not started) → **In Progress** → **Fixed**.
 
 ## 11. Sync-engine version conflict resolution silently loses data on the most common two-device conflict shape
 
-- **Status:** In Progress — round 2 (`491a5aae`, `ee686296`) correctly fixed
-  all 4 issues an independent round-1 review found, but the round-2
-  re-review found the narrowed `stock_batches` exemption is defeated in
-  production by a separate, pre-existing line (`push.ts`'s
-  `batch_number: "Opening Stock"` default, meant for legacy queued INSERTs)
-  that runs on every `stock_batches` change including ordinary quantity-only
-  sale UPDATEs — so the "strip payload to nothing → exempt" check never
-  actually finds an empty payload, and multi-terminal concurrent sales hit
-  the exact false `version_conflict` alarm the exemption exists to prevent.
-  Actual stock quantity is unaffected (still commutative-delta based via
-  `stock_movements`), but real batch numbers get clobbered with the
-  placeholder on every accepted UPDATE, and false conflict toasts fire on
-  ordinary sales. Also found: retry-backoff timing can still split a
-  same-record edit pair across two sync attempts, bypassing coalescing (a
-  narrower residual version of the round-1 Critical finding). Round 3
-  dispatched to fix both.
+- **Status:** Fixed (`491a5aae` round 1, `ee686296` round 2,
+  `bf336ad7` round 3). Round 2's re-review found the narrowed
+  `stock_batches` exemption was defeated in production by a separate,
+  pre-existing line (`push.ts`'s `batch_number: "Opening Stock"` default,
+  meant for legacy queued INSERTs) that ran on every `stock_batches` change
+  including ordinary quantity-only sale UPDATEs, and that retry-backoff
+  timing could still split a same-record edit pair across two sync
+  attempts, bypassing coalescing. Both fixed in round 3 — see below.
   Below (unchanged, still accurate): decoupled the local-edit counter from
   the server conflict-detection value, made the server the sole authority
   for `_version`, made every rejection (version- or timestamp-based) reach
   the client via `failed` instead of some paths staying silent, and — added
   in round 2 — coalesced same-record queued edits so they can't falsely
-  collide with each other, narrowed the `stock_batches` exemption (now
-  known to be inert in production, see above), closed an unguarded
-  SQL-interpolation path, and reworded the conflict toast to not claim an
-  unverifiable cause.
+  collide with each other, narrowed the `stock_batches` exemption (made
+  actually effective in round 3, see below — round 2's narrowing logic was
+  correct but a separate line elsewhere in the same file was defeating it),
+  closed an unguarded SQL-interpolation path, and reworded the conflict
+  toast to not claim an unverifiable cause.
   **Round 1:** `client/lib/db/base-helpers.ts`'s `update()` now
   sends/stores the row's UNCHANGED base `_version` instead of incrementing
   it locally. `SyncController::push`'s UPDATE branch now requires strict
@@ -481,9 +474,70 @@ Status values: **Open** (not started) → **In Progress** → **Fixed**.
      necessarily another device. Reworded to state what happened without
      naming an unverifiable cause: "…could not be saved because the record
      changed since this edit — the server's current version was kept."
-  See `### 24.` in `_findings-log.md` for full round-1 detail and `### 25.`
-  for the round-2 review findings and fixes, including the RED/GREEN test
-  evidence on both sides for all of the above.
+  **Round 3 (second re-review findings, both fixed):**
+  1. *(Important)* The narrowed `stock_batches` exemption from round 2 was
+     defeated in production by a pre-existing, untouched line in
+     `push.ts`: `if (!item.payload.batch_number) { item.payload.batch_number
+     = "Opening Stock"; }`, meant only for legacy queued INSERTs from
+     before a NOT NULL constraint existed, but running unconditionally for
+     EVERY `stock_batches` change. A real quantity-only sale UPDATE (see
+     `updateStockBatchQuantity()`/`deductFromBatch()` in
+     `lib/db/queries/inventory.ts`, `restoreBatchQuantity()` in
+     `lib/db/queries/returns.ts`) queues a payload of just `{quantity,
+     updated_at, _version, _synced}` — no `batch_number` at all — so this
+     line silently injected the placeholder into it. Round 2's exemption
+     only fires when the payload is provably empty after stripping
+     `quantity`/bookkeeping fields; with `batch_number` always present, it
+     was never actually empty, so the exemption never fired — reintroducing
+     the exact false `version_conflict` on ordinary multi-terminal sales the
+     exemption exists to prevent. Worse: on an ACCEPTED UPDATE this
+     placeholder reached the server's `forceFill($payload)` and silently
+     overwrote the batch's real, already-correct `batch_number` on every
+     ordinary sale/cost-correction/return-restock UPDATE. Fixed: gated to
+     `item.operation === "INSERT"` only, matching the line's own stated,
+     INSERT-specific rationale — a legacy queued INSERT genuinely needs some
+     non-null value to satisfy the NOT NULL column, and there's no
+     pre-existing real `batch_number` on the server for an INSERT to
+     clobber. Verified the original protection (patching a stale queued
+     legacy INSERT's null `batch_number`) still works after the gate.
+  2. *(Important)* Retry-backoff timing could still split a same-record
+     edit pair across two sync attempts even with round 2's coalescing:
+     `getPendingSyncItems()` (for a background, non-manual sync) only
+     returns rows currently due per `next_retry_at`. If edit A on a record
+     failed retryably and entered backoff while edit B for the SAME record
+     was queued afterward, the next background sync would see only B (A
+     still backed off), coalesce/push it alone, get it accepted with a
+     version bump — then when A later came due on its own, it would collide
+     against that bump with a stale base version, a false `version_conflict`
+     silently dropping A's fields. A narrower variant of round 2's Critical
+     finding (needs a specific retry-timing sequence, not just two ordinary
+     sequential edits). Fixed: a new
+     `withheldRecordsWithBackedOffSiblingsRemoved()` runs before coalescing
+     (background syncs only — a manual sync already bypasses backoff
+     entirely and sees every row for a record together) and holds back
+     EVERY currently-due UPDATE for a record that has ANY sibling UPDATE row
+     still backed off in `_sync_queue`, rather than letting the due one race
+     ahead alone; the whole group pushes together, correctly coalesced,
+     once every row for that record is due.
+  See `### 24.` in `_findings-log.md` for full round-1 detail, `### 25.` for
+  round 2, and `### 26.` for round 3's findings and fixes, including the
+  RED/GREEN test evidence for all of the above.
+  **Round 3 re-review (final, clean):** both round-3 findings independently
+  hand-traced and confirmed fixed against the exact real payload shapes and
+  timing sequences; the "server needs no change" claim verified directly
+  against `SyncController.php` (unchanged, already correct once the client
+  stopped injecting the placeholder); no new Critical/Important breakage.
+  Three non-blocking Low notes for future reference, not fixed here: (a)
+  `withheldRecordsWithBackedOffSiblingsRemoved()` issues one `COUNT(*)`
+  query per distinct held-back record sequentially — cheap on web/sql.js,
+  would be worth collapsing into a single query if this ever runs under
+  Tauri with a large offline backlog; (b) a DELETE can still overtake a
+  held-back UPDATE for the same record — harmless since `_deleted` is
+  stripped from UPDATE payloads, so a later UPDATE can't un-delete a row;
+  (c) a fully-held-back sync cycle returns success with `pushed: 0` and no
+  distinct signal that edits are waiting — an intentional correctness-over-
+  immediacy trade, but worth knowing about if sync-status UI is ever built
+  to surface "N changes pending" more precisely.
 - **Found:** live push-vs-push conflict test on "Pikarestiv Stores 2"
   (2026-09-04) — see `docs/features/backup-restore.md`'s "Sync-engine
   version-conflict test" section for the full walkthrough, exact values,

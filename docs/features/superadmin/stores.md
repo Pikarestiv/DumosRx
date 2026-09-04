@@ -75,12 +75,41 @@ backend's own `super_admin`-only middleware for the destructive ones):
   exercised live** — this crosses into the already-fully-smoke-tested
   `client/` app and would leave the admin session in a different app
   entirely; out of this task's scope (superadmin panel only).
-- **View Billing History** → currently a client-only stub
-  (`handleViewBilling` just shows a `toast.info("Billing History", ...)`
-  with no navigation or API call). Not a bug in the sense of hitting a wrong
-  endpoint — it hits no endpoint at all, which is consistent with it being
-  a known-incomplete feature rather than a wired-but-broken one. Logged in
-  the findings log for visibility.
+- **View Billing History** → **RESOLVED** (batch-c-downloads-billing).
+  Was a client-only stub (`handleViewBilling` just showed a
+  `toast.info("Billing History", ...)` with no navigation or API call).
+  Fix: a new admin-scoped endpoint, `GET admin/stores/{id}/billing-history`
+  (`AdminController::billingHistory` -> new
+  `AdminService::getBillingHistoryForStore()`), reusing the identical
+  `PaymentTransaction` query `SubscriptionController::billingHistory` already
+  uses for a store owner's own self-service billing history, but scoped to
+  the requested store's owner (`Store::user_id`) instead of `Auth::id()` —
+  the existing endpoint is unusable for this because it's hardcoded to the
+  currently-authenticated user, not an arbitrary store an admin is viewing.
+  Gated by the same `super_admin` role check every other AdminController
+  endpoint uses; 404s for a nonexistent store id. Frontend:
+  `handleViewBilling` now opens a new `BillingHistoryDialog`
+  (`components/admin/stores/store-dialogs.tsx`), modeled on the existing
+  `BulkNotifyDialog` pattern (Users batch), backed by a new
+  `useAdminStoreBillingHistory(storeId)` hook
+  (`lib/api/admin-hooks-stores.ts`) — shows a real transaction list or an
+  honest "No billing transactions found for this store" empty state (not a
+  fabricated placeholder).
+
+  **Verified:** PHPUnit
+  (`tests/Feature/Admin/AdminStoreBillingHistoryTest.php`, 4 tests, RED
+  before the fix / GREEN after — confirmed by re-running against a
+  git-stashed pre-fix copy of the controller/service/routes, which 404'd
+  since the route didn't exist yet): super_admin can fetch any store's
+  billing history; a non-super_admin caller gets 403; a nonexistent store id
+  404s; a store with no transactions returns an empty list, not an error.
+  Live: clicked "View Billing History" on "Pikarestiv Stores" in the real
+  dev browser — network tab confirmed a real
+  `GET admin/stores/{id}/billing-history` → **200**, dialog correctly
+  rendered "Payment transactions for Pikarestiv Stores." followed by "No
+  billing transactions found for this store." (this dev DB's real
+  `PaymentTransaction` table has no rows for this store's owner — an honest
+  result, not a stub).
 - **System Logs** → routes to `/admin/system?search={store.id}`. **Not
   exercised** (Activity Log / System section is out of this batch's scope;
   covered by a later batch per the task's 15-section split).

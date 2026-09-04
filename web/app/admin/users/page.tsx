@@ -26,6 +26,7 @@ import {
   useDeactivateUserMutation,
   useResetUserPasswordMutation,
   useNotifyUserMutation,
+  useBulkNotifyUsersMutation,
   useDeleteUserMutation,
   useReactivateUserMutation,
   useGrantUserTrialMutation,
@@ -44,7 +45,17 @@ import { DeleteUserDialog } from "@/components/admin/users/delete-user-dialog";
 import { UserTable } from "@/components/admin/users/user-table";
 import { SharedGrantTrialDialog } from "@/components/admin/shared-grant-trial-dialog";
 import { UserPagination } from "@/components/admin/users/user-pagination";
+import { BulkNotifyDialog } from "@/components/admin/users/bulk-notify-dialog";
 import type { AdminUser } from "@/lib/types/admin";
+
+// Maps the filter dropdown's display labels to the backend's raw `role`
+// slugs (AdminService::getGlobalUsers's `role` query param does an exact
+// match against the `users.role` column, not the humanized label).
+const ROLE_FILTER_SLUGS: Record<string, string> = {
+  "Super Admin": "super_admin",
+  "Store Owner": "store_owner",
+  Specialist: "specialist",
+};
 
 function GlobalUsersDirectoryContent() {
   const router = useRouter();
@@ -67,7 +78,7 @@ function GlobalUsersDirectoryContent() {
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
   const [isNotifyDialogOpen, setIsNotifyDialogOpen] = useState(false);
-  const [_isBulkNotifyDialogOpen, setIsBulkNotifyDialogOpen] = useState(false);
+  const [isBulkNotifyDialogOpen, setIsBulkNotifyDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isTrialDialogOpen, setIsTrialDialogOpen] = useState(false);
 
@@ -78,13 +89,14 @@ function GlobalUsersDirectoryContent() {
     isLoading,
     error,
     refetch,
-  } = useAdminUsers(page, debouncedSearch);
+  } = useAdminUsers(page, debouncedSearch, roleFilter ? ROLE_FILTER_SLUGS[roleFilter] || "" : "");
   const deactivateMutation = useDeactivateUserMutation();
   const reactivateMutation = useReactivateUserMutation();
   const resetPasswordMutation = useResetUserPasswordMutation();
   const notifyMutation = useNotifyUserMutation();
   const deleteMutation = useDeleteUserMutation();
   const grantTrialMutation = useGrantUserTrialMutation();
+  const bulkNotifyMutation = useBulkNotifyUsersMutation();
 
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= (response?.meta?.last_page || 1)) {
@@ -215,25 +227,25 @@ function GlobalUsersDirectoryContent() {
                   </DropdownMenuLabel>
                   <DropdownMenuItem
                     className="rounded-xl px-3 py-2 cursor-pointer font-bold"
-                    onClick={() => setRoleFilter(null)}
+                    onClick={() => { setRoleFilter(null); setPage(1); }}
                   >
                     All Roles
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     className="rounded-xl px-3 py-2 cursor-pointer font-bold"
-                    onClick={() => setRoleFilter("Super Admin")}
+                    onClick={() => { setRoleFilter("Super Admin"); setPage(1); }}
                   >
                     Super Admin
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     className="rounded-xl px-3 py-2 cursor-pointer font-bold"
-                    onClick={() => setRoleFilter("Store Owner")}
+                    onClick={() => { setRoleFilter("Store Owner"); setPage(1); }}
                   >
                     Store Owner
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     className="rounded-xl px-3 py-2 cursor-pointer font-bold"
-                    onClick={() => setRoleFilter("Specialist")}
+                    onClick={() => { setRoleFilter("Specialist"); setPage(1); }}
                   >
                     Specialist
                   </DropdownMenuItem>
@@ -329,6 +341,17 @@ function GlobalUsersDirectoryContent() {
         targetName={selectedUser?.name}
         onConfirm={handleGrantTrial}
         isPending={grantTrialMutation.isPending}
+      />
+
+      <BulkNotifyDialog
+        isOpen={isBulkNotifyDialogOpen}
+        onOpenChange={setIsBulkNotifyDialogOpen}
+        recipientCount={userMeta?.total || 0}
+        filters={{
+          role: roleFilter ? ROLE_FILTER_SLUGS[roleFilter] : undefined,
+          search: debouncedSearch || undefined,
+        }}
+        bulkNotifyMutation={bulkNotifyMutation}
       />
     </div>
   );

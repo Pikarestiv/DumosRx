@@ -234,7 +234,7 @@ class AdminDataAccuracyTest extends TestCase
 
         $response->assertStatus(200);
 
-        $productRow = collect($response->json('products.data'))->firstWhere('id', $product->id);
+        $productRow = collect($response->json('data'))->firstWhere('id', $product->id);
         $this->assertNotNull($productRow);
         $this->assertSame('₦750.50', $productRow['avgPrice']);
     }

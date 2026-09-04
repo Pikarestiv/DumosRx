@@ -1,12 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { webApiClient } from "./client";
 import { useScopedKey } from "./query-scope";
-import type { EmailTemplatesResponse, FeedbackItem } from "@/lib/types/admin";
+import type { EmailTemplatesResponse, FeedbackResponse } from "@/lib/types/admin";
 
-export const useAdminFeedback = (status: string = "all") => {
+export const useAdminFeedback = (status: string = "all", page: number = 1) => {
   return useQuery({
-    queryKey: useScopedKey(["admin-feedback", status]),
-    queryFn: () => webApiClient.getFeedback(status) as Promise<{ data: FeedbackItem[] }>,
+    queryKey: useScopedKey(["admin-feedback", status, page]),
+    queryFn: () => webApiClient.getFeedback(status, page) as Promise<FeedbackResponse>,
   });
 };
 

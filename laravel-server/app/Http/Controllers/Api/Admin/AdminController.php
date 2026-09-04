@@ -7,6 +7,7 @@ use App\Models\ActivityLog;
 use App\Models\Product;
 use App\Services\Admin\AdminService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Laravel\Sanctum\PersonalAccessToken;
 use OpenApi\Attributes as OA;
@@ -155,8 +156,9 @@ class AdminController extends Controller
             new OA\Parameter(name: 'category', in: 'query', schema: new OA\Schema(type: 'string')),
         ],
         responses: [
-            new OA\Response(response: 200, description: 'Products + metrics + distinct generic-name categories', content: new OA\JsonContent(properties: [
-                new OA\Property(property: 'products', type: 'object'),
+            new OA\Response(response: 200, description: 'Paginated products (flat `data`/`meta`, matching every other admin list endpoint) + metrics + distinct generic-name categories', content: new OA\JsonContent(properties: [
+                new OA\Property(property: 'data', type: 'array', items: new OA\Items(type: 'object')),
+                new OA\Property(property: 'meta', type: 'object'),
                 new OA\Property(property: 'metrics', type: 'object'),
                 new OA\Property(property: 'categories', type: 'array', items: new OA\Items(type: 'string')),
             ])),
@@ -172,9 +174,11 @@ class AdminController extends Controller
         $page = $request->get('page', 1);
         $search = $request->get('search');
         $category = $request->get('category');
-        
+
+        $products = $this->adminService->getGlobalProducts($page, $search, $category);
+
         return response()->json([
-            'products' => $this->adminService->getGlobalProducts($page, $search, $category),
+            ...$products,
             'metrics' => $this->adminService->getProductMetrics(),
             'categories' => Product::select('generic_name')
                 ->whereNotNull('generic_name')
@@ -262,6 +266,119 @@ class AdminController extends Controller
     }
 
     #[OA\Get(
+        path: '/admin/stores/{id}/billing-history',
+        summary: "Admin-scoped billing/payment-transaction history for an arbitrary store's owner",
+        tags: ['Admin'],
+        security: [['sanctum' => []]],
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'string')),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Billing history', content: new OA\JsonContent(type: 'object')),
+            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Non-super_admin'),
+            new OA\Response(response: 404, description: 'Store not found'),
+        ],
+    )]
+    public function billingHistory(Request $request, string $id)
+    {
+        if (!$request->user()->hasRole('super_admin')) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        try {
+            $data = $this->adminService->getBillingHistoryForStore($id);
+            if ($data === null) {
+                return response()->json(['error' => 'Store not found'], 404);
+            }
+            return response()->json($data);
+        } catch (\Exception $e) {
+            Log::error("Admin Billing History Error: " . $e->getMessage());
+            return response()->json(['error' => 'Failed to fetch billing history'], 500);
+        }
+    }
+
+    #[OA\Get(
+        path: '/admin/downloads/manifest',
+        summary: 'Real per-platform desktop/mobile binary availability + size, probed live against the downloads CDN',
+        tags: ['Admin'],
+        security: [['sanctum' => []]],
+        responses: [
+            new OA\Response(response: 200, description: 'Manifest', content: new OA\JsonContent(type: 'object')),
+            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Non-super_admin'),
+        ],
+    )]
+    public function downloadsManifest(Request $request)
+    {
+        if (!$request->user()->hasRole('super_admin')) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        // downloads.dumosrx.com sends no Access-Control-Allow-Origin header on
+        // updater.json or the binaries themselves, so the superadmin panel
+        // (a statically-exported Next.js app with no server runtime of its
+        // own in production) can never read them via a browser-side fetch —
+        // confirmed live: fetch() always rejects with a CORS network error,
+        // even on a 200 response. This backend endpoint does the real
+        // cross-origin work server-side (no browser, no CORS) and reports
+        // back real existence + Content-Length per platform.
+        //
+        // updater.json's own `platforms` key only lists Tauri auto-update
+        // targets (currently just darwin-aarch64) — not the full set of raw
+        // installers actually uploaded to the CDN, so it's used here only to
+        // read the current version string. Per-platform existence is
+        // determined by directly HEAD-probing each platform's conventional
+        // per-version URL, which is the complete, authoritative signal.
+        $base = 'https://downloads.dumosrx.com';
+        // Fallback version if updater.json is unreachable — mirrors the
+        // frontend's own hardcoded APP_VERSION constant (web/lib/constants.ts).
+        $version = '0.0.35';
+
+        try {
+            $manifestResponse = Http::timeout(5)->get("{$base}/updater.json");
+            if ($manifestResponse->successful() && $manifestResponse->json('version')) {
+                $version = ltrim((string) $manifestResponse->json('version'), 'v');
+            }
+        } catch (\Exception $e) {
+            Log::warning('Admin Downloads Manifest: failed to fetch updater.json, using fallback version: ' . $e->getMessage());
+        }
+
+        $urls = [
+            'windows' => "{$base}/v{$version}/DumosRx_{$version}_x64_en-US.msi",
+            'macos' => "{$base}/v{$version}/DumosRx_{$version}_aarch64.dmg",
+            'linux' => "{$base}/v{$version}/DumosRx_{$version}_amd64.AppImage",
+            'android' => "{$base}/v{$version}/DumosRx-Android.apk",
+        ];
+
+        $platforms = [];
+        try {
+            $responses = Http::pool(fn ($pool) => collect($urls)->map(
+                fn (string $url, string $platform) => $pool->as($platform)->timeout(5)->head($url)
+            )->all());
+
+            foreach ($urls as $platform => $url) {
+                $response = $responses[$platform] ?? null;
+                $exists = $response instanceof \Illuminate\Http\Client\Response && $response->successful();
+                $sizeBytes = $exists ? (int) $response->header('Content-Length') ?: null : null;
+                $platforms[$platform] = [
+                    'url' => $url,
+                    'exists' => $exists,
+                    'sizeBytes' => $sizeBytes,
+                ];
+            }
+        } catch (\Exception $e) {
+            Log::warning('Admin Downloads Manifest: failed to probe platform binaries: ' . $e->getMessage());
+            foreach ($urls as $platform => $url) {
+                $platforms[$platform] = ['url' => $url, 'exists' => false, 'sizeBytes' => null];
+            }
+        }
+
+        return response()->json([
+            'version' => "v{$version}",
+            'platforms' => $platforms,
+        ]);
+    }
+
+    #[OA\Get(
         path: '/admin/users',
         summary: 'List/search users platform-wide',
         tags: ['Admin'],
@@ -269,6 +386,7 @@ class AdminController extends Controller
         parameters: [
             new OA\Parameter(name: 'page', in: 'query', schema: new OA\Schema(type: 'integer', default: 1)),
             new OA\Parameter(name: 'search', in: 'query', schema: new OA\Schema(type: 'string')),
+            new OA\Parameter(name: 'role', in: 'query', description: 'Filter by exact role slug (e.g. super_admin, store_owner, specialist, sales_staff)', schema: new OA\Schema(type: 'string')),
         ],
         responses: [
             new OA\Response(response: 200, description: 'Users', content: new OA\JsonContent(type: 'object')),
@@ -285,7 +403,8 @@ class AdminController extends Controller
         try {
             $page = $request->query('page', 1);
             $search = $request->query('search');
-            $data = $this->adminService->getGlobalUsers($page, $search);
+            $role = $request->query('role');
+            $data = $this->adminService->getGlobalUsers($page, $search, $role);
             return response()->json($data);
         } catch (\Exception $e) {
             Log::error("Admin Users Error: " . $e->getMessage());

@@ -3,7 +3,7 @@ import { apiClient } from "@/lib/api/client";
 import { PushResponse } from "./types";
 import type { SyncChange, SyncQueueItem } from "@/lib/types/sync";
 import { remapForeignKey, DUPLICATE_NAME_TABLES } from "../reconcile-identity";
-import { execute, transaction } from "../core";
+import { execute, query, transaction } from "../core";
 import { toast } from "sonner";
 
 // Reasons the server can report in `response.failed` that mean "this exact
@@ -149,13 +149,68 @@ function coalescePendingUpdates(pending: SyncQueueItem[]): {
 }
 
 /**
+ * Removes every currently-due UPDATE entry from `pending` whose record
+ * (table_name + record_id) has ANY sibling UPDATE row still sitting in
+ * `_sync_queue` under backoff (next_retry_at in the future) — see the call
+ * site's doc comment for why letting a due row race ahead of a not-yet-due
+ * sibling for the same record reintroduces a narrower version of the
+ * coalescing bug. INSERT/DELETE entries are never held back — same
+ * rationale as coalescePendingUpdates() not touching them.
+ *
+ * One query per distinct (table_name, record_id) key found among
+ * `pending`'s UPDATE entries — acceptable here: this is a correctness-
+ * critical path, not a hot loop, and matches this codebase's existing
+ * precedent of per-record queries elsewhere in the sync path (e.g.
+ * assertStoreOwnership in base-helpers.ts).
+ */
+async function withheldRecordsWithBackedOffSiblingsRemoved(
+  pending: SyncQueueItem[],
+): Promise<SyncQueueItem[]> {
+  const dueCountByKey = new Map<string, number>();
+  for (const item of pending) {
+    if (item.operation !== "UPDATE") continue;
+    const key = `${item.table_name}::${item.record_id}`;
+    dueCountByKey.set(key, (dueCountByKey.get(key) ?? 0) + 1);
+  }
+
+  if (dueCountByKey.size === 0) return pending;
+
+  const heldBackKeys = new Set<string>();
+  for (const [key, dueCount] of dueCountByKey) {
+    const separatorIndex = key.indexOf("::");
+    const tableName = key.slice(0, separatorIndex);
+    const recordId = key.slice(separatorIndex + 2);
+
+    const totalRows = await query<{ total: number }>(
+      `SELECT COUNT(*) as total FROM _sync_queue WHERE table_name = ? AND record_id = ? AND operation = 'UPDATE'`,
+      [tableName, recordId],
+    );
+    const totalCount = totalRows[0]?.total ?? 0;
+
+    // More rows exist for this record than are currently due: at least one
+    // sibling UPDATE is still backed off. Hold back every due row for this
+    // record too, rather than letting them push ahead alone this cycle.
+    if (totalCount > dueCount) {
+      heldBackKeys.add(key);
+    }
+  }
+
+  if (heldBackKeys.size === 0) return pending;
+
+  return pending.filter((item) => {
+    if (item.operation !== "UPDATE") return true;
+    return !heldBackKeys.has(`${item.table_name}::${item.record_id}`);
+  });
+}
+
+/**
  * Push local changes to server
  */
 export async function pushChanges(
   isManual: boolean = false,
   isSetup: boolean = false
 ): Promise<{ pushed: number; failedBatches: number }> {
-  const pending = await getPendingSyncItems(isManual);
+  let pending = await getPendingSyncItems(isManual);
 
   if (pending.length === 0) return { pushed: 0, failedBatches: 0 };
 
@@ -169,6 +224,28 @@ export async function pushChanges(
   // resolved (created or remapped) before anything in a later batch can
   // reference them.
   pending.sort((a, b) => (a.table_name === "categories" ? -1 : b.table_name === "categories" ? 1 : 0));
+
+  // Retry-backoff can otherwise still split a same-record edit pair even
+  // with coalescePendingUpdates() below: getPendingSyncItems() (unless
+  // `isManual`, which bypasses backoff entirely) only returns rows that are
+  // currently due, per next_retry_at. If edit A for a record failed
+  // retryably earlier and is still backed off while edit B for the SAME
+  // record is due, a background sync would only ever see B here — pushing
+  // it alone, getting it accepted, and bumping the server version. When A
+  // later comes due on its own (in some future sync), it now collides
+  // against that bump with a stale base version: a false version_conflict
+  // that silently drops A's fields, a narrower variant (needs a specific
+  // retry-timing sequence, not just two ordinary sequential edits) of the
+  // same bug coalescing already fixes for the "both due at once" case.
+  // Guarded here rather than in coalescePendingUpdates() itself, since it
+  // needs to see the FULL _sync_queue (including not-yet-due rows), not
+  // just what getPendingSyncItems() already filtered down to. A manual sync
+  // (isManual) already bypasses backoff and sees every row for a record
+  // together in `pending`, so this is a no-op for that path.
+  if (!isManual) {
+    pending = await withheldRecordsWithBackedOffSiblingsRemoved(pending);
+    if (pending.length === 0) return { pushed: 0, failedBatches: 0 };
+  }
 
   // See coalescePendingUpdates()'s doc comment: folds multiple pending
   // UPDATEs for the same record into one merged change so they can't freeze
@@ -273,13 +350,32 @@ export async function pushChanges(
           if (item.payload && "selling_price" in item.payload) {
             delete item.payload.selling_price;
           }
-          // Any batch created before product-import.ts stopped writing
+          // Any batch INSERT created before product-import.ts stopped writing
           // batch_number: null still carries that literal null in its frozen
           // _sync_queue payload snapshot — a client code fix alone can't
           // rewrite data already queued. The server's batch_number column is
           // NOT NULL (unlike the local SQLite schema), so this keeps failing
           // forever on retry otherwise.
-          if (!item.payload.batch_number) {
+          //
+          // Gated to INSERT specifically (not UPDATE) for two reasons found
+          // in review: (1) a real quantity-only UPDATE payload — the normal
+          // multi-terminal-sale shape from updateStockBatchQuantity() etc. in
+          // lib/db/queries/inventory.ts — never includes batch_number at all,
+          // so applying this unconditionally injected a bogus "Opening Stock"
+          // into it, defeating SyncController::push's narrowed stock_batches
+          // version-conflict exemption (which only fires when the payload is
+          // provably quantity-only — a payload that's never actually empty
+          // can never qualify) and reintroducing the false-conflict
+          // regression that exemption exists to prevent. (2) worse, on an
+          // ACCEPTED UPDATE this placeholder reaches the server's
+          // `forceFill($payload)` and silently overwrites the batch's real,
+          // already-correct batch_number in the database on every ordinary
+          // sale/cost-correction/return-restock UPDATE. Neither problem is
+          // possible for an INSERT: a legacy queued INSERT genuinely needs
+          // *some* non-null value to satisfy the server's NOT NULL column,
+          // and there's no pre-existing real batch_number on the server yet
+          // for it to clobber.
+          if (item.operation === "INSERT" && !item.payload.batch_number) {
             item.payload.batch_number = "Opening Stock";
           }
         }

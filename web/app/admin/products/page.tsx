@@ -61,7 +61,49 @@ export default function GlobalProductsManagement() {
   };
 
   const handleExportMetrics = () => {
-    toast.info("Preparing export...");
+    const metrics = response?.metrics;
+    if (!metrics) {
+      toast.error("Nothing to export yet", {
+        description: "Metrics haven't loaded.",
+      });
+      return;
+    }
+
+    const rows: [string, string | number][] = [
+      ["Global Catalog Total (SKUs)", productMeta?.total ?? 0],
+      ["Most Stocked Category", metrics.mostStockedCategory?.name ?? "N/A"],
+      [
+        "Most Stocked Category Growth",
+        metrics.mostStockedCategory?.growth ?? "0%",
+      ],
+      ["Stock Flag Rate", metrics.stockAlerts?.rate ?? "0%"],
+      ["Stock Flag Critical Alerts", metrics.stockAlerts?.count ?? 0],
+      ["PCN Compliance Rate", metrics.compliance?.rate ?? "0%"],
+      ["PCN Compliance Status", metrics.compliance?.status ?? "Unknown"],
+    ];
+
+    const csv = [
+      ["Metric", "Value"],
+      ...rows.map(([label, value]) => [label, String(value)]),
+    ]
+      .map((row) =>
+        row.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(","),
+      )
+      .join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `global-product-metrics-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+
+    toast.success("Metrics exported", {
+      description: "Downloaded as CSV.",
+    });
   };
 
   const handleStandardize = async () => {

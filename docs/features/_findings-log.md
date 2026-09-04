@@ -2225,3 +2225,124 @@ rather than fixed in this pass.
   client and server, plus a full clean run of both complete test suites
   (server: 97/247; client: 79 files/411 tests + clean `tsc`) after all
   round-2 fixes landed together.
+
+### 26. `_known-bugs.md` #11, round 3 — second re-review caught the round-2 fix being defeated by a pre-existing, untouched line, plus a residual retry-timing gap
+
+- **Found:** a second independent deep-review pass (Opus-level) on the
+  `### 25.` round-2 fix. Confirmed all 4 round-1 findings were correctly
+  addressed — the coalescing fix was hand-traced against the real POS
+  balance-then-loyalty-points trigger and confirmed solid across every
+  id-keyed path (success, conflict, batch-exception); the SQL guard and
+  toast wording were also confirmed fixed. But found new breakage: one
+  Important issue that defeats round 2's own narrowed exemption in
+  production, and one Important residual gap in the coalescing fix itself.
+- **Important #1 — the narrowed `stock_batches` exemption was defeated by a
+  pre-existing line neither round touched.** `client/lib/db/sync-engine/push.ts`
+  has always had (since before this whole bug's fix effort began) a
+  fallback around its `stock_batches`-specific payload cleanup:
+  ```ts
+  if (!item.payload.batch_number) {
+    item.payload.batch_number = "Opening Stock";
+  }
+  ```
+  Its stated purpose (own comment) was patching a stale, frozen
+  `_sync_queue` payload from before `product-import.ts` stopped writing
+  `batch_number: null` on new batch INSERTs — a NOT NULL column on the
+  server, so an old queued INSERT missing it would fail forever on retry
+  otherwise. But it ran unconditionally for EVERY `stock_batches` change,
+  operation-blind. Round 2's exemption logic (`SyncController::push`)
+  strips `quantity` + bookkeeping fields from the payload and only exempts
+  the change from the strict version check if NOTHING remains — provably
+  quantity-only. A real quantity-only sale UPDATE
+  (`updateStockBatchQuantity()`/`deductFromBatch()` in
+  `lib/db/queries/inventory.ts`, `restoreBatchQuantity()` in
+  `lib/db/queries/returns.ts`) queues a payload of exactly `{quantity,
+  updated_at, _version, _synced}` — no `batch_number` key at all. With this
+  line injecting `batch_number: "Opening Stock"` into that payload before
+  it ever reaches the server, the payload was never actually empty after
+  stripping, so the exemption's own emptiness check never fired — silently
+  reintroducing the exact false `version_conflict` alarm on ordinary
+  multi-terminal concurrent sales that round 2's whole exemption exists to
+  prevent. The round-2 server test
+  (`test_push_sync_exempts_stock_batches_from_version_conflict_check`)
+  didn't catch this because it hand-builds its payload directly (without
+  `batch_number`), a shape the real client never actually produces once
+  this line is in play — the gap was purely in what the client sends, not
+  in the server's own logic, which is why round 2's server-side tests alone
+  couldn't have caught it. **Second, related bug on the same line** (flagged
+  adjacent-but-in-scope by the reviewer, same root cause): this placeholder
+  also reached the server's `forceFill($payload)` on every ACCEPTED
+  `stock_batches` UPDATE — a sale, a cost correction, a return restock —
+  silently overwriting the batch's real, already-correct `batch_number` in
+  the database with the literal string `"Opening Stock"`.
+  - **Fix:** gated the fallback to `item.operation === "INSERT"` only,
+    matching its actual, stated rationale exactly (a NOT NULL column
+    problem specific to legacy queued INSERTs, with nothing to do with
+    UPDATEs at all). Verified the original protection still works: a
+    legacy queued INSERT with a null `batch_number` still gets patched to
+    `"Opening Stock"` (existing test,
+    `push-fixes-stale-null-batch-number.test.ts`'s original case, re-run
+    green after the gate). No server changes needed — the server-side
+    exemption logic itself was already correct; it just never received a
+    payload the client had actually made empty.
+  - **New tests, same file:** confirms an ordinary `stock_batches` UPDATE
+    payload does NOT get `batch_number` injected (`"batch_number" in
+    payload` is `false`, not just `undefined` — proving the key is fully
+    absent, matching what the exemption's `count($meaningfulPayload) === 0`
+    check needs). RED confirmed by reverting `push.ts` to its round-2
+    version and re-running: the new test failed with `batch_number:
+    "Opening Stock"` present in the outgoing UPDATE payload exactly as
+    described; restored round-3 `push.ts`, GREEN.
+- **Important #2 — retry-backoff timing could still split a same-record
+  edit pair, bypassing coalescing.** `getPendingSyncItems()` filters on
+  `next_retry_at` for a background (non-manual) sync — only currently-due
+  rows are returned. Sequence: edit A on a record fails for a retryable
+  reason and enters backoff (`recordSyncFailure` sets `next_retry_at` in
+  the future); edit B is queued for the SAME record before A comes due; the
+  next background sync sees only B (A still backed off), coalesces/pushes
+  it alone (trivially — there's nothing else to coalesce with yet), the
+  server accepts it and bumps the version, the client applies that bump
+  locally; when A later comes due on its own, it now collides against that
+  bump with a stale base version — a false `version_conflict` silently
+  dropping A's fields. A narrower variant of round 2's Critical finding:
+  needs a specific retry-timing sequence (a prior transient failure plus a
+  second edit landing in the gap before the backoff window elapses), not
+  just two ordinary sequential edits.
+  - **Fix:** a new `withheldRecordsWithBackedOffSiblingsRemoved()` in
+    `push.ts`, called right after the existing categories-first sort and
+    before `coalescePendingUpdates()`, but ONLY for a background
+    (non-manual) sync — a manual sync already bypasses backoff entirely via
+    `getPendingSyncItems(ignoreBackoff)`, so every row for a record is
+    already together in `pending` in that case, making this a no-op for
+    manual syncs by construction. For each distinct `(table_name,
+    record_id)` key among the currently-due UPDATE entries, it queries the
+    FULL `_sync_queue` (not filtered by due-ness) for a total row count; if
+    that total exceeds the currently-due count for the same key, at least
+    one sibling UPDATE for that record is still backed off, and every
+    currently-due row for that record is filtered out of `pending` for this
+    cycle entirely — held back as a whole group rather than letting the due
+    row race ahead alone. One query per distinct key, matching this
+    codebase's existing precedent of per-record queries elsewhere in the
+    sync path (e.g. `assertStoreOwnership` in `base-helpers.ts`).
+  - **New test file:**
+    `client/__tests__/push-holds-back-record-with-backed-off-sibling.test.ts`
+    (real sql.js instance) — proves a background sync does NOT push a due
+    edit alone while its sibling for the same record is still backed off
+    (`apiClient.pushChanges` not called at all, both queue rows left
+    untouched), then proves both push together correctly, properly
+    coalesced with neither field lost, once the backed-off sibling's window
+    passes. A second test proves a manual sync is unaffected (already sees
+    both rows together via its own `ignoreBackoff` bypass). RED confirmed
+    against the round-2 `push.ts`: the "does not push alone" assertion
+    failed (`apiClient.pushChanges` WAS called, with only the due edit's
+    fields) exactly as described; restored round-3 `push.ts`, GREEN.
+- **Full-suite verification (round 3):** server-side unaffected (both fixes
+  are client-only) — re-ran anyway: **97 passed, 247 assertions**, unchanged
+  from round 2. Client: **80 files, 414 tests, all green** (up from round
+  2's 79/411 — 1 new file/2 new tests, 2 new tests added to the existing
+  `batch_number` test file). `npx tsc --noEmit -p .` clean.
+- **Verified by:** RED → GREEN for both new findings' regression tests
+  (confirmed via reverting `push.ts` to its exact round-2 committed version,
+  re-running just the new/affected tests, then restoring the round-3 fix),
+  plus a full clean run of both complete test suites after the round-3 fix
+  landed.

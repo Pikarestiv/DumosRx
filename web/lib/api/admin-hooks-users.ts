@@ -3,10 +3,13 @@ import { webApiClient } from "./client";
 import { useScopedKey } from "./query-scope";
 import type { AdminUser, PaginatedResponse, PlatformReferrals } from "@/lib/types/admin";
 
-export const useAdminUsers = (page = 1, search = "") => {
+export const useAdminUsers = (page = 1, search = "", role = "") => {
   return useQuery({
-    queryKey: useScopedKey(["admin-users", page, search]),
-    queryFn: () => webApiClient.request<PaginatedResponse<AdminUser>>(`admin/users?page=${page}${search ? `&search=${search}` : ""}`),
+    queryKey: useScopedKey(["admin-users", page, search, role]),
+    queryFn: () =>
+      webApiClient.request<PaginatedResponse<AdminUser>>(
+        `admin/users?page=${page}${search ? `&search=${search}` : ""}${role ? `&role=${role}` : ""}`
+      ),
   });
 };
 
@@ -104,5 +107,12 @@ export const useResetUserPasswordMutation = () => {
 export const useNotifyUserMutation = () => {
   return useMutation({
     mutationFn: ({ id, payload }: { id: string; payload: Record<string, unknown> }) => webApiClient.post(`/admin/users/${id}/notify`, payload),
+  });
+};
+
+export const useBulkNotifyUsersMutation = () => {
+  return useMutation({
+    mutationFn: (payload: { title: string; message: string; filters?: Record<string, unknown> }) =>
+      webApiClient.post("/admin/users/bulk-notify", payload) as Promise<{ message: string; count: number }>,
   });
 };

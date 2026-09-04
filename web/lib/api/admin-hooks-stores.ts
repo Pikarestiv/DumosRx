@@ -8,6 +8,7 @@ import type {
   AdminProductsResponse,
   PaginatedResponse,
   AdminStoreSummary,
+  AdminStoreBillingHistory,
 } from "@/lib/types/admin";
 
 export const useAdminSummary = (options?: { enabled?: boolean }) => {
@@ -23,6 +24,22 @@ export const useAdminStores = (page = 1, search = "", status = "", plan = "") =>
   return useQuery({
     queryKey: useScopedKey(["admin-stores", page, search, status, plan]),
     queryFn: () => webApiClient.request<PaginatedResponse<AdminStoreSummary>>(`admin/stores?page=${page}${search ? `&search=${search}` : ""}${status ? `&status=${status}` : ""}${plan ? `&plan=${plan}` : ""}`),
+  });
+};
+
+// Admin-scoped equivalent of the store-owner-self-service
+// `subscription/billing-history` endpoint, which is unusable here since it's
+// scoped to the currently-authenticated user, not an arbitrary store an
+// admin is viewing. See AdminController::billingHistory /
+// AdminService::getBillingHistoryForStore.
+export const useAdminStoreBillingHistory = (storeId: string | null) => {
+  return useQuery({
+    queryKey: useScopedKey(["admin-store-billing-history", storeId]),
+    queryFn: () =>
+      webApiClient.request<AdminStoreBillingHistory>(
+        `admin/stores/${storeId}/billing-history`,
+      ),
+    enabled: !!storeId,
   });
 };
 

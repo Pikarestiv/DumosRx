@@ -33,6 +33,22 @@ export interface AdminStoreSummary {
   account_manager_is_explicit?: boolean;
 }
 
+export interface AdminBillingTransaction {
+  id: string;
+  date: string;
+  desc: string;
+  amount: string;
+  status: string;
+  reference: string | null;
+  receipt_url: string | null;
+}
+
+export interface AdminStoreBillingHistory {
+  store_id: string;
+  store_name: string;
+  transactions: AdminBillingTransaction[];
+}
+
 export interface SecurityAlert {
   title: string;
   source: string;
@@ -122,7 +138,7 @@ export interface GlobalProductSummary {
 export interface GlobalProductMetrics {
   mostStockedCategory?: { name: string; growth?: string };
   stockAlerts?: { rate?: string; count?: number };
-  compliance?: { rate?: string };
+  compliance?: { rate?: string; status?: "Verified" | "Action Required" | string };
 }
 
 export interface AdminProductsResponse extends PaginatedResponse<GlobalProductSummary> {
@@ -153,6 +169,7 @@ export interface TierFeatures {
   ecommerce: boolean;
   smart_pos: boolean;
   custom_branding: boolean;
+  remove_branding: boolean;
   broadcast_create: boolean;
   auto_backup: boolean;
   multi_store: boolean;
@@ -260,6 +277,8 @@ export interface FeedbackItem {
   created_at: string;
   user_id?: string;
 }
+
+export type FeedbackResponse = PaginatedResponse<FeedbackItem>;
 
 export interface ActivityLog {
   id: string;

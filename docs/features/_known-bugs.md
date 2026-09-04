@@ -394,57 +394,81 @@ Status values: **Open** (not started) → **In Progress** → **Fixed**.
 
 ## 11. Sync-engine version conflict resolution silently loses data on the most common two-device conflict shape
 
-- **Status:** In Progress — first fix round found Critical/Important issues in
-  review, sent back for a second round. See progress notes below.
-- **Fix round 1 review (Opus):** confirmed the original two-device bug is
-  genuinely fixed and the `stock_batches` multi-terminal exemption works as
-  intended — but found the fix introduces a NEW, single-device regression:
-  the client no longer increments `_version` locally (by design, to fix the
-  original bug), but `_sync_queue` never coalesces multiple pending UPDATEs
-  to the same record — so two sequential edits to one row before any sync
-  (e.g. one POS credit-sale flow updating `customers.outstanding_balance`
-  then `customers.loyalty_points` on the same customer) now collide with
-  each other: the second queued edit computes the identical frozen
-  `_version` as the first, gets rejected as a false `version_conflict` once
-  the first is accepted, and is silently dropped with a misleading "another
-  device" toast. Also found: the `stock_batches` version-check exemption is
-  broader than necessary (skips ALL fields, not just `quantity` — a genuine
-  two-manager conflict on `cost_price`/`expiry_date`/`batch_number` on the
-  same batch would now silently last-write-win with zero detection); an
-  unguarded server-supplied table name interpolated into raw SQL in the
-  client's version-sync-back loop (no table whitelist, unlike the adjacent
-  `id_map` loop); and toast wording that asserts an unverifiable cause
-  ("another device") for what could be a same-device or legacy-timestamp
-  rejection. Full detail in the review transcript; fix round 2 in progress.
-- **Status (superseded, kept for history):** Fixed (`491a5aae`) — decoupled the local-edit
-  counter from the server conflict-detection value, made the server the
-  sole authority for `_version`, and made every rejection (version- or
-  timestamp-based) reach the client via `failed` instead of some paths
-  staying silent. `client/lib/db/base-helpers.ts`'s `update()` now
+- **Status:** Fixed (`491a5aae` fix round 1, `ee686296` fix round
+  2) — decoupled the local-edit counter from the server conflict-detection
+  value, made the server the sole authority for `_version`, made every
+  rejection (version- or timestamp-based) reach the client via `failed`
+  instead of some paths staying silent, and — added in round 2, after an
+  independent review caught a real single-device regression the round-1 fix
+  introduced — coalesced same-record queued edits so they can't falsely
+  collide with each other, narrowed the `stock_batches` exemption to only
+  the field it actually protects, closed an unguarded SQL-interpolation
+  path, and reworded the conflict toast to not claim an unverifiable cause.
+  **Round 1:** `client/lib/db/base-helpers.ts`'s `update()` now
   sends/stores the row's UNCHANGED base `_version` instead of incrementing
   it locally. `SyncController::push`'s UPDATE branch now requires strict
   `payloadVersion === modelVersion` to accept (not merely "not older"); on
   acceptance the server assigns `modelVersion + 1` itself, never trusting
   the payload's `_version`; on a real mismatch it logs and appends a
-  `version_conflict` entry to `$failed` and rejects. `stock_batches` is
-  deliberately exempt from this check: its only version-sensitive field
-  (`quantity`) is already stripped from this UPDATE path and derived
-  separately from commutative `stock_movements` deltas that have no version
-  check of their own — multiple terminals concurrently selling from the
-  same batch is normal, everyday operation, and applying the strict check
-  there would have rejected completely correct concurrent sales as
-  false-alarm conflicts. The push response gained a new `versions` field
-  (server-assigned new version per accepted UPDATE, grouped by table like
-  the existing `id_map`); the client applies it to the local row
-  immediately so its next edit isn't based on a stale pre-push version.
-  Client-side, a `version_conflict` (or `stale_timestamp`) failure is no
-  longer routed through the generic retry/backoff path (which could never
-  succeed — the base version doesn't change by retrying); the queue item is
-  dropped and a toast surfaces the conflict to the user, following the same
-  "loud, not silent" precedent as item #10's post-restore notice. See
-  `### 24.` in `_findings-log.md` for full detail, including the
-  commutative-write exemption's reasoning and the RED/GREEN test evidence
-  on both sides.
+  `version_conflict` entry to `$failed` and rejects. The push response
+  gained a new `versions` field (server-assigned new version per accepted
+  UPDATE, grouped by table like the existing `id_map`); the client applies
+  it to the local row immediately so its next edit isn't based on a stale
+  pre-push version. A `version_conflict`/`stale_timestamp` failure is
+  dropped from the queue rather than retried (retrying can never fix a
+  permanently-stale base version) and surfaces a toast.
+  **Round 2 (review findings, all fixed):**
+  1. *(Critical)* Round 1's client fix, correct in isolation, combined with
+     `_sync_queue` never coalescing multiple pending UPDATEs for the same
+     record to produce a NEW single-device regression: two ordinary
+     sequential edits to one row before any sync (e.g. one POS credit-sale
+     flow's `update("customers", id, {outstanding_balance})` immediately
+     followed by `update("customers", id, {loyalty_points})` on the same
+     customer, in `use-pos-payment.ts`) queued two rows that both froze the
+     identical base `_version`, so the second collided with the first's own
+     server-side bump and was rejected as a false `version_conflict`,
+     silently dropping a real, non-conflicting edit with a misleading
+     "another device" toast. Fixed: `push.ts` now coalesces every pending
+     UPDATE for the same `(table_name, record_id)` into ONE change before
+     any batch is built — later field values win over earlier ones, the
+     merged payload carries the EARLIEST entry's `_version` (the true base
+     the whole local edit chain started from), and every underlying queue
+     row folded into the merge is tracked so success, ordinary-failure, and
+     conflict handling all act on the full group together (one toast per
+     conflicted record, not one per underlying edit).
+  2. *(Important)* The `stock_batches` exemption was broader than it needed
+     to be — it skipped version-checking for the WHOLE table, but only
+     `quantity` is actually stripped/recomputed server-side; a real flow
+     (the stock-audit cost correction, `lib/db/queries/inventory.ts`'s
+     `reconcileStockAudit`, ~line 518) edits `cost_price` directly, and two
+     managers concurrently correcting the same batch's cost/expiry data
+     would have silently last-write-won with zero conflict detection.
+     Fixed: the exemption now only applies when the payload — after
+     stripping `quantity` and the usual bookkeeping/derived fields
+     (including `user_id`, which this same controller auto-injects into
+     every `stock_batches` payload regardless of what the client sent) — has
+     no other meaningful fields left. A quantity-only push (the real,
+     everyday multi-terminal-sale shape) is still exempt; a push touching
+     `cost_price` or any other real column now goes through the normal
+     strict-equality check like any other table.
+  3. *(Important)* `push.ts`'s loop applying `response.versions` interpolated
+     a server-supplied table name straight into
+     `UPDATE ${table} SET _version = ? WHERE id = ?` with no whitelist,
+     unlike the adjacent `id_map` loop (guarded by
+     `DUPLICATE_NAME_TABLES[table]`) — an unrecognized/locally-absent table
+     name would throw inside the batch's `transaction()`, rolling back the
+     ENTIRE batch's `markSynced` calls too. Fixed: each row's `UPDATE` is now
+     wrapped in its own try/catch, logged and skipped on failure, so one bad
+     table name can't take the rest of the batch down.
+  4. *(Important)* The conflict toast's wording ("conflicted with an update
+     from another device") claimed a cause the client can't actually
+     verify — a `stale_timestamp` rejection on a legacy row isn't
+     necessarily another device. Reworded to state what happened without
+     naming an unverifiable cause: "…could not be saved because the record
+     changed since this edit — the server's current version was kept."
+  See `### 24.` in `_findings-log.md` for full round-1 detail and `### 25.`
+  for the round-2 review findings and fixes, including the RED/GREEN test
+  evidence on both sides for all of the above.
 - **Found:** live push-vs-push conflict test on "Pikarestiv Stores 2"
   (2026-09-04) — see `docs/features/backup-restore.md`'s "Sync-engine
   version-conflict test" section for the full walkthrough, exact values,

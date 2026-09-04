@@ -2073,3 +2073,155 @@ rather than fixed in this pass.
   confirmed via `git stash` of the fix files on both client and server side)
   → GREEN (fix restored, full suites clean on both sides) for every test
   listed above.
+
+### 25. `_known-bugs.md` #11, round 2 — independent review caught a real single-device regression in the round-1 fix, plus three Important issues
+
+- **Found:** an independent deep-review pass (Opus-level) on the `### 24.`
+  fix above, requested specifically because sync-engine correctness is
+  consequential enough to warrant a second set of eyes before calling it
+  done. Confirmed the original two-device bug is genuinely fixed, and the
+  `stock_batches` multi-terminal exemption works as intended for the
+  everyday quantity-only case — but found one Critical and three Important
+  issues in what round 1 shipped.
+- **Critical — round 1 traded the two-device bug for a single-device one.**
+  Round 1's client fix (stop incrementing `_version` locally) is correct in
+  isolation, but `addToSyncQueue` (`base-helpers.ts`) appends a new
+  `_sync_queue` row per `update()` call with no coalescing by
+  `(table_name, record_id)` anywhere in `base-helpers.ts` or `push.ts`.
+  Combined, two SEQUENTIAL edits to the SAME row before any sync now freeze
+  the identical `_version` in separate queue entries: when both land in one
+  push (or even split across batches for a large backlog), the first is
+  accepted (server bumps to N+1) and the second collides —
+  `payloadVersion N !== modelVersion N+1` → rejected as a false
+  `version_conflict`, queue row deleted, edit silently lost, misleading
+  "another device" toast shown. Not a rare edge case: hit by completely
+  ordinary flows — `use-pos-payment.ts`'s credit/mixed-payment checkout does
+  `update("customers", id, {outstanding_balance})` immediately followed by
+  `update("customers", id, {loyalty_points})` on the same customer row;
+  `use-process-return-mutation.ts` has the identical shape;
+  `procurement-receiving.ts` and `product-import.ts` hit it whenever the
+  same record is touched twice in a loop.
+  - **Fix:** `push.ts` gained `coalescePendingUpdates()`, run once on the
+    full pending list before it's ever sliced into `SYNC_BATCH_SIZE`
+    batches (so batch-splitting can't reintroduce the bug for a large
+    backlog). It groups pending UPDATE entries by `(table_name,
+    record_id)` and merges every group of more than one into a single
+    change: later field values win over earlier ones for the same column
+    (the same "full overwrite of whatever fields it's given" semantics a
+    single `update()` call already has), the merged payload carries the
+    EARLIEST entry's `_version` (the true base the whole local edit chain
+    started from — none of these rows has synced yet), and a
+    `mergedIdsByRepId` map tracks every underlying queue row folded into
+    each merge. Every id-keyed path downstream (`rejected` client-side
+    validation, `response.failed` handling — both the non-retryable
+    conflict-drop and the ordinary `recordSyncFailure` branch,
+    `succeededIds`/`markSynced`, and the batch-exception catch block) was
+    updated to expand through this map so an operation on a merged change's
+    representative id acts on every underlying row it represents, not just
+    itself — the single most important part of the fix, since leaving any
+    folded-in row untouched would silently strand a real, still-pending
+    edit forever. INSERT and DELETE operations are deliberately left
+    uncoalesced: INSERT never goes through the version-conflict check at
+    all (nothing to conflict with on a fresh row), and a record is only
+    ever soft/hard-deleted once while still pending, so neither operation
+    can produce the same-row queue pile-up this fix addresses.
+- **Important #1 — the `stock_batches` exemption was broader than it needed
+  to be.** It skipped version-checking for the WHOLE table, but only
+  `quantity` is actually stripped/recomputed server-side. `stock_batches`
+  also has `batch_number`, `expiry_date`, `cost_price`, `supplier_id`,
+  `manufacture_date`, `location`, `is_active`, `notes`, `received_date` — a
+  real flow already edits these (the stock-audit cost correction,
+  `lib/db/queries/inventory.ts:518`'s `reconcileStockAudit`, loops over
+  every active batch of a product and pushes a `cost_price`-only UPDATE).
+  Two managers concurrently correcting the same batch's `cost_price` would
+  have silently last-write-won with zero conflict detection — reintroducing
+  exactly the class of silent data loss this whole fix exists to close,
+  just relocated to a different column.
+  - **Fix:** narrowed to reuse the logic already present nearby (the
+    `quantity` strip a few lines below): `SyncController::push` now builds
+    a copy of the payload, strips `quantity` and the usual
+    bookkeeping/derived fields (`id`, `_version`, `_deleted`, `_synced`,
+    `_synced_at`, `created_at`, `updated_at`) — **plus `user_id`**, caught
+    while writing the fix's own regression test: this same controller
+    auto-injects `user_id` into every `stock_batches` payload a few dozen
+    lines earlier (`$tablesWithUserId` includes `stock_batches`) regardless
+    of what the client actually sent, so without excluding it too, EVERY
+    quantity-only push would have wrongly failed the "nothing else left"
+    check and lost the exemption entirely (caught by the new
+    quantity-only-exemption test itself going red immediately after the
+    narrowing landed, before `user_id` was added to the ignore list) — and
+    only exempts the change from the version check if nothing else remains.
+    A quantity-only payload (the real multi-terminal-sale shape) is still
+    exempt; a payload touching `cost_price` or any other real column now
+    goes through the normal strict-equality check like any other table.
+    **Honest scope statement, per the review's own request:** this closes
+    the `cost_price`/`expiry_date`/etc. gap completely for any push that
+    also happens to omit `quantity` from the same payload (true for every
+    real caller found — `lib/db/queries/inventory.ts`'s cost-correction
+    call passes only `{cost_price}`) — there is no known residual gap for
+    non-quantity fields after this fix. The exemption's protection is now
+    provably scoped to quantity-only payloads, not "nothing meaningful is
+    ever overwritten" as round 1's comment overclaimed.
+- **Important #2 — unguarded table-name SQL interpolation in the client's
+  version-sync-back loop.** `push.ts`'s loop applying `response.versions`
+  did `UPDATE ${table} SET _version = ? WHERE id = ?` with `table` coming
+  straight from the server response, no whitelist — unlike the adjacent
+  `id_map` loop, guarded by `DUPLICATE_NAME_TABLES[table]`. Beyond the
+  (low, server-trusted) injection surface, an unrecognized/locally-absent
+  table name would throw inside the batch's `transaction()`, rolling back
+  the ENTIRE batch's `markSynced` calls too — undoing otherwise-successful
+  work and setting up an infinite re-push loop for every other item in the
+  batch.
+  - **Fix:** each row's `UPDATE` is now wrapped in its own try/catch,
+    `console.warn`-logged and skipped on failure rather than left to
+    propagate — one bad table name can no longer take the rest of the batch
+    down. Chose per-row try/catch over a table whitelist (the review's other
+    suggested option) because no single existing table-name constant in
+    this codebase (`STORE_SCOPED_TABLES` included) is actually a complete
+    syncable-table list — `users`/`stores`/`payment_accounts` and others all
+    carry `_version` too but aren't in that constant — so building a second,
+    parallel whitelist purely for this guard risked becoming its own source
+    of drift/bugs versus the already-established try/catch-and-warn pattern
+    this file uses elsewhere (e.g. pull.ts's `skippedRecords`).
+- **Important #3 — toast wording asserted an unverifiable cause.**
+  "conflicted with an update from another device — the other device's
+  update was kept" claims causality the client can't actually verify — even
+  after the Critical fix above, a `stale_timestamp` rejection on a legacy
+  row isn't necessarily another device.
+  - **Fix:** reworded to state what happened without naming a cause: "A
+    change to {record} could not be saved because the record changed since
+    this edit — the server's current version was kept."
+- **Tests (TDD, RED confirmed against the pre-round-2 code before GREEN, on
+  top of round 1's already-passing suite):**
+  - Server (`SyncEndpointTest.php`):
+    `test_push_sync_does_not_exempt_stock_batches_non_quantity_field_from_conflict_check`
+    — two managers correcting the same batch's `cost_price` from the same
+    base version; the second is rejected as `version_conflict`, the first's
+    value survives. RED confirmed by temporarily reverting the exemption to
+    its round-1 (whole-table) form and re-running just this test — failed
+    exactly as expected (0 `failed` entries instead of 1), then reverted
+    back to the fix. `test_push_sync_exempts_stock_batches_from_version_conflict_check`
+    (round 1's quantity-only test) re-verified still green after the
+    narrowing — proving the narrowing didn't regress the real multi-terminal
+    case. Full suite: 97 passed, 247 assertions.
+  - Client (`client/__tests__/push-coalesces-same-record-updates.test.ts`,
+    new, Vitest, real sql.js instance): reproduces the EXACT
+    `use-pos-payment.ts` shape (`outstanding_balance` then `loyalty_points`
+    on the same customer, no sync between) — proves exactly ONE change
+    reaches the server (not two), both field values are present in the
+    merged payload, the merged payload's `_version` is the earliest entry's
+    (not the second edit's), all underlying queue rows are cleared together
+    on success, all are dropped together with exactly one toast on a real
+    conflict, and two DIFFERENT records' updates are explicitly NOT merged.
+    RED confirmed against the round-1-only `push.ts` (no coalescing): the
+    core "merges into ONE change" test failed with the actual `pushed`
+    count coming back wrong (2 separate changes sent, one falsely rejected)
+    exactly as the review predicted; reverted to round-2's `push.ts`
+    afterward, GREEN. `push-version-conflict-handling.test.ts`'s toast-text
+    assertion updated to match the reworded (causality-neutral) message.
+    Full suite: 79 files, 411 tests, all green; `npx tsc --noEmit -p .`
+    clean.
+- **Verified by:** RED → GREEN for every new/adapted test above, on both
+  client and server, plus a full clean run of both complete test suites
+  (server: 97/247; client: 79 files/411 tests + clean `tsc`) after all
+  round-2 fixes landed together.

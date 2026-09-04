@@ -394,16 +394,31 @@ Status values: **Open** (not started) → **In Progress** → **Fixed**.
 
 ## 11. Sync-engine version conflict resolution silently loses data on the most common two-device conflict shape
 
-- **Status:** Fixed (`491a5aae` fix round 1, `ee686296` fix round
-  2) — decoupled the local-edit counter from the server conflict-detection
-  value, made the server the sole authority for `_version`, made every
-  rejection (version- or timestamp-based) reach the client via `failed`
-  instead of some paths staying silent, and — added in round 2, after an
-  independent review caught a real single-device regression the round-1 fix
-  introduced — coalesced same-record queued edits so they can't falsely
-  collide with each other, narrowed the `stock_batches` exemption to only
-  the field it actually protects, closed an unguarded SQL-interpolation
-  path, and reworded the conflict toast to not claim an unverifiable cause.
+- **Status:** In Progress — round 2 (`491a5aae`, `ee686296`) correctly fixed
+  all 4 issues an independent round-1 review found, but the round-2
+  re-review found the narrowed `stock_batches` exemption is defeated in
+  production by a separate, pre-existing line (`push.ts`'s
+  `batch_number: "Opening Stock"` default, meant for legacy queued INSERTs)
+  that runs on every `stock_batches` change including ordinary quantity-only
+  sale UPDATEs — so the "strip payload to nothing → exempt" check never
+  actually finds an empty payload, and multi-terminal concurrent sales hit
+  the exact false `version_conflict` alarm the exemption exists to prevent.
+  Actual stock quantity is unaffected (still commutative-delta based via
+  `stock_movements`), but real batch numbers get clobbered with the
+  placeholder on every accepted UPDATE, and false conflict toasts fire on
+  ordinary sales. Also found: retry-backoff timing can still split a
+  same-record edit pair across two sync attempts, bypassing coalescing (a
+  narrower residual version of the round-1 Critical finding). Round 3
+  dispatched to fix both.
+  Below (unchanged, still accurate): decoupled the local-edit counter from
+  the server conflict-detection value, made the server the sole authority
+  for `_version`, made every rejection (version- or timestamp-based) reach
+  the client via `failed` instead of some paths staying silent, and — added
+  in round 2 — coalesced same-record queued edits so they can't falsely
+  collide with each other, narrowed the `stock_batches` exemption (now
+  known to be inert in production, see above), closed an unguarded
+  SQL-interpolation path, and reworded the conflict toast to not claim an
+  unverifiable cause.
   **Round 1:** `client/lib/db/base-helpers.ts`'s `update()` now
   sends/stores the row's UNCHANGED base `_version` instead of incrementing
   it locally. `SyncController::push`'s UPDATE branch now requires strict

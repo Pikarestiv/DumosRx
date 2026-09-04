@@ -481,6 +481,19 @@ this feature is centrally meant to handle. See `_known-bugs.md` #11 for the
 fix-scoping writeup; not fixed as part of this investigation per this
 task's own scope (document and flag, don't fix).
 
+**Update — now fixed.** This exact scenario (`update()`'s local-only
+`_version` increment colliding with `SyncController::push`'s `<`-only
+conflict check) is fixed: `_version` is no longer bumped locally by
+`update()`, the server enforces strict version equality and is now the sole
+authority for assigning the new version, and every rejection (version- or
+timestamp-based) now reaches the client via the push response instead of
+some paths staying silent. A PHPUnit test reproducing this section's exact
+MACA GUMMIES values end-to-end (`test_push_sync_rejects_second_device_pushing_same_base_version_as_conflict`
+in `laravel-server/tests/Feature/SyncEndpointTest.php`) confirms Session B's
+push is now rejected as `version_conflict` and Session A's value survives.
+See `_known-bugs.md` #11 and `### 24.` in `_findings-log.md` for the full
+fix writeup and test evidence.
+
 ## Danger Zone: full local reset
 
 Also on this same Settings → Data page: "Reset Database" (`handleResetDatabase`

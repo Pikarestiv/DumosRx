@@ -394,7 +394,35 @@ Status values: **Open** (not started) → **In Progress** → **Fixed**.
 
 ## 11. Sync-engine version conflict resolution silently loses data on the most common two-device conflict shape
 
-- **Status:** Open
+- **Status:** Fixed (`491a5aae`) — decoupled the local-edit
+  counter from the server conflict-detection value, made the server the
+  sole authority for `_version`, and made every rejection (version- or
+  timestamp-based) reach the client via `failed` instead of some paths
+  staying silent. `client/lib/db/base-helpers.ts`'s `update()` now
+  sends/stores the row's UNCHANGED base `_version` instead of incrementing
+  it locally. `SyncController::push`'s UPDATE branch now requires strict
+  `payloadVersion === modelVersion` to accept (not merely "not older"); on
+  acceptance the server assigns `modelVersion + 1` itself, never trusting
+  the payload's `_version`; on a real mismatch it logs and appends a
+  `version_conflict` entry to `$failed` and rejects. `stock_batches` is
+  deliberately exempt from this check: its only version-sensitive field
+  (`quantity`) is already stripped from this UPDATE path and derived
+  separately from commutative `stock_movements` deltas that have no version
+  check of their own — multiple terminals concurrently selling from the
+  same batch is normal, everyday operation, and applying the strict check
+  there would have rejected completely correct concurrent sales as
+  false-alarm conflicts. The push response gained a new `versions` field
+  (server-assigned new version per accepted UPDATE, grouped by table like
+  the existing `id_map`); the client applies it to the local row
+  immediately so its next edit isn't based on a stale pre-push version.
+  Client-side, a `version_conflict` (or `stale_timestamp`) failure is no
+  longer routed through the generic retry/backoff path (which could never
+  succeed — the base version doesn't change by retrying); the queue item is
+  dropped and a toast surfaces the conflict to the user, following the same
+  "loud, not silent" precedent as item #10's post-restore notice. See
+  `### 24.` in `_findings-log.md` for full detail, including the
+  commutative-write exemption's reasoning and the RED/GREEN test evidence
+  on both sides.
 - **Found:** live push-vs-push conflict test on "Pikarestiv Stores 2"
   (2026-09-04) — see `docs/features/backup-restore.md`'s "Sync-engine
   version-conflict test" section for the full walkthrough, exact values,

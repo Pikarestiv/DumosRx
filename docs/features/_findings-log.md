@@ -1934,3 +1934,142 @@ rather than fixed in this pass.
 - See `docs/features/backup-restore.md`'s "Sync-engine version-conflict
   test" section for the full walkthrough, exact before/after values, and
   the `tinker`/log evidence.
+
+### 24. `_known-bugs.md` #11 fixed — sync-engine version conflict no longer silently loses data
+
+- **Found:** entry `### 23.` immediately above (live push-vs-push
+  reproduction, MACA GUMMIES ₦999→₦1,500 vs ₦999→₦777).
+- **Root cause, confirmed:** `client/lib/db/base-helpers.ts`'s `update()`
+  conflated two different meanings of `_version` into one field: a local
+  edit counter (purely this device's own bookkeeping) and the value sent to
+  the server for conflict detection (which needs to mean "the server version
+  this edit was based on," not "the version I want it to become"). Both were
+  computed as `(local _version) + 1`, so two devices editing the same row
+  from the same shared ancestor always compute the identical next version —
+  guaranteed collision arithmetic, not a rare race. `SyncController::push`'s
+  UPDATE branch only treated a push as a conflict on strict `<` (`payload
+  version < model version`); on equality (the guaranteed-collision case) it
+  fell through to comparing `updated_at` wall-clock timestamps instead —
+  last-write-wins by device clock. The existing "clearly older" rejection
+  path also never appended anything to the response's `failed` array, so
+  even that already-working case reached the client with zero signal.
+- **Fix (decouples the local counter from the server conflict value, makes
+  the server the sole version authority, and makes every rejection loud):**
+  - **Client — stop incrementing locally.** `update()` now sends/stores the
+    row's UNCHANGED current `_version` instead of `version + 1`. The local
+    row's `_version` now only ever changes via an explicit server response
+    (see below) or a pull bringing in a newer row (`pull.ts`, unchanged —
+    it already set `_version` from the server's value correctly). Audited
+    every other `_version` consumer client-side (`grep`) before making this
+    change: the only other reads are two read-only Activity Log /
+    product-history display columns (`product-history.tsx`,
+    `activity-log-detail-panel.tsx`) and a schema-sync verification script —
+    none depend on the increment-on-every-edit behavior.
+  - **Server — strict equality, not less-than, and report every rejection.**
+    `SyncController::push`'s UPDATE branch now requires
+    `payloadVersion === modelVersion` to accept an edit (not merely "not
+    older"); anything else with two known versions — older OR, defensively,
+    somehow ahead — is a genuine conflict, rejected and logged
+    (`Log::info`, matching the existing log-message style) with an entry
+    appended to `$failed` (`reason: 'version_conflict'`, same
+    `id`/`table_name`/`record_id` shape every other `$failed[]` entry in
+    this file already uses). The pre-existing timestamp-fallback rejection
+    path (for legacy rows with no version tracking at all) now also appends
+    to `$failed` (`reason: 'stale_timestamp'`) — it never did, even before
+    this fix, so this closes a second silent-rejection gap the same pass
+    turned up. On acceptance, the server is now the sole authority for the
+    new version number: it assigns `modelVersion + 1` itself and never
+    trusts whatever `_version` the payload carries (which, per the client
+    fix, is just the unchanged base value) — `unset($payload['_version'])`
+    before `forceFill`, then `$model->_version = $newVersion` explicitly,
+    the same general pattern this controller already uses for
+    `stock_batches.quantity` (stripped/recomputed, never trusted from the
+    client).
+  - **Commutative-write exemption for `stock_batches`.** Caught by the task
+    coordinator before this shipped, not found independently: a store
+    routinely has multiple cashiers on different physical terminals
+    concurrently selling from the same `stock_batches` row — normal,
+    everyday operation, not an edge case. That UPDATE's only
+    version-sensitive field, `quantity`, is already stripped from the
+    payload and never applied from this path at all (see the immediately
+    preceding paragraph and this controller's own API doc comment) — the
+    real quantity is derived separately from commutative `stock_movements`
+    deltas (`$stockBatchDeltas`), which have no version check of their own
+    and were never part of this bug. Applying the new strict-equality check
+    to `stock_batches` UPDATEs anyway would have rejected the second
+    terminal's completely normal, correct sale as a false-alarm "conflict"
+    on every single instance of two terminals touching the same batch
+    around the same time. `stock_batches` is therefore exempt from the
+    version-conflict check entirely (`$isCommutativeTable` in
+    `SyncController::push`): its UPDATE is always accepted regardless of
+    version, matching its pre-fix behavior, since nothing meaningful is
+    actually being overwritten by it either way. Grepped the rest of this
+    controller for the same shape (a client-sent field stripped and
+    recomputed from a movements-style ledger instead of trusted directly):
+    `stock_batches.quantity` is the only table with this pattern; no other
+    table needed the same exemption.
+  - **Response carries the new authoritative version back.** `PushResponse`
+    (`client/lib/db/sync-engine/types.ts`) gained a `versions` field
+    (`Record<table, Record<record_id, new_version>>`, grouped the same way
+    the existing `id_map` field already is), populated server-side for every
+    accepted, version-tracked UPDATE. `push.ts` applies it to the local row
+    immediately via a plain `UPDATE {table} SET _version = ? WHERE id = ?`
+    right where `id_map` remapping already happens — without this, this
+    same device's very next local edit (now that `update()` no longer
+    increments locally) would still be based on the pre-push version and
+    get spuriously rejected as a conflict against its own already-accepted
+    change.
+  - **Client-side conflict handling: drop, don't retry, and say so.**
+    `push.ts` now special-cases `reason === 'version_conflict'` (and
+    `'stale_timestamp'`) in `response.failed`: instead of routing through
+    `recordSyncFailure`'s exponential-backoff retry (which can never
+    succeed here — the edit's base version is permanently stale no matter
+    how many times it's resent), the item is deleted from `_sync_queue`
+    outright, and a `sonner` toast fires naming the affected record type
+    ("A change to a product conflicted with an update from another device —
+    the other device's update was kept."), following the same "loud, not
+    silent" precedent as `_known-bugs.md` #10's post-restore cloud-link
+    notice. The next pull naturally brings in the winning server value once
+    nothing local is blocking it (`pull.ts`'s existing `pendingLocalEdit`
+    skip, unchanged).
+- **Tests (TDD, RED confirmed against the pre-fix code before GREEN):**
+  - Server (`laravel-server/tests/Feature/SyncEndpointTest.php`, PHPUnit):
+    `test_push_sync_rejects_second_device_pushing_same_base_version_as_conflict`
+    reproduces the exact MACA GUMMIES shape end-to-end against a real test
+    database — Session A's push accepted and bumps `_version` 2→3, Session
+    B's later push from the same base version 2 is rejected
+    (`failed[0].reason === 'version_conflict'`), and Session A's ₦1,500
+    value is asserted to survive untouched afterward (the core data-loss
+    assertion). `test_push_sync_accepts_sequential_same_device_edits`
+    confirms the fix doesn't break the far more common non-conflicting case
+    (one device, two edits, each correctly based on the version the
+    previous push returned).
+    `test_push_sync_exempts_stock_batches_from_version_conflict_check`
+    proves two different terminals' concurrent `stock_batches` UPDATEs from
+    the same base version are BOTH accepted, with both sales' deltas
+    correctly applied (100 − 5 − 3 = 92), confirming the commutative-write
+    exemption actually holds. The pre-existing
+    `test_push_sync_handles_updates` was updated to send the base version
+    (`1`) instead of a pre-incremented one (`2`), matching the new client
+    contract, and its own RED run (payload version `2` against model
+    version `1`, exactly the shape a not-yet-updated client would still
+    send) confirmed it would otherwise now be wrongly rejected as a
+    conflict — a real adaptation, not a loosened assertion. Full suite: 96
+    passed, 238 assertions.
+  - Client (`client/__tests__/`, Vitest, real sql.js instances, following
+    `sync-queue-transaction-race.test.ts`'s established pattern):
+    `update-preserves-base-version.test.ts` proves `update()`'s local row
+    and queued payload both keep the unchanged base `_version`, and that two
+    sequential simulated-device edits from the same ancestor queue the
+    identical version (the guaranteed-collision shape this bug was filed
+    for). `push-version-conflict-handling.test.ts` proves a
+    `version_conflict` failure deletes the `_sync_queue` row (not a
+    `recordSyncFailure` backoff bump), fires exactly one toast naming the
+    record, leaves an ordinary non-conflict failure's retry path completely
+    unaffected, and confirms `response.versions` gets applied to the local
+    row. Full suite: 78 files, 408 tests, all green;
+    `npx tsc --noEmit -p .` clean.
+- **Verified by:** RED (all new/adapted tests fail against the pre-fix code,
+  confirmed via `git stash` of the fix files on both client and server side)
+  → GREEN (fix restored, full suites clean on both sides) for every test
+  listed above.

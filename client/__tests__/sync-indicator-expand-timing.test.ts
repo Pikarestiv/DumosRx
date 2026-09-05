@@ -24,19 +24,22 @@ if (!window.matchMedia) {
  * open showed the sync indicator "squished then readjusting" instead of
  * smoothly following the sidebar's own widening animation.
  *
- * Root cause: SyncIndicator renders two structurally different layouts for
- * collapsed vs. expanded (a small icon button vs. a padded, bordered card
- * with a text label) picked by a plain `if (collapsed)` branch — not by
- * animating shared markup. The sidebar container's width transition takes
- * 300ms (dashboard-sidebar.tsx's `transition-all duration-300`), but the
- * `collapsed` prop itself flips instantly, so the wide card rendered right
- * away into a container that hadn't finished widening yet.
+ * First attempt at a fix delayed swapping from a compact layout to a wide
+ * one by 300ms (matching the sidebar's width transition) to avoid the wide
+ * layout rendering into a still-narrow container. The user correctly
+ * pushed back: that just traded one bad look (squish) for another (an
+ * abrupt pop-in after a dead pause), and pointed out that every OTHER
+ * collapsible bit of sidebar content — nav item labels, the logo wordmark —
+ * doesn't have this problem because it's one persistent element whose
+ * content reveals inline, not two structurally different trees swapped by
+ * a conditional.
  *
- * The fix debounces the *expand* direction only: collapsing still switches
- * immediately (compact content never needs to reflow), but expanding waits
- * SIDEBAR_WIDTH_TRANSITION_MS (300, matching the sidebar's own duration)
- * before swapping in the wide card. This test proves the timing directly
- * rather than trying to catch a 300ms CSS transition in a screenshot.
+ * The actual fix: SyncIndicator is now that same pattern. One persistent
+ * card is always rendered; the label, refresh button, and "last synced"
+ * line reveal via max-width/max-height + opacity, transitioning on the
+ * same 300ms timeline as the sidebar's own width change — so they grow in
+ * lockstep with the panel starting the instant `collapsed` flips, with no
+ * artificial delay and no separate DOM tree to swap into.
  */
 
 vi.mock("@tanstack/react-query", () => ({
@@ -68,7 +71,7 @@ vi.mock("@/lib/query-keys", () => ({
   queryKeys: { sync: { queueCount: () => ({ queryKey: ["syncQueueCount"] }) } },
 }));
 
-describe("SyncIndicator collapsed->expanded timing", () => {
+describe("SyncIndicator collapsed<->expanded reveal", () => {
   let container: HTMLDivElement;
   let root: Root;
 
@@ -92,11 +95,14 @@ describe("SyncIndicator collapsed->expanded timing", () => {
     });
   }
 
-  const isCompactLayout = () => !!container.querySelector("#tour-sync-indicator button[title]");
+  const card = () => container.querySelector("#tour-sync-indicator") as HTMLElement;
+  const revealWrappers = () =>
+    Array.from(card().querySelectorAll('[class*="max-w-"]'));
 
-  it("stays on the compact layout immediately after collapsed flips to false, then switches once the sidebar's own transition would have finished", async () => {
+  it("is a single persistent card in both states, not two different DOM trees", async () => {
     await render(true);
-    expect(isCompactLayout()).toBe(true);
+    const cardCollapsed = card();
+    expect(cardCollapsed).not.toBeNull();
 
     const { SyncIndicator } = await import(
       "@/components/dashboard/sync-indicator"
@@ -105,34 +111,29 @@ describe("SyncIndicator collapsed->expanded timing", () => {
       root.render(React.createElement(SyncIndicator, { collapsed: false }));
     });
 
-    // Immediately after the prop flips — this is the exact moment the old
-    // code would have rendered the wide card into a still-narrow sidebar.
-    expect(isCompactLayout()).toBe(true);
-
-    await act(async () => {
-      await new Promise((r) => setTimeout(r, 350));
-    });
-
-    // Only now, after the sidebar's own 300ms width transition would have
-    // completed, does the wide card actually appear.
-    expect(isCompactLayout()).toBe(false);
+    // Same DOM node survives the prop flip — proof this is one element
+    // whose content reveals, not a remount into a different tree.
+    expect(card()).toBe(cardCollapsed);
   });
 
-  it("switches back to compact immediately when collapsed flips back to true (no delay needed collapsing)", async () => {
-    await render(false);
-    await act(async () => {
-      await new Promise((r) => setTimeout(r, 350));
-    });
-    expect(isCompactLayout()).toBe(false);
+  it("applies the expanded reveal classes the instant collapsed flips, with no artificial delay", async () => {
+    await render(true);
+    const collapsedClasses = revealWrappers().map((el) => el.className);
+    expect(collapsedClasses.some((c) => c.includes("max-w-0"))).toBe(true);
 
     const { SyncIndicator } = await import(
       "@/components/dashboard/sync-indicator"
     );
     await act(async () => {
-      root.render(React.createElement(SyncIndicator, { collapsed: true }));
+      root.render(React.createElement(SyncIndicator, { collapsed: false }));
       await Promise.resolve();
     });
 
-    expect(isCompactLayout()).toBe(true);
+    // No setTimeout/delay involved — the very next render already carries
+    // the expanded (non-zero max-width) classes, which is what lets the
+    // CSS transition animate in lockstep with the sidebar's own width
+    // change instead of waiting for it to finish first.
+    const expandedClasses = revealWrappers().map((el) => el.className);
+    expect(expandedClasses.some((c) => c.includes("max-w-0"))).toBe(false);
   });
 });

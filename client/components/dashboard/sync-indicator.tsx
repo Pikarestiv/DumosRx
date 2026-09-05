@@ -159,7 +159,6 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
       label: "Syncing...",
       icon: <RefreshCw className={cn(iconClass, "text-blue-500 animate-spin")} />,
       border: "border-blue-500/50",
-      collapsedBorder: "border-blue-500",
       desktopBg: "bg-blue-500/10 hover:bg-blue-500/20",
       mobileBg: "bg-blue-500/10",
       tooltip: "Syncing your changes to the cloud...",
@@ -168,7 +167,6 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
       label: "Offline",
       icon: <CloudOff className={cn(iconClass, "text-muted-foreground")} />,
       border: "border-muted-foreground/30",
-      collapsedBorder: "border-muted-foreground/60",
       desktopBg: "bg-sidebar-accent/5 hover:bg-sidebar-accent/10",
       mobileBg: "bg-muted/50",
       tooltip: "Offline mode. Changes are saved locally.",
@@ -179,7 +177,6 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
         ? <SolidAlertCircle className={cn(iconClass, "text-destructive")} />
         : <AlertCircle className={cn(iconClass, "text-destructive")} />,
       border: "border-destructive/50",
-      collapsedBorder: "border-destructive",
       desktopBg: "bg-destructive/10 hover:bg-destructive/20",
       mobileBg: "bg-destructive/10",
       tooltip: errorMessage || "Sync failed. Please try again.",
@@ -188,7 +185,6 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
       label: "Pending Sync",
       icon: <Cloud className={cn(iconClass, "text-amber-500 animate-pulse")} {...fillProp} />,
       border: "border-amber-500/50",
-      collapsedBorder: "border-amber-500",
       desktopBg: "bg-amber-500/10 hover:bg-amber-500/20",
       mobileBg: "bg-amber-500/10",
       tooltip: `${pendingCount} local change${pendingCount > 1 ? "s" : ""} pending sync since ${lastSync ? formatDistanceToNow(new Date(lastSync)) + " ago" : "a while"}.`,
@@ -197,7 +193,6 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
       label: "Cloud Active",
       icon: <Cloud className={cn(iconClass, "text-emerald-500")} {...fillProp} />,
       border: "border-emerald-500/50",
-      collapsedBorder: "border-emerald-500",
       desktopBg: "bg-sidebar-accent/5 hover:bg-sidebar-accent/10",
       mobileBg: "bg-muted/50",
       tooltip: "Your data is securely backed up to the DumosRx cloud.",
@@ -206,7 +201,6 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
       label: "Not Linked",
       icon: <CloudOff className={cn(iconClass, "text-muted-foreground")} />,
       border: "border-muted-foreground/30",
-      collapsedBorder: "border-muted-foreground/60",
       desktopBg: "bg-sidebar-accent/5 hover:bg-sidebar-accent/10",
       mobileBg: "bg-muted/50",
       tooltip: "Connect your cloud account to enable backups.",
@@ -216,12 +210,13 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
   const currentConfig = configMap[stateKey];
   const statusLabel = currentConfig.label;
   const statusIcon = currentConfig.icon;
-  // Collapsed uses a full-opacity border instead of the expanded card's
-  // /50: at that small size, against the sidebar's near-white background, a
-  // 50%-opacity 1px border was technically present but read as no border
-  // at all.
-  const statusBorder = collapsed ? currentConfig.collapsedBorder : currentConfig.border;
-  const desktopBg = currentConfig.desktopBg;
+  // Collapsed shows no status border/background at all — just the bare
+  // icon, like every other sidebar nav icon at rest. The colored border and
+  // background fade in together as part of the same transition once the
+  // sidebar actually starts expanding, rather than sitting there as a
+  // permanent box around the icon in the collapsed rail.
+  const statusBorder = collapsed ? "border-transparent" : currentConfig.border;
+  const desktopBg = collapsed ? "hover:bg-sidebar-accent" : currentConfig.desktopBg;
   const mobileBg = currentConfig.mobileBg;
   const tooltipText = currentConfig.tooltip;
 

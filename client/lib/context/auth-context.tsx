@@ -166,7 +166,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const now = Date.now();
         const hasCloudLink =
           typeof window !== "undefined" && !!localStorage.getItem("auth_token");
-        if (hasCloudLink && now - lastPinRecoverySyncAt > PIN_RECOVERY_SYNC_COOLDOWN_MS) {
+        if (
+          hasCloudLink &&
+          navigator.onLine &&
+          now - lastPinRecoverySyncAt > PIN_RECOVERY_SYNC_COOLDOWN_MS
+        ) {
           lastPinRecoverySyncAt = now;
           const result = await sync().catch(() => null);
           // If a background/setup sync was already in flight, our call above

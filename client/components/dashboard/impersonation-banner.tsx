@@ -38,7 +38,16 @@ export function ImpersonationBanner() {
 
       window.location.href = `${WEB_APP_URL}/admin/handoff?code=${code}`;
     } catch (_error) {
-      toast.error("Failed to return to admin session");
+      // The stored return code is single-use and short-lived (see its
+      // creation in the superadmin panel) — if it's already expired or was
+      // already consumed, there is no path back to the admin session left.
+      // Clearing it here rather than leaving it in place means the user
+      // lands back on this same banner with a working "End Session" button
+      // forever, unable to dismiss it or use it. Better to drop back to an
+      // ordinary (non-impersonating) view of their current session.
+      toast.error("Your admin session has expired. Please sign in to the admin panel again.");
+      localStorage.removeItem(RETURN_CODE_KEY);
+      setIsImpersonating(false);
       setEnding(false);
     }
   };

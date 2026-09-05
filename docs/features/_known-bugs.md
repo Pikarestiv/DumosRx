@@ -597,6 +597,104 @@ Status values: **Open** (not started) → **In Progress** → **Fixed**.
   winner by clock time. Either way, this needs a deliberate design pass, not
   a quick patch to this bug tracker's fix-and-move-on pattern.
 
+## 12. Several tables were silently dropped on sync, not just "stuck" — Fixed
+
+**Status:** Fixed, commit `a16f0ca6`.
+
+Triggered by three real Sentry reports (a "stuck sync" crash report, a
+`system_configs` NOT NULL violation, and a `Route [login] not defined`
+500) forwarded by the user. The first two led to the two smaller fixes
+below; investigating the "stuck sync" report's actual failure payload
+(`prescription_items.unit_cost`, `loyalty_tiers.store_id`,
+`loyalty_redemption_options.store_id`/`discount_value`,
+`stock_batches.cost_price`) turned up something much worse once checked
+systematically: a full diff of every `STORE_SCOPED_TABLES` entry and every
+column in `client/lib/db/schema.ts` against the live server schema.
+
+**The critical part:** `stock_audits`, `held_transactions`,
+`loyalty_transactions`, and `customer_payments` had no entry at all in
+`SyncController::getModelForTable()` — `customer_payments` didn't even
+have a server-side table. Push handles an unmapped table with a bare
+`continue` and a server-side log warning, never adding it to
+`response.failed`. The client (`push.ts`) treats "not in
+`response.failed`" as "succeeded" and deletes the change from its local
+queue. **Every customer payment, held/parked transaction, loyalty point
+transaction, and stock audit was being silently and permanently lost on
+push** — no error, no retry, no way for the user to ever know, unlike the
+"stuck" tables which at least fail loudly and eventually report.
+
+Also genuinely missing (these ones do fail loudly into `response.failed`,
+which is how the two visible in the original Sentry report were caught —
+the other five hadn't surfaced yet only because no one had happened to
+push a record touching that exact field):
+
+- `store_id` on `stock_audits`, `held_transactions`,
+  `loyalty_transactions`, `audit_logs`, `loyalty_tiers`,
+  `loyalty_redemption_options`
+- `discount`/`discount_type` on `held_transactions`
+- `unit_cost` on `prescription_items`
+- `discount_value` on `loyalty_redemption_options`
+- `loyalty_program_enabled` on `stores` — this session's own loyalty
+  on/off toggle (§ bug fix earlier this session) was never actually
+  persisting to the cloud
+- `stock_batches.cost_price` had no default, unlike the client's own
+  `DEFAULT 0`, so a zero-quantity audit-adjustment batch (no real cost to
+  record) was rejected outright
+
+**Fix:** created the 4 missing models (`StockAudit`, `HeldTransaction`,
+`LoyaltyTransaction`, `CustomerPayment`) and the `customer_payments`
+table; added all 4 to `getModelForTable()`; added all 5 affected tables
+to `pull()`'s table list (they could push once fixed, but still never
+pull back down to a second device or a fresh restore); added every
+missing column; backfilled `store_id` on the real MySQL database for the
+4 tables that already had a working insert path before this fix
+(`stock_audits`, `audit_logs`, `loyalty_tiers`,
+`loyalty_redemption_options` — the other 3 never had one, so there was
+nothing to backfill); and upgraded `loyalty_tiers`/
+`loyalty_redemption_options`' pull-side scoping from owner-wide to
+`store_id`, the same multi-store data-bleed class of bug already fixed
+for 11 other tables in an earlier migration, now that these two actually
+carry a real `store_id`.
+
+Two smaller, related fixes landed alongside this from the same batch of
+Sentry reports:
+- The sync engine had no `navigator.onLine` guard of its own (two call
+  sites — store-switching, PIN-recovery — didn't check first), so a
+  genuinely offline device burned through the sync queue's retry backoff
+  and fired a false "stuck sync" alarm for what was just normal
+  offline-first behavior. Centralized the check inside `sync()` itself.
+- This API-only app has no "login" route, but two separate Laravel
+  fallbacks tried to redirect there for any unauthenticated request
+  missing an `Accept: application/json` header (curl's default, some
+  non-browser clients), causing a 500 instead of a clean 401.
+
+9 regression tests reproduce each real failure shape from the reported
+payload; full server suite 126/126 passing.
+
+**Correction (commit `b56f44e9`), caught by the user testing locally
+immediately after this fix landed:** the `store_id` fix for `audit_logs`
+above targeted the wrong physical table. `getModelForTable()` maps the
+client's `audit_logs` sync name to `ActivityLog::class`, which has no
+`$table` override — Eloquent resolves it to the real `activity_logs`
+table, a different, actively-used table from the `audit_logs` one the
+migration touched (apparently unused legacy cruft). A real pull request
+against this app's own local database threw `Unknown column 'store_id'`
+against `activity_logs` immediately after the "fix." Writing a permanent
+schema-parity test (`SyncSchemaParityTest` — resolves every sync table
+name through `getModelForTable()` instead of trusting the client's string)
+turned up more: `activity_logs` was also missing `table_name`,
+`record_id`, `details`, and `_version` — the actual structured shape of
+the Activity Log feature ("what table, what record, what happened"), not
+just `store_id`. Fixed all of it in one migration. Also explains why 9
+passing regression tests didn't catch this the first time: SQLite (the
+test suite's driver) was found to silently tolerate
+`WHERE nonexistent_column = ?` — zero rows, no error — for a query shape
+that throws `Unknown column` on the real MySQL server every time. The new
+parity test checks column existence directly instead of depending on a
+query actually erroring, closing that blind spot for good. 127/127
+passing; applied to the local dev database and replay-verified against
+the exact query from the user's report.
+
 ## Known limitations (not bugs — honestly labeled, not silently broken)
 
 - **Settings "Roles & Permissions" tab** is a static "coming soon"

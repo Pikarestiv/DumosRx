@@ -236,8 +236,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     // Pulls this store's data down if this device has never synced it
     // before (X-Store-Id now points at the newly-selected store; see
     // lib/api/client.ts). Best-effort: offline/unauthenticated devices still
-    // work from whatever's already local.
-    import("@/lib/db/sync-engine").then(({ sync }) => sync()).catch(() => {});
+    // work from whatever's already local. Guarded on navigator.onLine (like
+    // the mount-time triggerSync effect below) so switching stores while
+    // offline doesn't attempt a doomed fetch — every queued item across
+    // however many tables have pending changes would otherwise fail with
+    // "Failed to fetch" and burn through the sync-queue's retry backoff for
+    // no reason, eventually firing a spurious "stuck sync" crash report for
+    // what is, correctly, just this being an offline-first app.
+    if (typeof window !== "undefined" && navigator.onLine) {
+      import("@/lib/db/sync-engine").then(({ sync }) => sync()).catch(() => {});
+    }
   };
   const storeType = storeProfile?.store_type || "pharmacy";
   const theme = storeProfile?.theme || "default";

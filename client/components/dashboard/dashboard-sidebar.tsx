@@ -130,7 +130,12 @@ export function DashboardSidebar({
         )}
       >
         <div className="flex items-center gap-3 truncate">
-          <Icon className="h-[18px] w-[18px] shrink-0" />
+          <span className="relative shrink-0">
+            <Icon className="h-[18px] w-[18px] shrink-0" />
+            {collapsed && name === "Inventory" && actionableItemsCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-destructive ring-2 ring-sidebar" />
+            )}
+          </span>
           {!collapsed && (
             <span className="truncate transition-all duration-200">{name}</span>
           )}

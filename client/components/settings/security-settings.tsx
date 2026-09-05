@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/card";
 
 import { Separator } from "@/components/ui/separator";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Lock } from "lucide-react";
 import {
   Select,
@@ -23,6 +23,16 @@ import {
 } from "@/components/ui/select";
 import { useAutoLockStore } from "@/lib/hooks/use-auto-lock";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
+
+// Single source of truth for both the dropdown's options and the
+// self-heal check below, so they can't drift out of sync with each other.
+const AUTO_LOCK_OPTIONS = [
+  { value: 0, label: "Off" },
+  { value: 1, label: "1 Minute" },
+  { value: 5, label: "5 Minutes" },
+  { value: 15, label: "15 Minutes" },
+  { value: 30, label: "30 Minutes" },
+] as const;
 
 interface SecuritySettingsProps {
   currentPin: string;
@@ -47,6 +57,18 @@ export function SecuritySettings({
   const duration = useAutoLockStore((s) => s.duration);
   const setDuration = useAutoLockStore((s) => s.setDuration);
   const { canAutoLock, withRestriction, getUpgradeMessage } = useFeatureGate();
+
+  // Self-heals a persisted duration that doesn't match any current option
+  // (an older app version's value, manual/corrupted localStorage, a future
+  // option removed) — Radix's Select has nothing to match and renders
+  // completely blank in that case, not even its own placeholder, with no
+  // way for the user to tell why or fix it themselves short of picking a
+  // new value. Falls back to the store's own documented default (5).
+  useEffect(() => {
+    if (!AUTO_LOCK_OPTIONS.some((opt) => opt.value === duration)) {
+      setDuration(5);
+    }
+  }, [duration, setDuration]);
 
   const onSubmit = async () => {
     const success = await handleUpdateSecurity();
@@ -154,11 +176,11 @@ export function SecuritySettings({
               <SelectValue placeholder="Select duration" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="0">Off</SelectItem>
-              <SelectItem value="1">1 Minute</SelectItem>
-              <SelectItem value="5">5 Minutes</SelectItem>
-              <SelectItem value="15">15 Minutes</SelectItem>
-              <SelectItem value="30">30 Minutes</SelectItem>
+              {AUTO_LOCK_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value.toString()}>
+                  {opt.label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>

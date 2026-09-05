@@ -15,8 +15,8 @@ class LoyaltyTier extends Model
     use HasFactory, HasUuids, SoftDeletes;
 
     protected $fillable = [
-        'id', 'user_id', 'name', 'min_spend', 'points_multiplier', 'benefits',
-        'color', 'sort_order', '_version', '_synced', '_synced_at',
+        'id', 'user_id', 'store_id', 'name', 'min_spend', 'points_multiplier', 'benefits',
+        'color', 'sort_order', '_version', '_synced', '_synced_at', '_deleted',
     ];
 
     protected $casts = [

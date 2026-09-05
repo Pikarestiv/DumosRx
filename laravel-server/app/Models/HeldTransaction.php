@@ -8,22 +8,31 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
- * @mixin IdeHelperLoyaltyRedemptionOption
+ * @mixin IdeHelperHeldTransaction
  */
-class LoyaltyRedemptionOption extends Model
+class HeldTransaction extends Model
 {
     use HasFactory, HasUuids, SoftDeletes;
 
     protected $fillable = [
-        'id', 'user_id', 'store_id', 'label', 'points_cost', 'discount_value', 'description', 'icon_key',
-        'is_active', 'sort_order', '_version', '_synced', '_synced_at', '_deleted',
+        'id',
+        'store_id',
+        'customer_id',
+        'customer_name',
+        'items_json',
+        'total_amount',
+        'discount',
+        'discount_type',
+        'notes',
+        '_version',
+        '_synced',
+        '_synced_at',
+        '_deleted',
     ];
 
     protected $casts = [
-        'points_cost' => 'decimal:2',
-        'discount_value' => 'decimal:2',
-        'is_active' => 'boolean',
         '_synced' => 'boolean',
+        '_deleted' => 'boolean',
         '_synced_at' => 'datetime',
     ];
 }

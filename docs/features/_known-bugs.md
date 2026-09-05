@@ -671,6 +671,30 @@ Sentry reports:
 9 regression tests reproduce each real failure shape from the reported
 payload; full server suite 126/126 passing.
 
+**Correction (commit `b56f44e9`), caught by the user testing locally
+immediately after this fix landed:** the `store_id` fix for `audit_logs`
+above targeted the wrong physical table. `getModelForTable()` maps the
+client's `audit_logs` sync name to `ActivityLog::class`, which has no
+`$table` override — Eloquent resolves it to the real `activity_logs`
+table, a different, actively-used table from the `audit_logs` one the
+migration touched (apparently unused legacy cruft). A real pull request
+against this app's own local database threw `Unknown column 'store_id'`
+against `activity_logs` immediately after the "fix." Writing a permanent
+schema-parity test (`SyncSchemaParityTest` — resolves every sync table
+name through `getModelForTable()` instead of trusting the client's string)
+turned up more: `activity_logs` was also missing `table_name`,
+`record_id`, `details`, and `_version` — the actual structured shape of
+the Activity Log feature ("what table, what record, what happened"), not
+just `store_id`. Fixed all of it in one migration. Also explains why 9
+passing regression tests didn't catch this the first time: SQLite (the
+test suite's driver) was found to silently tolerate
+`WHERE nonexistent_column = ?` — zero rows, no error — for a query shape
+that throws `Unknown column` on the real MySQL server every time. The new
+parity test checks column existence directly instead of depending on a
+query actually erroring, closing that blind spot for good. 127/127
+passing; applied to the local dev database and replay-verified against
+the exact query from the user's report.
+
 ## Known limitations (not bugs — honestly labeled, not silently broken)
 
 - **Settings "Roles & Permissions" tab** is a static "coming soon"

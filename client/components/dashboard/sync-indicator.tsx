@@ -25,6 +25,12 @@ const SolidAlertCircle = ({ className }: { className?: string }) => (
   </svg>
 );
 
+// Matches dashboard-sidebar.tsx's own `transition-all duration-300` on the
+// sidebar's width. Kept in sync manually since the two live in different
+// components; if the sidebar's transition duration ever changes, this must
+// change with it.
+const SIDEBAR_WIDTH_TRANSITION_MS = 300;
+
 export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { collapsed?: boolean; isMobileHeader?: boolean }) {
   const [status, setStatus] = useState<
     "online" | "offline" | "syncing" | "error"
@@ -35,6 +41,25 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [isLinked, setIsLinked] = useState(false);
   const { storeProfile } = useStore();
+
+  // The collapsed/expanded views below are two structurally different
+  // layouts (a small icon button vs. a padded, bordered card with a text
+  // label) switched by a plain conditional, not by animating shared
+  // markup — so collapsed flipping to false instantly rendered the wide
+  // card into a sidebar that hadn't finished widening yet, squeezing it
+  // for a split second before the sidebar's own width transition caught
+  // up. Collapsing (mouse leaves) still switches immediately: the compact
+  // icon fits fine in a still-wide, shrinking container. Only expanding
+  // (mouse enters) waits for the sidebar's transition to actually finish.
+  const [effectiveCollapsed, setEffectiveCollapsed] = useState(collapsed);
+  useEffect(() => {
+    if (collapsed) {
+      setEffectiveCollapsed(true);
+      return;
+    }
+    const timeout = setTimeout(() => setEffectiveCollapsed(false), SIDEBAR_WIDTH_TRANSITION_MS);
+    return () => clearTimeout(timeout);
+  }, [collapsed]);
 
   const { data: pendingCountData } = useQuery({
     ...queryKeys.sync.queueCount(),
@@ -148,8 +173,8 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
             ? "active"
             : "unlinked";
 
-  const iconClass = collapsed ? "h-[18px] w-[18px]" : "h-3 w-3";
-  const fillProp = collapsed ? { fill: "currentColor", strokeWidth: 0 } : {};
+  const iconClass = effectiveCollapsed ? "h-[18px] w-[18px]" : "h-3 w-3";
+  const fillProp = effectiveCollapsed ? { fill: "currentColor", strokeWidth: 0 } : {};
 
   const configMap = {
     syncing: {
@@ -170,7 +195,7 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
     },
     error: {
       label: "Sync Error",
-      icon: collapsed 
+      icon: effectiveCollapsed 
         ? <SolidAlertCircle className={cn(iconClass, "text-destructive")} />
         : <AlertCircle className={cn(iconClass, "text-destructive")} />,
       border: "border-destructive/50",
@@ -226,7 +251,7 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
     );
   }
 
-  if (collapsed) {
+  if (effectiveCollapsed) {
     return (
       <div id="tour-sync-indicator" className="px-2 py-3 flex flex-col items-center gap-2">
         <TooltipProvider>

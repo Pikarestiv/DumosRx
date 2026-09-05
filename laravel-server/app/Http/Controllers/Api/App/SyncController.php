@@ -1051,7 +1051,7 @@ class SyncController extends Controller
         ]);
     }
 
-    private function getModelForTable($tableName)
+    public function getModelForTable($tableName)
     {
         $map = [
             'products' => Product::class,

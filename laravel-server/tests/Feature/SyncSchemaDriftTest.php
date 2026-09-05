@@ -277,6 +277,12 @@ class SyncSchemaDriftTest extends TestCase
 
     public function test_pull_scopes_the_four_previously_unsynced_tables_by_store_without_erroring()
     {
+        // Note: this alone can't be trusted to catch a genuinely missing
+        // column — SQLite (this test's driver) was found to silently
+        // tolerate `WHERE nonexistent_column = ?` (zero rows, no error)
+        // for a query shape identical to one that throws "Unknown column"
+        // on the real MySQL server. See SyncSchemaParityTest for the
+        // column-existence check this test can't reliably perform.
         $response = $this->actingAs($this->user)->postJson('/api/v1/app/sync/pull', [
             'last_synced' => [],
         ]);

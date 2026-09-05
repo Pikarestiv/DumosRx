@@ -166,7 +166,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const now = Date.now();
         const hasCloudLink =
           typeof window !== "undefined" && !!localStorage.getItem("auth_token");
-        if (hasCloudLink && now - lastPinRecoverySyncAt > PIN_RECOVERY_SYNC_COOLDOWN_MS) {
+        if (
+          hasCloudLink &&
+          navigator.onLine &&
+          now - lastPinRecoverySyncAt > PIN_RECOVERY_SYNC_COOLDOWN_MS
+        ) {
           lastPinRecoverySyncAt = now;
           const result = await sync().catch(() => null);
           // If a background/setup sync was already in flight, our call above
@@ -229,6 +233,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // would survive a fresh login untouched and immediately re-show the
       // dashboard's lock overlay right after login just succeeded.
       useAutoLockStore.getState().unlock();
+      // Same idea for a stale impersonation banner: the return-code flag
+      // (see ImpersonationBanner) is only ever meant to mean "this exact
+      // session came from a superadmin handoff." It's written once by
+      // app/auth/callback/page.tsx and only ever cleared by successfully
+      // clicking "End Session" — a normal logout, a crash, or simply
+      // closing the impersonated tab all leave it behind in localStorage
+      // forever. Without this, ANY ordinary PIN login on that same device
+      // afterward — by anyone, not just the original impersonator — shows
+      // a permanent, undismissable "Impersonation Mode" banner.
+      localStorage.removeItem("impersonator_handoff_return_code");
 
       // Update recent users list
       const recentUsersStr = localStorage.getItem("dumos_recent_users");
@@ -293,6 +307,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem("dumos_user", JSON.stringify(defaultAdmin));
       sessionStorage.setItem("dumos_session_authenticated", "1");
       useAutoLockStore.getState().unlock();
+      localStorage.removeItem("impersonator_handoff_return_code");
 
       // Update recent users list for default admin
       const recentUsersStr = localStorage.getItem("dumos_recent_users");
@@ -374,6 +389,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     Sentry.setUser(null);
     localStorage.removeItem("dumos_user");
     sessionStorage.removeItem("dumos_session_authenticated");
+    // See the matching comment in login(): an impersonated session that
+    // ends via the ordinary "Sign Out" button instead of the banner's "End
+    // Session" button would otherwise leave this flag behind forever.
+    localStorage.removeItem("impersonator_handoff_return_code");
     // Without this, cached query results (dashboard metrics, BI, etc.) from
     // the outgoing account stay in memory and get served to whichever
     // account logs in next, until their staleTime/gcTime lapses.

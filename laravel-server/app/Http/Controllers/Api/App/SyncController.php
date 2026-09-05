@@ -838,7 +838,13 @@ class SyncController extends Controller
         $lastSyncedMap = $request->input('last_synced', []);
         $changes = [];
         $serverTimestamp = now()->toIso8601String();
-        $tables = ['products', 'stock_batches', 'categories', 'customers', 'suppliers', 'sales', 'sale_items', 'sale_item_batches', 'stores', 'users', 'stock_movements', 'purchase_orders', 'purchase_order_items', 'expenses', 'payment_accounts', 'requested_products', 'supplier_payments', 'returns', 'return_items', 'prescriptions', 'prescription_items', 'loyalty_tiers', 'loyalty_redemption_options'];
+        // stock_audits, held_transactions, loyalty_transactions,
+        // customer_payments, and audit_logs were all missing from this list
+        // — their changes could push (once the corresponding
+        // getModelForTable/schema fixes landed) but never pulled back down
+        // to any other device, so a second device or a fresh restore would
+        // never see them even after the push-side bug was fixed.
+        $tables = ['products', 'stock_batches', 'categories', 'customers', 'suppliers', 'sales', 'sale_items', 'sale_item_batches', 'stores', 'users', 'stock_movements', 'purchase_orders', 'purchase_order_items', 'expenses', 'payment_accounts', 'requested_products', 'supplier_payments', 'returns', 'return_items', 'prescriptions', 'prescription_items', 'loyalty_tiers', 'loyalty_redemption_options', 'stock_audits', 'held_transactions', 'loyalty_transactions', 'customer_payments', 'audit_logs'];
 
         foreach ($tables as $table) {
             $lastSynced = $lastSyncedMap[$table] ?? null;
@@ -914,8 +920,28 @@ class SyncController extends Controller
                     'stock_batches' => $query->whereIn('product_id', Product::whereIn('store_id', $storeIds)->pluck('id')),
                     'sale_item_batches' => $query->whereIn('sale_item_id', SaleItem::whereIn('sale_id', Sale::whereIn('store_id', $storeIds)->pluck('id'))->pluck('id')),
                     'requested_products' => $query->whereIn('store_id', $storeIds),
-                    'loyalty_tiers' => $query->where('user_id', $ownerId),
-                    'loyalty_redemption_options' => $query->where('user_id', $ownerId),
+                    // Upgraded from the legacy `where('user_id', $ownerId)`
+                    // now that these carry a real store_id (see
+                    // fix_sync_schema_drift migration) — owner-wide scoping
+                    // let a multi-store owner's tiers/options bleed across
+                    // their own stores, the same class of bug the comment
+                    // above already fixed for the 11-table group.
+                    'loyalty_tiers' => $query->whereIn('store_id', $storeIds),
+                    'loyalty_redemption_options' => $query->whereIn('store_id', $storeIds),
+                    // Added along with the fix for these tables being
+                    // missing from getModelForTable()/this pull list
+                    // entirely (see fix_sync_schema_drift migration and the
+                    // SyncController comment above the model map). None of
+                    // held_transactions/loyalty_transactions/
+                    // customer_payments has a user_id column at all, so
+                    // falling through to `default` below would throw an
+                    // "Unknown column 'user_id'" SQL error the moment these
+                    // were added to the pull table list.
+                    'stock_audits' => $query->whereIn('store_id', $storeIds),
+                    'held_transactions' => $query->whereIn('store_id', $storeIds),
+                    'loyalty_transactions' => $query->whereIn('store_id', $storeIds),
+                    'customer_payments' => $query->whereIn('store_id', $storeIds),
+                    'audit_logs' => $query->whereIn('store_id', $storeIds),
                     default => $query->where('user_id', $ownerId),
                 };
             }
@@ -1025,7 +1051,7 @@ class SyncController extends Controller
         ]);
     }
 
-    private function getModelForTable($tableName)
+    public function getModelForTable($tableName)
     {
         $map = [
             'products' => Product::class,
@@ -1054,6 +1080,18 @@ class SyncController extends Controller
             'loyalty_tiers' => \App\Models\LoyaltyTier::class,
             'loyalty_redemption_options' => \App\Models\LoyaltyRedemptionOption::class,
             'sale_item_batches' => \App\Models\SaleItemBatch::class,
+            // These four were missing entirely: getModelForTable() returning
+            // null makes push() `continue` past the change with only a
+            // server-side log warning — it's never added to
+            // response.failed, so the client (which treats "not explicitly
+            // failed" as "succeeded") deleted these from its local queue
+            // having never actually been written anywhere. Real customer
+            // payments, held transactions, loyalty point transactions, and
+            // stock audits were silently lost, not just stuck.
+            'stock_audits' => \App\Models\StockAudit::class,
+            'held_transactions' => \App\Models\HeldTransaction::class,
+            'loyalty_transactions' => \App\Models\LoyaltyTransaction::class,
+            'customer_payments' => \App\Models\CustomerPayment::class,
         ];
         return $map[$tableName] ?? null;
     }

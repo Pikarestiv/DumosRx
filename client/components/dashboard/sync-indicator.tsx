@@ -148,7 +148,10 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
             ? "active"
             : "unlinked";
 
-  const iconClass = collapsed ? "h-[18px] w-[18px]" : "h-3 w-3";
+  const iconClass = cn(
+    "transition-all duration-300",
+    collapsed ? "h-[18px] w-[18px]" : "h-3 w-3",
+  );
   const fillProp = collapsed ? { fill: "currentColor", strokeWidth: 0 } : {};
 
   const configMap = {
@@ -207,8 +210,13 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
   const currentConfig = configMap[stateKey];
   const statusLabel = currentConfig.label;
   const statusIcon = currentConfig.icon;
-  const statusBorder = currentConfig.border;
-  const desktopBg = currentConfig.desktopBg;
+  // Collapsed shows no status border/background at all — just the bare
+  // icon, like every other sidebar nav icon at rest. The colored border and
+  // background fade in together as part of the same transition once the
+  // sidebar actually starts expanding, rather than sitting there as a
+  // permanent box around the icon in the collapsed rail.
+  const statusBorder = collapsed ? "border-transparent" : currentConfig.border;
+  const desktopBg = collapsed ? "hover:bg-sidebar-accent" : currentConfig.desktopBg;
   const mobileBg = currentConfig.mobileBg;
   const tooltipText = currentConfig.tooltip;
 
@@ -226,26 +234,101 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
     );
   }
 
-  if (collapsed) {
-    return (
-      <div id="tour-sync-indicator" className="px-2 py-3 flex flex-col items-center gap-2">
+  // A single persistent shape that grows, not two structurally different
+  // layouts swapped by a conditional — matching every other collapsible bit
+  // of sidebar content (nav labels, the logo wordmark), which fade/reveal
+  // inside markup that's always there rather than mounting a differently
+  // shaped tree. The label, the refresh button, and the "last synced" line
+  // each reveal via max-width/max-height + opacity transitions on the same
+  // 300ms timeline as the sidebar's own width transition (dashboard-
+  // sidebar.tsx's `transition-all duration-300`), so they grow in lockstep
+  // with the panel instead of popping in once it's already done widening.
+  return (
+    <div className="px-2 pb-1">
+      <div
+        id="tour-sync-indicator"
+        className={cn(
+          "border rounded-xl transition-all duration-300 cursor-pointer",
+          collapsed ? "p-2" : "p-2.5",
+          statusBorder,
+          desktopBg,
+        )}
+        onClick={() => {
+          if (status !== "offline") handleManualSync();
+        }}
+      >
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <button
-                onClick={handleManualSync}
-                disabled={isSyncInProgress || status === "offline"}
-                className="p-2 rounded-lg transition-colors disabled:opacity-30 cursor-pointer hover:bg-sidebar-accent border border-transparent hover:border-sidebar-border"
-                title={statusLabel}
+              <div
+                className={cn(
+                  "flex flex-col transition-all duration-300",
+                  collapsed ? "gap-0" : "gap-1.5",
+                )}
               >
-                {statusIcon}
-              </button>
+                <div
+                  className={cn(
+                    "flex items-center transition-all duration-300",
+                    collapsed ? "justify-center" : "justify-between",
+                  )}
+                >
+                  <div className="flex items-center min-w-0">
+                    {statusIcon}
+                    <span
+                      className={cn(
+                        "text-[11px] font-bold text-sidebar-foreground uppercase tracking-tight whitespace-nowrap overflow-hidden transition-all duration-300",
+                        collapsed ? "max-w-0 opacity-0 ml-0" : "max-w-[100px] opacity-100 ml-2",
+                      )}
+                    >
+                      {statusLabel}
+                    </span>
+                  </div>
+
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div
+                        className={cn(
+                          "overflow-hidden transition-all duration-300 shrink-0",
+                          collapsed ? "max-w-0 opacity-0 ml-0" : "max-w-[28px] opacity-100 ml-2",
+                        )}
+                      >
+                        <button
+                          disabled={isSyncInProgress || status === "offline"}
+                          className="p-1 border border-sidebar-border rounded-md transition-colors disabled:opacity-30 cursor-pointer hover:bg-sidebar-accent relative z-10 pointer-events-none"
+                        >
+                          <RefreshCw
+                            className={cn(
+                              "h-3 w-3 text-sidebar-foreground !flex",
+                              isSyncInProgress && "animate-spin",
+                            )}
+                          />
+                        </button>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="font-semibold text-xs mb-1 bg-card border-accent/10">
+                      Sync Now
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+
+                <div
+                  className={cn(
+                    "overflow-hidden transition-all duration-300 pl-5",
+                    collapsed ? "max-h-0 opacity-0" : "max-h-5 opacity-100",
+                  )}
+                >
+                  <p className="text-[10px] text-sidebar-foreground/70 font-medium whitespace-nowrap">
+                    Last synced {!!(lastSync) && formatDistanceToNow(new Date(lastSync)).replace('about ', '').replace('less than a minute', '1 min') + " ago"}
+                    {!(lastSync) && "never"}
+                  </p>
+                </div>
+              </div>
             </TooltipTrigger>
             <TooltipContent side="right" className="bg-card border-accent/10 max-w-[180px]">
               <div className="space-y-1">
-                <p className="text-xs font-bold">{statusLabel}</p>
+                <p className="text-xs font-bold">Cloud Sync Engine</p>
                 <p className="text-[10px] text-muted-foreground leading-relaxed">{tooltipText}</p>
-                {lastSync && (
+                {collapsed && lastSync && (
                   <p className="text-[10px] text-muted-foreground">
                     Last sync: {formatDistanceToNow(new Date(lastSync))} ago
                   </p>
@@ -254,68 +337,6 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
-        <AuthModal open={showAuthModal} onOpenChange={setShowAuthModal} />
-      </div>
-    );
-  }
-
-  return (
-    <div className="px-2 pb-1">
-      <div 
-        id="tour-sync-indicator" 
-        className={`p-2.5 border rounded-xl ${statusBorder} ${desktopBg} transition-colors cursor-pointer`}
-        onClick={handleManualSync}
-      >
-        <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div className="flex flex-col gap-1.5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  {statusIcon}
-                  <span className="text-[11px] font-bold text-sidebar-foreground uppercase tracking-tight">
-                    {statusLabel}
-                  </span>
-                </div>
-
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      disabled={isSyncInProgress || status === "offline"}
-                      className="p-1 border border-sidebar-border rounded-md transition-colors disabled:opacity-30 cursor-pointer hover:bg-sidebar-accent relative z-10 pointer-events-none"
-                    >
-                      <RefreshCw
-                        className={cn(
-                          "h-3 w-3 text-sidebar-foreground !flex",
-                          isSyncInProgress && "animate-spin",
-                        )}
-                      />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="top" className="font-semibold text-xs mb-1 bg-card border-accent/10">
-                    Sync Now
-                  </TooltipContent>
-                </Tooltip>
-              </div>
-
-              <div className="flex justify-between items-center pl-5">
-                <p className="text-[10px] text-sidebar-foreground/70 font-medium">
-                  Last synced {!!(lastSync) && formatDistanceToNow(new Date(lastSync)).replace('about ', '').replace('less than a minute', '1 min') + " ago"}
-                                  {!(lastSync) && "never"}
-                </p>
-              </div>
-            </div>
-          </TooltipTrigger>
-          <TooltipContent side="right" className="bg-card border-accent/10">
-            <div className="space-y-1">
-              <p className="text-xs font-bold">Cloud Sync Engine</p>
-              <p className="text-[10px] text-muted-foreground leading-relaxed">
-                {tooltipText}
-              </p>
-            </div>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
       </div>
 
       <AuthModal open={showAuthModal} onOpenChange={setShowAuthModal} />

@@ -41,6 +41,25 @@ export async function sync(
     };
   }
 
+  // Centralized here (mirroring syncSubscriptionStatus's own check) rather
+  // than trusting every call site to check first: a couple of them didn't
+  // (e.g. the store-switch handler), and an offline device attempting a
+  // push/pull anyway doesn't just fail cleanly — every queued item gets a
+  // "Failed to fetch" network error, which burns through the sync queue's
+  // 5-attempt exponential backoff (~15 minutes) and then fires a "stuck
+  // sync" crash report, even though nothing is actually broken; the device
+  // is just offline, which this offline-first app is supposed to handle
+  // silently. Returning early here means no fetch is even attempted, so no
+  // retry_count is spent and no false alarm is raised.
+  if (typeof window !== "undefined" && !navigator.onLine) {
+    return {
+      success: false,
+      pushed: 0,
+      pulled: 0,
+      error: "Offline. Will sync automatically when back online.",
+    };
+  }
+
   try {
     isSyncInProgress = true;
     const pushResult = await pushChanges(isManual, isSetup);

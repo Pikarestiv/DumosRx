@@ -14,11 +14,16 @@ class ActivityLog extends Model
 
     protected $fillable = [
         'user_id',
+        'store_id',
         'action',
         'description',
         'ip_address',
         'user_agent',
         'properties', // JSON column for extra data
+        'table_name',
+        'record_id',
+        'details',
+        '_version',
     ];
 
     protected $casts = [

@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api\App;
 use App\Http\Controllers\Controller;
 use App\Models\Sale;
 use App\Models\SaleItem;
-use App\Models\StockBatch;
 use App\Models\User;
 use App\Models\Store;
 use Illuminate\Http\Request;
@@ -98,15 +97,6 @@ class SaleController extends Controller
             $total = 0;
 
             foreach ($request->items as $item) {
-                // Get price scoped to tenant inventory
-                $inventory = StockBatch::where('user_id', $tenantId)
-                    ->where('product_id', $item['product_id'])
-                    ->first(); 
-                
-                $price = 0; 
-                $subtotal = 0;
-                
-                // Create Item
                 $saleItem = new SaleItem([
                     'product_id' => $item['product_id'],
                     'quantity' => $item['quantity'],

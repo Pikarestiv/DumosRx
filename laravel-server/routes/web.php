@@ -7,7 +7,9 @@ Route::get('/', function () {
 });
 
 Route::get('/migrate-db', function () {
-    if (request()->get('key') !== 'dumos-setup') {
+    $expectedKey = config('app.migrate_db_key');
+
+    if (!$expectedKey || !hash_equals($expectedKey, (string) request()->get('key', ''))) {
         abort(403, 'Unauthorized');
     }
 

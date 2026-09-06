@@ -19,6 +19,8 @@ return [
 
     'client_app_url' => env('CLIENT_APP_URL', 'https://app.dumosrx.com'),
 
+    'migrate_db_key' => env('MIGRATE_DB_KEY'),
+
     'timezone' => 'UTC',
 
     'locale' => 'en',

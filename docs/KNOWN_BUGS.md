@@ -4,11 +4,12 @@ Issues spotted incidentally (e.g. while doing TypeScript type-safety cleanup) th
 
 ## Open items
 
-### `SyncController::push()`'s `stale_timestamp` conflict-fallback branch is unreachable dead code
+### `SyncController::push()`'s `stale_timestamp` conflict-fallback branch — corrected: NOT dead code
 
-- **Where:** `laravel-server/app/Http/Controllers/Api/App/SyncController.php`, `push()`'s UPDATE handling — the `elseif (!$isCommutativeTable && $model->updated_at && isset($payload['updated_at']))` branch, reached only when `$modelVersion` (`$model->_version`) is `null`.
-- **Why unreachable:** every `_version` column in the current schema is `integer default(1)` **NOT NULL** (every `create_*_table`/`align_schema_with_client_db` migration) — the DB itself rejects an explicit `null`, so `$modelVersion` can never actually be `null` for any real row.
-- **Why not fixed:** low priority (dead code, not a live bug) and removing it isn't purely mechanical — would need confirming no legacy/pre-migration row anywhere in production still has a genuinely null version outside this schema's guarantee. Left in place with a comment; no test exists for it since the state it guards against can't be constructed. See the comment above `test_push_sync_generates_a_stable_device_id_when_store_insert_omits_one` in `tests/Feature/SyncEndpointTest.php`.
+- **Where:** `laravel-server/app/Http/Controllers/Api/App/SyncController.php`, `push()`'s UPDATE handling — the `elseif (!$isCommutativeTable && $model->updated_at && isset($payload['updated_at']))` branch, guarding the case where `$payloadVersion !== null && $modelVersion !== null` is false.
+- **This entry previously claimed the branch was unreachable dead code**, reasoning that `$modelVersion` (`$model->_version`) can never be `null` since every `_version` column is `integer default(1)` NOT NULL. That half of the reasoning is correct — confirmed both from every migration and git history, and directly against the production DB (a full `SELECT ... WHERE _version IS NULL` sweep across all 31 tables with a `_version` column returned zero rows).
+- **What the original analysis missed:** the guard is `$payloadVersion !== null && $modelVersion !== null` — it's false whenever *either* side is null, not just when `$modelVersion` is. `$payloadVersion` genuinely can be null: a payload can simply omit the `_version` key. `tests/Feature/SyncEndpointTest.php::test_push_sync_handles_soft_deletes` does exactly this (an `UPDATE` with `_deleted: 1` and no `_version` field) and relies on the timestamp-fallback branch to accept it. Removing the branch broke that test (and `test_push_sync_generates_a_stable_device_id_when_store_insert_omits_one`) immediately.
+- **Status:** left in place, confirmed live. Do not remove without also confirming no real caller ever sends an `UPDATE` payload without `_version` — today's client (`base-helpers.ts`'s `update()`) always includes it, but this legacy fallback protects against payloads that don't (whether from an older client version, or a hand-built payload like the soft-delete test above).
 
 ## Deferred work (not bugs — explicit scope decisions)
 

@@ -2,4 +2,24 @@
 
 Issues spotted incidentally (e.g. while doing TypeScript type-safety cleanup) that aren't fixed yet, tracked here so they don't get lost. Not an exhaustive bug tracker; just a landing spot for "worth fixing later" findings.
 
-_No open items right now._
+## Open items
+
+### `SyncController::push()` crashes on a genuinely-null `payload`
+
+- **Where:** `laravel-server/app/Http/Controllers/Api/App/SyncController.php`, `push()` — the payload is unconditionally run through `SyncPayloadMapper::map(string $tableName, array $payload, ...)` (a strict `array` type hint) before the operation switch even checks whether this is a DELETE.
+- **Trigger:** a change with `"payload": null` — the endpoint's own OA doc explicitly marks `payload` as `nullable`, but a real `null` throws `foreach() argument must be of type array|object, null given` before it ever reaches the DELETE branch, which doesn't need a payload at all.
+- **Why not fixed:** the real client (`client/lib/db/base-helpers.ts`'s `hardDelete()`) always sends `{ id }` for a DELETE queue entry, never a literal `null`, so this path is dead in practice today. Confirmed via `tests/Feature/SyncEndpointTest.php::test_push_sync_handles_delete_operation`, which documents this and deliberately sends `{ id }` to match real behavior rather than the broader contract the OA doc allows.
+- **Risk if left:** any future caller (a different client, a manual API integration, a retry path that changes) that takes the OA doc's `nullable` at face value will get a 500-adjacent per-change failure instead of a clean delete.
+- **Fix sketch:** short-circuit payload processing for `operation === 'DELETE'` before the mapping/injection stage runs, or default `payload` to `[]` up front.
+
+### `SyncController::push()`'s `stale_timestamp` conflict-fallback branch is unreachable dead code
+
+- **Where:** `laravel-server/app/Http/Controllers/Api/App/SyncController.php`, `push()`'s UPDATE handling — the `elseif (!$isCommutativeTable && $model->updated_at && isset($payload['updated_at']))` branch, reached only when `$modelVersion` (`$model->_version`) is `null`.
+- **Why unreachable:** every `_version` column in the current schema is `integer default(1)` **NOT NULL** (every `create_*_table`/`align_schema_with_client_db` migration) — the DB itself rejects an explicit `null`, so `$modelVersion` can never actually be `null` for any real row.
+- **Why not fixed:** low priority (dead code, not a live bug) and removing it isn't purely mechanical — would need confirming no legacy/pre-migration row anywhere in production still has a genuinely null version outside this schema's guarantee. Left in place with a comment; no test exists for it since the state it guards against can't be constructed. See the comment above `test_push_sync_generates_a_stable_device_id_when_store_insert_omits_one` in `tests/Feature/SyncEndpointTest.php`.
+
+## Deferred work (not bugs — explicit scope decisions)
+
+- **`SyncController::push()`/`pull()` were not structurally refactored.** Both are large (push() ~730 lines) and every special case is backed by a real, documented production incident (see the method's own doc comments and `git log -S` on individual fixes). Judged too risky to mechanically extract without first having comprehensive characterization tests — those tests were added instead (`SyncEndpointTest.php`, `SyncPullMappingTest.php`, `SyncValidationTest.php`), and the structural refactor itself was deferred.
+- **`AuthController` (~895 lines) was not split by sub-domain**, unlike `AdminController`/`AdminService`. It's security-critical (login/session/token issuance); splitting risks subtly changing how middleware/guards apply per route for a pure-reorganization change with no functional upside. Left as a single file.
+- **`client/lib/db/core.ts`'s `backfillStoreIdOnLegacyRows()` and `relaxPurchaseOrdersSupplierIdNullable()` are still active**, not yet retired the way older schema-repair migrations were (`renameLegacyTablesAndColumns`, `dropLegacyVendorIdColumn`, etc. — see the comments above `SYNC_COLUMN_MIGRATIONS` in `core.ts`). They *could* eventually follow the same removal pattern once every currently-active account is confirmed to have a local DB created after each migration's ship date (`backfillStoreIdOnLegacyRows`: 2026-08-14; `relaxPurchaseOrdersSupplierIdNullable`: 2026-08-29) — checked via `diagnoseLegacySchema()`-style inspection of each device's real local file, not via the admin dashboard (subscription-start dates shown there aren't a reliable proxy for local DB creation date). As of this check, several active accounts predate both ship dates, so neither is removable yet.

@@ -222,4 +222,31 @@ class StorefrontControllerTest extends TestCase
         $response->assertStatus(404);
         $this->assertDatabaseCount('online_orders', 0);
     }
+
+    public function test_checkout_notifies_the_store_owner_and_its_staff()
+    {
+        $product = Product::create(['name' => 'Panadol', 'selling_price' => 100, 'user_id' => $this->ownerA->id]);
+        $staff = User::create([
+            'first_name' => 'Store', 'last_name' => 'Staff',
+            'email' => 'staffA@dumosrx.com', 'password' => bcrypt('password'),
+            'role' => 'sales_staff', 'store_id' => $this->storeA->id,
+        ]);
+
+        $response = $this->postJson('/api/v1/storefront/store-a/checkout', [
+            'customer_name' => 'Jane Doe',
+            'customer_phone' => '08000000000',
+            'payment_method' => 'in_store',
+            'items' => [['product_id' => $product->id, 'quantity' => 1]],
+        ]);
+
+        $response->assertStatus(201);
+        $this->assertDatabaseCount('notifications', 2);
+        foreach ([$this->ownerA, $staff] as $recipient) {
+            $this->assertDatabaseHas('notifications', [
+                'user_id' => $recipient->id,
+                'title' => 'New Online Order',
+                'type' => 'online_order',
+            ]);
+        }
+    }
 }

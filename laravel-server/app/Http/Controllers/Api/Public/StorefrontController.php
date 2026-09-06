@@ -190,18 +190,17 @@ class StorefrontController extends Controller
 
         $order->items()->createMany($orderItems);
 
-        // Notify store users
-        $storeUsers = $store->users; // Assuming store has users relationship
-        if ($storeUsers) {
-            foreach ($storeUsers as $user) {
-                \App\Models\Notification::create([
-                    'user_id' => $user->id,
-                    'title' => 'New Online Order',
-                    'message' => "Order #{$order->id} placed by {$order->customer_name} for {$totalAmount}.",
-                    'type' => 'online_order',
-                ]);
-            }
-        }
+        // Notify store users. Store has no users() relationship - staff
+        // resolve to it via their own store_id, the owner via Store.user_id
+        // (same scoping convention used in SaleController/SyncController).
+        $storeUserIds = \App\Models\User::where('store_id', $store->id)
+            ->orWhere('id', $store->user_id)
+            ->pluck('id');
+        \App\Models\Notification::bulkCreateFor($storeUserIds, [
+            'title' => 'New Online Order',
+            'message' => "Order #{$order->id} placed by {$order->customer_name} for {$totalAmount}.",
+            'type' => 'online_order',
+        ]);
 
         return response()->json([
             'message' => 'Order placed successfully',

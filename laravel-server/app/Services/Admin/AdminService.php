@@ -1284,25 +1284,21 @@ class AdminService
         }
 
         $users = $query->get();
-        $count = 0;
+        $count = $users->count();
+
+        \App\Models\Notification::bulkCreateFor($users->pluck('id'), [
+            'title' => $title,
+            'message' => $message,
+            'type' => 'urgent',
+        ]);
 
         foreach ($users as $user) {
-            \App\Models\Notification::create([
-                'user_id' => $user->id,
-                'title' => $title,
-                'message' => $message,
-                'type' => 'urgent',
-                'is_read' => false,
-            ]);
-
             // Send via email
             try {
                 Mail::to($user->email)->send(new AdminNotification($message, $title));
             } catch (\Exception $e) {
                 Log::error("Email Sending Failed for bulkNotify user {$user->id}: ".$e->getMessage());
             }
-
-            $count++;
         }
 
         ActivityLog::create([

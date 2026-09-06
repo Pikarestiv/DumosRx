@@ -104,4 +104,59 @@ class AccountSecurityTest extends TestCase
         $response->assertStatus(200);
         $this->assertNotNull($this->user->fresh()->deletion_requested_at);
     }
+
+    public function test_request_deletion_notifies_every_super_admin(): void
+    {
+        $superAdminA = User::create([
+            'first_name' => 'Super', 'last_name' => 'A',
+            'email' => 'superA@dumosrx.com', 'password' => bcrypt('password'),
+            'role' => 'super_admin',
+        ]);
+        $superAdminB = User::create([
+            'first_name' => 'Super', 'last_name' => 'B',
+            'email' => 'superB@dumosrx.com', 'password' => bcrypt('password'),
+            'role' => 'super_admin',
+        ]);
+
+        $response = $this->actingAs($this->user)->postJson('/api/v1/profile/request-deletion', [
+            'reason' => 'Closing the business',
+            'password' => 'correct-password',
+        ]);
+
+        $response->assertStatus(200);
+        $this->assertDatabaseCount('notifications', 2);
+        foreach ([$superAdminA, $superAdminB] as $superAdmin) {
+            $this->assertDatabaseHas('notifications', [
+                'user_id' => $superAdmin->id,
+                'title' => 'Account Deletion Requested',
+                'type' => 'warning',
+                'is_read' => false,
+            ]);
+        }
+    }
+
+    public function test_cancel_deletion_notifies_every_super_admin(): void
+    {
+        $superAdmin = User::create([
+            'first_name' => 'Super', 'last_name' => 'Admin',
+            'email' => 'super@dumosrx.com', 'password' => bcrypt('password'),
+            'role' => 'super_admin',
+        ]);
+        // deletion_requested_at/deletion_reason aren't mass-assignable, so
+        // set them directly the way AuthController::requestDeletion() does.
+        $this->user->deletion_requested_at = now();
+        $this->user->deletion_reason = 'Closing';
+        $this->user->save();
+
+        $response = $this->actingAs($this->user)->postJson('/api/v1/profile/cancel-deletion');
+
+        $response->assertStatus(200);
+        $this->assertNull($this->user->fresh()->deletion_requested_at);
+        $this->assertDatabaseHas('notifications', [
+            'user_id' => $superAdmin->id,
+            'title' => 'Account Deletion Cancelled',
+            'type' => 'info',
+            'is_read' => false,
+        ]);
+    }
 }

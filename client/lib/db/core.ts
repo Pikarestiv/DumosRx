@@ -82,8 +82,8 @@ export function generateId(): string {
   });
 }
 
-// Tables that just gained a `store_id` column (see syncColumns below) and
-// need every pre-existing local row backfilled to the device's one
+// Tables that just gained a `store_id` column (see SYNC_COLUMN_MIGRATIONS
+// below) and need every pre-existing local row backfilled to the device's one
 // pre-migration store: today's local DB is single-store-per-device by
 // construction, so there's exactly one store to backfill to.
 export const STORE_SCOPED_TABLES = [
@@ -178,6 +178,372 @@ async function tryRun(adapter: DbAdapter, sql: string): Promise<void> {
 // isn't even in the current base schema anymore, so its guard condition
 // (the column existing at all) could never be true on any account created
 // after 2026-06-28.
+
+// Declarative table -> columns-to-ensure-exist list, consumed by
+// runSyncColumnMigrations() below. Hoisted out of initDatabase() itself
+// since it's pure data with no dependency on either backend (Tauri/sql.js) -
+// keeping it inline there just made the function look far larger/more
+// complex than the actual branching logic it contains.
+const SYNC_COLUMN_MIGRATIONS: { table: string; columns: string[] }[] = [
+  {
+    table: "products",
+    columns: [
+      "_version INTEGER DEFAULT 1",
+      "_synced INTEGER DEFAULT 0",
+      "_synced_at TEXT",
+      "_deleted INTEGER DEFAULT 0",
+      "is_active INTEGER DEFAULT 1",
+      "store_id TEXT",
+    ],
+  },
+  {
+    table: "stock_batches",
+    columns: [
+      "_version INTEGER DEFAULT 1",
+      "_synced INTEGER DEFAULT 0",
+      "_synced_at TEXT",
+      "_deleted INTEGER DEFAULT 0",
+      "supplier_id TEXT",
+      "manufacture_date TEXT",
+      "batch_number TEXT",
+      "quantity INTEGER DEFAULT 0",
+      "cost_price REAL DEFAULT 0",
+      "selling_price REAL DEFAULT 0",
+      "expiry_date TEXT",
+      "received_date TEXT",
+      "notes TEXT",
+      "store_id TEXT",
+    ],
+  },
+  {
+    table: "categories",
+    columns: [
+      "_version INTEGER DEFAULT 1",
+      "_synced INTEGER DEFAULT 0",
+      "_synced_at TEXT",
+      "_deleted INTEGER DEFAULT 0",
+      "is_active INTEGER DEFAULT 1",
+      "parent_id TEXT",
+      "store_id TEXT",
+    ],
+  },
+  {
+    table: "customers",
+    columns: [
+      "_version INTEGER DEFAULT 1",
+      "_synced INTEGER DEFAULT 0",
+      "_synced_at TEXT",
+      "_deleted INTEGER DEFAULT 0",
+      "store_id TEXT",
+    ],
+  },
+  {
+    table: "suppliers",
+    columns: [
+      "_version INTEGER DEFAULT 1",
+      "_synced INTEGER DEFAULT 0",
+      "_synced_at TEXT",
+      "_deleted INTEGER DEFAULT 0",
+      "contact_person TEXT",
+      "email TEXT",
+      "phone TEXT",
+      "address TEXT",
+      "tax_id TEXT",
+      "payment_terms TEXT",
+      "rating REAL DEFAULT 0",
+      "is_active INTEGER DEFAULT 1",
+      "deleted_at TEXT",
+      "store_id TEXT",
+    ],
+  },
+  {
+    table: "sales",
+    columns: [
+      "_version INTEGER DEFAULT 1",
+      "_synced INTEGER DEFAULT 0",
+      "_synced_at TEXT",
+      "_deleted INTEGER DEFAULT 0",
+      "amount_paid REAL DEFAULT 0",
+      "change_given REAL DEFAULT 0",
+      "tax_percentage REAL DEFAULT 0",
+      "discount_percentage REAL DEFAULT 0",
+      "discount_amount REAL DEFAULT 0",
+      "discount_type TEXT DEFAULT 'fixed'",
+      "points_earned REAL DEFAULT 0",
+      "points_redeemed REAL DEFAULT 0",
+      "cashier_id TEXT",
+      "payment_details TEXT",
+      "prescription_id TEXT",
+      "store_id TEXT",
+    ],
+  },
+  {
+    table: "sale_items",
+    columns: [
+      "_version INTEGER DEFAULT 1",
+      "_synced INTEGER DEFAULT 0",
+      "_synced_at TEXT",
+      "_deleted INTEGER DEFAULT 0",
+      "store_id TEXT",
+    ],
+  },
+  {
+    table: "sale_item_batches",
+    columns: ["store_id TEXT"],
+  },
+  {
+    table: "prescriptions",
+    columns: [
+      "_version INTEGER DEFAULT 1",
+      "_synced INTEGER DEFAULT 0",
+      "_synced_at TEXT",
+      "_deleted INTEGER DEFAULT 0",
+      "user_id TEXT",
+      "dispensed_at TEXT",
+      "store_id TEXT",
+    ],
+  },
+  {
+    table: "prescription_items",
+    columns: [
+      "_version INTEGER DEFAULT 1",
+      "_synced INTEGER DEFAULT 0",
+      "_synced_at TEXT",
+      "_deleted INTEGER DEFAULT 0",
+      "refills_authorized INTEGER DEFAULT 0",
+      "refills_used INTEGER DEFAULT 0",
+      "refill_interval_days INTEGER DEFAULT 30",
+      "next_refill_date TEXT",
+      "product_name TEXT DEFAULT ''",
+      "strength TEXT",
+      "dosage TEXT",
+      "quantity INTEGER DEFAULT 0",
+      "instructions TEXT",
+      "cost REAL DEFAULT 0",
+      "unit_cost REAL DEFAULT 0",
+      "store_id TEXT",
+    ],
+  },
+  {
+    table: "expenses",
+    columns: [
+      "_version INTEGER DEFAULT 1",
+      "_synced INTEGER DEFAULT 0",
+      "_synced_at TEXT",
+      "_deleted INTEGER DEFAULT 0",
+      "user_id TEXT",
+      "store_id TEXT",
+      "covers_months INTEGER",
+    ],
+  },
+  {
+    table: "users",
+    columns: [
+      "_version INTEGER DEFAULT 1",
+      "_synced INTEGER DEFAULT 0",
+      "_synced_at TEXT",
+      "_deleted INTEGER DEFAULT 0",
+      "store_id TEXT",
+      "first_name TEXT",
+      "last_name TEXT",
+    ],
+  },
+  {
+    table: "audit_logs",
+    columns: [
+      "_version INTEGER DEFAULT 1",
+      "_synced INTEGER DEFAULT 0",
+      "_synced_at TEXT",
+      "_deleted INTEGER DEFAULT 0",
+      "store_id TEXT",
+    ],
+  },
+  {
+    table: "loyalty_tiers",
+    columns: ["store_id TEXT"],
+  },
+  {
+    table: "loyalty_redemption_options",
+    columns: ["store_id TEXT", "discount_value REAL DEFAULT 0"],
+  },
+  {
+    table: "returns",
+    columns: [
+      "_version INTEGER DEFAULT 1",
+      "_synced INTEGER DEFAULT 0",
+      "_synced_at TEXT",
+      "_deleted INTEGER DEFAULT 0",
+      "store_id TEXT",
+    ],
+  },
+  {
+    table: "return_items",
+    columns: ["store_id TEXT"],
+  },
+  {
+    table: "purchase_orders",
+    columns: [
+      "_version INTEGER DEFAULT 1",
+      "_synced INTEGER DEFAULT 0",
+      "_synced_at TEXT",
+      "_deleted INTEGER DEFAULT 0",
+      "ordered_by TEXT",
+      "order_date TEXT",
+      "order_number TEXT",
+      "supplier_id TEXT",
+      "payment_status TEXT DEFAULT 'unpaid'",
+      "amount_paid REAL DEFAULT 0",
+      "due_date TEXT",
+      "store_id TEXT",
+      "type TEXT DEFAULT 'standard'",
+    ],
+  },
+  {
+    table: "purchase_order_items",
+    columns: [
+      "_version INTEGER DEFAULT 1",
+      "_synced INTEGER DEFAULT 0",
+      "_synced_at TEXT",
+      "_deleted INTEGER DEFAULT 0",
+      "store_id TEXT",
+    ],
+  },
+  {
+    table: "suppliers",
+    columns: [
+      "_version INTEGER DEFAULT 1",
+      "_synced INTEGER DEFAULT 0",
+      "_synced_at TEXT",
+      "_deleted INTEGER DEFAULT 0",
+      "contact_person TEXT",
+      "email TEXT",
+      "phone TEXT",
+      "address TEXT",
+      "payment_terms TEXT",
+      "is_active INTEGER DEFAULT 1",
+    ],
+  },
+  {
+    table: "stock_audits",
+    columns: [
+      "_version INTEGER DEFAULT 1",
+      "_synced INTEGER DEFAULT 0",
+      "_synced_at TEXT",
+      "_deleted INTEGER DEFAULT 0",
+      "expected_cost_price REAL",
+      "actual_cost_price REAL",
+      "cost_price_difference REAL",
+      "expected_selling_price REAL",
+      "actual_selling_price REAL",
+      "selling_price_difference REAL",
+      "store_id TEXT",
+    ],
+  },
+  {
+    table: "held_transactions",
+    columns: [
+      "_version INTEGER DEFAULT 1",
+      "_synced INTEGER DEFAULT 0",
+      "_synced_at TEXT",
+      "_deleted INTEGER DEFAULT 0",
+      "store_id TEXT",
+      "discount REAL DEFAULT 0",
+      "discount_type TEXT",
+    ],
+  },
+  {
+    table: "loyalty_transactions",
+    columns: [
+      "_version INTEGER DEFAULT 1",
+      "_synced INTEGER DEFAULT 0",
+      "_synced_at TEXT",
+      "_deleted INTEGER DEFAULT 0",
+      "store_id TEXT",
+    ],
+  },
+  {
+    table: "customer_payments",
+    columns: ["store_id TEXT"],
+  },
+  {
+    table: "stores",
+    columns: [
+      "location TEXT",
+      "created_at TEXT",
+      "pcn_license TEXT",
+      "receipt_header TEXT",
+      "receipt_footer TEXT",
+      "show_logo_on_receipt INTEGER DEFAULT 1",
+      "show_contact_on_receipt INTEGER DEFAULT 1",
+      "hide_powered_by INTEGER DEFAULT 0",
+      "low_stock_warning INTEGER DEFAULT 1",
+      "expiry_warning INTEGER DEFAULT 1",
+      "expiry_warning_days INTEGER DEFAULT 90",
+      "_version INTEGER DEFAULT 1",
+      "_synced INTEGER DEFAULT 0",
+      "_synced_at TEXT",
+      "_deleted INTEGER DEFAULT 0",
+      "auto_sync_enabled INTEGER DEFAULT 1",
+      "auto_sync_interval INTEGER DEFAULT 30",
+      "status TEXT DEFAULT 'Active'",
+      "suspension_reason TEXT",
+      "show_retail_suggestions INTEGER DEFAULT 0",
+      "require_payment_account INTEGER DEFAULT 0",
+      'enabled_payment_methods TEXT DEFAULT \'["cash","card","transfer","credit","mixed"]\'',
+      "online_store_enabled INTEGER DEFAULT 0",
+      "registration_number TEXT",
+      "custom_units TEXT DEFAULT '[]'",
+      "is_demo INTEGER DEFAULT 0",
+      "require_sale_notes INTEGER DEFAULT 0",
+      "display_stock_levels INTEGER DEFAULT 1",
+    ],
+  },
+  {
+    table: "feedback",
+    columns: [
+      "updated_at TEXT",
+      "_version INTEGER DEFAULT 1",
+      "_deleted INTEGER DEFAULT 0",
+      "_synced INTEGER DEFAULT 0",
+      "_synced_at TEXT",
+    ],
+  },
+  {
+    table: "stock_movements",
+    columns: [
+      "_version INTEGER DEFAULT 1",
+      "_synced INTEGER DEFAULT 0",
+      "_synced_at TEXT",
+      "_deleted INTEGER DEFAULT 0",
+      "stock_batch_id TEXT",
+      "store_id TEXT",
+    ],
+  },
+  { table: "payment_accounts", columns: ["user_id TEXT", "store_id TEXT"] },
+  {
+    table: "requested_products",
+    columns: [
+      "_version INTEGER DEFAULT 1",
+      "_synced INTEGER DEFAULT 0",
+      "_synced_at TEXT",
+      "_deleted INTEGER DEFAULT 0",
+      "quantity INTEGER DEFAULT 1",
+      "notes TEXT",
+      "store_id TEXT",
+    ],
+  },
+  {
+    table: "supplier_payments",
+    columns: [
+      "_version INTEGER DEFAULT 1",
+      "_synced INTEGER DEFAULT 0",
+      "_synced_at TEXT",
+      "_deleted INTEGER DEFAULT 0",
+      "store_id TEXT",
+    ],
+  },
+  { table: "_sync_queue", columns: ["next_retry_at TEXT"] },
+];
 
 async function runSyncColumnMigrations(
   adapter: DbAdapter,
@@ -304,368 +670,6 @@ async function clearLegacyTransactionsOnce(
 export async function initDatabase(): Promise<any> {
   if (db) return db;
 
-  // ---- Migration: ensure sync tracking and missing columns exist ----
-  const syncColumns = [
-    {
-      table: "products",
-      columns: [
-        "_version INTEGER DEFAULT 1",
-        "_synced INTEGER DEFAULT 0",
-        "_synced_at TEXT",
-        "_deleted INTEGER DEFAULT 0",
-        "is_active INTEGER DEFAULT 1",
-        "store_id TEXT",
-      ],
-    },
-    {
-      table: "stock_batches",
-      columns: [
-        "_version INTEGER DEFAULT 1",
-        "_synced INTEGER DEFAULT 0",
-        "_synced_at TEXT",
-        "_deleted INTEGER DEFAULT 0",
-        "supplier_id TEXT",
-        "manufacture_date TEXT",
-        "batch_number TEXT",
-        "quantity INTEGER DEFAULT 0",
-        "cost_price REAL DEFAULT 0",
-        "selling_price REAL DEFAULT 0",
-        "expiry_date TEXT",
-        "received_date TEXT",
-        "notes TEXT",
-        "store_id TEXT",
-      ],
-    },
-    {
-      table: "categories",
-      columns: [
-        "_version INTEGER DEFAULT 1",
-        "_synced INTEGER DEFAULT 0",
-        "_synced_at TEXT",
-        "_deleted INTEGER DEFAULT 0",
-        "is_active INTEGER DEFAULT 1",
-        "parent_id TEXT",
-        "store_id TEXT",
-      ],
-    },
-    {
-      table: "customers",
-      columns: [
-        "_version INTEGER DEFAULT 1",
-        "_synced INTEGER DEFAULT 0",
-        "_synced_at TEXT",
-        "_deleted INTEGER DEFAULT 0",
-        "store_id TEXT",
-      ],
-    },
-    {
-      table: "suppliers",
-      columns: [
-        "_version INTEGER DEFAULT 1",
-        "_synced INTEGER DEFAULT 0",
-        "_synced_at TEXT",
-        "_deleted INTEGER DEFAULT 0",
-        "contact_person TEXT",
-        "email TEXT",
-        "phone TEXT",
-        "address TEXT",
-        "tax_id TEXT",
-        "payment_terms TEXT",
-        "rating REAL DEFAULT 0",
-        "is_active INTEGER DEFAULT 1",
-        "deleted_at TEXT",
-        "store_id TEXT",
-      ],
-    },
-    {
-      table: "sales",
-      columns: [
-        "_version INTEGER DEFAULT 1",
-        "_synced INTEGER DEFAULT 0",
-        "_synced_at TEXT",
-        "_deleted INTEGER DEFAULT 0",
-        "amount_paid REAL DEFAULT 0",
-        "change_given REAL DEFAULT 0",
-        "tax_percentage REAL DEFAULT 0",
-        "discount_percentage REAL DEFAULT 0",
-        "discount_amount REAL DEFAULT 0",
-        "discount_type TEXT DEFAULT 'fixed'",
-        "points_earned REAL DEFAULT 0",
-        "points_redeemed REAL DEFAULT 0",
-        "cashier_id TEXT",
-        "payment_details TEXT",
-        "prescription_id TEXT",
-        "store_id TEXT",
-      ],
-    },
-    {
-      table: "sale_items",
-      columns: [
-        "_version INTEGER DEFAULT 1",
-        "_synced INTEGER DEFAULT 0",
-        "_synced_at TEXT",
-        "_deleted INTEGER DEFAULT 0",
-        "store_id TEXT",
-      ],
-    },
-    {
-      table: "sale_item_batches",
-      columns: ["store_id TEXT"],
-    },
-    {
-      table: "prescriptions",
-      columns: [
-        "_version INTEGER DEFAULT 1",
-        "_synced INTEGER DEFAULT 0",
-        "_synced_at TEXT",
-        "_deleted INTEGER DEFAULT 0",
-        "user_id TEXT",
-        "dispensed_at TEXT",
-        "store_id TEXT",
-      ],
-    },
-    {
-      table: "prescription_items",
-      columns: [
-        "_version INTEGER DEFAULT 1",
-        "_synced INTEGER DEFAULT 0",
-        "_synced_at TEXT",
-        "_deleted INTEGER DEFAULT 0",
-        "refills_authorized INTEGER DEFAULT 0",
-        "refills_used INTEGER DEFAULT 0",
-        "refill_interval_days INTEGER DEFAULT 30",
-        "next_refill_date TEXT",
-        "product_name TEXT DEFAULT ''",
-        "strength TEXT",
-        "dosage TEXT",
-        "quantity INTEGER DEFAULT 0",
-        "instructions TEXT",
-        "cost REAL DEFAULT 0",
-        "unit_cost REAL DEFAULT 0",
-        "store_id TEXT",
-      ],
-    },
-    {
-      table: "expenses",
-      columns: [
-        "_version INTEGER DEFAULT 1",
-        "_synced INTEGER DEFAULT 0",
-        "_synced_at TEXT",
-        "_deleted INTEGER DEFAULT 0",
-        "user_id TEXT",
-        "store_id TEXT",
-        "covers_months INTEGER",
-      ],
-    },
-    {
-      table: "users",
-      columns: [
-        "_version INTEGER DEFAULT 1",
-        "_synced INTEGER DEFAULT 0",
-        "_synced_at TEXT",
-        "_deleted INTEGER DEFAULT 0",
-        "store_id TEXT",
-        "first_name TEXT",
-        "last_name TEXT",
-      ],
-    },
-    {
-      table: "audit_logs",
-      columns: [
-        "_version INTEGER DEFAULT 1",
-        "_synced INTEGER DEFAULT 0",
-        "_synced_at TEXT",
-        "_deleted INTEGER DEFAULT 0",
-        "store_id TEXT",
-      ],
-    },
-    {
-      table: "loyalty_tiers",
-      columns: ["store_id TEXT"],
-    },
-    {
-      table: "loyalty_redemption_options",
-      columns: ["store_id TEXT", "discount_value REAL DEFAULT 0"],
-    },
-    {
-      table: "returns",
-      columns: [
-        "_version INTEGER DEFAULT 1",
-        "_synced INTEGER DEFAULT 0",
-        "_synced_at TEXT",
-        "_deleted INTEGER DEFAULT 0",
-        "store_id TEXT",
-      ],
-    },
-    {
-      table: "return_items",
-      columns: ["store_id TEXT"],
-    },
-    {
-      table: "purchase_orders",
-      columns: [
-        "_version INTEGER DEFAULT 1",
-        "_synced INTEGER DEFAULT 0",
-        "_synced_at TEXT",
-        "_deleted INTEGER DEFAULT 0",
-        "ordered_by TEXT",
-        "order_date TEXT",
-        "order_number TEXT",
-        "supplier_id TEXT",
-        "payment_status TEXT DEFAULT 'unpaid'",
-        "amount_paid REAL DEFAULT 0",
-        "due_date TEXT",
-        "store_id TEXT",
-        "type TEXT DEFAULT 'standard'",
-      ],
-    },
-    {
-      table: "purchase_order_items",
-      columns: [
-        "_version INTEGER DEFAULT 1",
-        "_synced INTEGER DEFAULT 0",
-        "_synced_at TEXT",
-        "_deleted INTEGER DEFAULT 0",
-        "store_id TEXT",
-      ],
-    },
-    {
-      table: "suppliers",
-      columns: [
-        "_version INTEGER DEFAULT 1",
-        "_synced INTEGER DEFAULT 0",
-        "_synced_at TEXT",
-        "_deleted INTEGER DEFAULT 0",
-        "contact_person TEXT",
-        "email TEXT",
-        "phone TEXT",
-        "address TEXT",
-        "payment_terms TEXT",
-        "is_active INTEGER DEFAULT 1",
-      ],
-    },
-    {
-      table: "stock_audits",
-      columns: [
-        "_version INTEGER DEFAULT 1",
-        "_synced INTEGER DEFAULT 0",
-        "_synced_at TEXT",
-        "_deleted INTEGER DEFAULT 0",
-        "expected_cost_price REAL",
-        "actual_cost_price REAL",
-        "cost_price_difference REAL",
-        "expected_selling_price REAL",
-        "actual_selling_price REAL",
-        "selling_price_difference REAL",
-        "store_id TEXT",
-      ],
-    },
-    {
-      table: "held_transactions",
-      columns: [
-        "_version INTEGER DEFAULT 1",
-        "_synced INTEGER DEFAULT 0",
-        "_synced_at TEXT",
-        "_deleted INTEGER DEFAULT 0",
-        "store_id TEXT",
-        "discount REAL DEFAULT 0",
-        "discount_type TEXT",
-      ],
-    },
-    {
-      table: "loyalty_transactions",
-      columns: [
-        "_version INTEGER DEFAULT 1",
-        "_synced INTEGER DEFAULT 0",
-        "_synced_at TEXT",
-        "_deleted INTEGER DEFAULT 0",
-        "store_id TEXT",
-      ],
-    },
-    {
-      table: "customer_payments",
-      columns: ["store_id TEXT"],
-    },
-    {
-      table: "stores",
-      columns: [
-        "location TEXT",
-        "created_at TEXT",
-        "pcn_license TEXT",
-        "receipt_header TEXT",
-        "receipt_footer TEXT",
-        "show_logo_on_receipt INTEGER DEFAULT 1",
-        "show_contact_on_receipt INTEGER DEFAULT 1",
-        "hide_powered_by INTEGER DEFAULT 0",
-        "low_stock_warning INTEGER DEFAULT 1",
-        "expiry_warning INTEGER DEFAULT 1",
-        "expiry_warning_days INTEGER DEFAULT 90",
-        "_version INTEGER DEFAULT 1",
-        "_synced INTEGER DEFAULT 0",
-        "_synced_at TEXT",
-        "_deleted INTEGER DEFAULT 0",
-        "auto_sync_enabled INTEGER DEFAULT 1",
-        "auto_sync_interval INTEGER DEFAULT 30",
-        "status TEXT DEFAULT 'Active'",
-        "suspension_reason TEXT",
-        "show_retail_suggestions INTEGER DEFAULT 0",
-        "require_payment_account INTEGER DEFAULT 0",
-        'enabled_payment_methods TEXT DEFAULT \'["cash","card","transfer","credit","mixed"]\'',
-        "online_store_enabled INTEGER DEFAULT 0",
-        "registration_number TEXT",
-        "custom_units TEXT DEFAULT '[]'",
-        "is_demo INTEGER DEFAULT 0",
-        "require_sale_notes INTEGER DEFAULT 0",
-        "display_stock_levels INTEGER DEFAULT 1",
-      ],
-    },
-    {
-      table: "feedback",
-      columns: [
-        "updated_at TEXT",
-        "_version INTEGER DEFAULT 1",
-        "_deleted INTEGER DEFAULT 0",
-        "_synced INTEGER DEFAULT 0",
-        "_synced_at TEXT",
-      ],
-    },
-    {
-      table: "stock_movements",
-      columns: [
-        "_version INTEGER DEFAULT 1",
-        "_synced INTEGER DEFAULT 0",
-        "_synced_at TEXT",
-        "_deleted INTEGER DEFAULT 0",
-        "stock_batch_id TEXT",
-        "store_id TEXT",
-      ],
-    },
-    { table: "payment_accounts", columns: ["user_id TEXT", "store_id TEXT"] },
-    {
-      table: "requested_products",
-      columns: [
-        "_version INTEGER DEFAULT 1",
-        "_synced INTEGER DEFAULT 0",
-        "_synced_at TEXT",
-        "_deleted INTEGER DEFAULT 0",
-        "quantity INTEGER DEFAULT 1",
-        "notes TEXT",
-        "store_id TEXT",
-      ],
-    },
-    {
-      table: "supplier_payments",
-      columns: [
-        "_version INTEGER DEFAULT 1",
-        "_synced INTEGER DEFAULT 0",
-        "_synced_at TEXT",
-        "_deleted INTEGER DEFAULT 0",
-        "store_id TEXT",
-      ],
-    },
-    { table: "_sync_queue", columns: ["next_retry_at TEXT"] },
-  ];
-
   if (isTauri()) {
     try {
       const sqlPlugin = await import("@tauri-apps/plugin-sql");
@@ -695,7 +699,7 @@ export async function initDatabase(): Promise<any> {
       }
 
       const tauriAdapter = makeTauriAdapter(db);
-      await runSyncColumnMigrations(tauriAdapter, syncColumns);
+      await runSyncColumnMigrations(tauriAdapter, SYNC_COLUMN_MIGRATIONS);
       await backfillStoreIdOnLegacyRows(tauriAdapter);
       await relaxPurchaseOrdersSupplierIdNullable(tauriAdapter);
       // Tauri's SQL plugin writes land on disk directly; no save step needed.
@@ -770,7 +774,7 @@ export async function initDatabase(): Promise<any> {
       db.run("UPDATE purchase_orders SET status = 'pending' WHERE status = 'draft'");
     } catch (_e) {}
 
-    await runSyncColumnMigrations(webAdapter, syncColumns);
+    await runSyncColumnMigrations(webAdapter, SYNC_COLUMN_MIGRATIONS);
     await backfillStoreIdOnLegacyRows(webAdapter);
     await relaxPurchaseOrdersSupplierIdNullable(webAdapter);
     await clearLegacyTransactionsOnce(webAdapter, saveDatabase);

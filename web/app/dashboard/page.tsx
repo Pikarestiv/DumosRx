@@ -1,17 +1,5 @@
-"use client";
-
-import { useEffect } from "react";
-import { Loader2 } from "lucide-react";
-import { getAppURL } from "@/lib/constants";
+import { DashboardViewRedirect } from "./[...view]/redirect-client";
 
 export default function DashboardRedirectPage() {
-  useEffect(() => {
-    window.location.href = getAppURL();
-  }, []);
-
-  return (
-    <div className="min-h-dvh flex items-center justify-center bg-background">
-      <Loader2 className="h-8 w-8 text-primary animate-spin" />
-    </div>
-  );
+  return <DashboardViewRedirect />;
 }

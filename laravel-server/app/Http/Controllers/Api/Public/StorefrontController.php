@@ -135,14 +135,24 @@ class StorefrontController extends Controller
             'items.*.quantity' => 'required|integer|min:1',
         ]);
 
+        // Scoped to this store's own catalog. A product ID belonging to a
+        // different store must not be purchasable through this store's
+        // checkout - fetched in one batch rather than one query per item.
+        $productIds = collect($validated['items'])->pluck('product_id')->unique();
+        $products = Product::where('user_id', $store->user_id)
+            ->whereIn('id', $productIds)
+            ->get()
+            ->keyBy('id');
+
+        if ($products->count() !== $productIds->count()) {
+            abort(404);
+        }
+
         $totalAmount = 0;
         $orderItems = [];
 
         foreach ($validated['items'] as $item) {
-            // Scoped to this store's own catalog. A product ID belonging to
-            // a different store must not be purchasable through this store's
-            // checkout.
-            $product = Product::where('user_id', $store->user_id)->findOrFail($item['product_id']);
+            $product = $products[$item['product_id']];
             $subtotal = $product->selling_price * $item['quantity'];
             $totalAmount += $subtotal;
 
@@ -178,22 +188,19 @@ class StorefrontController extends Controller
             'synced_at' => now(), // Initial sync timestamp
         ]);
 
-        foreach ($orderItems as $item) {
-            $order->items()->create($item);
-        }
+        $order->items()->createMany($orderItems);
 
-        // Notify store users
-        $storeUsers = $store->users; // Assuming store has users relationship
-        if ($storeUsers) {
-            foreach ($storeUsers as $user) {
-                \App\Models\Notification::create([
-                    'user_id' => $user->id,
-                    'title' => 'New Online Order',
-                    'message' => "Order #{$order->id} placed by {$order->customer_name} for {$totalAmount}.",
-                    'type' => 'online_order',
-                ]);
-            }
-        }
+        // Notify store users. Store has no users() relationship - staff
+        // resolve to it via their own store_id, the owner via Store.user_id
+        // (same scoping convention used in SaleController/SyncController).
+        $storeUserIds = \App\Models\User::where('store_id', $store->id)
+            ->orWhere('id', $store->user_id)
+            ->pluck('id');
+        \App\Models\Notification::bulkCreateFor($storeUserIds, [
+            'title' => 'New Online Order',
+            'message' => "Order #{$order->id} placed by {$order->customer_name} for {$totalAmount}.",
+            'type' => 'online_order',
+        ]);
 
         return response()->json([
             'message' => 'Order placed successfully',

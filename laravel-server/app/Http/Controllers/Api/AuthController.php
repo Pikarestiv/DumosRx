@@ -826,16 +826,12 @@ class AuthController extends Controller
         $user->save();
 
         // 1. Notify Super Admins & Requesting User
-        $superAdmins = User::where('role', 'super_admin')->get();
-        foreach ($superAdmins as $superAdmin) {
-            Notification::create([
-                'user_id' => $superAdmin->id,
-                'title' => 'Account Deletion Requested',
-                'message' => "User {$user->name} ({$user->email}) has requested account deletion. Reason: {$request->reason}",
-                'type' => 'warning',
-                'is_read' => false,
-            ]);
-        }
+        $superAdminIds = User::where('role', 'super_admin')->pluck('id');
+        Notification::bulkCreateFor($superAdminIds, [
+            'title' => 'Account Deletion Requested',
+            'message' => "User {$user->name} ({$user->email}) has requested account deletion. Reason: {$request->reason}",
+            'type' => 'warning',
+        ]);
 
         // 2. Log Activity
         ActivityLog::create([
@@ -876,16 +872,12 @@ class AuthController extends Controller
         $user->save();
 
         // 1. Notify Super Admins & Requesting User
-        $superAdmins = User::where('role', 'super_admin')->get();
-        foreach ($superAdmins as $superAdmin) {
-            Notification::create([
-                'user_id' => $superAdmin->id,
-                'title' => 'Account Deletion Cancelled',
-                'message' => "User {$user->name} ({$user->email}) has cancelled their account deletion request.",
-                'type' => 'info',
-                'is_read' => false,
-            ]);
-        }
+        $superAdminIds = User::where('role', 'super_admin')->pluck('id');
+        Notification::bulkCreateFor($superAdminIds, [
+            'title' => 'Account Deletion Cancelled',
+            'message' => "User {$user->name} ({$user->email}) has cancelled their account deletion request.",
+            'type' => 'info',
+        ]);
 
         // 2. Log Activity
         ActivityLog::create([

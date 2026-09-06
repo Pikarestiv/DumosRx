@@ -24,6 +24,20 @@ class AdminController extends Controller
         $this->adminService = $adminService;
     }
 
+    /**
+     * Runs $callback and turns any \Exception into the standard
+     * Log::error(...) + JSON 500 shape most admin actions share.
+     */
+    private function withErrorResponse(string $logLabel, string $failureMessage, callable $callback)
+    {
+        try {
+            return $callback();
+        } catch (\Exception $e) {
+            Log::error("Admin {$logLabel} Error: " . $e->getMessage());
+            return response()->json(['error' => $failureMessage], 500);
+        }
+    }
+
     #[OA\Get(
         path: '/admin/summary',
         summary: 'Platform-wide summary metrics',
@@ -37,18 +51,9 @@ class AdminController extends Controller
     )]
     public function summary(Request $request)
     {
-        // Ensure only super_admin can access
-        if (!$request->user()->hasRole('super_admin')) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
-        try {
-            $summary = $this->adminService->getGlobalSummary();
-            return response()->json($summary);
-        } catch (\Exception $e) {
-            Log::error("Admin Dashboard Error: " . $e->getMessage());
-            return response()->json(['error' => 'Failed to fetch admin summary'], 500);
-        }
+        return $this->withErrorResponse('Dashboard', 'Failed to fetch admin summary', function () {
+            return response()->json($this->adminService->getGlobalSummary());
+        });
     }
 
     #[OA\Get(
@@ -70,21 +75,13 @@ class AdminController extends Controller
     )]
     public function stores(Request $request)
     {
-        if (!$request->user()->hasRole('super_admin')) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
-        try {
+        return $this->withErrorResponse('Stores', 'Failed to fetch stores', function () use ($request) {
             $page = $request->query('page', 1);
             $search = $request->query('search');
             $status = $request->query('status');
             $plan = $request->query('plan');
-            $data = $this->adminService->getStores($page, $search, $status, $plan);
-            return response()->json($data);
-        } catch (\Exception $e) {
-            Log::error("Admin Stores Error: " . $e->getMessage());
-            return response()->json(['error' => 'Failed to fetch stores'], 500);
-        }
+            return response()->json($this->adminService->getStores($page, $search, $status, $plan));
+        });
     }
 
     #[OA\Post(
@@ -133,16 +130,13 @@ class AdminController extends Controller
             'is_demo' => 'nullable|boolean',
         ]);
 
-        try {
+        return $this->withErrorResponse('Register Store', 'Failed to register store', function () use ($request, $validated) {
             $store = $this->adminService->registerStore($validated, $request->user()->id);
             return response()->json([
                 'message' => 'Store registered successfully',
                 'store' => $store
             ], 201);
-        } catch (\Exception $e) {
-            Log::error("Admin Register Store Error: " . $e->getMessage());
-            return response()->json(['error' => 'Failed to register store'], 500);
-        }
+        });
     }
 
     #[OA\Get(
@@ -167,10 +161,6 @@ class AdminController extends Controller
     )]
     public function products(Request $request)
     {
-        if (!$request->user()->hasRole('super_admin')) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
         $page = $request->get('page', 1);
         $search = $request->get('search');
         $category = $request->get('category');
@@ -200,17 +190,9 @@ class AdminController extends Controller
     )]
     public function standardize(Request $request)
     {
-        if (!$request->user()->hasRole('super_admin')) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
-        try {
-            $result = $this->adminService->standardizeCatalog();
-            return response()->json($result);
-        } catch (\Exception $e) {
-            Log::error("Admin Standardize Error: " . $e->getMessage());
-            return response()->json(['error' => 'Failed to standardize catalog'], 500);
-        }
+        return $this->withErrorResponse('Standardize', 'Failed to standardize catalog', function () {
+            return response()->json($this->adminService->standardizeCatalog());
+        });
     }
 
     #[OA\Get(
@@ -226,17 +208,9 @@ class AdminController extends Controller
     )]
     public function health(Request $request)
     {
-        if (!$request->user()->hasRole('super_admin')) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
-        try {
-            $data = $this->adminService->getSystemHealth();
-            return response()->json($data);
-        } catch (\Exception $e) {
-            Log::error("Admin Health Error: " . $e->getMessage());
-            return response()->json(['error' => 'Failed to fetch system health'], 500);
-        }
+        return $this->withErrorResponse('Health', 'Failed to fetch system health', function () {
+            return response()->json($this->adminService->getSystemHealth());
+        });
     }
 
     #[OA\Get(
@@ -252,17 +226,9 @@ class AdminController extends Controller
     )]
     public function errors(Request $request)
     {
-        if (!$request->user()->hasRole('super_admin')) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
-        try {
-            $data = $this->adminService->getRecentErrors();
-            return response()->json($data);
-        } catch (\Exception $e) {
-            Log::error("Admin Errors Error: " . $e->getMessage());
-            return response()->json(['error' => 'Failed to fetch recent errors'], 500);
-        }
+        return $this->withErrorResponse('Errors', 'Failed to fetch recent errors', function () {
+            return response()->json($this->adminService->getRecentErrors());
+        });
     }
 
     #[OA\Get(
@@ -281,20 +247,13 @@ class AdminController extends Controller
     )]
     public function billingHistory(Request $request, string $id)
     {
-        if (!$request->user()->hasRole('super_admin')) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
-        try {
+        return $this->withErrorResponse('Billing History', 'Failed to fetch billing history', function () use ($id) {
             $data = $this->adminService->getBillingHistoryForStore($id);
             if ($data === null) {
                 return response()->json(['error' => 'Store not found'], 404);
             }
             return response()->json($data);
-        } catch (\Exception $e) {
-            Log::error("Admin Billing History Error: " . $e->getMessage());
-            return response()->json(['error' => 'Failed to fetch billing history'], 500);
-        }
+        });
     }
 
     #[OA\Get(
@@ -309,10 +268,6 @@ class AdminController extends Controller
     )]
     public function downloadsManifest(Request $request)
     {
-        if (!$request->user()->hasRole('super_admin')) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
         // downloads.dumosrx.com sends no Access-Control-Allow-Origin header on
         // updater.json or the binaries themselves, so the superadmin panel
         // (a statically-exported Next.js app with no server runtime of its
@@ -396,20 +351,12 @@ class AdminController extends Controller
     )]
     public function users(Request $request)
     {
-        if (!$request->user()->hasRole('super_admin')) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
-        try {
+        return $this->withErrorResponse('Users', 'Failed to fetch users', function () use ($request) {
             $page = $request->query('page', 1);
             $search = $request->query('search');
             $role = $request->query('role');
-            $data = $this->adminService->getGlobalUsers($page, $search, $role);
-            return response()->json($data);
-        } catch (\Exception $e) {
-            Log::error("Admin Users Error: " . $e->getMessage());
-            return response()->json(['error' => 'Failed to fetch users'], 500);
-        }
+            return response()->json($this->adminService->getGlobalUsers($page, $search, $role));
+        });
     }
 
     #[OA\Get(
@@ -434,12 +381,8 @@ class AdminController extends Controller
     )]
     public function activityLogs(Request $request)
     {
-        if (!$request->user()->hasRole('super_admin')) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
-        try {
-            $data = $this->adminService->getActivityLogs(
+        return $this->withErrorResponse('Activity Logs', 'Failed to fetch activity logs', function () use ($request) {
+            return response()->json($this->adminService->getActivityLogs(
                 $request->query('page', 1),
                 $request->query('search'),
                 $request->query('action'),
@@ -447,12 +390,8 @@ class AdminController extends Controller
                 $request->query('user_id'),
                 $request->query('date_from'),
                 $request->query('date_to'),
-            );
-            return response()->json($data);
-        } catch (\Exception $e) {
-            Log::error("Admin Activity Logs Error: " . $e->getMessage());
-            return response()->json(['error' => 'Failed to fetch activity logs'], 500);
-        }
+            ));
+        });
     }
 
     #[OA\Get(
@@ -479,12 +418,9 @@ class AdminController extends Controller
             $targetId = $request->query('user_id');
         }
 
-        try {
+        return $this->withErrorResponse('My Referrals', 'Failed to fetch referrals', function () use ($targetId) {
             return response()->json($this->adminService->getReferralsFor($targetId));
-        } catch (\Exception $e) {
-            Log::error("Admin My Referrals Error: " . $e->getMessage());
-            return response()->json(['error' => 'Failed to fetch referrals'], 500);
-        }
+        });
     }
 
     #[OA\Get(
@@ -563,20 +499,12 @@ class AdminController extends Controller
     )]
     public function search(Request $request)
     {
-        if (!$request->user()->hasRole('super_admin')) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
-        try {
+        return $this->withErrorResponse('Search', 'Search failed', function () use ($request) {
             $query = $request->query('query');
             if (!$query) return response()->json([]);
 
-            $results = $this->adminService->globalSearch($query);
-            return response()->json($results);
-        } catch (\Exception $e) {
-            Log::error("Admin Search Error: " . $e->getMessage());
-            return response()->json(['error' => 'Search failed'], 500);
-        }
+            return response()->json($this->adminService->globalSearch($query));
+        });
     }
     #[OA\Post(
         path: '/admin/stores/{id}/suspend',
@@ -595,21 +523,14 @@ class AdminController extends Controller
     )]
     public function suspendStore(Request $request, $id)
     {
-        if (!$request->user()->hasRole('super_admin')) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
         $validated = $request->validate([
             'reason' => 'nullable|string|max:1000',
         ]);
 
-        try {
+        return $this->withErrorResponse('Suspend', 'Failed to suspend store', function () use ($id, $validated) {
             $this->adminService->suspendStore($id, $validated['reason'] ?? null);
             return response()->json(['message' => 'Store suspended successfully']);
-        } catch (\Exception $e) {
-            Log::error("Admin Suspend Error: " . $e->getMessage());
-            return response()->json(['error' => 'Failed to suspend store'], 500);
-        }
+        });
     }
 
     #[OA\Post(
@@ -626,17 +547,10 @@ class AdminController extends Controller
     )]
     public function unsuspendStore(Request $request, $id)
     {
-        if (!$request->user()->hasRole('super_admin')) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
-        try {
+        return $this->withErrorResponse('Unsuspend', 'Failed to unsuspend store', function () use ($id) {
             $this->adminService->unsuspendStore($id);
             return response()->json(['message' => 'Store re-activated successfully']);
-        } catch (\Exception $e) {
-            Log::error("Admin Unsuspend Error: " . $e->getMessage());
-            return response()->json(['error' => 'Failed to unsuspend store'], 500);
-        }
+        });
     }
 
     #[OA\Post(
@@ -653,17 +567,10 @@ class AdminController extends Controller
     )]
     public function markStoreDemo(Request $request, $id)
     {
-        if (!$request->user()->hasRole('super_admin')) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
-        try {
+        return $this->withErrorResponse('Mark Demo', 'Failed to mark store as demo', function () use ($id) {
             $this->adminService->markStoreDemo($id);
             return response()->json(['message' => 'Store marked as demo']);
-        } catch (\Exception $e) {
-            Log::error("Admin Mark Demo Error: " . $e->getMessage());
-            return response()->json(['error' => 'Failed to mark store as demo'], 500);
-        }
+        });
     }
 
     #[OA\Post(
@@ -680,17 +587,10 @@ class AdminController extends Controller
     )]
     public function unmarkStoreDemo(Request $request, $id)
     {
-        if (!$request->user()->hasRole('super_admin')) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
-        try {
+        return $this->withErrorResponse('Unmark Demo', 'Failed to remove demo flag', function () use ($id) {
             $this->adminService->unmarkStoreDemo($id);
             return response()->json(['message' => 'Demo flag removed']);
-        } catch (\Exception $e) {
-            Log::error("Admin Unmark Demo Error: " . $e->getMessage());
-            return response()->json(['error' => 'Failed to remove demo flag'], 500);
-        }
+        });
     }
 
     #[OA\Post(
@@ -805,10 +705,6 @@ class AdminController extends Controller
     )]
     public function createPlatformAdmin(Request $request)
     {
-        if (!$request->user()->hasRole('super_admin')) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
         $validated = $request->validate([
             'first_name' => 'required|string|min:2',
             'last_name' => 'required|string|min:2',
@@ -818,16 +714,13 @@ class AdminController extends Controller
             'role' => 'nullable|string|in:super_admin,platform_admin,agent',
         ]);
 
-        try {
+        return $this->withErrorResponse('Create Platform Admin', 'Failed to create platform account', function () use ($request, $validated) {
             $user = $this->adminService->createPlatformAdmin($validated, $request->user()->id);
             return response()->json([
                 'message' => 'Platform account created successfully',
                 'user' => $user
             ], 201);
-        } catch (\Exception $e) {
-            Log::error("Admin Create Platform Admin Error: " . $e->getMessage());
-            return response()->json(['error' => 'Failed to create platform account'], 500);
-        }
+        });
     }
 
     #[OA\Post(
@@ -844,17 +737,10 @@ class AdminController extends Controller
     )]
     public function deactivateUser(Request $request, $id)
     {
-        if (!$request->user()->hasRole('super_admin')) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
-        try {
+        return $this->withErrorResponse('Deactivate User', 'Failed to deactivate user', function () use ($id) {
             $this->adminService->deactivateUser($id);
             return response()->json(['message' => 'User deactivated successfully']);
-        } catch (\Exception $e) {
-            Log::error("Admin Deactivate User Error: " . $e->getMessage());
-            return response()->json(['error' => 'Failed to deactivate user'], 500);
-        }
+        });
     }
 
     #[OA\Post(
@@ -871,17 +757,10 @@ class AdminController extends Controller
     )]
     public function reactivateUser(Request $request, $id)
     {
-        if (!$request->user()->hasRole('super_admin')) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
-        try {
+        return $this->withErrorResponse('Reactivate User', 'Failed to reactivate user', function () use ($id) {
             $this->adminService->reactivateUser($id);
             return response()->json(['message' => 'User reactivated successfully']);
-        } catch (\Exception $e) {
-            Log::error("Admin Reactivate User Error: " . $e->getMessage());
-            return response()->json(['error' => 'Failed to reactivate user'], 500);
-        }
+        });
     }
 
     #[OA\Put(
@@ -914,19 +793,11 @@ class AdminController extends Controller
     )]
     public function accountManagerCandidates(Request $request)
     {
-        if (!$request->user()->hasRole('super_admin')) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
         return response()->json(['data' => $this->adminService->getAccountManagerCandidates()]);
     }
 
     public function updateAccountManager(Request $request, $id)
     {
-        if (!$request->user()->hasRole('super_admin')) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
         $validated = $request->validate([
             'account_manager_id' => 'nullable|exists:users,id',
         ]);
@@ -958,17 +829,10 @@ class AdminController extends Controller
     )]
     public function deleteUser(Request $request, $id)
     {
-        if (!$request->user()->hasRole('super_admin')) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
-        try {
+        return $this->withErrorResponse('Delete User', 'Failed to delete user', function () use ($id) {
             $this->adminService->deleteUser($id);
             return response()->json(['message' => 'User and associated data permanently deleted']);
-        } catch (\Exception $e) {
-            Log::error("Admin Delete User Error: " . $e->getMessage());
-            return response()->json(['error' => 'Failed to delete user'], 500);
-        }
+        });
     }
 
     #[OA\Post(
@@ -989,20 +853,13 @@ class AdminController extends Controller
     )]
     public function forcePasswordReset(Request $request, $id)
     {
-        if (!$request->user()->hasRole('super_admin')) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
-        try {
+        return $this->withErrorResponse('Force Reset', 'Failed to force password reset', function () use ($id) {
             $result = $this->adminService->forcePasswordReset($id);
             return response()->json([
                 'message' => 'Password reset forced successfully',
                 'temp_password' => $result['temp_password']
             ]);
-        } catch (\Exception $e) {
-            Log::error("Admin Force Reset Error: " . $e->getMessage());
-            return response()->json(['error' => 'Failed to force password reset'], 500);
-        }
+        });
     }
 
     #[OA\Post(
@@ -1027,22 +884,15 @@ class AdminController extends Controller
     )]
     public function notifyUser(Request $request, $id)
     {
-        if (!$request->user()->hasRole('super_admin')) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
         $validated = $request->validate([
             'title' => 'required|string|min:3|max:100',
             'message' => 'required|string|min:5',
         ]);
 
-        try {
+        return $this->withErrorResponse('Notify', 'Failed to send notification', function () use ($id, $validated) {
             $this->adminService->notifyUser($id, $validated['message'], $validated['title']);
             return response()->json(['message' => 'Notification sent successfully']);
-        } catch (\Exception $e) {
-            Log::error("Admin Notify Error: " . $e->getMessage());
-            return response()->json(['error' => 'Failed to send notification'], 500);
-        }
+        });
     }
 
     #[OA\Post(
@@ -1070,26 +920,19 @@ class AdminController extends Controller
     )]
     public function bulkNotify(Request $request)
     {
-        if (!$request->user()->hasRole('super_admin')) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
         $validated = $request->validate([
             'title' => 'required|string|min:3|max:100',
             'message' => 'required|string|min:5',
             'filters' => 'nullable|array'
         ]);
 
-        try {
+        return $this->withErrorResponse('Bulk Notify', 'Failed to send bulk notifications', function () use ($validated) {
             $count = $this->adminService->bulkNotify($validated['filters'] ?? [], $validated['message'], $validated['title']);
             return response()->json([
                 'message' => "Notification sent to {$count} users successfully",
                 'count' => $count
             ]);
-        } catch (\Exception $e) {
-            Log::error("Admin Bulk Notify Error: " . $e->getMessage());
-            return response()->json(['error' => 'Failed to send bulk notifications'], 500);
-        }
+        });
     }
 
     #[OA\Post(
@@ -1107,10 +950,6 @@ class AdminController extends Controller
     )]
     public function impersonateStore(Request $request, $id)
     {
-        if (!$request->user()->hasRole('super_admin')) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
         try {
             $data = $this->adminService->impersonateStore($id);
             

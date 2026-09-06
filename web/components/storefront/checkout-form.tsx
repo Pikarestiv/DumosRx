@@ -24,7 +24,7 @@ export function CheckoutForm({ storeSlug }: CheckoutFormProps) {
     customer_name: "",
     customer_phone: "",
     customer_address: "",
-    payment_method: "in_store", // paystack, transfer, in_store
+    payment_method: "in_store", // transfer, in_store
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -59,12 +59,6 @@ export function CheckoutForm({ storeSlug }: CheckoutFormProps) {
           quantity: item.quantity
         }))
       };
-
-      // TODO: If paystack is selected, open Paystack popup here and get reference first
-      if (formData.payment_method === 'paystack') {
-        toast.info("Paystack integration coming soon... falling back to In Store");
-        payload.payment_method = 'in_store';
-      }
 
       await apiClient.post(`/storefront/${storeSlug}/checkout`, payload);
 
@@ -137,7 +131,7 @@ export function CheckoutForm({ storeSlug }: CheckoutFormProps) {
 
               <div className="space-y-4 pt-4 border-t">
                 <h3 className="font-semibold text-lg">Payment Method</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Label
                     htmlFor="in_store"
                     className={`flex flex-col items-center justify-between rounded-md border-2 p-4 cursor-pointer hover:bg-accent hover:text-accent-foreground ${formData.payment_method === 'in_store' ? 'border-primary' : 'border-muted bg-popover'}`}
@@ -153,14 +147,6 @@ export function CheckoutForm({ storeSlug }: CheckoutFormProps) {
                   >
                     <input type="radio" id="transfer" name="payment_method" value="transfer" className="sr-only" checked={formData.payment_method === 'transfer'} onChange={() => handleMethodChange('transfer')} />
                     Bank Transfer
-                  </Label>
-                  <Label
-                    htmlFor="paystack"
-                    className={`flex flex-col items-center justify-between rounded-md border-2 p-4 cursor-pointer hover:bg-accent hover:text-accent-foreground ${formData.payment_method === 'paystack' ? 'border-primary' : 'border-muted bg-popover'}`}
-                    onClick={() => handleMethodChange('paystack')}
-                  >
-                    <input type="radio" id="paystack" name="payment_method" value="paystack" className="sr-only" checked={formData.payment_method === 'paystack'} onChange={() => handleMethodChange('paystack')} />
-                    Card (Paystack)
                   </Label>
                 </div>
               </div>

@@ -6,16 +6,7 @@ import {
   Prescription,
 } from "@/lib/hooks/use-prescription-queue";
 import { getSaleForPrescription } from "@/lib/db/queries/sales";
-
-function formatDateTime(dateString: string) {
-  return new Date(dateString).toLocaleString("en-NG", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
+import { formatDateTime } from "@/lib/utils";
 
 /**
  * All business logic for the Prescription Management page: the prescription

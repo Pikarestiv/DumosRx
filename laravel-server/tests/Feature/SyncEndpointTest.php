@@ -1285,4 +1285,336 @@ class SyncEndpointTest extends TestCase
         $response->assertStatus(200);
         $this->assertCount(502, $response->json('changes.stores'));
     }
+
+    public function test_push_sync_reports_id_map_for_duplicate_supplier_name()
+    {
+        $existingSupplier = \App\Models\Supplier::create([
+            'name' => 'MedPlus Distributors',
+            'user_id' => $this->user->id,
+        ]);
+        $existingSupplierId = $existingSupplier->id;
+
+        $localSupplierId = (string) \Illuminate\Support\Str::uuid();
+        $response = $this->actingAs($this->user)->postJson('/api/v1/app/sync/push', [
+            'setup' => true,
+            'changes' => [
+                [
+                    'table_name' => 'suppliers',
+                    'operation' => 'INSERT',
+                    'record_id' => $localSupplierId,
+                    'payload' => [
+                        'id' => $localSupplierId,
+                        'name' => 'MedPlus Distributors',
+                        '_synced' => 0,
+                    ],
+                ],
+            ],
+        ]);
+
+        $response->assertStatus(200);
+        $response->assertJson([
+            'success' => true,
+            'id_map' => [
+                'suppliers' => [
+                    $localSupplierId => $existingSupplierId,
+                ],
+            ],
+        ]);
+        $this->assertDatabaseMissing('suppliers', ['id' => $localSupplierId]);
+        $this->assertDatabaseCount('suppliers', 1);
+    }
+
+    public function test_push_sync_reports_id_map_for_duplicate_username_in_same_store()
+    {
+        $existingStaff = User::create([
+            'first_name' => 'Existing', 'last_name' => 'Staff',
+            'username' => 'cashier1',
+            'store_id' => $this->store->id,
+            'password' => bcrypt('pin1234'),
+            'role' => 'sales_staff',
+        ]);
+
+        $localUserId = (string) \Illuminate\Support\Str::uuid();
+        $response = $this->actingAs($this->user)->postJson('/api/v1/app/sync/push', [
+            'setup' => true,
+            'changes' => [
+                [
+                    'table_name' => 'users',
+                    'operation' => 'INSERT',
+                    'record_id' => $localUserId,
+                    'payload' => [
+                        'id' => $localUserId,
+                        'username' => 'cashier1',
+                        'store_id' => $this->store->id,
+                        'first_name' => 'New',
+                        'last_name' => 'Staff',
+                        'pin' => '5678',
+                        '_synced' => 0,
+                    ],
+                ],
+            ],
+        ]);
+
+        $response->assertStatus(200);
+        // Pretended to succeed (matches the id_map-collision pattern used for
+        // categories/suppliers above) rather than surfacing in `failed`, so
+        // the client's local row gets remapped onto the pre-existing staff
+        // account instead of retrying a doomed insert forever.
+        $this->assertDatabaseMissing('users', ['id' => $localUserId]);
+        $this->assertDatabaseHas('users', ['id' => $existingStaff->id, 'username' => 'cashier1']);
+    }
+
+    public function test_push_sync_overrides_insert_to_update_for_a_record_that_already_exists()
+    {
+        // A device retrying a queued INSERT after the row already landed
+        // server-side (e.g. from an earlier attempt that actually succeeded
+        // but whose success response never made it back) must not crash on
+        // a duplicate-key error - it should fall through to an UPDATE.
+        $productId = 'prod_retry_insert';
+        DB::table('products')->insert([
+            'id' => $productId,
+            'user_id' => $this->user->id,
+            'name' => 'Original Name',
+            '_version' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $response = $this->actingAs($this->user)->postJson('/api/v1/app/sync/push', [
+            'setup' => true,
+            'changes' => [
+                [
+                    'table_name' => 'products',
+                    'operation' => 'INSERT',
+                    'record_id' => $productId,
+                    'payload' => [
+                        'id' => $productId,
+                        'name' => 'Retried Insert Name',
+                        '_synced' => 0,
+                    ],
+                ],
+            ],
+        ]);
+
+        $response->assertStatus(200);
+        $response->assertJsonCount(0, 'failed');
+        $this->assertDatabaseHas('products', [
+            'id' => $productId,
+            'name' => 'Retried Insert Name',
+        ]);
+        $this->assertDatabaseCount('products', 1);
+    }
+
+    public function test_push_sync_maps_sales_user_id_to_cashier_id()
+    {
+        $saleId = (string) \Illuminate\Support\Str::uuid();
+        $response = $this->actingAs($this->user)->postJson('/api/v1/app/sync/push', [
+            'setup' => true,
+            'changes' => [
+                [
+                    'table_name' => 'sales',
+                    'operation' => 'INSERT',
+                    'record_id' => $saleId,
+                    'payload' => [
+                        'id' => $saleId,
+                        'user_id' => $this->user->id,
+                        'total_amount' => 5000,
+                        'amount_paid' => 5000,
+                        'payment_method' => 'cash',
+                        '_synced' => 0,
+                    ],
+                ],
+            ],
+        ]);
+
+        $response->assertStatus(200);
+        $response->assertJsonCount(0, 'failed');
+        $this->assertDatabaseHas('sales', [
+            'id' => $saleId,
+            'cashier_id' => $this->user->id,
+        ]);
+    }
+
+    public function test_push_sync_maps_purchase_order_item_client_fields_to_server_columns()
+    {
+        $supplierId = (string) \Illuminate\Support\Str::uuid();
+        DB::table('suppliers')->insert([
+            'id' => $supplierId,
+            'user_id' => $this->user->id,
+            'name' => 'Item Mapping Supplier',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $poId = (string) \Illuminate\Support\Str::uuid();
+        DB::table('purchase_orders')->insert([
+            'id' => $poId,
+            'ordered_by' => $this->user->id,
+            'supplier_id' => $supplierId,
+            'order_number' => 'PO-ITEM-MAP',
+            'status' => 'pending',
+            'payment_status' => 'unpaid',
+            'order_date' => now()->toDateString(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $productId = 'prod_po_item_map';
+        DB::table('products')->insert([
+            'id' => $productId,
+            'user_id' => $this->user->id,
+            'name' => 'Mapped Product',
+            '_version' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $itemId = (string) \Illuminate\Support\Str::uuid();
+        $response = $this->actingAs($this->user)->postJson('/api/v1/app/sync/push', [
+            'setup' => true,
+            'changes' => [
+                [
+                    'table_name' => 'purchase_order_items',
+                    'operation' => 'INSERT',
+                    'record_id' => $itemId,
+                    'payload' => [
+                        'id' => $itemId,
+                        'po_id' => $poId,
+                        'product_id' => $productId,
+                        'bulk_quantity' => 5,
+                        'units_per_bulk' => 10,
+                        'unit_cost' => 100,
+                        'subtotal' => 5000,
+                        '_synced' => 0,
+                    ],
+                ],
+            ],
+        ]);
+
+        if ($response->status() !== 200) {
+            dump($response->json());
+        }
+        $response->assertStatus(200);
+        $response->assertJsonCount(0, 'failed');
+        $this->assertDatabaseHas('purchase_order_items', [
+            'id' => $itemId,
+            'purchase_order_id' => $poId,
+            'quantity_ordered' => 50, // 5 bulk * 10 units_per_bulk
+            'total_cost' => 5000,
+        ]);
+    }
+
+    // No test for push()'s "stale_timestamp" fallback branch (compares
+    // updated_at when either side has no _version): every _version column in
+    // the current schema is `integer default(1)` NOT NULL (see every
+    // create_*_table/align_schema_with_client_db migration), so
+    // $modelVersion can never actually be null for any real row - the DB
+    // itself rejects an explicit null the same way it rejected one in an
+    // earlier draft of this test. That branch is currently unreachable dead
+    // code, not just untested; flagged for the team rather than faked here
+    // with a DB state production can never produce.
+
+    public function test_push_sync_generates_a_stable_device_id_when_store_insert_omits_one()
+    {
+        $storeId = (string) \Illuminate\Support\Str::uuid();
+        $response = $this->actingAs($this->user)->postJson('/api/v1/app/sync/push', [
+            'setup' => true,
+            'changes' => [
+                [
+                    'table_name' => 'stores',
+                    'operation' => 'INSERT',
+                    'record_id' => $storeId,
+                    'payload' => [
+                        'id' => $storeId,
+                        'name' => 'Second Register',
+                        'user_id' => $this->user->id,
+                        '_synced' => 0,
+                        // No device_id sent, and no X-Device-Id header either.
+                    ],
+                ],
+            ],
+        ]);
+
+        $response->assertStatus(200);
+        $response->assertJsonCount(0, 'failed');
+        $store = DB::table('stores')->where('id', $storeId)->first();
+        $this->assertNotEmpty($store->device_id);
+        $this->assertSame("web-client-{$storeId}", $store->device_id);
+    }
+
+    public function test_push_sync_silently_skips_an_unknown_table_without_failing_the_batch()
+    {
+        $response = $this->actingAs($this->user)->postJson('/api/v1/app/sync/push', [
+            'setup' => true,
+            'changes' => [
+                [
+                    'id' => 1,
+                    'table_name' => 'products',
+                    'operation' => 'INSERT',
+                    'record_id' => 'prod_after_unknown',
+                    'payload' => [
+                        'id' => 'prod_after_unknown',
+                        'name' => 'Comes After Unknown Table',
+                        '_synced' => 0,
+                    ],
+                ],
+                [
+                    'id' => 2,
+                    'table_name' => 'some_table_that_does_not_exist',
+                    'operation' => 'INSERT',
+                    'record_id' => 'whatever',
+                    'payload' => ['id' => 'whatever'],
+                ],
+            ],
+        ]);
+
+        $response->assertStatus(200);
+        // Not reported as a failure (see getModelForTable()'s doc comment on
+        // the four tables that used to be silently dropped this same way) -
+        // an unrecognized table is a server-side gap, not a client error,
+        // but it also must not block the rest of the batch from processing.
+        $response->assertJsonCount(0, 'failed');
+        $this->assertDatabaseHas('products', ['id' => 'prod_after_unknown']);
+    }
+
+    public function test_push_sync_handles_delete_operation()
+    {
+        $productId = 'prod_to_hard_delete';
+        DB::table('products')->insert([
+            'id' => $productId,
+            'user_id' => $this->user->id,
+            'name' => 'Will Be Deleted',
+            '_version' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $response = $this->actingAs($this->user)->postJson('/api/v1/app/sync/push', [
+            'setup' => true,
+            'changes' => [
+                [
+                    'table_name' => 'products',
+                    'operation' => 'DELETE',
+                    'record_id' => $productId,
+                    // The real client (base-helpers.ts's hardDelete()) always
+                    // sends { id } here, never a literal null, even though
+                    // this endpoint's own OA doc marks payload nullable. A
+                    // genuinely null payload currently crashes push() -
+                    // foreach() over null in the payload-mapping stage, which
+                    // runs unconditionally before the operation switch even
+                    // checks for DELETE - but since no real caller sends
+                    // null, this test intentionally matches actual client
+                    // behavior rather than the broader (currently unused)
+                    // contract the OA doc allows.
+                    'payload' => ['id' => $productId],
+                ],
+            ],
+        ]);
+
+        $response->assertStatus(200);
+        $response->assertJsonCount(0, 'failed');
+        // Products are soft-deletable, so DELETE goes through Eloquent's
+        // delete() (a soft delete), not a raw row removal.
+        $this->assertSoftDeleted('products', ['id' => $productId]);
+    }
 }

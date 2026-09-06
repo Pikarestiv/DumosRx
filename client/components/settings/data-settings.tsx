@@ -12,7 +12,6 @@ import {
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-// import { QuickBooksImportDialog } from "./quickbooks-import-dialog"; // commented out for now
 import { DataSettingsAutoSync } from "./data-settings-auto-sync";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { useAuth } from "@/lib/context/auth-context";
@@ -59,22 +58,6 @@ export function DataSettings({
   } = useFeatureGate();
   const { verifyPin } = useAuth();
   const [showResetConfirm, setShowResetConfirm] = useState(false);
-  // QuickBooks import commented out for now
-  // const [showQBImport, setShowQBImport] = useState(false);
-  // const [iifContent, setIifContent] = useState<string | null>(null);
-  //
-  // const handleIIFUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-  //   const file = e.target.files?.[0];
-  //   if (file) {
-  //     const reader = new FileReader();
-  //     reader.onload = (event) => {
-  //       setIifContent(event.target?.result as string);
-  //       setShowQBImport(true);
-  //     };
-  //     reader.readAsText(file);
-  //   }
-  //   e.target.value = "";
-  // };
 
   return (
     <>
@@ -208,48 +191,6 @@ export function DataSettings({
             </div>
           </div>
 
-          {/* QuickBooks import commented out for now
-          <Separator />
-
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <h3 className="font-medium">Import / Migration</h3>
-              <span className="text-[10px] uppercase tracking-wider bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-bold">
-                Beta
-              </span>
-            </div>
-            <div className="p-4 border rounded-lg bg-card flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-              <div className="space-y-1">
-                <p className="text-sm font-semibold">QuickBooks Import</p>
-                <p className="text-xs text-muted-foreground">
-                  Upload a QuickBooks Backup (.iif) to automatically import your
-                  inventory and customer lists.
-                </p>
-              </div>
-              <div className="relative shrink-0">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="cursor-pointer"
-                  asChild
-                >
-                  <label htmlFor="qb-import">
-                    <Upload className="w-4 h-4 mr-2" />
-                    Select .IIF File
-                  </label>
-                </Button>
-                <input
-                  type="file"
-                  id="qb-import"
-                  className="hidden"
-                  accept=".iif"
-                  onChange={handleIIFUpload}
-                />
-              </div>
-            </div>
-          </div>
-          */}
-
           <Separator />
 
           <div className="space-y-4">
@@ -294,15 +235,6 @@ export function DataSettings({
           setShowResetConfirm(false);
         }}
       />
-
-      {/* QuickBooks import commented out for now
-      <QuickBooksImportDialog
-        open={showQBImport}
-        onOpenChange={setShowQBImport}
-        fileContent={iifContent}
-        onSuccess={() => setShowQBImport(false)}
-      />
-      */}
     </>
   );
 }

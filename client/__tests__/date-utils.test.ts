@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { 
-  getExpiryStatus, 
-  getDaysToExpiry, 
-  formatDateToDDMMYYYY, 
-  parseDDMMYYYYToDate 
+import {
+  getExpiryStatus,
+  getDaysToExpiry,
+  formatDateToDDMMYYYY,
+  parseDDMMYYYYToDate,
+  formatDateSafe,
 } from '@/lib/utils/date-utils';
 
 describe('Date Utilities', () => {
@@ -88,6 +89,27 @@ describe('Date Utilities', () => {
 
     it('returns null for invalid dates (like Feb 30)', () => {
       expect(parseDDMMYYYYToDate('30/02/2024')).toBeNull();
+    });
+  });
+
+  describe('formatDateSafe', () => {
+    it('formats a valid date string with the given date-fns pattern', () => {
+      expect(formatDateSafe('2024-01-15T10:30:00Z', 'dd/MM/yyyy')).toBe('15/01/2024');
+    });
+
+    it('formats a valid Date object', () => {
+      const date = new Date(2024, 0, 15);
+      expect(formatDateSafe(date, 'dd/MM/yyyy HH:mm')).toBe('15/01/2024 00:00');
+    });
+
+    it('falls back to "Unknown date" for null, undefined, or invalid input', () => {
+      expect(formatDateSafe(null, 'dd/MM/yyyy')).toBe('Unknown date');
+      expect(formatDateSafe(undefined, 'dd/MM/yyyy')).toBe('Unknown date');
+      expect(formatDateSafe('not-a-date', 'dd/MM/yyyy')).toBe('Unknown date');
+    });
+
+    it('uses a custom fallback string when given one', () => {
+      expect(formatDateSafe(null, 'dd/MM/yyyy', 'N/A')).toBe('N/A');
     });
   });
 });

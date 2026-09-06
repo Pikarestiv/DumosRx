@@ -42,4 +42,29 @@ class Notification extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    /**
+     * Notify a set of users in one bulk insert instead of a create() per
+     * user. Bypasses the creating() event above (insert() doesn't fire
+     * model events), so id/timestamps are generated here instead.
+     */
+    public static function bulkCreateFor(iterable $userIds, array $attributes): void
+    {
+        $now = now();
+        $rows = [];
+        foreach ($userIds as $userId) {
+            $rows[] = array_merge([
+                'is_read' => false,
+            ], $attributes, [
+                'id' => (string) Str::uuid(),
+                'user_id' => $userId,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+        }
+
+        if ($rows) {
+            static::insert($rows);
+        }
+    }
 }

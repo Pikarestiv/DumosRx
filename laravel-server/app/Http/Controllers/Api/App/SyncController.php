@@ -852,7 +852,16 @@ class SyncController extends Controller
             if (!$modelClass)
                 continue;
 
-            $query = \method_exists($modelClass, 'withTrashed')
+            // withTrashed() is a Builder macro registered by SoftDeletingScope,
+            // not a real declared method, so method_exists($modelClass,
+            // 'withTrashed') is always false and this always fell through to
+            // ::query() - silently excluding every soft-deleted row from
+            // every pull response, for every table, regardless of whether
+            // the model is soft-deletable. Probe for trashed() instead (a
+            // real SoftDeletes trait method), matching the pattern already
+            // used correctly elsewhere in this controller (see push()'s
+            // duplicate-INSERT check and its UPDATE/restore lookup above).
+            $query = \method_exists($modelClass, 'trashed')
                 ? $modelClass::withTrashed()
                 : $modelClass::query();
 

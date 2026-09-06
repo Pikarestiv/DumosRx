@@ -8,18 +8,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Input } from "@/components/ui/input";
 import { Copy, Check, Users, Gift, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { format } from "date-fns";
 import { useReferralStats } from "@/lib/hooks/use-billing";
-
-function formatDateSafe(dateString: string, pattern: string): string {
-  try {
-    const date = new Date(dateString);
-    if (Number.isNaN(date.getTime())) return "Unknown date";
-    return format(date, pattern);
-  } catch {
-    return "Unknown date";
-  }
-}
+import { formatDateSafe } from "@/lib/utils/date-utils";
 
 export function ReferralTab() {
   const { data: stats, isLoading, isError } = useReferralStats();

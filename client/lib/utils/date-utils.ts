@@ -1,7 +1,7 @@
 /**
  * Helper for Expiry Date Calculations
  */
-import { addMonths, isBefore, differenceInDays } from "date-fns";
+import { addMonths, isBefore, differenceInDays, format } from "date-fns";
 
 export const getExpiryStatus = (expiryDate: string, warningMonths: number = 3) => {
   const date = new Date(expiryDate);
@@ -82,6 +82,26 @@ export const formatDateLong = (
     return result;
   } catch {
     return "";
+  }
+};
+
+/**
+ * Format a date string with an arbitrary date-fns pattern, falling back to
+ * `fallback` instead of throwing/rendering "Invalid Date" for a null,
+ * unparseable, or invalid value.
+ */
+export const formatDateSafe = (
+  date: string | Date | null | undefined,
+  pattern: string,
+  fallback: string = "Unknown date",
+): string => {
+  if (!date) return fallback;
+  try {
+    const d = typeof date === "string" ? new Date(date) : date;
+    if (isNaN(d.getTime())) return fallback;
+    return format(d, pattern);
+  } catch {
+    return fallback;
   }
 };
 

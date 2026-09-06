@@ -25,3 +25,6 @@ yarn-error.log
 /.fleet
 /.idea
 /.vscode
+*.sqlite
+*.sqlite3
+dumomvte_dumosrx_db

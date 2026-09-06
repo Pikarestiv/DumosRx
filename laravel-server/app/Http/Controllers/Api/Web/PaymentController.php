@@ -55,7 +55,7 @@ class PaymentController extends Controller
     {
         // Validate signature/secret hash
         $signature = $request->header('verif-hash');
-        if (!$signature || $signature !== config('payment.flutterwave.encryption_key')) {
+        if (!$signature || !hash_equals((string) config('payment.flutterwave.encryption_key'), $signature)) {
              return response()->json(['message' => 'Invalid signature'], 400);
         }
 

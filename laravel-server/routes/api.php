@@ -1,6 +1,8 @@
 <?php
 
-use App\Http\Controllers\Api\Admin\AdminController;
+use App\Http\Controllers\Api\Admin\AdminPlatformController;
+use App\Http\Controllers\Api\Admin\AdminStoreController;
+use App\Http\Controllers\Api\Admin\AdminUserController;
 // Namespaced Controllers
 use App\Http\Controllers\Api\Admin\MailController;
 // Web Controllers
@@ -133,43 +135,43 @@ Route::prefix('v1')->group(function () {
         Route::get('/logs', [ActivityLogController::class, 'index'])->middleware(['permission:view_reports', 'subscription']);
 
         // Publicly accessible within authenticated session (for impersonation return)
-        Route::post('/admin/restore-session', [AdminController::class, 'restoreSession']);
+        Route::post('/admin/restore-session', [AdminStoreController::class, 'restoreSession']);
 
         Route::middleware(['permission:manage_platform', 'subscription'])->prefix('admin')->group(function () {
             // super_admin-only actions (stricter than the group's manage_platform
             // permission, which platform_admin/agent can also hold) get the
             // check via route middleware instead of a per-method guard clause.
-            Route::get('/summary', [AdminController::class, 'summary'])->middleware('role:super_admin');
-            Route::get('/stores', [AdminController::class, 'stores'])->middleware('role:super_admin');
-            Route::post('/stores', [AdminController::class, 'registerStore']);
-            Route::post('/stores/{id}/suspend', [AdminController::class, 'suspendStore'])->middleware('role:super_admin');
-            Route::post('/stores/{id}/unsuspend', [AdminController::class, 'unsuspendStore'])->middleware('role:super_admin');
-            Route::post('/stores/{id}/mark-demo', [AdminController::class, 'markStoreDemo'])->middleware('role:super_admin');
-            Route::post('/stores/{id}/unmark-demo', [AdminController::class, 'unmarkStoreDemo'])->middleware('role:super_admin');
-            Route::post('/stores/{id}/grant-trial', [AdminController::class, 'grantTrial']);
-            Route::get('/stores/{id}/billing-history', [AdminController::class, 'billingHistory'])->middleware('role:super_admin');
-            Route::post('/users/{id}/grant-trial', [AdminController::class, 'grantUserTrial']);
-            Route::get('/products', [AdminController::class, 'products'])->middleware('role:super_admin');
-            Route::post('/products/standardize', [AdminController::class, 'standardize'])->middleware('role:super_admin');
-            Route::get('/users', [AdminController::class, 'users'])->middleware('role:super_admin');
-            Route::post('/users', [AdminController::class, 'createPlatformAdmin'])->middleware('role:super_admin');
-            Route::get('/health', [AdminController::class, 'health'])->middleware('role:super_admin');
-            Route::get('/errors', [AdminController::class, 'errors'])->middleware('role:super_admin');
-            Route::get('/downloads/manifest', [AdminController::class, 'downloadsManifest'])->middleware('role:super_admin');
-            Route::delete('/users/{id}', [AdminController::class, 'deleteUser'])->middleware('role:super_admin');
-            Route::post('/users/{id}/deactivate', [AdminController::class, 'deactivateUser'])->middleware('role:super_admin');
-            Route::post('/users/{id}/reactivate', [AdminController::class, 'reactivateUser'])->middleware('role:super_admin');
-            Route::post('/users/{id}/reset-password', [AdminController::class, 'forcePasswordReset'])->middleware('role:super_admin');
-            Route::post('/users/{id}/notify', [AdminController::class, 'notifyUser'])->middleware('role:super_admin');
-            Route::post('/users/bulk-notify', [AdminController::class, 'bulkNotify'])->middleware('role:super_admin');
-            Route::get('/search', [AdminController::class, 'search'])->middleware('role:super_admin');
-            Route::get('/activity-logs', [AdminController::class, 'activityLogs'])->middleware('role:super_admin');
-            Route::get('/my-referrals', [AdminController::class, 'myReferrals']);
-            Route::get('/referral-code/check', [AdminController::class, 'checkReferralCode']);
-            Route::post('/referral-code', [AdminController::class, 'updateReferralCode']);
-            Route::post('/stores/{id}/impersonate', [AdminController::class, 'impersonateStore'])->middleware('role:super_admin');
-            Route::put('/stores/{id}/account-manager', [AdminController::class, 'updateAccountManager'])->middleware('role:super_admin');
-            Route::get('/account-managers', [AdminController::class, 'accountManagerCandidates'])->middleware('role:super_admin');
+            Route::get('/summary', [AdminPlatformController::class, 'summary'])->middleware('role:super_admin');
+            Route::get('/stores', [AdminStoreController::class, 'stores'])->middleware('role:super_admin');
+            Route::post('/stores', [AdminStoreController::class, 'registerStore']);
+            Route::post('/stores/{id}/suspend', [AdminStoreController::class, 'suspendStore'])->middleware('role:super_admin');
+            Route::post('/stores/{id}/unsuspend', [AdminStoreController::class, 'unsuspendStore'])->middleware('role:super_admin');
+            Route::post('/stores/{id}/mark-demo', [AdminStoreController::class, 'markStoreDemo'])->middleware('role:super_admin');
+            Route::post('/stores/{id}/unmark-demo', [AdminStoreController::class, 'unmarkStoreDemo'])->middleware('role:super_admin');
+            Route::post('/stores/{id}/grant-trial', [AdminStoreController::class, 'grantTrial']);
+            Route::get('/stores/{id}/billing-history', [AdminStoreController::class, 'billingHistory'])->middleware('role:super_admin');
+            Route::post('/users/{id}/grant-trial', [AdminUserController::class, 'grantUserTrial']);
+            Route::get('/products', [AdminPlatformController::class, 'products'])->middleware('role:super_admin');
+            Route::post('/products/standardize', [AdminPlatformController::class, 'standardize'])->middleware('role:super_admin');
+            Route::get('/users', [AdminUserController::class, 'users'])->middleware('role:super_admin');
+            Route::post('/users', [AdminUserController::class, 'createPlatformAdmin'])->middleware('role:super_admin');
+            Route::get('/health', [AdminPlatformController::class, 'health'])->middleware('role:super_admin');
+            Route::get('/errors', [AdminPlatformController::class, 'errors'])->middleware('role:super_admin');
+            Route::get('/downloads/manifest', [AdminPlatformController::class, 'downloadsManifest'])->middleware('role:super_admin');
+            Route::delete('/users/{id}', [AdminUserController::class, 'deleteUser'])->middleware('role:super_admin');
+            Route::post('/users/{id}/deactivate', [AdminUserController::class, 'deactivateUser'])->middleware('role:super_admin');
+            Route::post('/users/{id}/reactivate', [AdminUserController::class, 'reactivateUser'])->middleware('role:super_admin');
+            Route::post('/users/{id}/reset-password', [AdminUserController::class, 'forcePasswordReset'])->middleware('role:super_admin');
+            Route::post('/users/{id}/notify', [AdminUserController::class, 'notifyUser'])->middleware('role:super_admin');
+            Route::post('/users/bulk-notify', [AdminUserController::class, 'bulkNotify'])->middleware('role:super_admin');
+            Route::get('/search', [AdminPlatformController::class, 'search'])->middleware('role:super_admin');
+            Route::get('/activity-logs', [AdminPlatformController::class, 'activityLogs'])->middleware('role:super_admin');
+            Route::get('/my-referrals', [AdminUserController::class, 'myReferrals']);
+            Route::get('/referral-code/check', [AdminUserController::class, 'checkReferralCode']);
+            Route::post('/referral-code', [AdminUserController::class, 'updateReferralCode']);
+            Route::post('/stores/{id}/impersonate', [AdminStoreController::class, 'impersonateStore'])->middleware('role:super_admin');
+            Route::put('/stores/{id}/account-manager', [AdminStoreController::class, 'updateAccountManager'])->middleware('role:super_admin');
+            Route::get('/account-managers', [AdminStoreController::class, 'accountManagerCandidates'])->middleware('role:super_admin');
 
             // Email Templates
             Route::apiResource('email-templates', \App\Http\Controllers\Api\Admin\EmailTemplateController::class)->only(['index', 'show', 'update']);

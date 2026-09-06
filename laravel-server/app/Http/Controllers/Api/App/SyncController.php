@@ -514,9 +514,26 @@ class SyncController extends Controller
                     }
                 } elseif ($change['operation'] === 'UPDATE') {
                     $recordId = $change['record_id'] ?? ($payload['id'] ?? null);
-                    // Use withTrashed to ensure we can find soft-deleted items to restore them if needed
-                    $model = \method_exists($modelClass, 'trashed') ? $modelClass::withTrashed()->find($recordId) : $modelClass::find($recordId);
-                    
+                    // Use withTrashed to ensure we can find soft-deleted items to restore them if needed.
+                    // lockForUpdate() is required here: this branch reads _version, compares it
+                    // against the payload, then writes based on that comparison. Without a row lock,
+                    // two concurrent pushes for the same record can both read the same _version, both
+                    // pass the equality check, and both save — a lost update, which is exactly what
+                    // the version scheme above exists to prevent.
+                    //
+                    // Note this lock is held until the *outer* transaction (opened at the top of
+                    // push(), ~line 104) commits, not just this change's savepoint: Laravel's nested
+                    // DB::commit() below only decrements an internal counter and issues no real
+                    // COMMIT/RELEASE SAVEPOINT until the outermost level, so the underlying DB
+                    // transaction — and any locks taken inside it — stays open regardless. That's
+                    // no different from the exclusive lock $model->save() already takes on an
+                    // accepted change; the only new case is a *rejected* (version-conflict) row,
+                    // which now stays locked for the rest of the batch instead of never being
+                    // locked at all. That's an acceptable, bounded tradeoff for correctness here,
+                    // not a deadlock risk beyond what already exists from save() locking rows in
+                    // whatever order the batch happens to process them.
+                    $model = \method_exists($modelClass, 'trashed') ? $modelClass::withTrashed()->lockForUpdate()->find($recordId) : $modelClass::lockForUpdate()->find($recordId);
+
                     if ($model) {
                         // Conflict Resolution: strict-equality optimistic concurrency,
                         // not a `<` / "older" check — see docs/features/_known-bugs.md

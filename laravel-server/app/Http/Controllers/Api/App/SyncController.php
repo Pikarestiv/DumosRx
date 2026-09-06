@@ -171,8 +171,15 @@ class SyncController extends Controller
                 DB::beginTransaction();
                 try {
 
-                $payload = is_array($change['payload']) ? $change['payload'] : json_decode($change['payload'], true);
-                
+                // The OA doc marks payload as nullable (DELETE doesn't need one), and the
+                // request validation above allows it through as such. Default a genuinely-
+                // null (or unparseable) payload to [] here rather than passing null onward:
+                // SyncPayloadMapper::map() takes a strict `array $payload`, and a null would
+                // throw a TypeError — which, being an \Error and not an \Exception, is NOT
+                // caught by either catch block below, so it would propagate as an uncaught
+                // fatal instead of a clean per-change failure. See docs/KNOWN_BUGS.md.
+                $payload = is_array($change['payload']) ? $change['payload'] : (json_decode($change['payload'], true) ?? []);
+
                 // Strip client-only state flags that should never reach the DB
                 if (isset($payload['_synced'])) {
                     unset($payload['_synced']);

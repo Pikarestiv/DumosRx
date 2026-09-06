@@ -4,14 +4,6 @@ Issues spotted incidentally (e.g. while doing TypeScript type-safety cleanup) th
 
 ## Open items
 
-### `SyncController::push()` crashes on a genuinely-null `payload`
-
-- **Where:** `laravel-server/app/Http/Controllers/Api/App/SyncController.php`, `push()` — the payload is unconditionally run through `SyncPayloadMapper::map(string $tableName, array $payload, ...)` (a strict `array` type hint) before the operation switch even checks whether this is a DELETE.
-- **Trigger:** a change with `"payload": null` — the endpoint's own OA doc explicitly marks `payload` as `nullable`, but a real `null` throws `foreach() argument must be of type array|object, null given` before it ever reaches the DELETE branch, which doesn't need a payload at all.
-- **Why not fixed:** the real client (`client/lib/db/base-helpers.ts`'s `hardDelete()`) always sends `{ id }` for a DELETE queue entry, never a literal `null`, so this path is dead in practice today. Confirmed via `tests/Feature/SyncEndpointTest.php::test_push_sync_handles_delete_operation`, which documents this and deliberately sends `{ id }` to match real behavior rather than the broader contract the OA doc allows.
-- **Risk if left:** any future caller (a different client, a manual API integration, a retry path that changes) that takes the OA doc's `nullable` at face value will get a 500-adjacent per-change failure instead of a clean delete.
-- **Fix sketch:** short-circuit payload processing for `operation === 'DELETE'` before the mapping/injection stage runs, or default `payload` to `[]` up front.
-
 ### `SyncController::push()`'s `stale_timestamp` conflict-fallback branch is unreachable dead code
 
 - **Where:** `laravel-server/app/Http/Controllers/Api/App/SyncController.php`, `push()`'s UPDATE handling — the `elseif (!$isCommutativeTable && $model->updated_at && isset($payload['updated_at']))` branch, reached only when `$modelVersion` (`$model->_version`) is `null`.

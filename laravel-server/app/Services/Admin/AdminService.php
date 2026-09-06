@@ -925,25 +925,32 @@ class AdminService
         });
     }
 
-    public function suspendStore($id, $reason = null)
+    /**
+     * Shared by suspendStore/unsuspendStore - toggles status +
+     * suspension_reason on the store and is_active on its owner together.
+     */
+    private function toggleStoreSuspension(string $id, bool $suspend, ?string $reason = null): bool
     {
-        return DB::transaction(function () use ($id, $reason) {
+        return DB::transaction(function () use ($id, $suspend, $reason) {
             $store = Store::findOrFail($id);
-            $store->status = 'Suspended';
-            $store->suspension_reason = $reason ?: 'Your store account has been suspended for violating our terms of usage. Please contact administrative support.';
+            $store->status = $suspend ? 'Suspended' : 'Active';
+            $store->suspension_reason = $suspend
+                ? ($reason ?: 'Your store account has been suspended for violating our terms of usage. Please contact administrative support.')
+                : null;
             $store->save();
 
-            // Also suspend the owner account
+            // Also toggle the owner account
             if ($store->user) {
-                $store->user->is_active = false;
+                $store->user->is_active = ! $suspend;
                 $store->user->save();
             }
 
-            // Log activity
             ActivityLog::create([
                 'user_id' => Auth::id(),
-                'action' => 'ACCOUNT_SUSPENSION',
-                'description' => "Suspended store account: {$store->name} ({$store->id}). Reason: ".($reason ?: 'N/A'),
+                'action' => $suspend ? 'ACCOUNT_SUSPENSION' : 'ACCOUNT_UNSUSPENSION',
+                'description' => $suspend
+                    ? "Suspended store account: {$store->name} ({$store->id}). Reason: ".($reason ?: 'N/A')
+                    : "Unsuspended store account: {$store->name} ({$store->id})",
                 'status' => 'success',
             ]);
 
@@ -951,25 +958,30 @@ class AdminService
         });
     }
 
+    public function suspendStore($id, $reason = null)
+    {
+        return $this->toggleStoreSuspension($id, true, $reason);
+    }
+
     public function unsuspendStore($id)
     {
-        return DB::transaction(function () use ($id) {
+        return $this->toggleStoreSuspension($id, false);
+    }
+
+    /**
+     * Shared by markStoreDemo/unmarkStoreDemo.
+     */
+    private function toggleStoreDemo(string $id, bool $isDemo): bool
+    {
+        return DB::transaction(function () use ($id, $isDemo) {
             $store = Store::findOrFail($id);
-            $store->status = 'Active';
-            $store->suspension_reason = null;
+            $store->is_demo = $isDemo;
             $store->save();
 
-            // Also reactivate the owner account
-            if ($store->user) {
-                $store->user->is_active = true;
-                $store->user->save();
-            }
-
-            // Log activity
             ActivityLog::create([
                 'user_id' => Auth::id(),
-                'action' => 'ACCOUNT_UNSUSPENSION',
-                'description' => "Unsuspended store account: {$store->name} ({$store->id})",
+                'action' => $isDemo ? 'STORE_MARKED_DEMO' : 'STORE_UNMARKED_DEMO',
+                'description' => ($isDemo ? 'Marked' : 'Unmarked')." store account as demo: {$store->name} ({$store->id})",
                 'status' => 'success',
             ]);
 
@@ -979,38 +991,12 @@ class AdminService
 
     public function markStoreDemo($id)
     {
-        return DB::transaction(function () use ($id) {
-            $store = Store::findOrFail($id);
-            $store->is_demo = true;
-            $store->save();
-
-            ActivityLog::create([
-                'user_id' => Auth::id(),
-                'action' => 'STORE_MARKED_DEMO',
-                'description' => "Marked store account as demo: {$store->name} ({$store->id})",
-                'status' => 'success',
-            ]);
-
-            return true;
-        });
+        return $this->toggleStoreDemo($id, true);
     }
 
     public function unmarkStoreDemo($id)
     {
-        return DB::transaction(function () use ($id) {
-            $store = Store::findOrFail($id);
-            $store->is_demo = false;
-            $store->save();
-
-            ActivityLog::create([
-                'user_id' => Auth::id(),
-                'action' => 'STORE_UNMARKED_DEMO',
-                'description' => "Unmarked store account as demo: {$store->name} ({$store->id})",
-                'status' => 'success',
-            ]);
-
-            return true;
-        });
+        return $this->toggleStoreDemo($id, false);
     }
 
     /** Resolves an admin-picked trial duration string (e.g. "3 months") into

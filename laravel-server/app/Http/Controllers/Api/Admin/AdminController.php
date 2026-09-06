@@ -37,11 +37,6 @@ class AdminController extends Controller
     )]
     public function summary(Request $request)
     {
-        // Ensure only super_admin can access
-        if (!$request->user()->hasRole('super_admin')) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
         try {
             $summary = $this->adminService->getGlobalSummary();
             return response()->json($summary);
@@ -70,10 +65,6 @@ class AdminController extends Controller
     )]
     public function stores(Request $request)
     {
-        if (!$request->user()->hasRole('super_admin')) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
         try {
             $page = $request->query('page', 1);
             $search = $request->query('search');
@@ -167,10 +158,6 @@ class AdminController extends Controller
     )]
     public function products(Request $request)
     {
-        if (!$request->user()->hasRole('super_admin')) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
         $page = $request->get('page', 1);
         $search = $request->get('search');
         $category = $request->get('category');
@@ -200,10 +187,6 @@ class AdminController extends Controller
     )]
     public function standardize(Request $request)
     {
-        if (!$request->user()->hasRole('super_admin')) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
         try {
             $result = $this->adminService->standardizeCatalog();
             return response()->json($result);
@@ -226,10 +209,6 @@ class AdminController extends Controller
     )]
     public function health(Request $request)
     {
-        if (!$request->user()->hasRole('super_admin')) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
         try {
             $data = $this->adminService->getSystemHealth();
             return response()->json($data);
@@ -252,10 +231,6 @@ class AdminController extends Controller
     )]
     public function errors(Request $request)
     {
-        if (!$request->user()->hasRole('super_admin')) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
         try {
             $data = $this->adminService->getRecentErrors();
             return response()->json($data);
@@ -281,10 +256,6 @@ class AdminController extends Controller
     )]
     public function billingHistory(Request $request, string $id)
     {
-        if (!$request->user()->hasRole('super_admin')) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
         try {
             $data = $this->adminService->getBillingHistoryForStore($id);
             if ($data === null) {
@@ -309,10 +280,6 @@ class AdminController extends Controller
     )]
     public function downloadsManifest(Request $request)
     {
-        if (!$request->user()->hasRole('super_admin')) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
         // downloads.dumosrx.com sends no Access-Control-Allow-Origin header on
         // updater.json or the binaries themselves, so the superadmin panel
         // (a statically-exported Next.js app with no server runtime of its
@@ -396,10 +363,6 @@ class AdminController extends Controller
     )]
     public function users(Request $request)
     {
-        if (!$request->user()->hasRole('super_admin')) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
         try {
             $page = $request->query('page', 1);
             $search = $request->query('search');
@@ -434,10 +397,6 @@ class AdminController extends Controller
     )]
     public function activityLogs(Request $request)
     {
-        if (!$request->user()->hasRole('super_admin')) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
         try {
             $data = $this->adminService->getActivityLogs(
                 $request->query('page', 1),
@@ -563,10 +522,6 @@ class AdminController extends Controller
     )]
     public function search(Request $request)
     {
-        if (!$request->user()->hasRole('super_admin')) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
         try {
             $query = $request->query('query');
             if (!$query) return response()->json([]);
@@ -595,10 +550,6 @@ class AdminController extends Controller
     )]
     public function suspendStore(Request $request, $id)
     {
-        if (!$request->user()->hasRole('super_admin')) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
         $validated = $request->validate([
             'reason' => 'nullable|string|max:1000',
         ]);
@@ -626,10 +577,6 @@ class AdminController extends Controller
     )]
     public function unsuspendStore(Request $request, $id)
     {
-        if (!$request->user()->hasRole('super_admin')) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
         try {
             $this->adminService->unsuspendStore($id);
             return response()->json(['message' => 'Store re-activated successfully']);
@@ -653,10 +600,6 @@ class AdminController extends Controller
     )]
     public function markStoreDemo(Request $request, $id)
     {
-        if (!$request->user()->hasRole('super_admin')) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
         try {
             $this->adminService->markStoreDemo($id);
             return response()->json(['message' => 'Store marked as demo']);
@@ -680,10 +623,6 @@ class AdminController extends Controller
     )]
     public function unmarkStoreDemo(Request $request, $id)
     {
-        if (!$request->user()->hasRole('super_admin')) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
         try {
             $this->adminService->unmarkStoreDemo($id);
             return response()->json(['message' => 'Demo flag removed']);
@@ -805,10 +744,6 @@ class AdminController extends Controller
     )]
     public function createPlatformAdmin(Request $request)
     {
-        if (!$request->user()->hasRole('super_admin')) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
         $validated = $request->validate([
             'first_name' => 'required|string|min:2',
             'last_name' => 'required|string|min:2',
@@ -844,10 +779,6 @@ class AdminController extends Controller
     )]
     public function deactivateUser(Request $request, $id)
     {
-        if (!$request->user()->hasRole('super_admin')) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
         try {
             $this->adminService->deactivateUser($id);
             return response()->json(['message' => 'User deactivated successfully']);
@@ -871,10 +802,6 @@ class AdminController extends Controller
     )]
     public function reactivateUser(Request $request, $id)
     {
-        if (!$request->user()->hasRole('super_admin')) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
         try {
             $this->adminService->reactivateUser($id);
             return response()->json(['message' => 'User reactivated successfully']);
@@ -914,19 +841,11 @@ class AdminController extends Controller
     )]
     public function accountManagerCandidates(Request $request)
     {
-        if (!$request->user()->hasRole('super_admin')) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
         return response()->json(['data' => $this->adminService->getAccountManagerCandidates()]);
     }
 
     public function updateAccountManager(Request $request, $id)
     {
-        if (!$request->user()->hasRole('super_admin')) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
         $validated = $request->validate([
             'account_manager_id' => 'nullable|exists:users,id',
         ]);
@@ -958,10 +877,6 @@ class AdminController extends Controller
     )]
     public function deleteUser(Request $request, $id)
     {
-        if (!$request->user()->hasRole('super_admin')) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
         try {
             $this->adminService->deleteUser($id);
             return response()->json(['message' => 'User and associated data permanently deleted']);
@@ -989,10 +904,6 @@ class AdminController extends Controller
     )]
     public function forcePasswordReset(Request $request, $id)
     {
-        if (!$request->user()->hasRole('super_admin')) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
         try {
             $result = $this->adminService->forcePasswordReset($id);
             return response()->json([
@@ -1027,10 +938,6 @@ class AdminController extends Controller
     )]
     public function notifyUser(Request $request, $id)
     {
-        if (!$request->user()->hasRole('super_admin')) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
         $validated = $request->validate([
             'title' => 'required|string|min:3|max:100',
             'message' => 'required|string|min:5',
@@ -1070,10 +977,6 @@ class AdminController extends Controller
     )]
     public function bulkNotify(Request $request)
     {
-        if (!$request->user()->hasRole('super_admin')) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
         $validated = $request->validate([
             'title' => 'required|string|min:3|max:100',
             'message' => 'required|string|min:5',
@@ -1107,10 +1010,6 @@ class AdminController extends Controller
     )]
     public function impersonateStore(Request $request, $id)
     {
-        if (!$request->user()->hasRole('super_admin')) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
         try {
             $data = $this->adminService->impersonateStore($id);
             

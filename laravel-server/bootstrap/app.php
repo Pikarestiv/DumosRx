@@ -20,6 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'subscription' => \App\Http\Middleware\CheckSubscription::class,
             'permission' => \App\Http\Middleware\CheckPermission::class,
+            'role' => \App\Http\Middleware\CheckRole::class,
             'account_status' => \App\Http\Middleware\CheckAccountStatus::class,
             'restrict_api_docs' => \App\Http\Middleware\RestrictApiDocs::class,
         ]);

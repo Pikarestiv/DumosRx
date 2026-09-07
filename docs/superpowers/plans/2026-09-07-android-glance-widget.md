@@ -725,18 +725,19 @@ Expected: build succeeds (same command the spike validated).
 Then confirm the new methods compiled in, the same way the spike verified the widget class:
 
 ```bash
-cd client/src-tauri/gen/android
-APK=app/build/outputs/apk/universal/debug/app-universal-debug.apk
-mkdir -p /tmp/token_bridge_check && cd /tmp/token_bridge_check
-unzip -o "/Users/admin/Documents/Projects/DumosRx/client/src-tauri/gen/android/$APK" "*.dex" -d . >/dev/null 2>&1 || unzip -o "$OLDPWD/$APK" "*.dex" -d . >/dev/null
-for f in *.dex; do strings "$f" | grep -q "TokenStore" && echo "found in $f"; done
+APK="$(pwd)/client/src-tauri/gen/android/app/build/outputs/apk/universal/debug/app-universal-debug.apk"
+CHECK_DIR=$(mktemp -d)
+unzip -o "$APK" "*.dex" -d "$CHECK_DIR" >/dev/null
+for f in "$CHECK_DIR"/*.dex; do strings "$f" | grep -q "TokenStore" && echo "found in $f"; done
+rm -rf "$CHECK_DIR"
 ```
+
+(run from the repo root — `$(pwd)` picks up wherever your worktree is checked out, avoiding a hardcoded path)
 Expected: `TokenStore` found in at least one dex file.
 
 - [ ] **Step 7: Commit**
 
 ```bash
-cd /Users/admin/Documents/Projects/DumosRx
 git add client/src-tauri/src/lib.rs client/src-tauri/gen/android/app/src/main/java/com/dumostech/dumosrx/widget/TokenStore.kt client/src-tauri/gen/android/app/src/main/java/com/dumostech/dumosrx/MainActivity.kt client/src-tauri/gen/android/app/build.gradle.kts
 git commit -m "feat: add token mirroring bridge for Android widget background refresh"
 ```
@@ -1010,7 +1011,6 @@ Expected: build succeeds.
 - [ ] **Step 6: Commit**
 
 ```bash
-cd /Users/admin/Documents/Projects/DumosRx
 git add client/src-tauri/src/lib.rs client/src-tauri/gen/android/app/src/main/java/com/dumostech/dumosrx/widget/WidgetSnapshotStore.kt client/src-tauri/gen/android/app/src/main/java/com/dumostech/dumosrx/widget/DumosRxWidgetProvider.kt client/src-tauri/gen/android/app/src/main/java/com/dumostech/dumosrx/MainActivity.kt
 git commit -m "feat: add write_widget_snapshot bridge command"
 ```
@@ -1349,7 +1349,6 @@ Expected: the `snapshot_json` value's `fleet`/`stores` fields match the field na
 - [ ] **Step 7: Commit**
 
 ```bash
-cd /Users/admin/Documents/Projects/DumosRx
 git add client/src-tauri/gen/android/app/src/main/java/com/dumostech/dumosrx/widget/RefreshWorker.kt client/src-tauri/gen/android/app/src/main/java/com/dumostech/dumosrx/widget/WidgetRefreshScheduler.kt client/src-tauri/gen/android/app/src/main/java/com/dumostech/dumosrx/MainActivity.kt client/src-tauri/gen/android/app/build.gradle.kts
 git commit -m "feat: add WorkManager periodic background refresh for widget"
 ```
@@ -1658,7 +1657,6 @@ Expected: widget shows sales figure, low-stock/expiring rows appear only when th
 - [ ] **Step 9: Commit**
 
 ```bash
-cd /Users/admin/Documents/Projects/DumosRx
 git add client/src-tauri/gen/android/app/src/main/java/com/dumostech/dumosrx/widget/DumosRxWidgetProvider.kt client/src-tauri/gen/android/app/src/main/java/com/dumostech/dumosrx/widget/WidgetConfigStore.kt client/src-tauri/gen/android/app/src/main/java/com/dumostech/dumosrx/widget/DumosRxWidgetContent.kt client/src-tauri/gen/android/app/build.gradle.kts client/src-tauri/gen/android/app/src/main/AndroidManifest.xml client/src-tauri/gen/android/app/src/main/res/xml/dumosrx_widget_info.xml client/src-tauri/gen/android/app/src/main/res/drawable/ic_widget_preview.xml
 git commit -m "feat: add Glance widget UI rendering all snapshot states
 
@@ -1893,7 +1891,6 @@ Install on an emulator (cloud-linked session, so a real snapshot with ≥1 store
 - [ ] **Step 7: Commit**
 
 ```bash
-cd /Users/admin/Documents/Projects/DumosRx
 git add client/src-tauri/gen/android/app/src/main/java/com/dumostech/dumosrx/widget/WidgetConfigStore.kt client/src-tauri/gen/android/app/src/main/java/com/dumostech/dumosrx/widget/DumosRxWidgetConfigureActivity.kt client/src-tauri/gen/android/app/src/main/res/layout/activity_widget_configure.xml client/src-tauri/gen/android/app/src/main/AndroidManifest.xml client/src-tauri/gen/android/app/src/main/res/xml/dumosrx_widget_info.xml
 git commit -m "feat: add widget configuration Activity for single-store vs fleet mode"
 ```
@@ -2107,13 +2104,16 @@ class MainActivity : TauriActivity() {
 
 - [ ] **Step 8: Wire PendingIntents in the widget content**
 
-In `client/src-tauri/gen/android/app/src/main/java/com/dumostech/dumosrx/widget/DumosRxWidgetContent.kt`, replace the generic `actionStartActivity<MainActivity>()` calls on the low-stock and expiring rows with intent-carrying variants:
+In Task 9's version of `DumosRxWidgetContent.kt`, the low-stock and expiring `Text` rows have no `clickable` modifier at all — only the outer `Column` does, via a bare `actionStartActivity<MainActivity>()` that opens the app with no extras. Replace those two `Text(...)` calls (find them by their `"$lowStock items low stock"` / `"$expiring batches expiring soon"` text) with intent-carrying versions that add a per-row `clickable` modifier of their own:
+
+Add these two imports (`actionStartActivity` is already imported by Task 9 — don't duplicate it):
 
 ```kotlin
-import androidx.glance.action.actionStartActivity
 import android.content.Intent
 import com.dumostech.dumosrx.MainActivity
+```
 
+```kotlin
         val lowStock = scope.optInt("lowStockCount", 0)
         if (lowStock > 0) {
             Text(
@@ -2158,7 +2158,6 @@ Install the debug APK on an emulator with a widget already added and low-stock i
 - [ ] **Step 12: Commit**
 
 ```bash
-cd /Users/admin/Documents/Projects/DumosRx
 git add client/src-tauri/gen/android/app/src/main/java/com/dumostech/dumosrx/MainActivity.kt client/src-tauri/gen/android/app/src/main/java/com/dumostech/dumosrx/widget/DumosRxWidgetContent.kt client/lib/hooks/use-widget-deeplink.ts __tests__/use-widget-deeplink.test.ts
 # also add the root provider file found in Step 1
 git commit -m "feat: wire widget tap-through deep linking into the app"
@@ -2197,7 +2196,6 @@ In `docs/superpowers/specs/2026-09-07-android-glance-widget-design.md`, change t
 - [ ] **Step 5: Commit**
 
 ```bash
-cd /Users/admin/Documents/Projects/DumosRx
 git add docs/superpowers/specs/2026-09-07-android-glance-widget-design.md
 git commit -m "docs: mark Android widget spec as implemented"
 ```

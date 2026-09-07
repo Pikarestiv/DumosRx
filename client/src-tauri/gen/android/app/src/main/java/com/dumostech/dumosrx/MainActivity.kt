@@ -10,6 +10,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import com.dumostech.dumosrx.widget.TokenStore
 import com.dumostech.dumosrx.widget.WidgetSnapshotStore
 import com.dumostech.dumosrx.widget.DumosRxWidgetProvider
+import com.dumostech.dumosrx.widget.WidgetRefreshScheduler
 
 class MainActivity : TauriActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
@@ -22,6 +23,7 @@ class MainActivity : TauriActivity() {
       navigationBarStyle = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT),
     )
     super.onCreate(savedInstanceState)
+    WidgetRefreshScheduler.schedulePeriodic(applicationContext)
   }
 
   // Called from Rust (set_nav_bar_light) whenever the web app's resolved

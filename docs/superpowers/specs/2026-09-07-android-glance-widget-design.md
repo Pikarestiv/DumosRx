@@ -1,7 +1,7 @@
 # Android Home-Screen Widget (Glance)
 
 **Date:** 2026-09-07
-**Status:** Approved design, pending implementation plan
+**Status:** Approved design, risks spiked and resolved, pending implementation plan
 
 ## Background
 
@@ -87,8 +87,10 @@ Kotlin.
    - A WorkManager periodic job (~30 min interval, Android's practical floor
      for battery-friendly background work) that performs the same
      fetch-and-write independent of whether the app UI is open. This job
-     needs its own lightweight auth — reusing the same stored Sanctum token
-     the app already persists (not re-implementing login).
+     authenticates using a **mirrored copy of the Sanctum token** kept in
+     Android `EncryptedSharedPreferences` (see Token mirroring below) — the
+     token as persisted today (`localStorage`) isn't reachable from a
+     WorkManager `Worker`, confirmed during the spike.
 4. **Read.** The Glance widget (`AppWidgetProvider` + Jetpack Glance
    composable, new Kotlin sources under
    `src-tauri/gen/android/app/src/main/java/com/dumostech/dumosrx/widget/`)
@@ -102,6 +104,20 @@ Kotlin.
 
 This keeps 100% of auth/networking/business logic in the existing
 TypeScript layer; the native surface is display-only plus a scheduling job.
+
+**Token mirroring.** `localStorage` (where the Sanctum token lives today,
+`lib/context/auth-context.tsx:119`) is backed by the WebView engine's own
+internal storage on Android, not `SharedPreferences`/DataStore — a
+WorkManager `Worker` can't read it, and there's no supported way to parse
+WebView-internal storage from Kotlin. Fix: add one new `#[tauri::command]`
+(alongside the existing pattern in `src-tauri/src/lib.rs`, e.g.
+`set_nav_bar_light`) that mirrors the token into Android
+`EncryptedSharedPreferences` (encrypted at rest — stricter than WebView's
+default `localStorage`). Call it from the two existing token-lifecycle
+choke points already in the codebase:
+`lib/api/token-manager.ts`'s `auth_token_set` / `auth_token_cleared`
+dispatches, which every login/logout already goes through. No new event
+plumbing needed, just two call sites.
 
 **Backend change:** extend `DashboardService::getStats()` to add a
 `today_sales` figure per store (reusing the existing per-store `$cashierIds`
@@ -140,23 +156,36 @@ cloud-link screen, rather than showing stale/zero data.
   "Updated Xm ago" footer styling to a warning tone rather than presenting
   a possibly-very-wrong number as current.
 
-## Risks / open questions for the implementation plan
+## Risks — validated via spike (2026-09-07)
 
-- **Feasibility spike first.** The single biggest unvalidated risk is
-  whether `tauri android build`/`tauri android dev` tolerates a new Kotlin
-  package (`.../widget/`) and the corresponding `AndroidManifest.xml`
-  `<receiver>` entry for the `AppWidgetProvider` without the Tauri CLI
-  overwriting or rejecting it. The implementation plan's first task should
-  be a throwaway spike: add a trivial static Glance widget (hardcoded text,
-  no data plumbing) and run a full `tauri android build` to confirm it
-  survives, before building out the real data pipeline. If this doesn't
-  work cleanly, the fallback is maintaining the widget module as a
-  post-generation patch step in the build script.
-- **WorkManager background auth.** Needs confirmation that the Sanctum
-  token the app persists is readable from a WorkManager `Worker` context
-  (i.e. it's in Android-accessible storage, not only in-memory JS/WebView
-  state) without weakening the app's current token-storage security
-  posture.
+Both open risks from the original design were tested directly rather than
+left as assumptions:
+
+- **Tauri build tolerance: confirmed safe.** Added a stub
+  `AppWidgetProvider` (hardcoded `RemoteViews` text, no data plumbing), its
+  layout, its `appwidget-provider` XML, and an `AndroidManifest.xml`
+  `<receiver>` entry, then ran a full `npx tauri android build --debug`.
+  Build succeeded end-to-end; verified via `aapt2 dump xmltree` and
+  `unzip`/`strings` on the output APK that the manifest receiver, both
+  resource files, and the compiled class (found in `classes8.dex`) all
+  survived into the final artifact. The Tauri CLI does not wipe or reject
+  custom code living outside `.../generated/`. Stub reverted afterward
+  (throwaway, per spike convention) — the implementation plan re-adds this
+  as real, permanent code rather than a disposable check.
+- **WorkManager background auth: real gap, but a small fix.** The Sanctum
+  token lives in `localStorage`
+  (`client/lib/context/auth-context.tsx:119`), which under Tauri's Android
+  WebView is backed by the WebView engine's own internal storage, not
+  `SharedPreferences`/DataStore — confirmed there's no supported way to
+  read it from a native `Worker`. This is addressed by the token-mirroring
+  step now folded into the Architecture section above (mirror into
+  `EncryptedSharedPreferences` via a new `#[tauri::command]`, called from
+  the two existing `auth_token_set`/`auth_token_cleared` choke points in
+  `client/lib/api/token-manager.ts`). Not a blocker, just a concrete task
+  in the implementation plan.
+
+## Remaining open question for the implementation plan
+
 - **Widget reconfiguration UX.** Android's built-in "remove and re-add to
   reconfigure" pattern is the default; a nicer in-widget store switcher is
   possible with Glance's `actionParametersOf` but adds complexity — v1

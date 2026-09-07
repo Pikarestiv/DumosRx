@@ -17,10 +17,10 @@ describe("useWidgetDeeplink", () => {
     renderHook(() => useWidgetDeeplink());
 
     window.dispatchEvent(
-      new CustomEvent("widget-deeplink", { detail: "/inventory/catalog?filter=low_stock" }),
+      new CustomEvent("widget-deeplink", { detail: "/inventory/catalog?status=low_stock" }),
     );
 
-    expect(pushMock).toHaveBeenCalledWith("/inventory/catalog?filter=low_stock");
+    expect(pushMock).toHaveBeenCalledWith("/inventory/catalog?status=low_stock");
   });
 
   it("ignores events with a non-string detail", async () => {
@@ -38,7 +38,7 @@ describe("useWidgetDeeplink", () => {
     unmount();
 
     window.dispatchEvent(
-      new CustomEvent("widget-deeplink", { detail: "/inventory/catalog?filter=low_stock" }),
+      new CustomEvent("widget-deeplink", { detail: "/inventory/catalog?status=low_stock" }),
     );
 
     expect(pushMock).not.toHaveBeenCalled();

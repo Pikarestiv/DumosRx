@@ -7,7 +7,9 @@ import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.glance.appwidget.provideContent
 import androidx.glance.appwidget.updateAll
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class DumosRxWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
@@ -22,7 +24,9 @@ class DumosRxWidgetProvider : GlanceAppWidgetReceiver() {
 
     companion object {
         fun requestUpdateAll(context: Context) {
-            runBlocking { DumosRxWidget().updateAll(context) }
+            CoroutineScope(Dispatchers.Default).launch {
+                DumosRxWidget().updateAll(context)
+            }
         }
     }
 }

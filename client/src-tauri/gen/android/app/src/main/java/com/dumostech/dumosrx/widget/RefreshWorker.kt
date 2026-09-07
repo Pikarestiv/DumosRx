@@ -39,6 +39,17 @@ class RefreshWorker(context: Context, params: WorkerParameters) : CoroutineWorke
             connection.connectTimeout = 15_000
             connection.readTimeout = 15_000
 
+            if (connection.responseCode == 401) {
+                // Not transient: a revoked/expired token will never succeed on
+                // retry, so retrying forever just burns battery on exponential
+                // backoff. Clear the mirrored token and surface the unlinked
+                // state instead.
+                TokenStore.clear(applicationContext)
+                WidgetSnapshotStore.write(applicationContext, unlinkedSnapshotJson())
+                DumosRxWidgetProvider.requestUpdateAll(applicationContext)
+                return@withContext Result.success()
+            }
+
             if (connection.responseCode != 200) {
                 return@withContext Result.retry()
             }

@@ -5,6 +5,7 @@ import { queryKeys } from "@/lib/query-keys";
 import { useAuth } from "@/lib/context/auth-context";
 import { writeWidgetSnapshot } from "@/lib/native/widget-bridge";
 import { buildWidgetSnapshotPayload } from "@/lib/utils/widget-snapshot";
+import { isTauri } from "@/lib/db";
 
 /**
  * Keeps the Android widget's local data snapshot fresh whenever the app is
@@ -19,7 +20,7 @@ export function useWidgetSnapshotSync() {
   const { data, dataUpdatedAt } = useQuery({
     ...queryKeys.fleet.widgetSnapshot(),
     queryFn: () => apiClient.getWidgetSnapshot(),
-    enabled: isCloudLinked,
+    enabled: isCloudLinked && isTauri(),
   });
 
   useEffect(() => {

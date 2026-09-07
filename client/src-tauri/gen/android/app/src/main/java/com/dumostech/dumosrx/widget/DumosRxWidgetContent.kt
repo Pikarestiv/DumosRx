@@ -79,7 +79,7 @@ fun DumosRxWidgetContent(context: Context, appWidgetId: Int) {
                 modifier = GlanceModifier.clickable(
                     actionStartActivity(
                         Intent(context, MainActivity::class.java)
-                            .putExtra(MainActivity.EXTRA_WIDGET_DEEPLINK, "/inventory/catalog?filter=low_stock"),
+                            .putExtra(MainActivity.EXTRA_WIDGET_DEEPLINK, "/inventory/catalog?status=low_stock"),
                     ),
                 ),
             )
@@ -92,7 +92,7 @@ fun DumosRxWidgetContent(context: Context, appWidgetId: Int) {
                 modifier = GlanceModifier.clickable(
                     actionStartActivity(
                         Intent(context, MainActivity::class.java)
-                            .putExtra(MainActivity.EXTRA_WIDGET_DEEPLINK, "/inventory/catalog?filter=expiring"),
+                            .putExtra(MainActivity.EXTRA_WIDGET_DEEPLINK, "/inventory/catalog?status=expiring_soon"),
                     ),
                 ),
             )

@@ -7,6 +7,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import com.dumostech.dumosrx.widget.TokenStore
 
 class MainActivity : TauriActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
@@ -30,5 +31,17 @@ class MainActivity : TauriActivity() {
       controller.isAppearanceLightNavigationBars = isLight
       controller.isAppearanceLightStatusBars = isLight
     }
+  }
+
+  // Called from Rust (mirror_auth_token) on every login/token refresh, so
+  // the WorkManager background refresh (RefreshWorker) can authenticate
+  // without touching WebView-internal localStorage.
+  fun mirrorAuthToken(token: String) {
+    TokenStore.save(applicationContext, token)
+  }
+
+  // Called from Rust (clear_mirrored_auth_token) on logout.
+  fun clearMirroredAuthToken() {
+    TokenStore.clear(applicationContext)
   }
 }

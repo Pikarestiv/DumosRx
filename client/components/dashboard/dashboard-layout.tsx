@@ -247,6 +247,10 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
                     unlock();
                     router.push("/login?mode=new");
                   }}
+                  onSetUpNewDevice={() => {
+                    unlock();
+                    router.push("/login?tab=setup&step=cloud");
+                  }}
                   onUnlockSuccess={() => unlock()}
                 />
               </div>

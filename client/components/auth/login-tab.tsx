@@ -65,6 +65,7 @@ export function LoginTab({
           <LockScreen
             recentUsers={recentUsers}
             onLoginAsOther={() => setShowTraditionalLogin(true)}
+            onSetUpNewDevice={onGoToCloud}
           />
         </div>
       )}

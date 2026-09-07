@@ -29,6 +29,7 @@ import { useAuth } from "@/lib/context/auth-context";
 import { usePathname } from "next/navigation";
 import { useTheme } from "@/components/theme-provider";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
+import { useAutoLockStore } from "@/lib/hooks/use-auto-lock";
 import { isMobileDevice } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -54,6 +55,7 @@ function ThemeRestrictor() {
 function MobileRestrictionGuard() {
   const { canUseMobileApp } = useFeatureGate();
   const { isAuthenticated } = useAuth();
+  const isLocked = useAutoLockStore((state) => state.isLocked);
   const pathname = usePathname();
   const [isMobile, setIsMobile] = useState(false);
 
@@ -70,6 +72,7 @@ function MobileRestrictionGuard() {
         !isMobile ||
         canUseMobileApp ||
         !isAuthenticated ||
+        isLocked ||
         pathname === "/login"
       ) {
         return;
@@ -107,7 +110,7 @@ function MobileRestrictionGuard() {
         capture: true,
       });
     };
-  }, [isMobile, canUseMobileApp, isAuthenticated, pathname]);
+  }, [isMobile, canUseMobileApp, isAuthenticated, isLocked, pathname]);
 
   return null;
 }

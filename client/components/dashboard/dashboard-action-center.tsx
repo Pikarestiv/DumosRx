@@ -10,6 +10,7 @@ import { getSyncQueueCount } from "@/lib/db/queries/setup";
 import { checkLicenseStatus } from "@/lib/licensing/licensing-manager";
 import { isTauri } from "@/lib/db/core";
 import { isStandalonePwa } from "@/lib/utils/platform";
+import { useWidgetPinPrompt } from "@/lib/hooks/use-widget-pin-prompt";
 import {
   CloudOff,
   UserPlus,
@@ -21,6 +22,7 @@ import {
   ShieldAlert,
   Download,
   AlertOctagon,
+  LayoutGrid,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { pluralize } from "@/lib/utils";
@@ -42,7 +44,10 @@ interface AlertItem {
   icon: React.ElementType;
   priority: AlertPriority;
   actionLabel: string;
-  actionRoute: string;
+  // Exactly one of these is set: actionRoute navigates, onAction runs a
+  // handler in place (e.g. triggering a native prompt) instead.
+  actionRoute?: string;
+  onAction?: () => void;
 }
 
 // --- Extracted Hook for Logic ---
@@ -55,6 +60,7 @@ function useActionCenterAlerts(
   const { isAuthenticated, isAdmin, user } = useAuth();
   const { storeProfile } = useStore();
   const isStoreOwner = user?.role === "store_owner";
+  const { showWidgetPrompt, promptPinWidget } = useWidgetPinPrompt();
 
   const { data: staffCountData } = useQuery({
     ...queryKeys.staff.count(),
@@ -224,6 +230,18 @@ function useActionCenterAlerts(
         });
       }
 
+      if (showWidgetPrompt && isAuthenticated) {
+        items.push({
+          id: "add-widget",
+          title: "Add Home Screen Widget",
+          description: "See today's sales at a glance.",
+          icon: LayoutGrid,
+          priority: "info",
+          actionLabel: "Add Widget",
+          onAction: promptPinWidget,
+        });
+      }
+
       if (isStoreOwner && !isTauri() && !isStandalonePwa()) {
         items.push({
           id: "get-the-app",
@@ -265,6 +283,8 @@ function useActionCenterAlerts(
     missingExpiryCount,
     oversoldCount,
     licenseStatus,
+    showWidgetPrompt,
+    promptPinWidget,
   ]);
 
   return alerts;
@@ -284,7 +304,13 @@ function ActionCenterCard({ alert }: { alert: AlertItem }) {
 
   return (
     <Card
-      onClick={() => router.push(alert.actionRoute)}
+      onClick={() => {
+        if (alert.onAction) {
+          alert.onAction();
+        } else if (alert.actionRoute) {
+          router.push(alert.actionRoute);
+        }
+      }}
       className={`w-full h-[96px] border cursor-pointer hover:shadow-md transition-shadow duration-200 group relative overflow-hidden flex flex-col justify-center ${bgStyles[alert.priority]}`}
     >
       {/* Decorative gradient overlay */}

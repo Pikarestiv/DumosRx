@@ -103,6 +103,22 @@ fn write_widget_snapshot(snapshot_json: String) {
   let _ = snapshot_json;
 }
 
+#[cfg(target_os = "android")]
+#[tauri::command]
+fn request_pin_widget(window: tauri::WebviewWindow) {
+  let _ = window.with_webview(move |webview| {
+    webview.jni_handle().exec(move |env, activity, _webview| {
+      if let Err(e) = env.call_method(activity, "requestPinWidget", "()V", &[]) {
+        log::error!("Failed to request pin widget: {:?}", e);
+      }
+    });
+  });
+}
+
+#[cfg(not(target_os = "android"))]
+#[tauri::command]
+fn request_pin_widget() {}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   std::panic::set_hook(Box::new(|info| {
@@ -128,7 +144,7 @@ pub fn run() {
     .plugin(tauri_plugin_os::init())
     .plugin(tauri_plugin_fs::init())
     .plugin(tauri_plugin_dialog::init())
-    .invoke_handler(tauri::generate_handler![set_nav_bar_light, mirror_auth_token, clear_mirrored_auth_token, write_widget_snapshot])
+    .invoke_handler(tauri::generate_handler![set_nav_bar_light, mirror_auth_token, clear_mirrored_auth_token, write_widget_snapshot, request_pin_widget])
     .setup(|app| {
       if cfg!(debug_assertions) {
         app.handle().plugin(

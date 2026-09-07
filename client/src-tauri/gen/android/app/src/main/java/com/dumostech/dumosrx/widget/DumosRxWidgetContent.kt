@@ -33,6 +33,20 @@ private const val STALE_THRESHOLD_MS = 6 * 60 * 60 * 1000L // 6 hours, per desig
  */
 @Composable
 fun DumosRxWidgetContent(context: Context, appWidgetId: Int) {
+    // Any parse/shape failure here (e.g. a stale or malformed snapshot left
+    // over from a killed write or an old schema) must never escape this
+    // composable: an uncaught exception in provideGlance is exactly what
+    // makes Android fall back to its system "Can't show content" error view
+    // instead of anything we render ourselves.
+    try {
+        DumosRxWidgetContentUnsafe(context, appWidgetId)
+    } catch (e: Exception) {
+        UnlinkedState()
+    }
+}
+
+@Composable
+private fun DumosRxWidgetContentUnsafe(context: Context, appWidgetId: Int) {
     val snapshotJson = WidgetSnapshotStore.read(context)
     val config = WidgetConfigStore.read(context, appWidgetId)
 
@@ -50,7 +64,7 @@ fun DumosRxWidgetContent(context: Context, appWidgetId: Int) {
     val scope = if (config.mode == WidgetMode.STORE && config.storeId != null) {
         findStore(snapshot, config.storeId)
     } else {
-        snapshot.getJSONObject("fleet")
+        snapshot.optJSONObject("fleet")
     }
 
     if (scope == null) {

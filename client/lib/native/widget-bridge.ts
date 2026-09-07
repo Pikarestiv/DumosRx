@@ -17,3 +17,7 @@ export async function clearMirroredAuthToken(): Promise<void> {
 export async function writeWidgetSnapshot(snapshotJson: string): Promise<void> {
   await invokeIfTauri("write_widget_snapshot", { snapshotJson });
 }
+
+export async function requestPinWidget(): Promise<void> {
+  await invokeIfTauri("request_pin_widget");
+}

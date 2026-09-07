@@ -103,4 +103,18 @@ class MainActivity : TauriActivity() {
     WidgetSnapshotStore.write(applicationContext, snapshotJson)
     DumosRxWidgetProvider.requestUpdateAll(applicationContext)
   }
+
+  // Called from Rust (request_pin_widget), triggered by the "Add Widget"
+  // Action Center card (see use-widget-pin-prompt.ts). Silently does
+  // nothing pre-Android 8.0 (isRequestPinAppWidgetSupported false) or if
+  // the launcher doesn't support it; the JS side just treats "clicked" as
+  // done and never learns whether the user actually completed the pin, the
+  // same fire-and-forget style as writeWidgetSnapshot above.
+  fun requestPinWidget() {
+    val appWidgetManager = android.appwidget.AppWidgetManager.getInstance(applicationContext)
+    val provider = android.content.ComponentName(applicationContext, DumosRxWidgetProvider::class.java)
+    if (appWidgetManager.isRequestPinAppWidgetSupported) {
+      appWidgetManager.requestPinAppWidget(provider, null, null)
+    }
+  }
 }

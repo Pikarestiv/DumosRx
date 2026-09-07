@@ -9,6 +9,7 @@ interface UserSelectionProps {
   recentUsers: RecentUser[];
   onSelectUser: (user: RecentUser) => void;
   onLoginAsOther: () => void;
+  onSetUpNewDevice?: () => void;
 }
 
 // Deterministic per-user accent so avatars aren't all the same flat primary
@@ -65,6 +66,7 @@ export function UserSelection({
   recentUsers,
   onSelectUser,
   onLoginAsOther,
+  onSetUpNewDevice,
 }: UserSelectionProps) {
   // Determined client-side only (defaults to the Windows/Linux label on
   // first render) to avoid a hydration mismatch: navigator isn't available
@@ -208,6 +210,19 @@ export function UserSelection({
           </motion.button>
         </motion.div>
       </div>
+
+      {onSetUpNewDevice && (
+        <p className="text-center text-xs text-muted-foreground/60 pb-2 sm:pb-0">
+          Not setting up for these accounts?{" "}
+          <button
+            type="button"
+            onClick={onSetUpNewDevice}
+            className="text-primary hover:underline font-medium bg-transparent border-0 p-0 cursor-pointer"
+          >
+            Set Up as New Device
+          </button>
+        </p>
+      )}
     </motion.div>
   );
 }

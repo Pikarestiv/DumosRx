@@ -30,3 +30,11 @@
     public void clearMirroredAuthToken();
     public void writeWidgetSnapshot(java.lang.String);
 }
+
+# androidx.security-crypto (TokenStore.kt) pulls in Google Tink, which
+# references JSR-305 annotations (javax.annotation.Nullable,
+# javax.annotation.concurrent.GuardedBy) that are compile-time-only and
+# absent from the runtime classpath. R8 fails the build on unresolved
+# classes by default even for annotation-only references - this only
+# suppresses the warning, it doesn't keep anything.
+-dontwarn javax.annotation.**

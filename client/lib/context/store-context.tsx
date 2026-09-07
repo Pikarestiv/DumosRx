@@ -11,6 +11,8 @@ import { useAuth } from "@/lib/context/auth-context";
 import { queryKeys } from "@/lib/query-keys";
 import { devLog } from "@/lib/utils/dev-log";
 import { getDeviceId } from "@/lib/utils/device-id";
+import { useWidgetSnapshotSync } from "@/lib/hooks/use-widget-snapshot-sync";
+import { useWidgetDeeplink } from "@/lib/hooks/use-widget-deeplink";
 
 export type StoreType = "pharmacy" | "grocery" | "supermarket" | "retail";
 
@@ -369,6 +371,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const type = storeType as StoreType;
     return terminology[type]?.[key] || terminology["retail"][key] || key;
   };
+
+  useWidgetSnapshotSync();
+  useWidgetDeeplink();
 
   return (
     <StoreContext.Provider

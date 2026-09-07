@@ -1,9 +1,12 @@
 package com.dumostech.dumosrx.widget
 
 import android.content.Context
+import android.content.Intent
+import com.dumostech.dumosrx.MainActivity
 import androidx.compose.runtime.Composable
 import androidx.glance.GlanceModifier
 import androidx.glance.action.actionStartActivity
+import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.action.actionRunCallback
 import androidx.glance.background
@@ -71,12 +74,28 @@ fun DumosRxWidgetContent(context: Context, appWidgetId: Int) {
 
         val lowStock = scope.optInt("lowStockCount", 0)
         if (lowStock > 0) {
-            Text(text = "$lowStock items low stock")
+            Text(
+                text = "$lowStock items low stock",
+                modifier = GlanceModifier.clickable(
+                    actionStartActivity(
+                        Intent(context, MainActivity::class.java)
+                            .putExtra(MainActivity.EXTRA_WIDGET_DEEPLINK, "/inventory/catalog?filter=low_stock"),
+                    ),
+                ),
+            )
         }
 
         val expiring = scope.optInt("expiringCount", 0)
         if (expiring > 0) {
-            Text(text = "$expiring batches expiring soon")
+            Text(
+                text = "$expiring batches expiring soon",
+                modifier = GlanceModifier.clickable(
+                    actionStartActivity(
+                        Intent(context, MainActivity::class.java)
+                            .putExtra(MainActivity.EXTRA_WIDGET_DEEPLINK, "/inventory/catalog?filter=expiring"),
+                    ),
+                ),
+            )
         }
 
         Text(

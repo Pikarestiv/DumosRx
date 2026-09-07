@@ -13,3 +13,7 @@ export async function mirrorAuthToken(token: string): Promise<void> {
 export async function clearMirroredAuthToken(): Promise<void> {
   await invokeIfTauri("clear_mirrored_auth_token");
 }
+
+export async function writeWidgetSnapshot(snapshotJson: string): Promise<void> {
+  await invokeIfTauri("write_widget_snapshot", { snapshotJson });
+}

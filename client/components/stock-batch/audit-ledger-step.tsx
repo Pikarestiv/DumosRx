@@ -1,7 +1,8 @@
-import { Search } from "lucide-react";
+import { Search, SearchX } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { FilterPill } from "@/components/ui/filter-pill";
 import { EditableNumberCell } from "@/components/ui/editable-number-cell";
+import { EmptyState } from "@/components/ui/empty-state";
 import type { AuditItem } from "./stock-audits";
 import { formatCurrency } from "@/lib/utils";
 
@@ -297,11 +298,24 @@ export function AuditLedgerStep({
               })}
               {items.length === 0 && (
                 <div role="row" className={`grid ${GRID_COLS}`}>
-                  <div
-                    role="cell"
-                    className="col-span-10 px-3 py-8 text-center text-muted-foreground"
-                  >
-                    No items match.
+                  <div role="cell" className="col-span-10">
+                    <EmptyState
+                      icon={SearchX}
+                      title="No items match"
+                      description="Try a different search term or category."
+                      action={
+                        selectedCategory !== ALL_CATEGORIES ||
+                        search.trim().length > 0
+                          ? {
+                              label: "Clear filters",
+                              onClick: () => {
+                                setSelectedCategory(ALL_CATEGORIES);
+                                setSearch("");
+                              },
+                            }
+                          : undefined
+                      }
+                    />
                   </div>
                 </div>
               )}

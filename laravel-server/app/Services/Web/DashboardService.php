@@ -456,6 +456,87 @@ class DashboardService
         ];
     }
 
+    public function getWidgetSnapshot($user)
+    {
+        $userId = $user->id;
+
+        $storeIds = Store::where('user_id', $userId)->pluck('id')->toArray();
+        $userIds = User::whereIn('store_id', $storeIds)->pluck('id')->push($userId)->toArray();
+
+        $todayFleetSales = 0;
+        try {
+            $todayFleetSales = (float) Sale::whereIn('cashier_id', $userIds)
+                ->whereDate('created_at', now()->toDateString())
+                ->sum('total_amount');
+        } catch (\Exception $e) {
+            Log::error('DashboardService::getWidgetSnapshot [FleetSales]: '.$e->getMessage());
+        }
+
+        $userStores = collect([]);
+        try {
+            if (Schema::hasTable('stores')) {
+                $userStores = Store::where('user_id', $userId)->get();
+            }
+        } catch (\Exception $e) {
+            Log::error('DashboardService::getWidgetSnapshot [Stores]: '.$e->getMessage());
+        }
+
+        $storesCount = $userStores->count();
+        $fleetLowStock = 0;
+        $fleetExpiring = 0;
+
+        $stores = $userStores->map(function ($store) use ($storesCount, $userId, &$fleetLowStock, &$fleetExpiring) {
+            $storeStaffIds = User::where('store_id', $store->id)->pluck('id')->toArray();
+            $cashierIds = $storeStaffIds;
+            if ($storesCount === 1) {
+                $cashierIds[] = $userId;
+            }
+            $cashierIds = array_unique($cashierIds);
+
+            $todayStoreSales = (float) Sale::whereIn('cashier_id', $cashierIds)
+                ->whereDate('created_at', now()->toDateString())
+                ->sum('total_amount');
+
+            $lowStock = DB::table('products')
+                ->whereIn('products.user_id', $cashierIds)
+                ->whereNull('products.deleted_at')
+                ->leftJoin('stock_batches', 'products.id', '=', 'stock_batches.product_id')
+                ->select('products.id', 'products.reorder_level', DB::raw('SUM(COALESCE(stock_batches.quantity, 0)) as total_stock'))
+                ->groupBy('products.id', 'products.reorder_level')
+                ->get()
+                ->filter(fn ($product) => $product->total_stock <= $product->reorder_level)
+                ->count();
+
+            $warningDays = $store->expiry_warning_days ?? 90;
+            $expiringItems = DB::table('stock_batches')
+                ->whereIn('user_id', $cashierIds)
+                ->where('quantity', '>', 0)
+                ->where('expiry_date', '<=', now()->addDays($warningDays))
+                ->where('expiry_date', '>=', now()->toDateString())
+                ->count();
+
+            $fleetLowStock += $lowStock;
+            $fleetExpiring += $expiringItems;
+
+            return [
+                'id' => $store->id,
+                'name' => $store->name,
+                'today_sales_formatted' => '₦'.number_format($todayStoreSales, 2),
+                'low_stock_alerts' => $lowStock,
+                'expiring_items' => $expiringItems,
+            ];
+        })->values();
+
+        return [
+            'fleet' => [
+                'today_sales_formatted' => '₦'.number_format($todayFleetSales, 2),
+                'low_stock_alerts' => $fleetLowStock,
+                'expiring_items' => $fleetExpiring,
+            ],
+            'stores' => $stores,
+        ];
+    }
+
     /**
      * Reset account data.
      */

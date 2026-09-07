@@ -70,6 +70,31 @@ class DashboardController extends Controller
         }
     }
 
+    #[OA\Get(
+        path: '/dashboard/widget-snapshot',
+        summary: "Slim today's-sales + alert counts for the Android home-screen widget",
+        tags: ['Dashboard'],
+        security: [['sanctum' => []]],
+        responses: [
+            new OA\Response(response: 200, description: 'Widget snapshot', content: new OA\JsonContent(type: 'object')),
+            new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
+            new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
+        ],
+    )]
+    public function widgetSnapshot(Request $request)
+    {
+        try {
+            $data = $this->dashboardService->getWidgetSnapshot($request->user());
+            return response()->json($data);
+        } catch (\Exception $e) {
+            Log::critical("Dashboard Widget Snapshot Error: " . $e->getMessage());
+            return response()->json([
+                'error' => 'Internal Server Error',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
     #[OA\Post(
         path: '/dashboard/reset',
         summary: "Reset (wipe) the store's data",

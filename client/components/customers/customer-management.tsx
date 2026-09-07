@@ -73,6 +73,7 @@ export function CustomerManagement() {
             onViewHistory={handleViewHistory}
             onEditProfile={setEditingCustomer}
             onRecordPayment={setPayingCustomer}
+            onAddCustomer={() => setIsAddCustomerOpen(true)}
           />
         </TabsContent>
 

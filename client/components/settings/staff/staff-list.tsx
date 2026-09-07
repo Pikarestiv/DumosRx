@@ -19,7 +19,8 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { toast } from "sonner";
-import { checkIsAdmin } from "@/lib/context/auth-context";
+import { checkIsAdmin, useAuth } from "@/lib/context/auth-context";
+import { EmptyState } from "@/components/ui/empty-state";
 import type { StaffListItem } from "@/lib/types/user";
 
 interface StaffListProps {
@@ -28,14 +29,28 @@ interface StaffListProps {
   onEdit: (user: StaffListItem) => void;
   onDelete: (id: string, name: string) => void;
   onReactivate: (id: string) => void;
+  onAddStaff?: () => void;
 }
 
-function NoStaffFoundRow() {
+function NoStaffFoundRow({
+  isAdmin,
+  onAddStaff,
+}: {
+  isAdmin: boolean;
+  onAddStaff?: () => void;
+}) {
   return (
     <TableRow>
-      <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
-        <Users className="w-6 h-6 mx-auto mb-2 opacity-30" />
-        No staff members found.
+      <TableCell colSpan={6} className="h-24">
+        <EmptyState
+          icon={Users}
+          title="No staff members found"
+          action={
+            isAdmin && onAddStaff
+              ? { label: "Add Staff Member", onClick: onAddStaff }
+              : undefined
+          }
+        />
       </TableCell>
     </TableRow>
   );
@@ -47,7 +62,9 @@ export function StaffList({
   onEdit,
   onDelete,
   onReactivate,
+  onAddStaff,
 }: StaffListProps) {
+  const { isAdmin } = useAuth();
   const handleEditClick = (user: StaffListItem) => {
     if (user.id === "default-admin" || user.username === "admin") {
       toast.error("Default admin cannot be edited");
@@ -99,7 +116,7 @@ export function StaffList({
                 </TableCell>
               </TableRow>
             )}
-            {isEmpty && <NoStaffFoundRow />}
+            {isEmpty && <NoStaffFoundRow isAdmin={isAdmin} onAddStaff={onAddStaff} />}
             {!isEmpty &&
               sortedUsers.map((user) => {
                 const isMainAccount = !user.store_id || user.role === "admin";
@@ -216,10 +233,16 @@ export function StaffList({
           </div>
         )}
         {isEmpty && (
-          <div className="h-24 flex flex-col items-center justify-center text-muted-foreground">
-            <Users className="w-6 h-6 mb-2 opacity-30" />
-            No staff members found.
-          </div>
+          <EmptyState
+            icon={Users}
+            title="No staff members found"
+            className="py-6"
+            action={
+              isAdmin && onAddStaff
+                ? { label: "Add Staff Member", onClick: onAddStaff }
+                : undefined
+            }
+          />
         )}
         {!isEmpty &&
           sortedUsers.map((user) => {

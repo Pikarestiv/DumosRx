@@ -11,6 +11,9 @@ import {
 } from "./prescription-status-meta";
 import { PrescriptionSearchBar } from "./prescription-search-bar";
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
+import { EmptyState } from "@/components/ui/empty-state";
+import { useAuth } from "@/lib/context/auth-context";
+import { FileText } from "lucide-react";
 
 interface PrescriptionListProps {
   prescriptions: Prescription[];
@@ -31,6 +34,8 @@ export function PrescriptionList({
 
   isFuzzyFallback,
 }: PrescriptionListProps) {
+  const { isAdmin, user } = useAuth();
+  const canAddPrescription = isAdmin || user?.role === "specialist";
   const scrollRef = useRef<HTMLDivElement>(null);
   const rowVirtualizer = useVirtualizer({
     count: prescriptions.length,
@@ -61,9 +66,16 @@ export function PrescriptionList({
       {/* List */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-0 lg:p-3">
         {prescriptions.length === 0 && (
-          <div className="text-center text-[12.5px] text-muted-foreground py-10">
-            No prescriptions match.
-          </div>
+          <EmptyState
+            icon={FileText}
+            title="No prescriptions match"
+            className="py-10"
+            action={
+              canAddPrescription
+                ? { label: "Add Prescription", href: "/prescriptions?action=add" }
+                : undefined
+            }
+          />
         )}
         {prescriptions.length > 0 && (
           <div

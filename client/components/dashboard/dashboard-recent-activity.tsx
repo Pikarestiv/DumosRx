@@ -3,6 +3,7 @@
 import { Activity } from "lucide-react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   ShoppingCart,
   PackagePlus,
@@ -81,11 +82,12 @@ export function DashboardRecentActivity({
 
 function EmptyActivityState() {
   return (
-    <div className="flex-1 flex flex-col items-center justify-center py-8 text-muted-foreground">
-      <Activity className="h-8 w-8 mb-2 opacity-50" />
-      <p className="text-sm">No recent activity</p>
-      <p className="text-xs">Activities will appear here as they happen</p>
-    </div>
+    <EmptyState
+      icon={Activity}
+      title="No recent activity"
+      description="Activities will appear here as they happen."
+      className="flex-1 py-8"
+    />
   );
 }
 

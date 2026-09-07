@@ -7,6 +7,8 @@ import type { SupplierViewModel } from "@/lib/types/supplier";
 import { SortableHeaderCell } from "@/components/ui/sortable-header-cell";
 import { EditableNumberCell } from "@/components/ui/editable-number-cell";
 import { useUpdateSupplierRatingMutation } from "@/lib/hooks/use-supplier-mutations";
+import { EmptyState as SharedEmptyState } from "@/components/ui/empty-state";
+import { useAuth } from "@/lib/context/auth-context";
 import type { SortDirection } from "@/lib/hooks/use-sortable-data";
 
 type SupplierSortKey = "name" | "contact" | "totalOrders" | "rating" | "totalValue";
@@ -22,15 +24,28 @@ interface SupplierTableProps {
   sortDirection: SortDirection;
   onToggleSort: (key: SupplierSortKey) => void;
   onSupplierUpdated: () => void;
+  onAddSupplier?: () => void;
 }
 
-function EmptyState() {
+function EmptyState({
+  isAdmin,
+  onAddSupplier,
+}: {
+  isAdmin: boolean;
+  onAddSupplier?: () => void;
+}) {
   return (
-    <div className="flex flex-col items-center justify-center text-muted-foreground h-32">
-      <Users className="h-8 w-8 mb-2 opacity-50" />
-      <p className="font-medium">No suppliers found</p>
-      <p className="text-sm">Try adjusting your search or add a new supplier</p>
-    </div>
+    <SharedEmptyState
+      icon={Users}
+      title="No suppliers found"
+      description="Try adjusting your search or add a new supplier"
+      className="h-32"
+      action={
+        isAdmin && onAddSupplier
+          ? { label: "Add Supplier", onClick: onAddSupplier }
+          : undefined
+      }
+    />
   );
 }
 
@@ -45,7 +60,9 @@ export function SupplierTable({
   sortDirection,
   onToggleSort,
   onSupplierUpdated,
+  onAddSupplier,
 }: SupplierTableProps) {
+  const { isAdmin } = useAuth();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftRating, setDraftRating] = useState(0);
   const updateRatingMutation = useUpdateSupplierRatingMutation();
@@ -84,7 +101,9 @@ export function SupplierTable({
 
       {/* Mobile: card list */}
       <div className="md:hidden flex flex-col gap-2 px-0 py-3">
-        {suppliers.length === 0 && <EmptyState />}
+        {suppliers.length === 0 && (
+          <EmptyState isAdmin={isAdmin} onAddSupplier={onAddSupplier} />
+        )}
         {suppliers.map((supplier) => {
           const isSelected = selectedSupplierId === supplier.id;
           return (
@@ -180,7 +199,7 @@ export function SupplierTable({
           {suppliers.length === 0 && (
             <div role="row">
               <div role="cell" className="h-32 flex items-center justify-center">
-                <EmptyState />
+                <EmptyState isAdmin={isAdmin} onAddSupplier={onAddSupplier} />
               </div>
             </div>
           )}

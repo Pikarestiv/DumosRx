@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   PackageX,
   Package,
@@ -215,20 +216,16 @@ export function POSProductList({
       )}
 
       {!loadingProducts && filteredProducts.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-12 text-muted-foreground border border-dashed rounded-2xl border-border bg-card/50">
-          <PackageX className="h-12 w-12 mb-4" />
-          <p className="font-medium">No {productTerm.toLowerCase()} found</p>
-          <p className="text-sm">
-            Try a different search term or add {productTerm.toLowerCase()} to
-            stock batch.
-          </p>
-          <button
-            type="button"
-            onClick={() => setShowRequestDialog(true)}
-            className="mt-3 text-sm font-semibold text-primary hover:underline"
-          >
-            Request Product
-          </button>
+        <div className="border border-dashed rounded-2xl border-border bg-card/50">
+          <EmptyState
+            icon={PackageX}
+            title={`No ${productTerm.toLowerCase()} found`}
+            description={`Try a different search term or add ${productTerm.toLowerCase()} to stock batch.`}
+            action={{
+              label: "Request Product",
+              onClick: () => setShowRequestDialog(true),
+            }}
+          />
         </div>
       )}
 

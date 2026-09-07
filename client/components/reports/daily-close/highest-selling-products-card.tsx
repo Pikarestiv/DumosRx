@@ -1,4 +1,5 @@
 import { PackageSearch } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   Card,
   CardContent,
@@ -65,12 +66,8 @@ export function HighestSellingProductsCard({
 function EmptyProductsRow() {
   return (
     <TableRow>
-      <TableCell
-        colSpan={3}
-        className="text-center text-muted-foreground py-6"
-      >
-        <PackageSearch className="w-6 h-6 mx-auto mb-2 opacity-30" />
-        No items sold today.
+      <TableCell colSpan={3}>
+        <EmptyState icon={PackageSearch} title="No items sold today" className="py-6" />
       </TableCell>
     </TableRow>
   );

@@ -12,6 +12,8 @@ import {
 } from "@/lib/hooks/use-customer-data";
 import { usePullToRefreshHandler } from "@/lib/context/pull-to-refresh-context";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
+import { EmptyState as SharedEmptyState } from "@/components/ui/empty-state";
+import { useAuth } from "@/lib/context/auth-context";
 
 const MAX_ITEMS_SHOWN = 2;
 const DESKTOP_ROW_HEIGHT = 44;
@@ -56,12 +58,27 @@ interface ActivityTabProps {
   onClearFilter?: () => void;
 }
 
-function ActivityEmptyState({ loading }: { loading: boolean }) {
+function ActivityEmptyState({
+  loading,
+  isAuditor,
+}: {
+  loading: boolean;
+  isAuditor: boolean;
+}) {
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground text-[13px] py-12">
+        Loading activity...
+      </div>
+    );
+  }
   return (
-    <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground text-[13px] py-12">
-      {!loading && <Receipt className="w-7 h-7 opacity-30" />}
-      {loading ? "Loading activity..." : "No transactions found."}
-    </div>
+    <SharedEmptyState
+      icon={Receipt}
+      title="No transactions found"
+      className="py-12"
+      action={isAuditor ? undefined : { label: "Go to POS", href: "/pos" }}
+    />
   );
 }
 
@@ -81,6 +98,8 @@ export function ActivityTab({
     refetch,
   } = useCustomerTransactions();
   const [searchTerm, setSearchTerm] = useState("");
+  const { user } = useAuth();
+  const isAuditor = user?.role === "auditor";
 
   usePullToRefreshHandler(refetch);
 
@@ -165,7 +184,9 @@ export function ActivityTab({
     </p>
   );
 
-  const EmptyState = <ActivityEmptyState loading={loading} />;
+  const EmptyState = (
+    <ActivityEmptyState loading={loading} isAuditor={isAuditor} />
+  );
 
   return (
     <div className="flex flex-col md:flex-1 md:min-h-0 gap-4">

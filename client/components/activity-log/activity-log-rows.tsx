@@ -1,21 +1,20 @@
 "use client";
 
 import { format } from "date-fns";
+import { History } from "lucide-react";
 import { SortableHeaderCell } from "@/components/ui/sortable-header-cell";
+import { EmptyState } from "@/components/ui/empty-state";
 import { describeActivity } from "./describe-activity";
 import type { AuditLogRow } from "@/lib/types/audit-log";
 import type { ActivityLogSortKey } from "@/lib/db/queries/activity-log";
 
 const GRID_COLS = "grid-cols-[1fr_180px_190px]";
 
-function EmptyState({ message }: { message: string }) {
+function ActivityLogEmptyRow({ message }: { message: string }) {
   return (
     <div role="row" className={`grid ${GRID_COLS}`}>
-      <div
-        role="cell"
-        className="col-span-3 px-4 py-8 text-center text-muted-foreground"
-      >
-        {message}
+      <div role="cell" className="col-span-3">
+        <EmptyState icon={History} title={message} className="py-8" />
       </div>
     </div>
   );
@@ -80,9 +79,9 @@ export function ActivityLogDesktopTable({
       </div>
 
       <div role="rowgroup" className="divide-y divide-border">
-        {isLoading && <EmptyState message="Loading..." />}
+        {isLoading && <ActivityLogEmptyRow message="Loading..." />}
         {!isLoading && rows.length === 0 && (
-          <EmptyState message="No activity found for this filter." />
+          <ActivityLogEmptyRow message="No activity found for this filter." />
         )}
         {!isLoading &&
           rows.map((row) => (
@@ -137,9 +136,7 @@ export function ActivityLogMobileList({
         </div>
       )}
       {!isLoading && rows.length === 0 && (
-        <div className="h-24 flex items-center justify-center text-muted-foreground text-center px-4">
-          No activity found for this filter.
-        </div>
+        <EmptyState icon={History} title="No activity found for this filter" className="py-8" />
       )}
       {!isLoading &&
         rows.map((row) => (

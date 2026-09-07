@@ -13,6 +13,7 @@ import {
   PauseCircle,
   Loader2,
 } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 import { useHeldTransactions, useDeleteHeldTransactionMutation } from "@/lib/hooks/use-sales-data";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -88,10 +89,11 @@ export function HeldTransactionsDialog({
           </div>
         )}
         {!loading && heldItems.length === 0 && (
-          <div className="py-20 text-center flex flex-col items-center justify-center space-y-3 opacity-40">
-            <ShoppingBag className="w-12 h-12" />
-            <p className="italic">No held transactions found</p>
-          </div>
+          <EmptyState
+            icon={ShoppingBag}
+            title="No held transactions found"
+            className="py-20"
+          />
         )}
         {!loading &&
           heldItems.length > 0 &&

@@ -5,6 +5,7 @@ import { Plus, Trash2, Edit2, Loader2, CreditCard, Smartphone, Banknote, Info } 
 import { useStore } from "@/lib/context/store-context";
 import { useAuth } from "@/lib/context/auth-context";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -166,13 +167,17 @@ export function PaymentAccountsCard() {
                         </div>
                       )}
               {(!(loading) && accounts.length === 0) && (
-                                      <div className="text-center p-8 border rounded-lg border-dashed">
-                                        <p className="text-muted-foreground text-sm">No payment accounts configured.</p>
-                                        {isAdmin && (
-                                          <Button variant="link" onClick={() => handleOpenDialog()} className="mt-2">
-                                            Add your first account
-                                          </Button>
-                                        )}
+                                      <div className="border rounded-lg border-dashed">
+                                        <EmptyState
+                                          icon={CreditCard}
+                                          title="No payment accounts configured"
+                                          description="Add a bank or mobile money account to accept Transfer and Card payments."
+                                          action={
+                                            isAdmin
+                                              ? { label: "Add your first account", onClick: () => handleOpenDialog() }
+                                              : undefined
+                                          }
+                                        />
                                       </div>
                                     )}
               {!(!(loading) && accounts.length === 0) && (

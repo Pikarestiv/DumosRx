@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { Search, Lock, ArrowLeftRight } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 import { format, isToday, isYesterday, differenceInDays } from "date-fns";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { genericFuzzySearch } from "@/lib/utils/search";
@@ -41,10 +42,7 @@ function mapMovement(m: StockMovementDbRow): StockMovement {
 
 function NoMovementsFound() {
   return (
-    <div className="p-8 flex flex-col items-center gap-2 text-center text-muted-foreground text-[13px]">
-      <ArrowLeftRight className="w-7 h-7 opacity-30" />
-      No movements found.
-    </div>
+    <EmptyState icon={ArrowLeftRight} title="No movements found" className="py-8" />
   );
 }
 

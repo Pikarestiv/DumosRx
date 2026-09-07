@@ -99,6 +99,7 @@ Route::prefix('v1')->group(function () {
         Route::prefix('dashboard')->group(function () {
             Route::get('/summary', [DashboardController::class, 'summary']);
             Route::get('/stats', [DashboardController::class, 'stats']);
+            Route::get('/widget-snapshot', [DashboardController::class, 'widgetSnapshot']);
             Route::post('/reset', [DashboardController::class, 'resetData']);
             Route::post('/send-summary', [\App\Http\Controllers\Api\StoreSummaryController::class, 'sendSummary'])->middleware('subscription:web_dashboard');
         });

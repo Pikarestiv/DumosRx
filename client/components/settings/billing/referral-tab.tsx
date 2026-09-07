@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Copy, Check, Users, Gift, Loader2 } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 import { toast } from "sonner";
 import { useReferralStats } from "@/lib/hooks/use-billing";
 import { formatDateSafe } from "@/lib/utils/date-utils";
@@ -119,7 +120,7 @@ export function ReferralTab() {
         </CardHeader>
         <CardContent>
           {!stats?.transactions?.length ? (
-            <div className="text-center py-8 text-muted-foreground">No credit transactions recorded yet.</div>
+            <EmptyState icon={Gift} title="No credit transactions recorded yet" className="py-8" />
           ) : (
             <Table>
               <TableHeader>

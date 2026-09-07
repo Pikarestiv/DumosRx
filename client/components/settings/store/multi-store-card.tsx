@@ -136,6 +136,10 @@ export function MultiStoreCard() {
             setIsFormOpen(true);
           }}
           onDelete={(id, name) => setDeleteTarget({ id, name })}
+          onAddStore={() => {
+            setStoreToEdit(null);
+            setIsFormOpen(true);
+          }}
         />
       </CardContent>
 

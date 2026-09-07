@@ -2,7 +2,8 @@
 
 import type React from "react";
 import { useQuery } from "@tanstack/react-query";
-import { AlertCircle, Calendar, TrendingDown } from "lucide-react";
+import { AlertCircle, Calendar, TrendingDown, CheckCircle2 } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 import { getExpiringBatches } from "@/lib/db/queries/inventory";
 import { useStore } from "@/lib/context/store-context";
 import { useRouter } from "next/navigation";
@@ -143,9 +144,12 @@ export function NeedsAttention({ stockData }: { stockData: StockItem[] }) {
 
         <div className="flex flex-col gap-2 md:gap-0 py-3 md:py-0 lg:flex-1 lg:min-h-0 lg:overflow-y-auto">
         {items.length === 0 && (
-                        <div className="text-sm text-muted-foreground py-4 text-center">
-                          No items need immediate attention.
-                        </div>
+                        <EmptyState
+                          icon={CheckCircle2}
+                          title="All caught up"
+                          description="No items need immediate attention."
+                          className="py-4"
+                        />
                       )}
               {!(items.length === 0) && (
                         items.slice(0, 10).map((item, idx) => (

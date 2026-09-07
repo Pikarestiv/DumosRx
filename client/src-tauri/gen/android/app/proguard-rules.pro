@@ -19,3 +19,14 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# MainActivity methods invoked by name via JNI from Rust (client/src-tauri/src/lib.rs)
+# with no Kotlin/Java caller. R8's default Activity keep rule only preserves the
+# class, not these members, so without this they can be renamed/stripped in a
+# minified release build.
+-keepclassmembers class com.dumostech.dumosrx.MainActivity {
+    public void setNavigationBarLight(boolean);
+    public void mirrorAuthToken(java.lang.String);
+    public void clearMirroredAuthToken();
+    public void writeWidgetSnapshot(java.lang.String);
+}

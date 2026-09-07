@@ -25,24 +25,52 @@ import { RequestedProductMobileCard } from "./requested-product-mobile-card";
 import { RequestedProductRow } from "./requested-product-row";
 import { RequestedProductsStatusFilter } from "./requested-products-status-filter";
 import { usePullToRefreshHandler } from "@/lib/context/pull-to-refresh-context";
+import { useAuth } from "@/lib/context/auth-context";
+import { EmptyState } from "@/components/ui/empty-state";
 
 type RequestStatusFilter = "all" | "pending" | "ordered";
 
-function NoRequestedProductsCard() {
+function NoRequestedProductsCard({
+  isAuditor,
+  onRequestProduct,
+}: {
+  isAuditor: boolean;
+  onRequestProduct: () => void;
+}) {
   return (
-    <div className="h-24 flex flex-col items-center justify-center gap-2 text-muted-foreground text-[13px]">
-      <PackageSearch className="w-6 h-6 opacity-30" />
-      No requested products found.
-    </div>
+    <EmptyState
+      icon={PackageSearch}
+      title="No requested products found"
+      className="py-6"
+      action={
+        isAuditor
+          ? undefined
+          : { label: "Request a Product", onClick: onRequestProduct }
+      }
+    />
   );
 }
 
-function NoRequestedProductsRow() {
+function NoRequestedProductsRow({
+  isAuditor,
+  onRequestProduct,
+}: {
+  isAuditor: boolean;
+  onRequestProduct: () => void;
+}) {
   return (
     <TableRow>
-      <TableCell colSpan={6} className="text-center h-24 text-muted-foreground">
-        <PackageSearch className="w-6 h-6 mx-auto mb-2 opacity-30" />
-        No requested products found.
+      <TableCell colSpan={6} className="text-center h-24">
+        <EmptyState
+          icon={PackageSearch}
+          title="No requested products found"
+          className="py-0"
+          action={
+            isAuditor
+              ? undefined
+              : { label: "Request a Product", onClick: onRequestProduct }
+          }
+        />
       </TableCell>
     </TableRow>
   );
@@ -57,6 +85,8 @@ export function RequestedProductsTab() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<RequestStatusFilter>("all");
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const { user } = useAuth();
+  const isAuditor = user?.role === "auditor";
 
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -154,7 +184,12 @@ export function RequestedProductsTab() {
                 Loading requests...
               </div>
             )}
-            {!loading && filteredRequests.length === 0 && <NoRequestedProductsCard />}
+            {!loading && filteredRequests.length === 0 && (
+              <NoRequestedProductsCard
+                isAuditor={isAuditor}
+                onRequestProduct={() => setShowAddDialog(true)}
+              />
+            )}
             {!loading &&
               filteredRequests.length > 0 &&
               filteredRequests.map((req) => (
@@ -200,7 +235,12 @@ export function RequestedProductsTab() {
                   </TableCell>
                 </TableRow>
               )}
-              {!loading && filteredRequests.length === 0 && <NoRequestedProductsRow />}
+              {!loading && filteredRequests.length === 0 && (
+                <NoRequestedProductsRow
+                  isAuditor={isAuditor}
+                  onRequestProduct={() => setShowAddDialog(true)}
+                />
+              )}
               {!loading &&
                 filteredRequests.length > 0 &&
                 filteredRequests.map((req) => (

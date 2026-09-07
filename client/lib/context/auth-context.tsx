@@ -9,6 +9,9 @@ import { useAutoLockStore } from "@/lib/hooks/use-auto-lock";
 import { AUDIT_ACTIONS } from "@/lib/db/audit-actions";
 import { sync, isSyncing } from "@/lib/db/sync-engine";
 import { queryClient } from "@/lib/query-client";
+import { isTauri } from "@/lib/db";
+import { getToken } from "@/lib/api/token-manager";
+import { mirrorAuthToken } from "@/lib/native/widget-bridge";
 
 // Polls until any in-flight sync finishes, so a caller that just triggered
 // (or piggybacked on) a sync can safely read fresh local data afterward.
@@ -119,6 +122,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const token = localStorage.getItem("auth_token");
     
     setIsCloudLinked(!!token);
+
+    // Backfill: anyone already logged in when the widget feature ships has
+    // their token sitting in localStorage with nothing to trigger a mirror
+    // into native TokenStore (mirrorAuthToken() otherwise only fires from
+    // setToken(), which only runs on a fresh login/silent refresh). Without
+    // this, TokenStore.load() stays null on the native side until this
+    // device's next login, which may be weeks away, and in the meantime
+    // RefreshWorker's no-token branch actively overwrites a good cached
+    // widget snapshot with linked:false. Only meaningful under Tauri.
+    if (isTauri()) {
+      const existingToken = getToken();
+      if (existingToken) {
+        void mirrorAuthToken(existingToken);
+      }
+    }
 
     if (savedUser) {
       try {

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   Search,
   CheckCircle2,
@@ -27,6 +28,9 @@ import { PurchaseOrderStatusFilter } from "./purchase-order-status-filter";
 import { type PurchaseOrder } from "@/lib/db/procurement";
 import { ResponsiveDetailPanel } from "@/components/ui/responsive-detail-panel";
 import { useSelectedOrder } from "./use-selected-order";
+import { useAuth } from "@/lib/context/auth-context";
+import { EmptyState } from "@/components/ui/empty-state";
+import { RequestItemDialog } from "@/components/pos/request-item-dialog";
 
 interface PurchaseOrderTableProps {
   orders: PurchaseOrder[];
@@ -75,12 +79,29 @@ function getStatusBadge(status: string) {
   }
 }
 
-function NoPurchaseOrdersRow() {
+function NoPurchaseOrdersRow({
+  isAdmin,
+  isAuditor,
+  onRequestProduct,
+}: {
+  isAdmin: boolean;
+  isAuditor: boolean;
+  onRequestProduct: () => void;
+}) {
   return (
     <TableRow>
-      <TableCell colSpan={5} className="h-32 text-center text-muted-foreground">
-        <ClipboardList className="w-6 h-6 mx-auto mb-2 opacity-30" />
-        No purchase orders found
+      <TableCell colSpan={5} className="h-32">
+        <EmptyState
+          icon={ClipboardList}
+          title="No purchase orders found"
+          action={
+            isAdmin
+              ? { label: "Create Purchase Order", href: "/procurement/new" }
+              : isAuditor
+                ? undefined
+                : { label: "Request Product", onClick: onRequestProduct }
+          }
+        />
       </TableCell>
     </TableRow>
   );
@@ -176,6 +197,9 @@ export function PurchaseOrderTable({
     selectedPO,
     isLoadingDetails,
   } = useSelectedOrder(orders, initialSelectedId);
+  const { isAdmin, user } = useAuth();
+  const isAuditor = user?.role === "auditor";
+  const [showRequestDialog, setShowRequestDialog] = useState(false);
 
   return (
     <div className="flex flex-col gap-5 flex-1 min-h-0 overflow-hidden">
@@ -213,9 +237,20 @@ export function PurchaseOrderTable({
               </div>
             )}
             {!loading && orders.length === 0 && (
-              <div className="h-32 flex items-center justify-center text-muted-foreground text-[13px]">
-                No purchase orders found
-              </div>
+              <EmptyState
+                icon={ClipboardList}
+                title="No purchase orders found"
+                action={
+                  isAdmin
+                    ? { label: "Create Purchase Order", href: "/procurement/new" }
+                    : isAuditor
+                      ? undefined
+                      : {
+                          label: "Request Product",
+                          onClick: () => setShowRequestDialog(true),
+                        }
+                }
+              />
             )}
             {!loading &&
               orders.length > 0 &&
@@ -262,7 +297,13 @@ export function PurchaseOrderTable({
                   </TableCell>
                 </TableRow>
               )}
-              {!loading && orders.length === 0 && <NoPurchaseOrdersRow />}
+              {!loading && orders.length === 0 && (
+                <NoPurchaseOrdersRow
+                  isAdmin={isAdmin}
+                  isAuditor={isAuditor}
+                  onRequestProduct={() => setShowRequestDialog(true)}
+                />
+              )}
               {!loading &&
                 orders.length > 0 &&
                 orders.map((po) => (
@@ -310,6 +351,11 @@ export function PurchaseOrderTable({
           />
         )}
       </ResponsiveDetailPanel>
+
+      <RequestItemDialog
+        open={showRequestDialog}
+        onOpenChange={setShowRequestDialog}
+      />
     </div>
   );
 }

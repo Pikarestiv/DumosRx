@@ -1,13 +1,20 @@
 import React from 'react';
 import { Receipt } from 'lucide-react';
 import { TransactionItem } from './transaction-item';
+import { EmptyState } from '@/components/ui/empty-state';
+import { useAuth } from '@/lib/context/auth-context';
 import type { SaleWithDetails } from '@/lib/types/sale';
 
 function NoRecentSalesFound() {
+  const { user } = useAuth();
+  const isAuditor = user?.role === "auditor";
   return (
-    <div className="flex flex-col items-center gap-2 py-10 text-muted-foreground border rounded-xl border-dashed">
-      <Receipt className="w-7 h-7 opacity-30" />
-      No recent sales found
+    <div className="border rounded-xl border-dashed">
+      <EmptyState
+        icon={Receipt}
+        title="No recent sales found"
+        action={isAuditor ? undefined : { label: "Go to POS", href: "/pos" }}
+      />
     </div>
   );
 }

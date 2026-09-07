@@ -1,5 +1,5 @@
 import { BaseApiClient } from "./base-client";
-import type { StoreOption, FleetStore, FleetStorePayload, FleetStats } from "@/lib/types/store";
+import type { StoreOption, FleetStore, FleetStorePayload, FleetStats, WidgetSnapshotResponse } from "@/lib/types/store";
 import type { OnlineOrder } from "@/lib/types/online-order";
 import type {
   SubscriptionStatus,
@@ -50,6 +50,10 @@ export class FleetBillingApiClient extends BaseApiClient {
 
   async getFleetStats() {
     return this.request<FleetStats>("/dashboard/stats");
+  }
+
+  async getWidgetSnapshot() {
+    return this.request<WidgetSnapshotResponse>("/dashboard/widget-snapshot");
   }
 
   async getAccountManager() {

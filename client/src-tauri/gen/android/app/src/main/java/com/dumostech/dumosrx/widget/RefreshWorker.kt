@@ -31,26 +31,27 @@ class RefreshWorker(context: Context, params: WorkerParameters) : CoroutineWorke
             return@withContext Result.success()
         }
 
+        var connection: HttpURLConnection? = null
         try {
-            val connection = URL("$API_BASE_URL/dashboard/widget-snapshot").openConnection() as HttpURLConnection
+            connection = URL("$API_BASE_URL/dashboard/widget-snapshot").openConnection() as HttpURLConnection
             connection.setRequestProperty("Authorization", "Bearer $token")
             connection.setRequestProperty("Accept", "application/json")
             connection.connectTimeout = 15_000
             connection.readTimeout = 15_000
 
             if (connection.responseCode != 200) {
-                connection.disconnect()
                 return@withContext Result.retry()
             }
 
             val body = connection.inputStream.bufferedReader().use { it.readText() }
-            connection.disconnect()
 
             WidgetSnapshotStore.write(applicationContext, reshapeToSnapshotJson(body))
             DumosRxWidgetProvider.requestUpdateAll(applicationContext)
             Result.success()
         } catch (e: Exception) {
             Result.retry()
+        } finally {
+            connection?.disconnect()
         }
     }
 

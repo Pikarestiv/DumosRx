@@ -8,6 +8,8 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.dumostech.dumosrx.widget.TokenStore
+import com.dumostech.dumosrx.widget.WidgetSnapshotStore
+import com.dumostech.dumosrx.widget.DumosRxWidgetProvider
 
 class MainActivity : TauriActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
@@ -43,5 +45,12 @@ class MainActivity : TauriActivity() {
   // Called from Rust (clear_mirrored_auth_token) on logout.
   fun clearMirroredAuthToken() {
     TokenStore.clear(applicationContext)
+  }
+
+  // Called from Rust (write_widget_snapshot) whenever the app finishes a
+  // successful widget-snapshot fetch (see use-widget-snapshot-sync.ts).
+  fun writeWidgetSnapshot(snapshotJson: String) {
+    WidgetSnapshotStore.write(applicationContext, snapshotJson)
+    DumosRxWidgetProvider.requestUpdateAll(applicationContext)
   }
 }

@@ -5,6 +5,7 @@ import { formatCurrency } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Receipt } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 import type { Sale } from "@/lib/types/sale";
 
 interface SalesListModalProps {
@@ -112,12 +113,8 @@ export function SalesListModal({
 function EmptySalesRow() {
   return (
     <TableRow>
-      <TableCell
-        colSpan={4}
-        className="text-center py-8 text-muted-foreground"
-      >
-        <Receipt className="w-6 h-6 mx-auto mb-2 opacity-30" />
-        No sales found.
+      <TableCell colSpan={4}>
+        <EmptyState icon={Receipt} title="No sales found" className="py-8" />
       </TableCell>
     </TableRow>
   );

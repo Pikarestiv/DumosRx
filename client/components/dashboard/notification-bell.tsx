@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -143,10 +144,8 @@ export function NotificationBell() {
     }
   };
 
-  const EmptyState = () => (
-    <div className="p-8 text-center text-sm text-muted-foreground">
-      No notifications
-    </div>
+  const NotificationsEmptyState = () => (
+    <EmptyState icon={Bell} title="No notifications" />
   );
 
   if (!isTouchDevice) {
@@ -162,7 +161,7 @@ export function NotificationBell() {
           <DropdownMenuSeparator />
           <div className="max-h-96 overflow-y-auto">
             {notifications.length === 0 && (
-                                  <EmptyState />
+                                  <NotificationsEmptyState />
                                 )}
                     {!(notifications.length === 0) && (
                                   notifications.map((notif) => (
@@ -197,7 +196,7 @@ export function NotificationBell() {
         </DrawerHeader>
         <div className="flex-1 overflow-y-auto px-4 mt-2">
           {notifications.length === 0 && (
-                              <EmptyState />
+                              <NotificationsEmptyState />
                             )}
                   {!(notifications.length === 0) && (
                               <div className="space-y-2">

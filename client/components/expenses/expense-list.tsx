@@ -17,6 +17,8 @@ import { SortableHeaderCell } from "@/components/ui/sortable-header-cell";
 import { useSortableData } from "@/lib/hooks/use-sortable-data";
 import { useQuickEditExpenseMutation } from "@/lib/hooks/use-expense-mutations";
 import { ExpenseDesktopRow, CATEGORY_META, type ExpenseDraft } from "./expense-desktop-row";
+import { EmptyState as SharedEmptyState } from "@/components/ui/empty-state";
+import { useAuth } from "@/lib/context/auth-context";
 
 type ExpenseSortKey = "date" | "category" | "description" | "method" | "amount";
 
@@ -43,6 +45,7 @@ export function ExpenseList() {
     selectedExpense,
     expenses,
   } = useExpensesPage();
+  const { isAdmin } = useAuth();
 
   const { sortKey, direction, toggleSort, sortedData: sortedExpenses } =
     useSortableData<Expense, ExpenseSortKey>(filteredExpenses, {
@@ -99,10 +102,16 @@ export function ExpenseList() {
   }
 
   const EmptyState = (
-    <div className="flex flex-col items-center justify-center p-10 text-muted-foreground">
-      <ReceiptText className="h-10 w-10 opacity-20 mb-3" />
-      <p className="text-sm font-medium">No expenses found</p>
-    </div>
+    <SharedEmptyState
+      icon={ReceiptText}
+      title="No expenses found"
+      className="p-10"
+      action={
+        isAdmin
+          ? { label: "Add Expense", href: "/expenses?action=add" }
+          : undefined
+      }
+    />
   );
 
   const SearchInput = (

@@ -8,6 +8,8 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Edit2, Trash2, Loader2, Store as StoreIcon } from "lucide-react";
+import { useAuth } from "@/lib/context/auth-context";
+import { EmptyState } from "@/components/ui/empty-state";
 import type { FleetStore } from "@/lib/types/store";
 
 interface FleetListProps {
@@ -16,14 +18,28 @@ interface FleetListProps {
   activeStoreId: string | null;
   onEdit: (store: FleetStore) => void;
   onDelete: (id: string, name: string) => void;
+  onAddStore?: () => void;
 }
 
-function NoStoresRow() {
+function NoStoresRow({
+  canManageFleet,
+  onAddStore,
+}: {
+  canManageFleet: boolean;
+  onAddStore?: () => void;
+}) {
   return (
     <TableRow>
-      <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
-        <StoreIcon className="w-6 h-6 mx-auto mb-2 opacity-30" />
-        No stores found.
+      <TableCell colSpan={4} className="h-24">
+        <EmptyState
+          icon={StoreIcon}
+          title="No stores found"
+          action={
+            canManageFleet && onAddStore
+              ? { label: "Add Store", onClick: onAddStore }
+              : undefined
+          }
+        />
       </TableCell>
     </TableRow>
   );
@@ -35,7 +51,11 @@ export function FleetList({
   activeStoreId,
   onEdit,
   onDelete,
+  onAddStore,
 }: FleetListProps) {
+  const { user } = useAuth();
+  const canManageFleet =
+    user?.role === "store_owner" || user?.role === "super_admin";
   return (
     <Table>
       <TableHeader>
@@ -54,7 +74,9 @@ export function FleetList({
             </TableCell>
           </TableRow>
         )}
-        {!isLoading && stores.length === 0 && <NoStoresRow />}
+        {!isLoading && stores.length === 0 && (
+          <NoStoresRow canManageFleet={canManageFleet} onAddStore={onAddStore} />
+        )}
         {!isLoading &&
           stores.map((store) => {
             const isActiveStore = store.id === activeStoreId;

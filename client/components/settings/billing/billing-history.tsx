@@ -4,7 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { Loader2, Receipt } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 import { toast } from "sonner";
 import { useBillingHistory } from "@/lib/hooks/use-billing";
 import { formatCurrency } from "@/lib/utils";
@@ -33,7 +34,7 @@ export function BillingHistory() {
             Failed to load billing history — check your connection.
           </div>
         ) : transactions.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">No billing history found.</div>
+          <EmptyState icon={Receipt} title="No billing history found" />
         ) : (
           <Table>
             <TableHeader>

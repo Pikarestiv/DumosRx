@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Loader2, CheckCircle, PackageOpen } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 
 import { useFulfillOnlineOrderMutation } from "@/lib/hooks/use-fulfill-online-order-mutation";
 import { formatCurrency } from "@/lib/utils";
@@ -17,12 +18,7 @@ import { useStore } from "@/lib/context/store-context";
 import type { OnlineOrder } from "@/lib/types/online-order";
 
 function NoOnlineOrdersFound() {
-  return (
-    <div className="flex flex-col items-center gap-2 text-center p-8 text-muted-foreground">
-      <PackageOpen className="w-7 h-7 opacity-30" />
-      No online orders found.
-    </div>
-  );
+  return <EmptyState icon={PackageOpen} title="No online orders found" className="py-8" />;
 }
 
 export function OnlineOrdersModal() {

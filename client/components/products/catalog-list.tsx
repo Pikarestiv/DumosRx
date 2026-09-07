@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { Package, ChevronRight, Pencil, Check, X } from "lucide-react";
+import { Package, ChevronRight, Pencil, Check, X, ClipboardList } from "lucide-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { toast } from "sonner";
 import { Product } from "./types";
@@ -7,6 +7,8 @@ import { useStore } from "@/lib/context/store-context";
 import { useAuth } from "@/lib/context/auth-context";
 import { SortableHeaderCell } from "@/components/ui/sortable-header-cell";
 import { EditableNumberCell } from "@/components/ui/editable-number-cell";
+import { EmptyState } from "@/components/ui/empty-state";
+import { RequestItemDialog } from "@/components/pos/request-item-dialog";
 import { useQuickEditProductMutation } from "@/lib/hooks/use-product-quick-edit-mutation";
 import type { SortDirection } from "@/lib/hooks/use-sortable-data";
 
@@ -45,7 +47,8 @@ export function CatalogList({
 }: CatalogListProps) {
   const { storeType } = useStore();
   const isPharmacy = storeType === "pharmacy";
-  const { canManageStockBatch } = useAuth();
+  const { canManageStockBatch, isAdmin, user } = useAuth();
+  const [showRequestDialog, setShowRequestDialog] = useState(false);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<{
@@ -155,7 +158,12 @@ export function CatalogList({
         className="flex-1 overflow-y-auto hide-scrollbar py-3 sm:py-0"
       >
         {filteredProducts.length === 0 && (
-          <EmptyCatalogList totalCount={totalCount} />
+          <EmptyCatalogList
+            totalCount={totalCount}
+            isAdmin={isAdmin}
+            isAuditor={user?.role === "auditor"}
+            onRequestProduct={() => setShowRequestDialog(true)}
+          />
         )}
         {filteredProducts.length > 0 && (
           <div
@@ -324,20 +332,51 @@ export function CatalogList({
           </div>
         )}
       </div>
+      <RequestItemDialog
+        open={showRequestDialog}
+        onOpenChange={setShowRequestDialog}
+      />
     </div>
   );
 }
 
-function EmptyCatalogList({ totalCount }: { totalCount: number }) {
+function EmptyCatalogList({
+  totalCount,
+  isAdmin,
+  isAuditor,
+  onRequestProduct,
+}: {
+  totalCount: number;
+  isAdmin: boolean;
+  isAuditor: boolean;
+  onRequestProduct: () => void;
+}) {
+  if (totalCount > 0) {
+    return (
+      <EmptyState
+        icon={Package}
+        title="No products found"
+        description="Try adjusting your search or filters"
+      />
+    );
+  }
+
   return (
-    <div className="h-32 flex flex-col items-center justify-center text-muted-foreground">
-      <Package className="h-8 w-8 mb-2 opacity-50" />
-      <p className="font-medium">No products found</p>
-      <p className="text-sm">
-        {totalCount === 0
-          ? "Add your first product to get started"
-          : "Try adjusting your search or filters"}
-      </p>
-    </div>
+    <EmptyState
+      icon={Package}
+      title="No products found"
+      description="Get started by adding products to your catalog."
+      action={
+        isAdmin
+          ? {
+              label: "Create Purchase Order",
+              href: "/procurement/new",
+              icon: ClipboardList,
+            }
+          : isAuditor
+            ? undefined
+            : { label: "Request Product", onClick: onRequestProduct }
+      }
+    />
   );
 }

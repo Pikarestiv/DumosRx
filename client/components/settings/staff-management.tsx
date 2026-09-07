@@ -219,6 +219,7 @@ export function StaffManagement() {
             onEdit={handleOpenEdit}
             onDelete={handleDeleteInitiate}
             onReactivate={handleReactivate}
+            onAddStaff={withRestriction(handleOpenCreate)}
           />
         </Card>
 

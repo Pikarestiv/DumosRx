@@ -6,7 +6,7 @@ import { formatCurrency } from "@/lib/utils";
 import { SortableHeaderCell } from "@/components/ui/sortable-header-cell";
 import { useSortableData } from "@/lib/hooks/use-sortable-data";
 import { useStore } from "@/lib/context/store-context";
-import { EmptyReportState } from "@/components/reports/empty-report-state";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export interface ProductPerformanceRow {
   id: string;
@@ -51,7 +51,7 @@ export function ProductPerformanceTable({ products }: ProductPerformanceTablePro
       </div>
 
       {sortedData.length === 0 ? (
-        <EmptyReportState icon={TrendingUp} description="No sales data available for the selected filters." />
+        <EmptyState icon={TrendingUp} title="No sales data" description="No sales data available for the selected filters." />
       ) : (
         <div className="overflow-x-auto">
           <div role="table" aria-label="Product performance" className="w-full min-w-[560px]">

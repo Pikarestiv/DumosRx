@@ -3,7 +3,8 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Loader2 } from "lucide-react";
+import { Loader2, History } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   Table,
   TableBody,
@@ -46,6 +47,22 @@ export function StaffActivitiesTab() {
   const [dateRange, setDateRange] = useState<DateRangeValue>({});
 
   const isSearching = search.trim().length > 0;
+  const isFiltered =
+    isSearching ||
+    actionFilter !== "all" ||
+    userFilter !== "all" ||
+    roleFilter !== "all" ||
+    !!dateRange.from ||
+    !!dateRange.to;
+
+  const clearFilters = () => {
+    setSearch("");
+    setActionFilter("all");
+    setUserFilter("all");
+    setRoleFilter("all");
+    setDateRange({});
+    setPage(1);
+  };
 
   const baseFilters = {
     tableName: TABLE_NAME,
@@ -178,8 +195,17 @@ export function StaffActivitiesTab() {
             )}
             {!isLoading && rows.length === 0 && (
               <TableRow>
-                <TableCell colSpan={3} className="h-24 text-center text-muted-foreground">
-                  No staff activity found for this filter.
+                <TableCell colSpan={3} className="text-center">
+                  <EmptyState
+                    icon={History}
+                    title="No staff activity found"
+                    description="No activity matches the current filters."
+                    action={
+                      isFiltered
+                        ? { label: "Clear filters", onClick: clearFilters }
+                        : undefined
+                    }
+                  />
                 </TableCell>
               </TableRow>
             )}
@@ -206,9 +232,16 @@ export function StaffActivitiesTab() {
           </div>
         )}
         {!isLoading && rows.length === 0 && (
-          <div className="h-24 flex items-center justify-center text-muted-foreground text-sm">
-            No staff activity found for this filter.
-          </div>
+          <EmptyState
+            icon={History}
+            title="No staff activity found"
+            description="No activity matches the current filters."
+            action={
+              isFiltered
+                ? { label: "Clear filters", onClick: clearFilters }
+                : undefined
+            }
+          />
         )}
         {!isLoading &&
           rows.map((row) => (

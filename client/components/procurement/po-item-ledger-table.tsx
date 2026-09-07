@@ -1,8 +1,9 @@
 "use client";
 
-import { Trash2 } from "lucide-react";
+import { Trash2, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { DatePickerInput } from "@/components/ui/date-picker-input";
 import { EditableNumberCell } from "@/components/ui/editable-number-cell";
 import { POReviewPricePopover } from "./po-review-price-popover";
@@ -199,8 +200,8 @@ export function POItemLedgerTable({
           })}
           {items.length === 0 && (
             <div role="row" className={`grid ${gridCols}`}>
-              <div role="cell" className="col-span-full px-3 py-8 text-center text-muted-foreground">
-                Search above to add items to this order.
+              <div role="cell" className="col-span-full">
+                <EmptyState icon={Search} title="Search above to add items to this order" className="py-8" />
               </div>
             </div>
           )}

@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Monitor, Smartphone, LogOut } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 import { toast } from "sonner";
 import { useSessions, useRevokeSessionMutation, useRevokeAllSessionsMutation } from "@/lib/hooks/use-sessions";
 import type { Session } from "@/lib/types/user";
@@ -83,7 +84,7 @@ export function SessionsList() {
           </p>
         )}
         {!isLoading && !isError && sessions.length === 0 && (
-          <p className="text-sm text-muted-foreground text-center py-6">No active sessions found.</p>
+          <EmptyState icon={Monitor} title="No active sessions found" />
         )}
         {!isLoading &&
           sessions.map((session) => {

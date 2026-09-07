@@ -13,6 +13,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useStore } from "@/lib/context/store-context";
+import { useAuth } from "@/lib/context/auth-context";
+import { EmptyState } from "@/components/ui/empty-state";
 import { FORM_SUGGESTIONS } from "@/lib/constants/suggestions";
 
 /** Store-specific selling/pack units, layered on top of the built-in
@@ -21,6 +23,7 @@ import { FORM_SUGGESTIONS } from "@/lib/constants/suggestions";
  * abbreviations/precision, just a name pickers can select from. */
 export function ProductUnitsCard() {
   const { storeProfile, updateStoreProfile } = useStore();
+  const { isAdmin } = useAuth();
   const [isAdding, setIsAdding] = useState(false);
   const [newUnit, setNewUnit] = useState("");
 
@@ -100,9 +103,16 @@ export function ProductUnitsCard() {
         <div className="space-y-2">
           <p className="text-sm font-medium">Your custom units</p>
           {customUnits.length === 0 ? (
-            <p className="text-sm text-muted-foreground italic">
-              No custom units added yet.
-            </p>
+            <EmptyState
+              icon={Ruler}
+              title="No custom units added yet"
+              className="py-4"
+              action={
+                isAdmin
+                  ? { label: "Add Unit", onClick: () => setIsAdding(true) }
+                  : undefined
+              }
+            />
           ) : (
             <div className="flex flex-wrap gap-2">
               {customUnits.map((unit) => (

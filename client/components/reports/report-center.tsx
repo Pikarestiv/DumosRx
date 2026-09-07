@@ -32,6 +32,7 @@ import {
 } from "@/lib/hooks/use-report-export";
 import { toQueryRange } from "@/lib/utils/date-range";
 import { toast } from "sonner";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export function ReportCenter() {
   const [filters, setFilters] = useState<ReportFiltersValue>({
@@ -241,11 +242,11 @@ export function ReportCenter() {
 
 function RecentDownloadsEmptyState() {
   return (
-    <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
-      <CheckCircle2 className="h-8 w-8 opacity-20 mb-3" />
-      <p className="font-semibold text-[13.5px]">No reports generated yet</p>
-      <p className="text-[12px] mt-1">Export a report to see it here.</p>
-    </div>
+    <EmptyState
+      icon={CheckCircle2}
+      title="No reports generated yet"
+      description="Export a report to see it here."
+    />
   );
 }
 

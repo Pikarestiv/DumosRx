@@ -13,7 +13,7 @@ import type { MonthlySalesDataPoint, CategoryDistributionItem } from "@/lib/type
 import { getCurrencySymbol } from "@/lib/utils";
 import { useStore } from "@/lib/context/store-context";
 import { ProductPerformanceTable, type ProductPerformanceRow } from "./product-performance-table";
-import { EmptyReportState } from "@/components/reports/empty-report-state";
+import { EmptyState } from "@/components/ui/empty-state";
 
 interface SalesAnalyticsTabProps {
   monthlySalesData: MonthlySalesDataPoint[];
@@ -96,7 +96,7 @@ export function SalesAnalyticsTab({
         </div>
 
         {categoryDistribution.length === 0 ? (
-          <EmptyReportState icon={PieChart} description="No sales data available for the selected filters." />
+          <EmptyState icon={PieChart} title="No sales data" description="No sales data available for the selected filters." />
         ) : (
           <div className="flex flex-col gap-3.5">
             {categoryDistribution.map((category, index) => (

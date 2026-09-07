@@ -1,6 +1,8 @@
+import { Package } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { DatePickerInput } from "@/components/ui/date-picker-input";
 import { ResponsiveTabLabel } from "@/components/ui/responsive-tab-label";
+import { EmptyState } from "@/components/ui/empty-state";
 import type { PurchaseOrderItem } from "@/lib/db/local-database";
 import type { ReceivedItemPayload } from "./receive-po-panel";
 import { formatCurrency } from "@/lib/utils";
@@ -161,11 +163,8 @@ export function ReceiveLedgerTable({
           })}
           {items.length === 0 && (
             <div role="row" className={`grid ${GRID_COLS}`}>
-              <div
-                role="cell"
-                className="col-span-7 px-3 py-8 text-center text-muted-foreground"
-              >
-                No items on this order.
+              <div role="cell" className="col-span-7">
+                <EmptyState icon={Package} title="No items on this order" className="py-8" />
               </div>
             </div>
           )}

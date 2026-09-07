@@ -10,7 +10,7 @@ import { useStore } from "@/lib/context/store-context";
 import { Card } from "@/components/ui/card";
 import { MetricCard } from "@/components/ui/metric-card";
 import { getCurrencyByCode } from "@/lib/constants/currencies";
-import { EmptyReportState } from "@/components/reports/empty-report-state";
+import { EmptyState } from "@/components/ui/empty-state";
 
 interface CustomerBehaviorTabProps {
   customerMetrics: {
@@ -71,7 +71,7 @@ export function CustomerBehaviorTab({
         </div>
 
         {purchasePatterns.length === 0 ? (
-          <EmptyReportState
+          <EmptyState
             icon={Clock}
             title="No transaction data available"
             description="Sales will appear here once transactions are recorded for the selected filters."

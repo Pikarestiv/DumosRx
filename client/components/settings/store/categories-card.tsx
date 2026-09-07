@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Pencil } from "lucide-react";
+import { Pencil, Tag } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -12,12 +12,15 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
+import { useAuth } from "@/lib/context/auth-context";
 import { ManageCategoriesDialog } from "@/components/products/manage-categories-dialog";
 import { getCategoryList } from "@/lib/db/queries/categories";
 import { queryKeys } from "@/lib/query-keys";
 
 export function CategoriesCard() {
   const [open, setOpen] = useState(false);
+  const { isAdmin } = useAuth();
 
   const { data: categories = [], isLoading } = useQuery({
     ...queryKeys.categories.list(),
@@ -43,9 +46,15 @@ export function CategoriesCard() {
           <p className="text-sm text-muted-foreground italic">Loading...</p>
         )}
         {!isLoading && categories.length === 0 && (
-          <p className="text-sm text-muted-foreground italic">
-            No categories yet. Use Manage to add some.
-          </p>
+          <EmptyState
+            icon={Tag}
+            title="No categories yet"
+            action={
+              isAdmin
+                ? { label: "Manage Categories", onClick: () => setOpen(true) }
+                : undefined
+            }
+          />
         )}
         {!isLoading && categories.length > 0 && (
           <div className="flex flex-wrap gap-2">

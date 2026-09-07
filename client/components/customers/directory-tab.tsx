@@ -11,6 +11,8 @@ import { CustomerDetailPanel } from "./customer-detail-panel";
 import { CustomerMobileRow, CustomerDesktopRow } from "./customer-list-rows";
 import { SortableHeaderCell } from "@/components/ui/sortable-header-cell";
 import { useSortableData } from "@/lib/hooks/use-sortable-data";
+import { EmptyState } from "@/components/ui/empty-state";
+import { useAuth } from "@/lib/context/auth-context";
 
 // Matches the row's px-4 py-2.5 padding + single line of 13.5px/12px text.
 const DESKTOP_ROW_HEIGHT = 56;
@@ -26,16 +28,29 @@ interface DirectoryTabProps {
   onViewHistory?: (customer: Customer) => void;
   onEditProfile?: (customer: Customer) => void;
   onRecordPayment?: (customer: Customer) => void;
+  onAddCustomer?: () => void;
 }
 
 type CustFilter = "all" | "debt" | "loyalty";
 
-function NoCustomersFound() {
+function NoCustomersFound({
+  isAuditor,
+  onAddCustomer,
+}: {
+  isAuditor: boolean;
+  onAddCustomer?: () => void;
+}) {
   return (
-    <div className="p-8 flex flex-col items-center gap-2 text-center text-muted-foreground text-[13px]">
-      <Users className="w-7 h-7 opacity-30" />
-      No customers found.
-    </div>
+    <EmptyState
+      icon={Users}
+      title="No customers found"
+      className="p-8"
+      action={
+        isAuditor || !onAddCustomer
+          ? undefined
+          : { label: "Add Customer", onClick: onAddCustomer }
+      }
+    />
   );
 }
 
@@ -50,8 +65,11 @@ export function DirectoryTab({
   onViewHistory,
   onEditProfile,
   onRecordPayment,
+  onAddCustomer,
 }: DirectoryTabProps) {
   const [filter, setFilter] = useState<CustFilter>("all");
+  const { user } = useAuth();
+  const isAuditor = user?.role === "auditor";
 
   const desktopScrollRef = useRef<HTMLDivElement>(null);
 
@@ -160,7 +178,9 @@ export function DirectoryTab({
               getTierColor={getTierColor}
             />
           ))}
-          {filteredCustomers.length === 0 && <NoCustomersFound />}
+          {filteredCustomers.length === 0 && (
+            <NoCustomersFound isAuditor={isAuditor} onAddCustomer={onAddCustomer} />
+          )}
         </div>
       </div>
 
@@ -242,7 +262,9 @@ export function DirectoryTab({
               })}
             </div>
           )}
-          {filteredCustomers.length === 0 && <NoCustomersFound />}
+          {filteredCustomers.length === 0 && (
+            <NoCustomersFound isAuditor={isAuditor} onAddCustomer={onAddCustomer} />
+          )}
         </div>
       </Card>
 

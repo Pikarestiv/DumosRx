@@ -1,3 +1,5 @@
+import { mirrorAuthToken, clearMirroredAuthToken } from "@/lib/native/widget-bridge";
+
 let token: string | null = null;
 let refreshPromise: Promise<void> | null = null;
 const REFRESH_THRESHOLD_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
@@ -19,6 +21,7 @@ export const setToken = (newToken: string) => {
     localStorage.setItem("auth_token", newToken);
     localStorage.setItem("auth_token_issued_at", Date.now().toString());
     window.dispatchEvent(new Event("auth_token_set"));
+    void mirrorAuthToken(newToken);
   }
 };
 
@@ -28,6 +31,7 @@ export const clearToken = () => {
     localStorage.removeItem("auth_token");
     localStorage.removeItem("auth_token_issued_at");
     window.dispatchEvent(new Event("auth_token_cleared"));
+    void clearMirroredAuthToken();
   }
 };
 

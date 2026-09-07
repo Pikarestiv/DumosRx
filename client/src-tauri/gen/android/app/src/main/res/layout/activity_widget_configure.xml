@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="24dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Choose what this widget shows"
+        android:textStyle="bold"
+        android:textSize="18sp"
+        android:paddingBottom="16dp" />
+
+    <RadioGroup
+        android:id="@+id/widget_scope_group"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <RadioButton
+            android:id="@+id/widget_scope_fleet"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="All stores"
+            android:checked="true" />
+
+        <!-- Per-store radio buttons are added programmatically in
+             DumosRxWidgetConfigureActivity, one per store the account owns. -->
+    </RadioGroup>
+
+    <Button
+        android:id="@+id/widget_scope_confirm"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:text="Add widget" />
+</LinearLayout>

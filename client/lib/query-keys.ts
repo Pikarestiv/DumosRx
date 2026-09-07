@@ -232,6 +232,7 @@ export const queryKeys = {
   fleet: {
     // Remote API data, not a local table.
     stats: () => resource(["fleetStats"] as const, []),
+    widgetSnapshot: () => resource(["widgetSnapshot"] as const, []),
   },
   accountManager: {
     // Remote API data, not a local table.

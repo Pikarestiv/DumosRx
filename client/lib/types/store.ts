@@ -46,3 +46,20 @@ export interface FleetStats {
   };
   stores: FleetStore[];
 }
+
+export interface WidgetSnapshotStoreEntry {
+  id: string;
+  name: string;
+  today_sales_formatted: string;
+  low_stock_alerts: number;
+  expiring_items: number;
+}
+
+export interface WidgetSnapshotResponse {
+  fleet: {
+    today_sales_formatted: string;
+    low_stock_alerts: number;
+    expiring_items: number;
+  };
+  stores: WidgetSnapshotStoreEntry[];
+}

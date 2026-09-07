@@ -4,6 +4,7 @@ import android.app.Activity
 import android.appwidget.AppWidgetManager
 import android.content.Intent
 import android.os.Bundle
+import android.view.View
 import android.widget.RadioButton
 import android.widget.RadioGroup
 import com.dumostech.dumosrx.R
@@ -40,7 +41,10 @@ class DumosRxWidgetConfigureActivity : Activity() {
         val storeButtonIds = mutableMapOf<Int, JSONObject>()
 
         stores.forEach { store ->
-            val button = RadioButton(this).apply { text = store.getString("name") }
+            val button = RadioButton(this).apply {
+                text = store.getString("name")
+                id = View.generateViewId()
+            }
             group.addView(button)
             storeButtonIds[button.id] = store
         }

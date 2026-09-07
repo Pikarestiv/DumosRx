@@ -52,6 +52,57 @@ function ThemeRestrictor() {
   return null;
 }
 
+// Restricted mobile users may browse/navigate freely; only actions that
+// create, update, or delete data are blocked. Detected by accessible-name
+// keyword rather than by element type, since blocking every button/input
+// (the old behavior) also blocked search boxes, filters, sort/pagination
+// controls, and "view details" buttons — anything read-only.
+const MUTATING_KEYWORDS = [
+  "save",
+  "create",
+  "add",
+  "delete",
+  "remove",
+  "update",
+  "checkout",
+  "check out",
+  "pay",
+  "confirm",
+  "submit",
+  "register",
+  "restore",
+  "void",
+  "refund",
+  "redeem",
+  "apply",
+  "post",
+  "publish",
+  "upload",
+  "import",
+  "adjust",
+  "transfer",
+  "receive",
+  "return",
+  "clock in",
+  "clock out",
+];
+const MUTATING_KEYWORDS_RE = new RegExp(
+  `\\b(${MUTATING_KEYWORDS.join("|")})\\b`,
+  "i",
+);
+
+function getAccessibleName(el: Element): string {
+  const aria = el.getAttribute("aria-label");
+  const title = el.getAttribute("title");
+  const value = el instanceof HTMLInputElement ? el.value : "";
+  return `${el.textContent || ""} ${aria || ""} ${title || ""} ${value}`;
+}
+
+function isMutatingElement(el: Element | null): boolean {
+  if (!el) return false;
+  return MUTATING_KEYWORDS_RE.test(getAccessibleName(el));
+}
+
 function MobileRestrictionGuard() {
   const { canUseMobileApp } = useFeatureGate();
   const { isAuthenticated } = useAuth();
@@ -66,17 +117,26 @@ function MobileRestrictionGuard() {
     checkMobile();
     window.addEventListener("resize", checkMobile);
 
-    // Feature usage interceptor
+    const isRestricted = () =>
+      isMobile &&
+      !canUseMobileApp &&
+      isAuthenticated &&
+      !isLocked &&
+      pathname !== "/login";
+
+    const block = (e: Event) => {
+      e.preventDefault();
+      e.stopPropagation();
+      toast.error("Mobile Access Locked", {
+        description:
+          "Please upgrade your plan to create, edit, or delete data on the mobile app.",
+      });
+    };
+
+    // Feature usage interceptor: only mutating actions, never plain
+    // navigation/viewing.
     const handleGlobalClick = (e: MouseEvent) => {
-      if (
-        !isMobile ||
-        canUseMobileApp ||
-        !isAuthenticated ||
-        isLocked ||
-        pathname === "/login"
-      ) {
-        return;
-      }
+      if (!isRestricted()) return;
 
       const target = e.target as HTMLElement;
 
@@ -87,26 +147,50 @@ function MobileRestrictionGuard() {
       if (target.closest('nav, aside, header, .sidebar, [role="tab"], a'))
         return;
 
-      // Intercept action elements
-      const isAction = target.closest(
-        'button, input, textarea, select, [role="switch"], [role="checkbox"]',
+      // Switches/checkboxes always commit a change on click (there's no
+      // read-only use for one), unlike buttons/inputs which are often just
+      // navigation or filtering, so these are blocked unconditionally
+      // rather than relying on their label containing a mutating keyword.
+      const toggleEl = target.closest(
+        '[role="switch"], [role="checkbox"], input[type="checkbox"], input[type="radio"]',
       );
-      if (isAction) {
-        e.preventDefault();
-        e.stopPropagation();
+      if (toggleEl) {
+        block(e);
+        return;
+      }
 
-        toast.error("Mobile Access Locked", {
-          description:
-            "Please upgrade your plan to perform actions on the mobile app.",
-        });
+      const actionEl = target.closest(
+        'button, [role="button"], input[type="submit"], input[type="button"]',
+      );
+      if (actionEl && isMutatingElement(actionEl)) {
+        block(e);
+      }
+    };
+
+    // Safety net for forms submitted via Enter key (no button click to
+    // intercept): only blocks if the submitter itself reads as mutating, so
+    // read-only forms (e.g. a search box wrapped in <form onSubmit>) still
+    // work.
+    const handleGlobalSubmit = (e: SubmitEvent) => {
+      if (!isRestricted()) return;
+      if ((e.target as HTMLElement)?.closest("#mobile-restriction-banner"))
+        return;
+      if (isMutatingElement(e.submitter)) {
+        block(e);
       }
     };
 
     document.addEventListener("click", handleGlobalClick, { capture: true });
+    document.addEventListener("submit", handleGlobalSubmit, {
+      capture: true,
+    });
 
     return () => {
       window.removeEventListener("resize", checkMobile);
       document.removeEventListener("click", handleGlobalClick, {
+        capture: true,
+      });
+      document.removeEventListener("submit", handleGlobalSubmit, {
         capture: true,
       });
     };

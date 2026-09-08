@@ -202,6 +202,12 @@ class AdminUserService
                 'status' => 'success',
             ]);
 
+            $this->notifyUser(
+                $user->id,
+                "You've been granted a ".ucfirst($plan)." Free Trial, valid until {$resolvedEndDate->toDateString()}. Enjoy!",
+                'Free Trial Granted'
+            );
+
             return true;
         });
     }

@@ -1,15 +1,20 @@
 import React, { useRef, useState } from "react";
-import { Package, ChevronRight, Pencil, Check, X, ClipboardList } from "lucide-react";
+import { Package, ChevronRight, ClipboardList } from "lucide-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Product } from "./types";
 import { useStore } from "@/lib/context/store-context";
 import { useAuth } from "@/lib/context/auth-context";
 import { SortableHeaderCell } from "@/components/ui/sortable-header-cell";
-import { EditableNumberCell } from "@/components/ui/editable-number-cell";
 import { EmptyState } from "@/components/ui/empty-state";
 import { RequestItemDialog } from "@/components/pos/request-item-dialog";
+import { EditableCategoryCell, EditableQuickNumberCell } from "./catalog-editable-cells";
 import { useQuickEditProductMutation } from "@/lib/hooks/use-product-quick-edit-mutation";
+import { useSubmitStockAuditMutation } from "@/lib/hooks/use-stock-audit-mutation";
+import { useHasTouchCapability } from "@/lib/hooks/use-has-touch-capability";
+import { getCategoryList } from "@/lib/db/queries/categories";
+import { queryKeys } from "@/lib/query-keys";
 import type { SortDirection } from "@/lib/hooks/use-sortable-data";
 
 type ProductSortKey =
@@ -49,47 +54,65 @@ export function CatalogList({
   const isPharmacy = storeType === "pharmacy";
   const { canManageStockBatch, isAdmin, user } = useAuth();
   const [showRequestDialog, setShowRequestDialog] = useState(false);
+  // A 2-in-1 laptop's trackpad still lets it hover, but a user tapping its
+  // touchscreen directly never fires :hover — so the edit pencil must stay
+  // visible whenever touch is available at all, not just on touch-primary
+  // devices (see useHasTouchCapability's doc comment for the distinction).
+  const hasTouchCapability = useHasTouchCapability();
 
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [draft, setDraft] = useState<{
-    sellingPrice: number;
-    reorderLevel: number;
-  } | null>(null);
-
-  const startQuickEdit = (product: Product) => {
-    if (!canManageStockBatch) return;
-    setEditingId(product.id);
-    setDraft({
-      sellingPrice: product.sellingPrice,
-      reorderLevel: product.reorderLevel,
-    });
-  };
-
-  const cancelQuickEdit = () => {
-    setEditingId(null);
-    setDraft(null);
-  };
+  const { data: categoryRows } = useQuery({
+    ...queryKeys.categories.list(),
+    queryFn: () => getCategoryList(),
+  });
+  const categoryOptions = categoryRows?.map((c) => c.name) ?? [];
 
   const quickEditMutation = useQuickEditProductMutation();
+  const stockAuditMutation = useSubmitStockAuditMutation();
 
-  const saveQuickEdit = (product: Product) => {
-    if (!draft || quickEditMutation.isPending) return;
-    quickEditMutation.mutate(
-      { id: product.id, sellingPrice: draft.sellingPrice, reorderLevel: draft.reorderLevel },
-      {
-        onSuccess: () => {
-          toast.success(`${product.name} updated`);
-          onProductUpdated();
-        },
-        onError: () => {
-          toast.error("Failed to update product. Please try again.");
-        },
-        onSettled: () => {
-          setEditingId(null);
-          setDraft(null);
-        },
-      },
-    );
+  const saveCategory = async (product: Product, category: string) => {
+    try {
+      await quickEditMutation.mutateAsync({ id: product.id, category });
+      onProductUpdated();
+    } catch {
+      toast.error("Failed to update category. Please try again.");
+    }
+  };
+
+  const saveSellingPrice = async (product: Product, sellingPrice: number) => {
+    try {
+      await quickEditMutation.mutateAsync({ id: product.id, sellingPrice });
+      onProductUpdated();
+    } catch {
+      toast.error("Failed to update selling price. Please try again.");
+    }
+  };
+
+  const saveReorderLevel = async (product: Product, reorderLevel: number) => {
+    try {
+      await quickEditMutation.mutateAsync({ id: product.id, reorderLevel });
+      onProductUpdated();
+    } catch {
+      toast.error("Failed to update reorder level. Please try again.");
+    }
+  };
+
+  const saveStockQuantity = async (product: Product, stockQuantity: number) => {
+    try {
+      await stockAuditMutation.mutateAsync({
+        items: [
+          {
+            productId: product.id,
+            systemQty: product.stockQuantity,
+            countedQty: stockQuantity,
+            reason: "Quick edit from catalog",
+          },
+        ],
+        performedBy: user?.id || null,
+      });
+      onProductUpdated();
+    } catch {
+      toast.error("Failed to update stock. Please try again.");
+    }
   };
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -112,7 +135,7 @@ export function CatalogList({
       )}
 
       {/* Header */}
-      <div className="hidden sm:grid grid-cols-[1fr_110px_90px_90px_100px_90px_28px] gap-2 px-4 py-2.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wide border-b border-border shrink-0">
+      <div className="hidden sm:grid grid-cols-[1fr_110px_90px_90px_100px_90px] gap-2 px-4 py-2.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wide border-b border-border shrink-0">
         <SortableHeaderCell
           label="Product"
           active={sortKey === "name"}
@@ -149,7 +172,6 @@ export function CatalogList({
           direction={sortDirection}
           onClick={() => onToggleSort("reorderLevel")}
         />
-        <div />
       </div>
 
       {/* Rows */}
@@ -173,7 +195,6 @@ export function CatalogList({
             {rowVirtualizer.getVirtualItems().map((virtualRow) => {
             const product = filteredProducts[virtualRow.index];
             const isSelected = selectedProductId === product.id;
-            const isEditingRow = editingId === product.id;
             return (
               <div
                 key={product.id}
@@ -183,10 +204,8 @@ export function CatalogList({
                 style={{ transform: `translateY(${virtualRow.start}px)` }}
               >
               <div
-                onClick={() => {
-                  if (!isEditingRow) onSelectProduct(product);
-                }}
-                className={`group px-4 py-3 sm:py-2 rounded-xl sm:rounded-none border sm:border-t-0 sm:border-r-0 sm:border-b border-border cursor-pointer transition-colors ${
+                onClick={() => onSelectProduct(product)}
+                className={`px-4 py-3 sm:py-2 rounded-xl sm:rounded-none border sm:border-t-0 sm:border-r-0 sm:border-b border-border cursor-pointer transition-colors ${
                   isSelected
                     ? "bg-primary/5 border-l-2 border-l-primary"
                     : "bg-card sm:bg-transparent hover:bg-muted/50 border-l-2 border-l-transparent"
@@ -225,7 +244,7 @@ export function CatalogList({
                 </div>
 
                 {/* Desktop View */}
-                <div className="hidden sm:grid grid-cols-[1fr_110px_90px_90px_100px_90px_28px] gap-2 items-center">
+                <div className="hidden sm:grid grid-cols-[1fr_110px_90px_90px_100px_90px] gap-2 items-center">
                   <div className="min-w-0 pr-2">
                     <div className="text-[13px] font-semibold truncate flex items-center gap-2">
                       {product.name}
@@ -239,91 +258,44 @@ export function CatalogList({
                       {product.barcode || product.id.slice(0, 8)}
                     </div>
                   </div>
-                  <div className="flex items-center">
-                    <span className="text-[11px] font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded-md truncate max-w-[100px] inline-block">
-                      {product.category || "Uncategorized"}
-                    </span>
-                  </div>
+                  <EditableCategoryCell
+                    product={product}
+                    categoryOptions={categoryOptions}
+                    canEdit={canManageStockBatch}
+                    hasTouchCapability={hasTouchCapability}
+                    onSave={saveCategory}
+                  />
                   <div className="text-[13px] font-medium text-muted-foreground">
                     {product.costPrice > 0 ? formatCurrency(product.costPrice) : "-"}
                   </div>
-                  {isEditingRow && draft ? (
-                    <div onClick={(e) => e.stopPropagation()}>
-                      <EditableNumberCell
-                        value={draft.sellingPrice}
-                        onCommit={(val) =>
-                          setDraft((d) => (d ? { ...d, sellingPrice: val } : d))
-                        }
-                        parse={parseFloat}
-                        step="0.01"
-                        widthClassName="w-20"
-                        autoFocus
-                      />
-                    </div>
-                  ) : (
-                    <div className="text-[13px] font-semibold">
-                      {formatCurrency(product.sellingPrice)}
-                    </div>
-                  )}
-                  <div
-                    className={`text-[13px] font-semibold ${product.stockQuantity <= product.reorderLevel ? "text-destructive" : "text-primary"}`}
-                  >
-                    {product.stockQuantity} {product.baseUnit || "unit"}
-                    {product.stockQuantity === 1 ? "" : "s"}
-                  </div>
-                  {isEditingRow && draft ? (
-                    <div onClick={(e) => e.stopPropagation()}>
-                      <EditableNumberCell
-                        value={draft.reorderLevel}
-                        onCommit={(val) =>
-                          setDraft((d) => (d ? { ...d, reorderLevel: val } : d))
-                        }
-                        parse={(raw) => parseInt(raw, 10)}
-                        widthClassName="w-16"
-                      />
-                    </div>
-                  ) : (
-                    <div className="text-[13px] text-muted-foreground">
-                      {product.reorderLevel}
-                    </div>
-                  )}
-                  {isEditingRow ? (
-                    <div
-                      className="flex items-center gap-1"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => saveQuickEdit(product)}
-                        className="p-1 rounded text-emerald-600 hover:bg-emerald-500/10"
-                        title="Save"
-                      >
-                        <Check className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={cancelQuickEdit}
-                        className="p-1 rounded text-muted-foreground hover:bg-muted"
-                        title="Cancel"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  ) : (
-                    canManageStockBatch && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          startQuickEdit(product);
-                        }}
-                        className="p-1 rounded text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-muted hover:text-foreground transition-opacity"
-                        title="Quick edit"
-                      >
-                        <Pencil className="w-3.5 h-3.5" />
-                      </button>
-                    )
-                  )}
+                  <EditableQuickNumberCell
+                    displayValue={formatCurrency(product.sellingPrice)}
+                    value={product.sellingPrice}
+                    parse={parseFloat}
+                    step="0.01"
+                    widthClassName="w-20"
+                    canEdit={canManageStockBatch}
+                    hasTouchCapability={hasTouchCapability}
+                    onSave={(val) => saveSellingPrice(product, val)}
+                  />
+                  <EditableQuickNumberCell
+                    displayValue={`${product.stockQuantity} ${product.baseUnit || "unit"}${product.stockQuantity === 1 ? "" : "s"}`}
+                    displayClassName={`text-[13px] font-semibold ${product.stockQuantity <= product.reorderLevel ? "text-destructive" : "text-primary"}`}
+                    value={product.stockQuantity}
+                    parse={(raw) => parseInt(raw, 10)}
+                    canEdit={canManageStockBatch}
+                    hasTouchCapability={hasTouchCapability}
+                    onSave={(val) => saveStockQuantity(product, val)}
+                  />
+                  <EditableQuickNumberCell
+                    displayValue={String(product.reorderLevel)}
+                    displayClassName="text-[13px] text-muted-foreground"
+                    value={product.reorderLevel}
+                    parse={(raw) => parseInt(raw, 10)}
+                    canEdit={canManageStockBatch}
+                    hasTouchCapability={hasTouchCapability}
+                    onSave={(val) => saveReorderLevel(product, val)}
+                  />
                 </div>
               </div>
               </div>
@@ -380,3 +352,4 @@ function EmptyCatalogList({
     />
   );
 }
+

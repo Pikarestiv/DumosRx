@@ -19,6 +19,7 @@ export function EditableNumberCell({
   hasError,
   widthClassName = "w-20",
   autoFocus,
+  onBlur,
 }: {
   value: number;
   onCommit: (val: number) => void;
@@ -28,6 +29,10 @@ export function EditableNumberCell({
   hasError?: boolean;
   widthClassName?: string;
   autoFocus?: boolean;
+  /** Fired after the built-in revert-if-invalid blur logic, and also on
+   * Enter (which just blurs the input) — lets a caller treat blur as
+   * "finalize this edit" without duplicating the invalid-value handling. */
+  onBlur?: () => void;
 }) {
   const [text, setText] = useState(String(value));
 
@@ -56,6 +61,10 @@ export function EditableNumberCell({
       }}
       onBlur={() => {
         if (text === "" || isNaN(parse(text))) setText(String(value));
+        onBlur?.();
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") e.currentTarget.blur();
       }}
       onFocus={(e) => e.target.select()}
     />

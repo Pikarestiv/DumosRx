@@ -1,17 +1,17 @@
 import { useState, useEffect } from "react";
 
 export function useMediaQuery(query: string) {
-  // Lazy-initialize from the real value instead of always starting at
-  // `false`. ResponsiveModal picks Dialog vs Drawer off this hook, and a
-  // `false`-then-corrected first render meant it briefly mounted the wrong
-  // one (Drawer) before swapping to Dialog on desktop: two different
-  // libraries each doing their own body scroll-lock in the same tick, which
-  // could leave `document.body.style.pointerEvents` stuck at "none" after
-  // close. SSR has no `window`, so this still falls back to `false` there,
-  // same as before.
-  const [value, setValue] = useState(() =>
-    typeof window !== "undefined" ? matchMedia(query).matches : false
-  );
+  // Always start at `false`, even on the client: this app is statically
+  // exported (`output: "export"`), so the build has no `window` and bakes
+  // `false` into the HTML. Lazy-reading the real matchMedia value here made
+  // the client's first render disagree with that static HTML whenever the
+  // real value was `true` (e.g. any desktop-width user), which React
+  // reports as a hydration-mismatch crash — not a caught render exception,
+  // so it never reached Sentry via the error boundary. Consumers that used
+  // to rely on the real value being available immediately (ResponsiveModal
+  // picking Dialog vs Drawer) should gate their first real render on a
+  // `mounted` flag instead, rather than reaching for the value early here.
+  const [value, setValue] = useState(false);
 
   useEffect(() => {
     function onChange(event: MediaQueryListEvent) {

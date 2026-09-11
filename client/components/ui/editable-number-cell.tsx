@@ -20,6 +20,7 @@ export function EditableNumberCell({
   widthClassName = "w-20",
   autoFocus,
   onBlur,
+  onCancel,
 }: {
   value: number;
   onCommit: (val: number) => void;
@@ -33,6 +34,10 @@ export function EditableNumberCell({
    * Enter (which just blurs the input) — lets a caller treat blur as
    * "finalize this edit" without duplicating the invalid-value handling. */
   onBlur?: () => void;
+  /** Fired on Escape, instead of blurring: lets a caller close the edit
+   * without treating it as a commit (blurring would run the normal
+   * onBlur/save path, which Escape should explicitly bypass). */
+  onCancel?: () => void;
 }) {
   const [text, setText] = useState(String(value));
 
@@ -65,6 +70,7 @@ export function EditableNumberCell({
       }}
       onKeyDown={(e) => {
         if (e.key === "Enter") e.currentTarget.blur();
+        else if (e.key === "Escape") onCancel?.();
       }}
       onFocus={(e) => e.target.select()}
     />

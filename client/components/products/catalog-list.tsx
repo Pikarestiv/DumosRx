@@ -205,7 +205,7 @@ export function CatalogList({
               >
               <div
                 onClick={() => onSelectProduct(product)}
-                className={`px-4 py-3 sm:py-2 rounded-xl sm:rounded-none border sm:border-t-0 sm:border-r-0 sm:border-b border-border cursor-pointer transition-colors ${
+                className={`group px-4 py-3 sm:py-2 rounded-xl sm:rounded-none border sm:border-t-0 sm:border-r-0 sm:border-b border-border cursor-pointer transition-colors ${
                   isSelected
                     ? "bg-primary/5 border-l-2 border-l-primary"
                     : "bg-card sm:bg-transparent hover:bg-muted/50 border-l-2 border-l-transparent"

@@ -71,7 +71,9 @@ describe("update()/softDelete() store-ownership check", () => {
 
       await update("categories", "c1", { name: "Medicines" });
 
-      expect(readCategory("c1").name).toBe("Medicines");
+      // Names are normalized to lowercase on write (withNormalizedName in
+      // base-helpers.ts) regardless of the input casing.
+      expect(readCategory("c1").name).toBe("medicines");
     });
 
     it("allows editing a legacy NULL-store_id row and claims it for the active store", async () => {
@@ -81,7 +83,7 @@ describe("update()/softDelete() store-ownership check", () => {
       await update("categories", "c1", { name: "Legacy Renamed" });
 
       const row = readCategory("c1");
-      expect(row.name).toBe("Legacy Renamed");
+      expect(row.name).toBe("legacy renamed");
       expect(row.store_id).toBe("store-a");
     });
 
@@ -140,7 +142,7 @@ describe("update()/softDelete() store-ownership check", () => {
 
     await update("categories", "c1", { name: "Edited With No Active Store" });
 
-    expect(readCategory("c1").name).toBe("Edited With No Active Store");
+    expect(readCategory("c1").name).toBe("edited with no active store");
   });
 
   /**

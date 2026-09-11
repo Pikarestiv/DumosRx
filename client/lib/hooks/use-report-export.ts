@@ -87,6 +87,16 @@ const REPORT_CONFIG = {
 
 export type ReportId = keyof typeof REPORT_CONFIG;
 
+// Only these two report types carry a product or category name column, and
+// both alias their SQL output to the exact header name (see
+// fetchStockBatchReportData/fetchTopSellersReportData in lib/db/queries/
+// reports.ts), so this is a safe, narrow list rather than a blanket
+// transform over every report's differently-shaped rows.
+const NAME_COLUMNS_BY_REPORT: Partial<Record<ReportId, readonly string[]>> = {
+  stock_batches: ["Product"],
+  top_sellers: ["Product", "Category"],
+};
+
 function formatCsv(headers: string[], rows: Record<string, unknown>[]): string {
   const escape = (v: unknown) => {
     const s = String(v ?? "");
@@ -135,24 +145,39 @@ export function useReportExport() {
           ? (config.fetch as (from?: string, to?: string) => Promise<Record<string, unknown>[]>)(dateFrom, dateTo)
           : (config.fetch as () => Promise<Record<string, unknown>[]>)());
 
-      // The DB stores these as raw date/datetime strings; format them
-      // consistently (dd/mm/yyyy) instead of leaking whatever precision
-      // the underlying column happens to have (e.g. full ISO timestamps)
-      // into the exported CSV/PDF.
       const dateColumns = config.dateColumns as readonly string[];
-      if (dateColumns.length === 0) return rows;
+      // CSV/PDF are plain text/data, not CSS-stylable HTML, so the store's
+      // uppercase-display preference has to be baked into the string here.
+      const nameColumns =
+        storeProfile?.uppercase_display_enabled !== 0
+          ? NAME_COLUMNS_BY_REPORT[reportId]
+          : undefined;
+      if (dateColumns.length === 0 && !nameColumns) return rows;
+
       return rows.map((row) => {
         const formatted = { ...row };
+        // The DB stores these as raw date/datetime strings; format them
+        // consistently (dd/mm/yyyy) instead of leaking whatever precision
+        // the underlying column happens to have (e.g. full ISO timestamps)
+        // into the exported CSV/PDF.
         for (const col of dateColumns) {
           const value = formatted[col];
           if (typeof value === "string" || value instanceof Date) {
             formatted[col] = formatDateToDDMMYYYY(value);
           }
         }
+        if (nameColumns) {
+          for (const col of nameColumns) {
+            const value = formatted[col];
+            if (typeof value === "string") {
+              formatted[col] = value.toUpperCase();
+            }
+          }
+        }
         return formatted;
       });
     },
-    [],
+    [storeProfile?.uppercase_display_enabled],
   );
 
   const exportReportCsv = useCallback(

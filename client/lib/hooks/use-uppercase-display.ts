@@ -11,7 +11,17 @@ export function useUppercaseDisplay(): boolean {
 }
 
 /** Convenience for JSX className props: the Tailwind `uppercase` utility, or
- * "" when the store has turned the setting off. */
+ * `capitalize` when the store has turned the setting off — raw lowercase
+ * (e.g. "cypri gold small syrup") reads as broken/unfinished, so "off" means
+ * sentence-style capitalization, not literally untouched storage casing. */
 export function useUppercaseDisplayClass(): string {
-  return useUppercaseDisplay() ? "uppercase" : "";
+  return useUppercaseDisplay() ? "uppercase" : "capitalize";
+}
+
+/** String-level equivalent of the `capitalize` CSS utility, for the plain-
+ * text export paths (CSV, PDF, printed labels) that have no CSS layer to
+ * apply it at render time — see product-export.ts, use-report-export.ts,
+ * purchase-order-details.tsx. */
+export function capitalizeWords(s: string): string {
+  return s.replace(/\b\w/g, (c) => c.toUpperCase());
 }

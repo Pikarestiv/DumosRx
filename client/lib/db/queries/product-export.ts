@@ -1,4 +1,5 @@
 import { query, getActiveStoreId } from "@/lib/db/local-database";
+import { capitalizeWords } from "@/lib/hooks/use-uppercase-display";
 
 export interface ExportableProduct {
   name: string;
@@ -56,7 +57,7 @@ export async function getProductsForExport(): Promise<ExportableProduct[]> {
     storeId ? [storeId] : [],
   );
 
-  const cased = (s: string) => (uppercaseNames ? s.toUpperCase() : s);
+  const cased = (s: string) => (uppercaseNames ? s.toUpperCase() : capitalizeWords(s));
 
   return rows.map((r) => ({
     name: cased(r.name),

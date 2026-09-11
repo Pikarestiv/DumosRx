@@ -1,6 +1,7 @@
 import React from "react";
 import type { AuditItem } from "./stock-audits";
 import { formatCurrency } from "@/lib/utils";
+import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
 
 interface AuditReviewStepProps {
   countedItems: AuditItem[];
@@ -11,6 +12,7 @@ export function AuditReviewStep({
   countedItems,
   adjustedItems,
 }: AuditReviewStepProps) {
+  const capsClass = useUppercaseDisplayClass();
   return (
     <div className="animate-in fade-in slide-in-from-right-4 duration-300">
       <div className="text-[17px] font-semibold mb-1.5">Review &amp; submit</div>
@@ -38,7 +40,7 @@ export function AuditReviewStep({
             return (
               <div key={item.id} className="p-4 flex items-center justify-between gap-3">
                 <div>
-                  <div className="text-[14px] font-semibold text-foreground">{item.name}</div>
+                  <div className={`text-[14px] font-semibold text-foreground ${capsClass}`}>{item.name}</div>
                   <div className="text-[12px] text-muted-foreground/70">{item.sku}</div>
                 </div>
                 <div className="text-right space-y-0.5">

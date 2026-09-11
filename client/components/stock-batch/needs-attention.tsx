@@ -8,6 +8,7 @@ import { getExpiringBatches } from "@/lib/db/queries/inventory";
 import { useStore } from "@/lib/context/store-context";
 import { useRouter } from "next/navigation";
 import { queryKeys } from "@/lib/query-keys";
+import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
 
 interface AttentionItem {
   type: "expiring" | "critical" | "low";
@@ -41,6 +42,7 @@ function formatUnit(quantity: number, baseUnit?: string) {
 export function NeedsAttention({ stockData }: { stockData: StockItem[] }) {
   const router = useRouter();
   const { storeProfile } = useStore();
+  const capsClass = useUppercaseDisplayClass();
   const expiryDays = storeProfile?.expiry_warning_days || 90;
 
   const { data: expiringBatchesData } = useQuery({
@@ -163,7 +165,7 @@ export function NeedsAttention({ stockData }: { stockData: StockItem[] }) {
                               {item.icon}
                             </div>
                             <div className="flex-1 min-w-0">
-                              <div className="text-[13px] font-semibold truncate">
+                              <div className={`text-[13px] font-semibold truncate ${capsClass}`}>
                                 {item.product_name}
                               </div>
                               <div className="text-[11.5px] text-muted-foreground">

@@ -3,6 +3,7 @@ import {
   getTypeIcon,
   getTypeIconBg,
 } from "./stock-movement-utils";
+import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
 
 interface Props {
   groupLabel: string;
@@ -15,6 +16,7 @@ export function StockMovementMobileGroup({
   movements,
   onSelect,
 }: Props) {
+  const capsClass = useUppercaseDisplayClass();
   return (
     <div className="mb-6">
       <div className="text-[11px] font-bold text-muted-foreground/70 uppercase tracking-wide mb-2">
@@ -54,7 +56,7 @@ export function StockMovementMobileGroup({
                 {Icon}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="text-[14px] font-semibold text-foreground truncate">
+                <div className={`text-[14px] font-semibold text-foreground truncate ${capsClass}`}>
                   {movement.product}
                 </div>
                 <div className="text-[12px] text-muted-foreground truncate mt-0.5">

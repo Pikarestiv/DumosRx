@@ -23,7 +23,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import type { PurchaseOrder } from "@/lib/db/procurement";
-import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
+import { useUppercaseDisplayClass, capitalizeWords } from "@/lib/hooks/use-uppercase-display";
 
 interface PurchaseOrderDetailsProps {
   selectedPO: PurchaseOrder | null;
@@ -63,10 +63,12 @@ export function PurchaseOrderDetails({
           items={(selectedPO.items || []).map((item) => ({
             // @react-pdf/renderer output isn't CSS-stylable HTML the way the
             // on-screen list below is (capsClass), so the string itself has
-            // to be uppercased here for the PDF to match.
-            product_name: uppercaseNames
-              ? (item.product_name || "Unknown Product").toUpperCase()
-              : item.product_name || "Unknown Product",
+            // to be transformed here for the PDF to match.
+            product_name: item.product_name
+              ? uppercaseNames
+                ? item.product_name.toUpperCase()
+                : capitalizeWords(item.product_name)
+              : "Unknown Product",
             bulk_quantity: item.bulk_quantity || 0,
             unit_cost: item.unit_cost || 0,
             subtotal: item.subtotal || 0,

@@ -15,6 +15,7 @@ import { Product } from "./types";
 import { ProductFormFields, type ProductSuggestions } from "./product-form-fields";
 import { getSupplierNames } from "@/lib/db/queries/products";
 import type { NewProductPayload } from "@/lib/types/product";
+import { capitalizeWords } from "@/lib/hooks/use-uppercase-display";
 
 interface AddProductDialogProps {
   open: boolean;
@@ -282,7 +283,11 @@ export function AddProductDialog({
         }
         description={
           editingProduct
-            ? `Update the details for ${editingProduct.name}. All fields marked with * are required.`
+            ? `Update the details for ${
+                storeProfile?.uppercase_display_enabled !== 0
+                  ? editingProduct.name.toUpperCase()
+                  : capitalizeWords(editingProduct.name)
+              }. All fields marked with * are required.`
             : `Enter the details for the new ${t("product").toLowerCase()}. All fields marked with * are required.`
         }
         className="sm:max-w-3xl h-[95vh] sm:h-auto sm:max-h-[90vh] flex flex-col overflow-hidden px-0 sm:px-6 pb-0 sm:pb-6"

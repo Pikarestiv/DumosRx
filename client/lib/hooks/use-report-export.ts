@@ -11,6 +11,7 @@ import {
   type SalesFilters,
 } from "@/lib/db/queries/reports";
 import { useStore } from "@/lib/context/store-context";
+import { capitalizeWords } from "@/lib/hooks/use-uppercase-display";
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import {
   generateReportPdfBlob,
@@ -148,10 +149,8 @@ export function useReportExport() {
       const dateColumns = config.dateColumns as readonly string[];
       // CSV/PDF are plain text/data, not CSS-stylable HTML, so the store's
       // uppercase-display preference has to be baked into the string here.
-      const nameColumns =
-        storeProfile?.uppercase_display_enabled !== 0
-          ? NAME_COLUMNS_BY_REPORT[reportId]
-          : undefined;
+      const nameColumns = NAME_COLUMNS_BY_REPORT[reportId];
+      const uppercaseNames = storeProfile?.uppercase_display_enabled !== 0;
       if (dateColumns.length === 0 && !nameColumns) return rows;
 
       return rows.map((row) => {
@@ -170,7 +169,7 @@ export function useReportExport() {
           for (const col of nameColumns) {
             const value = formatted[col];
             if (typeof value === "string") {
-              formatted[col] = value.toUpperCase();
+              formatted[col] = uppercaseNames ? value.toUpperCase() : capitalizeWords(value);
             }
           }
         }

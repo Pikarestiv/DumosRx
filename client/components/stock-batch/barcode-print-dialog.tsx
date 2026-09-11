@@ -45,7 +45,7 @@ function getLabelPageStyle(uppercaseNames: boolean) {
     overflow: hidden;
     text-overflow: ellipsis;
     width: 100%;
-    ${uppercaseNames ? "text-transform: uppercase;" : ""}
+    text-transform: ${uppercaseNames ? "uppercase" : "capitalize"};
   }
   .label .price {
     font-size: 9pt;

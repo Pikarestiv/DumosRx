@@ -23,6 +23,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import type { PurchaseOrder } from "@/lib/db/procurement";
+import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
 
 interface PurchaseOrderDetailsProps {
   selectedPO: PurchaseOrder | null;
@@ -45,6 +46,8 @@ export function PurchaseOrderDetails({
 }: PurchaseOrderDetailsProps) {
   const router = useRouter();
   const { storeProfile } = useStore();
+  const capsClass = useUppercaseDisplayClass();
+  const uppercaseNames = storeProfile?.uppercase_display_enabled !== 0;
 
   const handleDownloadPdf = async () => {
     if (!selectedPO) return;
@@ -58,7 +61,12 @@ export function PurchaseOrderDetails({
           status={selectedPO.status}
           notes={selectedPO.notes}
           items={(selectedPO.items || []).map((item) => ({
-            product_name: item.product_name || "Unknown Product",
+            // @react-pdf/renderer output isn't CSS-stylable HTML the way the
+            // on-screen list below is (capsClass), so the string itself has
+            // to be uppercased here for the PDF to match.
+            product_name: uppercaseNames
+              ? (item.product_name || "Unknown Product").toUpperCase()
+              : item.product_name || "Unknown Product",
             bulk_quantity: item.bulk_quantity || 0,
             unit_cost: item.unit_cost || 0,
             subtotal: item.subtotal || 0,
@@ -138,7 +146,7 @@ export function PurchaseOrderDetails({
                           key={idx}
                           className="flex items-start justify-between text-[13px]"
                         >
-                          <span className="font-medium text-foreground leading-tight">
+                          <span className={`font-medium text-foreground leading-tight ${capsClass}`}>
                             {item.product_name || "Unknown Product"}{" "}
                             <span className="text-muted-foreground ml-1">
                               × {item.bulk_quantity}

@@ -8,6 +8,8 @@ export function RegisterConfigsPanel(s: SettingsState) {
       setRequireSaleNotes={s.setRequireSaleNotes}
       displayStockLevels={s.displayStockLevels}
       setDisplayStockLevels={s.setDisplayStockLevels}
+      uppercaseDisplayEnabled={s.uppercaseDisplayEnabled}
+      setUppercaseDisplayEnabled={s.setUppercaseDisplayEnabled}
     />
   );
 }

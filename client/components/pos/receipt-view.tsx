@@ -6,6 +6,7 @@ import Barcode from "react-barcode";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import { ReceiptPaperSize } from "@/lib/hooks/use-receipt-paper-size";
+import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
 
 export interface ReceiptCustomer {
   name: string;
@@ -48,6 +49,7 @@ export function ReceiptView({ transaction, paperSize = "a4" }: ReceiptProps) {
   const { canCustomizeTheme, canRemoveBranding } = useFeatureGate();
   const hidePoweredBy = canRemoveBranding && storeProfile?.hide_powered_by === 1;
   const isThermal = paperSize === "thermal";
+  const capsClass = useUppercaseDisplayClass();
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-NG", {
@@ -128,7 +130,7 @@ export function ReceiptView({ transaction, paperSize = "a4" }: ReceiptProps) {
             key={item.id}
             className="flex justify-between mb-1 text-xs items-start"
           >
-            <span className="flex-1 w-1/2 break-words pr-2 leading-tight">
+            <span className={`flex-1 w-1/2 break-words pr-2 leading-tight ${capsClass}`}>
               {item.name}
             </span>
             <span className="w-8 text-center">{item.quantity}</span>

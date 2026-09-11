@@ -15,6 +15,7 @@ import {
   useSeedDefaultCategoriesMutation,
 } from "@/lib/hooks/use-category-mutations";
 import { queryKeys } from "@/lib/query-keys";
+import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
 
 interface ManageCategoriesDialogProps {
   open: boolean;
@@ -23,6 +24,7 @@ interface ManageCategoriesDialogProps {
 
 export function ManageCategoriesDialog({ open, onOpenChange }: ManageCategoriesDialogProps) {
   const [newName, setNewName] = useState("");
+  const capsClass = useUppercaseDisplayClass();
 
   const { data: categories = [], isLoading } = useQuery({
     ...queryKeys.categories.list(),
@@ -140,7 +142,7 @@ export function ManageCategoriesDialog({ open, onOpenChange }: ManageCategoriesD
             <div key={cat.id} className="flex items-center gap-2 border border-border rounded-lg p-1.5">
               <Input
                 defaultValue={cat.name}
-                className="h-8 text-[13px] bg-transparent border-transparent hover:border-border focus:border-primary"
+                className={`h-8 text-[13px] bg-transparent border-transparent hover:border-border focus:border-primary ${capsClass}`}
                 onBlur={(e) => e.target.value !== cat.name && handleRename(cat.id, e.target.value)}
               />
               <Button

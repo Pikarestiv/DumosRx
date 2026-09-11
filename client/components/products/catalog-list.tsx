@@ -13,6 +13,7 @@ import { EditableCategoryCell, EditableQuickNumberCell } from "./catalog-editabl
 import { useQuickEditProductMutation } from "@/lib/hooks/use-product-quick-edit-mutation";
 import { useSubmitStockAuditMutation } from "@/lib/hooks/use-stock-audit-mutation";
 import { useHasTouchCapability } from "@/lib/hooks/use-has-touch-capability";
+import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
 import { getCategoryList } from "@/lib/db/queries/categories";
 import { queryKeys } from "@/lib/query-keys";
 import type { SortDirection } from "@/lib/hooks/use-sortable-data";
@@ -59,6 +60,7 @@ export function CatalogList({
   // visible whenever touch is available at all, not just on touch-primary
   // devices (see useHasTouchCapability's doc comment for the distinction).
   const hasTouchCapability = useHasTouchCapability();
+  const capsClass = useUppercaseDisplayClass();
 
   const { data: categoryRows } = useQuery({
     ...queryKeys.categories.list(),
@@ -215,7 +217,7 @@ export function CatalogList({
                 <div className="flex sm:hidden items-center justify-between">
                   <div className="min-w-0 pr-2 flex-1">
                     <div className="text-[15px] font-bold text-foreground truncate flex items-center gap-2">
-                      {product.name}
+                      <span className={capsClass}>{product.name}</span>
                       {isPharmacy && !product.genericName && (
                         <span className="text-[10px] font-medium bg-amber-500/10 text-amber-600 px-1.5 py-0.5 rounded border border-amber-500/20" title="Missing Generic Name">
                           No Generic
@@ -224,7 +226,7 @@ export function CatalogList({
                     </div>
                     <div className="text-[13px] text-muted-foreground mt-0.5 truncate flex">
                       {product.barcode || product.id.slice(0, 8)} ·{" "}
-                      {product.category || "Uncategorized"}
+                      <span className={capsClass}>{product.category || "Uncategorized"}</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-3 shrink-0">
@@ -247,7 +249,7 @@ export function CatalogList({
                 <div className="hidden sm:grid grid-cols-[1fr_110px_90px_90px_100px_90px] gap-2 items-center">
                   <div className="min-w-0 pr-2">
                     <div className="text-[13px] font-semibold truncate flex items-center gap-2">
-                      {product.name}
+                      <span className={capsClass}>{product.name}</span>
                       {isPharmacy && !product.genericName && (
                         <span className="text-[9px] font-medium bg-amber-500/10 text-amber-600 px-1.5 py-0.5 rounded border border-amber-500/20" title="Missing Generic Name">
                           No Generic

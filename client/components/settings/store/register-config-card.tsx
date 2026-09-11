@@ -16,6 +16,8 @@ interface RegisterConfigCardProps {
   setRequireSaleNotes: (val: boolean) => void;
   displayStockLevels: boolean;
   setDisplayStockLevels: (val: boolean) => void;
+  uppercaseDisplayEnabled: boolean;
+  setUppercaseDisplayEnabled: (val: boolean) => void;
 }
 
 interface ConfigRow {
@@ -31,6 +33,8 @@ export function RegisterConfigCard({
   setRequireSaleNotes,
   displayStockLevels,
   setDisplayStockLevels,
+  uppercaseDisplayEnabled,
+  setUppercaseDisplayEnabled,
 }: RegisterConfigCardProps) {
   const { updateStoreProfile } = useStore();
 
@@ -56,6 +60,16 @@ export function RegisterConfigCard({
       onCheckedChange: (checked) => {
         setDisplayStockLevels(checked);
         updateStoreProfile({ display_stock_levels: checked ? 1 : 0 });
+      },
+    },
+    {
+      id: "uppercase-display",
+      label: "Display Names in Uppercase",
+      description: "Show product and category names in uppercase across the app, receipts, and exports. Names are always stored the same way regardless of this setting.",
+      checked: uppercaseDisplayEnabled,
+      onCheckedChange: (checked) => {
+        setUppercaseDisplayEnabled(checked);
+        updateStoreProfile({ uppercase_display_enabled: checked ? 1 : 0 });
       },
     },
   ];

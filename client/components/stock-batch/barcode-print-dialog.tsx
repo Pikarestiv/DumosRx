@@ -18,7 +18,11 @@ import { toast } from "sonner";
 import { useStore } from "@/lib/context/store-context";
 import type { POSProduct } from "@/lib/types/product";
 
-const LABEL_PAGE_STYLE = `
+// printNode() ships this as a page <style> in the popped-out print window, so
+// it's a plain string, not a Tailwind class — the uppercase-display toggle
+// has to be baked into the CSS text itself rather than a React className.
+function getLabelPageStyle(uppercaseNames: boolean) {
+  return `
   @page { size: 50mm 25mm; margin: 0; }
   body { margin: 0; padding: 0; }
   .label {
@@ -41,6 +45,7 @@ const LABEL_PAGE_STYLE = `
     overflow: hidden;
     text-overflow: ellipsis;
     width: 100%;
+    ${uppercaseNames ? "text-transform: uppercase;" : ""}
   }
   .label .price {
     font-size: 9pt;
@@ -48,6 +53,7 @@ const LABEL_PAGE_STYLE = `
     margin-top: 1mm;
   }
 `;
+}
 
 interface BarcodePrintDialogProps {
   isOpen: boolean;
@@ -69,7 +75,12 @@ export function BarcodePrintDialog({
 
     try {
       requestAnimationFrame(() => {
-        if (printRef.current) printNode(printRef.current, LABEL_PAGE_STYLE);
+        if (printRef.current) {
+          printNode(
+            printRef.current,
+            getLabelPageStyle(storeProfile?.uppercase_display_enabled !== 0),
+          );
+        }
       });
 
       toast.success(`Printing ${quantity} labels for ${product.name}`);

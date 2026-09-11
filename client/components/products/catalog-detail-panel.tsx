@@ -21,6 +21,7 @@ import { ProductStockInfo } from "./product-details/product-stock-info";
 import { ProductBatchHistory } from "./product-details/product-batch-history";
 import { ProductHistory } from "./product-details/product-history";
 import { ProductDetailTabNav } from "./product-detail-tab-nav";
+import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
 
 interface CatalogDetailPanelProps {
   product: Product | null;
@@ -37,6 +38,7 @@ export function CatalogDetailPanel({
 }: CatalogDetailPanelProps) {
   const { storeProfile } = useStore();
   const { canManageStockBatch } = useAuth();
+  const capsClass = useUppercaseDisplayClass();
   const {
     batches,
     loadingBatches,
@@ -115,7 +117,7 @@ export function CatalogDetailPanel({
             </button>
             <div className="flex flex-col items-start justify-start">
               <div className="flex flex-col">
-                <h2 className="text-[17px] font-bold text-foreground leading-tight">
+                <h2 className={`text-[17px] font-bold text-foreground leading-tight ${capsClass}`}>
                   {product.name}
                 </h2>
                 <p className="text-[12px] text-muted-foreground mt-0.5 uppercase tracking-wide">
@@ -124,7 +126,7 @@ export function CatalogDetailPanel({
               </div>
 
               {/* Category below border */}
-              <span className="text-[11px] font-semibold text-primary px-2 py-0.5 shrink-0 bg-primary/5 rounded-md mt-2">
+              <span className={`text-[11px] font-semibold text-primary px-2 py-0.5 shrink-0 bg-primary/5 rounded-md mt-2 ${capsClass}`}>
                 {product.category || "Pharmacy"}
               </span>
             </div>

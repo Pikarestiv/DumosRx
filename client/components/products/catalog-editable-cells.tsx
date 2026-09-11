@@ -3,6 +3,7 @@ import { Pencil, Check, X } from "lucide-react";
 import { Product } from "./types";
 import { EditableNumberCell } from "@/components/ui/editable-number-cell";
 import { SearchableInput } from "@/components/ui/searchable-input";
+import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
 
 /** Shared hover/touch affordance for a per-cell quick edit: on a mouse/
  * trackpad device every editable cell's pencil appears together as soon as
@@ -73,6 +74,7 @@ export function EditableCategoryCell({
 }) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(product.category || "");
+  const capsClass = useUppercaseDisplayClass();
   // Set right before setEditing(false) so a blur that fires as a side
   // effect of that (e.g. the input unmounting while still focused) is
   // recognized as "already handled" instead of running the save logic a
@@ -82,7 +84,7 @@ export function EditableCategoryCell({
   if (!canEdit) {
     return (
       <div className="flex items-center">
-        <span className="text-[11px] font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded-md truncate max-w-[100px] inline-block">
+        <span className={`text-[11px] font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded-md truncate max-w-[100px] inline-block ${capsClass}`}>
           {product.category || "Uncategorized"}
         </span>
       </div>
@@ -144,7 +146,7 @@ export function EditableCategoryCell({
         setEditing(true);
       }}
     >
-      <span className="text-[11px] font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded-md truncate max-w-[80px] inline-block">
+      <span className={`text-[11px] font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded-md truncate max-w-[80px] inline-block ${capsClass}`}>
         {product.category || "Uncategorized"}
       </span>
       <CellEditPencil hasTouchCapability={hasTouchCapability} />

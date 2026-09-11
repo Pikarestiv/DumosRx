@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { Package, ChevronRight, ClipboardList } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -7,9 +7,9 @@ import { Product } from "./types";
 import { useStore } from "@/lib/context/store-context";
 import { useAuth } from "@/lib/context/auth-context";
 import { SortableHeaderCell } from "@/components/ui/sortable-header-cell";
-import { EmptyState } from "@/components/ui/empty-state";
 import { RequestItemDialog } from "@/components/pos/request-item-dialog";
 import { EditableCategoryCell, EditableQuickNumberCell } from "./catalog-editable-cells";
+import { CatalogListSkeleton, EmptyCatalogList } from "./catalog-list-states";
 import { useQuickEditProductMutation } from "@/lib/hooks/use-product-quick-edit-mutation";
 import { useSubmitStockAuditMutation } from "@/lib/hooks/use-stock-audit-mutation";
 import { useHasTouchCapability } from "@/lib/hooks/use-has-touch-capability";
@@ -27,6 +27,7 @@ type ProductSortKey =
   | "reorderLevel";
 
 interface CatalogListProps {
+  isLoading?: boolean;
   filteredProducts: Product[];
   totalCount: number;
   isFuzzyFallback: boolean;
@@ -40,6 +41,7 @@ interface CatalogListProps {
 }
 
 export function CatalogList({
+  isLoading = false,
   filteredProducts,
   totalCount,
   isFuzzyFallback,
@@ -181,7 +183,8 @@ export function CatalogList({
         ref={scrollRef}
         className="flex-1 overflow-y-auto hide-scrollbar py-3 sm:py-0"
       >
-        {filteredProducts.length === 0 && (
+        {isLoading && filteredProducts.length === 0 && <CatalogListSkeleton />}
+        {!isLoading && filteredProducts.length === 0 && (
           <EmptyCatalogList
             totalCount={totalCount}
             isAdmin={isAdmin}
@@ -314,44 +317,4 @@ export function CatalogList({
   );
 }
 
-function EmptyCatalogList({
-  totalCount,
-  isAdmin,
-  isAuditor,
-  onRequestProduct,
-}: {
-  totalCount: number;
-  isAdmin: boolean;
-  isAuditor: boolean;
-  onRequestProduct: () => void;
-}) {
-  if (totalCount > 0) {
-    return (
-      <EmptyState
-        icon={Package}
-        title="No products found"
-        description="Try adjusting your search or filters"
-      />
-    );
-  }
-
-  return (
-    <EmptyState
-      icon={Package}
-      title="No products found"
-      description="Get started by adding products to your catalog."
-      action={
-        isAdmin
-          ? {
-              label: "Create Purchase Order",
-              href: "/procurement/new",
-              icon: ClipboardList,
-            }
-          : isAuditor
-            ? undefined
-            : { label: "Request Product", onClick: onRequestProduct }
-      }
-    />
-  );
-}
 

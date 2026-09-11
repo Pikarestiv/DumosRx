@@ -55,7 +55,7 @@ export function ProductDatabase() {
 
   const isStore = storeType === "pharmacy";
 
-  const { data: rawProducts, refetch } = useQuery({
+  const { data: rawProducts, isLoading: productsLoading, refetch } = useQuery({
     ...queryKeys.products.withDetails(),
     queryFn: () => getProductsWithDetails(),
   });
@@ -232,6 +232,7 @@ export function ProductDatabase() {
             onProductsImported={refetch}
           />
           <CatalogList
+            isLoading={productsLoading}
             filteredProducts={filteredProducts}
             totalCount={products.length}
             isFuzzyFallback={isFuzzyFallback}

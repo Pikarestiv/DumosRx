@@ -16,6 +16,7 @@ import { useFulfillOnlineOrderMutation } from "@/lib/hooks/use-fulfill-online-or
 import { formatCurrency } from "@/lib/utils";
 import { useStore } from "@/lib/context/store-context";
 import type { OnlineOrder } from "@/lib/types/online-order";
+import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
 
 function NoOnlineOrdersFound() {
   return <EmptyState icon={PackageOpen} title="No online orders found" className="py-8" />;
@@ -26,6 +27,7 @@ export function OnlineOrdersModal() {
   const { user } = useAuth();
   const { storeProfile } = useStore();
   const currencyCode = storeProfile?.currency;
+  const capsClass = useUppercaseDisplayClass();
   const {
     data: orders = [],
     isLoading: loading,
@@ -97,7 +99,7 @@ export function OnlineOrdersModal() {
                       <div role="rowgroup">
                         {order.items.map((item) => (
                           <div key={item.id} role="row" className="flex items-center gap-2">
-                            <div role="cell" className="py-1 flex-1">{item.product?.name || 'Unknown Product'}</div>
+                            <div role="cell" className={`py-1 flex-1 ${capsClass}`}>{item.product?.name || 'Unknown Product'}</div>
                             <div role="cell" className="py-1 text-right w-[60px] shrink-0">x{item.quantity}</div>
                             <div role="cell" className="py-1 text-right w-[100px] shrink-0">{formatCurrency(Number(item.subtotal), currencyCode)}</div>
                           </div>

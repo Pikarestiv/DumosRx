@@ -32,8 +32,9 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
                 Connection Expired
               </DialogTitle>
               <DialogDescription className="mt-2 text-sm leading-relaxed">
-                Your cloud session has timed out.
-                Synchronization is <span className="text-destructive font-medium">paused</span> until you re-link.
+                Your cloud session has timed out. Synchronization is{" "}
+                <span className="text-destructive font-medium">paused</span>{" "}
+                until you re-link.
               </DialogDescription>
             </div>
           </DialogHeader>
@@ -41,8 +42,8 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
           <div className="mt-6 space-y-6">
             <div className="bg-muted/30 rounded-lg p-4 border border-white/5">
               <p className="text-xs text-muted-foreground leading-relaxed text-center">
-                For your security, cloud sessions expire periodically.
-                Relinking restores your automatic backups and cross-device sync.
+                For your security, cloud sessions expire periodically. Relinking
+                restores your automatic backups and cross-device sync.
               </p>
             </div>
 
@@ -59,7 +60,7 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
               </Button>
               <Button
                 variant="ghost"
-                className="h-11 rounded-lg text-muted-foreground hover:text-foreground"
+                className="h-11 rounded-lg text-muted-foreground hover:text-primary hover:border hover:border-primary hover:bg-primary/10"
                 onClick={() => onOpenChange(false)}
               >
                 Dismiss for now

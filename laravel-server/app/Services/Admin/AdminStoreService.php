@@ -3,6 +3,7 @@
 namespace App\Services\Admin;
 
 use App\Models\ActivityLog;
+use App\Models\Notification;
 use App\Models\PaymentTransaction;
 use App\Models\Role;
 use App\Models\Store;
@@ -358,6 +359,14 @@ class AdminStoreService
                 'action' => 'GRANT_FREE_TRIAL',
                 'description' => "Granted {$durationLabel} {$plan} Free Trial to {$store->name} ({$store->id})",
                 'status' => 'success',
+            ]);
+
+            Notification::create([
+                'user_id' => $user->id,
+                'title' => 'Free Trial Granted',
+                'message' => "You've been granted a ".ucfirst($plan)." Free Trial, valid until {$resolvedEndDate->toDateString()}. Enjoy!",
+                'type' => 'success',
+                'is_read' => false,
             ]);
 
             return true;

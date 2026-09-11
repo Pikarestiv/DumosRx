@@ -323,7 +323,8 @@ CREATE TABLE IF NOT EXISTS stores (
   is_demo INTEGER DEFAULT 0,
   require_sale_notes INTEGER DEFAULT 0,
   display_stock_levels INTEGER DEFAULT 1,
-  loyalty_program_enabled INTEGER DEFAULT 1
+  loyalty_program_enabled INTEGER DEFAULT 1,
+  uppercase_display_enabled INTEGER DEFAULT 1
 );
 
 CREATE TABLE IF NOT EXISTS expenses (

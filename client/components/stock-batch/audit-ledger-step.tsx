@@ -5,6 +5,7 @@ import { EditableNumberCell } from "@/components/ui/editable-number-cell";
 import { EmptyState } from "@/components/ui/empty-state";
 import type { AuditItem } from "./stock-audits";
 import { formatCurrency } from "@/lib/utils";
+import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
 
 const ALL_CATEGORIES = "__all__";
 const GRID_COLS =
@@ -56,6 +57,7 @@ export function AuditLedgerStep({
   search,
   setSearch,
 }: AuditLedgerStepProps) {
+  const capsClass = useUppercaseDisplayClass();
   // Totals reflect the rows currently shown (respects the category filter
   // and search), so switching categories gives a live subtotal for that
   // slice as well as the whole-audit total when nothing's filtered.
@@ -196,7 +198,7 @@ export function AuditLedgerStep({
                       role="cell"
                       className="px-3 py-2 sticky left-0 z-10 bg-card"
                     >
-                      <div className="font-semibold text-foreground truncate max-w-[220px]">
+                      <div className={`font-semibold text-foreground truncate max-w-[220px] ${capsClass}`}>
                         {item.name}
                       </div>
                       <div className="text-[11px] text-muted-foreground/70">

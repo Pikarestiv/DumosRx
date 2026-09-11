@@ -17,6 +17,7 @@ import { genericFuzzySearch } from "@/lib/utils/search";
 import { queryKeys } from "@/lib/query-keys";
 import type { Customer } from "@/lib/types/customer";
 import type { Product } from "@/lib/types/product";
+import { useUppercaseDisplay, capitalizeWords } from "@/lib/hooks/use-uppercase-display";
 
 export function RequestItemDialog({
   open: controlledOpen,
@@ -37,6 +38,8 @@ export function RequestItemDialog({
       : setInternalOpen;
 
   const [productName, setProductName] = useState(initialProductName);
+  const uppercaseNames = useUppercaseDisplay();
+  const capsClass = uppercaseNames ? "uppercase" : "capitalize";
 
   // Re-seed the name field whenever the dialog is (re)opened, since the
   // caller's initialProductName (e.g. the POS search term) can change
@@ -141,7 +144,14 @@ export function RequestItemDialog({
                 placeholder="e.g., Panadol Extra"
                 value={productName}
                 onValueChange={setProductName}
-                options={products.map((p: Product) => p.name)}
+                options={products.map((p: Product) => ({
+                  // Selecting an option must still set the underlying stored
+                  // (lowercase) name as `value` — only `label` gets the
+                  // display treatment, so the dropdown looks right without
+                  // writing a styled string into requested_products.
+                  label: uppercaseNames ? p.name.toUpperCase() : capitalizeWords(p.name),
+                  value: p.name,
+                }))}
                 autoFocus
                 required
               />
@@ -150,7 +160,7 @@ export function RequestItemDialog({
                   <PackageSearch className="w-[15px] h-[15px] shrink-0 mt-0.5" />
                   <span>
                     We may already carry{" "}
-                    <span className="font-semibold">
+                    <span className={`font-semibold ${capsClass}`}>
                       {possibleExistingMatch.name}
                     </span>
                     . Check the catalog before logging a new request; continue

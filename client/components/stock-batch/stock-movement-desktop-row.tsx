@@ -1,4 +1,5 @@
 import { StockMovement, getTypeColor, formatMovementTime } from "./stock-movement-utils";
+import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
 
 interface Props {
   movement: StockMovement;
@@ -7,6 +8,7 @@ interface Props {
 
 export function StockMovementDesktopRow({ movement, onSelect }: Props) {
   const isPositive = movement.quantity > 0;
+  const capsClass = useUppercaseDisplayClass();
   return (
     <div
       onClick={onSelect}
@@ -15,7 +17,7 @@ export function StockMovementDesktopRow({ movement, onSelect }: Props) {
       <div className="text-[12px] text-muted-foreground">
         {formatMovementTime(movement.date)}
       </div>
-      <div className="text-[13px] font-semibold truncate">{movement.product}</div>
+      <div className={`text-[13px] font-semibold truncate ${capsClass}`}>{movement.product}</div>
       <div>
         <span
           className={`text-[11px] font-semibold px-2 py-0.5 rounded-md capitalize ${getTypeColor(movement.type)}`}

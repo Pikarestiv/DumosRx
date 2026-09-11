@@ -5,6 +5,7 @@ import { Minus, Plus, Trash2 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { getCategoryIcon } from "@/lib/constants/category-icons";
 import type { CartItem } from "@/lib/hooks/use-pos-cart";
+import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
 
 const SWIPE_DELETE_THRESHOLD = -70;
 const SWIPE_DELETE_VELOCITY = -500;
@@ -21,6 +22,7 @@ interface Props {
 /** Swipe-left-to-remove cart row: a red delete backdrop revealed as the row is dragged left. */
 export function POSCartItem({ item, currencyCode, isLast, updateQuantity, removeFromCart, isLocked = false }: Props) {
   const CategoryIcon = getCategoryIcon(item.category_name);
+  const capsClass = useUppercaseDisplayClass();
 
   return (
     <div className="relative overflow-hidden rounded-lg">
@@ -48,7 +50,7 @@ export function POSCartItem({ item, currencyCode, isLast, updateQuantity, remove
           <CategoryIcon className="w-5 h-5" />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-[12.5px] font-semibold mb-0.5 truncate leading-tight">
+          <div className={`text-[12.5px] font-semibold mb-0.5 truncate leading-tight ${capsClass}`}>
             {item.name}
           </div>
           <div className="text-[11.5px] text-muted-foreground leading-tight">

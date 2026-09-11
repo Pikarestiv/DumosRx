@@ -6,6 +6,7 @@ import { queryKeys } from "@/lib/query-keys";
 
 import { TrendingUp, TrendingDown } from "lucide-react";
 import type { FastMover } from "@/lib/types/fast-mover";
+import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
 
 function NoFastMoversData() {
   return (
@@ -23,6 +24,7 @@ export function FastMovers() {
   });
 
   const fastMovers = fastMoversData?.items || [];
+  const capsClass = useUppercaseDisplayClass();
 
   const header = (
     <div className="flex items-center justify-between">
@@ -63,7 +65,7 @@ export function FastMovers() {
                     {(idx + 1).toString().padStart(2, "0")}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-[13px] font-semibold truncate">
+                    <div className={`text-[13px] font-semibold truncate ${capsClass}`}>
                       {item.name}
                     </div>
                     <div className="text-[11.5px] text-muted-foreground">

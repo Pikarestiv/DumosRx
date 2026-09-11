@@ -113,6 +113,25 @@ async function assertStoreOwnership(
   }
 }
 
+// Every products.name / categories.name write funnels through insert()/
+// update() below (local-database.ts just re-exports these), so normalizing
+// here once — instead of at each of the half-dozen call sites that create or
+// rename a product/category — is the single choke point that can't be missed
+// by a future caller the way the case-insensitive category lookup was.
+// Canonical storage is lowercase; the UI renders it uppercase via CSS
+// (toggleable per store), so the stored casing never needs to match display.
+const LOWERCASE_NAME_TABLES = new Set(["products", "categories"]);
+
+function withNormalizedName(
+  table: string,
+  record: Record<string, unknown>,
+): Record<string, unknown> {
+  if (LOWERCASE_NAME_TABLES.has(table) && typeof record.name === "string") {
+    return { ...record, name: record.name.trim().toLowerCase() };
+  }
+  return record;
+}
+
 export async function insert(
   table: string,
   data: Record<string, unknown>,
@@ -122,7 +141,7 @@ export async function insert(
   const now = new Date().toISOString();
 
   const storeId = getActiveStoreId();
-  const record: Record<string, unknown> = {
+  const record: Record<string, unknown> = withNormalizedName(table, {
     ...data,
     id,
     created_at: data.created_at || now,
@@ -135,7 +154,7 @@ export async function insert(
     ...(storeId && STORE_SCOPED_TABLES.includes(table) && data.store_id === undefined
       ? { store_id: storeId }
       : {}),
-  };
+  });
 
   const columns = Object.keys(record);
   const placeholders = columns.map(() => "?").join(", ");
@@ -195,12 +214,12 @@ export async function update(
   );
   const version = current[0]?._version || 0;
 
-  const record = {
+  const record = withNormalizedName(table, {
     ...data,
     updated_at: now,
     _version: version,
     _synced: 0,
-  };
+  });
 
   const setClause = Object.keys(record)
     .map((col) => `${col} = ?`)

@@ -8,6 +8,7 @@ import { useAuth, checkCanViewAllActivity } from "@/lib/context/auth-context";
 import { formatCurrency } from "@/lib/utils";
 import { queryKeys } from "@/lib/query-keys";
 import type { DashboardActivity, ActivityFeedItem } from "@/lib/types/dashboard-activity";
+import { capitalizeWords } from "@/lib/hooks/use-uppercase-display";
 
 export type SalesComparison =
   | { state: "none" }
@@ -107,7 +108,12 @@ export function useDashboardOverview() {
         ? formatCurrency(activity.total_refunded, storeProfile?.currency)
         : "";
     } else if (activity.activity_type === "product") {
-      message = `Product added: ${activity.name || "Unnamed product"}`;
+      const displayName = activity.name
+        ? storeProfile?.uppercase_display_enabled !== 0
+          ? activity.name.toUpperCase()
+          : capitalizeWords(activity.name)
+        : "Unnamed product";
+      message = `Product added: ${displayName}`;
       amount = activity.selling_price
         ? formatCurrency(activity.selling_price, storeProfile?.currency)
         : "";

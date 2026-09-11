@@ -17,6 +17,7 @@ import { getCategoryIcon } from "@/lib/constants/category-icons";
 import { RequestItemDialog } from "@/components/pos/request-item-dialog";
 import type { POSProduct } from "@/lib/types/product";
 import type { CartItem } from "@/lib/hooks/use-pos-cart";
+import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
 
 type PosGroup = "suggestion" | "recent" | "common" | "standard";
 type GroupedProduct = POSProduct & { posGroup: PosGroup };
@@ -85,6 +86,7 @@ function POSProductCard({
     product.stock > 0 && product.stock <= (product.reorder_level || 10);
   const isOutOfStock = product.stock === 0;
   const CategoryIcon = getCategoryIcon(product.category_name);
+  const capsClass = useUppercaseDisplayClass();
 
   return (
     <div
@@ -104,7 +106,7 @@ function POSProductCard({
         <CategoryIcon className="h-4 w-4 sm:h-5 sm:w-5" />
       </div>
 
-      <div className="text-[11.5px] sm:text-[13px] font-semibold leading-tight mb-0.5 sm:mb-1 line-clamp-2">
+      <div className={`text-[11.5px] sm:text-[13px] font-semibold leading-tight mb-0.5 sm:mb-1 line-clamp-2 ${capsClass}`}>
         {product.name}
       </div>
       <div className="text-[10px] sm:text-[11px] text-muted-foreground truncate mb-1 sm:mb-2">

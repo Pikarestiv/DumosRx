@@ -1,4 +1,5 @@
 import { query, getActiveStoreId } from "@/lib/db/local-database";
+import { capitalizeWords } from "@/lib/hooks/use-uppercase-display";
 
 export interface ExportableProduct {
   name: string;
@@ -19,6 +20,18 @@ export interface ExportableProduct {
  */
 export async function getProductsForExport(): Promise<ExportableProduct[]> {
   const storeId = getActiveStoreId();
+
+  // CSV/XLS is plain text — there's no CSS layer to uppercase it at render
+  // time the way the in-app UI does, so the store's uppercase-display
+  // preference has to be applied to the string itself here.
+  const storeSettings = storeId
+    ? await query<{ uppercase_display_enabled: number | null }>(
+        "SELECT uppercase_display_enabled FROM stores WHERE id = ?",
+        [storeId],
+      )
+    : [];
+  const uppercaseNames = storeSettings[0]?.uppercase_display_enabled !== 0;
+
   const rows = await query<{
     name: string;
     category_name: string | null;
@@ -44,9 +57,11 @@ export async function getProductsForExport(): Promise<ExportableProduct[]> {
     storeId ? [storeId] : [],
   );
 
+  const cased = (s: string) => (uppercaseNames ? s.toUpperCase() : capitalizeWords(s));
+
   return rows.map((r) => ({
-    name: r.name,
-    category: r.category_name || "",
+    name: cased(r.name),
+    category: r.category_name ? cased(r.category_name) : "",
     supplier: r.supplier_name || "",
     barcode: r.barcode || "",
     costPrice: r.cost_price || 0,

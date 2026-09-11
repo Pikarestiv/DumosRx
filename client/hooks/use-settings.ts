@@ -32,6 +32,19 @@ export function useSettings() {
   const [activeTab, setActiveTab] = useState(tabParam || "appearance");
   const [isDesktop, setIsDesktop] = useState(true);
 
+  // "/settings" (root, isIndex) and "/settings/[tab]" are separate route
+  // chunks even though they render the same SettingsClient — the sidebar's
+  // <Link> only auto-prefetches whichever one it points to ("/settings"),
+  // so landing there first and then clicking any tab (all of which share
+  // this one "[tab]" chunk) pays a real first-time network+parse cost with
+  // nothing yet on screen — the same gap confirmed live for Inventory's
+  // Catalog/Movements tabs. Prefetching one representative tab warms that
+  // shared chunk for every tab, not just this one; a no-op if we're
+  // already on a "[tab]" route ourselves.
+  useEffect(() => {
+    router.prefetch("/settings/appearance");
+  }, [router]);
+
   const securityState = useSettingsSecurity(changePin);
   const syncState = useSettingsSync(isCloudLinked, refetchStore);
   const formState = useSettingsForm(storeProfile, minimumSyncIntervalMinutes);

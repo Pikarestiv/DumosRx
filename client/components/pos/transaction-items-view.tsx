@@ -11,6 +11,7 @@ import {
 import { formatCurrency } from "@/lib/utils";
 import { RotateCcw } from "lucide-react";
 import type { SaleItemDetail } from "@/lib/types/sale";
+import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
 
 export function TransactionItemsView({
   items,
@@ -19,6 +20,7 @@ export function TransactionItemsView({
   items: SaleItemDetail[];
   currencyCode?: string;
 }) {
+  const capsClass = useUppercaseDisplayClass();
   return (
     <>
       {/* Desktop Table View */}
@@ -35,7 +37,7 @@ export function TransactionItemsView({
           <TableBody>
             {items?.map((item: SaleItemDetail) => (
               <TableRow key={item.id}>
-                <TableCell className="font-medium">
+                <TableCell className={`font-medium ${capsClass}`}>
                   {item.product_name || "Unknown Item"}
                 </TableCell>
                 <TableCell className="text-right">
@@ -68,7 +70,7 @@ export function TransactionItemsView({
             key={item.id}
             className="bg-card border border-border rounded-[14px] p-3.5 shadow-sm"
           >
-            <div className="font-semibold text-[14px] text-foreground mb-2 leading-tight">
+            <div className={`font-semibold text-[14px] text-foreground mb-2 leading-tight ${capsClass}`}>
               {item.product_name || "Unknown Item"}
             </div>
             <div className="flex justify-between items-center text-[13px] mb-2.5">

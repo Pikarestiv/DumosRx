@@ -54,6 +54,7 @@ class Store extends Model
         'custom_units',
         'require_sale_notes',
         'display_stock_levels',
+        'uppercase_display_enabled',
     ];
 
     protected $casts = [
@@ -64,6 +65,7 @@ class Store extends Model
         'is_demo' => 'boolean',
         'require_sale_notes' => 'boolean',
         'display_stock_levels' => 'boolean',
+        'uppercase_display_enabled' => 'boolean',
         'last_sync_at' => 'datetime',
         '_synced_at' => 'datetime',
     ];

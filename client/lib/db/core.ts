@@ -572,6 +572,26 @@ async function backfillStoreIdOnLegacyRows(adapter: DbAdapter): Promise<void> {
   }
 }
 
+// products.name/categories.name are now written lowercase (see
+// withNormalizedName in base-helpers.ts) so the UI can render them uppercase
+// via CSS regardless of how they were typed/imported. Rows written before
+// that change (e.g. an ALL-CAPS QuickBooks import, or a manually-typed mixed
+// case name) predate the rule, so this re-lowercases them on every init. It's
+// idempotent (a no-op once already lowercase) like backfillStoreIdOnLegacyRows
+// above, so it doesn't need a one-time-run flag.
+async function lowercaseExistingProductAndCategoryNames(
+  adapter: DbAdapter,
+): Promise<void> {
+  await tryRun(
+    adapter,
+    "UPDATE products SET name = LOWER(TRIM(name)) WHERE name != LOWER(TRIM(name))",
+  );
+  await tryRun(
+    adapter,
+    "UPDATE categories SET name = LOWER(TRIM(name)) WHERE name != LOWER(TRIM(name))",
+  );
+}
+
 // rebuildUsersTableForStoreScopedUsername (the users table rebuild that
 // scoped username uniqueness to store_id, shipped 2026-08-01 — the same day
 // as the earliest real account) was removed once diagnoseLegacySchema(),
@@ -701,6 +721,7 @@ export async function initDatabase(): Promise<any> {
       const tauriAdapter = makeTauriAdapter(db);
       await runSyncColumnMigrations(tauriAdapter, SYNC_COLUMN_MIGRATIONS);
       await backfillStoreIdOnLegacyRows(tauriAdapter);
+      await lowercaseExistingProductAndCategoryNames(tauriAdapter);
       await relaxPurchaseOrdersSupplierIdNullable(tauriAdapter);
       // Tauri's SQL plugin writes land on disk directly; no save step needed.
       await clearLegacyTransactionsOnce(tauriAdapter);
@@ -768,6 +789,16 @@ export async function initDatabase(): Promise<any> {
       // Ignore if column already exists
     }
 
+    try {
+      // DEFAULT 1 (ON): product/category names are always stored lowercase
+      // now, so without this every store would see an abrupt all-lowercase
+      // catalog the moment this shipped, instead of the uppercase-via-CSS
+      // display they're used to.
+      db.run('ALTER TABLE stores ADD COLUMN uppercase_display_enabled INTEGER DEFAULT 1;');
+    } catch (_e) {
+      // Ignore if column already exists
+    }
+
     const webAdapter = makeSqlJsAdapter(db);
 
     try {
@@ -776,6 +807,7 @@ export async function initDatabase(): Promise<any> {
 
     await runSyncColumnMigrations(webAdapter, SYNC_COLUMN_MIGRATIONS);
     await backfillStoreIdOnLegacyRows(webAdapter);
+    await lowercaseExistingProductAndCategoryNames(webAdapter);
     await relaxPurchaseOrdersSupplierIdNullable(webAdapter);
     await clearLegacyTransactionsOnce(webAdapter, saveDatabase);
 
@@ -793,6 +825,17 @@ export async function saveDatabase(): Promise<void> {
     console.error("Failed to save DB to IndexedDB", err);
   });
 }
+
+// Set while a transaction() block is running — declared here (rather than
+// only where execute() first needed it, further down) so query()'s row-fetch
+// yield above can also read it. See execute()/transaction() below for the
+// deferred-saveDatabase() half of what this flag is for.
+let inTransaction = false;
+
+// How many rows query() fetches before yielding a tick back to the browser
+// (see the loop below) — large enough that small/typical queries (the vast
+// majority) never pay the setTimeout round-trip at all.
+const QUERY_YIELD_INTERVAL = 200;
 
 export async function query<T = Record<string, unknown>>(
   sql: string,
@@ -817,19 +860,32 @@ export async function query<T = Record<string, unknown>>(
   stmt.bind(params);
 
   const results: T[] = [];
+  let rowCount = 0;
   while (stmt.step()) {
     const row = stmt.getAsObject() as T;
     results.push(row);
+    rowCount++;
+    // sql.js runs entirely on the main thread with no Web Worker, so a large
+    // result set's row-fetch loop blocks painting for however long it takes
+    // — nothing else, including React committing an already-rendered
+    // loading skeleton, can run until this returns. This is the same
+    // characteristic product-import.ts's YIELD_INTERVAL comment describes
+    // for bulk inserts, just on the read side, and it compounds right after
+    // app launch when several heavy stat/overview queries (Inventory,
+    // Settings) land close together with sync's own DB work.
+    // Only outside an open transaction: execute() doesn't queue behind an
+    // in-progress transaction() the way nested transaction() calls do (sql.js
+    // has one shared connection, no per-caller isolation), so yielding here
+    // while `inTransaction` is true would let an unrelated write interleave
+    // into this transaction's uncommitted state.
+    if (!inTransaction && rowCount % QUERY_YIELD_INTERVAL === 0) {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
   }
   stmt.free();
 
   return results;
 }
-
-// Set while a transaction() block is running so execute() can defer the
-// (expensive, whole-database) sql.js saveDatabase() to a single call at
-// commit time instead of after every individual statement in the block.
-let inTransaction = false;
 
 // Registered by base-helpers.ts (which already imports from this module, so
 // this module can't import back without a cycle) so insert()/update()/

@@ -55,7 +55,10 @@ describe("useSaveProductMutation — no category selected", () => {
     ).resolves.toEqual({ isEditing: false });
 
     const rows = db.exec(
-      "SELECT name, category_id FROM products WHERE name = 'Manual UI Test Product XYZ'",
+      // Product names are normalized to lowercase on write (see
+      // withNormalizedName in base-helpers.ts) — match on that, not the
+      // original mixed-case input.
+      "SELECT name, category_id FROM products WHERE name = 'manual ui test product xyz'",
     );
     expect(rows[0]?.values.length).toBe(1);
     expect(rows[0]?.values[0]?.[1]).toBeNull();

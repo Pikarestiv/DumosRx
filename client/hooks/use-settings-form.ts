@@ -32,6 +32,7 @@ export function useSettingsForm(storeProfile: StoreProfile | null, minimumSyncIn
   );
   const [requireSaleNotes, setRequireSaleNotes] = useState(storeProfile?.require_sale_notes === 1);
   const [displayStockLevels, setDisplayStockLevels] = useState(storeProfile?.display_stock_levels !== 0);
+  const [uppercaseDisplayEnabled, setUppercaseDisplayEnabled] = useState(storeProfile?.uppercase_display_enabled !== 0);
 
   // Sync state with storeProfile
   useEffect(() => {
@@ -66,6 +67,7 @@ export function useSettingsForm(storeProfile: StoreProfile | null, minimumSyncIn
       }
       setRequireSaleNotes(storeProfile.require_sale_notes === 1);
       setDisplayStockLevels(storeProfile.display_stock_levels !== 0);
+      setUppercaseDisplayEnabled(storeProfile.uppercase_display_enabled !== 0);
 
       let interval = storeProfile.auto_sync_interval || minimumSyncIntervalMinutes;
       if (interval < minimumSyncIntervalMinutes) {
@@ -103,5 +105,6 @@ export function useSettingsForm(storeProfile: StoreProfile | null, minimumSyncIn
     enabledPaymentMethods, setEnabledPaymentMethods,
     requireSaleNotes, setRequireSaleNotes,
     displayStockLevels, setDisplayStockLevels,
+    uppercaseDisplayEnabled, setUppercaseDisplayEnabled,
   };
 }

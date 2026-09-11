@@ -50,11 +50,13 @@ describe("importProductRows", () => {
       `SELECT p.name, p.selling_price, p.barcode, c.name as category_name
        FROM products p LEFT JOIN categories c ON c.id = p.category_id`,
     );
+    // Names/categories are normalized to lowercase on write (see
+    // withNormalizedName in base-helpers.ts) regardless of the input casing.
     expect(products[0].values[0]).toEqual([
-      "CYPRI GOLD SMALL SYRUP",
+      "cypri gold small syrup",
       1000,
       "114",
-      "DRUGS",
+      "drugs",
     ]);
 
     const batches = db.exec(
@@ -79,7 +81,7 @@ describe("importProductRows", () => {
     expect(result).toEqual({ created: 0, updated: 1, skipped: [] });
 
     const products = db.exec(`SELECT name, selling_price FROM products WHERE id = 'p1'`);
-    expect(products[0].values[0]).toEqual(["CYPRI GOLD SMALL SYRUP", 1000]);
+    expect(products[0].values[0]).toEqual(["cypri gold small syrup", 1000]);
 
     const batchCount = db.exec(`SELECT COUNT(*) FROM stock_batches WHERE product_id = 'p1'`);
     expect(batchCount[0].values[0][0]).toBe(1); // still just the original batch
@@ -96,7 +98,11 @@ describe("importProductRows", () => {
     ]);
 
     expect(result.created).toBe(1);
-    const count = db.exec(`SELECT COUNT(*) FROM products WHERE name = 'PARACETAMOL'`);
+    // COLLATE NOCASE rather than asserting a specific case: the pre-existing
+    // row was inserted via raw SQL above (bypassing the app's own
+    // lowercase-on-write normalization), while the imported row goes through
+    // it — this only cares that both count as "PARACETAMOL" regardless.
+    const count = db.exec(`SELECT COUNT(*) FROM products WHERE name = 'PARACETAMOL' COLLATE NOCASE`);
     expect(count[0].values[0][0]).toBe(2);
   });
 

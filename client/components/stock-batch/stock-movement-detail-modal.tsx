@@ -5,6 +5,7 @@ import {
   formatMovementDate,
   formatMovementTime,
 } from "./stock-movement-utils";
+import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
 
 interface Props {
   movement: StockMovement | null;
@@ -17,6 +18,7 @@ export function StockMovementDetailModal({
   onClose,
   onViewInCatalog,
 }: Props) {
+  const capsClass = useUppercaseDisplayClass();
   return (
     <ResponsiveModal
       open={!!movement}
@@ -31,7 +33,7 @@ export function StockMovementDetailModal({
         <div className="px-5 py-[18px]">
           <div className="flex items-start justify-between mb-4">
             <div>
-              <div className="text-[15px] font-semibold">
+              <div className={`text-[15px] font-semibold ${capsClass}`}>
                 {movement.product}
               </div>
               <div className="text-[12px] text-muted-foreground/70">

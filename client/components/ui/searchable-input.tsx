@@ -13,9 +13,18 @@ interface SearchableInputProps extends Omit<React.InputHTMLAttributes<HTMLInputE
   options: (string | SearchOption)[]
   value: string
   onValueChange: (value: string) => void
+  /** Escape closes the suggestion dropdown either way; this additionally
+   * signals "cancel the whole edit", for callers that treat this input as a
+   * commit-on-blur editable cell rather than a plain filter field. */
+  onEscapeKey?: () => void
+  /** Fired with the definitive final value whenever Enter or a dropdown
+   * click commits one — a caller reading `value`/onValueChange's own state
+   * instead would see it a render behind here, since selecting an option
+   * calls onValueChange and this in the same synchronous handler. */
+  onCommitKey?: (value: string) => void
 }
 
-export function SearchableInput({ options, value, onValueChange, className, ...props }: SearchableInputProps) {
+export function SearchableInput({ options, value, onValueChange, onEscapeKey, onCommitKey, className, ...props }: SearchableInputProps) {
   const [open, setOpen] = React.useState(false)
   
   // Find the label for the current value if it's an object
@@ -75,6 +84,7 @@ export function SearchableInput({ options, value, onValueChange, className, ...p
         onKeyDown={(e) => {
           if (e.key === "Escape") {
             setOpen(false)
+            onEscapeKey?.()
           } else if (e.key === "ArrowDown") {
             e.preventDefault()
             if (!open) setOpen(true)
@@ -89,9 +99,13 @@ export function SearchableInput({ options, value, onValueChange, className, ...p
                 const selected = filteredOptions[activeIndex]
                 setInputValue(selected.label)
                 onValueChange(selected.value)
+                setOpen(false)
+                onCommitKey?.(selected.value)
+                return
               }
               setOpen(false)
             }
+            onCommitKey?.(inputValue)
           }
         }}
         className={cn("w-full", className)}
@@ -106,6 +120,7 @@ export function SearchableInput({ options, value, onValueChange, className, ...p
                   setInputValue(option.label)
                   onValueChange(option.value)
                   setOpen(false)
+                  onCommitKey?.(option.value)
                 }}
                 className={cn(
                   "relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground",

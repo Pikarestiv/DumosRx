@@ -30,9 +30,10 @@ export async function getCategoriesList() {
 }
 
 export async function getCategoryByName(name: string) {
+  const storeId = getActiveStoreId();
   const existing = await query<{ id: string }>(
-    "SELECT id FROM categories WHERE name = ? AND _deleted = 0",
-    [name],
+    `SELECT id FROM categories WHERE name = ? COLLATE NOCASE AND _deleted = 0${storeId ? " AND (store_id = ? OR store_id IS NULL)" : ""}`,
+    storeId ? [name, storeId] : [name],
   );
   if (existing && existing.length > 0) {
     return existing[0].id;

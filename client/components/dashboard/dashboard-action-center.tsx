@@ -392,7 +392,7 @@ export function DashboardActionCenter({
         onMouseLeave={() => setIsPaused(false)}
         onTouchStart={() => setIsPaused(true)}
         onTouchEnd={() => setIsPaused(false)}
-        className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 pb-2"
+        className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 pb-2"
       >
         {alerts.map((alert) => (
           <div key={alert.id} className="w-full">

@@ -14,7 +14,7 @@ export function CatalogListSkeleton() {
       {[...Array(8)].map((_, i) => (
         <div
           key={i}
-          className="sm:grid sm:grid-cols-[1fr_110px_90px_90px_100px_90px] gap-2 items-center px-4 py-3 sm:py-2 sm:border-b sm:border-border rounded-xl sm:rounded-none border sm:border-t-0 sm:border-r-0"
+          className="sm:grid sm:grid-cols-[1fr_150px_90px_90px_100px_90px] gap-2 items-center px-4 py-3 sm:py-2 sm:border-b sm:border-border rounded-xl sm:rounded-none border sm:border-t-0 sm:border-r-0"
         >
           <div className="flex items-center gap-3 sm:block">
             <Skeleton className="h-4 w-40" />

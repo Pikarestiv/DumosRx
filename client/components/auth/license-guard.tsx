@@ -206,7 +206,9 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [deviceId, setDeviceId] = useState("DUMOS-OFFLINE-772X");
 
-  const performCheck = async () => {
+  const performCheck = async (trigger: string) => {
+    // TEMP DIAGNOSTIC (remove once splashscreen-on-navigation is root-caused)
+    console.log(`[LicenseGuard] performCheck start (trigger=${trigger}, pathname=${pathname})`);
     setLoading(true);
 
     if (typeof window !== "undefined" && navigator.onLine) {
@@ -225,6 +227,8 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
     const status = await checkLicenseStatus();
     setLicense(status);
     setLoading(false);
+    // TEMP DIAGNOSTIC (remove once splashscreen-on-navigation is root-caused)
+    console.log(`[LicenseGuard] performCheck end (trigger=${trigger}, pathname=${pathname})`);
   };
 
   // Generate or load device ID on mount
@@ -236,7 +240,13 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
 
   // Reactive to local SQLite store profile status changes
   useEffect(() => {
-    performCheck();
+    // TEMP DIAGNOSTIC (remove once splashscreen-on-navigation is root-caused)
+    console.log("[LicenseGuard] status-effect fired", {
+      status: storeProfile?.status,
+      suspension_reason: storeProfile?.suspension_reason,
+      subscription_tier: storeProfile?.subscription_tier,
+    });
+    performCheck("status-effect");
   }, [
     storeProfile?.status,
     storeProfile?.suspension_reason,
@@ -312,7 +322,7 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
             <>
               <Button
                 className="w-full bg-accent hover:bg-accent/90 font-bold"
-                onClick={performCheck}
+                onClick={() => performCheck("manual-button")}
               >
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Check Again
@@ -332,7 +342,7 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
           {isSuspended && (
             <Button
               className="w-full bg-accent hover:bg-accent/90 font-bold"
-              onClick={performCheck}
+              onClick={() => performCheck("manual-button")}
             >
               <RefreshCw className="h-4 w-4 mr-2" />
               Refresh Account Status

@@ -44,6 +44,20 @@ export async function renameCategory(id: string, name: string) {
   await update("categories", id, { name: name.trim() });
 }
 
+/** Count of active products still pointing at this category_id — surfaced
+ * before delete so removing a category doesn't silently orphan every
+ * product referencing it (deleteCategory never touches products.category_id,
+ * so an in-use category left undeleted-with-warning shows up later as a
+ * raw category_id where its name used to be). */
+export async function countProductsInCategory(categoryId: string): Promise<number> {
+  const storeId = getActiveStoreId();
+  const rows = await query<{ count: number }>(
+    `SELECT COUNT(*) as count FROM products WHERE category_id = ? AND _deleted = 0${storeId ? " AND store_id = ?" : ""}`,
+    storeId ? [categoryId, storeId] : [categoryId],
+  );
+  return rows[0]?.count ?? 0;
+}
+
 export async function deleteCategory(id: string) {
   await softDelete("categories", id);
 }

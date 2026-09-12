@@ -70,7 +70,16 @@ export function EditableNumberCell({
       }}
       onKeyDown={(e) => {
         if (e.key === "Enter") e.currentTarget.blur();
-        else if (e.key === "Escape") onCancel?.();
+        else if (e.key === "Escape") {
+          // Chrome's native <input type="number"> has its own Escape
+          // behavior (revert + blur) that fires as the key's default action.
+          // Left unsuppressed, that native blur races our own state update
+          // below and occasionally wins, running the blur-triggered save
+          // path before onCancel's skipNextBlur guard is set — an
+          // intermittent bug where Escape saved instead of canceling.
+          e.preventDefault();
+          onCancel?.();
+        }
       }}
       onFocus={(e) => e.target.select()}
     />

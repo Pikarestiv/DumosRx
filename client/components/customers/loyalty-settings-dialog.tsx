@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Plus, Loader2, Tag, Info } from "lucide-react";
+import { Plus, Loader2, Tag, HelpCircle } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -154,7 +154,7 @@ export function LoyaltySettingsDialog({ open, onOpenChange }: Props) {
                 <TooltipProvider delayDuration={0}>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Info className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
+                      <HelpCircle className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
                     </TooltipTrigger>
                     <TooltipContent>
                       <p>When off, points stop earning and the Redeem Reward option disappears from POS checkout. Tiers and rewards below stay configured for whenever you turn it back on.</p>

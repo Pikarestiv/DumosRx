@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Save, Info, Pencil, X, Banknote, Percent } from "lucide-react";
+import { Save, HelpCircle, Pencil, X, Banknote, Percent } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -100,7 +100,7 @@ export function RegionalSettingsCard({
               <TooltipProvider delayDuration={0}>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Info className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
+                    <HelpCircle className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
                   </TooltipTrigger>
                   <TooltipContent>
                     <p>
@@ -133,7 +133,7 @@ export function RegionalSettingsCard({
               <TooltipProvider delayDuration={0}>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Info className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
+                    <HelpCircle className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
                   </TooltipTrigger>
                   <TooltipContent>
                     <p>

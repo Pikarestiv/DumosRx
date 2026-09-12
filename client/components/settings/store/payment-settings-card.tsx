@@ -1,4 +1,4 @@
-import { Info } from "lucide-react";
+import { HelpCircle } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import {
   Card,
@@ -56,7 +56,7 @@ export function PaymentSettingsCard({
           <TooltipProvider delayDuration={0}>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Info className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
+                <HelpCircle className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
               </TooltipTrigger>
               <TooltipContent>
                 <p>Controls which payment methods appear as options on the POS checkout screen.</p>
@@ -94,7 +94,7 @@ export function PaymentSettingsCard({
               <TooltipProvider delayDuration={0}>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Info className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
+                    <HelpCircle className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
                   </TooltipTrigger>
                   <TooltipContent>
                     <p>When enabled, cashiers must specify exactly which bank account or till the money was paid into during checkout.</p>

@@ -1,7 +1,7 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { UnitSelect } from "./unit-select";
-import { Info } from "lucide-react";
+import { HelpCircle } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -23,7 +23,7 @@ export function ProductPackagingFields({ formData, onInputChange }: Props) {
         <TooltipProvider>
           <Tooltip delayDuration={300}>
             <TooltipTrigger asChild>
-              <Info className="w-3.5 h-3.5 opacity-50 cursor-help" />
+              <HelpCircle className="w-3.5 h-3.5 opacity-50 cursor-help" />
             </TooltipTrigger>
             <TooltipContent className="max-w-[280px]">
               <p>
@@ -44,7 +44,7 @@ export function ProductPackagingFields({ formData, onInputChange }: Props) {
             <TooltipProvider>
               <Tooltip delayDuration={300}>
                 <TooltipTrigger asChild>
-                  <Info className="w-3 h-3 opacity-50 cursor-help" />
+                  <HelpCircle className="w-3 h-3 opacity-50 cursor-help" />
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>The unit you order from suppliers in, e.g. Carton, Box, Pack.</p>
@@ -88,7 +88,7 @@ export function ProductPackagingFields({ formData, onInputChange }: Props) {
             <TooltipProvider>
               <Tooltip delayDuration={300}>
                 <TooltipTrigger asChild>
-                  <Info className="w-3 h-3 opacity-50 cursor-help" />
+                  <HelpCircle className="w-3 h-3 opacity-50 cursor-help" />
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>

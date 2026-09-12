@@ -1,6 +1,6 @@
 "use client";
 
-import { Info } from "lucide-react";
+import { HelpCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -132,7 +132,7 @@ export function PODetailsFields({
             <TooltipProvider delayDuration={0}>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Info className="w-3 h-3 opacity-50 cursor-pointer" />
+                  <HelpCircle className="w-3 h-3 opacity-50 cursor-pointer" />
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>
@@ -160,7 +160,7 @@ export function PODetailsFields({
             <TooltipProvider delayDuration={0}>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Info className="w-3 h-3 opacity-50 cursor-pointer" />
+                  <HelpCircle className="w-3 h-3 opacity-50 cursor-pointer" />
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>

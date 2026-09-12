@@ -1,4 +1,4 @@
-import { Copy, Check, Info, Edit2 } from "lucide-react";
+import { Copy, Check, HelpCircle, Edit2 } from "lucide-react";
 import { STOREFRONT_BASE_URL } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -80,7 +80,7 @@ export function StoreProfileSection({
           <TooltipProvider delayDuration={0}>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Info className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
+                <HelpCircle className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
               </TooltipTrigger>
               <TooltipContent>
                 <p>Your unique web address where customers can browse your products online.</p>
@@ -137,7 +137,7 @@ export function StoreProfileSection({
             <TooltipProvider delayDuration={0}>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Info className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
+                  <HelpCircle className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>When off, your storefront link above is unreachable: customers see a 404 even with the correct URL. Products also need &quot;Show Online&quot; turned on individually in each product&apos;s Additional Details.</p>
@@ -174,7 +174,7 @@ export function StoreProfileSection({
               <TooltipProvider delayDuration={0}>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Info className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
+                    <HelpCircle className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
                   </TooltipTrigger>
                   <TooltipContent>
                     <p>When off, points stop earning and the Redeem Reward option disappears from POS checkout. Tiers and rewards stay configured for whenever you turn it back on.</p>
@@ -227,7 +227,7 @@ export function StoreProfileSection({
                   <TooltipProvider delayDuration={0}>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Info className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
+                        <HelpCircle className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
                       </TooltipTrigger>
                       <TooltipContent>
                         <p>When enabled, general retail products (like provisions) will appear alongside products in search suggestions during sales.</p>

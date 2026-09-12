@@ -1,4 +1,4 @@
-import { Save, Upload, X, Info, Pencil } from "lucide-react";
+import { Save, Upload, X, HelpCircle, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -65,7 +65,12 @@ export function ReceiptCustomizationCard({
   setHidePoweredBy,
   handleSaveReceiptSettings,
 }: ReceiptCustomizationCardProps) {
-  const { canCustomizeTheme, canRemoveBranding, withRestriction, getUpgradeMessage } = useFeatureGate();
+  const {
+    canCustomizeTheme,
+    canRemoveBranding,
+    withRestriction,
+    getUpgradeMessage,
+  } = useFeatureGate();
   const [isEditing, setIsEditing] = useState(false);
   const { paperSize, setPaperSize } = useReceiptPaperSize();
 
@@ -90,8 +95,8 @@ export function ReceiptCustomizationCard({
           size="icon"
           onClick={() => setIsEditing(!isEditing)}
         >
-          {!!(isEditing) && <X className="h-4 w-4" />}
-                  {!(isEditing) && <Pencil className="h-4 w-4" />}
+          {!!isEditing && <X className="h-4 w-4" />}
+          {!isEditing && <Pencil className="h-4 w-4" />}
         </Button>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -144,7 +149,7 @@ export function ReceiptCustomizationCard({
                 <TooltipProvider delayDuration={0}>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Info className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
+                      <HelpCircle className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
                     </TooltipTrigger>
                     <TooltipContent>
                       <p>
@@ -156,17 +161,19 @@ export function ReceiptCustomizationCard({
                   </Tooltip>
                 </TooltipProvider>
               </div>
-              {!!(isEditing) && (
-                                          <Input
-                                            id="receipt-header"
-                                            placeholder="e.g. Thanks for your patronage!"
-                                            value={localReceiptHeader}
-                                            onChange={(e) => setLocalReceiptHeader(e.target.value)}
-                                          />
-                                        )}
-                          {!(isEditing) && (
-                                          <p className="text-sm font-medium py-2">{localReceiptHeader || "Not set"}</p>
-                                        )}
+              {!!isEditing && (
+                <Input
+                  id="receipt-header"
+                  placeholder="e.g. Thanks for your patronage!"
+                  value={localReceiptHeader}
+                  onChange={(e) => setLocalReceiptHeader(e.target.value)}
+                />
+              )}
+              {!isEditing && (
+                <p className="text-sm font-medium py-2">
+                  {localReceiptHeader || "Not set"}
+                </p>
+              )}
             </div>
             <div className="grid gap-2">
               <div className="flex items-center gap-2">
@@ -174,7 +181,7 @@ export function ReceiptCustomizationCard({
                 <TooltipProvider delayDuration={0}>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Info className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
+                      <HelpCircle className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
                     </TooltipTrigger>
                     <TooltipContent>
                       <p>
@@ -185,17 +192,19 @@ export function ReceiptCustomizationCard({
                   </Tooltip>
                 </TooltipProvider>
               </div>
-              {!!(isEditing) && (
-                                          <Input
-                                            id="receipt-footer"
-                                            placeholder="e.g. No refund after 24 hours"
-                                            value={localReceiptFooter}
-                                            onChange={(e) => setLocalReceiptFooter(e.target.value)}
-                                          />
-                                        )}
-                          {!(isEditing) && (
-                                          <p className="text-sm font-medium py-2">{localReceiptFooter || "Not set"}</p>
-                                        )}
+              {!!isEditing && (
+                <Input
+                  id="receipt-footer"
+                  placeholder="e.g. No refund after 24 hours"
+                  value={localReceiptFooter}
+                  onChange={(e) => setLocalReceiptFooter(e.target.value)}
+                />
+              )}
+              {!isEditing && (
+                <p className="text-sm font-medium py-2">
+                  {localReceiptFooter || "Not set"}
+                </p>
+              )}
             </div>
             <div className="flex items-center justify-between rounded-lg border p-4">
               <div className="space-y-0.5">
@@ -204,16 +213,25 @@ export function ReceiptCustomizationCard({
                   Display store logo at the top
                 </p>
               </div>
-              {!!(isEditing) && (
-                                          <Switch
-                                            checked={showLogo && canCustomizeTheme}
-                                            onCheckedChange={(checked) => checked ? withRestriction(() => handleToggleLogo(checked), { featureAllowed: canCustomizeTheme, featureKey: 'custom_branding' })() : withRestriction(() => handleToggleLogo(checked))()}
-                                          />
-                                        )}
-                          {!(isEditing) && (
-                                          <p className="text-sm font-medium">{!!((showLogo && canCustomizeTheme)) && "Enabled"}
-                              {!((showLogo && canCustomizeTheme)) && "Disabled"}</p>
-                                        )}
+              {!!isEditing && (
+                <Switch
+                  checked={showLogo && canCustomizeTheme}
+                  onCheckedChange={(checked) =>
+                    checked
+                      ? withRestriction(() => handleToggleLogo(checked), {
+                          featureAllowed: canCustomizeTheme,
+                          featureKey: "custom_branding",
+                        })()
+                      : withRestriction(() => handleToggleLogo(checked))()
+                  }
+                />
+              )}
+              {!isEditing && (
+                <p className="text-sm font-medium">
+                  {!!(showLogo && canCustomizeTheme) && "Enabled"}
+                  {!(showLogo && canCustomizeTheme) && "Disabled"}
+                </p>
+              )}
             </div>
             <div className="flex items-center justify-between rounded-lg border p-4">
               <div className="space-y-0.5">
@@ -222,17 +240,24 @@ export function ReceiptCustomizationCard({
                   Include contact details on receipt
                 </p>
               </div>
-              {!!(isEditing) && (
-                                          <Switch checked={showContact} onCheckedChange={setShowContact} />
-                                        )}
-                          {!(isEditing) && (
-                                          <p className="text-sm font-medium">{!!(showContact) && "Enabled"}
-                              {!(showContact) && "Disabled"}</p>
-                                        )}
+              {!!isEditing && (
+                <Switch
+                  checked={showContact}
+                  onCheckedChange={setShowContact}
+                />
+              )}
+              {!isEditing && (
+                <p className="text-sm font-medium">
+                  {!!showContact && "Enabled"}
+                  {!showContact && "Disabled"}
+                </p>
+              )}
             </div>
             <div className="flex items-center justify-between rounded-lg border p-4">
               <div className="space-y-0.5">
-                <Label className="text-base">Hide "Powered by dumosrx.com"</Label>
+                <Label className="text-base">
+                  Hide "Powered by dumosrx.com"
+                </Label>
                 <p className="text-sm text-muted-foreground">
                   Remove the DumosRx branding line from printed receipts
                 </p>
@@ -285,10 +310,13 @@ export function ReceiptCustomizationCard({
       </CardContent>
       {isEditing && (
         <CardFooter className="border-t px-6 py-4">
-          <Button onClick={() => {
-            handleSaveReceiptSettings();
-            setIsEditing(false);
-          }} className="cursor-pointer">
+          <Button
+            onClick={() => {
+              handleSaveReceiptSettings();
+              setIsEditing(false);
+            }}
+            className="cursor-pointer"
+          >
             <Save className="w-4 h-4 mr-2" />
             Save Receipt Settings
           </Button>

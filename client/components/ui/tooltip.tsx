@@ -54,7 +54,7 @@ function Tooltip({
 }
 
 const TooltipTrigger = React.forwardRef<
-  React.ElementRef<typeof TooltipPrimitive.Trigger>,
+  React.ComponentRef<typeof TooltipPrimitive.Trigger>,
   React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Trigger>
 >(({ onClick, ...props }, ref) => {
   const ctx = React.useContext(TooltipContext)
@@ -76,7 +76,7 @@ const TooltipTrigger = React.forwardRef<
 TooltipTrigger.displayName = TooltipPrimitive.Trigger.displayName
 
 const TooltipContent = React.forwardRef<
-  React.ElementRef<typeof TooltipPrimitive.Content>,
+  React.ComponentRef<typeof TooltipPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Content>
 >(({ className, sideOffset = 4, ...props }, ref) => (
   <TooltipPrimitive.Portal>

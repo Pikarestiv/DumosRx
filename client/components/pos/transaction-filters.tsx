@@ -1,5 +1,5 @@
 import React from "react";
-import { Search, Filter } from "lucide-react";
+import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -33,12 +33,16 @@ export function TransactionFilters({
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        <Button
+        {/* Dead button: never had an onClick handler, and the FilterPill row
+         * below already covers date/payment filtering. Commented out rather
+         * than deleted pending a decision on whether it should do something
+         * else (e.g. a fuller filter panel) or just go away for good. */}
+        {/* <Button
           variant="outline"
           className="h-12 w-12 rounded-xl bg-card border-border/50 shrink-0 group"
         >
           <Filter className="h-4 w-4 text-muted-foreground group-hover:text-white" />
-        </Button>
+        </Button> */}
       </div>
 
       <div className="flex overflow-x-auto gap-2 pb-2 -mx-4 px-4 md:mx-0 md:px-0 hide-scrollbar flex-nowrap md:flex-wrap">

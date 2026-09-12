@@ -7,7 +7,11 @@ import { toast } from "sonner";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { getCategoryList, type CategoryRow } from "@/lib/db/queries/categories";
+import {
+  getCategoryList,
+  countProductsInCategory,
+  type CategoryRow,
+} from "@/lib/db/queries/categories";
 import {
   useCreateCategoryMutation,
   useRenameCategoryMutation,
@@ -16,15 +20,24 @@ import {
 } from "@/lib/hooks/use-category-mutations";
 import { queryKeys } from "@/lib/query-keys";
 import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 interface ManageCategoriesDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-export function ManageCategoriesDialog({ open, onOpenChange }: ManageCategoriesDialogProps) {
+export function ManageCategoriesDialog({
+  open,
+  onOpenChange,
+}: ManageCategoriesDialogProps) {
   const [newName, setNewName] = useState("");
   const capsClass = useUppercaseDisplayClass();
+  const [pendingDelete, setPendingDelete] = useState<{
+    id: string;
+    name: string;
+    productCount: number;
+  } | null>(null);
 
   const { data: categories = [], isLoading } = useQuery({
     ...queryKeys.categories.list(),
@@ -49,8 +62,23 @@ export function ManageCategoriesDialog({ open, onOpenChange }: ManageCategoriesD
     });
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string, name: string) => {
+    const productCount = await countProductsInCategory(id);
+    if (productCount > 0) {
+      setPendingDelete({ id, name, productCount });
+      return;
+    }
     deleteMutation.mutate(id, {
+      onError: (error) => {
+        console.error("Failed to delete category:", error);
+        toast.error("Failed to delete category");
+      },
+    });
+  };
+
+  const handleConfirmDelete = () => {
+    if (!pendingDelete) return;
+    deleteMutation.mutate(pendingDelete.id, {
       onError: (error) => {
         console.error("Failed to delete category:", error);
         toast.error("Failed to delete category");
@@ -75,7 +103,11 @@ export function ManageCategoriesDialog({ open, onOpenChange }: ManageCategoriesD
     if (seedDefaultsMutation.isPending) return;
     seedDefaultsMutation.mutate(undefined, {
       onSuccess: (added) => {
-        toast.success(added > 0 ? `Added ${added} starter categories` : "Starter categories already exist");
+        toast.success(
+          added > 0
+            ? `Added ${added} starter categories`
+            : "Starter categories already exist",
+        );
       },
       onError: (error) => {
         console.error("Failed to seed default categories:", error);
@@ -122,13 +154,24 @@ export function ManageCategoriesDialog({ open, onOpenChange }: ManageCategoriesD
             onChange={(e) => setNewName(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleAdd()}
           />
-          <Button type="button" size="icon" onClick={handleAdd} disabled={!newName.trim() || createMutation.isPending}>
-            {createMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+          <Button
+            type="button"
+            size="icon"
+            onClick={handleAdd}
+            disabled={!newName.trim() || createMutation.isPending}
+          >
+            {createMutation.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Plus className="h-4 w-4" />
+            )}
           </Button>
         </div>
 
         {isLoading && (
-          <div className="text-center py-6 text-sm text-muted-foreground">Loading...</div>
+          <div className="text-center py-6 text-sm text-muted-foreground">
+            Loading...
+          </div>
         )}
 
         {!isLoading && categories.length === 0 && (
@@ -139,18 +182,24 @@ export function ManageCategoriesDialog({ open, onOpenChange }: ManageCategoriesD
 
         <div className="space-y-1.5">
           {categories.map((cat: CategoryRow) => (
-            <div key={cat.id} className="flex items-center gap-2 border border-border rounded-lg p-1.5">
+            <div
+              key={cat.id}
+              className="flex items-center gap-2 border border-border rounded-lg p-1.5"
+            >
               <Input
                 defaultValue={cat.name}
                 className={`h-8 text-[13px] bg-transparent border-transparent hover:border-border focus:border-primary ${capsClass}`}
-                onBlur={(e) => e.target.value !== cat.name && handleRename(cat.id, e.target.value)}
+                onBlur={(e) =>
+                  e.target.value !== cat.name &&
+                  handleRename(cat.id, e.target.value)
+                }
               />
               <Button
                 type="button"
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
-                onClick={() => handleDelete(cat.id)}
+                onClick={() => handleDelete(cat.id, cat.name)}
               >
                 <Trash2 className="h-3.5 w-3.5" />
               </Button>
@@ -158,6 +207,20 @@ export function ManageCategoriesDialog({ open, onOpenChange }: ManageCategoriesD
           ))}
         </div>
       </div>
+
+      <ConfirmDialog
+        open={!!pendingDelete}
+        onOpenChange={(open) => !open && setPendingDelete(null)}
+        title="Delete category?"
+        description={
+          pendingDelete
+            ? `${pendingDelete.productCount} product${pendingDelete.productCount === 1 ? "" : "s"} still use "${pendingDelete.name}". Deleting it won't remove or reassign those products, they'll show as Uncategorized until you give them a new category.`
+            : ""
+        }
+        confirmLabel="Delete anyway"
+        variant="destructive"
+        onConfirm={handleConfirmDelete}
+      />
     </ResponsiveModal>
   );
 }

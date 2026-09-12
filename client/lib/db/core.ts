@@ -592,6 +592,37 @@ async function lowercaseExistingProductAndCategoryNames(
   );
 }
 
+// deleteCategory only ever soft-deletes the categories row; it never touches
+// products.category_id pointing at it, and (until the sync push fix landed
+// server-side) a generic category name could also get silently merged into
+// an unrelated store's row that later got renamed/deleted out from under
+// this store. Either way, the product is left holding a category_id that no
+// longer resolves to a name — this clears it so the catalog shows
+// "Uncategorized" (and, crucially, the category can be re-picked from the
+// dropdown again) instead of the dead id staying stuck forever. Idempotent:
+// a product with a valid category_id is untouched.
+async function clearOrphanedProductCategoryIds(adapter: DbAdapter): Promise<void> {
+  // Matches getCategoryList()'s own visibility rule (store_id = mine, or
+  // NULL for pre-multi-tenancy rows) — a category_id pointing at a row that
+  // exists but belongs to a *different* store (the cross-store merge bug;
+  // see 2026_09_12_000000_scope_category_uniqueness_to_store) is just as
+  // dead to this store as one that was hard-deleted, since it'll never show
+  // up in this store's dropdown either.
+  // tryRun/adapter.run take a raw SQL string with no bind-param support, so
+  // this inlines storeId directly — safe here since it's an internally
+  // generated UUID (see getActiveStoreId), never raw user input.
+  const storeId = getActiveStoreId();
+  await tryRun(
+    adapter,
+    `UPDATE products SET category_id = NULL
+     WHERE category_id IS NOT NULL
+       AND category_id NOT IN (
+         SELECT id FROM categories
+         WHERE _deleted = 0${storeId ? ` AND (store_id = '${storeId}' OR store_id IS NULL)` : ""}
+       )`,
+  );
+}
+
 // rebuildUsersTableForStoreScopedUsername (the users table rebuild that
 // scoped username uniqueness to store_id, shipped 2026-08-01 — the same day
 // as the earliest real account) was removed once diagnoseLegacySchema(),
@@ -722,6 +753,7 @@ export async function initDatabase(): Promise<any> {
       await runSyncColumnMigrations(tauriAdapter, SYNC_COLUMN_MIGRATIONS);
       await backfillStoreIdOnLegacyRows(tauriAdapter);
       await lowercaseExistingProductAndCategoryNames(tauriAdapter);
+      await clearOrphanedProductCategoryIds(tauriAdapter);
       await relaxPurchaseOrdersSupplierIdNullable(tauriAdapter);
       // Tauri's SQL plugin writes land on disk directly; no save step needed.
       await clearLegacyTransactionsOnce(tauriAdapter);
@@ -808,6 +840,7 @@ export async function initDatabase(): Promise<any> {
     await runSyncColumnMigrations(webAdapter, SYNC_COLUMN_MIGRATIONS);
     await backfillStoreIdOnLegacyRows(webAdapter);
     await lowercaseExistingProductAndCategoryNames(webAdapter);
+    await clearOrphanedProductCategoryIds(webAdapter);
     await relaxPurchaseOrdersSupplierIdNullable(webAdapter);
     await clearLegacyTransactionsOnce(webAdapter, saveDatabase);
 

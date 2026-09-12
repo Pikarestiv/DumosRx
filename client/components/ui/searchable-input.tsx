@@ -111,7 +111,7 @@ export function SearchableInput({ options, value, onValueChange, onEscapeKey, on
         className={cn("w-full", className)}
       />
       {open && filteredOptions.length > 0 && (
-        <div className="absolute z-[999] w-full mt-1 bg-popover text-popover-foreground shadow-xl rounded-md border border-border outline-none animate-in fade-in-0 zoom-in-95 overflow-hidden">
+        <div className="absolute z-[999] min-w-[180px] w-max max-w-xs mt-1 bg-popover text-popover-foreground shadow-xl rounded-md border border-border outline-none animate-in fade-in-0 zoom-in-95 overflow-hidden">
           <div className="max-h-60 overflow-y-auto p-1">
             {filteredOptions.map((option, index) => (
               <div

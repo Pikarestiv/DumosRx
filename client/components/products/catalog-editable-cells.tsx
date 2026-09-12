@@ -3,7 +3,7 @@ import { Pencil, Check, X } from "lucide-react";
 import { Product } from "./types";
 import { EditableNumberCell } from "@/components/ui/editable-number-cell";
 import { SearchableInput } from "@/components/ui/searchable-input";
-import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
+import { useUppercaseDisplayClass, capitalizeWords } from "@/lib/hooks/use-uppercase-display";
 
 /** Shared hover/touch affordance for a per-cell quick edit: on a mouse/
  * trackpad device every editable cell's pencil appears together as soon as
@@ -84,7 +84,7 @@ export function EditableCategoryCell({
   if (!canEdit) {
     return (
       <div className="flex items-center">
-        <span className={`text-[11px] font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded-md truncate max-w-[100px] inline-block ${capsClass}`}>
+        <span className={`text-[11px] font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded-md truncate max-w-[140px] inline-block ${capsClass}`}>
           {product.category || "Uncategorized"}
         </span>
       </div>
@@ -111,8 +111,14 @@ export function EditableCategoryCell({
           options={categoryOptions}
           value={value}
           onValueChange={setValue}
-          placeholder={product.category || "Category"}
-          className="h-7 text-[11px]"
+          placeholder={
+            product.category
+              ? capsClass === "uppercase"
+                ? product.category.toUpperCase()
+                : capitalizeWords(product.category)
+              : "Category"
+          }
+          className="h-7 text-[11px] bg-background"
           autoFocus
           onCommitKey={(val) => finish(true, val)}
           onEscapeKey={() => finish(false, value)}
@@ -146,7 +152,7 @@ export function EditableCategoryCell({
         setEditing(true);
       }}
     >
-      <span className={`text-[11px] font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded-md truncate max-w-[80px] inline-block ${capsClass}`}>
+      <span className={`text-[11px] font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded-md truncate max-w-[120px] inline-block ${capsClass}`}>
         {product.category || "Uncategorized"}
       </span>
       <CellEditPencil hasTouchCapability={hasTouchCapability} />

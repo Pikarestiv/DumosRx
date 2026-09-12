@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/context/auth-context";
-import { generateId, execute } from "@/lib/db/core";
+import { generateId, execute, setActiveStoreId } from "@/lib/db/core";
 
 import { getTotalUserCount, getLocalStores } from "@/lib/db/queries/setup";
 import { sync } from "@/lib/db/sync-engine";
@@ -147,6 +147,7 @@ export function useOnboarding() {
         );
 
         localStorage.setItem("dumos_active_store_id", store.id);
+        setActiveStoreId(store.id);
         toast.success(`${storeName} created and linked to your cloud account!`);
 
         const success = await login(username, pin);
@@ -237,6 +238,7 @@ export function useOnboarding() {
           }
 
           localStorage.setItem("dumos_active_store_id", store.id);
+          setActiveStoreId(store.id);
           setStep("syncing");
           startSyncProcess(email);
         } else {
@@ -276,6 +278,7 @@ export function useOnboarding() {
     }
 
     localStorage.setItem("dumos_active_store_id", selectedStoreId);
+    setActiveStoreId(selectedStoreId);
     setStep("syncing");
     startSyncProcess(pendingEmail);
   };
@@ -290,6 +293,7 @@ export function useOnboarding() {
       const targetStoreId = selectedStoreId || (cloudStores.length === 1 ? cloudStores[0].id : "");
       if (targetStoreId) {
         localStorage.setItem("dumos_active_store_id", targetStoreId);
+        setActiveStoreId(targetStoreId);
       }
 
       setStep("syncing");

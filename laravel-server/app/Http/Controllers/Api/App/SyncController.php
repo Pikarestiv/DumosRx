@@ -398,9 +398,21 @@ class SyncController extends Controller
                         }
                     }
 
-                    // Prevent duplicate category name crashes
+                    // Prevent duplicate category name crashes. Scoped to this
+                    // push's own store_id (or NULL, for pre-multi-tenancy
+                    // legacy rows every store can still see) — previously
+                    // unscoped, so a generic name (Cosmetics, Drugs) reused
+                    // by an unrelated store got silently merged into that
+                    // other store's row, and a later rename/delete there
+                    // orphaned this store's products with no action of its
+                    // own. See 2026_09_12_000000_scope_category_uniqueness_to_store.
                     if (!$exists && $change['table_name'] === 'categories' && !empty($payload['name'])) {
-                        $conflict = $modelClass::where('name', $payload['name'])->first();
+                        $conflict = $modelClass::where('name', $payload['name'])
+                            ->where(function ($q) use ($payload) {
+                                $q->where('store_id', $payload['store_id'] ?? null)
+                                  ->orWhereNull('store_id');
+                            })
+                            ->first();
                         if ($conflict) {
                             Log::warning("Sync push skipped category insert due to duplicate name: {$payload['name']}");
                             $exists = true; // Pretend it exists to skip insertion
@@ -409,9 +421,15 @@ class SyncController extends Controller
                         }
                     }
 
-                    // Prevent duplicate supplier name crashes
+                    // Prevent duplicate supplier name crashes. Same store_id
+                    // scoping as categories above, and for the same reason.
                     if (!$exists && $change['table_name'] === 'suppliers' && !empty($payload['name'])) {
-                        $conflict = $modelClass::where('name', $payload['name'])->first();
+                        $conflict = $modelClass::where('name', $payload['name'])
+                            ->where(function ($q) use ($payload) {
+                                $q->where('store_id', $payload['store_id'] ?? null)
+                                  ->orWhereNull('store_id');
+                            })
+                            ->first();
                         if ($conflict) {
                             Log::warning("Sync push skipped supplier insert due to duplicate name: {$payload['name']}");
                             $exists = true; // Pretend it exists to skip insertion

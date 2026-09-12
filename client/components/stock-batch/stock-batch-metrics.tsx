@@ -2,7 +2,7 @@
 
 import { MetricCard } from "@/components/ui/metric-card";
 import {
-  DollarSign,
+  Wallet,
   TrendingDown,
   Calendar,
   Package,
@@ -41,7 +41,7 @@ export function StockBatchMetrics({
           className="min-w-[180px] sm:min-w-0 snap-center shrink-0 border-border"
           title="Total stock value"
           value={formatCurrency(stock_batchValue)}
-          icon={<DollarSign className="h-4 w-4" />}
+          icon={<Wallet className="h-4 w-4" />}
           iconBgClass="bg-blue-50 text-blue-700"
           description={
             momData ? (

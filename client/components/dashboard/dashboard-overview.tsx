@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 
 import { Skeleton } from "@/components/ui/skeleton";
-import { Package, ShoppingCart, TrendingUp, TrendingDown, Receipt } from "lucide-react";
+import { Package, ShoppingCart, TrendingUp, TrendingDown, ClipboardCheck } from "lucide-react";
 import {
   useDashboardOverview,
   type SalesComparison,
@@ -106,7 +106,7 @@ export function DashboardOverview() {
       title: "Orders Today",
       value: String(salesToday[0]?.count || 0),
       comparison: "Completed transactions",
-      icon: Receipt,
+      icon: ClipboardCheck,
       colorScheme: "default" as const,
     },
   ];

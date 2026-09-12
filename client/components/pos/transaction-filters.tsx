@@ -35,9 +35,9 @@ export function TransactionFilters({
         </div>
         <Button
           variant="outline"
-          className="h-12 w-12 rounded-xl bg-card border-border/50 shrink-0"
+          className="h-12 w-12 rounded-xl bg-card border-border/50 shrink-0 group"
         >
-          <Filter className="h-4 w-4 text-muted-foreground" />
+          <Filter className="h-4 w-4 text-muted-foreground group-hover:text-white" />
         </Button>
       </div>
 

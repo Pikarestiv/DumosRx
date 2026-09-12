@@ -311,12 +311,12 @@ function ActionCenterCard({ alert }: { alert: AlertItem }) {
           router.push(alert.actionRoute);
         }
       }}
-      className={`w-full h-[96px] border cursor-pointer hover:shadow-md transition-shadow duration-200 group relative overflow-hidden flex flex-col justify-center ${bgStyles[alert.priority]}`}
+      className={`w-full h-[80px] border cursor-pointer hover:shadow-md transition-shadow duration-200 group relative overflow-hidden flex flex-col justify-center ${bgStyles[alert.priority]}`}
     >
       {/* Decorative gradient overlay */}
       <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-transparent dark:from-black/20 pointer-events-none" />
 
-      <div className="p-3 sm:p-4 relative z-10 flex flex-col h-full justify-center">
+      <div className="px-3 py-2 sm:px-4 sm:py-2.5 relative z-10 flex flex-col h-full justify-center">
         <div className="flex flex-col sm:flex-row items-start gap-2 sm:gap-3">
           <div
             className={`p-2 rounded-xl shrink-0 bg-background/50 shadow-sm backdrop-blur-sm ${bgStyles[alert.priority]}`}

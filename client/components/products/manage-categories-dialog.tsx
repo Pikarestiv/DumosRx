@@ -21,6 +21,7 @@ import {
 import { queryKeys } from "@/lib/query-keys";
 import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { pluralize } from "@/lib/utils";
 
 interface ManageCategoriesDialogProps {
   open: boolean;
@@ -214,7 +215,7 @@ export function ManageCategoriesDialog({
         title="Delete category?"
         description={
           pendingDelete
-            ? `${pendingDelete.productCount} product${pendingDelete.productCount === 1 ? "" : "s"} still use "${pendingDelete.name}". Deleting it won't remove or reassign those products, they'll show as Uncategorized until you give them a new category.`
+            ? `${pendingDelete.productCount} ${pluralize(pendingDelete.productCount, "product")} still use "${pendingDelete.name}". Deleting it won't remove or reassign those products, they'll show as Uncategorized until you give them a new category.`
             : ""
         }
         confirmLabel="Delete anyway"

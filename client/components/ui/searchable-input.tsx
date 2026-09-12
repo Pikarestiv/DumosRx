@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { createPortal } from "react-dom"
 import { cn } from "@/lib/utils"
 import { Input } from "@/components/ui/input"
 
@@ -26,10 +27,10 @@ interface SearchableInputProps extends Omit<React.InputHTMLAttributes<HTMLInputE
 
 export function SearchableInput({ options, value, onValueChange, onEscapeKey, onCommitKey, className, ...props }: SearchableInputProps) {
   const [open, setOpen] = React.useState(false)
-  
+
   // Find the label for the current value if it's an object
   const getLabelForValue = (val: string) => {
-    const option = options.find(opt => 
+    const option = options.find(opt =>
       typeof opt === 'string' ? opt === val : opt.value === val
     );
     if (!option) return val;
@@ -38,7 +39,23 @@ export function SearchableInput({ options, value, onValueChange, onEscapeKey, on
 
   const [inputValue, setInputValue] = React.useState(getLabelForValue(value))
   const containerRef = React.useRef<HTMLDivElement>(null)
+  // The portaled menu (see below) lives outside containerRef's own DOM
+  // subtree, so the click-outside check below needs its own ref to still
+  // recognize a click on an option as "inside" instead of closing the menu
+  // out from under it before the click can land.
+  const menuRef = React.useRef<HTMLDivElement>(null)
   const [activeIndex, setActiveIndex] = React.useState(-1)
+  // Rendered via a portal (see below) instead of a plain absolutely
+  // positioned child, since every caller so far embeds this inside a
+  // scrollable table/list (catalog-list.tsx's `overflow-y-auto` row
+  // container): a CSS-absolute dropdown positioned relative to an ancestor
+  // inside that container gets clipped by the container's own overflow
+  // the moment it would extend past the visible scroll area, no matter how
+  // high its z-index is — z-index can't override an ancestor's clipping.
+  // Portaling to <body> with `position: fixed` coordinates computed from
+  // the input's own bounding rect escapes every ancestor's overflow/stacking
+  // context, the same way Radix's Popover/DropdownMenu do internally.
+  const [menuRect, setMenuRect] = React.useState<{ top?: number; bottom?: number; left: number; width: number } | null>(null)
 
   React.useEffect(() => {
     setInputValue(getLabelForValue(value))
@@ -48,18 +65,50 @@ export function SearchableInput({ options, value, onValueChange, onEscapeKey, on
     setActiveIndex(-1)
   }, [inputValue, open])
 
+  const updateMenuRect = React.useCallback(() => {
+    const el = containerRef.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    // Flip above the input when there isn't roughly enough room below for
+    // the menu (max-h-60 = 240px) — otherwise a row near the bottom of the
+    // viewport (not just the table's own scroll area) pushes the menu
+    // straight off the bottom of the screen.
+    const spaceBelow = window.innerHeight - rect.bottom
+    if (spaceBelow < 250) {
+      setMenuRect({ bottom: window.innerHeight - rect.top + 4, left: rect.left, width: rect.width })
+    } else {
+      setMenuRect({ top: rect.bottom + 4, left: rect.left, width: rect.width })
+    }
+  }, [])
+
+  React.useEffect(() => {
+    if (!open) return
+    updateMenuRect()
+    // The table this lives in scrolls its own container, not the window, so
+    // `scroll` needs the capture phase to see it (scroll events don't
+    // bubble) — recompute the menu's position on every scroll/resize while
+    // open rather than leaving it stranded over the old spot.
+    window.addEventListener("scroll", updateMenuRect, true)
+    window.addEventListener("resize", updateMenuRect)
+    return () => {
+      window.removeEventListener("scroll", updateMenuRect, true)
+      window.removeEventListener("resize", updateMenuRect)
+    }
+  }, [open, updateMenuRect])
+
   // Handle clicks outside to close the menu
   React.useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setOpen(false)
-      }
+      const target = event.target as Node
+      if (containerRef.current?.contains(target)) return
+      if (menuRef.current?.contains(target)) return
+      setOpen(false)
     }
     document.addEventListener("mousedown", handleClickOutside)
     return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [])
 
-  const normalizedOptions: SearchOption[] = options.map(opt => 
+  const normalizedOptions: SearchOption[] = options.map(opt =>
     typeof opt === 'string' ? { label: opt, value: opt } : opt
   );
 
@@ -67,6 +116,8 @@ export function SearchableInput({ options, value, onValueChange, onEscapeKey, on
     option.label.toLowerCase().includes(inputValue.toLowerCase()) ||
     option.value.toLowerCase().includes(inputValue.toLowerCase())
   )
+
+  const showMenu = open && filteredOptions.length > 0 && menuRect
 
   return (
     <div className="relative w-full" ref={containerRef}>
@@ -110,12 +161,22 @@ export function SearchableInput({ options, value, onValueChange, onEscapeKey, on
         }}
         className={cn("w-full", className)}
       />
-      {open && filteredOptions.length > 0 && (
-        <div className="absolute z-[999] min-w-[180px] w-max max-w-xs mt-1 bg-popover text-popover-foreground shadow-xl rounded-md border border-border outline-none animate-in fade-in-0 zoom-in-95 overflow-hidden">
+      {showMenu && typeof document !== "undefined" && createPortal(
+        <div
+          ref={menuRef}
+          className="fixed z-[999] min-w-[180px] w-max max-w-xs bg-popover text-popover-foreground shadow-xl rounded-md border border-border outline-none animate-in fade-in-0 zoom-in-95 overflow-hidden"
+          style={{
+            top: menuRect.top,
+            bottom: menuRect.bottom,
+            left: menuRect.left,
+            minWidth: menuRect.width,
+          }}
+        >
           <div className="max-h-60 overflow-y-auto p-1">
             {filteredOptions.map((option, index) => (
               <div
                 key={`${option.value}-${index}`}
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={() => {
                   setInputValue(option.label)
                   onValueChange(option.value)
@@ -131,7 +192,8 @@ export function SearchableInput({ options, value, onValueChange, onEscapeKey, on
               </div>
             ))}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )

@@ -175,6 +175,9 @@ export function ProductDatabase() {
       reorderLevel: (p: Product) => p.reorderLevel,
     });
 
+  const isFiltering =
+    searchTerm.trim() !== "" || categoryFilter !== "all" || statusFilter !== "all";
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-NG", {
       style: "currency",
@@ -230,6 +233,7 @@ export function ProductDatabase() {
             statuses={statuses}
             onManageCategories={() => setShowManageCategories(true)}
             onProductsImported={refetch}
+            filteredProductIds={isFiltering ? filteredProducts.map((p) => p.id) : undefined}
           />
           <CatalogList
             isLoading={productsLoading}

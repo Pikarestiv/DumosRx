@@ -18,8 +18,18 @@ export interface ExportableProduct {
  * one supplier — acceptable for an export snapshot; batch-level supplier
  * detail is already visible in Batch Management.
  */
-export async function getProductsForExport(): Promise<ExportableProduct[]> {
+export async function getProductsForExport(
+  productIds?: string[],
+): Promise<ExportableProduct[]> {
   const storeId = getActiveStoreId();
+
+  // Exports whatever the catalog table is currently showing (search/category/
+  // status filters applied) rather than always the whole store — callers pass
+  // the filtered id list when a filter is active, undefined otherwise.
+  const idFilter =
+    productIds && productIds.length > 0
+      ? ` AND p.id IN (${productIds.map(() => "?").join(",")})`
+      : "";
 
   // CSV/XLS is plain text — there's no CSS layer to uppercase it at render
   // time the way the in-app UI does, so the store's uppercase-display
@@ -51,10 +61,10 @@ export async function getProductsForExport(): Promise<ExportableProduct[]> {
      LEFT JOIN categories c ON c.id = p.category_id
      LEFT JOIN stock_batches sb2 ON sb2.product_id = p.id AND sb2._deleted = 0 AND sb2.is_active = 1
      LEFT JOIN suppliers s ON s.id = sb2.supplier_id
-     WHERE p._deleted = 0${storeId ? " AND p.store_id = ?" : ""}
+     WHERE p._deleted = 0${storeId ? " AND p.store_id = ?" : ""}${idFilter}
      GROUP BY p.id
      ORDER BY p.name ASC`,
-    storeId ? [storeId] : [],
+    [...(storeId ? [storeId] : []), ...(productIds ?? [])],
   );
 
   const cased = (s: string) => (uppercaseNames ? s.toUpperCase() : capitalizeWords(s));

@@ -44,7 +44,7 @@ describe("importProductRows", () => {
       },
     ]);
 
-    expect(result).toEqual({ created: 1, updated: 0, skipped: [] });
+    expect(result).toEqual({ created: 1, updated: 0, skipped: [], stockAdjusted: 0 });
 
     const products = db.exec(
       `SELECT p.name, p.selling_price, p.barcode, c.name as category_name
@@ -78,7 +78,7 @@ describe("importProductRows", () => {
       { name: "CYPRI GOLD SMALL SYRUP", sellingPrice: 1000, quantity: 3, barcode: "114" },
     ]);
 
-    expect(result).toEqual({ created: 0, updated: 1, skipped: [] });
+    expect(result).toEqual({ created: 0, updated: 1, skipped: [], stockAdjusted: 0 });
 
     const products = db.exec(`SELECT name, selling_price FROM products WHERE id = 'p1'`);
     expect(products[0].values[0]).toEqual(["cypri gold small syrup", 1000]);
@@ -112,7 +112,51 @@ describe("importProductRows", () => {
       created: 0,
       updated: 0,
       skipped: [{ row: 0, reason: "Missing product name" }],
+      stockAdjusted: 0,
     });
+  });
+
+  it("updateStockForMatched: leaves matched products' stock alone by default, adjusts it when opted in", async () => {
+    db.run(
+      `INSERT INTO products (id, name, barcode, selling_price, _deleted) VALUES ('p1', 'OLD NAME', '114', 500, 0)`,
+    );
+    // Starts at 0 stock, matching the "created earlier with no opening
+    // stock" case this option exists to fix.
+
+    const defaultRun = await importProductRows([
+      { name: "CYPRI GOLD SMALL SYRUP", quantity: 25, barcode: "114" },
+    ]);
+    expect(defaultRun).toEqual({ created: 0, updated: 1, skipped: [], stockAdjusted: 0 });
+    let batchCount = db.exec(`SELECT COUNT(*) FROM stock_batches WHERE product_id = 'p1'`);
+    expect(batchCount[0].values[0][0]).toBe(0);
+
+    const optedInRun = await importProductRows(
+      [{ name: "CYPRI GOLD SMALL SYRUP", quantity: 25, barcode: "114" }],
+      undefined,
+      { updateStockForMatched: true, performedBy: "u1" },
+    );
+    expect(optedInRun).toEqual({ created: 0, updated: 1, skipped: [], stockAdjusted: 1 });
+
+    const totalQty = db.exec(
+      `SELECT SUM(quantity) FROM stock_batches WHERE product_id = 'p1' AND _deleted = 0 AND is_active = 1`,
+    );
+    expect(totalQty[0].values[0][0]).toBe(25);
+
+    const audits = db.exec(
+      `SELECT expected_quantity, actual_quantity, user_id, notes FROM stock_audits WHERE product_id = 'p1'`,
+    );
+    expect(audits[0].values[0]).toEqual([0, 25, "u1", "Bulk import stock update"]);
+
+    // Re-running the same import again with an unchanged count shouldn't
+    // report a phantom adjustment.
+    batchCount = db.exec(`SELECT COUNT(*) FROM stock_batches WHERE product_id = 'p1' AND is_active = 1 AND _deleted = 0`);
+    expect(batchCount[0].values[0][0]).toBe(1);
+    const noopRun = await importProductRows(
+      [{ name: "CYPRI GOLD SMALL SYRUP", quantity: 25, barcode: "114" }],
+      undefined,
+      { updateStockForMatched: true },
+    );
+    expect(noopRun.stockAdjusted).toBe(0);
   });
 
   it("reports progress after every row and finishes at completed === total", async () => {

@@ -6,7 +6,10 @@ import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
 import { Progress } from "@/components/ui/progress";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { Upload, AlertTriangle } from "lucide-react";
+import { useAuth } from "@/lib/context/auth-context";
 import type { WorkBook } from "xlsx";
 import {
   readWorkbookFile,
@@ -52,6 +55,8 @@ export function ImportMappingDialog({
   const [mapping, setMapping] = useState<ColumnMapping>({});
   const [progress, setProgress] = useState({ completed: 0, total: 0 });
   const [result, setResult] = useState<ImportResult | null>(null);
+  const [updateStockForMatched, setUpdateStockForMatched] = useState(false);
+  const { user } = useAuth();
 
   const reset = () => {
     setStep("pick-file");
@@ -61,6 +66,7 @@ export function ImportMappingDialog({
     setMapping({});
     setProgress({ completed: 0, total: 0 });
     setResult(null);
+    setUpdateStockForMatched(false);
   };
 
   const handleOpenChange = (next: boolean) => {
@@ -109,6 +115,7 @@ export function ImportMappingDialog({
         (completed, total) => {
           setProgress({ completed, total });
         },
+        { updateStockForMatched, performedBy: user?.id ?? null },
       );
       setResult(importResult);
       setStep("result");
@@ -203,6 +210,27 @@ export function ImportMappingDialog({
               {rows.length} row(s) will be imported; rows without a mapped
               Product Name are skipped.
             </p>
+            <div className="flex items-start gap-2 rounded-md border border-border p-3">
+              <Checkbox
+                id="update-stock-for-matched"
+                checked={updateStockForMatched}
+                onCheckedChange={(checked) => setUpdateStockForMatched(checked === true)}
+                className="mt-0.5"
+              />
+              <div className="grid gap-1">
+                <Label htmlFor="update-stock-for-matched" className="text-sm font-medium cursor-pointer">
+                  Also update stock for existing products
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Off by default: a product already in your catalog only has its
+                  name/price/category updated, never its stock (so re-importing
+                  the same file twice can&apos;t double-count quantity). Turn
+                  this on if this file has current stock counts you want
+                  applied — recorded as a proper stock adjustment, visible in
+                  Stock Movements.
+                </p>
+              </div>
+            </div>
             <div className="flex justify-end gap-2">
               <Button
                 variant="outline"
@@ -241,7 +269,13 @@ export function ImportMappingDialog({
             <p className="text-sm">
               <strong>{result.created}</strong> product(s) created,{" "}
               <strong>{result.updated}</strong> updated,{" "}
-              <strong>{result.skipped.length}</strong> skipped.
+              <strong>{result.skipped.length}</strong> skipped
+              {updateStockForMatched && (
+                <>
+                  , <strong>{result.stockAdjusted}</strong> stock count(s) adjusted
+                </>
+              )}
+              .
             </p>
             {result.skipped.length > 0 && (
               <div className="flex flex-col gap-1 max-h-40 overflow-y-auto text-xs text-muted-foreground">

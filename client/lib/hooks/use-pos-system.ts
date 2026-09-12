@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
@@ -28,6 +28,16 @@ import type { SaleWithDetails } from "@/lib/types/sale";
 export function usePOSSystem() {
   const { t, storeProfile, vatPercentage } = useStore();
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Focuses the header search on arrival at POS — it's easy to miss at a
+  // glance since it sits in the header rather than the product grid, and
+  // this is the input staff will use for almost every sale. A no-op on
+  // mobile, where this same input is hidden (`hidden sm:flex` in
+  // pos-layout-header.tsx) in favor of pos-mobile-search.tsx — focusing a
+  // display:none input doesn't pop the on-screen keyboard.
+  useEffect(() => {
+    searchInputRef.current?.focus();
+  }, []);
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();

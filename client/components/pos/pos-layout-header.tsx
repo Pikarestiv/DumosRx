@@ -45,6 +45,14 @@ export function POSLayoutHeader({
   const searchParams = useSearchParams();
   const isFullscreen = usePosFullscreenStore((s) => s.isFullscreen);
   const setFullscreen = usePosFullscreenStore((s) => s.setFullscreen);
+  // A couple of pulses on arrival, then stops — a persistent glow would be
+  // more annoying than helpful once the point's been made.
+  const [showSearchGlow, setShowSearchGlow] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setShowSearchGlow(false), 2600);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     if (searchParams?.get("action") === "scan") {
@@ -103,7 +111,10 @@ export function POSLayoutHeader({
               value={searchTerm}
               onChange={(e) => onSearchChange(e.target.value)}
               onKeyDown={onKeyDown}
-              className="h-10 pl-10 pr-10 bg-muted/30 border-border/50 hover:border-border focus:border-primary focus:ring-1 focus:ring-primary rounded-xl text-sm transition-all w-full"
+              className={cn(
+                "h-10 pl-10 pr-10 bg-muted/30 border-border/50 hover:border-border focus:border-primary focus:ring-1 focus:ring-primary rounded-xl text-sm transition-all w-full",
+                showSearchGlow && "animate-glow-pulse",
+              )}
             />
             {searchTerm && (
               <button

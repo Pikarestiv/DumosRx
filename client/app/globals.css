@@ -330,6 +330,23 @@ header .group:hover svg,
   animation: scan-line 2.2s ease-in-out infinite;
 }
 
+/* Draws the eye to the POS header search input on first load — it sits in
+   the header, easy to miss at a glance, so a brief glowing ring calls
+   attention to it without being a persistent/annoying distraction (see
+   pos-layout-header.tsx, which removes the class after ~2 pulses). */
+@keyframes glow-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in oklch, var(--primary) 45%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 6px color-mix(in oklch, var(--primary) 0%, transparent);
+  }
+}
+.animate-glow-pulse {
+  animation: glow-pulse 1.2s ease-in-out 2;
+}
+
 @layer utilities {
   .hide-scrollbar {
     -ms-overflow-style: none; /* IE and Edge */

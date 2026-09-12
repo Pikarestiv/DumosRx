@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { ArrowLeft, Info } from "lucide-react";
+import { ArrowLeft, HelpCircle, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -78,7 +78,7 @@ const ReceiveItemCard = React.memo(
               <TooltipProvider delayDuration={0}>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Info className="w-3 h-3 opacity-50 cursor-pointer" />
+                    <HelpCircle className="w-3 h-3 opacity-50 cursor-pointer" />
                   </TooltipTrigger>
                   <TooltipContent>
                     <p>

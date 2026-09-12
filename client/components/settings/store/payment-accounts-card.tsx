@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Trash2, Edit2, Loader2, CreditCard, Smartphone, Banknote, Info } from "lucide-react";
+import { Plus, Trash2, Edit2, Loader2, CreditCard, Smartphone, Banknote, HelpCircle } from "lucide-react";
 import { useStore } from "@/lib/context/store-context";
 import { useAuth } from "@/lib/context/auth-context";
 import { Button } from "@/components/ui/button";
@@ -141,7 +141,7 @@ export function PaymentAccountsCard() {
             <TooltipProvider delayDuration={0}>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Info className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
+                  <HelpCircle className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>The bank accounts, POS terminals, and mobile money wallets cashiers can pick as the destination for Transfer and Card payments.</p>

@@ -12,6 +12,14 @@ interface PageRoute {
   action?: PageAction;
   /** Action only shown to roles with stock-management access (admin/manager/specialist/store_owner). */
   actionAdminOnly?: boolean;
+  /** An outline button shown before the primary action, desktop only (see
+   * DashboardHeader) — for a page's other common action that isn't worth a
+   * full second row of its own (e.g. Inventory's "Start Audit" next to "Add
+   * Product"). `path` can point anywhere the target page already knows how
+   * to react to (a query param like `action`, or — as Start Audit does — a
+   * dedicated route the page's own effect already redirects out of). */
+  secondaryAction?: PageAction;
+  secondaryActionAdminOnly?: boolean;
 }
 
 /** Drives DashboardHeader's title/description/action button per route.
@@ -30,6 +38,8 @@ export const PAGE_ROUTES: PageRoute[] = [
     desc: "Manage your pharmacy's core product database and pricing.",
     action: { label: "Add Product", path: "/inventory/catalog?action=add" },
     actionAdminOnly: true,
+    secondaryAction: { label: "Start Audit", path: "/inventory/audits" },
+    secondaryActionAdminOnly: true,
   },
   {
     path: "/inventory/batches",
@@ -37,6 +47,8 @@ export const PAGE_ROUTES: PageRoute[] = [
     desc: "Manage inventory intake, expiration dates, and physical stock.",
     action: { label: "Add Batch", path: "/inventory/batches?action=add" },
     actionAdminOnly: true,
+    secondaryAction: { label: "Start Audit", path: "/inventory/audits" },
+    secondaryActionAdminOnly: true,
   },
   {
     path: "/inventory/overview",
@@ -44,6 +56,8 @@ export const PAGE_ROUTES: PageRoute[] = [
     desc: "Overview of your inventory health and metrics.",
     action: { label: "Add Product", path: "/inventory/catalog?action=add" },
     actionAdminOnly: true,
+    secondaryAction: { label: "Start Audit", path: "/inventory/audits" },
+    secondaryActionAdminOnly: true,
   },
   {
     path: "/inventory/ledger",
@@ -51,11 +65,17 @@ export const PAGE_ROUTES: PageRoute[] = [
     desc: "Full audit trail of every stock movement: sales, receipts, and adjustments.",
     action: { label: "Add Product", path: "/inventory/catalog?action=add" },
     actionAdminOnly: true,
+    secondaryAction: { label: "Start Audit", path: "/inventory/audits" },
+    secondaryActionAdminOnly: true,
   },
   {
     path: "/inventory",
     title: "Inventory Dashboard",
     desc: "Overview of your inventory health and metrics.",
+    action: { label: "Add Product", path: "/inventory/catalog?action=add" },
+    actionAdminOnly: true,
+    secondaryAction: { label: "Start Audit", path: "/inventory/audits" },
+    secondaryActionAdminOnly: true,
   },
   {
     path: "/customers",
@@ -72,7 +92,7 @@ export const PAGE_ROUTES: PageRoute[] = [
     path: "/prescriptions",
     title: "Prescription Management",
     desc: "Track and fulfill patient prescriptions securely.",
-    action: { label: "Create Prescription", path: "/prescriptions?action=add" },
+    action: { label: "New Prescription", path: "/prescriptions?action=add" },
   },
   {
     path: "/procurement/vendors",
@@ -135,7 +155,9 @@ export function getPageRoute(pathname: string) {
 export function getPageInfo(pathname: string): PageRoute | null {
   if (pathname === "/" || pathname === "/dashboard") return null;
 
-  return getPageRoute(pathname) || { path: pathname, title: APP_NAME, desc: "" };
+  return (
+    getPageRoute(pathname) || { path: pathname, title: APP_NAME, desc: "" }
+  );
 }
 
 /** Resolves the header's "+ Add X" action for the current route, honoring
@@ -151,4 +173,21 @@ export function resolveHeaderAction(
   if (!matchedRoute?.action) return null;
   if (matchedRoute.actionAdminOnly && !canManageStockBatch) return null;
   return matchedRoute.action;
+}
+
+/** Same resolution as resolveHeaderAction, for the outline button shown
+ * before it (desktop only — see DashboardHeader). `hasAccess` is whatever
+ * role check the specific secondaryAction actually needs (not necessarily
+ * canManageStockBatch — Start Audit, for instance, gates on isAdmin). */
+export function resolveSecondaryHeaderAction(
+  pathname: string,
+  pageInfo: PageRoute | null,
+  hasAccess: boolean,
+): PageAction | null {
+  const matchedRoute = pageInfo?.secondaryAction
+    ? pageInfo
+    : getPageRoute(pathname);
+  if (!matchedRoute?.secondaryAction) return null;
+  if (matchedRoute.secondaryActionAdminOnly && !hasAccess) return null;
+  return matchedRoute.secondaryAction;
 }

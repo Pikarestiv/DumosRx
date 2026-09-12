@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/context/auth-context";
 import { useStore } from "@/lib/context/store-context";
 import { formatHeaderDate } from "@/lib/utils/date-utils";
-import { getPageInfo, resolveHeaderAction } from "@/lib/constants/dashboard-page-routes";
+import { getPageInfo, resolveHeaderAction, resolveSecondaryHeaderAction } from "@/lib/constants/dashboard-page-routes";
 import { SyncIndicator } from "./sync-indicator";
 import { NotificationBell } from "./notification-bell";
 import { UserNav } from "./user-nav";
@@ -20,11 +20,15 @@ interface DashboardHeaderProps {
 
 export function DashboardHeader({ onOpenFeedback }: DashboardHeaderProps) {
   const pathname = usePathname() || "/";
-  const { user, canManageStockBatch } = useAuth();
+  const { user, canManageStockBatch, isAdmin } = useAuth();
   const { storeProfile, availableStores, activeStoreId, switchStore } = useStore();
 
   const pageInfo = getPageInfo(pathname);
   const action = resolveHeaderAction(pathname, pageInfo, canManageStockBatch);
+  // Start Audit was gated on isAdmin (not canManageStockBatch, which also
+  // covers the "specialist" role) before it moved into the shared header —
+  // passing isAdmin here keeps that exact gate rather than widening it.
+  const secondaryAction = resolveSecondaryHeaderAction(pathname, pageInfo, isAdmin);
   const isSettingsRoute = pathname.startsWith("/settings");
 
   return (
@@ -56,7 +60,10 @@ export function DashboardHeader({ onOpenFeedback }: DashboardHeaderProps) {
             {isSettingsRoute ? (
               <UserProfileBadge />
             ) : (
-              action && <HeaderActionButton action={action} />
+              <>
+                {secondaryAction && <HeaderActionButton action={secondaryAction} variant="outline" />}
+                {action && <HeaderActionButton action={action} />}
+              </>
             )}
           </div>
 

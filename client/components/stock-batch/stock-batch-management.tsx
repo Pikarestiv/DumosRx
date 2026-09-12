@@ -36,8 +36,13 @@ export function StockBatchManagement({
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <StockBatchTabNav canManageStockBatch={canManageStockBatch} />
 
+          {/* Desktop: shown as the header's secondary action (see
+           * dashboard-page-routes.ts's inventory routes). Mobile keeps its
+           * own button here since the header's secondary action is
+           * desktop-only. */}
           {isAdmin && (
             <Button
+              className="md:hidden"
               onClick={() => setIsAuditing(true)}
             >
               Start Audit

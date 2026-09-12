@@ -12,7 +12,7 @@ import {
   InputOTPGroup,
   InputOTPSlot,
 } from "@/components/ui/input-otp";
-import { Info } from "lucide-react";
+import { HelpCircle } from "lucide-react";
 import { STAFF_ROLES } from "@/lib/constants/roles";
 import type { StoreProfile } from "@/lib/context/store-context";
 import {
@@ -154,7 +154,7 @@ export function StaffFormFields({
           <TooltipProvider delayDuration={0}>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Info className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
+                <HelpCircle className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
               </TooltipTrigger>
               <TooltipContent>
                 <p>

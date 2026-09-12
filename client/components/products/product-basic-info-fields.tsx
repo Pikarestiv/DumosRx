@@ -3,7 +3,7 @@ import { Label } from "@/components/ui/label";
 import { SearchableInput } from "@/components/ui/searchable-input";
 import { ProductCombobox } from "@/components/ui/product-combobox";
 import { Button } from "@/components/ui/button";
-import { ScanLine, Info } from "lucide-react";
+import { ScanLine, HelpCircle } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -78,7 +78,7 @@ export function ProductBasicInfoFields({
               <TooltipProvider>
                 <Tooltip delayDuration={300}>
                   <TooltipTrigger asChild>
-                    <Info className="w-3 h-3 opacity-50 cursor-help" />
+                    <HelpCircle className="w-3 h-3 opacity-50 cursor-help" />
                   </TooltipTrigger>
                   <TooltipContent>
                     <p>
@@ -151,7 +151,7 @@ export function ProductBasicInfoFields({
             <TooltipProvider>
               <Tooltip delayDuration={300}>
                 <TooltipTrigger asChild>
-                  <Info className="w-3 h-3 opacity-50 cursor-help" />
+                  <HelpCircle className="w-3 h-3 opacity-50 cursor-help" />
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>

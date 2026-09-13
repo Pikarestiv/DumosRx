@@ -45,14 +45,16 @@ export function POSLayoutHeader({
   const searchParams = useSearchParams();
   const isFullscreen = usePosFullscreenStore((s) => s.isFullscreen);
   const setFullscreen = usePosFullscreenStore((s) => s.setFullscreen);
-  // A couple of pulses on arrival, then stops — a persistent glow would be
-  // more annoying than helpful once the point's been made.
-  const [showSearchGlow, setShowSearchGlow] = useState(true);
-
+  // Pulses until the user types something for the first time this visit —
+  // the point's made the moment they engage with it. Tracked separately
+  // from searchTerm itself so clearing a search later in the session
+  // (typed something, cleared it, about to search again) doesn't bring the
+  // pulse back.
+  const [hasTypedInSearch, setHasTypedInSearch] = useState(false);
   useEffect(() => {
-    const timer = setTimeout(() => setShowSearchGlow(false), 2600);
-    return () => clearTimeout(timer);
-  }, []);
+    if (searchTerm !== "") setHasTypedInSearch(true);
+  }, [searchTerm]);
+  const showSearchGlow = !hasTypedInSearch;
 
   useEffect(() => {
     if (searchParams?.get("action") === "scan") {

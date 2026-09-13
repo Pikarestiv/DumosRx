@@ -90,7 +90,7 @@ function POSProductCard({
 
   return (
     <div
-      className={`relative p-2 sm:p-3 border rounded-xl sm:rounded-2xl cursor-pointer transition-all duration-200 shadow-[0_1px_3px_rgba(0,0,0,0.02)] flex flex-col ${cardStyle} ${isOutOfStock ? "opacity-60 grayscale-[0.5]" : ""}`}
+      className={`relative p-2 sm:p-3 border rounded-xl sm:rounded-2xl transition-all duration-200 shadow-[0_1px_3px_rgba(0,0,0,0.02)] flex flex-col ${cardStyle} ${isOutOfStock ? "opacity-60 grayscale-[0.5] cursor-not-allowed" : "cursor-pointer"}`}
       onClick={() => addToCart(product)}
     >
       {indicator}

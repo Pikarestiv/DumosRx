@@ -45,11 +45,11 @@ const quickActionsConfig: QuickAction[] = [
     icon: Barcode,
     href: "/pos?action=scan",
   },
-  {
-    label: "View Customers",
-    icon: Users,
-    href: "/customers",
-  },
+  // {
+  //   label: "View Customers",
+  //   icon: Users,
+  //   href: "/customers",
+  // },
   {
     label: "View Reports",
     icon: BarChart3,

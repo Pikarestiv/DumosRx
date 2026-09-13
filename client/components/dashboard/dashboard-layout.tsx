@@ -208,7 +208,14 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
     : undefined;
 
   return (
-    <div className="min-h-screen bg-background relative">
+    // h-dvh, not min-h-screen: the actual scroll-containment fix is the
+    // `flex flex-col` added to the scrollRef div below, but min-h-screen is
+    // still the wrong tool for a shell root that should never need to grow
+    // past the viewport in the first place (a min-height is a floor, not a
+    // cap) — h-dvh matches the "Main content" column's own explicit
+    // height: 100dvh a few levels down, and tracks mobile browser chrome
+    // collapsing/expanding, unlike the static h-screen/100vh.
+    <div className="h-dvh bg-background relative">
       {isLocked && (
         <div
           // z-[9000], not higher than TauriTitleBar's z-[9999], otherwise
@@ -328,11 +335,20 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
           )}
         </div>
 
-        {/* Page content: scrolls internally */}
+        {/* Page content: scrolls internally. Needs `flex flex-col` itself —
+            not just on <main> below — because flex properties (flex-1,
+            min-h-0) only do anything on an element sitting inside a flex
+            *parent*; without this, <main>'s flex-1/min-h-0 has no container
+            to size against, so it (and everything under it, e.g. a page's
+            own internal-scroll table) grows to its natural content height
+            instead of being capped to the space actually available here,
+            and this div's own overflow-y-auto ends up scrolling that whole
+            oversized block instead of just being the outer fallback it's
+            meant to be. */}
         <div
           ref={scrollRef}
           className={cn(
-            "flex-1 relative overflow-x-clip",
+            "flex-1 relative overflow-x-clip flex flex-col",
             shouldAnimate && "overflow-y-auto",
           )}
         >

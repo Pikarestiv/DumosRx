@@ -187,8 +187,8 @@ export function ProductDatabase() {
   };
 
   return (
-    <div className="flex flex-col lg:flex-1 lg:min-h-0 lg:h-full gap-4">
-      <div className="flex flex-col min-h-0 gap-3 lg:gap-0 lg:h-full flex-1">
+    <div className="flex flex-col flex-1 min-h-0 h-full gap-4">
+      <div className="flex flex-col min-h-0 gap-3 lg:gap-0 h-full flex-1">
         {/* Mobile: search bar + filter pills stand alone above the card, contrasting with the page background */}
         <div className="lg:hidden space-y-3">
           <SearchInput
@@ -221,7 +221,7 @@ export function ProductDatabase() {
           </div>
         </div>
 
-        <div className="border-0 sm:border sm:border-border bg-transparent sm:bg-card rounded-none sm:rounded-2xl flex flex-col min-h-0 lg:flex-1">
+        <div className="border-0 sm:border sm:border-border bg-transparent sm:bg-card rounded-none sm:rounded-2xl flex flex-col flex-1 min-h-[360px] lg:max-h-[75vh]">
           <ProductDatabaseFilters
             searchTerm={searchTerm}
             setSearchTerm={setSearchTerm}

@@ -49,6 +49,41 @@ const DIRECTION_ANIMATION: Record<string, string> = {
   right: "slide-in-from-left-8",
 };
 
+type MainLayoutKind = "pos" | "settings" | "createPO" | "default";
+
+// One entry per distinct <main> treatment, keyed by the same route
+// partition used everywhere else in this file (isPosRoute/isSettingsRoute/
+// isCreatePORoute). Keeping className+style paired per kind (instead of two
+// separate ternary chains that happen to agree) makes it structurally
+// impossible for one to get a route's case updated without the other.
+const MAIN_LAYOUT_STYLES: Record<
+  MainLayoutKind,
+  { className: string; style?: React.CSSProperties }
+> = {
+  // POS and the mobile full-screen takeovers (create PO, settings inner
+  // tabs) manage their own padding/back-header, so <main> stays unpadded for
+  // them below their own "desktop" breakpoint; everywhere else gets the
+  // standard page gutter. Each takeover's restore breakpoint must match the
+  // breakpoint that page itself uses to switch to its desktop layout:
+  // create-PO uses lg: (see procurement/new/page.tsx), settings inner tabs
+  // use md: (see hooks/use-settings.ts's isDesktop, which flips at 768px).
+  // Using the wrong one here left settings content unpadded between 768-1023px.
+  pos: { className: "" },
+  settings: { className: "" },
+  createPO: { className: "p-0 lg:p-6 lg:pt-3" },
+  default: {
+    className: "p-4 sm:p-6 sm:pt-3",
+    // Clears MobileBottomNav (h-16 = 4rem tall, plus its own safe-area
+    // inset) on every route that renders it — i.e. every kind but the three
+    // above, which don't show the bottom nav at all. Must stay >= 4rem or
+    // the last slice of page content ends up hidden behind the bar.
+    style: {
+      paddingBottom:
+        "calc(3.5rem + var(--tauri-bottom, env(safe-area-inset-bottom, 0px)))",
+    },
+  },
+};
+
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   return (
     <PullToRefreshProvider>
@@ -162,32 +197,17 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
     }
   }, [user, router]);
 
-  // POS and the mobile full-screen takeovers (create PO, settings inner
-  // tabs) manage their own padding/back-header, so <main> stays unpadded for
-  // them below their own "desktop" breakpoint; everywhere else gets the
-  // standard page gutter. Each takeover's restore breakpoint must match the
-  // breakpoint that page itself uses to switch to its desktop layout:
-  // create-PO uses lg: (see procurement/new/page.tsx), settings inner tabs
-  // use md: (see hooks/use-settings.ts's isDesktop, which flips at 768px).
-  // Using the wrong one here left settings content unpadded between 768-1023px.
-  const mainClassName =
-    isPosRoute || isSettingsRoute
-      ? ""
+  const mainLayoutKind: MainLayoutKind = isPosRoute
+    ? "pos"
+    : isSettingsRoute
+      ? "settings"
       : isCreatePORoute
-        ? "p-0 lg:p-6 lg:pt-3"
-        : "p-4 sm:p-6 sm:pt-3";
-  // Bottom-nav clearance isn't needed for POS (no bottom nav there), the
-  // create-PO takeover (its own fixed footer/drawer instead), or settings
-  // (no bottom nav on that route either).
-  const mainStyle =
-    !isPosRoute && !isCreatePORoute && !isSettingsRoute
-      ? {
-          paddingBottom:
-            "calc(5.5rem + var(--tauri-bottom, env(safe-area-inset-bottom, 0px)))",
-        }
-      : undefined;
+        ? "createPO"
+        : "default";
+  const { className: mainClassName, style: mainStyle } =
+    MAIN_LAYOUT_STYLES[mainLayoutKind];
 
-  const shouldAnimate = !isPosRoute && !isCreatePORoute && !isSettingsRoute;
+  const shouldAnimate = mainLayoutKind === "default";
 
   const getRegisteredHandler = usePullToRefreshDispatcher();
   const { scrollRef, pullDistance, isRefreshing, threshold } =
@@ -273,14 +293,17 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
           logicalCollapsed={isLogicallyCollapsed}
           onToggleCollapse={handleToggleCollapse}
           onMouseEnter={() =>
-            !isPosRoute && !isTouchDevice && peekEnabled && setHoverExpanded(true)
+            !isPosRoute &&
+            !isTouchDevice &&
+            peekEnabled &&
+            setHoverExpanded(true)
           }
           onMouseLeave={() => setHoverExpanded(false)}
           onUserNavOpenChange={setUserNavOpen}
         />
       )}
 
-      {!isPosRoute && !isCreatePORoute && !isSettingsRoute && (
+      {mainLayoutKind === "default" && (
         <MobileBottomNav
           onOpenFeedback={() => setFeedbackOpen(true)}
           moreDrawerOpen={moreDrawerOpen}
@@ -309,9 +332,7 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
           // different shade) paints all the way up under the status bar,
           // avoiding a seam.
           paddingTop:
-            isPosRoute || isSettingsRoute
-              ? "var(--tauri-top, 0px)"
-              : undefined,
+            isPosRoute || isSettingsRoute ? "var(--tauri-top, 0px)" : undefined,
         }}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}

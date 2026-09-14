@@ -221,7 +221,16 @@ export function ProductDatabase() {
           </div>
         </div>
 
-        <div className="border-0 sm:border sm:border-border bg-transparent sm:bg-card rounded-none sm:rounded-2xl flex flex-col flex-1 min-h-[360px] lg:max-h-[75vh]">
+        {/* flex-1 already fills exactly the space left after the tabs/header
+            above (verified live) — min-h-[360px] is the only bound that
+            should normally bind, keeping the table usable on a short
+            window. max-h is a fixed px edge-case rail against an absurdly
+            tall/ultrawide monitor, not a percentage of viewport height: a
+            vh-based cap (e.g. 75vh) is *always* less than the true
+            remaining space once the header/tabs are subtracted, so it was
+            binding on every normal screen and undoing the fill instead of
+            only guarding the extreme case. */}
+        <div className="border-0 sm:border sm:border-border bg-transparent sm:bg-card rounded-none sm:rounded-2xl flex flex-col flex-1 min-h-[360px] lg:max-h-[900px]">
           <ProductDatabaseFilters
             searchTerm={searchTerm}
             setSearchTerm={setSearchTerm}

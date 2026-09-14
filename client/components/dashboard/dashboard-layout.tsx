@@ -197,13 +197,10 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
     }
   }, [user, router]);
 
-  const mainLayoutKind: MainLayoutKind = isPosRoute
-    ? "pos"
-    : isSettingsRoute
-      ? "settings"
-      : isCreatePORoute
-        ? "createPO"
-        : "default";
+  let mainLayoutKind: MainLayoutKind = "default";
+  if (isPosRoute) mainLayoutKind = "pos";
+  else if (isSettingsRoute) mainLayoutKind = "settings";
+  else if (isCreatePORoute) mainLayoutKind = "createPO";
   const { className: mainClassName, style: mainStyle } =
     MAIN_LAYOUT_STYLES[mainLayoutKind];
 

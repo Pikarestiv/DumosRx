@@ -51,6 +51,10 @@ const DIRECTION_ANIMATION: Record<string, string> = {
 
 type MainLayoutKind = "pos" | "settings" | "createPO" | "default";
 
+// Order matches the bottom nav's visual left-to-right layout, so swiping
+// steps through tabs in the order they're actually shown on screen.
+const TABS = ["/dashboard", "/inventory", "/pos", "/customers"];
+
 // One entry per distinct <main> treatment, keyed by the same route
 // partition used everywhere else in this file (isPosRoute/isSettingsRoute/
 // isCreatePORoute). Keeping className+style paired per kind (instead of two
@@ -72,15 +76,19 @@ const MAIN_LAYOUT_STYLES: Record<
   settings: { className: "" },
   createPO: { className: "p-0 lg:p-6 lg:pt-3" },
   default: {
-    className: "p-4 sm:p-6 sm:pt-3",
-    // Clears MobileBottomNav (h-16 = 4rem tall, plus its own safe-area
-    // inset) on every route that renders it — i.e. every kind but the three
-    // above, which don't show the bottom nav at all. Must stay >= 4rem or
-    // the last slice of page content ends up hidden behind the bar.
-    style: {
-      paddingBottom:
-        "calc(3.5rem + var(--tauri-bottom, env(safe-area-inset-bottom, 0px)))",
-    },
+    // Below lg: clears MobileBottomNav (h-16 = 4rem tall, plus its own
+    // safe-area inset, plus breathing room) on every route that renders it —
+    // i.e. every kind but the three above, which don't show the bottom nav
+    // at all. Must stay >= 4rem or the last slice of page content ends up
+    // hidden behind the bar. At lg: and up MobileBottomNav is lg:hidden, so
+    // this drops back to the plain page gutter instead of carrying that
+    // extra space with nothing to clear.
+    // px/pt instead of the p-4/sm:p-6 shorthand: the shorthand also sets
+    // padding-bottom, and at sm: it lands in a later cascade layer than our
+    // unprefixed pb-[...] below, so it would silently win and clobber the
+    // bottom-bar clearance from 640px up to lg:.
+    className:
+      "px-4 pt-4 sm:px-6 sm:pt-3 pb-[calc(5.5rem+var(--tauri-bottom,env(safe-area-inset-bottom,0px)))] lg:pb-[calc(1rem+var(--tauri-bottom,env(safe-area-inset-bottom,0px)))]",
   },
 };
 
@@ -129,9 +137,6 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
   }, []);
 
   const [moreDrawerOpen, setMoreDrawerOpen] = useState(false);
-  // Order matches the bottom nav's visual left-to-right layout, so swiping
-  // steps through tabs in the order they're actually shown on screen.
-  const TABS = ["/dashboard", "/inventory", "/pos", "/customers"];
   const { handleTouchStart, handleTouchEnd, direction } = useSwipeNavigation(
     TABS,
     { onSwipePastEnd: () => setMoreDrawerOpen(true) },

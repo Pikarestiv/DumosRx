@@ -169,11 +169,33 @@ export async function getSaleForPrescription(prescriptionId: string) {
   return rows[0] || null;
 }
 
-export async function getRecentSales(userId?: string) {
+/**
+ * With no dateRange, returns the 100 most recent sales (the default POS
+ * Recent Sales view). Once a dateRange is picked, the query is bounded by
+ * that range instead of the row snapshot - matching getStockMovements()'s
+ * same-shaped default-window/explicit-range split - so a range that reaches
+ * past the last 100 sales doesn't silently come back empty/incomplete.
+ */
+export async function getRecentSales(
+  userId?: string,
+  dateRange?: { from?: string; to?: string },
+) {
   const storeId = getActiveStoreId();
   const userFilter = userId ? ` AND s.user_id = ?` : "";
   const storeFilter = storeId ? ` AND s.store_id = ?` : "";
-  const params = [...(userId ? [userId] : []), ...(storeId ? [storeId] : [])];
+  const params: string[] = [...(userId ? [userId] : [])];
+
+  let dateFilter = "";
+  if (dateRange?.from) {
+    dateFilter += " AND s.created_at >= ?";
+    params.push(`${dateRange.from} 00:00:00`);
+  }
+  if (dateRange?.to) {
+    dateFilter += " AND s.created_at <= ?";
+    params.push(`${dateRange.to} 23:59:59`);
+  }
+  if (storeId) params.push(storeId);
+
   return query<SaleWithDetails>(
     `SELECT
       s.*,
@@ -184,9 +206,9 @@ export async function getRecentSales(userId?: string) {
      FROM sales s
      LEFT JOIN customers c ON s.customer_id = c.id
      LEFT JOIN users u ON u.id = s.user_id
-     WHERE s._deleted = 0${userFilter}${storeFilter}
+     WHERE s._deleted = 0${userFilter}${dateFilter}${storeFilter}
      ORDER BY s.created_at DESC
-     LIMIT 100`,
+     LIMIT ${dateRange?.from || dateRange?.to ? 500 : 100}`,
     params,
   );
 }

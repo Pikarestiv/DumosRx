@@ -76,7 +76,8 @@ export const queryKeys = {
     all: () => resource(["stock_audits"] as const, ["stock_audits"]),
   },
   sales: {
-    recent: (userId?: string) => resource(["recentSales", userId] as const, ["sales"]),
+    recent: (userId?: string, dateRange?: { from?: string; to?: string }) =>
+      resource(["recentSales", userId, dateRange?.from, dateRange?.to] as const, ["sales"]),
     recentlySoldIds: () => resource(["recentlySoldIds"] as const, ["sale_items"]),
     commonlySoldIds: () => resource(["commonlySoldIds"] as const, ["sale_items"]),
     saleItems: (saleId?: string) => resource(["saleItems", saleId] as const, ["sale_items"]),

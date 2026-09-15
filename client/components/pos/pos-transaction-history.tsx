@@ -5,11 +5,14 @@ import { TransactionList } from './transaction-list';
 
 import React, { useState, useMemo } from "react";
 import { isToday, isYesterday, parseISO } from "date-fns";
+import { useQuery } from "@tanstack/react-query";
 
-
-import { useAuth, checkIsAdmin } from "@/lib/context/auth-context";
+import { useAuth, checkIsAdmin, checkCanViewAllActivity } from "@/lib/context/auth-context";
 import { TransactionDetailsDialog } from "./transaction-details-dialog";
 import { calculateNetSaleAmount, calculateAvgBasket } from "@/lib/utils/pos-calculations";
+import { getRecentSales } from "@/lib/db/queries/sales";
+import { queryKeys } from "@/lib/query-keys";
+import type { DateRangeValue } from "@/components/ui/date-range-picker";
 import type { SaleWithDetails } from "@/lib/types/sale";
 
 // ============================================================================
@@ -35,7 +38,7 @@ export function POSTransactionHistory({
     null,
   );
   const [searchQuery, setSearchQuery] = useState("");
-  const [dateFilter, setDateFilter] = useState<string>("All");
+  const [dateRange, setDateRange] = useState<DateRangeValue>({});
   const [paymentFilter, setPaymentFilter] = useState<string>("All");
 
   const { user } = useAuth();
@@ -44,6 +47,19 @@ export function POSTransactionHistory({
   // couldn't process a return) and every other seeded role, since exact-
   // string checks don't recognize role variants the way checkIsAdmin does.
   const canReturn = checkIsAdmin(user?.role);
+  const canViewAllActivity = checkCanViewAllActivity(user?.role);
+
+  // The `recentSales` prop is a fixed 100-row snapshot (see usePOSData) -
+  // fine as the default view, but a picked date range can reach further back
+  // than those 100 rows cover. Once a range is picked, fetch it directly
+  // (unbounded by that snapshot) instead of filtering the prop in memory.
+  const rangeUserId = canViewAllActivity ? undefined : user?.id;
+  const { data: rangeSales } = useQuery({
+    ...queryKeys.sales.recent(rangeUserId, dateRange),
+    queryFn: () => getRecentSales(rangeUserId, dateRange),
+    enabled: !!dateRange.from,
+  });
+  const salesSource = dateRange.from ? rangeSales : recentSales;
 
   // Compute metrics for "Today"
   const todayMetrics = useMemo(() => {
@@ -79,9 +95,11 @@ export function POSTransactionHistory({
     return { totalSales, transactions, refunded, avgBasket };
   }, [recentSales]);
 
-  // Filtered sales
+  // Filtered sales. Date range filtering happens at the query level (see
+  // salesSource above) - not here - since a picked range can reach past the
+  // `recentSales` prop's fixed 100-row snapshot.
   const filteredSales = useMemo(() => {
-    return (recentSales || []).filter((sale) => {
+    return (salesSource || []).filter((sale) => {
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
         const matchesCustomer = (sale.customer_name || "Walk-in")
@@ -93,15 +111,6 @@ export function POSTransactionHistory({
         if (!matchesCustomer && !matchesReceipt) return false;
       }
 
-      if (dateFilter === "Today") {
-        if (!sale.created_at || !isToday(parseISO(sale.created_at)))
-          return false;
-      } else if (dateFilter === "This week") {
-        if (!sale.created_at) return false;
-        const diff = Date.now() - new Date(sale.created_at).getTime();
-        if (diff > 7 * 24 * 60 * 60 * 1000) return false;
-      }
-
       if (paymentFilter !== "All") {
         if (sale.payment_method?.toLowerCase() !== paymentFilter.toLowerCase())
           return false;
@@ -109,7 +118,7 @@ export function POSTransactionHistory({
 
       return true;
     });
-  }, [recentSales, searchQuery, dateFilter, paymentFilter]);
+  }, [salesSource, searchQuery, paymentFilter]);
 
   // Group by relative date
   const groupedSales = useMemo(() => {
@@ -150,8 +159,8 @@ export function POSTransactionHistory({
       <TransactionFilters
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
-        dateFilter={dateFilter}
-        setDateFilter={setDateFilter}
+        dateRange={dateRange}
+        setDateRange={setDateRange}
         paymentFilter={paymentFilter}
         setPaymentFilter={setPaymentFilter}
       />

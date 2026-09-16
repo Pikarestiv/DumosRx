@@ -108,7 +108,8 @@ export function POSTransactionHistory({
         const matchesReceipt = sale.transaction_number
           ?.toLowerCase()
           .includes(q);
-        if (!matchesCustomer && !matchesReceipt) return false;
+        const matchesItem = sale.item_names?.toLowerCase().includes(q);
+        if (!matchesCustomer && !matchesReceipt && !matchesItem) return false;
       }
 
       if (paymentFilter !== "All") {

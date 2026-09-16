@@ -22,10 +22,25 @@ export function useDailyCloseData(reportDate: string) {
     queryFn: () => getDailyCloseData(reportDate)
   });
 
-  const salesToday = dailyCloseData?.salesToday || [];
+  const rawSalesToday = dailyCloseData?.salesToday || [];
   const itemsToday = dailyCloseData?.itemsToday || [];
   const returnsToday = dailyCloseData?.returnsToday || [];
   const returnItemsToday = dailyCloseData?.returnItemsToday || [];
+
+  // itemsToday already has every line item for the day (product_name
+  // included) - reuse it to attach a "||"-joined item_names string per sale,
+  // same shape as getRecentSales()'s item_names, so sales-list-modal.tsx can
+  // search by item without a separate query.
+  const salesToday = useMemo(() => {
+    const namesBySale: Record<string, string[]> = {};
+    itemsToday.forEach((item) => {
+      (namesBySale[item.sale_id] ||= []).push(item.product_name || "");
+    });
+    return rawSalesToday.map((sale) => ({
+      ...sale,
+      item_names: (namesBySale[sale.id] || []).join("||"),
+    }));
+  }, [rawSalesToday, itemsToday]);
 
   const { data: paymentAccountsData } = useQuery({
     ...queryKeys.paymentAccounts.all(),

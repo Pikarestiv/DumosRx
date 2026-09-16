@@ -32,7 +32,7 @@ export function TransactionFilters({
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
-          placeholder="Search receipt or customer"
+          placeholder="Search receipt, customer, or item"
           className="pl-9 h-12 rounded-xl bg-card border-border/50"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}

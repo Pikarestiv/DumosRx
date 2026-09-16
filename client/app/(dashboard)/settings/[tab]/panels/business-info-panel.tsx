@@ -23,6 +23,8 @@ export function BusinessInfoPanel(s: SettingsState) {
         setLocalEmail={s.setLocalEmail}
         localRegistrationNumber={s.localRegistrationNumber}
         setLocalRegistrationNumber={s.setLocalRegistrationNumber}
+        localTaxNumber={s.localTaxNumber}
+        setLocalTaxNumber={s.setLocalTaxNumber}
         localLogo={s.localLogo}
         handleLogoUpload={s.handleLogoUpload}
         handleRemoveLogo={s.handleRemoveLogo}

@@ -831,6 +831,15 @@ export async function initDatabase(): Promise<any> {
       // Ignore if column already exists
     }
 
+    try {
+      // For the Tax Invoice receipt print variant's header (see ReceiptView) -
+      // a store's formal tax/VAT registration ID, distinct from
+      // pcn_license/registration_number.
+      db.run('ALTER TABLE stores ADD COLUMN tax_number TEXT;');
+    } catch (_e) {
+      // Ignore if column already exists
+    }
+
     const webAdapter = makeSqlJsAdapter(db);
 
     try {

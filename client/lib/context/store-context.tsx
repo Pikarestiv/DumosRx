@@ -30,6 +30,7 @@ export interface StoreProfile {
   email?: string;
   pcn_license?: string;
   registration_number?: string;
+  tax_number?: string;
   custom_units?: string;
   receipt_header?: string;
   receipt_footer?: string;

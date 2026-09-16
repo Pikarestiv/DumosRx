@@ -297,6 +297,7 @@ CREATE TABLE IF NOT EXISTS stores (
   last_monotonic_time TEXT,
   pcn_license TEXT,
   registration_number TEXT,
+  tax_number TEXT,
   receipt_header TEXT,
   receipt_footer TEXT,
   show_logo_on_receipt INTEGER DEFAULT 1,

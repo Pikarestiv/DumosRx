@@ -33,6 +33,8 @@ interface BusinessInformationCardProps {
   setLocalEmail: (val: string) => void;
   localRegistrationNumber: string;
   setLocalRegistrationNumber: (val: string) => void;
+  localTaxNumber: string;
+  setLocalTaxNumber: (val: string) => void;
   localLogo: string;
   handleLogoUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleRemoveLogo: () => void;
@@ -62,6 +64,8 @@ export function BusinessInformationCard({
   setLocalEmail,
   localRegistrationNumber,
   setLocalRegistrationNumber,
+  localTaxNumber,
+  setLocalTaxNumber,
   localLogo,
   handleLogoUpload,
   handleRemoveLogo,
@@ -206,6 +210,39 @@ export function BusinessInformationCard({
               ) : (
                 <p className="text-sm font-medium py-2">
                   {localEmail || "Not set"}
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <div className="flex items-center gap-2">
+                <Label htmlFor="tax-number">Tax / VAT Number</Label>
+                <TooltipProvider delayDuration={0}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HelpCircle className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>
+                        Shown on the Tax Invoice receipt variant, for
+                        customers who need a formal VAT/tax document.
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+              {isEditingProfile ? (
+                <Input
+                  id="tax-number"
+                  placeholder="e.g. TIN 12345678-0001"
+                  value={localTaxNumber}
+                  onChange={(e) => setLocalTaxNumber(e.target.value)}
+                />
+              ) : (
+                <p className="text-sm font-medium py-2">
+                  {localTaxNumber || "Not set"}
                 </p>
               )}
             </div>

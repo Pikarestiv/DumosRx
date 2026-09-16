@@ -37,14 +37,25 @@ export interface ReceiptTransaction {
   paymentSplits?: { method: string; amount: number; accountId?: string }[];
 }
 
+export type ReceiptDocumentType = "receipt" | "tax";
+
 interface ReceiptProps {
   transaction: ReceiptTransaction;
   // Thermal (80mm roll) is narrower and tighter than a standard-paper copy;
   // affects on-screen preview width too, not just the print @page size.
   paperSize?: ReceiptPaperSize;
+  // "tax" reuses the exact same sale data as "receipt" - it's a print-time
+  // choice, not a persisted property of the sale - and adds the store's tax
+  // registration number to the header for buyers who need a formal VAT
+  // document.
+  documentType?: ReceiptDocumentType;
 }
 
-export function ReceiptView({ transaction, paperSize = "a4" }: ReceiptProps) {
+export function ReceiptView({
+  transaction,
+  paperSize = "a4",
+  documentType = "receipt",
+}: ReceiptProps) {
   const { storeProfile, vatPercentage } = useStore();
   const { canCustomizeTheme, canRemoveBranding } = useFeatureGate();
   const hidePoweredBy = canRemoveBranding && storeProfile?.hide_powered_by === 1;
@@ -60,7 +71,8 @@ export function ReceiptView({ transaction, paperSize = "a4" }: ReceiptProps) {
   };
 
   const shortId = transaction.id.split("-")[0].toUpperCase();
-  const invoiceNo = `INV-${shortId}`;
+  const invoiceNo = documentType === "tax" ? `INV-${shortId}` : `RCT-${shortId}`;
+  const invoiceNoLabel = documentType === "tax" ? "Invoice no:" : "Receipt no:";
 
   return (
     <div
@@ -82,17 +94,20 @@ export function ReceiptView({ transaction, paperSize = "a4" }: ReceiptProps) {
         <h2 className="text-xl font-bold uppercase">{storeProfile?.name}</h2>
         {storeProfile?.address && <p>{storeProfile?.address}</p>}
         {storeProfile?.phone && <p>{storeProfile?.phone}</p>}
+        {documentType === "tax" && storeProfile?.tax_number && (
+          <p>Tax No: {storeProfile.tax_number}</p>
+        )}
       </div>
 
       <div className="text-center mb-4">
         <h3 className="text-lg font-bold uppercase tracking-widest border border-black inline-block px-4 py-1">
-          Invoice
+          {documentType === "tax" ? "Tax Invoice" : "Receipt"}
         </h3>
       </div>
 
       <div className="mb-6 space-y-1">
         <div className="flex justify-between">
-          <span className="font-bold">Invoice no:</span>
+          <span className="font-bold">{invoiceNoLabel}</span>
           <span>{invoiceNo}</span>
         </div>
         <div className="flex justify-between">

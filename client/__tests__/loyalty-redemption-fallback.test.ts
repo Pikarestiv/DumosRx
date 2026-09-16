@@ -16,21 +16,22 @@ import path from "path";
  * precedence rule tiers already follow.
  */
 describe("buildFallbackRedemptionOptions", () => {
-  it("returns a non-empty preview list mirroring DEFAULT_REDEMPTION_OPTIONS content", async () => {
+  it("returns a non-empty preview list mirroring buildDefaultRedemptionOptions() content", async () => {
     const { buildFallbackRedemptionOptions } = await import(
       "@/lib/hooks/use-customer-management"
     );
-    const { DEFAULT_REDEMPTION_OPTIONS } = await import(
+    const { buildDefaultRedemptionOptions } = await import(
       "@/lib/db/queries/loyalty"
     );
 
     const fallback = buildFallbackRedemptionOptions();
-    expect(fallback.length).toBe(DEFAULT_REDEMPTION_OPTIONS.length);
+    const defaultOptions = buildDefaultRedemptionOptions();
+    expect(fallback.length).toBe(defaultOptions.length);
 
     // Same content a user would see once ensureLoyaltyDefaultsSeeded()
     // actually seeds the DB — not invented placeholder content.
     fallback.forEach((option, i) => {
-      const seedEquivalent = DEFAULT_REDEMPTION_OPTIONS[i];
+      const seedEquivalent = defaultOptions[i];
       expect(option.label).toBe(seedEquivalent.label);
       expect(option.points_cost).toBe(seedEquivalent.points_cost);
       expect(option.discount_value).toBe(seedEquivalent.discount_value);
@@ -70,7 +71,7 @@ describe("LoyaltyTab redemption options precedence", () => {
     expect(precedenceMatch).not.toBeNull();
     const expr = precedenceMatch![1];
     expect(expr).toContain(".length > 0");
-    expect(expr).toContain("buildFallbackRedemptionOptions()");
+    expect(expr).toContain("buildFallbackRedemptionOptions(");
   });
 
   it("use-customer-management.ts's buildFallbackRedemptionOptions is exported (consumable from loyalty-tab.tsx, mirroring how buildFallbackTiers backs the tiers prop)", async () => {

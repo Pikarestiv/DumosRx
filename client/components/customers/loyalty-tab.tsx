@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Tag } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, getCurrencySymbol } from "@/lib/utils";
 import { getLoyaltyRedemptionOptions } from "@/lib/db/queries/loyalty";
 import { buildFallbackRedemptionOptions } from "@/lib/hooks/use-customer-management";
 import { LoyaltySettingsDialog } from "./loyalty-settings-dialog";
@@ -41,7 +41,9 @@ export function LoyaltyTab({
   // actually seeds `loyalty_redemption_options`) — same precedence rule
   // `buildFallbackTiers()` already follows for tiers.
   const redemptionOptions =
-    activeOptions.length > 0 ? activeOptions : buildFallbackRedemptionOptions();
+    activeOptions.length > 0
+      ? activeOptions
+      : buildFallbackRedemptionOptions(getCurrencySymbol(currencyCode));
 
   return (
     <div className="space-y-4">

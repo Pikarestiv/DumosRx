@@ -15,9 +15,9 @@ export interface LoyaltyRedemptionOptionRow {
   id: string;
   label: string;
   points_cost: number;
-  /** Naira value this option discounts off a sale at checkout. 0 for
-   * non-monetary perks (e.g. "Free Delivery"), which are configurable here
-   * but not selectable as a POS checkout redemption. */
+  /** Value, in the store's currency, this option discounts off a sale at
+   * checkout. 0 for non-monetary perks (e.g. "Free Delivery"), which are
+   * configurable here but not selectable as a POS checkout redemption. */
   discount_value: number;
   description: string;
   icon_key: string;
@@ -60,35 +60,43 @@ export const DEFAULT_LOYALTY_TIERS: Omit<LoyaltyTierRow, "id">[] = [
   },
 ];
 
-export const DEFAULT_REDEMPTION_OPTIONS: Omit<LoyaltyRedemptionOptionRow, "id">[] = [
-  {
-    label: "₦500 Discount",
-    points_cost: 500,
-    discount_value: 500,
-    description: "Get ₦500 off your next purchase",
-    icon_key: "tag",
-    is_active: 1,
-    sort_order: 0,
-  },
-  {
-    label: "₦1,000 Discount",
-    points_cost: 900,
-    discount_value: 1000,
-    description: "Get ₦1,000 off your next purchase",
-    icon_key: "tag",
-    is_active: 1,
-    sort_order: 1,
-  },
-  {
-    label: "Free Delivery",
-    points_cost: 200,
-    discount_value: 0,
-    description: "Free delivery on your next order",
-    icon_key: "truck",
-    is_active: 1,
-    sort_order: 2,
-  },
-];
+/** currencySymbol defaults to Naira for callers that predate per-store
+ * currency (e.g. tests seeding without a store currency in scope) — pass the
+ * store's actual symbol (getCurrencySymbol(storeProfile.currency)) wherever
+ * one is available. */
+export function buildDefaultRedemptionOptions(
+  currencySymbol = "₦",
+): Omit<LoyaltyRedemptionOptionRow, "id">[] {
+  return [
+    {
+      label: `${currencySymbol}500 Discount`,
+      points_cost: 500,
+      discount_value: 500,
+      description: `Get ${currencySymbol}500 off your next purchase`,
+      icon_key: "tag",
+      is_active: 1,
+      sort_order: 0,
+    },
+    {
+      label: `${currencySymbol}1,000 Discount`,
+      points_cost: 900,
+      discount_value: 1000,
+      description: `Get ${currencySymbol}1,000 off your next purchase`,
+      icon_key: "tag",
+      is_active: 1,
+      sort_order: 1,
+    },
+    {
+      label: "Free Delivery",
+      points_cost: 200,
+      discount_value: 0,
+      description: "Free delivery on your next order",
+      icon_key: "truck",
+      is_active: 1,
+      sort_order: 2,
+    },
+  ];
+}
 
 export async function getLoyaltyTiers() {
   const storeId = getActiveStoreId();
@@ -111,7 +119,7 @@ export async function getLoyaltyRedemptionOptions() {
  * first time settings are opened on a store that has never customized them;
  * keeps existing stores' behavior unchanged until they actually edit something.
  */
-export async function ensureLoyaltyDefaultsSeeded(userId?: string) {
+export async function ensureLoyaltyDefaultsSeeded(userId?: string, currencySymbol?: string) {
   const [tiers, options] = await Promise.all([
     getLoyaltyTiers(),
     getLoyaltyRedemptionOptions(),
@@ -124,7 +132,7 @@ export async function ensureLoyaltyDefaultsSeeded(userId?: string) {
   }
 
   if (options.length === 0) {
-    for (const option of DEFAULT_REDEMPTION_OPTIONS) {
+    for (const option of buildDefaultRedemptionOptions(currencySymbol)) {
       await insert("loyalty_redemption_options", { ...option, user_id: userId });
     }
   }

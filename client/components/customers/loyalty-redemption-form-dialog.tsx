@@ -34,10 +34,13 @@ interface Props {
   option: LoyaltyRedemptionOptionRow | null;
   userId?: string;
   nextSortOrder: number;
+  /** Store's currency symbol, for the placeholder/label text only — the
+   * actual discount amount is a plain number in the store's currency. */
+  currencySymbol?: string;
   onSaved: () => void;
 }
 
-export function LoyaltyRedemptionFormDialog({ open, onOpenChange, option, userId, nextSortOrder, onSaved }: Props) {
+export function LoyaltyRedemptionFormDialog({ open, onOpenChange, option, userId, nextSortOrder, currencySymbol = "₦", onSaved }: Props) {
   const [form, setForm] = useState(emptyForm);
 
   useEffect(() => {
@@ -86,7 +89,7 @@ export function LoyaltyRedemptionFormDialog({ open, onOpenChange, option, userId
           <div className="space-y-2">
             <Label>Reward Label *</Label>
             <Input
-              placeholder="e.g. ₦500 Discount"
+              placeholder={`e.g. ${currencySymbol}500 Discount`}
               value={form.label}
               onChange={(e) => setForm({ ...form, label: e.target.value })}
             />
@@ -102,7 +105,7 @@ export function LoyaltyRedemptionFormDialog({ open, onOpenChange, option, userId
               />
             </div>
             <div className="space-y-2">
-              <Label>Discount Value (₦)</Label>
+              <Label>Discount Value ({currencySymbol})</Label>
               <Input
                 type="number"
                 min={0}
@@ -130,7 +133,7 @@ export function LoyaltyRedemptionFormDialog({ open, onOpenChange, option, userId
           <div className="space-y-2">
             <Label>Description</Label>
             <Input
-              placeholder="e.g. Get ₦500 off your next purchase"
+              placeholder={`e.g. Get ${currencySymbol}500 off your next purchase`}
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
             />

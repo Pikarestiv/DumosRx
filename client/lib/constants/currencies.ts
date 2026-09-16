@@ -16,6 +16,7 @@ export const CURRENCIES: CurrencyOption[] = [
   { code: "KES", name: "Kenyan Shilling", symbol: "KSh" },
   { code: "ZAR", name: "South African Rand", symbol: "R" },
   { code: "XOF", name: "West African CFA Franc", symbol: "CFA" },
+  { code: "XAF", name: "Central African CFA Franc", symbol: "FCFA" },
 ];
 
 export function getCurrencyByCode(code?: string | null): CurrencyOption {

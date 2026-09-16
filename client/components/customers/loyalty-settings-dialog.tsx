@@ -25,6 +25,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useAuth } from "@/lib/context/auth-context";
 import { useStore } from "@/lib/context/store-context";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
+import { getCurrencySymbol } from "@/lib/utils";
 import {
   getLoyaltyTiers,
   getLoyaltyRedemptionOptions,
@@ -51,6 +52,7 @@ interface Props {
 export function LoyaltySettingsDialog({ open, onOpenChange }: Props) {
   const { user, canManageStockBatch } = useAuth();
   const { storeProfile, updateStoreProfile } = useStore();
+  const currencySymbol = getCurrencySymbol(storeProfile?.currency);
   const { canAccessLoyaltyProgramPlan, getUpgradeMessage } = useFeatureGate();
   const [section, setSection] = useState<"tiers" | "redemption">("tiers");
 
@@ -84,11 +86,11 @@ export function LoyaltySettingsDialog({ open, onOpenChange }: Props) {
 
   useEffect(() => {
     if (!open) return;
-    ensureLoyaltyDefaultsSeeded(user?.id).then(() => {
+    ensureLoyaltyDefaultsSeeded(user?.id, currencySymbol).then(() => {
       queryClient.invalidateQueries(queryKeys.loyalty.tiers());
       queryClient.invalidateQueries(queryKeys.loyalty.redemptionOptions());
     });
-  }, [open, user?.id]);
+  }, [open, user?.id, currencySymbol]);
 
   const { data: tiersData, isLoading: loadingTiers, refetch: refetchTiers } = useQuery({
     ...queryKeys.loyalty.tiers(),
@@ -285,6 +287,7 @@ export function LoyaltySettingsDialog({ open, onOpenChange }: Props) {
         option={editingOption}
         userId={user?.id}
         nextSortOrder={options.length}
+        currencySymbol={currencySymbol}
         onSaved={refetchOptions}
       />
 

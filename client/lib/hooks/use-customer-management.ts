@@ -78,28 +78,30 @@ export interface FallbackRedemptionOption {
  * Client-side preview of the Loyalty tab's redemption options for a store
  * that has never opened Loyalty Settings (which is what actually seeds
  * `loyalty_redemption_options` via ensureLoyaltyDefaultsSeeded()). Mirrors
- * DEFAULT_REDEMPTION_OPTIONS (lib/db/queries/loyalty.ts) content exactly so
- * what's previewed here matches what a user gets once it's really seeded —
+ * buildDefaultRedemptionOptions() (lib/db/queries/loyalty.ts) content exactly
+ * so what's previewed here matches what a user gets once it's really seeded —
  * same mechanism/shape as buildFallbackTiers() above for loyalty tiers.
  */
-export function buildFallbackRedemptionOptions(): FallbackRedemptionOption[] {
+export function buildFallbackRedemptionOptions(
+  currencySymbol = "₦",
+): FallbackRedemptionOption[] {
   return [
     {
       id: "fallback-500-discount",
-      label: "₦500 Discount",
+      label: `${currencySymbol}500 Discount`,
       points_cost: 500,
       discount_value: 500,
-      description: "Get ₦500 off your next purchase",
+      description: `Get ${currencySymbol}500 off your next purchase`,
       icon_key: "tag",
       is_active: 1,
       sort_order: 0,
     },
     {
       id: "fallback-1000-discount",
-      label: "₦1,000 Discount",
+      label: `${currencySymbol}1,000 Discount`,
       points_cost: 900,
       discount_value: 1000,
-      description: "Get ₦1,000 off your next purchase",
+      description: `Get ${currencySymbol}1,000 off your next purchase`,
       icon_key: "tag",
       is_active: 1,
       sort_order: 1,

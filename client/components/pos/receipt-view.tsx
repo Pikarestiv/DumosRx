@@ -37,7 +37,7 @@ export interface ReceiptTransaction {
   paymentSplits?: { method: string; amount: number; accountId?: string }[];
 }
 
-export type ReceiptDocumentType = "receipt" | "tax";
+export type ReceiptDocumentType = "receipt" | "tax" | "quote";
 
 interface ReceiptProps {
   transaction: ReceiptTransaction;
@@ -47,7 +47,9 @@ interface ReceiptProps {
   // "tax" reuses the exact same sale data as "receipt" - it's a print-time
   // choice, not a persisted property of the sale - and adds the store's tax
   // registration number to the header for buyers who need a formal VAT
-  // document.
+  // document. "quote" is built from the live cart before checkout - no sale
+  // exists yet, so the payment/change/barcode sections don't apply and a
+  // disclaimer replaces them instead.
   documentType?: ReceiptDocumentType;
 }
 
@@ -71,8 +73,18 @@ export function ReceiptView({
   };
 
   const shortId = transaction.id.split("-")[0].toUpperCase();
-  const invoiceNo = documentType === "tax" ? `INV-${shortId}` : `RCT-${shortId}`;
-  const invoiceNoLabel = documentType === "tax" ? "Invoice no:" : "Receipt no:";
+  const invoiceNo =
+    documentType === "tax"
+      ? `INV-${shortId}`
+      : documentType === "quote"
+        ? `QTE-${shortId}`
+        : `RCT-${shortId}`;
+  const invoiceNoLabel =
+    documentType === "tax"
+      ? "Invoice no:"
+      : documentType === "quote"
+        ? "Quote no:"
+        : "Receipt no:";
 
   return (
     <div
@@ -101,7 +113,11 @@ export function ReceiptView({
 
       <div className="text-center mb-4">
         <h3 className="text-lg font-bold uppercase tracking-widest border border-black inline-block px-4 py-1">
-          {documentType === "tax" ? "Tax Invoice" : "Receipt"}
+          {documentType === "tax"
+            ? "Tax Invoice"
+            : documentType === "quote"
+              ? "Proforma Invoice"
+              : "Receipt"}
         </h3>
       </div>
 
@@ -183,56 +199,67 @@ export function ReceiptView({
         </div>
       </div>
 
-      {/* Payment details */}
-      <div className="space-y-1 mb-6 text-xs">
-        {transaction.paymentMethod === "mixed" && transaction.paymentSplits && (
-          <>
-            <div className="font-bold border-b border-dashed border-black pb-1 mb-1">
-              Payment Breakdown (MIXED)
-            </div>
-            {transaction.paymentSplits.map((split, i) => (
-              <div key={i} className="flex justify-between">
-                <span className="uppercase">{split.method}:</span>
-                <span>{formatCurrency(split.amount)}</span>
+      {documentType === "quote" ? (
+        /* Nothing has been paid yet - no payment/change/barcode section,
+         * just a plain disclaimer that this isn't a completed sale. */
+        <div className="text-center text-xs italic mb-6 border border-dashed border-black p-2">
+          Indicative pricing only - not a tax invoice. Prices may change
+          before purchase.
+        </div>
+      ) : (
+        <>
+          {/* Payment details */}
+          <div className="space-y-1 mb-6 text-xs">
+            {transaction.paymentMethod === "mixed" && transaction.paymentSplits && (
+              <>
+                <div className="font-bold border-b border-dashed border-black pb-1 mb-1">
+                  Payment Breakdown (MIXED)
+                </div>
+                {transaction.paymentSplits.map((split, i) => (
+                  <div key={i} className="flex justify-between">
+                    <span className="uppercase">{split.method}:</span>
+                    <span>{formatCurrency(split.amount)}</span>
+                  </div>
+                ))}
+              </>
+            )}
+            {!(transaction.paymentMethod === "mixed" && transaction.paymentSplits) && (
+              <div className="flex justify-between">
+                <span>Payment type:</span>
+                <span className="uppercase font-bold">
+                  {transaction.paymentMethod}
+                </span>
               </div>
-            ))}
-          </>
-        )}
-        {!(transaction.paymentMethod === "mixed" && transaction.paymentSplits) && (
-          <div className="flex justify-between">
-            <span>Payment type:</span>
-            <span className="uppercase font-bold">
-              {transaction.paymentMethod}
-            </span>
-          </div>
-        )}
-        
-        <div className="flex justify-between mt-2 pt-2 border-t border-dashed border-black">
-          <span>Date:</span>
-          <span>{formatDateToDDMMYYYY(transaction.date)}</span>
-        </div>
-        <div className="flex justify-between font-bold">
-          <span>Total paid:</span>
-          <span>{formatCurrency(transaction.amountPaid)}</span>
-        </div>
-        {transaction.change > 0 && (
-          <div className="flex justify-between font-bold text-lg">
-            <span>Change:</span>
-            <span>{formatCurrency(transaction.change)}</span>
-          </div>
-        )}
-      </div>
+            )}
 
-      {/* Barcode */}
-      <div className="flex flex-col items-center justify-center pt-4 mb-4 overflow-hidden">
-        <Barcode
-          value={transaction.id}
-          width={isThermal ? 1 : 1.2}
-          height={isThermal ? 30 : 40}
-          fontSize={isThermal ? 8 : 10}
-          background="transparent"
-        />
-      </div>
+            <div className="flex justify-between mt-2 pt-2 border-t border-dashed border-black">
+              <span>Date:</span>
+              <span>{formatDateToDDMMYYYY(transaction.date)}</span>
+            </div>
+            <div className="flex justify-between font-bold">
+              <span>Total paid:</span>
+              <span>{formatCurrency(transaction.amountPaid)}</span>
+            </div>
+            {transaction.change > 0 && (
+              <div className="flex justify-between font-bold text-lg">
+                <span>Change:</span>
+                <span>{formatCurrency(transaction.change)}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Barcode */}
+          <div className="flex flex-col items-center justify-center pt-4 mb-4 overflow-hidden">
+            <Barcode
+              value={transaction.id}
+              width={isThermal ? 1 : 1.2}
+              height={isThermal ? 30 : 40}
+              fontSize={isThermal ? 8 : 10}
+              background="transparent"
+            />
+          </div>
+        </>
+      )}
 
       <div className="text-center italic text-xs">
         <p>Thank you for your patronage!</p>

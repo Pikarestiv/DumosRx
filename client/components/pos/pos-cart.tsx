@@ -6,10 +6,12 @@ import {
   Trash2,
   PauseCircle,
   ClipboardList,
+  FileText,
   Lock,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { RequestItemDialog } from "./request-item-dialog";
+import { ProformaPreviewDialog } from "./proforma-preview-dialog";
 import { POSCartItem } from "./pos-cart-item";
 import { POSRedeemReward } from "./pos-redeem-reward";
 import type { CartItem, RedeemedOption } from "@/lib/hooks/use-pos-cart";
@@ -70,6 +72,7 @@ export function POSCart({
 }: POSCartProps) {
   const [showDiscount, setShowDiscount] = useState(false);
   const [showRequestDialog, setShowRequestDialog] = useState(false);
+  const [showProformaDialog, setShowProformaDialog] = useState(false);
 
   return (
     <div className="flex flex-col h-full">
@@ -256,6 +259,26 @@ export function POSCart({
         </div>
 
         <RequestItemDialog open={showRequestDialog} onOpenChange={setShowRequestDialog} />
+        <ProformaPreviewDialog
+          open={showProformaDialog}
+          onOpenChange={setShowProformaDialog}
+          cart={cart}
+          subtotal={subtotal}
+          tax={tax}
+          discount={calculatedDiscount}
+          total={total}
+          selectedCustomer={selectedCustomer}
+        />
+
+        {cart.length > 0 && (
+          <button
+            onClick={() => setShowProformaDialog(true)}
+            className="w-full flex items-center justify-center gap-1.5 py-2 px-2 mb-2 rounded-lg border border-border bg-card text-[12.5px] font-semibold text-foreground cursor-pointer hover:bg-muted/50 transition-colors"
+          >
+            <FileText className="w-3.5 h-3.5" />
+            Preview Quote
+          </button>
+        )}
 
         <button
           onClick={onCheckout}

@@ -187,7 +187,7 @@ export function TransactionDetailsDialog({
   );
 
   const content = (
-    <div className="flex flex-col max-h-[85vh] sm:max-h-[80vh]">
+    <div className="flex flex-col flex-1 min-h-0">
       <ScrollFade containerClassName="flex-1" className="px-4 sm:px-6 pb-4">
         <div className="grid grid-cols-2 gap-3 sm:gap-4 mt-2 p-3 sm:p-4 bg-muted/30 rounded-lg">
           <div>
@@ -244,7 +244,7 @@ export function TransactionDetailsDialog({
         onOpenChange={onOpenChange}
         title={title}
         description={description}
-        className="sm:max-w-2xl w-full p-0 gap-0 overflow-hidden"
+        className="sm:max-w-2xl w-full max-h-[90vh] p-0 gap-0 overflow-hidden flex flex-col"
         headerClassName="px-4 pt-0 pb-2 sm:px-6 sm:pt-6 sm:pb-3 border-b sm:border-b-0 border-border"
         footer={
           <div className="p-4 sm:px-6 sm:py-4 border-t border-border bg-background pb-[calc(1rem+env(safe-area-inset-bottom,0px))]">

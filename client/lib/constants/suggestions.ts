@@ -2896,6 +2896,7 @@ export const FORM_SUGGESTIONS = {
       "Dozen",
       "Drum",
       "Jar",
+      "Metre",
       "Pack",
       "Piece",
       "Roll",

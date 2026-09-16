@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/context/auth-context";
 import { useStore } from "@/lib/context/store-context";
+import { useInventoryAudit } from "@/lib/context/inventory-audit-context";
 import { formatHeaderDate } from "@/lib/utils/date-utils";
 import { getPageInfo, resolveHeaderAction, resolveSecondaryHeaderAction } from "@/lib/constants/dashboard-page-routes";
 import { SyncIndicator } from "./sync-indicator";
@@ -13,6 +14,17 @@ import { LiveClock } from "./live-clock";
 import { HeaderStoreSwitcher } from "./header-store-switcher";
 import { HeaderPageHeading } from "./header-page-heading";
 import { HeaderActionButton } from "./header-action-button";
+import { Button } from "@/components/ui/button";
+
+/** Start Audit's `path` is a signal route (see dashboard-page-routes.ts), not
+ * a real page - it exists purely so useStockBatchManagement's effect can
+ * catch the navigation and open the audit overlay instead. That round trip
+ * requires a working client-side transition. On a static-export deployment
+ * (output: "export", see next.config.mjs) navigating to a not-yet-visited
+ * route can fall back to a full page reload, which wipes all React state
+ * before the overlay ever gets to open - so this button sets the overlay
+ * state directly instead of going through router.push at all. */
+const START_AUDIT_PATH = "/inventory/audits";
 
 interface DashboardHeaderProps {
   onOpenFeedback?: () => void;
@@ -22,6 +34,7 @@ export function DashboardHeader({ onOpenFeedback }: DashboardHeaderProps) {
   const pathname = usePathname() || "/";
   const { user, canManageStockBatch, isAdmin } = useAuth();
   const { storeProfile, availableStores, activeStoreId, switchStore } = useStore();
+  const { setIsAuditing } = useInventoryAudit();
 
   const pageInfo = getPageInfo(pathname);
   const action = resolveHeaderAction(pathname, pageInfo, canManageStockBatch);
@@ -61,7 +74,15 @@ export function DashboardHeader({ onOpenFeedback }: DashboardHeaderProps) {
               <UserProfileBadge />
             ) : (
               <>
-                {secondaryAction && <HeaderActionButton action={secondaryAction} variant="outline" />}
+                {secondaryAction && (
+                  secondaryAction.path === START_AUDIT_PATH ? (
+                    <Button variant="outline" onClick={() => setIsAuditing(true)}>
+                      {secondaryAction.label}
+                    </Button>
+                  ) : (
+                    <HeaderActionButton action={secondaryAction} variant="outline" />
+                  )
+                )}
                 {action && <HeaderActionButton action={action} />}
               </>
             )}

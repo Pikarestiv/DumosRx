@@ -3,7 +3,6 @@ import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { StockBatchTabNav } from "./stock-batch-tab-nav";
 import { StockOverview } from "./stock-overview";
 import { StockMovements } from "./stock-movements";
-import { StockAudits } from "./stock-audits";
 import { ProductDatabase } from "@/components/products/product-database";
 import { Button } from "@/components/ui/button";
 import { StockBatchMetrics } from "./stock-batch-metrics";
@@ -18,7 +17,6 @@ export function StockBatchManagement({
   const {
     isAdmin,
     canManageStockBatch,
-    isAuditing,
     setIsAuditing,
     stats,
     handleTabChange,
@@ -26,8 +24,6 @@ export function StockBatchManagement({
 
   return (
     <div className="flex flex-col flex-1 min-h-0 gap-6 relative">
-      {isAuditing && <StockAudits onClose={() => setIsAuditing(false)} />}
-
       <Tabs
         value={currentTab}
         onValueChange={handleTabChange}

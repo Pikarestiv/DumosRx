@@ -150,6 +150,10 @@ export function PlanTierCard({
               { key: "auto_lock", label: "Auto-Lock" },
               { key: "barcode_generation", label: "Barcode Generation" },
               { key: "loyalty_program", label: "Loyalty Program" },
+              { key: "daily_close_report", label: "Daily Close Report" },
+              { key: "advanced_reports", label: "Advanced Reports & BI" },
+              { key: "reseller_commission", label: "Reseller Commission" },
+              { key: "proforma_quotes", label: "Proforma Quotes" },
             ] satisfies { key: keyof TierFeatures; label: string }[]
           ).map((feat) => (
             <div key={feat.key} className="flex items-center justify-between">

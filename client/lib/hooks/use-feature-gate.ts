@@ -38,6 +38,16 @@ export function getDefaultMinimumSyncIntervalMinutes(
   return isEnterprise ? 0 : isPro ? 15 : isStarter ? 30 : 360;
 }
 
+/**
+ * A store limit of 1 can never support more than one store; anything above
+ * that always can. Extracted as a pure function (same reasoning as
+ * isLoyaltyProgramEnabled/getDefaultMinimumSyncIntervalMinutes above) so the
+ * derivation is unit-testable without a render harness.
+ */
+export function hasMultiStoreAccess(storesLimit: number): boolean {
+  return storesLimit > 1;
+}
+
 export function useFeatureGate() {
   const { storeProfile } = useStore();
   const { subscriptionPlans } = useSystemConfigStore();
@@ -130,12 +140,18 @@ export function useFeatureGate() {
     };
   };
 
+  const maxStores = getLimit('stores', isEnterprise ? 20 : isPro ? 3 : 1);
+
   return {
     withRestriction,
     getUpgradeMessage,
     currentTier: normalizedTier,
     // Max staff accounts allowed
     maxStaffAccounts: getLimit('staff', isEnterprise ? Infinity : isPro ? 10 : isStarter ? 3 : 0),
+    // Max stores/branches allowed — not enforced anywhere client-side yet
+    // (nothing today caps store creation against this), but needed so
+    // canManageMultiStore below has a real number to derive from.
+    maxStores,
 
     // Cloud sync permissions
     canCloudSync: getFeature('cloud_sync', 'cloud_sync', !isFree),
@@ -143,11 +159,13 @@ export function useFeatureGate() {
     // Multi-device sync
     canUseMobileApp: getFeature('mobile_app', 'mobile_access', isPro || isEnterprise),
 
-    // Multi-store functionality. Pro already sells a `stores` limit of 3
-    // (see maxStores below / subscription-config-tab.tsx), so the fallback
-    // must agree — isEnterprise-only here used to contradict a Pro store
-    // actually having room for more than one store.
-    canManageMultiStore: getFeature('multi_store', 'multi_store', isPro || isEnterprise),
+    // Multi-store functionality, derived directly from the `stores` limit
+    // instead of a separately admin-configured boolean — the two could
+    // disagree (Pro sold 3 stores while multi_store stayed false until
+    // this fix), and a store limit of 1 can never mean "multi-store" by
+    // definition, so there's nothing a separate toggle could express that
+    // the limit doesn't already say.
+    canManageMultiStore: hasMultiStoreAccess(maxStores),
 
     // Advanced E-commerce — Enterprise-only: a real per-tenant storefront
     // needs its own domain + SSL, which the current shared-hosting setup

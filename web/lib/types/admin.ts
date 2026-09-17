@@ -172,7 +172,6 @@ export interface TierFeatures {
   remove_branding: boolean;
   broadcast_create: boolean;
   daily_summary_email: boolean;
-  multi_store: boolean;
   procurement: boolean;
   prescriptions: boolean;
   expenses: boolean;

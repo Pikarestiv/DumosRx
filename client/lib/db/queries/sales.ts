@@ -160,6 +160,30 @@ export async function getSaleById(saleId: string) {
   return rows[0] || null;
 }
 
+export async function getSaleByTransactionNumber(transactionNumber: string) {
+  const rows = await query<SaleWithDetails>(
+    `SELECT
+      s.*,
+      TRIM(c.first_name || ' ' || COALESCE(c.last_name, '')) as customer_name,
+      (SELECT SUM(quantity) FROM sale_items si WHERE si.sale_id = s.id AND (si._deleted = 0 OR si._deleted IS NULL)) as item_count
+     FROM sales s
+     LEFT JOIN customers c ON s.customer_id = c.id
+     WHERE s.transaction_number = ? AND s._deleted = 0`,
+    [transactionNumber]
+  );
+  return rows[0] || null;
+}
+
+export async function getPendingResellerCommissionTotal() {
+  const storeId = getActiveStoreId();
+  const rows = await query<{ total: number | null }>(
+    `SELECT SUM(reseller_commission_amount) as total FROM sales
+     WHERE is_reseller_sale = 1 AND reseller_commission_redeemed = 0 AND _deleted = 0${storeId ? " AND store_id = ?" : ""}`,
+    storeId ? [storeId] : [],
+  );
+  return rows[0]?.total || 0;
+}
+
 /** Most recent (non-deleted) sale a prescription was dispensed through, if any. */
 export async function getSaleForPrescription(prescriptionId: string) {
   const rows = await query<Sale>(

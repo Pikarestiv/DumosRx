@@ -49,12 +49,12 @@ export function HybridOperationsExplainer() {
             </p>
             <div className="mt-3 space-y-2">
               <div className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 p-2.5 rounded-lg text-xs">
-                <strong>Pros:</strong> Multi-device store setup (up to {config?.tiers?.starter?.limits?.stores === -1 ? 'Unlimited' : (config?.tiers?.starter?.limits?.stores || 3)} devices) for in-store checkout. Nightly/6-hourly automated cloud
-                backup.
+                <strong>Pros:</strong> Multi-device store setup (up to {config?.tiers?.starter?.limits?.stores === -1 ? 'Unlimited' : (config?.tiers?.starter?.limits?.stores || 3)} devices) for in-store checkout. Automated cloud
+                sync every 30 minutes.
               </div>
               <div className="bg-rose-500/10 text-rose-700 dark:text-rose-300 p-2.5 rounded-lg text-xs">
-                <strong>Cons:</strong> Sync occurs only once every 6 hours. Web
-                dashboard stats are delayed by up to 6 hours. No mobile app.
+                <strong>Cons:</strong> Sync occurs only once every 30 minutes. Web
+                dashboard stats are delayed by up to 30 minutes. No mobile app.
               </div>
             </div>
           </div>
@@ -71,7 +71,7 @@ export function HybridOperationsExplainer() {
             </p>
             <div className="mt-3 space-y-2">
               <div className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 p-2.5 rounded-lg text-xs">
-                <strong>Pros:</strong> Fast automatic syncing (30 mins). Check
+                <strong>Pros:</strong> Fast automatic syncing (15 mins). Check
                 your store sales on the go from your phone. Receive smart
                 cross-selling suggestions.
               </div>
@@ -94,7 +94,7 @@ export function HybridOperationsExplainer() {
             </p>
             <div className="mt-3 space-y-2">
               <div className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 p-2.5 rounded-lg text-xs">
-                <strong>Pros:</strong> 15-minute automated cloud replication.
+                <strong>Pros:</strong> Instant, real-time cloud replication.
                 Monitor multiple branches live from one centralized HQ login.
                 Priority Email notifications.
               </div>

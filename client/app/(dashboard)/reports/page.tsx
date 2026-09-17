@@ -14,6 +14,7 @@ import { getLocalTodayDate } from "@/lib/utils";
 import { DailyCloseReport } from "@/components/reports/daily-close-report";
 import { ResellerCommissionPanel } from "@/components/reports/reseller-commission/reseller-commission-panel";
 import { ReportsTabNav } from "./reports-tab-nav";
+import { LockedModuleOverlay } from "@/components/dashboard/locked-module-overlay";
 
 export default function ReportsPage() {
   const { t: _t, storeType: _storeType } = useStore();
@@ -74,23 +75,35 @@ export default function ReportsPage() {
 
       {isAdmin && (
         <TabsContent value="reports" className="mt-0 border-none p-0">
-          <ReportCenter />
+          <div className="relative w-full h-full min-h-[500px]">
+            <LockedModuleOverlay featureName="Advanced Reports" featureKey="advanced_reports" />
+            <ReportCenter />
+          </div>
         </TabsContent>
       )}
 
       <TabsContent value="daily_close" className="mt-0 border-none p-0">
-        <DailyCloseReport reportDate={reportDate} />
+        <div className="relative w-full h-full min-h-[500px]">
+          <LockedModuleOverlay featureName="Daily Close Report" featureKey="daily_close_report" />
+          <DailyCloseReport reportDate={reportDate} />
+        </div>
       </TabsContent>
 
       {isAdmin && (
         <TabsContent value="analytics" className="mt-0 border-none p-0">
-          <BusinessIntelligenceDashboard />
+          <div className="relative w-full h-full min-h-[500px]">
+            <LockedModuleOverlay featureName="Advanced Reports" featureKey="advanced_reports" />
+            <BusinessIntelligenceDashboard />
+          </div>
         </TabsContent>
       )}
 
       {isAdmin && (
         <TabsContent value="reseller_commission" className="mt-0 border-none p-0">
-          <ResellerCommissionPanel />
+          <div className="relative w-full h-full min-h-[500px]">
+            <LockedModuleOverlay featureName="Reseller Commission" featureKey="reseller_commission" />
+            <ResellerCommissionPanel />
+          </div>
         </TabsContent>
       )}
     </Tabs>

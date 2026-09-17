@@ -124,13 +124,13 @@ export function PricingComparisonTable() {
                   No Cloud Sync
                 </td>
                 <td className="p-4 text-center text-muted-foreground">
-                  Scheduled (Every 6 Hours)
+                  Scheduled (Every 30 Minutes)
                 </td>
                 <td className="p-4 text-center font-medium text-foreground bg-primary/5">
-                  Automated (Every 30 mins)
+                  Automated (Every 15 mins)
                 </td>
                 <td className="p-4 text-center text-muted-foreground">
-                  Automated (Every 15 mins)
+                  Instant / Real-Time
                 </td>
               </tr>
               <tr>
@@ -257,8 +257,8 @@ export function PricingComparisonTable() {
                   Locked
                 </td>
                 <td className="p-4 text-center font-medium text-foreground bg-primary/5">
-                  <CheckCircle2 className="inline-block h-4 w-4 text-emerald-500 mr-1.5 -mt-0.5" />{" "}
-                  Custom Online URL
+                  <XCircle className="inline-block h-4 w-4 text-muted-foreground/60 mr-1.5 -mt-0.5" />{" "}
+                  Locked
                 </td>
                 <td className="p-4 text-center text-muted-foreground">
                   <CheckCircle2 className="inline-block h-4 w-4 text-emerald-500 mr-1.5 -mt-0.5" />{" "}

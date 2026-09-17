@@ -114,12 +114,13 @@ export function PlanTierCard({
         </div>
         {/* Limits continued */}
         <div className={`space-y-2 pt-2 border-t col-span-2 ${dividerClass}`}>
-          <Label className={labelClass}>Sync Interval (Mins)</Label>
+          <Label className={labelClass}>Sync Interval (Mins, 0 = instant)</Label>
           <Input
             type="number"
+            min={0}
             className={inputClass}
             value={tier.limits.sync_interval}
-            onChange={(e) => updateLimits({ sync_interval: Number(e.target.value) })}
+            onChange={(e) => updateLimits({ sync_interval: Math.max(0, Number(e.target.value)) })}
             disabled={!tier.active}
           />
         </div>
@@ -138,8 +139,7 @@ export function PlanTierCard({
               { key: "broadcast_create", label: "Email Broadcasting" },
               { key: "custom_branding", label: "Custom Branding" },
               { key: "remove_branding", label: "Remove DumosRx Branding" },
-              { key: "auto_backup", label: "Auto Backups" },
-              { key: "multi_store", label: "Multi-Store Mgmt" },
+              { key: "daily_summary_email", label: "Daily Summary Email" },
               { key: "procurement", label: "Procurement" },
               { key: "prescriptions", label: "Prescriptions" },
               { key: "expenses", label: "Expense Tracking" },
@@ -149,6 +149,10 @@ export function PlanTierCard({
               { key: "auto_lock", label: "Auto-Lock" },
               { key: "barcode_generation", label: "Barcode Generation" },
               { key: "loyalty_program", label: "Loyalty Program" },
+              { key: "daily_close_report", label: "Daily Close Report" },
+              { key: "advanced_reports", label: "Advanced Reports & BI" },
+              { key: "reseller_commission", label: "Reseller Commission" },
+              { key: "proforma_quotes", label: "Proforma Quotes" },
             ] satisfies { key: keyof TierFeatures; label: string }[]
           ).map((feat) => (
             <div key={feat.key} className="flex items-center justify-between">

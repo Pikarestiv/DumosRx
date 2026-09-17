@@ -12,7 +12,7 @@ export function FleetDailySummary() {
   const { data: subStatus } = useSubscriptionStatus();
 
   const canSendSummary =
-    subStatus?.features?.auto_backup ??
+    subStatus?.features?.daily_summary_email ??
     (subStatus?.plan !== "starter" && subStatus?.plan !== "free");
 
   const syncInterval = subStatus?.limits?.sync_interval ?? 0;

@@ -41,7 +41,7 @@ class SystemConfigSeeder extends Seeder
                         'auto_lock' => false,
                         'audit_mode' => false,
                         'smart_suggestions' => false,
-                        'auto_backup' => false,
+                        'daily_summary_email' => false,
                         'multi_store' => false,
                     ]
                 ],
@@ -70,7 +70,7 @@ class SystemConfigSeeder extends Seeder
                         'auto_lock' => true,
                         'audit_mode' => true,
                         'smart_suggestions' => false,
-                        'auto_backup' => false,
+                        'daily_summary_email' => false,
                         'multi_store' => false,
                     ]
                 ],
@@ -99,7 +99,7 @@ class SystemConfigSeeder extends Seeder
                         'auto_lock' => true,
                         'audit_mode' => true,
                         'smart_suggestions' => true,
-                        'auto_backup' => true,
+                        'daily_summary_email' => true,
                         'multi_store' => false,
                     ]
                 ],
@@ -131,7 +131,7 @@ class SystemConfigSeeder extends Seeder
                         'multi_store' => true,
                         'custom_branding' => true,
                         'data_export' => true,
-                        'auto_backup' => true,
+                        'daily_summary_email' => true,
                     ]
                 ]
             ]

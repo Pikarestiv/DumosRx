@@ -95,7 +95,7 @@ export function PricingSection() {
       features: [
         `Up to ${config?.tiers?.starter?.limits?.staff === -1 ? "Unlimited" : config?.tiers?.starter?.limits?.staff || 3} Staff Accounts`,
         "Cloud Database Backup",
-        "6-Hour Scheduled Cloud Sync",
+        "30-Minute Scheduled Cloud Sync",
         config?.tiers?.starter?.features?.web_dashboard
           ? "Full Web Dashboard"
           : "Restricted Web Dashboard",
@@ -126,7 +126,7 @@ export function PricingSection() {
       description: "Remote tracking and mobile-connected stores.",
       features: [
         `Up to ${config?.tiers?.pro?.limits?.staff === -1 ? "Unlimited" : config?.tiers?.pro?.limits?.staff || 10} Staff Accounts`,
-        "30-Minute Automated Cloud Sync",
+        "15-Minute Automated Cloud Sync",
         "Full Web Dashboard Analytics",
         "Mobile App Companion access",
         config?.tiers?.pro?.features?.smart_pos
@@ -156,10 +156,13 @@ export function PricingSection() {
       features: [
         `${config?.tiers?.enterprise?.limits?.stores === -1 ? "Unlimited" : config?.tiers?.enterprise?.limits?.stores || "Unlimited"} Multi-Store Operations`,
         `${config?.tiers?.enterprise?.limits?.staff === -1 ? "Unlimited" : config?.tiers?.enterprise?.limits?.staff || "Unlimited"} Terminals & Users`,
-        "15-Minute Automated Cloud Sync",
+        "Instant, Real-Time Cloud Sync",
         "Central HQ Dashboard & Management",
         config?.tiers?.enterprise?.features?.custom_branding
           ? "White-labeling & Custom Branding"
+          : "",
+        config?.tiers?.enterprise?.features?.ecommerce
+          ? "E-commerce Online Store URL"
           : "",
         "Priority Email Notifications",
         "24/7 Priority Dedicated Support",

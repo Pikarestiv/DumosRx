@@ -171,8 +171,7 @@ export interface TierFeatures {
   custom_branding: boolean;
   remove_branding: boolean;
   broadcast_create: boolean;
-  auto_backup: boolean;
-  multi_store: boolean;
+  daily_summary_email: boolean;
   procurement: boolean;
   prescriptions: boolean;
   expenses: boolean;
@@ -182,6 +181,10 @@ export interface TierFeatures {
   auto_lock: boolean;
   barcode_generation: boolean;
   loyalty_program: boolean;
+  advanced_reports: boolean;
+  reseller_commission: boolean;
+  proforma_quotes: boolean;
+  daily_close_report: boolean;
 }
 
 export interface TierLimits {

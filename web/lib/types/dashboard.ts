@@ -93,7 +93,7 @@ export interface SubscriptionStatus {
   is_trial?: boolean;
   expires_at?: string;
   limits?: { sync_interval?: number; staff?: number };
-  features?: { auto_backup?: boolean };
+  features?: { daily_summary_email?: boolean };
 }
 
 export interface BillingTransaction {

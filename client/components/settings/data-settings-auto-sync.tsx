@@ -83,8 +83,9 @@ export function DataSettingsAutoSync({
                   </TooltipTrigger>
                   <TooltipContent>
                     <p>
-                      How often (in minutes) the app should attempt to sync data
-                      with the cloud in the background.
+                      How often the app should sync data with the cloud in
+                      the background. "Sync Instantly" pushes changes as
+                      soon as they happen, if your plan allows it.
                     </p>
                   </TooltipContent>
                 </Tooltip>
@@ -98,6 +99,9 @@ export function DataSettingsAutoSync({
                 <SelectValue placeholder="Select interval" />
               </SelectTrigger>
               <SelectContent>
+                {minimumSyncIntervalMinutes <= 0 && (
+                  <SelectItem value="0">Sync Instantly</SelectItem>
+                )}
                 {minimumSyncIntervalMinutes <= 5 && (
                   <SelectItem value="5">Every 5 Minutes</SelectItem>
                 )}

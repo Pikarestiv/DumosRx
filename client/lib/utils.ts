@@ -118,6 +118,18 @@ export function isMobileDevice(): boolean {
 }
 
 /**
+ * True only for a genuine Tauri-built binary running on a mobile OS —
+ * i.e. the real native mobile app, not a phone browser tab or an installed
+ * PWA (both stay fully functional on every plan tier; only the native app
+ * build is what "Mobile App" as a plan feature actually restricts). Pure
+ * function so the platform->boolean mapping is unit-testable without
+ * mocking Tauri's async plugin-os import.
+ */
+export function isNativeMobileApp(isTauriEnv: boolean, osType: string): boolean {
+  return isTauriEnv && ["android", "ios"].includes(osType.toLowerCase());
+}
+
+/**
  * Extracts and formats user initials from their first and last name.
  * Defaults to "U" if no valid initials can be extracted.
  */

@@ -12,12 +12,18 @@ import {
 } from "../ui/tooltip";
 
 import { sync, isSyncing as checkIsSyncing } from "@/lib/db/sync-engine";
+import { addSyncQueueChangeListener } from "@/lib/db/core";
 import { useStore } from "@/lib/context/store-context";
 import { AuthModal } from "./auth-modal";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { queryKeys } from "@/lib/query-keys";
+
+// Bursts of local writes (e.g. checking out a multi-item sale, a bulk
+// stock receive) should collapse into one sync call, not one per row —
+// same reasoning as core.ts's transaction-scoped invalidation batching.
+const INSTANT_SYNC_DEBOUNCE_MS = 2000;
 
 const SolidAlertCircle = ({ className }: { className?: string }) => (
   <svg viewBox="0 0 24 24" fill="currentColor" className={className} xmlns="http://www.w3.org/2000/svg">
@@ -74,24 +80,47 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
     };
   }, []);
 
-  // Background Auto-Sync Daemon
+  // Background Auto-Sync Daemon. Two modes, switched purely by
+  // auto_sync_interval's value: 0 means "sync instantly after any local
+  // change" (event-driven, via core.ts's sync-queue-change listeners),
+  // any positive number means poll every N minutes like before. Both
+  // branches are torn down and rebuilt whenever auto_sync_interval changes
+  // (it's a dependency below), so switching a store between the two modes
+  // at runtime — e.g. an admin retunes a plan tier, or the store's own
+  // tier changes — cleanly stops whichever mode was active.
   useEffect(() => {
     let autoSyncIntervalTimer: NodeJS.Timeout | null = null;
+    let debounceTimer: NodeJS.Timeout | null = null;
+    let unsubscribe: (() => void) | null = null;
 
     if (storeProfile?.auto_sync_enabled === 1 && isLinked) {
-      const intervalMinutes = storeProfile?.auto_sync_interval || 15;
-      const intervalMs = intervalMinutes * 60 * 1000;
+      const intervalMinutes = storeProfile?.auto_sync_interval ?? 15;
 
-      autoSyncIntervalTimer = setInterval(() => {
-        if (navigator.onLine && !checkIsSyncing()) {
-          console.log(`Auto-sync triggered (${intervalMinutes} min interval)`);
-          handleManualSync();
-        }
-      }, intervalMs);
+      if (intervalMinutes === 0) {
+        unsubscribe = addSyncQueueChangeListener(() => {
+          if (debounceTimer) clearTimeout(debounceTimer);
+          debounceTimer = setTimeout(() => {
+            if (navigator.onLine && !checkIsSyncing()) {
+              console.log("Auto-sync triggered (instant, on change)");
+              handleManualSync();
+            }
+          }, INSTANT_SYNC_DEBOUNCE_MS);
+        });
+      } else {
+        const intervalMs = intervalMinutes * 60 * 1000;
+        autoSyncIntervalTimer = setInterval(() => {
+          if (navigator.onLine && !checkIsSyncing()) {
+            console.log(`Auto-sync triggered (${intervalMinutes} min interval)`);
+            handleManualSync();
+          }
+        }, intervalMs);
+      }
     }
 
     return () => {
       if (autoSyncIntervalTimer) clearInterval(autoSyncIntervalTimer);
+      if (debounceTimer) clearTimeout(debounceTimer);
+      unsubscribe?.();
     };
   }, [storeProfile?.auto_sync_enabled, storeProfile?.auto_sync_interval, isLinked]);
 

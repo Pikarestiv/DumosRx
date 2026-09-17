@@ -171,7 +171,7 @@ export function StockMovements() {
 
   return (
     <div className="relative flex flex-col flex-1 min-h-0">
-      {/* Mobile: search + chips stand alone above the list; no outer card, immutable-log note hidden */}
+      {/* Mobile: search + type/date filters stand alone above the list; no outer card, immutable-log note hidden */}
       <div className="md:hidden space-y-3 mb-4">
         <div className="flex items-center gap-2 bg-card border border-border rounded-[10px] px-3.5 py-2.5">
           <Search className="w-4 h-4 text-muted-foreground/70 shrink-0" />
@@ -183,12 +183,14 @@ export function StockMovements() {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <StockMovementTypeFilter
-          typeFilter={typeFilter}
-          setTypeFilter={setTypeFilter}
-          triggerClassName="data-[state=inactive]:bg-card data-[state=inactive]:border-border"
-        />
-        <DateRangePicker value={dateRange} onChange={setDateRange} className="w-full" />
+        <div className="flex items-center gap-2">
+          <StockMovementTypeFilter
+            typeFilter={typeFilter}
+            setTypeFilter={setTypeFilter}
+            className="flex-1 h-9 text-[13px] bg-card border-border"
+          />
+          <DateRangePicker value={dateRange} onChange={setDateRange} className="flex-1" />
+        </div>
         {dateRange.from && (
           <button
             onClick={() => setDateRange({})}
@@ -208,25 +210,25 @@ export function StockMovements() {
       <div className="hidden md:flex bg-card border border-border rounded-2xl flex-col flex-1 min-h-0">
         {/* Header & Filters */}
         <div className="p-4 pb-3 border-b border-border">
-          <div className="flex flex-col md:flex-row md:items-center gap-2.5 mb-3">
-            <div className="flex-1 flex items-center gap-2 bg-muted/30 border border-border rounded-[10px] px-3.5 py-2.5">
-              <Search className="w-4 h-4 text-muted-foreground/70 shrink-0" />
-              <input
-                type="text"
-                placeholder="Search by product, reference, or user"
-                className="border-0 outline-none text-[13px] w-full bg-transparent"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-            <DateRangePicker value={dateRange} onChange={setDateRange} className="bg-muted/30 border-border" />
+          <div className="flex items-center gap-2 bg-muted/30 border border-border rounded-[10px] px-3.5 py-2.5 mb-3">
+            <Search className="w-4 h-4 text-muted-foreground/70 shrink-0" />
+            <input
+              type="text"
+              placeholder="Search by product, reference, or user"
+              className="border-0 outline-none text-[13px] w-full bg-transparent"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
           </div>
           <div className="flex items-center justify-between gap-2">
-            <StockMovementTypeFilter
-              typeFilter={typeFilter}
-              setTypeFilter={setTypeFilter}
-              triggerClassName="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none data-[state=inactive]:border-border data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground"
-            />
+            <div className="flex items-center gap-2">
+              <StockMovementTypeFilter
+                typeFilter={typeFilter}
+                setTypeFilter={setTypeFilter}
+                className="w-[150px] h-9 text-[13px] bg-muted/30 border-border"
+              />
+              <DateRangePicker value={dateRange} onChange={setDateRange} className="bg-muted/30 border-border" />
+            </div>
             <div className="flex items-center gap-1.5 text-[11.5px] text-muted-foreground/70 whitespace-nowrap shrink-0">
               <Lock className="w-3.5 h-3.5" />
               Immutable log, entries can&apos;t be edited

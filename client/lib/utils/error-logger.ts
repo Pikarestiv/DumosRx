@@ -27,6 +27,39 @@ export interface CrashContext {
 
 const STORAGE_KEY = "dumosrx_pending_crashes";
 
+// Server-enforced plan restrictions (see SyncController::validateSync) that
+// the sync engine surfaces by throwing, same as any other failed request -
+// but they're an expected "not on this plan"/"try again later" outcome, not
+// a bug, so they shouldn't be reported as one. base-client.ts attaches
+// `code` to the thrown Error for exactly this check; the message-substring
+// fallback covers call sites (e.g. recordSyncFailure) that only have the
+// message string by the time they see the error.
+const EXPECTED_SYNC_RESTRICTION_CODES = [
+  "SYNC_THROTTLED",
+  "SYNC_DISABLED",
+  "STORE_LIMIT_EXCEEDED",
+];
+const EXPECTED_SYNC_RESTRICTION_MESSAGE_PATTERNS = [
+  "Sync limit reached",
+  "Cloud sync is disabled on your current plan",
+  "Sync rejected. Your ",
+];
+
+export function isExpectedSyncRestriction(error: unknown): boolean {
+  const code = (error as { code?: string } | undefined)?.code;
+  if (code && EXPECTED_SYNC_RESTRICTION_CODES.includes(code)) return true;
+
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === "string"
+        ? error
+        : "";
+  return EXPECTED_SYNC_RESTRICTION_MESSAGE_PATTERNS.some((p) =>
+    message.includes(p),
+  );
+}
+
 // Queue error to localStorage as a fallback
 function queueToLocalStorage(info: CrashInfo) {
   try {
@@ -71,6 +104,17 @@ export async function logCrash(error: unknown, isFatal = false, context: CrashCo
     timestamp,
     isFatal,
   };
+
+  // An expected, server-enforced plan restriction (sync throttled/disabled,
+  // store limit exceeded) surfaces through the exact same throw-and-catch
+  // path as a real failure, but it isn't a bug - it's the server telling
+  // this device to slow down or upgrade. Log it locally for visibility, but
+  // don't ship it to Sentry (or the own-server/feedback pipelines below) as
+  // a crash report.
+  if (isExpectedSyncRestriction(error)) {
+    console.warn(`[CRASH LOGGER] Skipping report for expected sync restriction: ${message}`, context);
+    return;
+  }
 
   console.error(`[CRASH LOGGER] Capturing error: ${message}`, info, context);
 

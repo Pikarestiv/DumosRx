@@ -30,7 +30,7 @@ import { usePathname } from "next/navigation";
 import { useTheme } from "@/components/theme-provider";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { useAutoLockStore } from "@/lib/hooks/use-auto-lock";
-import { isMobileDevice } from "@/lib/utils";
+import { isNativeMobileApp } from "@/lib/utils";
 import { toast } from "sonner";
 
 function ThemeRestrictor() {
@@ -108,17 +108,39 @@ function MobileRestrictionGuard() {
   const { isAuthenticated } = useAuth();
   const isLocked = useAutoLockStore((state) => state.isLocked);
   const pathname = usePathname();
-  const [isMobile, setIsMobile] = useState(false);
+  const [isNativeMobile, setIsNativeMobile] = useState(false);
+
+  // Detects whether this is a genuine Tauri mobile build (Android/iOS),
+  // not a phone browser tab or installed PWA — both of which must stay
+  // fully functional regardless of plan. window.__TAURI_INTERNALS__'s
+  // presence is the same synchronous check core.ts's isTauri() and
+  // use-tauri-window.ts use; the OS type itself needs the async
+  // @tauri-apps/plugin-os import, same as use-tauri-window.ts.
+  useEffect(() => {
+    let cancelled = false;
+    const detectPlatform = async () => {
+      const isTauriEnv =
+        typeof window !== "undefined" && !!window.__TAURI_INTERNALS__;
+      if (!isTauriEnv) {
+        if (!cancelled) setIsNativeMobile(false);
+        return;
+      }
+      try {
+        const { type } = await import("@tauri-apps/plugin-os");
+        if (!cancelled) setIsNativeMobile(isNativeMobileApp(isTauriEnv, type()));
+      } catch {
+        if (!cancelled) setIsNativeMobile(false);
+      }
+    };
+    detectPlatform();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(isMobileDevice());
-    };
-    checkMobile();
-    window.addEventListener("resize", checkMobile);
-
     const isRestricted = () =>
-      isMobile &&
+      isNativeMobile &&
       !canUseMobileApp &&
       isAuthenticated &&
       !isLocked &&
@@ -186,7 +208,6 @@ function MobileRestrictionGuard() {
     });
 
     return () => {
-      window.removeEventListener("resize", checkMobile);
       document.removeEventListener("click", handleGlobalClick, {
         capture: true,
       });
@@ -194,7 +215,7 @@ function MobileRestrictionGuard() {
         capture: true,
       });
     };
-  }, [isMobile, canUseMobileApp, isAuthenticated, isLocked, pathname]);
+  }, [isNativeMobile, canUseMobileApp, isAuthenticated, isLocked, pathname]);
 
   return null;
 }

@@ -23,6 +23,31 @@ export function isLoyaltyProgramEnabled(
   return tierAllows && storeToggle !== 0;
 }
 
+/**
+ * Fallback used only when the server's subscription_plans config has no
+ * explicit `limits.sync_interval` for the current tier (see getLimit()
+ * below). Extracted as a pure function (same reasoning as
+ * isLoyaltyProgramEnabled above) so the tier->default mapping is
+ * unit-testable without a StoreContext/useSystemConfigStore render harness.
+ */
+export function getDefaultMinimumSyncIntervalMinutes(
+  isEnterprise: boolean,
+  isPro: boolean,
+  isStarter: boolean,
+): number {
+  return isEnterprise ? 0 : isPro ? 15 : isStarter ? 30 : 360;
+}
+
+/**
+ * A store limit of 1 can never support more than one store; anything above
+ * that always can. Extracted as a pure function (same reasoning as
+ * isLoyaltyProgramEnabled/getDefaultMinimumSyncIntervalMinutes above) so the
+ * derivation is unit-testable without a render harness.
+ */
+export function hasMultiStoreAccess(storesLimit: number): boolean {
+  return storesLimit > 1;
+}
+
 export function useFeatureGate() {
   const { storeProfile } = useStore();
   const { subscriptionPlans } = useSystemConfigStore();
@@ -115,12 +140,18 @@ export function useFeatureGate() {
     };
   };
 
+  const maxStores = getLimit('stores', isEnterprise ? 20 : isPro ? 3 : 1);
+
   return {
     withRestriction,
     getUpgradeMessage,
     currentTier: normalizedTier,
     // Max staff accounts allowed
     maxStaffAccounts: getLimit('staff', isEnterprise ? Infinity : isPro ? 10 : isStarter ? 3 : 0),
+    // Max stores/branches allowed — not enforced anywhere client-side yet
+    // (nothing today caps store creation against this), but needed so
+    // canManageMultiStore below has a real number to derive from.
+    maxStores,
 
     // Cloud sync permissions
     canCloudSync: getFeature('cloud_sync', 'cloud_sync', !isFree),
@@ -128,17 +159,29 @@ export function useFeatureGate() {
     // Multi-device sync
     canUseMobileApp: getFeature('mobile_app', 'mobile_access', isPro || isEnterprise),
 
-    // Multi-store functionality
-    canManageMultiStore: getFeature('multi_store', 'multi_store', isEnterprise),
+    // Multi-store functionality, derived directly from the `stores` limit
+    // instead of a separately admin-configured boolean — the two could
+    // disagree (Pro sold 3 stores while multi_store stayed false until
+    // this fix), and a store limit of 1 can never mean "multi-store" by
+    // definition, so there's nothing a separate toggle could express that
+    // the limit doesn't already say.
+    canManageMultiStore: hasMultiStoreAccess(maxStores),
 
-    // Advanced E-commerce
-    canUseEcommerce: getFeature('ecommerce', 'store_url', isPro || isEnterprise),
+    // Advanced E-commerce — Enterprise-only: a real per-tenant storefront
+    // needs its own domain + SSL, which the current shared-hosting setup
+    // (no wildcard SSL) can't provision cheaply below Enterprise pricing.
+    canUseEcommerce: getFeature('ecommerce', 'store_url', isEnterprise),
 
     // Auto Backups
-    canAutoBackup: getFeature('auto_backup', 'auto_backup', isPro || isEnterprise),
+    // Gates the "Send Daily Summary" email button (fleet-daily-summary.tsx)
+    // — despite the old name, this has never gated any backup functionality.
+    canSendDailySummaryEmail: getFeature('daily_summary_email', 'daily_summary_email', isPro || isEnterprise),
 
-    // Minimum sync interval in minutes
-    minimumSyncIntervalMinutes: getLimit('sync_interval', isEnterprise ? 15 : isPro ? 30 : 360),
+    // Minimum sync interval in minutes (0 = sync instantly on any change)
+    minimumSyncIntervalMinutes: getLimit(
+      'sync_interval',
+      getDefaultMinimumSyncIntervalMinutes(isEnterprise, isPro, isStarter),
+    ),
 
     // Gated modules & features
     canUsePrescriptions: storeProfile?.store_type === 'pharmacy' ? getFeature('prescriptions', 'prescriptions', true) : false,
@@ -150,7 +193,7 @@ export function useFeatureGate() {
     canRemoveBranding: getFeature('remove_branding', 'white_label', isPro || isEnterprise),
     canUseDarkMode: getFeature('dark_mode', 'dark_mode', !isFree),
     canUseSmartSuggestions: getFeature('smart_suggestions', 'smart_suggestions', isPro || isEnterprise),
-    canUseStoreUrl: getFeature('ecommerce', 'store_url', isPro || isEnterprise),
+    canUseStoreUrl: getFeature('ecommerce', 'store_url', isEnterprise),
     canAutoLock: getFeature('auto_lock', 'auto_lock', !isFree),
     
     // New Features
@@ -169,5 +212,18 @@ export function useFeatureGate() {
       storeProfile?.loyalty_program_enabled,
     ),
     canBroadcastCreate: getFeature('broadcast_create', 'broadcast_create', isPro || isEnterprise),
+
+    // Report Center's non-daily-close reports (other report types, cross-
+    // report filtering) plus the BI/analytics dashboard and their CSV/PDF
+    // exports.
+    canUseAdvancedReports: getFeature('advanced_reports', 'advanced_reports', isPro || isEnterprise),
+    // The POS "Reseller sale" toggle/commission tracking and its report tab.
+    canUseResellerCommission: getFeature('reseller_commission', 'reseller_commission', isPro || isEnterprise),
+    // The POS "Preview Quote" (proforma) flow.
+    canUseProformaQuotes: getFeature('proforma_quotes', 'proforma_quotes', isPro || isEnterprise),
+    // The End-of-Day / Daily Close report tab, including its own export —
+    // deliberately Starter+ (not Pro-only), matching expenses/procurement/
+    // prescriptions: core day-to-day ops stay available at Starter.
+    canUseDailyCloseReport: getFeature('daily_close_report', 'daily_close_report', !isFree),
   };
 }

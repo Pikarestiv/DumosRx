@@ -51,6 +51,22 @@ export const useAutoLockStore = create<AutoLockState>()(
   ),
 );
 
+// persist's `set()` always writes this tab's *entire* in-memory state back
+// to localStorage, not just the changed field. Without this listener, a
+// second tab/window left open from before a Settings change (still holding
+// the old `duration` in memory) would silently clobber it back on that
+// tab's next `updateActivity()` call (i.e. its next mousemove/keydown/etc) —
+// this is what was causing auto-lock to "reset to 5 minutes" after being
+// turned off. Rehydrating on the storage event keeps every open tab's
+// in-memory state caught up with whichever tab wrote most recently.
+if (typeof window !== "undefined") {
+  window.addEventListener("storage", (e) => {
+    if (e.key === "dumos_autolock") {
+      useAutoLockStore.persist.rehydrate();
+    }
+  });
+}
+
 export function useAutoLockTimer() {
   // Selectors, not a destructured whole-store call: this hook runs inside
   // DashboardLayout, which wraps the entire app, so subscribing to the whole

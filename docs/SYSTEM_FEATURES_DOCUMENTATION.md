@@ -38,7 +38,11 @@ The desktop application is built for speed, reliability, and ease of use. It con
 
 **Park Transactions:** Put a customer's cart on "Hold" if they need to grab another item, allowing you to serve the next person in line.
 
-**Custom Receipts:** Print thermal receipts customized with your store's logo and details.
+**Custom Receipts:** Print thermal receipts customized with your store's logo and details. Print a formal **Tax Invoice** variant that adds your store's tax/VAT number to the header, for customers who need one for their own records.
+
+**Proforma Quotes:** Give a customer a price breakdown for their shopping list before they commit — no sale is recorded and no stock leaves your shelves until it's actually charged.
+
+**Reseller Sales:** Selling through an independent reseller who found their own client at a marked-up price? Mark the sale as a reseller sale, adjust item prices up to what the reseller quoted, and the system automatically works out their commission (a percentage of the markup, set once in Settings) for you to pay out whenever they come to collect it.
 
 ### 📦 Inventory & Stock Management
 

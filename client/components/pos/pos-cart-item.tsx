@@ -52,6 +52,26 @@ export function POSCartItem({ item, currencyCode, isLast, updateQuantity, remove
     else setPriceInput(String(item.unit_price));
   };
 
+  // Same uncontrolled-while-typing pattern as priceInput above: typing "50"
+  // directly (e.g. buying 50 tablets) must not go through updateQuantity on
+  // every keystroke - that would re-clamp/re-render against stock on each
+  // digit and mangle multi-digit entry the same way the price input did
+  // before this fix. Commits via the existing updateQuantity (which already
+  // validates against stock and removes the item on <= 0) on blur/Enter.
+  const [qtyInput, setQtyInput] = useState(String(item.quantity));
+
+  useEffect(() => {
+    setQtyInput((prev) =>
+      Number(prev) === item.quantity ? prev : String(item.quantity),
+    );
+  }, [item.quantity]);
+
+  const commitQuantity = () => {
+    const val = parseInt(qtyInput, 10);
+    if (!Number.isNaN(val) && val !== item.quantity) updateQuantity(item.id, val);
+    else setQtyInput(String(item.quantity));
+  };
+
   return (
     <div className="relative overflow-hidden rounded-lg">
       {!isLocked && (
@@ -118,9 +138,20 @@ export function POSCartItem({ item, currencyCode, isLast, updateQuantity, remove
             >
               <Minus className="w-3 h-3" strokeWidth={2.5} />
             </button>
-            <span className="w-6 text-center text-xs font-semibold">
-              {item.quantity}
-            </span>
+            <input
+              type="number"
+              min={1}
+              value={qtyInput}
+              onChange={(e) => setQtyInput(e.target.value)}
+              onFocus={(e) => e.currentTarget.select()}
+              onBlur={commitQuantity}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.currentTarget.blur();
+                }
+              }}
+              className="w-9 text-center text-xs font-semibold bg-transparent border-0 outline-none focus:ring-1 focus:ring-primary rounded [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            />
             <button
               className="w-6 h-6 flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors cursor-pointer"
               onClick={() => updateQuantity(item.id, item.quantity + 1)}

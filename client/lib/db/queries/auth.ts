@@ -37,8 +37,13 @@ export async function updateUserPin(userId: string, newPin: string) {
 }
 
 export async function getStaffCount() {
+  // Excludes the store owner's own row (role = 'store_owner') so a plan's
+  // advertised staff limit means "N employees you can add," not "you +
+  // N-1 employees." Also still excludes the hardcoded 'default-admin'
+  // bootstrap id (a local fallback account, unrelated to ownership — see
+  // auth-context.tsx's login() fallback branch).
   const result = await query<{ count: number }>(
-    "SELECT COUNT(*) as count FROM users WHERE _deleted = 0 AND is_active = 1 AND id != 'default-admin'"
+    "SELECT COUNT(*) as count FROM users WHERE _deleted = 0 AND is_active = 1 AND id != 'default-admin' AND role != 'store_owner'"
   );
   return result[0]?.count || 0;
 }

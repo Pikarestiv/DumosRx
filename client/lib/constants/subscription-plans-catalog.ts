@@ -70,7 +70,7 @@ export function getSubscriptionPlans(
       features: [
         limitLabel("starter", "stores", "Connected Devices", 1),
         limitLabel("starter", "staff", "Staff Accounts", 3),
-        "Cloud Sync (Every 6 Hours)",
+        "Cloud Sync (Every 30 Minutes)",
         "Prescriptions, Procurement & Expenses",
       ],
       numericPrice: priceFor("starter") || 3000,
@@ -85,7 +85,7 @@ export function getSubscriptionPlans(
       features: [
         limitLabel("pro", "stores", "Connected Devices", 5),
         limitLabel("pro", "staff", "Staff Accounts", 10),
-        "Real-Time Cloud Sync",
+        "Cloud Sync (Every 15 Minutes)",
         "Mobile App Companion",
       ],
       numericPrice: priceFor("pro") || 8000,
@@ -100,6 +100,7 @@ export function getSubscriptionPlans(
       features: [
         limitLabel("enterprise", "stores", "Connected Devices", -1),
         limitLabel("enterprise", "staff", "Staff Accounts", -1),
+        "Instant Cloud Sync",
         "Priority Support",
         "Custom Branding",
       ],

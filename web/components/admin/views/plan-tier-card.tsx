@@ -132,7 +132,6 @@ export function PlanTierCard({
           {(
             [
               { key: "cloud_sync", label: "Cloud Sync" },
-              { key: "web_dashboard", label: "Web Dashboard" },
               { key: "mobile_app", label: "Mobile App" },
               { key: "ecommerce", label: "E-commerce URL" },
               { key: "smart_pos", label: "Smart POS" },

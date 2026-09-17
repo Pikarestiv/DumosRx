@@ -164,7 +164,6 @@ export interface EmailTemplatesResponse {
 
 export interface TierFeatures {
   cloud_sync: boolean;
-  web_dashboard: boolean;
   mobile_app: boolean;
   ecommerce: boolean;
   smart_pos: boolean;

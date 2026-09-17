@@ -12,6 +12,27 @@ import { useSettingsForm } from "./use-settings-form";
 import { useSettingsSecurity } from "./use-settings-security";
 import { useSettingsSync } from "./use-settings-sync";
 
+/**
+ * Resolves the user's typed/selected auto-sync interval against the
+ * store's plan-tier minimum. `0` (instant sync) is a real, meaningful
+ * value distinct from "unset" — parseInt(rawInput) || 15 would silently
+ * coerce "0" to 15 (0 is falsy), so this checks for NaN explicitly instead.
+ * Extracted as a pure function so the clamp logic is unit-testable without
+ * a StoreContext render harness.
+ */
+export function resolveAutoSyncInterval(
+  rawInput: string,
+  enabled: boolean,
+  minimumMinutes: number,
+): number {
+  const parsed = parseInt(rawInput, 10);
+  let interval = Number.isNaN(parsed) ? 15 : parsed;
+  if (enabled && interval < minimumMinutes) {
+    interval = minimumMinutes;
+  }
+  return interval;
+}
+
 export function useSettings() {
   const { theme, setTheme } = useTheme();
   const { user, isAdmin, changePin, isCloudLinked } = useAuth();
@@ -261,10 +282,13 @@ export function useSettings() {
   };
 
   const handleSaveAutoSyncSettings = () => {
-    let interval = parseInt(autoSyncInterval) || 15;
-    if (autoSyncEnabled && interval < minimumSyncIntervalMinutes) {
-      interval = minimumSyncIntervalMinutes;
-      setAutoSyncInterval(minimumSyncIntervalMinutes.toString());
+    const interval = resolveAutoSyncInterval(
+      autoSyncInterval,
+      autoSyncEnabled,
+      minimumSyncIntervalMinutes,
+    );
+    if (interval.toString() !== autoSyncInterval) {
+      setAutoSyncInterval(interval.toString());
     }
 
     updateStoreProfile({

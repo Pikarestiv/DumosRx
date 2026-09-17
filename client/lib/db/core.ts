@@ -275,6 +275,16 @@ const SYNC_COLUMN_MIGRATIONS: { table: string; columns: string[] }[] = [
       "payment_details TEXT",
       "prescription_id TEXT",
       "store_id TEXT",
+      // Reseller-commission fields (see ResellerCommissionPanel / use-pos-payment.ts):
+      // every checkout writes all three below (0-valued when the reseller
+      // toggle is off), plus the redeemed/redeemed-at/redeemed-by trio set
+      // once ResellerCommissionPanel marks a sale's commission paid out.
+      "is_reseller_sale INTEGER DEFAULT 0",
+      "reseller_commission_percentage REAL DEFAULT 0",
+      "reseller_commission_amount REAL DEFAULT 0",
+      "reseller_commission_redeemed INTEGER DEFAULT 0",
+      "reseller_commission_redeemed_at TEXT",
+      "reseller_commission_redeemed_by TEXT",
     ],
   },
   {
@@ -334,6 +344,7 @@ const SYNC_COLUMN_MIGRATIONS: { table: string; columns: string[] }[] = [
       "user_id TEXT",
       "store_id TEXT",
       "covers_months INTEGER",
+      "notes TEXT",
     ],
   },
   {
@@ -496,6 +507,22 @@ const SYNC_COLUMN_MIGRATIONS: { table: string; columns: string[] }[] = [
       "is_demo INTEGER DEFAULT 0",
       "require_sale_notes INTEGER DEFAULT 0",
       "display_stock_levels INTEGER DEFAULT 1",
+      // DEFAULT 1 (ON) so existing Pro/Enterprise stores already using the
+      // loyalty program see zero behavior change - only a store that
+      // explicitly flips this off in Settings gets paused.
+      "loyalty_program_enabled INTEGER DEFAULT 1",
+      // DEFAULT 1 (ON): product/category names are always stored lowercase
+      // now, so without this every store would see an abrupt all-lowercase
+      // catalog the moment this shipped, instead of the uppercase-via-CSS
+      // display they're used to.
+      "uppercase_display_enabled INTEGER DEFAULT 1",
+      // For the Tax Invoice receipt print variant's header (see ReceiptView) -
+      // a store's formal tax/VAT registration ID, distinct from
+      // pcn_license/registration_number.
+      "tax_number TEXT",
+      // Store-wide % of a reseller sale's markup remitted back to the
+      // reseller. See ResellerCommissionPanel / use-pos-payment.ts.
+      "reseller_commission_percentage REAL DEFAULT 0",
     ],
   },
   {
@@ -802,86 +829,6 @@ export async function initDatabase(): Promise<any> {
     } else {
       db = new SQL.Database();
       db.run(SCHEMA_SQL);
-    }
-
-    // --- Data migrations ---
-
-    try {
-      db.run('ALTER TABLE expenses ADD COLUMN notes TEXT;');
-    } catch (_e) {
-      // Ignore if column already exists
-    }
-
-    try {
-      // DEFAULT 1 (ON) so existing Pro/Enterprise stores already using the
-      // loyalty program see zero behavior change — only a store that
-      // explicitly flips this off in Settings gets paused.
-      db.run('ALTER TABLE stores ADD COLUMN loyalty_program_enabled INTEGER DEFAULT 1;');
-    } catch (_e) {
-      // Ignore if column already exists
-    }
-
-    try {
-      // DEFAULT 1 (ON): product/category names are always stored lowercase
-      // now, so without this every store would see an abrupt all-lowercase
-      // catalog the moment this shipped, instead of the uppercase-via-CSS
-      // display they're used to.
-      db.run('ALTER TABLE stores ADD COLUMN uppercase_display_enabled INTEGER DEFAULT 1;');
-    } catch (_e) {
-      // Ignore if column already exists
-    }
-
-    try {
-      // For the Tax Invoice receipt print variant's header (see ReceiptView) -
-      // a store's formal tax/VAT registration ID, distinct from
-      // pcn_license/registration_number.
-      db.run('ALTER TABLE stores ADD COLUMN tax_number TEXT;');
-    } catch (_e) {
-      // Ignore if column already exists
-    }
-
-    try {
-      // Store-wide % of a reseller sale's markup remitted back to the
-      // reseller. See ReselleCommissionPanel / use-pos-payment.ts.
-      db.run('ALTER TABLE stores ADD COLUMN reseller_commission_percentage REAL DEFAULT 0;');
-    } catch (_e) {
-      // Ignore if column already exists
-    }
-
-    try {
-      db.run('ALTER TABLE sales ADD COLUMN is_reseller_sale INTEGER DEFAULT 0;');
-    } catch (_e) {
-      // Ignore if column already exists
-    }
-
-    try {
-      db.run('ALTER TABLE sales ADD COLUMN reseller_commission_percentage REAL DEFAULT 0;');
-    } catch (_e) {
-      // Ignore if column already exists
-    }
-
-    try {
-      db.run('ALTER TABLE sales ADD COLUMN reseller_commission_amount REAL DEFAULT 0;');
-    } catch (_e) {
-      // Ignore if column already exists
-    }
-
-    try {
-      db.run('ALTER TABLE sales ADD COLUMN reseller_commission_redeemed INTEGER DEFAULT 0;');
-    } catch (_e) {
-      // Ignore if column already exists
-    }
-
-    try {
-      db.run('ALTER TABLE sales ADD COLUMN reseller_commission_redeemed_at TEXT;');
-    } catch (_e) {
-      // Ignore if column already exists
-    }
-
-    try {
-      db.run('ALTER TABLE sales ADD COLUMN reseller_commission_redeemed_by TEXT;');
-    } catch (_e) {
-      // Ignore if column already exists
     }
 
     const webAdapter = makeSqlJsAdapter(db);

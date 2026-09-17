@@ -31,7 +31,7 @@ vi.mock("@/lib/db/queries/setup", () => ({
 }));
 
 vi.mock("@/lib/db/sync-engine", () => ({
-  sync: (...args: unknown[]) => mockSync(...args),
+  sync: mockSync,
   isSyncing: () => false,
 }));
 

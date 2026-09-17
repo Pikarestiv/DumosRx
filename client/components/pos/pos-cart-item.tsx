@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Minus, Plus, Trash2 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
@@ -25,6 +26,31 @@ interface Props {
 export function POSCartItem({ item, currencyCode, isLast, updateQuantity, removeFromCart, isLocked = false, isResellerSale = false, updateUnitPrice }: Props) {
   const CategoryIcon = getCategoryIcon(item.category_name);
   const capsClass = useUppercaseDisplayClass();
+
+  // The price input is uncontrolled-while-typing: it holds its own local
+  // string state so keystrokes aren't clamped one-at-a-time against
+  // item.unit_price (already-committed, already-clamped state) - clamping
+  // on every keystroke meant typing "150" against a floor of 100 clamped
+  // after the "1" alone, turning the next keystroke into "1005" instead of
+  // "150". The real updateUnitPrice (which still clamps, as the source of
+  // truth) only runs on blur/Enter.
+  const [priceInput, setPriceInput] = useState(String(item.unit_price));
+
+  useEffect(() => {
+    // Re-sync when the external value changes from elsewhere (e.g. reseller
+    // mode toggled off reverts the price) - but don't fight the user's
+    // in-progress typing by resetting on every render when nothing external
+    // actually changed.
+    setPriceInput((prev) =>
+      Number(prev) === item.unit_price ? prev : String(item.unit_price),
+    );
+  }, [item.unit_price]);
+
+  const commitPrice = () => {
+    const val = parseFloat(priceInput);
+    if (!Number.isNaN(val)) updateUnitPrice?.(item.id, val);
+    else setPriceInput(String(item.unit_price));
+  };
 
   return (
     <div className="relative overflow-hidden rounded-lg">
@@ -61,10 +87,13 @@ export function POSCartItem({ item, currencyCode, isLast, updateQuantity, remove
                 type="number"
                 min={item.original_unit_price}
                 step="1"
-                value={item.unit_price}
-                onChange={(e) => {
-                  const val = parseFloat(e.target.value);
-                  if (!Number.isNaN(val)) updateUnitPrice?.(item.id, val);
+                value={priceInput}
+                onChange={(e) => setPriceInput(e.target.value)}
+                onBlur={commitPrice}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.currentTarget.blur();
+                  }
                 }}
                 className="w-20 h-6 px-1.5 rounded border border-border bg-background text-[11.5px]"
               />

@@ -92,6 +92,15 @@ export function usePOSHeldTransactions({
               ...product,
               quantity: item.quantity,
               subtotal: product.unit_price * item.quantity,
+              // Always derive from the current catalog price, not the
+              // parsed items_json (which, for a transaction held before
+              // this feature shipped, may not have an original_unit_price
+              // at all). Same fix as use-pos-prescription.ts: without this,
+              // a CartItem-shaped object flows into restoreCart() with
+              // original_unit_price undefined, and a later updateUnitPrice()
+              // call (e.g. after toggling reseller mode) does
+              // Math.max(newPrice, undefined) => NaN, corrupting the price.
+              original_unit_price: product.unit_price,
             };
           }
           return null;

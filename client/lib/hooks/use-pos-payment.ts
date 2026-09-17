@@ -44,6 +44,10 @@ interface UsePOSPaymentProps {
    * closed (defaults to false) — a caller that forgets to pass it gets no
    * loyalty writes rather than silently bypassing the gate. */
   canUseLoyaltyProgram?: boolean;
+  isResellerSale?: boolean;
+  /** Store-wide % of the markup remitted to the reseller - snapshotted onto
+   * the sale at checkout time, never recalculated later. */
+  resellerCommissionPercentage?: number;
 }
 
 export function usePOSPayment({
@@ -66,6 +70,8 @@ export function usePOSPayment({
   setDispensedRxId,
   isRefillDispense = false,
   canUseLoyaltyProgram = false,
+  isResellerSale = false,
+  resellerCommissionPercentage = 0,
 }: UsePOSPaymentProps) {
   const [paymentMethod, setPaymentMethod] = useState<
     "cash" | "card" | "transfer" | "credit" | "mixed"
@@ -152,6 +158,20 @@ export function usePOSPayment({
           ? calculateEarnedPoints(total)
           : 0;
 
+      // Markup is clamped to >= 0 by construction (updateUnitPrice never
+      // lets unit_price go below original_unit_price), but Math.max here is
+      // a second layer of defense, not the only one.
+      const resellerMarkup = isResellerSale
+        ? cart.reduce(
+            (sum, item) =>
+              sum + Math.max(0, item.unit_price - item.original_unit_price) * item.quantity,
+            0,
+          )
+        : 0;
+      const resellerCommissionAmount = isResellerSale
+        ? resellerMarkup * (resellerCommissionPercentage / 100)
+        : 0;
+
       const saleId = await insert("sales", {
         transaction_number: transactionNumber,
         customer_id: selectedCustomer?.id || null,
@@ -206,6 +226,9 @@ export function usePOSPayment({
         receipt_printed: 0,
         notes: saleNote.trim() || "POS Sale",
         prescription_id: dispensedRxId || null,
+        is_reseller_sale: isResellerSale ? 1 : 0,
+        reseller_commission_percentage: isResellerSale ? resellerCommissionPercentage : 0,
+        reseller_commission_amount: resellerCommissionAmount,
       });
 
       for (const item of cart) {

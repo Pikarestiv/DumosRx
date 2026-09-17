@@ -164,6 +164,8 @@ export function usePOSSystem() {
     setDispensedRxId,
     isRefillDispense,
     canUseLoyaltyProgram,
+    isResellerSale,
+    resellerCommissionPercentage: storeProfile?.reseller_commission_percentage ?? 0,
   });
   usePOSKeyboardShortcuts({
     searchInputRef,

@@ -103,6 +103,7 @@ export function getSubscriptionPlans(
         limitLabel("enterprise", "stores", "Connected Devices", 20),
         limitLabel("enterprise", "staff", "Staff Accounts", 50),
         "Instant Cloud Sync",
+        "Custom Online Storefront",
         "Advanced Reports & Analytics",
         "Priority Support",
         "Custom Branding",

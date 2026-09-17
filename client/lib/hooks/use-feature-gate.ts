@@ -149,8 +149,10 @@ export function useFeatureGate() {
     // actually having room for more than one store.
     canManageMultiStore: getFeature('multi_store', 'multi_store', isPro || isEnterprise),
 
-    // Advanced E-commerce
-    canUseEcommerce: getFeature('ecommerce', 'store_url', isPro || isEnterprise),
+    // Advanced E-commerce — Enterprise-only: a real per-tenant storefront
+    // needs its own domain + SSL, which the current shared-hosting setup
+    // (no wildcard SSL) can't provision cheaply below Enterprise pricing.
+    canUseEcommerce: getFeature('ecommerce', 'store_url', isEnterprise),
 
     // Auto Backups
     // Gates the "Send Daily Summary" email button (fleet-daily-summary.tsx)
@@ -173,7 +175,7 @@ export function useFeatureGate() {
     canRemoveBranding: getFeature('remove_branding', 'white_label', isPro || isEnterprise),
     canUseDarkMode: getFeature('dark_mode', 'dark_mode', !isFree),
     canUseSmartSuggestions: getFeature('smart_suggestions', 'smart_suggestions', isPro || isEnterprise),
-    canUseStoreUrl: getFeature('ecommerce', 'store_url', isPro || isEnterprise),
+    canUseStoreUrl: getFeature('ecommerce', 'store_url', isEnterprise),
     canAutoLock: getFeature('auto_lock', 'auto_lock', !isFree),
     
     // New Features

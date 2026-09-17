@@ -143,8 +143,11 @@ export function useFeatureGate() {
     // Multi-device sync
     canUseMobileApp: getFeature('mobile_app', 'mobile_access', isPro || isEnterprise),
 
-    // Multi-store functionality
-    canManageMultiStore: getFeature('multi_store', 'multi_store', isEnterprise),
+    // Multi-store functionality. Pro already sells a `stores` limit of 3
+    // (see maxStores below / subscription-config-tab.tsx), so the fallback
+    // must agree — isEnterprise-only here used to contradict a Pro store
+    // actually having room for more than one store.
+    canManageMultiStore: getFeature('multi_store', 'multi_store', isPro || isEnterprise),
 
     // Advanced E-commerce
     canUseEcommerce: getFeature('ecommerce', 'store_url', isPro || isEnterprise),
@@ -187,5 +190,18 @@ export function useFeatureGate() {
       storeProfile?.loyalty_program_enabled,
     ),
     canBroadcastCreate: getFeature('broadcast_create', 'broadcast_create', isPro || isEnterprise),
+
+    // Report Center's non-daily-close reports (other report types, cross-
+    // report filtering) plus the BI/analytics dashboard and their CSV/PDF
+    // exports.
+    canUseAdvancedReports: getFeature('advanced_reports', 'advanced_reports', isPro || isEnterprise),
+    // The POS "Reseller sale" toggle/commission tracking and its report tab.
+    canUseResellerCommission: getFeature('reseller_commission', 'reseller_commission', isPro || isEnterprise),
+    // The POS "Preview Quote" (proforma) flow.
+    canUseProformaQuotes: getFeature('proforma_quotes', 'proforma_quotes', isPro || isEnterprise),
+    // The End-of-Day / Daily Close report tab, including its own export —
+    // deliberately Starter+ (not Pro-only), matching expenses/procurement/
+    // prescriptions: core day-to-day ops stay available at Starter.
+    canUseDailyCloseReport: getFeature('daily_close_report', 'daily_close_report', !isFree),
   };
 }

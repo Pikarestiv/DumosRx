@@ -36,10 +36,14 @@ export function ResellerCommissionPanel() {
 
   const handleRedeem = async () => {
     if (!lookedUpSale) return;
-    await redeemMutation.mutateAsync({ saleId: lookedUpSale.id, userId: user?.id });
-    const refreshed = await getSaleByTransactionNumber(lookedUpSale.transaction_number);
-    setLookedUpSale(refreshed);
-    queryClient.invalidateQueries({ queryKey: ["resellerCommission", "pendingTotal"] });
+    try {
+      await redeemMutation.mutateAsync({ saleId: lookedUpSale.id, userId: user?.id });
+      const refreshed = await getSaleByTransactionNumber(lookedUpSale.transaction_number);
+      setLookedUpSale(refreshed);
+      queryClient.invalidateQueries({ queryKey: ["resellerCommission", "pendingTotal"] });
+    } catch (error) {
+      console.error("Failed to redeem reseller commission:", error);
+    }
   };
 
   return (

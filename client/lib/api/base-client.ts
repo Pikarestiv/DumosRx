@@ -212,7 +212,18 @@ export class BaseApiClient {
         const serverError = errorData.error
           ? ` - ${typeof errorData.error === "string" ? errorData.error : JSON.stringify(errorData.error)}`
           : "";
-        throw new Error(errorMessage + serverError);
+        // status/code let callers (e.g. sync-engine's logCrash calls)
+        // distinguish an expected, server-enforced plan restriction
+        // (SYNC_THROTTLED, SYNC_DISABLED, STORE_LIMIT_EXCEEDED - see
+        // SyncController::validateSync) from an actual bug, without
+        // resorting to matching on the human-readable message text.
+        const apiError = new Error(errorMessage + serverError) as Error & {
+          status?: number;
+          code?: string;
+        };
+        apiError.status = response.status;
+        apiError.code = errorData.code;
+        throw apiError;
       }
 
       const responseData = await response.json();

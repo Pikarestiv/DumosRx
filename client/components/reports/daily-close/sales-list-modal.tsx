@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Receipt } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
+import { genericFuzzySearch } from "@/lib/utils/search";
 import type { Sale } from "@/lib/types/sale";
 
 interface SalesListModalProps {
@@ -32,16 +33,28 @@ export function SalesListModal({
   const [salesSearch, setSalesSearch] = useState("");
 
   const filteredSales = useMemo(() => {
-    return salesToday.filter((s) => {
-      const q = salesSearch.toLowerCase();
-      const matchesSearch =
-        s.transaction_number.toLowerCase().includes(q) ||
-        !!s.item_names?.toLowerCase().includes(q);
-      const matchesFilter =
+    let searched = salesToday;
+
+    if (salesSearch.trim()) {
+      // Same fuzzy-search + "||" tokenization fix as pos-transaction-history.tsx.
+      const searchable = salesToday.map((s) => ({
+        id: s.id,
+        transaction_number: s.transaction_number,
+        item_names: s.item_names?.replace(/\|\|/g, " ") || "",
+      }));
+      const { results } = genericFuzzySearch(salesSearch, searchable, [
+        "transaction_number",
+        "item_names",
+      ]);
+      const matchedIds = new Set(results.map((r) => r.id));
+      searched = salesToday.filter((s) => matchedIds.has(s.id));
+    }
+
+    return searched.filter(
+      (s) =>
         paymentFilter === "all" ||
-        s.payment_method?.toLowerCase() === paymentFilter;
-      return matchesSearch && matchesFilter;
-    });
+        s.payment_method?.toLowerCase() === paymentFilter,
+    );
   }, [salesToday, salesSearch, paymentFilter]);
 
   return (

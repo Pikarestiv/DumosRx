@@ -20,7 +20,9 @@ class Sale extends Model
         'subtotal', 'discount_total', 'discount_amount', 'discount_percentage', 'discount_type', 'tax_amount',
         'tax_percentage', 'total_amount', 'payment_method', 'payment_status',
         'amount_paid', 'change_given', 'points_earned', 'points_redeemed',
-        'transaction_date', 'notes', 'receipt_printed', 'payment_details'
+        'transaction_date', 'notes', 'receipt_printed', 'payment_details',
+        'is_reseller_sale', 'reseller_commission_percentage', 'reseller_commission_amount',
+        'reseller_commission_redeemed', 'reseller_commission_redeemed_at', 'reseller_commission_redeemed_by',
     ];
 
     protected $casts = [
@@ -28,6 +30,8 @@ class Sale extends Model
         'receipt_printed' => 'boolean',
         'total_amount' => 'decimal:2',
         'payment_details' => 'array',
+        'is_reseller_sale' => 'boolean',
+        'reseller_commission_redeemed' => 'boolean',
     ];
 
      protected static function boot()

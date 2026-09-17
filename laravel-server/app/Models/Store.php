@@ -55,6 +55,7 @@ class Store extends Model
         'require_sale_notes',
         'display_stock_levels',
         'uppercase_display_enabled',
+        'reseller_commission_percentage',
     ];
 
     protected $casts = [

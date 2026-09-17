@@ -53,6 +53,7 @@ export function useSettings() {
     localName,
     localCurrency,
     localVat,
+    localResellerCommission,
     localReceiptHeader,
     localReceiptFooter,
     showLogo,
@@ -232,6 +233,7 @@ export function useSettings() {
     updateStoreProfile({
       currency: localCurrency,
       vat_percentage: parseFloat(localVat) || 0,
+      reseller_commission_percentage: parseFloat(localResellerCommission) || 0,
     });
     toast.success("Regional settings updated");
   };

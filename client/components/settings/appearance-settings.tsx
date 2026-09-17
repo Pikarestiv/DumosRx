@@ -14,6 +14,8 @@ interface AppearanceSettingsProps {
   setLocalCurrency: (val: string) => void;
   localVat: string;
   setLocalVat: (val: string) => void;
+  localResellerCommission: string;
+  setLocalResellerCommission: (val: string) => void;
   handleSaveRegional: () => void;
   isAdmin: boolean;
 }
@@ -27,6 +29,8 @@ export function AppearanceSettings({
   setLocalCurrency,
   localVat,
   setLocalVat,
+  localResellerCommission,
+  setLocalResellerCommission,
   handleSaveRegional,
   isAdmin,
 }: AppearanceSettingsProps) {
@@ -47,6 +51,8 @@ export function AppearanceSettings({
           setLocalCurrency={setLocalCurrency}
           localVat={localVat}
           setLocalVat={setLocalVat}
+          localResellerCommission={localResellerCommission}
+          setLocalResellerCommission={setLocalResellerCommission}
           handleSaveRegional={handleSaveRegional}
         />
       )}

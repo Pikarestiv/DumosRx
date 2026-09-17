@@ -10,6 +10,9 @@ export function useSettingsForm(storeProfile: StoreProfile | null, minimumSyncIn
   const [localStoreSlug, setLocalStoreSlug] = useState(storeProfile?.store_slug || "");
   const [localCurrency, setLocalCurrency] = useState(storeProfile?.currency || "NGN");
   const [localVat, setLocalVat] = useState(storeProfile?.vat_percentage?.toString() || "7.5");
+  const [localResellerCommission, setLocalResellerCommission] = useState(
+    storeProfile?.reseller_commission_percentage?.toString() || "0",
+  );
   const [localPcn, setLocalPcn] = useState(storeProfile?.pcn_license || "");
   const [localRegistrationNumber, setLocalRegistrationNumber] = useState(storeProfile?.registration_number || "");
   const [localTaxNumber, setLocalTaxNumber] = useState(storeProfile?.tax_number || "");
@@ -45,6 +48,9 @@ export function useSettingsForm(storeProfile: StoreProfile | null, minimumSyncIn
       setLocalStoreSlug(storeProfile.store_slug || "");
       setLocalCurrency(storeProfile.currency || "NGN");
       setLocalVat(storeProfile.vat_percentage?.toString() || "7.5");
+      setLocalResellerCommission(
+        storeProfile.reseller_commission_percentage?.toString() || "0",
+      );
       setLocalPcn(storeProfile.pcn_license || "");
       setLocalRegistrationNumber(storeProfile.registration_number || "");
       setLocalTaxNumber(storeProfile.tax_number || "");
@@ -87,6 +93,7 @@ export function useSettingsForm(storeProfile: StoreProfile | null, minimumSyncIn
     localStoreSlug, setLocalStoreSlug,
     localCurrency, setLocalCurrency,
     localVat, setLocalVat,
+    localResellerCommission, setLocalResellerCommission,
     localPcn, setLocalPcn,
     localRegistrationNumber, setLocalRegistrationNumber,
     localTaxNumber, setLocalTaxNumber,

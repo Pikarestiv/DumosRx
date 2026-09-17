@@ -12,6 +12,8 @@ export function AppearancePanel(s: SettingsState) {
       setLocalCurrency={s.setLocalCurrency}
       localVat={s.localVat}
       setLocalVat={s.setLocalVat}
+      localResellerCommission={s.localResellerCommission}
+      setLocalResellerCommission={s.setLocalResellerCommission}
       handleSaveRegional={s.handleSaveRegional}
       isAdmin={s.isAdmin}
     />

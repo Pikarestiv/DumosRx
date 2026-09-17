@@ -35,6 +35,8 @@ interface RegionalSettingsCardProps {
   setLocalCurrency: (val: string) => void;
   localVat: string;
   setLocalVat: (val: string) => void;
+  localResellerCommission: string;
+  setLocalResellerCommission: (val: string) => void;
   handleSaveRegional: () => void;
 }
 
@@ -43,6 +45,8 @@ export function RegionalSettingsCard({
   setLocalCurrency,
   localVat,
   setLocalVat,
+  localResellerCommission,
+  setLocalResellerCommission,
   handleSaveRegional,
 }: RegionalSettingsCardProps) {
   const [isEditingRegional, setIsEditingRegional] = useState(false);
@@ -66,7 +70,7 @@ export function RegionalSettingsCard({
         </Button>
       </CardHeader>
       {!isEditingRegional && (
-        <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="flex items-center gap-3 rounded-lg border p-4 bg-muted/20">
             <div className="p-2 rounded-full bg-primary/10 shrink-0">
               <Banknote className="h-4 w-4 text-primary" />
@@ -87,6 +91,17 @@ export function RegionalSettingsCard({
               <p className="text-xs text-muted-foreground">VAT Percentage</p>
               <p className="text-sm font-semibold">
                 {localVat ? `${localVat}%` : "0%"}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 rounded-lg border p-4 bg-muted/20">
+            <div className="p-2 rounded-full bg-primary/10 shrink-0">
+              <Percent className="h-4 w-4 text-primary" />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Reseller Commission</p>
+              <p className="text-sm font-semibold">
+                {localResellerCommission ? `${localResellerCommission}%` : "0%"}
               </p>
             </div>
           </div>
@@ -157,6 +172,38 @@ export function RegionalSettingsCard({
               checkout; it is not deducted from your product prices. Leave this
               at 0 (the default) if you don't want to charge VAT, or if your
               prices already include it.
+            </p>
+          </div>
+          <div className="grid gap-2">
+            <div className="flex items-center gap-2">
+              <Label htmlFor="reseller-commission">Reseller Commission (%)</Label>
+              <TooltipProvider delayDuration={0}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <HelpCircle className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>
+                      When a cashier marks a sale as a reseller sale and marks
+                      up an item&apos;s price, this percentage of that markup
+                      is owed to the reseller as commission.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+            <Input
+              id="reseller-commission"
+              type="number"
+              step="0.1"
+              min="0"
+              max="100"
+              value={localResellerCommission}
+              onChange={(e) => setLocalResellerCommission(e.target.value)}
+              placeholder="e.g. 20"
+            />
+            <p className="text-xs text-muted-foreground">
+              Leave at 0 if you don&apos;t run reseller sales.
             </p>
           </div>
         </CardContent>

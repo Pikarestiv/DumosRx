@@ -28,6 +28,9 @@ interface POSMobileCartWrapperProps {
   onOpenHeldSales?: () => void;
   isPrescriptionLocked?: boolean;
   onEditPrescription?: () => void;
+  isResellerSale?: boolean;
+  setIsResellerSale?: (value: boolean) => void;
+  updateUnitPrice?: (id: string, price: number) => void;
 }
 
 export function POSMobileCartWrapper({
@@ -55,6 +58,9 @@ export function POSMobileCartWrapper({
   onOpenHeldSales,
   isPrescriptionLocked,
   onEditPrescription,
+  isResellerSale,
+  setIsResellerSale,
+  updateUnitPrice,
 }: POSMobileCartWrapperProps) {
   if (cart.length === 0) return null;
 
@@ -86,6 +92,9 @@ export function POSMobileCartWrapper({
           onOpenHeldSales={onOpenHeldSales}
           isPrescriptionLocked={isPrescriptionLocked}
           onEditPrescription={onEditPrescription}
+          isResellerSale={isResellerSale}
+          setIsResellerSale={setIsResellerSale}
+          updateUnitPrice={updateUnitPrice}
         />
       </div>
     </div>

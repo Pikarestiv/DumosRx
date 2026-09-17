@@ -17,10 +17,12 @@ interface Props {
   updateQuantity: (id: string, quantity: number) => void;
   removeFromCart: (id: string) => void;
   isLocked?: boolean;
+  isResellerSale?: boolean;
+  updateUnitPrice?: (id: string, price: number) => void;
 }
 
 /** Swipe-left-to-remove cart row: a red delete backdrop revealed as the row is dragged left. */
-export function POSCartItem({ item, currencyCode, isLast, updateQuantity, removeFromCart, isLocked = false }: Props) {
+export function POSCartItem({ item, currencyCode, isLast, updateQuantity, removeFromCart, isLocked = false, isResellerSale = false, updateUnitPrice }: Props) {
   const CategoryIcon = getCategoryIcon(item.category_name);
   const capsClass = useUppercaseDisplayClass();
 
@@ -53,9 +55,26 @@ export function POSCartItem({ item, currencyCode, isLast, updateQuantity, remove
           <div className={`text-[12.5px] font-semibold mb-0.5 truncate leading-tight ${capsClass}`}>
             {item.name}
           </div>
-          <div className="text-[11.5px] text-muted-foreground leading-tight">
-            {formatCurrency(item.unit_price, currencyCode)} each
-          </div>
+          {isResellerSale ? (
+            <div className="flex items-center gap-1 text-[11.5px]">
+              <input
+                type="number"
+                min={item.original_unit_price}
+                step="1"
+                value={item.unit_price}
+                onChange={(e) => {
+                  const val = parseFloat(e.target.value);
+                  if (!Number.isNaN(val)) updateUnitPrice?.(item.id, val);
+                }}
+                className="w-20 h-6 px-1.5 rounded border border-border bg-background text-[11.5px]"
+              />
+              <span className="text-muted-foreground">each (min {formatCurrency(item.original_unit_price, currencyCode)})</span>
+            </div>
+          ) : (
+            <div className="text-[11.5px] text-muted-foreground leading-tight">
+              {formatCurrency(item.unit_price, currencyCode)} each
+            </div>
+          )}
         </div>
         {isLocked && (
           <span className="text-xs font-semibold text-muted-foreground px-2">

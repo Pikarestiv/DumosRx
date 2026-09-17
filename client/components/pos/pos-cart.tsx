@@ -10,6 +10,7 @@ import {
   Lock,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
+import { Switch } from "@/components/ui/switch";
 import { RequestItemDialog } from "./request-item-dialog";
 import { ProformaPreviewDialog } from "./proforma-preview-dialog";
 import { POSCartItem } from "./pos-cart-item";
@@ -42,6 +43,9 @@ interface POSCartProps {
   onOpenHeldSales?: () => void;
   isPrescriptionLocked?: boolean;
   onEditPrescription?: () => void;
+  isResellerSale?: boolean;
+  setIsResellerSale?: (value: boolean) => void;
+  updateUnitPrice?: (id: string, price: number) => void;
 }
 
 export function POSCart({
@@ -69,6 +73,9 @@ export function POSCart({
   onOpenHeldSales,
   isPrescriptionLocked = false,
   onEditPrescription,
+  isResellerSale = false,
+  setIsResellerSale,
+  updateUnitPrice,
 }: POSCartProps) {
   const [showDiscount, setShowDiscount] = useState(false);
   const [showRequestDialog, setShowRequestDialog] = useState(false);
@@ -92,6 +99,17 @@ export function POSCart({
           )}
         </div>
       )}
+      {cart.length > 0 && (
+        <div className="mx-5 mt-3 flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-border bg-muted/20 shrink-0">
+          <span className="text-[11.5px] font-semibold text-foreground">
+            Reseller sale
+          </span>
+          <Switch
+            checked={isResellerSale}
+            onCheckedChange={(v) => setIsResellerSale?.(v)}
+          />
+        </div>
+      )}
       <div className="flex-1 overflow-y-auto px-5 py-1.5 min-h-[120px]">
         {cart.length === 0 && <EmptyCart />}
         {cart.length > 0 &&
@@ -104,6 +122,8 @@ export function POSCart({
               updateQuantity={updateQuantity}
               removeFromCart={removeFromCart}
               isLocked={isPrescriptionLocked}
+              isResellerSale={isResellerSale}
+              updateUnitPrice={updateUnitPrice}
             />
           ))}
       </div>

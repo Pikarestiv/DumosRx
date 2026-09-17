@@ -114,12 +114,13 @@ export function PlanTierCard({
         </div>
         {/* Limits continued */}
         <div className={`space-y-2 pt-2 border-t col-span-2 ${dividerClass}`}>
-          <Label className={labelClass}>Sync Interval (Mins)</Label>
+          <Label className={labelClass}>Sync Interval (Mins, 0 = instant)</Label>
           <Input
             type="number"
+            min={0}
             className={inputClass}
             value={tier.limits.sync_interval}
-            onChange={(e) => updateLimits({ sync_interval: Number(e.target.value) })}
+            onChange={(e) => updateLimits({ sync_interval: Math.max(0, Number(e.target.value)) })}
             disabled={!tier.active}
           />
         </div>

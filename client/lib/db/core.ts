@@ -939,11 +939,30 @@ export function registerInvalidateTablesFn(
   invalidateTablesFn = fn;
 }
 
+// Separate from invalidateTablesFn above (React Query cache invalidation):
+// this is for plan-tier "sync instantly after any change" — see
+// SyncIndicator's instant-sync mode. A Set, not a single callback slot,
+// because SyncIndicator mounts multiple simultaneous instances (sidebar,
+// mobile header, mobile drawer) whose subscribe/unsubscribe lifecycles are
+// independent; a single slot would let one instance's unmount silently
+// kill another still-mounted instance's subscription.
+const syncQueueChangeListeners = new Set<() => void>();
+
+export function addSyncQueueChangeListener(fn: () => void): () => void {
+  syncQueueChangeListeners.add(fn);
+  return () => syncQueueChangeListeners.delete(fn);
+}
+
+function notifySyncQueueChangeListeners(): void {
+  for (const fn of syncQueueChangeListeners) fn();
+}
+
 export function queueTableInvalidation(table: string): void {
   if (inTransaction && pendingInvalidations) {
     pendingInvalidations.add(table);
   } else {
     invalidateTablesFn?.([table]);
+    notifySyncQueueChangeListeners();
   }
 }
 
@@ -1117,6 +1136,7 @@ export async function transaction<T>(fn: () => Promise<T>): Promise<T> {
       pendingInvalidations = null;
       if (tables && tables.size > 0) {
         invalidateTablesFn?.(tables);
+        notifySyncQueueChangeListeners();
       }
     }
   } finally {

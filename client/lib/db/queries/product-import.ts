@@ -1,5 +1,6 @@
 import { query, transaction, getActiveStoreId, insert, update, createSupplier } from "@/lib/db/local-database";
 import { getCategoryByName, getSupplierByName } from "@/lib/db/queries/products";
+import { submitStockAudit } from "@/lib/db/queries/inventory";
 import type { ProductImportRow } from "@/lib/utils/product-import-export";
 
 /**
@@ -72,13 +73,21 @@ export interface ImportResult {
   created: number;
   updated: number;
   skipped: { row: number; reason: string }[];
+  /** Matched products whose stock was also adjusted (only nonzero when
+   * options.updateStockForMatched was set). */
+  stockAdjusted: number;
 }
 
 /**
  * Upserts every row inside a single transaction. Matched products only have
- * their fields updated — existing stock_batches are never touched, so
- * re-running the same import twice can't double-count quantity (see
- * docs/superpowers/specs/2026-08-31-stock-import-export-design.md).
+ * their fields updated — existing stock_batches are never touched by
+ * default, so re-running the same import twice can't double-count quantity
+ * (see docs/superpowers/specs/2026-08-31-stock-import-export-design.md).
+ * Passing `updateStockForMatched: true` opts into applying the file's
+ * quantity to matched products too, as a proper stock-audit adjustment
+ * (logged in Stock Movements) rather than silently rewriting stock_batches —
+ * for the deliberate "re-sync my counts from this file" case, distinct from
+ * the accidental-re-import case the default protects against.
  */
 // How often (in rows) to yield to the event loop during a bulk import. Each
 // query on the web (sql.js/WASM) path resolves synchronously, so without an
@@ -91,8 +100,15 @@ const YIELD_INTERVAL = 25;
 export async function importProductRows(
   rows: ProductImportRow[],
   onProgress?: (completed: number, total: number) => void,
+  options?: { updateStockForMatched?: boolean; performedBy?: string | null },
 ): Promise<ImportResult> {
-  const result: ImportResult = { created: 0, updated: 0, skipped: [] };
+  const result: ImportResult = { created: 0, updated: 0, skipped: [], stockAdjusted: 0 };
+  // Collected during the main transaction, applied after it commits: submitStockAudit()
+  // opens its own transaction, and this codebase's transaction() serializes
+  // via a queue that a nested call would deadlock against (the inner call
+  // waits on the outer's own queue slot, which only clears once the outer
+  // transaction's fn() — still awaiting the inner call — finishes).
+  const matchedStockUpdates: { productId: string; quantity: number }[] = [];
 
   await transaction(async () => {
     for (let i = 0; i < rows.length; i++) {
@@ -114,6 +130,9 @@ export async function importProductRows(
             ...(row.reorderLevel !== undefined ? { reorder_level: row.reorderLevel } : {}),
             ...(row.barcode ? { barcode: row.barcode } : {}),
           });
+          if (options?.updateStockForMatched && row.quantity !== undefined) {
+            matchedStockUpdates.push({ productId: existingId, quantity: row.quantity });
+          }
           result.updated++;
           continue;
         }
@@ -148,6 +167,29 @@ export async function importProductRows(
       }
     }
   });
+
+  if (matchedStockUpdates.length > 0) {
+    const ids = matchedStockUpdates.map((u) => u.productId);
+    const systemQuantities = await query<{ id: string; qty: number | null }>(
+      `SELECT p.id, (SELECT SUM(sb.quantity) FROM stock_batches sb WHERE sb.product_id = p.id AND sb._deleted = 0 AND sb.is_active = 1) as qty
+       FROM products p WHERE p.id IN (${ids.map(() => "?").join(",")})`,
+      ids,
+    );
+    const systemQtyById = new Map(systemQuantities.map((r) => [r.id, r.qty ?? 0]));
+    result.stockAdjusted = matchedStockUpdates.filter(
+      (u) => (systemQtyById.get(u.productId) ?? 0) !== u.quantity,
+    ).length;
+
+    await submitStockAudit(
+      matchedStockUpdates.map((u) => ({
+        productId: u.productId,
+        systemQty: systemQtyById.get(u.productId) ?? 0,
+        countedQty: u.quantity,
+        reason: "Bulk import stock update",
+      })),
+      options?.performedBy ?? null,
+    );
+  }
 
   return result;
 }

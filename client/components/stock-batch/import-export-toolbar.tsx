@@ -11,38 +11,64 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { downloadBlob } from "@/lib/utils/report-pdf";
-import { EXPORT_COLUMNS, buildExportBlob } from "@/lib/utils/product-import-export";
-import { getProductsForExport, type ExportableProduct } from "@/lib/db/queries/product-export";
+import {
+  EXPORT_COLUMNS,
+  buildExportBlob,
+} from "@/lib/utils/product-import-export";
+import {
+  getProductsForExport,
+  type ExportableProduct,
+} from "@/lib/db/queries/product-export";
 import { ImportMappingDialog } from "./import-mapping-dialog";
 import { ExportColumnsDialog } from "./export-columns-dialog";
 
 interface ImportExportToolbarProps {
   onImported: () => void;
+  /** The catalog table's currently-filtered product ids (search/category/
+   * status), so Export defaults to "what's on screen" instead of always the
+   * whole store — undefined (no filter active) exports everything. */
+  filteredProductIds?: string[];
 }
 
-export function ImportExportToolbar({ onImported }: ImportExportToolbarProps) {
+export function ImportExportToolbar({
+  onImported,
+  filteredProductIds,
+}: ImportExportToolbarProps) {
   const [showImport, setShowImport] = useState(false);
   const [showColumnPicker, setShowColumnPicker] = useState(false);
-  const [pendingFormat, setPendingFormat] = useState<"csv" | "xlsx" | null>(null);
+  const [pendingFormat, setPendingFormat] = useState<"csv" | "xlsx" | null>(
+    null,
+  );
+  const isFiltered = filteredProductIds !== undefined;
 
   const runExport = async (
     format: "csv" | "xlsx",
     columns: (keyof ExportableProduct)[],
   ) => {
-    const products = await getProductsForExport();
+    const products = await getProductsForExport(filteredProductIds);
     const blob = buildExportBlob(products, columns, format);
     const dateStr = new Date().toISOString().slice(0, 10);
     downloadBlob(blob, `DumosRx_Products_${dateStr}.${format}`);
-    toast.success(`Exported ${products.length} product(s)`);
+    toast.success(
+      isFiltered
+        ? `Exported ${products.length} filtered product(s)`
+        : `Exported ${products.length} product(s)`,
+    );
   };
 
-  const handleExportClick = (format: "csv" | "xlsx", chooseColumns: boolean) => {
+  const handleExportClick = (
+    format: "csv" | "xlsx",
+    chooseColumns: boolean,
+  ) => {
     if (chooseColumns) {
       setPendingFormat(format);
       setShowColumnPicker(true);
       return;
     }
-    runExport(format, EXPORT_COLUMNS.map((c) => c.key));
+    runExport(
+      format,
+      EXPORT_COLUMNS.map((c) => c.key),
+    );
   };
 
   return (
@@ -60,12 +86,23 @@ export function ImportExportToolbar({ onImported }: ImportExportToolbarProps) {
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button type="button" variant="outline" size="sm" className="gap-1.5 text-[12px]">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="gap-1.5 text-[12px]"
+          >
             <Download className="h-3.5 w-3.5" />
             Export
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
+          {isFiltered && (
+            <div className="px-2 py-1.5 text-[11px] text-muted-foreground">
+              Filter active: exports {filteredProductIds.length} shown product
+              {filteredProductIds.length === 1 ? "" : "s"}
+            </div>
+          )}
           <DropdownMenuItem onClick={() => handleExportClick("csv", false)}>
             Export as CSV (all columns)
           </DropdownMenuItem>

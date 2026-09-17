@@ -41,7 +41,7 @@ function NoRequestedProductsCard({
     <EmptyState
       icon={PackageSearch}
       title="No requested products found"
-      className="py-6"
+      className="py-10"
       action={
         isAuditor
           ? undefined
@@ -60,11 +60,11 @@ function NoRequestedProductsRow({
 }) {
   return (
     <TableRow>
-      <TableCell colSpan={6} className="text-center h-24">
+      <TableCell colSpan={6} className="text-center">
         <EmptyState
           icon={PackageSearch}
           title="No requested products found"
-          className="py-0"
+          className="py-10"
           action={
             isAuditor
               ? undefined

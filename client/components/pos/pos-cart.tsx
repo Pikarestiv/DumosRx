@@ -6,10 +6,13 @@ import {
   Trash2,
   PauseCircle,
   ClipboardList,
+  FileText,
   Lock,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
+import { Switch } from "@/components/ui/switch";
 import { RequestItemDialog } from "./request-item-dialog";
+import { ProformaPreviewDialog } from "./proforma-preview-dialog";
 import { POSCartItem } from "./pos-cart-item";
 import { POSRedeemReward } from "./pos-redeem-reward";
 import type { CartItem, RedeemedOption } from "@/lib/hooks/use-pos-cart";
@@ -40,6 +43,9 @@ interface POSCartProps {
   onOpenHeldSales?: () => void;
   isPrescriptionLocked?: boolean;
   onEditPrescription?: () => void;
+  isResellerSale?: boolean;
+  setIsResellerSale?: (value: boolean) => void;
+  updateUnitPrice?: (id: string, price: number) => void;
 }
 
 export function POSCart({
@@ -67,9 +73,13 @@ export function POSCart({
   onOpenHeldSales,
   isPrescriptionLocked = false,
   onEditPrescription,
+  isResellerSale = false,
+  setIsResellerSale,
+  updateUnitPrice,
 }: POSCartProps) {
   const [showDiscount, setShowDiscount] = useState(false);
   const [showRequestDialog, setShowRequestDialog] = useState(false);
+  const [showProformaDialog, setShowProformaDialog] = useState(false);
 
   return (
     <div className="flex flex-col h-full">
@@ -89,6 +99,17 @@ export function POSCart({
           )}
         </div>
       )}
+      {cart.length > 0 && (
+        <div className="mx-5 mt-3 flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-border bg-muted/20 shrink-0">
+          <span className="text-[11.5px] font-semibold text-foreground">
+            Reseller sale
+          </span>
+          <Switch
+            checked={isResellerSale}
+            onCheckedChange={(v) => setIsResellerSale?.(v)}
+          />
+        </div>
+      )}
       <div className="flex-1 overflow-y-auto px-5 py-1.5 min-h-[120px]">
         {cart.length === 0 && <EmptyCart />}
         {cart.length > 0 &&
@@ -101,6 +122,8 @@ export function POSCart({
               updateQuantity={updateQuantity}
               removeFromCart={removeFromCart}
               isLocked={isPrescriptionLocked}
+              isResellerSale={isResellerSale}
+              updateUnitPrice={updateUnitPrice}
             />
           ))}
       </div>
@@ -256,6 +279,26 @@ export function POSCart({
         </div>
 
         <RequestItemDialog open={showRequestDialog} onOpenChange={setShowRequestDialog} />
+        <ProformaPreviewDialog
+          open={showProformaDialog}
+          onOpenChange={setShowProformaDialog}
+          cart={cart}
+          subtotal={subtotal}
+          tax={tax}
+          discount={calculatedDiscount}
+          total={total}
+          selectedCustomer={selectedCustomer}
+        />
+
+        {cart.length > 0 && (
+          <button
+            onClick={() => setShowProformaDialog(true)}
+            className="w-full flex items-center justify-center gap-1.5 py-2 px-2 mb-2 rounded-lg border border-border bg-card text-[12.5px] font-semibold text-foreground cursor-pointer hover:bg-muted/50 transition-colors"
+          >
+            <FileText className="w-3.5 h-3.5" />
+            Preview Quote
+          </button>
+        )}
 
         <button
           onClick={onCheckout}

@@ -330,6 +330,24 @@ header .group:hover svg,
   animation: scan-line 2.2s ease-in-out infinite;
 }
 
+/* Draws the eye to the POS header search input on first load — it sits in
+   the header, easy to miss at a glance, so a looping border-color pulse
+   calls attention to it. Loops until the user actually types something
+   (see pos-layout-header.tsx, which drops the class the moment searchTerm
+   stops being empty) rather than fading out on a fixed timer. */
+@keyframes glow-pulse {
+  0%,
+  100% {
+    border-color: var(--border);
+  }
+  50% {
+    border-color: var(--primary);
+  }
+}
+.animate-glow-pulse {
+  animation: glow-pulse 1.8s ease-in-out infinite;
+}
+
 @layer utilities {
   .hide-scrollbar {
     -ms-overflow-style: none; /* IE and Edge */

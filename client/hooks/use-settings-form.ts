@@ -10,8 +10,12 @@ export function useSettingsForm(storeProfile: StoreProfile | null, minimumSyncIn
   const [localStoreSlug, setLocalStoreSlug] = useState(storeProfile?.store_slug || "");
   const [localCurrency, setLocalCurrency] = useState(storeProfile?.currency || "NGN");
   const [localVat, setLocalVat] = useState(storeProfile?.vat_percentage?.toString() || "7.5");
+  const [localResellerCommission, setLocalResellerCommission] = useState(
+    storeProfile?.reseller_commission_percentage?.toString() || "0",
+  );
   const [localPcn, setLocalPcn] = useState(storeProfile?.pcn_license || "");
   const [localRegistrationNumber, setLocalRegistrationNumber] = useState(storeProfile?.registration_number || "");
+  const [localTaxNumber, setLocalTaxNumber] = useState(storeProfile?.tax_number || "");
   const [localReceiptHeader, setLocalReceiptHeader] = useState(storeProfile?.receipt_header || "");
   const [localReceiptFooter, setLocalReceiptFooter] = useState(storeProfile?.receipt_footer || "");
   const [showLogo, setShowLogo] = useState(storeProfile?.show_logo_on_receipt === 1);
@@ -44,8 +48,12 @@ export function useSettingsForm(storeProfile: StoreProfile | null, minimumSyncIn
       setLocalStoreSlug(storeProfile.store_slug || "");
       setLocalCurrency(storeProfile.currency || "NGN");
       setLocalVat(storeProfile.vat_percentage?.toString() || "7.5");
+      setLocalResellerCommission(
+        storeProfile.reseller_commission_percentage?.toString() || "0",
+      );
       setLocalPcn(storeProfile.pcn_license || "");
       setLocalRegistrationNumber(storeProfile.registration_number || "");
+      setLocalTaxNumber(storeProfile.tax_number || "");
       setLocalReceiptHeader(storeProfile.receipt_header || "");
       setLocalReceiptFooter(storeProfile.receipt_footer || "");
       setShowLogo(storeProfile.show_logo_on_receipt === 1);
@@ -85,8 +93,10 @@ export function useSettingsForm(storeProfile: StoreProfile | null, minimumSyncIn
     localStoreSlug, setLocalStoreSlug,
     localCurrency, setLocalCurrency,
     localVat, setLocalVat,
+    localResellerCommission, setLocalResellerCommission,
     localPcn, setLocalPcn,
     localRegistrationNumber, setLocalRegistrationNumber,
+    localTaxNumber, setLocalTaxNumber,
     localReceiptHeader, setLocalReceiptHeader,
     localReceiptFooter, setLocalReceiptFooter,
     showLogo, setShowLogo,

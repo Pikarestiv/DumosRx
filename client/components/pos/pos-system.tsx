@@ -62,6 +62,9 @@ export function POSSystem() {
     redeemedOption,
     redeemReward,
     clearRedemption,
+    isResellerSale,
+    setIsResellerSale,
+    updateUnitPrice,
     canUseSmartSuggestions,
     withRestriction,
     suggestions,
@@ -263,6 +266,9 @@ export function POSSystem() {
         onOpenHeldSales={() => setShowHeldDialog(true)}
         isPrescriptionLocked={isPrescriptionLocked}
         onEditPrescription={handleEditPrescription}
+        isResellerSale={isResellerSale}
+        setIsResellerSale={setIsResellerSale}
+        updateUnitPrice={updateUnitPrice}
         selectedCustomer={selectedCustomer}
         customers={customers}
         loadingCustomers={loadingCustomers}

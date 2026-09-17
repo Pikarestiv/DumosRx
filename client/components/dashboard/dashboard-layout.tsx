@@ -49,6 +49,49 @@ const DIRECTION_ANIMATION: Record<string, string> = {
   right: "slide-in-from-left-8",
 };
 
+type MainLayoutKind = "pos" | "settings" | "createPO" | "default";
+
+// Order matches the bottom nav's visual left-to-right layout, so swiping
+// steps through tabs in the order they're actually shown on screen.
+const TABS = ["/dashboard", "/inventory", "/pos", "/customers"];
+
+// One entry per distinct <main> treatment, keyed by the same route
+// partition used everywhere else in this file (isPosRoute/isSettingsRoute/
+// isCreatePORoute). Keeping className+style paired per kind (instead of two
+// separate ternary chains that happen to agree) makes it structurally
+// impossible for one to get a route's case updated without the other.
+const MAIN_LAYOUT_STYLES: Record<
+  MainLayoutKind,
+  { className: string; style?: React.CSSProperties }
+> = {
+  // POS and the mobile full-screen takeovers (create PO, settings inner
+  // tabs) manage their own padding/back-header, so <main> stays unpadded for
+  // them below their own "desktop" breakpoint; everywhere else gets the
+  // standard page gutter. Each takeover's restore breakpoint must match the
+  // breakpoint that page itself uses to switch to its desktop layout:
+  // create-PO uses lg: (see procurement/new/page.tsx), settings inner tabs
+  // use md: (see hooks/use-settings.ts's isDesktop, which flips at 768px).
+  // Using the wrong one here left settings content unpadded between 768-1023px.
+  pos: { className: "" },
+  settings: { className: "" },
+  createPO: { className: "p-0 lg:p-6 lg:pt-3" },
+  default: {
+    // Below lg: clears MobileBottomNav (h-16 = 4rem tall, plus its own
+    // safe-area inset, plus breathing room) on every route that renders it —
+    // i.e. every kind but the three above, which don't show the bottom nav
+    // at all. Must stay >= 4rem or the last slice of page content ends up
+    // hidden behind the bar. At lg: and up MobileBottomNav is lg:hidden, so
+    // this drops back to the plain page gutter instead of carrying that
+    // extra space with nothing to clear.
+    // px/pt instead of the p-4/sm:p-6 shorthand: the shorthand also sets
+    // padding-bottom, and at sm: it lands in a later cascade layer than our
+    // unprefixed pb-[...] below, so it would silently win and clobber the
+    // bottom-bar clearance from 640px up to lg:.
+    className:
+      "px-4 pt-4 sm:px-6 sm:pt-3 pb-[calc(5.5rem+var(--tauri-bottom,env(safe-area-inset-bottom,0px)))] lg:pb-[calc(1rem+var(--tauri-bottom,env(safe-area-inset-bottom,0px)))]",
+  },
+};
+
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   return (
     <PullToRefreshProvider>
@@ -94,9 +137,6 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
   }, []);
 
   const [moreDrawerOpen, setMoreDrawerOpen] = useState(false);
-  // Order matches the bottom nav's visual left-to-right layout, so swiping
-  // steps through tabs in the order they're actually shown on screen.
-  const TABS = ["/dashboard", "/inventory", "/pos", "/customers"];
   const { handleTouchStart, handleTouchEnd, direction } = useSwipeNavigation(
     TABS,
     { onSwipePastEnd: () => setMoreDrawerOpen(true) },
@@ -162,32 +202,14 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
     }
   }, [user, router]);
 
-  // POS and the mobile full-screen takeovers (create PO, settings inner
-  // tabs) manage their own padding/back-header, so <main> stays unpadded for
-  // them below their own "desktop" breakpoint; everywhere else gets the
-  // standard page gutter. Each takeover's restore breakpoint must match the
-  // breakpoint that page itself uses to switch to its desktop layout:
-  // create-PO uses lg: (see procurement/new/page.tsx), settings inner tabs
-  // use md: (see hooks/use-settings.ts's isDesktop, which flips at 768px).
-  // Using the wrong one here left settings content unpadded between 768-1023px.
-  const mainClassName =
-    isPosRoute || isSettingsRoute
-      ? ""
-      : isCreatePORoute
-        ? "p-0 lg:p-6 lg:pt-3"
-        : "p-4 sm:p-6 sm:pt-3";
-  // Bottom-nav clearance isn't needed for POS (no bottom nav there), the
-  // create-PO takeover (its own fixed footer/drawer instead), or settings
-  // (no bottom nav on that route either).
-  const mainStyle =
-    !isPosRoute && !isCreatePORoute && !isSettingsRoute
-      ? {
-          paddingBottom:
-            "calc(5.5rem + var(--tauri-bottom, env(safe-area-inset-bottom, 0px)))",
-        }
-      : undefined;
+  let mainLayoutKind: MainLayoutKind = "default";
+  if (isPosRoute) mainLayoutKind = "pos";
+  else if (isSettingsRoute) mainLayoutKind = "settings";
+  else if (isCreatePORoute) mainLayoutKind = "createPO";
+  const { className: mainClassName, style: mainStyle } =
+    MAIN_LAYOUT_STYLES[mainLayoutKind];
 
-  const shouldAnimate = !isPosRoute && !isCreatePORoute && !isSettingsRoute;
+  const shouldAnimate = mainLayoutKind === "default";
 
   const getRegisteredHandler = usePullToRefreshDispatcher();
   const { scrollRef, pullDistance, isRefreshing, threshold } =
@@ -208,7 +230,14 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
     : undefined;
 
   return (
-    <div className="min-h-screen bg-background relative">
+    // h-dvh, not min-h-screen: the actual scroll-containment fix is the
+    // `flex flex-col` added to the scrollRef div below, but min-h-screen is
+    // still the wrong tool for a shell root that should never need to grow
+    // past the viewport in the first place (a min-height is a floor, not a
+    // cap) — h-dvh matches the "Main content" column's own explicit
+    // height: 100dvh a few levels down, and tracks mobile browser chrome
+    // collapsing/expanding, unlike the static h-screen/100vh.
+    <div className="h-dvh bg-background relative">
       {isLocked && (
         <div
           // z-[9000], not higher than TauriTitleBar's z-[9999], otherwise
@@ -266,14 +295,17 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
           logicalCollapsed={isLogicallyCollapsed}
           onToggleCollapse={handleToggleCollapse}
           onMouseEnter={() =>
-            !isPosRoute && !isTouchDevice && peekEnabled && setHoverExpanded(true)
+            !isPosRoute &&
+            !isTouchDevice &&
+            peekEnabled &&
+            setHoverExpanded(true)
           }
           onMouseLeave={() => setHoverExpanded(false)}
           onUserNavOpenChange={setUserNavOpen}
         />
       )}
 
-      {!isPosRoute && !isCreatePORoute && !isSettingsRoute && (
+      {mainLayoutKind === "default" && (
         <MobileBottomNav
           onOpenFeedback={() => setFeedbackOpen(true)}
           moreDrawerOpen={moreDrawerOpen}
@@ -302,9 +334,7 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
           // different shade) paints all the way up under the status bar,
           // avoiding a seam.
           paddingTop:
-            isPosRoute || isSettingsRoute
-              ? "var(--tauri-top, 0px)"
-              : undefined,
+            isPosRoute || isSettingsRoute ? "var(--tauri-top, 0px)" : undefined,
         }}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
@@ -328,11 +358,20 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
           )}
         </div>
 
-        {/* Page content: scrolls internally */}
+        {/* Page content: scrolls internally. Needs `flex flex-col` itself —
+            not just on <main> below — because flex properties (flex-1,
+            min-h-0) only do anything on an element sitting inside a flex
+            *parent*; without this, <main>'s flex-1/min-h-0 has no container
+            to size against, so it (and everything under it, e.g. a page's
+            own internal-scroll table) grows to its natural content height
+            instead of being capped to the space actually available here,
+            and this div's own overflow-y-auto ends up scrolling that whole
+            oversized block instead of just being the outer fallback it's
+            meant to be. */}
         <div
           ref={scrollRef}
           className={cn(
-            "flex-1 relative overflow-x-clip",
+            "flex-1 relative overflow-x-clip flex flex-col",
             shouldAnimate && "overflow-y-auto",
           )}
         >

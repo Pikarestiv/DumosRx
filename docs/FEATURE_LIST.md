@@ -11,11 +11,14 @@ A plain list of what the app can do. Grouped by section, no walkthroughs.
 
 ## Point of Sale
 - Barcode-scan or search-based product lookup
-- Cart with quantity adjustment, per-item discounts, and manual price override
+- Cart with quantity adjustment (click-to-type or +/- buttons), per-item discounts, and manual price override
 - Hold/park a transaction and resume it later
 - Split payments (cash, card, transfer) with automatic change calculation
-- Printable/shareable receipts
+- Printable/shareable receipts, with separate Receipt and Tax Invoice variants (tax invoice adds the store's tax number to the header)
+- Proforma quote: preview a price breakdown for the current cart before checkout, no sale recorded and no stock deducted
+- Reseller sales: mark a sale as sold through an independent reseller at a marked-up price, with a store-wide commission percentage computed and tracked for later redemption
 - Request-item flow for products not yet in the catalog
+- Recent Sales: date range filter (not just Today/This week), search by receipt number, customer, or item name
 
 ## Inventory
 - Overview: stock health at a glance
@@ -48,9 +51,10 @@ A plain list of what the app can do. Grouped by section, no walkthroughs.
 - Inline quick-edit from the expense table
 
 ## Reports
-- Daily Close report (cash reconciliation)
+- Daily Close report (cash reconciliation), with search by receipt number or item name
 - Operational Reports (sales, inventory, staff performance)
 - Analytics & Insights (trends, top products, revenue breakdowns)
+- Reseller Commission: pending-commission total, look up a sale by receipt number and mark its commission redeemed
 
 ## Activity Log
 - Store-wide audit trail of who did what, when
@@ -58,11 +62,12 @@ A plain list of what the app can do. Grouped by section, no walkthroughs.
 - Row-level detail view
 
 ## Settings
-- Store profile, branches, and business info
+- Store profile, branches, and business info (tax/VAT number, reseller commission %)
 - Staff accounts and role assignment
 - Payment methods and receipt customization
+- Regional settings: currency (including CFA franc — West and Central African), VAT percentage
 - Register configuration
-- Product units and categories
+- Product units and categories (including metre, for construction-materials/rod-by-length sales)
 - Notifications and alert thresholds
 - Security settings
 - Cloud sync and account linking

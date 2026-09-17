@@ -4,7 +4,13 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 
 import { Skeleton } from "@/components/ui/skeleton";
-import { Package, ShoppingCart, TrendingUp, TrendingDown, Receipt } from "lucide-react";
+import {
+  Package,
+  ShoppingCart,
+  TrendingUp,
+  TrendingDown,
+  ClipboardCheck,
+} from "lucide-react";
 import {
   useDashboardOverview,
   type SalesComparison,
@@ -29,13 +35,21 @@ import type { ActivityFeedItem } from "@/lib/types/dashboard-activity";
 function renderSalesComparison(comparison: SalesComparison) {
   if (comparison.state === "none") {
     return (
-      <span className="text-muted-foreground font-medium">No sales yesterday</span>
+      <span className="text-muted-foreground font-medium">
+        No sales yesterday
+      </span>
     );
   }
   const isUp = comparison.state === "up";
   return (
-    <div className={`flex items-center gap-1 flex-wrap ${isUp ? "text-emerald-600" : "text-red-600"}`}>
-      {isUp ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
+    <div
+      className={`flex items-center gap-1 flex-wrap ${isUp ? "text-emerald-600" : "text-red-600"}`}
+    >
+      {isUp ? (
+        <TrendingUp className="w-3.5 h-3.5" />
+      ) : (
+        <TrendingDown className="w-3.5 h-3.5" />
+      )}
       <span>{comparison.percent.toFixed(1)}%</span>
       <span className="text-muted-foreground font-medium">vs yesterday</span>
     </div>
@@ -106,7 +120,7 @@ export function DashboardOverview() {
       title: "Orders Today",
       value: String(salesToday[0]?.count || 0),
       comparison: "Completed transactions",
-      icon: Receipt,
+      icon: ClipboardCheck,
       colorScheme: "default" as const,
     },
   ];
@@ -147,7 +161,7 @@ export function DashboardOverview() {
         oversoldCount={stats.oversoldCount}
       />
 
-      <div className="flex flex-col lg:grid lg:grid-cols-[1.4fr_1fr] gap-y-6 gap-x-5">
+      <div className="flex flex-col lg:grid lg:grid-cols-[1.4fr_1fr] gap-y-6 gap-x-5 pb-1 mb-4">
         <div className="order-2 lg:order-1 h-full">
           <DashboardRecentActivity
             activities={activities}

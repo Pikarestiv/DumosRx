@@ -64,8 +64,15 @@ const TooltipTrigger = React.forwardRef<
       ref={ref}
       onClick={(e) => {
         onClick?.(e)
+        // Toggle the touch-controlled open state alongside whatever this
+        // trigger's own click does (navigate, submit, etc.) — never
+        // preventDefault here: it doesn't stop other composed onClick
+        // handlers (a plain <button>'s onClick fires regardless), but it
+        // does make next/link check event.defaultPrevented and skip its
+        // own router.push(), silently cancelling navigation on the first
+        // tap for any tooltip-wrapped Link (exactly the iPad "first tap
+        // only shows the tooltip, second tap navigates" bug this caused).
         if (ctx) {
-          e.preventDefault()
           ctx.setOpen(!ctx.open)
         }
       }}

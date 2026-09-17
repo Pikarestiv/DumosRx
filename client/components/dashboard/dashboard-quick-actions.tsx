@@ -36,7 +36,7 @@ const quickActionsConfig: QuickAction[] = [
     adminOnly: true,
   },
   {
-    label: "Close Register",
+    label: "End of Day",
     icon: ClipboardCheck,
     href: "/reports?tab=daily_close",
   },
@@ -45,11 +45,11 @@ const quickActionsConfig: QuickAction[] = [
     icon: Barcode,
     href: "/pos?action=scan",
   },
-  {
-    label: "Customers",
-    icon: Users,
-    href: "/customers",
-  },
+  // {
+  //   label: "View Customers",
+  //   icon: Users,
+  //   href: "/customers",
+  // },
   {
     label: "View Reports",
     icon: BarChart3,
@@ -59,7 +59,7 @@ const quickActionsConfig: QuickAction[] = [
   {
     label: "Reorder Stock",
     icon: AlertTriangle,
-    href: "/procurement",
+    href: "/inventory/catalog?status=low_stock",
     adminOnly: true,
   },
 ];

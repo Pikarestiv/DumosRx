@@ -1,13 +1,19 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/context/auth-context";
 import { useStockBatchStats } from "@/lib/hooks/use-stock-batch-stats";
+import { useInventoryAudit } from "@/lib/context/inventory-audit-context";
 
 /** All business logic for the Inventory Dashboard page: tab routing, stats, and the audit overlay. */
 export function useStockBatchManagement(currentTab: string) {
   const { isAdmin, canManageStockBatch } = useAuth();
   const router = useRouter();
-  const [isAuditing, setIsAuditing] = useState(false);
+  // Owned by app/(dashboard)/layout.tsx, not local state here: DashboardLayout
+  // remounts everything below it on every navigation (see dashboard-layout.tsx's
+  // key={pathname}), including the router.replace below. Local state here would
+  // be reset before the overlay ever got a chance to render - see
+  // inventory-audit-context.tsx.
+  const { isAuditing, setIsAuditing } = useInventoryAudit();
 
   const stats = useStockBatchStats();
 

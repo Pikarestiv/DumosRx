@@ -4,7 +4,13 @@ import { useState } from "react";
 import { formatCurrency } from "@/lib/utils";
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import { Button } from "@/components/ui/button";
-import { Printer, RotateCcw, Wallet } from "lucide-react";
+import { ChevronDown, Printer, RotateCcw, Wallet } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/lib/context/auth-context";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { ScrollFade } from "@/components/ui/scroll-fade";
@@ -154,18 +160,34 @@ export function TransactionDetailsDialog({
           Recall / Return
         </Button>
       )}
-      <Button
-        onClick={() => print(saleToReceiptTransaction(sale, items))}
-        className="w-full sm:w-auto"
-      >
-        <Printer className="w-4 h-4 mr-2" />
-        Print Receipt
-      </Button>
+      <DropdownMenu>
+        <div className="flex w-full sm:w-auto">
+          <Button
+            onClick={() => print(saleToReceiptTransaction(sale, items), "receipt")}
+            className="flex-1 sm:w-auto rounded-r-none"
+          >
+            <Printer className="w-4 h-4 mr-2" />
+            Print Receipt
+          </Button>
+          <DropdownMenuTrigger asChild>
+            <Button className="rounded-l-none border-l border-primary-foreground/20 px-2">
+              <ChevronDown className="w-4 h-4" />
+            </Button>
+          </DropdownMenuTrigger>
+        </div>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem
+            onClick={() => print(saleToReceiptTransaction(sale, items), "tax")}
+          >
+            Print Tax Invoice
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 
   const content = (
-    <div className="flex flex-col max-h-[85vh] sm:max-h-[80vh]">
+    <div className="flex flex-col flex-1 min-h-0">
       <ScrollFade containerClassName="flex-1" className="px-4 sm:px-6 pb-4">
         <div className="grid grid-cols-2 gap-3 sm:gap-4 mt-2 p-3 sm:p-4 bg-muted/30 rounded-lg">
           <div>
@@ -222,7 +244,7 @@ export function TransactionDetailsDialog({
         onOpenChange={onOpenChange}
         title={title}
         description={description}
-        className="sm:max-w-2xl w-full p-0 gap-0 overflow-hidden"
+        className="sm:max-w-2xl w-full max-h-[90vh] p-0 gap-0 overflow-hidden flex flex-col"
         headerClassName="px-4 pt-0 pb-2 sm:px-6 sm:pt-6 sm:pb-3 border-b sm:border-b-0 border-border"
         footer={
           <div className="p-4 sm:px-6 sm:py-4 border-t border-border bg-background pb-[calc(1rem+env(safe-area-inset-bottom,0px))]">

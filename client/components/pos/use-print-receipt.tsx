@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { printNode } from "@/lib/utils/print-node";
 import { useReceiptPaperSize } from "@/lib/hooks/use-receipt-paper-size";
-import { ReceiptView, ReceiptTransaction } from "./receipt-view";
+import { ReceiptView, ReceiptTransaction, ReceiptDocumentType } from "./receipt-view";
 
 const THERMAL_PAGE_STYLE = `
   @page { size: 80mm auto; margin: 0; }
@@ -25,10 +25,12 @@ export function usePrintReceipt() {
   const [transaction, setTransaction] = useState<ReceiptTransaction | null>(
     null,
   );
+  const [documentType, setDocumentType] = useState<ReceiptDocumentType>("receipt");
   const { paperSize } = useReceiptPaperSize();
 
-  const print = (txn: ReceiptTransaction) => {
+  const print = (txn: ReceiptTransaction, docType: ReceiptDocumentType = "receipt") => {
     setTransaction(txn);
+    setDocumentType(docType);
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         if (containerRef.current) {
@@ -48,7 +50,11 @@ export function usePrintReceipt() {
     >
       <div ref={containerRef}>
         {transaction && (
-          <ReceiptView transaction={transaction} paperSize={paperSize} />
+          <ReceiptView
+            transaction={transaction}
+            paperSize={paperSize}
+            documentType={documentType}
+          />
         )}
       </div>
     </div>

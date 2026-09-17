@@ -39,7 +39,7 @@ function EmptyState({
       icon={Users}
       title="No suppliers found"
       description="Try adjusting your search or add a new supplier"
-      className="h-32"
+      className="py-16"
       action={
         isAdmin && onAddSupplier
           ? { label: "Add Supplier", onClick: onAddSupplier }
@@ -198,7 +198,7 @@ export function SupplierTable({
         <div role="rowgroup">
           {suppliers.length === 0 && (
             <div role="row">
-              <div role="cell" className="h-32 flex items-center justify-center">
+              <div role="cell" className="flex items-center justify-center">
                 <EmptyState isAdmin={isAdmin} onAddSupplier={onAddSupplier} />
               </div>
             </div>

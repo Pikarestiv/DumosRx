@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Minus, Plus, Trash2 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
@@ -17,12 +18,59 @@ interface Props {
   updateQuantity: (id: string, quantity: number) => void;
   removeFromCart: (id: string) => void;
   isLocked?: boolean;
+  isResellerSale?: boolean;
+  updateUnitPrice?: (id: string, price: number) => void;
 }
 
 /** Swipe-left-to-remove cart row: a red delete backdrop revealed as the row is dragged left. */
-export function POSCartItem({ item, currencyCode, isLast, updateQuantity, removeFromCart, isLocked = false }: Props) {
+export function POSCartItem({ item, currencyCode, isLast, updateQuantity, removeFromCart, isLocked = false, isResellerSale = false, updateUnitPrice }: Props) {
   const CategoryIcon = getCategoryIcon(item.category_name);
   const capsClass = useUppercaseDisplayClass();
+
+  // The price input is uncontrolled-while-typing: it holds its own local
+  // string state so keystrokes aren't clamped one-at-a-time against
+  // item.unit_price (already-committed, already-clamped state) - clamping
+  // on every keystroke meant typing "150" against a floor of 100 clamped
+  // after the "1" alone, turning the next keystroke into "1005" instead of
+  // "150". The real updateUnitPrice (which still clamps, as the source of
+  // truth) only runs on blur/Enter.
+  const [priceInput, setPriceInput] = useState(String(item.unit_price));
+
+  useEffect(() => {
+    // Re-sync when the external value changes from elsewhere (e.g. reseller
+    // mode toggled off reverts the price) - but don't fight the user's
+    // in-progress typing by resetting on every render when nothing external
+    // actually changed.
+    setPriceInput((prev) =>
+      Number(prev) === item.unit_price ? prev : String(item.unit_price),
+    );
+  }, [item.unit_price]);
+
+  const commitPrice = () => {
+    const val = parseFloat(priceInput);
+    if (!Number.isNaN(val)) updateUnitPrice?.(item.id, val);
+    else setPriceInput(String(item.unit_price));
+  };
+
+  // Same uncontrolled-while-typing pattern as priceInput above: typing "50"
+  // directly (e.g. buying 50 tablets) must not go through updateQuantity on
+  // every keystroke - that would re-clamp/re-render against stock on each
+  // digit and mangle multi-digit entry the same way the price input did
+  // before this fix. Commits via the existing updateQuantity (which already
+  // validates against stock and removes the item on <= 0) on blur/Enter.
+  const [qtyInput, setQtyInput] = useState(String(item.quantity));
+
+  useEffect(() => {
+    setQtyInput((prev) =>
+      Number(prev) === item.quantity ? prev : String(item.quantity),
+    );
+  }, [item.quantity]);
+
+  const commitQuantity = () => {
+    const val = parseInt(qtyInput, 10);
+    if (!Number.isNaN(val) && val !== item.quantity) updateQuantity(item.id, val);
+    else setQtyInput(String(item.quantity));
+  };
 
   return (
     <div className="relative overflow-hidden rounded-lg">
@@ -53,9 +101,29 @@ export function POSCartItem({ item, currencyCode, isLast, updateQuantity, remove
           <div className={`text-[12.5px] font-semibold mb-0.5 truncate leading-tight ${capsClass}`}>
             {item.name}
           </div>
-          <div className="text-[11.5px] text-muted-foreground leading-tight">
-            {formatCurrency(item.unit_price, currencyCode)} each
-          </div>
+          {isResellerSale ? (
+            <div className="flex items-center gap-1 text-[11.5px]">
+              <input
+                type="number"
+                min={item.original_unit_price}
+                step="1"
+                value={priceInput}
+                onChange={(e) => setPriceInput(e.target.value)}
+                onBlur={commitPrice}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.currentTarget.blur();
+                  }
+                }}
+                className="w-20 h-6 px-1.5 rounded border border-border bg-background text-[11.5px]"
+              />
+              <span className="text-muted-foreground">each (min {formatCurrency(item.original_unit_price, currencyCode)})</span>
+            </div>
+          ) : (
+            <div className="text-[11.5px] text-muted-foreground leading-tight">
+              {formatCurrency(item.unit_price, currencyCode)} each
+            </div>
+          )}
         </div>
         {isLocked && (
           <span className="text-xs font-semibold text-muted-foreground px-2">
@@ -70,9 +138,20 @@ export function POSCartItem({ item, currencyCode, isLast, updateQuantity, remove
             >
               <Minus className="w-3 h-3" strokeWidth={2.5} />
             </button>
-            <span className="w-6 text-center text-xs font-semibold">
-              {item.quantity}
-            </span>
+            <input
+              type="number"
+              min={1}
+              value={qtyInput}
+              onChange={(e) => setQtyInput(e.target.value)}
+              onFocus={(e) => e.currentTarget.select()}
+              onBlur={commitQuantity}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.currentTarget.blur();
+                }
+              }}
+              className="w-9 text-center text-xs font-semibold bg-transparent border-0 outline-none focus:ring-1 focus:ring-primary rounded [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            />
             <button
               className="w-6 h-6 flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors cursor-pointer"
               onClick={() => updateQuantity(item.id, item.quantity + 1)}

@@ -1,119 +1,63 @@
 import React from "react";
-import { Search, Filter } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
+import { DateRangePicker, type DateRangeValue } from "@/components/ui/date-range-picker";
+import { FilterPill } from "@/components/ui/filter-pill";
 
 interface TransactionFiltersProps {
   searchQuery: string;
   setSearchQuery: (query: string) => void;
-  dateFilter: string;
-  setDateFilter: (filter: string) => void;
+  dateRange: DateRangeValue;
+  setDateRange: (range: DateRangeValue) => void;
   paymentFilter: string;
   setPaymentFilter: (filter: string) => void;
 }
 
+const PAYMENT_OPTIONS = [
+  { value: "Cash", label: "Cash" },
+  { value: "Card", label: "Card" },
+  { value: "Transfer", label: "Transfer" },
+];
+
 export function TransactionFilters({
   searchQuery,
   setSearchQuery,
-  dateFilter,
-  setDateFilter,
+  dateRange,
+  setDateRange,
   paymentFilter,
   setPaymentFilter,
 }: TransactionFiltersProps) {
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search receipt or customer"
-            className="pl-9 h-12 rounded-xl bg-card border-border/50"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-        <Button
-          variant="outline"
-          className="h-12 w-12 rounded-xl bg-card border-border/50 shrink-0"
-        >
-          <Filter className="h-4 w-4 text-muted-foreground" />
-        </Button>
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Search receipt, customer, or item"
+          className="pl-9 h-12 rounded-xl bg-card border-border/50"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
       </div>
 
-      <div className="flex overflow-x-auto gap-2 pb-2 -mx-4 px-4 md:mx-0 md:px-0 hide-scrollbar flex-nowrap md:flex-wrap">
+      <div className="flex flex-wrap items-center gap-2">
+        <DateRangePicker value={dateRange} onChange={setDateRange} />
+        {dateRange.from && (
+          <button
+            type="button"
+            onClick={() => setDateRange({})}
+            className="text-[11.5px] text-muted-foreground hover:text-foreground underline px-0.5"
+          >
+            Clear date range
+          </button>
+        )}
         <FilterPill
-          label="All"
-          current={dateFilter}
-          onClick={() => setDateFilter("All")}
-        />
-        <FilterPill
-          label="Today"
-          current={dateFilter}
-          onClick={() =>
-            setDateFilter(dateFilter === "Today" ? "All" : "Today")
-          }
-        />
-        <FilterPill
-          label="This week"
-          current={dateFilter}
-          onClick={() =>
-            setDateFilter(dateFilter === "This week" ? "All" : "This week")
-          }
-        />
-
-        <FilterPill
-          label="Cash"
-          current={paymentFilter}
-          onClick={() =>
-            setPaymentFilter(paymentFilter === "Cash" ? "All" : "Cash")
-          }
-        />
-        <FilterPill
-          label="Card"
-          current={paymentFilter}
-          onClick={() =>
-            setPaymentFilter(paymentFilter === "Card" ? "All" : "Card")
-          }
-        />
-        <FilterPill
-          label="Transfer"
-          current={paymentFilter}
-          onClick={() =>
-            setPaymentFilter(paymentFilter === "Transfer" ? "All" : "Transfer")
-          }
+          label="Payment"
+          value={paymentFilter}
+          onValueChange={setPaymentFilter}
+          options={PAYMENT_OPTIONS}
+          allValue="All"
         />
       </div>
     </div>
-  );
-}
-
-function FilterPill({
-  label,
-  current,
-  onClick,
-}: {
-  label: string;
-  current: string;
-  onClick: () => void;
-}) {
-  const isActive = current === label;
-  return (
-    <Button
-      variant={isActive ? "default" : "outline"}
-      onClick={onClick}
-      className={cn(
-        "rounded-full h-9 px-5 shrink-0 border transition-colors",
-        // active
-        isActive && "bg-primary text-primary-foreground shadow-none",
-        // inactive
-        !isActive && "border-border bg-card text-muted-foreground",
-        // inactive + hover
-        !isActive &&
-          "hover:bg-primary/10 hover:text-primary hover:border-primary/50",
-      )}
-    >
-      {label}
-    </Button>
   );
 }

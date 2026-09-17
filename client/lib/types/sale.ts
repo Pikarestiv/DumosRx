@@ -19,6 +19,12 @@ export interface Sale {
   updated_at?: string;
   points_earned?: number;
   points_redeemed?: number;
+  is_reseller_sale?: number;
+  reseller_commission_percentage?: number;
+  reseller_commission_amount?: number;
+  reseller_commission_redeemed?: number;
+  reseller_commission_redeemed_at?: string;
+  reseller_commission_redeemed_by?: string;
 }
 
 /** `Sale` joined with the customer/cashier/return aggregates that
@@ -31,6 +37,9 @@ export interface SaleWithDetails extends Sale {
   cashier?: string;
   item_count?: number;
   total_refunded?: number;
+  /** "||"-joined product names for this sale's line items, for searching by
+   * item without a separate fetch - see getRecentSales(). */
+  item_names?: string;
   // Legacy/alternate field names some older records or views may use in
   // place of the canonical column above.
   total?: number;

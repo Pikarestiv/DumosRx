@@ -37,6 +37,9 @@ interface POSMobileCartDrawerProps {
   onOpenHeldSales?: () => void;
   isPrescriptionLocked?: boolean;
   onEditPrescription?: () => void;
+  isResellerSale?: boolean;
+  setIsResellerSale?: (value: boolean) => void;
+  updateUnitPrice?: (id: string, price: number) => void;
 }
 
 export function POSMobileCartDrawer({
@@ -64,6 +67,9 @@ export function POSMobileCartDrawer({
   onOpenHeldSales,
   isPrescriptionLocked,
   onEditPrescription,
+  isResellerSale,
+  setIsResellerSale,
+  updateUnitPrice,
 }: POSMobileCartDrawerProps) {
   const [open, setOpen] = useState(false);
 
@@ -136,6 +142,9 @@ export function POSMobileCartDrawer({
               }}
               isPrescriptionLocked={isPrescriptionLocked}
               onEditPrescription={onEditPrescription}
+              isResellerSale={isResellerSale}
+              setIsResellerSale={setIsResellerSale}
+              updateUnitPrice={updateUnitPrice}
             />
           </div>
         </div>

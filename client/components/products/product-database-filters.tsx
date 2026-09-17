@@ -16,6 +16,10 @@ interface ProductDatabaseFiltersProps {
   statuses: string[];
   onManageCategories: () => void;
   onProductsImported: () => void;
+  /** Currently-filtered product ids, so Export defaults to what's on screen
+   * — undefined when no filter is active (search/category/status all at
+   * their defaults). */
+  filteredProductIds?: string[];
 }
 
 export function ProductDatabaseFilters({
@@ -29,6 +33,7 @@ export function ProductDatabaseFilters({
   statuses,
   onManageCategories,
   onProductsImported,
+  filteredProductIds,
 }: ProductDatabaseFiltersProps) {
   const { canManageStockBatch } = useAuth();
   // Search bar + filter pills render standalone above the card on mobile (see ProductDatabase).
@@ -43,7 +48,7 @@ export function ProductDatabaseFilters({
         />
         {canManageStockBatch && (
           <>
-            <ImportExportToolbar onImported={onProductsImported} />
+            <ImportExportToolbar onImported={onProductsImported} filteredProductIds={filteredProductIds} />
             <Button
               type="button"
               variant="outline"

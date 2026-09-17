@@ -12,7 +12,7 @@ interface SalesListModalProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   reportDate: string;
-  salesToday: Sale[];
+  salesToday: (Sale & { item_names?: string })[];
   paymentFilter: string;
   setPaymentFilter: (filter: string) => void;
   setSelectedSale: (sale: Sale) => void;
@@ -33,9 +33,10 @@ export function SalesListModal({
 
   const filteredSales = useMemo(() => {
     return salesToday.filter((s) => {
-      const matchesSearch = s.transaction_number
-        .toLowerCase()
-        .includes(salesSearch.toLowerCase());
+      const q = salesSearch.toLowerCase();
+      const matchesSearch =
+        s.transaction_number.toLowerCase().includes(q) ||
+        !!s.item_names?.toLowerCase().includes(q);
       const matchesFilter =
         paymentFilter === "all" ||
         s.payment_method?.toLowerCase() === paymentFilter;
@@ -61,7 +62,7 @@ export function SalesListModal({
               </SelectContent>
             </Select>
             <Input
-              placeholder="Search receipt..."
+              placeholder="Search receipt or item..."
               value={salesSearch}
               onChange={(e) => setSalesSearch(e.target.value)}
               className="h-8 w-full sm:w-[200px]"

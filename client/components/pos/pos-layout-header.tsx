@@ -45,6 +45,16 @@ export function POSLayoutHeader({
   const searchParams = useSearchParams();
   const isFullscreen = usePosFullscreenStore((s) => s.isFullscreen);
   const setFullscreen = usePosFullscreenStore((s) => s.setFullscreen);
+  // Pulses until the user types something for the first time this visit —
+  // the point's made the moment they engage with it. Tracked separately
+  // from searchTerm itself so clearing a search later in the session
+  // (typed something, cleared it, about to search again) doesn't bring the
+  // pulse back.
+  const [hasTypedInSearch, setHasTypedInSearch] = useState(false);
+  useEffect(() => {
+    if (searchTerm !== "") setHasTypedInSearch(true);
+  }, [searchTerm]);
+  const showSearchGlow = !hasTypedInSearch;
 
   useEffect(() => {
     if (searchParams?.get("action") === "scan") {
@@ -103,7 +113,10 @@ export function POSLayoutHeader({
               value={searchTerm}
               onChange={(e) => onSearchChange(e.target.value)}
               onKeyDown={onKeyDown}
-              className="h-10 pl-10 pr-10 bg-muted/30 border-border/50 hover:border-border focus:border-primary focus:ring-1 focus:ring-primary rounded-xl text-sm transition-all w-full"
+              className={cn(
+                "h-10 pl-10 pr-10 bg-muted/30 border-border/50 hover:border-border focus:border-primary focus:ring-1 focus:ring-primary rounded-xl text-sm transition-all w-full",
+                showSearchGlow && "animate-glow-pulse",
+              )}
             />
             {searchTerm && (
               <button

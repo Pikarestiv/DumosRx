@@ -2,7 +2,12 @@
 
 import type React from "react";
 import { useQuery } from "@tanstack/react-query";
-import { AlertCircle, Calendar, TrendingDown, CheckCircle2 } from "lucide-react";
+import {
+  AlertCircle,
+  Calendar,
+  TrendingDown,
+  CheckCircle2,
+} from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { getExpiringBatches } from "@/lib/db/queries/inventory";
 import { useStore } from "@/lib/context/store-context";
@@ -64,7 +69,7 @@ export function NeedsAttention({ stockData }: { stockData: StockItem[] }) {
     let expiryText = "";
     if (daysLeft < 0) {
       const d = new Date(batch.expiry_date);
-      const formattedDate = `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`;
+      const formattedDate = `${d.getDate().toString().padStart(2, "0")}/${(d.getMonth() + 1).toString().padStart(2, "0")}/${d.getFullYear()}`;
       expiryText = `Expired on ${formattedDate}`;
     } else if (daysLeft === 0) {
       expiryText = `Expires today`;
@@ -114,13 +119,13 @@ export function NeedsAttention({ stockData }: { stockData: StockItem[] }) {
     }
   });
 
-  const shownCount = Math.min(items.length, 10);
+  const shownCount = Math.min(items.length, 5);
 
   const header = (
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-1.5">
         <div className="text-[15px] font-semibold">Needs attention</div>
-        {items.length > 10 && (
+        {items.length > 5 && (
           <div className="text-[12.5px] text-muted-foreground">
             ({shownCount} of {items.length})
           </div>
@@ -145,42 +150,43 @@ export function NeedsAttention({ stockData }: { stockData: StockItem[] }) {
         <div className="hidden lg:block mb-4 shrink-0">{header}</div>
 
         <div className="flex flex-col gap-2 md:gap-0 py-3 md:py-0 lg:flex-1 lg:min-h-0 lg:overflow-y-auto">
-        {items.length === 0 && (
-                        <EmptyState
-                          icon={CheckCircle2}
-                          title="All caught up"
-                          description="No items need immediate attention."
-                          className="py-4"
-                        />
-                      )}
-              {!(items.length === 0) && (
-                        items.slice(0, 10).map((item, idx) => (
-                          <div
-                            key={item.id + idx}
-                            className={`flex items-center gap-3 p-3 md:py-3 md:px-0 rounded-xl md:rounded-none border md:border-0 border-border bg-card md:bg-transparent ${idx !== items.length - 1 && idx !== 9 ? "md:border-b md:border-border" : ""}`}
-                          >
-                            <div
-                              className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${item.iconClass}`}
-                            >
-                              {item.icon}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className={`text-[13px] font-semibold truncate ${capsClass}`}>
-                                {item.product_name}
-                              </div>
-                              <div className="text-[11.5px] text-muted-foreground">
-                                {item.description}
-                              </div>
-                            </div>
-                            <button
-                              className={`text-[11.5px] font-semibold px-3 py-1.5 rounded-lg shrink-0 transition-colors ${item.actionClass}`}
-                              onClick={item.onClick}
-                            >
-                              {item.actionText}
-                            </button>
-                          </div>
-                        ))
-                      )}
+          {items.length === 0 && (
+            <EmptyState
+              icon={CheckCircle2}
+              title="All caught up"
+              description="No items need immediate attention."
+              className="py-4"
+            />
+          )}
+          {!(items.length === 0) &&
+            items.slice(0, 5).map((item, idx) => (
+              <div
+                key={item.id + idx}
+                className={`flex items-center gap-3 p-3 md:py-3 md:px-0 rounded-xl md:rounded-none border md:border-0 border-border bg-card md:bg-transparent ${idx !== items.length - 1 && idx !== 4 ? "md:border-b md:border-border" : ""}`}
+              >
+                <div
+                  className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${item.iconClass}`}
+                >
+                  {item.icon}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div
+                    className={`text-[13px] font-semibold truncate ${capsClass}`}
+                  >
+                    {item.product_name}
+                  </div>
+                  <div className="text-[11.5px] text-muted-foreground">
+                    {item.description}
+                  </div>
+                </div>
+                <button
+                  className={`text-[11.5px] font-semibold px-3 py-1.5 rounded-lg shrink-0 transition-colors ${item.actionClass}`}
+                  onClick={item.onClick}
+                >
+                  {item.actionText}
+                </button>
+              </div>
+            ))}
         </div>
       </div>
     </div>

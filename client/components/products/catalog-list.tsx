@@ -8,7 +8,10 @@ import { useStore } from "@/lib/context/store-context";
 import { useAuth } from "@/lib/context/auth-context";
 import { SortableHeaderCell } from "@/components/ui/sortable-header-cell";
 import { RequestItemDialog } from "@/components/pos/request-item-dialog";
-import { EditableCategoryCell, EditableQuickNumberCell } from "./catalog-editable-cells";
+import {
+  EditableCategoryCell,
+  EditableQuickNumberCell,
+} from "./catalog-editable-cells";
 import { CatalogListSkeleton, EmptyCatalogList } from "./catalog-list-states";
 import { useQuickEditProductMutation } from "@/lib/hooks/use-product-quick-edit-mutation";
 import { useSubmitStockAuditMutation } from "@/lib/hooks/use-stock-audit-mutation";
@@ -181,7 +184,7 @@ export function CatalogList({
       {/* Rows */}
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto hide-scrollbar py-3 sm:py-0"
+        className="flex-1 overflow-y-auto hide-scrollbar py-3 sm:py-0 mb-4"
       >
         {isLoading && filteredProducts.length === 0 && <CatalogListSkeleton />}
         {!isLoading && filteredProducts.length === 0 && (
@@ -198,113 +201,123 @@ export function CatalogList({
             style={{ height: rowVirtualizer.getTotalSize() }}
           >
             {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-            const product = filteredProducts[virtualRow.index];
-            const isSelected = selectedProductId === product.id;
-            return (
-              <div
-                key={product.id}
-                data-index={virtualRow.index}
-                ref={rowVirtualizer.measureElement}
-                className="absolute top-0 left-0 w-full pb-2 sm:pb-0"
-                style={{ transform: `translateY(${virtualRow.start}px)` }}
-              >
-              <div
-                onClick={() => onSelectProduct(product)}
-                className={`group px-4 py-3 sm:py-2 rounded-xl sm:rounded-none border sm:border-t-0 sm:border-r-0 sm:border-b border-border cursor-pointer transition-colors ${
-                  isSelected
-                    ? "bg-primary/5 border-l-2 border-l-primary"
-                    : "bg-card sm:bg-transparent hover:bg-muted/50 border-l-2 border-l-transparent"
-                }`}
-              >
-                {/* Mobile View */}
-                <div className="flex sm:hidden items-center justify-between">
-                  <div className="min-w-0 pr-2 flex-1">
-                    <div className="text-[15px] font-bold text-foreground truncate flex items-center gap-2">
-                      <span className={capsClass}>{product.name}</span>
-                      {isPharmacy && !product.genericName && (
-                        <span className="text-[10px] font-medium bg-amber-500/10 text-amber-600 px-1.5 py-0.5 rounded border border-amber-500/20" title="Missing Generic Name">
-                          No Generic
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-[13px] text-muted-foreground mt-0.5 truncate flex">
-                      {product.barcode || product.id.slice(0, 8)} ·{" "}
-                      <span className={capsClass}>{product.category || "Uncategorized"}</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 shrink-0">
-                    <div className="flex flex-col items-end">
-                      <div className="text-[15px] font-bold text-foreground">
-                        {formatCurrency(product.sellingPrice)}
+              const product = filteredProducts[virtualRow.index];
+              const isSelected = selectedProductId === product.id;
+              return (
+                <div
+                  key={product.id}
+                  data-index={virtualRow.index}
+                  ref={rowVirtualizer.measureElement}
+                  className="absolute top-0 left-0 w-full pb-2 sm:pb-0"
+                  style={{ transform: `translateY(${virtualRow.start}px)` }}
+                >
+                  <div
+                    onClick={() => onSelectProduct(product)}
+                    className={`group px-4 py-3 sm:py-2 rounded-xl sm:rounded-none border sm:border-t-0 sm:border-r-0 sm:border-b border-border cursor-pointer transition-colors ${
+                      isSelected
+                        ? "bg-primary/5 border-l-2 border-l-primary"
+                        : "bg-card sm:bg-transparent hover:bg-muted/50 border-l-2 border-l-transparent"
+                    }`}
+                  >
+                    {/* Mobile View */}
+                    <div className="flex sm:hidden items-center justify-between">
+                      <div className="min-w-0 pr-2 flex-1">
+                        <div className="text-[15px] font-bold text-foreground truncate flex items-center gap-2">
+                          <span className={capsClass}>{product.name}</span>
+                          {isPharmacy && !product.genericName && (
+                            <span
+                              className="text-[10px] font-medium bg-amber-500/10 text-amber-600 px-1.5 py-0.5 rounded border border-amber-500/20"
+                              title="Missing Generic Name"
+                            >
+                              No Generic
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[13px] text-muted-foreground mt-0.5 truncate flex">
+                          {product.barcode || product.id.slice(0, 8)} ·{" "}
+                          <span className={capsClass}>
+                            {product.category || "Uncategorized"}
+                          </span>
+                        </div>
                       </div>
-                      <div
-                        className={`text-[13px] font-semibold mt-0.5 ${product.stockQuantity <= product.reorderLevel ? "text-orange-600" : "text-emerald-600"}`}
-                      >
-                        {product.stockQuantity} {product.baseUnit || "unit"}
-                        {product.stockQuantity === 1 ? "" : "s"}
+                      <div className="flex items-center gap-3 shrink-0">
+                        <div className="flex flex-col items-end">
+                          <div className="text-[15px] font-bold text-foreground">
+                            {formatCurrency(product.sellingPrice)}
+                          </div>
+                          <div
+                            className={`text-[13px] font-semibold mt-0.5 ${product.stockQuantity <= product.reorderLevel ? "text-orange-600" : "text-emerald-600"}`}
+                          >
+                            {product.stockQuantity} {product.baseUnit || "unit"}
+                            {product.stockQuantity === 1 ? "" : "s"}
+                          </div>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-muted-foreground/30" />
                       </div>
                     </div>
-                    <ChevronRight className="w-4 h-4 text-muted-foreground/30" />
-                  </div>
-                </div>
 
-                {/* Desktop View */}
-                <div className="hidden sm:grid grid-cols-[1fr_150px_90px_90px_100px_90px] gap-2 items-center">
-                  <div className="min-w-0 pr-2">
-                    <div className="text-[13px] font-semibold truncate flex items-center gap-2">
-                      <span className={capsClass}>{product.name}</span>
-                      {isPharmacy && !product.genericName && (
-                        <span className="text-[9px] font-medium bg-amber-500/10 text-amber-600 px-1.5 py-0.5 rounded border border-amber-500/20" title="Missing Generic Name">
-                          No Generic
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-[11px] text-muted-foreground truncate">
-                      {product.barcode || product.id.slice(0, 8)}
+                    {/* Desktop View */}
+                    <div className="hidden sm:grid grid-cols-[1fr_150px_90px_90px_100px_90px] gap-2 items-center">
+                      <div className="min-w-0 pr-2">
+                        <div className="text-[13px] font-semibold truncate flex items-center gap-2">
+                          <span className={capsClass}>{product.name}</span>
+                          {isPharmacy && !product.genericName && (
+                            <span
+                              className="text-[9px] font-medium bg-amber-500/10 text-amber-600 px-1.5 py-0.5 rounded border border-amber-500/20"
+                              title="Missing Generic Name"
+                            >
+                              No Generic
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[11px] text-muted-foreground truncate">
+                          {product.barcode || product.id.slice(0, 8)}
+                        </div>
+                      </div>
+                      <EditableCategoryCell
+                        product={product}
+                        categoryOptions={categoryOptions}
+                        canEdit={canManageStockBatch}
+                        hasTouchCapability={hasTouchCapability}
+                        onSave={saveCategory}
+                      />
+                      <div className="text-[13px] font-medium text-muted-foreground">
+                        {product.costPrice > 0
+                          ? formatCurrency(product.costPrice)
+                          : "-"}
+                      </div>
+                      <EditableQuickNumberCell
+                        displayValue={formatCurrency(product.sellingPrice)}
+                        value={product.sellingPrice}
+                        parse={parseFloat}
+                        step="0.01"
+                        widthClassName="w-20"
+                        canEdit={canManageStockBatch}
+                        hasTouchCapability={hasTouchCapability}
+                        onSave={(val) => saveSellingPrice(product, val)}
+                      />
+                      <EditableQuickNumberCell
+                        displayValue={`${product.stockQuantity} ${product.baseUnit || "unit"}${product.stockQuantity === 1 ? "" : "s"}`}
+                        displayClassName={`text-[13px] font-semibold ${product.stockQuantity <= product.reorderLevel ? "text-destructive" : "text-primary"}`}
+                        value={product.stockQuantity}
+                        parse={(raw) => parseInt(raw, 10)}
+                        canEdit={canManageStockBatch}
+                        hasTouchCapability={hasTouchCapability}
+                        onSave={(val) => saveStockQuantity(product, val)}
+                      />
+                      <EditableQuickNumberCell
+                        displayValue={String(product.reorderLevel)}
+                        displayClassName="text-[13px] text-muted-foreground"
+                        value={product.reorderLevel}
+                        parse={(raw) => parseInt(raw, 10)}
+                        canEdit={canManageStockBatch}
+                        hasTouchCapability={hasTouchCapability}
+                        onSave={(val) => saveReorderLevel(product, val)}
+                      />
                     </div>
                   </div>
-                  <EditableCategoryCell
-                    product={product}
-                    categoryOptions={categoryOptions}
-                    canEdit={canManageStockBatch}
-                    hasTouchCapability={hasTouchCapability}
-                    onSave={saveCategory}
-                  />
-                  <div className="text-[13px] font-medium text-muted-foreground">
-                    {product.costPrice > 0 ? formatCurrency(product.costPrice) : "-"}
-                  </div>
-                  <EditableQuickNumberCell
-                    displayValue={formatCurrency(product.sellingPrice)}
-                    value={product.sellingPrice}
-                    parse={parseFloat}
-                    step="0.01"
-                    widthClassName="w-20"
-                    canEdit={canManageStockBatch}
-                    hasTouchCapability={hasTouchCapability}
-                    onSave={(val) => saveSellingPrice(product, val)}
-                  />
-                  <EditableQuickNumberCell
-                    displayValue={`${product.stockQuantity} ${product.baseUnit || "unit"}${product.stockQuantity === 1 ? "" : "s"}`}
-                    displayClassName={`text-[13px] font-semibold ${product.stockQuantity <= product.reorderLevel ? "text-destructive" : "text-primary"}`}
-                    value={product.stockQuantity}
-                    parse={(raw) => parseInt(raw, 10)}
-                    canEdit={canManageStockBatch}
-                    hasTouchCapability={hasTouchCapability}
-                    onSave={(val) => saveStockQuantity(product, val)}
-                  />
-                  <EditableQuickNumberCell
-                    displayValue={String(product.reorderLevel)}
-                    displayClassName="text-[13px] text-muted-foreground"
-                    value={product.reorderLevel}
-                    parse={(raw) => parseInt(raw, 10)}
-                    canEdit={canManageStockBatch}
-                    hasTouchCapability={hasTouchCapability}
-                    onSave={(val) => saveReorderLevel(product, val)}
-                  />
                 </div>
-              </div>
-              </div>
-            );
+              );
             })}
           </div>
         )}
@@ -316,5 +329,3 @@ export function CatalogList({
     </div>
   );
 }
-
-

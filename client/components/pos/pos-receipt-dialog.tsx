@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -7,7 +8,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Receipt } from "lucide-react";
-import { ReceiptView, type ReceiptTransaction } from "./receipt-view";
+import { cn } from "@/lib/utils";
+import { ReceiptView, type ReceiptDocumentType, type ReceiptTransaction } from "./receipt-view";
 import { usePrintReceipt } from "./use-print-receipt";
 
 interface POSReceiptDialogProps {
@@ -22,9 +24,10 @@ export function POSReceiptDialog({
   completedTransaction,
 }: POSReceiptDialogProps) {
   const { print, portal, paperSize } = usePrintReceipt();
+  const [documentType, setDocumentType] = useState<ReceiptDocumentType>("receipt");
 
   const handlePrint = () => {
-    if (completedTransaction) print(completedTransaction);
+    if (completedTransaction) print(completedTransaction, documentType);
   };
 
   return (
@@ -38,11 +41,30 @@ export function POSReceiptDialog({
           </DialogDescription>
         </DialogHeader>
 
+        <div className="flex justify-center gap-1 p-2 border-b bg-muted/50">
+          {(["receipt", "tax"] as const).map((type) => (
+            <button
+              key={type}
+              type="button"
+              onClick={() => setDocumentType(type)}
+              className={cn(
+                "text-xs font-medium px-3 py-1.5 rounded-full transition-colors",
+                documentType === type
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-accent",
+              )}
+            >
+              {type === "tax" ? "Tax Invoice" : "Receipt"}
+            </button>
+          ))}
+        </div>
+
         <div className="max-h-[60vh] overflow-y-auto">
           {completedTransaction && (
             <ReceiptView
               transaction={completedTransaction}
               paperSize={paperSize}
+              documentType={documentType}
             />
           )}
         </div>
@@ -57,7 +79,7 @@ export function POSReceiptDialog({
           </Button>
           <Button className="flex-1" onClick={handlePrint}>
             <Receipt className="h-4 w-4 mr-2" />
-            Print Receipt
+            Print {documentType === "tax" ? "Tax Invoice" : "Receipt"}
           </Button>
         </div>
       </DialogContent>

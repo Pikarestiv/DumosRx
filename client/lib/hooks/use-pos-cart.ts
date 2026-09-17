@@ -18,6 +18,7 @@ import type { POSProduct as Product } from "@/lib/types/product";
 export interface CartItem extends Product {
   quantity: number;
   subtotal: number;
+  original_unit_price: number;
 }
 
 export interface RedeemedOption {
@@ -32,10 +33,12 @@ interface POSCartState {
   discount: number;
   discountType: "fixed" | "percentage";
   redeemedOption: RedeemedOption | null;
+  isResellerSale: boolean;
   setCart: (cart: CartItem[] | ((prev: CartItem[]) => CartItem[])) => void;
   setDiscount: (discount: number) => void;
   setDiscountType: (type: "fixed" | "percentage") => void;
   setRedeemedOption: (option: RedeemedOption | null) => void;
+  setIsResellerSale: (value: boolean) => void;
 }
 
 const usePOSCartStore = create<POSCartState>()(
@@ -45,6 +48,7 @@ const usePOSCartStore = create<POSCartState>()(
       discount: 0,
       discountType: "fixed",
       redeemedOption: null,
+      isResellerSale: false,
       setCart: (updater) =>
         set((state) => ({
           cart: typeof updater === "function" ? updater(state.cart) : updater,
@@ -52,6 +56,7 @@ const usePOSCartStore = create<POSCartState>()(
       setDiscount: (discount) => set({ discount }),
       setDiscountType: (discountType) => set({ discountType }),
       setRedeemedOption: (redeemedOption) => set({ redeemedOption }),
+      setIsResellerSale: (isResellerSale) => set({ isResellerSale }),
     }),
     {
       name: "pos-cart-storage",
@@ -70,6 +75,8 @@ export function usePOSCart(products: Product[]) {
   const setStoreDiscountType = usePOSCartStore((state) => state.setDiscountType);
   const redeemedOption = usePOSCartStore((state) => state.redeemedOption);
   const setRedeemedOption = usePOSCartStore((state) => state.setRedeemedOption);
+  const isResellerSale = usePOSCartStore((state) => state.isResellerSale);
+  const setStoreIsResellerSale = usePOSCartStore((state) => state.setIsResellerSale);
   const [isHydrated, setIsHydrated] = useState(false);
 
   // A manual discount edit and a loyalty redemption share the same discount
@@ -144,6 +151,7 @@ export function usePOSCart(products: Product[]) {
           ...product,
           quantity: 1,
           subtotal: product.unit_price,
+          original_unit_price: product.unit_price,
         };
         setCart((prev) => [...prev, cartItem]);
         toast.success(`${product.name} added to cart`);
@@ -182,9 +190,39 @@ export function usePOSCart(products: Product[]) {
     setCart((prev) => prev.filter((item) => item.id !== id));
   };
 
+  const updateUnitPrice = (id: string, newPrice: number) => {
+    setCart((prev) =>
+      prev.map((item) => {
+        if (item.id !== id) return item;
+        // A reseller sale can only mark price up, never down - clamped here
+        // too, not just in the input's `min`, so a pasted/typed value below
+        // the floor can't get through either.
+        const clamped = Math.max(newPrice, item.original_unit_price);
+        return { ...item, unit_price: clamped, subtotal: clamped * item.quantity };
+      }),
+    );
+  };
+
+  const setIsResellerSale = (value: boolean) => {
+    setStoreIsResellerSale(value);
+    if (!value) {
+      // Turning reseller mode off with marked-up prices still in the cart
+      // would silently keep charging the marked-up amount with no
+      // commission tracked for it - revert every line back to normal.
+      setCart((prev) =>
+        prev.map((item) => ({
+          ...item,
+          unit_price: item.original_unit_price,
+          subtotal: item.original_unit_price * item.quantity,
+        })),
+      );
+    }
+  };
+
   const clearCart = () => {
     setCart([]);
     setDiscount(0);
+    setStoreIsResellerSale(false);
   };
 
   const restoreCart = (
@@ -219,5 +257,8 @@ export function usePOSCart(products: Product[]) {
     redeemedOption: isHydrated ? redeemedOption : null,
     redeemReward,
     clearRedemption,
+    updateUnitPrice,
+    isResellerSale: isHydrated ? isResellerSale : false,
+    setIsResellerSale,
   };
 }

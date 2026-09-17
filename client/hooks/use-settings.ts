@@ -53,6 +53,7 @@ export function useSettings() {
     localName,
     localCurrency,
     localVat,
+    localResellerCommission,
     localReceiptHeader,
     localReceiptFooter,
     showLogo,
@@ -68,6 +69,7 @@ export function useSettings() {
     localEmail,
     localPcn,
     localRegistrationNumber,
+    localTaxNumber,
     showRetailSuggestions,
     requirePaymentAccount,
     onlineStoreEnabled,
@@ -213,6 +215,7 @@ export function useSettings() {
       store_slug: finalSlug,
       pcn_license: localPcn,
       registration_number: localRegistrationNumber,
+      tax_number: localTaxNumber,
       show_retail_suggestions: showRetailSuggestions ? 1 : 0,
       require_payment_account: requirePaymentAccount ? 1 : 0,
       online_store_enabled: onlineStoreEnabled ? 1 : 0,
@@ -230,6 +233,7 @@ export function useSettings() {
     updateStoreProfile({
       currency: localCurrency,
       vat_percentage: parseFloat(localVat) || 0,
+      reseller_commission_percentage: parseFloat(localResellerCommission) || 0,
     });
     toast.success("Regional settings updated");
   };

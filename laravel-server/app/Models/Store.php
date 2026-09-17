@@ -28,6 +28,7 @@ class Store extends Model
         'vat_percentage',
         'pcn_license',
         'registration_number',
+        'tax_number',
         'logo_url',
         'receipt_header',
         'receipt_footer',
@@ -55,6 +56,7 @@ class Store extends Model
         'require_sale_notes',
         'display_stock_levels',
         'uppercase_display_enabled',
+        'reseller_commission_percentage',
     ];
 
     protected $casts = [

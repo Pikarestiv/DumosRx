@@ -30,6 +30,9 @@ interface POSCartPanelsProps {
   onOpenHeldSales?: () => void;
   isPrescriptionLocked?: boolean;
   onEditPrescription?: () => void;
+  isResellerSale?: boolean;
+  setIsResellerSale?: (value: boolean) => void;
+  updateUnitPrice?: (id: string, price: number) => void;
   selectedCustomer: Customer | null;
   customers: Customer[];
   loadingCustomers: boolean;
@@ -62,6 +65,9 @@ export function POSCartPanels(props: POSCartPanelsProps) {
     onOpenHeldSales,
     isPrescriptionLocked,
     onEditPrescription,
+    isResellerSale,
+    setIsResellerSale,
+    updateUnitPrice,
     selectedCustomer,
     customers,
     loadingCustomers,
@@ -93,6 +99,9 @@ export function POSCartPanels(props: POSCartPanelsProps) {
     onOpenHeldSales,
     isPrescriptionLocked,
     onEditPrescription,
+    isResellerSale,
+    setIsResellerSale,
+    updateUnitPrice,
   };
 
   return (

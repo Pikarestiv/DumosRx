@@ -175,6 +175,9 @@ export function ProductDatabase() {
       reorderLevel: (p: Product) => p.reorderLevel,
     });
 
+  const isFiltering =
+    searchTerm.trim() !== "" || categoryFilter !== "all" || statusFilter !== "all";
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-NG", {
       style: "currency",
@@ -184,8 +187,8 @@ export function ProductDatabase() {
   };
 
   return (
-    <div className="flex flex-col lg:flex-1 lg:min-h-0 lg:h-full gap-4">
-      <div className="flex flex-col min-h-0 gap-3 lg:gap-0 lg:h-full flex-1">
+    <div className="flex flex-col flex-1 min-h-0 h-full gap-4">
+      <div className="flex flex-col min-h-0 gap-3 lg:gap-0 h-full flex-1">
         {/* Mobile: search bar + filter pills stand alone above the card, contrasting with the page background */}
         <div className="lg:hidden space-y-3">
           <SearchInput
@@ -218,7 +221,16 @@ export function ProductDatabase() {
           </div>
         </div>
 
-        <div className="border-0 sm:border sm:border-border bg-transparent sm:bg-card rounded-none sm:rounded-2xl flex flex-col min-h-0 lg:flex-1">
+        {/* flex-1 already fills exactly the space left after the tabs/header
+            above (verified live) — min-h-[360px] is the only bound that
+            should normally bind, keeping the table usable on a short
+            window. max-h is a fixed px edge-case rail against an absurdly
+            tall/ultrawide monitor, not a percentage of viewport height: a
+            vh-based cap (e.g. 75vh) is *always* less than the true
+            remaining space once the header/tabs are subtracted, so it was
+            binding on every normal screen and undoing the fill instead of
+            only guarding the extreme case. */}
+        <div className="border-0 sm:border sm:border-border bg-transparent sm:bg-card rounded-none sm:rounded-2xl flex flex-col flex-1 min-h-[360px] lg:max-h-[900px]">
           <ProductDatabaseFilters
             searchTerm={searchTerm}
             setSearchTerm={setSearchTerm}
@@ -230,6 +242,7 @@ export function ProductDatabase() {
             statuses={statuses}
             onManageCategories={() => setShowManageCategories(true)}
             onProductsImported={refetch}
+            filteredProductIds={isFiltering ? filteredProducts.map((p) => p.id) : undefined}
           />
           <CatalogList
             isLoading={productsLoading}

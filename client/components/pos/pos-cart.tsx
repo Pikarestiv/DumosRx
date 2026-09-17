@@ -17,6 +17,7 @@ import { POSCartItem } from "./pos-cart-item";
 import { POSRedeemReward } from "./pos-redeem-reward";
 import type { CartItem, RedeemedOption } from "@/lib/hooks/use-pos-cart";
 import type { Customer } from "@/lib/types/customer";
+import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 
 interface POSCartProps {
   cart: CartItem[];
@@ -80,6 +81,7 @@ export function POSCart({
   const [showDiscount, setShowDiscount] = useState(false);
   const [showRequestDialog, setShowRequestDialog] = useState(false);
   const [showProformaDialog, setShowProformaDialog] = useState(false);
+  const { withRestriction, canUseResellerCommission, canUseProformaQuotes } = useFeatureGate();
 
   return (
     <div className="flex flex-col h-full">
@@ -106,7 +108,10 @@ export function POSCart({
           </span>
           <Switch
             checked={isResellerSale}
-            onCheckedChange={(v) => setIsResellerSale?.(v)}
+            onCheckedChange={withRestriction(
+              (v: boolean) => setIsResellerSale?.(v),
+              { featureAllowed: canUseResellerCommission, featureKey: "reseller_commission" },
+            )}
           />
         </div>
       )}
@@ -292,7 +297,10 @@ export function POSCart({
 
         {cart.length > 0 && (
           <button
-            onClick={() => setShowProformaDialog(true)}
+            onClick={withRestriction(
+              () => setShowProformaDialog(true),
+              { featureAllowed: canUseProformaQuotes, featureKey: "proforma_quotes" },
+            )}
             className="w-full flex items-center justify-center gap-1.5 py-2 px-2 mb-2 rounded-lg border border-border bg-card text-[12.5px] font-semibold text-foreground cursor-pointer hover:bg-muted/50 transition-colors"
           >
             <FileText className="w-3.5 h-3.5" />

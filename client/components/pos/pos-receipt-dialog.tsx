@@ -9,7 +9,11 @@ import {
 } from "@/components/ui/dialog";
 import { Receipt } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { ReceiptView, type ReceiptDocumentType, type ReceiptTransaction } from "./receipt-view";
+import {
+  ReceiptView,
+  type ReceiptDocumentType,
+  type ReceiptTransaction,
+} from "./receipt-view";
 import { usePrintReceipt } from "./use-print-receipt";
 
 interface POSReceiptDialogProps {
@@ -24,7 +28,8 @@ export function POSReceiptDialog({
   completedTransaction,
 }: POSReceiptDialogProps) {
   const { print, portal, paperSize } = usePrintReceipt();
-  const [documentType, setDocumentType] = useState<ReceiptDocumentType>("receipt");
+  const [documentType, setDocumentType] =
+    useState<ReceiptDocumentType>("receipt");
 
   const handlePrint = () => {
     if (completedTransaction) print(completedTransaction, documentType);
@@ -51,7 +56,7 @@ export function POSReceiptDialog({
                 "text-xs font-medium px-3 py-1.5 rounded-full transition-colors",
                 documentType === type
                   ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-accent",
+                  : "text-muted-foreground hover:bg-primary/50 hover:text-muted",
               )}
             >
               {type === "tax" ? "Tax Invoice" : "Receipt"}

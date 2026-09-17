@@ -9,8 +9,8 @@ import {
 import { useStore } from "@/lib/context/store-context";
 import { Card } from "@/components/ui/card";
 import { MetricCard } from "@/components/ui/metric-card";
-import { getCurrencyByCode } from "@/lib/constants/currencies";
 import { EmptyState } from "@/components/ui/empty-state";
+import { formatMetricCurrency } from "@/lib/utils";
 
 interface CustomerBehaviorTabProps {
   customerMetrics: {
@@ -33,7 +33,6 @@ export function CustomerBehaviorTab({
 }: CustomerBehaviorTabProps) {
   const { storeProfile } = useStore();
   const currency = storeProfile?.currency || "NGN";
-  const symbol = getCurrencyByCode(currency).symbol;
 
   return (
     <div className="flex flex-col gap-5">
@@ -94,7 +93,7 @@ export function CustomerBehaviorTab({
                     <div role="cell" className="px-5 py-3.5 font-medium">{row.slot}</div>
                     <div role="cell" className="px-5 py-3.5">{row.transactions.toLocaleString()}</div>
                     <div role="cell" className="px-5 py-3.5">
-                      {symbol}{Math.round(row.avgValue).toLocaleString()}
+                      {formatMetricCurrency(row.avgValue, currency)}
                     </div>
                     <div role="cell" className="px-5 py-3.5">{row.topCategory}</div>
                   </div>

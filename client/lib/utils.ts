@@ -9,12 +9,36 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+/** CFA-zone currencies are conventionally written with the symbol after the
+ * amount (e.g. "1,123,456 F"), unlike Intl's locale-driven placement which
+ * puts "FCFA"/"CFA" as a prefix — also more compact on receipts and cart rows. */
+const CFA_SUFFIX_CODES = new Set(["XAF", "XOF"]);
+
+/** True for currencies whose symbol is placed after the amount (see
+ * CFA_SUFFIX_CODES) — for callers building their own "symbol + value"
+ * strings (e.g. compact chart-axis labels) that need to flip the order. */
+export function isCfaSuffixCurrency(currencyCode: string = "NGN") {
+  return CFA_SUFFIX_CODES.has(currencyCode.replace(/[^A-Z]/g, "") || "NGN");
+}
+
+function formatCfaSuffix(amount: number, maximumFractionDigits?: number) {
+  const number = new Intl.NumberFormat("en-NG", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits,
+  }).format(amount);
+  return `${number} F`;
+}
+
 export function formatCurrency(amount: number, currencyCode: string = "NGN") {
+  const code = currencyCode.replace(/[^A-Z]/g, "") || "NGN"; // Ensure valid 3-letter code
+  if (CFA_SUFFIX_CODES.has(code)) {
+    return formatCfaSuffix(amount);
+  }
   // Simple mapping for common symbols if the locale doesn't handle it well
   // but Intl.NumberFormat is generally robust.
   return new Intl.NumberFormat("en-NG", {
     style: "currency",
-    currency: currencyCode.replace(/[^A-Z]/g, "") || "NGN", // Ensure valid 3-letter code
+    currency: code,
     minimumFractionDigits: 0,
   }).format(amount);
 }
@@ -27,6 +51,9 @@ export function formatCurrency(amount: number, currencyCode: string = "NGN") {
  * formatCurrency() so accounting precision isn't lost there. */
 export function formatMetricCurrency(amount: number, currencyCode: string = "NGN") {
   const code = currencyCode.replace(/[^A-Z]/g, "") || "NGN";
+  if (CFA_SUFFIX_CODES.has(code)) {
+    return formatCfaSuffix(amount, 0);
+  }
   const noDecimalCurrencies = new Set(["NGN"]);
   return new Intl.NumberFormat("en-NG", {
     style: "currency",
@@ -41,9 +68,13 @@ export function formatMetricCurrency(amount: number, currencyCode: string = "NGN
  * Derived from the same Intl formatter as formatCurrency() so the two never
  * disagree on which currency a store is actually using. */
 export function getCurrencySymbol(currencyCode: string = "NGN") {
+  const code = currencyCode.replace(/[^A-Z]/g, "") || "NGN";
+  if (CFA_SUFFIX_CODES.has(code)) {
+    return "F";
+  }
   const parts = new Intl.NumberFormat("en-NG", {
     style: "currency",
-    currency: currencyCode.replace(/[^A-Z]/g, "") || "NGN",
+    currency: code,
     minimumFractionDigits: 0,
   }).formatToParts(0);
   return parts.find((p) => p.type === "currency")?.value ?? "";

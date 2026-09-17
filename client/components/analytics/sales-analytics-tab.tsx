@@ -10,7 +10,7 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 import type { MonthlySalesDataPoint, CategoryDistributionItem } from "@/lib/types/analytics";
-import { getCurrencySymbol } from "@/lib/utils";
+import { getCurrencySymbol, isCfaSuffixCurrency } from "@/lib/utils";
 import { useStore } from "@/lib/context/store-context";
 import { ProductPerformanceTable, type ProductPerformanceRow } from "./product-performance-table";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -28,6 +28,7 @@ export function SalesAnalyticsTab({
 }: SalesAnalyticsTabProps) {
   const { storeProfile } = useStore();
   const currencySymbol = getCurrencySymbol(storeProfile?.currency);
+  const currencyIsSuffix = isCfaSuffixCurrency(storeProfile?.currency);
   const categoryDistribution = useMemo(() => {
     const total = formattedCategoryData.reduce(
       (sum, c) => sum + (c.value || 0),
@@ -73,7 +74,11 @@ export function SalesAnalyticsTab({
                 axisLine={false}
                 tickLine={false}
                 tick={{ fill: "#94a3b8", fontSize: 11 }}
-                tickFormatter={(value) => `${currencySymbol}${(value / 1000).toFixed(0)}k`}
+                tickFormatter={(value) =>
+                  currencyIsSuffix
+                    ? `${(value / 1000).toFixed(0)}k ${currencySymbol}`
+                    : `${currencySymbol}${(value / 1000).toFixed(0)}k`
+                }
               />
               <ChartTooltip content={<ChartTooltipContent />} />
               <Bar dataKey="revenue" fill="#2054E0" radius={[4, 4, 0, 0]} />

@@ -10,6 +10,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth, checkIsAdmin, checkCanViewAllActivity } from "@/lib/context/auth-context";
 import { TransactionDetailsDialog } from "./transaction-details-dialog";
 import { calculateNetSaleAmount, calculateAvgBasket } from "@/lib/utils/pos-calculations";
+import { genericFuzzySearch } from "@/lib/utils/search";
 import { getRecentSales } from "@/lib/db/queries/sales";
 import { queryKeys } from "@/lib/query-keys";
 import type { DateRangeValue } from "@/components/ui/date-range-picker";
@@ -99,24 +100,41 @@ export function POSTransactionHistory({
   // salesSource above) - not here - since a picked range can reach past the
   // `recentSales` prop's fixed 100-row snapshot.
   const filteredSales = useMemo(() => {
-    return (salesSource || []).filter((sale) => {
-      if (searchQuery) {
-        const q = searchQuery.toLowerCase();
-        const matchesCustomer = (sale.customer_name || "Walk-in")
-          .toLowerCase()
-          .includes(q);
-        const matchesReceipt = sale.transaction_number
-          ?.toLowerCase()
-          .includes(q);
-        const matchesItem = sale.item_names?.toLowerCase().includes(q);
-        if (!matchesCustomer && !matchesReceipt && !matchesItem) return false;
-      }
+    const base = salesSource || [];
+    let searched = base;
 
+    if (searchQuery.trim()) {
+      // genericFuzzySearch needs plain object keys, not a computed value, so
+      // build small search-only records rather than passing salesSource
+      // itself - the "||" join separator (see getRecentSales) is replaced
+      // with a space first: it isn't whitespace, so leaving it in would glue
+      // the item on one side of it onto the next token during tokenization
+      // (Tier 3/4 both split on /\s+/), corrupting matches right at that
+      // boundary.
+      const searchable = base.map((sale) => ({
+        id: sale.id,
+        customer_name: sale.customer_name || "Walk-in",
+        transaction_number: sale.transaction_number || "",
+        item_names: sale.item_names?.replace(/\|\|/g, " ") || "",
+      }));
+      const { results } = genericFuzzySearch(searchQuery, searchable, [
+        "customer_name",
+        "transaction_number",
+        "item_names",
+      ]);
+      // Filter the original array by matched id rather than returning
+      // `results` directly, so relevance scoring doesn't reorder sales out
+      // of their existing chronological order (filteredSales feeds
+      // groupedSales' TODAY/YESTERDAY/THIS WEEK/OLDER buckets next).
+      const matchedIds = new Set(results.map((r) => r.id));
+      searched = base.filter((sale) => matchedIds.has(sale.id));
+    }
+
+    return searched.filter((sale) => {
       if (paymentFilter !== "All") {
         if (sale.payment_method?.toLowerCase() !== paymentFilter.toLowerCase())
           return false;
       }
-
       return true;
     });
   }, [salesSource, searchQuery, paymentFilter]);

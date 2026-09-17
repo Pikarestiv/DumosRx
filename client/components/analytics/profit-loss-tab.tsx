@@ -22,7 +22,7 @@ import {
   ChartTooltip, 
   ChartTooltipContent 
 } from "@/components/ui/chart";
-import { formatMetricCurrency, getCurrencySymbol } from "@/lib/utils";
+import { formatMetricCurrency, getCurrencySymbol, isCfaSuffixCurrency } from "@/lib/utils";
 import { useStore } from "@/lib/context/store-context";
 import type { MonthlySalesDataPoint } from "@/lib/types/analytics";
 
@@ -63,6 +63,7 @@ export function ProfitLossTab({
   const { storeProfile } = useStore();
   const currencyCode = storeProfile?.currency;
   const currencySymbol = getCurrencySymbol(currencyCode);
+  const currencyIsSuffix = isCfaSuffixCurrency(currencyCode);
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-5">
       <Card className="p-5 border shadow-sm rounded-2xl">
@@ -192,7 +193,9 @@ export function ProfitLossTab({
                 axisLine={false} 
                 tickLine={false} 
                 tick={{fill: '#94a3b8', fontSize: 11}}
-                tickFormatter={(val) => `${currencySymbol}${val/1000}k`}
+                tickFormatter={(val) =>
+                  currencyIsSuffix ? `${val/1000}k ${currencySymbol}` : `${currencySymbol}${val/1000}k`
+                }
               />
               <ChartTooltip content={<ChartTooltipContent />} />
               <Area 

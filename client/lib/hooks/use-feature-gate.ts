@@ -23,6 +23,21 @@ export function isLoyaltyProgramEnabled(
   return tierAllows && storeToggle !== 0;
 }
 
+/**
+ * Fallback used only when the server's subscription_plans config has no
+ * explicit `limits.sync_interval` for the current tier (see getLimit()
+ * below). Extracted as a pure function (same reasoning as
+ * isLoyaltyProgramEnabled above) so the tier->default mapping is
+ * unit-testable without a StoreContext/useSystemConfigStore render harness.
+ */
+export function getDefaultMinimumSyncIntervalMinutes(
+  isEnterprise: boolean,
+  isPro: boolean,
+  isStarter: boolean,
+): number {
+  return isEnterprise ? 0 : isPro ? 15 : isStarter ? 30 : 360;
+}
+
 export function useFeatureGate() {
   const { storeProfile } = useStore();
   const { subscriptionPlans } = useSystemConfigStore();
@@ -137,8 +152,11 @@ export function useFeatureGate() {
     // Auto Backups
     canAutoBackup: getFeature('auto_backup', 'auto_backup', isPro || isEnterprise),
 
-    // Minimum sync interval in minutes
-    minimumSyncIntervalMinutes: getLimit('sync_interval', isEnterprise ? 15 : isPro ? 30 : 360),
+    // Minimum sync interval in minutes (0 = sync instantly on any change)
+    minimumSyncIntervalMinutes: getLimit(
+      'sync_interval',
+      getDefaultMinimumSyncIntervalMinutes(isEnterprise, isPro, isStarter),
+    ),
 
     // Gated modules & features
     canUsePrescriptions: storeProfile?.store_type === 'pharmacy' ? getFeature('prescriptions', 'prescriptions', true) : false,

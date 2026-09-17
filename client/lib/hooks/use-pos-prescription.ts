@@ -47,6 +47,7 @@ export function usePOSPrescription({
                   ...product,
                   quantity: item.quantity || 1,
                   subtotal: product.unit_price * (item.quantity || 1),
+                  original_unit_price: product.unit_price,
                 };
               }
               return null;

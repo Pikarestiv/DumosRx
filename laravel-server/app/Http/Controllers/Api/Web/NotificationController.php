@@ -92,9 +92,22 @@ class NotificationController extends Controller
                         ];
                     });
             } else {
-                // Regular users only see their own non-technical activities
+                // Regular users only see their own non-technical activities.
+                // base-helpers.ts's insert()/update()/remove() log a generic
+                // INSERT/UPDATE/DELETE/HARD_DELETE on every table write across
+                // the app when no more specific AUDIT_ACTIONS override is
+                // given (see client/lib/db/audit-actions.ts) - real signal for
+                // the full Activity Log audit trail, but shows up here as
+                // context-free noise like "Action: UPDATE on stores". Session
+                // actions (LOGIN/LOGOUT/PIN_CHANGED) are excluded too since a
+                // user already knows when they logged in/out or changed their
+                // own PIN.
                 $activityLogs = ActivityLog::where('user_id', $userId)
-                    ->whereNotIn('action', ['CLIENT_API_ERROR', 'FRONTEND_ERROR', 'UNAUTHORIZED_ACCESS', 'LOGIN_FAILURE'])
+                    ->whereNotIn('action', [
+                        'CLIENT_API_ERROR', 'FRONTEND_ERROR', 'UNAUTHORIZED_ACCESS', 'LOGIN_FAILURE',
+                        'INSERT', 'UPDATE', 'DELETE', 'HARD_DELETE',
+                        'LOGIN', 'LOGOUT', 'LOGIN_FAILED', 'PIN_CHANGED',
+                    ])
                     ->latest()
                     ->limit(10)
                     ->get()

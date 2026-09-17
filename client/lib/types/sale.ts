@@ -19,6 +19,12 @@ export interface Sale {
   updated_at?: string;
   points_earned?: number;
   points_redeemed?: number;
+  is_reseller_sale?: number;
+  reseller_commission_percentage?: number;
+  reseller_commission_amount?: number;
+  reseller_commission_redeemed?: number;
+  reseller_commission_redeemed_at?: string;
+  reseller_commission_redeemed_by?: string;
 }
 
 /** `Sale` joined with the customer/cashier/return aggregates that

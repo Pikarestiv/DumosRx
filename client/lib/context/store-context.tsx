@@ -31,6 +31,7 @@ export interface StoreProfile {
   pcn_license?: string;
   registration_number?: string;
   tax_number?: string;
+  reseller_commission_percentage?: number;
   custom_units?: string;
   receipt_header?: string;
   receipt_footer?: string;

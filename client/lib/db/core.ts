@@ -840,6 +840,50 @@ export async function initDatabase(): Promise<any> {
       // Ignore if column already exists
     }
 
+    try {
+      // Store-wide % of a reseller sale's markup remitted back to the
+      // reseller. See ReselleCommissionPanel / use-pos-payment.ts.
+      db.run('ALTER TABLE stores ADD COLUMN reseller_commission_percentage REAL DEFAULT 0;');
+    } catch (_e) {
+      // Ignore if column already exists
+    }
+
+    try {
+      db.run('ALTER TABLE sales ADD COLUMN is_reseller_sale INTEGER DEFAULT 0;');
+    } catch (_e) {
+      // Ignore if column already exists
+    }
+
+    try {
+      db.run('ALTER TABLE sales ADD COLUMN reseller_commission_percentage REAL DEFAULT 0;');
+    } catch (_e) {
+      // Ignore if column already exists
+    }
+
+    try {
+      db.run('ALTER TABLE sales ADD COLUMN reseller_commission_amount REAL DEFAULT 0;');
+    } catch (_e) {
+      // Ignore if column already exists
+    }
+
+    try {
+      db.run('ALTER TABLE sales ADD COLUMN reseller_commission_redeemed INTEGER DEFAULT 0;');
+    } catch (_e) {
+      // Ignore if column already exists
+    }
+
+    try {
+      db.run('ALTER TABLE sales ADD COLUMN reseller_commission_redeemed_at TEXT;');
+    } catch (_e) {
+      // Ignore if column already exists
+    }
+
+    try {
+      db.run('ALTER TABLE sales ADD COLUMN reseller_commission_redeemed_by TEXT;');
+    } catch (_e) {
+      // Ignore if column already exists
+    }
+
     const webAdapter = makeSqlJsAdapter(db);
 
     try {

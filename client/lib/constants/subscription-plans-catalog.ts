@@ -84,7 +84,7 @@ export function getSubscriptionPlans(
       description: "Full-featured for multi-store operations.",
       features: [
         limitLabel("pro", "stores", "Connected Devices", 3),
-        limitLabel("pro", "staff", "Staff Accounts", 15),
+        limitLabel("pro", "staff", "Staff Accounts", 10),
         "Cloud Sync (Every 15 Minutes)",
         "Mobile App Companion",
         "Advanced Reports & Analytics",

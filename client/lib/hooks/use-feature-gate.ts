@@ -153,7 +153,9 @@ export function useFeatureGate() {
     canUseEcommerce: getFeature('ecommerce', 'store_url', isPro || isEnterprise),
 
     // Auto Backups
-    canAutoBackup: getFeature('auto_backup', 'auto_backup', isPro || isEnterprise),
+    // Gates the "Send Daily Summary" email button (fleet-daily-summary.tsx)
+    // — despite the old name, this has never gated any backup functionality.
+    canSendDailySummaryEmail: getFeature('daily_summary_email', 'daily_summary_email', isPro || isEnterprise),
 
     // Minimum sync interval in minutes (0 = sync instantly on any change)
     minimumSyncIntervalMinutes: getLimit(

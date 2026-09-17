@@ -171,7 +171,7 @@ export interface TierFeatures {
   custom_branding: boolean;
   remove_branding: boolean;
   broadcast_create: boolean;
-  auto_backup: boolean;
+  daily_summary_email: boolean;
   multi_store: boolean;
   procurement: boolean;
   prescriptions: boolean;

@@ -139,7 +139,7 @@ export function PlanTierCard({
               { key: "broadcast_create", label: "Email Broadcasting" },
               { key: "custom_branding", label: "Custom Branding" },
               { key: "remove_branding", label: "Remove DumosRx Branding" },
-              { key: "auto_backup", label: "Auto Backups" },
+              { key: "daily_summary_email", label: "Daily Summary Email" },
               { key: "multi_store", label: "Multi-Store Mgmt" },
               { key: "procurement", label: "Procurement" },
               { key: "prescriptions", label: "Prescriptions" },

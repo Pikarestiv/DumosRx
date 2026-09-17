@@ -15,7 +15,7 @@ class StoreSummaryController extends Controller
     #[OA\Post(
         path: '/dashboard/send-summary',
         summary: 'Manually trigger the end-of-day summary email',
-        description: 'Gated behind the `auto_backup` feature flag for the caller\'s plan (falls back to pro/enterprise if the flag is unset).',
+        description: 'Gated behind the `daily_summary_email` feature flag for the caller\'s plan (falls back to pro/enterprise if the flag is unset).',
         tags: ['Dashboard'],
         security: [['sanctum' => []]],
         responses: [
@@ -36,9 +36,11 @@ class StoreSummaryController extends Controller
         $systemConfig = \App\Models\SystemConfig::getVal('subscription_plans', []);
         $plan = $subscription ? $subscription->plan_name : 'free';
         
-        // We link end-of-day summary to auto_backup / smart_suggestions feature tiers
-        $hasFeature = isset($systemConfig['tiers'][$plan]['features']['auto_backup']) 
-            ? $systemConfig['tiers'][$plan]['features']['auto_backup'] 
+        // Gates the end-of-day summary email — the flag name matches what
+        // it actually does now (it never gated backups; that was a stale
+        // name carried over from an earlier iteration).
+        $hasFeature = isset($systemConfig['tiers'][$plan]['features']['daily_summary_email'])
+            ? $systemConfig['tiers'][$plan]['features']['daily_summary_email']
             : in_array($plan, ['pro', 'enterprise']);
 
         if (!$hasFeature) {

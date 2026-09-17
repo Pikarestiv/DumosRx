@@ -169,7 +169,6 @@ export interface TierFeatures {
   smart_pos: boolean;
   custom_branding: boolean;
   remove_branding: boolean;
-  broadcast_create: boolean;
   daily_summary_email: boolean;
   procurement: boolean;
   prescriptions: boolean;

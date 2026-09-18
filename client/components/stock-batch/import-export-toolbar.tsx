@@ -34,9 +34,8 @@ interface ImportExportToolbarProps {
   filteredProductIds?: string[];
 }
 
-/** Lets the loading overlay actually paint before the (synchronous,
- * main-thread-blocking) export work starts - otherwise the browser never
- * gets a chance to render it and the app just looks hung. */
+/** Lets the loading overlay actually paint before the next (synchronous)
+ * step starts - otherwise the browser never gets a chance to render it. */
 function nextFrame(): Promise<void> {
   return new Promise((resolve) => requestAnimationFrame(() => resolve()));
 }
@@ -57,10 +56,11 @@ export function ImportExportToolbar({
   const isFiltered = filteredProductIds !== undefined;
 
   /** Updates the overlay and yields a frame so it actually paints before the
-   * next (possibly blocking) step runs. The PDF-render step itself has no
-   * progress hook - the bar holds at its pre-render value through that step
-   * and jumps once it resolves, which is the most honest a browser-side
-   * renderer can be about a synchronous layout pass. */
+   * next step runs. PDF generation itself runs off the main thread (see
+   * generateReportPdfBlob), so the UI - including this overlay's animations
+   * - stays responsive through that step even though there's no way to
+   * report real percentage progress from inside it; the bar just holds at
+   * its pre-render value and jumps once the worker resolves. */
   const setProgress = async (message: string, progress: number) => {
     setStage({ message, progress });
     await nextFrame();

@@ -147,9 +147,10 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
   };
 
   /** Updates the overlay and yields a frame so it actually paints before the
-   * next (possibly blocking) step runs. The PDF-render step has no progress
-   * hook of its own - the bar holds at its pre-render value through that
-   * step and jumps once it resolves. */
+   * next step runs. PDF generation runs off the main thread (see
+   * generateReportPdfBlob), so the UI stays responsive through that step
+   * even without real percentage progress from inside it - the bar just
+   * holds at its pre-render value and jumps once the worker resolves. */
   const setPrintProgress = async (message: string, progress: number) => {
     setPrintStage({ message, progress });
     await new Promise((resolve) => requestAnimationFrame(resolve));

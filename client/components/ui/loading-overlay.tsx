@@ -3,19 +3,20 @@ import { cn } from "@/lib/utils";
 
 interface LoadingOverlayProps {
   message?: string;
-  /** 0-100. Omit for an indeterminate spinner only - use this when there
-   * are real stages to report (see useStagedProgress below). PDF rendering
-   * itself blocks the main thread with no progress hook, so the bar will
-   * typically sit at its pre-render value until the render finishes and
-   * jumps to 100 - that's expected, not a bug. */
+  /** 0-100. Omit for an indeterminate spinner only - pass this when there
+   * are real stages to report. Steps with no progress hook of their own
+   * (e.g. a PDF worker that only reports back once, at the end) will hold
+   * the bar at its pre-step value and jump when they resolve - that's
+   * expected, not a bug. */
   progress?: number;
 }
 
-/** Full-viewport overlay for work that blocks the main thread long enough
- * (e.g. rendering a large PDF) that the app would otherwise look hung with
- * no feedback at all. Mount it, then yield a frame (e.g.
- * `await new Promise(r => requestAnimationFrame(r))`) before starting the
- * blocking work, so the overlay actually gets to paint first. */
+/** Full-viewport overlay for work that runs long enough to look like the app
+ * hung with no feedback at all - whether that's genuinely blocking the main
+ * thread, or just a slow off-thread/async step with nothing else on screen
+ * to show for it. Mount it, then yield a frame (e.g.
+ * `await new Promise(r => requestAnimationFrame(r))`) before starting a
+ * synchronous step, so the overlay actually gets to paint first. */
 export function LoadingOverlay({ message = "Working...", progress }: LoadingOverlayProps) {
   const showBar = typeof progress === "number";
   return (

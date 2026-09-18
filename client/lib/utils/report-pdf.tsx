@@ -11,16 +11,47 @@ export interface ReportPdfInput {
   columnFlex?: number[];
 }
 
+/** Runs the (main-thread-blocking) PDF render in a Web Worker so a large
+ * report doesn't freeze the UI or trigger the browser's "page unresponsive"
+ * prompt - see lib/workers/report-pdf.worker.ts for why that's safe here.
+ * Falls back to rendering inline if the worker can't be created at all
+ * (e.g. an unusual embedding context that blocks Worker), so the export
+ * still works, just without the off-thread benefit. */
 export async function generateReportPdfBlob(
   input: ReportPdfInput,
 ): Promise<Blob> {
-  const doc = (
-    <ReportPdfDocument
-      {...input}
-      generatedAt={format(new Date(), "d MMM yyyy, h:mm a")}
-    />
-  );
-  return pdf(doc).toBlob();
+  const generatedAt = format(new Date(), "d MMM yyyy, h:mm a");
+
+  try {
+    return await generateReportPdfBlobInWorker({ ...input, generatedAt });
+  } catch (error) {
+    console.error(
+      "PDF worker unavailable, falling back to main-thread render:",
+      error,
+    );
+    const doc = <ReportPdfDocument {...input} generatedAt={generatedAt} />;
+    return pdf(doc).toBlob();
+  }
+}
+
+function generateReportPdfBlobInWorker(
+  input: ReportPdfInput & { generatedAt: string },
+): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(
+      new URL("../workers/report-pdf.worker.ts", import.meta.url),
+    );
+    worker.onmessage = (event: MessageEvent) => {
+      worker.terminate();
+      if (event.data?.ok) resolve(event.data.blob as Blob);
+      else reject(new Error(event.data?.error || "PDF generation failed"));
+    };
+    worker.onerror = (event) => {
+      worker.terminate();
+      reject(event.error || new Error("PDF worker error"));
+    };
+    worker.postMessage(input);
+  });
 }
 
 export function downloadBlob(blob: Blob, filename: string): number {

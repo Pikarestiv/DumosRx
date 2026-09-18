@@ -1,4 +1,4 @@
-import { DollarSign, Banknote, ArrowLeftRight, RotateCcw, TrendingUp } from "lucide-react";
+import { Receipt, Banknote, ArrowLeftRight, RotateCcw, TrendingUp } from "lucide-react";
 import { formatMetricCurrency } from "@/lib/utils";
 import { MetricCard } from "@/components/ui/metric-card";
 
@@ -28,7 +28,7 @@ export function DailyCloseMetrics({
             className="min-w-[180px] sm:min-w-0 snap-center shrink-0 border-border"
             title="Total Sales"
             value={formatMetricCurrency(aggregatedTotals.total, currencyCode)}
-            icon={<DollarSign className="h-4 w-4" />}
+            icon={<Receipt className="h-4 w-4" />}
             iconBgClass="bg-blue-50 text-blue-700"
             valueClassName="font-serif"
             onClick={() => openSalesModal("all")}

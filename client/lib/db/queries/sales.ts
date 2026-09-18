@@ -291,7 +291,7 @@ export async function getDailyCloseData(reportDate: string) {
   );
 
   const returnsToday = await query<ReturnRecord>(
-    `SELECT r.*, s.payment_method, s.payment_details FROM returns r JOIN sales s ON r.sale_id = s.id WHERE r.created_at >= ? AND r.created_at <= ? AND (r._deleted = 0 OR r._deleted IS NULL)${storeId ? " AND r.store_id = ?" : ""}`,
+    `SELECT r.*, s.payment_method, s.payment_details, s.transaction_number FROM returns r JOIN sales s ON r.sale_id = s.id WHERE r.created_at >= ? AND r.created_at <= ? AND (r._deleted = 0 OR r._deleted IS NULL)${storeId ? " AND r.store_id = ?" : ""}`,
     storeId ? [startIso, endIso, storeId] : [startIso, endIso],
   );
 

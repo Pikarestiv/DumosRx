@@ -22,7 +22,17 @@ export interface Sale {
   is_reseller_sale?: number;
   reseller_commission_percentage?: number;
   reseller_commission_amount?: number;
+  /** Full markup (selling price above the normal price, summed across line
+   * items) before the store's commission percentage is applied - what a
+   * "Claim Full Markup" redemption pays out instead of the percentage cut. */
+  reseller_markup_amount?: number;
   reseller_commission_redeemed?: number;
+  /** The amount actually paid out at redemption time - either
+   * reseller_commission_amount or reseller_markup_amount depending on
+   * reseller_commission_claim_type - snapshotted so profit reporting doesn't
+   * have to re-derive it. */
+  reseller_commission_redeemed_amount?: number;
+  reseller_commission_claim_type?: "commission" | "full_markup" | null;
   reseller_commission_redeemed_at?: string;
   reseller_commission_redeemed_by?: string;
 }
@@ -80,6 +90,7 @@ export interface ReturnRecord {
   created_at?: string;
   payment_method?: string;
   payment_details?: string;
+  transaction_number?: string;
 }
 
 export interface ReturnItemDetail {

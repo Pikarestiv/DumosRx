@@ -63,6 +63,7 @@ export function DailyCloseMetrics({
           <MetricCard
             className="min-w-[180px] sm:min-w-0 snap-center shrink-0 border-red-200/50 hover:border-red-500/50"
             title="Total Refunds"
+            onClick={() => openSalesModal("refunds")}
             value={formatMetricCurrency(aggregatedTotals.refunds, currencyCode)}
             icon={<RotateCcw className="h-4 w-4" />}
             iconBgClass="bg-red-50 text-red-700"

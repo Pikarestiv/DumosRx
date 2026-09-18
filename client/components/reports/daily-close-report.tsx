@@ -12,6 +12,7 @@ import { PaymentBreakdownCard } from "./daily-close/payment-breakdown-card";
 import { HighestSellingProductsCard } from "./daily-close/highest-selling-products-card";
 import { DailyCloseActions } from "./daily-close/daily-close-actions";
 import { SalesListModal } from "./daily-close/sales-list-modal";
+import { RefundsListModal } from "./daily-close/refunds-list-modal";
 
 interface DailyCloseReportProps {
   reportDate: string;
@@ -22,6 +23,7 @@ export function DailyCloseReport({ reportDate }: DailyCloseReportProps) {
   const {
     currencyCode,
     salesToday,
+    returnsToday,
     aggregatedTotals,
     totalProfit,
     topSellingMeds,
@@ -29,11 +31,16 @@ export function DailyCloseReport({ reportDate }: DailyCloseReportProps) {
   } = useDailyCloseData(reportDate);
 
   const [isSalesModalOpen, setIsSalesModalOpen] = useState(false);
+  const [isRefundsModalOpen, setIsRefundsModalOpen] = useState(false);
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
   const [paymentFilter, setPaymentFilter] = useState("all");
   const printRef = useRef<HTMLDivElement>(null);
 
   const openSalesModal = (filter: string) => {
+    if (filter === "refunds") {
+      setIsRefundsModalOpen(true);
+      return;
+    }
     setPaymentFilter(filter);
     setIsSalesModalOpen(true);
   };
@@ -83,6 +90,15 @@ export function DailyCloseReport({ reportDate }: DailyCloseReportProps) {
         salesToday={salesToday}
         paymentFilter={paymentFilter}
         setPaymentFilter={setPaymentFilter}
+        setSelectedSale={setSelectedSale}
+        currencyCode={currencyCode}
+      />
+
+      <RefundsListModal
+        isOpen={isRefundsModalOpen}
+        onOpenChange={setIsRefundsModalOpen}
+        reportDate={reportDate}
+        returnsToday={returnsToday}
         setSelectedSale={setSelectedSale}
         currencyCode={currencyCode}
       />

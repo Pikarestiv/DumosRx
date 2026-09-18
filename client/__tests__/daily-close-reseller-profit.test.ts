@@ -80,10 +80,10 @@ describe("useDailyCloseData reseller commission profit adjustment", () => {
     expect(result.current.totalProfit).toBe(120);
   });
 
-  it("subtracts the full markup from profit when the reseller claimed it all instead of the percentage commission", async () => {
+  it("keeps the full markup as profit when the store claims it instead of paying a commission", async () => {
     db.run(`
       INSERT INTO sales (id, transaction_number, subtotal, total_amount, payment_method, transaction_date, is_reseller_sale, reseller_markup_amount, reseller_commission_amount, reseller_commission_redeemed, reseller_commission_redeemed_amount, reseller_commission_claim_type)
-      VALUES ('s3', 'TXN3', 270, 270, 'cash', '2026-09-18T10:00:00.000Z', 1, 70, 50, 1, 70, 'full_markup')
+      VALUES ('s3', 'TXN3', 270, 270, 'cash', '2026-09-18T10:00:00.000Z', 1, 70, 50, 1, 0, 'store_claim')
     `);
     db.run(`
       INSERT INTO sale_items (id, sale_id, product_id, quantity, unit_price, cost_price, total_price)
@@ -93,8 +93,8 @@ describe("useDailyCloseData reseller commission profit adjustment", () => {
     const { result } = renderData();
     await waitFor(() => expect(result.current.salesToday.length).toBe(1));
 
-    // 270 - 100 cost - 70 fully-claimed markup = 100 (the store's normal
-    // profit, untouched, since the reseller took the entire markup).
-    expect(result.current.totalProfit).toBe(100);
+    // 270 - 100 cost - 0 paid out = 170: the store keeps the whole markup
+    // since nothing was actually paid to a reseller.
+    expect(result.current.totalProfit).toBe(170);
   });
 });

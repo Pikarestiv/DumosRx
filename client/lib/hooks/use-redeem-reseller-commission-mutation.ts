@@ -6,25 +6,27 @@ import { query, update, transaction } from "@/lib/db/local-database";
 import { AUDIT_ACTIONS } from "@/lib/db/audit-actions";
 import type { Sale } from "@/lib/types/sale";
 
-type ClaimType = "commission" | "full_markup";
+type ClaimType = "commission" | "store_claim";
 
 interface RedeemParams {
   saleId: string;
   userId?: string;
-  /** "commission" (default) pays out the store's percentage cut of the
-   * markup; "full_markup" pays out the entire markup instead - for a
-   * reseller who priced a sale above normal but the store wants to let them
-   * keep all of that extra margin rather than just their usual cut. */
+  /** "commission" (default) pays the reseller their usual percentage cut of
+   * the markup. "store_claim" pays the reseller nothing - the store keeps
+   * the entire markup as its own profit instead. This covers a store
+   * sometimes pricing a sale above normal for a particular customer (the
+   * reseller toggle used purely as a price-override mechanism) without
+   * intending to pay anyone a commission on it. */
   claimType?: ClaimType;
 }
 
 /**
- * Marks a reseller sale's commission as redeemed. Not a payout/ledger
- * mutation - there is no till/cash-drawer model in this app - just a status
- * flag + timestamp + who processed it, guarded so the same commission can't
- * be redeemed twice. Snapshots the actual amount paid out (commission or
- * full markup) so profit reporting can subtract exactly what left the
- * store, regardless of which option was chosen.
+ * Settles a reseller sale's commission - either paid out to the reseller, or
+ * kept by the store. Not a payout/ledger mutation - there is no till/cash-
+ * drawer model in this app - just a status flag + timestamp + who processed
+ * it, guarded so the same commission can't be settled twice. Snapshots the
+ * amount that actually left the store (0 when the store claims the markup
+ * for itself) so profit reporting can subtract exactly that.
  */
 export async function redeemResellerCommission({
   saleId,
@@ -39,9 +41,7 @@ export async function redeemResellerCommission({
     if (sale.reseller_commission_redeemed) throw new Error("This commission has already been redeemed");
 
     const redeemedAmount =
-      claimType === "full_markup"
-        ? sale.reseller_markup_amount || 0
-        : sale.reseller_commission_amount || 0;
+      claimType === "store_claim" ? 0 : sale.reseller_commission_amount || 0;
 
     await update(
       "sales",
@@ -63,8 +63,8 @@ export function useRedeemResellerCommissionMutation() {
     mutationFn: redeemResellerCommission,
     onSuccess: (_, variables) => {
       toast.success(
-        variables.claimType === "full_markup"
-          ? "Full markup claimed"
+        variables.claimType === "store_claim"
+          ? "Markup kept as store profit"
           : "Commission redeemed",
       );
     },

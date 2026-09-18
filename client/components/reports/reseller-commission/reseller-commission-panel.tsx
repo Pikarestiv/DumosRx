@@ -100,7 +100,7 @@ export function ResellerCommissionPanel() {
 
   const handleRedeem = async (
     sale: SaleWithDetails,
-    claimType: "commission" | "full_markup",
+    claimType: "commission" | "store_claim",
   ) => {
     try {
       await redeemMutation.mutateAsync({
@@ -216,8 +216,8 @@ export function ResellerCommissionPanel() {
                       {sale.reseller_commission_redeemed ? (
                         <span className="text-emerald-600 text-sm">
                           {sale.reseller_commission_claim_type ===
-                          "full_markup"
-                            ? "Full markup claimed"
+                          "store_claim"
+                            ? "Store kept markup"
                             : "Redeemed"}
                           {sale.reseller_commission_redeemed_at &&
                             ` on ${formatDateToDDMMYYYY(sale.reseller_commission_redeemed_at)}`}
@@ -237,17 +237,16 @@ export function ResellerCommissionPanel() {
                           >
                             Redeem
                           </Button>
-                          {(sale.reseller_markup_amount || 0) >
-                            (sale.reseller_commission_amount || 0) && (
+                          {(sale.reseller_markup_amount || 0) > 0 && (
                             <Button
                               size="sm"
                               variant="outline"
                               onClick={() =>
-                                handleRedeem(sale, "full_markup")
+                                handleRedeem(sale, "store_claim")
                               }
                               disabled={redeemMutation.isPending}
                             >
-                              Claim Full Markup
+                              Store Claims Markup
                             </Button>
                           )}
                         </>

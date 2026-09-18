@@ -71,11 +71,11 @@ describe("reseller commission schema", () => {
     expect(defaults[0].values[0]).toEqual([0, 0, null]);
 
     db.run(
-      `UPDATE sales SET reseller_markup_amount = 70, reseller_commission_redeemed_amount = 50, reseller_commission_claim_type = 'full_markup' WHERE id = 'sale2'`,
+      `UPDATE sales SET reseller_markup_amount = 70, reseller_commission_redeemed_amount = 50, reseller_commission_claim_type = 'commission' WHERE id = 'sale2'`,
     );
     const updated = db.exec(
       `SELECT reseller_markup_amount, reseller_commission_redeemed_amount, reseller_commission_claim_type FROM sales WHERE id = 'sale2'`,
     );
-    expect(updated[0].values[0]).toEqual([70, 50, "full_markup"]);
+    expect(updated[0].values[0]).toEqual([70, 50, "commission"]);
   });
 });

@@ -43,7 +43,7 @@ describe("useRedeemResellerCommissionMutation", () => {
     expect(rows[0].values[0]).toEqual([1, "user-1", 50, "commission"]);
   });
 
-  it("claims the full markup instead of the commission percentage when claimType is full_markup", async () => {
+  it("pays the reseller nothing and snapshots a 0 redeemed amount when the store claims the markup", async () => {
     db.run(`
       INSERT INTO sales (id, transaction_number, subtotal, total_amount, is_reseller_sale, reseller_markup_amount, reseller_commission_amount, reseller_commission_redeemed)
       VALUES ('s4', 'TXN4', 100, 100, 1, 70, 50, 0)
@@ -52,13 +52,13 @@ describe("useRedeemResellerCommissionMutation", () => {
     await redeemResellerCommission({
       saleId: "s4",
       userId: "user-1",
-      claimType: "full_markup",
+      claimType: "store_claim",
     });
 
     const rows = db.exec(
       `SELECT reseller_commission_redeemed, reseller_commission_redeemed_amount, reseller_commission_claim_type FROM sales WHERE id = 's4'`,
     );
-    expect(rows[0].values[0]).toEqual([1, 70, "full_markup"]);
+    expect(rows[0].values[0]).toEqual([1, 0, "store_claim"]);
   });
 
   it("rejects redeeming a sale that isn't a reseller sale", async () => {

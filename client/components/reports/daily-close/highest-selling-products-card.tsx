@@ -16,6 +16,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatCurrency } from "@/lib/utils";
+import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
 
 interface HighestSellingProductsCardProps {
   currencyCode?: string;
@@ -30,6 +31,7 @@ export function HighestSellingProductsCard({
   currencyCode,
   topSellingMeds,
 }: HighestSellingProductsCardProps) {
+  const capsClass = useUppercaseDisplayClass();
   return (
     <Card>
       <CardHeader>
@@ -49,7 +51,9 @@ export function HighestSellingProductsCard({
             {topSellingMeds.length === 0 && <EmptyProductsRow />}
             {topSellingMeds.length > 0 && topSellingMeds.map((med, idx) => (
               <TableRow key={idx}>
-                <TableCell className="font-medium">{med.name}</TableCell>
+                <TableCell className={`font-medium ${capsClass}`}>
+                  {med.name}
+                </TableCell>
                 <TableCell className="text-right">{med.quantity}</TableCell>
                 <TableCell className="text-right">
                   {formatCurrency(med.revenue, currencyCode)}

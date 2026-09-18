@@ -60,4 +60,22 @@ describe("reseller commission schema", () => {
     );
     expect(redeemed[0].values[0]).toEqual([1, "2026-09-16T00:00:00Z", "user-1"]);
   });
+
+  it("stores the full markup, redeemed amount, and claim type on a sale, defaulting to unset", () => {
+    db.run(
+      `INSERT INTO sales (id, transaction_number, subtotal, total_amount) VALUES ('sale2', 'TXN2', 100, 100)`,
+    );
+    const defaults = db.exec(
+      `SELECT reseller_markup_amount, reseller_commission_redeemed_amount, reseller_commission_claim_type FROM sales WHERE id = 'sale2'`,
+    );
+    expect(defaults[0].values[0]).toEqual([0, 0, null]);
+
+    db.run(
+      `UPDATE sales SET reseller_markup_amount = 70, reseller_commission_redeemed_amount = 50, reseller_commission_claim_type = 'full_markup' WHERE id = 'sale2'`,
+    );
+    const updated = db.exec(
+      `SELECT reseller_markup_amount, reseller_commission_redeemed_amount, reseller_commission_claim_type FROM sales WHERE id = 'sale2'`,
+    );
+    expect(updated[0].values[0]).toEqual([70, 50, "full_markup"]);
+  });
 });

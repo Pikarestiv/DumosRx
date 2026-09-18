@@ -83,9 +83,9 @@ describe("usePOSPayment reseller commission", () => {
 
     // Markup = (150-100)*1 + (20-20)*2 = 50. Commission = 50 * 20% = 10.
     const rows = db.exec(
-      `SELECT is_reseller_sale, reseller_commission_percentage, reseller_commission_amount FROM sales`,
+      `SELECT is_reseller_sale, reseller_commission_percentage, reseller_commission_amount, reseller_markup_amount FROM sales`,
     );
-    expect(rows[0].values[0]).toEqual([1, 20, 10]);
+    expect(rows[0].values[0]).toEqual([1, 20, 10, 50]);
   });
 
   it("writes no commission fields when isResellerSale is false, even if prices differ from original", async () => {

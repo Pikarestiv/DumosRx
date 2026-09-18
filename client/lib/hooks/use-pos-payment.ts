@@ -229,6 +229,7 @@ export function usePOSPayment({
         is_reseller_sale: isResellerSale ? 1 : 0,
         reseller_commission_percentage: isResellerSale ? resellerCommissionPercentage : 0,
         reseller_commission_amount: resellerCommissionAmount,
+        reseller_markup_amount: resellerMarkup,
       });
 
       for (const item of cart) {

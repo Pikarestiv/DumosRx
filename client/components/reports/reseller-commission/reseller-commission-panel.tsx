@@ -98,9 +98,16 @@ export function ResellerCommissionPanel() {
     return result;
   }, [sales, search, statusFilter, dateRange]);
 
-  const handleRedeem = async (sale: SaleWithDetails) => {
+  const handleRedeem = async (
+    sale: SaleWithDetails,
+    claimType: "commission" | "full_markup",
+  ) => {
     try {
-      await redeemMutation.mutateAsync({ saleId: sale.id, userId: user?.id });
+      await redeemMutation.mutateAsync({
+        saleId: sale.id,
+        userId: user?.id,
+        claimType,
+      });
       queryClient.invalidateQueries({ queryKey: ["resellerCommission"] });
     } catch (error) {
       console.error("Failed to redeem reseller commission:", error);
@@ -161,6 +168,7 @@ export function ResellerCommissionPanel() {
                   <TableHead>Receipt No</TableHead>
                   <TableHead>Customer</TableHead>
                   <TableHead className="text-right">Sale Total</TableHead>
+                  <TableHead className="text-right">Markup</TableHead>
                   <TableHead className="text-right">Commission</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Action</TableHead>
@@ -169,7 +177,7 @@ export function ResellerCommissionPanel() {
               <TableBody>
                 {!isLoading && filteredSales.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={7}>
+                    <TableCell colSpan={8}>
                       <EmptyState
                         icon={Wallet}
                         title="No reseller sales found"
@@ -192,6 +200,12 @@ export function ResellerCommissionPanel() {
                     <TableCell className="text-right">
                       {formatCurrency(sale.total_amount, currencyCode)}
                     </TableCell>
+                    <TableCell className="text-right">
+                      {formatCurrency(
+                        sale.reseller_markup_amount || 0,
+                        currencyCode,
+                      )}
+                    </TableCell>
                     <TableCell className="text-right font-medium">
                       {formatCurrency(
                         sale.reseller_commission_amount || 0,
@@ -201,7 +215,10 @@ export function ResellerCommissionPanel() {
                     <TableCell>
                       {sale.reseller_commission_redeemed ? (
                         <span className="text-emerald-600 text-sm">
-                          Redeemed
+                          {sale.reseller_commission_claim_type ===
+                          "full_markup"
+                            ? "Full markup claimed"
+                            : "Redeemed"}
                           {sale.reseller_commission_redeemed_at &&
                             ` on ${formatDateToDDMMYYYY(sale.reseller_commission_redeemed_at)}`}
                         </span>
@@ -209,16 +226,31 @@ export function ResellerCommissionPanel() {
                         <span className="text-amber-600 text-sm">Pending</span>
                       )}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right space-x-2">
                       {!sale.reseller_commission_redeemed && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleRedeem(sale)}
-                          disabled={redeemMutation.isPending}
-                        >
-                          Mark as Redeemed
-                        </Button>
+                        <>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleRedeem(sale, "commission")}
+                            disabled={redeemMutation.isPending}
+                          >
+                            Redeem
+                          </Button>
+                          {(sale.reseller_markup_amount || 0) >
+                            (sale.reseller_commission_amount || 0) && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() =>
+                                handleRedeem(sale, "full_markup")
+                              }
+                              disabled={redeemMutation.isPending}
+                            >
+                              Claim Full Markup
+                            </Button>
+                          )}
+                        </>
                       )}
                     </TableCell>
                   </TableRow>

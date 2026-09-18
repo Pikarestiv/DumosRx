@@ -51,21 +51,34 @@ export function ImportExportToolbar({
   const [pendingFormat, setPendingFormat] = useState<ExportFormat | null>(
     null,
   );
-  const [isExporting, setIsExporting] = useState(false);
+  const [stage, setStage] = useState<{ message: string; progress: number } | null>(
+    null,
+  );
   const isFiltered = filteredProductIds !== undefined;
+
+  /** Updates the overlay and yields a frame so it actually paints before the
+   * next (possibly blocking) step runs. The PDF-render step itself has no
+   * progress hook - the bar holds at its pre-render value through that step
+   * and jumps once it resolves, which is the most honest a browser-side
+   * renderer can be about a synchronous layout pass. */
+  const setProgress = async (message: string, progress: number) => {
+    setStage({ message, progress });
+    await nextFrame();
+  };
 
   const runExport = async (
     format: ExportFormat,
     columns: (keyof ExportableProduct)[],
   ) => {
-    setIsExporting(true);
-    await nextFrame();
+    await setProgress("Fetching products...", 10);
     try {
       const products = await getProductsForExport(filteredProductIds);
       const dateStr = new Date().toISOString().slice(0, 10);
 
       if (format === "pdf") {
+        await setProgress("Preparing data...", 35);
         const { headers, rows } = buildExportRows(products, columns);
+        await setProgress("Rendering PDF...", 60);
         const blob = await generateReportPdfBlob({
           storeName: storeProfile?.name || "",
           title: "Product Export",
@@ -77,17 +90,25 @@ export function ImportExportToolbar({
         });
         downloadBlob(blob, `DumosRx_Products_${dateStr}.pdf`);
       } else {
+        await setProgress(
+          format === "csv" ? "Building CSV..." : "Building spreadsheet...",
+          60,
+        );
         const blob = buildExportBlob(products, columns, format);
         downloadBlob(blob, `DumosRx_Products_${dateStr}.${format}`);
       }
 
+      await setProgress("Done", 100);
       toast.success(
         isFiltered
           ? `Exported ${products.length} filtered product(s)`
           : `Exported ${products.length} product(s)`,
       );
+      // Brief pause so "100%" is actually visible instead of vanishing the
+      // instant it's reached.
+      await new Promise((resolve) => setTimeout(resolve, 400));
     } finally {
-      setIsExporting(false);
+      setStage(null);
     }
   };
 
@@ -98,7 +119,7 @@ export function ImportExportToolbar({
 
   return (
     <>
-      {isExporting && <LoadingOverlay message="Generating export..." />}
+      {stage && <LoadingOverlay message={stage.message} progress={stage.progress} />}
 
       <Button
         type="button"

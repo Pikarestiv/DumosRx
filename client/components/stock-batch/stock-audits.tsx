@@ -47,7 +47,9 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
     useState<string>(ALL_CATEGORIES);
   const [search, setSearch] = useState("");
   const [isSyncing, setIsSyncing] = useState(false);
-  const [isPrinting, setIsPrinting] = useState(false);
+  const [printStage, setPrintStage] = useState<
+    { message: string; progress: number } | null
+  >(null);
   const [submittedSummary, setSubmittedSummary] = useState<{
     counted: number;
     adjusted: number;
@@ -144,11 +146,17 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
     setItems((prev) => prev.map((i) => (i.id === id ? { ...i, ...patch } : i)));
   };
 
-  const handlePrint = async () => {
-    setIsPrinting(true);
-    // Yields a frame so the loading overlay actually paints before the
-    // (synchronous, main-thread-blocking) PDF render starts.
+  /** Updates the overlay and yields a frame so it actually paints before the
+   * next (possibly blocking) step runs. The PDF-render step has no progress
+   * hook of its own - the bar holds at its pre-render value through that
+   * step and jumps once it resolves. */
+  const setPrintProgress = async (message: string, progress: number) => {
+    setPrintStage({ message, progress });
     await new Promise((resolve) => requestAnimationFrame(resolve));
+  };
+
+  const handlePrint = async () => {
+    await setPrintProgress("Preparing rows...", 25);
     try {
       const { headers, rows, columnFlex } = buildStockAuditRows(
         items.map((i) => ({
@@ -157,6 +165,7 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
           quantity: i.systemQty,
         })),
       );
+      await setPrintProgress("Rendering PDF...", 60);
       const blob = await generateReportPdfBlob({
         storeName: storeProfile?.name || "",
         title: "Stock Audit Sheet",
@@ -166,8 +175,10 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
         columnFlex,
       });
       openBlobForPrint(blob);
+      await setPrintProgress("Done", 100);
+      await new Promise((resolve) => setTimeout(resolve, 400));
     } finally {
-      setIsPrinting(false);
+      setPrintStage(null);
     }
   };
 
@@ -208,7 +219,9 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-background w-full h-full">
-      {isPrinting && <LoadingOverlay message="Generating stock audit sheet..." />}
+      {printStage && (
+        <LoadingOverlay message={printStage.message} progress={printStage.progress} />
+      )}
 
       {/* Header, top padding clears the status bar / Tauri title bar */}
       <div
@@ -239,7 +252,7 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
             <button
               className="flex items-center gap-1.5 text-[12px] font-medium px-3 py-1.5 rounded-full border border-border hover:bg-muted transition-colors disabled:opacity-60"
               onClick={handlePrint}
-              disabled={isPrinting || items.length === 0}
+              disabled={!!printStage || items.length === 0}
             >
               <Printer className="w-3.5 h-3.5" />
               Print

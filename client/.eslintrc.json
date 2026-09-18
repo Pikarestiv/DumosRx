@@ -19,8 +19,9 @@
     "@next/next/no-img-element": "off",
     "react/no-unused-prop-types": "warn",
     "react/no-unused-state": "warn",
-    "react-hooks/exhaustive-deps": "off",
+    "react-hooks/exhaustive-deps": "warn",
     "react/no-unescaped-entities": "off",
+    "eqeqeq": ["warn", "smart"],
     "max-lines": [
       "warn",
       {
@@ -42,6 +43,17 @@
             "skipComments": true
           }
         ]
+      }
+    },
+    {
+      "files": ["**/*.ts", "**/*.tsx"],
+      "parser": "@typescript-eslint/parser",
+      "parserOptions": {
+        "project": "./tsconfig.json"
+      },
+      "rules": {
+        "@typescript-eslint/no-floating-promises": "warn",
+        "@typescript-eslint/no-misused-promises": "warn"
       }
     }
   ]

@@ -2,6 +2,7 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { ChevronRight } from "lucide-react";
 import React from "react";
 
 export interface MetricCardProps {
@@ -34,16 +35,19 @@ export function MetricCard({
   return (
     <Card 
       className={cn(
-        "rounded-[14px] shadow-[0_1px_2px_rgba(28,25,23,0.04),0_1px_3px_rgba(28,25,23,0.03)] !p-0 !gap-0", 
-        onClick && "cursor-pointer transition-colors hover:border-primary/50", 
+        "rounded-[14px] shadow-[0_1px_2px_rgba(28,25,23,0.04),0_1px_3px_rgba(28,25,23,0.03)] !p-0 !gap-0",
+        onClick && "group cursor-pointer transition-colors hover:border-primary/50",
         className
       )}
       onClick={onClick}
     >
       <CardContent className="!p-2.5 sm:!p-3.5 !px-3.5 sm:!px-4.5 hover-scale flex flex-col h-full">
         <div className="flex items-center justify-between mb-1.5 sm:mb-2.5">
-          <div className="text-[12.5px] text-muted-foreground font-medium">
+          <div className="text-[12.5px] text-muted-foreground font-medium flex items-center gap-1">
             {title}
+            {onClick && (
+              <ChevronRight className="h-3 w-3 text-muted-foreground/50 opacity-0 -translate-x-0.5 transition-all group-hover:opacity-100 group-hover:translate-x-0" />
+            )}
           </div>
           {icon && (
             <div className={cn("hidden sm:flex w-8 h-8 rounded-lg items-center justify-center shrink-0", iconBgClass)}>

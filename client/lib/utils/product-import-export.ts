@@ -214,20 +214,26 @@ export const EXPORT_COLUMNS: { key: keyof ExportableProduct; label: string }[] =
 
 /** Column order always follows EXPORT_COLUMNS, regardless of the order the
  * caller passed `columns` in, so the file stays predictable to re-import. */
+export function buildExportRows(
+  products: ExportableProduct[],
+  columns: (keyof ExportableProduct)[],
+): { headers: string[]; rows: Record<string, unknown>[] } {
+  const selected = EXPORT_COLUMNS.filter((c) => columns.includes(c.key));
+  const rows = products.map((product) => {
+    const row: Record<string, unknown> = {};
+    for (const col of selected) row[col.label] = product[col.key];
+    return row;
+  });
+  return { headers: selected.map((c) => c.label), rows };
+}
+
 export function buildExportBlob(
   products: ExportableProduct[],
   columns: (keyof ExportableProduct)[],
   format: "csv" | "xlsx",
 ): Blob {
-  const selected = EXPORT_COLUMNS.filter((c) => columns.includes(c.key));
-  const data = products.map((product) => {
-    const row: Record<string, unknown> = {};
-    for (const col of selected) row[col.label] = product[col.key];
-    return row;
-  });
-  const sheet = XLSX.utils.json_to_sheet(data, {
-    header: selected.map((c) => c.label),
-  });
+  const { headers, rows: data } = buildExportRows(products, columns);
+  const sheet = XLSX.utils.json_to_sheet(data, { header: headers });
 
   if (format === "csv") {
     const csv = XLSX.utils.sheet_to_csv(sheet);

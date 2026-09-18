@@ -10,15 +10,17 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { downloadBlob } from "@/lib/utils/report-pdf";
+import { downloadBlob, generateReportPdfBlob } from "@/lib/utils/report-pdf";
 import {
   EXPORT_COLUMNS,
   buildExportBlob,
+  buildExportRows,
 } from "@/lib/utils/product-import-export";
 import {
   getProductsForExport,
   type ExportableProduct,
 } from "@/lib/db/queries/product-export";
+import { useStore } from "@/lib/context/store-context";
 import { ImportMappingDialog } from "./import-mapping-dialog";
 import { ExportColumnsDialog } from "./export-columns-dialog";
 
@@ -34,21 +36,38 @@ export function ImportExportToolbar({
   onImported,
   filteredProductIds,
 }: ImportExportToolbarProps) {
+  const { storeProfile } = useStore();
   const [showImport, setShowImport] = useState(false);
   const [showColumnPicker, setShowColumnPicker] = useState(false);
-  const [pendingFormat, setPendingFormat] = useState<"csv" | "xlsx" | null>(
-    null,
-  );
+  const [pendingFormat, setPendingFormat] = useState<
+    "csv" | "xlsx" | "pdf" | null
+  >(null);
   const isFiltered = filteredProductIds !== undefined;
 
   const runExport = async (
-    format: "csv" | "xlsx",
+    format: "csv" | "xlsx" | "pdf",
     columns: (keyof ExportableProduct)[],
   ) => {
     const products = await getProductsForExport(filteredProductIds);
-    const blob = buildExportBlob(products, columns, format);
     const dateStr = new Date().toISOString().slice(0, 10);
-    downloadBlob(blob, `DumosRx_Products_${dateStr}.${format}`);
+
+    if (format === "pdf") {
+      const { headers, rows } = buildExportRows(products, columns);
+      const blob = await generateReportPdfBlob({
+        storeName: storeProfile?.name || "",
+        title: "Product Export",
+        subtitle: isFiltered
+          ? `${products.length} filtered product(s)`
+          : `${products.length} product(s)`,
+        headers,
+        rows,
+      });
+      downloadBlob(blob, `DumosRx_Products_${dateStr}.pdf`);
+    } else {
+      const blob = buildExportBlob(products, columns, format);
+      downloadBlob(blob, `DumosRx_Products_${dateStr}.${format}`);
+    }
+
     toast.success(
       isFiltered
         ? `Exported ${products.length} filtered product(s)`
@@ -57,7 +76,7 @@ export function ImportExportToolbar({
   };
 
   const handleExportClick = (
-    format: "csv" | "xlsx",
+    format: "csv" | "xlsx" | "pdf",
     chooseColumns: boolean,
   ) => {
     if (chooseColumns) {
@@ -114,6 +133,12 @@ export function ImportExportToolbar({
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => handleExportClick("xlsx", true)}>
             Export as XLSX (choose columns)
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => handleExportClick("pdf", false)}>
+            Export as PDF (all columns)
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => handleExportClick("pdf", true)}>
+            Export as PDF (choose columns)
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

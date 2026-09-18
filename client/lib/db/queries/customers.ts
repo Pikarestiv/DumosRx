@@ -16,19 +16,24 @@ export async function getCustomers() {
       MAX(s.transaction_date) as last_visit,
       COUNT(s.id) as visit_count
     FROM customers c
-    LEFT JOIN sales s ON c.id = s.customer_id AND s._deleted = 0
+    LEFT JOIN sales s ON c.id = s.customer_id AND s._deleted = 0${storeId ? " AND s.store_id = ?" : ""}
     WHERE c._deleted = 0${storeId ? " AND c.store_id = ?" : ""}
     GROUP BY c.id
     ORDER BY c.first_name ASC`,
-    storeId ? [storeId] : [],
+    storeId ? [storeId, storeId] : [],
   );
 }
 
 /** Net-of-refunds lifetime spend for one customer, as of right now - used at
  * POS checkout to find which loyalty tier a sale's points should earn at
  * (see getApplicableTierMultiplier). Same netting logic as getCustomers(),
- * scoped to a single customer instead of aggregating the whole store. */
+ * scoped to a single customer instead of aggregating the whole store.
+ * Scoped by store_id (not just customer_id) the same way
+ * getCustomerTransactions() is - on a device with multi-store access, a
+ * device-wide cache can hold another store's sales too, and customer_id
+ * alone doesn't rule those out at the SQL level. */
 export async function getCustomerTotalSpent(customerId: string): Promise<number> {
+  const storeId = getActiveStoreId();
   const rows = await query<{ total_spent: number }>(
     `SELECT COALESCE(SUM(
       s.total_amount - COALESCE(
@@ -37,8 +42,8 @@ export async function getCustomerTotalSpent(customerId: string): Promise<number>
       )
     ), 0) as total_spent
     FROM sales s
-    WHERE s.customer_id = ? AND s._deleted = 0`,
-    [customerId],
+    WHERE s.customer_id = ? AND s._deleted = 0${storeId ? " AND s.store_id = ?" : ""}`,
+    storeId ? [customerId, storeId] : [customerId],
   );
   return rows[0]?.total_spent || 0;
 }

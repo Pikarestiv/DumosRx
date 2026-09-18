@@ -5,8 +5,14 @@ import { toast } from "sonner";
 import { insert, update } from "@/lib/db/local-database";
 import { recordSaleItemStock } from "@/lib/db/queries/inventory";
 import { updatePrescriptionStatus, dispensePrescriptionRefill } from "@/lib/db/queries/prescriptions";
+import { getCustomerTotalSpent } from "@/lib/db/queries/customers";
+import { getLoyaltyTiers } from "@/lib/db/queries/loyalty";
 import { CartItem, RedeemedOption } from "./use-pos-cart";
-import { calculateEarnedPoints, calculateLoyaltyPointsAfterSale } from "@/lib/utils/loyalty-calculator";
+import {
+  calculateEarnedPoints,
+  calculateLoyaltyPointsAfterSale,
+  getApplicableTierMultiplier,
+} from "@/lib/utils/loyalty-calculator";
 import {
   calculateTaxPercentage,
   calculateSplitShortage,
@@ -48,6 +54,9 @@ interface UsePOSPaymentProps {
   /** Store-wide % of the markup remitted to the reseller - snapshotted onto
    * the sale at checkout time, never recalculated later. */
   resellerCommissionPercentage?: number;
+  /** Store-configurable base earn rate (points per currency unit spent),
+   * before any loyalty-tier multiplier is applied. */
+  loyaltyPointsPerCurrency?: number;
 }
 
 export function usePOSPayment({
@@ -72,6 +81,7 @@ export function usePOSPayment({
   canUseLoyaltyProgram = false,
   isResellerSale = false,
   resellerCommissionPercentage = 0,
+  loyaltyPointsPerCurrency = 0.01,
 }: UsePOSPaymentProps) {
   const [paymentMethod, setPaymentMethod] = useState<
     "cash" | "card" | "transfer" | "credit" | "mixed"
@@ -153,9 +163,20 @@ export function usePOSPayment({
       // recorded as redeemed at all — not just the loyalty_transactions
       // ledger below, but the sale row itself, so a gated-off checkout
       // never shows earned/redeemed points anywhere.
+      let tierMultiplier = 1;
+      if (selectedCustomer && canUseLoyaltyProgram) {
+        // Tier is based on spend *before* this sale - a customer's standing
+        // history determines the rate this transaction earns at, not the
+        // transaction itself.
+        const [totalSpentBeforeSale, tiers] = await Promise.all([
+          getCustomerTotalSpent(selectedCustomer.id),
+          getLoyaltyTiers(),
+        ]);
+        tierMultiplier = getApplicableTierMultiplier(tiers, totalSpentBeforeSale);
+      }
       const earnedPoints =
         selectedCustomer && canUseLoyaltyProgram
-          ? calculateEarnedPoints(total)
+          ? calculateEarnedPoints(total, loyaltyPointsPerCurrency, tierMultiplier)
           : 0;
 
       // Markup is clamped to >= 0 by construction (updateUnitPrice never

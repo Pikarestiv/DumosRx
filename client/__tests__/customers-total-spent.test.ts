@@ -117,6 +117,51 @@ describe("getCustomers total_spent", () => {
   });
 });
 
+describe("getCustomerTotalSpent", () => {
+  let db: Database;
+  let core: typeof import("@/lib/db/core");
+  let getCustomerTotalSpent: typeof import("@/lib/db/queries/customers").getCustomerTotalSpent;
+
+  beforeAll(async () => {
+    core = await import("@/lib/db/core");
+    const customers = await import("@/lib/db/queries/customers");
+    getCustomerTotalSpent = customers.getCustomerTotalSpent;
+
+    const SQL = await initSqlJs({
+      locateFile: () => require.resolve("sql.js/dist/sql-wasm.wasm"),
+    });
+    db = new SQL.Database();
+    db.run(`
+      CREATE TABLE sales (
+        id TEXT PRIMARY KEY, customer_id TEXT, total_amount REAL, _deleted INTEGER DEFAULT 0
+      );
+      CREATE TABLE returns (
+        id TEXT PRIMARY KEY, sale_id TEXT, total_refunded REAL, _deleted INTEGER DEFAULT 0
+      );
+    `);
+    core.__setDatabaseForTesting(db);
+  });
+
+  beforeEach(() => {
+    db.run(`DELETE FROM sales; DELETE FROM returns;`);
+  });
+
+  it("sums net-of-refunds spend for a single customer, scoped away from other customers", async () => {
+    db.run(`INSERT INTO sales (id, customer_id, total_amount) VALUES
+      ('s1', 'c1', 1000),
+      ('s2', 'c1', 500),
+      ('s3', 'c2', 9999)`);
+    db.run(`INSERT INTO returns (id, sale_id, total_refunded) VALUES ('r1', 's1', 300)`);
+
+    // (1000 - 300) + 500 = 1200 for c1; c2's 9999 must not leak in.
+    expect(await getCustomerTotalSpent("c1")).toBe(1200);
+  });
+
+  it("returns 0 for a customer with no sales", async () => {
+    expect(await getCustomerTotalSpent("nobody")).toBe(0);
+  });
+});
+
 describe("getCustomerRetentionMetrics avgTransactionValue", () => {
   let core: typeof import("@/lib/db/core");
   let getCustomerRetentionMetrics: typeof import("@/lib/db/queries/customers").getCustomerRetentionMetrics;

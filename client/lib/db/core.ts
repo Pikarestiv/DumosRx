@@ -514,6 +514,10 @@ const SYNC_COLUMN_MIGRATIONS: { table: string; columns: string[] }[] = [
       // loyalty program see zero behavior change - only a store that
       // explicitly flips this off in Settings gets paused.
       "loyalty_program_enabled INTEGER DEFAULT 1",
+      // The rate calculateEarnedPoints() multiplies a sale's total by - 0.01
+      // preserves the previously-hardcoded 1-point-per-100-currency rate for
+      // every existing store until they change it in Loyalty Settings.
+      "loyalty_points_per_currency REAL DEFAULT 0.01",
       // DEFAULT 1 (ON): product/category names are always stored lowercase
       // now, so without this every store would see an abrupt all-lowercase
       // catalog the moment this shipped, instead of the uppercase-via-CSS

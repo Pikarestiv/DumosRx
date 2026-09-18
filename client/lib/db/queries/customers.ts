@@ -24,6 +24,25 @@ export async function getCustomers() {
   );
 }
 
+/** Net-of-refunds lifetime spend for one customer, as of right now - used at
+ * POS checkout to find which loyalty tier a sale's points should earn at
+ * (see getApplicableTierMultiplier). Same netting logic as getCustomers(),
+ * scoped to a single customer instead of aggregating the whole store. */
+export async function getCustomerTotalSpent(customerId: string): Promise<number> {
+  const rows = await query<{ total_spent: number }>(
+    `SELECT COALESCE(SUM(
+      s.total_amount - COALESCE(
+        (SELECT SUM(r.total_refunded) FROM returns r WHERE r.sale_id = s.id AND (r._deleted = 0 OR r._deleted IS NULL)),
+        0
+      )
+    ), 0) as total_spent
+    FROM sales s
+    WHERE s.customer_id = ? AND s._deleted = 0`,
+    [customerId],
+  );
+  return rows[0]?.total_spent || 0;
+}
+
 /**
  * Combined feed of every customer's transactions store-wide: grows the same way
  * stock_movements does (a row per sale), so `sinceDays` bounds the default recent

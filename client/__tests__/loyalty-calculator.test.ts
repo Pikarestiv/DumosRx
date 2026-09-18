@@ -4,6 +4,7 @@ import {
   calculateRedemptionValue,
   calculateLoyaltyPointsAfterSale,
   calculateReturnPointsAdjustment,
+  getApplicableTierMultiplier,
   LOYALTY_RULES,
 } from '@/lib/utils/loyalty-calculator';
 
@@ -18,6 +19,51 @@ describe('Loyalty Calculator', () => {
 
     it('calculates earned points with custom rate', () => {
       expect(calculateEarnedPoints(1000, 0.05)).toBe(50);
+    });
+
+    it('applies a tier multiplier on top of the base rate', () => {
+      // 1000 * 0.01 * 2x = 20
+      expect(calculateEarnedPoints(1000, 0.01, 2)).toBe(20);
+    });
+
+    it('defaults the tier multiplier to 1x when omitted', () => {
+      expect(calculateEarnedPoints(1000, 0.01)).toBe(10);
+    });
+
+    it('floors the multiplied result, not just the base points', () => {
+      // 1000 * 0.01 * 1.5 = 15 exactly, but 1050 * 0.01 * 1.5 = 15.75 -> 15
+      expect(calculateEarnedPoints(1050, 0.01, 1.5)).toBe(15);
+    });
+  });
+
+  describe('getApplicableTierMultiplier', () => {
+    const tiers = [
+      { min_spend: 0, points_multiplier: 1 },
+      { min_spend: 100000, points_multiplier: 1.5 },
+      { min_spend: 300000, points_multiplier: 2 },
+      { min_spend: 500000, points_multiplier: 3 },
+    ];
+
+    it('returns the base tier multiplier for a customer below every threshold but the base', () => {
+      expect(getApplicableTierMultiplier(tiers, 50000)).toBe(1);
+    });
+
+    it('returns the highest tier whose min_spend the customer has cleared', () => {
+      expect(getApplicableTierMultiplier(tiers, 150000)).toBe(1.5);
+      expect(getApplicableTierMultiplier(tiers, 300000)).toBe(2);
+      expect(getApplicableTierMultiplier(tiers, 1000000)).toBe(3);
+    });
+
+    it('defaults to 1x when no tiers are configured at all', () => {
+      expect(getApplicableTierMultiplier([], 1000000)).toBe(1);
+    });
+
+    it('defaults to 1x when spend is below every configured tier (no zero-spend base tier)', () => {
+      const tiersWithoutBase = [
+        { min_spend: 100000, points_multiplier: 1.5 },
+        { min_spend: 300000, points_multiplier: 2 },
+      ];
+      expect(getApplicableTierMultiplier(tiersWithoutBase, 50000)).toBe(1);
     });
   });
 

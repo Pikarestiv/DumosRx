@@ -52,6 +52,7 @@ export interface StoreProfile {
   enabled_payment_methods?: string;
   online_store_enabled?: number;
   loyalty_program_enabled?: number;
+  loyalty_points_per_currency?: number;
   uppercase_display_enabled?: number;
   store_slug?: string;
   updated_at?: string;

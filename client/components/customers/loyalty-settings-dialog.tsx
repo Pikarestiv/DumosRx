@@ -13,6 +13,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -75,6 +76,26 @@ export function LoyaltySettingsDialog({ open, onOpenChange }: Props) {
   useEffect(() => {
     if (open && !canManageStockBatch) onOpenChange(false);
   }, [open, canManageStockBatch, onOpenChange]);
+
+  // Stored as points-per-currency-unit (e.g. 0.01), edited here as
+  // "points per 100 [currency]" since that reads far more naturally than a
+  // fractional per-unit rate (1, not 0.01).
+  const [earnRateInput, setEarnRateInput] = useState("1");
+  useEffect(() => {
+    if (!open) return;
+    const perCurrency = storeProfile?.loyalty_points_per_currency ?? 0.01;
+    setEarnRateInput(String(perCurrency * 100));
+  }, [open, storeProfile?.loyalty_points_per_currency]);
+
+  const handleSaveEarnRate = () => {
+    const per100 = Number.parseFloat(earnRateInput);
+    if (!Number.isFinite(per100) || per100 < 0) {
+      toast.error("Enter a valid, non-negative earn rate.");
+      return;
+    }
+    updateStoreProfile({ loyalty_points_per_currency: per100 / 100 });
+    toast.success("Earn rate updated");
+  };
 
   const [tierFormOpen, setTierFormOpen] = useState(false);
   const [editingTier, setEditingTier] = useState<LoyaltyTierRow | null>(null);
@@ -173,6 +194,41 @@ export function LoyaltySettingsDialog({ open, onOpenChange }: Props) {
               checked={loyaltyProgramEnabled}
               onCheckedChange={handleToggleLoyaltyProgram}
             />
+          </div>
+
+          <div className="flex items-center justify-between rounded-lg border p-4 bg-background gap-4">
+            <div className="space-y-0.5 flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <Label htmlFor="loyalty-earn-rate" className="text-base">Earn Rate</Label>
+                <TooltipProvider delayDuration={0}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HelpCircle className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Applies before any tier bonus - a customer in a 2x tier earns double this rate.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Points earned per {currencySymbol}100 spent
+              </p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Input
+                id="loyalty-earn-rate"
+                type="number"
+                min="0"
+                step="0.1"
+                className="w-20"
+                value={earnRateInput}
+                onChange={(e) => setEarnRateInput(e.target.value)}
+              />
+              <Button size="sm" variant="outline" onClick={handleSaveEarnRate}>
+                Save
+              </Button>
+            </div>
           </div>
 
           <div className="flex gap-2 border-b pb-2">

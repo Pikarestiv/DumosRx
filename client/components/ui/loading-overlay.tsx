@@ -20,12 +20,12 @@ export function LoadingOverlay({ message = "Working...", progress }: LoadingOver
   const showBar = typeof progress === "number";
   return (
     <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center gap-3 bg-background/80 backdrop-blur-sm">
-      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <Loader2 className="h-14 w-14 animate-spin text-primary" />
       {showBar && (
         <div className="w-56">
           <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
             <div
-              className="h-full rounded-full bg-primary transition-all duration-300 ease-out"
+              className="h-full rounded-full bg-primary transition-all duration-300 ease-out animate-progress-stripes"
               style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
             />
           </div>

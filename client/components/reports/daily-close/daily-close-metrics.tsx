@@ -1,4 +1,10 @@
-import { Receipt, Banknote, ArrowLeftRight, RotateCcw, TrendingUp } from "lucide-react";
+import {
+  Receipt,
+  Banknote,
+  ArrowLeftRight,
+  RotateCcw,
+  TrendingUp,
+} from "lucide-react";
 import { formatMetricCurrency } from "@/lib/utils";
 import { MetricCard } from "@/components/ui/metric-card";
 
@@ -45,7 +51,10 @@ export function DailyCloseMetrics({
           <MetricCard
             className="min-w-[180px] sm:min-w-0 snap-center shrink-0 border-border"
             title="Transfer / Mobile"
-            value={formatMetricCurrency(aggregatedTotals.transfer, currencyCode)}
+            value={formatMetricCurrency(
+              aggregatedTotals.transfer,
+              currencyCode,
+            )}
             icon={<ArrowLeftRight className="h-4 w-4" />}
             iconBgClass="bg-sky-50 text-sky-700"
             valueClassName="font-serif"
@@ -68,7 +77,11 @@ export function DailyCloseMetrics({
         title="Total Profit (Est.)"
         value={formatMetricCurrency(totalProfit, currencyCode)}
         icon={<TrendingUp className="h-4 w-4" />}
-        iconBgClass={totalProfit >= 0 ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}
+        iconBgClass={
+          totalProfit >= 0
+            ? "bg-emerald-50 text-emerald-700"
+            : "bg-red-50 text-red-700"
+        }
         valueClassName={`font-serif ${totalProfit >= 0 ? "text-emerald-600" : "text-destructive"}`}
       />
     </div>

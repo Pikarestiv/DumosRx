@@ -33,11 +33,12 @@ export function MetricCard({
   onClick,
 }: MetricCardProps) {
   return (
-    <Card 
+    <Card
       className={cn(
-        "rounded-[14px] shadow-[0_1px_2px_rgba(28,25,23,0.04),0_1px_3px_rgba(28,25,23,0.03)] !p-0 !gap-0",
-        onClick && "group cursor-pointer transition-colors hover:border-primary/50",
-        className
+        "rounded-[14px] shadow-[0_1px_2px_rgba(28,25,23,0.04),0_1px_3px_rgba(28,25,23,0.03)] !p-0 !gap-0 m-0.5",
+        onClick &&
+          "group cursor-pointer transition-colors hover:border-primary/50",
+        className,
       )}
       onClick={onClick}
     >
@@ -50,16 +51,31 @@ export function MetricCard({
             )}
           </div>
           {icon && (
-            <div className={cn("hidden sm:flex w-8 h-8 rounded-lg items-center justify-center shrink-0", iconBgClass)}>
+            <div
+              className={cn(
+                "hidden sm:flex w-8 h-8 rounded-lg items-center justify-center shrink-0",
+                iconBgClass,
+              )}
+            >
               {icon}
             </div>
           )}
         </div>
-        <div className={cn("text-2xl font-semibold tracking-tight mb-0.5", valueClassName)}>
+        <div
+          className={cn(
+            "text-2xl font-semibold tracking-tight mb-0.5",
+            valueClassName,
+          )}
+        >
           {value}
         </div>
         {description && (
-          <div className={cn("text-[11px] font-medium mt-auto", descriptionClassName)}>
+          <div
+            className={cn(
+              "text-[11px] font-medium mt-auto",
+              descriptionClassName,
+            )}
+          >
             {description}
           </div>
         )}

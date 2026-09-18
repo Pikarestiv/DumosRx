@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Upload, Download } from "lucide-react";
+import { Upload, Download, ClipboardCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -10,11 +10,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { downloadBlob, generateReportPdfBlob } from "@/lib/utils/report-pdf";
+import {
+  downloadBlob,
+  generateReportPdfBlob,
+  openBlobForPrint,
+} from "@/lib/utils/report-pdf";
 import {
   EXPORT_COLUMNS,
   buildExportBlob,
   buildExportRows,
+  buildStockAuditRows,
 } from "@/lib/utils/product-import-export";
 import {
   getProductsForExport,
@@ -90,6 +95,22 @@ export function ImportExportToolbar({
     );
   };
 
+  const handlePrintStockAudit = async () => {
+    const products = await getProductsForExport(filteredProductIds);
+    const { headers, rows, columnFlex } = buildStockAuditRows(products);
+    const blob = await generateReportPdfBlob({
+      storeName: storeProfile?.name || "",
+      title: "Stock Audit Sheet",
+      subtitle: isFiltered
+        ? `${products.length} filtered product(s)`
+        : `${products.length} product(s)`,
+      headers,
+      rows,
+      columnFlex,
+    });
+    openBlobForPrint(blob);
+  };
+
   return (
     <>
       <Button
@@ -101,6 +122,17 @@ export function ImportExportToolbar({
       >
         <Upload className="h-3.5 w-3.5" />
         Import
+      </Button>
+
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="gap-1.5 text-[12px]"
+        onClick={handlePrintStockAudit}
+      >
+        <ClipboardCheck className="h-3.5 w-3.5" />
+        Print Stock Audit
       </Button>
 
       <DropdownMenu>

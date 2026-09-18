@@ -8,6 +8,7 @@ export interface ReportPdfInput {
   subtitle?: string;
   headers: string[];
   rows: Record<string, unknown>[];
+  columnFlex?: number[];
 }
 
 export async function generateReportPdfBlob(

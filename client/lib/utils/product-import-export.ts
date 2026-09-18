@@ -227,6 +227,27 @@ export function buildExportRows(
   return { headers: selected.map((c) => c.label), rows };
 }
 
+/** Printable physical stock-count sheet: system quantity plus blank columns
+ * for a staff member to write the counted quantity and any notes while
+ * walking the floor. Modeled on the sheet clients migrating from other
+ * inventory apps already use for this (checkbox + blank counted-qty/notes
+ * columns next to the system quantity). */
+export function buildStockAuditRows(
+  products: ExportableProduct[],
+): { headers: string[]; rows: Record<string, unknown>[]; columnFlex: number[] } {
+  const headers = ["#", "Product", "Category", "System Qty", "Counted Qty", "Notes"];
+  const columnFlex = [0.5, 3, 1.5, 1, 1, 2];
+  const rows = products.map((product, i) => ({
+    "#": i + 1,
+    Product: product.name,
+    Category: product.category || "",
+    "System Qty": product.quantity,
+    "Counted Qty": "",
+    Notes: "",
+  }));
+  return { headers, rows, columnFlex };
+}
+
 export function buildExportBlob(
   products: ExportableProduct[],
   columns: (keyof ExportableProduct)[],

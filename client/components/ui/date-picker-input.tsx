@@ -54,6 +54,10 @@ interface DatePickerInputProps {
   value?: string; // Expects YYYY-MM-DD
   onChange?: (value: string) => void;
   className?: string;
+  /** Extra classes applied to the text input itself, not the wrapper —
+   * needed to strip its border/shadow/ring when it's nested inside another
+   * bordered container (e.g. the Daily Close date filter). */
+  inputClassName?: string;
   placeholder?: string;
   disabled?: boolean;
   // Bounds for the calendar's quick month/year dropdown jump: pick years
@@ -72,6 +76,7 @@ export function DatePickerInput({
   value,
   onChange,
   className,
+  inputClassName,
   placeholder = "DD/MM/YYYY",
   disabled = false,
   fromYear,
@@ -172,7 +177,7 @@ export function DatePickerInput({
           value={inputValue}
           onChange={handleInputChange}
           disabled={disabled}
-          className="pr-10"
+          className={cn("pr-10", inputClassName)}
         />
         <Popover open={isOpen} onOpenChange={setIsOpen} modal={true}>
           <PopoverTrigger asChild>

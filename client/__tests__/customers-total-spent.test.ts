@@ -95,6 +95,26 @@ describe("getCustomers total_spent", () => {
 
     expect(customers[0].total_spent).toBe(1000);
   });
+
+  it("counts a customer's sales as visit_count", async () => {
+    db.run(`INSERT INTO customers (id, first_name, last_name) VALUES ('c1', 'Jane', 'Doe')`);
+    db.run(`INSERT INTO sales (id, customer_id, total_amount, transaction_date) VALUES
+      ('s1', 'c1', 1000, '2026-01-01'),
+      ('s2', 'c1', 500, '2026-01-02'),
+      ('s3', 'c1', 200, '2026-01-03')`);
+
+    const customers = await getCustomers();
+
+    expect(customers[0].visit_count).toBe(3);
+  });
+
+  it("reports visit_count 0 for a customer with no sales yet", async () => {
+    db.run(`INSERT INTO customers (id, first_name, last_name) VALUES ('c1', 'Jane', 'Doe')`);
+
+    const customers = await getCustomers();
+
+    expect(customers[0].visit_count).toBe(0);
+  });
 });
 
 describe("getCustomerRetentionMetrics avgTransactionValue", () => {

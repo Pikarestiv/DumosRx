@@ -13,7 +13,8 @@ export async function getCustomers() {
           0
         )
       ), 0) as total_spent,
-      MAX(s.transaction_date) as last_visit
+      MAX(s.transaction_date) as last_visit,
+      COUNT(s.id) as visit_count
     FROM customers c
     LEFT JOIN sales s ON c.id = s.customer_id AND s._deleted = 0
     WHERE c._deleted = 0${storeId ? " AND c.store_id = ?" : ""}

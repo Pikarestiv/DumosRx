@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Upload, Download, ClipboardCheck } from "lucide-react";
+import { Upload, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -10,16 +10,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { LoadingOverlay } from "@/components/ui/loading-overlay";
+import { downloadBlob, generateReportPdfBlob } from "@/lib/utils/report-pdf";
 import {
-  downloadBlob,
-  generateReportPdfBlob,
-  openBlobForPrint,
-} from "@/lib/utils/report-pdf";
-import {
-  EXPORT_COLUMNS,
   buildExportBlob,
   buildExportRows,
-  buildStockAuditRows,
 } from "@/lib/utils/product-import-export";
 import {
   getProductsForExport,
@@ -29,12 +24,21 @@ import { useStore } from "@/lib/context/store-context";
 import { ImportMappingDialog } from "./import-mapping-dialog";
 import { ExportColumnsDialog } from "./export-columns-dialog";
 
+type ExportFormat = "csv" | "xlsx" | "pdf";
+
 interface ImportExportToolbarProps {
   onImported: () => void;
   /** The catalog table's currently-filtered product ids (search/category/
    * status), so Export defaults to "what's on screen" instead of always the
    * whole store — undefined (no filter active) exports everything. */
   filteredProductIds?: string[];
+}
+
+/** Lets the loading overlay actually paint before the (synchronous,
+ * main-thread-blocking) export work starts - otherwise the browser never
+ * gets a chance to render it and the app just looks hung. */
+function nextFrame(): Promise<void> {
+  return new Promise((resolve) => requestAnimationFrame(() => resolve()));
 }
 
 export function ImportExportToolbar({
@@ -44,75 +48,58 @@ export function ImportExportToolbar({
   const { storeProfile } = useStore();
   const [showImport, setShowImport] = useState(false);
   const [showColumnPicker, setShowColumnPicker] = useState(false);
-  const [pendingFormat, setPendingFormat] = useState<
-    "csv" | "xlsx" | "pdf" | null
-  >(null);
+  const [pendingFormat, setPendingFormat] = useState<ExportFormat | null>(
+    null,
+  );
+  const [isExporting, setIsExporting] = useState(false);
   const isFiltered = filteredProductIds !== undefined;
 
   const runExport = async (
-    format: "csv" | "xlsx" | "pdf",
+    format: ExportFormat,
     columns: (keyof ExportableProduct)[],
   ) => {
-    const products = await getProductsForExport(filteredProductIds);
-    const dateStr = new Date().toISOString().slice(0, 10);
+    setIsExporting(true);
+    await nextFrame();
+    try {
+      const products = await getProductsForExport(filteredProductIds);
+      const dateStr = new Date().toISOString().slice(0, 10);
 
-    if (format === "pdf") {
-      const { headers, rows } = buildExportRows(products, columns);
-      const blob = await generateReportPdfBlob({
-        storeName: storeProfile?.name || "",
-        title: "Product Export",
-        subtitle: isFiltered
-          ? `${products.length} filtered product(s)`
-          : `${products.length} product(s)`,
-        headers,
-        rows,
-      });
-      downloadBlob(blob, `DumosRx_Products_${dateStr}.pdf`);
-    } else {
-      const blob = buildExportBlob(products, columns, format);
-      downloadBlob(blob, `DumosRx_Products_${dateStr}.${format}`);
+      if (format === "pdf") {
+        const { headers, rows } = buildExportRows(products, columns);
+        const blob = await generateReportPdfBlob({
+          storeName: storeProfile?.name || "",
+          title: "Product Export",
+          subtitle: isFiltered
+            ? `${products.length} filtered product(s)`
+            : `${products.length} product(s)`,
+          headers,
+          rows,
+        });
+        downloadBlob(blob, `DumosRx_Products_${dateStr}.pdf`);
+      } else {
+        const blob = buildExportBlob(products, columns, format);
+        downloadBlob(blob, `DumosRx_Products_${dateStr}.${format}`);
+      }
+
+      toast.success(
+        isFiltered
+          ? `Exported ${products.length} filtered product(s)`
+          : `Exported ${products.length} product(s)`,
+      );
+    } finally {
+      setIsExporting(false);
     }
-
-    toast.success(
-      isFiltered
-        ? `Exported ${products.length} filtered product(s)`
-        : `Exported ${products.length} product(s)`,
-    );
   };
 
-  const handleExportClick = (
-    format: "csv" | "xlsx" | "pdf",
-    chooseColumns: boolean,
-  ) => {
-    if (chooseColumns) {
-      setPendingFormat(format);
-      setShowColumnPicker(true);
-      return;
-    }
-    runExport(
-      format,
-      EXPORT_COLUMNS.map((c) => c.key),
-    );
-  };
-
-  const handlePrintStockAudit = async () => {
-    const products = await getProductsForExport(filteredProductIds);
-    const { headers, rows, columnFlex } = buildStockAuditRows(products);
-    const blob = await generateReportPdfBlob({
-      storeName: storeProfile?.name || "",
-      title: "Stock Audit Sheet",
-      subtitle: isFiltered
-        ? `${products.length} filtered product(s)`
-        : `${products.length} product(s)`,
-      headers,
-      rows,
-      columnFlex,
-    });
-    openBlobForPrint(blob);
+  const handleExportClick = (format: ExportFormat) => {
+    setPendingFormat(format);
+    setShowColumnPicker(true);
   };
 
   return (
     <>
+      {isExporting && <LoadingOverlay message="Generating export..." />}
+
       <Button
         type="button"
         variant="outline"
@@ -122,17 +109,6 @@ export function ImportExportToolbar({
       >
         <Upload className="h-3.5 w-3.5" />
         Import
-      </Button>
-
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        className="gap-1.5 text-[12px]"
-        onClick={handlePrintStockAudit}
-      >
-        <ClipboardCheck className="h-3.5 w-3.5" />
-        Print Stock Audit
       </Button>
 
       <DropdownMenu>
@@ -154,23 +130,14 @@ export function ImportExportToolbar({
               {filteredProductIds.length === 1 ? "" : "s"}
             </div>
           )}
-          <DropdownMenuItem onClick={() => handleExportClick("csv", false)}>
-            Export as CSV (all columns)
+          <DropdownMenuItem onClick={() => handleExportClick("csv")}>
+            Export as CSV
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => handleExportClick("xlsx", false)}>
-            Export as XLSX (all columns)
+          <DropdownMenuItem onClick={() => handleExportClick("xlsx")}>
+            Export as XLSX
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => handleExportClick("csv", true)}>
-            Export as CSV (choose columns)
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => handleExportClick("xlsx", true)}>
-            Export as XLSX (choose columns)
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => handleExportClick("pdf", false)}>
-            Export as PDF (all columns)
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => handleExportClick("pdf", true)}>
-            Export as PDF (choose columns)
+          <DropdownMenuItem onClick={() => handleExportClick("pdf")}>
+            Export as PDF
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

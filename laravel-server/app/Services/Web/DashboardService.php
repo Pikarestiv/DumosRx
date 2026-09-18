@@ -7,6 +7,7 @@ use App\Models\Customer;
 use App\Models\Product;
 use App\Models\Sale;
 use App\Models\StockBatch;
+use App\Models\StockMovement;
 use App\Models\Store;
 use App\Models\User;
 use Carbon\Carbon;
@@ -593,6 +594,11 @@ class DashboardService
                     $query = StockBatch::query();
                     if (Schema::hasColumn('stock_batches', 'user_id')) {
                         $query->where('user_id', $userId);
+                        $batchIds = (clone $query)->pluck('id');
+                        if (Schema::hasTable('stock_movements') && $batchIds->isNotEmpty()) {
+                            Log::info("Clearing stock movements for user's stock batches: {$userId}");
+                            StockMovement::whereIn('stock_batch_id', $batchIds)->delete();
+                        }
                         Log::info("Clearing stock batches for user: {$userId}");
                         $query->delete();
                     }

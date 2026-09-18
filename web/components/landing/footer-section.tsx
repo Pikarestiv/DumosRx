@@ -8,14 +8,16 @@ import { apiClient } from "@/lib/api/base-client";
 import type { SocialLinksConfig } from "@/lib/types/admin";
 
 export function FooterSection() {
-  const [socialLinks, setSocialLinks] = useState<Partial<SocialLinksConfig> | null>(null);
+  const [socialLinks, setSocialLinks] =
+    useState<Partial<SocialLinksConfig> | null>(null);
 
   useEffect(() => {
     apiClient
       .get("/system-configs/social_links")
       .then(({ data }) => {
         if (data.success) {
-          const val = typeof data.data === "string" ? JSON.parse(data.data) : data.data;
+          const val =
+            typeof data.data === "string" ? JSON.parse(data.data) : data.data;
           setSocialLinks(val);
         }
       })
@@ -38,8 +40,8 @@ export function FooterSection() {
               />
             </Link>
             <p className="text-muted-foreground max-w-xs mb-6">
-              The most reliable store management system for the Nigerian
-              market. Offline-first, cloud-synced, and built for growth.
+              The most reliable store management system for the African market.
+              Offline-first, cloud-synced, and built for growth.
             </p>
           </div>
           <div>
@@ -120,35 +122,74 @@ export function FooterSection() {
             reserved.
           </p>
           <div className="flex gap-6">
-            {socialLinks && socialLinks.active_links?.twitter !== false && socialLinks.twitter && (
-              <a href={socialLinks.twitter} target="_blank" rel="noopener noreferrer" className="hover:text-primary capitalize">
-                Twitter
-              </a>
-            )}
-            {socialLinks && socialLinks.active_links?.linkedin !== false && socialLinks.linkedin && (
-              <a href={socialLinks.linkedin} target="_blank" rel="noopener noreferrer" className="hover:text-primary capitalize">
-                LinkedIn
-              </a>
-            )}
-            {socialLinks && socialLinks.active_links?.facebook !== false && socialLinks.facebook && (
-              <a href={socialLinks.facebook} target="_blank" rel="noopener noreferrer" className="hover:text-primary capitalize">
-                Facebook
-              </a>
-            )}
-            {socialLinks && socialLinks.active_links?.github !== false && socialLinks.github && (
-              <a href={socialLinks.github} target="_blank" rel="noopener noreferrer" className="hover:text-primary capitalize">
-                GitHub
-              </a>
-            )}
-            {socialLinks && socialLinks.active_links?.instagram !== false && socialLinks.instagram && (
-              <a href={socialLinks.instagram} target="_blank" rel="noopener noreferrer" className="hover:text-primary capitalize">
-                Instagram
-              </a>
-            )}
+            {socialLinks &&
+              socialLinks.active_links?.twitter !== false &&
+              socialLinks.twitter && (
+                <a
+                  href={socialLinks.twitter}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-primary capitalize"
+                >
+                  Twitter
+                </a>
+              )}
+            {socialLinks &&
+              socialLinks.active_links?.linkedin !== false &&
+              socialLinks.linkedin && (
+                <a
+                  href={socialLinks.linkedin}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-primary capitalize"
+                >
+                  LinkedIn
+                </a>
+              )}
+            {socialLinks &&
+              socialLinks.active_links?.facebook !== false &&
+              socialLinks.facebook && (
+                <a
+                  href={socialLinks.facebook}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-primary capitalize"
+                >
+                  Facebook
+                </a>
+              )}
+            {socialLinks &&
+              socialLinks.active_links?.github !== false &&
+              socialLinks.github && (
+                <a
+                  href={socialLinks.github}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-primary capitalize"
+                >
+                  GitHub
+                </a>
+              )}
+            {socialLinks &&
+              socialLinks.active_links?.instagram !== false &&
+              socialLinks.instagram && (
+                <a
+                  href={socialLinks.instagram}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-primary capitalize"
+                >
+                  Instagram
+                </a>
+              )}
             {!socialLinks && (
               <>
-                <Link href="#" className="hover:text-primary">Twitter</Link>
-                <Link href="#" className="hover:text-primary">LinkedIn</Link>
+                <Link href="#" className="hover:text-primary">
+                  Twitter
+                </Link>
+                <Link href="#" className="hover:text-primary">
+                  LinkedIn
+                </Link>
               </>
             )}
           </div>

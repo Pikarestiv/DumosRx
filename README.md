@@ -1,6 +1,6 @@
 # DumosRx
 
-*Offline-first retail & pharmacy management for Nigerian stores*
+*Offline-first retail & pharmacy management for`African` stores*
 
 [![Next.js](https://img.shields.io/badge/Next.js-black?style=for-the-badge&logo=next.js)](https://nextjs.org)
 [![Laravel](https://img.shields.io/badge/Laravel_11-FF2D20?style=for-the-badge&logo=laravel)](https://laravel.com)
@@ -9,7 +9,7 @@
 
 ## Overview
 
-DumosRx is a retail and pharmacy management system for Nigerian stores, covering inventory, point-of-sale, prescriptions, procurement, and multi-store business analytics, with NAFDAC-aware medicine data, Naira formatting, and 7.5% VAT built in.
+DumosRx is a retail and pharmacy management system for`African` stores, covering inventory, point-of-sale, prescriptions, procurement, and multi-store business analytics, with NAFDAC-aware medicine data, Naira formatting, and 7.5% VAT built in.
 
 The defining architectural choice is that the store-floor app (`client/`) is **offline-first**: it runs against a local SQLite database and keeps working with no internet connection, syncing to the cloud in the background whenever one's available. It ships as a native desktop/mobile app via Tauri, and, from the exact same codebase, as a static web build.
 
@@ -64,6 +64,7 @@ php artisan key:generate
 ```
 
 Set your local DB in `.env` (matches `.env.example`'s defaults):
+
 ```env
 DB_CONNECTION=mysql
 DB_HOST=127.0.0.1
@@ -77,6 +78,7 @@ DB_PASSWORD=
 php artisan migrate --seed
 php artisan serve
 ```
+
 Runs on `http://127.0.0.1:8000`.
 
 ### 3. Client (`client/`): the POS app
@@ -87,6 +89,7 @@ npm install
 ```
 
 Create `client/.env.local` to point at your local backend:
+
 ```env
 NEXT_PUBLIC_API_URL_LOCAL_NODE=http://localhost:8000/api/v1
 ```
@@ -94,6 +97,7 @@ NEXT_PUBLIC_API_URL_LOCAL_NODE=http://localhost:8000/api/v1
 ```bash
 npm run dev
 ```
+
 Runs on `http://localhost:3000`. To build/run the native Tauri app instead: `npm run tauri dev`.
 
 ### 4. Web dashboard (`web/`)
@@ -117,14 +121,14 @@ Password: Admin123#
 
 All deployment is via GitHub Actions (`.github/workflows/`), FTP-syncing static builds:
 
-| App | Trigger | Target |
-|---|---|---|
-| `client/` (web build) | push to `main` | `app.dumosrx.com` |
-| `web/` | push to `main` | `dumosrx.com` |
-| `laravel-server/` | push to `main` | `api.dumosrx.com` |
-| `web/` + `laravel-server/` | push to `dev` | `dev.dumosrx.com` / `api.dev.dumosrx.com` |
-| `client/` (web build) | push to `dev` | `app.dev.dumosrx.com` |
-| `client/` (Tauri desktop/Android) | git tag `v*` | GitHub Releases + in-app updater |
+| App                                 | Trigger         | Target                                        |
+| ----------------------------------- | --------------- | --------------------------------------------- |
+| `client/` (web build)             | push to`main` | `app.dumosrx.com`                           |
+| `web/`                            | push to`main` | `dumosrx.com`                               |
+| `laravel-server/`                 | push to`main` | `api.dumosrx.com`                           |
+| `web/` + `laravel-server/`      | push to`dev`  | `dev.dumosrx.com` / `api.dev.dumosrx.com` |
+| `client/` (web build)             | push to`dev`  | `app.dev.dumosrx.com`                       |
+| `client/` (Tauri desktop/Android) | git tag`v*`   | GitHub Releases + in-app updater              |
 
 Branch convention: feature work merges into `dev`; a `dev → main` PR is raised when a batch is ready to release.
 

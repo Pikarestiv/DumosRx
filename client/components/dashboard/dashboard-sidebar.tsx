@@ -54,6 +54,7 @@ export function DashboardSidebar({
   onUserNavOpenChange,
 }: DashboardSidebarProps) {
   const pathname = usePathname();
+  const isPosRoute = pathname.startsWith("/pos");
   const { storeType } = useStore();
   const { isAdmin, canManageStockBatch } = useAuth();
   const { currentTier } = useFeatureGate();
@@ -253,31 +254,37 @@ export function DashboardSidebar({
               <NavItem href="/settings" icon={Settings} name="Settings" />
             )}
 
-            {/* Collapse toggle: only on desktop */}
-            <div className="pt-2 hidden lg:block">
-              <Tooltip delayDuration={100}>
-                <TooltipTrigger asChild>
-                  <button
-                    id="tour-nav-collapse"
-                    onClick={onToggleCollapse}
-                    className={cn(
-                      "w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 cursor-pointer text-muted-foreground hover:bg-muted hover:text-foreground",
-                      collapsed ? "justify-center px-2" : "",
-                    )}
-                  >
-                    <CollapseButtonContent
-                      logicalCollapsed={logicalCollapsed}
-                      collapsed={collapsed}
-                    />
-                  </button>
-                </TooltipTrigger>
-                {logicalCollapsed && (
-                  <TooltipContent side="right" className="font-medium text-xs">
-                    Expand sidebar
-                  </TooltipContent>
-                )}
-              </Tooltip>
-            </div>
+            {/* Collapse toggle: only on desktop. Hidden on POS since the
+                sidebar is force-collapsed there and can't be expanded. */}
+            {!isPosRoute && (
+              <div className="pt-2 hidden lg:block">
+                <Tooltip delayDuration={100}>
+                  <TooltipTrigger asChild>
+                    <button
+                      id="tour-nav-collapse"
+                      onClick={onToggleCollapse}
+                      className={cn(
+                        "w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 cursor-pointer text-muted-foreground hover:bg-muted hover:text-foreground",
+                        collapsed ? "justify-center px-2" : "",
+                      )}
+                    >
+                      <CollapseButtonContent
+                        logicalCollapsed={logicalCollapsed}
+                        collapsed={collapsed}
+                      />
+                    </button>
+                  </TooltipTrigger>
+                  {logicalCollapsed && (
+                    <TooltipContent
+                      side="right"
+                      className="font-medium text-xs"
+                    >
+                      Expand sidebar
+                    </TooltipContent>
+                  )}
+                </Tooltip>
+              </div>
+            )}
           </nav>
 
           {/* Footer Area */}

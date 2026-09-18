@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
-import { Save, RefreshCw, CreditCard, Loader2, Globe } from "lucide-react";
+import { Save, RefreshCw, CreditCard, Loader2 } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -26,8 +26,14 @@ import {
   useSystemConfig,
   useUpdateSystemConfigMutation,
 } from "@/lib/api/hooks";
-import { useEffect } from "react";
 import { PlanTierCard } from "./plan-tier-card";
+import { SocialLinksConfigCard } from "./social-links-config-card";
+import {
+  DEFAULT_SUBSCRIPTION_CONFIG,
+  DEFAULT_SOCIAL_LINKS,
+  mergeSubscriptionConfig,
+  mergeSocialLinks,
+} from "@/lib/constants/subscription-config-defaults";
 import type { SubscriptionConfig, SocialLinksConfig } from "@/lib/types/admin";
 
 export function SubscriptionConfigTab() {
@@ -46,315 +52,19 @@ export function SubscriptionConfigTab() {
     | undefined;
   const updateMutation = useUpdateSystemConfigMutation();
 
-  const [config, setConfig] = useState<SubscriptionConfig>({
-    trial_days: 14,
-    trial_plan: "pro",
-    grace_period_days: 3,
-    enable_paystack: true,
-    enable_flutterwave: true,
-    enable_manual_payment: true,
-    manual_payment_bank: "Moniepoint",
-    manual_payment_account_number: "6656081317",
-    manual_payment_account_name: "Dumos Technologies",
-    tiers: {
-      free: {
-        price_monthly: 0,
-        price_yearly: 0,
-        active: true,
-        limits: { staff: 1, stores: 1, sync_interval: 360 },
-        features: {
-          cloud_sync: false,
-          mobile_app: false,
-          ecommerce: false,
-          smart_pos: true,
-          custom_branding: false,
-          remove_branding: false,
-          daily_summary_email: false,
-          procurement: false,
-          prescriptions: false,
-          expenses: false,
-          audit_mode: false,
-          dark_mode: true,
-          smart_suggestions: false,
-          auto_lock: true,
-          barcode_generation: false,
-          loyalty_program: false,
-          advanced_reports: false,
-          reseller_commission: false,
-          proforma_quotes: false,
-          daily_close_report: false,
-        },
-      },
-      starter: {
-        price_monthly: 3000,
-        price_yearly: 30000,
-        active: true,
-        limits: { staff: 3, stores: 1, sync_interval: 30 },
-        features: {
-          cloud_sync: true,
-          mobile_app: false,
-          ecommerce: false,
-          smart_pos: true,
-          custom_branding: false,
-          remove_branding: false,
-          daily_summary_email: false,
-          procurement: true,
-          prescriptions: true,
-          expenses: true,
-          audit_mode: false,
-          dark_mode: true,
-          smart_suggestions: false,
-          auto_lock: true,
-          barcode_generation: true,
-          loyalty_program: false,
-          advanced_reports: false,
-          reseller_commission: false,
-          proforma_quotes: false,
-          daily_close_report: true,
-        },
-      },
-      pro: {
-        price_monthly: 8000,
-        price_yearly: 80000,
-        active: true,
-        limits: { staff: 10, stores: 3, sync_interval: 15 },
-        features: {
-          cloud_sync: true,
-          mobile_app: true,
-          ecommerce: false,
-          smart_pos: true,
-          custom_branding: true,
-          remove_branding: true,
-          daily_summary_email: true,
-          procurement: true,
-          prescriptions: true,
-          expenses: true,
-          audit_mode: true,
-          dark_mode: true,
-          smart_suggestions: true,
-          auto_lock: true,
-          barcode_generation: true,
-          loyalty_program: true,
-          advanced_reports: true,
-          reseller_commission: true,
-          proforma_quotes: true,
-          daily_close_report: true,
-        },
-      },
-      enterprise: {
-        price_monthly: 15000,
-        price_yearly: 150000,
-        active: true,
-        limits: { staff: 50, stores: 20, sync_interval: 0 },
-        features: {
-          cloud_sync: true,
-          mobile_app: true,
-          ecommerce: true,
-          smart_pos: true,
-          custom_branding: true,
-          remove_branding: true,
-          daily_summary_email: true,
-          procurement: true,
-          prescriptions: true,
-          expenses: true,
-          audit_mode: true,
-          dark_mode: true,
-          smart_suggestions: true,
-          auto_lock: true,
-          barcode_generation: true,
-          loyalty_program: true,
-          advanced_reports: true,
-          reseller_commission: true,
-          proforma_quotes: true,
-          daily_close_report: true,
-        },
-      },
-    },
-  });
-
-  const [socialLinks, setSocialLinks] = useState<SocialLinksConfig>({
-    twitter: "",
-    facebook: "",
-    linkedin: "",
-    github: "",
-    instagram: "",
-    active_links: {
-      twitter: true,
-      facebook: true,
-      linkedin: true,
-      github: true,
-      instagram: true,
-    },
-  });
+  const [config, setConfig] = useState<SubscriptionConfig>(
+    DEFAULT_SUBSCRIPTION_CONFIG,
+  );
+  const [socialLinks, setSocialLinks] = useState<SocialLinksConfig>(
+    DEFAULT_SOCIAL_LINKS,
+  );
 
   useEffect(() => {
-    if (serverConfig) {
-      setConfig({
-        ...serverConfig,
-        trial_days: serverConfig.trial_days ?? 14,
-        grace_period_days: serverConfig.grace_period_days ?? 3,
-        enable_paystack: serverConfig.enable_paystack ?? true,
-        enable_flutterwave: serverConfig.enable_flutterwave ?? true,
-        enable_manual_payment: serverConfig.enable_manual_payment ?? true,
-        manual_payment_bank: serverConfig.manual_payment_bank ?? "Moniepoint",
-        manual_payment_account_number:
-          serverConfig.manual_payment_account_number ?? "6656081317",
-        manual_payment_account_name:
-          serverConfig.manual_payment_account_name ?? "Dumos Technologies",
-        trial_plan: serverConfig.trial_plan ?? "pro",
-        tiers: {
-          free: {
-            price_monthly: serverConfig.tiers?.free?.price_monthly ?? 0,
-            price_yearly: serverConfig.tiers?.free?.price_yearly ?? 0,
-            active: serverConfig.tiers?.free?.active ?? true,
-            limits: serverConfig.tiers?.free?.limits ?? {
-              staff: 1,
-              stores: 1,
-              sync_interval: 360,
-            },
-            features: serverConfig.tiers?.free?.features ?? {
-              cloud_sync: false,
-              mobile_app: false,
-              ecommerce: false,
-              smart_pos: true,
-              custom_branding: false,
-              remove_branding: false,
-              daily_summary_email: false,
-              procurement: false,
-              prescriptions: false,
-              expenses: false,
-              audit_mode: false,
-              dark_mode: true,
-              smart_suggestions: false,
-              auto_lock: true,
-              barcode_generation: false,
-              loyalty_program: false,
-              advanced_reports: false,
-              reseller_commission: false,
-              proforma_quotes: false,
-              daily_close_report: false,
-            },
-          },
-          starter: {
-            price_monthly: serverConfig.tiers?.starter?.price_monthly ?? 3000,
-            price_yearly: serverConfig.tiers?.starter?.price_yearly ?? 30000,
-            active: serverConfig.tiers?.starter?.active ?? true,
-            limits: serverConfig.tiers?.starter?.limits ?? {
-              staff: 3,
-              stores: 1,
-              sync_interval: 30,
-            },
-            features: serverConfig.tiers?.starter?.features ?? {
-              cloud_sync: true,
-              mobile_app: false,
-              ecommerce: false,
-              smart_pos: true,
-              custom_branding: false,
-              remove_branding: false,
-              daily_summary_email: false,
-              procurement: true,
-              prescriptions: true,
-              expenses: true,
-              audit_mode: false,
-              dark_mode: true,
-              smart_suggestions: false,
-              auto_lock: true,
-              barcode_generation: true,
-              loyalty_program: false,
-              advanced_reports: false,
-              reseller_commission: false,
-              proforma_quotes: false,
-              daily_close_report: true,
-            },
-          },
-          pro: {
-            price_monthly: serverConfig.tiers?.pro?.price_monthly ?? 8000,
-            price_yearly: serverConfig.tiers?.pro?.price_yearly ?? 80000,
-            active: serverConfig.tiers?.pro?.active ?? true,
-            limits: serverConfig.tiers?.pro?.limits ?? {
-              staff: 10,
-              stores: 3,
-              sync_interval: 15,
-            },
-            features: serverConfig.tiers?.pro?.features ?? {
-              cloud_sync: true,
-              mobile_app: true,
-              ecommerce: false,
-              smart_pos: true,
-              custom_branding: true,
-              remove_branding: true,
-              daily_summary_email: true,
-              procurement: true,
-              prescriptions: true,
-              expenses: true,
-              audit_mode: true,
-              dark_mode: true,
-              smart_suggestions: true,
-              auto_lock: true,
-              barcode_generation: true,
-              loyalty_program: true,
-              advanced_reports: true,
-              reseller_commission: true,
-              proforma_quotes: true,
-              daily_close_report: true,
-            },
-          },
-          enterprise: {
-            price_monthly:
-              serverConfig.tiers?.enterprise?.price_monthly ?? 15000,
-            price_yearly:
-              serverConfig.tiers?.enterprise?.price_yearly ?? 150000,
-            active: serverConfig.tiers?.enterprise?.active ?? true,
-            limits: serverConfig.tiers?.enterprise?.limits ?? {
-              staff: 50,
-              stores: 20,
-              sync_interval: 0,
-            },
-            features: serverConfig.tiers?.enterprise?.features ?? {
-              cloud_sync: true,
-              mobile_app: true,
-              ecommerce: true,
-              smart_pos: true,
-              custom_branding: true,
-              remove_branding: true,
-              daily_summary_email: true,
-              procurement: true,
-              prescriptions: true,
-              expenses: true,
-              audit_mode: true,
-              dark_mode: true,
-              smart_suggestions: true,
-              auto_lock: true,
-              barcode_generation: true,
-              loyalty_program: true,
-              advanced_reports: true,
-              reseller_commission: true,
-              proforma_quotes: true,
-              daily_close_report: true,
-            },
-          },
-        },
-      });
-    }
+    if (serverConfig) setConfig(mergeSubscriptionConfig(serverConfig));
   }, [serverConfig]);
 
   useEffect(() => {
-    if (socialConfig) {
-      setSocialLinks({
-        twitter: socialConfig.twitter || "",
-        facebook: socialConfig.facebook || "",
-        linkedin: socialConfig.linkedin || "",
-        github: socialConfig.github || "",
-        instagram: socialConfig.instagram || "",
-        active_links: {
-          twitter: socialConfig.active_links?.twitter ?? true,
-          facebook: socialConfig.active_links?.facebook ?? true,
-          linkedin: socialConfig.active_links?.linkedin ?? true,
-          github: socialConfig.active_links?.github ?? true,
-          instagram: socialConfig.active_links?.instagram ?? true,
-        },
-      });
-    }
+    if (socialConfig) setSocialLinks(mergeSocialLinks(socialConfig));
   }, [socialConfig]);
 
   const handleSave = async () => {
@@ -584,82 +294,12 @@ export function SubscriptionConfigTab() {
         </CardFooter>
       </Card>
 
-      <Card className="bg-white dark:bg-slate-900 border-accent/20">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Globe className="h-5 w-5 text-indigo-500" />
-            Social Media Configurations
-          </CardTitle>
-          <CardDescription>
-            Update URLs and toggle visibility of social media accounts shown in
-            the website footer.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {(
-            ["twitter", "facebook", "linkedin", "github", "instagram"] as const
-          ).map((platform) => (
-            <div
-              key={platform}
-              className="flex flex-col md:flex-row md:items-center gap-4 p-4 border rounded-xl bg-slate-50 dark:bg-slate-900/50"
-            >
-              <div className="flex-1 space-y-1">
-                <Label className="capitalize font-bold text-sm">
-                  {platform} URL
-                </Label>
-                <Input
-                  type="text"
-                  placeholder={`e.g. https://${platform}.com/dumosrx`}
-                  value={socialLinks[platform]}
-                  onChange={(e) =>
-                    setSocialLinks({
-                      ...socialLinks,
-                      [platform]: e.target.value,
-                    })
-                  }
-                  disabled={!socialLinks.active_links[platform]}
-                  className="bg-white dark:bg-slate-900 border-accent/20"
-                />
-              </div>
-              <div className="flex items-center gap-2 shrink-0 md:pt-6">
-                <Label
-                  htmlFor={`toggle-${platform}`}
-                  className="text-xs text-muted-foreground"
-                >
-                  Active
-                </Label>
-                <Switch
-                  id={`toggle-${platform}`}
-                  checked={socialLinks.active_links[platform]}
-                  onCheckedChange={(c) =>
-                    setSocialLinks({
-                      ...socialLinks,
-                      active_links: {
-                        ...socialLinks.active_links,
-                        [platform]: c,
-                      },
-                    })
-                  }
-                />
-              </div>
-            </div>
-          ))}
-        </CardContent>
-        <CardFooter className="bg-slate-50 dark:bg-slate-800/50 p-4 border-t flex justify-end">
-          <Button
-            onClick={handleSaveSocial}
-            disabled={updateMutation.isPending}
-            className="bg-indigo-600 hover:bg-indigo-700"
-          >
-            {updateMutation.isPending ? (
-              <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-            ) : (
-              <Save className="w-4 h-4 mr-2" />
-            )}
-            Save Social Links
-          </Button>
-        </CardFooter>
-      </Card>
+      <SocialLinksConfigCard
+        socialLinks={socialLinks}
+        setSocialLinks={setSocialLinks}
+        onSave={handleSaveSocial}
+        isSaving={updateMutation.isPending}
+      />
     </div>
   );
 }

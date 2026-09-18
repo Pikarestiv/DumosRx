@@ -599,6 +599,19 @@ class DashboardService
                             Log::info("Clearing stock movements for user's stock batches: {$userId}");
                             StockMovement::whereIn('stock_batch_id', $batchIds)->delete();
                         }
+                        if (Schema::hasTable('sale_item_batches') && $batchIds->isNotEmpty()) {
+                            Log::info("Clearing sale item batches for user's stock batches: {$userId}");
+                            DB::table('sale_item_batches')->whereIn('stock_batch_id', $batchIds)->delete();
+                        }
+                        if (Schema::hasTable('sale_items') && $batchIds->isNotEmpty()) {
+                            $saleItemBatchColumn = Schema::hasColumn('sale_items', 'stock_batch_id')
+                                ? 'stock_batch_id'
+                                : (Schema::hasColumn('sale_items', 'inventory_id') ? 'inventory_id' : null);
+                            if ($saleItemBatchColumn) {
+                                Log::info("Clearing sale items for user's stock batches: {$userId}");
+                                DB::table('sale_items')->whereIn($saleItemBatchColumn, $batchIds)->delete();
+                            }
+                        }
                         Log::info("Clearing stock batches for user: {$userId}");
                         $query->delete();
                     }

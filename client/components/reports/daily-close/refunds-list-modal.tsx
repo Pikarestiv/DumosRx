@@ -62,7 +62,7 @@ export function RefundsListModal({
       title={<>Refunds on {reportDate}</>}
       className="sm:max-w-4xl max-h-[80vh] flex flex-col pt-6"
     >
-      <div className="flex items-center gap-2 mb-4 px-1">
+      <div className="flex items-center gap-2 mb-4 px-1 pt-1">
         <Input
           placeholder="Search receipt or reason..."
           value={search}

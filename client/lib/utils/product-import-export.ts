@@ -231,9 +231,12 @@ export function buildExportRows(
  * for a staff member to write the counted quantity and any notes while
  * walking the floor. Modeled on the sheet clients migrating from other
  * inventory apps already use for this (checkbox + blank counted-qty/notes
- * columns next to the system quantity). */
+ * columns next to the system quantity). Takes the minimal shape shared by
+ * ExportableProduct and the Cycle Count screen's AuditItem, since the
+ * "Print" action lives inside that screen (client/components/stock-batch/
+ * stock-audits.tsx) rather than the general product export menu. */
 export function buildStockAuditRows(
-  products: ExportableProduct[],
+  products: { name: string; category?: string; quantity: number }[],
 ): { headers: string[]; rows: Record<string, unknown>[]; columnFlex: number[] } {
   const headers = ["#", "Product", "Category", "System Qty", "Counted Qty", "Notes"];
   const columnFlex = [0.5, 3, 1.5, 1, 1, 2];

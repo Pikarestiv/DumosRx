@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { AuditLedgerStep } from "./audit-ledger-step";
 import { AuditReviewStep } from "./audit-review-step";
-import { ChevronLeft, CheckCircle2, Loader2 } from "lucide-react";
+import { ChevronLeft, CheckCircle2, Loader2, Printer } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getProductsWithDetails } from "@/lib/db/queries/products";
 import { sync } from "@/lib/db/sync-engine";
@@ -11,8 +11,15 @@ import { useSubmitStockAuditMutation } from "@/lib/hooks/use-stock-audit-mutatio
 import { genericFuzzySearch } from "@/lib/utils/search";
 import { queryKeys } from "@/lib/query-keys";
 import { useAuth } from "@/lib/context/auth-context";
+import { useStore } from "@/lib/context/store-context";
 import { toast } from "sonner";
 import type { ProductWithDetails } from "@/lib/types/product";
+import { LoadingOverlay } from "@/components/ui/loading-overlay";
+import {
+  generateReportPdfBlob,
+  openBlobForPrint,
+} from "@/lib/utils/report-pdf";
+import { buildStockAuditRows } from "@/lib/utils/product-import-export";
 
 type AuditStep = "ledger" | "review" | "done";
 const ALL_CATEGORIES = "__all__";
@@ -33,12 +40,14 @@ export interface AuditItem {
 
 export function StockAudits({ onClose }: { onClose: () => void }) {
   const { user } = useAuth();
+  const { storeProfile } = useStore();
   const queryClient = useQueryClient();
   const [step, setStep] = useState<AuditStep>("ledger");
   const [selectedCategory, setSelectedCategory] =
     useState<string>(ALL_CATEGORIES);
   const [search, setSearch] = useState("");
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isPrinting, setIsPrinting] = useState(false);
   const [submittedSummary, setSubmittedSummary] = useState<{
     counted: number;
     adjusted: number;
@@ -135,6 +144,33 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
     setItems((prev) => prev.map((i) => (i.id === id ? { ...i, ...patch } : i)));
   };
 
+  const handlePrint = async () => {
+    setIsPrinting(true);
+    // Yields a frame so the loading overlay actually paints before the
+    // (synchronous, main-thread-blocking) PDF render starts.
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    try {
+      const { headers, rows, columnFlex } = buildStockAuditRows(
+        items.map((i) => ({
+          name: i.name,
+          category: i.category,
+          quantity: i.systemQty,
+        })),
+      );
+      const blob = await generateReportPdfBlob({
+        storeName: storeProfile?.name || "",
+        title: "Stock Audit Sheet",
+        subtitle: `${items.length} product(s)`,
+        headers,
+        rows,
+        columnFlex,
+      });
+      openBlobForPrint(blob);
+    } finally {
+      setIsPrinting(false);
+    }
+  };
+
   const submitAuditMutation = useSubmitStockAuditMutation();
   const isSubmitting = submitAuditMutation.isPending;
 
@@ -172,6 +208,8 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-background w-full h-full">
+      {isPrinting && <LoadingOverlay message="Generating stock audit sheet..." />}
+
       {/* Header, top padding clears the status bar / Tauri title bar */}
       <div
         className="flex items-center gap-3 px-4 md:px-6 pb-4 md:pb-5 border-b border-border bg-card"
@@ -196,11 +234,23 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
             {step === "done" && "Finished"}
           </div>
         </div>
-        <div className="ml-auto hidden md:flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-200 rounded-full px-3 py-1.5">
-          <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-          <span className="text-[11.5px] font-semibold text-emerald-700">
-            Saved locally · syncs when online
-          </span>
+        <div className="ml-auto flex items-center gap-2">
+          {step === "ledger" && (
+            <button
+              className="flex items-center gap-1.5 text-[12px] font-medium px-3 py-1.5 rounded-full border border-border hover:bg-muted transition-colors disabled:opacity-60"
+              onClick={handlePrint}
+              disabled={isPrinting || items.length === 0}
+            >
+              <Printer className="w-3.5 h-3.5" />
+              Print
+            </button>
+          )}
+          <div className="hidden md:flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-200 rounded-full px-3 py-1.5">
+            <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+            <span className="text-[11.5px] font-semibold text-emerald-700">
+              Saved locally · syncs when online
+            </span>
+          </div>
         </div>
       </div>
 

@@ -273,6 +273,7 @@ export function TransactionDetailsDialog({
                   points: 0,
                   totalSpent: 0,
                   lastVisit: "",
+                  visitCount: 0,
                   birthday: "",
                   status: "",
                 }

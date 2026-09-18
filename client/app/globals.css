@@ -348,6 +348,30 @@ header .group:hover svg,
   animation: glow-pulse 1.8s ease-in-out infinite;
 }
 
+/* Diagonal-stripe sweep inside a progress bar's filled portion (see
+   LoadingOverlay) - signals active work even while the underlying percentage
+   is stalled waiting on a step with no progress hook of its own (e.g. a
+   blocking PDF render). Background-position slides a repeating gradient
+   rather than animating individual elements, so it works at any bar width. */
+@keyframes progress-stripes {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 1.5rem 0;
+  }
+}
+.animate-progress-stripes {
+  background-image: repeating-linear-gradient(
+    45deg,
+    color-mix(in oklch, white 30%, transparent) 0,
+    color-mix(in oklch, white 30%, transparent) 0.5rem,
+    transparent 0.5rem,
+    transparent 1rem
+  );
+  animation: progress-stripes 0.75s linear infinite;
+}
+
 @layer utilities {
   .hide-scrollbar {
     -ms-overflow-style: none; /* IE and Edge */

@@ -67,7 +67,8 @@ export default function ReportsPage() {
               disableFuture
               fromYear={new Date().getFullYear() - 5}
               toYear={new Date().getFullYear()}
-              className="w-40 border-none shadow-none focus-visible:ring-0 px-1"
+              className="w-40"
+              inputClassName="border-none shadow-none focus-visible:ring-0 px-1"
             />
           </div>
         )}

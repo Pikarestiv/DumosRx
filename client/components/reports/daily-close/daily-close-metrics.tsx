@@ -1,4 +1,10 @@
-import { DollarSign, Banknote, ArrowLeftRight, RotateCcw, TrendingUp } from "lucide-react";
+import {
+  Receipt,
+  Banknote,
+  ArrowLeftRight,
+  RotateCcw,
+  TrendingUp,
+} from "lucide-react";
 import { formatMetricCurrency } from "@/lib/utils";
 import { MetricCard } from "@/components/ui/metric-card";
 
@@ -28,7 +34,7 @@ export function DailyCloseMetrics({
             className="min-w-[180px] sm:min-w-0 snap-center shrink-0 border-border"
             title="Total Sales"
             value={formatMetricCurrency(aggregatedTotals.total, currencyCode)}
-            icon={<DollarSign className="h-4 w-4" />}
+            icon={<Receipt className="h-4 w-4" />}
             iconBgClass="bg-blue-50 text-blue-700"
             valueClassName="font-serif"
             onClick={() => openSalesModal("all")}
@@ -45,7 +51,10 @@ export function DailyCloseMetrics({
           <MetricCard
             className="min-w-[180px] sm:min-w-0 snap-center shrink-0 border-border"
             title="Transfer / Mobile"
-            value={formatMetricCurrency(aggregatedTotals.transfer, currencyCode)}
+            value={formatMetricCurrency(
+              aggregatedTotals.transfer,
+              currencyCode,
+            )}
             icon={<ArrowLeftRight className="h-4 w-4" />}
             iconBgClass="bg-sky-50 text-sky-700"
             valueClassName="font-serif"
@@ -54,6 +63,7 @@ export function DailyCloseMetrics({
           <MetricCard
             className="min-w-[180px] sm:min-w-0 snap-center shrink-0 border-red-200/50 hover:border-red-500/50"
             title="Total Refunds"
+            onClick={() => openSalesModal("refunds")}
             value={formatMetricCurrency(aggregatedTotals.refunds, currencyCode)}
             icon={<RotateCcw className="h-4 w-4" />}
             iconBgClass="bg-red-50 text-red-700"
@@ -68,7 +78,11 @@ export function DailyCloseMetrics({
         title="Total Profit (Est.)"
         value={formatMetricCurrency(totalProfit, currencyCode)}
         icon={<TrendingUp className="h-4 w-4" />}
-        iconBgClass={totalProfit >= 0 ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}
+        iconBgClass={
+          totalProfit >= 0
+            ? "bg-emerald-50 text-emerald-700"
+            : "bg-red-50 text-red-700"
+        }
         valueClassName={`font-serif ${totalProfit >= 0 ? "text-emerald-600" : "text-destructive"}`}
       />
     </div>

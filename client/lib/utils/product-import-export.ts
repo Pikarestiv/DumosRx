@@ -36,6 +36,7 @@ const HEADER_ALIASES: Record<string, ProductField> = {
   "product name": "name",
   "item description": "name",
   "name": "name",
+  "label": "name",
   "department name": "category",
   "department": "category",
   "category": "category",
@@ -45,15 +46,18 @@ const HEADER_ALIASES: Record<string, ProductField> = {
   "average unit cost": "cost_price",
   "cost price": "cost_price",
   "cost": "cost_price",
+  "p.buying": "cost_price",
   "regular price": "selling_price",
   "fixed sell price": "selling_price",
   "selling price": "selling_price",
   "price": "selling_price",
+  "p.selling": "selling_price",
   "qty 1": "quantity",
   "qty": "quantity",
   "quantity": "quantity",
   "stock": "quantity",
   "available": "quantity",
+  "qty machine": "quantity",
   "reorder point 1": "reorder_level",
   "reorder point": "reorder_level",
   "reorder level": "reorder_level",
@@ -210,20 +214,50 @@ export const EXPORT_COLUMNS: { key: keyof ExportableProduct; label: string }[] =
 
 /** Column order always follows EXPORT_COLUMNS, regardless of the order the
  * caller passed `columns` in, so the file stays predictable to re-import. */
+export function buildExportRows(
+  products: ExportableProduct[],
+  columns: (keyof ExportableProduct)[],
+): { headers: string[]; rows: Record<string, unknown>[] } {
+  const selected = EXPORT_COLUMNS.filter((c) => columns.includes(c.key));
+  const rows = products.map((product) => {
+    const row: Record<string, unknown> = {};
+    for (const col of selected) row[col.label] = product[col.key];
+    return row;
+  });
+  return { headers: selected.map((c) => c.label), rows };
+}
+
+/** Printable physical stock-count sheet: system quantity plus blank columns
+ * for a staff member to write the counted quantity and any notes while
+ * walking the floor. Modeled on the sheet clients migrating from other
+ * inventory apps already use for this (checkbox + blank counted-qty/notes
+ * columns next to the system quantity). Takes the minimal shape shared by
+ * ExportableProduct and the Cycle Count screen's AuditItem, since the
+ * "Print" action lives inside that screen (client/components/stock-batch/
+ * stock-audits.tsx) rather than the general product export menu. */
+export function buildStockAuditRows(
+  products: { name: string; category?: string; quantity: number }[],
+): { headers: string[]; rows: Record<string, unknown>[]; columnFlex: number[] } {
+  const headers = ["#", "Product", "Category", "System Qty", "Counted Qty", "Notes"];
+  const columnFlex = [0.5, 3, 1.5, 1, 1, 2];
+  const rows = products.map((product, i) => ({
+    "#": i + 1,
+    Product: product.name,
+    Category: product.category || "",
+    "System Qty": product.quantity,
+    "Counted Qty": "",
+    Notes: "",
+  }));
+  return { headers, rows, columnFlex };
+}
+
 export function buildExportBlob(
   products: ExportableProduct[],
   columns: (keyof ExportableProduct)[],
   format: "csv" | "xlsx",
 ): Blob {
-  const selected = EXPORT_COLUMNS.filter((c) => columns.includes(c.key));
-  const data = products.map((product) => {
-    const row: Record<string, unknown> = {};
-    for (const col of selected) row[col.label] = product[col.key];
-    return row;
-  });
-  const sheet = XLSX.utils.json_to_sheet(data, {
-    header: selected.map((c) => c.label),
-  });
+  const { headers, rows: data } = buildExportRows(products, columns);
+  const sheet = XLSX.utils.json_to_sheet(data, { header: headers });
 
   if (format === "csv") {
     const csv = XLSX.utils.sheet_to_csv(sheet);

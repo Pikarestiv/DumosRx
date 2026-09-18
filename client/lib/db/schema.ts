@@ -125,7 +125,10 @@ CREATE TABLE IF NOT EXISTS sales (
   is_reseller_sale INTEGER DEFAULT 0,
   reseller_commission_percentage REAL DEFAULT 0,
   reseller_commission_amount REAL DEFAULT 0,
+  reseller_markup_amount REAL DEFAULT 0,
   reseller_commission_redeemed INTEGER DEFAULT 0,
+  reseller_commission_redeemed_amount REAL DEFAULT 0,
+  reseller_commission_claim_type TEXT,
   reseller_commission_redeemed_at TEXT,
   reseller_commission_redeemed_by TEXT,
   created_at TEXT,
@@ -332,6 +335,7 @@ CREATE TABLE IF NOT EXISTS stores (
   require_sale_notes INTEGER DEFAULT 0,
   display_stock_levels INTEGER DEFAULT 1,
   loyalty_program_enabled INTEGER DEFAULT 1,
+  loyalty_points_per_currency REAL DEFAULT 0.01,
   uppercase_display_enabled INTEGER DEFAULT 1
 );
 

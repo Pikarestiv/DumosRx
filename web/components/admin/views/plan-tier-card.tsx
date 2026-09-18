@@ -132,11 +132,9 @@ export function PlanTierCard({
           {(
             [
               { key: "cloud_sync", label: "Cloud Sync" },
-              { key: "web_dashboard", label: "Web Dashboard" },
               { key: "mobile_app", label: "Mobile App" },
               { key: "ecommerce", label: "E-commerce URL" },
               { key: "smart_pos", label: "Smart POS" },
-              { key: "broadcast_create", label: "Email Broadcasting" },
               { key: "custom_branding", label: "Custom Branding" },
               { key: "remove_branding", label: "Remove DumosRx Branding" },
               { key: "daily_summary_email", label: "Daily Summary Email" },

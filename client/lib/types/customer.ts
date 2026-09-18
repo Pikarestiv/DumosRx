@@ -28,6 +28,9 @@ export interface CustomerDbRow {
   created_at?: string;
   total_spent?: number;
   last_visit?: string | null;
+  /** Count of (non-deleted) sales, i.e. how many times this customer has
+   * checked out - see getCustomers()/getCustomerTotalSpent(). */
+  visit_count?: number;
 }
 
 /** Row shape returned by getCustomerTransactions(). */

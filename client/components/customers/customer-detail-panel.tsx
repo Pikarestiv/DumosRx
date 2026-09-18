@@ -30,6 +30,7 @@ export function CustomerDetailPanel({
       label: "Total Spent",
       value: formatCurrency(customer.totalSpent, currencyCode),
     },
+    { label: "Visits", value: customer.visitCount.toLocaleString() },
     {
       label: "Loyalty Points",
       value: `${customer.points.toLocaleString()} pts`,

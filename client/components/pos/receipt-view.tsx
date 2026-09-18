@@ -111,15 +111,13 @@ export function ReceiptView({
         )}
       </div>
 
-      <div className="text-center mb-4">
-        <h3 className="text-lg font-bold uppercase tracking-widest border border-black inline-block px-4 py-1">
-          {documentType === "tax"
-            ? "Tax Invoice"
-            : documentType === "quote"
-              ? "Proforma Invoice"
-              : "Receipt"}
-        </h3>
-      </div>
+      {documentType !== "tax" && (
+        <div className="text-center mb-4">
+          <h3 className="text-lg font-bold uppercase tracking-widest border border-black inline-block px-4 py-1">
+            {documentType === "quote" ? "Proforma Invoice" : "Receipt"}
+          </h3>
+        </div>
+      )}
 
       <div className="mb-6 space-y-1">
         <div className="flex justify-between">

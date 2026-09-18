@@ -33,7 +33,7 @@ export const getSubscriptionPlans = (
       ],
       missing: [
         "No Cloud Sync & Backups",
-        !config?.tiers?.free?.features?.mobile_app && !config?.tiers?.free?.features?.web_dashboard ? "No Mobile App & Web Dashboard" : "",
+        !config?.tiers?.free?.features?.mobile_app ? "No Mobile App" : "",
         !config?.tiers?.free?.features?.custom_branding ? "Locked to Dumos Blue & Light Mode" : "",
         "Premium Tabs Grayed Out",
       ].filter(Boolean),
@@ -52,8 +52,7 @@ export const getSubscriptionPlans = (
       features: [
         `Up to ${config?.tiers?.starter?.limits?.stores === -1 ? 'Unlimited' : (config?.tiers?.starter?.limits?.stores || 1)} Connected Devices`,
         `Up to ${config?.tiers?.starter?.limits?.staff === -1 ? 'Unlimited' : (config?.tiers?.starter?.limits?.staff || 3)} Staff Accounts`,
-        "Cloud Sync (Every 6 Hours)",
-        config?.tiers?.starter?.features?.web_dashboard ? "Web Dashboard Enabled" : "Restricted Web Dashboard",
+        "Cloud Sync (Every 30 Minutes)",
         "Prescriptions, Procurement & Expenses",
       ].filter(Boolean),
       missing: [
@@ -104,7 +103,7 @@ export const getSubscriptionPlans = (
         `${config?.tiers?.enterprise?.limits?.stores === -1 ? 'Unlimited' : (config?.tiers?.enterprise?.limits?.stores || 10)} Multi-Device & Terminals`,
         `${config?.tiers?.enterprise?.limits?.staff === -1 ? 'Unlimited' : (config?.tiers?.enterprise?.limits?.staff || 100)} Staff Accounts`,
         "Real-time Instant Cloud Sync & Backups",
-        config?.tiers?.enterprise?.features?.web_dashboard ? "Multi-Store HQ Analytics Dashboard" : "",
+        "Multi-Store HQ Analytics Dashboard",
         config?.tiers?.enterprise?.features?.custom_branding ? "Custom Branding & White-Labeling" : "",
         "Priority SMS/Email Stock & Expiry Alerts",
       ].filter(Boolean),

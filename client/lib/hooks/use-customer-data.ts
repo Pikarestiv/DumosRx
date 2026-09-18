@@ -25,6 +25,7 @@ export interface Customer {
   points: number;
   totalSpent: number;
   lastVisit: string;
+  visitCount: number;
   birthday: string;
   status: string;
   outstanding_balance: number;
@@ -62,6 +63,7 @@ const transformCustomer = (
     points: dbData.loyalty_points || 0,
     totalSpent: totalSpent,
     lastVisit: dbData.last_visit ? new Date(dbData.last_visit).toISOString().split("T")[0] : "-",
+    visitCount: dbData.visit_count || 0,
     birthday: dbData.date_of_birth || "",
     status: dbData.is_active ? "active" : "inactive",
     outstanding_balance: dbData.outstanding_balance || 0,
@@ -164,6 +166,7 @@ export function useCustomerData() {
         total_spent: existing.totalSpent,
         loyalty_points: existing.points,
         last_visit: existing.lastVisit === "-" ? null : existing.lastVisit,
+        visit_count: existing.visitCount,
         created_at: existing.joinDate,
         is_active: existing.status === "active",
         outstanding_balance: existing.outstanding_balance,

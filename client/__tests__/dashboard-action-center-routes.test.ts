@@ -18,7 +18,7 @@ import path from 'path';
 describe('dashboard action center routes', () => {
   it('every /inventory/<tab> actionRoute points at a real inventory tab', () => {
     const actionCenterSource = fs.readFileSync(
-      path.join(__dirname, '../components/dashboard/dashboard-action-center.tsx'),
+      path.join(__dirname, '../lib/hooks/use-action-center-alerts.ts'),
       'utf-8',
     );
     const tabPageSource = fs.readFileSync(
@@ -91,6 +91,10 @@ describe('dashboard action center routes', () => {
       path.join(__dirname, '../components/dashboard/dashboard-action-center.tsx'),
       'utf-8',
     );
+    const alertsHookSource = fs.readFileSync(
+      path.join(__dirname, '../lib/hooks/use-action-center-alerts.ts'),
+      'utf-8',
+    );
     const overviewSource = fs.readFileSync(
       path.join(__dirname, '../components/dashboard/dashboard-overview.tsx'),
       'utf-8',
@@ -102,12 +106,12 @@ describe('dashboard action center routes', () => {
 
     // Card only shown when there's something to show, same conditional
     // pattern as `if (lowStockCount > 0) { ... }`.
-    expect(actionCenterSource).toMatch(/if\s*\(oversoldCount > 0\)\s*\{/);
+    expect(alertsHookSource).toMatch(/if\s*\(oversoldCount > 0\)\s*\{/);
 
     // Distinct card id + a real, working actionRoute (out_of_stock is a
     // genuine status filter chip on the catalog tab, unlike the low-stock
     // card's own status param this merely mirrors).
-    const oversoldCardMatch = actionCenterSource.match(
+    const oversoldCardMatch = alertsHookSource.match(
       /id:\s*"oversold"[\s\S]{0,400}?actionRoute:\s*"([^"]+)"/,
     );
     expect(oversoldCardMatch).not.toBeNull();

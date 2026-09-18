@@ -153,7 +153,22 @@ export function useDailyCloseData(reportDate: string) {
       totalCostPrice -= cost * item.quantity;
     });
 
-    const calculatedProfit = totals.total - totalCostPrice;
+    // Revenue already includes any reseller markup (it's part of the sale's
+    // selling price), so once that commission/markup has actually been paid
+    // out, it's no longer the store's profit - only redeemed amounts count,
+    // since an unredeemed commission is still a liability the store hasn't
+    // settled yet.
+    const redeemedResellerPayouts = salesToday.reduce(
+      (sum, sale) =>
+        sum +
+        (sale.is_reseller_sale && sale.reseller_commission_redeemed
+          ? sale.reseller_commission_redeemed_amount || 0
+          : 0),
+      0,
+    );
+
+    const calculatedProfit =
+      totals.total - totalCostPrice - redeemedResellerPayouts;
     const topMeds = Object.values(itemMap)
       .sort((a, b) => b.quantity - a.quantity)
       .slice(0, 5);
@@ -217,6 +232,7 @@ export function useDailyCloseData(reportDate: string) {
   return {
     currencyCode,
     salesToday,
+    returnsToday,
     aggregatedTotals,
     totalProfit,
     topSellingMeds,

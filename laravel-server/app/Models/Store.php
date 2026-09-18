@@ -57,6 +57,7 @@ class Store extends Model
         'display_stock_levels',
         'uppercase_display_enabled',
         'reseller_commission_percentage',
+        'loyalty_points_per_currency',
     ];
 
     protected $casts = [

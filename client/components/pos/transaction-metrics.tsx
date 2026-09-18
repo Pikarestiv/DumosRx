@@ -26,19 +26,19 @@ export function TransactionMetrics({
       />
       <MetricCard
         className="min-w-[180px] md:min-w-0 snap-center shrink-0"
-        title="Transactions"
+        title="Today's transactions"
         value={metrics.transactions}
         valueClassName="font-serif"
       />
       <MetricCard
         className="min-w-[180px] md:min-w-0 snap-center shrink-0"
-        title="Refunded"
+        title="Today's refunds"
         value={metrics.refunded}
         valueClassName="font-serif"
       />
       <MetricCard
         className="min-w-[180px] md:min-w-0 snap-center shrink-0"
-        title="Avg. basket"
+        title="Today's avg. basket"
         value={formatMetricCurrency(metrics.avgBasket, currencyCode)}
         valueClassName="font-serif"
       />

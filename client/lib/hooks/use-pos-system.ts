@@ -166,6 +166,7 @@ export function usePOSSystem() {
     canUseLoyaltyProgram,
     isResellerSale,
     resellerCommissionPercentage: storeProfile?.reseller_commission_percentage ?? 0,
+    loyaltyPointsPerCurrency: storeProfile?.loyalty_points_per_currency ?? 0.01,
   });
   usePOSKeyboardShortcuts({
     searchInputRef,

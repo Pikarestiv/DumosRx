@@ -174,6 +174,24 @@ export async function getSaleByTransactionNumber(transactionNumber: string) {
   return rows[0] || null;
 }
 
+/** Every reseller sale with a commission, newest first — fuzzy-searched and
+ * filtered client-side in ResellerCommissionPanel rather than here, since the
+ * volume of reseller sales is small compared to all sales. */
+export async function getResellerCommissionSales() {
+  const storeId = getActiveStoreId();
+  return query<SaleWithDetails>(
+    `SELECT
+      s.*,
+      TRIM(c.first_name || ' ' || COALESCE(c.last_name, '')) as customer_name,
+      (SELECT GROUP_CONCAT(pr.name, '||') FROM sale_items si JOIN products pr ON si.product_id = pr.id WHERE si.sale_id = s.id AND (si._deleted = 0 OR si._deleted IS NULL)) as item_names
+     FROM sales s
+     LEFT JOIN customers c ON s.customer_id = c.id
+     WHERE s.is_reseller_sale = 1 AND s._deleted = 0${storeId ? " AND s.store_id = ?" : ""}
+     ORDER BY s.created_at DESC`,
+    storeId ? [storeId] : [],
+  );
+}
+
 export async function getPendingResellerCommissionTotal() {
   const storeId = getActiveStoreId();
   const rows = await query<{ total: number | null }>(
@@ -273,7 +291,7 @@ export async function getDailyCloseData(reportDate: string) {
   );
 
   const returnsToday = await query<ReturnRecord>(
-    `SELECT r.*, s.payment_method, s.payment_details FROM returns r JOIN sales s ON r.sale_id = s.id WHERE r.created_at >= ? AND r.created_at <= ? AND (r._deleted = 0 OR r._deleted IS NULL)${storeId ? " AND r.store_id = ?" : ""}`,
+    `SELECT r.*, s.payment_method, s.payment_details, s.transaction_number FROM returns r JOIN sales s ON r.sale_id = s.id WHERE r.created_at >= ? AND r.created_at <= ? AND (r._deleted = 0 OR r._deleted IS NULL)${storeId ? " AND r.store_id = ?" : ""}`,
     storeId ? [startIso, endIso, storeId] : [startIso, endIso],
   );
 

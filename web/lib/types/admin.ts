@@ -164,13 +164,11 @@ export interface EmailTemplatesResponse {
 
 export interface TierFeatures {
   cloud_sync: boolean;
-  web_dashboard: boolean;
   mobile_app: boolean;
   ecommerce: boolean;
   smart_pos: boolean;
   custom_branding: boolean;
   remove_branding: boolean;
-  broadcast_create: boolean;
   daily_summary_email: boolean;
   procurement: boolean;
   prescriptions: boolean;

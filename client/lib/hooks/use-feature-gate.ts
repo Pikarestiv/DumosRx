@@ -172,10 +172,13 @@ export function useFeatureGate() {
     // (no wildcard SSL) can't provision cheaply below Enterprise pricing.
     canUseEcommerce: getFeature('ecommerce', 'store_url', isEnterprise),
 
-    // Auto Backups
-    // Gates the "Send Daily Summary" email button (fleet-daily-summary.tsx)
-    // — despite the old name, this has never gated any backup functionality.
-    canSendDailySummaryEmail: getFeature('daily_summary_email', 'daily_summary_email', isPro || isEnterprise),
+    // Core POS/checkout access. Every tier's `smart_pos` config value is
+    // `true` today (no tier currently loses this), but it's wired as a
+    // real gate — not left ungated — for parity with every other module
+    // flag and so a future ultra-restricted tier could actually use it.
+    // Flipping this false for a tier in production blocks checkout
+    // entirely for that tier — treat changes to it with real caution.
+    canUseSmartPos: getFeature('smart_pos', 'smart_pos', true),
 
     // Minimum sync interval in minutes (0 = sync instantly on any change)
     minimumSyncIntervalMinutes: getLimit(
@@ -193,7 +196,6 @@ export function useFeatureGate() {
     canRemoveBranding: getFeature('remove_branding', 'white_label', isPro || isEnterprise),
     canUseDarkMode: getFeature('dark_mode', 'dark_mode', !isFree),
     canUseSmartSuggestions: getFeature('smart_suggestions', 'smart_suggestions', isPro || isEnterprise),
-    canUseStoreUrl: getFeature('ecommerce', 'store_url', isEnterprise),
     canAutoLock: getFeature('auto_lock', 'auto_lock', !isFree),
     
     // New Features
@@ -211,8 +213,6 @@ export function useFeatureGate() {
       getFeature('loyalty_program', 'loyalty_program', isPro || isEnterprise),
       storeProfile?.loyalty_program_enabled,
     ),
-    canBroadcastCreate: getFeature('broadcast_create', 'broadcast_create', isPro || isEnterprise),
-
     // Report Center's non-daily-close reports (other report types, cross-
     // report filtering) plus the BI/analytics dashboard and their CSV/PDF
     // exports.

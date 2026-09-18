@@ -2,8 +2,28 @@
  * Helper for Loyalty Points Calculation
  */
 
-export const calculateEarnedPoints = (totalAmount: number, pointsPerNaira: number = 0.01) => {
-  return Math.floor(totalAmount * pointsPerNaira);
+export const calculateEarnedPoints = (
+  totalAmount: number,
+  pointsPerNaira: number = 0.01,
+  tierMultiplier: number = 1,
+) => {
+  return Math.floor(totalAmount * pointsPerNaira * tierMultiplier);
+};
+
+/** The highest tier a customer qualifies for given their spend *before* this
+ * sale (tiers reward standing history, not the transaction that's earning
+ * points right now), used to multiply the points that transaction earns.
+ * Falls back to 1x when there are no tiers configured yet (e.g. a store that
+ * has never opened Loyalty Settings, so ensureLoyaltyDefaultsSeeded hasn't
+ * run) so earning behaves exactly as it did before tiers existed. */
+export const getApplicableTierMultiplier = (
+  tiers: { min_spend: number; points_multiplier: number }[],
+  totalSpentBeforeSale: number,
+): number => {
+  const qualifying = tiers
+    .filter((t) => totalSpentBeforeSale >= t.min_spend)
+    .sort((a, b) => b.min_spend - a.min_spend);
+  return qualifying[0]?.points_multiplier ?? 1;
 };
 
 export const calculateRedemptionValue = (points: number, nairaPerPoint: number = 1) => {

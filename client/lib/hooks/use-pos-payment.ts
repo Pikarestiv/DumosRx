@@ -6,13 +6,16 @@ import { insert, update } from "@/lib/db/local-database";
 import { recordSaleItemStock } from "@/lib/db/queries/inventory";
 import { updatePrescriptionStatus, dispensePrescriptionRefill } from "@/lib/db/queries/prescriptions";
 import { CartItem, RedeemedOption } from "./use-pos-cart";
-import { calculateEarnedPoints, calculateLoyaltyPointsAfterSale } from "@/lib/utils/loyalty-calculator";
 import {
-  calculateTaxPercentage,
-  calculateSplitShortage,
-  calculateMixedAmountPaid,
-  calculateSalePaymentStatus,
-} from "@/lib/utils/pos-calculations";
+  validatePaymentReadiness,
+  computeEarnedPoints,
+  computeResellerCommission,
+  applyLoyaltyPointsForSale,
+  buildReceiptTransaction,
+  type PaymentMethod,
+  type PaymentSplit,
+} from "./use-pos-payment-helpers";
+import { calculateTaxPercentage, calculateMixedAmountPaid, calculateSalePaymentStatus } from "@/lib/utils/pos-calculations";
 import type { Customer } from "@/lib/types/customer";
 import type { ReceiptTransaction } from "@/components/pos/receipt-view";
 
@@ -48,6 +51,9 @@ interface UsePOSPaymentProps {
   /** Store-wide % of the markup remitted to the reseller - snapshotted onto
    * the sale at checkout time, never recalculated later. */
   resellerCommissionPercentage?: number;
+  /** Store-configurable base earn rate (points per currency unit spent),
+   * before any loyalty-tier multiplier is applied. */
+  loyaltyPointsPerCurrency?: number;
 }
 
 export function usePOSPayment({
@@ -72,16 +78,13 @@ export function usePOSPayment({
   canUseLoyaltyProgram = false,
   isResellerSale = false,
   resellerCommissionPercentage = 0,
+  loyaltyPointsPerCurrency = 0.01,
 }: UsePOSPaymentProps) {
-  const [paymentMethod, setPaymentMethod] = useState<
-    "cash" | "card" | "transfer" | "credit" | "mixed"
-  >("cash");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   const [amountPaid, setAmountPaid] = useState("");
   const [saleNote, setSaleNote] = useState("");
   const [selectedAccountId, setSelectedAccountId] = useState<string>("");
-  const [paymentSplits, setPaymentSplits] = useState<
-    { method: string; amount: number; accountId?: string }[]
-  >([]);
+  const [paymentSplits, setPaymentSplits] = useState<PaymentSplit[]>([]);
   const [processingPayment, setProcessingPayment] = useState(false);
   const [completedTransaction, setCompletedTransaction] =
     useState<ReceiptTransaction | null>(null);
@@ -99,47 +102,19 @@ export function usePOSPayment({
   }, [cart.length]);
 
   const handlePayment = async () => {
-    if (!paymentMethod) {
-      toast.error("Please select a payment method");
+    const validationError = validatePaymentReadiness({
+      paymentMethod,
+      requireSaleNotes,
+      saleNote,
+      amountPaid,
+      total,
+      paymentSplits,
+      requirePaymentAccount,
+      selectedAccountId,
+    });
+    if (validationError) {
+      toast.error(validationError);
       return;
-    }
-
-    if (requireSaleNotes && !saleNote.trim()) {
-      toast.error("Please add a note for this sale");
-      return;
-    }
-
-    if (paymentMethod === "cash") {
-      const paid = Number.parseFloat(amountPaid);
-      if (!paid || paid < total) {
-        toast.error("Insufficient payment amount");
-        return;
-      }
-    } else if (paymentMethod === "mixed") {
-      if (!calculateSplitShortage(paymentSplits, total).isFullyCovered) {
-        toast.error("Mixed payment splits do not cover the total amount");
-        return;
-      }
-
-      if (requirePaymentAccount) {
-        const missingAccount = paymentSplits.some(
-          (s) =>
-            (s.method === "card" || s.method === "transfer") && !s.accountId,
-        );
-        if (missingAccount) {
-          toast.error(
-            "Please select a destination account for all Card/Transfer splits",
-          );
-          return;
-        }
-      }
-    } else if (paymentMethod === "card" || paymentMethod === "transfer") {
-      if (requirePaymentAccount && !selectedAccountId) {
-        toast.error(
-          `Please select a destination account for this ${paymentMethod}`,
-        );
-        return;
-      }
     }
 
     setProcessingPayment(true);
@@ -148,29 +123,19 @@ export function usePOSPayment({
       const user = JSON.parse(localStorage.getItem("dumos_user") || "{}");
       const cashierId = user?.id || null;
       const transactionNumber = `TXN${Date.now()}`;
-      // Defense-in-depth: when the Loyalty Program gate (plan tier AND the
-      // store's own on/off toggle) is closed, no points are earned or
-      // recorded as redeemed at all — not just the loyalty_transactions
-      // ledger below, but the sale row itself, so a gated-off checkout
-      // never shows earned/redeemed points anywhere.
-      const earnedPoints =
-        selectedCustomer && canUseLoyaltyProgram
-          ? calculateEarnedPoints(total)
-          : 0;
 
-      // Markup is clamped to >= 0 by construction (updateUnitPrice never
-      // lets unit_price go below original_unit_price), but Math.max here is
-      // a second layer of defense, not the only one.
-      const resellerMarkup = isResellerSale
-        ? cart.reduce(
-            (sum, item) =>
-              sum + Math.max(0, item.unit_price - item.original_unit_price) * item.quantity,
-            0,
-          )
-        : 0;
-      const resellerCommissionAmount = isResellerSale
-        ? resellerMarkup * (resellerCommissionPercentage / 100)
-        : 0;
+      const earnedPoints = await computeEarnedPoints({
+        selectedCustomer,
+        canUseLoyaltyProgram,
+        total,
+        loyaltyPointsPerCurrency,
+      });
+
+      const { resellerMarkup, resellerCommissionAmount } = computeResellerCommission({
+        cart,
+        isResellerSale,
+        resellerCommissionPercentage,
+      });
 
       const saleId = await insert("sales", {
         transaction_number: transactionNumber,
@@ -229,6 +194,7 @@ export function usePOSPayment({
         is_reseller_sale: isResellerSale ? 1 : 0,
         reseller_commission_percentage: isResellerSale ? resellerCommissionPercentage : 0,
         reseller_commission_amount: resellerCommissionAmount,
+        reseller_markup_amount: resellerMarkup,
       });
 
       for (const item of cart) {
@@ -258,81 +224,30 @@ export function usePOSPayment({
         }
       }
 
-      if (
-        (earnedPoints > 0 || redeemedOption) &&
-        selectedCustomer &&
-        canUseLoyaltyProgram
-      ) {
-        await update("customers", selectedCustomer.id, {
-          loyalty_points: calculateLoyaltyPointsAfterSale(
-            selectedCustomer.loyalty_points || 0,
-            earnedPoints,
-            redeemedOption?.pointsCost || 0,
-          ),
-        });
-
-        if (earnedPoints > 0) {
-          await insert("loyalty_transactions", {
-            id: `loyalty_${Date.now()}_earn`,
-            customer_id: selectedCustomer.id,
-            points: earnedPoints,
-            type: "earned",
-            transaction_id: saleId,
-            created_at: new Date().toISOString(),
-          });
-        }
-
-        if (redeemedOption) {
-          await insert("loyalty_transactions", {
-            id: `loyalty_${Date.now()}_redeem`,
-            customer_id: selectedCustomer.id,
-            points: -redeemedOption.pointsCost,
-            type: "redeemed",
-            transaction_id: saleId,
-            created_at: new Date().toISOString(),
-          });
-        }
-      }
+      await applyLoyaltyPointsForSale({
+        selectedCustomer,
+        canUseLoyaltyProgram,
+        earnedPoints,
+        redeemedOption,
+        saleId,
+      });
 
       refetchProducts();
       if (refetchSales) refetchSales();
 
-      const transaction: ReceiptTransaction = {
-        id: saleId,
-        date: new Date().toISOString(),
-        customer: selectedCustomer
-          ? {
-              name: `${selectedCustomer.first_name} ${selectedCustomer.last_name || ""}`.trim(),
-              phone: selectedCustomer.phone,
-            }
-          : null,
-        cashier: user?.first_name
-          ? `${user.first_name} ${user.last_name || ""}`.trim()
-          : user?.username || "Cashier",
-        items: [...cart],
+      const transaction = buildReceiptTransaction({
+        saleId,
+        selectedCustomer,
+        cashierUser: user,
+        cart,
         subtotal,
         tax,
         discount,
         total,
         paymentMethod,
-        paymentSplits: paymentMethod === "mixed" ? paymentSplits : undefined,
-        amountPaid:
-          paymentMethod === "cash"
-            ? Number.parseFloat(amountPaid)
-            : paymentMethod === "mixed"
-              ? paymentSplits.reduce((acc, s) => acc + (s.amount || 0), 0)
-              : total,
-        change:
-          paymentMethod === "cash"
-            ? Math.max(0, Number.parseFloat(amountPaid) - total)
-            : paymentMethod === "mixed"
-              ? Math.max(
-                  0,
-                  paymentSplits.reduce((acc, s) => acc + (s.amount || 0), 0) -
-                    total,
-                )
-              : 0,
-      };
+        paymentSplits,
+        amountPaid,
+      });
 
       setCompletedTransaction(transaction);
       clearCart();

@@ -15,7 +15,8 @@ interface LockedModuleOverlayProps {
     | "loyalty_program"
     | "advanced_reports"
     | "reseller_commission"
-    | "daily_close_report";
+    | "daily_close_report"
+    | "smart_pos";
 }
 
 export function LockedModuleOverlay({ featureName, featureKey }: LockedModuleOverlayProps) {
@@ -28,6 +29,7 @@ export function LockedModuleOverlay({ featureName, featureKey }: LockedModuleOve
     canUseAdvancedReports,
     canUseResellerCommission,
     canUseDailyCloseReport,
+    canUseSmartPos,
     getUpgradeMessage
   } = useFeatureGate();
 
@@ -40,6 +42,7 @@ export function LockedModuleOverlay({ featureName, featureKey }: LockedModuleOve
   else if (featureKey === "advanced_reports") isLocked = !canUseAdvancedReports;
   else if (featureKey === "reseller_commission") isLocked = !canUseResellerCommission;
   else if (featureKey === "daily_close_report") isLocked = !canUseDailyCloseReport;
+  else if (featureKey === "smart_pos") isLocked = !canUseSmartPos;
 
   if (!isLocked) return null;
 

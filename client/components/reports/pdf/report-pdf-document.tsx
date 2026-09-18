@@ -70,6 +70,9 @@ interface ReportPdfDocumentProps {
   headers: string[];
   rows: Record<string, unknown>[];
   generatedAt: string;
+  /** Relative flex width per column, same length/order as `headers`.
+   * Defaults to equal widths when omitted. */
+  columnFlex?: number[];
 }
 
 export function ReportPdfDocument({
@@ -79,6 +82,7 @@ export function ReportPdfDocument({
   headers,
   rows,
   generatedAt,
+  columnFlex,
 }: ReportPdfDocumentProps) {
   return (
     <Document>
@@ -96,6 +100,7 @@ export function ReportPdfDocument({
                 key={h}
                 style={[
                   styles.cell,
+                  { flex: columnFlex?.[i] ?? 1 },
                   i === headers.length - 1 ? { borderRightWidth: 0 } : {},
                 ]}
               >
@@ -123,6 +128,7 @@ export function ReportPdfDocument({
                   key={h}
                   style={[
                     styles.cell,
+                    { flex: columnFlex?.[i] ?? 1 },
                     i === headers.length - 1 ? { borderRightWidth: 0 } : {},
                   ]}
                 >

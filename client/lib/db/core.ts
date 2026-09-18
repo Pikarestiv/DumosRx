@@ -282,7 +282,10 @@ const SYNC_COLUMN_MIGRATIONS: { table: string; columns: string[] }[] = [
       "is_reseller_sale INTEGER DEFAULT 0",
       "reseller_commission_percentage REAL DEFAULT 0",
       "reseller_commission_amount REAL DEFAULT 0",
+      "reseller_markup_amount REAL DEFAULT 0",
       "reseller_commission_redeemed INTEGER DEFAULT 0",
+      "reseller_commission_redeemed_amount REAL DEFAULT 0",
+      "reseller_commission_claim_type TEXT",
       "reseller_commission_redeemed_at TEXT",
       "reseller_commission_redeemed_by TEXT",
     ],
@@ -511,6 +514,10 @@ const SYNC_COLUMN_MIGRATIONS: { table: string; columns: string[] }[] = [
       // loyalty program see zero behavior change - only a store that
       // explicitly flips this off in Settings gets paused.
       "loyalty_program_enabled INTEGER DEFAULT 1",
+      // The rate calculateEarnedPoints() multiplies a sale's total by - 0.01
+      // preserves the previously-hardcoded 1-point-per-100-currency rate for
+      // every existing store until they change it in Loyalty Settings.
+      "loyalty_points_per_currency REAL DEFAULT 0.01",
       // DEFAULT 1 (ON): product/category names are always stored lowercase
       // now, so without this every store would see an abrupt all-lowercase
       // catalog the moment this shipped, instead of the uppercase-via-CSS

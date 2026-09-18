@@ -30,10 +30,10 @@ describe("getCustomers total_spent", () => {
     db = new SQL.Database();
     db.run(`
       CREATE TABLE customers (
-        id TEXT PRIMARY KEY, first_name TEXT, last_name TEXT, _deleted INTEGER DEFAULT 0
+        id TEXT PRIMARY KEY, first_name TEXT, last_name TEXT, store_id TEXT, _deleted INTEGER DEFAULT 0
       );
       CREATE TABLE sales (
-        id TEXT PRIMARY KEY, customer_id TEXT, total_amount REAL, transaction_date TEXT,
+        id TEXT PRIMARY KEY, customer_id TEXT, store_id TEXT, total_amount REAL, transaction_date TEXT,
         _deleted INTEGER DEFAULT 0
       );
       CREATE TABLE returns (
@@ -45,6 +45,7 @@ describe("getCustomers total_spent", () => {
 
   beforeEach(() => {
     db.run(`DELETE FROM customers; DELETE FROM sales; DELETE FROM returns;`);
+    core.setActiveStoreId(null);
   });
 
   it("subtracts refunds from total_spent instead of counting the gross sale amount", async () => {
@@ -95,6 +96,97 @@ describe("getCustomers total_spent", () => {
 
     expect(customers[0].total_spent).toBe(1000);
   });
+
+  it("counts a customer's sales as visit_count", async () => {
+    db.run(`INSERT INTO customers (id, first_name, last_name) VALUES ('c1', 'Jane', 'Doe')`);
+    db.run(`INSERT INTO sales (id, customer_id, total_amount, transaction_date) VALUES
+      ('s1', 'c1', 1000, '2026-01-01'),
+      ('s2', 'c1', 500, '2026-01-02'),
+      ('s3', 'c1', 200, '2026-01-03')`);
+
+    const customers = await getCustomers();
+
+    expect(customers[0].visit_count).toBe(3);
+  });
+
+  it("reports visit_count 0 for a customer with no sales yet", async () => {
+    db.run(`INSERT INTO customers (id, first_name, last_name) VALUES ('c1', 'Jane', 'Doe')`);
+
+    const customers = await getCustomers();
+
+    expect(customers[0].visit_count).toBe(0);
+  });
+
+  it("excludes another store's sales from total_spent/visit_count on a multi-store device", async () => {
+    db.run(
+      `INSERT INTO customers (id, first_name, last_name, store_id) VALUES ('c1', 'Jane', 'Doe', 'store-a')`,
+    );
+    db.run(`INSERT INTO sales (id, customer_id, store_id, total_amount, transaction_date) VALUES
+      ('s1', 'c1', 'store-a', 1000, '2026-01-01'),
+      ('s2', 'c1', 'store-b', 99999, '2026-01-02')`);
+
+    core.setActiveStoreId("store-a");
+    const customers = await getCustomers();
+
+    expect(customers[0].total_spent).toBe(1000);
+    expect(customers[0].visit_count).toBe(1);
+  });
+});
+
+describe("getCustomerTotalSpent", () => {
+  let db: Database;
+  let core: typeof import("@/lib/db/core");
+  let getCustomerTotalSpent: typeof import("@/lib/db/queries/customers").getCustomerTotalSpent;
+
+  beforeAll(async () => {
+    core = await import("@/lib/db/core");
+    const customers = await import("@/lib/db/queries/customers");
+    getCustomerTotalSpent = customers.getCustomerTotalSpent;
+
+    const SQL = await initSqlJs({
+      locateFile: () => require.resolve("sql.js/dist/sql-wasm.wasm"),
+    });
+    db = new SQL.Database();
+    db.run(`
+      CREATE TABLE sales (
+        id TEXT PRIMARY KEY, customer_id TEXT, store_id TEXT, total_amount REAL, _deleted INTEGER DEFAULT 0
+      );
+      CREATE TABLE returns (
+        id TEXT PRIMARY KEY, sale_id TEXT, total_refunded REAL, _deleted INTEGER DEFAULT 0
+      );
+    `);
+    core.__setDatabaseForTesting(db);
+  });
+
+  beforeEach(() => {
+    db.run(`DELETE FROM sales; DELETE FROM returns;`);
+    core.setActiveStoreId(null);
+  });
+
+  it("sums net-of-refunds spend for a single customer, scoped away from other customers", async () => {
+    db.run(`INSERT INTO sales (id, customer_id, total_amount) VALUES
+      ('s1', 'c1', 1000),
+      ('s2', 'c1', 500),
+      ('s3', 'c2', 9999)`);
+    db.run(`INSERT INTO returns (id, sale_id, total_refunded) VALUES ('r1', 's1', 300)`);
+
+    // (1000 - 300) + 500 = 1200 for c1; c2's 9999 must not leak in.
+    expect(await getCustomerTotalSpent("c1")).toBe(1200);
+  });
+
+  it("returns 0 for a customer with no sales", async () => {
+    expect(await getCustomerTotalSpent("nobody")).toBe(0);
+  });
+
+  it("excludes another store's sales on a multi-store device, even for the same customer_id", async () => {
+    db.run(`INSERT INTO sales (id, customer_id, store_id, total_amount) VALUES
+      ('s1', 'c1', 'store-a', 1000),
+      ('s2', 'c1', 'store-b', 99999)`);
+
+    core.setActiveStoreId("store-a");
+
+    expect(await getCustomerTotalSpent("c1")).toBe(1000);
+  });
 });
 
 describe("getCustomerRetentionMetrics avgTransactionValue", () => {
@@ -125,6 +217,7 @@ describe("getCustomerRetentionMetrics avgTransactionValue", () => {
 
   beforeEach(() => {
     db.run(`DELETE FROM sales; DELETE FROM returns;`);
+    core.setActiveStoreId(null);
   });
 
   it("nets refunds out of the revenue used to compute avg transaction value", async () => {

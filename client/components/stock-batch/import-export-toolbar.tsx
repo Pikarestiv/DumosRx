@@ -173,7 +173,7 @@ export function ImportExportToolbar({
         open={showColumnPicker}
         onOpenChange={setShowColumnPicker}
         onConfirm={(columns) => {
-          if (pendingFormat) runExport(pendingFormat, columns);
+          if (pendingFormat) void runExport(pendingFormat, columns);
           setPendingFormat(null);
         }}
       />

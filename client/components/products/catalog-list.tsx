@@ -279,7 +279,7 @@ export function CatalogList({
                         categoryOptions={categoryOptions}
                         canEdit={canManageStockBatch}
                         hasTouchCapability={hasTouchCapability}
-                        onSave={saveCategory}
+                        onSave={(prod, category) => void saveCategory(prod, category)}
                       />
                       <div className="text-[13px] font-medium text-muted-foreground">
                         {product.costPrice > 0
@@ -294,7 +294,7 @@ export function CatalogList({
                         widthClassName="w-20"
                         canEdit={canManageStockBatch}
                         hasTouchCapability={hasTouchCapability}
-                        onSave={(val) => saveSellingPrice(product, val)}
+                        onSave={(val) => void saveSellingPrice(product, val)}
                       />
                       <EditableQuickNumberCell
                         displayValue={`${product.stockQuantity} ${product.baseUnit || "unit"}${product.stockQuantity === 1 ? "" : "s"}`}
@@ -303,7 +303,7 @@ export function CatalogList({
                         parse={(raw) => parseInt(raw, 10)}
                         canEdit={canManageStockBatch}
                         hasTouchCapability={hasTouchCapability}
-                        onSave={(val) => saveStockQuantity(product, val)}
+                        onSave={(val) => void saveStockQuantity(product, val)}
                       />
                       <EditableQuickNumberCell
                         displayValue={String(product.reorderLevel)}
@@ -312,7 +312,7 @@ export function CatalogList({
                         parse={(raw) => parseInt(raw, 10)}
                         canEdit={canManageStockBatch}
                         hasTouchCapability={hasTouchCapability}
-                        onSave={(val) => saveReorderLevel(product, val)}
+                        onSave={(val) => void saveReorderLevel(product, val)}
                       />
                     </div>
                   </div>

@@ -31,7 +31,7 @@ export function TauriTitleBar() {
 
   return (
     <div
-      onMouseDown={handleMouseDown}
+      onMouseDown={(e) => void handleMouseDown(e)}
       className={cn(
         "tauri-titlebar fixed top-0 left-0 right-0 h-10 z-[9999] flex items-center select-none bg-background/80 backdrop-blur-md border-b border-border/50 transition-colors",
         isMac ? "flex-row-reverse pl-0 pr-4" : "flex-row justify-between",
@@ -62,17 +62,17 @@ export function TauriTitleBar() {
       >
         {isMac && (
           <MacWindowControls
-            onClose={handleClose}
-            onMinimize={handleMinimize}
-            onMaximize={handleMaximize}
+            onClose={() => void handleClose()}
+            onMinimize={() => void handleMinimize()}
+            onMaximize={() => void handleMaximize()}
           />
         )}
         {!isMac && (
           <WindowsWindowControls
             isMaximized={isMaximized}
-            onMinimize={handleMinimize}
-            onMaximize={handleMaximize}
-            onClose={handleClose}
+            onMinimize={() => void handleMinimize()}
+            onMaximize={() => void handleMaximize()}
+            onClose={() => void handleClose()}
           />
         )}
       </div>

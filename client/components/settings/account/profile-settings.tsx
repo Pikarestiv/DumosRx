@@ -124,7 +124,7 @@ export function ProfileSettings() {
               <X className="h-4 w-4 mr-2" />
               Cancel
             </Button>
-            <Button onClick={handleSave} disabled={updateProfile.isPending}>
+            <Button onClick={() => void handleSave()} disabled={updateProfile.isPending}>
               {updateProfile.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Save Changes
             </Button>

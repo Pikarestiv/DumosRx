@@ -27,7 +27,13 @@ import {
   type ImportResult,
 } from "@/lib/db/queries/product-import";
 
-type Step = "pick-file" | "pick-sheet" | "map-columns" | "importing" | "result";
+type Step =
+  | "pick-file"
+  | "pick-sheet"
+  | "map-columns"
+  | "confirm-duplicates"
+  | "importing"
+  | "result";
 
 interface ImportMappingDialogProps {
   open: boolean;
@@ -56,6 +62,7 @@ export function ImportMappingDialog({
   const [progress, setProgress] = useState({ completed: 0, total: 0 });
   const [result, setResult] = useState<ImportResult | null>(null);
   const [updateStockForMatched, setUpdateStockForMatched] = useState(false);
+  const [duplicateNames, setDuplicateNames] = useState<string[]>([]);
   const { user } = useAuth();
 
   const reset = () => {
@@ -67,6 +74,7 @@ export function ImportMappingDialog({
     setProgress({ completed: 0, total: 0 });
     setResult(null);
     setUpdateStockForMatched(false);
+    setDuplicateNames([]);
   };
 
   const handleOpenChange = (next: boolean) => {
@@ -97,16 +105,18 @@ export function ImportMappingDialog({
       .map((row) => mapRowToProduct(row, mapping))
       .filter((row): row is ProductImportRow => row !== null);
 
-  const handleConfirmImport = async () => {
+  const handleImportClick = () => {
     const validRows = mappedRows();
     const duplicateGroups = findInFileDuplicates(validRows);
     if (duplicateGroups.length > 0) {
-      const proceed = window.confirm(
-        `${duplicateGroups.length} product name(s) appear more than once in this file with the same category. Importing anyway will merge them into one product (last row wins). Continue?`,
-      );
-      if (!proceed) return;
+      setDuplicateNames(duplicateGroups.map((group) => validRows[group[0]].name));
+      setStep("confirm-duplicates");
+      return;
     }
+    void runImport(validRows);
+  };
 
+  const runImport = async (validRows: ProductImportRow[]) => {
     setProgress({ completed: 0, total: validRows.length });
     setStep("importing");
     try {
@@ -150,7 +160,7 @@ export function ImportMappingDialog({
               accept=".csv,.xls,.xlsx"
               onChange={(e) => {
                 const file = e.target.files?.[0];
-                if (file) handleFile(file);
+                if (file) void handleFile(file);
               }}
             />
           </div>
@@ -242,8 +252,40 @@ export function ImportMappingDialog({
               >
                 Back
               </Button>
-              <Button onClick={handleConfirmImport}>
+              <Button onClick={handleImportClick}>
                 Import {rows.length} Row(s)
+              </Button>
+            </div>
+          </>
+        )}
+
+        {step === "confirm-duplicates" && (
+          <>
+            <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-900 p-3">
+              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-500" />
+              <p className="text-sm">
+                <strong>{duplicateNames.length}</strong> product name(s)
+                appear more than once in this file with the same category.
+                Importing anyway will merge each set into one product (last
+                row wins).
+              </p>
+            </div>
+            <div className="flex flex-col gap-1 max-h-40 overflow-y-auto text-xs text-muted-foreground">
+              {duplicateNames.map((name) => (
+                <div key={name} className="truncate" title={name}>
+                  {name}
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setStep("map-columns")}
+              >
+                Back
+              </Button>
+              <Button onClick={() => void runImport(mappedRows())}>
+                Import Anyway
               </Button>
             </div>
           </>

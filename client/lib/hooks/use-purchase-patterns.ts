@@ -9,10 +9,9 @@ export function usePurchasePatterns(dateFilter: string, filters?: SalesFilters) 
     queryFn: () => getPurchasePatterns(dateFilter, filters)
   });
 
-  const timeSlotData = metrics?.timeSlotData || [];
-  const slotCategoryData = metrics?.slotCategoryData || [];
-
   const purchasePatterns = useMemo(() => {
+    const timeSlotData = metrics?.timeSlotData || [];
+    const slotCategoryData = metrics?.slotCategoryData || [];
     return timeSlotData.map((slot) => {
       const topCat = slotCategoryData.find((c) => c.slot === slot.slot);
       return {
@@ -22,7 +21,7 @@ export function usePurchasePatterns(dateFilter: string, filters?: SalesFilters) 
         topCategory: topCat?.category || "N/A",
       };
     });
-  }, [timeSlotData, slotCategoryData]);
+  }, [metrics?.timeSlotData, metrics?.slotCategoryData]);
 
   return purchasePatterns;
 }

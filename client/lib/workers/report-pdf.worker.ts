@@ -17,6 +17,7 @@ import type { ReportPdfInput } from "@/lib/utils/report-pdf";
  * file, so the worker's actual DedicatedWorkerGlobalScope shape is accessed
  * through an escape hatch instead of fighting the type checker over it.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const ctx: any = self;
 
 interface PdfWorkerRequest extends ReportPdfInput {

@@ -99,7 +99,7 @@ export async function sync(
       // migrated to the factory.
       if (pullResult.updatedTables && pullResult.updatedTables.length > 0) {
         const updated = pullResult.updatedTables;
-        queryClient.invalidateQueries({
+        void queryClient.invalidateQueries({
           predicate: (q) => {
             const tables = q.meta?.tables as string[] | undefined;
             return !tables || tables.some((t) => updated.includes(t));
@@ -241,8 +241,8 @@ export async function syncSubscriptionStatus(): Promise<{
     // variant of these queries regardless of which store/user they're
     // scoped to: invalidateQueries does prefix matching by default.
     if (typeof window !== "undefined") {
-      queryClient.invalidateQueries({ queryKey: ["storeProfile"] });
-      queryClient.invalidateQueries({ queryKey: ["allStores"] });
+      void queryClient.invalidateQueries({ queryKey: ["storeProfile"] });
+      void queryClient.invalidateQueries({ queryKey: ["allStores"] });
       window.dispatchEvent(new CustomEvent("dumos_subscription_updated"));
     }
 

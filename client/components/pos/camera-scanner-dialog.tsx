@@ -61,7 +61,7 @@ export function CameraScannerDialog({
           camera ? { deviceId: { exact: camera.id } } : { facingMode: "environment" },
           { fps: 10, qrbox: { width: 260, height: 160 }, disableFlip: false },
           (decodedText) => {
-            stopScanner();
+            void stopScanner();
             onScanSuccess(decodedText);
             onClose();
           },
@@ -85,7 +85,7 @@ export function CameraScannerDialog({
 
   useEffect(() => {
     if (!isOpen) {
-      stopScanner();
+      void stopScanner();
       setState("prompt");
       setTorchOn(false);
       setTorchSupported(false);
@@ -93,7 +93,7 @@ export function CameraScannerDialog({
       return;
     }
     return () => {
-      stopScanner();
+      void stopScanner();
     };
   }, [isOpen, stopScanner]);
 
@@ -113,7 +113,7 @@ export function CameraScannerDialog({
     if (cameraCount < 2) return;
     await stopScanner();
     cameraIndexRef.current = (cameraIndexRef.current + 1) % cameraCount;
-    startScanner(cameraIndexRef.current);
+    void startScanner(cameraIndexRef.current);
   };
 
   return (
@@ -161,7 +161,7 @@ export function CameraScannerDialog({
               {torchSupported && (
                 <button
                   type="button"
-                  onClick={toggleTorch}
+                  onClick={() => void toggleTorch()}
                   className="flex items-center justify-center h-10 w-10 rounded-full bg-black/60 text-white backdrop-blur-sm hover:bg-black/70 transition-colors"
                 >
                   {torchOn ? (
@@ -174,7 +174,7 @@ export function CameraScannerDialog({
               {cameraCount > 1 && (
                 <button
                   type="button"
-                  onClick={switchCamera}
+                  onClick={() => void switchCamera()}
                   className="flex items-center justify-center h-10 w-10 rounded-full bg-black/60 text-white backdrop-blur-sm hover:bg-black/70 transition-colors"
                 >
                   <RefreshCw className="h-5 w-5" />
@@ -195,7 +195,7 @@ export function CameraScannerDialog({
                 We only use your camera to scan barcodes; nothing is recorded or stored.
               </p>
             </div>
-            <Button onClick={() => startScanner(0)}>Enable Camera</Button>
+            <Button onClick={() => void startScanner(0)}>Enable Camera</Button>
           </div>
         )}
 
@@ -221,7 +221,7 @@ export function CameraScannerDialog({
                   : "Something went wrong starting the camera. Please try again."}
               </p>
             </div>
-            <Button variant="outline" onClick={() => startScanner(0)}>
+            <Button variant="outline" onClick={() => void startScanner(0)}>
               Try Again
             </Button>
           </div>

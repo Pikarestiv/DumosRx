@@ -51,6 +51,9 @@ export function ServerSelector() {
   const [appUrl, setAppUrlInput] = useState<string>("");
 
   useEffect(() => {
+    // getBaseURL()/getAppURL() reflect localStorage overrides that aren't
+    // available during SSR, so they can only be read post-mount.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCurrentUrl(getBaseURL());
     setAppUrlInput(getAppURL());
   }, []);

@@ -49,7 +49,7 @@ export function RegisterConfigCard({
       checked: requireSaleNotes,
       onCheckedChange: (checked) => {
         setRequireSaleNotes(checked);
-        updateStoreProfile({ require_sale_notes: checked ? 1 : 0 });
+        void updateStoreProfile({ require_sale_notes: checked ? 1 : 0 });
       },
     },
     {
@@ -59,7 +59,7 @@ export function RegisterConfigCard({
       checked: displayStockLevels,
       onCheckedChange: (checked) => {
         setDisplayStockLevels(checked);
-        updateStoreProfile({ display_stock_levels: checked ? 1 : 0 });
+        void updateStoreProfile({ display_stock_levels: checked ? 1 : 0 });
       },
     },
     {
@@ -69,7 +69,7 @@ export function RegisterConfigCard({
       checked: uppercaseDisplayEnabled,
       onCheckedChange: (checked) => {
         setUppercaseDisplayEnabled(checked);
-        updateStoreProfile({ uppercase_display_enabled: checked ? 1 : 0 });
+        void updateStoreProfile({ uppercase_display_enabled: checked ? 1 : 0 });
       },
     },
   ];

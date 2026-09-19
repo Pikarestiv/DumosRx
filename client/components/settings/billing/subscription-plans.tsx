@@ -51,7 +51,7 @@ export function SubscriptionPlans() {
   useEffect(() => {
     const refreshStatus = () => {
       if (document.visibilityState === "visible") {
-        queryClient.invalidateQueries(queryKeys.billing.status());
+        void queryClient.invalidateQueries(queryKeys.billing.status());
         setPaymentTabOpen(false);
       }
     };
@@ -147,7 +147,7 @@ export function SubscriptionPlans() {
           appliedCoupon={appliedCoupon}
           setAppliedCoupon={setAppliedCoupon}
           validatingCoupon={validatingCoupon}
-          handleValidateCoupon={handleValidateCoupon}
+          handleValidateCoupon={() => void handleValidateCoupon()}
         />
       </div>
 
@@ -167,7 +167,7 @@ export function SubscriptionPlans() {
             discountedPrice={getDiscountedPrice(plan.numericPrice, appliedCoupon, userCredits)}
             formatPrice={formatPrice}
             currentPlanName={subStatus?.plan}
-            onSubscribe={handleSubscribe}
+            onSubscribe={(planId, amount, planName) => void handleSubscribe(planId, amount, planName)}
             onDowngradeRequest={setDowngradePlan}
             isCurrentPlanHigherWeight={(planId) => isCurrentPlanHigherWeight(planId, subStatus?.plan)}
             loading={loading}
@@ -184,7 +184,7 @@ export function SubscriptionPlans() {
         confirmLabel="Yes, Downgrade"
         variant="destructive"
         onConfirm={() => {
-          if (downgradePlan) handleSubscribe(downgradePlan.id, downgradePlan.amount, downgradePlan.name);
+          if (downgradePlan) void handleSubscribe(downgradePlan.id, downgradePlan.amount, downgradePlan.name);
         }}
       />
     </div>

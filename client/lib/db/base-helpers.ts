@@ -27,7 +27,7 @@ import type { SyncQueueItem } from "@/lib/types/sync";
 // factory anywhere is strictly an improvement, never a regression.
 function invalidateQueriesForTable(table: string) {
   if (typeof window === "undefined") return;
-  queryClient.invalidateQueries({
+  void queryClient.invalidateQueries({
     predicate: (q) => {
       const tables = q.meta?.tables as string[] | undefined;
       return !tables || tables.includes(table);

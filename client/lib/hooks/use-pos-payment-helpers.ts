@@ -6,7 +6,7 @@ import {
   calculateLoyaltyPointsAfterSale,
   getApplicableTierMultiplier,
 } from "@/lib/utils/loyalty-calculator";
-import { calculateSplitShortage } from "@/lib/utils/pos-calculations";
+import { calculateSplitShortage, calculateMixedAmountPaid, calculateMixedChangeDue } from "@/lib/utils/pos-calculations";
 import { CartItem, RedeemedOption } from "./use-pos-cart";
 import type { Customer } from "@/lib/types/customer";
 import type { ReceiptTransaction } from "@/components/pos/receipt-view";
@@ -149,7 +149,6 @@ export async function applyLoyaltyPointsForSale(params: {
 
   if (earnedPoints > 0) {
     await insert("loyalty_transactions", {
-      id: `loyalty_${Date.now()}_earn`,
       customer_id: selectedCustomer.id,
       points: earnedPoints,
       type: "earned",
@@ -160,7 +159,6 @@ export async function applyLoyaltyPointsForSale(params: {
 
   if (redeemedOption) {
     await insert("loyalty_transactions", {
-      id: `loyalty_${Date.now()}_redeem`,
       customer_id: selectedCustomer.id,
       points: -redeemedOption.pointsCost,
       type: "redeemed",
@@ -220,16 +218,13 @@ export function buildReceiptTransaction(params: {
       paymentMethod === "cash"
         ? Number.parseFloat(amountPaid)
         : paymentMethod === "mixed"
-          ? paymentSplits.reduce((acc, s) => acc + (s.amount || 0), 0)
+          ? calculateMixedAmountPaid(paymentSplits)
           : total,
     change:
       paymentMethod === "cash"
         ? Math.max(0, Number.parseFloat(amountPaid) - total)
         : paymentMethod === "mixed"
-          ? Math.max(
-              0,
-              paymentSplits.reduce((acc, s) => acc + (s.amount || 0), 0) - total,
-            )
+          ? calculateMixedChangeDue(paymentSplits, total)
           : 0,
   };
 }

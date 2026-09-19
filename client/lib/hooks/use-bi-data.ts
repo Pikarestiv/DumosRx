@@ -12,6 +12,8 @@ import { formatCurrency } from "@/lib/utils";
 import { useStore } from "@/lib/context/store-context";
 import type { DateRangeValue } from "@/components/ui/date-range-picker";
 
+const CATEGORY_CHART_COLORS = ["#0ea5e9", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"];
+
 /** @param dateRange - defaults to the last 180 days when `from` is unset.
  * The previous-period comparison window is the same length immediately
  * before `from` (e.g. a 30-day range compares against the 30 days before
@@ -120,12 +122,14 @@ export function useBIData(dateRange?: DateRangeValue, filters?: SalesFilters) {
     [metrics?.cashierPerformance],
   );
 
-  const colors = ["#0ea5e9", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"];
-  const categoryDistribution = metrics?.categoryDistribution || [];
+  const categoryDistribution = useMemo(
+    () => metrics?.categoryDistribution || [],
+    [metrics?.categoryDistribution],
+  );
   const formattedCategoryData = useMemo(() => {
     return categoryDistribution.map((item, index) => ({
       ...item,
-      color: colors[index % colors.length],
+      color: CATEGORY_CHART_COLORS[index % CATEGORY_CHART_COLORS.length],
     }));
   }, [categoryDistribution]);
 
@@ -169,6 +173,7 @@ export function useBIData(dateRange?: DateRangeValue, filters?: SalesFilters) {
       avgTransactionChange,
       customerChange,
       retentionRate,
+      currencyCode,
     ],
   );
 

@@ -86,7 +86,7 @@ export function RefundsListModal({
               <TableRow
                 key={ret.id}
                 className="cursor-pointer hover:bg-muted/50"
-                onClick={() => handleRowClick(ret)}
+                onClick={() => void handleRowClick(ret)}
               >
                 <TableCell>
                   {ret.created_at

@@ -80,7 +80,7 @@ export function PrescriptionManagement() {
             onEdit={handleEdit}
             onDispense={handleDispense}
             onDispenseRefill={handleDispenseRefill}
-            onProcessReturn={handleProcessReturn}
+            onProcessReturn={(prescription) => void handleProcessReturn(prescription)}
             isProcessingReturn={
               processingReturnRxId === selectedPrescription?.id
             }

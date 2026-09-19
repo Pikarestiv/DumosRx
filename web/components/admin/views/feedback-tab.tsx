@@ -193,7 +193,7 @@ export function FeedbackTab() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setPage((p) => Math.min(data.meta!.last_page, p + 1))}
+              onClick={() => setPage((p) => Math.min(data.meta?.last_page ?? p, p + 1))}
               disabled={data.meta.current_page >= data.meta.last_page}
             >
               Next

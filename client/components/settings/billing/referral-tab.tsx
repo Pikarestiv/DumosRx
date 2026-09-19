@@ -20,7 +20,7 @@ export function ReferralTab() {
 
   const copyReferralLink = () => {
     if (!referralLink) return;
-    navigator.clipboard.writeText(referralLink);
+    void navigator.clipboard.writeText(referralLink);
     setCopied(true);
     toast.success("Referral link copied to clipboard!");
     setTimeout(() => setCopied(false), 2000);

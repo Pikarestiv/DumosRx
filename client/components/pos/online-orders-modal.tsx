@@ -51,9 +51,9 @@ export function OnlineOrdersModal() {
     fulfillOrderMutation.mutate(
       { order, storeId: user?.store_id, cashierId: user?.id },
       {
-        onSuccess: async () => {
+        onSuccess: () => {
           toast.success("Order fulfilled and recorded locally");
-          await fetchOrders();
+          void fetchOrders();
         },
         onError: (e) => {
           console.error(e);

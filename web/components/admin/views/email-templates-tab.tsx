@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { webApiClient } from "@/lib/api/client";
 import {
   useAdminEmailTemplates,
@@ -14,7 +14,7 @@ import type { EmailTemplate } from "@/lib/types/admin";
 
 export function EmailTemplatesTab() {
   const { data: response, isLoading: loading } = useAdminEmailTemplates();
-  const templates = response?.templates || [];
+  const templates = useMemo(() => response?.templates || [], [response]);
   const [selectedTemplate, setSelectedTemplate] =
     useState<EmailTemplate | null>(null);
   const [subject, setSubject] = useState("");
@@ -44,7 +44,11 @@ export function EmailTemplatesTab() {
 
   useEffect(() => {
     if (templates.length > 0 && !selectedTemplate) {
-      loadTemplateDetails(templates[0].id);
+      // loadTemplateDetails is async and only calls setState after its
+      // await, so this isn't actually a synchronous set-state-in-effect;
+      // the rule can't see across the function boundary.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      void loadTemplateDetails(templates[0].id);
     }
   }, [templates, selectedTemplate]);
 
@@ -246,7 +250,7 @@ export function EmailTemplatesTab() {
         <TemplateList
           templates={templates}
           selectedTemplate={selectedTemplate}
-          loadTemplateDetails={loadTemplateDetails}
+          loadTemplateDetails={(id) => void loadTemplateDetails(id)}
         />
 
         {/* Right pane: Editor & Sandbox */}

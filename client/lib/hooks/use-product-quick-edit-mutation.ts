@@ -54,7 +54,7 @@ export function useQuickEditProductMutation() {
       return update("products", id, payload);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.categories.list().queryKey });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.categories.list().queryKey });
     },
   });
 }

@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
+import { DatePickerInput } from "@/components/ui/date-picker-input";
 import { TRIAL_DURATIONS } from "@/lib/constants";
 
 const CUSTOM_DATE_OPTION = "custom_date";
@@ -91,12 +91,11 @@ export function SharedGrantTrialDialog({
           {isCustomDate && (
             <div className="grid gap-3">
               <Label>Expires on</Label>
-              <Input
-                type="date"
-                className="h-12 rounded-xl"
+              <DatePickerInput
+                inputClassName="h-12 rounded-xl"
                 value={customEndDate}
-                min={new Date().toISOString().split("T")[0]}
-                onChange={(e) => setCustomEndDate(e.target.value)}
+                disablePast
+                onChange={setCustomEndDate}
               />
             </div>
           )}

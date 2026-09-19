@@ -29,7 +29,7 @@ export function useRequestAccountDeletionMutation() {
       apiClient.requestAccountDeletion({ reason, password }),
     onSuccess: () => {
       toast.success("Account deletion requested successfully.");
-      queryClient.invalidateQueries(queryKeys.account.currentUser());
+      void queryClient.invalidateQueries(queryKeys.account.currentUser());
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : "Failed to request account deletion");
@@ -43,7 +43,7 @@ export function useCancelAccountDeletionMutation() {
     mutationFn: () => apiClient.cancelAccountDeletion(),
     onSuccess: () => {
       toast.success("Account deletion request cancelled successfully.");
-      queryClient.invalidateQueries(queryKeys.account.currentUser());
+      void queryClient.invalidateQueries(queryKeys.account.currentUser());
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : "Failed to cancel deletion request");

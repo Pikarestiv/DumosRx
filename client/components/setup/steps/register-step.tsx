@@ -76,7 +76,7 @@ export function RegisterStep({
     }
     setPasswordError("");
 
-    onRegister(
+    void onRegister(
       firstName.trim(),
       lastName.trim(),
       username.trim().toLowerCase(),

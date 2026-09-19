@@ -22,10 +22,10 @@ export function useDailyCloseData(reportDate: string) {
     queryFn: () => getDailyCloseData(reportDate)
   });
 
-  const rawSalesToday = dailyCloseData?.salesToday || [];
-  const itemsToday = dailyCloseData?.itemsToday || [];
-  const returnsToday = dailyCloseData?.returnsToday || [];
-  const returnItemsToday = dailyCloseData?.returnItemsToday || [];
+  const rawSalesToday = useMemo(() => dailyCloseData?.salesToday || [], [dailyCloseData?.salesToday]);
+  const itemsToday = useMemo(() => dailyCloseData?.itemsToday || [], [dailyCloseData?.itemsToday]);
+  const returnsToday = useMemo(() => dailyCloseData?.returnsToday || [], [dailyCloseData?.returnsToday]);
+  const returnItemsToday = useMemo(() => dailyCloseData?.returnItemsToday || [], [dailyCloseData?.returnItemsToday]);
 
   // itemsToday already has every line item for the day (product_name
   // included) - reuse it to attach a "||"-joined item_names string per sale,
@@ -47,7 +47,7 @@ export function useDailyCloseData(reportDate: string) {
     queryFn: () => getPaymentAccounts()
   });
 
-  const paymentAccounts = paymentAccountsData || [];
+  const paymentAccounts = useMemo(() => paymentAccountsData || [], [paymentAccountsData]);
 
   const { aggregatedTotals, totalProfit, topSellingMeds } = useMemo(() => {
     const totals = {
@@ -114,7 +114,35 @@ export function useDailyCloseData(reportDate: string) {
       const method = ret.payment_method?.toLowerCase();
 
       if (method === "mixed") {
-        totals.cash -= ret.total_refunded;
+        // The return flow has no way to record which specific method(s) a
+        // refund actually came back out of (no payment-method picker on a
+        // return), but the original sale's own payment_details.splits tells
+        // us how it was actually collected - reuse that instead of assuming
+        // it was all cash. Prorated across every original split
+        // (credit included) by its share of the sale, same treatment a
+        // pure-credit sale's refund already gets below: reducing `credit`
+        // here is debt forgiveness, not a cash-drawer event, but it keeps
+        // "credit extended today" consistent with a full refund actually
+        // writing that credit back off, the same as the non-mixed case.
+        let mixedDetails: { splits?: PaymentSplitEntry[] } | null = null;
+        try {
+          if (ret.payment_details) mixedDetails = JSON.parse(ret.payment_details);
+        } catch (e) {
+          console.error("Error parsing payment details on return", e);
+        }
+        const splits = (mixedDetails?.splits || []).filter((s) => s.amount > 0);
+        const splitsTotal = splits.reduce((sum, s) => sum + s.amount, 0);
+        if (splitsTotal > 0) {
+          splits.forEach((split) => {
+            const splitMethod = split.method?.toLowerCase();
+            const share = (split.amount / splitsTotal) * ret.total_refunded;
+            if (totals[splitMethod as keyof typeof totals] !== undefined) {
+              (totals as Record<"cash" | "card" | "transfer" | "credit" | "total" | "refunds", number>)[
+                splitMethod as "cash" | "card" | "transfer" | "credit" | "total" | "refunds"
+              ] -= share;
+            }
+          });
+        }
       } else if (
         totals[method as keyof typeof totals] !== undefined &&
         method !== "total" &&

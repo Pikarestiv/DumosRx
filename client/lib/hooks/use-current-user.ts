@@ -15,7 +15,7 @@ export function useUpdateProfileMutation() {
     mutationFn: (payload: { first_name: string; last_name: string; phone?: string | null }) =>
       apiClient.updateProfile(payload),
     onSuccess: () => {
-      queryClient.invalidateQueries(queryKeys.account.currentUser());
+      void queryClient.invalidateQueries(queryKeys.account.currentUser());
     },
   });
 }

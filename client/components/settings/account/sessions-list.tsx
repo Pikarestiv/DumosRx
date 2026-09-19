@@ -66,7 +66,7 @@ export function SessionsList() {
           <CardDescription>Everywhere you&apos;re currently logged in.</CardDescription>
         </div>
         {sessions.length > 1 && (
-          <Button variant="outline" size="sm" onClick={handleRevokeAll} disabled={revokeAll.isPending}>
+          <Button variant="outline" size="sm" onClick={() => void handleRevokeAll()} disabled={revokeAll.isPending}>
             {revokeAll.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             Log out of all other devices
           </Button>
@@ -115,7 +115,7 @@ export function SessionsList() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => handleRevoke(session.id)}
+                    onClick={() => void handleRevoke(session.id)}
                     disabled={revokeSession.isPending}
                   >
                     <LogOut className="h-4 w-4 mr-2" />

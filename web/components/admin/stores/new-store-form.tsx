@@ -56,7 +56,7 @@ export function NewStoreForm() {
     setError(null);
     createStoreMutation.mutate(values, {
       onSuccess: () => {
-        fetchSummary(true);
+        void fetchSummary(true);
         setRegisteredStore({
           storeName: values.store_name,
           username: values.username,
@@ -92,7 +92,7 @@ export function NewStoreForm() {
       )}
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <form onSubmit={(e) => void form.handleSubmit(onSubmit)(e)} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <FormField
               control={form.control}

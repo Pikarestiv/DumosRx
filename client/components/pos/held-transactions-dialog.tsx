@@ -47,9 +47,9 @@ export function HeldTransactionsDialog({
 
   useEffect(() => {
     if (isOpen) {
-      loadHeldTransactions();
+      void loadHeldTransactions();
     }
-  }, [isOpen]);
+  }, [isOpen, loadHeldTransactions]);
 
   const handleDelete = (id: string) => {
     if (deleteMutation.isPending) return;

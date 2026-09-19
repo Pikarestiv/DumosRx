@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Download,
   ShieldAlert,
@@ -32,6 +32,7 @@ export default function StoresManagement() {
 
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState(initialSearch);
+  const [prevInitialSearch, setPrevInitialSearch] = useState(initialSearch);
   const [statusFilter, setStatusFilter] = useState("all");
   const [planFilter, setPlanFilter] = useState("all");
   const [selectedStore, setSelectedStore] = useState<AdminStoreSummary | null>(null);
@@ -55,11 +56,12 @@ export default function StoresManagement() {
   const markDemoMutation = useMarkStoreDemoMutation();
   const unmarkDemoMutation = useUnmarkStoreDemoMutation();
 
-  useEffect(() => {
+  if (initialSearch !== prevInitialSearch) {
+    setPrevInitialSearch(initialSearch);
     if (initialSearch && initialSearch !== search) {
       setSearch(initialSearch);
     }
-  }, [initialSearch]);
+  }
 
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= (response?.meta?.last_page || 1)) {
@@ -88,7 +90,7 @@ export default function StoresManagement() {
     a.click();
   };
 
-  const handleSuspend = async (reason: string) => {
+  const handleSuspend = (reason: string) => {
     if (!selectedStore) return;
     
     suspendMutation.mutate({ id: selectedStore.id, reason }, {
@@ -98,7 +100,7 @@ export default function StoresManagement() {
         });
         setIsSuspendDialogOpen(false);
         setSelectedStore(null);
-        refetch();
+        void refetch();
       },
       onError: (err) => {
         toast.error("Action Failed", {
@@ -108,13 +110,13 @@ export default function StoresManagement() {
     });
   };
 
-  const handleUnsuspend = async (store: AdminStoreSummary) => {
+  const handleUnsuspend = (store: AdminStoreSummary) => {
     unsuspendMutation.mutate(store.id, {
       onSuccess: () => {
         toast.success("Account Re-activated", {
           description: `${store.name} has been re-activated successfully.`,
         });
-        refetch();
+        void refetch();
       },
       onError: (err) => {
         toast.error("Action Failed", {
@@ -124,7 +126,7 @@ export default function StoresManagement() {
     });
   };
 
-  const handleGrantTrial = async (plan: string, duration?: string, endDate?: string) => {
+  const handleGrantTrial = (plan: string, duration?: string, endDate?: string) => {
     if (!selectedStore) return;
 
     grantTrialMutation.mutate({ id: selectedStore.id, plan, duration, endDate }, {
@@ -135,7 +137,7 @@ export default function StoresManagement() {
         });
         setIsTrialDialogOpen(false);
         setSelectedStore(null);
-        refetch();
+        void refetch();
       },
       onError: (err) => {
         toast.error("Action Failed", {
@@ -167,31 +169,33 @@ export default function StoresManagement() {
     }
 
     impersonateMutation.mutate(store.id, {
-      onSuccess: async (data) => {
-        try {
-          const adminToken = useAdminAuthStore.getState().token;
-          if (!adminToken) {
-            toast.error("Impersonation Failed", {
-              description: "No active admin session to hand back to.",
+      onSuccess: (data) => {
+        void (async () => {
+          try {
+            const adminToken = useAdminAuthStore.getState().token;
+            if (!adminToken) {
+              toast.error("Impersonation Failed", {
+                description: "No active admin session to hand back to.",
+              });
+              return;
+            }
+
+            const [{ code: userCode }, { code: returnCode }] = await Promise.all([
+              webApiClient.createHandoffCode(data.token),
+              webApiClient.createHandoffCode(adminToken),
+            ]);
+
+            toast.success("Impersonation Successful", {
+              description: `Logged in as ${data.user.name}. Redirecting...`,
             });
-            return;
+
+            window.location.href = `${getAppURL()}/auth/callback?code=${userCode}&return_code=${returnCode}`;
+          } catch (_err) {
+            toast.error("Impersonation Failed", {
+              description: "Could not hand off session to the app.",
+            });
           }
-
-          const [{ code: userCode }, { code: returnCode }] = await Promise.all([
-            webApiClient.createHandoffCode(data.token),
-            webApiClient.createHandoffCode(adminToken),
-          ]);
-
-          toast.success("Impersonation Successful", {
-            description: `Logged in as ${data.user.name}. Redirecting...`,
-          });
-
-          window.location.href = `${getAppURL()}/auth/callback?code=${userCode}&return_code=${returnCode}`;
-        } catch (_err) {
-          toast.error("Impersonation Failed", {
-            description: "Could not hand off session to the app.",
-          });
-        }
+        })();
       },
       onError: (err) => {
         toast.error("Impersonation Failed", {
@@ -208,7 +212,7 @@ export default function StoresManagement() {
         toast.success(store.is_demo ? "Demo Flag Removed" : "Marked as Demo", {
           description: `${store.name} ${store.is_demo ? "is no longer" : "is now"} flagged as a demo account.`,
         });
-        refetch();
+        void refetch();
       },
       onError: (err) => {
         toast.error("Action Failed", {
@@ -277,7 +281,7 @@ export default function StoresManagement() {
                 <ShieldAlert className="h-10 w-10 text-rose-500" />
                 <p className="text-rose-500 font-bold">{error instanceof Error ? error.message : "Sync error"}</p>
                 <Button
-                  onClick={() => refetch()}
+                  onClick={() => void refetch()}
                   variant="outline"
                 >
                   Retry

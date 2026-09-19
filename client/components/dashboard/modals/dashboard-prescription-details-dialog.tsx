@@ -45,7 +45,7 @@ export function DashboardPrescriptionDetailsDialog({
 
   useEffect(() => {
     if (prescription?.id && open) {
-      getPrescriptionItems(prescription.id).then((res) => setItems(res || []));
+      getPrescriptionItems(prescription.id).then((res) => setItems(res || [])).catch(() => {});
     } else if (!open) {
       setItems([]);
     }

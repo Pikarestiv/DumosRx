@@ -144,6 +144,9 @@ export function PrescriptionDetailPanel({
             </Button>
           </div>
         );
+      case "cancelled":
+      case "on_hold":
+      case "partially_dispensed":
       default:
         return null;
     }

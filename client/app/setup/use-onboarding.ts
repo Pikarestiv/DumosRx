@@ -240,7 +240,7 @@ export function useOnboarding() {
           localStorage.setItem("dumos_active_store_id", store.id);
           setActiveStoreId(store.id);
           setStep("syncing");
-          startSyncProcess(email);
+          void startSyncProcess(email);
         } else {
           // Multiple stores, transition to select-store step
           setCloudStores(stores);
@@ -280,7 +280,7 @@ export function useOnboarding() {
     localStorage.setItem("dumos_active_store_id", selectedStoreId);
     setActiveStoreId(selectedStoreId);
     setStep("syncing");
-    startSyncProcess(pendingEmail);
+    void startSyncProcess(pendingEmail);
   };
 
   const confirmCloudRestoreSwitch = async () => {
@@ -297,7 +297,7 @@ export function useOnboarding() {
       }
 
       setStep("syncing");
-      startSyncProcess(pendingEmail);
+      void startSyncProcess(pendingEmail);
     } catch (_err) {
       console.error("Cloud restore switch failed", _err);
       toast.error("Failed to clear database for new store");

@@ -274,11 +274,20 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
                   }
                   onLoginAsOther={() => {
                     unlock();
-                    router.push("/login?mode=new");
+                    // Hard navigation, not router.push: this overlay sits on
+                    // top of whatever authenticated page was already
+                    // rendered, and a client-side push left that page's
+                    // content visible under the new /login URL instead of
+                    // swapping to the sign-in form (reproduced — see
+                    // KNOWN_BUGS.md). A full navigation forces a fresh
+                    // mount, matching what a manual reload already fixed it
+                    // to.
+                    window.location.href = "/login?mode=new";
                   }}
                   onSetUpNewDevice={() => {
                     unlock();
-                    router.push("/login?tab=setup&step=cloud");
+                    // Same reasoning as onLoginAsOther above.
+                    window.location.href = "/login?tab=setup&step=cloud";
                   }}
                   onUnlockSuccess={() => unlock()}
                 />

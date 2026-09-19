@@ -40,7 +40,7 @@ export function usePOSReturnDeepLink({
       newParams.delete("return_sale");
       router.replace(`${pathname}?${newParams.toString()}`);
     };
-    loadSale();
+    loadSale().catch((err) => console.error("Failed to load sale for return:", err));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 }

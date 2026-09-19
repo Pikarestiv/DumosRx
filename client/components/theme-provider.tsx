@@ -56,7 +56,7 @@ export function ThemeProvider({
         invoke("set_nav_bar_light", { isLight: resolvedTheme === "light" }).catch(
           () => {},
         );
-      });
+      }).catch(() => {});
     }
   }, [theme]);
 

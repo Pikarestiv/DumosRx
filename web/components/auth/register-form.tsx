@@ -53,7 +53,7 @@ export function RegisterForm() {
       )}
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)}>
+        <form onSubmit={(e) => void form.handleSubmit(onSubmit)(e)}>
           <motion.div
             variants={container}
             initial="hidden"

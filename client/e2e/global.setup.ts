@@ -6,8 +6,8 @@ setup('create mock store and extract database', async ({ page }) => {
   // Go to setup page
   await page.goto('/setup');
 
-  // We should be on the welcome step. Click "Create New Store"
-  await page.getByRole('button', { name: /Create New Store/i }).click();
+  // We should be on the welcome step. Click "Set Up New Business"
+  await page.getByRole('button', { name: /Set Up New Business/i }).click();
 
   // Now on Register step
   await page.getByLabel(/Store Name|Shop Name/i).fill('E2E Test Store');

@@ -118,7 +118,7 @@ export function ProductDatabase() {
   ];
 
   const { handleAddProduct, isSaving } = useAddProduct({
-    refetch,
+    refetch: () => void refetch(),
     setShowAddDialog,
   });
 
@@ -241,7 +241,7 @@ export function ProductDatabase() {
             categories={categories}
             statuses={statuses}
             onManageCategories={() => setShowManageCategories(true)}
-            onProductsImported={refetch}
+            onProductsImported={() => void refetch()}
             filteredProductIds={isFiltering ? filteredProducts.map((p) => p.id) : undefined}
           />
           <CatalogList
@@ -255,7 +255,7 @@ export function ProductDatabase() {
             sortKey={sortKey}
             sortDirection={direction}
             onToggleSort={toggleSort}
-            onProductUpdated={refetch}
+            onProductUpdated={() => void refetch()}
           />
         </div>
       </div>

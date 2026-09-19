@@ -106,7 +106,7 @@ export default function GlobalProductsManagement() {
     });
   };
 
-  const handleStandardize = async () => {
+  const handleStandardize = () => {
     toast.info("Standardization Started", {
       description: "Scanning catalog for inconsistencies...",
     });
@@ -234,7 +234,7 @@ export default function GlobalProductsManagement() {
               productList={productList}
               isLoading={isLoading}
               error={error}
-              refetch={refetch}
+              refetch={() => void refetch()}
             />
           </div>
 

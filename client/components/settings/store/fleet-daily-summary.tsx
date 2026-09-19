@@ -45,7 +45,7 @@ export function FleetDailySummary() {
         </div>
       )}
       {canSendSummary && (
-        <Button variant="outline" onClick={handleSend} disabled={sending}>
+        <Button variant="outline" onClick={() => void handleSend()} disabled={sending}>
           {sending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
           Send Daily Summary
         </Button>

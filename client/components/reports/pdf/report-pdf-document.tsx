@@ -44,6 +44,7 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRightWidth: 1,
     borderColor: "#e5e5e5",
+    overflow: "hidden",
   },
   headerCell: {
     fontWeight: 700,

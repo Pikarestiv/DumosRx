@@ -36,7 +36,8 @@ const eslintConfig = defineConfig([
       "react-hooks/exhaustive-deps": "warn",
       "react-hooks/set-state-in-effect": "warn",
       "react/no-unescaped-entities": "off",
-      "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/no-non-null-assertion": "warn",
       "eqeqeq": ["warn", "smart"]
     }
   },
@@ -50,6 +51,8 @@ const eslintConfig = defineConfig([
     rules: {
       "@typescript-eslint/no-floating-promises": "warn",
       "@typescript-eslint/no-misused-promises": "warn",
+      "@typescript-eslint/require-await": "warn",
+      "@typescript-eslint/switch-exhaustiveness-check": "warn",
     },
   },
   // Override default ignores of eslint-config-next.

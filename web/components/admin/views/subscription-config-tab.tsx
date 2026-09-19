@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Card,
   CardContent,
@@ -58,14 +58,18 @@ export function SubscriptionConfigTab() {
   const [socialLinks, setSocialLinks] = useState<SocialLinksConfig>(
     DEFAULT_SOCIAL_LINKS,
   );
+  const [prevServerConfig, setPrevServerConfig] = useState(serverConfig);
+  const [prevSocialConfig, setPrevSocialConfig] = useState(socialConfig);
 
-  useEffect(() => {
+  if (serverConfig !== prevServerConfig) {
+    setPrevServerConfig(serverConfig);
     if (serverConfig) setConfig(mergeSubscriptionConfig(serverConfig));
-  }, [serverConfig]);
+  }
 
-  useEffect(() => {
+  if (socialConfig !== prevSocialConfig) {
+    setPrevSocialConfig(socialConfig);
     if (socialConfig) setSocialLinks(mergeSocialLinks(socialConfig));
-  }, [socialConfig]);
+  }
 
   const handleSave = async () => {
     try {
@@ -280,7 +284,7 @@ export function SubscriptionConfigTab() {
         </CardContent>
         <CardFooter className="bg-slate-50 dark:bg-slate-800/50 p-4 border-t flex justify-end">
           <Button
-            onClick={handleSave}
+            onClick={() => void handleSave()}
             disabled={updateMutation.isPending}
             className="bg-indigo-600 hover:bg-indigo-700"
           >
@@ -297,7 +301,7 @@ export function SubscriptionConfigTab() {
       <SocialLinksConfigCard
         socialLinks={socialLinks}
         setSocialLinks={setSocialLinks}
-        onSave={handleSaveSocial}
+        onSave={() => void handleSaveSocial()}
         isSaving={updateMutation.isPending}
       />
     </div>

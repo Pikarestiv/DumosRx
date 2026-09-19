@@ -55,7 +55,7 @@ export function QuickSetupWizard() {
       return;
     }
 
-    updateStoreProfile({
+    void updateStoreProfile({
       store_type: storeType,
       name: storeName,
       location,

@@ -10,8 +10,8 @@ export function CTASection() {
           Ready to modernize your store?
         </h2>
         <p className="text-xl text-primary-foreground/80 mb-10 max-w-2xl mx-auto">
-          Join hundreds of stores across Nigeria using DumosRx to
-          increase profits and improve patient care.
+          Join numerouss stores across Africa using DumosRx to increase profits
+          and optimize business operations.
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
           <Button

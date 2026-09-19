@@ -55,18 +55,18 @@ export function MultiStoreCard() {
   // data as soon as that pull does complete, instead of serving a cache
   // that never refreshes.
   const invalidateStoreCaches = () => {
-    queryClient.invalidateQueries({ queryKey: ["allStores"] });
-    queryClient.invalidateQueries({ queryKey: ["storeProfile"] });
+    void queryClient.invalidateQueries({ queryKey: ["allStores"] });
+    void queryClient.invalidateQueries({ queryKey: ["storeProfile"] });
   };
 
   const handleMutationSuccess = () => {
-    loadStores();
+    void loadStores();
     invalidateStoreCaches();
   };
 
   useEffect(() => {
     if (canManageMultiStore) {
-      loadStores();
+      void loadStores();
     }
   }, [canManageMultiStore]);
 

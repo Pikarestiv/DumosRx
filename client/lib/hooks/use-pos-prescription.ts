@@ -71,7 +71,7 @@ export function usePOSPrescription({
           toast.error("Failed to load prescription.");
         }
       };
-      loadPrescription();
+      void loadPrescription();
     }
   }, [searchParams, products, cartLength, restoreCart, router, pathname]);
 

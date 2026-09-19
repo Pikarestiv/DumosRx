@@ -29,8 +29,8 @@ export function usePayMutation() {
   return useMutation({
     mutationFn: (payload: PaymentPayload) => apiClient.pay(payload),
     onSuccess: () => {
-      queryClient.invalidateQueries(queryKeys.billing.status());
-      queryClient.invalidateQueries(queryKeys.billing.history());
+      void queryClient.invalidateQueries(queryKeys.billing.status());
+      void queryClient.invalidateQueries(queryKeys.billing.history());
     },
   });
 }
@@ -47,7 +47,7 @@ export function useVerifyPaymentMutation() {
   return useMutation({
     mutationFn: (reference: string) => apiClient.verifyPayment(reference),
     onSuccess: () => {
-      queryClient.invalidateQueries(queryKeys.billing.status());
+      void queryClient.invalidateQueries(queryKeys.billing.status());
     },
   });
 }

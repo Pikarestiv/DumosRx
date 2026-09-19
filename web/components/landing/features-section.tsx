@@ -25,7 +25,7 @@ export function FeaturesSection() {
             Everything you need to run a modern store
           </h3>
           <p className="text-lg text-muted-foreground leading-relaxed">
-            We&apos;ve built DumosRx specifically for the Nigerian market,
+            We&apos;ve built DumosRx specifically for the African market,
             focusing on the real-world challenges you face every day.
           </p>
         </div>

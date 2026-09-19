@@ -11,6 +11,7 @@ import {
   calculateNetSaleAmount,
   calculateAvgBasket,
   calculateMixedAmountPaid,
+  calculateMixedChangeDue,
   calculateSalePaymentStatus,
 } from '@/lib/utils/pos-calculations';
 
@@ -211,6 +212,47 @@ describe('POS Calculations', () => {
       expect(calculateSalePaymentStatus('cash', [])).toBe('completed');
       expect(calculateSalePaymentStatus('card', [])).toBe('completed');
       expect(calculateSalePaymentStatus('transfer', [])).toBe('completed');
+    });
+  });
+
+  describe('Mixed-payment change due (excludes credit from the amount that can produce change)', () => {
+    it('gives no change when a credit split alone covers the shortfall exactly', () => {
+      // ₦10,000 total: ₦3,000 cash + ₦7,000 credit. Nothing was overpaid.
+      const splits = [
+        { method: 'cash', amount: 3000 },
+        { method: 'credit', amount: 7000 },
+      ];
+      expect(calculateMixedChangeDue(splits, 10000)).toBe(0);
+    });
+
+    it('does not treat an over-allocated credit split as cash overpayment', () => {
+      // Regression: a ₦10,000 sale with ₦5,000 cash entered, then a credit
+      // split auto-filled to the full ₦10,000 remaining before the cashier
+      // corrected it, previously computed change from the raw split total
+      // (5000 + 10000 = 15000 -&gt; "change: 5000"), handing out cash that was
+      // never actually tendered. Only the ₦5,000 cash was real money; it
+      // doesn't cover the ₦10,000 total, so no change is due.
+      const splits = [
+        { method: 'cash', amount: 5000 },
+        { method: 'credit', amount: 10000 },
+      ];
+      expect(calculateMixedChangeDue(splits, 10000)).toBe(0);
+    });
+
+    it('gives change from a real overpayment on the non-credit tender', () => {
+      // ₦10,000 total, ₦12,000 cash, no credit: ₦2,000 change is real.
+      const splits = [{ method: 'cash', amount: 12000 }];
+      expect(calculateMixedChangeDue(splits, 10000)).toBe(2000);
+    });
+
+    it('gives change computed only from the non-credit portion when both cash and credit are present', () => {
+      // ₦10,000 total, ₦11,000 cash (genuinely overpaid), ₦0 credit but a
+      // stray zero-amount credit split shouldn't affect the result.
+      const splits = [
+        { method: 'cash', amount: 11000 },
+        { method: 'credit', amount: 0 },
+      ];
+      expect(calculateMixedChangeDue(splits, 10000)).toBe(1000);
     });
   });
 });

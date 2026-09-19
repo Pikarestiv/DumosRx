@@ -25,7 +25,7 @@ export function SendNotificationDialog({
   const [notifyTitle, setNotifyTitle] = useState("Administrative Message");
   const [notifyMessage, setNotifyMessage] = useState("");
 
-  const handleSendNotification = async () => {
+  const handleSendNotification = () => {
     if (!selectedUser || !notifyMessage || !notifyTitle) return;
     notifyMutation.mutate(
       {

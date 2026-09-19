@@ -95,10 +95,10 @@ export const useAdminAuthStore = create<AdminAuthState>()(
         set({ user: null, token: null });
         setAdminToken(null);
         // The backend should clear the cookie on its logout route
-        webApiClient.request("/logout", { method: "POST" });
+        webApiClient.request("/logout", { method: "POST" }).catch(() => {});
         // Without this, cached admin/platform query data from the outgoing
         // session stays in memory and gets served to whoever logs in next.
-        queryClient.cancelQueries();
+        void queryClient.cancelQueries();
         queryClient.clear();
       },
     }),

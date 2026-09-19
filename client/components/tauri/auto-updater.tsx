@@ -35,16 +35,20 @@ export function AutoUpdater() {
         setIsMobile(mobile);
         
         if (mobile) {
-          checkMobileUpdate();
+          void checkMobileUpdate();
         } else {
-          checkForUpdates(true);
+          void checkForUpdates(true);
         }
       }).catch((e) => {
         console.error("Failed to load plugin-os", e);
         // Fallback to desktop check
-        checkForUpdates(true);
+        void checkForUpdates(true);
       });
     }
+    // Intentionally runs once on mount only — this is the app-startup
+    // update check, not something that should re-fire as checkForUpdates'
+    // identity changes across renders.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const checkMobileUpdate = async () => {
@@ -63,7 +67,7 @@ export function AutoUpdater() {
       }
     } catch (error) {
       console.error("Failed to check mobile updates", error);
-      logCrash(`[Updater] Failed to check mobile updates: ${error}`);
+      void logCrash(`[Updater] Failed to check mobile updates: ${error}`);
     }
   };
 
@@ -91,7 +95,7 @@ export function AutoUpdater() {
         } else {
           // Minor/Patch update: silent background download
           setStatus("downloading-silent");
-          installUpdate(update, true);
+          void installUpdate(update, true);
         }
       } else {
         if (!silent) {
@@ -101,7 +105,7 @@ export function AutoUpdater() {
       }
     } catch (error) {
       console.error("Failed to check for updates", error);
-      logCrash(`[Updater] Failed to check for updates: ${error}`);
+      void logCrash(`[Updater] Failed to check for updates: ${error}`);
       if (!silent) {
         setStatus("error");
         setTimeout(() => setStatus("idle"), 5000);
@@ -138,14 +142,16 @@ export function AutoUpdater() {
         setStatus("ready-to-restart");
       } else {
         toast.success("Update installed successfully. Restarting application...");
-        setTimeout(async () => {
-          const { relaunch } = await import("@tauri-apps/plugin-process");
-          await relaunch();
+        setTimeout(() => {
+          void (async () => {
+            const { relaunch } = await import("@tauri-apps/plugin-process");
+            await relaunch();
+          })();
         }, 1500);
       }
     } catch (error) {
       console.error("Failed to install update", error);
-      logCrash(
+      void logCrash(
         `[Updater] Failed to download/install update to v${updateToInstall?.version}: ${error}`,
       );
       if (!silent) toast.error("Failed to install the update.");
@@ -174,7 +180,7 @@ export function AutoUpdater() {
     return (
       <div className="fixed bottom-6 right-6 z-50 group">
         <button 
-          onClick={() => checkForUpdates(false)}
+          onClick={() => void checkForUpdates(false)}
           className="flex items-center gap-2 px-3 py-2 bg-background/90 backdrop-blur-md border border-accent/20 dark:border-white/10 shadow-sm rounded-full text-xs font-medium text-muted-foreground hover:text-foreground hover:shadow-md transition-all hover:bg-accent/5 dark:hover:bg-white/5"
         >
           {status === "up-to-date" && <><CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> Up to date</>}
@@ -220,7 +226,7 @@ export function AutoUpdater() {
           </p>
           <div className="flex gap-2 justify-end pt-1">
             <Button size="sm" variant="ghost" onClick={() => setStatus("idle")} className="text-xs">Later</Button>
-            <Button size="sm" onClick={() => installUpdate()} className="text-xs font-bold px-4">
+            <Button size="sm" onClick={() => void installUpdate()} className="text-xs font-bold px-4">
               Update Now
             </Button>
           </div>
@@ -234,7 +240,7 @@ export function AutoUpdater() {
           </p>
           <div className="flex gap-2 justify-end pt-1">
             <Button size="sm" variant="ghost" onClick={() => setStatus("idle")} className="text-xs">Later</Button>
-            <Button size="sm" onClick={performRestart} className="text-xs font-bold px-4 bg-emerald-600 hover:bg-emerald-700">
+            <Button size="sm" onClick={() => void performRestart()} className="text-xs font-bold px-4 bg-emerald-600 hover:bg-emerald-700">
               Restart to Apply
             </Button>
           </div>

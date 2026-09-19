@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import { getDeviceId } from "@/lib/utils/device-id";
 import {
@@ -44,7 +44,7 @@ function ThemeRestrictor() {
         setTheme("light");
       }
       if (storeProfile && storeProfile.theme !== "default") {
-        updateStoreProfile({ theme: "default" });
+        void updateStoreProfile({ theme: "default" });
       }
     }
   }, [currentTier, theme, storeProfile, setTheme, updateStoreProfile]);
@@ -132,7 +132,7 @@ function MobileRestrictionGuard() {
         if (!cancelled) setIsNativeMobile(false);
       }
     };
-    detectPlatform();
+    void detectPlatform();
     return () => {
       cancelled = true;
     };
@@ -227,7 +227,7 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [deviceId, setDeviceId] = useState("DUMOS-OFFLINE-772X");
 
-  const performCheck = async (trigger: string) => {
+  const performCheck = useCallback(async (trigger: string) => {
     // TEMP DIAGNOSTIC (remove once splashscreen-on-navigation is root-caused)
     console.log(`[LicenseGuard] performCheck start (trigger=${trigger}, pathname=${pathname})`);
     setLoading(true);
@@ -250,7 +250,7 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
     setLoading(false);
     // TEMP DIAGNOSTIC (remove once splashscreen-on-navigation is root-caused)
     console.log(`[LicenseGuard] performCheck end (trigger=${trigger}, pathname=${pathname})`);
-  };
+  }, [pathname]);
 
   // Generate or load device ID on mount
   useEffect(() => {
@@ -267,11 +267,12 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
       suspension_reason: storeProfile?.suspension_reason,
       subscription_tier: storeProfile?.subscription_tier,
     });
-    performCheck("status-effect");
+    void performCheck("status-effect");
   }, [
     storeProfile?.status,
     storeProfile?.suspension_reason,
     storeProfile?.subscription_tier,
+    performCheck,
   ]);
 
   if (loading) {
@@ -343,7 +344,7 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
             <>
               <Button
                 className="w-full bg-accent hover:bg-accent/90 font-bold"
-                onClick={() => performCheck("manual-button")}
+                onClick={() => void performCheck("manual-button")}
               >
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Check Again
@@ -363,7 +364,7 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
           {isSuspended && (
             <Button
               className="w-full bg-accent hover:bg-accent/90 font-bold"
-              onClick={() => performCheck("manual-button")}
+              onClick={() => void performCheck("manual-button")}
             >
               <RefreshCw className="h-4 w-4 mr-2" />
               Refresh Account Status

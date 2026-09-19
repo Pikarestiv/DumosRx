@@ -141,7 +141,7 @@ export function SecuritySettings({
               />
             </div>
             <div className="pt-2">
-              <Button onClick={onSubmit} className="w-full">
+              <Button onClick={() => void onSubmit()} className="w-full">
                 Save New PIN
               </Button>
             </div>

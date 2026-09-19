@@ -28,7 +28,7 @@ export function useStockBatchManagement(currentTab: string) {
     if (currentTab === "ledger" && !canManageStockBatch) {
       router.replace("/inventory/overview");
     }
-  }, [currentTab, canManageStockBatch, router]);
+  }, [currentTab, canManageStockBatch, router, setIsAuditing]);
 
   // The sidebar's own <Link> only ever prefetches "/inventory" (wherever it
   // points), never the *other* tabs reachable once you're already on this

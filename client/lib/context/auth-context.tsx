@@ -110,6 +110,12 @@ export const checkCanViewAllActivity = (role?: string) => {
   return ["admin", "store_owner"].includes(normalizedRole);
 };
 
+// Gates Factory Reset (Settings > Data): narrower than checkIsAdmin (which
+// also passes "manager") - wiping local data and disconnecting cloud sync
+// shouldn't be unilateral for anyone but the owner/main admin account.
+export const checkCanFactoryReset = (role?: string) =>
+  !!role && ["admin", "store_owner", "super_admin"].includes(role.toLowerCase().replace(/[^a-z_]/g, ""));
+
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -232,7 +238,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // rendering under the incoming user's session until they went stale.
       // cancelQueries() first since clear() alone doesn't abort a fetch
       // already in flight from the outgoing user.
-      queryClient.cancelQueries();
+      void queryClient.cancelQueries();
       queryClient.clear();
 
       setUser(userProfile);
@@ -384,7 +390,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Same reasoning as login(): whoever was on this device before must not
     // have their cached queries served to the incoming session. cancelQueries()
     // first since clear() alone doesn't abort an in-flight fetch.
-    queryClient.cancelQueries();
+    void queryClient.cancelQueries();
     queryClient.clear();
 
     setUser(userProfile);
@@ -417,7 +423,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // cancelQueries() first: clear() alone doesn't abort an in-flight
     // fetch, which could otherwise resolve after the next login and
     // repopulate a store/user-unscoped query key.
-    queryClient.cancelQueries();
+    void queryClient.cancelQueries();
     queryClient.clear();
   };
 

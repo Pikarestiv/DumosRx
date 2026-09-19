@@ -44,7 +44,7 @@ export function AdminHeaderSearch() {
   const [showResults, setShowResults] = useState(false);
 
   useEffect(() => {
-    const delayDebounceFn = setTimeout(async () => {
+    const runSearch = async () => {
       if (searchQuery.length >= 2) {
         setIsSearching(true);
         try {
@@ -76,7 +76,9 @@ export function AdminHeaderSearch() {
         setSearchResults(null);
         setShowResults(false);
       }
-    }, 300);
+    };
+
+    const delayDebounceFn = setTimeout(() => void runSearch(), 300);
 
     return () => clearTimeout(delayDebounceFn);
   }, [searchQuery]);

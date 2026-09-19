@@ -45,7 +45,7 @@ export function PaymentSettingsCard({
       ? [...enabledPaymentMethods, id]
       : enabledPaymentMethods.filter((m) => m !== id);
     setEnabledPaymentMethods(next);
-    updateStoreProfile({ enabled_payment_methods: JSON.stringify(next) });
+    void updateStoreProfile({ enabled_payment_methods: JSON.stringify(next) });
   };
 
   return (
@@ -110,7 +110,7 @@ export function PaymentSettingsCard({
             checked={requirePaymentAccount}
             onCheckedChange={(checked) => {
               setRequirePaymentAccount(checked);
-              updateStoreProfile({ require_payment_account: checked ? 1 : 0 });
+              void updateStoreProfile({ require_payment_account: checked ? 1 : 0 });
             }}
           />
         </div>

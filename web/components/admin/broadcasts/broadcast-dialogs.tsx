@@ -2,6 +2,7 @@ import { Megaphone, Edit } from "lucide-react";
 import { UserSelector } from "@/components/admin/user-selector";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DatePickerInput } from "@/components/ui/date-picker-input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
@@ -73,11 +74,10 @@ function BroadcastFormFields({ formData, setFormData }: { formData: BroadcastFor
         </div>
         <div className="space-y-2">
           <Label className="font-bold text-xs uppercase tracking-widest text-slate-400 pl-1">Expiry Date</Label>
-          <Input 
-            type="date"
-            className="rounded-2xl h-12 border-slate-200 dark:border-slate-800 font-bold"
+          <DatePickerInput
+            inputClassName="rounded-2xl h-12 border-slate-200 dark:border-slate-800 font-bold"
             value={formData.expires_at}
-            onChange={(e) => setFormData({...formData, expires_at: e.target.value})}
+            onChange={(val) => setFormData({...formData, expires_at: val})}
           />
         </div>
       </div>

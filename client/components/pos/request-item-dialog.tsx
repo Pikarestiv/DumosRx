@@ -133,7 +133,7 @@ export function RequestItemDialog({
           </div>
         }
       >
-        <form id="request-item-form" onSubmit={handleSubmit}>
+        <form id="request-item-form" onSubmit={(e) => void handleSubmit(e)}>
           <div className="grid gap-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="name">

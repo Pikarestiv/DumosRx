@@ -47,7 +47,7 @@ export const useUpdateReferralsSettingsMutation = () => {
         body: settings,
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["referrals-settings"] });
+      void queryClient.invalidateQueries({ queryKey: ["referrals-settings"] });
     },
   });
 };
@@ -66,9 +66,9 @@ export const useAdjustReferralsCreditsMutation = () => {
         body: payload,
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["referrals-summary"] });
-      queryClient.invalidateQueries({ queryKey: ["referrals-relationships"] });
-      queryClient.invalidateQueries({ queryKey: ["referrals-transactions"] });
+      void queryClient.invalidateQueries({ queryKey: ["referrals-summary"] });
+      void queryClient.invalidateQueries({ queryKey: ["referrals-relationships"] });
+      void queryClient.invalidateQueries({ queryKey: ["referrals-transactions"] });
     },
   });
 };
@@ -90,7 +90,7 @@ export const useGenerateCouponMutation = () => {
         body: payload,
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-coupons"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-coupons"] });
     },
   });
 };
@@ -104,7 +104,7 @@ export const useUpdateCouponMutation = () => {
         body: payload,
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-coupons"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-coupons"] });
     },
   });
 };
@@ -117,7 +117,7 @@ export const useToggleCouponMutation = () => {
         method: "PUT",
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-coupons"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-coupons"] });
     },
   });
 };
@@ -130,7 +130,7 @@ export const useDeleteCouponMutation = () => {
         method: "DELETE",
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-coupons"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-coupons"] });
     },
   });
 };

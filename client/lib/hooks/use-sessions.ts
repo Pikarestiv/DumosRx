@@ -14,7 +14,7 @@ export function useRevokeSessionMutation() {
   return useMutation({
     mutationFn: (id: string) => apiClient.revokeSession(id),
     onSuccess: () => {
-      queryClient.invalidateQueries(queryKeys.account.sessions());
+      void queryClient.invalidateQueries(queryKeys.account.sessions());
     },
   });
 }
@@ -24,7 +24,7 @@ export function useRevokeAllSessionsMutation() {
   return useMutation({
     mutationFn: () => apiClient.revokeAllSessions(),
     onSuccess: () => {
-      queryClient.invalidateQueries(queryKeys.account.sessions());
+      void queryClient.invalidateQueries(queryKeys.account.sessions());
     },
   });
 }

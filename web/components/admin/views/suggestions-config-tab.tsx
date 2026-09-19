@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -38,7 +38,9 @@ export function SuggestionsConfigTab() {
     }
   });
 
-  useEffect(() => {
+  const [prevServerConfig, setPrevServerConfig] = useState(serverConfig);
+  if (serverConfig !== prevServerConfig) {
+    setPrevServerConfig(serverConfig);
     if (serverConfig) {
       setConfig({
         store: {
@@ -56,7 +58,7 @@ export function SuggestionsConfigTab() {
         }
       });
     }
-  }, [serverConfig]);
+  }
 
   const getActiveArray = (): string[] => {
     switch (activeList) {
@@ -250,7 +252,7 @@ export function SuggestionsConfigTab() {
           </div>
         </CardContent>
         <CardFooter className="bg-slate-50 dark:bg-slate-800/50 p-4 border-t flex justify-end">
-          <Button onClick={handleSave} disabled={updateMutation.isPending} className="bg-indigo-600 hover:bg-indigo-700">
+          <Button onClick={() => void handleSave()} disabled={updateMutation.isPending} className="bg-indigo-600 hover:bg-indigo-700">
             {updateMutation.isPending ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
             Save Dynamic Suggestions
           </Button>

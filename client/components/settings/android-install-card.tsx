@@ -34,7 +34,7 @@ export function AndroidInstallCard() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <Button variant="outline" onClick={promptInstall}>
+        <Button variant="outline" onClick={() => void promptInstall()}>
           <Download className="h-4 w-4" />
           Install App
         </Button>

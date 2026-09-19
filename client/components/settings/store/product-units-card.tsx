@@ -37,7 +37,7 @@ export function ProductUnitsCard() {
   }
 
   const saveUnits = (units: string[]) => {
-    updateStoreProfile({ custom_units: JSON.stringify(units) });
+    void updateStoreProfile({ custom_units: JSON.stringify(units) });
   };
 
   const handleAdd = () => {

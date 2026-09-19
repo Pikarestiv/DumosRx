@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Card,
   CardContent,
@@ -22,14 +22,16 @@ export function IntegrationsTab() {
   const updateMutation = useUpdateSystemConfigMutation();
 
   const [key, setKey] = useState("");
+  const [prevSmartsuppKey, setPrevSmartsuppKey] = useState(smartsuppKey);
 
-  useEffect(() => {
+  if (smartsuppKey !== prevSmartsuppKey) {
+    setPrevSmartsuppKey(smartsuppKey);
     if (smartsuppKey !== undefined && smartsuppKey !== null) {
       // value may be a raw string or wrapped object depending on how SystemConfig stores it
       const val = typeof smartsuppKey === "string" ? smartsuppKey : String(smartsuppKey ?? "");
       setKey(val);
     }
-  }, [smartsuppKey]);
+  }
 
   const isActive = key.trim().length > 0;
 
@@ -125,7 +127,7 @@ export function IntegrationsTab() {
           {isActive && (
             <Button
               variant="outline"
-              onClick={handleClear}
+              onClick={() => void handleClear()}
               disabled={updateMutation.isPending}
               className="text-destructive border-destructive/30 hover:bg-destructive/10"
             >
@@ -133,7 +135,7 @@ export function IntegrationsTab() {
             </Button>
           )}
           <Button
-            onClick={handleSave}
+            onClick={() => void handleSave()}
             disabled={updateMutation.isPending}
             className="bg-indigo-600 hover:bg-indigo-700 ml-auto"
           >

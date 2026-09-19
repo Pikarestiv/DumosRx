@@ -261,7 +261,7 @@ export function POSSystem() {
         removeFromCart={removeFromCart}
         clearCart={clearCart}
         onCheckout={withRestriction(() => setShowPaymentDialog(true))}
-        onHoldSale={handleHoldTransaction}
+        onHoldSale={() => void handleHoldTransaction()}
         heldSalesCount={heldSalesCount}
         onOpenHeldSales={() => setShowHeldDialog(true)}
         isPrescriptionLocked={isPrescriptionLocked}

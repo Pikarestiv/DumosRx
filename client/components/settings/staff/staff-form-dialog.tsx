@@ -63,7 +63,7 @@ export function StaffFormDialog({
         });
       }
     }
-  }, [isOpen, userToEdit]);
+  }, [isOpen, userToEdit, activeStoreId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -191,7 +191,7 @@ export function StaffFormDialog({
     >
       <StaffFormFields
         formId="staff-form"
-        onSubmit={handleSubmit}
+        onSubmit={(e) => void handleSubmit(e)}
         formData={formData}
         setFormData={setFormData}
         isEditing={isEditing}

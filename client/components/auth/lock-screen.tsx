@@ -69,7 +69,7 @@ export function LockScreen({
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    attemptLogin(pin);
+    void attemptLogin(pin);
   };
 
   return (
@@ -93,7 +93,7 @@ export function LockScreen({
             isLoading={isLoading}
             hasError={hasError}
             handleLogin={handleLogin}
-            onAutoSubmit={attemptLogin}
+            onAutoSubmit={(p) => void attemptLogin(p)}
             onBack={() => {
               setSelectedUser(null);
               setPin("");

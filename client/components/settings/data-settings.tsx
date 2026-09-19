@@ -14,7 +14,7 @@ import { Separator } from "@/components/ui/separator";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { DataSettingsAutoSync } from "./data-settings-auto-sync";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
-import { useAuth } from "@/lib/context/auth-context";
+import { useAuth, checkCanFactoryReset } from "@/lib/context/auth-context";
 import { toast } from "sonner";
 
 interface DataSettingsProps {
@@ -56,7 +56,8 @@ export function DataSettings({
     withRestriction,
     getUpgradeMessage,
   } = useFeatureGate();
-  const { verifyPin } = useAuth();
+  const { verifyPin, user } = useAuth();
+  const canFactoryReset = checkCanFactoryReset(user?.role);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   return (
@@ -103,7 +104,10 @@ export function DataSettings({
                 </p>
                 <p className="text-sm text-muted-foreground">
                   {!!isCloudLinked &&
-                    `Last synced: ${localStorage.getItem("last_sync_time") ? new Date(localStorage.getItem("last_sync_time")!).toLocaleString() : "Never"}`}
+                    (() => {
+                      const lastSyncTime = localStorage.getItem("last_sync_time");
+                      return `Last synced: ${lastSyncTime ? new Date(lastSyncTime).toLocaleString() : "Never"}`;
+                    })()}
                   {!isCloudLinked &&
                     "Connect your cloud account to enable sync"}
                 </p>
@@ -199,16 +203,24 @@ export function DataSettings({
               <div className="space-y-1">
                 <p className="text-sm font-semibold">Factory Reset</p>
                 <p className="text-xs text-muted-foreground">
-                  Wipe all local data (products, sales, etc.) and start fresh.
+                  {isCloudLinked
+                    ? "Wipe all local data (products, sales, etc.), disconnect cloud sync, and start fresh."
+                    : "Wipe all local data (products, sales, etc.) and start fresh."}
                 </p>
               </div>
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => setShowResetConfirm(true)}
-              >
-                Reset All Data
-              </Button>
+              {canFactoryReset ? (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setShowResetConfirm(true)}
+                >
+                  Reset All Data
+                </Button>
+              ) : (
+                <p className="text-xs text-muted-foreground italic shrink-0">
+                  Only the store owner can perform a factory reset.
+                </p>
+              )}
             </div>
           </div>
         </CardContent>
@@ -218,10 +230,21 @@ export function DataSettings({
         open={showResetConfirm}
         onOpenChange={setShowResetConfirm}
         title="Factory Reset"
-        description="This will permanently delete all local data: products, sales, customers, and expenses. Your login account will remain. This cannot be undone."
+        description={
+          isCloudLinked
+            ? "This will permanently delete all local data: products, sales, customers, and expenses, and disconnect this device from cloud sync. Your staff logins will remain, and you can re-link your cloud account afterward. This cannot be undone."
+            : "This will permanently delete all local data: products, sales, customers, and expenses. Your login account will remain. This cannot be undone."
+        }
         confirmLabel="Reset All Data"
         requirePin={true}
         onConfirm={async (pin) => {
+          // Re-checked here, not just at the button's render gate above: this
+          // dialog's open state is otherwise trusting whatever triggered it.
+          if (!canFactoryReset) {
+            toast.error("Only the store owner can perform a factory reset.");
+            setShowResetConfirm(false);
+            return;
+          }
           if (!pin) {
             toast.error("PIN is required");
             return;

@@ -39,7 +39,7 @@ export function BusinessInfoPanel(s: SettingsState) {
         loyaltyProgramEnabled={s.loyaltyProgramEnabled}
         setLoyaltyProgramEnabled={s.setLoyaltyProgramEnabled}
         canAccessLoyaltyProgramPlan={s.canAccessLoyaltyProgramPlan}
-        handleSaveProfile={s.handleSaveProfile}
+        handleSaveProfile={() => void s.handleSaveProfile()}
       />
     </>
   );

@@ -24,6 +24,11 @@ export function StorefrontCart({ storeSlug }: StorefrontCartProps) {
   const router = useRouter();
 
   useEffect(() => {
+    // Cart state is persisted (zustand + localStorage) and unavailable
+    // during SSR, so this intentionally renders null on the server and
+    // first client pass, then flips true post-mount to avoid a hydration
+    // mismatch.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
   }, []);
 

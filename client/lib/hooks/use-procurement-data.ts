@@ -26,8 +26,8 @@ export function useProcurementData() {
   }, []);
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    void fetchData();
+  }, [fetchData]);
 
   return { suppliers, products, loading, error, refetch: fetchData };
 }

@@ -56,7 +56,7 @@ export default function AdminLayout({
       }
       setChecking(false);
     };
-    checkAuth();
+    void checkAuth();
   }, [user, initSession, bypassGuard]);
 
   useEffect(() => {

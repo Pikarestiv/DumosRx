@@ -35,7 +35,7 @@ export default function AdminDashboard() {
             ? error.message
             : "Failed to sync platform data"}
         </p>
-        <Button onClick={() => refetch()} variant="outline">
+        <Button onClick={() => void refetch()} variant="outline">
           Retry Sync
         </Button>
       </div>
@@ -70,7 +70,7 @@ export default function AdminDashboard() {
           <Button
             variant="outline"
             className="border-2 font-bold dark:bg-slate-900 dark:border-slate-800"
-            onClick={() => refetch()}
+            onClick={() => void refetch()}
             disabled={isLoading}
           >
             {isLoading ? (

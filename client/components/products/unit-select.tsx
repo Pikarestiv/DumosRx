@@ -27,12 +27,13 @@ export function UnitSelect({ id, value, onValueChange, placeholder }: UnitSelect
   const [activeIndex, setActiveIndex] = React.useState(-1);
   const containerRef = React.useRef<HTMLDivElement>(null);
 
-  let customUnits: string[] = [];
-  try {
-    customUnits = storeProfile?.custom_units ? JSON.parse(storeProfile.custom_units) : [];
-  } catch {
-    customUnits = [];
-  }
+  const customUnits = React.useMemo<string[]>(() => {
+    try {
+      return storeProfile?.custom_units ? JSON.parse(storeProfile.custom_units) : [];
+    } catch {
+      return [];
+    }
+  }, [storeProfile?.custom_units]);
 
   const allOptions = React.useMemo(() => {
     const seen = new Set<string>();
@@ -122,7 +123,7 @@ export function UnitSelect({ id, value, onValueChange, placeholder }: UnitSelect
               if (row?.type === "option") {
                 selectOption(row.value);
               } else if (row?.type === "create" || (activeIndex < 0 && canCreate && rows.length === 1)) {
-                createAndSelect();
+                void createAndSelect();
               } else if (rows.length === 0) {
                 // Nothing to select and nothing creatable (e.g. blank filter): revert.
                 setOpen(false);
@@ -149,7 +150,7 @@ export function UnitSelect({ id, value, onValueChange, placeholder }: UnitSelect
             ))}
             {canCreate && (
               <div
-                onClick={createAndSelect}
+                onClick={() => void createAndSelect()}
                 className={cn(
                   "relative flex cursor-pointer select-none items-center gap-1.5 rounded-sm px-2 py-1.5 text-sm outline-none text-primary hover:bg-primary hover:text-primary-foreground",
                   activeIndex === filteredOptions.length && "bg-primary text-primary-foreground"

@@ -8,9 +8,13 @@ import {
   isTauri,
   backupDatabaseToFile,
   restoreDatabaseFromFile,
+  logAction,
+  getActiveStoreId,
 } from "@/lib/db/core";
+import { AUDIT_ACTIONS } from "@/lib/db/audit-actions";
 import { sync, syncSubscriptionStatus } from "@/lib/db/sync-engine";
 import { markRestoredForCloudLinkNotice } from "@/lib/utils/post-restore-notice";
+import { clearToken } from "@/lib/api/token-manager";
 
 export function useSettingsSync(
   isCloudLinked: boolean,
@@ -118,6 +122,36 @@ export function useSettingsSync(
   };
 
   const handleResetDatabase = async () => {
+    // Record who did this before anything else: resetDatabase() wipes
+    // audit_logs itself, so this is the only chance for the action to leave
+    // a trace anywhere. logAction() also enqueues it into _sync_queue, so
+    // if this device is cloud-linked, force an immediate sync to push it
+    // (and anything else pending) to the server right now - waiting for the
+    // next scheduled auto-sync isn't an option, since clearToken() below
+    // disconnects this device from sync entirely. Best-effort: if the push
+    // fails (e.g. offline), the reset still proceeds - the confirming PIN
+    // entry already established who authorized it, this is belt-and-braces
+    // durability for that record, not a precondition for the reset itself.
+    try {
+      await logAction(AUDIT_ACTIONS.FACTORY_RESET, "stores", getActiveStoreId() || "unknown", {
+        cloud_linked: isCloudLinked,
+      });
+      if (isCloudLinked) {
+        await sync(true);
+      }
+    } catch (err) {
+      console.error("Failed to record factory reset audit log:", err);
+    }
+
+    // Disconnect cloud sync before wiping local tables, not after: resetDatabase()
+    // ends in a window.location.reload(), and this device's mount-time auto-sync
+    // effect (store-context.tsx) would otherwise immediately re-pull every
+    // just-cleared table straight back down from the server, undoing the reset
+    // within a second of it finishing. Clearing the token here means that
+    // effect finds no auth_token and skips, same as any other signed-out device.
+    // The user can re-link (Settings > Data > "Link & Sync") whenever they want
+    // this device syncing again - their cloud account itself is untouched.
+    clearToken();
     await resetDatabase();
     toast.success("Database reset successfully.");
   };

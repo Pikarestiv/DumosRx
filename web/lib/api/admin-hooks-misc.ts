@@ -16,7 +16,7 @@ export const useUpdateFeedbackStatusMutation = () => {
     mutationFn: ({ id, status }: { id: string; status: string }) =>
       webApiClient.updateFeedbackStatus(id, status),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-feedback"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-feedback"] });
     },
   });
 };
@@ -38,7 +38,7 @@ export const useUpdateAdminEmailTemplateMutation = () => {
         body: { subject, body },
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-email-templates"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-email-templates"] });
     },
   });
 };
@@ -49,7 +49,7 @@ export const useDeleteBroadcastMutation = () => {
   return useMutation({
     mutationFn: (id: string) => webApiClient.deleteBroadcast(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["broadcasts"] });
+      void queryClient.invalidateQueries({ queryKey: ["broadcasts"] });
     },
   });
 };

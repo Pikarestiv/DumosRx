@@ -12,12 +12,12 @@ export function DataPanel(s: SettingsState) {
         autoSyncInterval={s.autoSyncInterval}
         setAutoSyncInterval={s.setAutoSyncInterval}
         handleSaveAutoSyncSettings={s.handleSaveAutoSyncSettings}
-        handleSync={s.handleSync}
-        handleDownloadBackup={s.handleDownloadBackup}
-        handleRestoreBackup={s.handleRestoreBackup}
-        handleRestoreBackupTauri={s.handleRestoreBackupTauri}
+        handleSync={() => void s.handleSync()}
+        handleDownloadBackup={() => void s.handleDownloadBackup()}
+        handleRestoreBackup={(e) => void s.handleRestoreBackup(e)}
+        handleRestoreBackupTauri={() => void s.handleRestoreBackupTauri()}
         isTauri={s.isTauri}
-        handleResetDatabase={s.handleResetDatabase}
+        handleResetDatabase={() => void s.handleResetDatabase()}
         setIsCloudLinkOpen={s.setIsCloudLinkOpen}
         setSyncAfterLink={s.setSyncAfterLink}
       />

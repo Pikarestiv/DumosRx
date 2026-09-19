@@ -51,10 +51,12 @@ async function fetchPrescriptions(): Promise<Prescription[]> {
   // 2. Group items by prescription_id
   const itemsMap = new Map<string, PrescriptionMedication[]>();
   itemsData.forEach((item) => {
-    if (!itemsMap.has(item.prescription_id)) {
-      itemsMap.set(item.prescription_id, []);
+    let list = itemsMap.get(item.prescription_id);
+    if (!list) {
+      list = [];
+      itemsMap.set(item.prescription_id, list);
     }
-    itemsMap.get(item.prescription_id)!.push({
+    list.push({
       id: item.id,
       productName: item.product_name,
       strength: item.strength || "",
@@ -118,7 +120,7 @@ export function usePrescriptionQueue() {
     ...queryKeys.prescriptions.all(),
     queryFn: fetchPrescriptions,
   });
-  const prescriptions = data || [];
+  const prescriptions = useMemo(() => data || [], [data]);
 
   // Derived (not a separate snapshot) so an edit/refetch that changes the
   // selected prescription's medications, status, etc. is reflected immediately

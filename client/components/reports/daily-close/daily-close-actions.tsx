@@ -59,7 +59,7 @@ export function DailyCloseActions({
             Export CSV
           </DropdownMenuItem>
           <DropdownMenuItem
-            onClick={handleDownloadPdf}
+            onClick={() => void handleDownloadPdf()}
             className="cursor-pointer"
           >
             Export PDF

@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DatePickerInput } from "@/components/ui/date-picker-input";
 import {
   Dialog,
   DialogContent,
@@ -143,11 +144,10 @@ export function CouponDialog({
 
           <div className="grid gap-2">
             <Label>Expiry Date (Optional)</Label>
-            <Input
-              type="date"
+            <DatePickerInput
               value={newCoupon.expires_at || ""}
-              onChange={(e) =>
-                setNewCoupon({ ...newCoupon, expires_at: e.target.value })
+              onChange={(val) =>
+                setNewCoupon({ ...newCoupon, expires_at: val })
               }
             />
           </div>

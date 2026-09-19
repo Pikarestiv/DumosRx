@@ -56,7 +56,7 @@ export function useSavePaymentAccountMutation() {
     },
     onSuccess: (_accountId, { editingId, activeStoreId }) => {
       toast.success(editingId ? "Account updated successfully" : "Account added successfully");
-      queryClient.invalidateQueries(queryKeys.paymentAccounts.all(activeStoreId));
+      void queryClient.invalidateQueries(queryKeys.paymentAccounts.all(activeStoreId));
     },
     onError: (error) => {
       console.error(error);
@@ -71,7 +71,7 @@ export function useDeletePaymentAccountMutation(activeStoreId?: string) {
     mutationFn: (id: string) => remove("payment_accounts", id),
     onSuccess: () => {
       toast.success("Account deleted");
-      queryClient.invalidateQueries(queryKeys.paymentAccounts.all(activeStoreId));
+      void queryClient.invalidateQueries(queryKeys.paymentAccounts.all(activeStoreId));
     },
     onError: (error) => {
       console.error(error);

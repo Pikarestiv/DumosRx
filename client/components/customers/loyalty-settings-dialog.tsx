@@ -67,7 +67,7 @@ export function LoyaltySettingsDialog({ open, onOpenChange }: Props) {
       toast.error(getUpgradeMessage('loyalty_program', "Upgrade to a premium plan to use the Loyalty Program."));
       return;
     }
-    updateStoreProfile({ loyalty_program_enabled: val ? 1 : 0 });
+    void updateStoreProfile({ loyalty_program_enabled: val ? 1 : 0 });
   };
 
   // Defense-in-depth: the only current entry point (LoyaltyTab's "Edit
@@ -93,7 +93,7 @@ export function LoyaltySettingsDialog({ open, onOpenChange }: Props) {
       toast.error("Enter a valid, non-negative earn rate.");
       return;
     }
-    updateStoreProfile({ loyalty_points_per_currency: per100 / 100 });
+    void updateStoreProfile({ loyalty_points_per_currency: per100 / 100 });
     toast.success("Earn rate updated");
   };
 
@@ -108,9 +108,9 @@ export function LoyaltySettingsDialog({ open, onOpenChange }: Props) {
   useEffect(() => {
     if (!open) return;
     ensureLoyaltyDefaultsSeeded(user?.id, currencySymbol).then(() => {
-      queryClient.invalidateQueries(queryKeys.loyalty.tiers());
-      queryClient.invalidateQueries(queryKeys.loyalty.redemptionOptions());
-    });
+      void queryClient.invalidateQueries(queryKeys.loyalty.tiers());
+      void queryClient.invalidateQueries(queryKeys.loyalty.redemptionOptions());
+    }).catch(() => {});
   }, [open, user?.id, currencySymbol]);
 
   const { data: tiersData, isLoading: loadingTiers, refetch: refetchTiers } = useQuery({
@@ -137,7 +137,7 @@ export function LoyaltySettingsDialog({ open, onOpenChange }: Props) {
     if (!tierToDelete) return;
     try {
       await deleteTierMutation.mutateAsync(tierToDelete);
-      refetchTiers();
+      void refetchTiers();
     } finally {
       setTierToDelete(null);
     }
@@ -153,7 +153,7 @@ export function LoyaltySettingsDialog({ open, onOpenChange }: Props) {
     if (!optionToDelete) return;
     try {
       await deleteOptionMutation.mutateAsync(optionToDelete);
-      refetchOptions();
+      void refetchOptions();
     } finally {
       setOptionToDelete(null);
     }
@@ -334,7 +334,7 @@ export function LoyaltySettingsDialog({ open, onOpenChange }: Props) {
         tier={editingTier}
         userId={user?.id}
         nextSortOrder={tiers.length}
-        onSaved={refetchTiers}
+        onSaved={() => void refetchTiers()}
       />
 
       <LoyaltyRedemptionFormDialog
@@ -344,7 +344,7 @@ export function LoyaltySettingsDialog({ open, onOpenChange }: Props) {
         userId={user?.id}
         nextSortOrder={options.length}
         currencySymbol={currencySymbol}
-        onSaved={refetchOptions}
+        onSaved={() => void refetchOptions()}
       />
 
       <ConfirmDialog

@@ -84,7 +84,7 @@ export function TransactionDetailsDialog({
       notes,
     });
     toast.success("Payment recorded successfully");
-    queryClient.invalidateQueries({ queryKey: ["customerById", sale.customer_id] });
+    void queryClient.invalidateQueries({ queryKey: ["customerById", sale.customer_id] });
     setShowPaymentModal(false);
   };
 

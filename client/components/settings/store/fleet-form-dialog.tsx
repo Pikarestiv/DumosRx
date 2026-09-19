@@ -58,7 +58,7 @@ export function FleetFormDialog({
     }
   }, [isOpen, storeToEdit]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name.trim()) {
       toast.error("Store name is required");
@@ -74,15 +74,17 @@ export function FleetFormDialog({
         activeStoreId,
       },
       {
-        onSuccess: async () => {
-          if (isEditing && storeToEdit && activeStoreId === storeToEdit.id) {
-            await refetch();
-          }
-          toast.success(
-            isEditing ? "Store details updated successfully" : "New store registered successfully",
-          );
-          onSuccess();
-          onOpenChange(false);
+        onSuccess: () => {
+          void (async () => {
+            if (isEditing && storeToEdit && activeStoreId === storeToEdit.id) {
+              await refetch();
+            }
+            toast.success(
+              isEditing ? "Store details updated successfully" : "New store registered successfully",
+            );
+            onSuccess();
+            onOpenChange(false);
+          })();
         },
         onError: (error) => {
           toast.error(error instanceof Error ? error.message : "Failed to save store");

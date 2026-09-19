@@ -228,7 +228,7 @@ export function useSettings() {
       }
     }
 
-    updateStoreProfile({
+    void updateStoreProfile({
       name: localName,
       address: localAddress,
       phone: localPhone,
@@ -251,7 +251,7 @@ export function useSettings() {
   };
 
   const handleSaveRegional = () => {
-    updateStoreProfile({
+    void updateStoreProfile({
       currency: localCurrency,
       vat_percentage: parseFloat(localVat) || 0,
       reseller_commission_percentage: parseFloat(localResellerCommission) || 0,
@@ -260,7 +260,7 @@ export function useSettings() {
   };
 
   const handleSaveReceiptSettings = () => {
-    updateStoreProfile({
+    void updateStoreProfile({
       receipt_header: localReceiptHeader,
       receipt_footer: localReceiptFooter,
       show_logo_on_receipt: showLogo ? 1 : 0,
@@ -273,7 +273,7 @@ export function useSettings() {
   };
 
   const handleSaveAlertSettings = () => {
-    updateStoreProfile({
+    void updateStoreProfile({
       low_stock_warning: lowStockAlert ? 1 : 0,
       expiry_warning: expiryAlert ? 1 : 0,
       expiry_warning_days: parseInt(expiryDays) || 90,
@@ -291,7 +291,7 @@ export function useSettings() {
       setAutoSyncInterval(interval.toString());
     }
 
-    updateStoreProfile({
+    void updateStoreProfile({
       auto_sync_enabled: autoSyncEnabled ? 1 : 0,
       auto_sync_interval: interval,
     });
@@ -309,7 +309,7 @@ export function useSettings() {
     reader.onload = (e) => {
       const base64 = e.target?.result as string;
       setLocalLogo(base64);
-      updateStoreProfile({ logo_url: base64 });
+      void updateStoreProfile({ logo_url: base64 });
       toast.success("Logo updated successfully");
     };
     reader.readAsDataURL(file);
@@ -317,12 +317,12 @@ export function useSettings() {
 
   const handleRemoveLogo = () => {
     setLocalLogo("");
-    updateStoreProfile({ logo_url: "" });
+    void updateStoreProfile({ logo_url: "" });
     toast.success("Logo removed");
   };
 
   const handleSwitchVertical = (type: StoreType) => {
-    updateStoreProfile({ store_type: type });
+    void updateStoreProfile({ store_type: type });
     toast.success(`Switched to ${type.charAt(0).toUpperCase() + type.slice(1)} mode`);
   };
 

@@ -14,8 +14,8 @@ export function useSubmitStockAuditMutation() {
     mutationFn: ({ items, performedBy }: SubmitStockAuditParams) =>
       submitStockAudit(items, performedBy),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.products.withDetails().queryKey });
-      queryClient.invalidateQueries({ queryKey: queryKeys.stockAudits.all().queryKey });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.products.withDetails().queryKey });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.stockAudits.all().queryKey });
     },
   });
 }

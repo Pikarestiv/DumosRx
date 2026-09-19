@@ -72,7 +72,7 @@ export function ExpenseList() {
       {
         onSuccess: () => {
           toast.success("Expense updated");
-          fetchExpenses();
+          void fetchExpenses();
         },
         onError: () => {
           toast.error("Failed to update expense. Please try again.");
@@ -271,7 +271,7 @@ export function ExpenseList() {
         onOpenChange={(open) => !open && setSelectedExpenseId(null)}
         onDeleted={() => {
           setSelectedExpenseId(null);
-          fetchExpenses();
+          void fetchExpenses();
         }}
         onEdit={() => {
           setExpenseToEdit(selectedExpense || null);
@@ -285,7 +285,7 @@ export function ExpenseList() {
         expenseToEdit={expenseToEdit}
         onSaved={() => {
           setExpenseToEdit(null);
-          fetchExpenses();
+          void fetchExpenses();
         }}
       />
     </div>

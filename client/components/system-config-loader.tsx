@@ -38,7 +38,7 @@ export function SystemConfigLoader() {
       }
     }
 
-    loadConfigs();
+    void loadConfigs();
 
     return () => {
       mounted = false;

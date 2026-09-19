@@ -26,7 +26,7 @@ export function useUpdateSupplierMutation() {
   return useMutation({
     mutationFn: ({ id, payload }: UpdateSupplierParams) => updateSupplier(id, payload),
     onSuccess: () => {
-      queryClient.invalidateQueries(queryKeys.suppliers.all());
+      void queryClient.invalidateQueries(queryKeys.suppliers.all());
     },
   });
 }
@@ -44,7 +44,7 @@ export function useUpdateSupplierRatingMutation() {
   return useMutation({
     mutationFn: ({ id, rating }: UpdateSupplierRatingParams) => update("suppliers", id, { rating }),
     onSuccess: () => {
-      queryClient.invalidateQueries(queryKeys.suppliers.all());
+      void queryClient.invalidateQueries(queryKeys.suppliers.all());
     },
   });
 }

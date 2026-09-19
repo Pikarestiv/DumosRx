@@ -31,7 +31,7 @@ describe("getTransactionDetails returned_quantity", () => {
     db.run(`
       CREATE TABLE sale_items (
         id TEXT PRIMARY KEY, sale_id TEXT, product_id TEXT, quantity INTEGER,
-        unit_price REAL, cost_price REAL, _deleted INTEGER DEFAULT 0
+        unit_price REAL, cost_price REAL, created_at TEXT, _deleted INTEGER DEFAULT 0
       );
       CREATE TABLE products (
         id TEXT PRIMARY KEY, name TEXT
@@ -97,5 +97,47 @@ describe("getTransactionDetails returned_quantity", () => {
     const { items } = await getTransactionDetails("sale1");
 
     expect(items[0].returned_quantity).toBe(0);
+  });
+
+  it("distributes returned_quantity sequentially instead of double-attributing it to every sale_item of the same product", async () => {
+    // return_items has no sale_item_id column, so the raw SQL gives every
+    // sale_item row for a product the SAME combined returned_quantity. Two
+    // sale_items of the same product (5 + 3 = 8 total), 4 units returned:
+    // without redistribution both rows would independently show
+    // returned_quantity=4, making getMaxReturnable report 1 + 0 = 1 unit
+    // still returnable instead of the true (5+3)-4 = 4.
+    db.run(`INSERT INTO products (id, name) VALUES ('p1', 'Panadol')`);
+    db.run(`INSERT INTO sale_items (id, sale_id, product_id, quantity, unit_price, created_at) VALUES
+      ('si1', 'sale1', 'p1', 5, 100, '2026-01-01T00:00:00Z'),
+      ('si2', 'sale1', 'p1', 3, 100, '2026-01-01T00:00:01Z')`);
+    db.run(`INSERT INTO returns (id, sale_id, total_refunded, created_at) VALUES ('r1', 'sale1', 400, '2026-01-02')`);
+    db.run(`INSERT INTO return_items (id, return_id, product_id, quantity) VALUES ('ri1', 'r1', 'p1', 4)`);
+
+    const { items } = await getTransactionDetails("sale1");
+
+    const bySaleItem = Object.fromEntries(items.map((i) => [i.id, i.returned_quantity]));
+    expect(bySaleItem.si1).toBe(4);
+    expect(bySaleItem.si2).toBe(0);
+    // Combined remaining returnable across both lines matches the true
+    // total (8 sold - 4 returned = 4), not the under-counted 1.
+    const totalMaxReturnable = items.reduce(
+      (sum, i) => sum + Math.max(0, i.quantity - (i.returned_quantity || 0)),
+      0,
+    );
+    expect(totalMaxReturnable).toBe(4);
+  });
+
+  it("does not affect a sale where only one sale_item exists per product (the normal POS case)", async () => {
+    db.run(`INSERT INTO products (id, name) VALUES ('p1', 'Panadol'), ('p2', 'Amoxicillin')`);
+    db.run(`INSERT INTO sale_items (id, sale_id, product_id, quantity, unit_price, created_at) VALUES
+      ('si1', 'sale1', 'p1', 5, 100, '2026-01-01T00:00:00Z'),
+      ('si2', 'sale1', 'p2', 10, 50, '2026-01-01T00:00:01Z')`);
+    db.run(`INSERT INTO returns (id, sale_id, total_refunded, created_at) VALUES ('r1', 'sale1', 300, '2026-01-02')`);
+    db.run(`INSERT INTO return_items (id, return_id, product_id, quantity) VALUES ('ri1', 'r1', 'p1', 3)`);
+
+    const { items } = await getTransactionDetails("sale1");
+    const bySaleItem = Object.fromEntries(items.map((i) => [i.id, i.returned_quantity]));
+    expect(bySaleItem.si1).toBe(3);
+    expect(bySaleItem.si2).toBe(0);
   });
 });

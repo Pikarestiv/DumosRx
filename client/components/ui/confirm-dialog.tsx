@@ -127,7 +127,7 @@ export function ConfirmDialog({
             ref={confirmButtonRef}
             variant={variant === "destructive" ? "destructive" : "default"}
             disabled={isConfirmDisabled}
-            onClick={handleConfirm}
+            onClick={() => void handleConfirm()}
           >
             {isConfirming && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {confirmLabel}

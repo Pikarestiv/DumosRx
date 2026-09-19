@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, ShieldAlert } from "lucide-react";
 import { apiClient } from "@/lib/api/client";
@@ -10,9 +10,22 @@ function CallbackHandler() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { loginFromHandoff } = useAuth();
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(() =>
+    searchParams.get("code") ? null : "Missing handoff code."
+  );
+
+  // Guards against React Strict Mode's dev-only double-invoke of mount
+  // effects: without this, a second run reads the code/return_code this
+  // same effect already stripped from the URL on the first run below, and
+  // renders "Missing handoff code" over top of a login that already
+  // succeeded in the background (see the effect's own comment on why
+  // stripping the URL can't just be moved out of here instead).
+  const hasRun = useRef(false);
 
   useEffect(() => {
+    if (hasRun.current) return;
+    hasRun.current = true;
+
     const code = searchParams.get("code");
     const returnCode = searchParams.get("return_code");
 
@@ -22,11 +35,10 @@ function CallbackHandler() {
     window.history.replaceState({}, "", window.location.pathname);
 
     if (!code) {
-      setError("Missing handoff code.");
       return;
     }
 
-    (async () => {
+    void (async () => {
       try {
         const { token, user } = await apiClient.consumeHandoffCode(code);
         // Token first: downstream code/interceptors expect it to be in place
@@ -51,6 +63,7 @@ function CallbackHandler() {
     // produces a new `searchParams` object on the next render; if that's a
     // dependency here, the effect re-fires with the now-stripped (empty)
     // code and can loop / clobber the real result before it lands.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (error) {

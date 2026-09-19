@@ -43,7 +43,7 @@ export const useReadNotificationMutation = () => {
   return useMutation({
     mutationFn: (id: string) => webApiClient.request(`alerts/${id}/read`, { method: "POST" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      void queryClient.invalidateQueries({ queryKey: ["notifications"] });
     },
   });
 };
@@ -68,8 +68,8 @@ export const useCreateStaffMutation = () => {
   return useMutation({
     mutationFn: (payload: Record<string, unknown>) => webApiClient.createStaff(payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["staff"] });
-      queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
+      void queryClient.invalidateQueries({ queryKey: ["staff"] });
+      void queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
     },
   });
 };
@@ -79,7 +79,7 @@ export const useUpdateStaffMutation = () => {
   return useMutation({
     mutationFn: ({ id, payload }: { id: string; payload: Record<string, unknown> }) => webApiClient.updateStaff(id, payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["staff"] });
+      void queryClient.invalidateQueries({ queryKey: ["staff"] });
     },
   });
 };
@@ -89,7 +89,7 @@ export const useDeleteStaffMutation = () => {
   return useMutation({
     mutationFn: (id: string) => webApiClient.deleteStaff(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["staff"] });
+      void queryClient.invalidateQueries({ queryKey: ["staff"] });
     },
   });
 };
@@ -99,8 +99,8 @@ export const useCreateStoreMutation = () => {
   return useMutation({
     mutationFn: (payload: Record<string, unknown>) => webApiClient.createStore(payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["stores"] });
-      queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
+      void queryClient.invalidateQueries({ queryKey: ["stores"] });
+      void queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
     },
   });
 };
@@ -110,8 +110,8 @@ export const useUpdateStoreMutation = () => {
   return useMutation({
     mutationFn: ({ id, payload }: { id: string; payload: Record<string, unknown> }) => webApiClient.updateStore(id, payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["stores"] });
-      queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
+      void queryClient.invalidateQueries({ queryKey: ["stores"] });
+      void queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
     },
   });
 };
@@ -121,8 +121,8 @@ export const useDeleteStoreMutation = () => {
   return useMutation({
     mutationFn: (id: string) => webApiClient.deleteStore(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["stores"] });
-      queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
+      void queryClient.invalidateQueries({ queryKey: ["stores"] });
+      void queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
     },
   });
 };
@@ -152,8 +152,8 @@ export const useVerifyPaymentMutation = () => {
   return useMutation({
     mutationFn: (reference: string) => webApiClient.verifyPayment(reference),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["subscription-status"] });
-      queryClient.invalidateQueries({ queryKey: ["billing-history"] });
+      void queryClient.invalidateQueries({ queryKey: ["subscription-status"] });
+      void queryClient.invalidateQueries({ queryKey: ["billing-history"] });
     },
   });
 };
@@ -181,7 +181,7 @@ export const useRevokeSessionMutation = () => {
   return useMutation({
     mutationFn: (id: string) => webApiClient.revokeSession(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["sessions"] });
+      void queryClient.invalidateQueries({ queryKey: ["sessions"] });
     },
   });
 };
@@ -191,7 +191,7 @@ export const useRevokeAllSessionsMutation = () => {
   return useMutation({
     mutationFn: () => webApiClient.revokeAllSessions(),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["sessions"] });
+      void queryClient.invalidateQueries({ queryKey: ["sessions"] });
     },
   });
 };
@@ -214,7 +214,7 @@ export const useUpdateSystemConfigMutation = () => {
   return useMutation({
     mutationFn: ({ key, value }: { key: string; value: unknown }) => webApiClient.updateSystemConfig(key, value),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["system-config", variables.key] });
+      void queryClient.invalidateQueries({ queryKey: ["system-config", variables.key] });
     },
   });
 };

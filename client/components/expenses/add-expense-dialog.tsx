@@ -76,7 +76,7 @@ export function AddExpenseDialog({
     }
   }, [expenseToEdit, open]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.category || !formData.amount || !formData.date) {
       toast.error("Please fill in all required fields");

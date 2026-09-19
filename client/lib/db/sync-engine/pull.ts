@@ -71,8 +71,22 @@ export async function pullChanges(
     // everything applied so far with no rollback) and defers sql.js's
     // (expensive, whole-database) saveDatabase() export to once at commit
     // instead of once per execute() call.
+    // stock_movements' insert branch below increments the stock_batches row
+    // it references (see the comment there); that row must already exist
+    // locally or the UPDATE is a silent no-op, permanently losing the
+    // increment. The server response's table order happens to put
+    // stock_batches first today (SyncController::pull's own $tables list
+    // order), but that's incidental, not a contract — sorted explicitly
+    // here so this doesn't silently break if that list is ever reordered.
+    const orderedEntries = Object.entries(changes).sort(([a], [b]) => {
+      if (a === b) return 0;
+      if (a === "stock_batches") return -1;
+      if (b === "stock_batches") return 1;
+      return 0;
+    });
+
     await transaction(async () => {
-      for (const [table, records] of Object.entries(changes)) {
+      for (const [table, records] of orderedEntries) {
         if (!Array.isArray(records)) continue;
         if (records.length > 0) {
           updatedTables.push(table);
@@ -100,6 +114,28 @@ export async function pullChanges(
             if (validColumns.has(key)) {
               data[key] = rawData[key];
             }
+          }
+
+          // stock_batches.quantity is never trusted from a pulled snapshot,
+          // mirroring the server's own rule for pushed payloads
+          // (SyncController::push: "quantity is never trusted from a client
+          // payload... always derived by applying stock_movements deltas").
+          // The server's pulled value is only as current as whichever of
+          // this batch's movements it had already processed at pull time —
+          // if this batch's own opening-stock movement (or any other
+          // device's movement) hasn't landed yet, or if THIS device has
+          // local movements it hasn't pushed yet, blindly writing the
+          // pulled quantity here clobbers real local state with a stale
+          // snapshot (reproduced: a pull racing a push left ~500 batches
+          // permanently forked into duplicates, since a zeroed batch
+          // becomes invisible to the "does one already exist" check
+          // elsewhere — see docs/KNOWN_BUGS.md). Quantity instead stays
+          // whatever local movements have already derived it to be, and
+          // gets kept in sync going forward by the stock_movements insert
+          // branch below applying each new pulled movement's delta locally,
+          // exactly like the server's own `increment('quantity', delta)`.
+          if (table === "stock_batches") {
+            delete data.quantity;
           }
 
           const columns = Object.keys(data);
@@ -186,6 +222,30 @@ export async function pullChanges(
 
             try {
               await execute(sql, params);
+
+              // A newly-pulled stock_movements row (this branch only runs
+              // once per movement — they're an immutable log, never
+              // updated, so a movement is only ever seen here on the pull
+              // that first introduces it to this device) applies its own
+              // delta to the batch it references, the same way
+              // stock_batches.quantity itself is now never trusted from a
+              // pulled snapshot (see the comment above where `quantity` is
+              // stripped from `data` for that table). This is what keeps a
+              // batch's local quantity in sync with what OTHER
+              // devices/terminals have done to it, without ever trusting a
+              // pulled quantity snapshot directly — mirroring the server's
+              // own `increment('quantity', delta)` derivation exactly.
+              if (
+                table === "stock_movements" &&
+                !_deleted &&
+                data.stock_batch_id &&
+                typeof data.quantity === "number"
+              ) {
+                await execute(
+                  "UPDATE stock_batches SET quantity = quantity + ? WHERE id = ?",
+                  [data.quantity, data.stock_batch_id as string],
+                );
+              }
             } catch (err) {
               const errMsg =
                 typeof err === "string" ? err : err instanceof Error ? err.message : String(err);

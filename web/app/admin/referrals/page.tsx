@@ -24,6 +24,7 @@ import {
   checkIsSuperAdmin,
 } from "@/lib/store/use-admin-auth-store";
 import { AdminSkeleton } from "@/components/admin/admin-skeleton";
+import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 
 export default function MyReferralsPage() {
   const { user } = useAdminAuthStore();
@@ -36,7 +37,7 @@ export default function MyReferralsPage() {
 
   const handleCopy = () => {
     if (!data?.referral_link) return;
-    navigator.clipboard.writeText(data.referral_link);
+    void navigator.clipboard.writeText(data.referral_link);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -81,7 +82,7 @@ export default function MyReferralsPage() {
         <p className="text-rose-500 font-bold">
           {error instanceof Error ? error.message : "Failed to load referrals"}
         </p>
-        <Button onClick={() => refetch()} variant="outline">
+        <Button onClick={() => void refetch()} variant="outline">
           Retry
         </Button>
       </div>
@@ -145,7 +146,7 @@ export default function MyReferralsPage() {
             <div className="flex gap-2">
               <Button
                 size="sm"
-                onClick={handleSave}
+                onClick={() => void handleSave()}
                 disabled={updateCode.isPending || !codeInput.trim()}
                 className="rounded-xl"
               >
@@ -229,7 +230,7 @@ export default function MyReferralsPage() {
                       {a.store_name || "N/A"}
                     </td>
                     <td className="py-3 text-slate-500">
-                      {new Date(a.registered_at).toLocaleDateString()}
+                      {formatDateToDDMMYYYY(a.registered_at)}
                     </td>
                   </tr>
                 ))}

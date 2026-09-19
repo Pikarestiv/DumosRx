@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatCurrency } from "@/lib/utils";
+import { calculateMixedChangeDue } from "@/lib/utils/pos-calculations";
 import { toast } from "sonner";
 import type { Customer } from "@/lib/types/customer";
 import type { PaymentAccount } from "@/lib/types/payment-account";
@@ -221,14 +222,12 @@ export function PaymentSplits({
                 : "Short"}
             </span>
           </div>
-          {paymentSplits.reduce((acc, s) => acc + (s.amount || 0), 0) >
-            total && (
+          {calculateMixedChangeDue(paymentSplits, total) > 0 && (
             <div className="flex justify-between mt-1 text-sm text-muted-foreground">
               <span>Change:</span>
               <span>
                 {formatCurrency(
-                  paymentSplits.reduce((acc, s) => acc + (s.amount || 0), 0) -
-                    total,
+                  calculateMixedChangeDue(paymentSplits, total),
                   currencyCode,
                 )}
               </span>

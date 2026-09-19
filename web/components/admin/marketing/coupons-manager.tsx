@@ -27,6 +27,7 @@ import {
 import { toast } from "sonner";
 import { CouponDialog } from "./coupon-dialog";
 import type { Coupon } from "@/lib/types/admin";
+import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 
 export function CouponsManager() {
   const { data: couponsData, isLoading: loading } = useAdminCoupons();
@@ -201,7 +202,7 @@ export function CouponsManager() {
                     </span>
                     {coupon.expires_at && (
                       <span className="text-xs text-muted-foreground">
-                        Exp: {new Date(coupon.expires_at).toLocaleDateString()}
+                        Exp: {formatDateToDDMMYYYY(coupon.expires_at)}
                       </span>
                     )}
                   </div>
@@ -209,7 +210,7 @@ export function CouponsManager() {
                 <TableCell>
                   <Switch
                     checked={coupon.is_active}
-                    onCheckedChange={() => handleToggle(coupon.id)}
+                    onCheckedChange={() => void handleToggle(coupon.id)}
                   />
                 </TableCell>
                 <TableCell className="text-right">
@@ -224,7 +225,7 @@ export function CouponsManager() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => handleDelete(coupon.id)}
+                    onClick={() => void handleDelete(coupon.id)}
                   >
                     <Trash2 className="h-4 w-4 text-red-500" />
                   </Button>
@@ -251,7 +252,7 @@ export function CouponsManager() {
         editingId={editingId}
         newCoupon={newCoupon}
         setNewCoupon={setNewCoupon}
-        handleSave={handleSave}
+        handleSave={() => void handleSave()}
         generateMutation={generateMutation}
         updateMutation={updateMutation}
       />

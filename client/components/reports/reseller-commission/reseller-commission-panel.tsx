@@ -108,7 +108,7 @@ export function ResellerCommissionPanel() {
         userId: user?.id,
         claimType,
       });
-      queryClient.invalidateQueries({ queryKey: ["resellerCommission"] });
+      void queryClient.invalidateQueries({ queryKey: ["resellerCommission"] });
     } catch (error) {
       console.error("Failed to redeem reseller commission:", error);
     }
@@ -232,7 +232,7 @@ export function ResellerCommissionPanel() {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => handleRedeem(sale, "commission")}
+                            onClick={() => void handleRedeem(sale, "commission")}
                             disabled={redeemMutation.isPending}
                           >
                             Redeem
@@ -242,7 +242,7 @@ export function ResellerCommissionPanel() {
                               size="sm"
                               variant="outline"
                               onClick={() =>
-                                handleRedeem(sale, "store_claim")
+                                void handleRedeem(sale, "store_claim")
                               }
                               disabled={redeemMutation.isPending}
                             >

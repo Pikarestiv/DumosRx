@@ -76,16 +76,18 @@ export function usePullToRefresh<T extends HTMLElement>({
       }
     };
 
+    const onPointerUp = () => void handlePointerUp();
+
     el.addEventListener("pointerdown", handlePointerDown);
     el.addEventListener("pointermove", handlePointerMove, { passive: false });
-    el.addEventListener("pointerup", handlePointerUp);
-    el.addEventListener("pointercancel", handlePointerUp);
+    el.addEventListener("pointerup", onPointerUp);
+    el.addEventListener("pointercancel", onPointerUp);
 
     return () => {
       el.removeEventListener("pointerdown", handlePointerDown);
       el.removeEventListener("pointermove", handlePointerMove);
-      el.removeEventListener("pointerup", handlePointerUp);
-      el.removeEventListener("pointercancel", handlePointerUp);
+      el.removeEventListener("pointerup", onPointerUp);
+      el.removeEventListener("pointercancel", onPointerUp);
     };
   }, [disabled]);
 

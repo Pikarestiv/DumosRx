@@ -161,7 +161,7 @@ export function ReferralsAdjustDialog({
             Cancel
           </Button>
           <Button 
-            onClick={handleSubmit} 
+            onClick={() => void handleSubmit()}
             disabled={adjusting}
             className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold"
           >

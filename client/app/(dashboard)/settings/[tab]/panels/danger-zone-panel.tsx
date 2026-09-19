@@ -6,9 +6,9 @@ export function DangerZonePanel(s: SettingsState) {
   return (
     <div className="space-y-6">
       <p className="text-sm text-muted-foreground">
-        Everything below is destructive and, in most cases, irreversible.
-        Read each card&apos;s description before confirming - the two
-        sections below have different blast radii.
+        Everything below is destructive and, in most cases, irreversible. Read
+        each card&apos;s description before confirming. The two sections below
+        have different blast radii.
       </p>
       <DeviceDangerZone
         isCloudLinked={s.isCloudLinked}

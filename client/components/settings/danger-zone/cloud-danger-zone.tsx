@@ -117,7 +117,7 @@ export function CloudDangerZone() {
               </div>
             ) : (
               <Button
-                variant="ghost"
+                variant="outline"
                 size="sm"
                 className="text-muted-foreground"
                 onClick={() => setShowCloudResets(true)}

@@ -27,6 +27,7 @@ import {
 import { toast } from "sonner";
 import { CouponDialog } from "./coupon-dialog";
 import type { Coupon } from "@/lib/types/admin";
+import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 
 export function CouponsManager() {
   const { data: couponsData, isLoading: loading } = useAdminCoupons();
@@ -201,7 +202,7 @@ export function CouponsManager() {
                     </span>
                     {coupon.expires_at && (
                       <span className="text-xs text-muted-foreground">
-                        Exp: {new Date(coupon.expires_at).toLocaleDateString()}
+                        Exp: {formatDateToDDMMYYYY(coupon.expires_at)}
                       </span>
                     )}
                   </div>

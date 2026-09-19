@@ -24,6 +24,7 @@ import {
   checkIsSuperAdmin,
 } from "@/lib/store/use-admin-auth-store";
 import { AdminSkeleton } from "@/components/admin/admin-skeleton";
+import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 
 export default function MyReferralsPage() {
   const { user } = useAdminAuthStore();
@@ -229,7 +230,7 @@ export default function MyReferralsPage() {
                       {a.store_name || "N/A"}
                     </td>
                     <td className="py-3 text-slate-500">
-                      {new Date(a.registered_at).toLocaleDateString()}
+                      {formatDateToDDMMYYYY(a.registered_at)}
                     </td>
                   </tr>
                 ))}

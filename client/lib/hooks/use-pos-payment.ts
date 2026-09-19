@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { insert, update, transaction as runInTransaction } from "@/lib/db/local-database";
+import { getCustomerBalance } from "@/lib/db/queries/customers";
 import { recordSaleItemStock } from "@/lib/db/queries/inventory";
 import { updatePrescriptionStatus, dispensePrescriptionRefill } from "@/lib/db/queries/prescriptions";
 import { CartItem, RedeemedOption } from "./use-pos-cart";
@@ -213,17 +214,24 @@ export function usePOSPayment({
           });
         }
 
+        // Re-read the current balance rather than trusting selectedCustomer
+        // (captured when the cashier picked the customer, possibly stale by
+        // the time checkout completes — e.g. another terminal recorded a
+        // sale or payment for the same customer in between). Mirrors
+        // recordCustomerPayment's own re-read for the same reason.
         if (paymentMethod === "credit" && selectedCustomer) {
+          const balanceRows = await getCustomerBalance(selectedCustomer.id);
+          const currentBalance = balanceRows[0]?.balance || 0;
           await update("customers", selectedCustomer.id, {
-            outstanding_balance:
-              (selectedCustomer.outstanding_balance || 0) + total,
+            outstanding_balance: currentBalance + total,
           });
         } else if (paymentMethod === "mixed" && selectedCustomer) {
           const creditSplit = paymentSplits.find((s) => s.method === "credit");
           if (creditSplit && creditSplit.amount > 0) {
+            const balanceRows = await getCustomerBalance(selectedCustomer.id);
+            const currentBalance = balanceRows[0]?.balance || 0;
             await update("customers", selectedCustomer.id, {
-              outstanding_balance:
-                (selectedCustomer.outstanding_balance || 0) + creditSplit.amount,
+              outstanding_balance: currentBalance + creditSplit.amount,
             });
           }
         }

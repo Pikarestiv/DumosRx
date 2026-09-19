@@ -27,21 +27,6 @@ Issues spotted incidentally (e.g. while doing TypeScript type-safety cleanup) th
   response needs to omit `id`/`cost_price`/`store_id`, or whether it's
   acceptable as-is now that it can no longer be leveraged into a write.
 
-### POS checkout writes customer balance/loyalty points from a stale in-memory snapshot instead of re-reading the row
-
-- **Where:** `client/lib/hooks/use-pos-payment.ts` (`(selectedCustomer.outstanding_balance || 0) + total`)
-  and `use-pos-payment-helpers.ts` (`selectedCustomer.loyalty_points || 0`).
-  Every sibling write path (`recordCustomerPayment`, `use-process-return-mutation.ts`,
-  even `computeEarnedPoints` in the same helper file) deliberately re-reads
-  the current value from the DB first; checkout does not.
-- **Effect:** two terminals serving the same credit customer in the same
-  window can silently erase or double-apply a balance change — no error,
-  no sync conflict, since the local row's `_version` is current and only
-  the in-memory JS object is stale.
-- **Fix scope (not implemented):** re-read `outstanding_balance` and
-  `loyalty_points` from the DB at write time instead of from the
-  `selectedCustomer` object captured at customer-selection time.
-
 ### Oversell flooring is inconsistent between local write and sync/server paths
 
 - **Where:** `client/lib/db/queries/inventory.ts` floors the local batch

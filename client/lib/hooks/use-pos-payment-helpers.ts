@@ -1,5 +1,5 @@
 import { insert, update } from "@/lib/db/local-database";
-import { getCustomerTotalSpent } from "@/lib/db/queries/customers";
+import { getCustomerLoyaltyPoints, getCustomerTotalSpent } from "@/lib/db/queries/customers";
 import { getLoyaltyTiers } from "@/lib/db/queries/loyalty";
 import {
   calculateEarnedPoints,
@@ -139,9 +139,16 @@ export async function applyLoyaltyPointsForSale(params: {
     return;
   }
 
+  // Re-read the current points balance rather than trusting selectedCustomer
+  // (captured when the cashier picked the customer, possibly stale by the
+  // time checkout completes) — same staleness risk as the outstanding
+  // balance write in use-pos-payment.ts.
+  const pointsRows = await getCustomerLoyaltyPoints(selectedCustomer.id);
+  const currentPoints = pointsRows[0]?.loyalty_points || 0;
+
   await update("customers", selectedCustomer.id, {
     loyalty_points: calculateLoyaltyPointsAfterSale(
-      selectedCustomer.loyalty_points || 0,
+      currentPoints,
       earnedPoints,
       redeemedOption?.pointsCost || 0,
     ),

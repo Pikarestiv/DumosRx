@@ -1,4 +1,4 @@
-import { query, insert, update } from "@/lib/db/local-database";
+import { query, insert, update, transaction } from "@/lib/db/local-database";
 import { getActiveStoreId } from "@/lib/db/core";
 import { Customer, CustomerDbRow, CustomerTransactionRow } from "@/lib/types/customer";
 
@@ -172,23 +172,32 @@ export async function recordCustomerPayment(
   paymentMethod: string,
   notes?: string,
 ): Promise<number> {
-  const now = new Date().toISOString();
-  await insert("customer_payments", {
-    customer_id: customerId,
-    amount,
-    payment_method: paymentMethod,
-    notes: notes || null,
-    payment_date: now,
+  // The payment receipt, the balance reduction, and the FIFO settlement of
+  // individual sales must land together: without a transaction, a throw
+  // partway through (e.g. inside applyCreditPaymentFIFO's per-sale update
+  // loop) could leave the balance already reduced and a payment receipt
+  // already recorded while the underlying sales stay pending/partial - the
+  // debtor ledger and the per-sale settlement then permanently disagree,
+  // and the next payment re-settles sales that were already paid for.
+  return transaction(async () => {
+    const now = new Date().toISOString();
+    await insert("customer_payments", {
+      customer_id: customerId,
+      amount,
+      payment_method: paymentMethod,
+      notes: notes || null,
+      payment_date: now,
+    });
+
+    const balanceRows = await getCustomerBalance(customerId);
+    const currentBalance = balanceRows[0]?.balance || 0;
+    const newBalance = Math.max(0, currentBalance - amount);
+    await update("customers", customerId, { outstanding_balance: newBalance });
+
+    await applyCreditPaymentFIFO(customerId, amount);
+
+    return newBalance;
   });
-
-  const balanceRows = await getCustomerBalance(customerId);
-  const currentBalance = balanceRows[0]?.balance || 0;
-  const newBalance = Math.max(0, currentBalance - amount);
-  await update("customers", customerId, { outstanding_balance: newBalance });
-
-  await applyCreditPaymentFIFO(customerId, amount);
-
-  return newBalance;
 }
 
 export async function getAllCustomers(): Promise<Customer[]> {

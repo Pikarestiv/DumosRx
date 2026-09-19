@@ -114,6 +114,15 @@ export function useDailyCloseData(reportDate: string) {
       const method = ret.payment_method?.toLowerCase();
 
       if (method === "mixed") {
+        // Deliberate simplification, not a proportional split by the
+        // original sale's payment mix: the return flow has no way to record
+        // which method(s) a refund actually came back out of (no
+        // payment-method picker on a return), so every mixed-sale refund is
+        // assumed to come out of the till as cash. If a mixed sale is ever
+        // refunded in full and its original mix included card/transfer/
+        // credit, this will understate expected cash at close by the
+        // refunded amount - it isn't a drawer shortage, it's this
+        // assumption. Revisit if refunds start being recorded per-method.
         totals.cash -= ret.total_refunded;
       } else if (
         totals[method as keyof typeof totals] !== undefined &&

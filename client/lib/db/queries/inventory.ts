@@ -601,6 +601,36 @@ export async function submitStockAudit(
           });
           remaining -= deductQty;
         }
+
+        // The counted shrinkage was larger than every active batch's summed
+        // quantity could cover (system quantity was already spread thinner
+        // across batches than reality) - same situation recordSaleItemStock
+        // guards against for a sale. Attribute the remainder to the most
+        // recently touched batch rather than silently dropping it:
+        // updateStockBatchQuantity clamps that batch's own quantity at 0
+        // (it never goes negative), but this still leaves a stock_movements
+        // record explaining the full shortfall - without this, the audit's
+        // own reconciled counted quantity doesn't match any recorded
+        // movement, and there's no trace of where the rest of it went.
+        if (remaining > 0) {
+          const [fallbackBatch] = await getAnyActiveBatchForProduct(item.productId);
+          if (fallbackBatch) {
+            await updateStockBatchQuantity(fallbackBatch.id, -remaining);
+            await insert("stock_movements", {
+              product_id: item.productId,
+              stock_batch_id: fallbackBatch.id,
+              movement_type: "adjustment",
+              quantity: -remaining,
+              unit_cost: unitCost,
+              total_cost: unitCost * remaining,
+              reason: item.reason || "Cycle count adjustment (shortfall exceeded tracked batch quantity)",
+              reference_id: auditId,
+              reference_type: "stock_audit",
+              performed_by: performedBy || null,
+              movement_date: new Date().toISOString(),
+            });
+          }
+        }
       }
     }
   });

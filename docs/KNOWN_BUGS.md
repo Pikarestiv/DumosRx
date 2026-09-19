@@ -27,21 +27,43 @@ Issues spotted incidentally (e.g. while doing TypeScript type-safety cleanup) th
   `error-logger.ts`.
 - **Hypothesis (strong, not confirmed with instrumentation):** a `query()`
   call outside a transaction yields mid-`stmt.step()` loop; if another
-  concurrent operation — a second `sync()` invocation (auto-interval sync
-  overlapping a manual/import-triggered one), or any `transaction()` that
-  reinitializes/replaces the shared sql.js connection — runs during that
-  yield window, the original `stmt` handle is invalidated. The next
-  `stmt.step()` after resuming then throws `Statement closed`, and because
-  this specific failure isn't handled as retryable, the sync loop appears
-  to give up rather than recover on its own.
+  concurrent operation runs during that yield window and touches the same
+  shared sql.js connection, the original `stmt` handle is invalidated. The
+  next `stmt.step()` after resuming then throws `Statement closed`, and
+  because this specific failure isn't handled as retryable, the sync loop
+  appears to give up rather than recover on its own. **Ruled out:**
+  `sync()` itself already guards against re-entrancy correctly (a
+  module-level `isSyncInProgress` flag, set/reset in a `try`/`finally`, so
+  a second overlapping `sync()` call returns an early "Sync already in
+  progress" instead of racing) — confirmed by reading `index.ts` directly,
+  so this is NOT two overlapping `sync()` calls. A concrete, real trigger
+  for *a* `sync()` call worth noting: `components/auth/license-guard.tsx`'s
+  `performCheck()` effect calls `sync(true)` any time
+  `storeProfile?.status`/`suspension_reason`/`subscription_tier` changes —
+  and a sync's own pull can update those same fields on `stores`, so a
+  sync completing can re-trigger another `performCheck` → `sync(true)`
+  shortly after. That path is still safely serialized by the
+  `isSyncInProgress` guard, so it's not the double-entry itself, but it is
+  a plausible source of the *frequent* sync calls whose write-side
+  activity (`pushChanges`/`pullChanges`, presumably running inside
+  `transaction()`) could still overlap with some *other*, unguarded
+  non-transactional `query()` call elsewhere in the app (e.g. an ordinary
+  page's data fetch) landing in that yield window. The precise other
+  caller wasn't identified — would need instrumentation (logging every
+  `query()` call's SQL + a monotonic counter, or breaking on
+  `Statement closed` in devtools) to catch the actual second party
+  mid-collision rather than inferring it after the fact.
 - **Recovery:** a full page reload (not just SPA navigation — confirmed a
   same-tab `navigate` to the same URL was NOT sufficient on its own the
-  first time; a subsequent one did clear it) reliably un-wedged it — the
-  unsynced count immediately resumed counting down afterward. This points
-  at in-memory state (a stale statement/closure), not corrupted persisted
-  data: the IndexedDB-backed local DB blob was intact throughout, and a
-  reload's fresh module state was enough to recover without any data
-  fix-up.
+  first time; a subsequent one did clear it) reliably un-wedged it —
+  temporarily: the unsynced count resumed counting down for roughly a
+  minute each time before hitting `Statement closed` again and re-wedging,
+  requiring another reload. This points at in-memory state (a stale
+  statement/closure) recreated fresh each reload, not corrupted persisted
+  data: the IndexedDB-backed local DB blob was intact and growing correctly
+  throughout, and each reload's fresh module state recovered forward
+  progress without any data fix-up — it just doesn't survive the same
+  triggering condition recurring under a still-large backlog.
 - **Effect:** a user who does several large operations in quick succession
   (a big import, a stock recount, etc.) can end up with sync silently and
   permanently stuck — the "N Changes Unsynced" action-center item never

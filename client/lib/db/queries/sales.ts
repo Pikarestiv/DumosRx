@@ -12,22 +12,46 @@ export async function getSaleItems(saleId: string) {
 
 export async function getTransactionDetails(saleId: string) {
   try {
-    const items = await query<SaleItemDetail>(
+    const items = await query<SaleItemDetail & { created_at?: string }>(
       `SELECT
-        si.*, 
-        m.name as product_name, 
+        si.*,
+        m.name as product_name,
         si.cost_price as med_cost_price,
         COALESCE((
-          SELECT SUM(ri.quantity) 
-          FROM return_items ri 
-          JOIN returns r ON ri.return_id = r.id 
+          SELECT SUM(ri.quantity)
+          FROM return_items ri
+          JOIN returns r ON ri.return_id = r.id
           WHERE r.sale_id = si.sale_id AND ri.product_id = si.product_id AND (ri._deleted = 0 OR ri._deleted IS NULL) AND (r._deleted = 0 OR r._deleted IS NULL)
         ), 0) as returned_quantity
-       FROM sale_items si 
-       LEFT JOIN products m ON si.product_id = m.id 
-       WHERE si.sale_id = ? AND (si._deleted = 0 OR si._deleted IS NULL)`,
+       FROM sale_items si
+       LEFT JOIN products m ON si.product_id = m.id
+       WHERE si.sale_id = ? AND (si._deleted = 0 OR si._deleted IS NULL)
+       ORDER BY si.created_at ASC, si.id ASC`,
       [saleId]
     );
+
+    // The query above has no sale_item_id to join return_items against
+    // (that column doesn't exist), so it gives every sale_item row for a
+    // given product the SAME combined returned_quantity for that product
+    // across the whole sale. That's correct as long as a sale has at most
+    // one sale_item per product (true for a normal POS checkout - the cart
+    // merges duplicates), but if it ever doesn't - a held transaction
+    // restored from a stale pre-merge snapshot, say - every row for that
+    // product would independently believe the full combined amount was
+    // already returned against IT alone, undercounting how much is really
+    // still returnable (getMaxReturnable = quantity - returned_quantity,
+    // so extra rows only ever make the customer's remaining allowance look
+    // smaller than it is, never the reverse). This redistributes that same
+    // total sequentially across each product's sale_item rows, in a fixed
+    // (creation) order, so returned_quantity is attributed once per unit
+    // instead of once per row.
+    const returnedByProduct = new Map<string, number>();
+    for (const item of items) {
+      const remaining = returnedByProduct.get(item.product_id) ?? (item.returned_quantity || 0);
+      const attributed = Math.min(item.quantity, remaining);
+      item.returned_quantity = attributed;
+      returnedByProduct.set(item.product_id, remaining - attributed);
+    }
 
     const returnsData = await query<{ total_refunded?: number }>(
       `SELECT SUM(total_refunded) as total_refunded FROM returns WHERE sale_id = ? AND (_deleted = 0 OR _deleted IS NULL)`,

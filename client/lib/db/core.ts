@@ -1409,40 +1409,50 @@ if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
   };
 }
 
+// Every table a "wipe this device's local data" operation clears, shared by
+// resetDatabase() and clearDatabaseForNewStore() so the two never drift
+// apart again the way they previously did (sale_item_batches was missing
+// from both, silently orphaning rows pointing at cleared sale_items/
+// stock_batches). Deliberately excludes loyalty_tiers/loyalty_redemption_
+// options/system_configs - store configuration, not transactional data -
+// and stores/users, which only clearDatabaseForNewStore's own list adds.
+const LOCAL_WIPE_TABLES = [
+  "prescription_items",
+  "prescriptions",
+  "return_items",
+  "returns",
+  "sale_items",
+  "sale_item_batches",
+  "sales",
+  "purchase_order_items",
+  "purchase_orders",
+  "customer_payments",
+  "customers",
+  "supplier_payments",
+  "suppliers",
+  "stock_audits",
+  "stock_movements",
+  "stock_batches",
+  "products",
+  "categories",
+  "expenses",
+  "audit_logs",
+  "held_transactions",
+  "loyalty_transactions",
+  "requested_products",
+  "feedback",
+  "payment_accounts",
+  "_sync_state",
+  "_sync_queue",
+];
+
 /**
  * Truncates all tables except system-critical ones
  */
 export async function resetDatabase(): Promise<void> {
   if (!db) await initDatabase();
 
-  const tablesToClear = [
-    "prescription_items",
-    "prescriptions",
-    "return_items",
-    "returns",
-    "sale_items",
-    "sales",
-    "purchase_order_items",
-    "purchase_orders",
-    "customer_payments",
-    "customers",
-    "supplier_payments",
-    "suppliers",
-    "stock_audits",
-    "stock_movements",
-    "stock_batches",
-    "products",
-    "categories",
-    "expenses",
-    "audit_logs",
-    "held_transactions",
-    "loyalty_transactions",
-    "requested_products",
-    "feedback",
-    "payment_accounts",
-    "_sync_state",
-    "_sync_queue",
-  ];
+  const tablesToClear = LOCAL_WIPE_TABLES;
 
   for (const table of tablesToClear) {
     try {
@@ -1473,36 +1483,7 @@ export async function resetDatabase(): Promise<void> {
 export async function clearDatabaseForNewStore(): Promise<void> {
   if (!db) await initDatabase();
 
-  const tablesToClear = [
-    "prescription_items",
-    "prescriptions",
-    "return_items",
-    "returns",
-    "sale_items",
-    "sales",
-    "purchase_order_items",
-    "purchase_orders",
-    "customer_payments",
-    "customers",
-    "supplier_payments",
-    "suppliers",
-    "stock_audits",
-    "stock_movements",
-    "stock_batches",
-    "products",
-    "categories",
-    "expenses",
-    "audit_logs",
-    "held_transactions",
-    "loyalty_transactions",
-    "requested_products",
-    "feedback",
-    "payment_accounts",
-    "_sync_state",
-    "_sync_queue",
-    "stores",
-    "users",
-  ];
+  const tablesToClear = [...LOCAL_WIPE_TABLES, "stores", "users"];
 
   for (const table of tablesToClear) {
     try {

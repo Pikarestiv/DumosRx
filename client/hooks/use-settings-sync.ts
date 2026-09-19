@@ -11,6 +11,7 @@ import {
 } from "@/lib/db/core";
 import { sync, syncSubscriptionStatus } from "@/lib/db/sync-engine";
 import { markRestoredForCloudLinkNotice } from "@/lib/utils/post-restore-notice";
+import { clearToken } from "@/lib/api/token-manager";
 
 export function useSettingsSync(
   isCloudLinked: boolean,
@@ -118,6 +119,15 @@ export function useSettingsSync(
   };
 
   const handleResetDatabase = async () => {
+    // Disconnect cloud sync before wiping local tables, not after: resetDatabase()
+    // ends in a window.location.reload(), and this device's mount-time auto-sync
+    // effect (store-context.tsx) would otherwise immediately re-pull every
+    // just-cleared table straight back down from the server, undoing the reset
+    // within a second of it finishing. Clearing the token here means that
+    // effect finds no auth_token and skips, same as any other signed-out device.
+    // The user can re-link (Settings > Data > "Link & Sync") whenever they want
+    // this device syncing again - their cloud account itself is untouched.
+    clearToken();
     await resetDatabase();
     toast.success("Database reset successfully.");
   };

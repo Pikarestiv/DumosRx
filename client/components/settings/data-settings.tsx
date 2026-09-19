@@ -202,7 +202,9 @@ export function DataSettings({
               <div className="space-y-1">
                 <p className="text-sm font-semibold">Factory Reset</p>
                 <p className="text-xs text-muted-foreground">
-                  Wipe all local data (products, sales, etc.) and start fresh.
+                  {isCloudLinked
+                    ? "Wipe all local data (products, sales, etc.), disconnect cloud sync, and start fresh."
+                    : "Wipe all local data (products, sales, etc.) and start fresh."}
                 </p>
               </div>
               <Button
@@ -221,7 +223,11 @@ export function DataSettings({
         open={showResetConfirm}
         onOpenChange={setShowResetConfirm}
         title="Factory Reset"
-        description="This will permanently delete all local data: products, sales, customers, and expenses. Your login account will remain. This cannot be undone."
+        description={
+          isCloudLinked
+            ? "This will permanently delete all local data: products, sales, customers, and expenses, and disconnect this device from cloud sync. Your staff logins will remain, and you can re-link your cloud account afterward. This cannot be undone."
+            : "This will permanently delete all local data: products, sales, customers, and expenses. Your login account will remain. This cannot be undone."
+        }
         confirmLabel="Reset All Data"
         requirePin={true}
         onConfirm={async (pin) => {

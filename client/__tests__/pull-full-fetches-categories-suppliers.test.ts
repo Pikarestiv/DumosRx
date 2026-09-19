@@ -72,6 +72,7 @@ describe("pullChanges always full-fetches categories and suppliers", () => {
     expect(apiClient.pullChanges).toHaveBeenCalledWith(
       {
         last_synced: { products: "2026-08-15T00:00:00Z" },
+        page_offset: {},
       },
       false,
       false,

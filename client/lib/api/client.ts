@@ -293,7 +293,10 @@ class ApiClient extends FleetBillingApiClient {
   }
 
   async pullChanges(
-    payload: { last_synced: Record<string, string> },
+    payload: {
+      last_synced: Record<string, string>;
+      page_offset?: Record<string, number>;
+    },
     isManual: boolean = false,
     isSetup: boolean = false,
   ) {

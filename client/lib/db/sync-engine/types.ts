@@ -26,6 +26,7 @@ export interface PullResponse {
   success: boolean;
   server_timestamp: string;
   changes: Record<string, Record<string, unknown>[]>;
+  has_more?: Record<string, boolean>;
 }
 
 export interface SyncResult {

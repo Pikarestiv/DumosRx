@@ -189,6 +189,10 @@ export interface TierLimits {
   staff: number;
   stores: number;
   sync_interval: number;
+  /** Real field in the stored config (max catalog items; -1 = unlimited)
+   * but not currently read by any gating code or exposed in this editor's
+   * UI — kept optional so tiers that don't set it don't break typing. */
+  inventories?: number;
 }
 
 export interface TierConfig {

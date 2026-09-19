@@ -119,8 +119,8 @@ export function PlanTierCard({
             type="number"
             min={0}
             className={inputClass}
-            value={tier.limits.sync_interval}
-            onChange={(e) => updateLimits({ sync_interval: Math.max(0, Number(e.target.value)) })}
+            value={tier.limits.sync_interval ?? 0}
+            onChange={(e) => updateLimits({ sync_interval: Math.max(0, Number(e.target.value) || 0) })}
             disabled={!tier.active}
           />
         </div>

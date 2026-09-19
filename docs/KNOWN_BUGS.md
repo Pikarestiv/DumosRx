@@ -139,63 +139,38 @@ Issues spotted incidentally (e.g. while doing TypeScript type-safety cleanup) th
   transitions in this app appear to use) instead of the router's
   client-side push for this specific transition.
 
-### Superadmin "My Referrals": saving your own unchanged referral code always fails as "already taken"
+### Superadmin Settings → Billing & Plans: minor tier-schema gaps (corrected — this entry previously overstated the problem; FIXED)
 
-- **Where:** `web/app/admin/referrals/page.tsx`'s `handleSave` calls
-  `checkReferralCode(trimmed)` with no second argument.
-  `checkReferralCode(code, userId?)`'s backend endpoint explicitly supports
-  passing the current user's id to exclude their own existing code from the
-  collision check (per the endpoint's own doc comment: "exclude this user's
-  own current code... i.e. re-saving your own code as-is"), but the frontend
-  call site never passes it.
-- **Effect:** any save that doesn't change the code (or changes only
-  casing/whitespace, which normalizes back to the same value) collides with
-  the user's own row and is rejected as taken. The only way to successfully
-  use this feature at all is to change to a code that's never been used by
-  this account before.
-- **Fix scope (not implemented):** pass the current user's id through, e.g.
-  `checkReferralCode(trimmed, user?.id)` in `handleSave`.
-
-### Superadmin Settings → Integrations: "Disable Widget" always 422s — a Smartsupp key can be set but never cleared through the UI
-
-- **Where:** `SystemConfigController::update()` validates `'value' =>
-  'required'`. Laravel's `required` rule fails on an empty string. The
-  Integrations tab's `handleClear` sends `value: ""` to unset the key —
-  the only one of the 5 mutable Platform Settings tabs whose "clear"
-  affordance tries to save an empty string (the others clear via a boolean
-  `false` or an empty array, both of which pass `required` fine).
-- **Effect:** once a Smartsupp key is ever set through this UI, there is no
-  working path back to "Disabled" through the app — manually clearing the
-  input and re-saving hits the identical 422.
-- **Fix scope (not implemented):** relax the backend validation for this key
-  (e.g. `'value' => 'present'`), or have the frontend send an explicit
-  sentinel the backend treats as "clear this key" instead of an empty string
-  through the generic "set a value" contract.
-
-### Superadmin Settings → Billing & Plans: the tier limits/features UI schema doesn't match what's actually stored — risk of data pollution on save
-
-- **Where:** `plan-tier-card.tsx` (and the `TierLimits`/`TierFeatures` types
-  in `lib/types/admin.ts`) hardcode a `sync_interval` limit field and an
-  18-item feature-toggle list, but the real stored `subscription_plans`
-  config has no `sync_interval` key at all (the real third limit field is
-  `inventories`), and its real `features` object uses keys
-  (`basic_inventory`, `mobile_access`, `theme_customizer`, `store_url`) that
-  don't appear anywhere in the UI's toggle list — while several toggles the
-  UI *does* show (`mobile_app`, `ecommerce`, `smart_pos`, `broadcast_create`,
-  `custom_branding`, `barcode_generation`, `loyalty_program`) don't exist in
-  the real config and aren't read by any backend gating code.
-- **Effect if ever saved:** every tier's blank "Sync Interval" input would
-  write a garbage `sync_interval: NaN` into the real stored config
-  (permanently polluting the schema), and the real, currently-enforced
-  `theme_customizer` gate (plus the other 3 real feature flags) would remain
-  completely unmanageable through this UI even after a save, since no
-  control for them exists.
-- **Status:** found by inspection only — the Save button was deliberately
-  never clicked once this was noticed. Fix scope (not implemented):
-  reconcile `TierLimits`/`TierFeatures` and `plan-tier-card.tsx`'s hardcoded
-  field/toggle lists against `laravel-server/config/plans.php` and
-  `SystemConfigSeeder.php` (both confirmed to use the real field names),
-  treating one schema as canonical.
+- **Original claim (wrong):** this entry previously said most of the UI's
+  feature toggles (`mobile_app`, `ecommerce`, `smart_pos`, `custom_branding`,
+  `barcode_generation`, `loyalty_program`, `advanced_reports`,
+  `reseller_commission`, `proforma_quotes`, `daily_close_report`) "don't
+  exist in the real config and aren't read by any backend gating code" —
+  based on comparing the UI/types only against `SystemConfigSeeder.php`'s
+  literal seeded keys, without tracing how they're actually consumed.
+- **What was missed:** `client/lib/hooks/use-feature-gate.ts`'s `getFeature(key,
+  altKey, fallback)` checks `features[key]`, then `features[altKey]`, then
+  falls back to a hardcoded tier default — e.g.
+  `getFeature('custom_branding', 'theme_customizer', !isFree)` and
+  `getFeature('smart_pos', 'smart_pos', true)`. Every single toggle in the
+  admin UI's list corresponds to a real primary or alias key checked by this
+  function, confirmed by reading every `getFeature(...)`/`getLimit(...)`
+  call site in that file. Saving any of them through the admin UI has real,
+  immediate effect on gating — none of them are dead or write-only.
+- **What's genuinely true (fixed):** `laravel-server/database/seeders/SystemConfigSeeder.php`'s
+  seeded config does include one field the UI never exposed —
+  `limits.inventories` (max catalog items, -1 = unlimited) — but no gating
+  code anywhere reads it either, so it's a genuinely inert field, not a
+  data-pollution risk; added as an optional `TierLimits.inventories` field
+  for documentation accuracy, no UI control added since nothing consumes it.
+  Also, the seeded `free` tier's `limits` has no `sync_interval` key, so
+  `plan-tier-card.tsx`'s Sync Interval input rendered `value={undefined}`
+  for that tier and could compute `NaN` if an admin typed into it — fixed
+  with a `?? 0` display default and an `|| 0` fallback on save.
+- **Status:** corrected analysis + the one real narrow gap fixed
+  (`web/components/admin/views/plan-tier-card.tsx`,
+  `web/lib/types/admin.ts`). No data-pollution risk exists; the original
+  "reconcile the whole schema" framing was not warranted.
 
 ### Superadmin Handoff: impersonation defaults to the real production domain, with no in-panel way to override it once logged in
 
@@ -309,10 +284,6 @@ Issues spotted incidentally (e.g. while doing TypeScript type-safety cleanup) th
   `page`/`search`/`action`. A superadmin can't filter the platform-wide log
   to one store, one user, or a date range except via the free-text search
   box (which only matches description/action/user name-email columns).
-- **Superadmin Communications → User Feedback has no pagination UI**
-  despite a real, correctly-paginated backend (`Feedback::paginate(50)`).
-  With ~2,900 real pending tickets on the production-mirrored dev backend,
-  only the newest 50 are ever reachable through this page.
 - **Superadmin Stores: the same "Status" label means two different things
   depending which screen shows it.** The Store Fleet list / View Store
   Details dialog show the real `stores.status` account-state column

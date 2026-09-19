@@ -27,23 +27,6 @@ Issues spotted incidentally (e.g. while doing TypeScript type-safety cleanup) th
   response needs to omit `id`/`cost_price`/`store_id`, or whether it's
   acceptable as-is now that it can no longer be leveraged into a write.
 
-### Oversell flooring is inconsistent between local write and sync/server paths
-
-- **Where:** `client/lib/db/queries/inventory.ts` floors the local batch
-  quantity at 0 (`Math.max(0, batch.quantity - deduction)`) but records a
-  `stock_movements` row for the full, unfloored deduction. Both
-  `SyncController.php`'s `push()` (`increment('quantity', $delta)`) and
-  `pull.ts` (`SET quantity = quantity + ?`) apply that raw delta with no
-  floor.
-- **Effect:** an oversell (selling more than on-hand, e.g. from a stale
-  on-screen count) leaves the selling device's batch at 0 while the server
-  and every other device compute a negative quantity from the same
-  movement — a permanent per-device divergence, since pull deliberately
-  never trusts a pulled quantity snapshot (rebuilds it from
-  `stock_movements` instead), so nothing ever reconciles the two.
-- **Fix scope (not implemented):** decide on one floor policy and apply it
-  identically in the local write, `SyncController::push()`'s delta
-  application, and `pull.ts`'s delta application.
 
 ### Sync plan-gating bypassable via `setup` query param and store-limit check ignores the actual write target
 

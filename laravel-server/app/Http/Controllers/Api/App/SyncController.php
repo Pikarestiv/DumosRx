@@ -845,13 +845,29 @@ class SyncController extends Controller
             // Apply every accumulated stock_movements delta in one atomic pass,
             // now that every change in this push has been processed and any
             // batch created earlier in the same payload definitely exists.
-            // Uses a raw atomic UPDATE (quantity = quantity + delta) rather
-            // than load-mutate-save, so concurrent syncs from different
-            // devices can't race and clobber each other's deltas.
+            // A single atomic UPDATE (not load-mutate-save) so concurrent
+            // syncs from different devices can't race and clobber each
+            // other's deltas.
+            //
+            // Floored at 0, mirroring the client's own local deduction
+            // (lib/db/queries/inventory.ts's deductFromBatch: "the batch's
+            // own running balance should never be written negative" — an
+            // oversell is surfaced via getOversoldAlerts(), not a negative
+            // quantity). Before this, an oversell left the selling device's
+            // local batch at 0 while this server-side increment (and every
+            // OTHER device's pull-side `quantity + delta` application, see
+            // client's pull.ts) computed a negative quantity from the exact
+            // same movement — a permanent per-device divergence, since pull
+            // deliberately never trusts a pulled quantity snapshot to
+            // reconcile it back (see docs/KNOWN_BUGS.md). CASE WHEN instead
+            // of MySQL's GREATEST()/SQLite's scalar MAX() so the same
+            // expression works against both engines (production is MySQL,
+            // tests run on sqlite — see phpunit.xml).
             foreach ($stockBatchDeltas as $stockBatchId => $delta) {
-                $affected = DB::table('stock_batches')
-                    ->where('id', $stockBatchId)
-                    ->increment('quantity', $delta);
+                $affected = DB::update(
+                    'UPDATE stock_batches SET quantity = CASE WHEN quantity + ? < 0 THEN 0 ELSE quantity + ? END WHERE id = ?',
+                    [$delta, $delta, $stockBatchId],
+                );
 
                 if (!$affected) {
                     Log::warning("Sync push: stock_movements delta of {$delta} referenced unknown stock_batch_id {$stockBatchId}, no batch to apply it to.");

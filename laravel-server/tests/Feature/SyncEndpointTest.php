@@ -295,6 +295,75 @@ class SyncEndpointTest extends TestCase
     }
 
     /**
+     * Regression: an oversell (selling more than a batch's on-hand
+     * quantity, e.g. from a stale on-screen stock count) floors the local
+     * batch at 0 (see deductFromBatch() in the client's
+     * lib/db/queries/inventory.ts — "the batch's own running balance
+     * should never be written negative"). Before this fix, this server-side
+     * increment('quantity', delta) applied the same movement's raw,
+     * unfloored delta, computing a negative quantity here while the
+     * selling device's local batch stayed floored at 0 — a permanent
+     * per-device divergence, since pull() never trusts a pulled quantity
+     * snapshot to reconcile it back. See docs/KNOWN_BUGS.md.
+     */
+    public function test_push_sync_floors_stock_batch_quantity_at_zero_on_oversell()
+    {
+        DB::table('products')->insert([
+            'id' => 'prod_oversell',
+            'user_id' => $this->user->id,
+            'name' => 'Amoxicillin',
+            '_version' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $batchId = 'batch_oversell';
+        DB::table('stock_batches')->insert([
+            'id' => $batchId,
+            'user_id' => $this->user->id,
+            'product_id' => 'prod_oversell',
+            'quantity' => 2,
+            'cost_price' => 50.00,
+            'expiry_date' => now()->addYear()->toDateString(),
+            'batch_number' => 'B-OVERSELL',
+            '_version' => 1,
+            'created_at' => now()->subDay(),
+            'updated_at' => now(),
+        ]);
+
+        // Cashier sold 5 from a batch that only had 2 left.
+        $payload = [
+            'setup' => true,
+            'changes' => [
+                [
+                    'table_name' => 'stock_movements',
+                    'operation' => 'INSERT',
+                    'record_id' => 'mov_oversell',
+                    'payload' => [
+                        'id' => 'mov_oversell',
+                        'stock_batch_id' => $batchId,
+                        'product_id' => 'prod_oversell',
+                        'movement_type' => 'sale',
+                        'quantity' => -5,
+                        'performed_by' => $this->user->id,
+                        'created_at' => now()->toDateTimeString(),
+                        'updated_at' => now()->toDateTimeString(),
+                    ],
+                ],
+            ],
+        ];
+
+        $response = $this->actingAs($this->user)->postJson('/api/v1/app/sync/push', $payload);
+        $response->assertStatus(200);
+
+        // Floored at 0, not -3 (2 - 5).
+        $this->assertDatabaseHas('stock_batches', [
+            'id' => $batchId,
+            'quantity' => 0,
+        ]);
+    }
+
+    /**
      * A batch created and immediately partially sold before its first-ever
      * sync (e.g. procurement receiving + a POS sale, both offline) pushes a
      * stock_batches INSERT with an already-net quantity AND the matching

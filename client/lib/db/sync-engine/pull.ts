@@ -261,7 +261,15 @@ export async function pullChanges(
                 // batch's local quantity in sync with what OTHER
                 // devices/terminals have done to it, without ever trusting a
                 // pulled quantity snapshot directly — mirroring the server's
-                // own `increment('quantity', delta)` derivation exactly.
+                // own delta application exactly, floor included: a batch's
+                // running balance is never written negative (an oversell is
+                // surfaced separately, see getOversoldAlerts()), matching
+                // deductFromBatch()'s own local floor a few lines below this
+                // module and SyncController::push()'s $stockBatchDeltas
+                // application. Without this floor here too, an oversell on
+                // one device (batch floored at 0 locally there) diverged
+                // permanently from every OTHER device applying the same
+                // movement's raw, unfloored delta — see docs/KNOWN_BUGS.md.
                 if (
                   table === "stock_movements" &&
                   !_deleted &&
@@ -269,7 +277,7 @@ export async function pullChanges(
                   typeof data.quantity === "number"
                 ) {
                   await execute(
-                    "UPDATE stock_batches SET quantity = quantity + ? WHERE id = ?",
+                    "UPDATE stock_batches SET quantity = MAX(0, quantity + ?) WHERE id = ?",
                     [data.quantity, data.stock_batch_id as string],
                   );
                 }

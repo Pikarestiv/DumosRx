@@ -160,4 +160,39 @@ describe("pullChanges never trusts a pulled stock_batches.quantity snapshot", ()
     const rows = db.exec(`SELECT quantity FROM stock_batches WHERE id = 'batch-3'`);
     expect(rows[0].values[0][0]).toBe(15);
   });
+
+  it("floors a batch's quantity at 0 when a pulled movement's delta would take it negative, mirroring the local oversell floor", async () => {
+    // Another device sold 5 from a batch that only had 2 left there — its
+    // own local write floors at 0 (see deductFromBatch() in
+    // lib/db/queries/inventory.ts), but the movement it pushed still
+    // carries the full, unfloored -5 delta. This device's own local batch
+    // must floor identically when applying that same delta, or the two
+    // devices permanently disagree about this batch's on-hand quantity.
+    db.run(
+      `INSERT INTO stock_batches (id, product_id, batch_number, quantity, is_active, _deleted, _version)
+       VALUES ('batch-4', 'prod-1', 'Oversold Batch', 2, 1, 0, 1)`,
+    );
+
+    apiClient.pullChanges.mockResolvedValueOnce({
+      success: true,
+      changes: {
+        stock_movements: [
+          {
+            id: "move-3",
+            product_id: "prod-1",
+            stock_batch_id: "batch-4",
+            movement_type: "sale",
+            quantity: -5,
+            _version: 1,
+          },
+        ],
+      },
+      server_timestamp: "2026-09-19T00:00:00Z",
+    });
+
+    await pullChanges();
+
+    const rows = db.exec(`SELECT quantity FROM stock_batches WHERE id = 'batch-4'`);
+    expect(rows[0].values[0][0]).toBe(0);
+  });
 });

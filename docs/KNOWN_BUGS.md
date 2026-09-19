@@ -4,6 +4,60 @@ Issues spotted incidentally (e.g. while doing TypeScript type-safety cleanup) th
 
 ## Open items
 
+### Sync engine can wedge permanently on `Statement closed` after heavy back-to-back local write activity (reproduced, recovered by reload)
+
+- **Where:** `client/lib/db/sync-engine/index.ts` (`sync()`, error logged at
+  line ~143) surfaces a sql.js/`better-sqlite3`-style `Statement closed`
+  error; the underlying statement lifecycle is in
+  `client/lib/db/core.ts`'s `query()`, which does `db.prepare(sql)` →
+  `stmt.bind()` → a `while (stmt.step())` loop that **yields to the event
+  loop via `setTimeout(resolve, 0)` every 200 rows when not inside a
+  `transaction()`** (explicit, deliberate, and commented — added so a large
+  read doesn't block painting). The same comment block acknowledges "sql.js
+  has one shared connection, no per-caller isolation."
+- **Reproduced:** after two back-to-back bulk operations on a ~1900-row
+  catalog (a full CSV import, then a corrective re-import with the
+  "update stock for existing products" audit path, run in quick
+  succession — see the sibling product-import bug entries above, all found
+  in the same session), the sync engine started throwing `Sync failed:
+  "Statement closed"` on every subsequent attempt and the "N Changes
+  Unsynced" counter stopped decreasing entirely (stuck, not just slow) —
+  visible both in a console error surfaced through Next.js's dev error
+  overlay and in `[CRASH LOGGER] Capturing error: Statement closed` from
+  `error-logger.ts`.
+- **Hypothesis (strong, not confirmed with instrumentation):** a `query()`
+  call outside a transaction yields mid-`stmt.step()` loop; if another
+  concurrent operation — a second `sync()` invocation (auto-interval sync
+  overlapping a manual/import-triggered one), or any `transaction()` that
+  reinitializes/replaces the shared sql.js connection — runs during that
+  yield window, the original `stmt` handle is invalidated. The next
+  `stmt.step()` after resuming then throws `Statement closed`, and because
+  this specific failure isn't handled as retryable, the sync loop appears
+  to give up rather than recover on its own.
+- **Recovery:** a full page reload (not just SPA navigation — confirmed a
+  same-tab `navigate` to the same URL was NOT sufficient on its own the
+  first time; a subsequent one did clear it) reliably un-wedged it — the
+  unsynced count immediately resumed counting down afterward. This points
+  at in-memory state (a stale statement/closure), not corrupted persisted
+  data: the IndexedDB-backed local DB blob was intact throughout, and a
+  reload's fresh module state was enough to recover without any data
+  fix-up.
+- **Effect:** a user who does several large operations in quick succession
+  (a big import, a stock recount, etc.) can end up with sync silently and
+  permanently stuck — the "N Changes Unsynced" action-center item never
+  clears, other devices/the server never see the latest local changes,
+  and there's no in-app indication that a reload (rather than "just wait")
+  is what's needed to recover.
+- **Fix scope (not implemented):** needs actual concurrency control, not
+  just a bigger try/catch — e.g. a mutex/lock so only one `sync()` (or one
+  `transaction()`/non-transactional `query()`) can hold the sql.js
+  connection at a time, and/or catching `Statement closed` specifically to
+  retry the operation once against a freshly-`prepare()`d statement instead
+  of surfacing it as a terminal failure. Would need deliberate concurrent
+  load (two overlapping large operations, reproduced on purpose rather than
+  incidentally) to verify a fix actually closes the window instead of just
+  narrowing it.
+
 ### Account/store switch may briefly show the previous store's stale dashboard data (unreproduced)
 
 - **Where:** `client/lib/context/store-context.tsx`'s `switchStore()` calls
@@ -156,6 +210,43 @@ Issues spotted incidentally (e.g. while doing TypeScript type-safety cleanup) th
   (`auth/callback`); the return leg (`admin/handoff`) is structurally
   identical but wasn't independently reproduced (its own live test failed on
   an unrelated 60s code-TTL expiry first).
+
+### Product Catalog page briefly (and genuinely) shows "No products found" after a large sync (reproduced)
+
+- **Where:** `client/components/products/product-database.tsx`'s
+  `getProductsWithDetails()` query (rendered through
+  `catalog-list.tsx`/`catalog-list-states.tsx`, which already has a
+  dedicated loading skeleton specifically to avoid flashing the "empty
+  catalog" state during a normal load — see that file's own comment).
+- **Reproduced:** immediately after importing ~1900 products (see the
+  sibling entries above about that import's own bugs) and while the
+  resulting sync backlog was still draining, navigating to
+  `/inventory/catalog` rendered the skeleton, then settled on "No products
+  found" — not a stale/loading flag misread, since `isLoading` was
+  confirmed `false` and the query had genuinely completed with an empty
+  result. In the same window, the Dashboard's and Inventory Overview's own
+  "Total Products" counts (separate queries) stayed correct the entire
+  time (1892→1895 as the test imports landed), and the persisted local
+  DB's IndexedDB blob size was unchanged and consistent with a full
+  dataset — ruling out real data loss. Navigating away (e.g. to
+  `/dashboard`) and back to `/inventory/catalog` made the correct list
+  reappear, with no user action beyond that.
+- **Effect:** for up to roughly a minute or two after a large sync
+  operation, a user opening the Catalog tab sees a false "catalog is
+  empty, add your first product" screen instead of their real inventory —
+  alarming, and easy to mistake for actual data loss (as happened during
+  this investigation) even though the underlying data was never at risk.
+- **Status:** not root-caused. Plausible cause given this codebase's other
+  documented sync/query-invalidation issues (see the store-switch entry
+  above): `getProductsWithDetails()`'s local SQL query executing against a
+  transient intermediate state of a large pull/push apply (e.g. a
+  delete-then-reinsert step, or a snapshot taken between two halves of a
+  multi-statement sync transaction) rather than a react-query stale-cache
+  problem, given `isLoading` genuinely reflected a completed empty fetch,
+  not a stale flag. Needs a repro with a smaller, more controllable sync
+  backlog and direct instrumentation of `getProductsWithDetails()`'s call
+  sites relative to `queueTableInvalidation` firing during sync, to catch
+  it mid-transition rather than after the fact.
 
 ### `SyncController::push()`'s `stale_timestamp` conflict-fallback branch — corrected: NOT dead code
 

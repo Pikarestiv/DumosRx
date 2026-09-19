@@ -76,7 +76,7 @@ export function AddExpenseDialog({
     }
   }, [expenseToEdit, open]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.category || !formData.amount || !formData.date) {
       toast.error("Please fill in all required fields");
@@ -131,7 +131,7 @@ export function AddExpenseDialog({
     >
       <form
         id="add-expense-form"
-        onSubmit={(e) => void handleSubmit(e)}
+        onSubmit={handleSubmit}
         className="flex flex-col h-full max-h-[85vh]"
       >
         <div className="px-6 py-5 overflow-y-auto flex flex-col gap-4">

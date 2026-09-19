@@ -266,7 +266,7 @@ export function useCustomerTransactions() {
     },
   });
 
-  const loadFullHistory = async () => {
+  const loadFullHistory = () => {
     if (hasFullHistory) return;
     setHasFullHistory(true);
   };

@@ -35,6 +35,7 @@ export function TransactionItem({
         return <CreditCard className="h-5 w-5 text-blue-600" />;
       case "transfer":
         return <ArrowLeftRight className="h-5 w-5 text-purple-600" />;
+      case undefined:
       default:
         return <Receipt className="h-5 w-5 text-gray-600" />;
     }
@@ -48,6 +49,7 @@ export function TransactionItem({
         return "bg-blue-100";
       case "transfer":
         return "bg-purple-100";
+      case undefined:
       default:
         return "bg-gray-100";
     }

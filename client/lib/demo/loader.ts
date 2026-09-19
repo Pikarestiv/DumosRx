@@ -35,6 +35,17 @@ import {
   DEMO_STAFF,
 } from "@/lib/demo/template";
 
+// The `!`-worthy lookups below are all keyed off refs that come from the
+// same demo template that populated the map/array — always present by
+// construction. This throws a clear error instead of silently continuing
+// with `undefined` if that invariant is ever broken by a template edit.
+function mustGet<T>(value: T | undefined, what: string): T {
+  if (value === undefined) {
+    throw new Error(`Demo seed data inconsistency: ${what} not found`);
+  }
+  return value;
+}
+
 function daysAgoIso(days: number): string {
   const d = new Date();
   d.setDate(d.getDate() - days);
@@ -124,7 +135,7 @@ export async function runDemoSeed(
       const plan = DEMO_RECEIVING_PLAN[product.ref];
       const bulkCost = product.cost_price * product.units_per_bulk;
       return {
-        product_id: productIdByRef.get(product.ref)!,
+        product_id: mustGet(productIdByRef.get(product.ref), `product id for ${product.ref}`),
         product_name: product.name,
         bulk_unit: product.bulk_unit,
         bulk_quantity: plan.bulkQuantity,
@@ -145,7 +156,10 @@ export async function runDemoSeed(
 
     const mainPo = await getPurchaseOrderById(mainPoId);
     const receivedItems = (mainPo?.items || []).map((item) => {
-      const product = DEMO_PRODUCTS.find((p) => productIdByRef.get(p.ref) === item.product_id)!;
+      const product = mustGet(
+        DEMO_PRODUCTS.find((p) => productIdByRef.get(p.ref) === item.product_id),
+        `demo product for received item ${item.product_id}`,
+      );
       const plan = DEMO_RECEIVING_PLAN[product.ref];
       return {
         po_item_id: item.id,
@@ -160,7 +174,7 @@ export async function runDemoSeed(
     // product since this is the only PO received against them).
     const batchIdByProductRef = new Map<string, string>();
     for (const product of DEMO_PRODUCTS) {
-      const productId = productIdByRef.get(product.ref)!;
+      const productId = mustGet(productIdByRef.get(product.ref), `product id for ${product.ref}`);
       const rows = await query<{ id: string }>(
         "SELECT id FROM stock_batches WHERE product_id = ? ORDER BY created_at DESC LIMIT 1",
         [productId],
@@ -170,14 +184,14 @@ export async function runDemoSeed(
 
     // 5. In-flight POs (unreceived), showing procurement mid-pipeline
     for (const po of DEMO_INFLIGHT_POS) {
-      const product = productByRef.get(po.productRef)!;
+      const product = mustGet(productByRef.get(po.productRef), `product for ${po.productRef}`);
       const bulkCost = product.cost_price * product.units_per_bulk;
       const poId = await createPurchaseOrder(
         supplierId,
         `Restock: ${product.name}`,
         [
           {
-            product_id: productIdByRef.get(po.productRef)!,
+            product_id: mustGet(productIdByRef.get(po.productRef), `product id for ${po.productRef}`),
             product_name: product.name,
             bulk_unit: product.bulk_unit,
             bulk_quantity: po.bulkQuantity,
@@ -207,10 +221,10 @@ export async function runDemoSeed(
     let txnCounter = 1;
     for (const sale of DEMO_SALES) {
       const items = sale.items.map((line) => {
-        const product = productByRef.get(line.productRef)!;
+        const product = mustGet(productByRef.get(line.productRef), `product for ${line.productRef}`);
         const totalPrice = product.selling_price * line.quantity;
         return {
-          product_id: productIdByRef.get(line.productRef)!,
+          product_id: mustGet(productIdByRef.get(line.productRef), `product id for ${line.productRef}`),
           stock_batch_id: batchIdByProductRef.get(line.productRef) || undefined,
           quantity: line.quantity,
           unit_price: product.selling_price,
@@ -295,7 +309,10 @@ export async function runDemoSeed(
           total_refunded: refundTotal,
         });
         for (const item of insertedItems) {
-          const line = items.find((i) => i.product_id === item.product_id)!;
+          const line = mustGet(
+            items.find((i) => i.product_id === item.product_id),
+            `sale line for returned item ${item.product_id}`,
+          );
           await insert("return_items", {
             id: generateId(),
             return_id: returnId,

@@ -90,7 +90,7 @@ export default function StoresManagement() {
     a.click();
   };
 
-  const handleSuspend = async (reason: string) => {
+  const handleSuspend = (reason: string) => {
     if (!selectedStore) return;
     
     suspendMutation.mutate({ id: selectedStore.id, reason }, {
@@ -110,7 +110,7 @@ export default function StoresManagement() {
     });
   };
 
-  const handleUnsuspend = async (store: AdminStoreSummary) => {
+  const handleUnsuspend = (store: AdminStoreSummary) => {
     unsuspendMutation.mutate(store.id, {
       onSuccess: () => {
         toast.success("Account Re-activated", {
@@ -126,7 +126,7 @@ export default function StoresManagement() {
     });
   };
 
-  const handleGrantTrial = async (plan: string, duration?: string, endDate?: string) => {
+  const handleGrantTrial = (plan: string, duration?: string, endDate?: string) => {
     if (!selectedStore) return;
 
     grantTrialMutation.mutate({ id: selectedStore.id, plan, duration, endDate }, {
@@ -297,7 +297,7 @@ export default function StoresManagement() {
               setIsSuspendDialogOpen={setIsSuspendDialogOpen}
               setIsTrialDialogOpen={setIsTrialDialogOpen}
               setIsViewDialogOpen={setIsViewDialogOpen}
-              handleUnsuspend={(store) => void handleUnsuspend(store)}
+              handleUnsuspend={handleUnsuspend}
               handleToggleDemo={handleToggleDemo}
               router={router}
             />
@@ -317,7 +317,7 @@ export default function StoresManagement() {
         isOpen={isSuspendDialogOpen}
         onOpenChange={setIsSuspendDialogOpen}
         selectedStore={selectedStore}
-        handleSuspend={(reason) => void handleSuspend(reason)}
+        handleSuspend={handleSuspend}
         isPending={suspendMutation.isPending}
       />
 
@@ -325,7 +325,7 @@ export default function StoresManagement() {
         open={isTrialDialogOpen}
         onOpenChange={setIsTrialDialogOpen}
         targetName={selectedStore?.name}
-        onConfirm={(plan, duration, endDate) => void handleGrantTrial(plan, duration, endDate)}
+        onConfirm={handleGrantTrial}
         isPending={grantTrialMutation.isPending}
       />
 

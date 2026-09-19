@@ -50,6 +50,7 @@ export function DashboardStats({ statsCards }: DashboardStatsProps) {
           border: "border-amber-200/50 hover:border-amber-500/50",
           valueClassName: "font-amber font-serif",
         };
+      case undefined:
       default:
         return {
           wrapper: "border-border",

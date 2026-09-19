@@ -19,9 +19,9 @@ export const CURRENCIES: CurrencyOption[] = [
   { code: "XAF", name: "Central African CFA Franc", symbol: "FCFA" },
 ];
 
+const DEFAULT_CURRENCY: CurrencyOption =
+  CURRENCIES.find((c) => c.code === DEFAULT_CURRENCY_CODE) || CURRENCIES[0];
+
 export function getCurrencyByCode(code?: string | null): CurrencyOption {
-  return (
-    CURRENCIES.find((c) => c.code === code) ||
-    CURRENCIES.find((c) => c.code === DEFAULT_CURRENCY_CODE)!
-  );
+  return CURRENCIES.find((c) => c.code === code) || DEFAULT_CURRENCY;
 }

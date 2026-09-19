@@ -51,10 +51,12 @@ async function fetchPrescriptions(): Promise<Prescription[]> {
   // 2. Group items by prescription_id
   const itemsMap = new Map<string, PrescriptionMedication[]>();
   itemsData.forEach((item) => {
-    if (!itemsMap.has(item.prescription_id)) {
-      itemsMap.set(item.prescription_id, []);
+    let list = itemsMap.get(item.prescription_id);
+    if (!list) {
+      list = [];
+      itemsMap.set(item.prescription_id, list);
     }
-    itemsMap.get(item.prescription_id)!.push({
+    list.push({
       id: item.id,
       productName: item.product_name,
       strength: item.strength || "",

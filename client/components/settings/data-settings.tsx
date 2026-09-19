@@ -103,7 +103,10 @@ export function DataSettings({
                 </p>
                 <p className="text-sm text-muted-foreground">
                   {!!isCloudLinked &&
-                    `Last synced: ${localStorage.getItem("last_sync_time") ? new Date(localStorage.getItem("last_sync_time")!).toLocaleString() : "Never"}`}
+                    (() => {
+                      const lastSyncTime = localStorage.getItem("last_sync_time");
+                      return `Last synced: ${lastSyncTime ? new Date(lastSyncTime).toLocaleString() : "Never"}`;
+                    })()}
                   {!isCloudLinked &&
                     "Connect your cloud account to enable sync"}
                 </p>

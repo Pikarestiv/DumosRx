@@ -139,15 +139,18 @@ function makeTauriAdapter(handle: any): DbAdapter {
 
 function makeSqlJsAdapter(handle: Database): DbAdapter {
   return {
-    async run(sql) {
+    run(sql) {
       handle.run(sql);
+      return Promise.resolve();
     },
-    async all(sql) {
+    all(sql) {
       const res = handle.exec(sql);
-      if (!res || res.length === 0) return [];
+      if (!res || res.length === 0) return Promise.resolve([]);
       const { columns, values } = res[0];
-      return values.map((row: unknown[]) =>
-        Object.fromEntries(columns.map((c: string, i: number) => [c, row[i]])),
+      return Promise.resolve(
+        values.map((row: unknown[]) =>
+          Object.fromEntries(columns.map((c: string, i: number) => [c, row[i]])),
+        ),
       );
     },
   };
@@ -752,12 +755,19 @@ async function clearLegacyTransactionsOnce(
   }
 }
 
+// Returns the same deliberately-untyped dual-backend handle `db` holds — see
+// its declaration above.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function initDatabase(): Promise<any> {
   if (db) return db;
 
   if (isTauri()) {
     try {
       const sqlPlugin = await import("@tauri-apps/plugin-sql");
+      // Defensive: covers both an ESM default export and a CJS-style named
+      // export, since which shape the plugin resolves to isn't guaranteed
+      // across bundler/runtime versions.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const Database = sqlPlugin.default || (sqlPlugin as any).Database;
 
       db = await Database.load("sqlite:dumosrx.db");
@@ -1077,7 +1087,10 @@ export async function transaction<T>(fn: () => Promise<T>): Promise<T> {
   // arriving back-to-back (no `await` between them) can't both read the
   // same "previous" link — queue reassignment here is synchronous.
   const previous = transactionQueue;
-  let releaseNext: () => void;
+  // Definite assignment: the executor above runs synchronously (per the
+  // Promise spec) before this line returns, so releaseNext is always set
+  // by the time it's called below — TS just can't see through the closure.
+  let releaseNext!: () => void;
   transactionQueue = new Promise<void>((resolve) => {
     releaseNext = resolve;
   });
@@ -1147,7 +1160,7 @@ export async function transaction<T>(fn: () => Promise<T>): Promise<T> {
       }
     }
   } finally {
-    releaseNext!();
+    releaseNext();
   }
 }
 

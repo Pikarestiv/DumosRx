@@ -58,7 +58,7 @@ export function FleetFormDialog({
     }
   }, [isOpen, storeToEdit]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name.trim()) {
       toast.error("Store name is required");
@@ -115,7 +115,7 @@ export function FleetFormDialog({
         </DialogFooter>
       }
     >
-      <form id="fleet-form" onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
+      <form id="fleet-form" onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="name">Store Name</Label>
           <Input

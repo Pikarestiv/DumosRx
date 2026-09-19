@@ -106,6 +106,7 @@ export function useFeatureGate() {
   // since `unknown` isn't assignable to a concrete parameter type. This is the
   // standard TS idiom for wrapping arbitrary callbacks while preserving their
   // real signature via `Parameters<T>`/`ReturnType<T>` below.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const withRestriction = <T extends (...args: any[]) => any>(
     action: T,
     options: {

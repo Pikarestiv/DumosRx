@@ -110,7 +110,7 @@ export function BroadcastsTab() {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = (id: string) => {
     setDeleteTargetId(id);
   };
 
@@ -308,7 +308,7 @@ export function BroadcastsTab() {
                           </DropdownMenuItem>
                           <DropdownMenuItem 
                             className="rounded-lg gap-2 font-bold text-rose-500 hover:text-rose-600 hover:bg-rose-50 cursor-pointer"
-                            onClick={() => void handleDelete(broadcast.id)}
+                            onClick={() => handleDelete(broadcast.id)}
                           >
                             <Trash2 className="h-4 w-4" />
                             Delete Permanent

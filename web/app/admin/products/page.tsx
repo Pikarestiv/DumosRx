@@ -106,7 +106,7 @@ export default function GlobalProductsManagement() {
     });
   };
 
-  const handleStandardize = async () => {
+  const handleStandardize = () => {
     toast.info("Standardization Started", {
       description: "Scanning catalog for inconsistencies...",
     });
@@ -155,7 +155,7 @@ export default function GlobalProductsManagement() {
           </Button>
           <Button
             className="bg-indigo-600 hover:bg-indigo-700 font-bold shadow-lg shadow-indigo-600/20 w-full sm:w-auto"
-            onClick={() => void handleStandardize()}
+            onClick={handleStandardize}
             disabled={standardizeMutation.isPending}
           >
             {standardizeMutation.isPending ? (

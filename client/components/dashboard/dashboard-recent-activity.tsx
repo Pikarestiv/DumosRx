@@ -13,6 +13,7 @@ import {
   Pill,
   RotateCcw,
   Package,
+  type LucideIcon,
 } from "lucide-react";
 import type { ActivityFeedItem as ActivityItem } from "@/lib/types/dashboard-activity";
 
@@ -99,7 +100,7 @@ function ActivityList({
 }: {
   activities: ActivityItem[];
   onActivityClick?: (activity: ActivityItem) => void;
-  getActivityIcon: (type: string) => any;
+  getActivityIcon: (type: string) => LucideIcon;
   getActivityColor: (type: string) => string;
 }) {
   return (

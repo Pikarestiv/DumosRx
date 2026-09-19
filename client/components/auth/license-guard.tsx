@@ -227,9 +227,7 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [deviceId, setDeviceId] = useState("DUMOS-OFFLINE-772X");
 
-  const performCheck = useCallback(async (trigger: string) => {
-    // TEMP DIAGNOSTIC (remove once splashscreen-on-navigation is root-caused)
-    console.log(`[LicenseGuard] performCheck start (trigger=${trigger}, pathname=${pathname})`);
+  const performCheck = useCallback(async () => {
     setLoading(true);
 
     if (typeof window !== "undefined" && navigator.onLine) {
@@ -248,9 +246,7 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
     const status = await checkLicenseStatus();
     setLicense(status);
     setLoading(false);
-    // TEMP DIAGNOSTIC (remove once splashscreen-on-navigation is root-caused)
-    console.log(`[LicenseGuard] performCheck end (trigger=${trigger}, pathname=${pathname})`);
-  }, [pathname]);
+  }, []);
 
   // Generate or load device ID on mount
   useEffect(() => {
@@ -261,13 +257,7 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
 
   // Reactive to local SQLite store profile status changes
   useEffect(() => {
-    // TEMP DIAGNOSTIC (remove once splashscreen-on-navigation is root-caused)
-    console.log("[LicenseGuard] status-effect fired", {
-      status: storeProfile?.status,
-      suspension_reason: storeProfile?.suspension_reason,
-      subscription_tier: storeProfile?.subscription_tier,
-    });
-    void performCheck("status-effect");
+    void performCheck();
   }, [
     storeProfile?.status,
     storeProfile?.suspension_reason,
@@ -290,10 +280,14 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
 
   // Render children for valid licenses OR expired subscriptions (downgraded to free).
   // Only hard-block on suspension or clock tampering.
+  // Branching is driven by LicenseInfo.isSuspended (derived from the store's
+  // real status), never by the message text — that's display copy only, so
+  // rewording it must not silently flip a suspended account into the
+  // "Subscription Expired"/"Renew" path.
+  const isSuspended = license?.isSuspended || false;
+
   const isExpiredSub =
-    !license?.isValid &&
-    !license?.isClockTampered &&
-    !license?.message?.includes("suspended");
+    !license?.isValid && !license?.isClockTampered && !isSuspended;
 
   if (license?.isValid || isExpiredSub) {
     return (
@@ -304,8 +298,6 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
       </>
     );
   }
-
-  const isSuspended = license?.message?.includes("suspended") || false;
 
   // If clock is tampered or license expired/suspended, show lock screen
   return (
@@ -344,7 +336,7 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
             <>
               <Button
                 className="w-full bg-accent hover:bg-accent/90 font-bold"
-                onClick={() => void performCheck("manual-button")}
+                onClick={() => void performCheck()}
               >
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Check Again
@@ -364,7 +356,7 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
           {isSuspended && (
             <Button
               className="w-full bg-accent hover:bg-accent/90 font-bold"
-              onClick={() => void performCheck("manual-button")}
+              onClick={() => void performCheck()}
             >
               <RefreshCw className="h-4 w-4 mr-2" />
               Refresh Account Status

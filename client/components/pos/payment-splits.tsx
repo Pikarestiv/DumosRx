@@ -115,10 +115,19 @@ export function PaymentSplits({
             <div className="flex-1 space-y-1">
               <Input
                 type="number"
+                min={0}
                 placeholder="0.00"
                 value={split.amount || ""}
                 onChange={(e) =>
-                  updateSplit(index, "amount", parseFloat(e.target.value) || 0)
+                  // Clamped at entry: a negative split (e.g. cash 1200 +
+                  // card -200 on a 1000 sale) would still read as "Fully
+                  // Covered" while under-recording what was actually
+                  // collected. min={0} above is only an HTML hint.
+                  updateSplit(
+                    index,
+                    "amount",
+                    Math.max(0, parseFloat(e.target.value) || 0),
+                  )
                 }
                 onFocus={(e) => e.target.select()}
               />

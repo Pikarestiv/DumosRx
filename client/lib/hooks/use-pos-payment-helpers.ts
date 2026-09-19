@@ -52,6 +52,12 @@ export function validatePaymentReadiness(params: {
     const paid = Number.parseFloat(amountPaid);
     if (!paid || paid < total) return "Insufficient payment amount";
   } else if (paymentMethod === "mixed") {
+    // Checked before coverage: the shortage math floors negatives, so a
+    // negative split would otherwise pass silently as "covered" while
+    // under-recording the cash actually collected.
+    if (paymentSplits.some((s) => (s.amount || 0) < 0)) {
+      return "Payment splits cannot have a negative amount";
+    }
     if (!calculateSplitShortage(paymentSplits, total).isFullyCovered) {
       return "Mixed payment splits do not cover the total amount";
     }

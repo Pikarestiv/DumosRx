@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { DatePickerInput } from "@/components/ui/date-picker-input";
 import { EditableNumberCell } from "@/components/ui/editable-number-cell";
 import { POReviewPricePopover } from "./po-review-price-popover";
-import { getImmediateUnitCost, getLineTotal } from "./po-line-item-math";
+import { clampMoneyInput, getImmediateUnitCost, getLineTotal } from "./po-line-item-math";
 import { formatCurrency } from "@/lib/utils";
 import type { POProduct } from "@/lib/db/queries/procurement";
 import type { POLineItemDraft } from "./po-item-ledger-table";
@@ -94,7 +94,11 @@ export function POItemCardList({
                     step="0.01"
                     placeholder={formatCurrency(currentCost)}
                     value={item.cost_price_override ?? ""}
-                    onChange={(e) => onUpdateItem(index, { cost_price_override: e.target.value })}
+                    onChange={(e) =>
+                      onUpdateItem(index, {
+                        cost_price_override: clampMoneyInput(e.target.value),
+                      })
+                    }
                   />
                 ) : (
                   <EditableNumberCell

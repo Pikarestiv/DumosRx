@@ -5,6 +5,7 @@ import { ResponsiveTabLabel } from "@/components/ui/responsive-tab-label";
 import { EmptyState } from "@/components/ui/empty-state";
 import type { PurchaseOrderItem } from "@/lib/db/local-database";
 import type { ReceivedItemPayload } from "./receive-po-panel";
+import { clampMoneyInput } from "./po-line-item-math";
 import { formatCurrency } from "@/lib/utils";
 
 interface ReceiveLedgerTableProps {
@@ -99,7 +100,9 @@ export function ReceiveLedgerTable({
                       onFieldChange(
                         item.id,
                         "quantity",
-                        parseInt(e.target.value) || 0,
+                        // min="0" is only an HTML hint — parseInt("-5") is
+                        // truthy, so clamp here (same as ReceiveItemCard).
+                        Math.max(0, parseInt(e.target.value) || 0),
                       )
                     }
                   />
@@ -116,7 +119,11 @@ export function ReceiveLedgerTable({
                     placeholder={formatCurrency(item.unit_cost)}
                     value={state.cost_price ?? ""}
                     onChange={(e) =>
-                      onFieldChange(item.id, "cost_price", e.target.value)
+                      onFieldChange(
+                        item.id,
+                        "cost_price",
+                        clampMoneyInput(e.target.value),
+                      )
                     }
                   />
                 </div>
@@ -132,7 +139,11 @@ export function ReceiveLedgerTable({
                     placeholder="Unchanged"
                     value={state.selling_price ?? ""}
                     onChange={(e) =>
-                      onFieldChange(item.id, "selling_price", e.target.value)
+                      onFieldChange(
+                        item.id,
+                        "selling_price",
+                        clampMoneyInput(e.target.value),
+                      )
                     }
                   />
                 </div>

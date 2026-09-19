@@ -75,10 +75,12 @@ export function usePOSHeldTransactions({
 
   const handleRecallTransaction = async (held: HeldTransaction) => {
     try {
-      // 1. Clear current cart (maybe ask user?)
-      clearCart();
-
-      // 2. Parse items and add to cart
+      // 1. Parse items first. The current cart is deliberately left
+      // untouched until the parse/lookup work below has succeeded — clearing
+      // it up front (the old behavior) meant a malformed items_json left the
+      // cashier with neither the original cart nor the recalled one.
+      // Discarding a non-empty cart is confirmed by the caller
+      // (pos-dialogs.tsx) before we ever get here.
       const items: (CartItem & { product_id?: string })[] = JSON.parse(
         held.items_json,
       );
@@ -107,6 +109,24 @@ export function usePOSHeldTransactions({
         })
         .filter((item): item is CartItem => item !== null);
 
+      // Items whose product was deleted/deactivated while the sale was held
+      // are dropped by the filter above; say so rather than handing back a
+      // quietly shorter cart than what was quoted.
+      const missingCount = items.length - restoredItems.length;
+
+      // Prices come from the current catalog, not from items_json, so a
+      // price change during the hold silently re-quotes the customer unless
+      // we flag it. One notice per recall, not per line.
+      const hasRepricedItem = items.some((item) => {
+        const product = products.find(
+          (m) => m.id === (item.product_id || item.id),
+        );
+        return !!product && product.unit_price !== item.unit_price;
+      });
+
+      // 2. Only now is it safe to drop the current cart.
+      clearCart();
+
       restoreCart(
         restoredItems,
         held.discount ?? 0,
@@ -122,6 +142,16 @@ export function usePOSHeldTransactions({
       await remove("held_transactions", held.id);
 
       toast.success("Transaction recalled");
+      if (missingCount > 0) {
+        toast.warning(
+          `${missingCount} item(s) from this held sale are no longer available and were not restored.`,
+        );
+      }
+      if (hasRepricedItem) {
+        toast.info(
+          "Some item prices have changed since this sale was held and were updated to current pricing.",
+        );
+      }
       setShowHeldDialog(false);
       
       // Invalidate the count query to update the UI

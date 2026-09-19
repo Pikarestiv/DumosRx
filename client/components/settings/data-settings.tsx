@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef, useState } from "react";
 import { Database, CloudOff, Save, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,8 +11,12 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { DataSettingsAutoSync } from "./data-settings-auto-sync";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
+
+const RESTORE_CONFIRM_DESCRIPTION =
+  "This will permanently overwrite all data currently on this device (products, sales, customers, and expenses) with the contents of the backup file. This cannot be undone.";
 
 interface DataSettingsProps {
   isCloudLinked: boolean;
@@ -50,6 +55,21 @@ export function DataSettings({
     withRestriction,
     getUpgradeMessage,
   } = useFeatureGate();
+
+  // Restoring replaces the entire local database, so it gets the same
+  // confirm-before-acting treatment as the other destructive actions in
+  // Settings. The browser path can only ask *after* the file has been picked
+  // (the input's onChange is the first hook we get), so the chosen file is
+  // parked here until the user confirms.
+  const [pendingRestoreFile, setPendingRestoreFile] = useState<File | null>(null);
+  const [showTauriRestoreConfirm, setShowTauriRestoreConfirm] = useState(false);
+  const restoreInputRef = useRef<HTMLInputElement>(null);
+
+  // Lets the same file be picked again after a cancel: without this the
+  // input's value is unchanged, so re-selecting it fires no onChange.
+  const clearRestoreInput = () => {
+    if (restoreInputRef.current) restoreInputRef.current.value = "";
+  };
 
   return (
     <>
@@ -157,7 +177,9 @@ export function DataSettings({
                 <Button
                   variant="outline"
                   className="w-full justify-start cursor-pointer"
-                  onClick={withRestriction(handleRestoreBackupTauri)}
+                  onClick={withRestriction(() =>
+                    setShowTauriRestoreConfirm(true),
+                  )}
                 >
                   <Upload className="w-4 h-4 mr-2" />
                   Restore from File
@@ -175,11 +197,16 @@ export function DataSettings({
                     </label>
                   </Button>
                   <input
+                    ref={restoreInputRef}
                     type="file"
                     id="restore-db"
                     className="hidden"
                     accept=".drx"
-                    onChange={handleRestoreBackup}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      setPendingRestoreFile(file);
+                    }}
                   />
                 </div>
               )}
@@ -187,6 +214,46 @@ export function DataSettings({
           </div>
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={showTauriRestoreConfirm}
+        onOpenChange={(open) => {
+          setShowTauriRestoreConfirm(open);
+        }}
+        title="Restore from backup?"
+        description={RESTORE_CONFIRM_DESCRIPTION}
+        confirmLabel="Choose Backup File"
+        onConfirm={() => {
+          // Opens its own native file picker, so the file is chosen after
+          // this confirmation rather than before it.
+          handleRestoreBackupTauri();
+        }}
+      />
+
+      <ConfirmDialog
+        open={pendingRestoreFile !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPendingRestoreFile(null);
+            clearRestoreInput();
+          }
+        }}
+        title="Restore from backup?"
+        description={RESTORE_CONFIRM_DESCRIPTION}
+        confirmLabel="Restore Data"
+        onConfirm={() => {
+          const file = pendingRestoreFile;
+          if (!file) return;
+          // handleRestoreBackup only reads event.target.files[0]; the input
+          // element itself may already have been cleared by the time this
+          // runs, so hand it the parked file directly.
+          handleRestoreBackup({
+            target: { files: [file] },
+          } as unknown as React.ChangeEvent<HTMLInputElement>);
+          setPendingRestoreFile(null);
+          clearRestoreInput();
+        }}
+      />
     </>
   );
 }

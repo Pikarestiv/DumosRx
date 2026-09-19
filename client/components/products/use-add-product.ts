@@ -15,7 +15,13 @@ export function useAddProduct({
   const { t } = useStore();
   const saveProductMutation = useSaveProductMutation();
 
-  const handleAddProduct = (payload: NewProductPayload, keepOpen?: boolean) => {
+  /** `onSaved` lets the dialog clear its form only after the save actually
+   * landed, so a failed save leaves everything the user typed intact. */
+  const handleAddProduct = (
+    payload: NewProductPayload,
+    keepOpen?: boolean,
+    onSaved?: () => void,
+  ) => {
     if (saveProductMutation.isPending) return;
     saveProductMutation.mutate(
       { payload },
@@ -26,6 +32,7 @@ export function useAddProduct({
           if (!keepOpen) {
             setShowAddDialog(false);
           }
+          onSaved?.();
         },
         onError: (error) => {
           console.error(`Failed to save ${t("product")}:`, error);

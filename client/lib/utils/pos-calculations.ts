@@ -86,8 +86,14 @@ export function calculateSplitShortage(
   shortageAmount: number;
   changeDueAmount: number;
 } {
-  const totalSplitAmount = splits.reduce((acc, s) => acc + (s.amount || 0), 0);
-  
+  // Negative splits are floored here too, not just at the input: a negative
+  // amount would otherwise offset a larger positive one and make an
+  // under-collected sale look fully covered.
+  const totalSplitAmount = splits.reduce(
+    (acc, s) => acc + Math.max(0, s.amount || 0),
+    0,
+  );
+
   return {
     isFullyCovered: totalSplitAmount >= total,
     totalSplitAmount,
@@ -104,10 +110,11 @@ interface PaymentSplit {
 /** How much of a mixed-payment sale was actually collected at sale time —
  * excludes any credit split, since that portion is owed, not paid. Using
  * the raw split total here (including credit) is what previously made a
- * mixed sale with an unpaid credit portion look fully paid. */
+ * mixed sale with an unpaid credit portion look fully paid. Negative split
+ * amounts are floored to 0: no tender can subtract from what was collected. */
 export function calculateMixedAmountPaid(splits: PaymentSplit[]): number {
   return splits.reduce(
-    (acc, s) => acc + (s.method === "credit" ? 0 : s.amount || 0),
+    (acc, s) => acc + (s.method === "credit" ? 0 : Math.max(0, s.amount || 0)),
     0,
   );
 }

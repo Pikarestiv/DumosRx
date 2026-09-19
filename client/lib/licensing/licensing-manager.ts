@@ -24,6 +24,11 @@ export interface LicenseInfo {
   tier: LicenseTier;
   expiryDate: string | null;
   isClockTampered: boolean;
+  /** True only when the store account itself was suspended (stores.status ===
+   * "Suspended"), as opposed to an expired/absent subscription. Branch on
+   * this, never on `message` — that field is display text and its wording
+   * may change. */
+  isSuspended: boolean;
   isTrial?: boolean;
   message?: string;
 }
@@ -32,7 +37,7 @@ export async function checkLicenseStatus(): Promise<LicenseInfo> {
   const profile = await getStoreProfile();
 
   if (!profile) {
-    return { isValid: true, tier: "free", expiryDate: null, isClockTampered: false };
+    return { isValid: true, tier: "free", expiryDate: null, isClockTampered: false, isSuspended: false };
   }
 
   // 0. Check for account suspension
@@ -42,6 +47,7 @@ export async function checkLicenseStatus(): Promise<LicenseInfo> {
       tier: toLicenseTier(profile.subscription_tier),
       expiryDate: null,
       isClockTampered: false,
+      isSuspended: true,
       message: profile.suspension_reason || "Your store account has been suspended for violating our terms of usage. Please contact administrative support."
     };
   }
@@ -57,6 +63,7 @@ export async function checkLicenseStatus(): Promise<LicenseInfo> {
       tier: toLicenseTier(profile.subscription_tier), 
       expiryDate: null, 
       isClockTampered: true,
+      isSuspended: false,
       message: "System clock discrepancy detected. Please ensure your computer date is correct and sync online."
     };
   }
@@ -66,7 +73,7 @@ export async function checkLicenseStatus(): Promise<LicenseInfo> {
 
   // 3. Free tier is always valid if there's no license token
   if ((!profile.subscription_tier || profile.subscription_tier === "free") && !profile.license_token) {
-    return { isValid: true, tier: "free", expiryDate: null, isClockTampered: false };
+    return { isValid: true, tier: "free", expiryDate: null, isClockTampered: false, isSuspended: false };
   }
 
   // 4. Verify License Token
@@ -79,6 +86,7 @@ export async function checkLicenseStatus(): Promise<LicenseInfo> {
         tier: "free", 
         expiryDate: null, 
         isClockTampered: false, 
+        isSuspended: false, 
         message: "No active subscription found. Please connect to cloud to activate." 
       };
     }
@@ -95,7 +103,8 @@ export async function checkLicenseStatus(): Promise<LicenseInfo> {
           tier: "free", 
           expiryDate: null, 
           isTrial: false,
-          isClockTampered: false 
+          isClockTampered: false,
+          isSuspended: false 
         };
       }
       return { 
@@ -103,6 +112,7 @@ export async function checkLicenseStatus(): Promise<LicenseInfo> {
         tier: toLicenseTier(tokenData.tier), 
         expiryDate: tokenData.expiry, 
         isClockTampered: false,
+        isSuspended: false,
         message: "Your subscription has expired. Please renew to continue using Pro features." 
       };
     }
@@ -112,10 +122,11 @@ export async function checkLicenseStatus(): Promise<LicenseInfo> {
       tier: toLicenseTier(tokenData.tier), 
       expiryDate: tokenData.expiry, 
       isTrial: tokenData.is_trial,
-      isClockTampered: false 
+      isClockTampered: false,
+      isSuspended: false 
     };
   } catch (_e) {
-    return { isValid: false, tier: "free", expiryDate: null, isClockTampered: false, message: "Invalid license token." };
+    return { isValid: false, tier: "free", expiryDate: null, isClockTampered: false, isSuspended: false, message: "Invalid license token." };
   }
 }
 

@@ -5,6 +5,7 @@ import type {
   PrescriptionRow,
   PrescriptionUpdatePayload,
   PrescriptionItemInsertPayload,
+  PrescriptionItemUpdatePayload,
 } from "@/lib/types/prescription";
 
 export async function getPrescriptionById(id: string) {
@@ -54,10 +55,39 @@ export async function updatePrescriptionRecord(id: string, data: PrescriptionUpd
   );
 }
 
-export async function deletePrescriptionItems(prescriptionId: string) {
+/** Deletes a single item row (one medication line removed while editing a
+ * prescription), leaving the prescription's other items — and their refill
+ * history — untouched. */
+export async function deletePrescriptionItem(id: string) {
   return query(
-    `DELETE FROM prescription_items WHERE prescription_id = ?`,
-    [prescriptionId]
+    `DELETE FROM prescription_items WHERE id = ?`,
+    [id]
+  );
+}
+
+/** Updates an existing item row in place. Deliberately never touches id,
+ * refills_used or next_refill_date: re-editing a prescription must not reset
+ * how many refills a patient has already collected, or when the next one is
+ * due. */
+export async function updatePrescriptionItem(id: string, data: PrescriptionItemUpdatePayload) {
+  const { product_name, strength, dosage, quantity, instructions, cost, unit_cost, refills_authorized, refill_interval_days, updated_at } = data;
+  return query(
+    `UPDATE prescription_items
+     SET product_name = ?, strength = ?, dosage = ?, quantity = ?, instructions = ?, cost = ?, unit_cost = ?, refills_authorized = ?, refill_interval_days = ?, updated_at = ?
+     WHERE id = ?`,
+    [
+      product_name ?? null,
+      strength ?? null,
+      dosage ?? null,
+      quantity ?? null,
+      instructions ?? null,
+      cost ?? null,
+      unit_cost ?? null,
+      refills_authorized ?? null,
+      refill_interval_days ?? null,
+      updated_at,
+      id,
+    ]
   );
 }
 

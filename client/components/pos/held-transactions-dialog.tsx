@@ -22,6 +22,17 @@ import { useStore } from "@/lib/context/store-context";
 
 import type { HeldTransaction } from "@/lib/db/queries/sales";
 
+/** items_json is read straight from a local DB row, so a corrupted or
+ * truncated value must not throw in the render path — one bad row would
+ * take the whole dialog down instead of just showing 0 items for itself. */
+function getItemCount(itemsJson: string): number {
+  try {
+    return JSON.parse(itemsJson).length;
+  } catch {
+    return 0;
+  }
+}
+
 interface HeldTransactionsDialogProps {
   isOpen: boolean;
   onClose: () => void;
@@ -125,7 +136,7 @@ export function HeldTransactionsDialog({
                     </span>
                     <span className="w-1 h-1 rounded-full bg-muted-foreground/30 shrink-0" />
                     <span className="shrink-0">
-                      {JSON.parse(item.items_json).length} Items
+                      {getItemCount(item.items_json)} Items
                     </span>
                   </div>
                 </div>

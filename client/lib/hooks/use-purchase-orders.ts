@@ -17,6 +17,10 @@ import { useAuth, checkCanViewAllActivity } from "@/lib/context/auth-context";
 export function usePurchaseOrders() {
   const [searchQuery, setSearchQuery] = useState("");
   const [poTab, setPoTab] = useState("all");
+  // Guards against a double-click/double-tap on "Confirm & Receive" firing
+  // receivePurchaseOrder twice for the same order (which would duplicate the
+  // stock batch and its movement); also drives the button's loading state.
+  const [isReceivingPO, setIsReceivingPO] = useState(false);
   const { user } = useAuth();
   const viewerId = checkCanViewAllActivity(user?.role) ? undefined : user?.id;
 
@@ -41,6 +45,8 @@ export function usePurchaseOrders() {
   };
 
   const handleReceivePO = async (id: string, receivedItems: ReceivedItem[]) => {
+    if (isReceivingPO) return;
+    setIsReceivingPO(true);
     try {
       await receivePurchaseOrder(id, receivedItems);
       toast.success("Order received and stock updated!");
@@ -48,6 +54,8 @@ export function usePurchaseOrders() {
     } catch (error) {
       console.error("Failed to receive PO:", error);
       toast.error("Error receiving order");
+    } finally {
+      setIsReceivingPO(false);
     }
   };
 
@@ -96,6 +104,7 @@ export function usePurchaseOrders() {
     isFuzzyFallback,
     fetchPurchaseOrders,
     handleReceivePO,
+    isReceivingPO,
     handleSendPO,
     handleDeletePO,
   };

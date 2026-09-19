@@ -54,6 +54,7 @@ interface POSDialogsProps {
   showClearCartDialog: boolean;
   setShowClearCartDialog: (show: boolean) => void;
   clearCart: () => void;
+  cartLength: number;
 }
 
 export function POSDialogs({
@@ -95,7 +96,22 @@ export function POSDialogs({
   showClearCartDialog,
   setShowClearCartDialog,
   clearCart,
+  cartLength,
 }: POSDialogsProps) {
+  // Recalling a held sale replaces whatever is in the cart. An empty cart
+  // has nothing to lose, so it recalls straight away; a non-empty one is
+  // parked here until the cashier confirms the discard.
+  const [pendingRecall, setPendingRecall] =
+    React.useState<HeldTransaction | null>(null);
+
+  const requestRecall = (transaction: HeldTransaction) => {
+    if (cartLength > 0) {
+      setPendingRecall(transaction);
+      return;
+    }
+    handleRecallTransaction(transaction);
+  };
+
   return (
     <>
       <CameraScannerDialog
@@ -145,7 +161,20 @@ export function POSDialogs({
       <HeldTransactionsDialog
         isOpen={showHeldDialog}
         onClose={() => setShowHeldDialog(false)}
-        onRecall={handleRecallTransaction}
+        onRecall={requestRecall}
+      />
+      <ConfirmDialog
+        open={pendingRecall !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingRecall(null);
+        }}
+        title="Recall this held sale?"
+        description={`Your current cart has ${cartLength} item(s) that will be discarded.`}
+        confirmLabel="Recall Sale"
+        onConfirm={() => {
+          if (pendingRecall) handleRecallTransaction(pendingRecall);
+          setPendingRecall(null);
+        }}
       />
       <ConfirmDialog
         open={showClearCartDialog}

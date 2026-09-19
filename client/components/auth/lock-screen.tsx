@@ -61,8 +61,14 @@ export function LockScreen({
         toast.error("Invalid PIN. Please try again.");
         setIsLoading(false);
       }
-    } catch {
-      toast.error("Login failed. Database might not be initialized.");
+    } catch (err) {
+      // Surface the real failure (network timeout during first-launch sync,
+      // DB not initialized, ...) instead of the old hardcoded "Database
+      // might not be initialized", which misdiagnosed every other cause.
+      console.error(err);
+      toast.error(
+        err instanceof Error ? err.message : "Login failed. Please try again.",
+      );
       setIsLoading(false);
     }
   };

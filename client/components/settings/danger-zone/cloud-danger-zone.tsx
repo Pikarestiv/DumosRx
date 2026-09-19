@@ -13,22 +13,29 @@ import {
   useRequestAccountDeletionMutation,
   useCancelAccountDeletionMutation,
 } from "@/lib/hooks/use-account-danger-zone-mutations";
-import { PasswordConfirmDialog } from "./password-confirm-dialog";
+import { PasswordConfirmDialog } from "../account/password-confirm-dialog";
+import { checkCanFactoryReset } from "@/lib/context/auth-context";
 
 const RESET_TYPES: { type: string; label: string; description: string }[] = [
-  { type: "sales", label: "Clear Sales", description: "Permanently delete all sales records from the cloud." },
-  { type: "logs", label: "Clear Logs", description: "Permanently delete all activity logs from the cloud." },
-  { type: "inventories", label: "Clear Inventory", description: "Permanently delete all products and stock batch records from the cloud." },
-  { type: "customers", label: "Clear Customers", description: "Permanently delete all customer records from the cloud." },
-  { type: "stores", label: "Clear Terminals", description: "Permanently delete all store/terminal records from the cloud." },
-  { type: "all", label: "Nuke Everything (Full Reset)", description: "WARNING: This will delete ALL cloud data (Sales, Logs, Products, Stock Batch, Customers, Stores). This is irreversible." },
+  { type: "sales", label: "Clear Sales", description: "Permanently deletes every sale record on the server (all devices, all time). Products and stock levels are not touched." },
+  { type: "logs", label: "Clear Logs", description: "Permanently deletes the server's activity/audit log. Useful for a clean start before go-live, not for day-to-day use." },
+  { type: "inventories", label: "Clear Inventory", description: "Permanently deletes every product and stock batch record on the server. Sales history referencing them is not deleted, but will show as missing products." },
+  { type: "customers", label: "Clear Customers", description: "Permanently deletes every customer record on the server, including loyalty/credit history attached to them." },
+  { type: "stores", label: "Clear Terminals", description: "Permanently deletes every registered store/terminal (device) record. Devices will need to be re-linked." },
+  { type: "all", label: "Nuke Everything (Full Reset)", description: "Deletes ALL of the above at once: sales, logs, products, stock batches, customers, and terminals. Equivalent to starting the cloud account over from zero." },
 ];
 
-export function AccountDangerZone() {
+/** Deletes data directly on the server - affects every device synced to
+ * this account, immediately, with no confirmation step beyond the password
+ * dialog below. See DeviceDangerZone for the device-local equivalent,
+ * which only affects the device running it. */
+export function CloudDangerZone() {
   const { data: user } = useCurrentUser();
+  const canResetCloudData = checkCanFactoryReset(user?.role);
   const [resetTarget, setResetTarget] = useState<{ type: string; label: string; description: string } | null>(null);
   const [deletionDialogOpen, setDeletionDialogOpen] = useState(false);
   const [reason, setReason] = useState("");
+  const [showCloudResets, setShowCloudResets] = useState(false);
 
   const resetDataMutation = useResetDataMutation();
   const requestDeletionMutation = useRequestAccountDeletionMutation();
@@ -37,6 +44,13 @@ export function AccountDangerZone() {
   const handleReset = (password: string) => {
     if (!resetTarget) return;
     if (resetDataMutation.isPending) return;
+    // Re-checked here, not just at the button's render gate above: this
+    // dialog's open state is otherwise trusting whatever triggered it.
+    if (!canResetCloudData) {
+      toast.error("Only the store owner can reset cloud data.");
+      setResetTarget(null);
+      return;
+    }
     resetDataMutation.mutate(
       { type: resetTarget.type, password },
       {
@@ -76,27 +90,54 @@ export function AccountDangerZone() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-destructive">
             <AlertTriangle className="h-5 w-5" />
-            Danger Zone
+            Cloud Data
           </CardTitle>
           <CardDescription>
-            These actions affect your cloud account data and cannot be undone.
+            These actions delete data directly on the server, affecting
+            every device synced to this account. Not the same as This
+            Device&apos;s Factory Reset, which only wipes the local copy on
+            one device. Cannot be undone.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {RESET_TYPES.map((reset) => (
+          {canResetCloudData ? (
+            showCloudResets ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {RESET_TYPES.map((reset) => (
+                  <button
+                    key={reset.type}
+                    type="button"
+                    onClick={() => setResetTarget(reset)}
+                    className="text-left p-3 rounded-lg border border-destructive/30 hover:bg-destructive/10 transition-colors space-y-1"
+                  >
+                    <p className="text-sm font-semibold text-destructive">{reset.label}</p>
+                    <p className="text-xs text-muted-foreground">{reset.description}</p>
+                  </button>
+                ))}
+              </div>
+            ) : (
               <Button
-                key={reset.type}
-                variant="outline"
-                className="justify-start border-destructive/30 text-destructive hover:bg-destructive/10"
-                onClick={() => setResetTarget(reset)}
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground"
+                onClick={() => setShowCloudResets(true)}
               >
-                {reset.label}
+                Show cloud data reset options
               </Button>
-            ))}
-          </div>
+            )
+          ) : (
+            <p className="text-xs text-muted-foreground italic">
+              Only the store owner can reset cloud data.
+            </p>
+          )}
 
-          <div className="border-t pt-6">
+          <div className="border-t pt-6 space-y-1">
+            <p className="text-sm font-semibold">Account Deletion</p>
+            <p className="text-xs text-muted-foreground pb-2">
+              Requests your whole admin account be reviewed and removed by
+              a super admin. Not immediate - someone reviews it first, and
+              you can cancel the request any time before then.
+            </p>
             {user?.deletion_requested_at ? (
               <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-900/20 p-4 space-y-2">
                 <p className="text-sm font-medium">Account deletion requested</p>

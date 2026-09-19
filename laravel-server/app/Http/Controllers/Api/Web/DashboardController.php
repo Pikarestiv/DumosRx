@@ -125,6 +125,19 @@ class DashboardController extends Controller
             ], 403);
         }
 
+        // Any authenticated staff account (cashier, manager, ...) can supply
+        // its own password here - that's proof of identity, not proof of
+        // authority to wipe the whole store's cloud data. Mirrors the client's
+        // checkCanFactoryReset() gate (client/lib/context/auth-context.tsx),
+        // which was already owner-only; this endpoint had no equivalent
+        // server-side check at all.
+        if (!in_array($request->user()->role, ['admin', 'store_owner', 'super_admin'], true)) {
+            return response()->json([
+                'error' => 'Forbidden',
+                'message' => 'Only the store owner can perform this action.',
+            ], 403);
+        }
+
         try {
             $type = $request->input('type', 'all');
             $result = $this->dashboardService->resetData($request->user(), $type);

@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { Database, CloudOff, Save, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,11 +10,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { DataSettingsAutoSync } from "./data-settings-auto-sync";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
-import { useAuth, checkCanFactoryReset } from "@/lib/context/auth-context";
-import { toast } from "sonner";
 
 interface DataSettingsProps {
   isCloudLinked: boolean;
@@ -25,7 +21,6 @@ interface DataSettingsProps {
   handleRestoreBackup: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleRestoreBackupTauri: () => void;
   isTauri: boolean;
-  handleResetDatabase: () => void;
   autoSyncEnabled: boolean;
   setAutoSyncEnabled: (val: boolean) => void;
   autoSyncInterval: string;
@@ -42,7 +37,6 @@ export function DataSettings({
   handleRestoreBackup,
   handleRestoreBackupTauri,
   isTauri,
-  handleResetDatabase,
   autoSyncEnabled,
   setAutoSyncEnabled,
   autoSyncInterval,
@@ -56,9 +50,6 @@ export function DataSettings({
     withRestriction,
     getUpgradeMessage,
   } = useFeatureGate();
-  const { verifyPin, user } = useAuth();
-  const canFactoryReset = checkCanFactoryReset(user?.role);
-  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   return (
     <>
@@ -194,70 +185,8 @@ export function DataSettings({
               )}
             </div>
           </div>
-
-          <Separator />
-
-          <div className="space-y-4">
-            <h3 className="font-medium text-destructive">Danger Zone</h3>
-            <div className="p-4 border border-destructive/20 rounded-lg bg-destructive/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div className="space-y-1">
-                <p className="text-sm font-semibold">Factory Reset</p>
-                <p className="text-xs text-muted-foreground">
-                  {isCloudLinked
-                    ? "Wipe all local data (products, sales, etc.), disconnect cloud sync, and start fresh."
-                    : "Wipe all local data (products, sales, etc.) and start fresh."}
-                </p>
-              </div>
-              {canFactoryReset ? (
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => setShowResetConfirm(true)}
-                >
-                  Reset All Data
-                </Button>
-              ) : (
-                <p className="text-xs text-muted-foreground italic shrink-0">
-                  Only the store owner can perform a factory reset.
-                </p>
-              )}
-            </div>
-          </div>
         </CardContent>
       </Card>
-
-      <ConfirmDialog
-        open={showResetConfirm}
-        onOpenChange={setShowResetConfirm}
-        title="Factory Reset"
-        description={
-          isCloudLinked
-            ? "This will permanently delete all local data: products, sales, customers, and expenses, and disconnect this device from cloud sync. Your staff logins will remain, and you can re-link your cloud account afterward. This cannot be undone."
-            : "This will permanently delete all local data: products, sales, customers, and expenses. Your login account will remain. This cannot be undone."
-        }
-        confirmLabel="Reset All Data"
-        requirePin={true}
-        onConfirm={async (pin) => {
-          // Re-checked here, not just at the button's render gate above: this
-          // dialog's open state is otherwise trusting whatever triggered it.
-          if (!canFactoryReset) {
-            toast.error("Only the store owner can perform a factory reset.");
-            setShowResetConfirm(false);
-            return;
-          }
-          if (!pin) {
-            toast.error("PIN is required");
-            return;
-          }
-          const isValid = await verifyPin(pin);
-          if (!isValid) {
-            toast.error("Invalid PIN");
-            return;
-          }
-          handleResetDatabase();
-          setShowResetConfirm(false);
-        }}
-      />
     </>
   );
 }

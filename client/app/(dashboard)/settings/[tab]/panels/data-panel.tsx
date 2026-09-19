@@ -17,7 +17,6 @@ export function DataPanel(s: SettingsState) {
         handleRestoreBackup={(e) => void s.handleRestoreBackup(e)}
         handleRestoreBackupTauri={() => void s.handleRestoreBackupTauri()}
         isTauri={s.isTauri}
-        handleResetDatabase={() => void s.handleResetDatabase()}
         setIsCloudLinkOpen={s.setIsCloudLinkOpen}
         setSyncAfterLink={s.setSyncAfterLink}
       />

@@ -135,6 +135,29 @@ Issues spotted incidentally (e.g. while doing TypeScript type-safety cleanup) th
 - **What the original analysis missed:** the guard is `$payloadVersion !== null && $modelVersion !== null` — it's false whenever *either* side is null, not just when `$modelVersion` is. `$payloadVersion` genuinely can be null: a payload can simply omit the `_version` key. `tests/Feature/SyncEndpointTest.php::test_push_sync_handles_soft_deletes` does exactly this (an `UPDATE` with `_deleted: 1` and no `_version` field) and relies on the timestamp-fallback branch to accept it. Removing the branch broke that test (and `test_push_sync_generates_a_stable_device_id_when_store_insert_omits_one`) immediately.
 - **Status:** left in place, confirmed live. Do not remove without also confirming no real caller ever sends an `UPDATE` payload without `_version` — today's client (`base-helpers.ts`'s `update()`) always includes it, but this legacy fallback protects against payloads that don't (whether from an older client version, or a hand-built payload like the soft-delete test above).
 
+### Detailed Sales Report PDF: Transaction # cell overflows into the next column
+
+- **Where:** `client/components/reports/pdf/report-pdf-document.tsx`'s table
+  cell rendering (react-pdf `<Text>` inside a flex `View`), fed by
+  `client/lib/hooks/use-report-export.ts`'s `sales` report config.
+- **Reported:** visually confirmed on a generated Sales Report PDF — the
+  Transaction # column's value bleeds past its cell's right border into the
+  Date column.
+- **Attempted fix (unverified — reporter says it didn't resolve it):** added
+  `overflow: "hidden"` to `styles.cell` and gave the sales report an explicit
+  `columnFlex` (`[1.8, 1.3, 1.3, 1, 1, 0.8, 1, 1, 1, 1, 1]`) to widen the
+  Transaction # column. react-pdf's `overflow` support and flex-basis
+  interaction with long unbroken tokens (no spaces to wrap on, e.g. a
+  `TXN...`/`RCT-...` id) may behave differently than standard CSS — needs
+  visual re-verification against an actual rendered PDF (Chrome's built-in
+  PDF viewer isn't screenshottable via this project's browser-automation
+  tooling, which blocked confirming the fix in this pass).
+- **Fix scope (not fully verified):** re-check rendered PDF output directly
+  (e.g. via a local PDF renderer/CLI, not just the browser tab) after the
+  above change; if still overflowing, consider shrinking `fontSize` for that
+  column specifically, or truncating the id (e.g. last 8 chars only, matching
+  what the receipt dialog already shows) rather than relying on wrap/hide.
+
 ## Known limitations (not bugs — real gaps, not wiring defects)
 
 - **Superadmin Activity Log has no UI for 4 of the 7 filter params the

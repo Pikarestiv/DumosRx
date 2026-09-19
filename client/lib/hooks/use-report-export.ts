@@ -35,6 +35,7 @@ const REPORT_CONFIG = {
     filenamePrefix: "Sales_Report",
     fetch: fetchSalesReportData,
     headers: ["Transaction #", "Date", "Customer", "Payment Method", "Subtotal", "Tax", "Discount", "Total", "Refunded", "Net Total", "Status"],
+    columnFlex: [1.8, 1.3, 1.3, 1, 1, 0.8, 1, 1, 1, 1, 1],
     dateColumns: ["Date"],
     takesDateRange: true,
     takesSalesFilters: true,
@@ -206,6 +207,7 @@ export function useReportExport() {
         subtitle,
         headers: config.headers as unknown as string[],
         rows,
+        columnFlex: (config as { columnFlex?: number[] }).columnFlex,
       });
     },
     [getRows, storeProfile?.name],

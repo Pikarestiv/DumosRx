@@ -74,7 +74,15 @@ export function useInsert<T extends Record<string, unknown>>(
     setIsLoading(false);
   }, []);
 
-  return { mutate, mutateAsync, isLoading, error, reset };
+  return {
+    mutate: (data: T) => {
+      void mutate(data);
+    },
+    mutateAsync,
+    isLoading,
+    error,
+    reset,
+  };
 }
 
 /**
@@ -124,7 +132,15 @@ export function useUpdate<T extends Record<string, unknown>>(
     setIsLoading(false);
   }, []);
 
-  return { mutate, mutateAsync, isLoading, error, reset };
+  return {
+    mutate: (data: { id: string; data: T }) => {
+      void mutate(data);
+    },
+    mutateAsync,
+    isLoading,
+    error,
+    reset,
+  };
 }
 
 /**
@@ -174,5 +190,13 @@ export function useDelete(
     setIsLoading(false);
   }, []);
 
-  return { mutate, mutateAsync, isLoading, error, reset };
+  return {
+    mutate: (id: string) => {
+      void mutate(id);
+    },
+    mutateAsync,
+    isLoading,
+    error,
+    reset,
+  };
 }

@@ -71,7 +71,7 @@ interface StoreContextType {
   theme: string;
   isInitialized: boolean;
   vatPercentage: number;
-  updateStoreProfile: (data: Partial<StoreProfile>) => void;
+  updateStoreProfile: (data: Partial<StoreProfile>) => Promise<void>;
   setTheme: (theme: string) => void;
   t: (key: string) => string;
   activeStoreId: string | null;
@@ -236,8 +236,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     // issued (and still pending) before the switch could resolve after
     // resolvedStoreId flips and get cached as "fresh" under a store-
     // unscoped key, momentarily showing the previous store's data.
-    queryClient.cancelQueries();
-    queryClient.invalidateQueries();
+    void queryClient.cancelQueries();
+    void queryClient.invalidateQueries();
 
     // Pulls this store's data down if this device has never synced it
     // before (X-Store-Id now points at the newly-selected store; see
@@ -293,15 +293,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       }
     };
 
-    triggerSync();
+    void triggerSync();
 
     const handleOnline = () => {
-      triggerSync();
+      void triggerSync();
     };
 
     const handleSyncCompleted = () => {
       devLog("[StoreContext] Received sync completed event, refetching local store profile");
-      refetch();
+      void refetch();
     };
 
     window.addEventListener("online", handleOnline);
@@ -334,13 +334,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     };
 
     // Run immediately on mount
-    runSubscriptionSync();
+    void runSubscriptionSync();
 
     // Then every 30 minutes
-    const interval = setInterval(runSubscriptionSync, 30 * 60 * 1000);
+    const interval = setInterval(() => {
+      void runSubscriptionSync();
+    }, 30 * 60 * 1000);
 
     // Also re-run when the app comes back online
-    const handleOnline = () => runSubscriptionSync();
+    const handleOnline = () => {
+      void runSubscriptionSync();
+    };
     window.addEventListener("online", handleOnline);
 
     return () => {
@@ -368,7 +372,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   };
 
   const setTheme = (newTheme: string) => {
-    updateStoreProfile({ theme: newTheme });
+    void updateStoreProfile({ theme: newTheme });
   };
 
   const t = (key: string): string => {

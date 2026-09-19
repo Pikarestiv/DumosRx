@@ -995,7 +995,7 @@ export async function execute(
 
   db.run(sql, params);
   if (!inTransaction) {
-    saveDatabase();
+    void saveDatabase();
   }
 }
 
@@ -1444,7 +1444,7 @@ export async function resetDatabase(): Promise<void> {
   }
 
   if (!isTauri()) {
-    saveDatabase();
+    await saveDatabase();
   }
 
   if (typeof window !== "undefined") {
@@ -1504,7 +1504,7 @@ export async function clearDatabaseForNewStore(): Promise<void> {
   }
 
   if (!isTauri()) {
-    saveDatabase();
+    await saveDatabase();
   }
 
   if (typeof window !== "undefined") {

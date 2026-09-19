@@ -51,7 +51,7 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
         // Flush any offline crashes queued in localStorage
         import("@/lib/utils/error-logger").then(({ flushPendingCrashes }) => {
           flushPendingCrashes().catch(console.error);
-        });
+        }).catch(console.error);
       })
       .catch((err) => {
         console.error("[DB] Failed to initialize database:", err);

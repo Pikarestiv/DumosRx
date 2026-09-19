@@ -93,7 +93,7 @@ export function AdminLoginForm() {
       )}
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)}>
+        <form onSubmit={(e) => void form.handleSubmit(onSubmit)(e)}>
           <motion.div variants={container} initial="hidden" animate="show" className="space-y-6">
             <motion.div variants={item}>
               <FormField

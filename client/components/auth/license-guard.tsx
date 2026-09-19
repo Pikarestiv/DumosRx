@@ -44,7 +44,7 @@ function ThemeRestrictor() {
         setTheme("light");
       }
       if (storeProfile && storeProfile.theme !== "default") {
-        updateStoreProfile({ theme: "default" });
+        void updateStoreProfile({ theme: "default" });
       }
     }
   }, [currentTier, theme, storeProfile, setTheme, updateStoreProfile]);
@@ -132,7 +132,7 @@ function MobileRestrictionGuard() {
         if (!cancelled) setIsNativeMobile(false);
       }
     };
-    detectPlatform();
+    void detectPlatform();
     return () => {
       cancelled = true;
     };
@@ -267,7 +267,7 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
       suspension_reason: storeProfile?.suspension_reason,
       subscription_tier: storeProfile?.subscription_tier,
     });
-    performCheck("status-effect");
+    void performCheck("status-effect");
   }, [
     storeProfile?.status,
     storeProfile?.suspension_reason,
@@ -343,7 +343,7 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
             <>
               <Button
                 className="w-full bg-accent hover:bg-accent/90 font-bold"
-                onClick={() => performCheck("manual-button")}
+                onClick={() => void performCheck("manual-button")}
               >
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Check Again
@@ -363,7 +363,7 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
           {isSuspended && (
             <Button
               className="w-full bg-accent hover:bg-accent/90 font-bold"
-              onClick={() => performCheck("manual-button")}
+              onClick={() => void performCheck("manual-button")}
             >
               <RefreshCw className="h-4 w-4 mr-2" />
               Refresh Account Status

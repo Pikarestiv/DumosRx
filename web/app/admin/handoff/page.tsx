@@ -21,7 +21,7 @@ function HandoffHandler() {
       return;
     }
 
-    (async () => {
+    void (async () => {
       try {
         const { token, user } = await webApiClient.consumeHandoffCode(code);
         useAdminAuthStore.getState().setToken(token);

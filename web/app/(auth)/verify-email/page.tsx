@@ -44,7 +44,7 @@ function VerifyEmailContent() {
       }
     };
 
-    verify();
+    void verify();
   }, [searchParams, router]);
 
   return (

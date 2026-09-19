@@ -232,7 +232,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // rendering under the incoming user's session until they went stale.
       // cancelQueries() first since clear() alone doesn't abort a fetch
       // already in flight from the outgoing user.
-      queryClient.cancelQueries();
+      void queryClient.cancelQueries();
       queryClient.clear();
 
       setUser(userProfile);
@@ -384,7 +384,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Same reasoning as login(): whoever was on this device before must not
     // have their cached queries served to the incoming session. cancelQueries()
     // first since clear() alone doesn't abort an in-flight fetch.
-    queryClient.cancelQueries();
+    void queryClient.cancelQueries();
     queryClient.clear();
 
     setUser(userProfile);
@@ -417,7 +417,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // cancelQueries() first: clear() alone doesn't abort an in-flight
     // fetch, which could otherwise resolve after the next login and
     // repopulate a store/user-unscoped query key.
-    queryClient.cancelQueries();
+    void queryClient.cancelQueries();
     queryClient.clear();
   };
 

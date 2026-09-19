@@ -211,7 +211,7 @@ export async function createPrescription(
   // inserts still running in this loop, caching a partial medications list.
   // Invalidate again now that all items exist.
   if (typeof window !== "undefined") {
-    queryClient.invalidateQueries(queryKeys.prescriptions.all());
+    void queryClient.invalidateQueries(queryKeys.prescriptions.all());
   }
 
   return prescriptionId;

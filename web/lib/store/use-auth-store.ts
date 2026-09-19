@@ -61,7 +61,7 @@ export const useAuthStore = create<AuthState>()(
         // clear() alone doesn't abort in-flight fetches, and a request
         // issued under this account could otherwise resolve after the next
         // account logs in and repopulate a bare (unscoped) query key.
-        queryClient.cancelQueries();
+        void queryClient.cancelQueries();
         queryClient.clear();
       },
     }),

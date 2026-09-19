@@ -22,23 +22,47 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAdminActivityLogs } from "@/lib/api/admin-activity-hooks";
+import { formatDateSafe } from "@/lib/utils/date-utils";
 import { useDebounce } from "@/hooks/use-debounce";
 import { AdminSkeleton } from "@/components/admin/admin-skeleton";
 import { UserPagination } from "@/components/admin/users/user-pagination";
+import { DatePickerInput } from "@/components/ui/date-picker-input";
+import { X } from "lucide-react";
 
 const ACTION_FILTERS = [
   { label: "All Actions", value: "" },
+  // Per-store actions (client/lib/db/audit-actions.ts)
   { label: "Login", value: "LOGIN" },
   { label: "Login Failed", value: "LOGIN_FAILED" },
   { label: "Logout", value: "LOGOUT" },
   { label: "PIN Changed", value: "PIN_CHANGED" },
   { label: "Sale Return", value: "SALE_RETURN" },
   { label: "Stock Adjustment", value: "STOCK_ADJUSTMENT" },
+  { label: "Stock Expired", value: "STOCK_EXPIRED" },
+  { label: "Stock Damaged", value: "STOCK_DAMAGED" },
   { label: "Receive PO", value: "RECEIVE_PO" },
+  { label: "Reseller Commission Redeemed", value: "RESELLER_COMMISSION_REDEEMED" },
+  { label: "Factory Reset", value: "FACTORY_RESET" },
   { label: "Insert", value: "INSERT" },
   { label: "Update", value: "UPDATE" },
   { label: "Delete", value: "DELETE" },
   { label: "Hard Delete", value: "HARD_DELETE" },
+  // Platform/super-admin actions (laravel-server's AdminUserService, AdminStoreService, etc.)
+  { label: "Grant Free Trial", value: "GRANT_FREE_TRIAL" },
+  { label: "Account Suspended", value: "ACCOUNT_SUSPENSION" },
+  { label: "Account Unsuspended", value: "ACCOUNT_UNSUSPENSION" },
+  { label: "Store Marked Demo", value: "STORE_MARKED_DEMO" },
+  { label: "Store Unmarked Demo", value: "STORE_UNMARKED_DEMO" },
+  { label: "Admin Impersonation", value: "ADMIN_IMPERSONATION" },
+  { label: "User Deactivated", value: "USER_DEACTIVATION" },
+  { label: "User Reactivated", value: "USER_REACTIVATION" },
+  { label: "User Deleted", value: "USER_DELETION" },
+  { label: "Password Reset (Forced)", value: "PASSWORD_RESET_FORCE" },
+  { label: "Referral Code Updated", value: "REFERRAL_CODE_UPDATED" },
+  { label: "Platform Account Created", value: "PLATFORM_ACCOUNT_CREATED" },
+  { label: "Account Registered by Staff", value: "ACCOUNT_REGISTERED_BY_STAFF" },
+  { label: "Admin Notification Sent", value: "ADMIN_NOTIFICATION" },
+  { label: "Bulk Notification Sent", value: "BULK_ADMIN_NOTIFICATION" },
 ];
 
 const ACTION_BADGE_STYLES: Record<string, string> = {
@@ -66,6 +90,8 @@ export default function AdminActivityLogPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [actionFilter, setActionFilter] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
   const debouncedSearch = useDebounce(search, 500);
 
@@ -73,6 +99,10 @@ export default function AdminActivityLogPage() {
     page,
     debouncedSearch,
     actionFilter,
+    "",
+    "",
+    dateFrom,
+    dateTo,
   );
 
   const logs = response?.data || [];
@@ -114,10 +144,31 @@ export default function AdminActivityLogPage() {
                 }}
               />
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               {isLoading && (
                 <Loader2 className="h-4 w-4 animate-spin text-indigo-500 mr-2" />
               )}
+              <div className="flex items-center gap-2">
+                <DatePickerInput
+                  value={dateFrom}
+                  onChange={(val) => {
+                    setDateFrom(val);
+                    setPage(1);
+                  }}
+                  placeholder="From"
+                  inputClassName="h-9 w-32 border-2 font-bold text-xs"
+                />
+                <span className="text-slate-400 text-xs font-bold">to</span>
+                <DatePickerInput
+                  value={dateTo}
+                  onChange={(val) => {
+                    setDateTo(val);
+                    setPage(1);
+                  }}
+                  placeholder="To"
+                  inputClassName="h-9 w-32 border-2 font-bold text-xs"
+                />
+              </div>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm" className="font-bold border-2">
@@ -126,7 +177,7 @@ export default function AdminActivityLogPage() {
                       "All Actions"}
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56 p-2 rounded-2xl shadow-xl">
+                <DropdownMenuContent align="end" className="w-56 p-2 rounded-2xl shadow-xl max-h-96 overflow-y-auto">
                   <DropdownMenuLabel className="text-[10px] uppercase tracking-widest text-slate-400 px-3 py-2">
                     Action Type
                   </DropdownMenuLabel>
@@ -144,6 +195,23 @@ export default function AdminActivityLogPage() {
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
+              {(actionFilter || dateFrom || dateTo || search) && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="font-bold text-slate-500"
+                  onClick={() => {
+                    setSearch("");
+                    setActionFilter("");
+                    setDateFrom("");
+                    setDateTo("");
+                    setPage(1);
+                  }}
+                >
+                  <X className="h-4 w-4 mr-1" />
+                  Clear
+                </Button>
+              )}
             </div>
           </div>
 
@@ -195,7 +263,7 @@ export default function AdminActivityLogPage() {
                       {log.description || "N/A"}
                     </TableCell>
                     <TableCell className="text-right text-slate-500 dark:text-slate-400 whitespace-nowrap">
-                      {new Date(log.created_at).toLocaleString()}
+                      {formatDateSafe(log.created_at, "dd/MM/yyyy HH:mm")}
                     </TableCell>
                   </TableRow>
                 ))}

@@ -34,6 +34,35 @@ Issues spotted incidentally (e.g. while doing TypeScript type-safety cleanup) th
   flash) and consider adding a dedicated loading/placeholder state to the
   store-switch transition itself.
 
+### Client "Someone else" / new-account login navigation shows a stale authenticated screen instead of the sign-in form (reproduced)
+
+- **Where:** the PIN lock screen's "Back" → "Welcome Back" profile picker →
+  "Someone else" tile, which client-side-navigates to `/login?mode=new`
+  (client app, not the superadmin panel — a different codepath from the
+  `store-context.tsx` issue above, but the same *symptom class*: a route
+  change that doesn't actually swap the rendered screen).
+- **Reproduced:** while locked as "Pika" (Store Owner) on
+  `/settings/security`, clicking Back → "Someone else" changed the URL bar
+  to `/login?mode=new` but kept rendering the authenticated Security
+  Settings page underneath — not the "Sign In" username/PIN form. A full
+  page reload (`navigate` to the same URL) then rendered the correct Sign
+  In form immediately, confirming the route/data are correct and this is a
+  client-side transition bug, not a routing or auth bug.
+- **Effect:** a cashier/staff member trying to sign in on a device already
+  unlocked as another user sees the previous user's settings page instead
+  of a login form after tapping "Someone else" — has to manually reload to
+  proceed. Once reloaded, the rest of the flow (username/PIN entry,
+  `Authorize Entry`, landing on the correct role-scoped dashboard) worked
+  correctly in this test.
+- **Fix scope (not implemented):** identify what differs between this
+  client-side navigation and a full reload for this route — likely the
+  same family of issue as the store-switch entry above (a query/router
+  state invalidation that doesn't force a remount of the page tree for an
+  auth-state transition). Investigate whether the lock-screen's navigation
+  call needs a hard `window.location` navigation (like other auth
+  transitions in this app appear to use) instead of the router's
+  client-side push for this specific transition.
+
 ### Superadmin "My Referrals": saving your own unchanged referral code always fails as "already taken"
 
 - **Where:** `web/app/admin/referrals/page.tsx`'s `handleSave` calls

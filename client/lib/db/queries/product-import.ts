@@ -147,7 +147,7 @@ export async function importProductRows(
 
         if (row.quantity !== undefined && row.quantity !== 0) {
           const supplierId = await resolveSupplierId(row.supplier);
-          await insert("stock_batches", {
+          const batchId = await insert("stock_batches", {
             product_id: productId,
             batch_number: "Opening Stock",
             expiry_date: null,
@@ -155,6 +155,29 @@ export async function importProductRows(
             cost_price: row.costPrice ?? null,
             supplier_id: supplierId ?? null,
             is_active: 1,
+          });
+          // The server never trusts stock_batches.quantity from a client
+          // payload (INSERT or UPDATE) — it's forced to 0 and re-derived by
+          // replaying stock_movements deltas on top, so quantity commutes
+          // correctly across concurrent devices/terminals instead of one
+          // write silently clobbering another (see SyncController::push's
+          // stock_batches handling). Writing the batch row alone is enough
+          // to show the right count locally, but without a matching
+          // movement the server-side quantity stays permanently 0 for
+          // every bulk-imported product once synced. Every other code path
+          // that creates an initial batch (procurement receiving, setup's
+          // seed data) logs this movement; import must too.
+          await insert("stock_movements", {
+            product_id: productId,
+            stock_batch_id: batchId,
+            movement_type: "purchase",
+            quantity: row.quantity,
+            unit_cost: row.costPrice ?? null,
+            total_cost: row.costPrice ? row.costPrice * row.quantity : null,
+            reference_type: "import",
+            reason: "Bulk import - opening stock",
+            performed_by: options?.performedBy ?? null,
+            movement_date: new Date().toISOString(),
           });
         }
 

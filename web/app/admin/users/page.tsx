@@ -50,11 +50,19 @@ import type { AdminUser } from "@/lib/types/admin";
 
 // Maps the filter dropdown's display labels to the backend's raw `role`
 // slugs (AdminService::getGlobalUsers's `role` query param does an exact
-// match against the `users.role` column, not the humanized label).
+// match against the `users.role` column, not the humanized label). Matches
+// the full role set from database/seeders/RolesAndPermissionsSeeder.php -
+// this previously only listed 3 of the 9 real roles.
 const ROLE_FILTER_SLUGS: Record<string, string> = {
   "Super Admin": "super_admin",
+  "Platform Admin": "platform_admin",
+  Agent: "agent",
   "Store Owner": "store_owner",
+  "Store Admin": "admin",
+  Manager: "manager",
   Specialist: "specialist",
+  "Sales Staff": "sales_staff",
+  Auditor: "auditor",
 };
 
 function GlobalUsersDirectoryContent() {
@@ -233,24 +241,15 @@ function GlobalUsersDirectoryContent() {
                   >
                     All Roles
                   </DropdownMenuItem>
-                  <DropdownMenuItem
-                    className="rounded-xl px-3 py-2 cursor-pointer font-bold"
-                    onClick={() => { setRoleFilter("Super Admin"); setPage(1); }}
-                  >
-                    Super Admin
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    className="rounded-xl px-3 py-2 cursor-pointer font-bold"
-                    onClick={() => { setRoleFilter("Store Owner"); setPage(1); }}
-                  >
-                    Store Owner
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    className="rounded-xl px-3 py-2 cursor-pointer font-bold"
-                    onClick={() => { setRoleFilter("Specialist"); setPage(1); }}
-                  >
-                    Specialist
-                  </DropdownMenuItem>
+                  {Object.keys(ROLE_FILTER_SLUGS).map((label) => (
+                    <DropdownMenuItem
+                      key={label}
+                      className="rounded-xl px-3 py-2 cursor-pointer font-bold"
+                      onClick={() => { setRoleFilter(label); setPage(1); }}
+                    >
+                      {label}
+                    </DropdownMenuItem>
+                  ))}
                   <DropdownMenuSeparator className="my-2" />
                   <DropdownMenuLabel className="text-[10px] uppercase tracking-widest text-slate-400 px-3 py-2">
                     Billing Plan

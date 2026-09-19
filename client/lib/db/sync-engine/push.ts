@@ -17,6 +17,23 @@ const NON_RETRYABLE_CONFLICT_REASONS = new Set(["version_conflict", "stale_times
 
 const SYNC_BATCH_SIZE = 50;
 
+/** Sorts categories to the front of the queue (see pushChanges' comment on
+ * its call site) while leaving every other row's relative order untouched.
+ * Must return a consistent result for every pair - `a` categories-before-`b`
+ * required `compare(a,b) === compare(b,a) * -1`, which the previous
+ * `table_name === "categories" ? -1 : ... ? 1 : 0` version violated
+ * whenever BOTH rows were categories (both directions returned -1), an
+ * inconsistent comparator that silently reversed every category-vs-category
+ * pair's original created_at order - sending e.g. an UPDATE ahead of the
+ * INSERT it edited, so the server applied the stale INSERT last and the
+ * edit was silently lost. */
+export function compareCategoriesFirst(
+  a: { table_name: string },
+  b: { table_name: string },
+): number {
+  return Number(b.table_name === "categories") - Number(a.table_name === "categories");
+}
+
 // Matches ISO 8601 datetimes as produced by Date#toISOString(), e.g.
 // "2026-07-25T03:35:07.593Z". MySQL DATETIME columns reject the 'T'/'Z'
 // and fractional seconds, so every such field (not just one hardcoded
@@ -223,7 +240,7 @@ export async function pushChanges(
   // the whole queue, not just within one batch, so categories are always
   // resolved (created or remapped) before anything in a later batch can
   // reference them.
-  pending.sort((a, b) => (a.table_name === "categories" ? -1 : b.table_name === "categories" ? 1 : 0));
+  pending.sort(compareCategoriesFirst);
 
   // Retry-backoff can otherwise still split a same-record edit pair even
   // with coalescePendingUpdates() below: getPendingSyncItems() (unless

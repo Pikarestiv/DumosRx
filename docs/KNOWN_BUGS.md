@@ -166,7 +166,7 @@ Issues spotted incidentally (e.g. while doing TypeScript type-safety cleanup) th
   flash) and consider adding a dedicated loading/placeholder state to the
   store-switch transition itself.
 
-### Client "Someone else" / new-account login navigation shows a stale authenticated screen instead of the sign-in form (reproduced)
+### Client "Someone else" / new-account login navigation shows a stale authenticated screen instead of the sign-in form (reproduced — FIXED)
 
 - **Where:** the PIN lock screen's "Back" → "Welcome Back" profile picker →
   "Someone else" tile, which client-side-navigates to `/login?mode=new`
@@ -186,14 +186,12 @@ Issues spotted incidentally (e.g. while doing TypeScript type-safety cleanup) th
   proceed. Once reloaded, the rest of the flow (username/PIN entry,
   `Authorize Entry`, landing on the correct role-scoped dashboard) worked
   correctly in this test.
-- **Fix scope (not implemented):** identify what differs between this
-  client-side navigation and a full reload for this route — likely the
-  same family of issue as the store-switch entry above (a query/router
-  state invalidation that doesn't force a remount of the page tree for an
-  auth-state transition). Investigate whether the lock-screen's navigation
-  call needs a hard `window.location` navigation (like other auth
-  transitions in this app appear to use) instead of the router's
-  client-side push for this specific transition.
+- **Fix:** `client/components/dashboard/dashboard-layout.tsx`'s
+  `onLoginAsOther`/`onSetUpNewDevice` handlers switched from
+  `router.push(...)` to a hard `window.location.href = ...` navigation,
+  matching what a manual reload already fixed it to. **Verified live**:
+  clicking "Someone else" now shows the Sign In form immediately, no
+  residual content, no reload needed.
 
 ### Superadmin Settings → Billing & Plans: minor tier-schema gaps (corrected — this entry previously overstated the problem; FIXED)
 

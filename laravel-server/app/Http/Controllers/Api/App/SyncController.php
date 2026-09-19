@@ -1344,10 +1344,28 @@ class SyncController extends Controller
             
             $systemConfig = \App\Models\SystemConfig::getVal('subscription_plans', []);
             $canSync = $systemConfig['tiers'][$plan]['features']['cloud_sync'] ?? false;
-            
+
+            $store = Store::where('user_id', $owner->id)->first() ?? Store::where('id', $user->store_id)->first();
+
             $isManual = $request->boolean('manual');
-            $isSetup = $request->boolean('setup') || (!$isPush && empty($request->input('last_synced', [])));
-            
+            // The client-supplied `setup` flag exists so a brand-new device
+            // can complete its very first sync even on a plan that
+            // otherwise disables cloud sync or throttles the interval (see
+            // the passing test for exactly that case). But `setup` is a
+            // plain client-controlled boolean with no server-side
+            // corroboration — any request could set it, permanently
+            // skipping both the cloud_sync feature gate and the interval
+            // throttle on every push, not just a genuine first one. Require
+            // the store to actually have never synced before (last_sync_at
+            // null) to honor it; once a real sync has landed, the escape
+            // hatch closes for good, same as if it never existed for that
+            // store from then on. Pull's own isSetup (no last_synced
+            // supplied at all) doesn't have an equivalent spoofable flag —
+            // left as-is.
+            $isSetup = $isPush
+                ? ($request->boolean('setup') && !($store && $store->last_sync_at))
+                : (!$isPush && empty($request->input('last_synced', [])));
+
             if (!$isSetup) {
                 if (!$canSync) {
                     return [
@@ -1361,7 +1379,6 @@ class SyncController extends Controller
                 $syncIntervalMinutes = $systemConfig['tiers'][$plan]['limits']['sync_interval'] ?? 0;
                 
                 if ($syncIntervalMinutes > 0 && !$isManual) {
-                    $store = Store::where('user_id', $owner->id)->first() ?? Store::where('id', $user->store_id)->first();
                     if ($store && $store->last_sync_at) {
                         $minutesSinceLastSync = abs((int)$store->last_sync_at->diffInMinutes(now()));
                         if ($minutesSinceLastSync < $syncIntervalMinutes) {
@@ -1392,9 +1409,25 @@ class SyncController extends Controller
             $storeLimit = \App\Models\SystemConfig::getVal('subscription_plans')['tiers'][$plan]['limits']['stores'] ?? 0;
             if ($storeLimit !== -1) {
                 $allowedStoreIds = Store::where('user_id', $owner->id)->orderBy('created_at', 'asc')->limit($storeLimit)->pluck('id')->toArray();
-                
-                $syncStoreId = $user->store_id ?? Store::where('user_id', $user->id)->value('id');
-                
+
+                // Must resolve to the SAME store push()/pull() actually
+                // write to (X-Store-Id when present, exactly like their own
+                // $currentStoreId/store-scoping resolution above) — not a
+                // separately-derived default. Previously this always
+                // checked $user->store_id regardless of X-Store-Id, so a
+                // multi-store owner over their plan's store limit could
+                // pass a disallowed store's id via the header, have this
+                // check validate their allowed default store instead, and
+                // have push()/pull() write to the disallowed one anyway.
+                $requestedStoreId = $request->header('X-Store-Id') ?? $request->input('store_id');
+                $syncStoreId = null;
+                if ($requestedStoreId && Store::where('id', $requestedStoreId)->where('user_id', $owner->id)->exists()) {
+                    $syncStoreId = $requestedStoreId;
+                }
+                if (!$syncStoreId) {
+                    $syncStoreId = $user->store_id ?? Store::where('user_id', $user->id)->value('id');
+                }
+
                 if ($syncStoreId && !in_array($syncStoreId, $allowedStoreIds)) {
                     return [
                         'valid' => false,

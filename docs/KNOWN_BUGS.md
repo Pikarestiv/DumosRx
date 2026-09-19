@@ -27,25 +27,6 @@ Issues spotted incidentally (e.g. while doing TypeScript type-safety cleanup) th
   response needs to omit `id`/`cost_price`/`store_id`, or whether it's
   acceptable as-is now that it can no longer be leveraged into a write.
 
-
-### Sync plan-gating bypassable via `setup` query param and store-limit check ignores the actual write target
-
-- **Where:** `SyncController.php`'s `$isSetup = $request->boolean('setup') || ...`
-  skips both the `cloud_sync` feature-flag check and the sync-interval
-  throttle when true; `client/lib/api/client.ts` sends `?setup=1` on
-  requests. Separately, the store-limit check resolves
-  `$syncStoreId = $user->store_id ?? Store::where('user_id', $user->id)->value('id')`,
-  ignoring the `X-Store-Id` header that `push()`/`pull()` actually honor
-  for which store gets written.
-- **Effect:** a free-tier account can append `setup=1` to get unmetered
-  cloud sync; a multi-store owner over their plan's store limit can pass
-  `X-Store-Id` for a store outside their allowed set and have it validate
-  against a different (allowed) store while writing to the disallowed one.
-- **Fix scope (not implemented):** validate the store resolved from
-  `X-Store-Id` (the one actually written) against `$allowedStoreIds`, not a
-  separately-resolved default store; re-review whether `setup` should ever
-  bypass the plan/feature check rather than just the interval throttle.
-
 ### Stock-batch deltas applied outside per-change sync savepoints
 
 - **Where:** `SyncController.php`'s `push()` accumulates `$stockBatchDeltas`

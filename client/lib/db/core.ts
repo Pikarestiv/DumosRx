@@ -235,35 +235,70 @@ export async function query<T = Record<string, unknown>>(
     return await db.select(sql, params);
   }
 
-  const stmt = db.prepare(sql);
-  stmt.bind(params);
+  // Retried once on "Statement closed": reproduced under heavy concurrent
+  // write load (a large bulk import's push/pull activity overlapping this
+  // query's own yields below) — some other operation invalidates this
+  // statement's handle mid-loop, and every subsequent .step() call on it
+  // throws that error forever after, permanently wedging whatever was
+  // running this query (the sync engine, in the reproduction — see
+  // docs/KNOWN_BUGS.md). The exact sql.js-internal mechanism wasn't
+  // isolated, but the fix doesn't need to know it: a SELECT has no side
+  // effects, so discarding whatever partial `results` a failed attempt
+  // collected and re-`prepare()`-ing a fresh statement against the same
+  // (still-valid — only the statement handle itself was invalidated, not
+  // the connection) `db` is always safe to retry. Capped at one retry so a
+  // genuinely different, non-transient failure still surfaces instead of
+  // silently retrying forever.
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const stmt = db.prepare(sql);
+    try {
+      stmt.bind(params);
 
-  const results: T[] = [];
-  let rowCount = 0;
-  while (stmt.step()) {
-    const row = stmt.getAsObject() as T;
-    results.push(row);
-    rowCount++;
-    // sql.js runs entirely on the main thread with no Web Worker, so a large
-    // result set's row-fetch loop blocks painting for however long it takes
-    // — nothing else, including React committing an already-rendered
-    // loading skeleton, can run until this returns. This is the same
-    // characteristic product-import.ts's YIELD_INTERVAL comment describes
-    // for bulk inserts, just on the read side, and it compounds right after
-    // app launch when several heavy stat/overview queries (Inventory,
-    // Settings) land close together with sync's own DB work.
-    // Only outside an open transaction: execute() doesn't queue behind an
-    // in-progress transaction() the way nested transaction() calls do (sql.js
-    // has one shared connection, no per-caller isolation), so yielding here
-    // while `inTransaction` is true would let an unrelated write interleave
-    // into this transaction's uncommitted state.
-    if (!inTransaction && rowCount % QUERY_YIELD_INTERVAL === 0) {
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      const results: T[] = [];
+      let rowCount = 0;
+      while (stmt.step()) {
+        const row = stmt.getAsObject() as T;
+        results.push(row);
+        rowCount++;
+        // sql.js runs entirely on the main thread with no Web Worker, so a
+        // large result set's row-fetch loop blocks painting for however
+        // long it takes — nothing else, including React committing an
+        // already-rendered loading skeleton, can run until this returns.
+        // This is the same characteristic product-import.ts's
+        // YIELD_INTERVAL comment describes for bulk inserts, just on the
+        // read side, and it compounds right after app launch when several
+        // heavy stat/overview queries (Inventory, Settings) land close
+        // together with sync's own DB work.
+        // Only outside an open transaction: execute() doesn't queue behind
+        // an in-progress transaction() the way nested transaction() calls
+        // do (sql.js has one shared connection, no per-caller isolation),
+        // so yielding here while `inTransaction` is true would let an
+        // unrelated write interleave into this transaction's uncommitted
+        // state.
+        if (!inTransaction && rowCount % QUERY_YIELD_INTERVAL === 0) {
+          await new Promise((resolve) => setTimeout(resolve, 0));
+        }
+      }
+      stmt.free();
+
+      return results;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      try {
+        stmt.free();
+      } catch {
+        // Already invalid — this is exactly the case being retried.
+      }
+      if (attempt === 0 && /closed|finalized/i.test(message)) {
+        continue;
+      }
+      throw err;
     }
   }
-  stmt.free();
 
-  return results;
+  // Unreachable (the loop above always either returns or throws), but
+  // TypeScript can't see that from a for-loop with a fixed bound.
+  return [];
 }
 
 // Registered by base-helpers.ts (which already imports from this module, so

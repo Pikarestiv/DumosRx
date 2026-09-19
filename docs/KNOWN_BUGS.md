@@ -1,140 +1,8 @@
 # Known Bugs / Data Gaps
 
-Issues spotted incidentally (e.g. while doing TypeScript type-safety cleanup) that aren't fixed yet, tracked here so they don't get lost. Not an exhaustive bug tracker; just a landing spot for "worth fixing later" findings.
+Issues spotted incidentally (e.g. while doing TypeScript type-safety cleanup) that aren't fixed yet, tracked here so they don't get lost. Not an exhaustive bug tracker; just a landing spot for "worth fixing later" findings. Fixed entries are removed outright rather than marked — this file is a to-do list, not a changelog (git history is the changelog).
 
 ## Open items
-
-### Stock audit's restock path could permanently fork a product's stock into duplicate batches (reproduced at scale — 504 products in one test — FIXED)
-
-- **Where:** `client/lib/db/queries/inventory.ts`'s `submitStockAudit()`,
-  restock branch (`diff > 0`): looked up existing batches via
-  `getBatchesForProduct()`, which filters `WHERE quantity > 0`. If a
-  product's only batch was sitting at exactly 0, that filter made it
-  invisible, so the branch took the "product has none" path and created a
-  brand-new `AUDIT-...` batch instead of topping the real one back up —
-  permanently forking that product's stock across two batch rows instead
-  of correcting the one that already existed.
-- **How a batch ends up at 0 in the first place (a *different*, deeper,
-  NOT-fixed bug — see the sync-engine entry below):** the server never
-  trusts `stock_batches.quantity` from a client payload; it's always
-  created at 0 and then derived by applying the batch's `stock_movements`
-  deltas server-side (`SyncController::push()`'s documented design). Until
-  that movement has actually been pushed and applied, the server's own
-  copy of the row genuinely is 0 — and if a **pull** happens to land in
-  that window (between the batch-creation push and its movement's push,
-  plausible when thousands of queued items are spread across many
-  rate-limited push batches over minutes), the client pulls that
-  still-zero row back down and **overwrites its own already-correct local
-  quantity with 0**. This is the actual source of the zeroed batches this
-  bug was operating on — not something this fix addresses.
-- **Reproduced at scale:** during this session's ~1900-product bulk-import
-  stress test, a corrective stock-audit pass (`submitStockAudit` via
-  product-import's "update stock for existing products" option) hit this
-  exactly: 504 of ~509 products it adjusted ended up with **two**
-  `stock_batches` rows each (`Opening Stock` sitting at 0, plus a new
-  `AUDIT-2026-09-19` holding the real corrected quantity) — not a rare
-  timing fluke, essentially every restock in that pass hit it, since the
-  pull-race above had already zeroed nearly every batch by the time the
-  correction ran.
-- **Effect:** a product's true stock silently splits across two batch
-  records — inventory valuation, "avg cost," and any per-batch reporting
-  (expiry tracking, FEFO picking) become inconsistent depending on which
-  batch a given view reads, and repeated restocks compound it further
-  (each could fork yet another duplicate).
-- **Fix:** added `getAllActiveBatchesForProduct()` (same query, without the
-  `quantity > 0` filter) and switched the restock branch to use it when
-  deciding whether an existing batch is available to top up. The deduction
-  (`diff < 0`) branch is intentionally left on the filtered
-  `getBatchesForProduct()` — it already naturally skips zero-quantity
-  batches (`deductQty <= 0` → `continue`), so no behavior change there.
-- **Status:** fixed and typechecked. **Not re-verified against a fresh
-  live repro** in this pass (would require deliberately racing a pull
-  against an in-flight push again, which the sync-engine bug below is
-  itself unresolved and risky to reproduce on purpose right now) — verify
-  by re-running the same bulk-import-then-correct scenario and confirming
-  no product ends up with more than one `Opening Stock`-equivalent batch
-  regardless of what the batch's quantity was going in. **This session's
-  own test data (`Pika Test Store`) was left with the duplicate batches
-  this bug already created** (504 products) — not hand-repaired via direct
-  DB edits since it's disposable test data; a factory reset of that store
-  is the simpler path to clean data if it's needed again, rather than
-  reconciling ~500 rows by hand.
-
-### Sync engine can wedge permanently on `Statement closed` after heavy back-to-back local write activity (reproduced, recovered by reload)
-
-- **Where:** `client/lib/db/sync-engine/index.ts` (`sync()`, error logged at
-  line ~143) surfaces a sql.js/`better-sqlite3`-style `Statement closed`
-  error; the underlying statement lifecycle is in
-  `client/lib/db/core.ts`'s `query()`, which does `db.prepare(sql)` →
-  `stmt.bind()` → a `while (stmt.step())` loop that **yields to the event
-  loop via `setTimeout(resolve, 0)` every 200 rows when not inside a
-  `transaction()`** (explicit, deliberate, and commented — added so a large
-  read doesn't block painting). The same comment block acknowledges "sql.js
-  has one shared connection, no per-caller isolation."
-- **Reproduced:** after two back-to-back bulk operations on a ~1900-row
-  catalog (a full CSV import, then a corrective re-import with the
-  "update stock for existing products" audit path, run in quick
-  succession — see the sibling product-import bug entries above, all found
-  in the same session), the sync engine started throwing `Sync failed:
-  "Statement closed"` on every subsequent attempt and the "N Changes
-  Unsynced" counter stopped decreasing entirely (stuck, not just slow) —
-  visible both in a console error surfaced through Next.js's dev error
-  overlay and in `[CRASH LOGGER] Capturing error: Statement closed` from
-  `error-logger.ts`.
-- **Hypothesis (strong, not confirmed with instrumentation):** a `query()`
-  call outside a transaction yields mid-`stmt.step()` loop; if another
-  concurrent operation runs during that yield window and touches the same
-  shared sql.js connection, the original `stmt` handle is invalidated. The
-  next `stmt.step()` after resuming then throws `Statement closed`, and
-  because this specific failure isn't handled as retryable, the sync loop
-  appears to give up rather than recover on its own. **Ruled out:**
-  `sync()` itself already guards against re-entrancy correctly (a
-  module-level `isSyncInProgress` flag, set/reset in a `try`/`finally`, so
-  a second overlapping `sync()` call returns an early "Sync already in
-  progress" instead of racing) — confirmed by reading `index.ts` directly,
-  so this is NOT two overlapping `sync()` calls. A concrete, real trigger
-  for *a* `sync()` call worth noting: `components/auth/license-guard.tsx`'s
-  `performCheck()` effect calls `sync(true)` any time
-  `storeProfile?.status`/`suspension_reason`/`subscription_tier` changes —
-  and a sync's own pull can update those same fields on `stores`, so a
-  sync completing can re-trigger another `performCheck` → `sync(true)`
-  shortly after. That path is still safely serialized by the
-  `isSyncInProgress` guard, so it's not the double-entry itself, but it is
-  a plausible source of the *frequent* sync calls whose write-side
-  activity (`pushChanges`/`pullChanges`, presumably running inside
-  `transaction()`) could still overlap with some *other*, unguarded
-  non-transactional `query()` call elsewhere in the app (e.g. an ordinary
-  page's data fetch) landing in that yield window. The precise other
-  caller wasn't identified — would need instrumentation (logging every
-  `query()` call's SQL + a monotonic counter, or breaking on
-  `Statement closed` in devtools) to catch the actual second party
-  mid-collision rather than inferring it after the fact.
-- **Recovery:** a full page reload (not just SPA navigation — confirmed a
-  same-tab `navigate` to the same URL was NOT sufficient on its own the
-  first time; a subsequent one did clear it) reliably un-wedged it —
-  temporarily: the unsynced count resumed counting down for roughly a
-  minute each time before hitting `Statement closed` again and re-wedging,
-  requiring another reload. This points at in-memory state (a stale
-  statement/closure) recreated fresh each reload, not corrupted persisted
-  data: the IndexedDB-backed local DB blob was intact and growing correctly
-  throughout, and each reload's fresh module state recovered forward
-  progress without any data fix-up — it just doesn't survive the same
-  triggering condition recurring under a still-large backlog.
-- **Effect:** a user who does several large operations in quick succession
-  (a big import, a stock recount, etc.) can end up with sync silently and
-  permanently stuck — the "N Changes Unsynced" action-center item never
-  clears, other devices/the server never see the latest local changes,
-  and there's no in-app indication that a reload (rather than "just wait")
-  is what's needed to recover.
-- **Fix scope (not implemented):** needs actual concurrency control, not
-  just a bigger try/catch — e.g. a mutex/lock so only one `sync()` (or one
-  `transaction()`/non-transactional `query()`) can hold the sql.js
-  connection at a time, and/or catching `Statement closed` specifically to
-  retry the operation once against a freshly-`prepare()`d statement instead
-  of surfacing it as a terminal failure. Would need deliberate concurrent
-  load (two overlapping large operations, reproduced on purpose rather than
-  incidentally) to verify a fix actually closes the window instead of just
-  narrowing it.
 
 ### Account/store switch may briefly show the previous store's stale dashboard data (unreproduced)
 
@@ -166,66 +34,6 @@ Issues spotted incidentally (e.g. while doing TypeScript type-safety cleanup) th
   flash) and consider adding a dedicated loading/placeholder state to the
   store-switch transition itself.
 
-### Client "Someone else" / new-account login navigation shows a stale authenticated screen instead of the sign-in form (reproduced — FIXED)
-
-- **Where:** the PIN lock screen's "Back" → "Welcome Back" profile picker →
-  "Someone else" tile, which client-side-navigates to `/login?mode=new`
-  (client app, not the superadmin panel — a different codepath from the
-  `store-context.tsx` issue above, but the same *symptom class*: a route
-  change that doesn't actually swap the rendered screen).
-- **Reproduced:** while locked as "Pika" (Store Owner) on
-  `/settings/security`, clicking Back → "Someone else" changed the URL bar
-  to `/login?mode=new` but kept rendering the authenticated Security
-  Settings page underneath — not the "Sign In" username/PIN form. A full
-  page reload (`navigate` to the same URL) then rendered the correct Sign
-  In form immediately, confirming the route/data are correct and this is a
-  client-side transition bug, not a routing or auth bug.
-- **Effect:** a cashier/staff member trying to sign in on a device already
-  unlocked as another user sees the previous user's settings page instead
-  of a login form after tapping "Someone else" — has to manually reload to
-  proceed. Once reloaded, the rest of the flow (username/PIN entry,
-  `Authorize Entry`, landing on the correct role-scoped dashboard) worked
-  correctly in this test.
-- **Fix:** `client/components/dashboard/dashboard-layout.tsx`'s
-  `onLoginAsOther`/`onSetUpNewDevice` handlers switched from
-  `router.push(...)` to a hard `window.location.href = ...` navigation,
-  matching what a manual reload already fixed it to. **Verified live**:
-  clicking "Someone else" now shows the Sign In form immediately, no
-  residual content, no reload needed.
-
-### Superadmin Settings → Billing & Plans: minor tier-schema gaps (corrected — this entry previously overstated the problem; FIXED)
-
-- **Original claim (wrong):** this entry previously said most of the UI's
-  feature toggles (`mobile_app`, `ecommerce`, `smart_pos`, `custom_branding`,
-  `barcode_generation`, `loyalty_program`, `advanced_reports`,
-  `reseller_commission`, `proforma_quotes`, `daily_close_report`) "don't
-  exist in the real config and aren't read by any backend gating code" —
-  based on comparing the UI/types only against `SystemConfigSeeder.php`'s
-  literal seeded keys, without tracing how they're actually consumed.
-- **What was missed:** `client/lib/hooks/use-feature-gate.ts`'s `getFeature(key,
-  altKey, fallback)` checks `features[key]`, then `features[altKey]`, then
-  falls back to a hardcoded tier default — e.g.
-  `getFeature('custom_branding', 'theme_customizer', !isFree)` and
-  `getFeature('smart_pos', 'smart_pos', true)`. Every single toggle in the
-  admin UI's list corresponds to a real primary or alias key checked by this
-  function, confirmed by reading every `getFeature(...)`/`getLimit(...)`
-  call site in that file. Saving any of them through the admin UI has real,
-  immediate effect on gating — none of them are dead or write-only.
-- **What's genuinely true (fixed):** `laravel-server/database/seeders/SystemConfigSeeder.php`'s
-  seeded config does include one field the UI never exposed —
-  `limits.inventories` (max catalog items, -1 = unlimited) — but no gating
-  code anywhere reads it either, so it's a genuinely inert field, not a
-  data-pollution risk; added as an optional `TierLimits.inventories` field
-  for documentation accuracy, no UI control added since nothing consumes it.
-  Also, the seeded `free` tier's `limits` has no `sync_interval` key, so
-  `plan-tier-card.tsx`'s Sync Interval input rendered `value={undefined}`
-  for that tier and could compute `NaN` if an admin typed into it — fixed
-  with a `?? 0` display default and an `|| 0` fallback on save.
-- **Status:** corrected analysis + the one real narrow gap fixed
-  (`web/components/admin/views/plan-tier-card.tsx`,
-  `web/lib/types/admin.ts`). No data-pollution risk exists; the original
-  "reconcile the whole schema" framing was not warranted.
-
 ### Superadmin Handoff: impersonation defaults to the real production domain, with no in-panel way to override it once logged in
 
 - **Where:** `web/lib/constants.ts`'s `APP_URL` falls back to
@@ -243,33 +51,6 @@ Issues spotted incidentally (e.g. while doing TypeScript type-safety cleanup) th
 - **Fix scope (not implemented):** surface the App URL override somewhere
   reachable from inside the logged-in panel, not just the pre-login form.
 
-### Superadmin Handoff/callback: a successful login can still render a false "Missing handoff code" error (dev-only, React Strict Mode) — FIXED
-
-- **Where:** `client/app/auth/callback/page.tsx` (and structurally identical
-  code in `web/app/admin/handoff/page.tsx`) strips `code`/`return_code` from
-  the URL via `window.history.replaceState()` before the async token
-  exchange, then ran the exchange in a mount-once (`[]`-dependency) effect.
-  Under React Strict Mode's dev-only double-invoke of effects, a second run
-  of the same effect could read the already-stripped URL and render
-  "Missing handoff code" over top of a login that already succeeded in the
-  background.
-- **Effect:** confusing dev-environment noise (a real user/admin sees a
-  scary "your link expired" screen despite being correctly logged in
-  underneath it) — not a security issue, and Strict Mode's double-invoke is
-  disabled in production builds, so this shouldn't reach real end users.
-- **Fix:** added a `useRef(false)` guard at the top of the effect in both
-  files (`if (hasRun.current) return; hasRun.current = true;`) so the
-  exchange-and-strip logic runs exactly once per real mount regardless of
-  Strict Mode's simulated double-invoke, without touching the existing
-  `[]`-dependency/URL-stripping design the surrounding comments already
-  explain the reasoning for.
-- **Status:** fixed in both files. Not independently re-verified against a
-  live handoff link in this pass (the original repro's return leg already
-  hit an unrelated 60s code-TTL expiry before Strict Mode's double-invoke
-  could be observed) — the fix is a standard, narrowly-scoped idiom for
-  this exact class of bug and passes typecheck, but flagging that it
-  wasn't re-exercised end-to-end.
-
 ### Product Catalog page briefly (and genuinely) shows "No products found" after a large sync (reproduced)
 
 - **Where:** `client/components/products/product-database.tsx`'s
@@ -277,8 +58,7 @@ Issues spotted incidentally (e.g. while doing TypeScript type-safety cleanup) th
   `catalog-list.tsx`/`catalog-list-states.tsx`, which already has a
   dedicated loading skeleton specifically to avoid flashing the "empty
   catalog" state during a normal load — see that file's own comment).
-- **Reproduced:** immediately after importing ~1900 products (see the
-  sibling entries above about that import's own bugs) and while the
+- **Reproduced:** immediately after importing ~1900 products and while the
   resulting sync backlog was still draining, navigating to
   `/inventory/catalog` rendered the skeleton, then settled on "No products
   found" — not a stale/loading flag misread, since `isLoading` was

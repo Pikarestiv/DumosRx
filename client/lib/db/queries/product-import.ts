@@ -108,7 +108,16 @@ export async function importProductRows(
   // via a queue that a nested call would deadlock against (the inner call
   // waits on the outer's own queue slot, which only clears once the outer
   // transaction's fn() — still awaiting the inner call — finishes).
-  const matchedStockUpdates: { productId: string; quantity: number }[] = [];
+  // Keyed by productId so an in-file duplicate (same product matched by
+  // multiple rows) only ever contributes one audit entry — last row wins,
+  // consistent with how duplicate rows are already merged elsewhere in this
+  // import. Without this, submitStockAudit() below computes every entry's
+  // delta against the SAME pre-import systemQty snapshot (it's captured
+  // once, before any adjustment is applied), so two rows for one product
+  // each apply their full delta on top of that same stale baseline instead
+  // of the second seeing the first's result — double-applying the
+  // difference and silently driving real stock negative.
+  const matchedStockUpdates = new Map<string, { productId: string; quantity: number }>();
 
   await transaction(async () => {
     for (let i = 0; i < rows.length; i++) {
@@ -131,7 +140,7 @@ export async function importProductRows(
             ...(row.barcode ? { barcode: row.barcode } : {}),
           });
           if (options?.updateStockForMatched && row.quantity !== undefined) {
-            matchedStockUpdates.push({ productId: existingId, quantity: row.quantity });
+            matchedStockUpdates.set(existingId, { productId: existingId, quantity: row.quantity });
           }
           result.updated++;
           continue;
@@ -191,20 +200,21 @@ export async function importProductRows(
     }
   });
 
-  if (matchedStockUpdates.length > 0) {
-    const ids = matchedStockUpdates.map((u) => u.productId);
+  if (matchedStockUpdates.size > 0) {
+    const updates = [...matchedStockUpdates.values()];
+    const ids = updates.map((u) => u.productId);
     const systemQuantities = await query<{ id: string; qty: number | null }>(
       `SELECT p.id, (SELECT SUM(sb.quantity) FROM stock_batches sb WHERE sb.product_id = p.id AND sb._deleted = 0 AND sb.is_active = 1) as qty
        FROM products p WHERE p.id IN (${ids.map(() => "?").join(",")})`,
       ids,
     );
     const systemQtyById = new Map(systemQuantities.map((r) => [r.id, r.qty ?? 0]));
-    result.stockAdjusted = matchedStockUpdates.filter(
+    result.stockAdjusted = updates.filter(
       (u) => (systemQtyById.get(u.productId) ?? 0) !== u.quantity,
     ).length;
 
     await submitStockAudit(
-      matchedStockUpdates.map((u) => ({
+      updates.map((u) => ({
         productId: u.productId,
         systemQty: systemQtyById.get(u.productId) ?? 0,
         countedQty: u.quantity,

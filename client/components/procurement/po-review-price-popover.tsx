@@ -10,6 +10,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { clampMoneyInput } from "./po-line-item-math";
 import { formatCurrency } from "@/lib/utils";
 
 interface POReviewPricePopoverProps {
@@ -56,7 +57,7 @@ export function POReviewPricePopover({
             min={0}
             step="0.01"
             value={sellingPrice}
-            onChange={(e) => onSellingPriceChange(e.target.value)}
+            onChange={(e) => onSellingPriceChange(clampMoneyInput(e.target.value))}
             onFocus={(e) => e.target.select()}
             placeholder="0.00"
           />

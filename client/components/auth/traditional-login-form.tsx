@@ -120,7 +120,7 @@ export function TraditionalLoginForm({
         <Button
           type="submit"
           className="h-11 text-base font-bold shadow-lg active:scale-[0.98] w-[276px] mx-auto"
-          disabled={isLoading}
+          disabled={isLoading || pin.length !== 4}
         >
           {!!isLoading && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
           {!isLoading && "Authorize Entry"}

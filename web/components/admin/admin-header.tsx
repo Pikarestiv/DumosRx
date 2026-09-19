@@ -151,7 +151,15 @@ export function AdminHeader() {
                 );
               })}
             </div>
-            <div className="p-4 border-t border-slate-200 dark:border-slate-800">
+            <div className="p-4 border-t border-slate-200 dark:border-slate-800 space-y-2">
+              {/* The header's own copy sits in a `hidden lg:flex` row, so
+                  below lg this sheet is the only in-panel way to reach the
+                  API environment / App URL override. Without it a narrow
+                  dev/QA session is back to getAppURL()'s production default
+                  on the first Impersonate click. */}
+              <div className="flex justify-start">
+                <ServerSelector />
+              </div>
               <Button
                 onClick={logout}
                 variant="outline"

@@ -131,6 +131,7 @@ export function useSettings() {
     "system",
     "billing",
     "roles",
+    "danger-zone",
   ];
 
   const ALL_TABS = [
@@ -150,6 +151,7 @@ export function useSettings() {
     "system",
     "billing",
     "roles",
+    "danger-zone",
   ];
 
   // Tab activation from URL

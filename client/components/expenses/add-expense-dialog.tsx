@@ -83,6 +83,14 @@ export function AddExpenseDialog({
       return;
     }
 
+    // `min` on the input is only an HTML hint — a negative or zero amount
+    // would otherwise reach the expenses table and corrupt profit figures.
+    const numericAmount = parseFloat(formData.amount);
+    if (!(numericAmount > 0)) {
+      toast.error("Amount must be greater than zero");
+      return;
+    }
+
     if (isLoading) return;
     saveExpenseMutation.mutate(
       { formData, expenseId: expenseToEdit?.id, userId: user?.id },
@@ -197,6 +205,7 @@ export function AddExpenseDialog({
               </label>
               <input
                 type="number"
+                min="0"
                 step="0.01"
                 required
                 placeholder="0.00"

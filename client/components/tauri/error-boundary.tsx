@@ -53,7 +53,21 @@ export class ErrorBoundary extends Component<Props, State> {
               </button>
               <button
                 onClick={() => {
-                  if (window.confirm("Warning: This will clear local app cache. Proceed?")) {
+                  if (
+                    window.confirm(
+                      "Warning: This will permanently delete all local data on this device and reset the app. This cannot be undone. Proceed?",
+                    )
+                  ) {
+                    // Deliberately talks to indexedDB directly rather than importing
+                    // resetDatabase(): this button is the last resort after the app
+                    // already crashed, so it must not pull the (possibly broken) db
+                    // module graph back in. "keyval-store" is idb-keyval's default
+                    // database, where lib/db/core.ts persists the sql.js binary.
+                    try {
+                      indexedDB.deleteDatabase("keyval-store");
+                    } catch (e) {
+                      console.error("Failed to delete local database", e);
+                    }
                     localStorage.clear();
                     window.location.reload();
                   }

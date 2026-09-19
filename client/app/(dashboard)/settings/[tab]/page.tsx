@@ -24,6 +24,7 @@ export function generateStaticParams() {
     { tab: "product-units" },
     { tab: "categories" },
     { tab: "roles" },
+    { tab: "danger-zone" },
   ];
 }
 

@@ -110,6 +110,11 @@ export function AddSupplierDialog({
       console.error("Failed to check supplier uniqueness:", error);
     }
 
+    // The local pre-check is done; from here only the caller's own mutation
+    // (isSubmittingProp) should gate the buttons. Leaving this true would
+    // strand them disabled with the spinner on if that mutation fails.
+    setIsCheckingName(false);
+
     // Transform to snake_case for Laravel backend
     const payload = {
       name: formData.name,

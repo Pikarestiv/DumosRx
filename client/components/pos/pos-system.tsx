@@ -139,6 +139,7 @@ export function POSSystem() {
     showClearCartDialog,
     setShowClearCartDialog,
     clearCart,
+    cartLength: cart.length,
   };
 
   return (

@@ -40,6 +40,9 @@ interface PurchaseOrderTableProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
   onReceivePO: (id: string, receivedItems: ReceivedItemPayload[]) => void;
+  /** True while a receive is in flight, so the panel can lock its
+   * "Confirm & Receive" button instead of allowing a second submit. */
+  isReceivingPO?: boolean;
   onSendPO: (id: string) => void;
   onDeletePO?: (id: string) => void;
   isFuzzyFallback?: boolean;
@@ -184,6 +187,7 @@ export function PurchaseOrderTable({
   activeTab,
   onTabChange,
   onReceivePO,
+  isReceivingPO,
   onSendPO,
   onDeletePO,
   isFuzzyFallback,
@@ -333,6 +337,7 @@ export function PurchaseOrderTable({
         {panelView === "receive" ? (
           <ReceivePOPanel
             po={selectedPO}
+            isReceiving={isReceivingPO}
             onBack={() => setPanelView("details")}
             onConfirm={(id, receivedItems) => {
               onReceivePO(id, receivedItems);

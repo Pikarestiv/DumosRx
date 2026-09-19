@@ -59,12 +59,19 @@ export function PrescriptionPatientInfo({
               id="patientAge"
               type="number"
               value={formData.patientAge}
-              onChange={(e) =>
+              onChange={(e) => {
+                // min/max below are HTML hints only — clamp here so a typed
+                // negative or absurd age can't reach the prescription record.
+                const raw = e.target.value;
+                const clamped =
+                  raw === ""
+                    ? ""
+                    : String(Math.min(120, Math.max(0, parseInt(raw, 10) || 0)));
                 setFormData((prev) => ({
                   ...prev,
-                  patientAge: e.target.value,
-                }))
-              }
+                  patientAge: clamped,
+                }));
+              }}
               placeholder="Age"
               min="0"
               max="120"

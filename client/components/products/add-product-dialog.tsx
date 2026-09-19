@@ -20,7 +20,13 @@ import { capitalizeWords } from "@/lib/hooks/use-uppercase-display";
 interface AddProductDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onAddProduct: (product: NewProductPayload, keepOpen?: boolean) => void;
+  /** `onSaved` is invoked by the caller only once the save actually
+   * succeeded, so the form is never cleared out from under a failed save. */
+  onAddProduct: (
+    product: NewProductPayload,
+    keepOpen?: boolean,
+    onSaved?: () => void,
+  ) => void;
   editingProduct?: Product | null;
   initialData?: Partial<Product>;
   /** Hide "Save & Add Another", for flows (e.g. quick-adding a product from
@@ -236,33 +242,37 @@ export function AddProductDialog({
       is_controlled: formData.isControlled ? 1 : 0,
     };
 
-    onAddProduct(payload, keepOpen);
-
-    // Reset form
-    setFormData({
-      id: "",
-      name: "",
-      genericName: "",
-      category: "",
-      nafdacNumber: "",
-      strength: "",
-      dosageForm: "",
-      manufacturer: "",
-      sellingPrice: 0,
-      reorderLevel: 0,
-      barcode: "",
-      baseUnit: "Unit",
-      bulkUnit: "",
-      unitsPerBulk: 1,
-      status: "active",
-      showOnline: false,
-      requiresPrescription: false,
-      isControlled: false,
-      costPrice: 0,
-      stockQuantity: 0,
-      batchNumber: "",
-      expiryDate: "",
-    });
+    // Only clear the form once the caller reports the save succeeded —
+    // otherwise a failed save would wipe everything the user just typed.
+    // On the normal (non-keepOpen) path the dialog closes anyway and the
+    // reset-on-open effect above handles the next open; this matters for
+    // "Save & Add Another", which keeps the dialog mounted and open.
+    onAddProduct(payload, keepOpen, () =>
+      setFormData({
+        id: "",
+        name: "",
+        genericName: "",
+        category: "",
+        nafdacNumber: "",
+        strength: "",
+        dosageForm: "",
+        manufacturer: "",
+        sellingPrice: 0,
+        reorderLevel: 0,
+        barcode: "",
+        baseUnit: "Unit",
+        bulkUnit: "",
+        unitsPerBulk: 1,
+        status: "active",
+        showOnline: false,
+        requiresPrescription: false,
+        isControlled: false,
+        costPrice: 0,
+        stockQuantity: 0,
+        batchNumber: "",
+        expiryDate: "",
+      }),
+    );
   };
 
   const handleInputChange = (field: keyof Product, value: string | number | boolean | null) => {

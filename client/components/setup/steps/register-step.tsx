@@ -19,6 +19,7 @@ import {
 import { AuthCardShell } from "@/components/auth/auth-card-shell";
 import { UserPlus, Loader2 } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 import type { StoreOption } from "@/lib/types/store";
 
 const STORE_TYPES = [
@@ -69,6 +70,13 @@ export function RegisterStep({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    // InputOTP has no `required` equivalent, so a 0-3 digit PIN would
+    // otherwise sail straight through into account creation.
+    if (pin.length !== 4) {
+      toast.error("Please enter a complete 4-digit PIN");
+      return;
+    }
 
     if (!isCloudLinked && password !== confirmPassword) {
       setPasswordError("Passwords do not match");

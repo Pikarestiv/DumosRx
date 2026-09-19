@@ -20,6 +20,7 @@ import { AppearancePanel } from "./panels/appearance-panel";
 import { BusinessInfoPanel } from "./panels/business-info-panel";
 import { AlertsPanel } from "./panels/alerts-panel";
 import { DataPanel } from "./panels/data-panel";
+import { DangerZonePanel } from "./panels/danger-zone-panel";
 import { SecurityPanel } from "./panels/security-panel";
 import { PaymentMethodsPanel } from "./panels/payment-methods-panel";
 import { ReceiptSettingsPanel } from "./panels/receipt-settings-panel";
@@ -38,6 +39,7 @@ const TAB_LABELS: Record<string, string> = {
   "register-configs": "Register Configs",
   "product-units": "Product Units",
   roles: "Roles & Permissions",
+  "danger-zone": "Danger Zone",
 };
 
 export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
@@ -180,6 +182,12 @@ export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
           {s.isAdmin && (
             <TabsContent value="billing">
               <BillingSettings />
+            </TabsContent>
+          )}
+
+          {s.isAdmin && (
+            <TabsContent value="danger-zone">
+              <DangerZonePanel {...s} />
             </TabsContent>
           )}
         </div>

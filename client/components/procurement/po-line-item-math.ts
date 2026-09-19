@@ -17,6 +17,20 @@ export function getImmediateUnitCost(item: POLineItemDraft): number {
     : item.unit_cost / unitsPerBulk;
 }
 
+/**
+ * Guard for the money override inputs (New Cost / Cost Price / Sell Price)
+ * in the order-building and receiving tables. Their `min={0}` is only an
+ * HTML hint — nothing stops a negative being typed and stored, which then
+ * corrupts stock_batches.cost_price / products.selling_price and every
+ * margin calculation downstream. Only a negative is rewritten (to "0");
+ * anything else is passed through verbatim so half-typed values like
+ * "12." survive until the user finishes the number.
+ */
+export function clampMoneyInput(raw: string): string {
+  if (raw === "") return "";
+  return parseFloat(raw) < 0 ? "0" : raw;
+}
+
 export function getLineTotal(item: POLineItemDraft, poType: "standard" | "immediate"): number {
   if (poType !== "immediate") return item.bulk_quantity * item.unit_cost;
   const unitsPerBulk = item.units_per_bulk || 1;

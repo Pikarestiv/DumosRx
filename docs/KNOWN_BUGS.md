@@ -27,65 +27,21 @@ Issues spotted incidentally (e.g. while doing TypeScript type-safety cleanup) th
 - **Status:** the stale-render window is real by design in this app's
   local-first architecture (sql.js reads, no network round-trip), but
   apparently resolves fast enough on this test device/data volume to be
-  imperceptible. Not fixed — nothing to fix without a reproduction. A slower
-  device, a much larger local DB, or sync contention during the switch could
-  plausibly still hit the window. If this is reported again, get a screen
-  recording (screenshots polled between tool calls could miss a sub-second
-  flash) and consider adding a dedicated loading/placeholder state to the
-  store-switch transition itself.
-
-### Superadmin Handoff: impersonation defaults to the real production domain, with no in-panel way to override it once logged in
-
-- **Where:** `web/lib/constants.ts`'s `APP_URL` falls back to
-  `https://app.dumosrx.com` whenever `NEXT_PUBLIC_APP_URL` is unset.
-  `getAppURL()` checks a `localStorage` override first, but the only UI that
-  can set it (`ServerSelector`) is mounted on the login page, not anywhere
-  inside the admin panel once already authenticated.
-- **Effect:** any dev/QA session that started already logged in (never went
-  through the login form's Server Config dropdown) silently sends a real
-  handoff code to production on the very first "Impersonate" click, for
-  every session until someone thinks to log out and back in through the
-  dropdown. No account compromise results (the code is short-lived,
-  single-use, and scoped to whichever store was impersonated), but there's
-  no on-panel warning this is about to happen.
-- **Fix scope (not implemented):** surface the App URL override somewhere
-  reachable from inside the logged-in panel, not just the pre-login form.
-
-### Product Catalog page briefly (and genuinely) shows "No products found" after a large sync (reproduced)
-
-- **Where:** `client/components/products/product-database.tsx`'s
-  `getProductsWithDetails()` query (rendered through
-  `catalog-list.tsx`/`catalog-list-states.tsx`, which already has a
-  dedicated loading skeleton specifically to avoid flashing the "empty
-  catalog" state during a normal load — see that file's own comment).
-- **Reproduced:** immediately after importing ~1900 products and while the
-  resulting sync backlog was still draining, navigating to
-  `/inventory/catalog` rendered the skeleton, then settled on "No products
-  found" — not a stale/loading flag misread, since `isLoading` was
-  confirmed `false` and the query had genuinely completed with an empty
-  result. In the same window, the Dashboard's and Inventory Overview's own
-  "Total Products" counts (separate queries) stayed correct the entire
-  time (1892→1895 as the test imports landed), and the persisted local
-  DB's IndexedDB blob size was unchanged and consistent with a full
-  dataset — ruling out real data loss. Navigating away (e.g. to
-  `/dashboard`) and back to `/inventory/catalog` made the correct list
-  reappear, with no user action beyond that.
-- **Effect:** for up to roughly a minute or two after a large sync
-  operation, a user opening the Catalog tab sees a false "catalog is
-  empty, add your first product" screen instead of their real inventory —
-  alarming, and easy to mistake for actual data loss (as happened during
-  this investigation) even though the underlying data was never at risk.
-- **Status:** not root-caused. Plausible cause given this codebase's other
-  documented sync/query-invalidation issues (see the store-switch entry
-  above): `getProductsWithDetails()`'s local SQL query executing against a
-  transient intermediate state of a large pull/push apply (e.g. a
-  delete-then-reinsert step, or a snapshot taken between two halves of a
-  multi-statement sync transaction) rather than a react-query stale-cache
-  problem, given `isLoading` genuinely reflected a completed empty fetch,
-  not a stale flag. Needs a repro with a smaller, more controllable sync
-  backlog and direct instrumentation of `getProductsWithDetails()`'s call
-  sites relative to `queueTableInvalidation` firing during sync, to catch
-  it mid-transition rather than after the fact.
+  imperceptible. Never reproduced. A slower device, a much larger local DB,
+  or sync contention during the switch could plausibly still hit the window.
+- **Mitigated, not root-fixed (defense in depth):** `switchStore()` now
+  holds an `isSwitchingStore` flag (exposed from the store context) for the
+  duration of its `cancelQueries()`/`invalidateQueries()` round trip, and
+  `LicenseGuard` — which already gates the whole app on its own `loading`
+  splash — renders `SplashScreen` while it's set. So a switch can no longer
+  paint the outgoing store's data even if the window does open on a slower
+  device. Capped at `SWITCH_STORE_MAX_WAIT_MS` (5s) so a query that never
+  settles falls back to the (at worst briefly stale) UI rather than
+  stranding the app on the splash. The underlying behavior is unchanged:
+  React Query's `invalidateQueries()` still refetches stale-while-revalidate
+  by design — it's just covered by a loading state now. If this is reported
+  again despite that, get a screen recording (polled screenshots could miss
+  a sub-second flash).
 
 ### `SyncController::push()`'s `stale_timestamp` conflict-fallback branch — corrected: NOT dead code
 

@@ -49,6 +49,7 @@ export function ProcurementManagement({ initialTab = "orders" }: ProcurementMana
     isFuzzyFallback,
     fetchPurchaseOrders,
     handleReceivePO,
+    isReceivingPO,
     handleSendPO,
     handleDeletePO,
   } = usePurchaseOrders();
@@ -82,6 +83,7 @@ export function ProcurementManagement({ initialTab = "orders" }: ProcurementMana
             activeTab={poTab}
             onTabChange={setPoTab}
             onReceivePO={(id, receivedItems) => void handleReceivePO(id, receivedItems)}
+            isReceivingPO={isReceivingPO}
             onSendPO={(id) => void handleSendPO(id)}
             onDeletePO={(id) => void handleDeletePO(id)}
             isFuzzyFallback={isFuzzyFallback}

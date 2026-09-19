@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { Customer } from "@/lib/hooks/use-customer-data";
 import { formatCurrency } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface RecordPaymentModalProps {
   customer: Customer | null;
@@ -62,6 +63,17 @@ export function RecordPaymentModal({
     if (!customer) return;
     const numericAmount = parseFloat(amount);
     if (!numericAmount || numericAmount <= 0) return;
+
+    // The `max` on the amount input is only an HTML hint — enforce it here
+    // too. recordCustomerPayment floors the new balance at 0 but still logs
+    // the full amount, so an overpayment would silently vanish from the books
+    // with no reconciling credit/refund record.
+    if (numericAmount > customer.outstanding_balance) {
+      toast.error(
+        `Payment cannot exceed the outstanding balance of ${formatCurrency(customer.outstanding_balance, currencyCode)}.`,
+      );
+      return;
+    }
 
     setLoading(true);
     try {

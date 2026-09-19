@@ -222,4 +222,65 @@ class SyncValidationTest extends TestCase
 
         $response->assertStatus(200);
     }
+
+    /**
+     * Regression: `setup` used to be trusted as-is on every push, with no
+     * server-side corroboration that this was genuinely a device's first
+     * sync — a free-tier account could append `setup=1` to every request
+     * forever and permanently skip both the cloud_sync feature gate and the
+     * interval throttle. It's now only honored while the store has never
+     * actually completed a sync (last_sync_at null); once a real sync has
+     * landed, claiming `setup=1` again must fall through to normal gating.
+     */
+    public function test_setup_flag_no_longer_bypasses_gating_once_a_real_sync_has_happened()
+    {
+        \App\Models\SystemConfig::setVal('subscription_plans', [
+            'tiers' => [
+                'free' => ['features' => ['cloud_sync' => false], 'limits' => ['stores' => -1]],
+            ],
+        ]);
+        $this->store->update(['last_sync_at' => now()->subDay()]);
+
+        $response = $this->push(['setup' => true]);
+
+        $response->assertStatus(403);
+        $response->assertJson(['success' => false, 'code' => 'SYNC_DISABLED']);
+    }
+
+    /**
+     * Regression: the store-limit check resolved the store to validate via
+     * `$user->store_id ?? Store::where('user_id', ...)->value('id')`,
+     * ignoring the X-Store-Id header that push()/pull() actually use to
+     * pick which store gets written. A multi-store owner over their plan's
+     * limit could send X-Store-Id for a disallowed store; this check would
+     * validate their (allowed) default store instead and let the request
+     * through, while push()/pull() went on to write the disallowed store.
+     */
+    public function test_store_limit_check_validates_the_store_requested_via_x_store_id_header()
+    {
+        \App\Models\SystemConfig::setVal('subscription_plans', [
+            'tiers' => [
+                'free' => ['features' => ['cloud_sync' => true], 'limits' => ['stores' => 1]],
+            ],
+        ]);
+        // Owner's earliest-created store ($this->store) stays allowed under
+        // limit=1; this second store does not.
+        $secondStore = Store::create([
+            'user_id' => $this->owner->id,
+            'name' => 'Second Store Via Header',
+            'store_slug' => 'second-store-via-header',
+            'device_id' => 'WEB-SECOND-VIA-HEADER',
+        ]);
+
+        $response = $this->actingAs($this->owner)
+            ->withHeaders(['X-Store-Id' => $secondStore->id])
+            ->postJson('/api/v1/app/sync/push', [
+                'changes' => [
+                    ['table_name' => 'not_a_real_table', 'operation' => 'INSERT', 'record_id' => 'x', 'payload' => null],
+                ],
+            ]);
+
+        $response->assertStatus(403);
+        $response->assertJson(['success' => false, 'code' => 'STORE_LIMIT_EXCEEDED']);
+    }
 }

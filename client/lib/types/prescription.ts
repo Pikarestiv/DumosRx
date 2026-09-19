@@ -89,3 +89,20 @@ export interface PrescriptionItemInsertPayload extends PrescriptionItem {
   created_at?: string;
   updated_at?: string;
 }
+
+/** Payload accepted by updatePrescriptionItem(): the editable fields from the
+ * medication form, plus the caller-supplied updated_at timestamp. Excludes
+ * refills_used/next_refill_date on purpose — those are refill history and must
+ * survive an edit untouched. */
+export interface PrescriptionItemUpdatePayload {
+  product_name?: string;
+  strength?: string;
+  dosage?: string;
+  quantity?: number;
+  instructions?: string;
+  cost?: number;
+  unit_cost?: number;
+  refills_authorized?: number;
+  refill_interval_days?: number;
+  updated_at: string;
+}

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { ArrowLeft, HelpCircle, Info } from "lucide-react";
+import { ArrowLeft, HelpCircle, Info, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -41,6 +41,9 @@ interface ReceivePOPanelProps {
   po: PurchaseOrder | null;
   onBack: () => void;
   onConfirm: (poId: string, receivedItems: ReceivedItemPayload[]) => void;
+  /** True while the caller's receive is in flight — locks "Confirm &
+   * Receive" so a double-tap can't receive the same order twice. */
+  isReceiving?: boolean;
 }
 
 /** One-item-at-a-time cards, used on phones, where the ledger table's
@@ -102,7 +105,9 @@ const ReceiveItemCard = React.memo(
                 onFieldChange(
                   item.id,
                   "quantity",
-                  parseInt(e.target.value) || 0,
+                  // min="0" is only an HTML hint — parseInt("-5") is truthy,
+                  // so clamp here or a negative qty reaches stock_batches.
+                  Math.max(0, parseInt(e.target.value) || 0),
                 )
               }
             />
@@ -146,7 +151,12 @@ ReceiveItemCard.displayName = "ReceiveItemCard";
  * takes over the same side panel used for PO details so the ledger table
  * gets the panel's full width/height instead of being cramped inside a
  * centered dialog. */
-export function ReceivePOPanel({ po, onBack, onConfirm }: ReceivePOPanelProps) {
+export function ReceivePOPanel({
+  po,
+  onBack,
+  onConfirm,
+  isReceiving = false,
+}: ReceivePOPanelProps) {
   const [receivedItems, setReceivedItems] = useState<
     Record<string, ReceivedItemPayload>
   >({});
@@ -192,6 +202,7 @@ export function ReceivePOPanel({ po, onBack, onConfirm }: ReceivePOPanelProps) {
   if (!po) return null;
 
   const handleConfirmClick = () => {
+    if (isReceiving) return;
     const payload = Object.values(receivedItems);
 
     // Check if any items are missing an expiry date
@@ -263,10 +274,13 @@ export function ReceivePOPanel({ po, onBack, onConfirm }: ReceivePOPanelProps) {
       </div>
 
       <div className="p-5 border-t border-border bg-card mt-auto flex justify-end gap-3">
-        <Button variant="outline" onClick={onBack}>
+        <Button variant="outline" onClick={onBack} disabled={isReceiving}>
           Cancel
         </Button>
-        <Button onClick={handleConfirmClick}>Confirm & Receive</Button>
+        <Button onClick={handleConfirmClick} disabled={isReceiving}>
+          {isReceiving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          {isReceiving ? "Receiving..." : "Confirm & Receive"}
+        </Button>
       </div>
 
       <AlertDialog open={showWarningModal} onOpenChange={setShowWarningModal}>

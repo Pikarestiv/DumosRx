@@ -54,8 +54,11 @@ export async function receivePurchaseOrder(id: string, receivedItems?: ReceivedI
     for (const item of poData.items) {
       const receivedItem = receivedItems?.find(ri => ri.po_item_id === item.id);
 
-      // Default to the original ordered bulk quantity if not provided in payload
-      const bulkQty = receivedItem?.quantity !== undefined ? Number(receivedItem.quantity) : Number(item.bulk_quantity);
+      // Default to the original ordered bulk quantity if not provided in payload.
+      // A submitted quantity is floored at 0 (the form clamps too, but a negative
+      // reaching here would silently corrupt on-hand stock at the moment of receipt);
+      // item.bulk_quantity is a legitimate ordered quantity and passes through as-is.
+      const bulkQty = receivedItem?.quantity !== undefined ? Math.max(0, Number(receivedItem.quantity)) : Number(item.bulk_quantity);
       // Always use the product's current conversion factor, not the snapshot stored on the
       // PO line item: the product's packaging may have been corrected since the order was placed.
       const unitsPerBulk = Number(item.product_units_per_bulk) || Number(item.units_per_bulk) || 1;
@@ -65,9 +68,11 @@ export async function receivePurchaseOrder(id: string, receivedItems?: ReceivedI
       const expiryDate = receivedItem?.expiry_date ? new Date(receivedItem.expiry_date).toISOString().slice(0, 10) : null;
 
       const safeUnitsPerBulk = unitsPerBulk || 1;
+      // Overrides are floored at 0 for the same reason as bulkQty: a negative
+      // cost would corrupt margin math everywhere stock_batches.cost_price is read.
       const baseUnitCost =
         receivedItem?.cost_price !== undefined && receivedItem.cost_price !== ""
-          ? Number(receivedItem.cost_price)
+          ? Math.max(0, Number(receivedItem.cost_price))
           : Number(item.unit_cost) / safeUnitsPerBulk;
 
       const invId = await insert("stock_batches", {
@@ -108,7 +113,7 @@ export async function receivePurchaseOrder(id: string, receivedItems?: ReceivedI
 
       if (receivedItem?.selling_price !== undefined && receivedItem.selling_price !== "") {
         await update("products", item.product_id, {
-          selling_price: Number(receivedItem.selling_price),
+          selling_price: Math.max(0, Number(receivedItem.selling_price)),
         });
       }
     }
@@ -128,8 +133,9 @@ export async function receivePurchaseOrder(id: string, receivedItems?: ReceivedI
  * "Total" drift out of sync with each other. */
 function immediateBaseUnitCost(item: ImmediateLineItemDraft): number {
   const safeUnitsPerBulk = item.units_per_bulk || 1;
+  // Floored at 0, same as receivePurchaseOrder's baseUnitCost.
   return item.cost_price_override !== undefined && item.cost_price_override !== ""
-    ? Number(item.cost_price_override)
+    ? Math.max(0, Number(item.cost_price_override))
     : Number(item.unit_cost) / safeUnitsPerBulk;
 }
 
@@ -231,7 +237,7 @@ export async function createAndReceivePurchaseOrder(
 
       if (item.selling_price !== undefined && item.selling_price !== "") {
         await update("products", item.product_id, {
-          selling_price: Number(item.selling_price),
+          selling_price: Math.max(0, Number(item.selling_price)),
         });
       }
     }

@@ -16,6 +16,7 @@ import {
   Ruler,
   Tags,
   KeyRound,
+  AlertTriangle,
   LucideIcon,
   ChevronRight,
 } from "lucide-react";
@@ -83,6 +84,12 @@ const MENU_GROUPS: MenuGroup[] = [
       { href: "/settings/data", icon: Database, title: "Data & Sync", description: "Cloud backup & resets", adminOnly: true },
       { href: "/settings/billing", icon: CreditCard, title: "Billing", description: "Plan, payment history & referrals", adminOnly: true },
       { href: "/settings/system", icon: Globe, title: "System", description: "App information & logs", adminOnly: true },
+    ],
+  },
+  {
+    label: "Danger Zone",
+    items: [
+      { href: "/settings/danger-zone", icon: AlertTriangle, title: "Danger Zone", description: "Irreversible resets & deletions", adminOnly: true },
     ],
   },
 ];

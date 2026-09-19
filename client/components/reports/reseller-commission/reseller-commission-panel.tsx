@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Wallet } from "lucide-react";
+import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -111,6 +112,7 @@ export function ResellerCommissionPanel() {
       void queryClient.invalidateQueries({ queryKey: ["resellerCommission"] });
     } catch (error) {
       console.error("Failed to redeem reseller commission:", error);
+      toast.error("Failed to redeem commission. Please try again.");
     }
   };
 

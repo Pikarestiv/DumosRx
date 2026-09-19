@@ -16,6 +16,7 @@ import {
   Ruler,
   Tags,
   KeyRound,
+  AlertTriangle,
   LucideIcon,
 } from "lucide-react";
 
@@ -116,6 +117,17 @@ const NAV_GROUPS: NavGroup[] = [
       { value: "data", label: "Data & Sync", icon: Database, adminOnly: true },
       { value: "billing", label: "Billing", icon: CreditCard, adminOnly: true },
       { value: "system", label: "System", icon: Globe, adminOnly: true },
+    ],
+  },
+  {
+    label: "Danger Zone",
+    items: [
+      {
+        value: "danger-zone",
+        label: "Danger Zone",
+        icon: AlertTriangle,
+        adminOnly: true,
+      },
     ],
   },
 ];

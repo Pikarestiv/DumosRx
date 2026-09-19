@@ -14,10 +14,14 @@ export default function RegisterPage() {
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
+    // localStorage isn't available during the server render of this client
+    // component, so the already-logged-in redirect check can only happen
+    // here, not during render.
     const token = localStorage.getItem("drx_token");
     if (token) {
       router.push("/dashboard");
     } else {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setChecking(false);
     }
   }, [router]);

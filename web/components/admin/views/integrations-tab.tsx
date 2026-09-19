@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Card,
   CardContent,
@@ -22,14 +22,16 @@ export function IntegrationsTab() {
   const updateMutation = useUpdateSystemConfigMutation();
 
   const [key, setKey] = useState("");
+  const [prevSmartsuppKey, setPrevSmartsuppKey] = useState(smartsuppKey);
 
-  useEffect(() => {
+  if (smartsuppKey !== prevSmartsuppKey) {
+    setPrevSmartsuppKey(smartsuppKey);
     if (smartsuppKey !== undefined && smartsuppKey !== null) {
       // value may be a raw string or wrapped object depending on how SystemConfig stores it
       const val = typeof smartsuppKey === "string" ? smartsuppKey : String(smartsuppKey ?? "");
       setKey(val);
     }
-  }, [smartsuppKey]);
+  }
 
   const isActive = key.trim().length > 0;
 

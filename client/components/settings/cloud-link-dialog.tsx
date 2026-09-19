@@ -35,7 +35,7 @@ export function CloudLinkDialog({ open, onOpenChange, onSuccess }: CloudLinkDial
     if (open && storeProfile?.email && !email) {
       setEmail(storeProfile.email);
     }
-  }, [open, storeProfile?.email]);
+  }, [open, storeProfile?.email, email]);
 
   const handleLink = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,7 +66,7 @@ export function CloudLinkDialog({ open, onOpenChange, onSuccess }: CloudLinkDial
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
-        <form onSubmit={handleLink}>
+        <form onSubmit={(e) => void handleLink(e)}>
           <DialogHeader>
             <div className="mx-auto w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mb-4">
               <Cloud className="w-6 h-6" />

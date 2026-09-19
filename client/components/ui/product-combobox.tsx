@@ -231,7 +231,10 @@ export function ProductCombobox({
     }));
   }, [localProducts]);
 
-  const allSuggestions = [...localSuggestions, ...globalSuggestions];
+  const allSuggestions = React.useMemo(
+    () => [...localSuggestions, ...globalSuggestions],
+    [localSuggestions, globalSuggestions],
+  );
   const deferredValue = React.useDeferredValue(value);
 
   const filteredOptions = React.useMemo(() => {

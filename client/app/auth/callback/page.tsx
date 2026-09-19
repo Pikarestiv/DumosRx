@@ -10,7 +10,9 @@ function CallbackHandler() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { loginFromHandoff } = useAuth();
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(() =>
+    searchParams.get("code") ? null : "Missing handoff code."
+  );
 
   useEffect(() => {
     const code = searchParams.get("code");
@@ -22,11 +24,10 @@ function CallbackHandler() {
     window.history.replaceState({}, "", window.location.pathname);
 
     if (!code) {
-      setError("Missing handoff code.");
       return;
     }
 
-    (async () => {
+    void (async () => {
       try {
         const { token, user } = await apiClient.consumeHandoffCode(code);
         // Token first: downstream code/interceptors expect it to be in place
@@ -51,6 +52,7 @@ function CallbackHandler() {
     // produces a new `searchParams` object on the next render; if that's a
     // dependency here, the effect re-fires with the now-stripped (empty)
     // code and can loop / clobber the real result before it lands.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (error) {

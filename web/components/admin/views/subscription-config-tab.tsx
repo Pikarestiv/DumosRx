@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Card,
   CardContent,
@@ -58,14 +58,18 @@ export function SubscriptionConfigTab() {
   const [socialLinks, setSocialLinks] = useState<SocialLinksConfig>(
     DEFAULT_SOCIAL_LINKS,
   );
+  const [prevServerConfig, setPrevServerConfig] = useState(serverConfig);
+  const [prevSocialConfig, setPrevSocialConfig] = useState(socialConfig);
 
-  useEffect(() => {
+  if (serverConfig !== prevServerConfig) {
+    setPrevServerConfig(serverConfig);
     if (serverConfig) setConfig(mergeSubscriptionConfig(serverConfig));
-  }, [serverConfig]);
+  }
 
-  useEffect(() => {
+  if (socialConfig !== prevSocialConfig) {
+    setPrevSocialConfig(socialConfig);
     if (socialConfig) setSocialLinks(mergeSocialLinks(socialConfig));
-  }, [socialConfig]);
+  }
 
   const handleSave = async () => {
     try {

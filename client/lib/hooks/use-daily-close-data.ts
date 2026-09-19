@@ -22,10 +22,10 @@ export function useDailyCloseData(reportDate: string) {
     queryFn: () => getDailyCloseData(reportDate)
   });
 
-  const rawSalesToday = dailyCloseData?.salesToday || [];
-  const itemsToday = dailyCloseData?.itemsToday || [];
-  const returnsToday = dailyCloseData?.returnsToday || [];
-  const returnItemsToday = dailyCloseData?.returnItemsToday || [];
+  const rawSalesToday = useMemo(() => dailyCloseData?.salesToday || [], [dailyCloseData?.salesToday]);
+  const itemsToday = useMemo(() => dailyCloseData?.itemsToday || [], [dailyCloseData?.itemsToday]);
+  const returnsToday = useMemo(() => dailyCloseData?.returnsToday || [], [dailyCloseData?.returnsToday]);
+  const returnItemsToday = useMemo(() => dailyCloseData?.returnItemsToday || [], [dailyCloseData?.returnItemsToday]);
 
   // itemsToday already has every line item for the day (product_name
   // included) - reuse it to attach a "||"-joined item_names string per sale,
@@ -47,7 +47,7 @@ export function useDailyCloseData(reportDate: string) {
     queryFn: () => getPaymentAccounts()
   });
 
-  const paymentAccounts = paymentAccountsData || [];
+  const paymentAccounts = useMemo(() => paymentAccountsData || [], [paymentAccountsData]);
 
   const { aggregatedTotals, totalProfit, topSellingMeds } = useMemo(() => {
     const totals = {

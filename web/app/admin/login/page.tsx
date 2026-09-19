@@ -38,9 +38,8 @@ export default function AdminLoginPage() {
         }
       }
     };
-    checkAuth();
-
-  }, []);
+    void checkAuth();
+  }, [initSession, router]);
 
   if (checking) {
     return (

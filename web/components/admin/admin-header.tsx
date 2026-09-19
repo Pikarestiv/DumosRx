@@ -41,6 +41,10 @@ export function AdminHeader() {
     // in at build time, so trust it there. Locally that var isn't set, so fall
     // back to inspecting whichever API server the Server Config selector points at.
     if (!deployedEnv) {
+      // getBaseURL() reflects the Server Config selector's localStorage
+      // preference, which isn't available during SSR — must read post-mount
+      // to avoid a hydration mismatch against the server-rendered default.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setEnvironmentName(getCurrentEnvironmentName(getBaseURL()).replace(" Server", ""));
     }
   }, [deployedEnv]);

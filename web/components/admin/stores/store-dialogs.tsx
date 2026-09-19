@@ -1,5 +1,5 @@
 import { Ban, Loader2, Receipt } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -42,13 +42,15 @@ export function SuspendStoreDialog({
   isPending,
 }: SuspendStoreDialogProps) {
   const [reason, setReason] = useState("");
+  const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
 
   // Reset reason when dialog is opened/closed
-  useEffect(() => {
+  if (isOpen !== prevIsOpen) {
+    setPrevIsOpen(isOpen);
     if (!isOpen) {
       setReason("");
     }
-  }, [isOpen]);
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -115,14 +117,16 @@ export function ViewStoreDialog({
   const { data: candidatesData } = useAccountManagerCandidates();
   const updateAccountManager = useUpdateAccountManagerMutation();
   const [managerId, setManagerId] = useState<string>(UNASSIGNED);
+  const [prevSelectedStore, setPrevSelectedStore] = useState(selectedStore);
 
-  useEffect(() => {
+  if (selectedStore !== prevSelectedStore) {
+    setPrevSelectedStore(selectedStore);
     setManagerId(
       selectedStore?.account_manager_is_explicit && selectedStore.account_manager
         ? selectedStore.account_manager.id
         : UNASSIGNED,
     );
-  }, [selectedStore]);
+  }
 
   if (!selectedStore) return null;
 

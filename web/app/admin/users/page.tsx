@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, Suspense } from "react";
 import {
   Search,
   Filter,
@@ -64,14 +64,16 @@ function GlobalUsersDirectoryContent() {
 
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState(initialSearch);
+  const [prevInitialSearch, setPrevInitialSearch] = useState(initialSearch);
   const [roleFilter, setRoleFilter] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
 
-  useEffect(() => {
+  if (initialSearch !== prevInitialSearch) {
+    setPrevInitialSearch(initialSearch);
     if (initialSearch && initialSearch !== search) {
       setSearch(initialSearch);
     }
-  }, [initialSearch]);
+  }
 
   const [isDeactivateDialogOpen, setIsDeactivateDialogOpen] = useState(false);
   const [isReactivateDialogOpen, setIsReactivateDialogOpen] = useState(false);

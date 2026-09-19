@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -14,12 +14,14 @@ export function SecurityConfigTab() {
   const updateMutation = useUpdateSystemConfigMutation();
 
   const [requireVerification, setRequireVerification] = useState(false);
+  const [prevServerConfig, setPrevServerConfig] = useState(serverConfig);
 
-  useEffect(() => {
+  if (serverConfig !== prevServerConfig) {
+    setPrevServerConfig(serverConfig);
     if (serverConfig !== undefined && serverConfig !== null) {
       setRequireVerification(Boolean(serverConfig));
     }
-  }, [serverConfig]);
+  }
 
   const handleSave = async () => {
     try {

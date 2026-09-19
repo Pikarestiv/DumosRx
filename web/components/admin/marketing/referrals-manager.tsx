@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -41,14 +41,14 @@ export function ReferralsManager() {
   const adjustCreditsMutation = useAdjustReferralsCreditsMutation();
 
   const [settings, setSettings] = useState<ReferralProgramSettings | null>(null);
+  const [prevSettingsData, setPrevSettingsData] = useState<ReferralProgramSettings | null | undefined>(undefined);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   // Sync settings when loaded
-  useEffect(() => {
-    if (settingsData) {
-      setSettings(settingsData);
-    }
-  }, [settingsData]);
+  if (settingsData && settingsData !== prevSettingsData) {
+    setPrevSettingsData(settingsData);
+    setSettings(settingsData);
+  }
 
   const handleSaveSettings = async () => {
     if (!settings) return;

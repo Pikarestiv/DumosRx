@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Download,
   ShieldAlert,
@@ -32,6 +32,7 @@ export default function StoresManagement() {
 
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState(initialSearch);
+  const [prevInitialSearch, setPrevInitialSearch] = useState(initialSearch);
   const [statusFilter, setStatusFilter] = useState("all");
   const [planFilter, setPlanFilter] = useState("all");
   const [selectedStore, setSelectedStore] = useState<AdminStoreSummary | null>(null);
@@ -55,11 +56,12 @@ export default function StoresManagement() {
   const markDemoMutation = useMarkStoreDemoMutation();
   const unmarkDemoMutation = useUnmarkStoreDemoMutation();
 
-  useEffect(() => {
+  if (initialSearch !== prevInitialSearch) {
+    setPrevInitialSearch(initialSearch);
     if (initialSearch && initialSearch !== search) {
       setSearch(initialSearch);
     }
-  }, [initialSearch]);
+  }
 
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= (response?.meta?.last_page || 1)) {

@@ -3,7 +3,7 @@
 import { PaymentMethodSelector } from "./payment-method-selector";
 import { PaymentSplits } from "./payment-splits";
 
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -75,17 +75,20 @@ export function POSPaymentDialog({
     if (showPaymentDialog && (!amountPaid || amountPaid === "0")) {
       setAmountPaid(total.toString());
     }
-  }, [showPaymentDialog, total, paymentMethod]);
+  }, [showPaymentDialog, total, paymentMethod, amountPaid, setAmountPaid]);
 
-  const isValidAccount = (method: string, accountId: string) => {
-    return paymentAccounts?.some(
-      (a) =>
-        a.id === accountId &&
-        (method === "card"
-          ? a.account_type === "pos_terminal"
-          : a.account_type !== "pos_terminal"),
-    );
-  };
+  const isValidAccount = useCallback(
+    (method: string, accountId: string) => {
+      return paymentAccounts?.some(
+        (a) =>
+          a.id === accountId &&
+          (method === "card"
+            ? a.account_type === "pos_terminal"
+            : a.account_type !== "pos_terminal"),
+      );
+    },
+    [paymentAccounts],
+  );
 
   // Auto-fill default account when switching methods
   useEffect(() => {
@@ -98,7 +101,7 @@ export function POSPaymentDialog({
         setSelectedAccountId(defaultId);
       }
     }
-  }, [paymentMethod, storeProfile?.id, showPaymentDialog]);
+  }, [paymentMethod, storeProfile?.id, showPaymentDialog, defaults, isValidAccount, setSelectedAccountId]);
 
   const isCurrentDefault =
     selectedAccountId && storeProfile?.id

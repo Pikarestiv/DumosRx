@@ -10,11 +10,11 @@ export function useMonthlySalesData(dateFilter: string, filters?: SalesFilters) 
     queryFn: () => getAdvancedMonthlySalesData(dateFilter, filters)
   });
 
-  const rawMonthlyData = metrics?.rawMonthlyData || [];
-  const rawMonthlyReturns = metrics?.rawMonthlyReturns || [];
-  const rawExpenseData = metrics?.rawExpenseData || [];
-
   const monthlySalesData: MonthlySalesDataPoint[] = useMemo(() => {
+    const rawMonthlyData = metrics?.rawMonthlyData || [];
+    const rawMonthlyReturns = metrics?.rawMonthlyReturns || [];
+    const rawExpenseData = metrics?.rawExpenseData || [];
+
     const monthNames = [
       "Jan",
       "Feb",
@@ -73,7 +73,7 @@ export function useMonthlySalesData(dateFilter: string, filters?: SalesFilters) 
     }
 
     return result;
-  }, [rawMonthlyData, rawMonthlyReturns, rawExpenseData]);
+  }, [metrics?.rawMonthlyData, metrics?.rawMonthlyReturns, metrics?.rawExpenseData]);
 
   return monthlySalesData;
 }

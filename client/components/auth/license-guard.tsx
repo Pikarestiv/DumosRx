@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import { getDeviceId } from "@/lib/utils/device-id";
 import {
@@ -227,7 +227,7 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [deviceId, setDeviceId] = useState("DUMOS-OFFLINE-772X");
 
-  const performCheck = async (trigger: string) => {
+  const performCheck = useCallback(async (trigger: string) => {
     // TEMP DIAGNOSTIC (remove once splashscreen-on-navigation is root-caused)
     console.log(`[LicenseGuard] performCheck start (trigger=${trigger}, pathname=${pathname})`);
     setLoading(true);
@@ -250,7 +250,7 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
     setLoading(false);
     // TEMP DIAGNOSTIC (remove once splashscreen-on-navigation is root-caused)
     console.log(`[LicenseGuard] performCheck end (trigger=${trigger}, pathname=${pathname})`);
-  };
+  }, [pathname]);
 
   // Generate or load device ID on mount
   useEffect(() => {
@@ -272,6 +272,7 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
     storeProfile?.status,
     storeProfile?.suspension_reason,
     storeProfile?.subscription_tier,
+    performCheck,
   ]);
 
   if (loading) {

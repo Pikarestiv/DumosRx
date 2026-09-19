@@ -45,6 +45,10 @@ export function AutoUpdater() {
         checkForUpdates(true);
       });
     }
+    // Intentionally runs once on mount only — this is the app-startup
+    // update check, not something that should re-fire as checkForUpdates'
+    // identity changes across renders.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const checkMobileUpdate = async () => {

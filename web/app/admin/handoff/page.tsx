@@ -10,14 +10,15 @@ import { useAdminAuthStore, type User } from "@/lib/store/use-admin-auth-store";
 function HandoffHandler() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(() =>
+    searchParams.get("code") ? null : "Missing handoff code."
+  );
 
   useEffect(() => {
     const code = searchParams.get("code");
     window.history.replaceState({}, "", window.location.pathname);
 
     if (!code) {
-      setError("Missing handoff code.");
       return;
     }
 
@@ -37,6 +38,7 @@ function HandoffHandler() {
     // produces a new `searchParams` object on the next render. If that's a
     // dependency here, the effect re-fires with the now-stripped (empty)
     // code and can loop / clobber the real result before it lands.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (error) {

@@ -29,13 +29,13 @@ export function SearchableInput({ options, value, onValueChange, onEscapeKey, on
   const [open, setOpen] = React.useState(false)
 
   // Find the label for the current value if it's an object
-  const getLabelForValue = (val: string) => {
+  const getLabelForValue = React.useCallback((val: string) => {
     const option = options.find(opt =>
       typeof opt === 'string' ? opt === val : opt.value === val
     );
     if (!option) return val;
     return typeof option === 'string' ? option : option.label;
-  };
+  }, [options]);
 
   const [inputValue, setInputValue] = React.useState(getLabelForValue(value))
   const containerRef = React.useRef<HTMLDivElement>(null)
@@ -59,7 +59,7 @@ export function SearchableInput({ options, value, onValueChange, onEscapeKey, on
 
   React.useEffect(() => {
     setInputValue(getLabelForValue(value))
-  }, [value, options])
+  }, [value, getLabelForValue])
 
   React.useEffect(() => {
     setActiveIndex(-1)

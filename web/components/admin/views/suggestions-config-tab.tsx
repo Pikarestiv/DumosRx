@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -38,7 +38,9 @@ export function SuggestionsConfigTab() {
     }
   });
 
-  useEffect(() => {
+  const [prevServerConfig, setPrevServerConfig] = useState(serverConfig);
+  if (serverConfig !== prevServerConfig) {
+    setPrevServerConfig(serverConfig);
     if (serverConfig) {
       setConfig({
         store: {
@@ -56,7 +58,7 @@ export function SuggestionsConfigTab() {
         }
       });
     }
-  }, [serverConfig]);
+  }
 
   const getActiveArray = (): string[] => {
     switch (activeList) {

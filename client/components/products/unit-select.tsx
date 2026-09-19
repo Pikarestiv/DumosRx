@@ -27,12 +27,13 @@ export function UnitSelect({ id, value, onValueChange, placeholder }: UnitSelect
   const [activeIndex, setActiveIndex] = React.useState(-1);
   const containerRef = React.useRef<HTMLDivElement>(null);
 
-  let customUnits: string[] = [];
-  try {
-    customUnits = storeProfile?.custom_units ? JSON.parse(storeProfile.custom_units) : [];
-  } catch {
-    customUnits = [];
-  }
+  const customUnits = React.useMemo<string[]>(() => {
+    try {
+      return storeProfile?.custom_units ? JSON.parse(storeProfile.custom_units) : [];
+    } catch {
+      return [];
+    }
+  }, [storeProfile?.custom_units]);
 
   const allOptions = React.useMemo(() => {
     const seen = new Set<string>();

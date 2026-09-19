@@ -118,7 +118,7 @@ export function usePrescriptionQueue() {
     ...queryKeys.prescriptions.all(),
     queryFn: fetchPrescriptions,
   });
-  const prescriptions = data || [];
+  const prescriptions = useMemo(() => data || [], [data]);
 
   // Derived (not a separate snapshot) so an edit/refetch that changes the
   // selected prescription's medications, status, etc. is reflected immediately

@@ -11,16 +11,20 @@ import Link from "next/link";
 function VerifyEmailContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
-  const [errorMessage, setErrorMessage] = useState("");
+  const [status, setStatus] = useState<"loading" | "success" | "error">(() =>
+    searchParams.get("token") && searchParams.get("email") ? "loading" : "error"
+  );
+  const [errorMessage, setErrorMessage] = useState(() =>
+    searchParams.get("token") && searchParams.get("email")
+      ? ""
+      : "Invalid verification link. Missing token or email."
+  );
 
   useEffect(() => {
     const token = searchParams.get("token");
     const email = searchParams.get("email");
 
     if (!token || !email) {
-      setStatus("error");
-      setErrorMessage("Invalid verification link. Missing token or email.");
       return;
     }
 

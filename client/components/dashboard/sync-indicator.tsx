@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Cloud, CloudOff, RefreshCw, AlertCircle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { getSyncQueueCount } from "@/lib/db/queries/setup";
@@ -80,57 +80,13 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
     };
   }, []);
 
-  // Background Auto-Sync Daemon. Two modes, switched purely by
-  // auto_sync_interval's value: 0 means "sync instantly after any local
-  // change" (event-driven, via core.ts's sync-queue-change listeners),
-  // any positive number means poll every N minutes like before. Both
-  // branches are torn down and rebuilt whenever auto_sync_interval changes
-  // (it's a dependency below), so switching a store between the two modes
-  // at runtime — e.g. an admin retunes a plan tier, or the store's own
-  // tier changes — cleanly stops whichever mode was active.
-  useEffect(() => {
-    let autoSyncIntervalTimer: NodeJS.Timeout | null = null;
-    let debounceTimer: NodeJS.Timeout | null = null;
-    let unsubscribe: (() => void) | null = null;
-
-    if (storeProfile?.auto_sync_enabled === 1 && isLinked) {
-      const intervalMinutes = storeProfile?.auto_sync_interval ?? 15;
-
-      if (intervalMinutes === 0) {
-        unsubscribe = addSyncQueueChangeListener(() => {
-          if (debounceTimer) clearTimeout(debounceTimer);
-          debounceTimer = setTimeout(() => {
-            if (navigator.onLine && !checkIsSyncing()) {
-              console.log("Auto-sync triggered (instant, on change)");
-              handleManualSync();
-            }
-          }, INSTANT_SYNC_DEBOUNCE_MS);
-        });
-      } else {
-        const intervalMs = intervalMinutes * 60 * 1000;
-        autoSyncIntervalTimer = setInterval(() => {
-          if (navigator.onLine && !checkIsSyncing()) {
-            console.log(`Auto-sync triggered (${intervalMinutes} min interval)`);
-            handleManualSync();
-          }
-        }, intervalMs);
-      }
-    }
-
-    return () => {
-      if (autoSyncIntervalTimer) clearInterval(autoSyncIntervalTimer);
-      if (debounceTimer) clearTimeout(debounceTimer);
-      unsubscribe?.();
-    };
-  }, [storeProfile?.auto_sync_enabled, storeProfile?.auto_sync_interval, isLinked]);
-
   const updateOnlineStatus = () => {
     setStatus(navigator.onLine ? "online" : "offline");
     const token = localStorage.getItem("auth_token");
     setIsLinked(!!token);
   };
 
-  const handleManualSync = async () => {
+  const handleManualSync = useCallback(async () => {
     if (isSyncInProgress) return;
     setIsSyncInProgress(true);
     setStatus("syncing");
@@ -163,7 +119,51 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
     } finally {
       setIsSyncInProgress(false);
     }
-  };
+  }, [isSyncInProgress]);
+
+  // Background Auto-Sync Daemon. Two modes, switched purely by
+  // auto_sync_interval's value: 0 means "sync instantly after any local
+  // change" (event-driven, via core.ts's sync-queue-change listeners),
+  // any positive number means poll every N minutes like before. Both
+  // branches are torn down and rebuilt whenever auto_sync_interval changes
+  // (it's a dependency below), so switching a store between the two modes
+  // at runtime — e.g. an admin retunes a plan tier, or the store's own
+  // tier changes — cleanly stops whichever mode was active.
+  useEffect(() => {
+    let autoSyncIntervalTimer: NodeJS.Timeout | null = null;
+    let debounceTimer: NodeJS.Timeout | null = null;
+    let unsubscribe: (() => void) | null = null;
+
+    if (storeProfile?.auto_sync_enabled === 1 && isLinked) {
+      const intervalMinutes = storeProfile?.auto_sync_interval ?? 15;
+
+      if (intervalMinutes === 0) {
+        unsubscribe = addSyncQueueChangeListener(() => {
+          if (debounceTimer) clearTimeout(debounceTimer);
+          debounceTimer = setTimeout(() => {
+            if (navigator.onLine && !checkIsSyncing()) {
+              console.log("Auto-sync triggered (instant, on change)");
+              void handleManualSync();
+            }
+          }, INSTANT_SYNC_DEBOUNCE_MS);
+        });
+      } else {
+        const intervalMs = intervalMinutes * 60 * 1000;
+        autoSyncIntervalTimer = setInterval(() => {
+          if (navigator.onLine && !checkIsSyncing()) {
+            console.log(`Auto-sync triggered (${intervalMinutes} min interval)`);
+            void handleManualSync();
+          }
+        }, intervalMs);
+      }
+    }
+
+    return () => {
+      if (autoSyncIntervalTimer) clearInterval(autoSyncIntervalTimer);
+      if (debounceTimer) clearTimeout(debounceTimer);
+      unsubscribe?.();
+    };
+  }, [storeProfile?.auto_sync_enabled, storeProfile?.auto_sync_interval, isLinked, handleManualSync]);
 
   const stateKey = isSyncInProgress
     ? "syncing"
@@ -252,7 +252,7 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
   if (isMobileHeader) {
     return (
       <>
-        <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full ${mobileBg} border ${statusBorder} max-w-fit transition-colors [&_svg]:w-3.5 [&_svg]:h-3.5 cursor-pointer`} onClick={handleManualSync}>
+        <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full ${mobileBg} border ${statusBorder} max-w-fit transition-colors [&_svg]:w-3.5 [&_svg]:h-3.5 cursor-pointer`} onClick={() => void handleManualSync()}>
           {statusIcon}
           <span className="text-[12px] font-medium text-muted-foreground whitespace-nowrap">
             {statusLabel}
@@ -283,7 +283,7 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
           desktopBg,
         )}
         onClick={() => {
-          if (status !== "offline") handleManualSync();
+          if (status !== "offline") void handleManualSync();
         }}
       >
         <TooltipProvider>

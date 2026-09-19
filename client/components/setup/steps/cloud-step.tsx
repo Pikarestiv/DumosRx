@@ -35,7 +35,7 @@ export function CloudStep({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onCloudRestore(email.trim().toLowerCase(), password);
+    void onCloudRestore(email.trim().toLowerCase(), password);
   };
 
   return (

@@ -155,7 +155,7 @@ export default function GlobalProductsManagement() {
           </Button>
           <Button
             className="bg-indigo-600 hover:bg-indigo-700 font-bold shadow-lg shadow-indigo-600/20 w-full sm:w-auto"
-            onClick={handleStandardize}
+            onClick={() => void handleStandardize()}
             disabled={standardizeMutation.isPending}
           >
             {standardizeMutation.isPending ? (
@@ -234,7 +234,7 @@ export default function GlobalProductsManagement() {
               productList={productList}
               isLoading={isLoading}
               error={error}
-              refetch={refetch}
+              refetch={() => void refetch()}
             />
           </div>
 

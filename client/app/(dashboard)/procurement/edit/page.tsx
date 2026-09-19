@@ -52,7 +52,7 @@ function EditOrderContent() {
   const { suppliers, products, refetch: fetchData } = useProcurementData();
 
   useEffect(() => {
-    fetchData();
+    void fetchData();
   }, [fetchData]);
 
   useEffect(() => {
@@ -79,7 +79,7 @@ function EditOrderContent() {
         setIsLoading(false);
       }
     }
-    loadPO();
+    void loadPO();
   }, [id, router]);
 
   const handleOpenAddProduct = (productData: Partial<ProductViewModel>) => {
@@ -91,11 +91,13 @@ function EditOrderContent() {
 
   const handleCreateSupplier = (payload: SupplierPayload) => {
     createSupplierMutation.mutate(payload, {
-      onSuccess: async (newId) => {
-        toast.success(`${payload.name} added to vendors`);
-        await fetchData();
-        setSelectedSupplierId(newId);
-        setIsAddSupplierOpen(false);
+      onSuccess: (newId) => {
+        void (async () => {
+          toast.success(`${payload.name} added to vendors`);
+          await fetchData();
+          setSelectedSupplierId(newId);
+          setIsAddSupplierOpen(false);
+        })();
       },
       onError: (error) => {
         console.error("Failed to add supplier:", error);
@@ -108,15 +110,17 @@ function EditOrderContent() {
 
   const handleCreateProduct = (productData: NewProductPayload, keepOpen?: boolean) => {
     createProductMutation.mutate(productData, {
-      onSuccess: async (newProductId) => {
-        toast.success(`${productData.name} added to catalog`);
-        await fetchData();
-        await queryClient.invalidateQueries(queryKeys.products.list());
-        setNewlyCreatedProductId(newProductId);
+      onSuccess: (newProductId) => {
+        void (async () => {
+          toast.success(`${productData.name} added to catalog`);
+          await fetchData();
+          await queryClient.invalidateQueries(queryKeys.products.list());
+          setNewlyCreatedProductId(newProductId);
 
-        if (!keepOpen) {
-          setIsAddProductOpen(false);
-        }
+          if (!keepOpen) {
+            setIsAddProductOpen(false);
+          }
+        })();
       },
       onError: (error) => {
         console.error("Failed to add product:", error);

@@ -44,7 +44,7 @@ export function usePurchaseOrders() {
     try {
       await receivePurchaseOrder(id, receivedItems);
       toast.success("Order received and stock updated!");
-      fetchPurchaseOrders();
+      void fetchPurchaseOrders();
     } catch (error) {
       console.error("Failed to receive PO:", error);
       toast.error("Error receiving order");
@@ -55,7 +55,7 @@ export function usePurchaseOrders() {
     try {
       await updatePurchaseOrderStatus(id, "sent");
       toast.success("Order marked as sent!");
-      fetchPurchaseOrders();
+      void fetchPurchaseOrders();
     } catch (error) {
       console.error("Failed to mark PO as sent:", error);
       toast.error("Error updating order status");
@@ -66,7 +66,7 @@ export function usePurchaseOrders() {
     try {
       await deletePurchaseOrder(id);
       toast.success("Purchase order deleted successfully");
-      fetchPurchaseOrders();
+      void fetchPurchaseOrders();
     } catch (error) {
       console.error("Failed to delete PO:", error);
       toast.error("Error deleting purchase order");

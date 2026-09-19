@@ -35,7 +35,7 @@ export function StockMovementDetailsDialog({
     if (movement?.product_id && open) {
       getProductBasicInfo(movement.product_id).then((res) => {
         if (res) setProductInfo(res);
-      });
+      }).catch(() => {});
     } else if (!open) {
       setProductInfo(null);
     }

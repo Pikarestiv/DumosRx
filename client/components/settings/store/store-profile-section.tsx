@@ -51,7 +51,7 @@ export function StoreProfileSection({
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(`${STOREFRONT_BASE_URL}/${localStoreSlug}`);
+    void navigator.clipboard.writeText(`${STOREFRONT_BASE_URL}/${localStoreSlug}`);
     setCopied(true);
     toast.success("Store link copied!");
     setTimeout(() => setCopied(false), 2000);

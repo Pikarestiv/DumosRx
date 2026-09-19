@@ -104,7 +104,7 @@ export function RequestedProductsTab() {
   // Refresh requests if dialog is closed
   useEffect(() => {
     if (!showAddDialog) {
-      fetchRequests();
+      void fetchRequests();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showAddDialog]);
@@ -136,7 +136,7 @@ export function RequestedProductsTab() {
   };
 
   const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
+    void navigator.clipboard.writeText(text);
     toast.success("Copied to clipboard");
   };
 

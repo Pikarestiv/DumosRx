@@ -98,8 +98,10 @@ export function NotificationBell() {
         console.error("Failed to fetch notifications", e);
       }
     };
-    fetchCloudNotifications();
-    const interval = setInterval(fetchCloudNotifications, 60000); // Poll every minute
+    void fetchCloudNotifications();
+    const interval = setInterval(() => {
+      void fetchCloudNotifications();
+    }, 60000); // Poll every minute
     return () => clearInterval(interval);
   }, [user, isCloudLinked]);
 
@@ -135,7 +137,7 @@ export function NotificationBell() {
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
   const handleNotificationClick = (notif: NotificationItem) => {
-    markAsRead(notif.id);
+    void markAsRead(notif.id);
     setOpen(false);
     if (notif.type === 'online_order' || notif.title.includes('Online Order')) {
       onOpen();

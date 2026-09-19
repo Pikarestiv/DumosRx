@@ -110,7 +110,7 @@ export function ActivityTab({
   // rather than silently discarding the range for full history.
   useEffect(() => {
     if (dateRange.from) return;
-    if (filterCustomerId || searchTerm) loadFullHistory();
+    if (filterCustomerId || searchTerm) void loadFullHistory();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterCustomerId, searchTerm, dateRange.from]);
 

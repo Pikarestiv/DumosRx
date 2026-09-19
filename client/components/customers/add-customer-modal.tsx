@@ -71,7 +71,7 @@ export function AddCustomerModal({
       <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6">
         <form
           id="add-customer-form"
-          onSubmit={handleSubmit}
+          onSubmit={(e) => void handleSubmit(e)}
           className="space-y-4"
         >
           <div className="grid grid-cols-2 gap-4">

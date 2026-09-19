@@ -89,8 +89,8 @@ export function BroadcastsTab() {
         expires_at: "",
         is_active: true
       });
-      queryClient.invalidateQueries({ queryKey: ["admin-broadcasts"] });
-      queryClient.invalidateQueries({ queryKey: ["broadcasts"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-broadcasts"] });
+      void queryClient.invalidateQueries({ queryKey: ["broadcasts"] });
     } catch (_error) {
       toast.error("Failed to create broadcast");
     }
@@ -103,8 +103,8 @@ export function BroadcastsTab() {
       await webApiClient.updateBroadcast(selectedBroadcast.id, formData);
       toast.success("Broadcast updated successfully");
       setIsEditOpen(false);
-      queryClient.invalidateQueries({ queryKey: ["admin-broadcasts"] });
-      queryClient.invalidateQueries({ queryKey: ["broadcasts"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-broadcasts"] });
+      void queryClient.invalidateQueries({ queryKey: ["broadcasts"] });
     } catch (_error) {
       toast.error("Failed to update broadcast");
     }
@@ -118,7 +118,7 @@ export function BroadcastsTab() {
     deleteMutation.mutate(id, {
       onSuccess: () => {
         toast.success("Broadcast deleted");
-        queryClient.invalidateQueries({ queryKey: ["admin-broadcasts"] });
+        void queryClient.invalidateQueries({ queryKey: ["admin-broadcasts"] });
         setDeleteTargetId(null);
       },
       onError: () => {
@@ -131,8 +131,8 @@ export function BroadcastsTab() {
   const handleToggle = async (id: string) => {
     try {
       await webApiClient.toggleBroadcast(id);
-      queryClient.invalidateQueries({ queryKey: ["admin-broadcasts"] });
-      queryClient.invalidateQueries({ queryKey: ["broadcasts"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-broadcasts"] });
+      void queryClient.invalidateQueries({ queryKey: ["broadcasts"] });
     } catch (_error) {
       toast.error("Failed to toggle status");
     }
@@ -298,7 +298,7 @@ export function BroadcastsTab() {
                           </DropdownMenuItem>
                           <DropdownMenuItem 
                             className="rounded-lg gap-2 font-bold cursor-pointer"
-                            onClick={() => handleToggle(broadcast.id)}
+                            onClick={() => void handleToggle(broadcast.id)}
                           >
                             {broadcast.is_active ? (
                               <><XCircle className="h-4 w-4 text-amber-500" /> Deactivate</>
@@ -308,7 +308,7 @@ export function BroadcastsTab() {
                           </DropdownMenuItem>
                           <DropdownMenuItem 
                             className="rounded-lg gap-2 font-bold text-rose-500 hover:text-rose-600 hover:bg-rose-50 cursor-pointer"
-                            onClick={() => handleDelete(broadcast.id)}
+                            onClick={() => void handleDelete(broadcast.id)}
                           >
                             <Trash2 className="h-4 w-4" />
                             Delete Permanent
@@ -329,7 +329,7 @@ export function BroadcastsTab() {
         onOpenChange={setIsCreateOpen}
         formData={formData}
         setFormData={setFormData}
-        onSubmit={handleCreate}
+        onSubmit={(e) => void handleCreate(e)}
       />
 
       <EditBroadcastDialog 
@@ -337,7 +337,7 @@ export function BroadcastsTab() {
         onOpenChange={setIsEditOpen}
         formData={formData}
         setFormData={setFormData}
-        onSubmit={handleUpdate}
+        onSubmit={(e) => void handleUpdate(e)}
       />
 
       <ConfirmDialog

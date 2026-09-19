@@ -18,7 +18,7 @@ export function useCustomerRetention() {
         setIsLoading(false);
       }
     }
-    fetchMetrics();
+    void fetchMetrics();
   }, []);
 
   return { data, isLoading };
@@ -40,7 +40,7 @@ export function useStockMoM() {
         setIsLoading(false);
       }
     }
-    fetchMetrics();
+    void fetchMetrics();
   }, []);
 
   return { data, isLoading };

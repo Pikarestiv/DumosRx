@@ -137,7 +137,7 @@ function GlobalUsersDirectoryContent() {
         });
         setIsTrialDialogOpen(false);
         setSelectedUser(null);
-        refetch();
+        void refetch();
       },
       onError: (err) => {
         toast.error("Action Failed", {
@@ -275,7 +275,7 @@ function GlobalUsersDirectoryContent() {
               userList={userList}
               isLoading={isLoading}
               error={error}
-              refetch={refetch}
+              refetch={() => void refetch()}
               setSelectedUser={setSelectedUser}
               setIsProfileDialogOpen={setIsProfileDialogOpen}
               setIsNotifyDialogOpen={setIsNotifyDialogOpen}
@@ -341,7 +341,7 @@ function GlobalUsersDirectoryContent() {
         open={isTrialDialogOpen}
         onOpenChange={setIsTrialDialogOpen}
         targetName={selectedUser?.name}
-        onConfirm={handleGrantTrial}
+        onConfirm={(plan, duration, endDate) => void handleGrantTrial(plan, duration, endDate)}
         isPending={grantTrialMutation.isPending}
       />
 

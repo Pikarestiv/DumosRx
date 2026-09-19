@@ -82,7 +82,7 @@ export function useExpenseList() {
   };
 
   useEffect(() => {
-    fetchExpenses();
+    void fetchExpenses();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewerId]);
 

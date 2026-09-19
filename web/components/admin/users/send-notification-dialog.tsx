@@ -109,7 +109,7 @@ export function SendNotificationDialog({
             Discard
           </Button>
           <Button
-            onClick={handleSendNotification}
+            onClick={() => void handleSendNotification()}
             className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold h-12 shadow-lg shadow-blue-600/20 px-8"
             disabled={notifyMutation.isPending || !notifyMessage}
           >

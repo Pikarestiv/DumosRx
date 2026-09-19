@@ -190,7 +190,7 @@ export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
         onOpenChange={s.setIsCloudLinkOpen}
         onSuccess={() => {
           if (s.syncAfterLink) {
-            s.handleSync(true);
+            void s.handleSync(true);
           }
         }}
       />

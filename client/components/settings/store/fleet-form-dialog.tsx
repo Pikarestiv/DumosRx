@@ -74,15 +74,17 @@ export function FleetFormDialog({
         activeStoreId,
       },
       {
-        onSuccess: async () => {
-          if (isEditing && storeToEdit && activeStoreId === storeToEdit.id) {
-            await refetch();
-          }
-          toast.success(
-            isEditing ? "Store details updated successfully" : "New store registered successfully",
-          );
-          onSuccess();
-          onOpenChange(false);
+        onSuccess: () => {
+          void (async () => {
+            if (isEditing && storeToEdit && activeStoreId === storeToEdit.id) {
+              await refetch();
+            }
+            toast.success(
+              isEditing ? "Store details updated successfully" : "New store registered successfully",
+            );
+            onSuccess();
+            onOpenChange(false);
+          })();
         },
         onError: (error) => {
           toast.error(error instanceof Error ? error.message : "Failed to save store");
@@ -113,7 +115,7 @@ export function FleetFormDialog({
         </DialogFooter>
       }
     >
-      <form id="fleet-form" onSubmit={handleSubmit} className="space-y-4">
+      <form id="fleet-form" onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="name">Store Name</Label>
           <Input

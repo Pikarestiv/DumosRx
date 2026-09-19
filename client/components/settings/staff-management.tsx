@@ -100,7 +100,7 @@ export function StaffManagement() {
     try {
       await update.mutateAsync({ id, data: { is_active: 1 } });
       toast.success("Staff account reactivated");
-      loadUsers();
+      void loadUsers();
     } catch (error) {
       console.error("Failed to reactivate user:", error);
       toast.error("Failed to reactivate staff account");
@@ -218,7 +218,7 @@ export function StaffManagement() {
             isLoading={isLoading}
             onEdit={handleOpenEdit}
             onDelete={handleDeleteInitiate}
-            onReactivate={handleReactivate}
+            onReactivate={(id) => void handleReactivate(id)}
             onAddStaff={withRestriction(handleOpenCreate)}
           />
         </Card>
@@ -228,13 +228,13 @@ export function StaffManagement() {
           onOpenChange={setIsFormOpen}
           userToEdit={userToEdit}
           activeStoreId={activeStoreId}
-          onSuccess={loadUsers}
+          onSuccess={() => void loadUsers()}
         />
 
         <StaffDeleteDialog
           target={deleteTarget}
           onClose={() => setDeleteTarget(null)}
-          onSuccess={loadUsers}
+          onSuccess={() => void loadUsers()}
         />
       </TabsContent>
 

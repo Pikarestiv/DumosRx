@@ -211,7 +211,7 @@ export function SupplierManagement() {
               sortKey={sortKey}
               sortDirection={direction}
               onToggleSort={toggleSort}
-              onSupplierUpdated={fetchSuppliers}
+              onSupplierUpdated={() => void fetchSuppliers()}
               onAddSupplier={() => setShowAddDialog(true)}
             />
           </div>

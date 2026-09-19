@@ -73,7 +73,7 @@ export function SetupTab({ authHeader, onboarding }: SetupTabProps) {
             stores={onboarding.cloudStores}
             selectedStoreId={onboarding.selectedStoreId}
             setSelectedStoreId={onboarding.setSelectedStoreId}
-            onConfirm={onboarding.handleSelectStoreConfirm}
+            onConfirm={() => void onboarding.handleSelectStoreConfirm()}
             onCancel={() => onboarding.setStep("cloud")}
             isLoading={onboarding.isLoading}
             header={authHeader}
@@ -85,7 +85,7 @@ export function SetupTab({ authHeader, onboarding }: SetupTabProps) {
         open={onboarding.showConfirmSwitch}
         onOpenChange={(open) => {
           if (!open) {
-            onboarding.cancelCloudRestoreSwitch();
+            void onboarding.cancelCloudRestoreSwitch();
           }
         }}
         title="Confirm Store Switch"

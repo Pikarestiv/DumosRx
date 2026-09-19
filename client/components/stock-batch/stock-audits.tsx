@@ -68,11 +68,11 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
   // discrepancy look like a fresh one, or hide a real one that happened
   // elsewhere since this device last synced.
   useEffect(() => {
-    (async () => {
+    void (async () => {
       setIsSyncing(true);
       try {
         await sync(true);
-        queryClient.invalidateQueries({
+        void queryClient.invalidateQueries({
           queryKey: queryKeys.products.withDetails().queryKey,
         });
       } catch (error) {
@@ -252,7 +252,7 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
           {step === "ledger" && (
             <button
               className="flex items-center gap-1.5 text-[12px] font-medium px-3 py-1.5 rounded-full border border-border hover:bg-muted transition-colors disabled:opacity-60"
-              onClick={handlePrint}
+              onClick={() => void handlePrint()}
               disabled={!!printStage || items.length === 0}
             >
               <Printer className="w-3.5 h-3.5" />

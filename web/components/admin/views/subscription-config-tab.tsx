@@ -284,7 +284,7 @@ export function SubscriptionConfigTab() {
         </CardContent>
         <CardFooter className="bg-slate-50 dark:bg-slate-800/50 p-4 border-t flex justify-end">
           <Button
-            onClick={handleSave}
+            onClick={() => void handleSave()}
             disabled={updateMutation.isPending}
             className="bg-indigo-600 hover:bg-indigo-700"
           >
@@ -301,7 +301,7 @@ export function SubscriptionConfigTab() {
       <SocialLinksConfigCard
         socialLinks={socialLinks}
         setSocialLinks={setSocialLinks}
-        onSave={handleSaveSocial}
+        onSave={() => void handleSaveSocial()}
         isSaving={updateMutation.isPending}
       />
     </div>

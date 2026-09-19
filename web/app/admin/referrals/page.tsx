@@ -36,7 +36,7 @@ export default function MyReferralsPage() {
 
   const handleCopy = () => {
     if (!data?.referral_link) return;
-    navigator.clipboard.writeText(data.referral_link);
+    void navigator.clipboard.writeText(data.referral_link);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -81,7 +81,7 @@ export default function MyReferralsPage() {
         <p className="text-rose-500 font-bold">
           {error instanceof Error ? error.message : "Failed to load referrals"}
         </p>
-        <Button onClick={() => refetch()} variant="outline">
+        <Button onClick={() => void refetch()} variant="outline">
           Retry
         </Button>
       </div>
@@ -145,7 +145,7 @@ export default function MyReferralsPage() {
             <div className="flex gap-2">
               <Button
                 size="sm"
-                onClick={handleSave}
+                onClick={() => void handleSave()}
                 disabled={updateCode.isPending || !codeInput.trim()}
                 className="rounded-xl"
               >

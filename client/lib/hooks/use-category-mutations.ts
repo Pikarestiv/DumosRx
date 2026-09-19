@@ -10,8 +10,8 @@ import { queryKeys } from "@/lib/query-keys";
 function useInvalidateCategories() {
   const queryClient = useQueryClient();
   return () => {
-    queryClient.invalidateQueries({ queryKey: queryKeys.categories.list().queryKey });
-    queryClient.invalidateQueries({ queryKey: queryKeys.categories.all().queryKey });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.categories.list().queryKey });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.categories.all().queryKey });
   };
 }
 

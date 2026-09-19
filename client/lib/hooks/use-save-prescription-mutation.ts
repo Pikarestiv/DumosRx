@@ -65,7 +65,7 @@ export function useSavePrescriptionMutation() {
         // all write via raw query() and don't go through the insert/update
         // helpers that auto-invalidate, so invalidate explicitly here to make
         // the detail panel reflect the edited medications.
-        queryClient.invalidateQueries(queryKeys.prescriptions.all());
+        void queryClient.invalidateQueries(queryKeys.prescriptions.all());
         return { isEditing: true as const };
       }
 

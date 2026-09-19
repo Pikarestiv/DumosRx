@@ -104,7 +104,7 @@ export function ReferralsManager() {
         <ReferralsSettingsForm
           settings={settings}
           onChange={setSettings}
-          onSave={handleSaveSettings}
+          onSave={() => void handleSaveSettings()}
           saving={updateSettingsMutation.isPending}
         />
 

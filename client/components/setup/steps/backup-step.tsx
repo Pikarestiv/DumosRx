@@ -33,7 +33,7 @@ export function BackupStep({
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      onRestore(file);
+      void onRestore(file);
     }
   };
 

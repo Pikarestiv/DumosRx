@@ -64,7 +64,7 @@ export function ImpersonationBanner() {
           size="sm"
           disabled={ending}
           className="h-7 px-3 text-[10px] font-black uppercase tracking-widest bg-primary text-white hover:bg-primary/90 rounded-lg flex items-center gap-2"
-          onClick={handleEndImpersonation}
+          onClick={() => void handleEndImpersonation()}
         >
           <LogOut className="h-3 w-3" />
           End Session

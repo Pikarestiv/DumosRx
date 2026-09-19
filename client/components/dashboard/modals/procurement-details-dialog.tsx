@@ -43,7 +43,7 @@ export function ProcurementDetailsDialog({
 
   useEffect(() => {
     if (po?.id && open) {
-      getPurchaseOrderItemsForDetail(po.id).then((res) => setItems(res || []));
+      getPurchaseOrderItemsForDetail(po.id).then((res) => setItems(res || [])).catch(() => {});
     } else if (!open) {
       setItems([]);
     }

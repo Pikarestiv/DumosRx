@@ -32,7 +32,7 @@ export function SystemHealthTab() {
   const { data: systemHealth, isLoading, refetch } = useAdminHealth();
 
   const refreshHealth = () => {
-    refetch();
+    void refetch();
   };
 
   if (isLoading && !systemHealth) {

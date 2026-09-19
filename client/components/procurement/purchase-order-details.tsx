@@ -233,7 +233,7 @@ export function PurchaseOrderDetails({
               <Button
                 variant="outline"
                 className="flex-1 bg-transparent h-10 text-[13.5px] font-bold"
-                onClick={handleDownloadPdf}
+                onClick={() => void handleDownloadPdf()}
               >
                 <Download className="w-4 h-4 mr-2" />
                 Download PDF

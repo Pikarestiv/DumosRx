@@ -146,7 +146,7 @@ export function useNewPrescription() {
           console.error("Failed to fetch prescription to edit", error);
         }
       };
-      fetchPrescription();
+      void fetchPrescription();
     }
   }, [editRxId]);
 

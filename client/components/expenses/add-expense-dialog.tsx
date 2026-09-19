@@ -131,7 +131,7 @@ export function AddExpenseDialog({
     >
       <form
         id="add-expense-form"
-        onSubmit={handleSubmit}
+        onSubmit={(e) => void handleSubmit(e)}
         className="flex flex-col h-full max-h-[85vh]"
       >
         <div className="px-6 py-5 overflow-y-auto flex flex-col gap-4">

@@ -81,7 +81,7 @@ export function StockMovements() {
   };
 
   useEffect(() => {
-    fetchMovements();
+    void fetchMovements();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dateRange]);
 
@@ -105,7 +105,7 @@ export function StockMovements() {
         console.error("Failed to fetch full stock movement history:", error);
       }
     }
-    fetchFullHistory();
+    void fetchFullHistory();
     return () => {
       cancelled = true;
     };

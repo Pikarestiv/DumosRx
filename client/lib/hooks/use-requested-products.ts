@@ -20,7 +20,7 @@ export function useMarkRequestedProductAsOrderedMutation() {
     mutationFn: markRequestedProductAsOrdered,
     onSuccess: () => {
       toast.success("Marked as ordered");
-      queryClient.invalidateQueries(queryKeys.requestedProducts.all());
+      void queryClient.invalidateQueries(queryKeys.requestedProducts.all());
     },
     onError: (error) => {
       console.error("Failed to mark as ordered:", error);
@@ -35,7 +35,7 @@ export function useDeleteRequestedProductMutation() {
     mutationFn: deleteRequestedProduct,
     onSuccess: () => {
       toast.success("Request removed");
-      queryClient.invalidateQueries(queryKeys.requestedProducts.all());
+      void queryClient.invalidateQueries(queryKeys.requestedProducts.all());
     },
     onError: (error) => {
       console.error("Failed to delete request:", error);

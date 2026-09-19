@@ -185,7 +185,7 @@ export function AddSupplierDialog({
         <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6">
           <form
             id="add-supplier-form"
-            onSubmit={handleSubmit}
+            onSubmit={(e) => void handleSubmit(e)}
             className="space-y-4"
           >
             <div className="space-y-2">

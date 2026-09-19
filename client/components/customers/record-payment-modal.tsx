@@ -103,7 +103,7 @@ export function RecordPaymentModal({
       {customer && (
         <form
           id="record-payment-form"
-          onSubmit={handleSubmit}
+          onSubmit={(e) => void handleSubmit(e)}
           className="space-y-4"
         >
           {helperNote && (

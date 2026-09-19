@@ -21,12 +21,12 @@ export function GlobalErrorListener({ children }: { children: ReactNode }) {
 
     const handleError = (event: ErrorEvent) => {
       if (isIgnorableError(event.error || event.message)) return;
-      logCrash(event.error || event.message, true);
+      void logCrash(event.error || event.message, true);
     };
 
     const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
       if (isIgnorableError(event.reason)) return;
-      logCrash(event.reason, true);
+      void logCrash(event.reason, true);
     };
 
     window.addEventListener("error", handleError);

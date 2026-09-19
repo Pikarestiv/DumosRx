@@ -70,7 +70,7 @@ export function SecurityConfigTab() {
           </div>
         </CardContent>
         <CardFooter className="bg-slate-50 dark:bg-slate-800/50 p-4 border-t flex justify-end">
-          <Button onClick={handleSave} disabled={updateMutation.isPending} className="bg-indigo-600 hover:bg-indigo-700">
+          <Button onClick={() => void handleSave()} disabled={updateMutation.isPending} className="bg-indigo-600 hover:bg-indigo-700">
             {updateMutation.isPending ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
             Save Configuration
           </Button>

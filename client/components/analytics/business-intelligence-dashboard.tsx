@@ -43,7 +43,7 @@ export function BusinessIntelligenceDashboard() {
       <div className="flex flex-col md:flex-row md:items-center gap-2.5">
         <ReportFiltersBar value={filters} onChange={setFilters} />
         <button
-          onClick={handleExportReports}
+          onClick={() => void handleExportReports()}
           disabled={exporting}
           className="flex items-center gap-1.5 border bg-background text-foreground text-[13px] font-semibold px-4 py-2.5 rounded-[10px] cursor-pointer hover:bg-primary/10 hover:text-primary transition-colors disabled:opacity-50"
         >

@@ -150,7 +150,7 @@ export function ImportMappingDialog({
               accept=".csv,.xls,.xlsx"
               onChange={(e) => {
                 const file = e.target.files?.[0];
-                if (file) handleFile(file);
+                if (file) void handleFile(file);
               }}
             />
           </div>
@@ -242,7 +242,7 @@ export function ImportMappingDialog({
               >
                 Back
               </Button>
-              <Button onClick={handleConfirmImport}>
+              <Button onClick={() => void handleConfirmImport()}>
                 Import {rows.length} Row(s)
               </Button>
             </div>

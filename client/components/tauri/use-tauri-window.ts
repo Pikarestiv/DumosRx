@@ -36,9 +36,11 @@ export function useTauriWindow() {
             const maximized = await win.isMaximized();
             setIsMaximized(maximized);
 
-            const unlisten = await win.onResized(async () => {
-              const isMax = await win.isMaximized();
-              setIsMaximized(isMax);
+            const unlisten = await win.onResized(() => {
+              void (async () => {
+                const isMax = await win.isMaximized();
+                setIsMaximized(isMax);
+              })();
             });
 
             return () => {
@@ -50,7 +52,7 @@ export function useTauriWindow() {
         }
       }
     };
-    init();
+    void init();
   }, []);
 
   useEffect(() => {

@@ -23,7 +23,7 @@ export function DailyCloseHeader({ reportDate }: DailyCloseHeaderProps) {
           <Button
             variant="outline"
             size="sm"
-            onClick={handleDownloadBackup}
+            onClick={() => void handleDownloadBackup()}
             className="h-8 w-full sm:w-auto"
           >
             <Save className="h-4 w-4 mr-2" />
@@ -32,7 +32,7 @@ export function DailyCloseHeader({ reportDate }: DailyCloseHeaderProps) {
           <Button
             variant="default"
             size="sm"
-            onClick={() => handleSync(true)}
+            onClick={() => void handleSync(true)}
             className="h-8 w-full sm:w-auto bg-primary"
           >
             <CloudUpload className="h-4 w-4 mr-2" />

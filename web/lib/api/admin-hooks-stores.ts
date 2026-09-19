@@ -69,7 +69,7 @@ export const useUpdateAccountManagerMutation = () => {
         body: { account_manager_id: accountManagerId },
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-stores"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-stores"] });
     },
   });
 };
@@ -102,8 +102,8 @@ export const useStandardizeProductsMutation = () => {
   return useMutation({
     mutationFn: () => webApiClient.request<{ message: string }>("admin/products/standardize", { method: "POST" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-products"] });
-      queryClient.invalidateQueries({ queryKey: ["admin-summary"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-products"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-summary"] });
     },
   });
 };
@@ -117,8 +117,8 @@ export const useSuspendStoreMutation = () => {
         body: { reason }
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-stores"] });
-      queryClient.invalidateQueries({ queryKey: ["admin-summary"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-stores"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-summary"] });
     },
   });
 };
@@ -129,8 +129,8 @@ export const useUnsuspendStoreMutation = () => {
     mutationFn: (id: string) =>
       webApiClient.request<unknown>(`admin/stores/${id}/unsuspend`, { method: "POST" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-stores"] });
-      queryClient.invalidateQueries({ queryKey: ["admin-summary"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-stores"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-summary"] });
     },
   });
 };
@@ -141,8 +141,8 @@ export const useMarkStoreDemoMutation = () => {
     mutationFn: (id: string) =>
       webApiClient.request<unknown>(`admin/stores/${id}/mark-demo`, { method: "POST" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-stores"] });
-      queryClient.invalidateQueries({ queryKey: ["admin-summary"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-stores"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-summary"] });
     },
   });
 };
@@ -153,8 +153,8 @@ export const useUnmarkStoreDemoMutation = () => {
     mutationFn: (id: string) =>
       webApiClient.request<unknown>(`admin/stores/${id}/unmark-demo`, { method: "POST" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-stores"] });
-      queryClient.invalidateQueries({ queryKey: ["admin-summary"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-stores"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-summary"] });
     },
   });
 };
@@ -168,8 +168,8 @@ export const useGrantTrialMutation = () => {
         body: { plan, duration, end_date: endDate }
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-stores"] });
-      queryClient.invalidateQueries({ queryKey: ["admin-summary"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-stores"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-summary"] });
     },
   });
 };
@@ -196,8 +196,8 @@ export const useCreateStoreMutation = () => {
         body: payload,
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-stores"] });
-      queryClient.invalidateQueries({ queryKey: ["admin-summary"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-stores"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-summary"] });
     },
   });
 };

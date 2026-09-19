@@ -62,7 +62,7 @@ export const useAutoLockStore = create<AutoLockState>()(
 if (typeof window !== "undefined") {
   window.addEventListener("storage", (e) => {
     if (e.key === "dumos_autolock") {
-      useAutoLockStore.persist.rehydrate();
+      void useAutoLockStore.persist.rehydrate();
     }
   });
 }

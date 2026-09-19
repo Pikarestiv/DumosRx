@@ -77,7 +77,7 @@ export default function ForgotPasswordPage() {
           </div>
 
           {!submitted ? (
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <form onSubmit={(e) => void handleSubmit(e)} className="space-y-5">
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-300">Email Address</label>
                 <div className="relative group">

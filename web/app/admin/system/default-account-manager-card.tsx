@@ -77,7 +77,7 @@ export function DefaultAccountManagerCard() {
           <Button
             variant="outline"
             className="border-2 font-bold dark:bg-slate-900 dark:border-slate-800 w-fit"
-            onClick={handleSave}
+            onClick={() => void handleSave()}
             disabled={isSaving || !selected}
           >
             Save Default

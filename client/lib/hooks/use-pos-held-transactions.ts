@@ -66,7 +66,7 @@ export function usePOSHeldTransactions({
       setSelectedCustomer(null);
       
       // Invalidate the count query to update the UI
-      queryClient.invalidateQueries(queryKeys.heldTransactions.count());
+      void queryClient.invalidateQueries(queryKeys.heldTransactions.count());
     } catch (err) {
       console.error(err);
       toast.error("Failed to hold transaction");
@@ -125,7 +125,7 @@ export function usePOSHeldTransactions({
       setShowHeldDialog(false);
       
       // Invalidate the count query to update the UI
-      queryClient.invalidateQueries(queryKeys.heldTransactions.count());
+      void queryClient.invalidateQueries(queryKeys.heldTransactions.count());
     } catch (err) {
       console.error(err);
       toast.error("Failed to recall transaction");

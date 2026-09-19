@@ -26,8 +26,8 @@ export function useDeleteHeldTransactionMutation() {
   return useMutation({
     mutationFn: (id: string) => remove("held_transactions", id),
     onSuccess: () => {
-      queryClient.invalidateQueries(queryKeys.heldTransactions.all());
-      queryClient.invalidateQueries(queryKeys.heldTransactions.count());
+      void queryClient.invalidateQueries(queryKeys.heldTransactions.all());
+      void queryClient.invalidateQueries(queryKeys.heldTransactions.count());
     },
   });
 }

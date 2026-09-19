@@ -34,7 +34,7 @@ export const useUpdateReferralCodeMutation = () => {
         body: { code: payload.code, user_id: payload.userId },
       }),
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["admin-my-referrals", variables.userId] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-my-referrals", variables.userId] });
     },
   });
 };
@@ -48,8 +48,8 @@ export const useGrantUserTrialMutation = () => {
         body: { plan, duration, end_date: endDate }
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
-      queryClient.invalidateQueries({ queryKey: ["admin-summary"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-summary"] });
     },
   });
 };
@@ -59,8 +59,8 @@ export const useDeactivateUserMutation = () => {
   return useMutation({
     mutationFn: (id: string) => webApiClient.request<unknown>(`admin/users/${id}/deactivate`, { method: "POST" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
-      queryClient.invalidateQueries({ queryKey: ["admin-summary"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-summary"] });
     },
   });
 };
@@ -70,8 +70,8 @@ export const useReactivateUserMutation = () => {
   return useMutation({
     mutationFn: (id: string) => webApiClient.request<unknown>(`admin/users/${id}/reactivate`, { method: "POST" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
-      queryClient.invalidateQueries({ queryKey: ["admin-summary"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-summary"] });
     },
   });
 };
@@ -81,8 +81,8 @@ export const useDeleteUserMutation = () => {
   return useMutation({
     mutationFn: (id: string) => webApiClient.request<unknown>(`admin/users/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
-      queryClient.invalidateQueries({ queryKey: ["admin-summary"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-summary"] });
     },
   });
 };
@@ -92,8 +92,8 @@ export const useCreatePlatformAdminMutation = () => {
   return useMutation({
     mutationFn: (payload: Record<string, unknown>) => webApiClient.request<unknown>("admin/users", { method: "POST", body: payload }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
-      queryClient.invalidateQueries({ queryKey: ["admin-summary"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-summary"] });
     },
   });
 };

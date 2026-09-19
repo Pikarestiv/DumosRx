@@ -39,7 +39,7 @@ export default function SystemPage() {
           <ShieldAlert className="h-10 w-10" />
         </div>
         <p className="text-rose-500 font-bold">Failed to load system data</p>
-        <Button onClick={() => refetch()} variant="outline">
+        <Button onClick={() => void refetch()} variant="outline">
           Retry
         </Button>
       </div>
@@ -71,7 +71,7 @@ export default function SystemPage() {
           <Button
             variant="outline"
             className="border-2 font-bold dark:bg-slate-900 dark:border-slate-800"
-            onClick={() => refetch()}
+            onClick={() => void refetch()}
             disabled={isLoading}
           >
             <Activity className="h-4 w-4 mr-2 text-indigo-500" />

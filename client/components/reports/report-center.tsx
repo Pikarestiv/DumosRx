@@ -190,11 +190,11 @@ export function ReportCenter() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => runAction(report.id, "pdf")} className="cursor-pointer text-[12px] gap-2">
+                          <DropdownMenuItem onClick={() => void runAction(report.id, "pdf")} className="cursor-pointer text-[12px] gap-2">
                             <FileDown className="h-3.5 w-3.5 text-inherit" />
                             Download PDF
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => runAction(report.id, "csv")} className="cursor-pointer text-[12px] gap-2">
+                          <DropdownMenuItem onClick={() => void runAction(report.id, "csv")} className="cursor-pointer text-[12px] gap-2">
                             <FileText className="h-3.5 w-3.5 text-inherit" />
                             Download CSV
                           </DropdownMenuItem>
@@ -204,7 +204,7 @@ export function ReportCenter() {
                         size="sm"
                         variant="outline"
                         className="h-7 text-[11px] gap-1.5 flex-1 md:flex-none border-border"
-                        onClick={() => runAction(report.id, "print")}
+                        onClick={() => void runAction(report.id, "print")}
                         disabled={isLoading}
                       >
                         <Printer className="h-3 w-3" />

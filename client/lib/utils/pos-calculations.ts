@@ -112,6 +112,16 @@ export function calculateMixedAmountPaid(splits: PaymentSplit[]): number {
   );
 }
 
+/** Change due for a mixed-payment sale, computed against non-credit tender
+ * only. A credit split is money the customer still owes, not money they
+ * handed over, so it can never produce change - using the raw split total
+ * here (including credit) previously let an over-allocated credit split
+ * make the sale look overpaid, handing real cash back for an "overpayment"
+ * that was never actually tendered. */
+export function calculateMixedChangeDue(splits: PaymentSplit[], total: number): number {
+  return Math.max(0, calculateMixedAmountPaid(splits) - total);
+}
+
 /** A mixed sale with a nonzero credit split still owes that amount, so it
  * must be "partial" — the same status recordCustomerPayment()/
  * applyCreditPaymentFIFO() already look for — not "completed", or debt

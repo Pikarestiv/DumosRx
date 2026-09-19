@@ -189,24 +189,32 @@ Issues spotted incidentally (e.g. while doing TypeScript type-safety cleanup) th
 - **Fix scope (not implemented):** surface the App URL override somewhere
   reachable from inside the logged-in panel, not just the pre-login form.
 
-### Superadmin Handoff/callback: a successful login can still render a false "Missing handoff code" error (dev-only, React Strict Mode)
+### Superadmin Handoff/callback: a successful login can still render a false "Missing handoff code" error (dev-only, React Strict Mode) — FIXED
 
 - **Where:** `client/app/auth/callback/page.tsx` (and structurally identical
   code in `web/app/admin/handoff/page.tsx`) strips `code`/`return_code` from
   the URL via `window.history.replaceState()` before the async token
-  exchange, then runs the exchange in a mount-once (`[]`-dependency) effect.
+  exchange, then ran the exchange in a mount-once (`[]`-dependency) effect.
   Under React Strict Mode's dev-only double-invoke of effects, a second run
-  of the same effect can read the already-stripped URL and render "Missing
-  handoff code" over top of a login that already succeeded in the
+  of the same effect could read the already-stripped URL and render
+  "Missing handoff code" over top of a login that already succeeded in the
   background.
 - **Effect:** confusing dev-environment noise (a real user/admin sees a
   scary "your link expired" screen despite being correctly logged in
   underneath it) — not a security issue, and Strict Mode's double-invoke is
   disabled in production builds, so this shouldn't reach real end users.
-- **Status:** not fixed — reproduced on the forward leg
-  (`auth/callback`); the return leg (`admin/handoff`) is structurally
-  identical but wasn't independently reproduced (its own live test failed on
-  an unrelated 60s code-TTL expiry first).
+- **Fix:** added a `useRef(false)` guard at the top of the effect in both
+  files (`if (hasRun.current) return; hasRun.current = true;`) so the
+  exchange-and-strip logic runs exactly once per real mount regardless of
+  Strict Mode's simulated double-invoke, without touching the existing
+  `[]`-dependency/URL-stripping design the surrounding comments already
+  explain the reasoning for.
+- **Status:** fixed in both files. Not independently re-verified against a
+  live handoff link in this pass (the original repro's return leg already
+  hit an unrelated 60s code-TTL expiry before Strict Mode's double-invoke
+  could be observed) — the fix is a standard, narrowly-scoped idiom for
+  this exact class of bug and passes typecheck, but flagging that it
+  wasn't re-exercised end-to-end.
 
 ### Product Catalog page briefly (and genuinely) shows "No products found" after a large sync (reproduced)
 

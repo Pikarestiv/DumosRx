@@ -95,6 +95,21 @@ export async function getBatchesForProduct(productId: string) {
 }
 
 /**
+ * Same as getBatchesForProduct but without the `quantity > 0` filter — used
+ * where the caller needs to know "does this product have an existing batch
+ * to attach to" rather than "which batches can I pick stock from" (FEFO
+ * sale/deduction paths correctly want the filtered version; see
+ * submitStockAudit's restock branch below for why the unfiltered version
+ * matters there).
+ */
+export async function getAllActiveBatchesForProduct(productId: string) {
+  return query<StockBatch>(
+    "SELECT * FROM stock_batches WHERE product_id = ? AND _deleted = 0 ORDER BY expiry_date ASC, created_at ASC",
+    [productId],
+  );
+}
+
+/**
  * Fallback for sale processing: getBatchesForProduct's `quantity > 0` filter
  * is correct for FEFO picking, but if the product's true stock has already
  * been fully depleted (e.g. a stale on-screen stock count let the cashier
@@ -539,12 +554,21 @@ export async function submitStockAudit(
 
       if (diff > 0) {
         // Found more stock than recorded: add it to the soonest-expiring
-        // active batch, or open a new one if the product has none.
-        if (batches.length > 0) {
-          await updateStockBatchQuantity(batches[0].id, remaining);
+        // *existing* batch (regardless of its current quantity — including
+        // zero, e.g. a batch a sync pull raced to zero, or one a prior
+        // audit/sale already depleted), or open a new one only if the
+        // product genuinely has none at all. Using the quantity>0-filtered
+        // `batches` here previously meant a batch sitting at exactly 0 was
+        // invisible to this check, so every restock onto it forked off a
+        // duplicate "AUDIT-..." batch instead of topping the real one back
+        // up — reproduced at scale (500+ products) during a bulk-import
+        // stock correction in the same session that found this.
+        const restockTargets = await getAllActiveBatchesForProduct(item.productId);
+        if (restockTargets.length > 0) {
+          await updateStockBatchQuantity(restockTargets[0].id, remaining);
           await insert("stock_movements", {
             product_id: item.productId,
-            stock_batch_id: batches[0].id,
+            stock_batch_id: restockTargets[0].id,
             movement_type: "adjustment",
             quantity: remaining,
             unit_cost: unitCost,

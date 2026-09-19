@@ -4,6 +4,62 @@ Issues spotted incidentally (e.g. while doing TypeScript type-safety cleanup) th
 
 ## Open items
 
+### Stock audit's restock path could permanently fork a product's stock into duplicate batches (reproduced at scale — 504 products in one test — FIXED)
+
+- **Where:** `client/lib/db/queries/inventory.ts`'s `submitStockAudit()`,
+  restock branch (`diff > 0`): looked up existing batches via
+  `getBatchesForProduct()`, which filters `WHERE quantity > 0`. If a
+  product's only batch was sitting at exactly 0, that filter made it
+  invisible, so the branch took the "product has none" path and created a
+  brand-new `AUDIT-...` batch instead of topping the real one back up —
+  permanently forking that product's stock across two batch rows instead
+  of correcting the one that already existed.
+- **How a batch ends up at 0 in the first place (a *different*, deeper,
+  NOT-fixed bug — see the sync-engine entry below):** the server never
+  trusts `stock_batches.quantity` from a client payload; it's always
+  created at 0 and then derived by applying the batch's `stock_movements`
+  deltas server-side (`SyncController::push()`'s documented design). Until
+  that movement has actually been pushed and applied, the server's own
+  copy of the row genuinely is 0 — and if a **pull** happens to land in
+  that window (between the batch-creation push and its movement's push,
+  plausible when thousands of queued items are spread across many
+  rate-limited push batches over minutes), the client pulls that
+  still-zero row back down and **overwrites its own already-correct local
+  quantity with 0**. This is the actual source of the zeroed batches this
+  bug was operating on — not something this fix addresses.
+- **Reproduced at scale:** during this session's ~1900-product bulk-import
+  stress test, a corrective stock-audit pass (`submitStockAudit` via
+  product-import's "update stock for existing products" option) hit this
+  exactly: 504 of ~509 products it adjusted ended up with **two**
+  `stock_batches` rows each (`Opening Stock` sitting at 0, plus a new
+  `AUDIT-2026-09-19` holding the real corrected quantity) — not a rare
+  timing fluke, essentially every restock in that pass hit it, since the
+  pull-race above had already zeroed nearly every batch by the time the
+  correction ran.
+- **Effect:** a product's true stock silently splits across two batch
+  records — inventory valuation, "avg cost," and any per-batch reporting
+  (expiry tracking, FEFO picking) become inconsistent depending on which
+  batch a given view reads, and repeated restocks compound it further
+  (each could fork yet another duplicate).
+- **Fix:** added `getAllActiveBatchesForProduct()` (same query, without the
+  `quantity > 0` filter) and switched the restock branch to use it when
+  deciding whether an existing batch is available to top up. The deduction
+  (`diff < 0`) branch is intentionally left on the filtered
+  `getBatchesForProduct()` — it already naturally skips zero-quantity
+  batches (`deductQty <= 0` → `continue`), so no behavior change there.
+- **Status:** fixed and typechecked. **Not re-verified against a fresh
+  live repro** in this pass (would require deliberately racing a pull
+  against an in-flight push again, which the sync-engine bug below is
+  itself unresolved and risky to reproduce on purpose right now) — verify
+  by re-running the same bulk-import-then-correct scenario and confirming
+  no product ends up with more than one `Opening Stock`-equivalent batch
+  regardless of what the batch's quantity was going in. **This session's
+  own test data (`Pika Test Store`) was left with the duplicate batches
+  this bug already created** (504 products) — not hand-repaired via direct
+  DB edits since it's disposable test data; a factory reset of that store
+  is the simpler path to clean data if it's needed again, rather than
+  reconciling ~500 rows by hand.
+
 ### Sync engine can wedge permanently on `Statement closed` after heavy back-to-back local write activity (reproduced, recovered by reload)
 
 - **Where:** `client/lib/db/sync-engine/index.ts` (`sync()`, error logged at

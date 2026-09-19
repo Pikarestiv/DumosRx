@@ -4,6 +4,96 @@ Issues spotted incidentally (e.g. while doing TypeScript type-safety cleanup) th
 
 ## Open items
 
+### Public storefront endpoint leaks full product records (id, cost_price, store_id) unauthenticated
+
+- **Where:** `laravel-server/app/Http/Controllers/Api/Public/StorefrontController.php`
+  returns full `Product` models (unguarded, unhidden) on unauthenticated
+  routes, and `/storefront-slugs` enumerates every storefront.
+- **Effect:** anyone can harvest a competitor's real product UUIDs,
+  `cost_price`, and `store_id` with no authentication at all. This used to
+  chain into a much worse bug — `SyncController::push()`'s UPDATE/DELETE
+  handling applied changes against any record id with no ownership check —
+  but that half is now fixed: `push()` verifies a resolved `store_id`
+  against the caller's own stores before applying UPDATE/DELETE (falling
+  back to `user_id` ownership, then failing open, only for legacy rows that
+  predate the store_id backfill migration and have no owner signal at all —
+  see `authorizeChangeTarget()`/`resolveChangeStoreId()`), and rejects an
+  INSERT payload that names a `store_id` outside the caller's own stores.
+  Regression coverage: `tests/Feature/SyncPushOwnershipTest.php`. The
+  storefront leak itself is still open — it's an information-disclosure
+  gap (competitor intel, no longer a mutation vector) rather than the
+  data-corruption vulnerability it used to enable.
+- **Fix scope (not implemented):** decide whether the public storefront
+  response needs to omit `id`/`cost_price`/`store_id`, or whether it's
+  acceptable as-is now that it can no longer be leveraged into a write.
+
+### POS checkout writes customer balance/loyalty points from a stale in-memory snapshot instead of re-reading the row
+
+- **Where:** `client/lib/hooks/use-pos-payment.ts` (`(selectedCustomer.outstanding_balance || 0) + total`)
+  and `use-pos-payment-helpers.ts` (`selectedCustomer.loyalty_points || 0`).
+  Every sibling write path (`recordCustomerPayment`, `use-process-return-mutation.ts`,
+  even `computeEarnedPoints` in the same helper file) deliberately re-reads
+  the current value from the DB first; checkout does not.
+- **Effect:** two terminals serving the same credit customer in the same
+  window can silently erase or double-apply a balance change — no error,
+  no sync conflict, since the local row's `_version` is current and only
+  the in-memory JS object is stale.
+- **Fix scope (not implemented):** re-read `outstanding_balance` and
+  `loyalty_points` from the DB at write time instead of from the
+  `selectedCustomer` object captured at customer-selection time.
+
+### Oversell flooring is inconsistent between local write and sync/server paths
+
+- **Where:** `client/lib/db/queries/inventory.ts` floors the local batch
+  quantity at 0 (`Math.max(0, batch.quantity - deduction)`) but records a
+  `stock_movements` row for the full, unfloored deduction. Both
+  `SyncController.php`'s `push()` (`increment('quantity', $delta)`) and
+  `pull.ts` (`SET quantity = quantity + ?`) apply that raw delta with no
+  floor.
+- **Effect:** an oversell (selling more than on-hand, e.g. from a stale
+  on-screen count) leaves the selling device's batch at 0 while the server
+  and every other device compute a negative quantity from the same
+  movement — a permanent per-device divergence, since pull deliberately
+  never trusts a pulled quantity snapshot (rebuilds it from
+  `stock_movements` instead), so nothing ever reconciles the two.
+- **Fix scope (not implemented):** decide on one floor policy and apply it
+  identically in the local write, `SyncController::push()`'s delta
+  application, and `pull.ts`'s delta application.
+
+### Sync plan-gating bypassable via `setup` query param and store-limit check ignores the actual write target
+
+- **Where:** `SyncController.php`'s `$isSetup = $request->boolean('setup') || ...`
+  skips both the `cloud_sync` feature-flag check and the sync-interval
+  throttle when true; `client/lib/api/client.ts` sends `?setup=1` on
+  requests. Separately, the store-limit check resolves
+  `$syncStoreId = $user->store_id ?? Store::where('user_id', $user->id)->value('id')`,
+  ignoring the `X-Store-Id` header that `push()`/`pull()` actually honor
+  for which store gets written.
+- **Effect:** a free-tier account can append `setup=1` to get unmetered
+  cloud sync; a multi-store owner over their plan's store limit can pass
+  `X-Store-Id` for a store outside their allowed set and have it validate
+  against a different (allowed) store while writing to the disallowed one.
+- **Fix scope (not implemented):** validate the store resolved from
+  `X-Store-Id` (the one actually written) against `$allowedStoreIds`, not a
+  separately-resolved default store; re-review whether `setup` should ever
+  bypass the plan/feature check rather than just the interval throttle.
+
+### Stock-batch deltas applied outside per-change sync savepoints
+
+- **Where:** `SyncController.php`'s `push()` accumulates `$stockBatchDeltas`
+  during the per-change loop (each change wrapped in its own savepoint so
+  one bad row doesn't block the rest of the backlog) but applies the
+  deltas afterward, guarded only by the outer transaction `try`. A minor
+  sibling: a delta can be accumulated before its originating change's
+  savepoint actually commits.
+- **Effect:** any exception during delta application (a constraint
+  violation, a deadlock) rolls back the entire push transaction, so the
+  whole batch — not just the offending row — gets re-queued and retried,
+  hitting the same failure again.
+- **Fix scope (not implemented):** apply each accumulated delta inside its
+  own savepoint (or the originating change's savepoint) rather than after
+  the main loop.
+
 ### Account/store switch may briefly show the previous store's stale dashboard data (unreproduced)
 
 - **Where:** `client/lib/context/store-context.tsx`'s `switchStore()` calls

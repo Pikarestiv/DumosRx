@@ -67,6 +67,7 @@ export function useProcessReturnMutation() {
             legacyStockBatchId: item.stock_batch_id,
             returnQuantity: item.returnQuantity,
             returnId,
+            saleId: sale.id,
             performedBy: dumosUser?.id,
           });
         }
@@ -159,7 +160,6 @@ export function useProcessReturnMutation() {
 
             if (pointsEarnedClawback > 0) {
               await insert("loyalty_transactions", {
-                id: `loyalty_${Date.now()}_return_clawback`,
                 customer_id: sale.customer_id,
                 points: -pointsEarnedClawback,
                 type: "earned",
@@ -169,7 +169,6 @@ export function useProcessReturnMutation() {
             }
             if (pointsRedeemedRefund > 0) {
               await insert("loyalty_transactions", {
-                id: `loyalty_${Date.now()}_return_refund`,
                 customer_id: sale.customer_id,
                 points: pointsRedeemedRefund,
                 type: "redeemed",

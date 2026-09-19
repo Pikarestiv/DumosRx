@@ -327,6 +327,7 @@ export async function runDemoSeed(
             costPrice: line.cost_price,
             returnQuantity: item.quantity,
             returnId,
+            saleId,
             performedBy: cashierId || currentUserId,
           });
         }

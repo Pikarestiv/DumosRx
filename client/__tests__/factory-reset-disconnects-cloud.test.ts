@@ -19,10 +19,16 @@ import { createRoot, type Root } from "react-dom/client";
  * Fix: clear the auth token (same as a normal sign-out) before wiping local
  * tables, so the post-reload auto-sync effect finds no token and skips,
  * exactly like any other signed-out device would.
+ *
+ * Also covers the follow-up hardening: resetDatabase() wipes audit_logs
+ * itself, so logAction() + an immediate sync() push (while the token is
+ * still valid) is this action's only chance to leave any trace anywhere.
  */
 
 const resetDatabaseMock = vi.fn(async () => undefined);
 const clearTokenMock = vi.fn();
+const logActionMock = vi.fn(async (..._args: unknown[]) => undefined);
+const syncMock = vi.fn(async (..._args: unknown[]) => ({ success: true, pushed: 1, pulled: 0 }));
 
 vi.mock("sonner", () => ({
   toast: {
@@ -39,10 +45,12 @@ vi.mock("@/lib/db/core", () => ({
   isTauri: () => false,
   backupDatabaseToFile: vi.fn(),
   restoreDatabaseFromFile: vi.fn(),
+  logAction: (...args: unknown[]) => logActionMock(...args),
+  getActiveStoreId: (): string => "store-1",
 }));
 
 vi.mock("@/lib/db/sync-engine", () => ({
-  sync: vi.fn(async () => ({ success: true, pushed: 0, pulled: 0 })),
+  sync: (...args: unknown[]) => syncMock(...args),
   syncSubscriptionStatus: vi.fn(async () => ({ updated: false })),
 }));
 
@@ -59,13 +67,11 @@ describe("useSettingsSync().handleResetDatabase", () => {
   let root: Root;
   let hookResult: ReturnType<typeof import("@/hooks/use-settings-sync").useSettingsSync>;
 
-  beforeEach(async () => {
-    vi.clearAllMocks();
-
+  async function renderHook(isCloudLinked: boolean) {
     const { useSettingsSync } = await import("@/hooks/use-settings-sync");
 
     function Harness() {
-      hookResult = useSettingsSync(true, async () => undefined);
+      hookResult = useSettingsSync(isCloudLinked, async () => undefined);
       return null;
     }
 
@@ -75,9 +81,15 @@ describe("useSettingsSync().handleResetDatabase", () => {
     act(() => {
       root.render(React.createElement(Harness));
     });
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
   });
 
   it("clears the auth token before wiping local tables, so the post-reload auto-sync can't restore what reset just cleared", async () => {
+    await renderHook(true);
+
     await act(async () => {
       await hookResult.handleResetDatabase();
     });
@@ -92,5 +104,62 @@ describe("useSettingsSync().handleResetDatabase", () => {
     const clearTokenOrder = clearTokenMock.mock.invocationCallOrder[0];
     const resetDatabaseOrder = resetDatabaseMock.mock.invocationCallOrder[0];
     expect(clearTokenOrder).toBeLessThan(resetDatabaseOrder);
+  });
+
+  it("logs the action and pushes it to the server before disconnecting, when cloud-linked", async () => {
+    await renderHook(true);
+
+    await act(async () => {
+      await hookResult.handleResetDatabase();
+    });
+
+    expect(logActionMock).toHaveBeenCalledTimes(1);
+    expect(logActionMock).toHaveBeenCalledWith(
+      "FACTORY_RESET",
+      "stores",
+      "store-1",
+      expect.objectContaining({ cloud_linked: true }),
+    );
+    expect(syncMock).toHaveBeenCalledWith(true);
+
+    // The audit log must actually reach the server before the token that
+    // would let it get there is cleared - logging it locally right before
+    // wiping local tables (and disconnecting) would be no trace at all.
+    const logOrder = logActionMock.mock.invocationCallOrder[0];
+    const syncOrder = syncMock.mock.invocationCallOrder[0];
+    const clearTokenOrder = clearTokenMock.mock.invocationCallOrder[0];
+    expect(logOrder).toBeLessThan(syncOrder);
+    expect(syncOrder).toBeLessThan(clearTokenOrder);
+  });
+
+  it("still logs locally but skips the network push when not cloud-linked", async () => {
+    await renderHook(false);
+
+    await act(async () => {
+      await hookResult.handleResetDatabase();
+    });
+
+    expect(logActionMock).toHaveBeenCalledTimes(1);
+    expect(logActionMock).toHaveBeenCalledWith(
+      "FACTORY_RESET",
+      "stores",
+      "store-1",
+      expect.objectContaining({ cloud_linked: false }),
+    );
+    // Nothing to push to and no token to protect - sync() would just fail.
+    expect(syncMock).not.toHaveBeenCalled();
+    expect(resetDatabaseMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("still proceeds with the reset if the audit push fails (e.g. offline)", async () => {
+    syncMock.mockRejectedValueOnce(new Error("offline"));
+    await renderHook(true);
+
+    await act(async () => {
+      await hookResult.handleResetDatabase();
+    });
+
+    expect(clearTokenMock).toHaveBeenCalledTimes(1);
+    expect(resetDatabaseMock).toHaveBeenCalledTimes(1);
   });
 });

@@ -14,7 +14,7 @@ import { Separator } from "@/components/ui/separator";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { DataSettingsAutoSync } from "./data-settings-auto-sync";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
-import { useAuth } from "@/lib/context/auth-context";
+import { useAuth, checkCanFactoryReset } from "@/lib/context/auth-context";
 import { toast } from "sonner";
 
 interface DataSettingsProps {
@@ -56,7 +56,8 @@ export function DataSettings({
     withRestriction,
     getUpgradeMessage,
   } = useFeatureGate();
-  const { verifyPin } = useAuth();
+  const { verifyPin, user } = useAuth();
+  const canFactoryReset = checkCanFactoryReset(user?.role);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   return (
@@ -207,13 +208,19 @@ export function DataSettings({
                     : "Wipe all local data (products, sales, etc.) and start fresh."}
                 </p>
               </div>
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => setShowResetConfirm(true)}
-              >
-                Reset All Data
-              </Button>
+              {canFactoryReset ? (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setShowResetConfirm(true)}
+                >
+                  Reset All Data
+                </Button>
+              ) : (
+                <p className="text-xs text-muted-foreground italic shrink-0">
+                  Only the store owner can perform a factory reset.
+                </p>
+              )}
             </div>
           </div>
         </CardContent>
@@ -231,6 +238,13 @@ export function DataSettings({
         confirmLabel="Reset All Data"
         requirePin={true}
         onConfirm={async (pin) => {
+          // Re-checked here, not just at the button's render gate above: this
+          // dialog's open state is otherwise trusting whatever triggered it.
+          if (!canFactoryReset) {
+            toast.error("Only the store owner can perform a factory reset.");
+            setShowResetConfirm(false);
+            return;
+          }
           if (!pin) {
             toast.error("PIN is required");
             return;

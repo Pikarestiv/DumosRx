@@ -31,6 +31,19 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(5)->by($request->ip());
         });
 
+        // Session-refresh isn't a login attempt - it's a background check
+        // the admin login page and layout fire on every mount to see if a
+        // refresh cookie already has a valid session (see initSession() in
+        // use-admin-auth-store.ts). Sharing the 5/min `auth` bucket with
+        // actual login attempts meant just reloading /admin/login a couple
+        // of times (or sitting behind a shared/carrier-NAT IP) could burn
+        // the whole budget before the user typed a password, surfacing a
+        // false "Too Many Attempts" on the very first real attempt. Same
+        // class of bug as the `handoff` limiter below.
+        RateLimiter::for('session-refresh', function (Request $request) {
+            return Limit::perMinute(20)->by($request->ip());
+        });
+
         // Cross-origin auth handoff needs far more headroom than login does:
         // a single impersonation round trip from one admin IP is already 6
         // handoff calls (2 mints out, 1 consume on arrival, 1 consume + 1 mint

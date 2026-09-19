@@ -40,6 +40,13 @@ Route::prefix('v1')->group(function () {
         Route::post('/reset-password', [AuthController::class, 'resetPassword']);
         Route::post('/verify-email', [AuthController::class, 'verifyEmail']);
         Route::post('/resend-verification', [AuthController::class, 'resendVerification']);
+    });
+    // Own (more generous) limiter: this fires automatically on every
+    // /admin/login and /admin/* mount to check for an existing session, not
+    // just on a real login attempt - sharing the 5/min `auth` bucket let
+    // background checks starve real logins. See the 'session-refresh'
+    // limiter in AppServiceProvider.
+    Route::middleware('throttle:session-refresh')->group(function () {
         // Cookie-authenticated (no bearer token - the admin panel's access
         // token is memory-only and doesn't survive a reload). See AuthController.
         Route::post('/admin/session/refresh', [AuthController::class, 'refreshAdminSession']);

@@ -77,10 +77,25 @@ interface StoreContextType {
   activeStoreId: string | null;
   availableStores: StoreProfile[];
   switchStore: (storeId: string) => void;
+  /**
+   * True for the duration of switchStore()'s async work (cancel + broad
+   * invalidate). React Query's invalidateQueries() marks queries stale and
+   * refetches in the background *without* clearing what's already rendered,
+   * so between the switch and the refetch resolving, screens can still be
+   * painting the previous store's data. Consumers (LicenseGuard) show a
+   * splash instead of that window. Defense-in-depth: the window has never
+   * been reproduced on a test device, but it's real by design.
+   */
+  isSwitchingStore: boolean;
   refetch: () => Promise<unknown>;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
+
+// Upper bound on how long a store switch may hold the transition splash.
+// Purely a stuck-state guard, not a tuned delay - the local-first query
+// layer normally settles far inside it.
+const SWITCH_STORE_MAX_WAIT_MS = 5000;
 
 const terminology: Record<StoreType, Record<string, string>> = {
   pharmacy: {
@@ -206,6 +221,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
   }, [storeProfile, targetId, user]);
 
+  const [isSwitchingStore, setIsSwitchingStore] = React.useState(false);
+
   const switchStore = (storeId: string) => {
     setActiveStoreId(storeId);
     if (typeof window !== "undefined") {
@@ -236,8 +253,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     // issued (and still pending) before the switch could resolve after
     // resolvedStoreId flips and get cached as "fresh" under a store-
     // unscoped key, momentarily showing the previous store's data.
-    void queryClient.cancelQueries();
-    void queryClient.invalidateQueries();
+    // Hold a transition state until the cancel + invalidate round trip has
+    // settled, so nothing renders the outgoing store's still-cached data
+    // while its refetch is in flight. Capped by a timeout: a query that
+    // never settles must not strand the app on the splash screen - falling
+    // back to the (at worst briefly stale) UI is better than a stuck one.
+    setIsSwitchingStore(true);
+    void (async () => {
+      try {
+        await queryClient.cancelQueries();
+        await Promise.race([
+          queryClient.invalidateQueries(),
+          new Promise((resolve) => setTimeout(resolve, SWITCH_STORE_MAX_WAIT_MS)),
+        ]);
+      } finally {
+        setIsSwitchingStore(false);
+      }
+    })();
 
     // Pulls this store's data down if this device has never synced it
     // before (X-Store-Id now points at the newly-selected store; see
@@ -398,6 +430,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         activeStoreId: user?.store_id || activeStoreId,
         availableStores: allStores || [],
         switchStore,
+        isSwitchingStore,
         refetch,
       }}
     >

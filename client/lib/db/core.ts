@@ -216,6 +216,43 @@ let inTransaction = false;
 // majority) never pay the setTimeout round-trip at all.
 const QUERY_YIELD_INTERVAL = 200;
 
+/**
+ * Bumped once by every write that could land while some other query() is
+ * suspended at one of its yield points (see the loop in query()).
+ *
+ * sql.js has a single shared connection with no reader isolation: a SELECT
+ * that yields mid-iteration is stepping through a live statement, and a
+ * write that interleaves into one of those yields modifies the very table
+ * it's walking. SQLite's behavior then is undefined — rows can be skipped,
+ * and the statement can be reset or invalidated outright, which ends the
+ * step loop early and returns a *short or entirely empty* result with no
+ * error raised (the "Statement closed" throw retried below is the loud
+ * version of the same collision; this is the silent one).
+ *
+ * That's the Product Catalog's "No products found" after a large sync:
+ * getProductsWithDetails() returns ~1900 rows, so it's one of the very few
+ * queries that yields at all, and a draining sync backlog is exactly when
+ * writes are landing continuously. Single-row aggregate queries (e.g.
+ * getStockBatchStats()'s "Total Products") never reach a yield point, which
+ * is why those stayed correct throughout the same window.
+ *
+ * Reads issued *inside* a transaction() block are unaffected: they never
+ * yield (the `!inTransaction` guard below), so nothing can interleave into
+ * them, and their epoch can't move under them either.
+ */
+let writeEpoch = 0;
+
+function bumpWriteEpoch(): void {
+  // Wrap well below MAX_SAFE_INTEGER; only equality across one query matters.
+  writeEpoch = (writeEpoch + 1) % 0xffffffff;
+}
+
+// How many times query() will re-run a read that a concurrent write may have
+// torn. Bounded so a device under permanently continuous write load returns
+// *something* rather than looping forever; in practice one retry is enough,
+// since the retry re-runs against whatever state the writes have reached.
+const QUERY_TORN_READ_ATTEMPTS = 4;
+
 export async function query<T = Record<string, unknown>>(
   sql: string,
   params: (string | number | null | Uint8Array)[] = [],
@@ -249,7 +286,26 @@ export async function query<T = Record<string, unknown>>(
   // the connection) `db` is always safe to retry. Capped at one retry so a
   // genuinely different, non-transient failure still surfaces instead of
   // silently retrying forever.
-  for (let attempt = 0; attempt < 2; attempt++) {
+  //
+  // The same loop also re-runs a read that merely *might* have been torn by
+  // an interleaved write — see writeEpoch above for why a silently
+  // truncated result is the more dangerous of the two outcomes.
+  //
+  // Either way, a re-run must not simply re-prepare against whatever the
+  // connection looks like *right now*: the write that forced the retry is
+  // very often a sync apply's transaction() that is still open, and sql.js's
+  // single connection means an immediate re-run reads its uncommitted,
+  // half-applied intermediate state (same reads-your-own-writes hazard
+  // awaitSettledTransactions() was added for). Retries therefore wait for
+  // every in-flight transaction to settle first, so a read only ever
+  // reports committed state. Safe from deadlock: a read issued from inside
+  // a transaction() block would be waiting on its own enclosing
+  // transaction, so this only applies to reads that began outside one.
+  const startedOutsideTransaction = !inTransaction;
+  let closedRetryUsed = false;
+  for (let attempt = 0; attempt < QUERY_TORN_READ_ATTEMPTS; attempt++) {
+    const epochAtStart = writeEpoch;
+    let yielded = false;
     const stmt = db.prepare(sql);
     try {
       stmt.bind(params);
@@ -276,10 +332,27 @@ export async function query<T = Record<string, unknown>>(
         // unrelated write interleave into this transaction's uncommitted
         // state.
         if (!inTransaction && rowCount % QUERY_YIELD_INTERVAL === 0) {
+          yielded = true;
           await new Promise((resolve) => setTimeout(resolve, 0));
         }
       }
       stmt.free();
+
+      // A write landed while this statement was suspended at one of the
+      // yields above, so these rows may be a torn snapshot of a table that
+      // changed underneath the cursor — including, in the worst case, an
+      // empty one from a statement SQLite quietly reset. Re-run rather than
+      // hand a caller a result that looks authoritative but isn't. Safe to
+      // repeat: query() only ever runs SELECTs (writes go through
+      // execute()), so a re-run has no side effects.
+      if (
+        yielded &&
+        writeEpoch !== epochAtStart &&
+        attempt < QUERY_TORN_READ_ATTEMPTS - 1
+      ) {
+        if (startedOutsideTransaction) await awaitSettledTransactions();
+        continue;
+      }
 
       return results;
     } catch (err) {
@@ -289,7 +362,9 @@ export async function query<T = Record<string, unknown>>(
       } catch {
         // Already invalid — this is exactly the case being retried.
       }
-      if (attempt === 0 && /closed|finalized/i.test(message)) {
+      if (!closedRetryUsed && /closed|finalized/i.test(message)) {
+        closedRetryUsed = true;
+        if (startedOutsideTransaction) await awaitSettledTransactions();
         continue;
       }
       throw err;
@@ -368,6 +443,10 @@ export async function execute(
   }
 
   db.run(sql, params);
+  // Marks the shared sql.js connection as having been written to, so any
+  // query() currently suspended at a yield point knows its in-progress read
+  // may have been torn and re-runs instead of returning it (see writeEpoch).
+  bumpWriteEpoch();
   if (!inTransaction) {
     void saveDatabase();
   }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Public;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\StorefrontProductResource;
 use App\Models\Store;
 use App\Models\Product;
 use App\Services\Payment\PaymentService;
@@ -66,6 +67,10 @@ class StorefrontController extends Controller
             ->where('show_online', true)
             ->get();
 
+        // Whitelisted through a resource - the raw Product model is unguarded
+        // and unhidden, so returning it here published ownership columns
+        // (user_id/store_id), the internal margin figure (markup_percentage)
+        // and sync bookkeeping to an unauthenticated caller.
         return response()->json([
             'store' => [
                 'id' => $store->id,
@@ -76,7 +81,7 @@ class StorefrontController extends Controller
                 'email' => $store->email,
                 'logo_url' => $store->logo_url,
             ],
-            'products' => $products
+            'products' => StorefrontProductResource::collection($products),
         ]);
     }
 

@@ -68,6 +68,31 @@ class StorefrontControllerTest extends TestCase
         $response->assertJsonMissing(['name' => 'Store B Product']);
     }
 
+    public function test_show_does_not_leak_internal_product_columns()
+    {
+        Product::create([
+            'name' => 'Panadol', 'selling_price' => 100, 'markup_percentage' => 42,
+            'is_active' => true, 'show_online' => true, 'user_id' => $this->ownerA->id,
+            'store_id' => $this->storeA->id,
+        ]);
+
+        $response = $this->getJson('/api/v1/storefront/store-a');
+
+        $response->assertStatus(200);
+        $product = $response->json('products.0');
+
+        // cost_price was dropped from `products` in 2026_06_28, but assert on
+        // it anyway so a future re-add can't silently reappear here.
+        foreach (['cost_price', 'markup_percentage', 'store_id', 'user_id', '_version', '_synced', '_deleted', 'deleted_at'] as $internal) {
+            $this->assertArrayNotHasKey($internal, $product, "Public storefront leaked `{$internal}`");
+        }
+
+        // The fields the storefront frontend actually consumes are still there.
+        $this->assertSame('Panadol', $product['name']);
+        $this->assertArrayHasKey('id', $product);
+        $this->assertArrayHasKey('selling_price', $product);
+    }
+
     public function test_checkout_rejects_a_product_belonging_to_another_store()
     {
         $foreignProduct = Product::create(['name' => 'Store B Product', 'selling_price' => 100, 'user_id' => $this->ownerB->id]);

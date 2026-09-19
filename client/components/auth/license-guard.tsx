@@ -221,7 +221,7 @@ function MobileRestrictionGuard() {
 }
 
 export function LicenseGuard({ children }: { children: React.ReactNode }) {
-  const { storeProfile } = useStore();
+  const { storeProfile, isSwitchingStore } = useStore();
   const pathname = usePathname();
   const [license, setLicense] = useState<LicenseInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -265,7 +265,12 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
     performCheck,
   ]);
 
-  if (loading) {
+  // isSwitchingStore covers the store-switch transition: every store-scoped
+  // query resolves its store at execution time, and invalidateQueries()
+  // keeps the previous store's data on screen until its refetch lands.
+  // Showing the splash for that window means a switch can never flash the
+  // outgoing store's dashboard. (See switchStore() in store-context.tsx.)
+  if (loading || isSwitchingStore) {
     return <SplashScreen />;
   }
 

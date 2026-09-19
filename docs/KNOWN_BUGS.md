@@ -27,22 +27,6 @@ Issues spotted incidentally (e.g. while doing TypeScript type-safety cleanup) th
   response needs to omit `id`/`cost_price`/`store_id`, or whether it's
   acceptable as-is now that it can no longer be leveraged into a write.
 
-### Stock-batch deltas applied outside per-change sync savepoints
-
-- **Where:** `SyncController.php`'s `push()` accumulates `$stockBatchDeltas`
-  during the per-change loop (each change wrapped in its own savepoint so
-  one bad row doesn't block the rest of the backlog) but applies the
-  deltas afterward, guarded only by the outer transaction `try`. A minor
-  sibling: a delta can be accumulated before its originating change's
-  savepoint actually commits.
-- **Effect:** any exception during delta application (a constraint
-  violation, a deadlock) rolls back the entire push transaction, so the
-  whole batch — not just the offending row — gets re-queued and retried,
-  hitting the same failure again.
-- **Fix scope (not implemented):** apply each accumulated delta inside its
-  own savepoint (or the originating change's savepoint) rather than after
-  the main loop.
-
 ### Account/store switch may briefly show the previous store's stale dashboard data (unreproduced)
 
 - **Where:** `client/lib/context/store-context.tsx`'s `switchStore()` calls

@@ -193,6 +193,16 @@ class SyncController extends Controller
                 DB::beginTransaction();
                 try {
 
+                // Set by the stock_movements INSERT branch below, merged into
+                // $stockBatchDeltas only right before this change's own
+                // DB::commit() (not immediately after $model->save()) — a
+                // later step in this same change's block (e.g. the
+                // soft-delete handling further down) could still throw and
+                // roll back this savepoint, and a delta already merged into
+                // the shared array by then wouldn't be undone with it, even
+                // though the movement it came from never actually committed.
+                $pendingStockBatchDelta = null;
+
                 // The OA doc marks payload as nullable (DELETE doesn't need one), and the
                 // request validation above allows it through as such. Default a genuinely-
                 // null (or unparseable) payload to [] here rather than passing null onward:
@@ -547,16 +557,20 @@ class SyncController extends Controller
 
                         // stock_batches.quantity is derived from stock_movements deltas,
                         // never trusted directly from a client payload (INSERT above, or
-                        // UPDATE below); see the comment on $stockBatchDeltas. Accumulate
-                        // rather than apply immediately: a client is not guaranteed to
+                        // UPDATE below); see the comment on $stockBatchDeltas. Recorded
+                        // rather than applied immediately: a client is not guaranteed to
                         // order a new batch's INSERT before its movement in the same
                         // payload, and incrementing against a batch row that doesn't
-                        // exist yet would silently do nothing.
+                        // exist yet would silently do nothing. Held in
+                        // $pendingStockBatchDelta (merged into $stockBatchDeltas just
+                        // before this change's own DB::commit() below) rather than
+                        // written into the shared array directly — see that variable's
+                        // doc comment above.
                         if ($change['table_name'] === 'stock_movements') {
                             $stockBatchId = $payload['stock_batch_id'] ?? null;
                             $qtyDelta = (float) ($payload['quantity'] ?? 0);
                             if ($stockBatchId && $qtyDelta != 0) {
-                                $stockBatchDeltas[$stockBatchId] = ($stockBatchDeltas[$stockBatchId] ?? 0) + $qtyDelta;
+                                $pendingStockBatchDelta = [$stockBatchId, $qtyDelta];
                             }
                         }
 
@@ -828,6 +842,15 @@ class SyncController extends Controller
                     }
                 }
 
+                // Only now — nothing left in this change's block that can
+                // still throw and roll back its savepoint — fold the
+                // pending delta into the shared accumulator applied after
+                // the loop.
+                if ($pendingStockBatchDelta !== null) {
+                    [$pendingBatchId, $pendingQtyDelta] = $pendingStockBatchDelta;
+                    $stockBatchDeltas[$pendingBatchId] = ($stockBatchDeltas[$pendingBatchId] ?? 0) + $pendingQtyDelta;
+                }
+
                 $processed++;
                 DB::commit();
                 } catch (\Exception $e) {
@@ -842,12 +865,22 @@ class SyncController extends Controller
                 }
             }
 
-            // Apply every accumulated stock_movements delta in one atomic pass,
-            // now that every change in this push has been processed and any
-            // batch created earlier in the same payload definitely exists.
-            // A single atomic UPDATE (not load-mutate-save) so concurrent
-            // syncs from different devices can't race and clobber each
-            // other's deltas.
+            // Apply every accumulated stock_movements delta, now that every
+            // change in this push has been processed and any batch created
+            // earlier in the same payload definitely exists. Each delta
+            // gets its own savepoint, exactly like each change in the main
+            // loop above — a single atomic UPDATE (not load-mutate-save) so
+            // concurrent syncs from different devices can't race and
+            // clobber each other's deltas, but isolated so a failure on ONE
+            // delta (a deadlock, a constraint violation) can't roll back
+            // every other change already committed in this push. Before
+            // this, any exception here propagated to the outer catch,
+            // rolling back the entire transaction — since Laravel's nested
+            // DB::commit() only releases a savepoint rather than truly
+            // committing until the outermost level, that undid every
+            // change in the batch, not just the one behind the failing
+            // delta, so the whole backlog got re-queued and hit the same
+            // failure again on retry (see docs/KNOWN_BUGS.md).
             //
             // Floored at 0, mirroring the client's own local deduction
             // (lib/db/queries/inventory.ts's deductFromBatch: "the batch's
@@ -859,18 +892,31 @@ class SyncController extends Controller
             // client's pull.ts) computed a negative quantity from the exact
             // same movement — a permanent per-device divergence, since pull
             // deliberately never trusts a pulled quantity snapshot to
-            // reconcile it back (see docs/KNOWN_BUGS.md). CASE WHEN instead
-            // of MySQL's GREATEST()/SQLite's scalar MAX() so the same
-            // expression works against both engines (production is MySQL,
-            // tests run on sqlite — see phpunit.xml).
+            // reconcile it back. CASE WHEN instead of MySQL's GREATEST()/
+            // SQLite's scalar MAX() so the same expression works against
+            // both engines (production is MySQL, tests run on sqlite — see
+            // phpunit.xml).
             foreach ($stockBatchDeltas as $stockBatchId => $delta) {
-                $affected = DB::update(
-                    'UPDATE stock_batches SET quantity = CASE WHEN quantity + ? < 0 THEN 0 ELSE quantity + ? END WHERE id = ?',
-                    [$delta, $delta, $stockBatchId],
-                );
+                DB::beginTransaction();
+                try {
+                    $affected = DB::update(
+                        'UPDATE stock_batches SET quantity = CASE WHEN quantity + ? < 0 THEN 0 ELSE quantity + ? END WHERE id = ?',
+                        [$delta, $delta, $stockBatchId],
+                    );
 
-                if (!$affected) {
-                    Log::warning("Sync push: stock_movements delta of {$delta} referenced unknown stock_batch_id {$stockBatchId}, no batch to apply it to.");
+                    if (!$affected) {
+                        Log::warning("Sync push: stock_movements delta of {$delta} referenced unknown stock_batch_id {$stockBatchId}, no batch to apply it to.");
+                    }
+                    DB::commit();
+                } catch (\Exception $e) {
+                    DB::rollBack();
+                    Log::error("Sync push: failed to apply stock_batch delta of {$delta} to {$stockBatchId}: " . $e->getMessage());
+                    $failed[] = [
+                        'id' => null,
+                        'table_name' => 'stock_batches',
+                        'record_id' => $stockBatchId,
+                        'reason' => $e->getMessage(),
+                    ];
                 }
             }
 

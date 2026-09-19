@@ -524,6 +524,135 @@ class SyncEndpointTest extends TestCase
     }
 
     /**
+     * Regression: $stockBatchDeltas used to be applied after the main
+     * per-change loop with no savepoint of its own, guarded only by the
+     * outer transaction's try/catch. An exception on ONE delta (a deadlock,
+     * a constraint violation) rolled back the ENTIRE push — since nested
+     * DB::commit() only releases a savepoint rather than truly committing
+     * until the outermost level, that undid every OTHER change already
+     * "committed" in the same batch too, not just the one behind the
+     * failing delta. Each delta now gets its own savepoint, so a failure on
+     * one doesn't touch the rest.
+     *
+     * A BEFORE UPDATE trigger simulates a genuine DB-level failure (a
+     * deadlock/constraint violation) for one specific batch, deterministically
+     * and without needing a real concurrent connection.
+     */
+    public function test_push_sync_isolates_a_failing_stock_batch_delta_from_the_rest_of_the_push()
+    {
+        DB::table('products')->insert([
+            'id' => 'prod_isolate',
+            'user_id' => $this->user->id,
+            'name' => 'Isolation Test Product',
+            '_version' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $goodBatchId = 'batch_isolate_good';
+        $badBatchId = 'batch_isolate_bad';
+        foreach ([$goodBatchId, $badBatchId] as $id) {
+            DB::table('stock_batches')->insert([
+                'id' => $id,
+                'user_id' => $this->user->id,
+                'product_id' => 'prod_isolate',
+                'quantity' => 50,
+                'cost_price' => 10.00,
+                'expiry_date' => now()->addYear()->toDateString(),
+                'batch_number' => 'B-' . $id,
+                '_version' => 1,
+                'created_at' => now()->subDay(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        // Simulates a real DB-level failure (deadlock/constraint violation)
+        // for the "bad" batch only.
+        DB::unprepared(
+            "CREATE TRIGGER isolate_bad_batch_failure BEFORE UPDATE ON stock_batches
+             WHEN NEW.id = '{$badBatchId}'
+             BEGIN SELECT RAISE(ABORT, 'simulated delta failure'); END;"
+        );
+
+        $payload = [
+            'setup' => true,
+            'changes' => [
+                // A completely unrelated change in the same push, so we can
+                // confirm it survives the bad delta's failure.
+                [
+                    'table_name' => 'products',
+                    'operation' => 'UPDATE',
+                    'record_id' => 'prod_isolate',
+                    'payload' => [
+                        'id' => 'prod_isolate',
+                        'name' => 'Isolation Test Product (Renamed)',
+                        '_version' => 1,
+                    ],
+                ],
+                [
+                    'table_name' => 'stock_movements',
+                    'operation' => 'INSERT',
+                    'record_id' => 'mov_isolate_good',
+                    'payload' => [
+                        'id' => 'mov_isolate_good',
+                        'stock_batch_id' => $goodBatchId,
+                        'product_id' => 'prod_isolate',
+                        'movement_type' => 'sale',
+                        'quantity' => -10,
+                        'performed_by' => $this->user->id,
+                        'created_at' => now()->toDateTimeString(),
+                        'updated_at' => now()->toDateTimeString(),
+                    ],
+                ],
+                [
+                    'table_name' => 'stock_movements',
+                    'operation' => 'INSERT',
+                    'record_id' => 'mov_isolate_bad',
+                    'payload' => [
+                        'id' => 'mov_isolate_bad',
+                        'stock_batch_id' => $badBatchId,
+                        'product_id' => 'prod_isolate',
+                        'movement_type' => 'sale',
+                        'quantity' => -10,
+                        'performed_by' => $this->user->id,
+                        'created_at' => now()->toDateTimeString(),
+                        'updated_at' => now()->toDateTimeString(),
+                    ],
+                ],
+            ],
+        ];
+
+        $response = $this->actingAs($this->user)->postJson('/api/v1/app/sync/push', $payload);
+
+        DB::unprepared('DROP TRIGGER isolate_bad_batch_failure');
+
+        // 200, not 500 - the bad delta is reported as a failure, not a
+        // fatal error for the whole request.
+        $response->assertStatus(200);
+        $response->assertJson(['success' => true]);
+
+        $failedTables = collect($response->json('failed'))->pluck('table_name')->all();
+        $this->assertContains('stock_batches', $failedTables);
+
+        // The good batch's delta and the unrelated product rename both
+        // survived the bad batch's delta failure - proof the rollback was
+        // scoped to just that one delta, not the whole push.
+        $this->assertDatabaseHas('stock_batches', [
+            'id' => $goodBatchId,
+            'quantity' => 40, // 50 - 10
+        ]);
+        $this->assertDatabaseHas('products', [
+            'id' => 'prod_isolate',
+            'name' => 'Isolation Test Product (Renamed)',
+        ]);
+        // The bad batch itself is untouched by its own failed delta.
+        $this->assertDatabaseHas('stock_batches', [
+            'id' => $badBatchId,
+            'quantity' => 50,
+        ]);
+    }
+
+    /**
      * Clients are not guaranteed to order a new batch's INSERT before its
      * movement in the same payload. Applying deltas in a deferred pass after
      * the whole payload is processed (rather than inline, as changes are

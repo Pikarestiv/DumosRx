@@ -253,4 +253,41 @@ class AdminDataAccuracyTest extends TestCase
 
         $response->assertStatus(200);
     }
+
+    /**
+     * The Overview dashboard's "Recent Stores" widget used to overwrite the
+     * `status` field with a sync-recency guess (last sync < 60min -> Active,
+     * < 1440min -> Away, else Inactive), completely hiding the store's real
+     * account state (`stores.status`, Active/Suspended) under the exact same
+     * key/label the Store Fleet list and View Store Details dialog use for
+     * that real state — a suspended store's row here would still say
+     * "Active" if it happened to have synced recently. `status` now always
+     * reflects the real account state everywhere `AdminStoreSummary` is
+     * used; the sync-recency signal moved to its own `sync_status` key.
+     */
+    public function test_recent_stores_status_reflects_real_account_state_not_sync_recency()
+    {
+        $owner = $this->makeStoreOwner();
+        $store = Store::create([
+            'user_id' => $owner->id,
+            'name' => 'Suspended But Recently Synced',
+            'device_id' => 'TEST-'.uniqid(),
+            'status' => 'Suspended',
+            'last_sync_at' => now(),
+        ]);
+
+        $response = $this->actingAs($this->superAdmin)
+            ->getJson('/api/v1/admin/summary');
+
+        $response->assertStatus(200);
+        $recentStore = collect($response->json('recent_stores'))
+            ->firstWhere('id', $store->id);
+
+        $this->assertNotNull($recentStore);
+        $this->assertSame('Suspended', $recentStore['status']);
+        // Recently synced, so the distinct sync-recency signal is still
+        // "Active" — proving the two fields carry different, independent
+        // information rather than one silently masking the other.
+        $this->assertSame('Active', $recentStore['sync_status']);
+    }
 }

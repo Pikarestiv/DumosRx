@@ -73,22 +73,3 @@ Issues spotted incidentally (e.g. while doing TypeScript type-safety cleanup) th
   above change; if still overflowing, consider shrinking `fontSize` for that
   column specifically, or truncating the id (e.g. last 8 chars only, matching
   what the receipt dialog already shows) rather than relying on wrap/hide.
-
-## Known limitations (not bugs — real gaps, not wiring defects)
-
-- **Superadmin Activity Log has no UI for 4 of the 7 filter params the
-  backend already supports.** `store_id`, `user_id`, `date_from`, `date_to`
-  are real, working query params (`AdminController::activityLogs`,
-  `useAdminActivityLogs()`), but `app/admin/activity/page.tsx` only wires up
-  `page`/`search`/`action`. A superadmin can't filter the platform-wide log
-  to one store, one user, or a date range except via the free-text search
-  box (which only matches description/action/user name-email columns).
-- **Superadmin Stores: the same "Status" label means two different things
-  depending which screen shows it.** The Store Fleet list / View Store
-  Details dialog show the real `stores.status` account-state column
-  (Active/Suspended). The Overview dashboard's "Recent Stores" widget
-  computes its own "Status" from sync recency instead (last sync < 60min →
-  Active, < 1440min → Away, else Inactive) — an unrelated signal rendered
-  with an identical-looking badge. A store that's account-`Active` but has
-  gone quiet on sync (or vice versa) reads as contradictory depending which
-  screen you're looking at.

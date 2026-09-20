@@ -56,12 +56,29 @@ export function RecentStores({ recentStores, setSelectedStore }: RecentStoresPro
                   </Badge>
                 </TableCell>
                 <TableCell className="text-center">
-                  <div className="flex items-center justify-center gap-1.5">
-                    <div className={`h-1.5 w-1.5 rounded-full ${store.status === 'Active' ? 'bg-emerald-500' : store.status === 'Pending' ? 'bg-amber-500' : 'bg-slate-300'}`} />
-                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{store.status}</span>
-                  </div>
+                  <Badge
+                    className={
+                      store.status === "Active"
+                        ? "bg-emerald-500 hover:bg-emerald-600"
+                        : store.status === "Suspended"
+                          ? "bg-rose-500 hover:bg-rose-600"
+                          : "bg-amber-500 hover:bg-amber-600"
+                    }
+                  >
+                    {store.status}
+                  </Badge>
                 </TableCell>
-                <TableCell className="text-right pr-6 font-medium text-slate-500 text-sm italic">{store.date}</TableCell>
+                <TableCell className="text-right pr-6">
+                  <div className="font-medium text-slate-500 text-sm italic">{store.date}</div>
+                  {store.sync_status && (
+                    <div className="flex items-center justify-end gap-1.5 mt-1">
+                      <div className={`h-1.5 w-1.5 rounded-full ${store.sync_status === 'Active' ? 'bg-emerald-500' : store.sync_status === 'Away' ? 'bg-amber-500' : 'bg-slate-300'}`} />
+                      <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400" title="How recently this device last synced - not the account status above">
+                        Sync: {store.sync_status}
+                      </span>
+                    </div>
+                  )}
+                </TableCell>
               </TableRow>
             ))}
             {recentStores.length === 0 && (

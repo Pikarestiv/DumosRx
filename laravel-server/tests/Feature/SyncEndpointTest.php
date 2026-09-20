@@ -1833,16 +1833,16 @@ class SyncEndpointTest extends TestCase
     }
 
     /**
-     * Characterization (documents current behavior, not desired behavior):
-     * push() derives first_name/last_name from a users payload's `name`, but
-     * leaves `name` itself in the payload — and the server's users table has
-     * no `name` column, so the INSERT fails on that column and the change is
-     * reported in `failed` rather than applied. Today's client never sends
-     * `name` for users (see test_push_sync_handles_user_insert_without_email),
-     * so this only affects hand-built/legacy payloads. Pinned here so the
-     * structural refactor of push() can't silently change it either way.
+     * push() derives first_name/last_name from a users payload's `name` and
+     * now also strips the untranslated `name` key before writing — the
+     * server's users table has no `name` column, so leaving it in the
+     * payload used to fail the INSERT on that column (see git history for
+     * the prior characterization test this replaces). Today's client never
+     * sends `name` for users (see test_push_sync_handles_user_insert_without_email),
+     * so this only ever affected hand-built/legacy payloads, but it's a real
+     * path a hand-built or older-client payload could still hit.
      */
-    public function test_push_sync_derives_first_last_name_but_still_fails_on_the_unmapped_name_column()
+    public function test_push_sync_derives_first_last_name_and_strips_the_unmapped_name_column()
     {
         $userId = (string) \Illuminate\Support\Str::uuid();
 
@@ -1866,14 +1866,13 @@ class SyncEndpointTest extends TestCase
         ]);
 
         $response->assertStatus(200);
-        $response->assertJsonCount(1, 'failed');
-        $reason = $response->json('failed.0.reason');
-        // The derived columns made it into the attempted INSERT ...
-        $this->assertStringContainsString('Ada', $reason);
-        $this->assertStringContainsString('Lovelace Byron', $reason);
-        // ... but the untranslated `name` key is what breaks it.
-        $this->assertStringContainsString('name', $reason);
-        $this->assertDatabaseMissing('users', ['id' => $userId]);
+        $response->assertJsonCount(0, 'failed');
+        $this->assertDatabaseHas('users', [
+            'id' => $userId,
+            'first_name' => 'Ada',
+            'last_name' => 'Lovelace Byron',
+            'username' => 'ada',
+        ]);
     }
 
     public function test_push_sync_generates_a_stable_device_id_when_store_insert_omits_one()

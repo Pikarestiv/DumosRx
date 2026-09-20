@@ -1227,6 +1227,10 @@ class SyncController extends Controller
                 $payload['first_name'] = $parts[0] ?? 'User';
                 $payload['last_name'] = $parts[1] ?? '';
             }
+            // users has no `name` column (only first_name/last_name) - leaving
+            // the raw key in the payload after deriving from it fails the
+            // INSERT/UPDATE with an unknown-column error.
+            unset($payload['name']);
         }
 
         // Inject user_id for core tables if missing

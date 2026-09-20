@@ -1,4 +1,4 @@
-import { Megaphone, Edit } from "lucide-react";
+import { Megaphone, Edit, Loader2 } from "lucide-react";
 import { UserSelector } from "@/components/admin/user-selector";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,23 +19,40 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { BroadcastFormData } from "@/lib/types/admin";
+import type { AdminUser, BroadcastFormData } from "@/lib/types/admin";
 
 interface BroadcastDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   formData: BroadcastFormData;
   setFormData: (data: BroadcastFormData) => void;
+  /** Display-only companion to `formData.user_ids`: the selector needs whole
+   * user objects to render names, while only ids are ever submitted. */
+  selectedUsers: AdminUser[];
+  onSelectedUsersChange: (users: AdminUser[]) => void;
   onSubmit: (e: React.FormEvent) => void;
+  isSubmitting?: boolean;
 }
 
-function BroadcastFormFields({ formData, setFormData }: { formData: BroadcastFormData, setFormData: (data: BroadcastFormData) => void }) {
+interface BroadcastFormFieldsProps {
+  formData: BroadcastFormData;
+  setFormData: (data: BroadcastFormData) => void;
+  selectedUsers: AdminUser[];
+  onSelectedUsersChange: (users: AdminUser[]) => void;
+}
+
+function BroadcastFormFields({
+  formData,
+  setFormData,
+  selectedUsers,
+  onSelectedUsersChange,
+}: BroadcastFormFieldsProps) {
   return (
     <>
       <div className="space-y-2">
         <Label className="font-bold text-xs uppercase tracking-widest text-slate-400 pl-1">Broadcast Title</Label>
-        <Input 
-          placeholder="e.g., Scheduled Maintenance" 
+        <Input
+          placeholder="e.g., Scheduled Maintenance"
           className="rounded-2xl h-12 border-slate-200 dark:border-slate-800 font-bold"
           value={formData.title}
           onChange={(e) => setFormData({...formData, title: e.target.value})}
@@ -45,8 +62,8 @@ function BroadcastFormFields({ formData, setFormData }: { formData: BroadcastFor
 
       <div className="space-y-2">
         <Label className="font-bold text-xs uppercase tracking-widest text-slate-400 pl-1">Message Content</Label>
-        <Textarea 
-          placeholder="Tell users what's happening..." 
+        <Textarea
+          placeholder="Tell users what's happening..."
           className="rounded-2xl border-slate-200 dark:border-slate-800 font-bold min-h-[120px]"
           value={formData.message}
           onChange={(e) => setFormData({...formData, message: e.target.value})}
@@ -57,8 +74,8 @@ function BroadcastFormFields({ formData, setFormData }: { formData: BroadcastFor
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label className="font-bold text-xs uppercase tracking-widest text-slate-400 pl-1">Alert Type</Label>
-          <Select 
-            value={formData.type} 
+          <Select
+            value={formData.type}
             onValueChange={(val) => setFormData({...formData, type: val})}
           >
             <SelectTrigger className="rounded-2xl h-12 border-slate-200 dark:border-slate-800 font-bold">
@@ -83,12 +100,21 @@ function BroadcastFormFields({ formData, setFormData }: { formData: BroadcastFor
       </div>
 
       <div className="pt-2">
-        <UserSelector 
-          selectedUsers={formData.user_ids || []}
-          onUsersChange={(users) => setFormData({...formData, user_ids: users})}
+        <UserSelector
+          selectedUsers={selectedUsers}
+          onUsersChange={onSelectedUsersChange}
           targetType={formData.target_type || "all"}
           onTargetTypeChange={(type) => setFormData({...formData, target_type: type})}
         />
+        {formData.target_type === "specific" &&
+          selectedUsers.length === 0 &&
+          formData.user_ids.length > 0 && (
+            <p className="text-xs font-bold text-slate-400 pt-2">
+              {formData.user_ids.length} existing recipient
+              {formData.user_ids.length === 1 ? "" : "s"} will be kept unless you pick
+              users above.
+            </p>
+          )}
       </div>
     </>
   );
@@ -99,7 +125,10 @@ export function CreateBroadcastDialog({
   onOpenChange,
   formData,
   setFormData,
+  selectedUsers,
+  onSelectedUsersChange,
   onSubmit,
+  isSubmitting = false,
 }: BroadcastDialogProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -111,14 +140,22 @@ export function CreateBroadcastDialog({
           <DialogTitle className="text-3xl font-black tracking-tight">New Broadcast</DialogTitle>
           <DialogDescription className="text-indigo-100 font-medium">Create a system-wide alert for all users</DialogDescription>
         </div>
-        
+
         <form onSubmit={onSubmit}>
           <div className="p-8 space-y-6 bg-white dark:bg-slate-900">
-            <BroadcastFormFields formData={formData} setFormData={setFormData} />
+            <BroadcastFormFields
+              formData={formData}
+              setFormData={setFormData}
+              selectedUsers={selectedUsers}
+              onSelectedUsersChange={onSelectedUsersChange}
+            />
           </div>
           <DialogFooter className="p-8 pt-0 bg-white dark:bg-slate-900">
-            <Button type="button" variant="ghost" className="font-bold rounded-xl" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700 font-bold rounded-xl h-12 px-8 text-white">Dispatch Broadcast</Button>
+            <Button type="button" variant="ghost" className="font-bold rounded-xl" onClick={() => onOpenChange(false)} disabled={isSubmitting}>Cancel</Button>
+            <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700 font-bold rounded-xl h-12 px-8 text-white" disabled={isSubmitting}>
+              {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {isSubmitting ? "Dispatching..." : "Dispatch Broadcast"}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -131,7 +168,10 @@ export function EditBroadcastDialog({
   onOpenChange,
   formData,
   setFormData,
+  selectedUsers,
+  onSelectedUsersChange,
   onSubmit,
+  isSubmitting = false,
 }: BroadcastDialogProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -143,14 +183,22 @@ export function EditBroadcastDialog({
           <DialogTitle className="text-3xl font-black tracking-tight">Edit Broadcast</DialogTitle>
           <DialogDescription className="text-slate-400 font-medium">Modify existing broadcast content</DialogDescription>
         </div>
-        
+
         <form onSubmit={onSubmit}>
           <div className="p-8 space-y-6 bg-white dark:bg-slate-900">
-            <BroadcastFormFields formData={formData} setFormData={setFormData} />
+            <BroadcastFormFields
+              formData={formData}
+              setFormData={setFormData}
+              selectedUsers={selectedUsers}
+              onSelectedUsersChange={onSelectedUsersChange}
+            />
           </div>
           <DialogFooter className="p-8 pt-0 bg-white dark:bg-slate-900">
-            <Button type="button" variant="ghost" className="font-bold rounded-xl" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button type="submit" className="bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl h-12 px-8">Save Changes</Button>
+            <Button type="button" variant="ghost" className="font-bold rounded-xl" onClick={() => onOpenChange(false)} disabled={isSubmitting}>Cancel</Button>
+            <Button type="submit" className="bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl h-12 px-8" disabled={isSubmitting}>
+              {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {isSubmitting ? "Saving..." : "Save Changes"}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

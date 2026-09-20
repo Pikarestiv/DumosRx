@@ -17,7 +17,6 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Card, CardContent } from "@/components/ui/card";
@@ -47,6 +46,7 @@ import { SharedGrantTrialDialog } from "@/components/admin/shared-grant-trial-di
 import { UserPagination } from "@/components/admin/users/user-pagination";
 import { BulkNotifyDialog } from "@/components/admin/users/bulk-notify-dialog";
 import type { AdminUser } from "@/lib/types/admin";
+import { escapeCsvCell } from "@/lib/utils";
 
 // Maps the filter dropdown's display labels to the backend's raw `role`
 // slugs (AdminService::getGlobalUsers's `role` query param does an exact
@@ -119,18 +119,29 @@ function GlobalUsersDirectoryContent() {
 
   const handleExportCSV = () => {
     if (userList.length === 0) return;
-    const headers = ["ID", "Name", "Email", "Role", "Store", "Status"];
-    const csvData = userList.map((u: AdminUser) =>
-      [u.id, u.name, u.email, u.role, u.store, u.status].join(","),
-    );
-    const blob = new Blob([[headers.join(","), ...csvData].join("\n")], {
-      type: "text/csv",
-    });
-    const url = window.URL.createObjectURL(blob);
+    const csv = [
+      ["ID", "Name", "Email", "Role", "Store", "Status"],
+      ...userList.map((u: AdminUser) => [
+        u.id,
+        u.name,
+        u.email,
+        u.role,
+        u.store,
+        u.status,
+      ]),
+    ]
+      .map((row) => row.map((cell) => escapeCsvCell(cell)).join(","))
+      .join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
     a.download = `users-export-${new Date().toISOString().split("T")[0]}.csv`;
+    document.body.appendChild(a);
     a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
     toast.success("User list exported successfully");
   };
 
@@ -250,16 +261,13 @@ function GlobalUsersDirectoryContent() {
                       {label}
                     </DropdownMenuItem>
                   ))}
-                  <DropdownMenuSeparator className="my-2" />
-                  <DropdownMenuLabel className="text-[10px] uppercase tracking-widest text-slate-400 px-3 py-2">
-                    Billing Plan
-                  </DropdownMenuLabel>
-                  <DropdownMenuItem className="rounded-xl px-3 py-2 cursor-pointer font-bold">
-                    Starter
-                  </DropdownMenuItem>
-                  <DropdownMenuItem className="rounded-xl px-3 py-2 cursor-pointer font-bold">
-                    Enterprise
-                  </DropdownMenuItem>
+                  {/* No "Billing Plan -> Starter/Enterprise" section here:
+                      AdminUserService::getGlobalUsers() only filters by
+                      search/role (there is no plan param, and a plan lives on
+                      the store, not the user), so those two items could never
+                      do anything. Removed rather than left as dead controls -
+                      plan filtering belongs on the Store Fleet list, which
+                      already supports it. */}
                 </DropdownMenuContent>
               </DropdownMenu>
               <div className="h-8 w-px bg-slate-200 dark:bg-slate-800 mx-1 hidden md:block" />

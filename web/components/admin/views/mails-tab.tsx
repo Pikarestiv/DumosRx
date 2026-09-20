@@ -18,6 +18,8 @@ import { toast } from "sonner";
 import { useMutation } from "@tanstack/react-query";
 import { webApiClient } from "@/lib/api/client";
 import { UserSelector } from "@/components/admin/user-selector";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { useAdminUsers } from "@/lib/api/admin-hooks";
 import type { AdminUser } from "@/lib/types/admin";
 
 export function MailsTab() {
@@ -25,6 +27,12 @@ export function MailsTab() {
   const [message, setMessage] = useState("");
   const [targetType, setTargetType] = useState<"all" | "specific">("all");
   const [selectedUsers, setSelectedUsers] = useState<AdminUser[]>([]);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+
+  // Only needed for the "All Users" recipient count shown in the confirmation
+  // below — page 1 with no search, read purely for its `meta.total`.
+  const { data: allUsers } = useAdminUsers(1, "");
+  const allUsersCount = allUsers?.meta?.total;
 
   const sendMailMutation = useMutation({
     mutationFn: (data: Record<string, unknown>) =>
@@ -51,6 +59,17 @@ export function MailsTab() {
       return;
     }
 
+    // Emailing the entire platform is a one-way action: confirm it, with the
+    // real recipient count, before anything is dispatched.
+    if (targetType === "all") {
+      setIsConfirmOpen(true);
+      return;
+    }
+
+    dispatchMail();
+  };
+
+  const dispatchMail = () => {
     sendMailMutation.mutate({
       subject,
       message,
@@ -79,6 +98,16 @@ export function MailsTab() {
             targetType={targetType}
             onTargetTypeChange={setTargetType}
           />
+
+          {targetType === "all" && (
+            <p className="text-sm font-medium text-amber-600 dark:text-amber-400">
+              This will email{" "}
+              {allUsersCount === undefined
+                ? "every user on the platform"
+                : `all ${allUsersCount} user${allUsersCount === 1 ? "" : "s"} on the platform`}
+              . You&apos;ll be asked to confirm before it sends.
+            </p>
+          )}
 
           <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800">
             <div className="space-y-2">
@@ -119,6 +148,19 @@ export function MailsTab() {
           </Button>
         </CardFooter>
       </form>
+
+      <ConfirmDialog
+        open={isConfirmOpen}
+        onOpenChange={setIsConfirmOpen}
+        title="Email every user?"
+        description={
+          allUsersCount === undefined
+            ? `This sends "${subject}" to every user on the platform. This cannot be undone.`
+            : `This sends "${subject}" to all ${allUsersCount} user${allUsersCount === 1 ? "" : "s"} on the platform. This cannot be undone.`
+        }
+        confirmLabel="Send to everyone"
+        onConfirm={dispatchMail}
+      />
     </Card>
   );
 }

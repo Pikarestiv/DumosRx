@@ -13,8 +13,12 @@ const APP_URL_STORAGE_KEY = "dumos_app_url";
 // fixed env default, this is a runtime override in the same vein as
 // getBaseURL/setBaseURL (see ServerSelector), settable via its "App URL"
 // field.
+// Only honoured outside production builds, for the same reason base-client.ts
+// gates its own `dumos_api_url` twin: the impersonation handoff in
+// app/admin/stores builds its redirect from this, and that URL carries a live
+// session code - a writable localStorage key must not get to aim it.
 export const getAppURL = () => {
-  if (typeof window !== "undefined") {
+  if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
     const stored = localStorage.getItem(APP_URL_STORAGE_KEY);
     if (stored) return stored;
   }

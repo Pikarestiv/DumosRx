@@ -98,8 +98,10 @@ export function AdminSidebar() {
   const router = useRouter();
   const { user, logout } = useAdminAuthStore();
 
-  const handleLogout = () => {
-    logout();
+  // logout() revokes the session server-side before clearing local state, so
+  // it has to be awaited before navigating - see use-admin-auth-store.ts.
+  const handleLogout = async () => {
+    await logout();
     router.push("/admin/login");
   };
 
@@ -183,7 +185,7 @@ export function AdminSidebar() {
             </p>
           </div>
           <button
-            onClick={handleLogout}
+            onClick={() => void handleLogout()}
             className="p-2 hover:bg-slate-800 rounded-lg transition-colors group"
           >
             <LogOut className="h-4 w-4 text-slate-500 group-hover:text-red-400" />

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Loader2, Plus, ShieldAlert, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -30,7 +30,12 @@ import type { Coupon } from "@/lib/types/admin";
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 
 export function CouponsManager() {
-  const { data: couponsData, isLoading: loading } = useAdminCoupons();
+  const {
+    data: couponsData,
+    isLoading: loading,
+    error,
+    refetch,
+  } = useAdminCoupons();
   const coupons: Coupon[] = couponsData
     ? Array.isArray(couponsData)
       ? couponsData
@@ -76,7 +81,13 @@ export function CouponsManager() {
         ...newCoupon,
         code: newCoupon.code?.toUpperCase(),
         value: Number(newCoupon.value),
-        max_uses: newCoupon.max_uses ? Number(newCoupon.max_uses) : null,
+        // Only a genuinely empty field means unlimited. `? :` here treated a
+        // typed-then-cleared `0` as falsy and submitted `null`, which the
+        // backend reads as unlimited redemptions.
+        max_uses:
+          newCoupon.max_uses === null || newCoupon.max_uses === undefined
+            ? null
+            : Number(newCoupon.max_uses),
         max_uses_per_user: Number(newCoupon.max_uses_per_user) || 1,
         expires_at: newCoupon.expires_at || null,
       };
@@ -123,7 +134,32 @@ export function CouponsManager() {
     }
   };
 
-  if (loading) return <div>Loading...</div>;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
+      </div>
+    );
+  }
+
+  // Previously a failed fetch fell through to the table's "No coupons
+  // generated yet." row - indistinguishable from an genuinely empty list.
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
+        <ShieldAlert className="h-10 w-10 text-rose-500" />
+        <p className="text-rose-500 font-bold">
+          {error instanceof Error ? error.message : "Failed to load coupons"}
+        </p>
+        <p className="text-sm text-muted-foreground max-w-md">
+          This is a failed request, not an empty coupon list.
+        </p>
+        <Button onClick={() => void refetch()} variant="outline">
+          Retry
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

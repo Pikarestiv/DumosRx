@@ -61,7 +61,7 @@ class ReferralController extends Controller
             ->orderBy('created_at', 'desc')
             ->paginate(20);
 
-        return response()->json($referrals);
+        return response()->json($this->paginated($referrals));
     }
 
     #[OA\Get(
@@ -80,7 +80,27 @@ class ReferralController extends Controller
             ->orderBy('created_at', 'desc')
             ->paginate(20);
 
-        return response()->json($txns);
+        return response()->json($this->paginated($txns));
+    }
+
+    /**
+     * Re-shape a paginator into the { data, meta } envelope the rest of the
+     * admin API uses (see AdminUserService), so the superadmin tables can
+     * actually page through these lists. The raw paginator's flat keys were
+     * never read by the UI, which meant the credit audit log silently showed
+     * only the 20 most recent entries.
+     */
+    private function paginated(\Illuminate\Contracts\Pagination\LengthAwarePaginator $paginator): array
+    {
+        return [
+            'data' => $paginator->items(),
+            'meta' => [
+                'current_page' => $paginator->currentPage(),
+                'last_page' => $paginator->lastPage(),
+                'total' => $paginator->total(),
+                'per_page' => $paginator->perPage(),
+            ],
+        ];
     }
 
     #[OA\Post(
@@ -92,7 +112,7 @@ class ReferralController extends Controller
             required: ['user_id', 'amount', 'type', 'description'],
             properties: [
                 new OA\Property(property: 'user_id', type: 'string', format: 'uuid'),
-                new OA\Property(property: 'amount', type: 'number'),
+                new OA\Property(property: 'amount', type: 'number', minimum: 0.01, description: 'Always positive; `type` carries the direction.'),
                 new OA\Property(property: 'type', type: 'string', enum: ['earned', 'spent', 'admin_adjustment']),
                 new OA\Property(property: 'description', type: 'string', maxLength: 255),
             ],
@@ -109,9 +129,17 @@ class ReferralController extends Controller
     )]
     public function adjustCredits(Request $request)
     {
+        // `min:0.01` is load-bearing, not cosmetic. With a plain `numeric`
+        // rule a negative amount reached the logic below, where the
+        // insufficient-funds guard `$user->referral_credits < $amount` is
+        // always false for a negative $amount: a "spent" adjustment of -5000
+        // skipped the balance check and *credited* the wallet, and an
+        // "earned"/"admin_adjustment" of -5000 drove a balance below zero.
+        // The direction of the movement is carried by `type`, never by the
+        // sign of `amount`.
         $request->validate([
             'user_id' => 'required|uuid|exists:users,id',
-            'amount' => 'required|numeric',
+            'amount' => 'required|numeric|min:0.01',
             'type' => 'required|in:earned,spent,admin_adjustment',
             'description' => 'required|string|max:255',
         ]);

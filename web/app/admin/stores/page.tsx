@@ -16,6 +16,8 @@ import { StoreToolbar } from "@/components/admin/stores/store-toolbar";
 import { StorePagination } from "@/components/admin/stores/store-pagination";
 import { SuspendStoreDialog, ViewStoreDialog, BillingHistoryDialog } from "@/components/admin/stores/store-dialogs";
 import { SharedGrantTrialDialog } from "@/components/admin/shared-grant-trial-dialog";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { escapeCsvCell } from "@/lib/utils";
 import { toast } from "sonner";
 import { AdminSkeleton } from "@/components/admin/admin-skeleton";
 import type { AdminStoreSummary } from "@/lib/types/admin";
@@ -40,7 +42,8 @@ export default function StoresManagement() {
   const [isTrialDialogOpen, setIsTrialDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isBillingDialogOpen, setIsBillingDialogOpen] = useState(false);
-  
+  const [impersonateTarget, setImpersonateTarget] = useState<AdminStoreSummary | null>(null);
+
   const debouncedSearch = useDebounce(search, 500);
 
   const { data: response, isLoading, error, refetch } = useAdminStores(
@@ -72,22 +75,42 @@ export default function StoresManagement() {
   const storeList = response?.data || [];
   const storeMeta = response?.meta;
 
+  // Which row (if any) has an unsuspend/demo mutation in flight. TanStack
+  // exposes the in-flight mutation's own `variables` (the store id here),
+  // so no extra state is needed to identify the busy row.
+  const pendingStoreId =
+    (unsuspendMutation.isPending ? unsuspendMutation.variables : undefined) ??
+    (markDemoMutation.isPending ? markDemoMutation.variables : undefined) ??
+    (unmarkDemoMutation.isPending ? unmarkDemoMutation.variables : undefined) ??
+    null;
+
   const handleExportCSV = () => {
     if (storeList.length === 0) return;
 
-    const headers = ["ID", "Name", "Owner", "Email", "Plan", "Status", "Date"];
-    const csvData = storeList.map((p: AdminStoreSummary) =>
-      [p.id, p.name, p.owner, p.email, p.plan, p.status, p.date].join(","),
-    );
+    const csv = [
+      ["ID", "Name", "Owner", "Email", "Plan", "Status", "Date"],
+      ...storeList.map((p: AdminStoreSummary) => [
+        p.id,
+        p.name,
+        p.owner,
+        p.email,
+        p.plan,
+        p.status,
+        p.date,
+      ]),
+    ]
+      .map((row) => row.map((cell) => escapeCsvCell(cell)).join(","))
+      .join("\n");
 
-    const blob = new Blob([[headers.join(","), ...csvData].join("\n")], {
-      type: "text/csv",
-    });
-    const url = window.URL.createObjectURL(blob);
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
     a.download = `stores-export-${new Date().toISOString().split("T")[0]}.csv`;
+    document.body.appendChild(a);
     a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
   };
 
   const handleSuspend = (reason: string) => {
@@ -111,6 +134,10 @@ export default function StoresManagement() {
   };
 
   const handleUnsuspend = (store: AdminStoreSummary) => {
+    // Belt-and-braces against a double fire; the row's menu item is already
+    // disabled while this runs.
+    if (unsuspendMutation.isPending) return;
+
     unsuspendMutation.mutate(store.id, {
       onSuccess: () => {
         toast.success("Account Re-activated", {
@@ -147,7 +174,13 @@ export default function StoresManagement() {
     });
   };
 
+  // Row menu only opens the confirmation; the real work happens once the
+  // admin confirms which store/owner they're about to become.
   const handleImpersonate = (store: AdminStoreSummary) => {
+    setImpersonateTarget(store);
+  };
+
+  const startImpersonation = (store: AdminStoreSummary) => {
     // Guard against the case that actually bit us: a dev/staging admin
     // session (talking to a non-production API) whose "App URL" override
     // was never set, so getAppURL() silently falls back to the hardcoded
@@ -180,16 +213,46 @@ export default function StoresManagement() {
               return;
             }
 
-            const [{ code: userCode }, { code: returnCode }] = await Promise.all([
-              webApiClient.createHandoffCode(data.token),
-              webApiClient.createHandoffCode(adminToken),
-            ]);
+            // Minted one at a time, not via Promise.all: if the second mint
+            // fails we still hold the first code and can burn it. Consuming
+            // it is the only invalidation AuthHandoffController exposes
+            // (`consume` is an atomic Cache::pull get-and-delete), so we
+            // redeem-and-discard it rather than leave a live code sitting in
+            // the cache for the rest of its 60s TTL.
+            const { code: userCode } = await webApiClient.createHandoffCode(data.token);
+
+            let returnCode: string;
+            try {
+              ({ code: returnCode } = await webApiClient.createHandoffCode(adminToken));
+            } catch (mintErr) {
+              let burned = false;
+              try {
+                await webApiClient.consumeHandoffCode(userCode);
+                burned = true;
+              } catch (burnErr) {
+                console.error(
+                  "[impersonation] return-code mint failed and the user handoff code could not be burned; it stays redeemable for up to 60s",
+                  { mintErr, burnErr },
+                );
+              }
+              toast.error("Impersonation Failed", {
+                description: burned
+                  ? "Could not create the return session. The handoff code was invalidated; nothing was exposed."
+                  : "Could not create the return session, and the handoff code could not be invalidated - it may stay usable for up to 60 seconds.",
+              });
+              return;
+            }
 
             toast.success("Impersonation Successful", {
               description: `Logged in as ${data.user.name}. Redirecting...`,
             });
 
-            window.location.href = `${getAppURL()}/auth/callback?code=${userCode}&return_code=${returnCode}`;
+            // Codes travel in the URL fragment, never the query string: a
+            // fragment is not sent to the destination server and never
+            // appears in its access logs or in a Referer header, so the
+            // return_code (which wraps this super_admin's own live token)
+            // stays client-side only.
+            window.location.href = `${getAppURL()}/auth/callback#code=${encodeURIComponent(userCode)}&return_code=${encodeURIComponent(returnCode)}`;
           } catch (_err) {
             toast.error("Impersonation Failed", {
               description: "Could not hand off session to the app.",
@@ -207,6 +270,8 @@ export default function StoresManagement() {
 
   const handleToggleDemo = (store: AdminStoreSummary) => {
     const mutation = store.is_demo ? unmarkDemoMutation : markDemoMutation;
+    if (mutation.isPending) return;
+
     mutation.mutate(store.id, {
       onSuccess: () => {
         toast.success(store.is_demo ? "Demo Flag Removed" : "Marked as Demo", {
@@ -299,6 +364,7 @@ export default function StoresManagement() {
               setIsViewDialogOpen={setIsViewDialogOpen}
               handleUnsuspend={handleUnsuspend}
               handleToggleDemo={handleToggleDemo}
+              pendingStoreId={pendingStoreId}
               router={router}
             />
             )}
@@ -339,6 +405,23 @@ export default function StoresManagement() {
         isOpen={isBillingDialogOpen}
         onOpenChange={setIsBillingDialogOpen}
         selectedStore={selectedStore}
+      />
+
+      <ConfirmDialog
+        open={impersonateTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setImpersonateTarget(null);
+        }}
+        title="Start impersonation session?"
+        description={
+          impersonateTarget
+            ? `You will be signed into the app as ${impersonateTarget.owner} (${impersonateTarget.email}), the owner of ${impersonateTarget.name}. Every action you take will be recorded against that account until you return to the admin panel.`
+            : ""
+        }
+        confirmLabel="Impersonate"
+        onConfirm={() => {
+          if (impersonateTarget) startImpersonation(impersonateTarget);
+        }}
       />
     </div>
   );

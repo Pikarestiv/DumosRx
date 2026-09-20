@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2 } from "lucide-react";
+import { AlertTriangle, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { useSystemConfig } from "@/lib/api/hooks";
 import { calculateDiscountPercent } from "@/lib/utils";
 import { HybridOperationsExplainer } from "./hybrid-operations-explainer";
@@ -14,7 +15,12 @@ export function PricingSection() {
   const [billingPeriod, setBillingPeriod] = useState<"monthly" | "yearly">(
     "monthly",
   );
-  const { data: config, isLoading } = useSystemConfig("subscription_plans");
+  const {
+    data: config,
+    isLoading,
+    isError,
+    refetch,
+  } = useSystemConfig("subscription_plans");
 
   const isYearly = billingPeriod === "yearly";
 
@@ -25,6 +31,34 @@ export function PricingSection() {
         className="py-20 flex items-center justify-center min-h-[400px]"
       >
         <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
+      </section>
+    );
+  }
+
+  // Quoting stale bundled prices to a prospect with no indication anything
+  // failed is worse than showing nothing. The hardcoded tiers below stay as
+  // the shape for a config that has never been saved (the endpoint answers
+  // 200 with null for an unset key) - not as a stand-in for a failed fetch.
+  if (isError) {
+    return (
+      <section
+        id="pricing"
+        className="py-24 bg-linear-to-b from-background via-muted/20 to-background"
+      >
+        <div className="container mx-auto px-4 flex flex-col items-center justify-center text-center gap-4 min-h-[400px]">
+          <AlertTriangle className="h-10 w-10 text-amber-500" />
+          <h2 className="text-3xl md:text-4xl font-black tracking-tight">
+            Pricing is temporarily unavailable
+          </h2>
+          <p className="text-muted-foreground max-w-lg">
+            We could not load current plan pricing, and we would rather show
+            you nothing than show you the wrong figure. Please try again in a
+            moment.
+          </p>
+          <Button variant="outline" onClick={() => void refetch()}>
+            Retry
+          </Button>
+        </div>
       </section>
     );
   }

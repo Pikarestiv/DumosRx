@@ -28,6 +28,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -54,7 +62,12 @@ const adminSchema = z
     role: z.enum(["super_admin", "platform_admin", "agent"]),
     password: z
       .string()
-      .min(8, { message: "Password must be at least 8 characters" }),
+      .min(8, { message: "Password must be at least 8 characters" })
+      // Deliberately modest: these accounts can impersonate stores, so a
+      // purely alphabetic or purely numeric 8-character password isn't good
+      // enough - but this is not meant to be a full strength meter.
+      .regex(/[A-Za-z]/, { message: "Password must contain at least one letter" })
+      .regex(/[0-9]/, { message: "Password must contain at least one number" }),
     password_confirmation: z.string(),
   })
   .refine((data) => data.password === data.password_confirmation, {
@@ -62,9 +75,17 @@ const adminSchema = z
     path: ["password_confirmation"],
   });
 
+type AdminFormValues = z.infer<typeof adminSchema>;
+
 export default function AdminNewUserPage() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
+  // Creating a super_admin hands out impersonation access to every store on
+  // the platform, so it takes an explicit second confirmation rather than
+  // being one dropdown option away like the other two roles.
+  const [pendingSuperAdmin, setPendingSuperAdmin] = useState<AdminFormValues | null>(
+    null,
+  );
 
   const form = useForm<z.infer<typeof adminSchema>>({
     resolver: zodResolver(adminSchema),
@@ -82,16 +103,27 @@ export default function AdminNewUserPage() {
   const createAdminMutation = useCreatePlatformAdminMutation();
   const loading = createAdminMutation.isPending;
 
-  function onSubmit(values: z.infer<typeof adminSchema>) {
+  function createAccount(values: AdminFormValues) {
     setError(null);
     createAdminMutation.mutate(values, {
       onSuccess: () => {
+        setPendingSuperAdmin(null);
         router.push("/admin/users");
       },
       onError: (err) => {
+        setPendingSuperAdmin(null);
         setError(err.message || "Failed to create platform admin.");
       },
     });
+  }
+
+  function onSubmit(values: AdminFormValues) {
+    if (values.role === "super_admin") {
+      setError(null);
+      setPendingSuperAdmin(values);
+      return;
+    }
+    createAccount(values);
   }
 
   return (
@@ -314,6 +346,52 @@ export default function AdminNewUserPage() {
           </form>
         </Form>
       </div>
+
+      <Dialog
+        open={!!pendingSuperAdmin}
+        onOpenChange={(open) => {
+          if (!open && !loading) setPendingSuperAdmin(null);
+        }}
+      >
+        <DialogContent className="rounded-3xl border-red-200 dark:border-red-900 shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-black flex items-center gap-3 text-red-600 dark:text-red-500">
+              <div className="h-10 w-10 rounded-xl bg-red-500/10 flex items-center justify-center">
+                <AlertCircle className="h-5 w-5 text-red-600" />
+              </div>
+              Create a Super Admin?
+            </DialogTitle>
+            <DialogDescription className="text-slate-500 dark:text-slate-400 font-medium pt-2">
+              This grants{" "}
+              <span className="font-bold text-slate-900 dark:text-white">
+                {pendingSuperAdmin?.first_name} {pendingSuperAdmin?.last_name} (
+                {pendingSuperAdmin?.email})
+              </span>{" "}
+              full platform access, including impersonating any store on the
+              platform and managing every other platform account. Only continue
+              if that is genuinely intended.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 pt-4">
+            <Button
+              variant="outline"
+              onClick={() => setPendingSuperAdmin(null)}
+              disabled={loading}
+              className="rounded-xl border-2 font-bold h-12"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => pendingSuperAdmin && createAccount(pendingSuperAdmin)}
+              disabled={loading}
+              className="rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold h-12 shadow-lg shadow-red-600/20"
+            >
+              {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Yes, Create Super Admin
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MessageSquare, Bug, Lightbulb, User, Clock, CheckCircle2, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceSafe } from "@/lib/utils/date-utils";
 
 export function FeedbackTab() {
   const [filter, setFilter] = useState("all");
@@ -130,7 +130,7 @@ export function FeedbackTab() {
                         </span>
                         <span className="flex items-center gap-1 text-slate-400">
                           <Clock className="h-3 w-3" />
-                          {formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}
+                          {formatDistanceSafe(item.created_at)}
                         </span>
                       </CardDescription>
                     </div>

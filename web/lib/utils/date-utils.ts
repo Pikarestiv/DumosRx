@@ -1,7 +1,7 @@
 /**
  * Helper for Expiry Date Calculations
  */
-import { addMonths, isBefore, differenceInDays, format } from "date-fns";
+import { addMonths, isBefore, differenceInDays, format, formatDistanceToNow } from "date-fns";
 
 export const getExpiryStatus = (expiryDate: string, warningMonths: number = 3) => {
   const date = new Date(expiryDate);
@@ -100,6 +100,25 @@ export const formatDateSafe = (
     const d = typeof date === "string" ? new Date(date) : date;
     if (isNaN(d.getTime())) return fallback;
     return format(d, pattern);
+  } catch {
+    return fallback;
+  }
+};
+
+/**
+ * Relative ("3 hours ago") counterpart to formatDateSafe: date-fns throws a
+ * RangeError on an invalid date, which would take down a whole list rather
+ * than one cell.
+ */
+export const formatDistanceSafe = (
+  date: string | Date | null | undefined,
+  fallback: string = "Unknown date",
+): string => {
+  if (!date) return fallback;
+  try {
+    const d = typeof date === "string" ? new Date(date) : date;
+    if (isNaN(d.getTime())) return fallback;
+    return formatDistanceToNow(d, { addSuffix: true });
   } catch {
     return fallback;
   }

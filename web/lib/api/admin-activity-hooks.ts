@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { webApiClient } from "./client";
+import { useScopedKey } from "./query-scope";
 import type { PaginatedResponse, ActivityLog } from "@/lib/types/admin";
 
 export const useAdminActivityLogs = (
@@ -12,16 +13,16 @@ export const useAdminActivityLogs = (
   dateTo = "",
 ) => {
   return useQuery({
-    queryKey: ["admin-activity-logs", page, search, action, storeId, userId, dateFrom, dateTo],
+    queryKey: useScopedKey(["admin-activity-logs", page, search, action, storeId, userId, dateFrom, dateTo]),
     queryFn: () =>
       webApiClient.request<PaginatedResponse<ActivityLog>>(
         `admin/activity-logs?page=${page}` +
-          (search ? `&search=${search}` : "") +
-          (action ? `&action=${action}` : "") +
-          (storeId ? `&store_id=${storeId}` : "") +
-          (userId ? `&user_id=${userId}` : "") +
-          (dateFrom ? `&date_from=${dateFrom}` : "") +
-          (dateTo ? `&date_to=${dateTo}` : ""),
+          (search ? `&search=${encodeURIComponent(search)}` : "") +
+          (action ? `&action=${encodeURIComponent(action)}` : "") +
+          (storeId ? `&store_id=${encodeURIComponent(storeId)}` : "") +
+          (userId ? `&user_id=${encodeURIComponent(userId)}` : "") +
+          (dateFrom ? `&date_from=${encodeURIComponent(dateFrom)}` : "") +
+          (dateTo ? `&date_to=${encodeURIComponent(dateTo)}` : ""),
       ),
   });
 };

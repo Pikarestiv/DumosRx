@@ -12,6 +12,7 @@ export const DEFAULT_TIER_CONFIGS: SubscriptionConfig["tiers"] = {
     limits: { staff: 1, stores: 1, sync_interval: 360 },
     features: {
       cloud_sync: false,
+      web_dashboard: false,
       mobile_app: false,
       ecommerce: false,
       smart_pos: true,
@@ -40,6 +41,7 @@ export const DEFAULT_TIER_CONFIGS: SubscriptionConfig["tiers"] = {
     limits: { staff: 3, stores: 1, sync_interval: 30 },
     features: {
       cloud_sync: true,
+      web_dashboard: true,
       mobile_app: false,
       ecommerce: false,
       smart_pos: true,
@@ -68,6 +70,7 @@ export const DEFAULT_TIER_CONFIGS: SubscriptionConfig["tiers"] = {
     limits: { staff: 10, stores: 3, sync_interval: 15 },
     features: {
       cloud_sync: true,
+      web_dashboard: true,
       mobile_app: true,
       ecommerce: false,
       smart_pos: true,
@@ -96,6 +99,7 @@ export const DEFAULT_TIER_CONFIGS: SubscriptionConfig["tiers"] = {
     limits: { staff: 50, stores: 20, sync_interval: 0 },
     features: {
       cloud_sync: true,
+      web_dashboard: true,
       mobile_app: true,
       ecommerce: true,
       smart_pos: true,

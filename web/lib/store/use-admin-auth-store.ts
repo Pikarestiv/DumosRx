@@ -3,6 +3,7 @@ import { persist } from "zustand/middleware";
 import { webApiClient } from "@/lib/api/client";
 import { queryClient } from "@/lib/query-client";
 import { setAdminToken } from "@/lib/api/admin-token";
+import { useAdminStore } from "@/lib/store/use-admin-store";
 
 export interface User {
   id: string;
@@ -34,6 +35,12 @@ interface AdminAuthState {
   user: User | null;
   token: string | null;
   loading: boolean;
+  /** True only once the server has confirmed this session during *this* page
+   * load - via login, initSession()'s refresh call, or the handoff exchange.
+   * `user` alone can't stand in for it: `user` is persisted to localStorage
+   * (see partialize below) and is therefore editable by whoever sits at the
+   * browser. Never persisted, so a reload always has to re-verify. */
+  sessionVerified: boolean;
 
   setUser: (user: User | null) => void;
   setToken: (token: string | null) => void;
@@ -44,7 +51,7 @@ interface AdminAuthState {
    * mount - it's a single request instead of a doomed /user call cascading
    * into a /refresh attempt. */
   initSession: () => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
 }
 
 export const useAdminAuthStore = create<AdminAuthState>()(
@@ -53,11 +60,15 @@ export const useAdminAuthStore = create<AdminAuthState>()(
       user: null,
       token: null, // Access token: memory-only, never persisted (see partialize below)
       loading: false,
+      sessionVerified: false,
 
       setUser: (user) => set({ user }),
       setToken: (token) => {
-        // We still keep the token in memory for the current session
-        set({ token });
+        // We still keep the token in memory for the current session. Holding
+        // one is exactly what "verified" means here: it can only have come
+        // from a login response, initSession(), the 401 refresh path or the
+        // handoff exchange - never from client-editable storage.
+        set({ token, sessionVerified: !!token });
         // Mirrored into a plain, import-free module so base-client.ts/
         // logger.ts can read it without statically importing this store,
         // which would create a cycle (base-client -> this store ->
@@ -71,7 +82,7 @@ export const useAdminAuthStore = create<AdminAuthState>()(
           const user = await webApiClient.request<User>("user");
           set({ user, loading: false });
         } catch (_error) {
-          set({ user: null, token: null, loading: false });
+          set({ user: null, token: null, loading: false, sessionVerified: false });
           setAdminToken(null);
         }
       },
@@ -83,23 +94,39 @@ export const useAdminAuthStore = create<AdminAuthState>()(
             "admin/session/refresh",
             { method: "POST" },
           );
-          set({ token: data.token, user: data.user, loading: false });
+          set({ token: data.token, user: data.user, loading: false, sessionVerified: true });
           setAdminToken(data.token);
         } catch (_error) {
-          set({ user: null, token: null, loading: false });
+          set({ user: null, token: null, loading: false, sessionVerified: false });
           setAdminToken(null);
         }
       },
 
-      logout: () => {
-        set({ user: null, token: null });
+      logout: async () => {
+        // Revoke server-side FIRST, and await it. Clearing local state is what
+        // re-arms app/admin/layout.tsx's session-init effect, and that effect
+        // posts to /admin/session/refresh - if it beat the logout request to
+        // the server, the still-valid refresh cookie would hand the session
+        // straight back and the admin would stay signed in after Sign Out.
+        // Awaiting first also means the logout request still carries the
+        // access token, which the old ordering had already cleared.
+        try {
+          await webApiClient.request("/logout", { method: "POST" });
+        } catch (_error) {
+          // Expired token, offline, server error: nothing more to do
+          // server-side, but the local session must still be torn down.
+        }
+        set({ user: null, token: null, sessionVerified: false });
         setAdminToken(null);
-        // The backend should clear the cookie on its logout route
-        webApiClient.request("/logout", { method: "POST" }).catch(() => {});
         // Without this, cached admin/platform query data from the outgoing
         // session stays in memory and gets served to whoever logs in next.
         void queryClient.cancelQueries();
         queryClient.clear();
+        // Same reason, for the other half of the cache: `admin-storage`
+        // persists the platform summary (revenue stats, recent store names,
+        // owner emails) to localStorage, so it has to be wiped on logout too
+        // or it survives into the next session on a shared machine.
+        useAdminStore.getState().reset();
       },
     }),
     {

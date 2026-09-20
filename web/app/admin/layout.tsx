@@ -34,6 +34,7 @@ export default function AdminLayout({
     user,
     initSession,
     loading: authLoading,
+    sessionVerified,
     token: _token,
   } = useAdminAuthStore();
   const router = useRouter();
@@ -51,21 +52,25 @@ export default function AdminLayout({
       // The access token lives in memory only, so it never survives a page
       // reload - attempt to restore the session via the HttpOnly refresh
       // cookie directly instead of checking a token that was never persisted.
-      if (!user) {
+      // Keyed on sessionVerified, not `user`: `user` is persisted to
+      // localStorage and so is client-editable, and gating on it alone would
+      // let a forged entry paint the whole admin shell before the first 401
+      // cascade resolved.
+      if (!sessionVerified) {
         await initSession();
       }
       setChecking(false);
     };
     void checkAuth();
-  }, [user, initSession, bypassGuard]);
+  }, [sessionVerified, initSession, bypassGuard]);
 
   useEffect(() => {
     if (bypassGuard) return;
 
-    if (!checking && (!user || !checkCanAccessAdmin(user.role))) {
+    if (!checking && (!sessionVerified || !user || !checkCanAccessAdmin(user.role))) {
       router.push("/admin/login");
     }
-  }, [user, checking, router, bypassGuard]);
+  }, [user, sessionVerified, checking, router, bypassGuard]);
 
   // If on login or handoff page, just render children without further checks
   if (bypassGuard) {
@@ -80,7 +85,7 @@ export default function AdminLayout({
     );
   }
 
-  if (!user || !checkCanAccessAdmin(user.role)) {
+  if (!sessionVerified || !user || !checkCanAccessAdmin(user.role)) {
     return null;
   }
 

@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Loader2, AlertCircle, Mail, Lock, Eye, EyeOff } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { webApiClient } from "@/lib/api/client";
 import { motion } from "framer-motion";
 import { useAdminAuthStore, checkCanAccessAdmin, checkIsSuperAdmin } from "@/lib/store/use-admin-auth-store";
@@ -27,8 +27,21 @@ const loginSchema = z.object({
   email: z.email({ message: "Invalid email address" }),
   password: z.string().min(6, { message: "Password must be at least 6 characters" }),
 });
+/** base-client.ts's 401 handler bounces expired sessions to
+ * `/admin/login?redirect=<where they were>`. Only a same-origin path back into
+ * the admin panel is honoured: a protocol-relative "//evil.com", a full URL or
+ * anything outside /admin is discarded rather than turned into an open
+ * redirect out of a freshly authenticated session. */
+const resolveRedirect = (raw: string | null, fallback: string) => {
+  if (!raw) return fallback;
+  if (raw.startsWith("//") || !raw.startsWith("/admin")) return fallback;
+  if (raw.startsWith("/admin/login")) return fallback;
+  return raw;
+};
+
 export function AdminLoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
@@ -50,6 +63,18 @@ export function AdminLoginForm() {
       const response = await webApiClient.login(values);
       
       if (!checkCanAccessAdmin(response.user.role)) {
+        // The credentials themselves were valid, so the server has already
+        // minted an access token and (device_name: "web") a drx_admin_session
+        // refresh cookie. Rejecting purely client-side would leave both alive
+        // for, say, a store owner who used the wrong login form. The token
+        // isn't in the auth store yet, so pass it explicitly - base-client's
+        // interceptor has nothing to attach while on an /admin path.
+        await webApiClient
+          .request("/logout", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${response.token}` },
+          })
+          .catch(() => {});
         throw new Error("Access Denied: Administrative privileges required.");
       }
 
@@ -57,7 +82,8 @@ export function AdminLoginForm() {
       setUser(response.user);
       // Overview (/admin) is super_admin-only (admin/summary requires it
       // server-side): platform_admin/agent would land on a 403 immediately.
-      router.push(checkIsSuperAdmin(response.user.role) ? "/admin" : "/admin/referrals");
+      const fallback = checkIsSuperAdmin(response.user.role) ? "/admin" : "/admin/referrals";
+      router.push(resolveRedirect(searchParams?.get("redirect") ?? null, fallback));
       // Left `loading` true on success: see LoginForm for why.
     } catch (err) {
       setError(err instanceof Error ? err.message : "Invalid administrative credentials.");

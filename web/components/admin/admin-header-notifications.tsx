@@ -58,7 +58,9 @@ export function AdminHeaderNotifications() {
                 if (n.link) {
                   router.push(n.link);
                 } else if (n.category === "log") {
-                  router.push("/admin/system");
+                  // Activity/audit logs live on /admin/activity; /admin/system
+                  // is infrastructure health and shows no log entries.
+                  router.push("/admin/activity");
                 } else {
                   router.push("/admin/settings");
                 }

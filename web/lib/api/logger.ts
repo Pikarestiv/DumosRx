@@ -1,6 +1,10 @@
 import { getAdminToken } from "./admin-token";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+// base-client.ts imports this module, so this is a cycle - but API_URL is only
+// ever read inside reportClientError(), long after both modules have finished
+// initialising, never at module scope. Taking it from there rather than
+// re-reading NEXT_PUBLIC_API_URL is what keeps telemetry pointed at the same
+// server the failing request itself used (dev-staging default, dev override).
+import { API_URL } from "./base-client";
 
 export interface ApiLogEntry {
   timestamp: string;
@@ -93,6 +97,35 @@ const shouldReportError = (method: string, url: string, status: number, message:
   return true;
 };
 
+/** sanitizePayload() only unwraps a JSON string when that string *is* the
+ * payload - one sitting on a key of an object is left alone, because the
+ * masking loop only recurses into values that are already objects. axios hands
+ * us `requestData` as its own already-stringified request body, so without
+ * this the raw body of a failed POST /reset-password,
+ * /profile/change-password or /profile/set-pin would reach the telemetry
+ * endpoint with the password or PIN unmasked. Pre-parse any such string so the
+ * normal masking pass can see inside it. */
+const parseNestedJsonStrings = (details: unknown): unknown => {
+  if (typeof details !== "object" || details === null || Array.isArray(details)) {
+    return details;
+  }
+  const out: Record<string, unknown> = { ...(details as Record<string, unknown>) };
+  for (const key of Object.keys(out)) {
+    if (typeof out[key] !== "string") continue;
+    try {
+      const parsed: unknown = JSON.parse(out[key] as string);
+      // Only swap in objects/arrays: a JSON-encoded scalar gains nothing from
+      // being unwrapped and would just lose its original form in the report.
+      if (typeof parsed === "object" && parsed !== null) {
+        out[key] = parsed;
+      }
+    } catch (_) {
+      // Not JSON (form-encoded body, plain text, FormData) - leave it alone.
+    }
+  }
+  return out;
+};
+
 export const reportClientError = (method: string, url: string, status: number | undefined, message: string, details: unknown) => {
   if (url.includes("/logs/client-error")) return;
   if (!shouldReportError(method, url, status || 0, message)) return;
@@ -120,7 +153,7 @@ export const reportClientError = (method: string, url: string, status: number | 
         url,
         status: status || null,
         message,
-        details: sanitizePayload(details),
+        details: sanitizePayload(parseNestedJsonStrings(details)),
       }),
       keepalive: true,
     }).catch(err => {

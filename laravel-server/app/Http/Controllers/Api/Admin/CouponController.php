@@ -35,7 +35,7 @@ class CouponController extends Controller
             properties: [
                 new OA\Property(property: 'code', type: 'string'),
                 new OA\Property(property: 'type', type: 'string', enum: ['discount_percent', 'discount_amount', 'trial_extension']),
-                new OA\Property(property: 'value', type: 'integer', minimum: 0),
+                new OA\Property(property: 'value', type: 'integer', minimum: 0, maximum: 100, description: 'Capped at 100 when type is discount_percent.'),
                 new OA\Property(property: 'max_uses', type: 'integer', nullable: true),
                 new OA\Property(property: 'max_uses_per_user', type: 'integer', nullable: true, description: 'Defaults to 1'),
                 new OA\Property(property: 'assigned_to_user_id', type: 'string', format: 'uuid', nullable: true),
@@ -55,7 +55,7 @@ class CouponController extends Controller
         $validated = $request->validate([
             'code' => 'required|string|unique:coupons,code',
             'type' => 'required|in:discount_percent,discount_amount,trial_extension',
-            'value' => 'required|integer|min:0',
+            'value' => $this->valueRules($request),
             'max_uses' => 'nullable|integer|min:1',
             'max_uses_per_user' => 'nullable|integer|min:1',
             'assigned_to_user_id' => 'nullable|uuid|exists:users,id',
@@ -85,7 +85,7 @@ class CouponController extends Controller
             properties: [
                 new OA\Property(property: 'code', type: 'string'),
                 new OA\Property(property: 'type', type: 'string', enum: ['discount_percent', 'discount_amount', 'trial_extension']),
-                new OA\Property(property: 'value', type: 'integer', minimum: 0),
+                new OA\Property(property: 'value', type: 'integer', minimum: 0, maximum: 100, description: 'Capped at 100 when type is discount_percent.'),
                 new OA\Property(property: 'max_uses', type: 'integer', nullable: true),
                 new OA\Property(property: 'max_uses_per_user', type: 'integer', nullable: true, description: 'Defaults to 1'),
                 new OA\Property(property: 'assigned_to_user_id', type: 'string', format: 'uuid', nullable: true),
@@ -106,7 +106,7 @@ class CouponController extends Controller
         $validated = $request->validate([
             'code' => 'required|string|unique:coupons,code,' . $coupon->id,
             'type' => 'required|in:discount_percent,discount_amount,trial_extension',
-            'value' => 'required|integer|min:0',
+            'value' => $this->valueRules($request),
             'max_uses' => 'nullable|integer|min:1',
             'max_uses_per_user' => 'nullable|integer|min:1',
             'assigned_to_user_id' => 'nullable|uuid|exists:users,id',
@@ -122,6 +122,24 @@ class CouponController extends Controller
         $coupon->update($validated);
 
         return response()->json($coupon);
+    }
+
+    /**
+     * Rules for a coupon's `value`, which means a different thing per type.
+     * For `discount_percent` it is a percentage, so it has a hard ceiling of
+     * 100 - without it both layers happily accepted a 500%-off coupon. The
+     * other two types (a naira amount, a number of trial days) have no
+     * natural ceiling here.
+     */
+    private function valueRules(Request $request): array
+    {
+        $rules = ['required', 'integer', 'min:0'];
+
+        if ($request->input('type') === 'discount_percent') {
+            $rules[] = 'max:100';
+        }
+
+        return $rules;
     }
 
     #[OA\Put(

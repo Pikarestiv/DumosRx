@@ -102,6 +102,30 @@ npm run build    # static export build — /store/demo will fail to prerender
 npx tsc --noEmit # typecheck
 ```
 
+The `/store/demo` prerender note above was re-confirmed on 2026-09-20 and is
+accurate as written: the failure is a `ConnectTimeoutError` reaching
+`dumosrx.test:443`, nothing more. A pre-launch review speculated it was
+really the `params`-as-Promise bug in the two `[store_slug]` routes; it was
+not. That bug was real and is now fixed, but it failed *silently* — the
+build still exited 0 and emitted `/store/demo/index.html` as a rendered 404
+page, because `params.store_slug` was `undefined`, the page fetched
+`/storefront/undefined`, and `getStorefrontData` turned the miss into
+`notFound()`. Two independent problems at the same URL.
+
+To actually exercise these routes offline, point the build at a local stub
+instead of reaching for the dev domain — `generateStaticParams` and the page
+fetch both honor `NEXT_PUBLIC_API_URL`:
+
+```
+NEXT_PUBLIC_API_URL=http://127.0.0.1:8899/api/v1 npm run build
+```
+
+serving `GET /storefront-slugs` → `{"slugs":[...]}` and `GET
+/storefront/<slug>` → `{"store":{...},"products":[...]}`. Worth doing for
+any change to `app/store/[store_slug]/`: a typecheck cannot catch a params
+regression here, since both routes declare their own local `params`
+interface rather than Next's generated `PageProps`.
+
 Backend verification for anything touching `laravel-server/`:
 ```
 cd ../laravel-server && ./vendor/bin/phpunit --testsuite=Feature

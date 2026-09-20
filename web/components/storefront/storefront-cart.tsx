@@ -9,7 +9,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { useCartStore } from "@/lib/store/use-cart-store";
+import { useCart } from "@/lib/store/use-cart-store";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
@@ -20,7 +20,7 @@ interface StorefrontCartProps {
 export function StorefrontCart({ storeSlug }: StorefrontCartProps) {
   const [mounted, setMounted] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
-  const cart = useCartStore();
+  const cart = useCart(storeSlug);
   const router = useRouter();
 
   useEffect(() => {

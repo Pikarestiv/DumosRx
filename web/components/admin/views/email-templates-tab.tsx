@@ -10,7 +10,29 @@ import { Mail, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { TemplateList } from "@/components/admin/email-templates/template-list";
 import { TemplateEditor } from "@/components/admin/email-templates/template-editor";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import type { EmailTemplate } from "@/lib/types/admin";
+
+/**
+ * The real reason a request failed, rather than a generic house string:
+ * base-client already rewrites `error.message` to the server's `message`, and
+ * Laravel's 422 payload carries the per-field detail under `errors`.
+ */
+function serverErrorMessage(error: unknown, fallback: string): string {
+  const payload = (error as { response?: { data?: { message?: unknown; errors?: unknown } } })
+    ?.response?.data;
+
+  if (payload?.errors && typeof payload.errors === "object") {
+    const details = Object.values(payload.errors as Record<string, unknown>)
+      .flatMap((value) => (Array.isArray(value) ? value : [value]))
+      .filter((value): value is string => typeof value === "string");
+    if (details.length > 0) return details.join(" ");
+  }
+
+  if (typeof payload?.message === "string" && payload.message) return payload.message;
+  if (error instanceof Error && error.message) return error.message;
+  return fallback;
+}
 
 export function EmailTemplatesTab() {
   const { data: response, isLoading: loading } = useAdminEmailTemplates();
@@ -24,6 +46,15 @@ export function EmailTemplatesTab() {
   const updateMutation = useUpdateAdminEmailTemplateMutation();
   const saving = updateMutation.isPending;
 
+  // Last loaded/saved values, so switching templates can tell an edited
+  // template apart from an untouched one instead of discarding silently.
+  const [baseline, setBaseline] = useState({ subject: "", content: "" });
+  const [pendingTemplateId, setPendingTemplateId] = useState<number | null>(null);
+
+  const isDirty =
+    selectedTemplate !== null &&
+    (subject !== baseline.subject || content !== baseline.content);
+
   async function loadTemplateDetails(id: number) {
     try {
       const response = await webApiClient.request<{
@@ -35,12 +66,27 @@ export function EmailTemplatesTab() {
         setSelectedTemplate(fullTemplate);
         setSubject(fullTemplate.subject);
         setContent(fullTemplate.content);
+        setBaseline({
+          subject: fullTemplate.subject,
+          content: fullTemplate.content,
+        });
       }
     } catch (error) {
       console.error("Error loading template details:", error);
-      toast.error("Failed to load template details");
+      toast.error(serverErrorMessage(error, "Failed to load template details"));
     }
   }
+
+  /** Guarded entry point used by the left pane: never drops unsaved edits
+   * without asking first. */
+  const requestTemplateSwitch = (id: number) => {
+    if (selectedTemplate?.id === id) return;
+    if (isDirty) {
+      setPendingTemplateId(id);
+      return;
+    }
+    void loadTemplateDetails(id);
+  };
 
   useEffect(() => {
     if (templates.length > 0 && !selectedTemplate) {
@@ -58,11 +104,12 @@ export function EmailTemplatesTab() {
       { key: selectedTemplate.id.toString(), subject, body: content },
       {
         onSuccess: () => {
+          setBaseline({ subject, content });
           toast.success(`${selectedTemplate.name} updated successfully!`);
         },
         onError: (error) => {
           console.error("Error saving template:", error);
-          toast.error("Failed to save email template");
+          toast.error(serverErrorMessage(error, "Failed to save email template"));
         },
       },
     );
@@ -250,7 +297,7 @@ export function EmailTemplatesTab() {
         <TemplateList
           templates={templates}
           selectedTemplate={selectedTemplate}
-          loadTemplateDetails={(id) => void loadTemplateDetails(id)}
+          loadTemplateDetails={requestTemplateSwitch}
         />
 
         {/* Right pane: Editor & Sandbox */}
@@ -270,6 +317,18 @@ export function EmailTemplatesTab() {
           />
         </div>
       </div>
+
+      <ConfirmDialog
+        open={pendingTemplateId !== null}
+        onOpenChange={(open) => { if (!open) setPendingTemplateId(null); }}
+        title="Discard unsaved changes?"
+        description={`You have unsaved changes to ${selectedTemplate?.name ?? "this template"}. Switching templates will discard them.`}
+        confirmLabel="Discard changes"
+        onConfirm={() => {
+          if (pendingTemplateId !== null) void loadTemplateDetails(pendingTemplateId);
+          setPendingTemplateId(null);
+        }}
+      />
     </div>
   );
 }

@@ -154,16 +154,49 @@ class CrudFixesTest extends TestCase
 
     public function test_coupon_update_route_is_wired_up()
     {
-        $coupon = Coupon::create([
-            'code' => 'SAVE10', 'type' => 'discount_percent', 'value' => 10,
-            'created_by' => $this->ownerA->id,
+        // Coupon routes are role:super_admin, so the actor has to be one.
+        // This test used to run as a store_owner and pass purely because the
+        // route had nothing but the group's manage_platform check on it.
+        $superAdmin = User::create([
+            'first_name' => 'Super', 'last_name' => 'Admin',
+            'email' => 'super@dumosrx.com', 'password' => bcrypt('password'),
+            'role' => 'super_admin',
         ]);
 
-        $response = $this->actingAs($this->ownerA)->putJson("/api/v1/admin/coupons/{$coupon->id}", [
+        $coupon = Coupon::create([
+            'code' => 'SAVE10', 'type' => 'discount_percent', 'value' => 10,
+            'created_by' => $superAdmin->id,
+        ]);
+
+        $response = $this->actingAs($superAdmin)->putJson("/api/v1/admin/coupons/{$coupon->id}", [
             'code' => 'SAVE20', 'type' => 'discount_percent', 'value' => 20,
         ]);
 
         $response->assertStatus(200);
         $this->assertDatabaseHas('coupons', ['id' => $coupon->id, 'code' => 'SAVE20', 'value' => 20]);
+    }
+
+    public function test_coupon_update_is_refused_for_a_non_super_admin_platform_role()
+    {
+        // The actual point of the route:super_admin gate - an agent holds
+        // manage_platform and would otherwise be able to mint/rewrite coupons.
+        $agent = User::create([
+            'first_name' => 'Field', 'last_name' => 'Agent',
+            'email' => 'agent@dumosrx.com', 'password' => bcrypt('password'),
+            'role' => 'agent',
+        ]);
+
+        $coupon = Coupon::create([
+            'code' => 'SAVE10', 'type' => 'discount_percent', 'value' => 10,
+            'created_by' => $agent->id,
+        ]);
+
+        $this->actingAs($agent)
+            ->putJson("/api/v1/admin/coupons/{$coupon->id}", [
+                'code' => 'SAVE20', 'type' => 'discount_percent', 'value' => 20,
+            ])
+            ->assertStatus(403);
+
+        $this->assertDatabaseHas('coupons', ['id' => $coupon->id, 'code' => 'SAVE10']);
     }
 }

@@ -8,9 +8,16 @@ import { Button } from "@/components/ui/button";
 import { Save, RefreshCw, Loader2, ShieldCheck, MailWarning } from "lucide-react";
 import { toast } from "sonner";
 import { useSystemConfig, useUpdateSystemConfigMutation } from "@/lib/api/hooks";
+import { ConfigLoadError } from "./config-load-error";
 
 export function SecurityConfigTab() {
-  const { data: serverConfig, isLoading } = useSystemConfig("require_email_verification");
+  const {
+    data: serverConfig,
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useSystemConfig("require_email_verification");
   const updateMutation = useUpdateSystemConfigMutation();
 
   const [requireVerification, setRequireVerification] = useState(false);
@@ -37,6 +44,19 @@ export function SecurityConfigTab() {
       <div className="flex items-center justify-center p-12">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
+    );
+  }
+
+  // Without this the toggle renders at its `useState(false)` initial value
+  // after a failed fetch, and Save pushes `false` over a stored `true` -
+  // silently switching email verification off platform-wide.
+  if (isError) {
+    return (
+      <ConfigLoadError
+        label="security configuration"
+        error={error}
+        onRetry={() => void refetch()}
+      />
     );
   }
 

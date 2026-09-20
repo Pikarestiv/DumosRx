@@ -26,7 +26,7 @@ export function SendNotificationDialog({
   const [notifyMessage, setNotifyMessage] = useState("");
 
   const handleSendNotification = () => {
-    if (!selectedUser || !notifyMessage || !notifyTitle) return;
+    if (!selectedUser || !notifyMessage.trim() || !notifyTitle.trim()) return;
     notifyMutation.mutate(
       {
         id: selectedUser.id,
@@ -111,7 +111,12 @@ export function SendNotificationDialog({
           <Button
             onClick={handleSendNotification}
             className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold h-12 shadow-lg shadow-blue-600/20 px-8"
-            disabled={notifyMutation.isPending || !notifyMessage}
+            // Must match handleSendNotification's own guard, title included -
+            // otherwise clearing the title leaves an enabled button that
+            // silently does nothing.
+            disabled={
+              notifyMutation.isPending || !notifyMessage.trim() || !notifyTitle.trim()
+            }
           >
             {notifyMutation.isPending ? (
               <Loader2 className="h-4 w-4 animate-spin mr-2" />

@@ -17,13 +17,19 @@ import {
 } from "@/components/ui/card";
 import { format } from "date-fns";
 import { ReferralRelationship } from "./types";
+import { StorePagination } from "@/components/admin/stores/store-pagination";
+import type { PaginationMeta } from "@/lib/types/admin";
 
 interface ReferralsRelationshipsTableProps {
   referrals: ReferralRelationship[];
+  meta?: PaginationMeta;
+  onPageChange: (page: number) => void;
 }
 
 export function ReferralsRelationshipsTable({
   referrals,
+  meta,
+  onPageChange,
 }: ReferralsRelationshipsTableProps) {
   return (
     <Card className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm">
@@ -95,6 +101,7 @@ export function ReferralsRelationshipsTable({
               )}
             </TableBody>
           </Table>
+          {meta && <StorePagination meta={meta} onPageChange={onPageChange} />}
         </div>
       </CardContent>
     </Card>

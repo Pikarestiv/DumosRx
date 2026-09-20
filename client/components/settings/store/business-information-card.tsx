@@ -1,4 +1,4 @@
-import { Save, HelpCircle, Pencil, X, Upload, Lock } from "lucide-react";
+import { Save, HelpCircle, Pencil, X, Upload, ImageOff, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -146,104 +146,101 @@ export function BusinessInformationCard({
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="phone">Phone Number</Label>
-              {isEditingProfile ? (
-                <Input
-                  id="phone"
-                  placeholder="+234..."
-                  value={localPhone}
-                  onChange={(e) => setLocalPhone(e.target.value)}
-                />
-              ) : (
-                <p className="text-sm font-medium py-2">
-                  {localPhone || "Not set"}
-                </p>
-              )}
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="email">Email</Label>
-              {isEditingProfile ? (
-                <Input
-                  id="email"
-                  placeholder="contact@example.com"
-                  value={localEmail}
-                  onChange={(e) => setLocalEmail(e.target.value)}
-                />
-              ) : (
-                <p className="text-sm font-medium py-2">
-                  {localEmail || "Not set"}
-                </p>
-              )}
-            </div>
+          <div className="grid gap-2">
+            <Label htmlFor="phone">Phone Number</Label>
+            {isEditingProfile ? (
+              <Input
+                id="phone"
+                placeholder="+234..."
+                value={localPhone}
+                onChange={(e) => setLocalPhone(e.target.value)}
+              />
+            ) : (
+              <p className="text-sm font-medium py-2">
+                {localPhone || "Not set"}
+              </p>
+            )}
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="grid gap-2">
-              <div className="flex items-center gap-2">
-                <Label htmlFor="registration-number">
-                  Business Registration / CAC Number
-                </Label>
-                <TooltipProvider delayDuration={0}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <HelpCircle className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>
-                        Your business's official registration number (e.g. CAC
-                        in Nigeria). Not the same as a per-product regulatory
-                        number like NAFDAC.
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-              {isEditingProfile ? (
-                <Input
-                  id="registration-number"
-                  placeholder="e.g. RC1234567"
-                  value={localRegistrationNumber}
-                  onChange={(e) => setLocalRegistrationNumber(e.target.value)}
-                />
-              ) : (
-                <p className="text-sm font-medium py-2">
-                  {localRegistrationNumber || "Not set"}
-                </p>
-              )}
-            </div>
+          <div className="grid gap-2">
+            <Label htmlFor="email">Email</Label>
+            {isEditingProfile ? (
+              <Input
+                id="email"
+                placeholder="contact@example.com"
+                value={localEmail}
+                onChange={(e) => setLocalEmail(e.target.value)}
+              />
+            ) : (
+              <p className="text-sm font-medium py-2">
+                {localEmail || "Not set"}
+              </p>
+            )}
+          </div>
 
-            <div className="grid gap-2">
-              <div className="flex items-center gap-2">
-                <Label htmlFor="tax-number">Tax / VAT Number</Label>
-                <TooltipProvider delayDuration={0}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <HelpCircle className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>
-                        Shown on the Tax Invoice receipt variant, for
-                        customers who need a formal VAT/tax document.
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-              {isEditingProfile ? (
-                <Input
-                  id="tax-number"
-                  placeholder="e.g. TIN 12345678-0001"
-                  value={localTaxNumber}
-                  onChange={(e) => setLocalTaxNumber(e.target.value)}
-                />
-              ) : (
-                <p className="text-sm font-medium py-2">
-                  {localTaxNumber || "Not set"}
-                </p>
-              )}
+          <div className="grid gap-2">
+            <div className="flex items-center gap-2">
+              <Label htmlFor="registration-number">
+                Business Registration / CAC Number
+              </Label>
+              <TooltipProvider delayDuration={0}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <HelpCircle className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>
+                      Your business's official registration number (e.g. CAC
+                      in Nigeria). Not the same as a per-product regulatory
+                      number like NAFDAC.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
+            {isEditingProfile ? (
+              <Input
+                id="registration-number"
+                placeholder="e.g. RC1234567"
+                value={localRegistrationNumber}
+                onChange={(e) => setLocalRegistrationNumber(e.target.value)}
+              />
+            ) : (
+              <p className="text-sm font-medium py-2">
+                {localRegistrationNumber || "Not set"}
+              </p>
+            )}
+          </div>
+
+          <div className="grid gap-2">
+            <div className="flex items-center gap-2">
+              <Label htmlFor="tax-number">Tax / VAT Number</Label>
+              <TooltipProvider delayDuration={0}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <HelpCircle className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>
+                      Shown on the Tax Invoice receipt variant, for
+                      customers who need a formal VAT/tax document.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+            {isEditingProfile ? (
+              <Input
+                id="tax-number"
+                placeholder="e.g. TIN 12345678-0001"
+                value={localTaxNumber}
+                onChange={(e) => setLocalTaxNumber(e.target.value)}
+              />
+            ) : (
+              <p className="text-sm font-medium py-2">
+                {localTaxNumber || "Not set"}
+              </p>
+            )}
           </div>
 
           <div className="grid gap-2">
@@ -268,9 +265,16 @@ export function BusinessInformationCard({
                     </button>
                   )}
                 </div>
-              ) : (
+              ) : isEditingProfile ? (
+                // Dashed border + Upload icon = an actual click target here,
+                // via the "Upload Logo" label right next to it - only shown
+                // in edit mode so it isn't mistaken for one while read-only.
                 <div className="h-20 w-20 border-2 border-dashed rounded-lg flex items-center justify-center text-muted-foreground bg-muted/30">
                   <Upload className="h-6 w-6" />
+                </div>
+              ) : (
+                <div className="h-20 w-20 border rounded-lg flex items-center justify-center text-muted-foreground bg-muted/30">
+                  <ImageOff className="h-6 w-6" />
                 </div>
               )}
               {isEditingProfile && (

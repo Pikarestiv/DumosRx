@@ -1,4 +1,4 @@
-import { Save, Upload, X, HelpCircle, Pencil } from "lucide-react";
+import { Save, ImageOff, X, HelpCircle, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -174,8 +174,11 @@ export function ReceiptCustomizationCard({
                     className="h-20 w-20 object-contain border rounded-lg p-1 bg-white"
                   />
                 ) : (
-                  <div className="h-20 w-20 border-2 border-dashed rounded-lg flex items-center justify-center text-muted-foreground bg-muted/30">
-                    <Upload className="h-6 w-6" />
+                  // Never a click target on this card (the upload lives on
+                  // Business Information) - plain, not dashed, so it doesn't
+                  // read as an upload dropzone here.
+                  <div className="h-20 w-20 border rounded-lg flex items-center justify-center text-muted-foreground bg-muted/30">
+                    <ImageOff className="h-6 w-6" />
                   </div>
                 )}
                 <p className="text-sm text-muted-foreground">

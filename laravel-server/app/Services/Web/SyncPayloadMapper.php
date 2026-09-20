@@ -2,10 +2,17 @@
 
 namespace App\Services\Web;
 
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class SyncPayloadMapper
 {
+    /** Mirrors the client's own upload-time check (handleLogoUpload in
+     * hooks/use-settings.ts) - logos are stored inline as a base64 data URI
+     * (stores.logo_url is LONGTEXT, not a file upload), so nothing else
+     * bounds their size. This is a backstop against a bypassed/buggy client
+     * pushing an unbounded blob, not the primary control. */
+    private const MAX_LOGO_BYTES = 1024 * 1024;
     /**
      * Maps and cleans incoming payload data from the client to match the server schema.
      */
@@ -55,6 +62,15 @@ class SyncPayloadMapper
             if (empty($payload['status'])) {
                 $payload['status'] = 'pending';
             }
+        }
+
+        // 4. Stores
+        if ($tableName === 'stores' && isset($payload['logo_url']) && strlen((string) $payload['logo_url']) > self::MAX_LOGO_BYTES) {
+            Log::warning('Sync push: dropped oversized stores.logo_url', [
+                'store_id' => $payload['id'] ?? null,
+                'bytes' => strlen((string) $payload['logo_url']),
+            ]);
+            unset($payload['logo_url']);
         }
 
         return $payload;

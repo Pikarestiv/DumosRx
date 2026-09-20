@@ -86,7 +86,7 @@ class AdminActivatePaidPlanTest extends TestCase
         $this->assertSame('bank_transfer', $transaction->provider);
         $this->assertSame('GTB-REF-123', $transaction->provider_reference);
         $this->assertEquals(8000, $transaction->amount);
-        $this->assertSame('completed', $transaction->status);
+        $this->assertSame('success', $transaction->status);
     }
 
     /** @test */

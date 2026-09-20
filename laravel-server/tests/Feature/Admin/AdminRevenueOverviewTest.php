@@ -40,7 +40,7 @@ class AdminRevenueOverviewTest extends TestCase
         ]);
     }
 
-    private function makeTransaction(string $planName, string $provider, float $amount, string $status = 'completed'): PaymentTransaction
+    private function makeTransaction(string $planName, string $provider, float $amount, string $status = 'success'): PaymentTransaction
     {
         $owner = User::create([
             'first_name' => 'Owner',

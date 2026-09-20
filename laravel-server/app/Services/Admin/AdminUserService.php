@@ -242,7 +242,7 @@ class AdminUserService
                 'provider_reference' => $reference ?: 'MANUAL-'.strtoupper(Str::random(10)),
                 'amount' => $amount,
                 'currency' => 'NGN',
-                'status' => 'completed',
+                'status' => 'success',
                 'metadata' => [
                     'plan_name' => ucfirst($plan),
                     'billing_cycle' => $billingCycle,

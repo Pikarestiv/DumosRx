@@ -103,7 +103,7 @@ export function RevenueOverview() {
       </div>
 
       <Card className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm">
-        <CardHeader className="pb-2">
+        <CardHeader>
           <CardTitle className="text-sm font-semibold text-slate-500 dark:text-slate-400">
             Revenue by Plan Tier
           </CardTitle>
@@ -127,14 +127,14 @@ export function RevenueOverview() {
         </CardContent>
       </Card>
 
-      <Card className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm">
-        <CardHeader className="pb-2">
+      <Card className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+        <CardHeader className="border-b border-slate-100 dark:border-slate-800">
           <CardTitle className="text-sm font-semibold text-slate-500 dark:text-slate-400">
             Transactions
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="flex flex-col sm:flex-row gap-3 p-4">
+          <div className="flex flex-col sm:flex-row gap-3 p-6 border-b border-slate-100 dark:border-slate-800">
             <Input
               placeholder="Search by customer, email, or reference..."
               value={search}

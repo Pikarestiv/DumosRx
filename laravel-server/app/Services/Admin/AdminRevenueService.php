@@ -14,7 +14,8 @@ use Illuminate\Pagination\LengthAwarePaginator;
  */
 class AdminRevenueService
 {
-    private const SUCCESS_STATUSES = ['completed', 'success'];
+    /** Matches the payment_transactions.status enum (pending/success/failed/abandoned). */
+    private const SUCCESS_STATUSES = ['success'];
 
     public function getOverview($page = 1, $search = null, $provider = null, $plan = null, $dateFrom = null, $dateTo = null)
     {

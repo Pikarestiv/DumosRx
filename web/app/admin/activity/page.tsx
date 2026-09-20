@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Search, Filter, Loader2, ScrollText } from "lucide-react";
+import { Search, Filter, Loader2, ScrollText, ChevronsUpDown, Check, Store as StoreIcon, User as UserIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,13 +21,24 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useAdminActivityLogs } from "@/lib/api/admin-activity-hooks";
+import { useAdminStores } from "@/lib/api/admin-hooks-stores";
+import { useAdminUsers } from "@/lib/api/admin-hooks-users";
 import { formatDateSafe } from "@/lib/utils/date-utils";
 import { useDebounce } from "@/hooks/use-debounce";
 import { AdminSkeleton } from "@/components/admin/admin-skeleton";
 import { UserPagination } from "@/components/admin/users/user-pagination";
 import { DatePickerInput } from "@/components/ui/date-picker-input";
 import { X } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const ACTION_FILTERS = [
   { label: "All Actions", value: "" },
@@ -86,10 +97,171 @@ function ActionBadge({ action }: { action: string }) {
   );
 }
 
+interface SelectedEntity {
+  id: string;
+  label: string;
+}
+
+/** Single-select search-and-pick popover, shared shape for the Store and
+ * User activity-log filters below. Deliberately not the multi-select
+ * UserSelector used for broadcast targeting elsewhere in admin/ - a log
+ * filter narrows to exactly one store/user at a time, not a target list. */
+function StoreFilterPicker({
+  value,
+  onChange,
+}: {
+  value: SelectedEntity | null;
+  onChange: (value: SelectedEntity | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 400);
+  const { data, isLoading } = useAdminStores(1, debouncedSearch);
+  const stores = data?.data || [];
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          size="sm"
+          className={cn("font-bold border-2 max-w-[160px]", value && "text-indigo-600 border-indigo-200 dark:border-indigo-500/30")}
+        >
+          <StoreIcon className="h-4 w-4 mr-2 shrink-0" />
+          <span className="truncate">{value?.label || "All Stores"}</span>
+          <ChevronsUpDown className="h-4 w-4 ml-2 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[300px] p-0" align="start">
+        <Command shouldFilter={false}>
+          <div className="flex items-center border-b px-3">
+            <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+            <input
+              placeholder="Search stores..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="flex h-11 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground"
+            />
+            {isLoading && <Loader2 className="h-4 w-4 animate-spin opacity-50" />}
+          </div>
+          <CommandList>
+            <CommandEmpty>{isLoading ? "Searching..." : "No stores found."}</CommandEmpty>
+            <CommandGroup>
+              <CommandItem
+                onSelect={() => {
+                  onChange(null);
+                  setOpen(false);
+                }}
+              >
+                <Check className={cn("mr-2 h-4 w-4", !value ? "opacity-100" : "opacity-0")} />
+                All Stores
+              </CommandItem>
+              {stores.map((store) => (
+                <CommandItem
+                  key={store.id}
+                  onSelect={() => {
+                    onChange({ id: store.id, label: store.name });
+                    setOpen(false);
+                  }}
+                >
+                  <Check className={cn("mr-2 h-4 w-4", value?.id === store.id ? "opacity-100" : "opacity-0")} />
+                  <div className="min-w-0">
+                    <p className="font-medium truncate">{store.name}</p>
+                    <p className="text-xs text-muted-foreground truncate">{store.owner}</p>
+                  </div>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function UserFilterPicker({
+  value,
+  onChange,
+}: {
+  value: SelectedEntity | null;
+  onChange: (value: SelectedEntity | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 400);
+  const { data, isLoading } = useAdminUsers(1, debouncedSearch);
+  const users = data?.data || [];
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          size="sm"
+          className={cn("font-bold border-2 max-w-[160px]", value && "text-indigo-600 border-indigo-200 dark:border-indigo-500/30")}
+        >
+          <UserIcon className="h-4 w-4 mr-2 shrink-0" />
+          <span className="truncate">{value?.label || "All Users"}</span>
+          <ChevronsUpDown className="h-4 w-4 ml-2 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[300px] p-0" align="start">
+        <Command shouldFilter={false}>
+          <div className="flex items-center border-b px-3">
+            <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+            <input
+              placeholder="Search name or email..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="flex h-11 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground"
+            />
+            {isLoading && <Loader2 className="h-4 w-4 animate-spin opacity-50" />}
+          </div>
+          <CommandList>
+            <CommandEmpty>{isLoading ? "Searching..." : "No users found."}</CommandEmpty>
+            <CommandGroup>
+              <CommandItem
+                onSelect={() => {
+                  onChange(null);
+                  setOpen(false);
+                }}
+              >
+                <Check className={cn("mr-2 h-4 w-4", !value ? "opacity-100" : "opacity-0")} />
+                All Users
+              </CommandItem>
+              {users.map((user) => (
+                <CommandItem
+                  key={user.id}
+                  onSelect={() => {
+                    onChange({ id: user.id, label: user.name });
+                    setOpen(false);
+                  }}
+                >
+                  <Check className={cn("mr-2 h-4 w-4", value?.id === user.id ? "opacity-100" : "opacity-0")} />
+                  <div className="min-w-0">
+                    <p className="font-medium truncate">{user.name}</p>
+                    <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                  </div>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 export default function AdminActivityLogPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [actionFilter, setActionFilter] = useState("");
+  const [storeFilter, setStoreFilter] = useState<SelectedEntity | null>(null);
+  const [userFilter, setUserFilter] = useState<SelectedEntity | null>(null);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
 
@@ -99,8 +271,8 @@ export default function AdminActivityLogPage() {
     page,
     debouncedSearch,
     actionFilter,
-    "",
-    "",
+    storeFilter?.id || "",
+    userFilter?.id || "",
     dateFrom,
     dateTo,
   );
@@ -148,6 +320,20 @@ export default function AdminActivityLogPage() {
               {isLoading && (
                 <Loader2 className="h-4 w-4 animate-spin text-indigo-500 mr-2" />
               )}
+              <StoreFilterPicker
+                value={storeFilter}
+                onChange={(v) => {
+                  setStoreFilter(v);
+                  setPage(1);
+                }}
+              />
+              <UserFilterPicker
+                value={userFilter}
+                onChange={(v) => {
+                  setUserFilter(v);
+                  setPage(1);
+                }}
+              />
               <div className="flex items-center gap-2">
                 <DatePickerInput
                   value={dateFrom}
@@ -195,7 +381,7 @@ export default function AdminActivityLogPage() {
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
-              {(actionFilter || dateFrom || dateTo || search) && (
+              {(actionFilter || storeFilter || userFilter || dateFrom || dateTo || search) && (
                 <Button
                   variant="ghost"
                   size="sm"
@@ -203,6 +389,8 @@ export default function AdminActivityLogPage() {
                   onClick={() => {
                     setSearch("");
                     setActionFilter("");
+                    setStoreFilter(null);
+                    setUserFilter(null);
                     setDateFrom("");
                     setDateTo("");
                     setPage(1);

@@ -26,7 +26,11 @@ describe("diagnoseLegacySchema()", () => {
     core.__setDatabaseForTesting(db);
 
     const result = await core.diagnoseLegacySchema();
-    expect(result).toEqual({ clean: true, findings: [] });
+    expect(result.clean).toBe(true);
+    expect(result.findings).toEqual([]);
+    // A fully-migrated device blocks neither still-active legacy-repair step.
+    expect(result.retirable.relaxPurchaseOrdersSupplierIdNullable.ok).toBe(true);
+    expect(result.retirable.backfillStoreIdOnLegacyRows.ok).toBe(true);
   });
 
   it("reports every legacy artifact present on an unmigrated database", async () => {
@@ -51,5 +55,30 @@ describe("diagnoseLegacySchema()", () => {
     expect(result.findings.some((f) => f.includes("stock_quantity") && f.includes("not yet migrated"))).toBe(true);
     expect(result.findings.some((f) => f.includes("purchase_orders.supplier_id"))).toBe(true);
     expect(result.findings.some((f) => f.includes("UNIQUE(store_id, username)"))).toBe(true);
+    // ...and this device is a blocker for retiring the purchase_orders
+    // rebuild, since its supplier_id is still NOT NULL.
+    expect(result.retirable.relaxPurchaseOrdersSupplierIdNullable.ok).toBe(false);
+  });
+
+  it("reports the store_id backfill as still needed when a store-scoped table has NULL store_ids", async () => {
+    const core = await import("@/lib/db/core");
+    const { SCHEMA_SQL } = await import("@/lib/db/schema");
+    const SQL = await initSqlJs({
+      locateFile: () => require.resolve("sql.js/dist/sql-wasm.wasm"),
+    });
+    const db = new SQL.Database();
+    db.run(SCHEMA_SQL);
+    // SCHEMA_SQL alone doesn't carry store_id on products — that column is
+    // added by runSyncColumnMigrations at init. Add it the same way, then
+    // leave a row with a NULL store_id, i.e. exactly what
+    // backfillStoreIdOnLegacyRows exists to repair.
+    db.run("ALTER TABLE products ADD COLUMN store_id TEXT");
+    db.run("INSERT INTO products (id, name, store_id) VALUES ('p_legacy', 'legacy item', NULL)");
+    core.__setDatabaseForTesting(db);
+
+    const result = await core.diagnoseLegacySchema();
+    expect(result.clean).toBe(false);
+    expect(result.findings.some((f) => f.includes("no store_id"))).toBe(true);
+    expect(result.retirable.backfillStoreIdOnLegacyRows.ok).toBe(false);
   });
 });

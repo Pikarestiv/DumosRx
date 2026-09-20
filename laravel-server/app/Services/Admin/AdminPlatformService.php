@@ -53,14 +53,22 @@ class AdminPlatformService
             ->limit(10)
             ->get()
             ->map(function ($store) {
-                // Determine status based on last sync
-                $status = 'Inactive';
+                // Sync recency, a signal distinct from the store's real
+                // account state below - kept under its own key (syncStatus)
+                // specifically so it's never rendered as if it were the
+                // account status. The Store Fleet list and View Store
+                // Details dialog show the real `status` column for the same
+                // `AdminStoreSummary` shape; this used to overwrite that key
+                // with this recency guess instead, so Recent Stores had no
+                // way to show the real account state and looked
+                // contradictory next to Fleet for the same store.
+                $syncStatus = 'Inactive';
                 if ($store->last_sync_at) {
                     $minutesSinceSync = now()->diffInMinutes($store->last_sync_at);
                     if ($minutesSinceSync < 60) {
-                        $status = 'Active';
+                        $syncStatus = 'Active';
                     } elseif ($minutesSinceSync < 1440) {
-                        $status = 'Away';
+                        $syncStatus = 'Away';
                     }
                 }
 
@@ -69,7 +77,8 @@ class AdminPlatformService
                     'name' => $store->name,
                     'owner' => $store->user ? $store->user->first_name.' '.$store->user->last_name : 'N/A',
                     'plan' => ($store->user && $store->user->subscriptions->isNotEmpty()) ? ucwords($store->user->subscriptions->sortByDesc('created_at')->first()->plan_name) : 'Basic',
-                    'status' => $status,
+                    'status' => $store->status ?: 'Active',
+                    'sync_status' => $syncStatus,
                     'date' => $store->created_at->diffForHumans(),
                 ];
             });

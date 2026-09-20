@@ -49,6 +49,7 @@ Issues spotted incidentally (e.g. while doing TypeScript type-safety cleanup) th
 - **This entry previously claimed the branch was unreachable dead code**, reasoning that `$modelVersion` (`$model->_version`) can never be `null` since every `_version` column is `integer default(1)` NOT NULL. That half of the reasoning is correct — confirmed both from every migration and git history, and directly against the production DB (a full `SELECT ... WHERE _version IS NULL` sweep across all 31 tables with a `_version` column returned zero rows).
 - **What the original analysis missed:** the guard is `$payloadVersion !== null && $modelVersion !== null` — it's false whenever *either* side is null, not just when `$modelVersion` is. `$payloadVersion` genuinely can be null: a payload can simply omit the `_version` key. `tests/Feature/SyncEndpointTest.php::test_push_sync_handles_soft_deletes` does exactly this (an `UPDATE` with `_deleted: 1` and no `_version` field) and relies on the timestamp-fallback branch to accept it. Removing the branch broke that test (and `test_push_sync_generates_a_stable_device_id_when_store_insert_omits_one`) immediately.
 - **Status:** left in place, confirmed live. Do not remove without also confirming no real caller ever sends an `UPDATE` payload without `_version` — today's client (`base-helpers.ts`'s `update()`) always includes it, but this legacy fallback protects against payloads that don't (whether from an older client version, or a hand-built payload like the soft-delete test above).
+- **Now directly covered**, rather than only incidentally via the soft-delete test: `SyncEndpointTest.php`'s `test_push_sync_rejects_an_older_update_with_no_version_via_the_timestamp_fallback` and `..._accepts_a_newer_update_...` pin both outcomes of the branch (rejection reported as `stale_timestamp` in `failed` with the row untouched; acceptance applying the write while leaving `_version` alone and reporting nothing in `versions`). The stale "this branch is unreachable dead code" comment that sat above these tests has been replaced accordingly. The branch's logic now lives in `resolveUpdateConflict()` — same code, just extracted.
 
 ### Detailed Sales Report PDF: Transaction # cell overflows into the next column
 
@@ -72,28 +73,3 @@ Issues spotted incidentally (e.g. while doing TypeScript type-safety cleanup) th
   above change; if still overflowing, consider shrinking `fontSize` for that
   column specifically, or truncating the id (e.g. last 8 chars only, matching
   what the receipt dialog already shows) rather than relying on wrap/hide.
-
-## Known limitations (not bugs — real gaps, not wiring defects)
-
-- **Superadmin Activity Log has no UI for 4 of the 7 filter params the
-  backend already supports.** `store_id`, `user_id`, `date_from`, `date_to`
-  are real, working query params (`AdminController::activityLogs`,
-  `useAdminActivityLogs()`), but `app/admin/activity/page.tsx` only wires up
-  `page`/`search`/`action`. A superadmin can't filter the platform-wide log
-  to one store, one user, or a date range except via the free-text search
-  box (which only matches description/action/user name-email columns).
-- **Superadmin Stores: the same "Status" label means two different things
-  depending which screen shows it.** The Store Fleet list / View Store
-  Details dialog show the real `stores.status` account-state column
-  (Active/Suspended). The Overview dashboard's "Recent Stores" widget
-  computes its own "Status" from sync recency instead (last sync < 60min →
-  Active, < 1440min → Away, else Inactive) — an unrelated signal rendered
-  with an identical-looking badge. A store that's account-`Active` but has
-  gone quiet on sync (or vice versa) reads as contradictory depending which
-  screen you're looking at.
-
-## Deferred work (not bugs — explicit scope decisions)
-
-- **`SyncController::push()`/`pull()` were not structurally refactored.** Both are large (push() ~730 lines) and every special case is backed by a real, documented production incident (see the method's own doc comments and `git log -S` on individual fixes). Judged too risky to mechanically extract without first having comprehensive characterization tests — those tests were added instead (`SyncEndpointTest.php`, `SyncPullMappingTest.php`, `SyncValidationTest.php`), and the structural refactor itself was deferred.
-- **`AuthController` (~895 lines) was not split by sub-domain**, unlike `AdminController`/`AdminService`. It's security-critical (login/session/token issuance); splitting risks subtly changing how middleware/guards apply per route for a pure-reorganization change with no functional upside. Left as a single file.
-- **`client/lib/db/core.ts`'s `backfillStoreIdOnLegacyRows()` and `relaxPurchaseOrdersSupplierIdNullable()` are still active**, not yet retired the way older schema-repair migrations were (`renameLegacyTablesAndColumns`, `dropLegacyVendorIdColumn`, etc. — see the comments above `SYNC_COLUMN_MIGRATIONS` in `core.ts`). They *could* eventually follow the same removal pattern once every currently-active account is confirmed to have a local DB created after each migration's ship date (`backfillStoreIdOnLegacyRows`: 2026-08-14; `relaxPurchaseOrdersSupplierIdNullable`: 2026-08-29) — checked via `diagnoseLegacySchema()`-style inspection of each device's real local file, not via the admin dashboard (subscription-start dates shown there aren't a reliable proxy for local DB creation date). As of this check, several active accounts predate both ship dates, so neither is removable yet.

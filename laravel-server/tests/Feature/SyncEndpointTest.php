@@ -1560,6 +1560,11 @@ class SyncEndpointTest extends TestCase
         // account instead of retrying a doomed insert forever.
         $this->assertDatabaseMissing('users', ['id' => $localUserId]);
         $this->assertDatabaseHas('users', ['id' => $existingStaff->id, 'username' => 'cashier1']);
+        // Characterization: unlike categories/suppliers, the users collision
+        // path records the remap only in push()'s in-request $idMap (used to
+        // rewrite foreign keys later in the SAME request) and deliberately
+        // does NOT report it back in the response's id_map.
+        $this->assertSame([], $response->json('id_map'));
     }
 
     public function test_push_sync_overrides_insert_to_update_for_a_record_that_already_exists()
@@ -1702,15 +1707,173 @@ class SyncEndpointTest extends TestCase
         ]);
     }
 
-    // No test for push()'s "stale_timestamp" fallback branch (compares
-    // updated_at when either side has no _version): every _version column in
-    // the current schema is `integer default(1)` NOT NULL (see every
-    // create_*_table/align_schema_with_client_db migration), so
-    // $modelVersion can never actually be null for any real row - the DB
-    // itself rejects an explicit null the same way it rejected one in an
-    // earlier draft of this test. That branch is currently unreachable dead
-    // code, not just untested; flagged for the team rather than faked here
-    // with a DB state production can never produce.
+    // push()'s "stale_timestamp" fallback branch (compares updated_at when
+    // either side has no _version) IS reachable, contrary to an earlier note
+    // here that called it dead code: $modelVersion can indeed never be null
+    // (every _version column is `integer default(1)` NOT NULL), but the guard
+    // is `$payloadVersion !== null && $modelVersion !== null` — and a payload
+    // may simply omit _version. The two tests below characterize both
+    // outcomes of that branch. See docs/KNOWN_BUGS.md.
+
+    public function test_push_sync_rejects_an_older_update_with_no_version_via_the_timestamp_fallback()
+    {
+        $productId = 'prod_stale_ts';
+        DB::table('products')->insert([
+            'id' => $productId,
+            'user_id' => $this->user->id,
+            'name' => 'Server Newer',
+            '_version' => 1,
+            'created_at' => now()->subDays(2),
+            'updated_at' => now(),
+        ]);
+
+        $response = $this->actingAs($this->user)->postJson('/api/v1/app/sync/push', [
+            'setup' => true,
+            'changes' => [
+                [
+                    'id' => 77,
+                    'table_name' => 'products',
+                    'operation' => 'UPDATE',
+                    'record_id' => $productId,
+                    'payload' => [
+                        'id' => $productId,
+                        'name' => 'Client Older',
+                        // No _version at all — forces the timestamp fallback.
+                        'updated_at' => now()->subDay()->toDateTimeString(),
+                        '_synced' => 0,
+                    ],
+                ],
+            ],
+        ]);
+
+        $response->assertStatus(200);
+        $response->assertJsonCount(1, 'failed');
+        $this->assertSame('stale_timestamp', $response->json('failed.0.reason'));
+        $this->assertSame(77, $response->json('failed.0.id'));
+        $this->assertSame($productId, $response->json('failed.0.record_id'));
+        $this->assertDatabaseHas('products', ['id' => $productId, 'name' => 'Server Newer']);
+        // No server-assigned version is reported for a rejected change.
+        $this->assertSame([], $response->json('versions'));
+    }
+
+    public function test_push_sync_accepts_a_newer_update_with_no_version_via_the_timestamp_fallback()
+    {
+        $productId = 'prod_fresh_ts';
+        DB::table('products')->insert([
+            'id' => $productId,
+            'user_id' => $this->user->id,
+            'name' => 'Server Older',
+            '_version' => 4,
+            'created_at' => now()->subDays(2),
+            'updated_at' => now()->subDay(),
+        ]);
+
+        $response = $this->actingAs($this->user)->postJson('/api/v1/app/sync/push', [
+            'setup' => true,
+            'changes' => [
+                [
+                    'table_name' => 'products',
+                    'operation' => 'UPDATE',
+                    'record_id' => $productId,
+                    'payload' => [
+                        'id' => $productId,
+                        'name' => 'Client Newer',
+                        'updated_at' => now()->toDateTimeString(),
+                        '_synced' => 0,
+                    ],
+                ],
+            ],
+        ]);
+
+        $response->assertStatus(200);
+        $response->assertJsonCount(0, 'failed');
+        $this->assertDatabaseHas('products', ['id' => $productId, 'name' => 'Client Newer']);
+        // The legacy path assigns no new version, so nothing is reported back
+        // and the stored _version is left exactly as it was.
+        $this->assertSame([], $response->json('versions'));
+        $this->assertSame(4, (int) DB::table('products')->where('id', $productId)->value('_version'));
+    }
+
+    public function test_push_sync_maps_audit_log_fields_and_falls_back_to_the_caller_for_an_unknown_user()
+    {
+        $unknownUserId = (string) \Illuminate\Support\Str::uuid();
+
+        $response = $this->actingAs($this->user)->postJson('/api/v1/app/sync/push', [
+            'setup' => true,
+            'changes' => [
+                [
+                    'table_name' => 'audit_logs',
+                    'operation' => 'INSERT',
+                    'record_id' => 'local_log_1',
+                    'payload' => [
+                        'id' => 'local_log_1',
+                        'user_id' => $unknownUserId,
+                        'action' => 'create_sale',
+                        'table_name' => 'sales',
+                        'record_id' => 'sale_9',
+                        'details' => 'sold 2 items',
+                        '_synced' => 0,
+                    ],
+                ],
+            ],
+        ]);
+
+        $response->assertStatus(200);
+        $response->assertJsonCount(0, 'failed');
+
+        $log = DB::table('activity_logs')->latest('id')->first();
+        $this->assertSame($this->user->id, $log->user_id);
+        $this->assertSame('create_sale', $log->action);
+        $this->assertSame('Action: create_sale on sales', $log->description);
+        $properties = json_decode($log->properties, true);
+        $this->assertSame('local_log_1', $properties['client_id']);
+        $this->assertSame('sales', $properties['table_name']);
+        $this->assertSame('sale_9', $properties['record_id']);
+        $this->assertSame('sold 2 items', $properties['details']);
+    }
+
+    /**
+     * push() derives first_name/last_name from a users payload's `name` and
+     * now also strips the untranslated `name` key before writing — the
+     * server's users table has no `name` column, so leaving it in the
+     * payload used to fail the INSERT on that column (see git history for
+     * the prior characterization test this replaces). Today's client never
+     * sends `name` for users (see test_push_sync_handles_user_insert_without_email),
+     * so this only ever affected hand-built/legacy payloads, but it's a real
+     * path a hand-built or older-client payload could still hit.
+     */
+    public function test_push_sync_derives_first_last_name_and_strips_the_unmapped_name_column()
+    {
+        $userId = (string) \Illuminate\Support\Str::uuid();
+
+        $response = $this->actingAs($this->user)->postJson('/api/v1/app/sync/push', [
+            'setup' => true,
+            'changes' => [
+                [
+                    'table_name' => 'users',
+                    'operation' => 'INSERT',
+                    'record_id' => $userId,
+                    'payload' => [
+                        'id' => $userId,
+                        'name' => 'Ada Lovelace Byron',
+                        'username' => 'ada',
+                        'role' => 'cashier',
+                        'pin' => '4321',
+                        '_synced' => 0,
+                    ],
+                ],
+            ],
+        ]);
+
+        $response->assertStatus(200);
+        $response->assertJsonCount(0, 'failed');
+        $this->assertDatabaseHas('users', [
+            'id' => $userId,
+            'first_name' => 'Ada',
+            'last_name' => 'Lovelace Byron',
+            'username' => 'ada',
+        ]);
+    }
 
     public function test_push_sync_generates_a_stable_device_id_when_store_insert_omits_one()
     {

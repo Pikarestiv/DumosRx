@@ -24,7 +24,14 @@ export interface AdminStoreSummary {
   owner: string;
   email?: string;
   plan: string;
+  /** The store's real account-state column (Active/Suspended) — the same
+   * meaning everywhere this type is used (Store Fleet list, View Store
+   * Details, and the dashboard's Recent Stores widget). */
   status: string;
+  /** Recent Stores only: a sync-recency signal ("Active"/"Away"/"Inactive"
+   * based on how long since the device last synced), deliberately a
+   * separate field from `status` so it's never mistaken for account state. */
+  sync_status?: string;
   date: string;
   stores?: number;
   revenue?: string;

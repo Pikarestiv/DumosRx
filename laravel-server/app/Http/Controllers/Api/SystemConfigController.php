@@ -33,6 +33,10 @@ class SystemConfigController extends Controller
         ]);
     }
 
+    /** Highest price, in naira, this endpoint will store for a plan tier.
+     * Mirrors MAX_PLAN_PRICE in web/components/admin/views/plan-tier-card.tsx. */
+    private const MAX_PLAN_PRICE = 100000000;
+
     #[OA\Put(
         path: '/admin/system-configs/{key}',
         summary: 'Set a platform configuration value',
@@ -53,10 +57,6 @@ class SystemConfigController extends Controller
             new OA\Response(response: 422, ref: '#/components/responses/ValidationError'),
         ],
     )]
-    /** Highest price, in naira, this endpoint will store for a plan tier.
-     * Mirrors MAX_PLAN_PRICE in web/components/admin/views/plan-tier-card.tsx. */
-    private const MAX_PLAN_PRICE = 100000000;
-
     public function update(Request $request, $key)
     {
         $validated = $request->validate([

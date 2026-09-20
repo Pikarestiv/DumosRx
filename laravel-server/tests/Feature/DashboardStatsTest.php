@@ -49,7 +49,7 @@ class DashboardStatsTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertJsonStructure([
-            'stats' => ['total_sales' => ['value', 'growth'], 'inventory_value' => ['value'], 'customers' => ['value', 'growth'], 'stores_count', 'last_sync', 'cloud_storage' => ['used_gb', 'limit_gb', 'percentage']],
+            'stats' => ['total_sales' => ['value', 'growth'], 'inventory_value' => ['value'], 'customers' => ['value', 'growth'], 'stores_count', 'last_sync'],
             'stores',
         ]);
         $response->assertJson(['stats' => ['stores_count' => 0]]);

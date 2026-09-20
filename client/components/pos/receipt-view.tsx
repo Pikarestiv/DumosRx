@@ -104,8 +104,15 @@ export function ReceiptView({
           />
         )}
         <h2 className="text-xl font-bold uppercase">{storeProfile?.name}</h2>
-        {storeProfile?.address && <p>{storeProfile?.address}</p>}
-        {storeProfile?.phone && <p>{storeProfile?.phone}</p>}
+        {storeProfile?.receipt_tagline && (
+          <p className="italic">{storeProfile.receipt_tagline}</p>
+        )}
+        {storeProfile?.show_address_on_receipt === 1 && storeProfile?.address && (
+          <p>{storeProfile.address}</p>
+        )}
+        {storeProfile?.show_phone_on_receipt === 1 && storeProfile?.phone && (
+          <p>{storeProfile.phone}</p>
+        )}
         {documentType === "tax" && storeProfile?.tax_number && (
           <p>Tax No: {storeProfile.tax_number}</p>
         )}
@@ -260,7 +267,8 @@ export function ReceiptView({
       )}
 
       <div className="text-center italic text-xs">
-        <p>Thank you for your patronage!</p>
+        {storeProfile?.receipt_header && <p>"{storeProfile.receipt_header}"</p>}
+        <p>{storeProfile?.receipt_footer || "Thank you for your patronage!"}</p>
         <p>
           {APP_NAME} - NextGen{" "}
           {storeProfile?.store_type === "pharmacy" ? "Pharmacy" : "Retail"} POS

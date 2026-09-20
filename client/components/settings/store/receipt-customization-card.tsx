@@ -30,6 +30,41 @@ import { useReceiptPaperSize } from "@/lib/hooks/use-receipt-paper-size";
 import { toast } from "sonner";
 import { useState } from "react";
 
+/** A simple label/description + switch row, shown as read-only
+ * Enabled/Disabled text outside edit mode. Shared by the receipt toggles
+ * that don't need feature-gating (Show Phone, Show Address) - Show Logo and
+ * Hide Powered By stay inline since they each wrap their switch in
+ * withRestriction()/a tooltip. */
+function ReceiptToggleRow({
+  label,
+  description,
+  isEditing,
+  checked,
+  onCheckedChange,
+}: {
+  label: string;
+  description: string;
+  isEditing: boolean;
+  checked: boolean;
+  onCheckedChange: (val: boolean) => void;
+}) {
+  return (
+    <div className="flex items-center justify-between rounded-lg border p-4">
+      <div className="space-y-0.5">
+        <Label className="text-base">{label}</Label>
+        <p className="text-sm text-muted-foreground">{description}</p>
+      </div>
+      {isEditing ? (
+        <Switch checked={checked} onCheckedChange={onCheckedChange} />
+      ) : (
+        <p className="text-sm font-medium">
+          {checked ? "Enabled" : "Disabled"}
+        </p>
+      )}
+    </div>
+  );
+}
+
 interface ReceiptCustomizationCardProps {
   localName: string;
   localAddress: string;
@@ -39,10 +74,14 @@ interface ReceiptCustomizationCardProps {
   setLocalReceiptHeader: (val: string) => void;
   localReceiptFooter: string;
   setLocalReceiptFooter: (val: string) => void;
+  localReceiptTagline: string;
+  setLocalReceiptTagline: (val: string) => void;
   showLogo: boolean;
   setShowLogo: (val: boolean) => void;
-  showContact: boolean;
-  setShowContact: (val: boolean) => void;
+  showPhone: boolean;
+  setShowPhone: (val: boolean) => void;
+  showAddress: boolean;
+  setShowAddress: (val: boolean) => void;
   hidePoweredBy: boolean;
   setHidePoweredBy: (val: boolean) => void;
   handleSaveReceiptSettings: () => void;
@@ -57,10 +96,14 @@ export function ReceiptCustomizationCard({
   setLocalReceiptHeader,
   localReceiptFooter,
   setLocalReceiptFooter,
+  localReceiptTagline,
+  setLocalReceiptTagline,
   showLogo,
   setShowLogo,
-  showContact,
-  setShowContact,
+  showPhone,
+  setShowPhone,
+  showAddress,
+  setShowAddress,
   hidePoweredBy,
   setHidePoweredBy,
   handleSaveReceiptSettings,
@@ -139,6 +182,41 @@ export function ReceiptCustomizationCard({
                   Managed under Business Information above.
                 </p>
               </div>
+            </div>
+
+            <div className="grid gap-2">
+              <div className="flex items-center gap-2">
+                <Label htmlFor="receipt-tagline">
+                  Tagline (Optional)
+                </Label>
+                <TooltipProvider delayDuration={0}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HelpCircle className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>
+                        A line printed under your business name, like a
+                        slogan or what you sell (e.g. "Your trusted
+                        neighborhood pharmacy").
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+              {!!isEditing && (
+                <Input
+                  id="receipt-tagline"
+                  placeholder="e.g. Your trusted neighborhood pharmacy"
+                  value={localReceiptTagline}
+                  onChange={(e) => setLocalReceiptTagline(e.target.value)}
+                />
+              )}
+              {!isEditing && (
+                <p className="text-sm font-medium py-2">
+                  {localReceiptTagline || "Not set"}
+                </p>
+              )}
             </div>
 
             <div className="grid gap-2">
@@ -233,26 +311,20 @@ export function ReceiptCustomizationCard({
                 </p>
               )}
             </div>
-            <div className="flex items-center justify-between rounded-lg border p-4">
-              <div className="space-y-0.5">
-                <Label className="text-base">Show Phone & Address</Label>
-                <p className="text-sm text-muted-foreground">
-                  Include contact details on receipt
-                </p>
-              </div>
-              {!!isEditing && (
-                <Switch
-                  checked={showContact}
-                  onCheckedChange={setShowContact}
-                />
-              )}
-              {!isEditing && (
-                <p className="text-sm font-medium">
-                  {!!showContact && "Enabled"}
-                  {!showContact && "Disabled"}
-                </p>
-              )}
-            </div>
+            <ReceiptToggleRow
+              label="Show Phone"
+              description="Include phone number on receipt"
+              isEditing={isEditing}
+              checked={showPhone}
+              onCheckedChange={setShowPhone}
+            />
+            <ReceiptToggleRow
+              label="Show Address"
+              description="Include store address on receipt"
+              isEditing={isEditing}
+              checked={showAddress}
+              onCheckedChange={setShowAddress}
+            />
             <div className="flex items-center justify-between rounded-lg border p-4">
               <div className="space-y-0.5">
                 <Label className="text-base">
@@ -302,8 +374,10 @@ export function ReceiptCustomizationCard({
             localLogo={localLogo}
             localReceiptHeader={localReceiptHeader}
             localReceiptFooter={localReceiptFooter}
+            localReceiptTagline={localReceiptTagline}
             showLogo={showLogo && canCustomizeTheme}
-            showContact={showContact}
+            showPhone={showPhone}
+            showAddress={showAddress}
             hidePoweredBy={hidePoweredBy && canRemoveBranding}
           />
         </div>

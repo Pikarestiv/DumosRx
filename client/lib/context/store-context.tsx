@@ -35,8 +35,11 @@ export interface StoreProfile {
   custom_units?: string;
   receipt_header?: string;
   receipt_footer?: string;
+  receipt_tagline?: string;
   show_logo_on_receipt?: number;
   show_contact_on_receipt?: number;
+  show_phone_on_receipt?: number;
+  show_address_on_receipt?: number;
   hide_powered_by?: number;
   low_stock_warning?: number;
   expiry_warning?: number;

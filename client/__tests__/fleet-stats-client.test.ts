@@ -20,7 +20,6 @@ describe('fleet stats API method', () => {
         customers: { value: 20, growth: '+3 new' },
         stores_count: 2,
         last_sync: '5 minutes ago',
-        cloud_storage: { used_gb: 0.1, limit_gb: 10, percentage: 1 },
       },
       stores: [
         { id: '1', name: 'Main Branch', location: 'Lagos', status: 'online', lastSync: '5 minutes ago', sales: '₦50,000.00', staff_count: 2, low_stock_alerts: 1, expiring_items: 0 },

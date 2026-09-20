@@ -166,7 +166,7 @@ export function DataSettings({
             <h3 className="font-medium">Backup & Restore</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Button
-                variant="outline"
+                variant="default"
                 className="w-full justify-start cursor-pointer"
                 onClick={withRestriction(handleDownloadBackup)}
               >

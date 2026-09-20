@@ -18,8 +18,10 @@ export function useSettingsForm(storeProfile: StoreProfile | null, minimumSyncIn
   const [localTaxNumber, setLocalTaxNumber] = useState(storeProfile?.tax_number || "");
   const [localReceiptHeader, setLocalReceiptHeader] = useState(storeProfile?.receipt_header || "");
   const [localReceiptFooter, setLocalReceiptFooter] = useState(storeProfile?.receipt_footer || "");
+  const [localReceiptTagline, setLocalReceiptTagline] = useState(storeProfile?.receipt_tagline || "");
   const [showLogo, setShowLogo] = useState(storeProfile?.show_logo_on_receipt === 1);
-  const [showContact, setShowContact] = useState(storeProfile?.show_contact_on_receipt === 1);
+  const [showPhone, setShowPhone] = useState(storeProfile?.show_phone_on_receipt === 1);
+  const [showAddress, setShowAddress] = useState(storeProfile?.show_address_on_receipt === 1);
   const [hidePoweredBy, setHidePoweredBy] = useState(storeProfile?.hide_powered_by === 1);
   const [lowStockAlert, setLowStockAlert] = useState(storeProfile?.low_stock_warning === 1);
   const [expiryAlert, setExpiryAlert] = useState(storeProfile?.expiry_warning === 1);
@@ -56,8 +58,10 @@ export function useSettingsForm(storeProfile: StoreProfile | null, minimumSyncIn
       setLocalTaxNumber(storeProfile.tax_number || "");
       setLocalReceiptHeader(storeProfile.receipt_header || "");
       setLocalReceiptFooter(storeProfile.receipt_footer || "");
+      setLocalReceiptTagline(storeProfile.receipt_tagline || "");
       setShowLogo(storeProfile.show_logo_on_receipt === 1);
-      setShowContact(storeProfile.show_contact_on_receipt === 1);
+      setShowPhone(storeProfile.show_phone_on_receipt === 1);
+      setShowAddress(storeProfile.show_address_on_receipt === 1);
       setHidePoweredBy(storeProfile.hide_powered_by === 1);
       setLowStockAlert(storeProfile.low_stock_warning === 1);
       setExpiryAlert(storeProfile.expiry_warning === 1);
@@ -99,8 +103,10 @@ export function useSettingsForm(storeProfile: StoreProfile | null, minimumSyncIn
     localTaxNumber, setLocalTaxNumber,
     localReceiptHeader, setLocalReceiptHeader,
     localReceiptFooter, setLocalReceiptFooter,
+    localReceiptTagline, setLocalReceiptTagline,
     showLogo, setShowLogo,
-    showContact, setShowContact,
+    showPhone, setShowPhone,
+    showAddress, setShowAddress,
     hidePoweredBy, setHidePoweredBy,
     lowStockAlert, setLowStockAlert,
     expiryAlert, setExpiryAlert,

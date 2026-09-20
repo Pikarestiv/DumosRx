@@ -421,8 +421,11 @@ const SYNC_COLUMN_MIGRATIONS: { table: string; columns: string[] }[] = [
       "pcn_license TEXT",
       "receipt_header TEXT",
       "receipt_footer TEXT",
+      "receipt_tagline TEXT",
       "show_logo_on_receipt INTEGER DEFAULT 1",
       "show_contact_on_receipt INTEGER DEFAULT 1",
+      "show_phone_on_receipt INTEGER DEFAULT 1",
+      "show_address_on_receipt INTEGER DEFAULT 1",
       "hide_powered_by INTEGER DEFAULT 0",
       "low_stock_warning INTEGER DEFAULT 1",
       "expiry_warning INTEGER DEFAULT 1",
@@ -537,6 +540,24 @@ async function backfillStoreIdOnLegacyRows(adapter: DbAdapter): Promise<void> {
     }
   } catch (e) {
     console.error("Failed to backfill store_id on legacy rows", e);
+  }
+}
+
+// show_contact_on_receipt (a combined phone+address toggle) was split into
+// show_phone_on_receipt/show_address_on_receipt. Both new columns default to
+// 1 on ALTER TABLE, so a store that had turned contact info off would
+// otherwise find both back on after this migration - this carries that
+// store's existing off-state onto both new columns once. WHERE
+// show_contact_on_receipt = 0 makes it naturally idempotent (nothing left to
+// backfill once the new columns already reflect it).
+async function backfillReceiptContactVisibility(adapter: DbAdapter): Promise<void> {
+  try {
+    await tryRun(
+      adapter,
+      `UPDATE stores SET show_phone_on_receipt = 0, show_address_on_receipt = 0 WHERE show_contact_on_receipt = 0 AND show_phone_on_receipt = 1 AND show_address_on_receipt = 1`,
+    );
+  } catch (e) {
+    console.error("Failed to backfill receipt contact visibility", e);
   }
 }
 
@@ -696,6 +717,7 @@ export async function runSchemaMigrations(
 ): Promise<void> {
   await runSyncColumnMigrations(adapter, SYNC_COLUMN_MIGRATIONS);
   await backfillStoreIdOnLegacyRows(adapter);
+  await backfillReceiptContactVisibility(adapter);
   await lowercaseExistingProductAndCategoryNames(adapter);
   await clearOrphanedProductCategoryIds(adapter);
   await relaxPurchaseOrdersSupplierIdNullable(adapter);

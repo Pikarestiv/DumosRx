@@ -130,56 +130,20 @@ export function BusinessInformationCard({
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="grid gap-2">
-              <div className="flex items-center gap-2">
-                <Label htmlFor="registration-number">
-                  Business Registration / CAC Number
-                </Label>
-                <TooltipProvider delayDuration={0}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <HelpCircle className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>
-                        Your business's official registration number (e.g. CAC
-                        in Nigeria). Not the same as a per-product regulatory
-                        number like NAFDAC.
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-              {isEditingProfile ? (
-                <Input
-                  id="registration-number"
-                  placeholder="e.g. RC1234567"
-                  value={localRegistrationNumber}
-                  onChange={(e) => setLocalRegistrationNumber(e.target.value)}
-                />
-              ) : (
-                <p className="text-sm font-medium py-2">
-                  {localRegistrationNumber || "Not set"}
-                </p>
-              )}
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="address">Address</Label>
-              {isEditingProfile ? (
-                <Input
-                  id="address"
-                  placeholder="123 Health Avenue, Lagos"
-                  value={localAddress}
-                  onChange={(e) => setLocalAddress(e.target.value)}
-                />
-              ) : (
-                <p className="text-sm font-medium py-2">
-                  {localAddress || "Not set"}
-                </p>
-              )}
-            </div>
+          <div className="grid gap-2">
+            <Label htmlFor="address">Address</Label>
+            {isEditingProfile ? (
+              <Input
+                id="address"
+                placeholder="123 Health Avenue, Lagos"
+                value={localAddress}
+                onChange={(e) => setLocalAddress(e.target.value)}
+              />
+            ) : (
+              <p className="text-sm font-medium py-2">
+                {localAddress || "Not set"}
+              </p>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -216,6 +180,40 @@ export function BusinessInformationCard({
           </div>
 
           <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <div className="flex items-center gap-2">
+                <Label htmlFor="registration-number">
+                  Business Registration / CAC Number
+                </Label>
+                <TooltipProvider delayDuration={0}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HelpCircle className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>
+                        Your business's official registration number (e.g. CAC
+                        in Nigeria). Not the same as a per-product regulatory
+                        number like NAFDAC.
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+              {isEditingProfile ? (
+                <Input
+                  id="registration-number"
+                  placeholder="e.g. RC1234567"
+                  value={localRegistrationNumber}
+                  onChange={(e) => setLocalRegistrationNumber(e.target.value)}
+                />
+              ) : (
+                <p className="text-sm font-medium py-2">
+                  {localRegistrationNumber || "Not set"}
+                </p>
+              )}
+            </div>
+
             <div className="grid gap-2">
               <div className="flex items-center gap-2">
                 <Label htmlFor="tax-number">Tax / VAT Number</Label>

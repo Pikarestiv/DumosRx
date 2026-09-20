@@ -732,13 +732,29 @@ export async function restoreDatabaseFromFile(): Promise<{ success: boolean }> {
  * browser console (or Tauri's devtools) as
  * `await window.diagnoseLegacySchema()`; safe to run anywhere, including
  * production, since it never writes.
+ *
+ * `retirable` answers the question the raw `findings` list doesn't: for each
+ * still-active legacy-repair step in schema-migrations.ts, is THIS device a
+ * blocker to deleting it? `findings` reports problems present; retirement
+ * needs the inverse verdict, per migration, so a human sweeping real devices
+ * gets a direct yes/no instead of having to re-derive it from the findings
+ * each time. A migration is only safe to delete once EVERY active device
+ * reports `ok: true` — one device is never enough — and each entry's
+ * `reason` spells out the caveats (notably that backfillStoreIdOnLegacyRows
+ * re-runs every launch and so is also an ongoing safety net, not purely a
+ * legacy-device repair). See docs/KNOWN_BUGS.md's deferred-work entry.
  */
 export async function diagnoseLegacySchema(): Promise<{
   clean: boolean;
   findings: string[];
+  retirable: Record<string, { ok: boolean; reason: string }>;
 }> {
   if (!db) await initDatabase();
   const findings: string[] = [];
+  // Per-migration retirement verdict (see the `retirable` note in the doc
+  // comment above). Filled in alongside the read-only checks below — no
+  // extra queries, and nothing here writes.
+  let storeIdBackfillNeeded = false;
 
   const tableExistsLocal = async (table: string): Promise<boolean> => {
     const rows = await query<{ name: string }>(
@@ -802,6 +818,7 @@ export async function diagnoseLegacySchema(): Promise<{
         `SELECT COUNT(*) as cnt FROM ${table} WHERE store_id IS NULL`,
       );
       if ((missing[0]?.cnt ?? 0) > 0) {
+        storeIdBackfillNeeded = true;
         findings.push(`"${table}" has ${missing[0].cnt} row(s) with no store_id (backfill hasn't run or table predates it).`);
       }
     }
@@ -819,11 +836,43 @@ export async function diagnoseLegacySchema(): Promise<{
     "SELECT sql FROM sqlite_master WHERE type='table' AND name='purchase_orders'",
   );
   const poSql = poTableInfo[0]?.sql || "";
-  if (poSql && /supplier_id\s+TEXT\s+NOT\s+NULL/i.test(poSql)) {
+  const poSupplierIdStillNotNull = Boolean(poSql) && /supplier_id\s+TEXT\s+NOT\s+NULL/i.test(poSql);
+  if (poSupplierIdStillNotNull) {
     findings.push('"purchase_orders.supplier_id" is still NOT NULL (Immediate Purchase without a supplier would fail).');
   }
 
-  return { clean: findings.length === 0, findings };
+  const retirable: Record<string, { ok: boolean; reason: string }> = {
+    relaxPurchaseOrdersSupplierIdNullable: !poSql
+      ? {
+          ok: false,
+          reason:
+            "Inconclusive: no purchase_orders table found on this device, so the constraint can't be inspected.",
+        }
+      : poSupplierIdStillNotNull
+        ? {
+            ok: false,
+            reason:
+              "Still needed here: purchase_orders.supplier_id is NOT NULL, so this device has not run the rebuild yet.",
+          }
+        : {
+            ok: true,
+            reason:
+              "Safe on this device: supplier_id is already nullable, so the rebuild is a no-op here (whether the DB was created after the 2026-08-29 ship date or was repaired by an earlier launch). Retire only once every active device reports ok.",
+          },
+    backfillStoreIdOnLegacyRows: storeIdBackfillNeeded
+      ? {
+          ok: false,
+          reason:
+            "Still needed here: rows with a NULL store_id exist in at least one store-scoped table (see findings).",
+        }
+      : {
+          ok: true,
+          reason:
+            "No NULL store_id rows on this device right now. NOTE: unlike the purchase_orders rebuild, this backfill re-runs on every launch and so doubles as an ongoing safety net for any future code path that writes a row without a store_id — a clean snapshot today is necessary but NOT sufficient to retire it. Confirm no such write path exists before removing.",
+        },
+  };
+
+  return { clean: findings.length === 0, findings, retirable };
 }
 
 if (typeof window !== "undefined") {

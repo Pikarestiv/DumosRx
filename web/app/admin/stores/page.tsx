@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { useAdminStores, useSuspendStoreMutation, useUnsuspendStoreMutation, useImpersonateStoreMutation, useGrantTrialMutation, useMarkStoreDemoMutation, useUnmarkStoreDemoMutation } from "@/lib/api/admin-hooks";
+import { useAdminStores, useSuspendStoreMutation, useUnsuspendStoreMutation, useImpersonateStoreMutation, useGrantTrialMutation, useActivatePlanMutation, useMarkStoreDemoMutation, useUnmarkStoreDemoMutation } from "@/lib/api/admin-hooks";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useDebounce } from "@/hooks/use-debounce";
 import { StoreTable } from "@/components/admin/stores/store-table";
@@ -16,6 +16,7 @@ import { StoreToolbar } from "@/components/admin/stores/store-toolbar";
 import { StorePagination } from "@/components/admin/stores/store-pagination";
 import { SuspendStoreDialog, ViewStoreDialog, BillingHistoryDialog } from "@/components/admin/stores/store-dialogs";
 import { SharedGrantTrialDialog } from "@/components/admin/shared-grant-trial-dialog";
+import { SharedActivatePlanDialog } from "@/components/admin/shared-activate-plan-dialog";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { escapeCsvCell } from "@/lib/utils";
 import { toast } from "sonner";
@@ -40,6 +41,7 @@ export default function StoresManagement() {
   const [selectedStore, setSelectedStore] = useState<AdminStoreSummary | null>(null);
   const [isSuspendDialogOpen, setIsSuspendDialogOpen] = useState(false);
   const [isTrialDialogOpen, setIsTrialDialogOpen] = useState(false);
+  const [isActivatePlanDialogOpen, setIsActivatePlanDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isBillingDialogOpen, setIsBillingDialogOpen] = useState(false);
   const [impersonateTarget, setImpersonateTarget] = useState<AdminStoreSummary | null>(null);
@@ -56,6 +58,7 @@ export default function StoresManagement() {
   const unsuspendMutation = useUnsuspendStoreMutation();
   const impersonateMutation = useImpersonateStoreMutation();
   const grantTrialMutation = useGrantTrialMutation();
+  const activatePlanMutation = useActivatePlanMutation();
   const markDemoMutation = useMarkStoreDemoMutation();
   const unmarkDemoMutation = useUnmarkStoreDemoMutation();
 
@@ -169,6 +172,26 @@ export default function StoresManagement() {
       onError: (err) => {
         toast.error("Action Failed", {
           description: err.message || "Failed to grant trial.",
+        });
+      }
+    });
+  };
+
+  const handleActivatePlan = (plan: string, billingCycle: string, amount: number, reference?: string) => {
+    if (!selectedStore) return;
+
+    activatePlanMutation.mutate({ id: selectedStore.id, plan, billingCycle, amount, reference }, {
+      onSuccess: () => {
+        toast.success("Plan Activated", {
+          description: `Activated ${billingCycle} ${plan} plan for ${selectedStore.name}.`,
+        });
+        setIsActivatePlanDialogOpen(false);
+        setSelectedStore(null);
+        void refetch();
+      },
+      onError: (err) => {
+        toast.error("Action Failed", {
+          description: err.message || "Failed to activate plan.",
         });
       }
     });
@@ -361,6 +384,7 @@ export default function StoresManagement() {
               setSelectedStore={setSelectedStore}
               setIsSuspendDialogOpen={setIsSuspendDialogOpen}
               setIsTrialDialogOpen={setIsTrialDialogOpen}
+              setIsActivatePlanDialogOpen={setIsActivatePlanDialogOpen}
               setIsViewDialogOpen={setIsViewDialogOpen}
               handleUnsuspend={handleUnsuspend}
               handleToggleDemo={handleToggleDemo}
@@ -393,6 +417,14 @@ export default function StoresManagement() {
         targetName={selectedStore?.name}
         onConfirm={handleGrantTrial}
         isPending={grantTrialMutation.isPending}
+      />
+
+      <SharedActivatePlanDialog
+        open={isActivatePlanDialogOpen}
+        onOpenChange={setIsActivatePlanDialogOpen}
+        targetName={selectedStore?.name}
+        onConfirm={handleActivatePlan}
+        isPending={activatePlanMutation.isPending}
       />
 
       <ViewStoreDialog

@@ -184,6 +184,22 @@ export const useGrantTrialMutation = () => {
   });
 };
 
+export const useActivatePlanMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, plan, billingCycle, amount, reference }: { id: string; plan: string; billingCycle: string; amount: number; reference?: string }) =>
+      webApiClient.request<unknown>(`admin/stores/${id}/activate-plan`, {
+        method: "POST",
+        body: { plan, billing_cycle: billingCycle, amount, reference }
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["admin-stores"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-summary"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-revenue"] });
+    },
+  });
+};
+
 export const useImpersonateStoreMutation = () => {
   return useMutation({
     mutationFn: (id: string) => webApiClient.impersonateStore(id),

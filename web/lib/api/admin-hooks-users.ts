@@ -54,6 +54,22 @@ export const useGrantUserTrialMutation = () => {
   });
 };
 
+export const useActivateUserPlanMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, plan, billingCycle, amount, reference }: { id: string; plan: string; billingCycle: string; amount: number; reference?: string }) =>
+      webApiClient.request<unknown>(`admin/users/${id}/activate-plan`, {
+        method: "POST",
+        body: { plan, billing_cycle: billingCycle, amount, reference }
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-summary"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-revenue"] });
+    },
+  });
+};
+
 export const useDeactivateUserMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({

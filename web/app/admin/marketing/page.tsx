@@ -1,6 +1,7 @@
 import { Metadata } from "next"
 import { CouponsManager } from "@/components/admin/marketing/coupons-manager"
 import { ReferralsManager } from "@/components/admin/marketing/referrals-manager"
+import { RevenueOverview } from "@/components/admin/marketing/revenue-overview"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 export const metadata: Metadata = {
@@ -22,12 +23,16 @@ export default function MarketingPage() {
         <TabsList>
           <TabsTrigger value="coupons">Coupons & Trials</TabsTrigger>
           <TabsTrigger value="affiliates">Affiliates & Referrals</TabsTrigger>
+          <TabsTrigger value="revenue">Revenue</TabsTrigger>
         </TabsList>
         <TabsContent value="coupons" className="space-y-4">
           <CouponsManager />
         </TabsContent>
         <TabsContent value="affiliates" className="space-y-4">
           <ReferralsManager />
+        </TabsContent>
+        <TabsContent value="revenue" className="space-y-4">
+          <RevenueOverview />
         </TabsContent>
       </Tabs>
     </div>

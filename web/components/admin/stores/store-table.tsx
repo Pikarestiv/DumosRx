@@ -10,6 +10,7 @@ import {
   Gift,
   FlaskConical,
   Loader2,
+  BadgeCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -41,6 +42,7 @@ interface StoreTableProps {
   setSelectedStore: (store: AdminStoreSummary) => void;
   setIsSuspendDialogOpen: (open: boolean) => void;
   setIsTrialDialogOpen: (open: boolean) => void;
+  setIsActivatePlanDialogOpen: (open: boolean) => void;
   setIsViewDialogOpen: (open: boolean) => void;
   handleUnsuspend: (store: AdminStoreSummary) => void;
   handleToggleDemo: (store: AdminStoreSummary) => void;
@@ -60,6 +62,7 @@ export function StoreTable({
   setSelectedStore,
   setIsSuspendDialogOpen,
   setIsTrialDialogOpen,
+  setIsActivatePlanDialogOpen,
   setIsViewDialogOpen,
   handleUnsuspend,
   handleToggleDemo,
@@ -242,6 +245,18 @@ export function StoreTable({
                     >
                       <Gift className="h-4 w-4" />
                       Grant Trial
+                    </DropdownMenuItem>
+                  )}
+                  {canGrantTrials && (
+                    <DropdownMenuItem
+                      className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors"
+                      onClick={() => {
+                        setSelectedStore(store);
+                        setIsActivatePlanDialogOpen(true);
+                      }}
+                    >
+                      <BadgeCheck className="h-4 w-4" />
+                      Activate Paid Plan
                     </DropdownMenuItem>
                   )}
                   {isSuperAdmin && (

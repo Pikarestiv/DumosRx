@@ -157,8 +157,10 @@ Route::prefix('v1')->group(function () {
             Route::post('/stores/{id}/mark-demo', [AdminStoreController::class, 'markStoreDemo'])->middleware('role:super_admin');
             Route::post('/stores/{id}/unmark-demo', [AdminStoreController::class, 'unmarkStoreDemo'])->middleware('role:super_admin');
             Route::post('/stores/{id}/grant-trial', [AdminStoreController::class, 'grantTrial']);
+            Route::post('/stores/{id}/activate-plan', [AdminStoreController::class, 'activatePlan']);
             Route::get('/stores/{id}/billing-history', [AdminStoreController::class, 'billingHistory'])->middleware('role:super_admin');
             Route::post('/users/{id}/grant-trial', [AdminUserController::class, 'grantUserTrial']);
+            Route::post('/users/{id}/activate-plan', [AdminUserController::class, 'activateUserPlan']);
             Route::get('/products', [AdminPlatformController::class, 'products'])->middleware('role:super_admin');
             Route::post('/products/standardize', [AdminPlatformController::class, 'standardize'])->middleware('role:super_admin');
             Route::get('/users', [AdminUserController::class, 'users'])->middleware('role:super_admin');
@@ -204,6 +206,9 @@ Route::prefix('v1')->group(function () {
 
             // System Configs
             Route::put('/system-configs/{key}', [SystemConfigController::class, 'update'])->middleware('role:super_admin');
+
+            // Revenue (Marketing > Revenue tab)
+            Route::get('/marketing/revenue', [\App\Http\Controllers\Api\Admin\RevenueController::class, 'overview'])->middleware('role:super_admin');
 
             // Coupons
             Route::middleware('role:super_admin')->group(function () {

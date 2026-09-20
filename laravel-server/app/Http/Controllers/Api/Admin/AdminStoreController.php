@@ -256,6 +256,51 @@ class AdminStoreController extends AdminBaseController
         }
     }
 
+    #[OA\Post(
+        path: '/admin/stores/{id}/activate-plan',
+        summary: 'Manually activate a paid subscription for a store (e.g. after a bank transfer)',
+        description: 'For payments settled outside the automated checkout flow. Creates a non-trial active Subscription and a matching PaymentTransaction (provider=bank_transfer) so it appears in billing history and platform revenue reporting.',
+        tags: ['Admin'],
+        security: [['sanctum' => []]],
+        parameters: [new OA\Parameter(name: 'id', in: 'path', description: 'Store ID', required: true, schema: new OA\Schema(type: 'string'))],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
+            required: ['plan', 'billing_cycle', 'amount'],
+            properties: [
+                new OA\Property(property: 'plan', type: 'string', enum: ['starter', 'pro', 'enterprise']),
+                new OA\Property(property: 'billing_cycle', type: 'string', enum: ['monthly', 'yearly']),
+                new OA\Property(property: 'amount', type: 'number', description: 'Amount paid, in naira'),
+                new OA\Property(property: 'reference', type: 'string', nullable: true, description: 'Bank reference/note for the transfer'),
+            ],
+        )),
+        responses: [
+            new OA\Response(response: 200, description: 'Activated', content: new OA\JsonContent(ref: '#/components/schemas/MessageOnly')),
+            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Non-super_admin'),
+            new OA\Response(response: 422, ref: '#/components/responses/ValidationError'),
+            new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
+        ],
+    )]
+    public function activatePlan(Request $request, $id)
+    {
+        if (!$request->user()->hasRole('super_admin') && !$request->user()->hasPermission('grant_trials')) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        $validated = $request->validate([
+            'plan' => 'required|string|in:starter,pro,enterprise',
+            'billing_cycle' => 'required|string|in:monthly,yearly',
+            'amount' => 'required|numeric|min:0',
+            'reference' => 'nullable|string|max:255',
+        ]);
+
+        try {
+            $this->adminStoreService->activatePaidPlan($id, $validated['plan'], $validated['billing_cycle'], $validated['amount'], $validated['reference'] ?? null);
+            return response()->json(['message' => 'Plan activated successfully']);
+        } catch (\Exception $e) {
+            Log::error("Admin Activate Plan Error: " . $e->getMessage());
+            return response()->json(['error' => 'Failed to activate plan: ' . $e->getMessage()], 500);
+        }
+    }
+
     #[OA\Put(
         path: '/admin/stores/{id}/account-manager',
         summary: "Reassign a store account's contact specialist / account manager",

@@ -212,6 +212,64 @@ class AdminUserService
         });
     }
 
+    /**
+     * User-scoped counterpart of AdminStoreService::activatePaidPlan() -
+     * manually activates a paid (non-trial) subscription for a payment
+     * settled outside the automated checkout flow (e.g. bank transfer).
+     */
+    public function activatePaidPlan($userId, $plan, $billingCycle, $amount, $reference = null)
+    {
+        return DB::transaction(function () use ($userId, $plan, $billingCycle, $amount, $reference) {
+            $user = User::findOrFail($userId);
+
+            $endDate = $billingCycle === 'yearly' ? now()->addYear() : now()->addMonth();
+
+            $user->subscriptions()->where('status', 'active')->update(['status' => 'expired']);
+
+            $subscription = \App\Models\Subscription::create([
+                'user_id' => $user->id,
+                'plan_name' => strtolower($plan),
+                'start_date' => now(),
+                'end_date' => $endDate,
+                'status' => 'active',
+                'is_trial' => false,
+                'license_key' => 'DRX-'.strtoupper(Str::random(12)),
+            ]);
+
+            \App\Models\PaymentTransaction::create([
+                'subscription_id' => $subscription->id,
+                'provider' => 'bank_transfer',
+                'provider_reference' => $reference ?: 'MANUAL-'.strtoupper(Str::random(10)),
+                'amount' => $amount,
+                'currency' => 'NGN',
+                'status' => 'completed',
+                'metadata' => [
+                    'plan_name' => ucfirst($plan),
+                    'billing_cycle' => $billingCycle,
+                    'recorded_by' => Auth::id(),
+                    'user_id' => $user->id,
+                ],
+            ]);
+
+            Store::where('user_id', $user->id)->update(['last_sync_at' => now()]);
+
+            ActivityLog::create([
+                'user_id' => Auth::id(),
+                'action' => 'ACTIVATE_PAID_PLAN',
+                'description' => "Activated {$plan} plan ({$billingCycle}) for user {$user->email} ({$user->id}) via bank transfer".($reference ? ", ref {$reference}" : ''),
+                'status' => 'success',
+            ]);
+
+            $this->notifyUser(
+                $user->id,
+                "Your ".ucfirst($plan)." plan has been activated, valid until {$endDate->toDateString()}.",
+                'Subscription Activated'
+            );
+
+            return true;
+        });
+    }
+
     public function createPlatformAdmin($data, $createdById = null)
     {
         return DB::transaction(function () use ($data, $createdById) {

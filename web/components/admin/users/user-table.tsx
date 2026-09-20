@@ -9,7 +9,8 @@ import {
   Ban,
   Trash2,
   AlertTriangle,
-  Gift
+  Gift,
+  BadgeCheck
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -44,6 +45,7 @@ interface UserTableProps {
   setIsReactivateDialogOpen: (val: boolean) => void;
   setIsDeleteDialogOpen: (val: boolean) => void;
   setIsTrialDialogOpen: (val: boolean) => void;
+  setIsActivatePlanDialogOpen: (val: boolean) => void;
 }
 
 export function UserTable({
@@ -58,7 +60,8 @@ export function UserTable({
   setIsDeactivateDialogOpen,
   setIsReactivateDialogOpen,
   setIsDeleteDialogOpen,
-  setIsTrialDialogOpen
+  setIsTrialDialogOpen,
+  setIsActivatePlanDialogOpen
 }: UserTableProps) {
   if (error) {
     return (
@@ -185,6 +188,19 @@ export function UserTable({
                     >
                       <Gift className="h-4 w-4 text-emerald-500" />
                       Grant Free Trial
+                    </DropdownMenuItem>
+                  )}
+
+                  {(user.role_slug === 'store_owner' || user.role_slug === 'admin') && (
+                    <DropdownMenuItem
+                      className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold"
+                      onClick={() => {
+                        setSelectedUser(user);
+                        setIsActivatePlanDialogOpen(true);
+                      }}
+                    >
+                      <BadgeCheck className="h-4 w-4 text-emerald-500" />
+                      Activate Paid Plan
                     </DropdownMenuItem>
                   )}
 

@@ -29,6 +29,7 @@ import {
   useDeleteUserMutation,
   useReactivateUserMutation,
   useGrantUserTrialMutation,
+  useActivateUserPlanMutation,
 } from "@/lib/api/admin-hooks";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -43,6 +44,7 @@ import { SendNotificationDialog } from "@/components/admin/users/send-notificati
 import { DeleteUserDialog } from "@/components/admin/users/delete-user-dialog";
 import { UserTable } from "@/components/admin/users/user-table";
 import { SharedGrantTrialDialog } from "@/components/admin/shared-grant-trial-dialog";
+import { SharedActivatePlanDialog } from "@/components/admin/shared-activate-plan-dialog";
 import { UserPagination } from "@/components/admin/users/user-pagination";
 import { BulkNotifyDialog } from "@/components/admin/users/bulk-notify-dialog";
 import type { AdminUser } from "@/lib/types/admin";
@@ -91,6 +93,7 @@ function GlobalUsersDirectoryContent() {
   const [isBulkNotifyDialogOpen, setIsBulkNotifyDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isTrialDialogOpen, setIsTrialDialogOpen] = useState(false);
+  const [isActivatePlanDialogOpen, setIsActivatePlanDialogOpen] = useState(false);
 
   const debouncedSearch = useDebounce(search, 500);
 
@@ -106,6 +109,7 @@ function GlobalUsersDirectoryContent() {
   const notifyMutation = useNotifyUserMutation();
   const deleteMutation = useDeleteUserMutation();
   const grantTrialMutation = useGrantUserTrialMutation();
+  const activatePlanMutation = useActivateUserPlanMutation();
   const bulkNotifyMutation = useBulkNotifyUsersMutation();
 
   const handlePageChange = (newPage: number) => {
@@ -161,6 +165,26 @@ function GlobalUsersDirectoryContent() {
       onError: (err) => {
         toast.error("Action Failed", {
           description: err.message || "Failed to grant trial.",
+        });
+      }
+    });
+  };
+
+  const handleActivatePlan = (plan: string, billingCycle: string, amount: number, reference?: string) => {
+    if (!selectedUser) return;
+
+    activatePlanMutation.mutate({ id: selectedUser.id, plan, billingCycle, amount, reference }, {
+      onSuccess: () => {
+        toast.success("Plan Activated", {
+          description: `Activated ${billingCycle} ${plan} plan for ${selectedUser.name}.`,
+        });
+        setIsActivatePlanDialogOpen(false);
+        setSelectedUser(null);
+        void refetch();
+      },
+      onError: (err) => {
+        toast.error("Action Failed", {
+          description: err.message || "Failed to activate plan.",
         });
       }
     });
@@ -291,6 +315,7 @@ function GlobalUsersDirectoryContent() {
               setIsReactivateDialogOpen={setIsReactivateDialogOpen}
               setIsDeleteDialogOpen={setIsDeleteDialogOpen}
               setIsTrialDialogOpen={setIsTrialDialogOpen}
+              setIsActivatePlanDialogOpen={setIsActivatePlanDialogOpen}
             />
           </div>
 
@@ -350,6 +375,14 @@ function GlobalUsersDirectoryContent() {
         targetName={selectedUser?.name}
         onConfirm={handleGrantTrial}
         isPending={grantTrialMutation.isPending}
+      />
+
+      <SharedActivatePlanDialog
+        open={isActivatePlanDialogOpen}
+        onOpenChange={setIsActivatePlanDialogOpen}
+        targetName={selectedUser?.name}
+        onConfirm={handleActivatePlan}
+        isPending={activatePlanMutation.isPending}
       />
 
       <BulkNotifyDialog

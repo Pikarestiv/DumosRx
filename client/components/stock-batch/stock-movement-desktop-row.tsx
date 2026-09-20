@@ -1,4 +1,4 @@
-import { StockMovement, getTypeColor, formatMovementTime } from "./stock-movement-utils";
+import { StockMovement, getTypeColor, getTypeLabel, formatMovementTime } from "./stock-movement-utils";
 import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
 
 interface Props {
@@ -22,7 +22,7 @@ export function StockMovementDesktopRow({ movement, onSelect }: Props) {
         <span
           className={`text-[11px] font-semibold px-2 py-0.5 rounded-md capitalize ${getTypeColor(movement.type)}`}
         >
-          {movement.type}
+          {getTypeLabel(movement.type)}
         </span>
       </div>
       <div

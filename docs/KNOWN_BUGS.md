@@ -122,6 +122,107 @@ Issues spotted incidentally (e.g. while doing TypeScript type-safety cleanup) th
   column specifically, or truncating the id (e.g. last 8 chars only, matching
   what the receipt dialog already shows) rather than relying on wrap/hide.
 
+### Hand-rolled query keys bypass the `queryKeys` factory (store/user cache collisions)
+
+- **Where:** `client/components/reports/reseller-commission/reseller-commission-panel.tsx:52,57`
+  (`queryKey: ["resellerCommission", ...]`) and
+  `client/components/pos/transaction-details-dialog.tsx:55,87`
+  (`queryKey: ["customerById", sale?.customer_id]`).
+- **Context:** every entry in `client/lib/query-keys.ts`'s `queryKeys` factory
+  auto-suffixes the key with the active store id and current user id
+  (`resource()` helper) specifically so a store/user switch can never read or
+  write a cache slot the previous store/user's queries own. These two spots
+  write their `queryKey` by hand instead, so they carry no such suffix even
+  though their query functions resolve the store at call time.
+- **Effect:** the reseller-commission list/pending-total and a customer
+  looked up by id can be served from the wrong store's (or wrong user's)
+  cached data after a switch. Currently masked in practice only by
+  `switchStore()`'s broad `invalidateQueries()` sweep, not by any structural
+  guarantee — found via an Opus-dispatched audit pass, not reproduced live.
+- **Fix scope (not implemented):** route both through `queryKeys` (add a
+  `queryKeys.reseller.commission*()`/`queryKeys.customers.byId()` entry with
+  the right `meta.tables`) instead of a literal array.
+
+### `stock-movements.tsx` doesn't refetch on store switch (useState, not React Query)
+
+- **Where:** `client/components/stock-batch/stock-movements.tsx:97-100`.
+- **Context:** plain `useState`/`useEffect` fetch with `deps: [dateRange]`
+  only — the same pattern already found and fixed in
+  `use-procurement-data.ts` earlier in this audit.
+- **Effect:** switching stores (or recording a sale) leaves the stock-movement
+  log showing the previous store's / stale rows until the date filter is
+  touched.
+- **Fix scope (not implemented):** convert to `useQuery` with a store-scoped
+  `queryKeys` entry, mirroring `use-procurement-data.ts`'s fix.
+
+### Receipt/id collisions from time-based, non-unique identifiers
+
+- **Where:** `client/lib/hooks/use-pos-payment.ts:128` —
+  `` transaction_number = `TXN${Date.now()}` `` against a
+  `sales.transaction_number TEXT UNIQUE NOT NULL` column
+  (`client/lib/db/schema.ts:103`); `client/lib/hooks/use-pos-held-transactions.ts:47`
+  — `` id = `held_${Date.now()}` `` as an explicit primary key;
+  `client/lib/hooks/use-fulfill-online-order-mutation.ts:33` —
+  `` receipt_number: `ONL-${order.id.split("-")[0]}` `` (only the first UUID
+  segment).
+- **Effect:** two terminals in the same store checking out (or holding a
+  sale) in the same millisecond, or with clock skew, produce the same id —
+  the losing row hits a UNIQUE violation server-side and never syncs (sales),
+  or one held cart silently overwrites the other on sync (held transactions).
+  The online-order receipt number isn't unique by construction at all.
+- **Fix scope (not implemented):** generate these with the same collision-safe
+  id generator already used elsewhere (`generateId()`, `lib/db/core.ts`)
+  instead of a bare timestamp/id-prefix.
+
+### `sync-engine/pull.ts` stock-quantity correctness gaps
+
+- **Where:** `client/lib/db/sync-engine/pull.ts`.
+- **Findings from an Opus-dispatched audit pass (unverified against server
+  behavior — see specifics below):**
+  - `:273-283` — a pulled `stock_movements` row applies its quantity delta to
+    `stock_batches` only in the INSERT branch; a movement later soft-deleted
+    server-side arrives via the UPDATE branch (`:203-213`), which sets
+    `_deleted = 1` but never reverses the delta — permanent drift.
+  - `:284-297` — a UNIQUE-constraint error on that INSERT is caught/logged
+    and skipped, but the row is still treated as "seen" for cursor purposes,
+    so the missed delta is never retried.
+  - `:108-113` — the "stock_batches before stock_movements" ordering only
+    holds within one page; a movement arriving on page N whose batch only
+    arrives on page N+1 makes the batch UPDATE a silent no-op (the code's own
+    comment already says this loses the increment permanently).
+  - `:164-166` / `:47-48` — `stock_batches.quantity` is rebuilt purely by
+    replaying `stock_movements`, itself capped at `MAX_PULL_PAGES = 200` × 500
+    rows — a store with more history than that (or one the server ever
+    prunes) can never reach the correct quantity.
+  - `:115` — the transaction wraps one page, not the whole pull; a
+    multi-page pull that throws on page 3 can leave page 1's store-prune/
+    duplicate-remap already committed against data that was never fully
+    applied.
+- **Fix scope (not implemented):** needs verifying against the server first
+  (does it ever prune `stock_movements`? does a real store exceed ~100k
+  historical movements?) before deciding whether this is theoretical or
+  live-reachable — flagged, not yet investigated further.
+
+### Refunding a credit sale doesn't reverse loyalty points or the customer's balance
+
+- **Where:** `client/lib/db/queries/returns.ts` (whole module) +
+  `client/lib/hooks/use-process-return-mutation.ts:38`.
+- **Effect:** the return transaction restores stock and flips
+  `sales.payment_status`, but never reverses `points_earned` or
+  `outstanding_balance` for a credit sale — refunding a credit sale leaves
+  the customer's debt and loyalty points as if the sale still stood.
+- **Fix scope (not implemented):** not yet designed.
+
+### Onboarding's first-admin insert has no `_sync_queue` row
+
+- **Where:** `client/app/setup/use-onboarding.ts:139-183`.
+- **Effect:** the offline branch (`_synced = 0`, lines 169-183) inserts
+  `stores`/`users` via raw `execute()` with no matching `_sync_queue` entry,
+  relying entirely on a separate "mark everything dirty" path
+  (`local-database.ts:390-395`) to ever reach the server. If that path is
+  ever missed, the very first admin account on a device never syncs.
+- **Fix scope (not implemented):** not yet designed.
+
 ## Pre-launch review findings (web/)
 
 Read-only review pass over `web/` (Next.js superadmin panel + marketing

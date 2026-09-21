@@ -1,4 +1,4 @@
-import { query } from "@/lib/db/local-database";
+import { query, insert, update, softDelete } from "@/lib/db/local-database";
 import { getActiveStoreId } from "@/lib/db/core";
 import type {
   PrescriptionItem,
@@ -35,34 +35,25 @@ export async function getQueueCount() {
 
 export async function updatePrescriptionRecord(id: string, data: PrescriptionUpdatePayload) {
   const { patient_name, patient_phone, patient_age, doctor_name, doctor_license, priority, insurance, notes, total_cost, updated_at } = data;
-  return query(
-    `UPDATE prescriptions 
-     SET patient_name = ?, patient_phone = ?, patient_age = ?, doctor_name = ?, doctor_license = ?, priority = ?, insurance = ?, notes = ?, total_cost = ?, updated_at = ?
-     WHERE id = ?`,
-    [
-      patient_name ?? null,
-      patient_phone ?? null,
-      patient_age ?? null,
-      doctor_name ?? null,
-      doctor_license ?? null,
-      priority ?? null,
-      insurance ?? null,
-      notes ?? null,
-      total_cost ?? null,
-      updated_at,
-      id,
-    ]
-  );
+  return update("prescriptions", id, {
+    patient_name: patient_name ?? null,
+    patient_phone: patient_phone ?? null,
+    patient_age: patient_age ?? null,
+    doctor_name: doctor_name ?? null,
+    doctor_license: doctor_license ?? null,
+    priority: priority ?? null,
+    insurance: insurance ?? null,
+    notes: notes ?? null,
+    total_cost: total_cost ?? null,
+    updated_at,
+  });
 }
 
-/** Deletes a single item row (one medication line removed while editing a
- * prescription), leaving the prescription's other items — and their refill
+/** Soft-deletes a single item row (one medication line removed while editing
+ * a prescription), leaving the prescription's other items — and their refill
  * history — untouched. */
 export async function deletePrescriptionItem(id: string) {
-  return query(
-    `DELETE FROM prescription_items WHERE id = ?`,
-    [id]
-  );
+  return softDelete("prescription_items", id);
 }
 
 /** Updates an existing item row in place. Deliberately never touches id,
@@ -71,51 +62,40 @@ export async function deletePrescriptionItem(id: string) {
  * due. */
 export async function updatePrescriptionItem(id: string, data: PrescriptionItemUpdatePayload) {
   const { product_name, strength, dosage, quantity, instructions, cost, unit_cost, refills_authorized, refill_interval_days, updated_at } = data;
-  return query(
-    `UPDATE prescription_items
-     SET product_name = ?, strength = ?, dosage = ?, quantity = ?, instructions = ?, cost = ?, unit_cost = ?, refills_authorized = ?, refill_interval_days = ?, updated_at = ?
-     WHERE id = ?`,
-    [
-      product_name ?? null,
-      strength ?? null,
-      dosage ?? null,
-      quantity ?? null,
-      instructions ?? null,
-      cost ?? null,
-      unit_cost ?? null,
-      refills_authorized ?? null,
-      refill_interval_days ?? null,
-      updated_at,
-      id,
-    ]
-  );
+  return update("prescription_items", id, {
+    product_name: product_name ?? null,
+    strength: strength ?? null,
+    dosage: dosage ?? null,
+    quantity: quantity ?? null,
+    instructions: instructions ?? null,
+    cost: cost ?? null,
+    unit_cost: unit_cost ?? null,
+    refills_authorized: refills_authorized ?? null,
+    refill_interval_days: refill_interval_days ?? null,
+    updated_at,
+  });
 }
 
 export async function insertPrescriptionItem(data: PrescriptionItemInsertPayload) {
-  // Raw INSERT (not base-helpers' insert()), so store_id isn't auto-injected;
-  // set it explicitly here to stay scoped like every other write path.
-  const storeId = getActiveStoreId();
-  return await query(
-    `INSERT INTO prescription_items (id, prescription_id, product_name, strength, dosage, quantity, instructions, cost, unit_cost, refills_authorized, refill_interval_days, next_refill_date, created_at, updated_at, store_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      data.id,
-      data.prescription_id,
-      data.product_name,
-      data.strength ?? null,
-      data.dosage ?? null,
-      data.quantity ?? null,
-      data.instructions ?? null,
-      data.cost ?? null,
-      data.unit_cost ?? null,
-      data.refills_authorized ?? null,
-      data.refill_interval_days ?? null,
-      data.next_refill_date ?? null,
-      data.created_at ?? null,
-      data.updated_at ?? null,
-      storeId,
-    ]
-  );
+  // insert() (base-helpers) auto-attaches store_id for STORE_SCOPED_TABLES
+  // (prescription_items is one) and enqueues the row for sync - unlike a raw
+  // query(), which did neither.
+  return insert("prescription_items", {
+    id: data.id,
+    prescription_id: data.prescription_id,
+    product_name: data.product_name,
+    strength: data.strength ?? null,
+    dosage: data.dosage ?? null,
+    quantity: data.quantity ?? null,
+    instructions: data.instructions ?? null,
+    cost: data.cost ?? null,
+    unit_cost: data.unit_cost ?? null,
+    refills_authorized: data.refills_authorized ?? null,
+    refill_interval_days: data.refill_interval_days ?? null,
+    next_refill_date: data.next_refill_date ?? null,
+    created_at: data.created_at ?? null,
+    updated_at: data.updated_at ?? null,
+  });
 }
 export interface RefillManagementRow {
   id: string;

@@ -184,10 +184,6 @@ export async function initDatabase(): Promise<any> {
 
     const webAdapter = makeSqlJsAdapter(db);
 
-    try {
-      db.run("UPDATE purchase_orders SET status = 'pending' WHERE status = 'draft'");
-    } catch (_e) {}
-
     await runSchemaMigrations(webAdapter, saveDatabase);
 
     return db;
@@ -1027,6 +1023,7 @@ export async function logAction(
   const record = {
     id,
     user_id: currentUser?.id || null,
+    store_id: getActiveStoreId(),
     action,
     table_name: table,
     record_id: recordId,

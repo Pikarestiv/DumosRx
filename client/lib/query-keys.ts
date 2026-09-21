@@ -99,6 +99,11 @@ export const queryKeys = {
   suppliers: {
     all: () => resource(["suppliers"] as const, ["suppliers"]),
   },
+  procurement: {
+    suppliersForPO: () => resource(["procurementSuppliersForPO"] as const, ["suppliers"]),
+    productsForPO: () =>
+      resource(["procurementProductsForPO"] as const, ["products", "stock_batches"]),
+  },
   customers: {
     all: () => resource(["customers"] as const, ["customers"]),
     transactions: (fullHistory: boolean, range?: { from?: string; to?: string }) =>

@@ -330,12 +330,24 @@ export async function pushChanges(
           // non-conflicting edit. Re-reading here means the payload actually
           // sent always reflects this device's latest known state.
           if (item.operation === "UPDATE") {
-            const current = await query<{ _version: number }>(
-              `SELECT _version FROM ${item.table_name} WHERE id = ?`,
-              [item.record_id],
-            );
-            if (current[0]?._version !== undefined) {
-              payload._version = current[0]._version;
+            // Falls back to the frozen payload value on error (e.g. a queue
+            // row naming a table that no longer exists locally) rather than
+            // letting this one item's lookup failure throw and reject the
+            // WHOLE batch's Promise.all - that would turn a single bad row
+            // into every other item in the batch missing this push tick too.
+            try {
+              const current = await query<{ _version: number }>(
+                `SELECT _version FROM ${item.table_name} WHERE id = ?`,
+                [item.record_id],
+              );
+              if (current[0]?._version !== undefined) {
+                payload._version = current[0]._version;
+              }
+            } catch (err) {
+              console.warn(
+                `[Sync] Failed to re-read current _version for ${item.table_name}/${item.record_id}, sending the frozen value instead:`,
+                err,
+              );
             }
           }
 

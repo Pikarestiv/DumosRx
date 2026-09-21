@@ -170,6 +170,40 @@ describe("pushChanges handles a version_conflict failure as non-retryable", () =
     expect(sentChanges[0].payload._version).toBe(2); // current, not the stale 1
   });
 
+  it("falls back to the frozen _version (and still pushes the rest of the batch) when the re-read query itself fails", async () => {
+    // A queue row naming a table that doesn't exist locally (e.g. a stale
+    // row from a schema this device hasn't migrated) makes the re-read
+    // query throw. That must not reject the whole batch's Promise.all and
+    // take every other item in it down too - it should fall back to the
+    // frozen value for just this one item.
+    db.run(
+      `INSERT INTO _sync_queue (id, table_name, record_id, operation, payload, created_at)
+       VALUES (4, 'no_such_table', 'x1', 'UPDATE', ?, '2026-09-04T00:00:00Z')`,
+      [JSON.stringify({ id: "x1", some_field: 1, _version: 1 })],
+    );
+    db.run(`INSERT INTO products (id, name, selling_price, _version, _deleted) VALUES ('p4', 'Amoxicillin', 400, 1, 0)`);
+    db.run(
+      `INSERT INTO _sync_queue (id, table_name, record_id, operation, payload, created_at)
+       VALUES (5, 'products', 'p4', 'UPDATE', ?, '2026-09-04T00:00:00Z')`,
+      [JSON.stringify({ id: "p4", selling_price: 400, _version: 1 })],
+    );
+
+    apiClient.pushChanges.mockResolvedValueOnce({
+      success: true,
+      processed: 2,
+      failed: [],
+    });
+
+    const result = await pushChanges();
+
+    expect(result.pushed).toBe(2);
+    const sentChanges = apiClient.pushChanges.mock.calls[0][0].changes;
+    const badTableChange = sentChanges.find((c: { record_id: string }) => c.record_id === "x1");
+    const normalChange = sentChanges.find((c: { record_id: string }) => c.record_id === "p4");
+    expect(badTableChange.payload._version).toBe(1); // frozen fallback, not thrown
+    expect(normalChange.payload._version).toBe(1); // unaffected by the other item's failure
+  });
+
   it("applies the server's authoritative returned version to the local row for an accepted UPDATE", async () => {
     db.run(`INSERT INTO products (id, name, selling_price, _version, _deleted) VALUES ('p2', 'Panadol', 600, 1, 0)`);
     db.run(

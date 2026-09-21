@@ -13,6 +13,18 @@ import type { ReceiptTransaction } from "@/components/pos/receipt-view";
 
 export type PaymentMethod = "cash" | "card" | "transfer" | "credit" | "mixed";
 
+/** Thrown by applyLoyaltyPointsForSale when the customer's real current
+ * balance can't cover a redemption picked earlier in checkout (e.g. a
+ * second terminal already spent the points, or a stale cached balance) -
+ * distinguished from a generic Error so the caller can show an actionable
+ * message and clear the stale redemption instead of a bare failure toast. */
+export class InsufficientLoyaltyPointsError extends Error {
+  constructor() {
+    super("Customer no longer has enough points for this reward");
+    this.name = "InsufficientLoyaltyPointsError";
+  }
+}
+
 export interface PaymentSplit {
   method: string;
   amount: number;
@@ -151,6 +163,17 @@ export async function applyLoyaltyPointsForSale(params: {
   // balance write in use-pos-payment.ts.
   const pointsRows = await getCustomerLoyaltyPoints(selectedCustomer.id);
   const currentPoints = pointsRows[0]?.loyalty_points || 0;
+
+  // Reject rather than clamp: calculateLoyaltyPointsAfterSale floors the
+  // resulting balance at 0, which used to mean a customer who no longer
+  // actually has the points (a second terminal already spent them, or a
+  // stale cached balance) still got the redemption discount applied for
+  // free. Checked against the balance just re-read above, inside the same
+  // transaction the sale itself runs in, so throwing here rolls back the
+  // whole sale rather than leaving a half-applied discount.
+  if (redeemedOption && currentPoints < redeemedOption.pointsCost) {
+    throw new InsufficientLoyaltyPointsError();
+  }
 
   await update("customers", selectedCustomer.id, {
     loyalty_points: calculateLoyaltyPointsAfterSale(

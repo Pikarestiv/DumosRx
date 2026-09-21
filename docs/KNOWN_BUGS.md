@@ -22,23 +22,6 @@ Open items below are grouped by severity (Critical → High → Medium → Low),
 
 ## High
 
-### Loyalty-point redemption isn't re-validated against the real balance at apply time
-
-- **Where:** `client/components/pos/pos-redeem-reward.tsx:86` (affordability
-  check against possibly-stale cached `selectedCustomer.loyalty_points`) +
-  `client/lib/utils/loyalty-calculator.ts:44`
-  (`calculateLoyaltyPointsAfterSale` clamps at `Math.max(0, …)`).
-- **Effect:** a customer who no longer actually has the points (e.g. a
-  second terminal already spent them, or a stale local cache) still gets the
-  redemption discount applied; their balance is just floored to zero instead
-  of the redemption being rejected. Note: the redemption write itself IS
-  correctly atomic with the sale (runs inside `use-pos-payment.ts`'s
-  `runInTransaction`) — this is specifically about the missing
-  balance-at-apply-time check, not a transaction-atomicity gap.
-- **Fix scope (not implemented):** re-read the customer's real current
-  `loyalty_points` inside the same transaction right before applying the
-  redemption, and reject (not clamp) if insufficient.
-
 ### Sync push batch failure (`success: false`) is handled by doing nothing
 
 - **Where:** `client/lib/db/sync-engine/push.ts:443`.

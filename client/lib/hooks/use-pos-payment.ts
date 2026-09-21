@@ -14,6 +14,7 @@ import {
   computeResellerCommission,
   applyLoyaltyPointsForSale,
   buildReceiptTransaction,
+  InsufficientLoyaltyPointsError,
   type PaymentMethod,
   type PaymentSplit,
 } from "./use-pos-payment-helpers";
@@ -56,6 +57,12 @@ interface UsePOSPaymentProps {
   /** Store-configurable base earn rate (points per currency unit spent),
    * before any loyalty-tier multiplier is applied. */
   loyaltyPointsPerCurrency?: number;
+  /** Called when the sale is rejected because the customer's real current
+   * points balance can't cover the redemption picked earlier in checkout
+   * (see InsufficientLoyaltyPointsError) - the caller should clear the
+   * stale redemption so retrying the same sale doesn't hit the same
+   * rejection again. */
+  onInsufficientLoyaltyPoints?: () => void;
 }
 
 export function usePOSPayment({
@@ -81,6 +88,7 @@ export function usePOSPayment({
   isResellerSale = false,
   resellerCommissionPercentage = 0,
   loyaltyPointsPerCurrency = 0.01,
+  onInsufficientLoyaltyPoints,
 }: UsePOSPaymentProps) {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   const [amountPaid, setAmountPaid] = useState("");
@@ -296,7 +304,12 @@ export function usePOSPayment({
       toast.success("Transaction completed successfully!");
     } catch (error) {
       console.error("Payment failed", error);
-      toast.error("An error occurred while processing payment");
+      if (error instanceof InsufficientLoyaltyPointsError) {
+        onInsufficientLoyaltyPoints?.();
+        toast.error(`${error.message}. The reward has been removed - please try the sale again.`);
+      } else {
+        toast.error("An error occurred while processing payment");
+      }
     } finally {
       setProcessingPayment(false);
     }

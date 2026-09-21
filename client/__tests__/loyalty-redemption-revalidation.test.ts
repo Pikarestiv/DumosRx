@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
 import initSqlJs, { type Database } from "sql.js";
+import type { Customer } from "@/lib/types/customer";
 
 vi.mock("idb-keyval", () => ({
   get: vi.fn(async () => undefined),
@@ -44,7 +45,7 @@ describe("applyLoyaltyPointsForSale re-validates the redemption against the real
     );
   });
 
-  const baseCustomer = { id: "c1", first_name: "Jane", loyalty_points: 50 } as never;
+  const baseCustomer = { id: "c1", first_name: "Jane", loyalty_points: 50 } as unknown as Customer;
 
   it("rejects (throws InsufficientLoyaltyPointsError) instead of clamping when the real balance can't cover the redemption", async () => {
     // selectedCustomer is stale here on purpose - the cart picked a

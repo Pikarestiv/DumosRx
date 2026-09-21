@@ -1,4 +1,5 @@
-import { query, execute } from "@/lib/db/core";
+import { query } from "@/lib/db/core";
+import { update } from "@/lib/db/local-database";
 import type { UserDbRow } from "@/lib/types/user";
 
 export async function getUserByUsernameOrEmail(identifier: string) {
@@ -33,7 +34,7 @@ export async function getUserPin(userId: string) {
 }
 
 export async function updateUserPin(userId: string, newPin: string) {
-  return execute("UPDATE users SET pin = ? WHERE id = ?", [newPin, userId]);
+  return update("users", userId, { pin: newPin });
 }
 
 export async function getStaffCount() {

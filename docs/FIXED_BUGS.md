@@ -5,7 +5,7 @@ A changelog of bugs that were tracked in `docs/KNOWN_BUGS.md` and have since bee
 ## 2026-09-21
 
 ### fix: loyalty-point redemption wasn't re-validated against the real balance at apply time
-- **Commit:** (pending)
+- **Commit:** `73bbbb61`
 - A customer who no longer actually had the points for a redemption picked earlier in checkout (a second terminal already spent them, or a stale cached balance) still got the discount applied — `calculateLoyaltyPointsAfterSale` floored the resulting balance at 0 instead of the redemption being rejected. The re-read of the real current balance already happened inside the same transaction the sale runs in; it just was never checked against the redemption's cost.
 - `applyLoyaltyPointsForSale` now throws a dedicated `InsufficientLoyaltyPointsError` when the freshly re-read balance can't cover it, which rolls back the whole sale (via `runInTransaction`) rather than leaving a half-applied discount. `use-pos-payment.ts` catches it specifically, clears the stale redemption (so retrying the same sale doesn't hit the same rejection again), and shows an actionable toast instead of the generic failure message.
 

@@ -332,12 +332,17 @@ export async function getBIMetrics(dateFilter: string, prevDateFilter: string, f
   // Uses the cost_price recorded on the original sale_items row, not a
   // recomputed current-stock average - the product's cost basis can change
   // between the sale and the return, and averaging over current active
-  // batches also silently reports 0 once a product has none left. Safe to
-  // join on (sale_id, product_id) alone (no sale_item_id column on
-  // return_items): the POS cart merges duplicate products into one line, so
-  // at most one sale_item per product exists within a given sale (see the
-  // matching comment in returns.ts's getAlreadyRestoredByBatch).
-  const returnedCogsData = await query<{ total: number }>(`SELECT SUM(ri.quantity * IFNULL(si.cost_price, 0)) as total FROM return_items ri JOIN returns r ON ri.return_id = r.id LEFT JOIN sale_items si ON si.sale_id = r.sale_id AND si.product_id = ri.product_id WHERE r.created_at >= ? AND (r._deleted = 0 OR r._deleted IS NULL)${storeId ? " AND r.store_id = ?" : ""}`, s1);
+  // batches also silently reports 0 once a product has none left.
+  // return_items has no sale_item_id column, so this joins on (sale_id,
+  // product_id) - normally at-most-one-row per the POS cart's merge-
+  // duplicates behavior, but a prescription dispense (one row per
+  // instruction line) or an online-order fulfillment (one row per raw
+  // payload item) can legitimately produce >1 sale_items row for the same
+  // product within one sale. Pre-aggregating to a single quantity-weighted
+  // average cost_price per (sale_id, product_id) before joining keeps this
+  // correct in that case, instead of fanning the return_items row out
+  // across every matching sale_items row and overcounting the total.
+  const returnedCogsData = await query<{ total: number }>(`SELECT SUM(ri.quantity * IFNULL(si.avg_cost_price, 0)) as total FROM return_items ri JOIN returns r ON ri.return_id = r.id LEFT JOIN (SELECT sale_id, product_id, SUM(cost_price * quantity) * 1.0 / NULLIF(SUM(quantity), 0) as avg_cost_price FROM sale_items GROUP BY sale_id, product_id) si ON si.sale_id = r.sale_id AND si.product_id = ri.product_id WHERE r.created_at >= ? AND (r._deleted = 0 OR r._deleted IS NULL)${storeId ? " AND r.store_id = ?" : ""}`, s1);
   // Smoothed, not a raw SUM: a prepaid expense (covers_months set) is split
   // into equal calendar-month installments instead of hitting this whole
   // window as a lump sum wherever it happened to be logged. See
@@ -441,9 +446,11 @@ export async function getAdvancedMonthlySalesData(dateFilter: string, filters?: 
   }));
 
   // See the matching comment on returnedCogsData in getBIMetrics above: uses
-  // the sale-time cost_price, not a recomputed current-stock average.
+  // the sale-time cost_price (pre-aggregated per (sale_id, product_id) to
+  // stay correct when a sale has >1 sale_items row for the same product),
+  // not a recomputed current-stock average.
   const rawMonthlyReturns = await query<{ month: string; refunds: number; returned_cogs: number; }>(
-    `SELECT strftime('%Y-%m', r.created_at) as month, SUM(r.total_refunded) as refunds, SUM(ri.quantity * IFNULL(si.cost_price, 0)) as returned_cogs FROM returns r LEFT JOIN return_items ri ON ri.return_id = r.id LEFT JOIN sale_items si ON si.sale_id = r.sale_id AND si.product_id = ri.product_id WHERE r.created_at >= ? AND (r._deleted = 0 OR r._deleted IS NULL)${storeId ? " AND r.store_id = ?" : ""} GROUP BY strftime('%Y-%m', r.created_at) ORDER BY strftime('%Y-%m', r.created_at) ASC`, p1
+    `SELECT strftime('%Y-%m', r.created_at) as month, SUM(r.total_refunded) as refunds, SUM(ri.quantity * IFNULL(si.avg_cost_price, 0)) as returned_cogs FROM returns r LEFT JOIN return_items ri ON ri.return_id = r.id LEFT JOIN (SELECT sale_id, product_id, SUM(cost_price * quantity) * 1.0 / NULLIF(SUM(quantity), 0) as avg_cost_price FROM sale_items GROUP BY sale_id, product_id) si ON si.sale_id = r.sale_id AND si.product_id = ri.product_id WHERE r.created_at >= ? AND (r._deleted = 0 OR r._deleted IS NULL)${storeId ? " AND r.store_id = ?" : ""} GROUP BY strftime('%Y-%m', r.created_at) ORDER BY strftime('%Y-%m', r.created_at) ASC`, p1
   );
 
   // date() on both sides: see the matching comment on fetchProfitLossReportData.

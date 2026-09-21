@@ -230,6 +230,38 @@ describe("finance.ts / reports.ts financial aggregates", () => {
       const thisMonth = rawMonthlyReturns.find((r) => r.month === now.slice(0, 7));
       expect(thisMonth?.returned_cogs).toBe(1000);
     });
+
+    it("getBIMetrics.returnedCogsData doesn't fan out when a sale has two sale_items rows for the same product", async () => {
+      // A prescription dispense (one sale_items row per instruction line) or
+      // an online-order fulfillment can legitimately produce >1 sale_items
+      // row for the same product within one sale - a plain join on
+      // (sale_id, product_id) would multiply the return_items row across
+      // both and overcount. The correct total uses the quantity-weighted
+      // average cost across both rows.
+      const now = todayISO();
+      db.run(
+        `INSERT INTO sales (id, transaction_number, subtotal, total_amount, transaction_date, _deleted) VALUES ('s1', 'TXN-1', 4000, 4000, ?, 0)`,
+        [now],
+      );
+      db.run(
+        `INSERT INTO sale_items (id, sale_id, product_id, quantity, unit_price, total_price, cost_price) VALUES
+          ('si1', 's1', 'prod1', 2, 1000, 2000, 400),
+          ('si2', 's1', 'prod1', 2, 1000, 2000, 600)`,
+      );
+      db.run(
+        `INSERT INTO returns (id, sale_id, user_id, total_refunded, created_at, _deleted) VALUES ('r1', 's1', 'u1', 2000, ?, 0)`,
+        [now],
+      );
+      db.run(
+        `INSERT INTO return_items (id, return_id, product_id, quantity, unit_price, subtotal) VALUES ('ri1', 'r1', 'prod1', 2, 1000, 2000)`,
+      );
+
+      const { returnedCogsData } = await getBIMetrics(now, otherMonthISO());
+      // Weighted-average cost across the two sale_items rows is
+      // (2*400 + 2*600) / 4 = 500, so 2 returned units cost 1000 - not
+      // double-counted across both matching rows (which would give 2000).
+      expect(returnedCogsData[0]?.total).toBe(1000);
+    });
   });
 
   describe("getCurrentMonthExpensesByCategory", () => {

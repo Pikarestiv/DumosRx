@@ -5,6 +5,7 @@ import * as Sentry from "@sentry/nextjs";
 import { setCurrentUser as setDbUser, logAction } from "@/lib/db/local-database";
 import { apiClient } from "@/lib/api/client";
 import { getUserByUsernameOrEmail, createDefaultAdmin, getUserPin, updateUserPin } from "@/lib/db/queries/auth";
+import { getTotalUserCount } from "@/lib/db/queries/setup";
 import { useAutoLockStore } from "@/lib/hooks/use-auto-lock";
 import { AUDIT_ACTIONS } from "@/lib/db/audit-actions";
 import { sync, isSyncing } from "@/lib/db/sync-engine";
@@ -30,6 +31,12 @@ async function waitForSyncToFinish(timeoutMs = 8000, pollMs = 150) {
 // single attempt.
 let lastPinRecoverySyncAt = 0;
 const PIN_RECOVERY_SYNC_COOLDOWN_MS = 10_000;
+
+// The documented default PIN for the zero-users bootstrap admin (see
+// login()'s fallback branch below). Requiring the typed PIN match this,
+// rather than accepting any 4 digits, means the bootstrap flow can't double
+// as a PIN-less login even in the one case it's allowed to fire.
+const DEFAULT_ADMIN_PIN = "1234";
 
 export interface User {
   id: string;
@@ -302,8 +309,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return true;
     }
 
-    // Fallback: If no users exist, create a default admin
-    if (cleanIdentifier.toLowerCase() === "admin") {
+    // Fallback: bootstrap a default admin, but ONLY on a genuinely fresh
+    // device with zero local users - previously this fired for ANY typed PIN
+    // whenever "admin" simply didn't match a local row, which a mid-sync or
+    // post-deletion device could hit with real users present. Also now
+    // requires the PIN match the documented default instead of accepting
+    // anything, so this can't double as a PIN-less login.
+    if (cleanIdentifier.toLowerCase() === "admin" && pin === DEFAULT_ADMIN_PIN) {
+      const totalUsers = await getTotalUserCount();
+      if (totalUsers > 0) {
+        logAction(AUDIT_ACTIONS.LOGIN_FAILED, "users", cleanIdentifier, {
+          username: cleanIdentifier,
+          reason: "default_admin_blocked_users_exist",
+        }).catch(() => {});
+        return false;
+      }
+
       const defaultAdmin: User = {
         id: "default-admin",
         first_name: "Default",
@@ -319,7 +340,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           first_name: defaultAdmin.first_name,
           last_name: defaultAdmin.last_name,
           username: defaultAdmin.username,
-          pin: "1234",
+          pin: DEFAULT_ADMIN_PIN,
           role: defaultAdmin.role
         });
       } catch (e) {

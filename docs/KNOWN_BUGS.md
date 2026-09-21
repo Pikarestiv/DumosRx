@@ -55,49 +55,6 @@ Open items below are grouped by severity (Critical → High → Medium → Low),
     larger design question (wrapping a whole multi-page pull in one
     transaction changes failure/retry semantics considerably).
 
-## Medium
-
-### Loyalty defaults silently re-seed for a store that deliberately deleted its tiers
-
-- **Where:** `client/lib/db/queries/loyalty.ts` (`ensureLoyaltyDefaultsSeeded`),
-  called from `loyalty-settings-dialog.tsx`.
-- **Status:** partially fixed (2026-09-21) — the check-then-seed is now
-  wrapped in a transaction, so two rapid opens (or two devices) can no
-  longer double-seed. The other half of the original effect is still open:
-  the seed check is still just "are there zero tiers," so a store that
-  intentionally deleted every loyalty tier still gets them silently
-  re-created the next time the settings dialog opens.
-- **Fix scope (not implemented):** needs a way to distinguish "never
-  seeded" from "deliberately cleared" (e.g. a one-time seeded-at-onboarding
-  flag, or moving the seed to a one-time migration instead of a per-open
-  check) — flagged as needing a small design decision, not a blind check
-  change, since a naive flag could itself be wrong for a store that seeds
-  by re-onboarding.
-
-### `getUsers` leaks admins/owners across every store on a fleet account
-
-- **Where:** `client/lib/db/local-database.ts:239-243`.
-- **Effect:** ORs in `role = 'admin' OR role = 'store_owner' OR store_id IS NULL`
-  alongside the store filter — every store's admins/owners appear in every
-  other store's staff directory (and anything derived from that list) on a
-  multi-store account.
-- **Fix scope (not implemented):** needs a product decision first (is
-  cross-store admin visibility intended for a fleet account?) before
-  deciding whether this is a bug or working-as-intended; if unintended,
-  scope the OR condition to the current store's own owner/admins only.
-
-### Sync push: a response lost after server commit produces a misleading "changed since this edit" toast
-
-- **Where:** `client/lib/db/sync-engine/push.ts:573-586`.
-- **Effect:** if the server commits but the response is lost (timeout,
-  dropped connection), the retried UPDATE collides with the server's own
-  version bump and is dropped as non-retryable `version_conflict` — harmless
-  data-wise (the write already landed), but the user sees a misleading
-  "record changed since this edit" toast for a change that actually
-  succeeded.
-- **Fix scope (not implemented):** not yet designed; may be acceptable to
-  leave as a UX rough edge if fixing risks false negatives elsewhere.
-
 ## Low
 
 ### `recordSyncFailure` can be called twice for the same queue item in one push run, overwriting the specific rejection reason

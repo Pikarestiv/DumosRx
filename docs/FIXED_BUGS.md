@@ -4,6 +4,21 @@ A changelog of bugs that were tracked in `docs/KNOWN_BUGS.md` and have since bee
 
 ## 2026-09-21
 
+### feat: one-time loyalty_defaults_seeded_at flag so deliberately-cleared tiers don't silently reseed
+- **Commit:** `e8c0c810`
+- Resolves the still-open half of the loyalty-reseed entry below: `ensureLoyaltyDefaultsSeeded()` couldn't tell "never seeded" apart from "deliberately cleared," so a store that intentionally deleted every tier got them silently recreated the next time Loyalty Settings opened.
+- Per product decision, added `stores.loyalty_defaults_seeded_at` (client schema + runtime migration, server migration + `Store` model fillable/cast). Seeding now runs at most once per store ever — the flag is set the first time a seed-or-skip decision is made, regardless of the outcome, so a later deliberate clear is never re-seeded. A store upgrading from before this flag existed still gets exactly one more grandfather decision on its first post-upgrade dialog open.
+
+### fix: sync-push false version-conflict toast on a retried item's own already-applied write
+- **Commit:** `3bf8d603`
+- A response lost after the server actually committed (timeout, dropped connection) looks like an ordinary network failure to the client, bumping the queue item's `retry_count` before the next attempt resends the same frozen payload — which then collides with the version bump from its own earlier (successful) attempt and gets rejected as a `version_conflict`, showing a misleading "record changed since this edit" toast for a change that had actually already landed.
+- Per product ask ("what's recommended best practice") — used `retry_count > 0` at the moment of a `version_conflict`, an already-available signal, to mute the toast specifically for a retried item (still logged via `console.info`); a genuinely first-attempt conflict still shows the normal toast. The server's version is kept either way regardless of whether the toast fires.
+
+### fix: getUsers leaked every store's own admin into every other store's staff list
+- **Commit:** `df329a2b`
+- `role = 'admin' OR role = 'store_owner'` in the store-scoped query branch meant any admin appeared in every OTHER store's staff directory too, on a multi-store fleet account.
+- Per product decision: `store_owner` is business-wide (the fleet account owner) and correctly belongs everywhere; `admin` is a per-store "local master" role and should be scoped like any other staff member. Dropped `role = 'admin'` from the OR, keeping `store_id = ? OR store_id IS NULL OR role = 'store_owner'`.
+
 ### fix: loyalty reseed race, receipt-print robustness, prepaid amortization, onboarding sync-queue gap
 - **Commit:** `a8abfd35`
 - `ensureLoyaltyDefaultsSeeded`'s check-then-seed was not transactional — two rapid settings-dialog opens, or two devices, could double-seed loyalty tiers. Now wrapped in a transaction. (The other half of the original bug — a store that deliberately deleted every tier still gets them silently reseeded — is still open; needs a design decision, see `KNOWN_BUGS.md`.)

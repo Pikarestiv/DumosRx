@@ -197,8 +197,13 @@ export function useReportExport() {
     async (reportId: ReportId, dateFrom?: string, dateTo?: string, filters?: SalesFilters) => {
       const config = REPORT_CONFIG[reportId];
       const rows = await getRows(reportId, dateFrom, dateTo, filters);
+      // Reports configured takesDateRange: false (stock_batches, customers)
+      // are always all-time - they never actually filter by dateFrom/dateTo
+      // even when a caller passes them (see getRows below), so stamping the
+      // PDF with a period subtitle mislabeled all-time data as scoped to a
+      // range it was never filtered by.
       const subtitle =
-        dateFrom && dateTo
+        config.takesDateRange && dateFrom && dateTo
           ? `${formatDateToDDMMYYYY(dateFrom)} – ${formatDateToDDMMYYYY(dateTo)}`
           : undefined;
       return generateReportPdfBlob({

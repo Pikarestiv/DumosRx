@@ -79,15 +79,6 @@ Open items below are grouped by severity (Critical → High → Medium → Low),
 - **Fix scope (not implemented):** convert to store-scoped React Query;
   persist dismissed-broadcast ids (localStorage or a synced field).
 
-### Procurement PO amountPaid has no validation
-
-- **Where:** `client/app/(dashboard)/procurement/new/page.tsx:154,177,220`.
-- **Effect:** `Number(amountPaid) || 0` — a blank/non-numeric amount
-  silently records ₦0 paid; an amount above the order total is accepted and
-  written as-is with no cap or rounding.
-- **Fix scope (not implemented):** validate numeric, non-negative, capped
-  at the order total.
-
 ### PO edit form: useState/useEffect fetch, no cancellation, not store-scoped (recurrence of an already-fixed pattern)
 
 - **Where:** `client/app/(dashboard)/procurement/edit/page.tsx:58-82`.
@@ -108,18 +99,6 @@ Open items below are grouped by severity (Critical → High → Medium → Low),
 - **Fix scope (not implemented):** move the clearing side effect out of the
   query function into the caller/an effect that runs once on a confirmed
   empty result, not on every invocation.
-
-### Staff CSV export doesn't escape quotes/newlines/formula-injection characters
-
-- **Where:** `client/lib/utils/export-staff-csv.ts:3-5` (`csvField`).
-- **Effect:** quotes only on a comma, never escapes embedded `"` or
-  newlines (a name containing either corrupts every following row), and
-  `username`/`email`/`role` bypass the quoting function entirely. A leading
-  `=`/`+`/`-`/`@` is a live spreadsheet formula-injection vector when the
-  CSV is opened in Excel/Sheets.
-- **Fix scope (not implemented):** proper CSV field escaping (quote every
-  field containing a comma/quote/newline, double embedded quotes) applied
-  uniformly to every field; prefix a leading formula-trigger character.
 
 ### Loyalty defaults re-seed on every settings-dialog open (check-then-act, no transaction)
 
@@ -170,18 +149,6 @@ Open items below are grouped by severity (Critical → High → Medium → Low),
 - **Fix scope (not implemented):** standardize report date bucketing on the
   same local-time conversion the dashboard/daily-close already use.
 
-### Report PDFs label all-time data with the selected date range
-
-- **Where:** `client/lib/hooks/use-report-export.ts:200-203`, for the two
-  reports configured `takesDateRange: false` (stock_batches, customers,
-  `:44-67`).
-- **Effect:** the Inventory Valuation and Customer PDFs are stamped with a
-  period subtitle they never actually filtered by (they're all-time); staff/
-  payment-method filters are also silently ignored on these with no
-  indication in the output.
-- **Fix scope (not implemented):** skip the date-range subtitle (and any
-  other ignored-filter labels) for reports marked `takesDateRange: false`.
-
 ### Prepaid-expense amortization double-counts across a rolling window, and can shift a month under UTC parsing
 
 - **Where:** `client/lib/db/queries/finance.ts:88` (installment counted for
@@ -206,18 +173,6 @@ Open items below are grouped by severity (Critical → High → Medium → Low),
 - **Fix scope (not implemented):** convert to React Query (same fix pattern
   applied elsewhere in this audit) for built-in request cancellation/
   race-safety.
-
-### Customer report's sales join is missing a store_id filter (one-sided join, same bug class as before)
-
-- **Where:** `client/lib/db/queries/reports.ts:533`
-  (`fetchCustomerReportData`'s `LEFT JOIN sales s ON s.customer_id = c.id
-  AND s._deleted = 0`) — `client/lib/db/queries/customers.ts:19` has the
-  identical join WITH `AND s.store_id = ?`, so this one is the outlier.
-- **Effect:** "Total Purchases"/"Total Spent"/"Last Purchase" in the
-  Customer report can absorb another store's sales for any shared customer
-  id.
-- **Fix scope (not implemented):** add the same `AND s.store_id = ?` the
-  sibling query already has.
 
 ### Sync push: a response lost after server commit produces a misleading "changed since this edit" toast
 

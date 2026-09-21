@@ -36,3 +36,16 @@ export function getLineTotal(item: POLineItemDraft, poType: "standard" | "immedi
   const unitsPerBulk = item.units_per_bulk || 1;
   return item.bulk_quantity * unitsPerBulk * getImmediateUnitCost(item);
 }
+
+/**
+ * Validates the free-text "Amount Paid" field before it's ever written to
+ * the PO: `Number(amountPaid) || 0` alone silently records ₦0 paid for a
+ * blank/non-numeric input, and accepted any value above the order total
+ * as-is with no cap or rounding. Blank/non-numeric/negative all become 0;
+ * anything above the order's total is clamped down to it.
+ */
+export function getValidatedAmountPaid(rawAmountPaid: string, orderTotal: number): number {
+  const parsed = Number(rawAmountPaid);
+  if (!Number.isFinite(parsed) || parsed <= 0) return 0;
+  return Math.min(parsed, orderTotal);
+}

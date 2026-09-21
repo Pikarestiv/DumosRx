@@ -572,11 +572,11 @@ export async function fetchCustomerReportData() {
       SUM(s.total_amount) as "Total Spent",
       MAX(date(s.transaction_date, 'localtime')) as "Last Purchase"
      FROM customers c
-     LEFT JOIN sales s ON s.customer_id = c.id AND s._deleted = 0
+     LEFT JOIN sales s ON s.customer_id = c.id AND s._deleted = 0${storeId ? " AND s.store_id = ?" : ""}
      WHERE c._deleted = 0${storeId ? " AND c.store_id = ?" : ""}
      GROUP BY c.id
      ORDER BY SUM(s.total_amount) DESC NULLS LAST`,
-    storeId ? [storeId] : [],
+    storeId ? [storeId, storeId] : [],
   );
 }
 

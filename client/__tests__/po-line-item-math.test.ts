@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getImmediateUnitCost, getLineTotal } from "@/components/procurement/po-line-item-math";
+import { getImmediateUnitCost, getLineTotal, getValidatedAmountPaid } from "@/components/procurement/po-line-item-math";
 import type { POLineItemDraft } from "@/components/procurement/po-item-ledger-table";
 
 function item(overrides: Partial<POLineItemDraft> = {}): POLineItemDraft {
@@ -54,6 +54,35 @@ describe("po-line-item-math", () => {
       expect(
         getLineTotal(item({ bulk_quantity: 3, cost_price_override: 650 }), "immediate"),
       ).toBe(117000);
+    });
+  });
+
+  // Medium bug fix: `Number(amountPaid) || 0` alone silently recorded ₦0
+  // paid for a blank/non-numeric amount, and accepted any value above the
+  // order total as-is with no cap or rounding.
+  describe("getValidatedAmountPaid", () => {
+    it("returns the parsed amount when it's a valid, positive number under the total", () => {
+      expect(getValidatedAmountPaid("5000", 10000)).toBe(5000);
+    });
+
+    it("returns 0 for a blank input, instead of silently recording it as paid in full or zero-with-no-warning", () => {
+      expect(getValidatedAmountPaid("", 10000)).toBe(0);
+    });
+
+    it("returns 0 for a non-numeric input", () => {
+      expect(getValidatedAmountPaid("abc", 10000)).toBe(0);
+    });
+
+    it("returns 0 for a negative input", () => {
+      expect(getValidatedAmountPaid("-500", 10000)).toBe(0);
+    });
+
+    it("caps at the order total instead of accepting an amount above it", () => {
+      expect(getValidatedAmountPaid("999999", 10000)).toBe(10000);
+    });
+
+    it("accepts an amount exactly equal to the order total", () => {
+      expect(getValidatedAmountPaid("10000", 10000)).toBe(10000);
     });
   });
 });

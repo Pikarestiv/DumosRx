@@ -22,16 +22,6 @@ Open items below are grouped by severity (Critical → High → Medium → Low),
 
 ## High
 
-### Sync push batch failure (`success: false`) is handled by doing nothing
-
-- **Where:** `client/lib/db/sync-engine/push.ts:443`.
-- **Effect:** a batch-level failure response has no `markSynced`, no
-  `recordSyncFailure`, no backoff, no retry counter, and no stuck-item crash
-  report — it's silently retried forever on every sync tick with zero
-  visibility.
-- **Fix scope (not implemented):** route a `success: false` batch through
-  the same `recordSyncFailure` path individual item failures already use.
-
 ### `sync-engine/pull.ts` stock-quantity correctness gaps
 
 - **Where:** `client/lib/db/sync-engine/pull.ts`.

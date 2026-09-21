@@ -75,4 +75,43 @@ describe("pushChanges reports batch-level exceptions", () => {
 
     expect(result).toEqual({ pushed: 0, failedBatches: 1 });
   });
+
+  // Regression: a batch-level `{ success: false }` response (the request
+  // completed - no exception - but the server rejected the whole batch, e.g.
+  // auth/validation/rate-limit) previously had no handling at all: no
+  // markSynced, no recordSyncFailure, no backoff, no retry counter, no crash
+  // report. The item was silently retried forever on every sync tick with
+  // zero visibility, and pushChanges() reported it identically to a clean
+  // success (failedBatches stayed 0).
+  describe("a batch-level success:false response (not a thrown exception)", () => {
+    it("counts it in failedBatches and reports 0 pushed", async () => {
+      db.run(`INSERT INTO products (id, name, _deleted) VALUES ('p1', 'Panadol', 0)`);
+      db.run(
+        `INSERT INTO _sync_queue (id, table_name, record_id, operation, payload, created_at) VALUES (1, 'products', 'p1', 'INSERT', ?, '2026-08-01T00:00:00Z')`,
+        [JSON.stringify({ id: "p1", name: "Panadol" })],
+      );
+      apiClient.pushChanges.mockResolvedValueOnce({ success: false, message: "Unauthorized" });
+
+      const result = await pushChanges();
+
+      expect(result).toEqual({ pushed: 0, failedBatches: 1 });
+    });
+
+    it("records a backoff-tracked failure (retry_count/last_error) on the queue item instead of leaving it untouched", async () => {
+      db.run(`INSERT INTO products (id, name, _deleted) VALUES ('p1', 'Panadol', 0)`);
+      db.run(
+        `INSERT INTO _sync_queue (id, table_name, record_id, operation, payload, created_at) VALUES (1, 'products', 'p1', 'INSERT', ?, '2026-08-01T00:00:00Z')`,
+        [JSON.stringify({ id: "p1", name: "Panadol" })],
+      );
+      apiClient.pushChanges.mockResolvedValueOnce({ success: false, message: "Unauthorized" });
+
+      await pushChanges();
+
+      const rows = db.exec(`SELECT retry_count, last_error, next_retry_at FROM _sync_queue WHERE id = 1`);
+      const [retryCount, lastError, nextRetryAt] = rows[0].values[0];
+      expect(retryCount).toBe(1);
+      expect(lastError).toContain("Unauthorized");
+      expect(nextRetryAt).not.toBeNull();
+    });
+  });
 });

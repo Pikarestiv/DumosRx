@@ -607,6 +607,27 @@ export async function pushChanges(
             `A change to ${describeSyncedRecord(conflict.table_name)} could not be saved because the record changed since this edit — the server's current version was kept.`,
           );
         }
+      } else {
+        // A batch-level failure response (success: false, distinct from a
+        // thrown exception - the request completed, the server just
+        // rejected the whole batch, e.g. auth/validation/rate-limit) had no
+        // handling at all here: no markSynced, no recordSyncFailure, no
+        // backoff, no retry counter, no crash report - every item in the
+        // batch was silently retried forever on each sync tick with zero
+        // visibility. Route it through the same recordSyncFailure path the
+        // catch block below already uses for a thrown error, keyed off the
+        // batch it actually sent (not `changes`, in case that var's scope
+        // ever narrows) so filtered-out/rejected items above are covered
+        // too, matching the catch block's own behavior.
+        failedBatches++;
+        const message = response.message || "Sync batch rejected by server";
+        await transaction(async () => {
+          for (const item of batch) {
+            for (const id of idsFor(item.id)) {
+              await recordSyncFailure(id, message);
+            }
+          }
+        });
       }
     } catch (error) {
       // Don't abort the whole push run over one bad batch; record backoff

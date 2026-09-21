@@ -4,6 +4,11 @@ A changelog of bugs that were tracked in `docs/KNOWN_BUGS.md` and have since bee
 
 ## 2026-09-21
 
+### fix: sync push batch failure (`success: false`) was handled by doing nothing
+- **Commit:** (pending)
+- A batch-level failure response (the request completed, the server just rejected the whole batch — auth/validation/rate-limit — as opposed to a thrown exception) had no handling at all: no `markSynced`, no `recordSyncFailure`, no backoff, no retry counter, no stuck-item crash report. Every item in that batch was silently retried forever on every sync tick with zero visibility, and `pushChanges()` reported it identically to a clean success.
+- Added the missing `else` branch alongside the existing `if (response.success)` path, routing the batch through the same `recordSyncFailure` path the catch-block (thrown-exception) case already used, and counting it in `failedBatches`.
+
 ### fix: loyalty-point redemption wasn't re-validated against the real balance at apply time
 - **Commit:** `73bbbb61`
 - A customer who no longer actually had the points for a redemption picked earlier in checkout (a second terminal already spent them, or a stale cached balance) still got the discount applied — `calculateLoyaltyPointsAfterSale` floored the resulting balance at 0 instead of the redemption being rejected. The re-read of the real current balance already happened inside the same transaction the sale runs in; it just was never checked against the redemption's cost.

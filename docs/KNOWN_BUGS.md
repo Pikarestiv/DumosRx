@@ -4,6 +4,346 @@ Issues spotted incidentally (e.g. while doing TypeScript type-safety cleanup) th
 
 ## Open items
 
+### SECURITY: "no users exist" fallback grants a full admin session for any PIN
+
+- **Where:** `client/lib/context/auth-context.tsx:305-334` (`login()`'s "no
+  users exist, create default admin" branch) + `client/lib/db/queries/auth.ts:24-29`
+  (`createDefaultAdmin`).
+- **Effect:** the branch triggers whenever `getUserByUsernameOrEmail("admin")`
+  finds nothing, and never checks the `pin` argument passed to `login()` at
+  all. Anyone who reaches `login("admin", <anything>)` — e.g. a stale
+  `dumos_recent_users` tile surviving a DB reset/restore, or a device before
+  users have synced down — is silently granted a full admin session with the
+  hardcoded PIN `1234`. `createDefaultAdmin` itself inserts via raw
+  `query("INSERT OR IGNORE ...")` with a fixed id `default-admin`, no
+  `store_id`, and no `_sync_queue` row — unscoped to any store and never
+  synced, colliding across every device that hits this path.
+- **Fix scope (not implemented):** the fallback needs to actually validate
+  the supplied PIN (or require a real setup/onboarding flow instead of a
+  silent login-time creation), and `createDefaultAdmin` needs to go through
+  `insert()` (proper store scoping + sync) with a real generated id, not a
+  raw query with a hardcoded one. Treat as security-priority, not routine
+  backlog.
+
+### SECURITY: PIN login has no attempt limit or lockout
+
+- **Where:** `client/components/auth/lock-screen.tsx:43-72` +
+  `client/lib/context/auth-context.tsx:176-223`.
+- **Effect:** a 4-digit PIN checked entirely offline, with only an audit-log
+  row written on failure — no counter, no backoff, no lockout. Full keyspace
+  is 10,000 guesses with nothing in the way; auto-submit-on-4th-digit makes
+  unattended brute-forcing a terminal fast.
+- **Fix scope (not implemented):** add an attempt counter with escalating
+  backoff/lockout, same pattern any login screen needs.
+
+### `getUserByUsernameOrEmail` has no `_deleted` filter and no store scoping
+
+- **Where:** `client/lib/db/queries/auth.ts:9`.
+- **Effect:** filters only `is_active = 1` — a user soft-deleted locally (or
+  pulled down as `_deleted = 1` from the server) can still log in on that
+  device; in a multi-store local DB, any store's user can authenticate
+  against any store.
+- **Fix scope (not implemented):** add `AND _deleted = 0`, and scope to the
+  active store where applicable (mirroring the pattern used elsewhere for
+  staff lookups).
+
+### Desktop DB restore has no validation and no pre-restore snapshot
+
+- **Where:** `client/lib/db/core.ts:687-713` (`restoreDatabaseFromFile`) +
+  `client/hooks/use-settings-sync.ts:104-122` (web path).
+- **Effect:** the picked file is handed straight to `new SQL.Database(binary)`
+  (web) or copied directly over `dumosrx.db` (desktop) with no header/
+  integrity check and no copy of the outgoing database kept — a wrong or
+  corrupt file destroys the live database irrecoverably, with the "Invalid
+  file?" toast firing only after the overwrite already happened. Desktop
+  path also swallows a failed `db.close()` before copying over the file
+  while WAL journaling is enabled, which can leave stale `-wal`/`-shm`
+  sidecars that replay old data over the restored DB on reopen (this half
+  depends on tauri-plugin-sql's close()/checkpoint behavior — unconfirmed,
+  but the catch-and-continue itself is wrong regardless).
+- **Fix scope (not implemented):** validate the picked file (integrity
+  check / expected schema signature) before touching the live database, and
+  snapshot the outgoing DB first so a bad restore is recoverable. On
+  desktop, don't proceed past a failed `close()`.
+
+### `submitStockAudit` uses a stale caller-supplied systemQty (same bug class as the loyalty-redemption gap)
+
+- **Where:** `client/lib/db/queries/inventory.ts:496-553`.
+- **Effect:** `diff = countedQty - systemQty` uses a `systemQty` never
+  re-read inside the transaction — a sale landing between the list
+  rendering and the audit submit makes the resulting adjustment silently
+  off by the concurrent movement. Reachable from both the product catalog's
+  quick-edit and the bulk-import stock-update path.
+- **Fix scope (not implemented):** re-read the current system quantity
+  inside the same transaction right before computing the diff, same fix
+  shape as the logged loyalty-redemption issue.
+
+### `updateStoreProfile` can mint a phantom "My Store" row
+
+- **Where:** `client/lib/context/store-context.tsx:391-409`.
+- **Effect:** falls back to `insert("stores", { id: "default", name: "My Store", ... })`
+  whenever `storeProfile` is null — reachable from any settings write
+  issued while the profile query is still loading, or for a staff member
+  whose fixed store was pruned. `setTheme` reaches this with a single
+  click, and the phantom row syncs to the server.
+- **Fix scope (not implemented):** don't silently create a store on a null
+  profile — surface a loading/error state instead, or block the write.
+
+### Product import accepts negative/malformed numbers with no validation
+
+- **Where:** `client/lib/db/queries/product-import.ts:149-190` +
+  `client/lib/utils/product-import-export.ts:119-125`
+  (`parseNumericValue`).
+- **Effect:** accepts negatives and unbounded decimals, written straight
+  into `selling_price`, `reorder_level`, `stock_batches.quantity` and
+  `stock_movements.quantity` with no validation or rounding. A negative or
+  malformed price/quantity column imports negative stock/money with no
+  warning; European-format numbers (`"1.500,00"`) parse as `1.50000` instead
+  of 1500.
+- **Fix scope (not implemented):** validate/reject non-numeric, negative,
+  and out-of-range values before import; handle locale-formatted numbers
+  explicitly rather than a naive parse.
+
+### Matched-product re-import silently skips updating cost_price
+
+- **Where:** `client/lib/db/queries/product-import.ts:134-146`.
+- **Effect:** the matched-product update branch writes name/category/
+  selling_price/reorder_level/barcode but never `cost_price`, despite the
+  importer mapping and parsing a Cost Price column. Re-importing a
+  corrected price list silently leaves margin/COGS reporting on the old
+  cost while reporting the row as "updated."
+- **Fix scope (not implemented):** include `cost_price` in the update
+  payload.
+
+### Notification bell: not store-scoped, not React Query, dismissed state doesn't persist
+
+- **Where:** `client/components/dashboard/notification-bell.tsx:80,91-106,127`.
+- **Effect:** cloud notifications fetched via `useState`/`setInterval(60s)`
+  keyed only on `[user, isCloudLinked]` — switching stores leaves the
+  previous store's notifications rendered (and counted in the unread badge)
+  for up to a minute. `readBroadcastIds` is plain component state with no
+  persistence, so every dismissed broadcast reappears as unread on reload.
+- **Fix scope (not implemented):** convert to store-scoped React Query;
+  persist dismissed-broadcast ids (localStorage or a synced field).
+
+### Expiry-date checks parse a date-only column as UTC, disagreeing with local-time FEFO filters
+
+- **Where:** `client/lib/utils/date-utils.ts:6-18` (`getExpiryStatus`,
+  `getDaysToExpiry`).
+- **Effect:** `new Date(expiryDate)` on a `YYYY-MM-DD` string parses as UTC
+  midnight, then compares against local-time `now` — batches flip to
+  "expired" / show an off-by-one day count relative to the store's local
+  calendar, disagreeing with the string-comparison expiry filters the FEFO
+  SQL (fixed earlier this session) uses.
+- **Fix scope (not implemented):** compare using the same date-string
+  convention the FEFO SQL fix uses, not a UTC-parsed `Date`.
+
+### CFA/XAF currency formatting shows 3 decimal places
+
+- **Where:** `client/lib/utils.ts:24-30` (`formatCfaSuffix`).
+- **Effect:** `maximumFractionDigits: undefined` on a `decimal`-style
+  `Intl.NumberFormat` defaults to 3 — XAF/XOF (zero-minor-unit currency)
+  amounts render like `1,234.567 F` on cart rows, totals and receipts.
+  Directly relevant to the Cameroon client.
+- **Fix scope (not implemented):** set `maximumFractionDigits: 0` for
+  zero-decimal currencies.
+
+### Currency-code sanitization silently blanks lowercase codes and can crash on an invalid one
+
+- **Where:** `client/lib/utils.ts:32-44,52,70`.
+- **Effect:** `currencyCode.replace(/[^A-Z]/g, "")` maps any lowercase code
+  (`"usd"`) to `""` → falls back to `"NGN"` silently; an invalid residual
+  code makes `Intl.NumberFormat` throw uncaught, crashing the render tree of
+  any money-displaying screen.
+- **Fix scope (not implemented):** normalize case before sanitizing;
+  wrap the formatter construction in a try/catch with a safe fallback.
+
+### Procurement PO amountPaid has no validation
+
+- **Where:** `client/app/(dashboard)/procurement/new/page.tsx:154,177,220`.
+- **Effect:** `Number(amountPaid) || 0` — a blank/non-numeric amount
+  silently records ₦0 paid; an amount above the order total is accepted and
+  written as-is with no cap or rounding.
+- **Fix scope (not implemented):** validate numeric, non-negative, capped
+  at the order total.
+
+### PO edit form: useState/useEffect fetch, no cancellation, not store-scoped (recurrence of an already-fixed pattern)
+
+- **Where:** `client/app/(dashboard)/procurement/edit/page.tsx:58-82`.
+- **Effect:** same class as `use-procurement-data.ts` (already fixed) and
+  the dashboard detail dialogs (already logged) — navigating between two
+  POs can let a slower response overwrite the newer form; doesn't refetch
+  on store switch.
+- **Fix scope (not implemented):** convert to store-scoped React Query.
+
+### `storeProfile` query function has side effects that can double-fire on retry
+
+- **Where:** `client/lib/context/store-context.tsx:164-187`.
+- **Effect:** the `queryFn` calls `setActiveStoreId(null)` and
+  `localStorage.removeItem(...)` as side effects inside itself. A React
+  Query retry re-fires the clearing side effect, and the resulting state
+  change flips `targetId` mid-fetch, producing a key change and a second
+  fetch on every miss.
+- **Fix scope (not implemented):** move the clearing side effect out of the
+  query function into the caller/an effect that runs once on a confirmed
+  empty result, not on every invocation.
+
+### Store/user hydration race: queries can read the wrong store during the hydration window
+
+- **Where:** `client/lib/context/store-context.tsx:152-160`.
+- **Effect:** `targetId = user?.store_id || activeStoreId` runs (and mirrors
+  into the global resolver) before `user` has hydrated from localStorage.
+  For a staff member pinned to store B on a device whose
+  `dumos_active_store_id` is store A, every query firing in that hydration
+  window reads store A's data.
+- **Fix scope (not implemented):** gate query-firing until `user` hydration
+  is confirmed complete, not just "truthy or not yet."
+
+### Staff CSV export doesn't escape quotes/newlines/formula-injection characters
+
+- **Where:** `client/lib/utils/export-staff-csv.ts:3-5` (`csvField`).
+- **Effect:** quotes only on a comma, never escapes embedded `"` or
+  newlines (a name containing either corrupts every following row), and
+  `username`/`email`/`role` bypass the quoting function entirely. A leading
+  `=`/`+`/`-`/`@` is a live spreadsheet formula-injection vector when the
+  CSV is opened in Excel/Sheets.
+- **Fix scope (not implemented):** proper CSV field escaping (quote every
+  field containing a comma/quote/newline, double embedded quotes) applied
+  uniformly to every field; prefix a leading formula-trigger character.
+
+### Loyalty defaults re-seed on every settings-dialog open (check-then-act, no transaction)
+
+- **Where:** `client/lib/db/queries/loyalty.ts:122-139`
+  (`ensureLoyaltyDefaultsSeeded`), called from
+  `loyalty-settings-dialog.tsx:108`.
+- **Effect:** a store that deliberately deleted all its loyalty tiers gets
+  them silently re-seeded the next time the dialog opens; two rapid opens
+  (or two devices) can double-seed since the check isn't transactional.
+- **Fix scope (not implemented):** wrap check+seed in a transaction, or move
+  the seed to a one-time migration instead of a per-open check.
+
+### Impersonation identity leaks back in after a page reload
+
+- **Where:** `client/lib/context/auth-context.tsx:379-401` vs `:125-151`.
+- **Effect:** `loginFromHandoff` deliberately skips `setDbUser()` (by
+  design) but still writes the impersonated profile into
+  `localStorage["dumos_user"]`, which the mount effect reads back into
+  `setDbUser()` on the very next reload — so audit logs and `performed_by`
+  attribution flip to the impersonated identity after the first reload,
+  defeating the intended separation.
+- **Fix scope (not implemented):** don't persist the impersonated profile
+  under the same key the normal session hydration reads from, or mark it
+  so the mount effect skips it.
+
+### `getUsers` leaks admins/owners across every store on a fleet account
+
+- **Where:** `client/lib/db/local-database.ts:239-243`.
+- **Effect:** ORs in `role = 'admin' OR role = 'store_owner' OR store_id IS NULL`
+  alongside the store filter — every store's admins/owners appear in every
+  other store's staff directory (and anything derived from that list) on a
+  multi-store account.
+- **Fix scope (not implemented):** needs a product decision first (is
+  cross-store admin visibility intended for a fleet account?) before
+  deciding whether this is a bug or working-as-intended; if unintended,
+  scope the OR condition to the current store's own owner/admins only.
+
+### `checkIsAdmin` uses substring match instead of exact role comparison
+
+- **Where:** `client/lib/context/auth-context.tsx:84-88`.
+- **Effect:** `normalizedRole.includes("admin")` while every sibling check
+  (`checkCanManageStockBatch`, `checkCanProcessSales`,
+  `checkCanViewAllActivity`, `checkCanFactoryReset`) uses exact array
+  membership. Any future role whose name merely contains "admin"/"manager"
+  silently inherits full admin UI privileges.
+- **Fix scope (not implemented):** switch to exact membership, matching the
+  sibling checks.
+
+### Staff created with no active store become invisible in staff lists while still able to log in
+
+- **Where:** `client/components/settings/staff/staff-form-dialog.tsx:37,62,128`.
+- **Effect:** `store_id: activeStoreId || ""` writes an empty string rather
+  than `NULL` when no store is active — such a row matches neither
+  `store_id = ?` nor the `store_id IS NULL` fallback `getUsers` checks for,
+  so the account is invisible in every staff list while still able to log
+  in.
+- **Fix scope (not implemented):** write `null`, not `""`, when no active
+  store.
+
+### Lock screen keeps the dashboard mounted and polling underneath
+
+- **Where:** `client/components/dashboard/dashboard-layout.tsx:240-249`.
+- **Effect:** the lock screen is a `fixed inset-0` overlay rendered over
+  `children` — the dashboard (and the prior user's data) stays mounted,
+  rendered, and refetching in the DOM while the device is "locked."
+- **Fix scope (not implemented):** unmount or blank the dashboard content
+  while locked, not just overlay it.
+
+### Receipt print relies on iframe `onload` + a fixed delay, no fallback
+
+- **Where:** `client/lib/utils/print-node.ts:60-66`.
+- **Effect:** driven off `onload` for an iframe populated via `doc.write()`
+  plus a fixed 300ms delay — in browsers where `onload` already fired for
+  the initial `about:blank`, or never fires for the written document, the
+  receipt either prints blank or never prints, with the iframe leaking and
+  no error surfaced.
+- **Fix scope (not implemented):** needs a more robust ready-signal than
+  `onload` + fixed delay, plus a visible failure path.
+
+### Fuzzy search fallback matches arbitrary rows on short terms
+
+- **Where:** `client/lib/utils/search.ts:114-171` (`searchProducts`),
+  `:237-283` (`genericFuzzySearch`).
+- **Effect:** the fuzzy fallback (Levenshtein distance ≤ 3) fires for terms
+  as short as 3 characters, and `searchProducts`' fallback never scores
+  `barcode` at all — a scanned barcode with no exact match returns up to
+  five unrelated products as "suggestions" instead of an empty result.
+- **Fix scope (not implemented):** raise the minimum term length for the
+  fuzzy fallback, or scale the allowed distance by term length; include
+  barcode in the scored fields.
+
+### Prescription line totals aren't rounded to the cent
+
+- **Where:** `client/lib/utils/prescription-calculations.ts:9-15`.
+- **Effect:** `unitCost * quantity` with no rounding — float drift
+  accumulates into a `REAL` money column, inconsistent with the rounding
+  already applied in the POS money-math path (fixed earlier this session).
+- **Fix scope (not implemented):** apply the same `roundMoney` pattern used
+  in `pos-calculations.ts`.
+
+### Editable number cell can clobber a leading-zero decimal mid-entry
+
+- **Where:** `client/components/ui/editable-number-cell.tsx:44-46,60-66`.
+- **Effect:** commits on every keystroke, and the `[value]` effect
+  immediately rewrites the displayed text to `String(value)` — typing a
+  leading-zero decimal (`0.05`) can have the `0.` clobbered back to `0`
+  mid-entry, making sub-unit prices awkward or impossible to type directly.
+- **Fix scope (not implemented):** don't resync displayed text from
+  `value` while the field is actively focused/being edited.
+
+### A couple of fire-and-forget writes report success without awaiting
+
+- **Where:** `client/components/customers/loyalty-settings-dialog.tsx:96-97`,
+  `client/lib/context/store-context.tsx:409` (`setTheme`).
+- **Effect:** `void updateStoreProfile(...)` immediately followed by a
+  success toast — a failed write still reports success to the user.
+- **Fix scope (not implemented):** await the write before toasting success,
+  or catch and show an error toast on failure.
+
+### `plaintext PINs stored and synced (flagged for an explicit product decision, not auto-filed as a bug)
+
+- **Where:** `client/lib/db/queries/auth.ts:9,32,36`,
+  `client/lib/context/auth-context.tsx:183,436`.
+- **Context:** `users.pin` is stored and compared in plaintext, and carried
+  in sync payloads for the `users` table. This may be a deliberate
+  offline-first architecture decision (PIN unlock needs to work fully
+  offline) rather than an oversight — flagged for an explicit call, not
+  filed as a straightforward bug.
+- **Effect:** a `.drx` backup file, an IndexedDB dump, or a server-side DB
+  read exposes every staff PIN in the clear. Compounds the admin-backdoor
+  and no-lockout findings above.
+- **Fix scope (not implemented):** needs a product decision (hash+salt the
+  PIN, accept the offline-verification cost) before any code change.
+
 ### P&L report double-counts revenue for multi-item sales
 
 - **Where:** `client/lib/db/queries/reports.ts:475-486`

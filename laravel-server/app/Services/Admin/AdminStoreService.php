@@ -364,7 +364,7 @@ class AdminStoreService
             Notification::create([
                 'user_id' => $user->id,
                 'title' => 'Free Trial Granted',
-                'message' => "You've been granted a ".ucfirst($plan)." Free Trial, valid until {$resolvedEndDate->toDateString()}. Enjoy!",
+                'message' => "You've been granted a ".ucfirst($plan)." Free Trial, valid until {$resolvedEndDate->format('d/m/Y')}. Enjoy!",
                 'type' => 'success',
                 'is_read' => false,
             ]);
@@ -433,7 +433,7 @@ class AdminStoreService
             Notification::create([
                 'user_id' => $user->id,
                 'title' => 'Subscription Activated',
-                'message' => "Your ".ucfirst($plan)." plan has been activated, valid until {$endDate->toDateString()}.",
+                'message' => "Your ".ucfirst($plan)." plan has been activated, valid until {$endDate->format('d/m/Y')}.",
                 'type' => 'success',
                 'is_read' => false,
             ]);

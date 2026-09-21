@@ -204,7 +204,7 @@ class AdminUserService
 
             $this->notifyUser(
                 $user->id,
-                "You've been granted a ".ucfirst($plan)." Free Trial, valid until {$resolvedEndDate->toDateString()}. Enjoy!",
+                "You've been granted a ".ucfirst($plan)." Free Trial, valid until {$resolvedEndDate->format('d/m/Y')}. Enjoy!",
                 'Free Trial Granted'
             );
 
@@ -262,7 +262,7 @@ class AdminUserService
 
             $this->notifyUser(
                 $user->id,
-                "Your ".ucfirst($plan)." plan has been activated, valid until {$endDate->toDateString()}.",
+                "Your ".ucfirst($plan)." plan has been activated, valid until {$endDate->format('d/m/Y')}.",
                 'Subscription Activated'
             );
 

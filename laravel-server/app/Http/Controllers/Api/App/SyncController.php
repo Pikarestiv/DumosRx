@@ -1269,7 +1269,7 @@ class SyncController extends Controller
             'requested_products', 'payment_accounts',
             'products', 'sales', 'customers', 'categories', 'suppliers',
             'expenses', 'purchase_orders', 'prescriptions', 'returns',
-            'stock_movements', 'supplier_payments',
+            'stock_movements', 'supplier_payments', 'audit_logs',
         ];
         if (in_array($change['table_name'], $tablesWithStoreId) && $currentStoreId) {
             if (empty($payload['store_id'])) {

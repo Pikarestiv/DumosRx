@@ -2,7 +2,9 @@
 
 Issues spotted incidentally (e.g. while doing TypeScript type-safety cleanup) that aren't fixed yet, tracked here so they don't get lost. Not an exhaustive bug tracker; just a landing spot for "worth fixing later" findings. Fixed entries are removed outright rather than marked — this file is a to-do list, not a changelog (git history is the changelog).
 
-## Open items
+Open items below are grouped by severity (Critical → High → Medium → Low), then a `client/`-area miscellaneous section for older/unlabeled entries, then the separate `web/` pre-launch review section.
+
+## Critical
 
 ### SECURITY: "no users exist" fallback grants a full admin session for any PIN
 
@@ -47,7 +49,7 @@ Issues spotted incidentally (e.g. while doing TypeScript type-safety cleanup) th
   active store where applicable (mirroring the pattern used elsewhere for
   staff lookups).
 
-### Desktop DB restore has no validation and no pre-restore snapshot
+### Desktop/web DB restore has no validation and no pre-restore snapshot
 
 - **Where:** `client/lib/db/core.ts:687-713` (`restoreDatabaseFromFile`) +
   `client/hooks/use-settings-sync.ts:104-122` (web path).
@@ -65,6 +67,40 @@ Issues spotted incidentally (e.g. while doing TypeScript type-safety cleanup) th
   check / expected schema signature) before touching the live database, and
   snapshot the outgoing DB first so a bad restore is recoverable. On
   desktop, don't proceed past a failed `close()`.
+
+### P&L report double-counts revenue for multi-item sales
+
+- **Where:** `client/lib/db/queries/reports.ts:475-486`
+  (`fetchProfitLossReportData`) — `SUM(s.total_amount)` across a
+  `LEFT JOIN sale_items`, so a sale's revenue is counted once per line item.
+- **Effect:** a 3-item sale reports 3× its revenue; Revenue, Gross Profit,
+  Net Profit and Margin % in the P&L report are all inflated by the average
+  basket size.
+- **Fix scope (not implemented):** `getAdvancedMonthlySalesData` (`:419-429`)
+  already documents this exact fan-out and splits into two queries to avoid
+  it — apply the same split here.
+
+### A local edit made while a sync push is in flight can be silently destroyed
+
+- **Where:** `client/lib/db/sync-engine/push.ts:471-551` +
+  `client/lib/db/base-helpers.ts:213-224`.
+- **Context:** `update()` freezes the row's pre-push `_version` into the new
+  `_sync_queue` row. If the user edits the same row again while an earlier
+  push for it is still in flight, the response handler overwrites the local
+  `_version` with the server's bumped value, so the just-queued second edit
+  now references a stale base version.
+- **Effect:** that second edit is rejected as `version_conflict` and deleted
+  from `_sync_queue` outright — the next pull overwrites the local row and
+  the user's edit is gone, with no error surfaced. `isSyncing()`
+  (`sync-engine/index.ts:13`) only prevents concurrent *syncs*, not local
+  writes during one.
+- **Fix scope (not implemented):** needs a repro against a slow/throttled
+  network (edit → push → edit again mid-flight) to confirm in practice, then
+  likely needs push to re-check the row's current `_version` before treating
+  a `version_conflict` response as final, or to hold/requeue local writes
+  that land on a row with an in-flight push.
+
+## High
 
 ### `submitStockAudit` uses a stale caller-supplied systemQty (same bug class as the loyalty-redemption gap)
 
@@ -104,90 +140,6 @@ Issues spotted incidentally (e.g. while doing TypeScript type-safety cleanup) th
   and out-of-range values before import; handle locale-formatted numbers
   explicitly rather than a naive parse.
 
-### Matched-product re-import silently skips updating cost_price
-
-- **Where:** `client/lib/db/queries/product-import.ts:134-146`.
-- **Effect:** the matched-product update branch writes name/category/
-  selling_price/reorder_level/barcode but never `cost_price`, despite the
-  importer mapping and parsing a Cost Price column. Re-importing a
-  corrected price list silently leaves margin/COGS reporting on the old
-  cost while reporting the row as "updated."
-- **Fix scope (not implemented):** include `cost_price` in the update
-  payload.
-
-### Notification bell: not store-scoped, not React Query, dismissed state doesn't persist
-
-- **Where:** `client/components/dashboard/notification-bell.tsx:80,91-106,127`.
-- **Effect:** cloud notifications fetched via `useState`/`setInterval(60s)`
-  keyed only on `[user, isCloudLinked]` — switching stores leaves the
-  previous store's notifications rendered (and counted in the unread badge)
-  for up to a minute. `readBroadcastIds` is plain component state with no
-  persistence, so every dismissed broadcast reappears as unread on reload.
-- **Fix scope (not implemented):** convert to store-scoped React Query;
-  persist dismissed-broadcast ids (localStorage or a synced field).
-
-### Expiry-date checks parse a date-only column as UTC, disagreeing with local-time FEFO filters
-
-- **Where:** `client/lib/utils/date-utils.ts:6-18` (`getExpiryStatus`,
-  `getDaysToExpiry`).
-- **Effect:** `new Date(expiryDate)` on a `YYYY-MM-DD` string parses as UTC
-  midnight, then compares against local-time `now` — batches flip to
-  "expired" / show an off-by-one day count relative to the store's local
-  calendar, disagreeing with the string-comparison expiry filters the FEFO
-  SQL (fixed earlier this session) uses.
-- **Fix scope (not implemented):** compare using the same date-string
-  convention the FEFO SQL fix uses, not a UTC-parsed `Date`.
-
-### CFA/XAF currency formatting shows 3 decimal places
-
-- **Where:** `client/lib/utils.ts:24-30` (`formatCfaSuffix`).
-- **Effect:** `maximumFractionDigits: undefined` on a `decimal`-style
-  `Intl.NumberFormat` defaults to 3 — XAF/XOF (zero-minor-unit currency)
-  amounts render like `1,234.567 F` on cart rows, totals and receipts.
-  Directly relevant to the Cameroon client.
-- **Fix scope (not implemented):** set `maximumFractionDigits: 0` for
-  zero-decimal currencies.
-
-### Currency-code sanitization silently blanks lowercase codes and can crash on an invalid one
-
-- **Where:** `client/lib/utils.ts:32-44,52,70`.
-- **Effect:** `currencyCode.replace(/[^A-Z]/g, "")` maps any lowercase code
-  (`"usd"`) to `""` → falls back to `"NGN"` silently; an invalid residual
-  code makes `Intl.NumberFormat` throw uncaught, crashing the render tree of
-  any money-displaying screen.
-- **Fix scope (not implemented):** normalize case before sanitizing;
-  wrap the formatter construction in a try/catch with a safe fallback.
-
-### Procurement PO amountPaid has no validation
-
-- **Where:** `client/app/(dashboard)/procurement/new/page.tsx:154,177,220`.
-- **Effect:** `Number(amountPaid) || 0` — a blank/non-numeric amount
-  silently records ₦0 paid; an amount above the order total is accepted and
-  written as-is with no cap or rounding.
-- **Fix scope (not implemented):** validate numeric, non-negative, capped
-  at the order total.
-
-### PO edit form: useState/useEffect fetch, no cancellation, not store-scoped (recurrence of an already-fixed pattern)
-
-- **Where:** `client/app/(dashboard)/procurement/edit/page.tsx:58-82`.
-- **Effect:** same class as `use-procurement-data.ts` (already fixed) and
-  the dashboard detail dialogs (already logged) — navigating between two
-  POs can let a slower response overwrite the newer form; doesn't refetch
-  on store switch.
-- **Fix scope (not implemented):** convert to store-scoped React Query.
-
-### `storeProfile` query function has side effects that can double-fire on retry
-
-- **Where:** `client/lib/context/store-context.tsx:164-187`.
-- **Effect:** the `queryFn` calls `setActiveStoreId(null)` and
-  `localStorage.removeItem(...)` as side effects inside itself. A React
-  Query retry re-fires the clearing side effect, and the resulting state
-  change flips `targetId` mid-fetch, producing a key change and a second
-  fetch on every miss.
-- **Fix scope (not implemented):** move the clearing side effect out of the
-  query function into the caller/an effect that runs once on a confirmed
-  empty result, not on every invocation.
-
 ### Store/user hydration race: queries can read the wrong store during the hydration window
 
 - **Where:** `client/lib/context/store-context.tsx:152-160`.
@@ -198,29 +150,6 @@ Issues spotted incidentally (e.g. while doing TypeScript type-safety cleanup) th
   window reads store A's data.
 - **Fix scope (not implemented):** gate query-firing until `user` hydration
   is confirmed complete, not just "truthy or not yet."
-
-### Staff CSV export doesn't escape quotes/newlines/formula-injection characters
-
-- **Where:** `client/lib/utils/export-staff-csv.ts:3-5` (`csvField`).
-- **Effect:** quotes only on a comma, never escapes embedded `"` or
-  newlines (a name containing either corrupts every following row), and
-  `username`/`email`/`role` bypass the quoting function entirely. A leading
-  `=`/`+`/`-`/`@` is a live spreadsheet formula-injection vector when the
-  CSV is opened in Excel/Sheets.
-- **Fix scope (not implemented):** proper CSV field escaping (quote every
-  field containing a comma/quote/newline, double embedded quotes) applied
-  uniformly to every field; prefix a leading formula-trigger character.
-
-### Loyalty defaults re-seed on every settings-dialog open (check-then-act, no transaction)
-
-- **Where:** `client/lib/db/queries/loyalty.ts:122-139`
-  (`ensureLoyaltyDefaultsSeeded`), called from
-  `loyalty-settings-dialog.tsx:108`.
-- **Effect:** a store that deliberately deleted all its loyalty tiers gets
-  them silently re-seeded the next time the dialog opens; two rapid opens
-  (or two devices) can double-seed since the check isn't transactional.
-- **Fix scope (not implemented):** wrap check+seed in a transaction, or move
-  the seed to a one-time migration instead of a per-open check.
 
 ### Impersonation identity leaks back in after a page reload
 
@@ -234,147 +163,6 @@ Issues spotted incidentally (e.g. while doing TypeScript type-safety cleanup) th
 - **Fix scope (not implemented):** don't persist the impersonated profile
   under the same key the normal session hydration reads from, or mark it
   so the mount effect skips it.
-
-### `getUsers` leaks admins/owners across every store on a fleet account
-
-- **Where:** `client/lib/db/local-database.ts:239-243`.
-- **Effect:** ORs in `role = 'admin' OR role = 'store_owner' OR store_id IS NULL`
-  alongside the store filter — every store's admins/owners appear in every
-  other store's staff directory (and anything derived from that list) on a
-  multi-store account.
-- **Fix scope (not implemented):** needs a product decision first (is
-  cross-store admin visibility intended for a fleet account?) before
-  deciding whether this is a bug or working-as-intended; if unintended,
-  scope the OR condition to the current store's own owner/admins only.
-
-### `checkIsAdmin` uses substring match instead of exact role comparison
-
-- **Where:** `client/lib/context/auth-context.tsx:84-88`.
-- **Effect:** `normalizedRole.includes("admin")` while every sibling check
-  (`checkCanManageStockBatch`, `checkCanProcessSales`,
-  `checkCanViewAllActivity`, `checkCanFactoryReset`) uses exact array
-  membership. Any future role whose name merely contains "admin"/"manager"
-  silently inherits full admin UI privileges.
-- **Fix scope (not implemented):** switch to exact membership, matching the
-  sibling checks.
-
-### Staff created with no active store become invisible in staff lists while still able to log in
-
-- **Where:** `client/components/settings/staff/staff-form-dialog.tsx:37,62,128`.
-- **Effect:** `store_id: activeStoreId || ""` writes an empty string rather
-  than `NULL` when no store is active — such a row matches neither
-  `store_id = ?` nor the `store_id IS NULL` fallback `getUsers` checks for,
-  so the account is invisible in every staff list while still able to log
-  in.
-- **Fix scope (not implemented):** write `null`, not `""`, when no active
-  store.
-
-### Lock screen keeps the dashboard mounted and polling underneath
-
-- **Where:** `client/components/dashboard/dashboard-layout.tsx:240-249`.
-- **Effect:** the lock screen is a `fixed inset-0` overlay rendered over
-  `children` — the dashboard (and the prior user's data) stays mounted,
-  rendered, and refetching in the DOM while the device is "locked."
-- **Fix scope (not implemented):** unmount or blank the dashboard content
-  while locked, not just overlay it.
-
-### Receipt print relies on iframe `onload` + a fixed delay, no fallback
-
-- **Where:** `client/lib/utils/print-node.ts:60-66`.
-- **Effect:** driven off `onload` for an iframe populated via `doc.write()`
-  plus a fixed 300ms delay — in browsers where `onload` already fired for
-  the initial `about:blank`, or never fires for the written document, the
-  receipt either prints blank or never prints, with the iframe leaking and
-  no error surfaced.
-- **Fix scope (not implemented):** needs a more robust ready-signal than
-  `onload` + fixed delay, plus a visible failure path.
-
-### Fuzzy search fallback matches arbitrary rows on short terms
-
-- **Where:** `client/lib/utils/search.ts:114-171` (`searchProducts`),
-  `:237-283` (`genericFuzzySearch`).
-- **Effect:** the fuzzy fallback (Levenshtein distance ≤ 3) fires for terms
-  as short as 3 characters, and `searchProducts`' fallback never scores
-  `barcode` at all — a scanned barcode with no exact match returns up to
-  five unrelated products as "suggestions" instead of an empty result.
-- **Fix scope (not implemented):** raise the minimum term length for the
-  fuzzy fallback, or scale the allowed distance by term length; include
-  barcode in the scored fields.
-
-### Prescription line totals aren't rounded to the cent
-
-- **Where:** `client/lib/utils/prescription-calculations.ts:9-15`.
-- **Effect:** `unitCost * quantity` with no rounding — float drift
-  accumulates into a `REAL` money column, inconsistent with the rounding
-  already applied in the POS money-math path (fixed earlier this session).
-- **Fix scope (not implemented):** apply the same `roundMoney` pattern used
-  in `pos-calculations.ts`.
-
-### Editable number cell can clobber a leading-zero decimal mid-entry
-
-- **Where:** `client/components/ui/editable-number-cell.tsx:44-46,60-66`.
-- **Effect:** commits on every keystroke, and the `[value]` effect
-  immediately rewrites the displayed text to `String(value)` — typing a
-  leading-zero decimal (`0.05`) can have the `0.` clobbered back to `0`
-  mid-entry, making sub-unit prices awkward or impossible to type directly.
-- **Fix scope (not implemented):** don't resync displayed text from
-  `value` while the field is actively focused/being edited.
-
-### A couple of fire-and-forget writes report success without awaiting
-
-- **Where:** `client/components/customers/loyalty-settings-dialog.tsx:96-97`,
-  `client/lib/context/store-context.tsx:409` (`setTheme`).
-- **Effect:** `void updateStoreProfile(...)` immediately followed by a
-  success toast — a failed write still reports success to the user.
-- **Fix scope (not implemented):** await the write before toasting success,
-  or catch and show an error toast on failure.
-
-### `plaintext PINs stored and synced (flagged for an explicit product decision, not auto-filed as a bug)
-
-- **Where:** `client/lib/db/queries/auth.ts:9,32,36`,
-  `client/lib/context/auth-context.tsx:183,436`.
-- **Context:** `users.pin` is stored and compared in plaintext, and carried
-  in sync payloads for the `users` table. This may be a deliberate
-  offline-first architecture decision (PIN unlock needs to work fully
-  offline) rather than an oversight — flagged for an explicit call, not
-  filed as a straightforward bug.
-- **Effect:** a `.drx` backup file, an IndexedDB dump, or a server-side DB
-  read exposes every staff PIN in the clear. Compounds the admin-backdoor
-  and no-lockout findings above.
-- **Fix scope (not implemented):** needs a product decision (hash+salt the
-  PIN, accept the offline-verification cost) before any code change.
-
-### P&L report double-counts revenue for multi-item sales
-
-- **Where:** `client/lib/db/queries/reports.ts:475-486`
-  (`fetchProfitLossReportData`) — `SUM(s.total_amount)` across a
-  `LEFT JOIN sale_items`, so a sale's revenue is counted once per line item.
-- **Effect:** a 3-item sale reports 3× its revenue; Revenue, Gross Profit,
-  Net Profit and Margin % in the P&L report are all inflated by the average
-  basket size.
-- **Fix scope (not implemented):** `getAdvancedMonthlySalesData` (`:419-429`)
-  already documents this exact fan-out and splits into two queries to avoid
-  it — apply the same split here.
-
-### A local edit made while a sync push is in flight can be silently destroyed
-
-- **Where:** `client/lib/db/sync-engine/push.ts:471-551` +
-  `client/lib/db/base-helpers.ts:213-224`.
-- **Context:** `update()` freezes the row's pre-push `_version` into the new
-  `_sync_queue` row. If the user edits the same row again while an earlier
-  push for it is still in flight, the response handler overwrites the local
-  `_version` with the server's bumped value, so the just-queued second edit
-  now references a stale base version.
-- **Effect:** that second edit is rejected as `version_conflict` and deleted
-  from `_sync_queue` outright — the next pull overwrites the local row and
-  the user's edit is gone, with no error surfaced. `isSyncing()`
-  (`sync-engine/index.ts:13`) only prevents concurrent *syncs*, not local
-  writes during one.
-- **Fix scope (not implemented):** needs a repro against a slow/throttled
-  network (edit → push → edit again mid-flight) to confirm in practice, then
-  likely needs push to re-check the row's current `_version` before treating
-  a `version_conflict` response as final, or to hold/requeue local writes
-  that land on a row with an in-flight push.
 
 ### Expense/report date-range filters compare a date-only column against a full ISO timestamp
 
@@ -429,6 +217,176 @@ Issues spotted incidentally (e.g. while doing TypeScript type-safety cleanup) th
   active batches left — overstating profit exactly when stock ran out.
 - **Fix scope (not implemented):** use `sale_items.cost_price` from the
   original sale instead of recomputing from current stock state.
+
+### Receipt/id collisions from time-based, non-unique identifiers
+
+- **Where:** `client/lib/hooks/use-pos-payment.ts:128` —
+  `` transaction_number = `TXN${Date.now()}` `` against a
+  `sales.transaction_number TEXT UNIQUE NOT NULL` column
+  (`client/lib/db/schema.ts:103`); `client/lib/hooks/use-pos-held-transactions.ts:47`
+  — `` id = `held_${Date.now()}` `` as an explicit primary key;
+  `client/lib/hooks/use-fulfill-online-order-mutation.ts:33` —
+  `` receipt_number: `ONL-${order.id.split("-")[0]}` `` (only the first UUID
+  segment).
+- **Effect:** two terminals in the same store checking out (or holding a
+  sale) in the same millisecond, or with clock skew, produce the same id —
+  the losing row hits a UNIQUE violation server-side and never syncs (sales),
+  or one held cart silently overwrites the other on sync (held transactions).
+  The online-order receipt number isn't unique by construction at all.
+- **Fix scope (not implemented):** generate these with the same collision-safe
+  id generator already used elsewhere (`generateId()`, `lib/db/core.ts`)
+  instead of a bare timestamp/id-prefix.
+
+### `sync-engine/pull.ts` stock-quantity correctness gaps
+
+- **Where:** `client/lib/db/sync-engine/pull.ts`.
+- **Findings from an Opus-dispatched audit pass (unverified against server
+  behavior — see specifics below):**
+  - `:273-283` — a pulled `stock_movements` row applies its quantity delta to
+    `stock_batches` only in the INSERT branch; a movement later soft-deleted
+    server-side arrives via the UPDATE branch (`:203-213`), which sets
+    `_deleted = 1` but never reverses the delta — permanent drift.
+  - `:284-297` — a UNIQUE-constraint error on that INSERT is caught/logged
+    and skipped, but the row is still treated as "seen" for cursor purposes,
+    so the missed delta is never retried.
+  - `:108-113` — the "stock_batches before stock_movements" ordering only
+    holds within one page; a movement arriving on page N whose batch only
+    arrives on page N+1 makes the batch UPDATE a silent no-op (the code's own
+    comment already says this loses the increment permanently).
+  - `:164-166` / `:47-48` — `stock_batches.quantity` is rebuilt purely by
+    replaying `stock_movements`, itself capped at `MAX_PULL_PAGES = 200` × 500
+    rows — a store with more history than that (or one the server ever
+    prunes) can never reach the correct quantity.
+  - `:115` — the transaction wraps one page, not the whole pull; a
+    multi-page pull that throws on page 3 can leave page 1's store-prune/
+    duplicate-remap already committed against data that was never fully
+    applied.
+- **Fix scope (not implemented):** needs verifying against the server first
+  (does it ever prune `stock_movements`? does a real store exceed ~100k
+  historical movements?) before deciding whether this is theoretical or
+  live-reachable — flagged, not yet investigated further.
+
+## Medium
+
+### Matched-product re-import silently skips updating cost_price
+
+- **Where:** `client/lib/db/queries/product-import.ts:134-146`.
+- **Effect:** the matched-product update branch writes name/category/
+  selling_price/reorder_level/barcode but never `cost_price`, despite the
+  importer mapping and parsing a Cost Price column. Re-importing a
+  corrected price list silently leaves margin/COGS reporting on the old
+  cost while reporting the row as "updated."
+- **Fix scope (not implemented):** include `cost_price` in the update
+  payload.
+
+### Notification bell: not store-scoped, not React Query, dismissed state doesn't persist
+
+- **Where:** `client/components/dashboard/notification-bell.tsx:80,91-106,127`.
+- **Effect:** cloud notifications fetched via `useState`/`setInterval(60s)`
+  keyed only on `[user, isCloudLinked]` — switching stores leaves the
+  previous store's notifications rendered (and counted in the unread badge)
+  for up to a minute. `readBroadcastIds` is plain component state with no
+  persistence, so every dismissed broadcast reappears as unread on reload.
+- **Fix scope (not implemented):** convert to store-scoped React Query;
+  persist dismissed-broadcast ids (localStorage or a synced field).
+
+### Expiry-date checks parse a date-only column as UTC, disagreeing with local-time FEFO filters
+
+- **Where:** `client/lib/utils/date-utils.ts:6-18` (`getExpiryStatus`,
+  `getDaysToExpiry`).
+- **Effect:** `new Date(expiryDate)` on a `YYYY-MM-DD` string parses as UTC
+  midnight, then compares against local-time `now` — batches flip to
+  "expired" / show an off-by-one day count relative to the store's local
+  calendar, disagreeing with the string-comparison expiry filters the FEFO
+  SQL (fixed earlier this session) uses.
+- **Fix scope (not implemented):** compare using the same date-string
+  convention the FEFO SQL fix uses, not a UTC-parsed `Date`.
+
+### CFA/XAF currency formatting shows 3 decimal places
+
+- **Where:** `client/lib/utils.ts:24-30` (`formatCfaSuffix`).
+- **Effect:** `maximumFractionDigits: undefined` on a `decimal`-style
+  `Intl.NumberFormat` defaults to 3 — XAF/XOF (zero-minor-unit currency)
+  amounts render like `1,234.567 F` on cart rows, totals and receipts.
+  Directly relevant to the Cameroon client.
+- **Fix scope (not implemented):** set `maximumFractionDigits: 0` for
+  zero-decimal currencies.
+
+### Procurement PO amountPaid has no validation
+
+- **Where:** `client/app/(dashboard)/procurement/new/page.tsx:154,177,220`.
+- **Effect:** `Number(amountPaid) || 0` — a blank/non-numeric amount
+  silently records ₦0 paid; an amount above the order total is accepted and
+  written as-is with no cap or rounding.
+- **Fix scope (not implemented):** validate numeric, non-negative, capped
+  at the order total.
+
+### PO edit form: useState/useEffect fetch, no cancellation, not store-scoped (recurrence of an already-fixed pattern)
+
+- **Where:** `client/app/(dashboard)/procurement/edit/page.tsx:58-82`.
+- **Effect:** same class as `use-procurement-data.ts` (already fixed) and
+  the dashboard detail dialogs (already logged) — navigating between two
+  POs can let a slower response overwrite the newer form; doesn't refetch
+  on store switch.
+- **Fix scope (not implemented):** convert to store-scoped React Query.
+
+### `storeProfile` query function has side effects that can double-fire on retry
+
+- **Where:** `client/lib/context/store-context.tsx:164-187`.
+- **Effect:** the `queryFn` calls `setActiveStoreId(null)` and
+  `localStorage.removeItem(...)` as side effects inside itself. A React
+  Query retry re-fires the clearing side effect, and the resulting state
+  change flips `targetId` mid-fetch, producing a key change and a second
+  fetch on every miss.
+- **Fix scope (not implemented):** move the clearing side effect out of the
+  query function into the caller/an effect that runs once on a confirmed
+  empty result, not on every invocation.
+
+### Staff CSV export doesn't escape quotes/newlines/formula-injection characters
+
+- **Where:** `client/lib/utils/export-staff-csv.ts:3-5` (`csvField`).
+- **Effect:** quotes only on a comma, never escapes embedded `"` or
+  newlines (a name containing either corrupts every following row), and
+  `username`/`email`/`role` bypass the quoting function entirely. A leading
+  `=`/`+`/`-`/`@` is a live spreadsheet formula-injection vector when the
+  CSV is opened in Excel/Sheets.
+- **Fix scope (not implemented):** proper CSV field escaping (quote every
+  field containing a comma/quote/newline, double embedded quotes) applied
+  uniformly to every field; prefix a leading formula-trigger character.
+
+### Loyalty defaults re-seed on every settings-dialog open (check-then-act, no transaction)
+
+- **Where:** `client/lib/db/queries/loyalty.ts:122-139`
+  (`ensureLoyaltyDefaultsSeeded`), called from
+  `loyalty-settings-dialog.tsx:108`.
+- **Effect:** a store that deliberately deleted all its loyalty tiers gets
+  them silently re-seeded the next time the dialog opens; two rapid opens
+  (or two devices) can double-seed since the check isn't transactional.
+- **Fix scope (not implemented):** wrap check+seed in a transaction, or move
+  the seed to a one-time migration instead of a per-open check.
+
+### `getUsers` leaks admins/owners across every store on a fleet account
+
+- **Where:** `client/lib/db/local-database.ts:239-243`.
+- **Effect:** ORs in `role = 'admin' OR role = 'store_owner' OR store_id IS NULL`
+  alongside the store filter — every store's admins/owners appear in every
+  other store's staff directory (and anything derived from that list) on a
+  multi-store account.
+- **Fix scope (not implemented):** needs a product decision first (is
+  cross-store admin visibility intended for a fleet account?) before
+  deciding whether this is a bug or working-as-intended; if unintended,
+  scope the OR condition to the current store's own owner/admins only.
+
+### Receipt print relies on iframe `onload` + a fixed delay, no fallback
+
+- **Where:** `client/lib/utils/print-node.ts:60-66`.
+- **Effect:** driven off `onload` for an iframe populated via `doc.write()`
+  plus a fixed 300ms delay — in browsers where `onload` already fired for
+  the initial `about:blank`, or never fires for the written document, the
+  receipt either prints blank or never prints, with the iframe leaking and
+  no error surfaced.
+- **Fix scope (not implemented):** needs a more robust ready-signal than
+  `onload` + fixed delay, plus a visible failure path.
 
 ### Reports use UTC day/month boundaries while the dashboard/daily-close use local time
 
@@ -506,7 +464,143 @@ Issues spotted incidentally (e.g. while doing TypeScript type-safety cleanup) th
 - **Fix scope (not implemented):** not yet designed; may be acceptable to
   leave as a UX rough edge if fixing risks false negatives elsewhere.
 
-### Stock batch report missing a store_id filter on the joined stock_batches side (low - mostly latent)
+### Hand-rolled query keys bypass the `queryKeys` factory (store/user cache collisions)
+
+- **Where:** `client/components/reports/reseller-commission/reseller-commission-panel.tsx:52,57`
+  (`queryKey: ["resellerCommission", ...]`) and
+  `client/components/pos/transaction-details-dialog.tsx:55,87`
+  (`queryKey: ["customerById", sale?.customer_id]`).
+- **Context:** every entry in `client/lib/query-keys.ts`'s `queryKeys` factory
+  auto-suffixes the key with the active store id and current user id
+  (`resource()` helper) specifically so a store/user switch can never read or
+  write a cache slot the previous store/user's queries own. These two spots
+  write their `queryKey` by hand instead, so they carry no such suffix even
+  though their query functions resolve the store at call time.
+- **Effect:** the reseller-commission list/pending-total and a customer
+  looked up by id can be served from the wrong store's (or wrong user's)
+  cached data after a switch. Currently masked in practice only by
+  `switchStore()`'s broad `invalidateQueries()` sweep, not by any structural
+  guarantee — found via an Opus-dispatched audit pass, not reproduced live.
+- **Fix scope (not implemented):** route both through `queryKeys` (add a
+  `queryKeys.reseller.commission*()`/`queryKeys.customers.byId()` entry with
+  the right `meta.tables`) instead of a literal array.
+
+### `stock-movements.tsx` doesn't refetch on store switch (useState, not React Query)
+
+- **Where:** `client/components/stock-batch/stock-movements.tsx:97-100`.
+- **Context:** plain `useState`/`useEffect` fetch with `deps: [dateRange]`
+  only — the same pattern already found and fixed in
+  `use-procurement-data.ts` earlier in this audit.
+- **Effect:** switching stores (or recording a sale) leaves the stock-movement
+  log showing the previous store's / stale rows until the date filter is
+  touched.
+- **Fix scope (not implemented):** convert to `useQuery` with a store-scoped
+  `queryKeys` entry, mirroring `use-procurement-data.ts`'s fix.
+
+### Refunding a credit sale doesn't reverse loyalty points or the customer's balance
+
+- **Where:** `client/lib/db/queries/returns.ts` (whole module) +
+  `client/lib/hooks/use-process-return-mutation.ts:38`.
+- **Effect:** the return transaction restores stock and flips
+  `sales.payment_status`, but never reverses `points_earned` or
+  `outstanding_balance` for a credit sale — refunding a credit sale leaves
+  the customer's debt and loyalty points as if the sale still stood.
+- **Fix scope (not implemented):** not yet designed.
+
+### Onboarding's first-admin insert has no `_sync_queue` row
+
+- **Where:** `client/app/setup/use-onboarding.ts:139-183`.
+- **Effect:** the offline branch (`_synced = 0`, lines 169-183) inserts
+  `stores`/`users` via raw `execute()` with no matching `_sync_queue` entry,
+  relying entirely on a separate "mark everything dirty" path
+  (`local-database.ts:390-395`) to ever reach the server. If that path is
+  ever missed, the very first admin account on a device never syncs.
+- **Fix scope (not implemented):** not yet designed.
+
+## Low
+
+### `checkIsAdmin` uses substring match instead of exact role comparison
+
+- **Where:** `client/lib/context/auth-context.tsx:84-88`.
+- **Effect:** `normalizedRole.includes("admin")` while every sibling check
+  (`checkCanManageStockBatch`, `checkCanProcessSales`,
+  `checkCanViewAllActivity`, `checkCanFactoryReset`) uses exact array
+  membership. Any future role whose name merely contains "admin"/"manager"
+  silently inherits full admin UI privileges.
+- **Fix scope (not implemented):** switch to exact membership, matching the
+  sibling checks.
+
+### Staff created with no active store become invisible in staff lists while still able to log in
+
+- **Where:** `client/components/settings/staff/staff-form-dialog.tsx:37,62,128`.
+- **Effect:** `store_id: activeStoreId || ""` writes an empty string rather
+  than `NULL` when no store is active — such a row matches neither
+  `store_id = ?` nor the `store_id IS NULL` fallback `getUsers` checks for,
+  so the account is invisible in every staff list while still able to log
+  in.
+- **Fix scope (not implemented):** write `null`, not `""`, when no active
+  store.
+
+### Lock screen keeps the dashboard mounted and polling underneath
+
+- **Where:** `client/components/dashboard/dashboard-layout.tsx:240-249`.
+- **Effect:** the lock screen is a `fixed inset-0` overlay rendered over
+  `children` — the dashboard (and the prior user's data) stays mounted,
+  rendered, and refetching in the DOM while the device is "locked."
+- **Fix scope (not implemented):** unmount or blank the dashboard content
+  while locked, not just overlay it.
+
+### Fuzzy search fallback matches arbitrary rows on short terms
+
+- **Where:** `client/lib/utils/search.ts:114-171` (`searchProducts`),
+  `:237-283` (`genericFuzzySearch`).
+- **Effect:** the fuzzy fallback (Levenshtein distance ≤ 3) fires for terms
+  as short as 3 characters, and `searchProducts`' fallback never scores
+  `barcode` at all — a scanned barcode with no exact match returns up to
+  five unrelated products as "suggestions" instead of an empty result.
+- **Fix scope (not implemented):** raise the minimum term length for the
+  fuzzy fallback, or scale the allowed distance by term length; include
+  barcode in the scored fields.
+
+### Prescription line totals aren't rounded to the cent
+
+- **Where:** `client/lib/utils/prescription-calculations.ts:9-15`.
+- **Effect:** `unitCost * quantity` with no rounding — float drift
+  accumulates into a `REAL` money column, inconsistent with the rounding
+  already applied in the POS money-math path (fixed earlier this session).
+- **Fix scope (not implemented):** apply the same `roundMoney` pattern used
+  in `pos-calculations.ts`.
+
+### Editable number cell can clobber a leading-zero decimal mid-entry
+
+- **Where:** `client/components/ui/editable-number-cell.tsx:44-46,60-66`.
+- **Effect:** commits on every keystroke, and the `[value]` effect
+  immediately rewrites the displayed text to `String(value)` — typing a
+  leading-zero decimal (`0.05`) can have the `0.` clobbered back to `0`
+  mid-entry, making sub-unit prices awkward or impossible to type directly.
+- **Fix scope (not implemented):** don't resync displayed text from
+  `value` while the field is actively focused/being edited.
+
+### A couple of fire-and-forget writes report success without awaiting
+
+- **Where:** `client/components/customers/loyalty-settings-dialog.tsx:96-97`,
+  `client/lib/context/store-context.tsx:409` (`setTheme`).
+- **Effect:** `void updateStoreProfile(...)` immediately followed by a
+  success toast — a failed write still reports success to the user.
+- **Fix scope (not implemented):** await the write before toasting success,
+  or catch and show an error toast on failure.
+
+### Currency-code sanitization silently blanks lowercase codes and can crash on an invalid one
+
+- **Where:** `client/lib/utils.ts:32-44,52,70`.
+- **Effect:** `currencyCode.replace(/[^A-Z]/g, "")` maps any lowercase code
+  (`"usd"`) to `""` → falls back to `"NGN"` silently; an invalid residual
+  code makes `Intl.NumberFormat` throw uncaught, crashing the render tree of
+  any money-displaying screen.
+- **Fix scope (not implemented):** normalize case before sanitizing;
+  wrap the formatter construction in a try/catch with a safe fallback.
+
+### Stock batch report missing a store_id filter on the joined stock_batches side (mostly latent)
 
 - **Where:** `client/lib/db/queries/reports.ts:261-263`
   (`fetchStockBatchReportData` filters `m.store_id` but never `inv.store_id`
@@ -586,6 +680,25 @@ Issues spotted incidentally (e.g. while doing TypeScript type-safety cleanup) th
 - **Fix scope (not implemented):** `logAction()` would need the same
   `overrideStoreId` plumbing `assertStoreOwnership()` already has, threaded
   through from `update()`/`insert()`'s `options`.
+
+## Needs a product decision (not a straightforward bug)
+
+### Plaintext PINs stored and synced
+
+- **Where:** `client/lib/db/queries/auth.ts:9,32,36`,
+  `client/lib/context/auth-context.tsx:183,436`.
+- **Context:** `users.pin` is stored and compared in plaintext, and carried
+  in sync payloads for the `users` table. This may be a deliberate
+  offline-first architecture decision (PIN unlock needs to work fully
+  offline) rather than an oversight — flagged for an explicit call, not
+  filed as a straightforward bug.
+- **Effect:** a `.drx` backup file, an IndexedDB dump, or a server-side DB
+  read exposes every staff PIN in the clear. Compounds the admin-backdoor
+  and no-lockout findings above.
+- **Fix scope (not implemented):** needs a product decision (hash+salt the
+  PIN, accept the offline-verification cost) before any code change.
+
+## `client/` — older/unlabeled entries
 
 ### `discount_amount` coupons cannot be created against a SQLite-backed database
 
@@ -704,107 +817,6 @@ Issues spotted incidentally (e.g. while doing TypeScript type-safety cleanup) th
   above change; if still overflowing, consider shrinking `fontSize` for that
   column specifically, or truncating the id (e.g. last 8 chars only, matching
   what the receipt dialog already shows) rather than relying on wrap/hide.
-
-### Hand-rolled query keys bypass the `queryKeys` factory (store/user cache collisions)
-
-- **Where:** `client/components/reports/reseller-commission/reseller-commission-panel.tsx:52,57`
-  (`queryKey: ["resellerCommission", ...]`) and
-  `client/components/pos/transaction-details-dialog.tsx:55,87`
-  (`queryKey: ["customerById", sale?.customer_id]`).
-- **Context:** every entry in `client/lib/query-keys.ts`'s `queryKeys` factory
-  auto-suffixes the key with the active store id and current user id
-  (`resource()` helper) specifically so a store/user switch can never read or
-  write a cache slot the previous store/user's queries own. These two spots
-  write their `queryKey` by hand instead, so they carry no such suffix even
-  though their query functions resolve the store at call time.
-- **Effect:** the reseller-commission list/pending-total and a customer
-  looked up by id can be served from the wrong store's (or wrong user's)
-  cached data after a switch. Currently masked in practice only by
-  `switchStore()`'s broad `invalidateQueries()` sweep, not by any structural
-  guarantee — found via an Opus-dispatched audit pass, not reproduced live.
-- **Fix scope (not implemented):** route both through `queryKeys` (add a
-  `queryKeys.reseller.commission*()`/`queryKeys.customers.byId()` entry with
-  the right `meta.tables`) instead of a literal array.
-
-### `stock-movements.tsx` doesn't refetch on store switch (useState, not React Query)
-
-- **Where:** `client/components/stock-batch/stock-movements.tsx:97-100`.
-- **Context:** plain `useState`/`useEffect` fetch with `deps: [dateRange]`
-  only — the same pattern already found and fixed in
-  `use-procurement-data.ts` earlier in this audit.
-- **Effect:** switching stores (or recording a sale) leaves the stock-movement
-  log showing the previous store's / stale rows until the date filter is
-  touched.
-- **Fix scope (not implemented):** convert to `useQuery` with a store-scoped
-  `queryKeys` entry, mirroring `use-procurement-data.ts`'s fix.
-
-### Receipt/id collisions from time-based, non-unique identifiers
-
-- **Where:** `client/lib/hooks/use-pos-payment.ts:128` —
-  `` transaction_number = `TXN${Date.now()}` `` against a
-  `sales.transaction_number TEXT UNIQUE NOT NULL` column
-  (`client/lib/db/schema.ts:103`); `client/lib/hooks/use-pos-held-transactions.ts:47`
-  — `` id = `held_${Date.now()}` `` as an explicit primary key;
-  `client/lib/hooks/use-fulfill-online-order-mutation.ts:33` —
-  `` receipt_number: `ONL-${order.id.split("-")[0]}` `` (only the first UUID
-  segment).
-- **Effect:** two terminals in the same store checking out (or holding a
-  sale) in the same millisecond, or with clock skew, produce the same id —
-  the losing row hits a UNIQUE violation server-side and never syncs (sales),
-  or one held cart silently overwrites the other on sync (held transactions).
-  The online-order receipt number isn't unique by construction at all.
-- **Fix scope (not implemented):** generate these with the same collision-safe
-  id generator already used elsewhere (`generateId()`, `lib/db/core.ts`)
-  instead of a bare timestamp/id-prefix.
-
-### `sync-engine/pull.ts` stock-quantity correctness gaps
-
-- **Where:** `client/lib/db/sync-engine/pull.ts`.
-- **Findings from an Opus-dispatched audit pass (unverified against server
-  behavior — see specifics below):**
-  - `:273-283` — a pulled `stock_movements` row applies its quantity delta to
-    `stock_batches` only in the INSERT branch; a movement later soft-deleted
-    server-side arrives via the UPDATE branch (`:203-213`), which sets
-    `_deleted = 1` but never reverses the delta — permanent drift.
-  - `:284-297` — a UNIQUE-constraint error on that INSERT is caught/logged
-    and skipped, but the row is still treated as "seen" for cursor purposes,
-    so the missed delta is never retried.
-  - `:108-113` — the "stock_batches before stock_movements" ordering only
-    holds within one page; a movement arriving on page N whose batch only
-    arrives on page N+1 makes the batch UPDATE a silent no-op (the code's own
-    comment already says this loses the increment permanently).
-  - `:164-166` / `:47-48` — `stock_batches.quantity` is rebuilt purely by
-    replaying `stock_movements`, itself capped at `MAX_PULL_PAGES = 200` × 500
-    rows — a store with more history than that (or one the server ever
-    prunes) can never reach the correct quantity.
-  - `:115` — the transaction wraps one page, not the whole pull; a
-    multi-page pull that throws on page 3 can leave page 1's store-prune/
-    duplicate-remap already committed against data that was never fully
-    applied.
-- **Fix scope (not implemented):** needs verifying against the server first
-  (does it ever prune `stock_movements`? does a real store exceed ~100k
-  historical movements?) before deciding whether this is theoretical or
-  live-reachable — flagged, not yet investigated further.
-
-### Refunding a credit sale doesn't reverse loyalty points or the customer's balance
-
-- **Where:** `client/lib/db/queries/returns.ts` (whole module) +
-  `client/lib/hooks/use-process-return-mutation.ts:38`.
-- **Effect:** the return transaction restores stock and flips
-  `sales.payment_status`, but never reverses `points_earned` or
-  `outstanding_balance` for a credit sale — refunding a credit sale leaves
-  the customer's debt and loyalty points as if the sale still stood.
-- **Fix scope (not implemented):** not yet designed.
-
-### Onboarding's first-admin insert has no `_sync_queue` row
-
-- **Where:** `client/app/setup/use-onboarding.ts:139-183`.
-- **Effect:** the offline branch (`_synced = 0`, lines 169-183) inserts
-  `stores`/`users` via raw `execute()` with no matching `_sync_queue` entry,
-  relying entirely on a separate "mark everything dirty" path
-  (`local-database.ts:390-395`) to ever reach the server. If that path is
-  ever missed, the very first admin account on a device never syncs.
-- **Fix scope (not implemented):** not yet designed.
 
 ## Pre-launch review findings (web/)
 

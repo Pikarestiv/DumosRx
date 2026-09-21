@@ -153,11 +153,11 @@ export async function logCrash(error: unknown, isFatal = false, context: CrashCo
   // Try to find user_id
   let userId = "anonymous";
   try {
-    const authData = localStorage.getItem("auth-storage");
+    const authData = localStorage.getItem("dumos_user");
     if (authData) {
       const parsed = JSON.parse(authData);
-      if (parsed?.state?.user?.id) {
-        userId = parsed.state.user.id;
+      if (parsed?.id) {
+        userId = parsed.id;
       }
     }
   } catch (_) {}
@@ -196,11 +196,11 @@ export async function flushPendingCrashes() {
     
     let userId = "anonymous";
     try {
-      const authData = localStorage.getItem("auth-storage");
+      const authData = localStorage.getItem("dumos_user");
       if (authData) {
         const parsed = JSON.parse(authData);
-        if (parsed?.state?.user?.id) {
-          userId = parsed.state.user.id;
+        if (parsed?.id) {
+          userId = parsed.id;
         }
       }
     } catch (_) {}

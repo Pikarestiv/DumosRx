@@ -501,6 +501,24 @@ export async function pushChanges(
         // one per underlying queue row.
         const versionConflicts: { table_name: string; record_id: string }[] = [];
 
+        // A response lost after the server actually committed (timeout,
+        // dropped connection) looks identical to a network failure from this
+        // device's point of view: it's caught below, routed through
+        // recordSyncFailure, and bumps this queue item's retry_count before
+        // the next attempt resends the same frozen payload. That resend then
+        // collides with the version bump from its OWN already-applied first
+        // attempt and is rejected here as a version_conflict — a false
+        // positive, not a real edit from elsewhere. retry_count > 0 at the
+        // time of a version_conflict is a cheap, already-available signal
+        // for "this was a retry, not a first attempt," so it's used to mute
+        // the toast for that case; a genuinely first-attempt conflict
+        // (retry_count still 0) still gets the normal toast. This can still
+        // occasionally mute a real conflict that happens to land on an
+        // already-retried item for an unrelated reason, but the cost of that
+        // is a missed notification, not lost or corrupted data — the
+        // server's version is kept either way.
+        const silencedConflicts: { table_name: string; record_id: string }[] = [];
+
         // Wrapped in a single transaction: a batch of up to SYNC_BATCH_SIZE
         // markSynced/recordSyncFailure/remapForeignKey calls each triggers
         // its own full-database sql.js export when run outside a
@@ -526,8 +544,19 @@ export async function pushChanges(
               // value now that nothing local is blocking it (see pull.ts's
               // pendingLocalEdit skip).
               const placeholders = underlyingIds.map(() => "?").join(", ");
+              const priorAttempts = await query<{ retry_count: number | null }>(
+                `SELECT retry_count FROM _sync_queue WHERE id IN (${placeholders})`,
+                underlyingIds,
+              );
+              const wasRetried = priorAttempts.some((row) => (row.retry_count ?? 0) > 0);
+
               await execute(`DELETE FROM _sync_queue WHERE id IN (${placeholders})`, underlyingIds);
-              versionConflicts.push({ table_name: f.table_name, record_id: f.record_id });
+
+              if (wasRetried) {
+                silencedConflicts.push({ table_name: f.table_name, record_id: f.record_id });
+              } else {
+                versionConflicts.push({ table_name: f.table_name, record_id: f.record_id });
+              }
             } else {
               for (const id of underlyingIds) {
                 await recordSyncFailure(id, f.reason);
@@ -605,6 +634,15 @@ export async function pushChanges(
         for (const conflict of versionConflicts) {
           toast.warning(
             `A change to ${describeSyncedRecord(conflict.table_name)} could not be saved because the record changed since this edit — the server's current version was kept.`,
+          );
+        }
+        // Not surfaced to the user — see the retry_count comment above. Still
+        // logged so it's visible in a support/debug session, just not as a
+        // scary toast for what's very likely this device's own earlier
+        // write that already landed.
+        for (const conflict of silencedConflicts) {
+          console.info(
+            `[Sync] Retried edit to ${conflict.table_name}/${conflict.record_id} hit a version conflict — likely its own earlier attempt already applied; server's version kept, no toast shown.`,
           );
         }
       } else {

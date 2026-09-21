@@ -23,6 +23,12 @@ vi.mock("idb-keyval", () => ({
  * stock, so the deduction/movement is still recorded (batch going further
  * negative) instead of vanishing.
  */
+// Relative to "now" (not hardcoded dates) so these stay valid, unexpired
+// expiry dates as real time passes - getBatchesForProduct excludes
+// already-expired batches from FEFO picking.
+const NEAR_EXPIRY = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+const FAR_EXPIRY = new Date(Date.now() + 400 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
 describe("recordSaleItemStock — depleted batch", () => {
   let db: Database;
   let recordSaleItemStock: typeof import("@/lib/db/queries/inventory").recordSaleItemStock;
@@ -217,10 +223,10 @@ describe("recordSaleItemStock — depleted batch", () => {
     // the first (FEFO-earliest) batch alone. The fix must not collapse
     // legitimately different batches into a single row.
     db.run(
-      `INSERT INTO stock_batches (id, product_id, quantity, cost_price, expiry_date) VALUES ('batch_old', 'prod1', 2, 60, '2026-01-01')`,
+      `INSERT INTO stock_batches (id, product_id, quantity, cost_price, expiry_date) VALUES ('batch_old', 'prod1', 2, 60, '${NEAR_EXPIRY}')`,
     );
     db.run(
-      `INSERT INTO stock_batches (id, product_id, quantity, cost_price, expiry_date) VALUES ('batch_new', 'prod1', 5, 60, '2027-01-01')`,
+      `INSERT INTO stock_batches (id, product_id, quantity, cost_price, expiry_date) VALUES ('batch_new', 'prod1', 5, 60, '${FAR_EXPIRY}')`,
     );
 
     const saleItemId = await recordSaleItemStock({
@@ -252,10 +258,10 @@ describe("recordSaleItemStock — depleted batch", () => {
 
   it("still picks FEFO among positive-stock batches when one exists (unaffected by the fallback)", async () => {
     db.run(
-      `INSERT INTO stock_batches (id, product_id, quantity, cost_price, expiry_date) VALUES ('batch_old', 'prod1', 5, 60, '2026-01-01')`,
+      `INSERT INTO stock_batches (id, product_id, quantity, cost_price, expiry_date) VALUES ('batch_old', 'prod1', 5, 60, '${NEAR_EXPIRY}')`,
     );
     db.run(
-      `INSERT INTO stock_batches (id, product_id, quantity, cost_price, expiry_date) VALUES ('batch_new', 'prod1', 5, 60, '2027-01-01')`,
+      `INSERT INTO stock_batches (id, product_id, quantity, cost_price, expiry_date) VALUES ('batch_new', 'prod1', 5, 60, '${FAR_EXPIRY}')`,
     );
 
     await recordSaleItemStock({

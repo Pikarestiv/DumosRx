@@ -46,7 +46,7 @@ vi.mock("@/lib/db/local-database", () => ({
         .sort((a, b) => (b.updated_at || "").localeCompare(a.updated_at || ""));
       return match.slice(0, 1);
     }
-    if (sql.includes("FROM stock_batches WHERE product_id = ?")) {
+    if (sql.includes("is_active = 1 AND quantity > 0")) {
       // getBatchesForProduct: only batches with real remaining quantity.
       return Object.values(batches)
         .filter((b) => b.product_id === params[0] && b.quantity > 0)

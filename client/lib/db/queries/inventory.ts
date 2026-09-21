@@ -87,9 +87,15 @@ export interface ExpiringItem {
   base_unit?: string;
 }
 
+// Excludes deactivated batches and already-expired stock outright (FEFO
+// prioritizes near-expiry stock, it doesn't dispense already-expired stock);
+// NULL-expiry batches sort last, not first (SQLite's default for ASC).
 export async function getBatchesForProduct(productId: string) {
   return query<StockBatch>(
-    "SELECT * FROM stock_batches WHERE product_id = ? AND _deleted = 0 AND quantity > 0 ORDER BY expiry_date ASC, created_at ASC",
+    `SELECT * FROM stock_batches
+     WHERE product_id = ? AND _deleted = 0 AND is_active = 1 AND quantity > 0
+       AND (expiry_date IS NULL OR date(expiry_date) > date('now'))
+     ORDER BY (expiry_date IS NULL) ASC, expiry_date ASC, created_at ASC`,
     [productId],
   );
 }
@@ -125,7 +131,7 @@ export async function getAllActiveBatchesForProduct(productId: string) {
  */
 export async function getAnyActiveBatchForProduct(productId: string) {
   return query<StockBatch>(
-    "SELECT * FROM stock_batches WHERE product_id = ? AND _deleted = 0 ORDER BY updated_at DESC, created_at DESC LIMIT 1",
+    "SELECT * FROM stock_batches WHERE product_id = ? AND _deleted = 0 AND is_active = 1 ORDER BY updated_at DESC, created_at DESC LIMIT 1",
     [productId],
   );
 }

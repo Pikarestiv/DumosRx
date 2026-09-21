@@ -5,7 +5,7 @@ A changelog of bugs that were tracked in `docs/KNOWN_BUGS.md` and have since bee
 ## 2026-09-21
 
 ### fix: returned-item COGS was recomputed from current stock cost instead of the cost recorded at sale time
-- **Commit:** (pending)
+- **Commit:** `0a0d515e`
 - `getBIMetrics.returnedCogsData` and `getAdvancedMonthlySalesData.rawMonthlyReturns` averaged a product's *current* active-batch cost instead of using `sale_items.cost_price` — a cost change between sale and return misstated profit, and `IFNULL(…, 0)` silently reported zero returned COGS once a product had no active batches left. The subquery also had no `store_id` scoping.
 - Both now join `return_items` to the original `sale_items` row via `(returns.sale_id, return_items.product_id)` and use its `cost_price` directly — safe because the POS cart merges duplicate products into one line, so at most one `sale_item` per product exists within a given sale.
 

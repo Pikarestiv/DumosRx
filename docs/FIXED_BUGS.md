@@ -4,6 +4,16 @@ A changelog of bugs that were tracked in `docs/KNOWN_BUGS.md` and have since bee
 
 ## 2026-09-21
 
+### fix: don't let one bad queue row's _version re-read fail its whole push batch
+- **Commit:** `fcd16e9d`
+- Follow-up from an Opus-dispatched review of the four Critical fixes below: the `_version` re-read (see the "local edit destroyed" entry below) ran inside a batch-wide `Promise.all`, so a throw from one item could reject the whole batch instead of just that item.
+- Wrapped in a try/catch that falls back to the frozen payload value, matching how every other per-item failure in the same push loop is already isolated.
+
+### fix: close two gaps in the DB-restore safety net flagged by review
+- **Commit:** `56d43d22`
+- Follow-up from the same review pass, on the DB-restore fix below: the desktop pre-restore snapshot was a raw file copy taken *before* closing the connection, so with WAL journaling enabled it could silently miss the most recently committed transactions; and the web recovery function (`restorePreRestoreSnapshot`) had no UI entry point at all.
+- Desktop now checkpoints the WAL into the main file before snapshotting. Web now has an "Undo Last Restore" action in Settings > Data & Sync. `restoreDatabase()` also now surfaces (via toast) when the snapshot itself failed, instead of only a `console.error`.
+
 ### fix: a local edit made while an earlier push for the same record is in flight could be silently destroyed
 - **Commit:** `cee78c1e`
 - `update()` froze a queued edit's `_version` at enqueue time; if an earlier push for the same record completed and bumped the local `_version` before this edit was sent, it collided against its own device's already-accepted change and was dropped as a false `version_conflict` — a real, non-conflicting edit silently lost with no error surfaced.

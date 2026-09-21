@@ -1,5 +1,10 @@
-import { query, insert, update, transaction, generateId } from "@/lib/db/local-database";
-import { getActiveStoreId, setActiveStoreId } from "@/lib/db/core";
+import {
+  query,
+  insert,
+  update,
+  transaction,
+  generateId,
+} from "@/lib/db/local-database";
 
 /**
  * Data-model decision (see docs/superpowers or PR description for the
@@ -87,7 +92,9 @@ interface SourceProductRow {
  * deducting stock on a sale, reused here rather than inventing a second
  * deduction order for transfers.
  */
-async function getAvailableSourceBatches(productId: string): Promise<SourceBatchRow[]> {
+async function getAvailableSourceBatches(
+  productId: string,
+): Promise<SourceBatchRow[]> {
   return query<SourceBatchRow>(
     `SELECT id, quantity, cost_price, expiry_date, created_at FROM stock_batches
      WHERE product_id = ? AND _deleted = 0 AND is_active = 1 AND quantity > 0
@@ -156,9 +163,10 @@ async function resolveDestCategoryId(
   destStoreId: string,
 ): Promise<string | null> {
   if (!categoryId) return null;
-  const source = await query<{ name: string }>(`SELECT name FROM categories WHERE id = ?`, [
-    categoryId,
-  ]);
+  const source = await query<{ name: string }>(
+    `SELECT name FROM categories WHERE id = ?`,
+    [categoryId],
+  );
   const name = source[0]?.name;
   if (!name) return null;
 
@@ -185,7 +193,10 @@ async function createDestProduct(
   product: SourceProductRow,
   destStoreId: string,
 ): Promise<string> {
-  const destCategoryId = await resolveDestCategoryId(product.category_id, destStoreId);
+  const destCategoryId = await resolveDestCategoryId(
+    product.category_id,
+    destStoreId,
+  );
 
   return await insert("products", {
     name: product.name,
@@ -223,8 +234,17 @@ async function createDestProduct(
  * insufficient stock) throws before any write and the whole transaction
  * rolls back.
  */
-export async function transferStock(params: StockTransferParams): Promise<StockTransferResult> {
-  const { sourceStoreId, destStoreId, productId, quantity, performedBy, reason } = params;
+export async function transferStock(
+  params: StockTransferParams,
+): Promise<StockTransferResult> {
+  const {
+    sourceStoreId,
+    destStoreId,
+    productId,
+    quantity,
+    performedBy,
+    reason,
+  } = params;
 
   if (!sourceStoreId || !destStoreId) {
     throw new Error("Both a source and destination store are required");
@@ -251,133 +271,114 @@ export async function transferStock(params: StockTransferParams): Promise<StockT
   if (!sourceStore) throw new Error("Source store not found");
   if (!destStore) throw new Error("Destination store not found");
 
-  // The module-level active-store resolver (lib/db/core.ts) is what
-  // insert()/update()'s per-row store-ownership guard (assertStoreOwnership
-  // in base-helpers.ts) checks against, and it rejects an update() whose
-  // row's store_id doesn't match it. A transfer, by definition, writes rows
-  // owned by two different stores in one transaction, and the owner
-  // performing it may currently have EITHER store (or neither) active in
-  // the UI. Clearing the resolver for the duration of this transaction
-  // relies on that guard's own documented fail-open behavior when no active
-  // store is set; every insert()/update() call below still pins its own
-  // store_id explicitly, so this doesn't loosen scoping anywhere else, only
-  // stops the resolver from vetoing this one legitimate cross-store write.
-  // Known trade-off: an unrelated read elsewhere in the app that calls
-  // getActiveStoreId() while this transaction is mid-flight would briefly
-  // see "no store" (unscoped) instead of its real active store. This
-  // mirrors a narrow race the codebase already accepts elsewhere (see
-  // awaitSettledTransactions' doc comment) rather than a new one; closing it
-  // fully would mean threading an explicit store id through ~40+ query call
-  // sites and is out of scope for this feature.
-  const previousActiveStoreId = getActiveStoreId();
-  setActiveStoreId(null);
+  return await transaction(async () => {
+    const sourceProduct = await getSourceProduct(productId, sourceStoreId);
+    if (!sourceProduct) {
+      throw new Error("Product not found in the source store");
+    }
 
-  try {
-    return await transaction(async () => {
-      const sourceProduct = await getSourceProduct(productId, sourceStoreId);
-      if (!sourceProduct) {
-        throw new Error("Product not found in the source store");
+    const batches = await getAvailableSourceBatches(productId);
+    const totalAvailable = batches.reduce((sum, b) => sum + b.quantity, 0);
+    if (totalAvailable < quantity) {
+      throw new Error(
+        `Insufficient stock: only ${totalAvailable} unit(s) available, requested ${quantity}`,
+      );
+    }
+
+    const transferId = generateId();
+    const now = new Date().toISOString();
+
+    let remaining = quantity;
+    let totalCost = 0;
+    let earliestExpiry: string | null = null;
+    const drawn: { batchId: string; qty: number; cost: number }[] = [];
+
+    for (const batch of batches) {
+      if (remaining <= 0) break;
+      const draw = Math.min(batch.quantity, remaining);
+      const cost = batch.cost_price ?? 0;
+      drawn.push({ batchId: batch.id, qty: draw, cost });
+      totalCost += draw * cost;
+      remaining -= draw;
+      if (
+        batch.expiry_date &&
+        (!earliestExpiry || batch.expiry_date < earliestExpiry)
+      ) {
+        earliestExpiry = batch.expiry_date;
       }
 
-      const batches = await getAvailableSourceBatches(productId);
-      const totalAvailable = batches.reduce((sum, b) => sum + b.quantity, 0);
-      if (totalAvailable < quantity) {
-        throw new Error(
-          `Insufficient stock: only ${totalAvailable} unit(s) available, requested ${quantity}`,
-        );
-      }
+      await update(
+        "stock_batches",
+        batch.id,
+        { quantity: batch.quantity - draw },
+        { storeId: sourceStoreId },
+      );
+    }
 
-      const transferId = generateId();
-      const now = new Date().toISOString();
+    const averageCost = totalCost / quantity;
 
-      let remaining = quantity;
-      let totalCost = 0;
-      let earliestExpiry: string | null = null;
-      const drawn: { batchId: string; qty: number; cost: number }[] = [];
+    let destProductId = await findDestProductId(sourceProduct, destStoreId);
+    if (!destProductId) {
+      destProductId = await createDestProduct(sourceProduct, destStoreId);
+    }
 
-      for (const batch of batches) {
-        if (remaining <= 0) break;
-        const draw = Math.min(batch.quantity, remaining);
-        const cost = batch.cost_price ?? 0;
-        drawn.push({ batchId: batch.id, qty: draw, cost });
-        totalCost += draw * cost;
-        remaining -= draw;
-        if (batch.expiry_date && (!earliestExpiry || batch.expiry_date < earliestExpiry)) {
-          earliestExpiry = batch.expiry_date;
-        }
+    // Always opens a fresh batch on the destination rather than merging
+    // into an existing one: the source draw can span multiple batches
+    // with different expiry dates, and folding that into an arbitrary
+    // pre-existing destination batch would blur its own FEFO ordering.
+    // The new batch's expiry is the earliest (most conservative) of
+    // everything it was drawn from, so the destination's FEFO picking
+    // never overstates shelf life.
+    const destBatchId = await insert("stock_batches", {
+      product_id: destProductId,
+      batch_number: `TRANSFER-${transferId.slice(0, 8).toUpperCase()}`,
+      expiry_date: earliestExpiry,
+      quantity,
+      cost_price: averageCost,
+      is_active: 1,
+      store_id: destStoreId,
+    });
 
-        await update("stock_batches", batch.id, {
-          quantity: batch.quantity - draw,
-        });
-      }
-
-      const averageCost = totalCost / quantity;
-
-      let destProductId = await findDestProductId(sourceProduct, destStoreId);
-      if (!destProductId) {
-        destProductId = await createDestProduct(sourceProduct, destStoreId);
-      }
-
-      // Always opens a fresh batch on the destination rather than merging
-      // into an existing one: the source draw can span multiple batches
-      // with different expiry dates, and folding that into an arbitrary
-      // pre-existing destination batch would blur its own FEFO ordering.
-      // The new batch's expiry is the earliest (most conservative) of
-      // everything it was drawn from, so the destination's FEFO picking
-      // never overstates shelf life.
-      const destBatchId = await insert("stock_batches", {
-        product_id: destProductId,
-        batch_number: `TRANSFER-${transferId.slice(0, 8).toUpperCase()}`,
-        expiry_date: earliestExpiry,
-        quantity,
-        cost_price: averageCost,
-        is_active: 1,
-        store_id: destStoreId,
-      });
-
-      for (const d of drawn) {
-        await insert("stock_movements", {
-          product_id: productId,
-          stock_batch_id: d.batchId,
-          movement_type: "transfer_out",
-          quantity: -Math.abs(d.qty),
-          unit_cost: d.cost,
-          total_cost: d.cost * d.qty,
-          reference_id: transferId,
-          reference_type: STOCK_TRANSFER_REFERENCE_TYPE,
-          reason: reason || `Transfer to ${destStore.name}`,
-          performed_by: performedBy,
-          movement_date: now,
-          store_id: sourceStoreId,
-        });
-      }
-
+    for (const d of drawn) {
       await insert("stock_movements", {
-        product_id: destProductId,
-        stock_batch_id: destBatchId,
-        movement_type: "transfer_in",
-        quantity,
-        unit_cost: averageCost,
-        total_cost: averageCost * quantity,
+        product_id: productId,
+        stock_batch_id: d.batchId,
+        movement_type: "transfer_out",
+        quantity: -Math.abs(d.qty),
+        unit_cost: d.cost,
+        total_cost: d.cost * d.qty,
         reference_id: transferId,
         reference_type: STOCK_TRANSFER_REFERENCE_TYPE,
-        reason: reason || `Transfer from ${sourceStore.name}`,
+        reason: reason || `Transfer to ${destStore.name}`,
         performed_by: performedBy,
         movement_date: now,
-        store_id: destStoreId,
+        store_id: sourceStoreId,
       });
+    }
 
-      return {
-        transferId,
-        sourceProductId: productId,
-        destProductId,
-        quantityTransferred: quantity,
-        averageCostPrice: averageCost,
-      };
+    await insert("stock_movements", {
+      product_id: destProductId,
+      stock_batch_id: destBatchId,
+      movement_type: "transfer_in",
+      quantity,
+      unit_cost: averageCost,
+      total_cost: averageCost * quantity,
+      reference_id: transferId,
+      reference_type: STOCK_TRANSFER_REFERENCE_TYPE,
+      reason: reason || `Transfer from ${sourceStore.name}`,
+      performed_by: performedBy,
+      movement_date: now,
+      store_id: destStoreId,
     });
-  } finally {
-    setActiveStoreId(previousActiveStoreId);
-  }
+
+    return {
+      transferId,
+      sourceProductId: productId,
+      destProductId,
+      quantityTransferred: quantity,
+      averageCostPrice: averageCost,
+    };
+  });
 }
 
 export interface TransferableProductRow {
@@ -392,7 +393,9 @@ export interface TransferableProductRow {
  * product picker — deliberately takes an explicit store id rather than
  * reading the active-store resolver, since the dialog's chosen source store
  * is very often not the store currently active in the rest of the UI. */
-export async function getTransferableProducts(storeId: string): Promise<TransferableProductRow[]> {
+export async function getTransferableProducts(
+  storeId: string,
+): Promise<TransferableProductRow[]> {
   return query<TransferableProductRow>(
     `SELECT p.id, p.name, p.barcode, p.base_unit,
             COALESCE(SUM(sb.quantity), 0) as available_quantity
@@ -428,7 +431,9 @@ export interface StockTransferHistoryRow {
  * — see the header-table decision note at the top of this file for why
  * there's no dedicated table to just SELECT * from instead.
  */
-export async function getStockTransferHistory(limit = 100): Promise<StockTransferHistoryRow[]> {
+export async function getStockTransferHistory(
+  limit = 100,
+): Promise<StockTransferHistoryRow[]> {
   return query<StockTransferHistoryRow>(
     `SELECT
        o.reference_id as id,

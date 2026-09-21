@@ -1,6 +1,7 @@
 import { addMonths, startOfMonth, endOfMonth } from "date-fns";
 import { query } from "@/lib/db/local-database";
 import { getActiveStoreId } from "@/lib/db/core";
+import { parseLocalDateOnly } from "@/lib/utils/date-utils";
 
 export interface Expense {
   id: string;
@@ -73,20 +74,39 @@ export function getSmoothedAmountInWindow(
   windowStart: Date,
   windowEnd: Date,
 ): number {
-  const expenseDate = new Date(expense.date);
+  // expense.date is a bare "YYYY-MM-DD" column; parsing it with `new Date()`
+  // reads it as UTC midnight while windowStart/windowEnd and the
+  // startOfMonth/endOfMonth buckets below are local-time, shifting the first
+  // installment a month early in negative-UTC timezones (same class of bug
+  // fixed for expiry dates in date-utils.ts).
+  const expenseDate = parseLocalDateOnly(expense.date);
 
   if (!expense.covers_months || expense.covers_months <= 0) {
     return expenseDate >= windowStart && expenseDate < windowEnd ? expense.amount : 0;
   }
 
   const monthlyAmount = expense.amount / expense.covers_months;
+  const windowStartMs = windowStart.getTime();
+  const windowEndMs = windowEnd.getTime();
   let total = 0;
   for (let i = 0; i < expense.covers_months; i++) {
     const bucketMonth = addMonths(expenseDate, i);
-    const bucketStart = startOfMonth(bucketMonth);
-    const bucketEnd = endOfMonth(bucketMonth);
-    if (bucketStart < windowEnd && bucketEnd >= windowStart) {
-      total += monthlyAmount;
+    const bucketStartMs = startOfMonth(bucketMonth).getTime();
+    // endOfMonth() is inclusive (23:59:59.999); +1ms makes it an exclusive
+    // bound so it lines up with windowEnd's [start, end) convention.
+    const bucketEndMs = endOfMonth(bucketMonth).getTime() + 1;
+
+    // Prorate by the fraction of this installment's month that actually
+    // falls inside the window, rather than counting the full monthly amount
+    // for any month the window merely touches. A calendar-month window
+    // (from = startOfMonth, to = startOfMonth(next)) still gets the full
+    // installment since it fully contains the bucket, but a rolling window
+    // (e.g. "last 30 days") that straddles two calendar months no longer
+    // double-counts by claiming the full installment from both months.
+    const overlapMs = Math.min(bucketEndMs, windowEndMs) - Math.max(bucketStartMs, windowStartMs);
+    if (overlapMs > 0) {
+      const bucketDurationMs = bucketEndMs - bucketStartMs;
+      total += monthlyAmount * (overlapMs / bucketDurationMs);
     }
   }
   return total;

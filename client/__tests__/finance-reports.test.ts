@@ -299,6 +299,73 @@ describe("finance.ts / reports.ts financial aggregates", () => {
     });
   });
 
+  describe("getSmoothedAmountInWindow (prepaid amortization overlap/UTC fixes)", () => {
+    it("attributes the full installment to a calendar-month window that fully contains it", async () => {
+      const { getSmoothedAmountInWindow } = await import("@/lib/db/queries/finance");
+      const expense = { amount: 120000, date: "2026-01-15", covers_months: 12 };
+
+      const jan = getSmoothedAmountInWindow(
+        expense,
+        new Date(2026, 0, 1),
+        new Date(2026, 1, 1),
+      );
+      expect(jan).toBeCloseTo(10000, 5); // 120000 / 12
+
+      const feb = getSmoothedAmountInWindow(
+        expense,
+        new Date(2026, 1, 1),
+        new Date(2026, 2, 1),
+      );
+      expect(feb).toBeCloseTo(10000, 5);
+    });
+
+    it("prorates instead of double-counting when a rolling window straddles two installment months", async () => {
+      const { getSmoothedAmountInWindow } = await import("@/lib/db/queries/finance");
+      const expense = { amount: 120000, date: "2026-01-01", covers_months: 12 };
+
+      // A 30-day window entirely inside January should sum to ~1 month's
+      // installment, never 2x it just because a later/earlier bucket's month
+      // is merely touched.
+      const rollingWindow = getSmoothedAmountInWindow(
+        expense,
+        new Date(2026, 0, 5),
+        new Date(2026, 1, 4), // 30 days later, spills into February
+      );
+      // Bounded strictly below 2 full installments (the old overlap-based
+      // bug would return ~20000, double the correct ~1-installment amount).
+      expect(rollingWindow).toBeLessThan(15000);
+      expect(rollingWindow).toBeGreaterThan(9000);
+    });
+
+    it("sums to exactly the original amount when a window spans the full covers_months range", async () => {
+      const { getSmoothedAmountInWindow } = await import("@/lib/db/queries/finance");
+      const expense = { amount: 120000, date: "2026-01-01", covers_months: 12 };
+
+      const full = getSmoothedAmountInWindow(
+        expense,
+        new Date(2025, 11, 1),
+        new Date(2027, 1, 1),
+      );
+      expect(full).toBeCloseTo(120000, 5);
+    });
+
+    it("parses a bare YYYY-MM-DD expense date as local time, not UTC midnight", async () => {
+      const { getSmoothedAmountInWindow } = await import("@/lib/db/queries/finance");
+      // A non-amortized expense dated the 1st of the month must count toward
+      // that local calendar month's window even in a negative-UTC timezone,
+      // where `new Date("2026-01-01")` (UTC midnight) would fall on
+      // 2025-12-31 local and be excluded from the January window.
+      const expense = { amount: 5000, date: "2026-01-01", covers_months: null };
+
+      const jan = getSmoothedAmountInWindow(
+        expense,
+        new Date(2026, 0, 1),
+        new Date(2026, 1, 1),
+      );
+      expect(jan).toBe(5000);
+    });
+  });
+
   describe("getCurrentMonthExpensesByCategory", () => {
     it("groups this month's expenses by category, excluding other months", async () => {
       db.run(

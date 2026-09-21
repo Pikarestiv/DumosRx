@@ -1,5 +1,5 @@
 import { query, insert } from "@/lib/db/local-database";
-import { getActiveStoreId } from "@/lib/db/core";
+import { getActiveStoreId, transaction } from "@/lib/db/core";
 
 export interface LoyaltyTierRow {
   id: string;
@@ -120,20 +120,22 @@ export async function getLoyaltyRedemptionOptions() {
  * keeps existing stores' behavior unchanged until they actually edit something.
  */
 export async function ensureLoyaltyDefaultsSeeded(userId?: string, currencySymbol?: string) {
-  const [tiers, options] = await Promise.all([
-    getLoyaltyTiers(),
-    getLoyaltyRedemptionOptions(),
-  ]);
+  await transaction(async () => {
+    const [tiers, options] = await Promise.all([
+      getLoyaltyTiers(),
+      getLoyaltyRedemptionOptions(),
+    ]);
 
-  if (tiers.length === 0) {
-    for (const tier of DEFAULT_LOYALTY_TIERS) {
-      await insert("loyalty_tiers", { ...tier, user_id: userId });
+    if (tiers.length === 0) {
+      for (const tier of DEFAULT_LOYALTY_TIERS) {
+        await insert("loyalty_tiers", { ...tier, user_id: userId });
+      }
     }
-  }
 
-  if (options.length === 0) {
-    for (const option of buildDefaultRedemptionOptions(currencySymbol)) {
-      await insert("loyalty_redemption_options", { ...option, user_id: userId });
+    if (options.length === 0) {
+      for (const option of buildDefaultRedemptionOptions(currencySymbol)) {
+        await insert("loyalty_redemption_options", { ...option, user_id: userId });
+      }
     }
-  }
+  });
 }

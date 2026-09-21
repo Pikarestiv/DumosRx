@@ -15,7 +15,7 @@ import { addMonths, isBefore, differenceInDays, format } from "date-fns";
  * string carrying an explicit time/offset (a full ISO timestamp) has no
  * such ambiguity and is left to native parsing. */
 const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
-const parseLocalDateOnly = (dateString: string): Date => {
+export const parseLocalDateOnly = (dateString: string): Date => {
   if (!DATE_ONLY_RE.test(dateString)) return new Date(dateString);
   const [year, month, day] = dateString.split("-").map(Number);
   return new Date(year, month - 1, day);

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { toast } from "sonner";
 import { printNode } from "@/lib/utils/print-node";
 import { useReceiptPaperSize } from "@/lib/hooks/use-receipt-paper-size";
 import { ReceiptView, ReceiptTransaction, ReceiptDocumentType } from "./receipt-view";
@@ -37,7 +38,10 @@ export function usePrintReceipt() {
           printNode(
             containerRef.current,
             paperSize === "thermal" ? THERMAL_PAGE_STYLE : A4_PAGE_STYLE,
-          );
+          ).catch((err) => {
+            console.error("[print] Failed to print receipt:", err);
+            toast.error("Couldn't open the print dialog. Please try again.");
+          });
         }
       });
     });

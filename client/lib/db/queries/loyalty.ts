@@ -1,4 +1,4 @@
-import { query, insert } from "@/lib/db/local-database";
+import { query, insert, update } from "@/lib/db/local-database";
 import { getActiveStoreId, transaction } from "@/lib/db/core";
 
 export interface LoyaltyTierRow {
@@ -118,9 +118,28 @@ export async function getLoyaltyRedemptionOptions() {
  * Seeds the app's default tiers/redemption options as real, editable rows the
  * first time settings are opened on a store that has never customized them;
  * keeps existing stores' behavior unchanged until they actually edit something.
+ *
+ * Gated on `stores.loyalty_defaults_seeded_at` rather than "are there zero
+ * tiers/options right now" — that count-based check couldn't tell "never
+ * seeded" apart from "a store deliberately deleted every tier," so it
+ * silently reseeded a store that had cleared its tiers on purpose every time
+ * the settings dialog was reopened. Once this flag is set, seeding never
+ * runs again for that store, even if it later has zero tiers. A store
+ * upgrading from before this flag existed still gets exactly one more
+ * grandfather seed-or-skip decision (zero tiers seeds once more, any tiers
+ * present just sets the flag) — an accepted, one-time transition edge case.
  */
 export async function ensureLoyaltyDefaultsSeeded(userId?: string, currencySymbol?: string) {
+  const storeId = getActiveStoreId();
+  if (!storeId) return;
+
   await transaction(async () => {
+    const stores = await query<{ id: string; loyalty_defaults_seeded_at: string | null }>(
+      "SELECT id, loyalty_defaults_seeded_at FROM stores WHERE id = ?",
+      [storeId],
+    );
+    if (stores.length === 0 || stores[0].loyalty_defaults_seeded_at) return;
+
     const [tiers, options] = await Promise.all([
       getLoyaltyTiers(),
       getLoyaltyRedemptionOptions(),
@@ -137,5 +156,9 @@ export async function ensureLoyaltyDefaultsSeeded(userId?: string, currencySymbo
         await insert("loyalty_redemption_options", { ...option, user_id: userId });
       }
     }
+
+    await update("stores", storeId, {
+      loyalty_defaults_seeded_at: new Date().toISOString(),
+    });
   });
 }

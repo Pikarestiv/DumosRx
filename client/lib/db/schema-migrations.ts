@@ -467,6 +467,13 @@ const SYNC_COLUMN_MIGRATIONS: { table: string; columns: string[] }[] = [
       // Store-wide % of a reseller sale's markup remitted back to the
       // reseller. See ResellerCommissionPanel / use-pos-payment.ts.
       "reseller_commission_percentage REAL DEFAULT 0",
+      // One-time gate for ensureLoyaltyDefaultsSeeded() (loyalty.ts) - set
+      // the first time default tiers/redemption options are ever seeded for
+      // this store, so a store that later deliberately deletes every tier
+      // doesn't get them silently reseeded next time Loyalty Settings opens.
+      // NULL on every existing row until this migration's store's first
+      // post-upgrade seed decision.
+      "loyalty_defaults_seeded_at TEXT",
     ],
   },
   {

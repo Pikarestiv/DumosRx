@@ -61,6 +61,7 @@ class Store extends Model
         'uppercase_display_enabled',
         'reseller_commission_percentage',
         'loyalty_points_per_currency',
+        'loyalty_defaults_seeded_at',
     ];
 
     protected $casts = [
@@ -74,6 +75,7 @@ class Store extends Model
         'uppercase_display_enabled' => 'boolean',
         'last_sync_at' => 'datetime',
         '_synced_at' => 'datetime',
+        'loyalty_defaults_seeded_at' => 'datetime',
     ];
 
     protected static function boot()

@@ -11,6 +11,47 @@ import { logCrash } from "@/lib/utils/error-logger";
 // termination if a server bug ever reports has_more=true forever.
 const MAX_PULL_PAGES = 200;
 
+// A UNIQUE-constraint collision on a pulled record (e.g. two accounts
+// independently created a user with the same email) is not self-resolving
+// the way a pending-local-edit skip is — nothing about a future pull changes
+// the collision. Blocking that table's cursor on it forever would silently
+// stall every OTHER record in the table too. Cap how many separate pulls are
+// allowed to retry the same record before giving up and letting the cursor
+// advance past it anyway (the record stays in skippedRecords/logCrash either
+// way, so the loss is visible, not silent).
+const MAX_UNIQUE_SKIP_RETRIES = 5;
+const UNIQUE_SKIP_COUNTS_KEY = "dumos_sync_unique_skip_counts";
+
+function readSkipCounts(): Record<string, number> {
+  if (typeof window === "undefined") return {};
+  try {
+    return JSON.parse(localStorage.getItem(UNIQUE_SKIP_COUNTS_KEY) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function writeSkipCounts(counts: Record<string, number>): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(UNIQUE_SKIP_COUNTS_KEY, JSON.stringify(counts));
+  } catch {
+    // Best-effort persistence; a failed write just means this record's
+    // retry count resets, which only makes the fix more conservative.
+  }
+}
+
+// Returns true once this record has exceeded the retry cap and the table
+// cursor should be allowed to advance past it despite the collision.
+function recordUniqueSkipAndCheckGiveUp(table: string, recordId: string): boolean {
+  const key = `${table}:${recordId}`;
+  const counts = readSkipCounts();
+  const nextCount = (counts[key] ?? 0) + 1;
+  counts[key] = nextCount;
+  writeSkipCounts(counts);
+  return nextCount > MAX_UNIQUE_SKIP_RETRIES;
+}
+
 /**
  * Pull changes from server
  */
@@ -76,6 +117,12 @@ export async function pullChanges(
     // triggered by backlogs over 500 rows in a single table).
     const pageOffsets: Record<string, number> = {};
     const skippedTables = new Set<string>();
+
+    // stock_movements deltas whose referencing stock_batches row hadn't been
+    // inserted locally yet at the time the movement was pulled (see the
+    // comment where this is populated below). Applied once, in original
+    // order, after every page across every table has been pulled.
+    const deferredMovementDeltas: { stockBatchId: string; quantity: number }[] = [];
 
     let hasMoreAny = true;
     let page = 0;
@@ -224,6 +271,13 @@ export async function pullChanges(
                     errMsg
                   );
                   skippedRecords.push({ table, recordId, reason: `update: ${errMsg}` });
+                  // This record wasn't actually applied — don't let the
+                  // per-table cursor advance past it, or it's never
+                  // retried (see docs/KNOWN_BUGS.md), unless it's already
+                  // been retried this many times with no resolution.
+                  if (!recordUniqueSkipAndCheckGiveUp(table, recordId)) {
+                    anySkipped = true;
+                  }
                 } else {
                   throw err;
                 }
@@ -276,10 +330,33 @@ export async function pullChanges(
                   data.stock_batch_id &&
                   typeof data.quantity === "number"
                 ) {
-                  await execute(
-                    "UPDATE stock_batches SET quantity = MAX(0, quantity + ?) WHERE id = ?",
-                    [data.quantity, data.stock_batch_id as string],
+                  // The batch this movement references may not exist
+                  // locally yet: batches and movements are paginated
+                  // independently, so a movement can arrive on an earlier
+                  // page than the batch it references (the per-page
+                  // ordering above only guarantees ordering WITHIN one
+                  // page, not across pages). Applying the delta now would
+                  // silently no-op (UPDATE ... WHERE id = ? matching zero
+                  // rows) and permanently lose the increment, since a
+                  // movement is only ever seen here once. Defer it instead
+                  // — applied once every page has been pulled, by which
+                  // point every batch this round could reference has
+                  // already been inserted.
+                  const batchExists = await query<{ 1: number }>(
+                    "SELECT 1 FROM stock_batches WHERE id = ?",
+                    [data.stock_batch_id as string],
                   );
+                  if (batchExists.length > 0) {
+                    await execute(
+                      "UPDATE stock_batches SET quantity = MAX(0, quantity + ?) WHERE id = ?",
+                      [data.quantity, data.stock_batch_id as string],
+                    );
+                  } else {
+                    deferredMovementDeltas.push({
+                      stockBatchId: data.stock_batch_id as string,
+                      quantity: data.quantity as number,
+                    });
+                  }
                 }
               } catch (err) {
                 const errMsg =
@@ -291,6 +368,12 @@ export async function pullChanges(
                     errMsg
                   );
                   skippedRecords.push({ table, recordId, reason: `insert: ${errMsg}` });
+                  // Not actually applied — same reasoning as the update
+                  // branch above: don't let the cursor skip past it, unless
+                  // it's already been retried this many times.
+                  if (!recordUniqueSkipAndCheckGiveUp(table, recordId)) {
+                    anySkipped = true;
+                  }
                 } else {
                   throw err;
                 }
@@ -402,6 +485,17 @@ export async function pullChanges(
       });
 
       hasMoreAny = Object.values(has_more ?? {}).some(Boolean);
+    }
+
+    if (deferredMovementDeltas.length > 0) {
+      await transaction(async () => {
+        for (const d of deferredMovementDeltas) {
+          await execute(
+            "UPDATE stock_batches SET quantity = MAX(0, quantity + ?) WHERE id = ?",
+            [d.quantity, d.stockBatchId],
+          );
+        }
+      });
     }
 
     for (const s of skippedRecords) {

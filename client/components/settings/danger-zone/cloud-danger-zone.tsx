@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import { AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { useCurrentUser } from "@/lib/hooks/use-current-user";
@@ -30,7 +31,7 @@ const RESET_TYPES: { type: string; label: string; description: string }[] = [
  * dialog below. See DeviceDangerZone for the device-local equivalent,
  * which only affects the device running it. */
 export function CloudDangerZone() {
-  const { data: user } = useCurrentUser();
+  const { data: user, isLoading: isUserLoading } = useCurrentUser();
   const canResetCloudData = checkCanFactoryReset(user?.role);
   const [resetTarget, setResetTarget] = useState<{ type: string; label: string; description: string } | null>(null);
   const [deletionDialogOpen, setDeletionDialogOpen] = useState(false);
@@ -100,7 +101,9 @@ export function CloudDangerZone() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          {canResetCloudData ? (
+          {isUserLoading ? (
+            <Skeleton className="h-8 w-56" />
+          ) : canResetCloudData ? (
             showCloudResets ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {RESET_TYPES.map((reset) => (

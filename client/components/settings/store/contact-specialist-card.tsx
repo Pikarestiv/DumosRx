@@ -3,7 +3,8 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Loader2, Phone, Mail } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Phone, Mail } from "lucide-react";
 import { useAccountManager } from "@/lib/hooks/use-account-manager";
 import { getUserInitials } from "@/lib/utils";
 
@@ -21,19 +22,9 @@ export function ContactSpecialistCard() {
   const { data, isLoading } = useAccountManager();
   const manager = data?.data;
 
-  if (isLoading) {
-    return (
-      <Card>
-        <CardContent className="p-6 flex justify-center">
-          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-        </CardContent>
-      </Card>
-    );
-  }
+  if (!isLoading && !manager) return null;
 
-  if (!manager) return null;
-
-  const [firstName, ...rest] = manager.name.split(" ");
+  const [firstName, ...rest] = manager ? manager.name.split(" ") : ["", ""];
 
   return (
     <Card>
@@ -44,6 +35,15 @@ export function ContactSpecialistCard() {
         </CardDescription>
       </CardHeader>
       <CardContent>
+        {isLoading ? (
+          <div className="flex items-center gap-3 rounded-lg border p-4">
+            <Skeleton className="h-10 w-10 rounded-full shrink-0" />
+            <div className="space-y-1.5 min-w-0">
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-3 w-44" />
+            </div>
+          </div>
+        ) : (
         <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
           <div className="flex items-center gap-3 min-w-0">
             <Avatar className="h-10 w-10 shrink-0">
@@ -52,11 +52,11 @@ export function ContactSpecialistCard() {
               </AvatarFallback>
             </Avatar>
             <div className="min-w-0">
-              <p className="text-sm font-semibold truncate">{manager.name}</p>
-              <p className="text-xs text-muted-foreground truncate">{manager.email}</p>
+              <p className="text-sm font-semibold truncate">{manager?.name}</p>
+              <p className="text-xs text-muted-foreground truncate">{manager?.email}</p>
             </div>
           </div>
-          {manager.phone ? (
+          {manager?.phone ? (
             <div className="flex items-center gap-2 shrink-0">
               <Button variant="outline" size="sm" asChild>
                 <a href={`tel:${manager.phone}`}>
@@ -72,13 +72,14 @@ export function ContactSpecialistCard() {
             </div>
           ) : (
             <Button variant="outline" size="sm" asChild className="shrink-0">
-              <a href={`mailto:${manager.email}`}>
+              <a href={`mailto:${manager?.email}`}>
                 <Mail className="h-4 w-4 mr-2" />
                 Email
               </a>
             </Button>
           )}
         </div>
+        )}
       </CardContent>
     </Card>
   );

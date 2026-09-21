@@ -30,7 +30,7 @@ export function SubscriptionPlans() {
 
   const queryClient = useQueryClient();
   const { subscriptionPlans } = useSystemConfigStore();
-  const { data: subStatus, isError: isStatusError } = useSubscriptionStatus();
+  const { data: subStatus, isLoading: isStatusLoading, isError: isStatusError } = useSubscriptionStatus();
   const { data: referralStats, isError: isReferralError } = useReferralStats();
   const pay = usePayMutation();
   const validateCoupon = useValidateCouponMutation();
@@ -167,6 +167,7 @@ export function SubscriptionPlans() {
             discountedPrice={getDiscountedPrice(plan.numericPrice, appliedCoupon, userCredits)}
             formatPrice={formatPrice}
             currentPlanName={subStatus?.plan}
+            isStatusLoading={isStatusLoading}
             onSubscribe={(planId, amount, planName) => void handleSubscribe(planId, amount, planName)}
             onDowngradeRequest={setDowngradePlan}
             isCurrentPlanHigherWeight={(planId) => isCurrentPlanHigherWeight(planId, subStatus?.plan)}

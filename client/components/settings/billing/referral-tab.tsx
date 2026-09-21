@@ -6,7 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { Copy, Check, Users, Gift, Loader2 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Copy, Check, Users, Gift } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { toast } from "sonner";
 import { useReferralStats } from "@/lib/hooks/use-billing";
@@ -26,24 +27,14 @@ export function ReferralTab() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex justify-center py-12 text-muted-foreground">
-        <Loader2 className="w-8 h-8 animate-spin" />
-      </div>
-    );
-  }
-
-  if (isError) {
-    return (
-      <div className="text-center py-12 text-sm text-destructive">
-        Failed to load referral data — check your connection.
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
+      {isError && (
+        <p className="text-center text-sm text-destructive">
+          Failed to load referral data — check your connection.
+        </p>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="md:col-span-2 border-none shadow-sm flex flex-col justify-between">
           <CardHeader>
@@ -70,7 +61,11 @@ export function ReferralTab() {
             <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Referral Balance</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            <div className="text-3xl font-black tracking-tight text-primary">₦{(stats?.referral_credits ?? 0).toLocaleString()}</div>
+            {isLoading ? (
+              <Skeleton className="h-9 w-28" />
+            ) : (
+              <div className="text-3xl font-black tracking-tight text-primary">₦{(stats?.referral_credits ?? 0).toLocaleString()}</div>
+            )}
             <p className="text-xs text-muted-foreground">Automatically applied at checkout to discount your subscriptions.</p>
           </CardContent>
         </Card>
@@ -83,7 +78,13 @@ export function ReferralTab() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {!stats?.referrals?.length ? (
+          {isLoading ? (
+            <div className="space-y-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className="h-10 w-full" />
+              ))}
+            </div>
+          ) : !stats?.referrals?.length ? (
             <div className="text-center py-8 text-muted-foreground">You haven&apos;t referred anyone yet. Share your link to get started!</div>
           ) : (
             <Table>
@@ -119,7 +120,13 @@ export function ReferralTab() {
           <CardTitle>Credit Statements</CardTitle>
         </CardHeader>
         <CardContent>
-          {!stats?.transactions?.length ? (
+          {isLoading ? (
+            <div className="space-y-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className="h-10 w-full" />
+              ))}
+            </div>
+          ) : !stats?.transactions?.length ? (
             <EmptyState icon={Gift} title="No credit transactions recorded yet" className="py-8" />
           ) : (
             <Table>

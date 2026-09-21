@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Loader2, Pencil, X } from "lucide-react";
 import { toast } from "sonner";
 import { useCurrentUser, useUpdateProfileMutation } from "@/lib/hooks/use-current-user";
@@ -39,17 +40,7 @@ export function ProfileSettings() {
     }
   };
 
-  if (isLoading) {
-    return (
-      <Card>
-        <CardContent className="p-8 flex justify-center">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (isError || !user) {
+  if (isError) {
     return (
       <Card>
         <CardContent className="p-8 text-center text-sm text-destructive">
@@ -66,7 +57,7 @@ export function ProfileSettings() {
           <CardTitle>Personal Information</CardTitle>
           <CardDescription>Your name and contact details.</CardDescription>
         </div>
-        {!isEditing && (
+        {!isEditing && !isLoading && (
           <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
             <Pencil className="h-4 w-4 mr-2" />
             Edit
@@ -77,36 +68,52 @@ export function ProfileSettings() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="first_name">First Name</Label>
-            <Input
-              id="first_name"
-              value={formData.first_name}
-              disabled={!isEditing}
-              onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
-            />
+            {isLoading ? (
+              <Skeleton className="h-9 w-full" />
+            ) : (
+              <Input
+                id="first_name"
+                value={formData.first_name}
+                disabled={!isEditing}
+                onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
+              />
+            )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="last_name">Last Name</Label>
-            <Input
-              id="last_name"
-              value={formData.last_name}
-              disabled={!isEditing}
-              onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
-            />
+            {isLoading ? (
+              <Skeleton className="h-9 w-full" />
+            ) : (
+              <Input
+                id="last_name"
+                value={formData.last_name}
+                disabled={!isEditing}
+                onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
+              />
+            )}
           </div>
         </div>
         <div className="space-y-2">
           <Label htmlFor="email">Email</Label>
-          <Input id="email" value={user.email} disabled className="opacity-70 cursor-not-allowed" />
+          {isLoading ? (
+            <Skeleton className="h-9 w-full" />
+          ) : (
+            <Input id="email" value={user?.email ?? ""} disabled className="opacity-70 cursor-not-allowed" />
+          )}
           <p className="text-xs text-muted-foreground">Emails cannot be changed.</p>
         </div>
         <div className="space-y-2">
           <Label htmlFor="phone">Phone</Label>
-          <Input
-            id="phone"
-            value={formData.phone}
-            disabled={!isEditing}
-            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-          />
+          {isLoading ? (
+            <Skeleton className="h-9 w-full" />
+          ) : (
+            <Input
+              id="phone"
+              value={formData.phone}
+              disabled={!isEditing}
+              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+            />
+          )}
         </div>
         {isEditing && (
           <div className="flex justify-end gap-2 pt-2">
@@ -115,9 +122,9 @@ export function ProfileSettings() {
               onClick={() => {
                 setIsEditing(false);
                 setFormData({
-                  first_name: user.first_name || "",
-                  last_name: user.last_name || "",
-                  phone: user.phone || "",
+                  first_name: user?.first_name || "",
+                  last_name: user?.last_name || "",
+                  phone: user?.phone || "",
                 });
               }}
             >

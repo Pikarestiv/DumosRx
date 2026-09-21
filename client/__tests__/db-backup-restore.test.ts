@@ -6,6 +6,13 @@ const copyFileMock = vi.fn();
 const appDataDirMock = vi.fn(async () => "/fake/appdata");
 const joinMock = vi.fn(async (...parts: string[]) => parts.join("/"));
 
+// A real (minimal) SQLite file header - restoreDatabaseFromFile() rejects
+// anything that doesn't start with these exact 16 bytes before it ever
+// touches the live db/file.
+const SQLITE_HEADER_BYTES = new TextEncoder().encode("SQLite format 3\0");
+const readFileMock = vi.fn(async () => SQLITE_HEADER_BYTES);
+const existsMock = vi.fn(async () => true);
+
 vi.mock("@tauri-apps/plugin-dialog", () => ({
   save: saveMock,
   open: openMock,
@@ -13,6 +20,8 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({
 
 vi.mock("@tauri-apps/plugin-fs", () => ({
   copyFile: copyFileMock,
+  readFile: readFileMock,
+  exists: existsMock,
 }));
 
 vi.mock("@tauri-apps/api/path", () => ({
@@ -104,28 +113,73 @@ describe("Tauri backup/restore orchestration", () => {
 
       expect(result).toEqual({ success: true });
       expect(fakeDb.close).toHaveBeenCalledTimes(1);
+      // Two copies happen: the pre-restore snapshot of the live file, then
+      // the actual restore.
+      expect(copyFileMock).toHaveBeenCalledWith(
+        "/fake/appdata/dumosrx.db",
+        "/fake/appdata/dumosrx.db.pre-restore-backup",
+      );
       expect(copyFileMock).toHaveBeenCalledWith(
         "/Users/cynthia/Downloads/old_backup.drx",
         "/fake/appdata/dumosrx.db",
       );
 
-      // The close() call must happen before the copy, not after: copying
-      // over a file that's still open/locked by the old connection is
-      // exactly the kind of bug that would only surface on a real desktop
-      // run, not in a mock that doesn't enforce ordering by default.
+      // The close() call must happen before the FINAL (restore) copy, not
+      // after: copying over a file that's still open/locked by the old
+      // connection is exactly the kind of bug that would only surface on a
+      // real desktop run, not in a mock that doesn't enforce ordering by
+      // default.
       const closeOrder = fakeDb.close.mock.invocationCallOrder[0];
-      const copyOrder = copyFileMock.mock.invocationCallOrder[0];
-      expect(closeOrder).toBeLessThan(copyOrder);
+      const restoreCopyOrder = copyFileMock.mock.calls.findIndex(
+        (call) => call[1] === "/fake/appdata/dumosrx.db",
+      );
+      const restoreCopyCallOrder =
+        copyFileMock.mock.invocationCallOrder[restoreCopyOrder];
+      expect(closeOrder).toBeLessThan(restoreCopyCallOrder);
     });
 
-    it("still overwrites the file even if closing the old connection throws", async () => {
+    it("aborts the restore (does not overwrite the file) if closing the old connection throws", async () => {
       openMock.mockResolvedValueOnce("/Users/cynthia/Downloads/old_backup.drx");
       fakeDb.close.mockRejectedValueOnce(new Error("connection already gone"));
+
+      await expect(core.restoreDatabaseFromFile()).rejects.toThrow(
+        /safely close/,
+      );
+
+      // The pre-restore snapshot copy is fine (it ran before close()), but
+      // the actual restore copy (source -> live db) must NOT have happened -
+      // proceeding past a failed close risks stale -wal/-shm sidecars
+      // replaying old data over the freshly-copied file.
+      expect(copyFileMock).not.toHaveBeenCalledWith(
+        "/Users/cynthia/Downloads/old_backup.drx",
+        "/fake/appdata/dumosrx.db",
+      );
+    });
+
+    it("rejects a file that isn't a valid SQLite database, without touching the live db or file", async () => {
+      openMock.mockResolvedValueOnce("/Users/cynthia/Downloads/not-a-database.txt");
+      readFileMock.mockResolvedValueOnce(new TextEncoder().encode("just some text file"));
+
+      await expect(core.restoreDatabaseFromFile()).rejects.toThrow(
+        /doesn't look like a valid SQLite database/,
+      );
+
+      expect(fakeDb.close).not.toHaveBeenCalled();
+      expect(copyFileMock).not.toHaveBeenCalled();
+    });
+
+    it("skips the pre-restore snapshot when there's no existing live db file yet", async () => {
+      openMock.mockResolvedValueOnce("/Users/cynthia/Downloads/old_backup.drx");
+      existsMock.mockResolvedValueOnce(false);
 
       const result = await core.restoreDatabaseFromFile();
 
       expect(result).toEqual({ success: true });
       expect(copyFileMock).toHaveBeenCalledTimes(1);
+      expect(copyFileMock).toHaveBeenCalledWith(
+        "/Users/cynthia/Downloads/old_backup.drx",
+        "/fake/appdata/dumosrx.db",
+      );
     });
 
     it("throws instead of silently no-oping when called outside a Tauri environment", async () => {

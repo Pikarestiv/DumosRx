@@ -499,7 +499,22 @@ export async function submitStockAudit(
 ) {
   return transaction(async () => {
     for (const item of items) {
-      const diff = item.countedQty - item.systemQty;
+      // Re-read the product's ACTUAL current system quantity inside the
+      // transaction rather than trusting item.systemQty as-is: that value
+      // was read by the caller when the audit list was rendered, and a sale
+      // (or any other stock movement) landing between then and this submit
+      // would make the caller-supplied figure stale - the resulting
+      // adjustment would silently be off by exactly the concurrent
+      // movement's quantity. Same fix shape as the loyalty-redemption
+      // balance check. Matches getProducts()' own stock_quantity aggregate
+      // (SUM of active, non-deleted batches).
+      const currentQtyRows = await query<{ qty: number }>(
+        `SELECT COALESCE(SUM(quantity), 0) as qty FROM stock_batches WHERE product_id = ? AND _deleted = 0 AND is_active = 1`,
+        [item.productId],
+      );
+      const currentSystemQty = currentQtyRows[0]?.qty ?? item.systemQty;
+
+      const diff = item.countedQty - currentSystemQty;
       const costDiff =
         item.countedCostPrice !== undefined && item.systemCostPrice !== undefined
           ? item.countedCostPrice - item.systemCostPrice
@@ -515,7 +530,7 @@ export async function submitStockAudit(
       await insert("stock_audits", {
         id: auditId,
         product_id: item.productId,
-        expected_quantity: item.systemQty,
+        expected_quantity: currentSystemQty,
         actual_quantity: item.countedQty,
         difference: diff,
         expected_cost_price: item.systemCostPrice ?? null,

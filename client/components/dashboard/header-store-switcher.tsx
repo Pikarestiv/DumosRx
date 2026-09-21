@@ -83,12 +83,24 @@ export function HeaderStoreSwitcher({
   // Fleet writes (FleetFormDialog -> useSaveFleetStoreMutation) go straight
   // to the cloud API and never touch local SQLite, so this dropdown's own
   // `availableStores` (backed by a local-DB query) won't show the new store
-  // until the next sync pull lands. Invalidating here just makes sure that
-  // pull's result actually gets picked up instead of serving a stale cache -
-  // same pattern multi-store-card.tsx already uses for the same dialog.
+  // until a sync pull lands - invalidating alone just re-runs the same
+  // stale local read. Trigger that pull ourselves (same pattern as
+  // switchStore in store-context.tsx) and invalidate once it's actually
+  // landed, so the new store shows up without needing a manual refresh.
   const handleCreateSuccess = () => {
     void queryClient.invalidateQueries({ queryKey: ["allStores"] });
     void queryClient.invalidateQueries({ queryKey: ["storeProfile"] });
+
+    if (typeof window !== "undefined" && navigator.onLine) {
+      void import("@/lib/db/sync-engine").then(({ sync }) =>
+        sync().then((result) => {
+          if (result.success) {
+            void queryClient.invalidateQueries({ queryKey: ["allStores"] });
+            void queryClient.invalidateQueries({ queryKey: ["storeProfile"] });
+          }
+        }),
+      );
+    }
   };
 
   return (

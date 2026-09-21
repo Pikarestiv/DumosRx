@@ -4,15 +4,15 @@ A changelog of bugs that were tracked in `docs/KNOWN_BUGS.md` and have since bee
 
 ## 2026-09-21
 
-### fix(CRITICAL): online-order fulfillment inserted into nonexistent sales columns and never set transaction_number
-- **Commit:** `f54d7516`
+### fix(CRITICAL): online-order fulfillment inserted into nonexistent sales columns, never set transaction_number, and still omitted a NOT NULL subtotal
+- **Commits:** `f54d7516`, `f0a896ca`
 - Found while fixing the adjacent receipt/id-collision bug below: `useFulfillOnlineOrderMutation`'s `insert("sales", {...})` wrote `receipt_number`, `status`, and `customer_name` — none of which exist on `sales` (it has `transaction_number` UNIQUE NOT NULL, `payment_status`, and `customer_id` instead) — and never set `transaction_number` at all. `insert()` builds a raw parameterized INSERT from whatever keys it's given, with no schema filtering, so this threw a "no such column" SQLite error on every real online-order fulfillment; no test covered this hook.
-- Now writes only real `sales` columns: a proper unique `transaction_number` (see the id-collision fix below), and the order's `customer_name` folded into `notes` (`sales` has no free-text customer-name column, only `customer_id`, and online orders carry no matched customer record).
+- First pass (`f54d7516`) writes only real `sales` columns: a unique `transaction_number` (see the id-collision fix below), and the order's `customer_name` folded into `notes` (`sales` has no free-text customer-name column, only `customer_id`, and online orders carry no matched customer record) — per an explicit "store in notes" choice made when asked, over dropping it or looking up/creating a matched customer record. An Opus-dispatched review of that pass found it still omitted `subtotal` (`NOT NULL`, no schema default, unlike `tax_amount`/`discount_total` which default to 0) — it would still throw, just on a different column — caught only because the review flagged that the new test mocked `insert()` entirely rather than running against a real schema. Follow-up (`f0a896ca`) sets `subtotal: order.total_amount` and rewrites the test against a real sql.js-backed schema (with the sync-column migrations applied) instead of a mock, which now also asserts the stock-deduction side (`recordSaleItemStock`), not just the `sales` insert.
 
 ### fix: receipt/id collisions from time-based, non-unique identifiers
-- **Commit:** `f54d7516`
+- **Commits:** `f54d7516`, `f0a896ca`
 - `use-pos-payment.ts`'s `` transaction_number = `TXN${Date.now()}` `` (against `sales.transaction_number TEXT UNIQUE NOT NULL`), `use-pos-held-transactions.ts`'s `` id = `held_${Date.now()}` `` (an explicit primary key), and `use-fulfill-online-order-mutation.ts`'s `` `ONL-${order.id.split("-")[0]}` `` (only the first UUID segment, not unique by construction) could all collide across two terminals acting in the same millisecond, or with clock skew.
-- All three now derive from `generateId()` (`lib/db/core.ts`), the same collision-safe generator used elsewhere in the app.
+- All three now derive from `generateId()` (`lib/db/core.ts`). The same review above also flagged that `TXN-`/`ONL-` initially truncated to just the id's first 8-hex-char segment (~32 random bits) — a big improvement over millisecond-resolution `Date.now()`, but with a non-trivial birthday-collision probability over a long-running install's full history. Added `generateShortId()` (two id segments, ~48 bits) and switched both display-number sites to it.
 
 ### fix: returned-item COGS was recomputed from current stock cost instead of the cost recorded at sale time
 - **Commits:** `0a0d515e`, `f2f822a0`

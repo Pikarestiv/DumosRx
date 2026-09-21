@@ -5,7 +5,7 @@ A changelog of bugs that were tracked in `docs/KNOWN_BUGS.md` and have since bee
 ## 2026-09-21
 
 ### fix: sync push batch failure (`success: false`) was handled by doing nothing
-- **Commit:** (pending)
+- **Commit:** `997a160d`
 - A batch-level failure response (the request completed, the server just rejected the whole batch — auth/validation/rate-limit — as opposed to a thrown exception) had no handling at all: no `markSynced`, no `recordSyncFailure`, no backoff, no retry counter, no stuck-item crash report. Every item in that batch was silently retried forever on every sync tick with zero visibility, and `pushChanges()` reported it identically to a clean success.
 - Added the missing `else` branch alongside the existing `if (response.success)` path, routing the batch through the same `recordSyncFailure` path the catch-block (thrown-exception) case already used, and counting it in `failedBatches`.
 

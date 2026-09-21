@@ -22,82 +22,57 @@ Open items below are grouped by severity (Critical → High → Medium → Low),
 
 ## High
 
-### `sync-engine/pull.ts` stock-quantity correctness gaps
+### `sync-engine/pull.ts` stock-quantity correctness gaps (partially fixed)
 
-- **Where:** `client/lib/db/sync-engine/pull.ts` (421 lines — file has
-  changed shape since the original audit; line numbers below are current).
-- **Server-side verification (Opus-dispatched, 2026-09-21):**
-  - **Pruning: ruled out conclusively from code.** Nothing server-side ever
-    deletes/archives `stock_movements` — no scheduled job, console command,
-    queue job, or migration touches it. `App\Models\StockMovement` doesn't
-    even use `SoftDeletes` despite a migration having added a `deleted_at`
-    column to the table, so the server's generic sync soft-delete/restore
-    handling is a no-op for this table regardless; `StockMovementController`
-    only exposes read routes. Movements are genuinely append-only today, both
-    client- and server-side.
-  - **Real-store scale: no production DB access from this session — estimate
-    only.** Local dev DB has 487 seed rows (not representative). Based on
-    which client code paths insert `stock_movements` (sales, adjustments,
-    transfers, returns, receiving, imports), a moderately busy pharmacy could
-    plausibly reach the 100k-row cap in roughly 1-3 years of continuous
-    operation — a real, not purely academic, risk window for an app already
-    live, but this is a code-derived estimate, not a measurement.
-- **Per-finding status after verification:**
-  - `:253-283` (delta applied only on INSERT, never reversed on a later
-    soft-delete UPDATE) — **theoretical only, not currently reachable**:
-    nothing in the current client or server code ever soft-deletes or
-    updates an existing `stock_movements` row (matches the pruning finding
-    above; movements are immutable in practice today). Worth a defensive fix
-    eventually, not urgent.
-  - `:215-230` / `:284-297` (a UNIQUE-constraint-skipped INSERT is still
-    marked "seen" for cursor purposes, so it's never retried) — **confirmed
-    still live**, unchanged from the original audit.
-  - `:101-113` (cross-page "batches before movements" ordering isn't
-    guaranteed) — **confirmed still live**.
-  - `MAX_PULL_PAGES = 200` × 500-row pages (`:12`, server page size
-    confirmed at `SyncController.php:704`) — **100,000-row cap figure
-    confirmed accurate**.
-  - `:115` (transaction wraps one page, not the whole multi-page pull) —
-    **confirmed still live**.
-- **Fix scope (not implemented):** prioritize the two confirmed-live,
-  non-theoretical gaps — the UNIQUE-constraint-skip-not-retried case and the
-  cross-page batch/movement ordering — over the soft-delete-reversal case,
-  which has no current trigger. The single-page transaction scope is a
-  separate, larger design question (wrapping a whole multi-page pull in one
-  transaction changes failure/retry semantics considerably).
+- **Where:** `client/lib/db/sync-engine/pull.ts`.
+- **Fixed (2026-09-21):** the two confirmed-live, non-theoretical gaps —
+  a UNIQUE-constraint-skipped INSERT/UPDATE no longer advances that table's
+  sync cursor (it's retried on the next pull, up to `MAX_UNIQUE_SKIP_RETRIES`
+  = 5 attempts — an Opus-dispatched review of the first pass caught that an
+  unbounded retry permanently stalls that *entire table's* cursor on a
+  genuinely non-self-resolving collision, e.g. a duplicate email; after the
+  cap, the cursor is allowed to advance past that one record, which stays
+  visible via `skippedRecords`/`logCrash` rather than silently blocking
+  every other row in the table forever), and a `stock_movements` row whose
+  referenced `stock_batches` row hasn't arrived yet (paginated
+  independently, so it can land on a later page) now defers its delta
+  application until every page has been pulled, instead of silently
+  no-op'ing the UPDATE. Covered by
+  `client/__tests__/pull-unique-skip-and-cross-page-ordering.test.ts`.
+- **Known residual gap (accepted, not fixed):** the deferred
+  `stock_movements` delta is applied in a separate transaction *after* the
+  page loop's cursor commit — a crash in that narrow window between commit
+  and the deferred-delta transaction would still lose the delta, the same
+  failure mode as before just in a much smaller window. Not fixed in this
+  pass; would need the deferred deltas applied inside the same transaction
+  as the cursor stamp that unblocks them.
+- **Still open, deliberately not fixed:**
+  - Delta applied only on INSERT, never reversed on a later soft-delete
+    UPDATE — theoretical only, not currently reachable (nothing in the
+    current client or server code ever soft-deletes or updates an existing
+    `stock_movements` row; movements are immutable in practice today).
+  - Transaction wraps one page, not the whole multi-page pull — a separate,
+    larger design question (wrapping a whole multi-page pull in one
+    transaction changes failure/retry semantics considerably).
 
 ## Medium
 
-### Notification bell: not store-scoped, not React Query, dismissed state doesn't persist
+### Loyalty defaults silently re-seed for a store that deliberately deleted its tiers
 
-- **Where:** `client/components/dashboard/notification-bell.tsx:80,91-106,127`.
-- **Effect:** cloud notifications fetched via `useState`/`setInterval(60s)`
-  keyed only on `[user, isCloudLinked]` — switching stores leaves the
-  previous store's notifications rendered (and counted in the unread badge)
-  for up to a minute. `readBroadcastIds` is plain component state with no
-  persistence, so every dismissed broadcast reappears as unread on reload.
-- **Fix scope (not implemented):** convert to store-scoped React Query;
-  persist dismissed-broadcast ids (localStorage or a synced field).
-
-### PO edit form: useState/useEffect fetch, no cancellation, not store-scoped (recurrence of an already-fixed pattern)
-
-- **Where:** `client/app/(dashboard)/procurement/edit/page.tsx:58-82`.
-- **Effect:** same class as `use-procurement-data.ts` (already fixed) and
-  the dashboard detail dialogs (already logged) — navigating between two
-  POs can let a slower response overwrite the newer form; doesn't refetch
-  on store switch.
-- **Fix scope (not implemented):** convert to store-scoped React Query.
-
-### Loyalty defaults re-seed on every settings-dialog open (check-then-act, no transaction)
-
-- **Where:** `client/lib/db/queries/loyalty.ts:122-139`
-  (`ensureLoyaltyDefaultsSeeded`), called from
-  `loyalty-settings-dialog.tsx:108`.
-- **Effect:** a store that deliberately deleted all its loyalty tiers gets
-  them silently re-seeded the next time the dialog opens; two rapid opens
-  (or two devices) can double-seed since the check isn't transactional.
-- **Fix scope (not implemented):** wrap check+seed in a transaction, or move
-  the seed to a one-time migration instead of a per-open check.
+- **Where:** `client/lib/db/queries/loyalty.ts` (`ensureLoyaltyDefaultsSeeded`),
+  called from `loyalty-settings-dialog.tsx`.
+- **Status:** partially fixed (2026-09-21) — the check-then-seed is now
+  wrapped in a transaction, so two rapid opens (or two devices) can no
+  longer double-seed. The other half of the original effect is still open:
+  the seed check is still just "are there zero tiers," so a store that
+  intentionally deleted every loyalty tier still gets them silently
+  re-created the next time the settings dialog opens.
+- **Fix scope (not implemented):** needs a way to distinguish "never
+  seeded" from "deliberately cleared" (e.g. a one-time seeded-at-onboarding
+  flag, or moving the seed to a one-time migration instead of a per-open
+  check) — flagged as needing a small design decision, not a blind check
+  change, since a naive flag could itself be wrong for a store that seeds
+  by re-onboarding.
 
 ### `getUsers` leaks admins/owners across every store on a fleet account
 
@@ -111,42 +86,6 @@ Open items below are grouped by severity (Critical → High → Medium → Low),
   deciding whether this is a bug or working-as-intended; if unintended,
   scope the OR condition to the current store's own owner/admins only.
 
-### Receipt print relies on iframe `onload` + a fixed delay, no fallback
-
-- **Where:** `client/lib/utils/print-node.ts:60-66`.
-- **Effect:** driven off `onload` for an iframe populated via `doc.write()`
-  plus a fixed 300ms delay — in browsers where `onload` already fired for
-  the initial `about:blank`, or never fires for the written document, the
-  receipt either prints blank or never prints, with the iframe leaking and
-  no error surfaced.
-- **Fix scope (not implemented):** needs a more robust ready-signal than
-  `onload` + fixed delay, plus a visible failure path.
-
-### Prepaid-expense amortization double-counts across a rolling window, and can shift a month under UTC parsing
-
-- **Where:** `client/lib/db/queries/finance.ts:88` (installment counted for
-  any month a rolling window merely overlaps — `getBIMetrics:337`'s 30-day
-  window straddles two months) and `:76` (`new Date(expense.date)` parses a
-  date-only string as UTC midnight while `startOfMonth`/`endOfMonth` work in
-  local time, shifting the first installment a month early in negative-UTC
-  timezones).
-- **Effect:** the same prepaid expense totals differently depending on
-  whether a calendar-month or rolling-window period preset is selected; in
-  the wrong timezone, amortization starts a month off.
-- **Fix scope (not implemented):** not yet designed.
-
-### Several dashboard detail dialogs fetch with unguarded useState/useEffect (no cancellation)
-
-- **Where:** `client/components/dashboard/modals/procurement-details-dialog.tsx:44-49`,
-  `dashboard-prescription-details-dialog.tsx:46-51`,
-  `stock-movement-details-dialog.tsx:34-40` — all `.catch(() => {})`.
-- **Effect:** switching directly between two rows without closing the dialog
-  lets a slower, now-stale response render on top of the newer row's data; a
-  failed fetch is indistinguishable from "this record has no line items."
-- **Fix scope (not implemented):** convert to React Query (same fix pattern
-  applied elsewhere in this audit) for built-in request cancellation/
-  race-safety.
-
 ### Sync push: a response lost after server commit produces a misleading "changed since this edit" toast
 
 - **Where:** `client/lib/db/sync-engine/push.ts:573-586`.
@@ -158,38 +97,6 @@ Open items below are grouped by severity (Critical → High → Medium → Low),
   succeeded.
 - **Fix scope (not implemented):** not yet designed; may be acceptable to
   leave as a UX rough edge if fixing risks false negatives elsewhere.
-
-### `stock-movements.tsx` doesn't refetch on store switch (useState, not React Query)
-
-- **Where:** `client/components/stock-batch/stock-movements.tsx:97-100`.
-- **Context:** plain `useState`/`useEffect` fetch with `deps: [dateRange]`
-  only — the same pattern already found and fixed in
-  `use-procurement-data.ts` earlier in this audit.
-- **Effect:** switching stores (or recording a sale) leaves the stock-movement
-  log showing the previous store's / stale rows until the date filter is
-  touched.
-- **Fix scope (not implemented):** convert to `useQuery` with a store-scoped
-  `queryKeys` entry, mirroring `use-procurement-data.ts`'s fix.
-
-### Refunding a credit sale doesn't reverse loyalty points or the customer's balance
-
-- **Where:** `client/lib/db/queries/returns.ts` (whole module) +
-  `client/lib/hooks/use-process-return-mutation.ts:38`.
-- **Effect:** the return transaction restores stock and flips
-  `sales.payment_status`, but never reverses `points_earned` or
-  `outstanding_balance` for a credit sale — refunding a credit sale leaves
-  the customer's debt and loyalty points as if the sale still stood.
-- **Fix scope (not implemented):** not yet designed.
-
-### Onboarding's first-admin insert has no `_sync_queue` row
-
-- **Where:** `client/app/setup/use-onboarding.ts:139-183`.
-- **Effect:** the offline branch (`_synced = 0`, lines 169-183) inserts
-  `stores`/`users` via raw `execute()` with no matching `_sync_queue` entry,
-  relying entirely on a separate "mark everything dirty" path
-  (`local-database.ts:390-395`) to ever reach the server. If that path is
-  ever missed, the very first admin account on a device never syncs.
-- **Fix scope (not implemented):** not yet designed.
 
 ## Low
 

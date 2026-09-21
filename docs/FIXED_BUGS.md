@@ -4,6 +4,29 @@ A changelog of bugs that were tracked in `docs/KNOWN_BUGS.md` and have since bee
 
 ## 2026-09-21
 
+### fix: loyalty reseed race, receipt-print robustness, prepaid amortization, onboarding sync-queue gap
+- **Commit:** `a8abfd35`
+- `ensureLoyaltyDefaultsSeeded`'s check-then-seed was not transactional — two rapid settings-dialog opens, or two devices, could double-seed loyalty tiers. Now wrapped in a transaction. (The other half of the original bug — a store that deliberately deleted every tier still gets them silently reseeded — is still open; needs a design decision, see `KNOWN_BUGS.md`.)
+- Receipt printing was driven off iframe `onload` plus a fixed 300ms delay with no fallback — could print blank, never print, or leak the iframe silently. Now waits on the actual stylesheet-ready signal (with a timeout) and surfaces a toast + console error on failure across all three print call sites.
+- Prepaid-expense amortization double-counted a rolling window that merely overlapped an installment's month (counting the full monthly installment from both sides of a month boundary), and mis-parsed a date-only expense date as UTC, shifting the first installment a month early in negative-UTC timezones. Now prorates by actual day overlap and parses via the existing local-safe date helper.
+- Onboarding's first-admin offline-branch inserts (`stores`/`users`) had no matching `_sync_queue` row, relying entirely on a separate "mark everything dirty" fallback to ever reach the server. Now queues the row itself, matching what the normal `insert()`/`update()` helpers do. An Opus-dispatched review of the first pass found it only covered the two INSERT branches, missing the sibling UPDATE branch (existing local store case) in the same offline path — added there too.
+
+### fix: five stale useState/useEffect fetches converted to store-scoped React Query
+- **Commit:** `f2ed9268`
+- Notification bell, PO edit form, three dashboard detail dialogs (procurement/prescription/stock-movement), and the stock-movement ledger all fetched via plain `useState`/`useEffect` with no request cancellation and no store-scoping — switching stores or records could leave a slower, stale response overwriting newer data, and the notification bell's cloud data/dismissed-broadcast state didn't refresh or persist across a store switch or reload.
+- All five converted to `useQuery` against the `queryKeys` factory, whose `resource()` helper already appends the active store id to every key, giving each fetch automatic cancellation/race-safety and store scoping for free. Notification bell's dismissed-broadcast ids now persist to localStorage. The three dialogs also replaced "catch and swallow" error handling with a distinct error state, so a failed fetch no longer reads identically to "this record has no line items."
+- An Opus-dispatched review of the PO edit form conversion found the naive version re-seeded the form fields from any background refetch (e.g. a sync pull invalidating `purchase_orders`/`purchase_order_items`), silently overwriting unsaved in-progress edits mid-typing. Fixed with a seeded-once-per-id ref guard.
+
+### fix: sync-engine pull.ts UNIQUE-skip cursor stall and cross-page batch/movement ordering
+- **Commit:** `0d0ad865`
+- A UNIQUE-constraint-skipped INSERT/UPDATE advanced that table's sync cursor anyway, so the skipped record was never retried. Now the cursor holds until the record is retried — but only up to `MAX_UNIQUE_SKIP_RETRIES` (5) pulls; an Opus-dispatched review of the first pass found an unbounded hold would permanently stall that entire table's cursor (not just the one bad record) on a genuinely non-self-resolving collision (e.g. a duplicate email). After the cap, the cursor advances past that one record, which stays visible via `skippedRecords`/`logCrash` rather than silently blocking every other row in the table forever.
+- A `stock_movements` row whose referenced `stock_batches` row hadn't arrived yet (batches and movements are paginated independently, so a movement can land on an earlier page than the batch it references) silently no-op'd its delta application. Deferred deltas are now applied once every page in the pull round has been fetched.
+- New test: `pull-unique-skip-and-cross-page-ordering.test.ts`.
+
+### confirmed: credit-sale refund loyalty/balance reversal was already fixed (documentation correction only)
+- **Commits:** `96b8bd49`, `5996ee55`
+- `docs/KNOWN_BUGS.md` had an open entry claiming a return against a credit sale never reversed `points_earned` or `outstanding_balance`, pointing at `returns.ts`. An Opus-dispatched review while vetting the batch above found both halves were already fixed by these two earlier (2026-08-30) commits — `use-process-return-mutation.ts` prorates and reverses both — and that `returns.ts` itself never contained this logic; the original entry was simply pointing at the wrong module. Removed from `KNOWN_BUGS.md`; no code change made.
+
 ### fix: sync push batch failure (`success: false`) was handled by doing nothing
 - **Commit:** `997a160d`
 - A batch-level failure response (the request completed, the server just rejected the whole batch — auth/validation/rate-limit — as opposed to a thrown exception) had no handling at all: no `markSynced`, no `recordSyncFailure`, no backoff, no retry counter, no stuck-item crash report. Every item in that batch was silently retried forever on every sync tick with zero visibility, and `pushChanges()` reported it identically to a clean success.

@@ -115,13 +115,19 @@ export interface ProductImportRow {
   barcode?: string;
 }
 
-/** Accepts "1500", 1500, "1,500.00", "₦1,500.00"; rejects blank/non-numeric. */
+/** Accepts "1500", 1500, "1,500.00", "₦1,500.00"; rejects blank/non-numeric/
+ * negative. Every field this feeds (cost/selling price, quantity, reorder
+ * level) is a real-world quantity that can never legitimately be negative,
+ * so a negative parse is treated the same as an unparseable one (undefined)
+ * rather than being imported as-is — previously a "-500" in a price column
+ * silently wrote negative money/stock with no validation at all. */
 export function parseNumericValue(raw: unknown): number | undefined {
   if (raw === null || raw === undefined || raw === "") return undefined;
   const cleaned = String(raw).replace(/[^0-9.-]/g, "");
   if (cleaned === "" || cleaned === "-" || cleaned === ".") return undefined;
   const parsed = Number(cleaned);
-  return Number.isFinite(parsed) ? parsed : undefined;
+  if (!Number.isFinite(parsed) || parsed < 0) return undefined;
+  return parsed;
 }
 
 function trimmedOrUndefined(raw: unknown): string | undefined {

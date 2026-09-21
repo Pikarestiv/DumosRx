@@ -5,9 +5,9 @@ A changelog of bugs that were tracked in `docs/KNOWN_BUGS.md` and have since bee
 ## 2026-09-21
 
 ### fix: returned-item COGS was recomputed from current stock cost instead of the cost recorded at sale time
-- **Commit:** `0a0d515e`
+- **Commits:** `0a0d515e`, `f2f822a0`
 - `getBIMetrics.returnedCogsData` and `getAdvancedMonthlySalesData.rawMonthlyReturns` averaged a product's *current* active-batch cost instead of using `sale_items.cost_price` — a cost change between sale and return misstated profit, and `IFNULL(…, 0)` silently reported zero returned COGS once a product had no active batches left. The subquery also had no `store_id` scoping.
-- Both now join `return_items` to the original `sale_items` row via `(returns.sale_id, return_items.product_id)` and use its `cost_price` directly — safe because the POS cart merges duplicate products into one line, so at most one `sale_item` per product exists within a given sale.
+- First pass (`0a0d515e`) joined `return_items` to `sale_items` via `(sale_id, product_id)`, on the assumption of at most one `sale_item` per product per sale. An Opus-dispatched review of that fix found the assumption false for a prescription dispense (one `sale_items` row per instruction line) and online-order fulfillment (bypasses the POS cart's merge-duplicates step) — a plain join fanned the return out across every matching row and overcounted. Follow-up (`f2f822a0`) pre-aggregates `sale_items` to one quantity-weighted average `cost_price` per `(sale_id, product_id)` before joining.
 
 ### fix: expense date-range filters compared a date-only column against ISO timestamps
 - **Commit:** `eb80ac3a`

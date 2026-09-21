@@ -88,18 +88,6 @@ Open items below are grouped by severity (Critical → High → Medium → Low),
   on store switch.
 - **Fix scope (not implemented):** convert to store-scoped React Query.
 
-### `storeProfile` query function has side effects that can double-fire on retry
-
-- **Where:** `client/lib/context/store-context.tsx:164-187`.
-- **Effect:** the `queryFn` calls `setActiveStoreId(null)` and
-  `localStorage.removeItem(...)` as side effects inside itself. A React
-  Query retry re-fires the clearing side effect, and the resulting state
-  change flips `targetId` mid-fetch, producing a key change and a second
-  fetch on every miss.
-- **Fix scope (not implemented):** move the clearing side effect out of the
-  query function into the caller/an effect that runs once on a confirmed
-  empty result, not on every invocation.
-
 ### Loyalty defaults re-seed on every settings-dialog open (check-then-act, no transaction)
 
 - **Where:** `client/lib/db/queries/loyalty.ts:122-139`

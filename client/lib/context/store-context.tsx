@@ -185,11 +185,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         // getting stuck showing nothing. A staff member's fixed store_id
         // genuinely disappearing is a deeper problem worth surfacing, not
         // papering over the same way.
+        //
+        // Clearing the stale id is NOT done here: a query function can be
+        // re-invoked on retry without a real change in circumstances, and
+        // doing it here previously fired setActiveStoreId(null) (a React
+        // state update) on every such invocation - which flips `targetId`
+        // mid-fetch, produces a new query key, and triggers a second fetch
+        // on every miss. The effect below runs once React Query has settled
+        // on a confirmed result instead.
         if (!user?.store_id) {
-          if (typeof window !== "undefined") {
-            localStorage.removeItem("dumos_active_store_id");
-          }
-          setActiveStoreId(null);
           return getFirstStore();
         }
         return null;
@@ -233,13 +237,29 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
 
 
-  // Sync activeStoreId back if we fell back to LIMIT 1
+  // Sync activeStoreId back whenever the resolved profile doesn't match
+  // targetId, for an owner/admin with no fixed store_id - covers both
+  // falling back to LIMIT 1 (no targetId at all) and a targetId that no
+  // longer resolves to a real store (queryFn's fallback returned a
+  // *different* store than requested; see the comment on the fallback
+  // branch above). Setting the resolved id directly, in one state update,
+  // rather than clearing to null first and letting a second effect pass
+  // pick that up - the two-step version doubled the number of query
+  // cycles this settles through (null is itself a distinct targetId,
+  // producing its own queryKey/fetch before this effect could fire again
+  // to land on the real value). Naturally runs at most once per mismatch:
+  // once synced, storeProfile.id === targetId and this can't fire again
+  // until a new mismatch appears.
   React.useEffect(() => {
-    if (storeProfile && !targetId && (!user || !user.store_id)) {
-       setActiveStoreId(storeProfile.id);
-       if (typeof window !== "undefined") {
-         localStorage.setItem("dumos_active_store_id", storeProfile.id);
-       }
+    if (
+      storeProfile &&
+      storeProfile.id !== targetId &&
+      (!user || !user.store_id)
+    ) {
+      setActiveStoreId(storeProfile.id);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("dumos_active_store_id", storeProfile.id);
+      }
     }
   }, [storeProfile, targetId, user]);
 

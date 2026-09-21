@@ -122,21 +122,6 @@ Open items below are grouped by severity (Critical → High → Medium → Low),
 - **Fix scope (not implemented):** needs a more robust ready-signal than
   `onload` + fixed delay, plus a visible failure path.
 
-### Reports use UTC day/month boundaries while the dashboard/daily-close use local time
-
-- **Where:** `client/lib/utils/date-range.ts:12-14` (UTC
-  `T00:00:00.000Z`/`T23:59:59.999Z` boundaries) vs.
-  `client/lib/db/queries/sales.ts:129-130` (daily-close, correct
-  local→UTC conversion) and `client/lib/db/queries/reports.ts:477,483,495`
-  (`strftime('%Y-%m', …)` on UTC) vs.
-  `getDashboardOverviewData:62` (`date(transaction_date, 'localtime')`).
-- **Effect:** every report is shifted by the store's UTC offset relative to
-  the dashboard; daily close and the Sales report can disagree about which
-  day a sale belongs to, and a late-evening sale on month-end can land in
-  the wrong month in the P&L relative to the dashboard.
-- **Fix scope (not implemented):** standardize report date bucketing on the
-  same local-time conversion the dashboard/daily-close already use.
-
 ### Prepaid-expense amortization double-counts across a rolling window, and can shift a month under UTC parsing
 
 - **Where:** `client/lib/db/queries/finance.ts:88` (installment counted for

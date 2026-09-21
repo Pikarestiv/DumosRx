@@ -152,6 +152,41 @@ describe("finance.ts / reports.ts financial aggregates", () => {
     });
   });
 
+  // Medium bug fix: strftime('%Y-%m', transaction_date)/(created_at) with no
+  // 'localtime' modifier bucketed by UTC month, disagreeing with the
+  // dashboard/daily-close (which bucket by local time). This test suite
+  // itself runs in Africa/Lagos (UTC+1, confirmed via the sandbox's system
+  // timezone), so a sale timestamped just before UTC midnight on a
+  // month-end already lands in the next local month, distinguishing the
+  // fix from the old behavior without needing to force TZ.
+  describe("report month-bucketing uses local time, not UTC (Medium bug fix)", () => {
+    it("fetchProfitLossReportData buckets a late-local-evening, month-crossing sale into the local month", async () => {
+      // 2026-01-31T23:30:00Z is local 2026-02-01T00:30 in Lagos (UTC+1) -
+      // genuinely February locally, though still January in UTC.
+      db.run(
+        `INSERT INTO sales (id, transaction_number, subtotal, total_amount, transaction_date, _deleted) VALUES ('s1', 'TXN-1', 10000, 10000, '2026-01-31T23:30:00.000Z', 0)`,
+      );
+
+      const rows = await fetchProfitLossReportData("2026-01-01", "2026-02-28");
+      const jan = rows.find((r) => r["Month"] === "2026-01");
+      const feb = rows.find((r) => r["Month"] === "2026-02");
+
+      expect(feb?.Revenue).toBe("10000.00");
+      expect(jan).toBeUndefined();
+    });
+
+    it("getAdvancedMonthlySalesData buckets the same sale into the local month", async () => {
+      db.run(
+        `INSERT INTO sales (id, transaction_number, subtotal, total_amount, transaction_date, _deleted) VALUES ('s1', 'TXN-1', 10000, 10000, '2026-01-31T23:30:00.000Z', 0)`,
+      );
+
+      const { rawMonthlyData } = await getAdvancedMonthlySalesData("2026-01-01T00:00:00.000Z");
+      const feb = rawMonthlyData.find((r) => r.month === "2026-02");
+
+      expect(feb?.revenue).toBe(10000);
+    });
+  });
+
   describe("returned-item COGS uses the sale-time cost, not current stock cost (High bug fix)", () => {
     // Captured once per test and reused for both the inserted row and the
     // query's lower bound - calling todayISO() separately at insert time and

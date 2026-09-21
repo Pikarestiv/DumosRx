@@ -435,10 +435,10 @@ export async function getAdvancedMonthlySalesData(dateFilter: string, filters?: 
   // avoid that, matching the non-monthly getBIMetrics queries above which
   // already keep sales-level and sale_items-level aggregates separate.
   const rawMonthlySales = await query<{ month: string; revenue: number; tax: number; transactions: number; }>(
-    `SELECT strftime('%Y-%m', s.transaction_date) as month, SUM(s.total_amount) as revenue, SUM(s.tax_amount) as tax, COUNT(*) as transactions FROM sales s WHERE s.transaction_date >= ? AND (s._deleted = 0 OR s._deleted IS NULL)${storeId ? " AND s.store_id = ?" : ""}${joined.clause} GROUP BY strftime('%Y-%m', s.transaction_date) ORDER BY strftime('%Y-%m', s.transaction_date) ASC`, p1Joined
+    `SELECT strftime('%Y-%m', s.transaction_date, 'localtime') as month, SUM(s.total_amount) as revenue, SUM(s.tax_amount) as tax, COUNT(*) as transactions FROM sales s WHERE s.transaction_date >= ? AND (s._deleted = 0 OR s._deleted IS NULL)${storeId ? " AND s.store_id = ?" : ""}${joined.clause} GROUP BY strftime('%Y-%m', s.transaction_date, 'localtime') ORDER BY strftime('%Y-%m', s.transaction_date, 'localtime') ASC`, p1Joined
   );
   const rawMonthlyCogs = await query<{ month: string; cogs: number; }>(
-    `SELECT strftime('%Y-%m', s.transaction_date) as month, SUM(si.cost_price * si.quantity) as cogs FROM sale_items si JOIN sales s ON s.id = si.sale_id WHERE s.transaction_date >= ? AND (s._deleted = 0 OR s._deleted IS NULL)${storeId ? " AND s.store_id = ?" : ""}${joined.clause} GROUP BY strftime('%Y-%m', s.transaction_date)`, p1Joined
+    `SELECT strftime('%Y-%m', s.transaction_date, 'localtime') as month, SUM(si.cost_price * si.quantity) as cogs FROM sale_items si JOIN sales s ON s.id = si.sale_id WHERE s.transaction_date >= ? AND (s._deleted = 0 OR s._deleted IS NULL)${storeId ? " AND s.store_id = ?" : ""}${joined.clause} GROUP BY strftime('%Y-%m', s.transaction_date, 'localtime')`, p1Joined
   );
   const rawMonthlyData = rawMonthlySales.map((s) => ({
     ...s,
@@ -450,7 +450,7 @@ export async function getAdvancedMonthlySalesData(dateFilter: string, filters?: 
   // stay correct when a sale has >1 sale_items row for the same product),
   // not a recomputed current-stock average.
   const rawMonthlyReturns = await query<{ month: string; refunds: number; returned_cogs: number; }>(
-    `SELECT strftime('%Y-%m', r.created_at) as month, SUM(r.total_refunded) as refunds, SUM(ri.quantity * IFNULL(si.avg_cost_price, 0)) as returned_cogs FROM returns r LEFT JOIN return_items ri ON ri.return_id = r.id LEFT JOIN (SELECT sale_id, product_id, SUM(cost_price * quantity) * 1.0 / NULLIF(SUM(quantity), 0) as avg_cost_price FROM sale_items GROUP BY sale_id, product_id) si ON si.sale_id = r.sale_id AND si.product_id = ri.product_id WHERE r.created_at >= ? AND (r._deleted = 0 OR r._deleted IS NULL)${storeId ? " AND r.store_id = ?" : ""} GROUP BY strftime('%Y-%m', r.created_at) ORDER BY strftime('%Y-%m', r.created_at) ASC`, p1
+    `SELECT strftime('%Y-%m', r.created_at, 'localtime') as month, SUM(r.total_refunded) as refunds, SUM(ri.quantity * IFNULL(si.avg_cost_price, 0)) as returned_cogs FROM returns r LEFT JOIN return_items ri ON ri.return_id = r.id LEFT JOIN (SELECT sale_id, product_id, SUM(cost_price * quantity) * 1.0 / NULLIF(SUM(quantity), 0) as avg_cost_price FROM sale_items GROUP BY sale_id, product_id) si ON si.sale_id = r.sale_id AND si.product_id = ri.product_id WHERE r.created_at >= ? AND (r._deleted = 0 OR r._deleted IS NULL)${storeId ? " AND r.store_id = ?" : ""} GROUP BY strftime('%Y-%m', r.created_at, 'localtime') ORDER BY strftime('%Y-%m', r.created_at, 'localtime') ASC`, p1
   );
 
   // date() on both sides: see the matching comment on fetchProfitLossReportData.
@@ -470,11 +470,11 @@ export async function getPurchasePatterns(dateFilter: string, filters?: SalesFil
   const p1Joined = [...p1, ...joined.params];
 
   const timeSlotData = await query<{ slot: string; transactions: number; avg_value: number; }>(
-    `SELECT CASE WHEN CAST(strftime('%H', transaction_date) AS INTEGER) BETWEEN 6 AND 11 THEN 'Morning (6am-12pm)' WHEN CAST(strftime('%H', transaction_date) AS INTEGER) BETWEEN 12 AND 16 THEN 'Afternoon (12pm-5pm)' WHEN CAST(strftime('%H', transaction_date) AS INTEGER) BETWEEN 17 AND 21 THEN 'Evening (5pm-10pm)' ELSE 'Night (10pm-6am)' END as slot, COUNT(*) as transactions, AVG(total_amount) as avg_value FROM sales WHERE transaction_date >= ? AND _deleted = 0${storeId ? " AND store_id = ?" : ""}${bare.clause} GROUP BY slot ORDER BY MIN(strftime('%H', transaction_date)) ASC`, p1Bare
+    `SELECT CASE WHEN CAST(strftime('%H', transaction_date, 'localtime') AS INTEGER) BETWEEN 6 AND 11 THEN 'Morning (6am-12pm)' WHEN CAST(strftime('%H', transaction_date, 'localtime') AS INTEGER) BETWEEN 12 AND 16 THEN 'Afternoon (12pm-5pm)' WHEN CAST(strftime('%H', transaction_date, 'localtime') AS INTEGER) BETWEEN 17 AND 21 THEN 'Evening (5pm-10pm)' ELSE 'Night (10pm-6am)' END as slot, COUNT(*) as transactions, AVG(total_amount) as avg_value FROM sales WHERE transaction_date >= ? AND _deleted = 0${storeId ? " AND store_id = ?" : ""}${bare.clause} GROUP BY slot ORDER BY MIN(strftime('%H', transaction_date, 'localtime')) ASC`, p1Bare
   );
 
   const slotCategoryData = await query<{ slot: string; category: string; }>(
-    `SELECT slot, category FROM (SELECT CASE WHEN CAST(strftime('%H', s.transaction_date) AS INTEGER) BETWEEN 6 AND 11 THEN 'Morning (6am-12pm)' WHEN CAST(strftime('%H', s.transaction_date) AS INTEGER) BETWEEN 12 AND 16 THEN 'Afternoon (12pm-5pm)' WHEN CAST(strftime('%H', s.transaction_date) AS INTEGER) BETWEEN 17 AND 21 THEN 'Evening (5pm-10pm)' ELSE 'Night (10pm-6am)' END as slot, COALESCE(c.name, 'General') as category, COUNT(*) as cnt, ROW_NUMBER() OVER (PARTITION BY CASE WHEN CAST(strftime('%H', s.transaction_date) AS INTEGER) BETWEEN 6 AND 11 THEN 'Morning (6am-12pm)' WHEN CAST(strftime('%H', s.transaction_date) AS INTEGER) BETWEEN 12 AND 16 THEN 'Afternoon (12pm-5pm)' WHEN CAST(strftime('%H', s.transaction_date) AS INTEGER) BETWEEN 17 AND 21 THEN 'Evening (5pm-10pm)' ELSE 'Night (10pm-6am)' END ORDER BY COUNT(*) DESC) as rn FROM sale_items si JOIN products m ON si.product_id = m.id LEFT JOIN categories c ON m.category_id = c.id JOIN sales s ON si.sale_id = s.id WHERE s.transaction_date >= ? AND s._deleted = 0${storeId ? " AND s.store_id = ?" : ""}${joined.clause} GROUP BY slot, c.name) WHERE rn = 1`, p1Joined
+    `SELECT slot, category FROM (SELECT CASE WHEN CAST(strftime('%H', s.transaction_date, 'localtime') AS INTEGER) BETWEEN 6 AND 11 THEN 'Morning (6am-12pm)' WHEN CAST(strftime('%H', s.transaction_date, 'localtime') AS INTEGER) BETWEEN 12 AND 16 THEN 'Afternoon (12pm-5pm)' WHEN CAST(strftime('%H', s.transaction_date, 'localtime') AS INTEGER) BETWEEN 17 AND 21 THEN 'Evening (5pm-10pm)' ELSE 'Night (10pm-6am)' END as slot, COALESCE(c.name, 'General') as category, COUNT(*) as cnt, ROW_NUMBER() OVER (PARTITION BY CASE WHEN CAST(strftime('%H', s.transaction_date, 'localtime') AS INTEGER) BETWEEN 6 AND 11 THEN 'Morning (6am-12pm)' WHEN CAST(strftime('%H', s.transaction_date, 'localtime') AS INTEGER) BETWEEN 12 AND 16 THEN 'Afternoon (12pm-5pm)' WHEN CAST(strftime('%H', s.transaction_date, 'localtime') AS INTEGER) BETWEEN 17 AND 21 THEN 'Evening (5pm-10pm)' ELSE 'Night (10pm-6am)' END ORDER BY COUNT(*) DESC) as rn FROM sale_items si JOIN products m ON si.product_id = m.id LEFT JOIN categories c ON m.category_id = c.id JOIN sales s ON si.sale_id = s.id WHERE s.transaction_date >= ? AND s._deleted = 0${storeId ? " AND s.store_id = ?" : ""}${joined.clause} GROUP BY slot, c.name) WHERE rn = 1`, p1Joined
   );
 
   return { timeSlotData, slotCategoryData };
@@ -498,22 +498,22 @@ export async function fetchProfitLossReportData(dateFrom?: string, dateTo?: stri
   // uses for the same reason.
   const revenueRows = await query<Record<string, unknown>>(
     `SELECT
-      strftime('%Y-%m', s.transaction_date) as "Month",
+      strftime('%Y-%m', s.transaction_date, 'localtime') as "Month",
       SUM(s.total_amount) as "Revenue"
      FROM sales s
      WHERE ${where}
-     GROUP BY strftime('%Y-%m', s.transaction_date)
+     GROUP BY strftime('%Y-%m', s.transaction_date, 'localtime')
      ORDER BY 1 ASC`,
     params
   );
   const cogsRows = await query<{ Month: string; COGS: number }>(
     `SELECT
-      strftime('%Y-%m', s.transaction_date) as "Month",
+      strftime('%Y-%m', s.transaction_date, 'localtime') as "Month",
       SUM(si.cost_price * si.quantity) as "COGS"
      FROM sale_items si
      JOIN sales s ON s.id = si.sale_id
      WHERE ${where}
-     GROUP BY strftime('%Y-%m', s.transaction_date)`,
+     GROUP BY strftime('%Y-%m', s.transaction_date, 'localtime')`,
     params
   );
   const salesRows: Record<string, unknown>[] = revenueRows.map((r) => ({

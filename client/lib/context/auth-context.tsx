@@ -77,6 +77,11 @@ export interface HandoffApiUser {
 
 interface AuthContextType {
   user: User | null;
+  /** True once the mount-time localStorage read has completed, regardless
+   * of whether a saved user was found. See its declaration in
+   * AuthProvider for why `user !== null` alone can't distinguish
+   * "not hydrated yet" from "genuinely logged out". */
+  isHydrated: boolean;
   login: (username: string, pin?: string) => Promise<boolean>;
   /** Establishes a local session directly from a cross-origin handoff
    * (impersonation / dashboard → app), bypassing PIN entry. See the
@@ -134,6 +139,13 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isCloudLinked, setIsCloudLinked] = useState(false);
+  // Distinguishes "user is null because nobody's logged in" from "user is
+  // null because the mount effect below hasn't read localStorage yet" -
+  // consumers that need to know a staff member's fixed store_id (see
+  // store-context.tsx's hydration-race fix) can't tell those two apart from
+  // `user` alone. Flips true once, at the end of the mount effect,
+  // regardless of whether a saved user was actually found.
+  const [isHydrated, setIsHydrated] = useState(false);
 
   useEffect(() => {
     // Check for saved user in session
@@ -173,6 +185,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.removeItem("dumos_user");
       }
     }
+
+    setIsHydrated(true);
 
     const handleTokenSet = () => setIsCloudLinked(true);
     const handleTokenCleared = () => setIsCloudLinked(false);
@@ -544,6 +558,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     <AuthContext.Provider
       value={{
         user,
+        isHydrated,
         login,
         loginFromHandoff,
         logout,

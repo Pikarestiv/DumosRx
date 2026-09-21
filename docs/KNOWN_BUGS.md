@@ -4,6 +4,25 @@ Issues spotted incidentally (e.g. while doing TypeScript type-safety cleanup) th
 
 ## Open items
 
+### Activity log misattributes stock-transfer writes to whatever store is globally active
+
+- **Where:** `client/lib/db/core.ts:1013,1026` (`logAction()`), called from
+  inside `update()`/`insert()` for every write `stock-transfers.ts`'s
+  `transferStock()` makes.
+- **Context:** found while an Opus-dispatched pass vetted the stock-transfer
+  race fix (see git log "fix: stock-transfer cross-store write race via
+  explicit store override"). `logAction()` still reads the global active-
+  store resolver directly, which that fix deliberately stopped touching -
+  before the fix it read `null` during a transfer, now it reads whatever the
+  UI actually has active (a third store, or the source/dest by coincidence).
+- **Effect:** an activity-log row for a transfer's writes is attributed to
+  the UI's currently-active store rather than the source or destination
+  store the write actually belongs to. Cosmetic (audit-trail attribution),
+  not a data-scoping bug — the writes themselves are correctly scoped.
+- **Fix scope (not implemented):** `logAction()` would need the same
+  `overrideStoreId` plumbing `assertStoreOwnership()` already has, threaded
+  through from `update()`/`insert()`'s `options`.
+
 ### `discount_amount` coupons cannot be created against a SQLite-backed database
 
 - **Where:** `laravel-server/database/migrations/2026_06_14_085200_update_coupon_type_enum.php`

@@ -6,27 +6,6 @@ Open items below are grouped by severity (Critical → High → Medium → Low),
 
 ## Critical
 
-### SECURITY: "no users exist" fallback grants a full admin session for any PIN
-
-- **Where:** `client/lib/context/auth-context.tsx:305-334` (`login()`'s "no
-  users exist, create default admin" branch) + `client/lib/db/queries/auth.ts:24-29`
-  (`createDefaultAdmin`).
-- **Effect:** the branch triggers whenever `getUserByUsernameOrEmail("admin")`
-  finds nothing, and never checks the `pin` argument passed to `login()` at
-  all. Anyone who reaches `login("admin", <anything>)` — e.g. a stale
-  `dumos_recent_users` tile surviving a DB reset/restore, or a device before
-  users have synced down — is silently granted a full admin session with the
-  hardcoded PIN `1234`. `createDefaultAdmin` itself inserts via raw
-  `query("INSERT OR IGNORE ...")` with a fixed id `default-admin`, no
-  `store_id`, and no `_sync_queue` row — unscoped to any store and never
-  synced, colliding across every device that hits this path.
-- **Fix scope (not implemented):** the fallback needs to actually validate
-  the supplied PIN (or require a real setup/onboarding flow instead of a
-  silent login-time creation), and `createDefaultAdmin` needs to go through
-  `insert()` (proper store scoping + sync) with a real generated id, not a
-  raw query with a hardcoded one. Treat as security-priority, not routine
-  backlog.
-
 ### SECURITY: PIN login has no attempt limit or lockout
 
 - **Where:** `client/components/auth/lock-screen.tsx:43-72` +
@@ -38,67 +17,19 @@ Open items below are grouped by severity (Critical → High → Medium → Low),
 - **Fix scope (not implemented):** add an attempt counter with escalating
   backoff/lockout, same pattern any login screen needs.
 
-### `getUserByUsernameOrEmail` has no `_deleted` filter and no store scoping
+### `getUserByUsernameOrEmail` has no store scoping
 
 - **Where:** `client/lib/db/queries/auth.ts:9`.
-- **Effect:** filters only `is_active = 1` — a user soft-deleted locally (or
-  pulled down as `_deleted = 1` from the server) can still log in on that
-  device; in a multi-store local DB, any store's user can authenticate
-  against any store.
-- **Fix scope (not implemented):** add `AND _deleted = 0`, and scope to the
-  active store where applicable (mirroring the pattern used elsewhere for
-  staff lookups).
-
-### Desktop/web DB restore has no validation and no pre-restore snapshot
-
-- **Where:** `client/lib/db/core.ts:687-713` (`restoreDatabaseFromFile`) +
-  `client/hooks/use-settings-sync.ts:104-122` (web path).
-- **Effect:** the picked file is handed straight to `new SQL.Database(binary)`
-  (web) or copied directly over `dumosrx.db` (desktop) with no header/
-  integrity check and no copy of the outgoing database kept — a wrong or
-  corrupt file destroys the live database irrecoverably, with the "Invalid
-  file?" toast firing only after the overwrite already happened. Desktop
-  path also swallows a failed `db.close()` before copying over the file
-  while WAL journaling is enabled, which can leave stale `-wal`/`-shm`
-  sidecars that replay old data over the restored DB on reopen (this half
-  depends on tauri-plugin-sql's close()/checkpoint behavior — unconfirmed,
-  but the catch-and-continue itself is wrong regardless).
-- **Fix scope (not implemented):** validate the picked file (integrity
-  check / expected schema signature) before touching the live database, and
-  snapshot the outgoing DB first so a bad restore is recoverable. On
-  desktop, don't proceed past a failed `close()`.
-
-### P&L report double-counts revenue for multi-item sales
-
-- **Where:** `client/lib/db/queries/reports.ts:475-486`
-  (`fetchProfitLossReportData`) — `SUM(s.total_amount)` across a
-  `LEFT JOIN sale_items`, so a sale's revenue is counted once per line item.
-- **Effect:** a 3-item sale reports 3× its revenue; Revenue, Gross Profit,
-  Net Profit and Margin % in the P&L report are all inflated by the average
-  basket size.
-- **Fix scope (not implemented):** `getAdvancedMonthlySalesData` (`:419-429`)
-  already documents this exact fan-out and splits into two queries to avoid
-  it — apply the same split here.
-
-### A local edit made while a sync push is in flight can be silently destroyed
-
-- **Where:** `client/lib/db/sync-engine/push.ts:471-551` +
-  `client/lib/db/base-helpers.ts:213-224`.
-- **Context:** `update()` freezes the row's pre-push `_version` into the new
-  `_sync_queue` row. If the user edits the same row again while an earlier
-  push for it is still in flight, the response handler overwrites the local
-  `_version` with the server's bumped value, so the just-queued second edit
-  now references a stale base version.
-- **Effect:** that second edit is rejected as `version_conflict` and deleted
-  from `_sync_queue` outright — the next pull overwrites the local row and
-  the user's edit is gone, with no error surfaced. `isSyncing()`
-  (`sync-engine/index.ts:13`) only prevents concurrent *syncs*, not local
-  writes during one.
-- **Fix scope (not implemented):** needs a repro against a slow/throttled
-  network (edit → push → edit again mid-flight) to confirm in practice, then
-  likely needs push to re-check the row's current `_version` before treating
-  a `version_conflict` response as final, or to hold/requeue local writes
-  that land on a row with an in-flight push.
+- **Status:** partially fixed — now filters `_deleted = 0` (a soft-deleted
+  user can no longer log in). The store-scoping half is still open: in a
+  multi-store local DB, any store's user can still authenticate regardless
+  of which store is active. Left open deliberately: it's unclear whether
+  scoping login itself to the active store is even correct (an owner/admin
+  isn't tied to one store, and login precedes store selection in the normal
+  flow), so this needs a design decision, not a blind filter addition.
+- **Fix scope (not implemented):** needs a decision on what "scoped login"
+  should even mean for owner/admin vs. store-pinned staff before
+  implementing.
 
 ## High
 

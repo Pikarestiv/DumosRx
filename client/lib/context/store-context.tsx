@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, ReactNode } from "react";
 import * as Sentry from "@sentry/nextjs";
-import { update, insert } from "@/lib/db/local-database";
+import { update } from "@/lib/db/local-database";
 import { setActiveStoreId as setResolvedStoreId } from "@/lib/db/core";
 import { useQuery } from "@tanstack/react-query";
 import { queryClient } from "@/lib/query-client";
@@ -389,20 +389,24 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [refetch]);
 
   const updateStoreProfile = async (data: Partial<StoreProfile>) => {
+    // Every real caller of this is a settings write against an ALREADY
+    // onboarded store (theme toggle, loyalty settings, payment config, ...)
+    // - onboarding creates the very first store through its own explicit
+    // path (app/setup/use-onboarding.ts), not through here. `storeProfile`
+    // being null at this point means its query hasn't resolved yet (or a
+    // staff member's fixed store was pruned), not "no store exists on this
+    // account yet" - minting a hardcoded id "default"/"My Store" row here
+    // silently created a phantom store (that then synced to the server)
+    // for what's actually a loading-state race or a data problem that
+    // deserves to be surfaced, not papered over.
     if (!storeProfile) {
-      await insert("stores", {
-        id: "default",
-        name: "My Store",
-        store_type: "pharmacy",
-        is_initialized: 0,
-        vat_percentage: 0,
-        currency: "NGN",
-        theme: "default",
-        ...data,
-      });
-    } else {
-      await update("stores", storeProfile.id, data);
+      console.error(
+        "[StoreContext] updateStoreProfile called with no storeProfile loaded - write skipped:",
+        data,
+      );
+      return;
     }
+    await update("stores", storeProfile.id, data);
     await refetch();
   };
 

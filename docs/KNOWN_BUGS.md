@@ -4,6 +4,230 @@ Issues spotted incidentally (e.g. while doing TypeScript type-safety cleanup) th
 
 ## Open items
 
+### P&L report double-counts revenue for multi-item sales
+
+- **Where:** `client/lib/db/queries/reports.ts:475-486`
+  (`fetchProfitLossReportData`) — `SUM(s.total_amount)` across a
+  `LEFT JOIN sale_items`, so a sale's revenue is counted once per line item.
+- **Effect:** a 3-item sale reports 3× its revenue; Revenue, Gross Profit,
+  Net Profit and Margin % in the P&L report are all inflated by the average
+  basket size.
+- **Fix scope (not implemented):** `getAdvancedMonthlySalesData` (`:419-429`)
+  already documents this exact fan-out and splits into two queries to avoid
+  it — apply the same split here.
+
+### A local edit made while a sync push is in flight can be silently destroyed
+
+- **Where:** `client/lib/db/sync-engine/push.ts:471-551` +
+  `client/lib/db/base-helpers.ts:213-224`.
+- **Context:** `update()` freezes the row's pre-push `_version` into the new
+  `_sync_queue` row. If the user edits the same row again while an earlier
+  push for it is still in flight, the response handler overwrites the local
+  `_version` with the server's bumped value, so the just-queued second edit
+  now references a stale base version.
+- **Effect:** that second edit is rejected as `version_conflict` and deleted
+  from `_sync_queue` outright — the next pull overwrites the local row and
+  the user's edit is gone, with no error surfaced. `isSyncing()`
+  (`sync-engine/index.ts:13`) only prevents concurrent *syncs*, not local
+  writes during one.
+- **Fix scope (not implemented):** needs a repro against a slow/throttled
+  network (edit → push → edit again mid-flight) to confirm in practice, then
+  likely needs push to re-check the row's current `_version` before treating
+  a `version_conflict` response as final, or to hold/requeue local writes
+  that land on a row with an in-flight push.
+
+### Expense/report date-range filters compare a date-only column against a full ISO timestamp
+
+- **Where:** `client/lib/db/queries/reports.ts:490,544` and
+  `client/lib/db/queries/finance.ts:117,163`.
+- **Context:** `expenses.date` is stored as `YYYY-MM-DD`
+  (`client/lib/db/schema.ts:351`), but `toQueryRange`
+  (`client/lib/utils/date-range.ts:12`) supplies a full ISO timestamp like
+  `2026-09-21T00:00:00.000Z`. SQLite text-compares these, and
+  `'2026-09-21' >= '2026-09-21T00:00:00.000Z'` is false.
+- **Effect:** every expense dated exactly on a range's first day is silently
+  dropped from the Expenses report and the P&L.
+- **Fix scope (not implemented):** normalize one side before comparing —
+  either `date(expenses.date) >= date(?)` or pass a date-only bound.
+
+### Loyalty-point redemption isn't re-validated against the real balance at apply time
+
+- **Where:** `client/components/pos/pos-redeem-reward.tsx:86` (affordability
+  check against possibly-stale cached `selectedCustomer.loyalty_points`) +
+  `client/lib/utils/loyalty-calculator.ts:44`
+  (`calculateLoyaltyPointsAfterSale` clamps at `Math.max(0, …)`).
+- **Effect:** a customer who no longer actually has the points (e.g. a
+  second terminal already spent them, or a stale local cache) still gets the
+  redemption discount applied; their balance is just floored to zero instead
+  of the redemption being rejected. Note: the redemption write itself IS
+  correctly atomic with the sale (runs inside `use-pos-payment.ts`'s
+  `runInTransaction`) — this is specifically about the missing
+  balance-at-apply-time check, not a transaction-atomicity gap.
+- **Fix scope (not implemented):** re-read the customer's real current
+  `loyalty_points` inside the same transaction right before applying the
+  redemption, and reject (not clamp) if insufficient.
+
+### Sync push batch failure (`success: false`) is handled by doing nothing
+
+- **Where:** `client/lib/db/sync-engine/push.ts:443`.
+- **Effect:** a batch-level failure response has no `markSynced`, no
+  `recordSyncFailure`, no backoff, no retry counter, and no stuck-item crash
+  report — it's silently retried forever on every sync tick with zero
+  visibility.
+- **Fix scope (not implemented):** route a `success: false` batch through
+  the same `recordSyncFailure` path individual item failures already use.
+
+### Returned-item COGS is recomputed from current stock cost instead of the cost recorded at sale time
+
+- **Where:** `client/lib/db/queries/reports.ts:332` (and `:436`).
+- **Effect:** COGS for a return is derived from the product's *current*
+  active-batch average cost, not `sale_items.cost_price` (what was actually
+  recorded on the original sale) — a cost change between sale and return
+  misstates profit. The subquery also has no `store_id` filter (cross-store
+  cost averaging risk if a product id is ever shared), and
+  `IFNULL(…, 0)` silently reports zero returned COGS once the product has no
+  active batches left — overstating profit exactly when stock ran out.
+- **Fix scope (not implemented):** use `sale_items.cost_price` from the
+  original sale instead of recomputing from current stock state.
+
+### Reports use UTC day/month boundaries while the dashboard/daily-close use local time
+
+- **Where:** `client/lib/utils/date-range.ts:12-14` (UTC
+  `T00:00:00.000Z`/`T23:59:59.999Z` boundaries) vs.
+  `client/lib/db/queries/sales.ts:129-130` (daily-close, correct
+  local→UTC conversion) and `client/lib/db/queries/reports.ts:477,483,495`
+  (`strftime('%Y-%m', …)` on UTC) vs.
+  `getDashboardOverviewData:62` (`date(transaction_date, 'localtime')`).
+- **Effect:** every report is shifted by the store's UTC offset relative to
+  the dashboard; daily close and the Sales report can disagree about which
+  day a sale belongs to, and a late-evening sale on month-end can land in
+  the wrong month in the P&L relative to the dashboard.
+- **Fix scope (not implemented):** standardize report date bucketing on the
+  same local-time conversion the dashboard/daily-close already use.
+
+### Report PDFs label all-time data with the selected date range
+
+- **Where:** `client/lib/hooks/use-report-export.ts:200-203`, for the two
+  reports configured `takesDateRange: false` (stock_batches, customers,
+  `:44-67`).
+- **Effect:** the Inventory Valuation and Customer PDFs are stamped with a
+  period subtitle they never actually filtered by (they're all-time); staff/
+  payment-method filters are also silently ignored on these with no
+  indication in the output.
+- **Fix scope (not implemented):** skip the date-range subtitle (and any
+  other ignored-filter labels) for reports marked `takesDateRange: false`.
+
+### Prepaid-expense amortization double-counts across a rolling window, and can shift a month under UTC parsing
+
+- **Where:** `client/lib/db/queries/finance.ts:88` (installment counted for
+  any month a rolling window merely overlaps — `getBIMetrics:337`'s 30-day
+  window straddles two months) and `:76` (`new Date(expense.date)` parses a
+  date-only string as UTC midnight while `startOfMonth`/`endOfMonth` work in
+  local time, shifting the first installment a month early in negative-UTC
+  timezones).
+- **Effect:** the same prepaid expense totals differently depending on
+  whether a calendar-month or rolling-window period preset is selected; in
+  the wrong timezone, amortization starts a month off.
+- **Fix scope (not implemented):** not yet designed.
+
+### Several dashboard detail dialogs fetch with unguarded useState/useEffect (no cancellation)
+
+- **Where:** `client/components/dashboard/modals/procurement-details-dialog.tsx:44-49`,
+  `dashboard-prescription-details-dialog.tsx:46-51`,
+  `stock-movement-details-dialog.tsx:34-40` — all `.catch(() => {})`.
+- **Effect:** switching directly between two rows without closing the dialog
+  lets a slower, now-stale response render on top of the newer row's data; a
+  failed fetch is indistinguishable from "this record has no line items."
+- **Fix scope (not implemented):** convert to React Query (same fix pattern
+  applied elsewhere in this audit) for built-in request cancellation/
+  race-safety.
+
+### Customer report's sales join is missing a store_id filter (one-sided join, same bug class as before)
+
+- **Where:** `client/lib/db/queries/reports.ts:533`
+  (`fetchCustomerReportData`'s `LEFT JOIN sales s ON s.customer_id = c.id
+  AND s._deleted = 0`) — `client/lib/db/queries/customers.ts:19` has the
+  identical join WITH `AND s.store_id = ?`, so this one is the outlier.
+- **Effect:** "Total Purchases"/"Total Spent"/"Last Purchase" in the
+  Customer report can absorb another store's sales for any shared customer
+  id.
+- **Fix scope (not implemented):** add the same `AND s.store_id = ?` the
+  sibling query already has.
+
+### Sync push: a response lost after server commit produces a misleading "changed since this edit" toast
+
+- **Where:** `client/lib/db/sync-engine/push.ts:573-586`.
+- **Effect:** if the server commits but the response is lost (timeout,
+  dropped connection), the retried UPDATE collides with the server's own
+  version bump and is dropped as non-retryable `version_conflict` — harmless
+  data-wise (the write already landed), but the user sees a misleading
+  "record changed since this edit" toast for a change that actually
+  succeeded.
+- **Fix scope (not implemented):** not yet designed; may be acceptable to
+  leave as a UX rough edge if fixing risks false negatives elsewhere.
+
+### Stock batch report missing a store_id filter on the joined stock_batches side (low - mostly latent)
+
+- **Where:** `client/lib/db/queries/reports.ts:261-263`
+  (`fetchStockBatchReportData` filters `m.store_id` but never `inv.store_id`
+  on the join).
+- **Effect:** mostly latent today (transfers mint a per-store product row),
+  but legacy `store_id IS NULL` batches get summed into the active store's
+  valuation.
+- **Fix scope (not implemented):** add the missing filter.
+
+### Expense amount has no numeric validation
+
+- **Where:** `client/lib/hooks/use-expense-mutations.ts:25`
+  (`parseFloat(formData.amount)`) + `add-expense-dialog.tsx:81` (only a
+  truthiness check upstream).
+- **Effect:** a non-numeric amount stores `NaN`; nothing rounds to 2dp or
+  rejects a negative amount into a `REAL` money column.
+- **Fix scope (not implemented):** validate numeric + non-negative before
+  submit, round to the cent on write (same pattern as the earlier POS
+  money-math fix).
+
+### `LOYALTY_RULES` constants (min redemption, points expiry) are defined but never used
+
+- **Where:** `client/lib/utils/loyalty-calculator.ts:62-65`.
+- **Effect:** points never expire and there's no redemption floor — a policy
+  the constant's existence implies should exist but isn't implemented
+  anywhere.
+- **Fix scope (not implemented):** either wire these into the redemption/
+  accrual logic, or remove them if the policy was abandoned (confirm which
+  with product before doing either).
+
+### Sync push: duplicate-remap leaves the old id's still-pending queue rows dangling
+
+- **Where:** `client/lib/db/sync-engine/push.ts:516`.
+- **Effect:** the `id_map` duplicate-remap marks the old local row
+  `_deleted = 1` but leaves any still-pending `_sync_queue` rows for that old
+  id in place — they now target a record the server has no copy of and fail
+  on every retry until the backoff cap.
+- **Fix scope (not implemented):** when remapping an id, also remap or drop
+  any other pending `_sync_queue` rows still referencing the old id.
+
+### Prescription edit-form load is useState/useEffect with a console.error-only failure path
+
+- **Where:** `client/components/prescriptions/new-prescription/use-new-prescription.ts:104-151`.
+- **Effect:** if the load fails, `isEditing` stays true against a blank
+  form — required-field validation (`:270`) prevents silently saving over
+  the real record, but the practical impact is a confusing empty edit form
+  with no visible error.
+- **Fix scope (not implemented):** surface the fetch error to the user
+  (toast/inline message) instead of console-only.
+
+### P&L current-period revenue window is open-ended while the expense window is capped
+
+- **Where:** `client/lib/db/queries/reports.ts:321-346` vs `:337` — revenue/
+  COGS/transaction queries use `transaction_date >= ?` with no upper bound,
+  while the expense side is explicitly capped at
+  `new Date().toISOString()`.
+- **Effect:** a future-dated or clock-skewed sale counts toward revenue in a
+  window that excludes the matching expenses, skewing the reported margin.
+- **Fix scope (not implemented):** cap the revenue/COGS window the same way
+  the expense side already is.
+
 ### Activity log misattributes stock-transfer writes to whatever store is globally active
 
 - **Where:** `client/lib/db/core.ts:1013,1026` (`logAction()`), called from

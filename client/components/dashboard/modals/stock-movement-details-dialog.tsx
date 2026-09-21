@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { formatCurrency } from "@/lib/utils";
 import { getProductBasicInfo } from "@/lib/db/queries/products";
+import { queryKeys } from "@/lib/query-keys";
 import {
   getTypeColor,
   getTypeIcon,
@@ -13,8 +14,6 @@ import {
 } from "@/components/stock-batch/stock-movement-utils";
 import { DetailRow } from "./detail-row";
 import type { StockMovementHistoryRow } from "@/lib/types/stock-movement";
-
-type ProductInfo = Awaited<ReturnType<typeof getProductBasicInfo>>;
 
 interface StockMovementDetailsDialogProps {
   movement: StockMovementHistoryRow | null;
@@ -29,17 +28,12 @@ export function StockMovementDetailsDialog({
   onOpenChange,
   currencyCode = "NGN",
 }: StockMovementDetailsDialogProps) {
-  const [productInfo, setProductInfo] = useState<ProductInfo | null>(null);
-
-  useEffect(() => {
-    if (movement?.product_id && open) {
-      getProductBasicInfo(movement.product_id).then((res) => {
-        if (res) setProductInfo(res);
-      }).catch(() => {});
-    } else if (!open) {
-      setProductInfo(null);
-    }
-  }, [movement?.product_id, open]);
+  const productInfoQuery = useQuery({
+    ...queryKeys.products.basicInfo(movement?.product_id ?? null),
+    queryFn: () => getProductBasicInfo(movement?.product_id as string),
+    enabled: !!movement?.product_id && open,
+  });
+  const productInfo = productInfoQuery.data ?? null;
 
   if (!movement) return null;
 
@@ -65,7 +59,9 @@ export function StockMovementDetailsDialog({
             <div className="text-[15px] font-semibold truncate">
               {productInfo
                 ? `${productInfo.name}${productInfo.dosage_form ? ` (${productInfo.dosage_form})` : ""}`
-                : "Loading..."}
+                : productInfoQuery.isError
+                  ? "Failed to load product"
+                  : "Loading..."}
             </div>
             {date && (
               <div className="text-[12px] text-muted-foreground/70">

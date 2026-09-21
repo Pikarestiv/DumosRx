@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
 import { getPurchaseOrderItemsForDetail } from "@/lib/db/procurement";
+import { queryKeys } from "@/lib/query-keys";
 import { Truck } from "lucide-react";
 import { DetailRow } from "./detail-row";
-import type { PurchaseOrder, PODetailItem } from "@/lib/db/procurement";
+import type { PurchaseOrder } from "@/lib/db/procurement";
 
 interface ProcurementDetailsDialogProps {
   po: PurchaseOrder | null;
@@ -39,15 +40,12 @@ export function ProcurementDetailsDialog({
   onOpenChange,
   currencyCode = "NGN",
 }: ProcurementDetailsDialogProps) {
-  const [items, setItems] = useState<PODetailItem[]>([]);
-
-  useEffect(() => {
-    if (po?.id && open) {
-      getPurchaseOrderItemsForDetail(po.id).then((res) => setItems(res || [])).catch(() => {});
-    } else if (!open) {
-      setItems([]);
-    }
-  }, [po?.id, open]);
+  const itemsQuery = useQuery({
+    ...queryKeys.purchaseOrders.detailItems(po?.id ?? null),
+    queryFn: () => getPurchaseOrderItemsForDetail(po?.id as string),
+    enabled: !!po?.id && open,
+  });
+  const items = itemsQuery.data ?? [];
 
   if (!po) return null;
 
@@ -132,7 +130,12 @@ export function ProcurementDetailsDialog({
                   </div>
                 </div>
               ))}
-              {items.length === 0 && <NoProcurementItemsFound />}
+              {items.length === 0 && itemsQuery.isError && (
+                <div className="text-[13px] text-destructive text-center py-4">
+                  Failed to load items.
+                </div>
+              )}
+              {items.length === 0 && !itemsQuery.isError && <NoProcurementItemsFound />}
             </div>
           </div>
         </div>

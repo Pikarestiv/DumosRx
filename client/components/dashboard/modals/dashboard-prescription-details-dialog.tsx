@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
 import { getPrescriptionItems } from "@/lib/db/queries/prescriptions";
+import { queryKeys } from "@/lib/query-keys";
 import { Pill } from "lucide-react";
 import { DetailRow } from "./detail-row";
-import type { PrescriptionRow, PrescriptionItem } from "@/lib/types/prescription";
+import type { PrescriptionRow } from "@/lib/types/prescription";
 
 interface DashboardPrescriptionDetailsDialogProps {
   prescription: PrescriptionRow | null;
@@ -41,15 +42,12 @@ export function DashboardPrescriptionDetailsDialog({
   onOpenChange,
   currencyCode = "NGN",
 }: DashboardPrescriptionDetailsDialogProps) {
-  const [items, setItems] = useState<PrescriptionItem[]>([]);
-
-  useEffect(() => {
-    if (prescription?.id && open) {
-      getPrescriptionItems(prescription.id).then((res) => setItems(res || [])).catch(() => {});
-    } else if (!open) {
-      setItems([]);
-    }
-  }, [prescription?.id, open]);
+  const itemsQuery = useQuery({
+    ...queryKeys.prescriptions.detailItems(prescription?.id ?? null),
+    queryFn: () => getPrescriptionItems(prescription?.id as string),
+    enabled: !!prescription?.id && open,
+  });
+  const items = itemsQuery.data ?? [];
 
   if (!prescription) return null;
 
@@ -161,7 +159,12 @@ export function DashboardPrescriptionDetailsDialog({
                   )}
                 </div>
               ))}
-              {items.length === 0 && <NoMedicationsFound />}
+              {items.length === 0 && itemsQuery.isError && (
+                <div className="text-[13px] text-destructive text-center py-4">
+                  Failed to load medications.
+                </div>
+              )}
+              {items.length === 0 && !itemsQuery.isError && <NoMedicationsFound />}
             </div>
           </div>
         </div>

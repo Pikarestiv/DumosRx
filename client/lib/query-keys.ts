@@ -48,6 +48,8 @@ export const queryKeys = {
     withDetails: () =>
       resource(["productsWithDetails"] as const, ["products", "categories", "stock_batches"]),
     detail: (id: string) => resource(["products", "detail", id] as const, ["products"]),
+    basicInfo: (id: string | null) =>
+      resource(["products", "basicInfo", id] as const, ["products"]),
     history: (id: string, viewerId?: string) =>
       resource(["productHistory", id, viewerId] as const, ["audit_logs", "stock_movements"]),
     batches: (id?: string) => resource(["productBatches", id] as const, ["stock_batches"]),
@@ -75,6 +77,13 @@ export const queryKeys = {
   stockAudits: {
     all: () => resource(["stock_audits"] as const, ["stock_audits"]),
   },
+  stockMovements: {
+    list: (dateRange?: { from?: string; to?: string }, fullHistory?: boolean) =>
+      resource(
+        ["stockMovementsLedger", dateRange?.from, dateRange?.to, !!fullHistory] as const,
+        ["stock_movements"],
+      ),
+  },
   sales: {
     recent: (userId?: string, dateRange?: { from?: string; to?: string }) =>
       resource(["recentSales", userId, dateRange?.from, dateRange?.to] as const, ["sales"]),
@@ -92,6 +101,8 @@ export const queryKeys = {
         "purchase_orders",
         "purchase_order_items",
       ]),
+    detailItems: (id: string | null) =>
+      resource(["purchase_order_detail_items", id] as const, ["purchase_order_items"]),
   },
   requestedProducts: {
     all: () => resource(["requested_products"] as const, ["requested_products"]),
@@ -126,6 +137,8 @@ export const queryKeys = {
   },
   prescriptions: {
     all: () => resource(["prescriptions"] as const, ["prescriptions"]),
+    detailItems: (id: string | null) =>
+      resource(["prescription_detail_items", id] as const, ["prescription_items"]),
   },
   heldTransactions: {
     all: () => resource(["held_transactions"] as const, ["held_transactions"]),
@@ -160,6 +173,10 @@ export const queryKeys = {
   broadcasts: {
     // Remote API data, not a local table.
     all: (storeId?: string) => resource(["broadcasts", storeId] as const, []),
+  },
+  notifications: {
+    // Remote API data, not a local table.
+    all: (storeId?: string) => resource(["cloudNotifications", storeId] as const, []),
   },
   loyalty: {
     tiers: () => resource(["loyalty_tiers"] as const, ["loyalty_tiers"]),

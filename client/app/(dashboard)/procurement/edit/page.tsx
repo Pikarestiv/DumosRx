@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, Suspense } from "react";
+import { useState, useEffect, useMemo, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -20,7 +20,7 @@ import { useCreateSupplierMutation } from "@/lib/hooks/use-supplier-mutations";
 import { useCreateProductMutation } from "@/lib/hooks/use-product-mutations";
 import { useUpdatePurchaseOrderMutation } from "@/lib/hooks/use-purchase-order-mutations";
 import { RequireRole } from "@/components/auth/require-role";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import type { POLineItemDraft } from "@/components/procurement/po-item-ledger-table";
 import type { NewProductPayload, ProductViewModel } from "@/lib/types/product";
@@ -35,7 +35,6 @@ function EditOrderContent() {
   const [selectedSupplierId, setSelectedSupplierId] = useState("");
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<POLineItemDraft[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [paymentStatus, setPaymentStatus] = useState("unpaid");
   const [amountPaid, setAmountPaid] = useState("");
   const [dueDate, setDueDate] = useState("");
@@ -55,32 +54,41 @@ function EditOrderContent() {
     void fetchData();
   }, [fetchData]);
 
+  const poQuery = useQuery({
+    ...queryKeys.purchaseOrders.detail(id),
+    queryFn: () => getPurchaseOrderById(id as string),
+    enabled: !!id,
+  });
+  const isLoading = !id || poQuery.isLoading;
+
+  const seededPoIdRef = useRef<string | null>(null);
+
   useEffect(() => {
-    async function loadPO() {
-      if (!id) return;
-      setIsLoading(true);
-      try {
-        const poData = await getPurchaseOrderById(id);
-        if (poData) {
-          setSelectedSupplierId(poData.supplier_id || SELF_PURCHASE_VENDOR_ID);
-          setNotes(poData.notes || "");
-          setItems(poData.items || []);
-          setPaymentStatus(poData.payment_status || "unpaid");
-          setAmountPaid(poData.amount_paid?.toString() || "");
-          setDueDate(poData.due_date || "");
-        } else {
-          toast.error("Purchase order not found");
-          router.push("/procurement");
-        }
-      } catch (err) {
-        console.error("Failed to load PO", err);
-        toast.error("Failed to load PO");
-      } finally {
-        setIsLoading(false);
-      }
+    if (!id) return;
+    if (poQuery.isError) {
+      console.error("Failed to load PO", poQuery.error);
+      toast.error("Failed to load PO");
+      return;
     }
-    void loadPO();
-  }, [id, router]);
+    if (poQuery.data === undefined) return;
+    if (poQuery.data === null) {
+      toast.error("Purchase order not found");
+      router.push("/procurement");
+      return;
+    }
+    // Only seed the form once per PO id — a background refetch (e.g. a sync
+    // pull invalidating purchase_orders) must not overwrite in-progress
+    // unsaved edits with the freshly refetched data.
+    if (seededPoIdRef.current === id) return;
+    seededPoIdRef.current = id;
+    const poData = poQuery.data;
+    setSelectedSupplierId(poData.supplier_id || SELF_PURCHASE_VENDOR_ID);
+    setNotes(poData.notes || "");
+    setItems(poData.items || []);
+    setPaymentStatus(poData.payment_status || "unpaid");
+    setAmountPaid(poData.amount_paid?.toString() || "");
+    setDueDate(poData.due_date || "");
+  }, [id, poQuery.data, poQuery.isError, poQuery.error, router]);
 
   const handleOpenAddProduct = (productData: Partial<ProductViewModel>) => {
     setInitialProductData(productData);

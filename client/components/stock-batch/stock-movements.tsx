@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { Search, Lock, ArrowLeftRight } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { format, isToday, isYesterday, differenceInDays } from "date-fns";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { genericFuzzySearch } from "@/lib/utils/search";
+import { queryKeys } from "@/lib/query-keys";
 
 const DESKTOP_ROW_HEIGHT = 52;
 import { StockMovementsSkeleton } from "./stock-movements-skeleton";
@@ -51,9 +53,6 @@ function NoMovementsFound() {
 }
 
 export function StockMovements() {
-  const [movements, setMovements] = useState<StockMovement[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [initialLoad, setInitialLoad] = useState(true);
   const [hasFullHistory, setHasFullHistory] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
@@ -76,30 +75,29 @@ export function StockMovements() {
   // Respects whatever window is currently active (30-day, custom range, or full history), so a
   // manual/pull refresh doesn't quietly revert someone back out of it. An explicit date range
   // takes precedence over full-history mode: it's a bounded window the user picked on purpose.
-  const fetchMovements = async () => {
-    setLoading(true);
-    try {
+  const movementsQuery = useQuery({
+    ...queryKeys.stockMovements.list(dateRange, hasFullHistory),
+    queryFn: async () => {
       const { getStockMovements } = await import("@/lib/db/local-database");
       const res = dateRange.from
         ? await getStockMovements(dateRange)
         : hasFullHistory
           ? await getStockMovements()
           : await getStockMovements({ sinceDays: RECENT_ACTIVITY_WINDOW_DAYS });
-      setMovements((res.data || []).map(mapMovement));
-    } catch (error) {
-      console.error("Failed to fetch stock movements:", error);
-    } finally {
-      setLoading(false);
-      setInitialLoad(false);
-    }
-  };
+      return (res.data || []).map(mapMovement);
+    },
+    // Keeps the previously loaded rows on screen while a new date range or
+    // history mode is fetched, instead of unmounting into a full skeleton —
+    // that would close an in-progress DateRangePicker Popover selection.
+    placeholderData: keepPreviousData,
+  });
+  const movements = movementsQuery.data ?? [];
+  const loading = movementsQuery.isFetching;
+  const initialLoad = movementsQuery.isLoading;
 
-  useEffect(() => {
-    void fetchMovements();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dateRange]);
-
-  usePullToRefreshHandler(fetchMovements);
+  usePullToRefreshHandler(async () => {
+    await movementsQuery.refetch();
+  });
 
   // Searching or filtering must match the entire log, not just the recent-activity window
   // that's loaded by default, so upgrade to full history the first time either is used.
@@ -107,22 +105,7 @@ export function StockMovements() {
   // purpose, so search/filter should stay scoped within it rather than silently discarding it.
   useEffect(() => {
     if (dateRange.from || hasFullHistory || (!searchTerm && typeFilter === "all")) return;
-    let cancelled = false;
-    async function fetchFullHistory() {
-      try {
-        const { getStockMovements } = await import("@/lib/db/local-database");
-        const res = await getStockMovements();
-        if (cancelled) return;
-        setMovements((res.data || []).map(mapMovement));
-        setHasFullHistory(true);
-      } catch (error) {
-        console.error("Failed to fetch full stock movement history:", error);
-      }
-    }
-    void fetchFullHistory();
-    return () => {
-      cancelled = true;
-    };
+    setHasFullHistory(true);
   }, [searchTerm, typeFilter, hasFullHistory, dateRange.from]);
 
   const preFilteredMovements = movements.filter((movement) => {
@@ -391,7 +374,7 @@ export function StockMovements() {
         <TransferStockDialog
           open={showTransferDialog}
           onOpenChange={setShowTransferDialog}
-          onTransferred={() => void fetchMovements()}
+          onTransferred={() => void movementsQuery.refetch()}
         />
       )}
     </div>

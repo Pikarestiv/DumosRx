@@ -4,6 +4,16 @@ A changelog of bugs that were tracked in `docs/KNOWN_BUGS.md` and have since bee
 
 ## 2026-09-21
 
+### fix: returned-item COGS was recomputed from current stock cost instead of the cost recorded at sale time
+- **Commit:** (pending)
+- `getBIMetrics.returnedCogsData` and `getAdvancedMonthlySalesData.rawMonthlyReturns` averaged a product's *current* active-batch cost instead of using `sale_items.cost_price` — a cost change between sale and return misstated profit, and `IFNULL(…, 0)` silently reported zero returned COGS once a product had no active batches left. The subquery also had no `store_id` scoping.
+- Both now join `return_items` to the original `sale_items` row via `(returns.sale_id, return_items.product_id)` and use its `cost_price` directly — safe because the POS cart merges duplicate products into one line, so at most one `sale_item` per product exists within a given sale.
+
+### fix: expense date-range filters compared a date-only column against ISO timestamps
+- **Commit:** `eb80ac3a`
+- `expenses.date` is stored as bare `YYYY-MM-DD`, but the range bounds passed in (`toQueryRange()`/`toISOString()`) are full ISO timestamps — a plain string compare made `'2026-09-21' >= '2026-09-21T00:00:00.000Z'` false, silently dropping every expense dated exactly on a range's first day from the Expenses report, the P&L report, and the monthly sales chart's expense series.
+- Wrapped both sides in SQLite's `date()` function everywhere `expenses.date` is range-filtered.
+
 ### feat: show PIN lockout countdown in the pin-entry UI, not just a toast
 - **Commit:** `479a9a7c`
 - The lockout below only surfaced via a toast (auto-dismisses in a few seconds, no visible reason the Unlock button stopped working). PinEntry now shows a persistent countdown (`role="alert"`) and disables the PIN input/pad while locked, with a live 1s-interval update.

@@ -22,6 +22,8 @@ describe("finance.ts / reports.ts financial aggregates", () => {
   let getSmoothedExpensesTotal: typeof import("@/lib/db/queries/finance").getSmoothedExpensesTotal;
   let getAllExpenses: typeof import("@/lib/db/queries/finance").getAllExpenses;
   let fetchProfitLossReportData: typeof import("@/lib/db/queries/reports").fetchProfitLossReportData;
+  let getBIMetrics: typeof import("@/lib/db/queries/reports").getBIMetrics;
+  let getAdvancedMonthlySalesData: typeof import("@/lib/db/queries/reports").getAdvancedMonthlySalesData;
 
   beforeAll(async () => {
     core = await import("@/lib/db/core");
@@ -34,6 +36,8 @@ describe("finance.ts / reports.ts financial aggregates", () => {
 
     const reports = await import("@/lib/db/queries/reports");
     fetchProfitLossReportData = reports.fetchProfitLossReportData;
+    getBIMetrics = reports.getBIMetrics;
+    getAdvancedMonthlySalesData = reports.getAdvancedMonthlySalesData;
 
     const { SCHEMA_SQL } = await import("@/lib/db/schema");
     const SQL = await initSqlJs({
@@ -45,7 +49,10 @@ describe("finance.ts / reports.ts financial aggregates", () => {
   });
 
   beforeEach(() => {
-    db.run(`DELETE FROM sales; DELETE FROM sale_items; DELETE FROM expenses; DELETE FROM users;`);
+    db.run(
+      `DELETE FROM sales; DELETE FROM sale_items; DELETE FROM expenses; DELETE FROM users;
+       DELETE FROM returns; DELETE FROM return_items; DELETE FROM stock_batches;`,
+    );
   });
 
   const todayISO = () => new Date().toISOString();
@@ -142,6 +149,86 @@ describe("finance.ts / reports.ts financial aggregates", () => {
       const march = rows.find((r) => r["Month"] === "2026-03");
 
       expect(march!["Expenses"]).toBe("5000.00");
+    });
+  });
+
+  describe("returned-item COGS uses the sale-time cost, not current stock cost (High bug fix)", () => {
+    // Captured once per test and reused for both the inserted row and the
+    // query's lower bound - calling todayISO() separately at insert time and
+    // query time can straddle a millisecond boundary under load, making the
+    // ">=" bound flakily exclude the very row just inserted.
+    it("getBIMetrics.returnedCogsData reflects sale_items.cost_price even after the product's active batch cost changed", async () => {
+      const now = todayISO();
+      db.run(
+        `INSERT INTO sales (id, transaction_number, subtotal, total_amount, transaction_date, _deleted) VALUES ('s1', 'TXN-1', 4000, 4000, ?, 0)`,
+        [now],
+      );
+      db.run(
+        `INSERT INTO sale_items (id, sale_id, product_id, quantity, unit_price, total_price, cost_price) VALUES ('si1', 's1', 'prod1', 4, 1000, 4000, 500)`,
+      );
+      // Cost basis changed after the sale - a stale-average-based query
+      // would use this 800 instead of the 500 actually recorded at sale time.
+      db.run(
+        `INSERT INTO stock_batches (id, product_id, quantity, cost_price, is_active, _deleted) VALUES ('b1', 'prod1', 10, 800, 1, 0)`,
+      );
+      db.run(
+        `INSERT INTO returns (id, sale_id, user_id, total_refunded, created_at, _deleted) VALUES ('r1', 's1', 'u1', 2000, ?, 0)`,
+        [now],
+      );
+      db.run(
+        `INSERT INTO return_items (id, return_id, product_id, quantity, unit_price, subtotal) VALUES ('ri1', 'r1', 'prod1', 2, 1000, 2000)`,
+      );
+
+      const { returnedCogsData } = await getBIMetrics(now, otherMonthISO());
+      expect(returnedCogsData[0]?.total).toBe(1000); // 2 * 500 (sale-time cost), not 2 * 800
+    });
+
+    it("getBIMetrics.returnedCogsData is 0, not silently dropped, once the product has no active batches left", async () => {
+      const now = todayISO();
+      db.run(
+        `INSERT INTO sales (id, transaction_number, subtotal, total_amount, transaction_date, _deleted) VALUES ('s1', 'TXN-1', 4000, 4000, ?, 0)`,
+        [now],
+      );
+      db.run(
+        `INSERT INTO sale_items (id, sale_id, product_id, quantity, unit_price, total_price, cost_price) VALUES ('si1', 's1', 'prod1', 4, 1000, 4000, 500)`,
+      );
+      // No stock_batches row at all for prod1 - an average-over-active-
+      // batches query would IFNULL this to 0, overstating profit.
+      db.run(
+        `INSERT INTO returns (id, sale_id, user_id, total_refunded, created_at, _deleted) VALUES ('r1', 's1', 'u1', 2000, ?, 0)`,
+        [now],
+      );
+      db.run(
+        `INSERT INTO return_items (id, return_id, product_id, quantity, unit_price, subtotal) VALUES ('ri1', 'r1', 'prod1', 2, 1000, 2000)`,
+      );
+
+      const { returnedCogsData } = await getBIMetrics(now, otherMonthISO());
+      expect(returnedCogsData[0]?.total).toBe(1000); // 2 * 500, still uses the recorded sale cost
+    });
+
+    it("getAdvancedMonthlySalesData.rawMonthlyReturns uses the same sale-time cost", async () => {
+      const now = todayISO();
+      db.run(
+        `INSERT INTO sales (id, transaction_number, subtotal, total_amount, transaction_date, _deleted) VALUES ('s1', 'TXN-1', 4000, 4000, ?, 0)`,
+        [now],
+      );
+      db.run(
+        `INSERT INTO sale_items (id, sale_id, product_id, quantity, unit_price, total_price, cost_price) VALUES ('si1', 's1', 'prod1', 4, 1000, 4000, 500)`,
+      );
+      db.run(
+        `INSERT INTO stock_batches (id, product_id, quantity, cost_price, is_active, _deleted) VALUES ('b1', 'prod1', 10, 800, 1, 0)`,
+      );
+      db.run(
+        `INSERT INTO returns (id, sale_id, user_id, total_refunded, created_at, _deleted) VALUES ('r1', 's1', 'u1', 2000, ?, 0)`,
+        [now],
+      );
+      db.run(
+        `INSERT INTO return_items (id, return_id, product_id, quantity, unit_price, subtotal) VALUES ('ri1', 'r1', 'prod1', 2, 1000, 2000)`,
+      );
+
+      const { rawMonthlyReturns } = await getAdvancedMonthlySalesData(otherMonthISO());
+      const thisMonth = rawMonthlyReturns.find((r) => r.month === now.slice(0, 7));
+      expect(thisMonth?.returned_cogs).toBe(1000);
     });
   });
 

@@ -329,7 +329,15 @@ export async function getBIMetrics(dateFilter: string, prevDateFilter: string, f
   const taxData = await query<{ total: number }>(`SELECT SUM(tax_amount) as total FROM sales WHERE transaction_date >= ? AND (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}${bare.clause}`, s1Bare);
   const totalRefundsData = await query<{ total: number }>(`SELECT SUM(total_refunded) as total FROM returns WHERE created_at >= ? AND (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}`, s1);
   const cogsData = await query<{ total: number }>(`SELECT SUM(si.cost_price * si.quantity) as total FROM sale_items si JOIN sales s ON si.sale_id = s.id WHERE s.transaction_date >= ? AND (s._deleted = 0 OR s._deleted IS NULL)${storeId ? " AND s.store_id = ?" : ""}${joined.clause}`, s1Joined);
-  const returnedCogsData = await query<{ total: number }>(`SELECT SUM(ri.quantity * IFNULL((SELECT SUM(cost_price * quantity) * 1.0 / NULLIF(SUM(quantity), 0) FROM stock_batches WHERE product_id = m.id AND is_active = 1 AND _deleted = 0), 0)) as total FROM return_items ri JOIN returns r ON ri.return_id = r.id LEFT JOIN products m ON ri.product_id = m.id WHERE r.created_at >= ? AND (r._deleted = 0 OR r._deleted IS NULL)${storeId ? " AND r.store_id = ?" : ""}`, s1);
+  // Uses the cost_price recorded on the original sale_items row, not a
+  // recomputed current-stock average - the product's cost basis can change
+  // between the sale and the return, and averaging over current active
+  // batches also silently reports 0 once a product has none left. Safe to
+  // join on (sale_id, product_id) alone (no sale_item_id column on
+  // return_items): the POS cart merges duplicate products into one line, so
+  // at most one sale_item per product exists within a given sale (see the
+  // matching comment in returns.ts's getAlreadyRestoredByBatch).
+  const returnedCogsData = await query<{ total: number }>(`SELECT SUM(ri.quantity * IFNULL(si.cost_price, 0)) as total FROM return_items ri JOIN returns r ON ri.return_id = r.id LEFT JOIN sale_items si ON si.sale_id = r.sale_id AND si.product_id = ri.product_id WHERE r.created_at >= ? AND (r._deleted = 0 OR r._deleted IS NULL)${storeId ? " AND r.store_id = ?" : ""}`, s1);
   // Smoothed, not a raw SUM: a prepaid expense (covers_months set) is split
   // into equal calendar-month installments instead of hitting this whole
   // window as a lump sum wherever it happened to be logged. See
@@ -432,8 +440,10 @@ export async function getAdvancedMonthlySalesData(dateFilter: string, filters?: 
     cogs: rawMonthlyCogs.find((c) => c.month === s.month)?.cogs || 0,
   }));
 
+  // See the matching comment on returnedCogsData in getBIMetrics above: uses
+  // the sale-time cost_price, not a recomputed current-stock average.
   const rawMonthlyReturns = await query<{ month: string; refunds: number; returned_cogs: number; }>(
-    `SELECT strftime('%Y-%m', r.created_at) as month, SUM(r.total_refunded) as refunds, SUM(ri.quantity * IFNULL((SELECT SUM(cost_price * quantity) * 1.0 / NULLIF(SUM(quantity), 0) FROM stock_batches WHERE product_id = m.id AND is_active = 1 AND _deleted = 0), 0)) as returned_cogs FROM returns r LEFT JOIN return_items ri ON ri.return_id = r.id LEFT JOIN products m ON ri.product_id = m.id WHERE r.created_at >= ? AND (r._deleted = 0 OR r._deleted IS NULL)${storeId ? " AND r.store_id = ?" : ""} GROUP BY strftime('%Y-%m', r.created_at) ORDER BY strftime('%Y-%m', r.created_at) ASC`, p1
+    `SELECT strftime('%Y-%m', r.created_at) as month, SUM(r.total_refunded) as refunds, SUM(ri.quantity * IFNULL(si.cost_price, 0)) as returned_cogs FROM returns r LEFT JOIN return_items ri ON ri.return_id = r.id LEFT JOIN sale_items si ON si.sale_id = r.sale_id AND si.product_id = ri.product_id WHERE r.created_at >= ? AND (r._deleted = 0 OR r._deleted IS NULL)${storeId ? " AND r.store_id = ?" : ""} GROUP BY strftime('%Y-%m', r.created_at) ORDER BY strftime('%Y-%m', r.created_at) ASC`, p1
   );
 
   // date() on both sides: see the matching comment on fetchProfitLossReportData.

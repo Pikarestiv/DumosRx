@@ -22,20 +22,6 @@ Open items below are grouped by severity (Critical → High → Medium → Low),
 
 ## High
 
-### Expense/report date-range filters compare a date-only column against a full ISO timestamp
-
-- **Where:** `client/lib/db/queries/reports.ts:490,544` and
-  `client/lib/db/queries/finance.ts:117,163`.
-- **Context:** `expenses.date` is stored as `YYYY-MM-DD`
-  (`client/lib/db/schema.ts:351`), but `toQueryRange`
-  (`client/lib/utils/date-range.ts:12`) supplies a full ISO timestamp like
-  `2026-09-21T00:00:00.000Z`. SQLite text-compares these, and
-  `'2026-09-21' >= '2026-09-21T00:00:00.000Z'` is false.
-- **Effect:** every expense dated exactly on a range's first day is silently
-  dropped from the Expenses report and the P&L.
-- **Fix scope (not implemented):** normalize one side before comparing —
-  either `date(expenses.date) >= date(?)` or pass a date-only bound.
-
 ### Loyalty-point redemption isn't re-validated against the real balance at apply time
 
 - **Where:** `client/components/pos/pos-redeem-reward.tsx:86` (affordability
@@ -62,19 +48,6 @@ Open items below are grouped by severity (Critical → High → Medium → Low),
   visibility.
 - **Fix scope (not implemented):** route a `success: false` batch through
   the same `recordSyncFailure` path individual item failures already use.
-
-### Returned-item COGS is recomputed from current stock cost instead of the cost recorded at sale time
-
-- **Where:** `client/lib/db/queries/reports.ts:332` (and `:436`).
-- **Effect:** COGS for a return is derived from the product's *current*
-  active-batch average cost, not `sale_items.cost_price` (what was actually
-  recorded on the original sale) — a cost change between sale and return
-  misstates profit. The subquery also has no `store_id` filter (cross-store
-  cost averaging risk if a product id is ever shared), and
-  `IFNULL(…, 0)` silently reports zero returned COGS once the product has no
-  active batches left — overstating profit exactly when stock ran out.
-- **Fix scope (not implemented):** use `sale_items.cost_price` from the
-  original sale instead of recomputing from current stock state.
 
 ### Receipt/id collisions from time-based, non-unique identifiers
 
@@ -538,6 +511,49 @@ Open items below are grouped by severity (Critical → High → Medium → Low),
 - **Fix scope (not implemented):** `logAction()` would need the same
   `overrideStoreId` plumbing `assertStoreOwnership()` already has, threaded
   through from `update()`/`insert()`'s `options`.
+
+## Process / methodology gaps (not a single bug)
+
+### Financial calculations/reports lack reconciliation tests against an independent raw sum
+
+- **Where:** broad — dashboard aggregates (`getDashboardOverviewData`),
+  `reports.ts` P&L/margin/COGS queries, inventory valuation. Currently
+  covered by unit tests on individual functions, but nothing cross-checks a
+  rolled-up dashboard/report number against an independently computed raw
+  query sum over the same underlying rows.
+- **Context:** raised by an external review (someone with a BI/financial-
+  dashboarding background) asking whether the calculation engine behind
+  inventory/dashboard reporting is proven enough to trust without further
+  verification. This app uses custom calculations (not a third-party
+  analytics module), verified so far via unit tests plus Opus review passes.
+  Several real bugs already found in exactly this area — the date-range
+  boundary mismatch (`eb80ac3a`), UTC-vs-local report bucketing, prepaid
+  amortization double-counting across a rolling window (all above, High/
+  Medium) — are drift/reconciliation-class bugs: none would be caught by a
+  unit test on one isolated function, because the defect is in how numbers
+  get combined *across* date/store boundaries, not in any single
+  calculation's arithmetic.
+- **Effect:** without reconciliation tests, a future regression of this same
+  class (report/dashboard totals silently diverging from the underlying
+  ledger) would surface only via a customer noticing a wrong P&L number —
+  these are customers who, per the reviewer, "live and die by their P&L."
+- **Fix scope (not implemented):** add integration-level tests that compute
+  an independent raw-SQL sum for a date range and assert it matches the
+  corresponding dashboard/report figure, at minimum for revenue, COGS, and
+  inventory valuation, run against shared fixtures.
+
+### Dashboard ratio metrics haven't had a numerator/denominator definition review
+
+- **Where:** ratio-style dashboard tiles across `client/components/dashboard/`
+  (anything expressed as a rate/percentage/turnover rather than a raw sum).
+- **Context:** same external review — a ratio metric can be arithmetically
+  correct and still misrepresent the business if the denominator's
+  population isn't the one the label implies (e.g. averaging over all SKUs
+  vs. only active ones). Not yet audited; no specific metric confirmed wrong.
+- **Effect:** unknown — flagged as a methodology gap, not a confirmed bug.
+- **Fix scope (not implemented):** for each ratio-style dashboard metric,
+  document what the denominator actually is and confirm it matches what the
+  label claims.
 
 ## Needs a product decision (not a straightforward bug)
 

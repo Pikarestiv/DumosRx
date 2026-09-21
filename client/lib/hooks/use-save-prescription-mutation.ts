@@ -8,8 +8,6 @@ import {
   updatePrescriptionItem,
   insertPrescriptionItem,
 } from "@/lib/db/queries/prescriptions";
-import { queryClient } from "@/lib/query-client";
-import { queryKeys } from "@/lib/query-keys";
 import type { NewPrescriptionForm } from "@/components/prescriptions/new-prescription/use-new-prescription";
 
 interface SavePrescriptionParams {
@@ -109,11 +107,6 @@ export function useSavePrescriptionMutation() {
           });
         }
 
-        // updatePrescriptionRecord/updatePrescriptionItem/deletePrescriptionItem/insertPrescriptionItem
-        // all write via raw query() and don't go through the insert/update
-        // helpers that auto-invalidate, so invalidate explicitly here to make
-        // the detail panel reflect the edited medications.
-        void queryClient.invalidateQueries(queryKeys.prescriptions.all());
         return { isEditing: true as const };
       }
 

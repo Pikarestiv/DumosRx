@@ -52,6 +52,8 @@ export function SuspendStoreDialog({
     }
   }
 
+  const hasReason = reason.trim().length > 0;
+
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="rounded-3xl border-slate-200 dark:border-slate-800 shadow-2xl">
@@ -75,8 +77,16 @@ export function SuspendStoreDialog({
             placeholder="e.g. Your store account has been suspended for violating our terms of usage. Please contact administrative support."
             value={reason}
             onChange={(e) => setReason(e.target.value)}
+            aria-invalid={!hasReason}
             className="min-h-[100px] rounded-xl border-slate-200 dark:border-slate-800 focus-visible:ring-rose-500"
           />
+          {/* The reason is shown to the store owner as the explanation for
+              being locked out, so an empty one is never acceptable. */}
+          {!hasReason && (
+            <p className="text-xs font-medium text-rose-500">
+              A reason is required - the store owner sees this text.
+            </p>
+          )}
         </div>
 
         <DialogFooter className="gap-2">
@@ -88,9 +98,9 @@ export function SuspendStoreDialog({
             Cancel
           </Button>
           <Button 
-            onClick={() => handleSuspend(reason)}
+            onClick={() => handleSuspend(reason.trim())}
             className="rounded-xl bg-rose-500 hover:bg-rose-600 text-white font-bold h-12 shadow-lg shadow-rose-500/20"
-            disabled={isPending}
+            disabled={isPending || !hasReason}
           >
             {isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
             Confirm Suspension

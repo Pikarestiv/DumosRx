@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, ReactNode } from "react";
 import * as Sentry from "@sentry/nextjs";
-import { update, insert } from "@/lib/db/local-database";
+import { update } from "@/lib/db/local-database";
 import { setActiveStoreId as setResolvedStoreId } from "@/lib/db/core";
 import { useQuery } from "@tanstack/react-query";
 import { queryClient } from "@/lib/query-client";
@@ -35,8 +35,11 @@ export interface StoreProfile {
   custom_units?: string;
   receipt_header?: string;
   receipt_footer?: string;
+  receipt_tagline?: string;
   show_logo_on_receipt?: number;
   show_contact_on_receipt?: number;
+  show_phone_on_receipt?: number;
+  show_address_on_receipt?: number;
   hide_powered_by?: number;
   low_stock_warning?: number;
   expiry_warning?: number;
@@ -129,7 +132,7 @@ const terminology: Record<StoreType, Record<string, string>> = {
 };
 
 export function StoreProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
+  const { user, isHydrated: isAuthHydrated } = useAuth();
   // Lazy-initialized (not a useEffect) so the saved choice is already in
   // state on the very first render, before `user` has even hydrated from
   // its own localStorage read. Previously this started at null and was
@@ -152,12 +155,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   // (lib/db/core.ts): plain async query functions have no React context, so
   // this is how they learn which store to filter by. Must stay in lockstep
   // with `targetId` above: a staff member's fixed store_id always wins.
+  //
+  // Gated on isAuthHydrated: on the very first render, `user` is still null
+  // (AuthProvider's own localStorage read hasn't run its effect yet), so
+  // `targetId` falls back to `activeStoreId` even for a staff member whose
+  // real (different) store_id just hasn't loaded yet. Any query that fired
+  // in that window - and the storeProfile query right below is exactly one
+  // - would resolve/scope against the WRONG store for that device. Waiting
+  // for isAuthHydrated closes the window; it flips true in the same tick
+  // AuthProvider's mount effect runs, so this costs no perceptible delay.
   React.useEffect(() => {
+    if (!isAuthHydrated) return;
     setResolvedStoreId(targetId);
-  }, [targetId]);
+  }, [targetId, isAuthHydrated]);
 
-  const { data: storeProfile, isLoading: loading, refetch } = useQuery({
+  const { data: storeProfile, isLoading: isStoreProfileLoading, refetch } = useQuery({
     ...queryKeys.stores.profile(targetId),
+    enabled: isAuthHydrated,
     queryFn: async () => {
       if (targetId) {
         const profile = await getStoreById(targetId);
@@ -183,6 +197,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       return getFirstStore();
     }
   });
+
+  // Not just isStoreProfileLoading: with `enabled: isAuthHydrated`, React
+  // Query's own isLoading (isPending && isFetching) reads false while
+  // disabled and not yet fetched - it would otherwise briefly report "not
+  // loading" during the pre-hydration window despite storeProfile still
+  // being undefined, letting a consumer treat that gap as "confirmed no
+  // store" rather than "still resolving."
+  const loading = !isAuthHydrated || isStoreProfileLoading;
 
   React.useEffect(() => {
     Sentry.setTag("store_id", storeProfile?.id);
@@ -386,20 +408,24 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [refetch]);
 
   const updateStoreProfile = async (data: Partial<StoreProfile>) => {
+    // Every real caller of this is a settings write against an ALREADY
+    // onboarded store (theme toggle, loyalty settings, payment config, ...)
+    // - onboarding creates the very first store through its own explicit
+    // path (app/setup/use-onboarding.ts), not through here. `storeProfile`
+    // being null at this point means its query hasn't resolved yet (or a
+    // staff member's fixed store was pruned), not "no store exists on this
+    // account yet" - minting a hardcoded id "default"/"My Store" row here
+    // silently created a phantom store (that then synced to the server)
+    // for what's actually a loading-state race or a data problem that
+    // deserves to be surfaced, not papered over.
     if (!storeProfile) {
-      await insert("stores", {
-        id: "default",
-        name: "My Store",
-        store_type: "pharmacy",
-        is_initialized: 0,
-        vat_percentage: 0,
-        currency: "NGN",
-        theme: "default",
-        ...data,
-      });
-    } else {
-      await update("stores", storeProfile.id, data);
+      console.error(
+        "[StoreContext] updateStoreProfile called with no storeProfile loaded - write skipped:",
+        data,
+      );
+      return;
     }
+    await update("stores", storeProfile.id, data);
     await refetch();
   };
 

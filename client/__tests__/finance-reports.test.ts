@@ -183,6 +183,32 @@ describe("finance.ts / reports.ts financial aggregates", () => {
       expect(march!["Margin %"]).toBe("40.0%"); // 40000 / 100000
     });
 
+    it("does not multiply a sale's revenue by its number of line items", async () => {
+      // Regression coverage for a Critical bug (docs/KNOWN_BUGS.md): revenue
+      // used to be SUM(s.total_amount) in the same query as a LEFT JOIN to
+      // sale_items, which fans a sale out once per line item and triples
+      // this sale's revenue since it has 3 items.
+      db.run(
+        `INSERT INTO sales (id, transaction_number, subtotal, total_amount, transaction_date, _deleted) VALUES ('s1', 'TXN-1', 30000, 30000, '2026-05-15', 0)`,
+      );
+      db.run(
+        `INSERT INTO sale_items (id, sale_id, product_id, quantity, unit_price, total_price, cost_price) VALUES
+          ('si1', 's1', 'prod1', 1, 10000, 10000, 4000),
+          ('si2', 's1', 'prod2', 1, 10000, 10000, 3000),
+          ('si3', 's1', 'prod3', 1, 10000, 10000, 2000)`,
+      );
+
+      const rows = await fetchProfitLossReportData("2026-01-01", "2026-12-31");
+      const may = rows.find((r) => r["Month"] === "2026-05");
+
+      expect(may).toBeDefined();
+      // Not 90000.00 (30000 * 3 items) - the actual sale total, once.
+      expect(may!["Revenue"]).toBe("30000.00");
+      // COGS legitimately sums across all 3 line items: 4000+3000+2000.
+      expect(may!["COGS"]).toBe("9000.00");
+      expect(may!["Gross Profit"]).toBe("21000.00");
+    });
+
     it("defaults expenses to 0 for a month that has sales but no recorded expenses", async () => {
       db.run(
         `INSERT INTO sales (id, transaction_number, subtotal, total_amount, transaction_date, _deleted) VALUES ('s1', 'TXN-1', 50000, 50000, '2026-04-01', 0)`,

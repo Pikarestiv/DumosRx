@@ -3,13 +3,23 @@
  * These do not rely on React state, Context, or SQLite databases.
  */
 
+// Money is stored/summed as floats throughout (no integer minor-units), so
+// every function here that produces a value meant to be stored (not just
+// displayed) rounds to the cent/kobo - otherwise the stored value can drift
+// from what the receipt/UI rounds and displays, and SUM()s in reports don't
+// tie out to the sum of displayed line values.
+function roundMoney(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+const MONEY_EPSILON = 0.01;
+
 export function calculateSubtotal(items: { subtotal: number }[]): number {
-  return items.reduce((sum, item) => sum + (item.subtotal || 0), 0);
+  return roundMoney(items.reduce((sum, item) => sum + (item.subtotal || 0), 0));
 }
 
 export function calculateTax(subtotal: number, vatPercentage: number): number {
   if (subtotal < 0 || vatPercentage < 0) return 0;
-  return subtotal * (vatPercentage / 100);
+  return roundMoney(subtotal * (vatPercentage / 100));
 }
 
 export function calculateDiscountAmount(
@@ -19,9 +29,9 @@ export function calculateDiscountAmount(
 ): number {
   if (discount < 0 || subtotal < 0) return 0;
   if (discountType === "percentage") {
-    return subtotal * (discount / 100);
+    return roundMoney(subtotal * (discount / 100));
   }
-  return discount;
+  return roundMoney(discount);
 }
 
 export function calculateTotal(
@@ -29,7 +39,7 @@ export function calculateTotal(
   tax: number,
   discountAmount: number
 ): number {
-  return Math.max(0, subtotal + tax - discountAmount);
+  return roundMoney(Math.max(0, subtotal + tax - discountAmount));
 }
 
 export function calculateChangeDue(amountPaid: number, total: number): number {
@@ -89,16 +99,15 @@ export function calculateSplitShortage(
   // Negative splits are floored here too, not just at the input: a negative
   // amount would otherwise offset a larger positive one and make an
   // under-collected sale look fully covered.
-  const totalSplitAmount = splits.reduce(
-    (acc, s) => acc + Math.max(0, s.amount || 0),
-    0,
+  const totalSplitAmount = roundMoney(
+    splits.reduce((acc, s) => acc + Math.max(0, s.amount || 0), 0),
   );
 
   return {
-    isFullyCovered: totalSplitAmount >= total,
+    isFullyCovered: totalSplitAmount >= total - MONEY_EPSILON,
     totalSplitAmount,
-    shortageAmount: Math.max(0, total - totalSplitAmount),
-    changeDueAmount: Math.max(0, totalSplitAmount - total),
+    shortageAmount: Math.max(0, roundMoney(total - totalSplitAmount)),
+    changeDueAmount: Math.max(0, roundMoney(totalSplitAmount - total)),
   };
 }
 

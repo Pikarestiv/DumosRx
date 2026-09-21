@@ -1,33 +1,27 @@
-import { useState, useEffect, useCallback } from 'react';
-import { getActiveSuppliersForPO, getActiveProductsForPO, POVendor, POProduct } from '../db/queries/procurement';
+import { useQuery } from "@tanstack/react-query";
+import { getActiveSuppliersForPO, getActiveProductsForPO } from "../db/queries/procurement";
+import { queryKeys } from "../query-keys";
 
 export function useProcurementData() {
-  const [suppliers, setSuppliers] = useState<POVendor[]>([]);
-  const [products, setProducts] = useState<POProduct[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
+  const suppliersQuery = useQuery({
+    ...queryKeys.procurement.suppliersForPO(),
+    queryFn: getActiveSuppliersForPO,
+  });
+  const productsQuery = useQuery({
+    ...queryKeys.procurement.productsForPO(),
+    queryFn: getActiveProductsForPO,
+  });
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [vendorData, productData] = await Promise.all([
-        getActiveSuppliersForPO(),
-        getActiveProductsForPO()
-      ]);
-      setSuppliers(vendorData);
-      setProducts(productData);
-      setError(null);
-    } catch (err) {
-      console.error("Failed to fetch procurement data:", err);
-      setError(err instanceof Error ? err : new Error('Failed to fetch data'));
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const refetch = () => {
+    void suppliersQuery.refetch();
+    void productsQuery.refetch();
+  };
 
-  useEffect(() => {
-    void fetchData();
-  }, [fetchData]);
-
-  return { suppliers, products, loading, error, refetch: fetchData };
+  return {
+    suppliers: suppliersQuery.data ?? [],
+    products: productsQuery.data ?? [],
+    loading: suppliersQuery.isLoading || productsQuery.isLoading,
+    error: suppliersQuery.error ?? productsQuery.error,
+    refetch,
+  };
 }

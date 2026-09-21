@@ -7,7 +7,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Edit2, Trash2, Loader2, Store as StoreIcon } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Edit2, Trash2, Store as StoreIcon } from "lucide-react";
 import { useAuth } from "@/lib/context/auth-context";
 import { EmptyState } from "@/components/ui/empty-state";
 import type { FleetStore } from "@/lib/types/store";
@@ -67,18 +68,22 @@ export function FleetList({
         </TableRow>
       </TableHeader>
       <TableBody>
-        {isLoading && (
-          <TableRow>
-            <TableCell colSpan={4} className="h-24 text-center">
-              <Loader2 className="w-6 h-6 animate-spin mx-auto text-muted-foreground" />
-            </TableCell>
-          </TableRow>
+        {isLoading && stores.length === 0 && (
+          <>
+            {Array.from({ length: 3 }).map((_, i) => (
+              <TableRow key={i}>
+                <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                <TableCell className="text-right"><Skeleton className="h-4 w-16 ml-auto" /></TableCell>
+              </TableRow>
+            ))}
+          </>
         )}
         {!isLoading && stores.length === 0 && (
           <NoStoresRow canManageFleet={canManageFleet} onAddStore={onAddStore} />
         )}
-        {!isLoading &&
-          stores.map((store) => {
+        {stores.map((store) => {
             const isActiveStore = store.id === activeStoreId;
             return (
               <TableRow key={store.id}>

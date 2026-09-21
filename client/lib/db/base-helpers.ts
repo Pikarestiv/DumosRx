@@ -72,20 +72,22 @@ registerInvalidateTablesFn((tables) => {
  * *local* module-scope resolver has nothing set, which is not something a
  * caller can trigger from outside this process.
  *
- * No bypass option is exposed here: every update()/softDelete()/remove()
- * call site in the app was audited (see the bug #8 fix commit messages) and
- * none needs cross-store write access. Add one later, narrowly, only if a
- * real system-level caller is found to need it — don't pre-build the escape
- * hatch on spec.
+ * `overrideStoreId`, when passed, is checked against instead of the global
+ * resolver — for the one real system-level caller found to need cross-store
+ * write access (stock-transfers.ts's transferStock(), which legitimately
+ * writes rows in two different stores within one transaction). Everything
+ * else keeps relying on the global as before; this is deliberately narrow,
+ * not a general bypass callers reach for out of convenience.
  */
 async function assertStoreOwnership(
   table: string,
   id: string,
   claimLegacyRow: boolean = true,
+  overrideStoreId?: string,
 ): Promise<void> {
   if (!STORE_SCOPED_TABLES.includes(table)) return;
 
-  const activeStoreId = getActiveStoreId();
+  const activeStoreId = overrideStoreId ?? getActiveStoreId();
   if (!activeStoreId) return;
 
   const rows = await query<{ store_id: string | null }>(
@@ -187,9 +189,9 @@ export async function update(
   table: string,
   id: string,
   data: Record<string, unknown>,
-  options?: { action?: string },
+  options?: { action?: string; storeId?: string },
 ): Promise<void> {
-  await assertStoreOwnership(table, id);
+  await assertStoreOwnership(table, id, true, options?.storeId);
 
   const now = new Date().toISOString();
 
@@ -239,8 +241,8 @@ export async function update(
   queueTableInvalidation(table);
 }
 
-export async function softDelete(table: string, id: string): Promise<void> {
-  await assertStoreOwnership(table, id);
+export async function softDelete(table: string, id: string, options?: { storeId?: string }): Promise<void> {
+  await assertStoreOwnership(table, id, true, options?.storeId);
 
   const now = new Date().toISOString();
 
@@ -264,9 +266,9 @@ export async function softDelete(table: string, id: string): Promise<void> {
 export async function remove(
   table: string,
   id: string,
-  options?: { action?: string },
+  options?: { action?: string; storeId?: string },
 ): Promise<void> {
-  await assertStoreOwnership(table, id, /* claimLegacyRow */ false);
+  await assertStoreOwnership(table, id, /* claimLegacyRow */ false, options?.storeId);
 
   // Fetched before the delete so the audit trail still has a record of what
   // was destroyed. This is a hard, unrecoverable delete (unlike softDelete),

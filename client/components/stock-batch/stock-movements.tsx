@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Search, Lock, ArrowLeftRight } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Button } from "@/components/ui/button";
 import { format, isToday, isYesterday, differenceInDays } from "date-fns";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { genericFuzzySearch } from "@/lib/utils/search";
@@ -15,11 +16,14 @@ import { StockMovementTypeFilter } from "./stock-movement-type-filter";
 import { StockMovementDesktopRow } from "./stock-movement-desktop-row";
 import { StockMovementMobileGroup } from "./stock-movement-mobile-group";
 import { StockMovementDetailModal } from "./stock-movement-detail-modal";
+import { TransferStockDialog } from "./transfer-stock-dialog";
 import { usePullToRefreshHandler } from "@/lib/context/pull-to-refresh-context";
 import { DateRangePicker, type DateRangeValue } from "@/components/ui/date-range-picker";
 import type { StockMovementDbRow } from "@/lib/types/stock-movement";
 import { SortableHeaderCell } from "@/components/ui/sortable-header-cell";
 import { useSortableData } from "@/lib/hooks/use-sortable-data";
+import { useStore } from "@/lib/context/store-context";
+import { useAuth } from "@/lib/context/auth-context";
 
 type MovementSortKey = "date" | "product" | "type" | "quantity" | "reference" | "user";
 
@@ -56,7 +60,17 @@ export function StockMovements() {
   const [dateRange, setDateRange] = useState<DateRangeValue>({});
   const [selectedMovement, setSelectedMovement] =
     useState<StockMovement | null>(null);
+  const [showTransferDialog, setShowTransferDialog] = useState(false);
   const router = useRouter();
+  const { availableStores } = useStore();
+  const { isAdmin } = useAuth();
+  // Only meaningful (and only rendered) for a multi-store owner/admin
+  // account — a single-store account, or a cashier fixed to one store via
+  // user.store_id, has nothing to transfer between. This screen already
+  // gates the whole Ledger tab on canManageStockBatch (see
+  // useStockBatchManagement), so isAdmin here just narrows further to the
+  // roles this direct, unapproved store-to-store move should be limited to.
+  const canTransferStock = isAdmin && availableStores.length > 1;
 
   // Default view is bounded to recent activity since this log grows every sale/receive/adjustment.
   // Respects whatever window is currently active (30-day, custom range, or full history), so a
@@ -112,7 +126,12 @@ export function StockMovements() {
   }, [searchTerm, typeFilter, hasFullHistory, dateRange.from]);
 
   const preFilteredMovements = movements.filter((movement) => {
-    return typeFilter === "all" || movement.type === typeFilter;
+    if (typeFilter === "all") return true;
+    // "Transfers" is one filter chip covering both legs (transfer_out on the
+    // sending store's ledger, transfer_in on the receiving store's) rather
+    // than two separate chips a user would have to know to toggle together.
+    if (typeFilter === "transfer") return movement.type.startsWith("transfer_");
+    return movement.type === typeFilter;
   });
 
   const { results: filteredMovements } = genericFuzzySearch(
@@ -183,6 +202,17 @@ export function StockMovements() {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
+        {canTransferStock && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full gap-1.5 text-[12px]"
+            onClick={() => setShowTransferDialog(true)}
+          >
+            <ArrowLeftRight className="h-3.5 w-3.5" />
+            Transfer Stock
+          </Button>
+        )}
         <div className="flex items-center gap-2">
           <StockMovementTypeFilter
             typeFilter={typeFilter}
@@ -229,9 +259,22 @@ export function StockMovements() {
               />
               <DateRangePicker value={dateRange} onChange={setDateRange} className="bg-muted/30 border-border" />
             </div>
-            <div className="flex items-center gap-1.5 text-[11.5px] text-muted-foreground/70 whitespace-nowrap shrink-0">
-              <Lock className="w-3.5 h-3.5" />
-              Immutable log, entries can&apos;t be edited
+            <div className="flex items-center gap-3 shrink-0">
+              {canTransferStock && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 text-[12px]"
+                  onClick={() => setShowTransferDialog(true)}
+                >
+                  <ArrowLeftRight className="h-3.5 w-3.5" />
+                  Transfer Stock
+                </Button>
+              )}
+              <div className="flex items-center gap-1.5 text-[11.5px] text-muted-foreground/70 whitespace-nowrap">
+                <Lock className="w-3.5 h-3.5" />
+                Immutable log, entries can&apos;t be edited
+              </div>
             </div>
           </div>
           {dateRange.from && (
@@ -343,6 +386,14 @@ export function StockMovements() {
           router.push("/inventory/catalog");
         }}
       />
+
+      {canTransferStock && (
+        <TransferStockDialog
+          open={showTransferDialog}
+          onOpenChange={setShowTransferDialog}
+          onTransferred={() => void fetchMovements()}
+        />
+      )}
     </div>
   );
 }

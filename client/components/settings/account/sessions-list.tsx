@@ -3,6 +3,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Loader2, Monitor, Smartphone, LogOut } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { toast } from "sonner";
@@ -74,9 +75,19 @@ export function SessionsList() {
       </CardHeader>
       <CardContent className="space-y-3">
         {isLoading && (
-          <div className="flex justify-center py-6">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
+          <>
+            {Array.from({ length: 2 }).map((_, i) => (
+              <div key={i} className="flex items-center justify-between gap-4 rounded-lg border p-3">
+                <div className="flex items-center gap-3">
+                  <Skeleton className="h-5 w-5 rounded-full" />
+                  <div className="space-y-1.5">
+                    <Skeleton className="h-4 w-40" />
+                    <Skeleton className="h-3 w-56" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </>
         )}
         {isError && (
           <p className="text-sm text-destructive text-center py-6">

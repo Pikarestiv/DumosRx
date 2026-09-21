@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { Search, Filter, Loader2, ScrollText, ChevronsUpDown, Check, Store as StoreIcon, User as UserIcon } from "lucide-react";
+import { Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Search, Filter, Loader2, ScrollText, ShieldAlert, ChevronsUpDown, Check, Store as StoreIcon, User as UserIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -256,18 +257,30 @@ function UserFilterPicker({
   );
 }
 
-export default function AdminActivityLogPage() {
+function AdminActivityLogPageContent() {
+  // Deep-link support for the "Activity Log" action in the store fleet row
+  // menu: /admin/activity?store_id=<id>&store_name=<name> opens pre-filtered
+  // to that store. The name is carried along only so the picker can be
+  // labelled without an extra lookup; the id is what the query filters on.
+  const searchParams = useSearchParams();
+  const initialStoreId = searchParams.get("store_id");
+  const initialStoreName = searchParams.get("store_name");
+
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [actionFilter, setActionFilter] = useState("");
-  const [storeFilter, setStoreFilter] = useState<SelectedEntity | null>(null);
+  const [storeFilter, setStoreFilter] = useState<SelectedEntity | null>(
+    initialStoreId
+      ? { id: initialStoreId, label: initialStoreName || initialStoreId }
+      : null,
+  );
   const [userFilter, setUserFilter] = useState<SelectedEntity | null>(null);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
 
   const debouncedSearch = useDebounce(search, 500);
 
-  const { data: response, isLoading } = useAdminActivityLogs(
+  const { data: response, isLoading, error, refetch } = useAdminActivityLogs(
     page,
     debouncedSearch,
     actionFilter,
@@ -279,6 +292,10 @@ export default function AdminActivityLogPage() {
 
   const logs = response?.data || [];
   const meta = response?.meta;
+
+  // An inverted range is a filter that can never match anything; without this
+  // hint the empty table reads as a genuine "no activity" result.
+  const isInvertedDateRange = Boolean(dateFrom && dateTo && dateFrom > dateTo);
 
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= (meta?.last_page || 1)) {
@@ -355,6 +372,11 @@ export default function AdminActivityLogPage() {
                   inputClassName="h-9 w-32 border-2 font-bold text-xs"
                 />
               </div>
+              {isInvertedDateRange && (
+                <p className="text-xs font-bold text-amber-600 dark:text-amber-400">
+                  &ldquo;From&rdquo; is after &ldquo;To&rdquo; &mdash; this range can never match.
+                </p>
+              )}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm" className="font-bold border-2">
@@ -404,6 +426,17 @@ export default function AdminActivityLogPage() {
           </div>
 
           <div className="overflow-x-auto">
+            {error ? (
+              <div className="flex flex-col items-center justify-center py-20 gap-4">
+                <ShieldAlert className="h-10 w-10 text-rose-500" />
+                <p className="text-rose-500 font-bold">
+                  {error instanceof Error ? error.message : "Failed to load activity logs"}
+                </p>
+                <Button onClick={() => void refetch()} variant="outline">
+                  Retry
+                </Button>
+              </div>
+            ) : (
             <Table>
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
@@ -457,11 +490,20 @@ export default function AdminActivityLogPage() {
                 ))}
               </TableBody>
             </Table>
+            )}
           </div>
 
-          {meta && <UserPagination userMeta={meta} handlePageChange={handlePageChange} />}
+          {!error && meta && <UserPagination userMeta={meta} handlePageChange={handlePageChange} />}
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function AdminActivityLogPage() {
+  return (
+    <Suspense fallback={<AdminSkeleton />}>
+      <AdminActivityLogPageContent />
+    </Suspense>
   );
 }

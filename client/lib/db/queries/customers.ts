@@ -97,11 +97,18 @@ export async function getCustomerTransactions(
   );
 }
 
+// Money is stored/compared in float columns, so a debt paid off exactly can
+// leave sub-cent rounding dust (e.g. 2.8e-14) instead of a clean zero. 0.01
+// treats anything below a cent as fully settled, both here and wherever a
+// balance/payment amount is written (see recordCustomerPayment,
+// applyCreditPaymentFIFO).
+const MONEY_EPSILON = 0.01;
+
 export async function getDebtors() {
   const storeId = getActiveStoreId();
   return query<CustomerDbRow>(
-    `SELECT * FROM customers WHERE outstanding_balance > 0 AND _deleted = 0${storeId ? " AND store_id = ?" : ""} ORDER BY outstanding_balance DESC`,
-    storeId ? [storeId] : [],
+    `SELECT * FROM customers WHERE outstanding_balance > ? AND _deleted = 0${storeId ? " AND store_id = ?" : ""} ORDER BY outstanding_balance DESC`,
+    storeId ? [MONEY_EPSILON, storeId] : [MONEY_EPSILON],
   );
 }
 
@@ -134,12 +141,13 @@ export async function getCustomerById(id: string) {
  * reaches its total, otherwise "partial". Doesn't touch the customer's
  * outstanding_balance; the caller (recordCustomerPayment) does that. */
 async function applyCreditPaymentFIFO(customerId: string, amount: number) {
+  const storeId = getActiveStoreId();
   const pendingSales = await query<{ id: string; total_amount: number; amount_paid?: number }>(
     `SELECT id, total_amount, amount_paid FROM sales
      WHERE customer_id = ? AND payment_status IN ('pending', 'partial')
-       AND (_deleted = 0 OR _deleted IS NULL)
+       AND (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}
      ORDER BY created_at ASC`,
-    [customerId],
+    storeId ? [customerId, storeId] : [customerId],
   );
 
   let remaining = amount;
@@ -149,8 +157,8 @@ async function applyCreditPaymentFIFO(customerId: string, amount: number) {
     if (owed <= 0) continue;
 
     const applied = Math.min(owed, remaining);
-    const newAmountPaid = (sale.amount_paid || 0) + applied;
-    const newStatus = newAmountPaid >= sale.total_amount ? "completed" : "partial";
+    const newAmountPaid = Math.round(((sale.amount_paid || 0) + applied) * 100) / 100;
+    const newStatus = newAmountPaid >= sale.total_amount - MONEY_EPSILON ? "completed" : "partial";
 
     await update("sales", sale.id, {
       amount_paid: newAmountPaid,
@@ -191,7 +199,8 @@ export async function recordCustomerPayment(
 
     const balanceRows = await getCustomerBalance(customerId);
     const currentBalance = balanceRows[0]?.balance || 0;
-    const newBalance = Math.max(0, currentBalance - amount);
+    const rawNewBalance = currentBalance - amount;
+    const newBalance = rawNewBalance <= MONEY_EPSILON ? 0 : Math.round(rawNewBalance * 100) / 100;
     await update("customers", customerId, { outstanding_balance: newBalance });
 
     await applyCreditPaymentFIFO(customerId, amount);

@@ -8,8 +8,10 @@ interface ReceiptPreviewProps {
   localLogo: string;
   localReceiptHeader: string;
   localReceiptFooter: string;
+  localReceiptTagline: string;
   showLogo: boolean;
-  showContact: boolean;
+  showPhone: boolean;
+  showAddress: boolean;
   hidePoweredBy?: boolean;
 }
 
@@ -20,8 +22,10 @@ export function ReceiptPreview({
   localLogo,
   localReceiptHeader,
   localReceiptFooter,
+  localReceiptTagline,
   showLogo,
-  showContact,
+  showPhone,
+  showAddress,
   hidePoweredBy = false,
 }: ReceiptPreviewProps) {
   return (
@@ -39,11 +43,14 @@ export function ReceiptPreview({
           <div className="font-bold text-xs uppercase">
             {localName || "DUMOSRX STORE"}
           </div>
-          {showContact && (
-            <div className="text-[8px] leading-tight">
-              {localAddress || "123 Business Road, Nigeria"}
-              <br />
-              {localPhone || "0800-DUMOSRX"}
+          {localReceiptTagline && (
+            <div className="text-[8px] italic mt-0.5">{localReceiptTagline}</div>
+          )}
+          {(showPhone || showAddress) && (
+            <div className="text-[8px] leading-tight mt-0.5">
+              {showAddress && (localAddress || "123 Business Road, Nigeria")}
+              {showAddress && showPhone && <br />}
+              {showPhone && (localPhone || "0800-DUMOSRX")}
             </div>
           )}
         </div>

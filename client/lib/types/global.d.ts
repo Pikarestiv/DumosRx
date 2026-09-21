@@ -13,7 +13,7 @@ declare global {
     __TAURI_INTERNALS__?: unknown;
     /** Dev/debug utilities exposed by lib/db/core.ts for console access. */
     getDatabaseBinary?: () => Uint8Array | null;
-    restoreDatabase?: (binaryData: Uint8Array) => Promise<void>;
+    restoreDatabase?: (binaryData: Uint8Array) => Promise<{ snapshotSucceeded: boolean }>;
     /** Test-only (development builds only): elevates the local `stores` row's
      * subscription_tier directly, for e2e specs that need a paid-tier-gated
      * module unlocked without racing LockedModuleOverlay's mount timing or

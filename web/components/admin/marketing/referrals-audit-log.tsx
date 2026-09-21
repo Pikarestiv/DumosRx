@@ -18,12 +18,20 @@ import {
 } from "@/components/ui/card";
 import { format } from "date-fns";
 import { CreditTransaction } from "./types";
+import { StorePagination } from "@/components/admin/stores/store-pagination";
+import type { PaginationMeta } from "@/lib/types/admin";
 
 interface ReferralsAuditLogProps {
   transactions: CreditTransaction[];
+  meta?: PaginationMeta;
+  onPageChange: (page: number) => void;
 }
 
-export function ReferralsAuditLog({ transactions }: ReferralsAuditLogProps) {
+export function ReferralsAuditLog({
+  transactions,
+  meta,
+  onPageChange,
+}: ReferralsAuditLogProps) {
   return (
     <Card className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm">
       <CardHeader>
@@ -110,6 +118,7 @@ export function ReferralsAuditLog({ transactions }: ReferralsAuditLogProps) {
               )}
             </TableBody>
           </Table>
+          {meta && <StorePagination meta={meta} onPageChange={onPageChange} />}
         </div>
       </CardContent>
     </Card>

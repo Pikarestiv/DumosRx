@@ -364,7 +364,76 @@ class AdminStoreService
             Notification::create([
                 'user_id' => $user->id,
                 'title' => 'Free Trial Granted',
-                'message' => "You've been granted a ".ucfirst($plan)." Free Trial, valid until {$resolvedEndDate->toDateString()}. Enjoy!",
+                'message' => "You've been granted a ".ucfirst($plan)." Free Trial, valid until {$resolvedEndDate->format('d/m/Y')}. Enjoy!",
+                'type' => 'success',
+                'is_read' => false,
+            ]);
+
+            return true;
+        });
+    }
+
+    /**
+     * Manually activates a paid (non-trial) subscription for a store, for
+     * payments settled outside the automated checkout flow (e.g. bank
+     * transfer). Mirrors grantTrial()'s subscription-replacement shape but
+     * sets is_trial=false, a normal DRX- license key, and records a
+     * PaymentTransaction so the payment shows up in billing history and
+     * platform revenue reporting.
+     */
+    public function activatePaidPlan($storeId, $plan, $billingCycle, $amount, $reference = null)
+    {
+        return DB::transaction(function () use ($storeId, $plan, $billingCycle, $amount, $reference) {
+            $store = Store::findOrFail($storeId);
+            $user = $store->user;
+
+            if (! $user) {
+                throw new \Exception('Store has no owner.');
+            }
+
+            $endDate = $billingCycle === 'yearly' ? now()->addYear() : now()->addMonth();
+
+            $user->subscriptions()->where('status', 'active')->update(['status' => 'expired']);
+
+            $subscription = Subscription::create([
+                'user_id' => $user->id,
+                'plan_name' => strtolower($plan),
+                'start_date' => now(),
+                'end_date' => $endDate,
+                'status' => 'active',
+                'is_trial' => false,
+                'license_key' => 'DRX-'.strtoupper(Str::random(12)),
+            ]);
+
+            PaymentTransaction::create([
+                'subscription_id' => $subscription->id,
+                'provider' => 'bank_transfer',
+                'provider_reference' => $reference ?: 'MANUAL-'.strtoupper(Str::random(10)),
+                'amount' => $amount,
+                'currency' => 'NGN',
+                'status' => 'success',
+                'metadata' => [
+                    'plan_name' => ucfirst($plan),
+                    'billing_cycle' => $billingCycle,
+                    'recorded_by' => Auth::id(),
+                    'store_id' => $store->id,
+                ],
+            ]);
+
+            $store->last_sync_at = now();
+            $store->save();
+
+            ActivityLog::create([
+                'user_id' => Auth::id(),
+                'action' => 'ACTIVATE_PAID_PLAN',
+                'description' => "Activated {$plan} plan ({$billingCycle}) for {$store->name} ({$store->id}) via bank transfer".($reference ? ", ref {$reference}" : ''),
+                'status' => 'success',
+            ]);
+
+            Notification::create([
+                'user_id' => $user->id,
+                'title' => 'Subscription Activated',
+                'message' => "Your ".ucfirst($plan)." plan has been activated, valid until {$endDate->format('d/m/Y')}.",
                 'type' => 'success',
                 'is_read' => false,
             ]);

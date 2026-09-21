@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useCartStore } from "@/lib/store/use-cart-store";
+import { useEffect, useState } from "react";
+import { useCart, useCartStore } from "@/lib/store/use-cart-store";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,15 +10,68 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { apiClient } from "@/lib/api/base-client";
+import type { StorefrontProduct } from "@/lib/types/storefront";
 
 interface CheckoutFormProps {
   storeSlug: string;
 }
 
 export function CheckoutForm({ storeSlug }: CheckoutFormProps) {
-  const cart = useCartStore();
+  const cart = useCart(storeSlug);
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  // The cart's prices are whatever was cached when each item was added, but
+  // the server prices the order from product_id + quantity at submit time.
+  // Re-price against the live catalog on mount so the total the customer
+  // agrees to is the total they're actually charged.
+  const [pricesLoading, setPricesLoading] = useState(true);
+  const [pricesStale, setPricesStale] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const repriceCart = async () => {
+      const { carts, reconcilePrices } = useCartStore.getState();
+      const items = carts[storeSlug] ?? [];
+      if (items.length === 0) {
+        if (!cancelled) setPricesLoading(false);
+        return;
+      }
+
+      try {
+        const { data } = await apiClient.get<{ products: StorefrontProduct[] }>(
+          `/storefront/${storeSlug}`
+        );
+        if (cancelled) return;
+
+        const prices: Record<string, number> = {};
+        for (const product of data.products ?? []) {
+          prices[product.id] = parseFloat(String(product.selling_price));
+        }
+
+        const changed = items.some(
+          (item) => prices[item.id] === undefined || prices[item.id] !== item.price
+        );
+        reconcilePrices(storeSlug, prices);
+        if (changed) {
+          toast.info(
+            "Some prices or items in your cart changed. Your order summary has been updated."
+          );
+        }
+      } catch {
+        // Couldn't reach the catalog - fall back to the cached prices but say
+        // so next to the total rather than presenting them as confirmed.
+        if (!cancelled) setPricesStale(true);
+      } finally {
+        if (!cancelled) setPricesLoading(false);
+      }
+    };
+
+    void repriceCart();
+    return () => {
+      cancelled = true;
+    };
+  }, [storeSlug]);
 
   const [formData, setFormData] = useState({
     customer_name: "",
@@ -151,11 +204,27 @@ export function CheckoutForm({ storeSlug }: CheckoutFormProps) {
                 </div>
               </div>
             </CardContent>
-            <CardFooter>
-              <Button type="submit" className="w-full" size="lg" disabled={loading}>
-                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Place Order (₦{cart.getTotal().toLocaleString()})
+            <CardFooter className="flex-col items-stretch gap-2">
+              <Button
+                type="submit"
+                className="w-full"
+                size="lg"
+                disabled={loading || pricesLoading}
+              >
+                {(loading || pricesLoading) && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                {pricesLoading
+                  ? "Confirming prices..."
+                  : `Place Order (₦${cart.getTotal().toLocaleString()})`}
               </Button>
+              {pricesStale && (
+                <p className="text-xs text-amber-600 text-center">
+                  We couldn&apos;t confirm current prices just now — the total
+                  shown is from when these items were added and may differ at
+                  checkout.
+                </p>
+              )}
             </CardFooter>
           </form>
         </Card>

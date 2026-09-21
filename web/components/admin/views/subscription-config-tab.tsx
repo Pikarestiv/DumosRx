@@ -27,6 +27,8 @@ import {
   useUpdateSystemConfigMutation,
 } from "@/lib/api/hooks";
 import { PlanTierCard } from "./plan-tier-card";
+import { ConfigLoadError } from "./config-load-error";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { SocialLinksConfigCard } from "./social-links-config-card";
 import {
   DEFAULT_SUBSCRIPTION_CONFIG,
@@ -41,12 +43,19 @@ export function SubscriptionConfigTab() {
     data: serverConfigData,
     isLoading,
     isError,
+    error: configError,
+    refetch,
   } = useSystemConfig("subscription_plans");
   const serverConfig = serverConfigData as
     | Partial<SubscriptionConfig>
     | undefined;
-  const { data: socialConfigData, isLoading: isSocialLoading } =
-    useSystemConfig("social_links");
+  const {
+    data: socialConfigData,
+    isLoading: isSocialLoading,
+    isError: isSocialError,
+    error: socialError,
+    refetch: refetchSocial,
+  } = useSystemConfig("social_links");
   const socialConfig = socialConfigData as
     | Partial<SocialLinksConfig>
     | undefined;
@@ -61,10 +70,53 @@ export function SubscriptionConfigTab() {
   const [prevServerConfig, setPrevServerConfig] = useState(serverConfig);
   const [prevSocialConfig, setPrevSocialConfig] = useState(socialConfig);
 
+  // The last configuration known to be stored server-side. Used to work out
+  // which plan prices this edit would actually change, so the confirmation
+  // step can name them.
+  const [savedConfig, setSavedConfig] = useState<SubscriptionConfig>(
+    DEFAULT_SUBSCRIPTION_CONFIG,
+  );
+  const [pendingPriceConfirm, setPendingPriceConfirm] = useState(false);
+
   if (serverConfig !== prevServerConfig) {
     setPrevServerConfig(serverConfig);
-    if (serverConfig) setConfig(mergeSubscriptionConfig(serverConfig));
+    if (serverConfig) {
+      const merged = mergeSubscriptionConfig(serverConfig);
+      setConfig(merged);
+      setSavedConfig(merged);
+    }
   }
+
+  const TIER_LABELS: Record<keyof SubscriptionConfig["tiers"], string> = {
+    free: "Free Plan",
+    starter: "Starter Plan",
+    pro: "Dumos Pro",
+    enterprise: "Enterprise",
+  };
+
+  const naira = (amount: number) => `₦${amount.toLocaleString()}`;
+
+  // Price edits are the one change on this tab that takes money-visible
+  // effect the moment it saves ("reflect immediately on the user dashboard"),
+  // so they get an explicit are-you-sure naming every before/after value.
+  const priceChanges = (
+    Object.keys(TIER_LABELS) as (keyof SubscriptionConfig["tiers"])[]
+  ).flatMap((tierKey) => {
+    const next = config.tiers[tierKey];
+    const prev = savedConfig.tiers[tierKey];
+    const changes: string[] = [];
+    if (next.price_monthly !== prev.price_monthly) {
+      changes.push(
+        `${TIER_LABELS[tierKey]} monthly ${naira(prev.price_monthly)} → ${naira(next.price_monthly)}`,
+      );
+    }
+    if (next.price_yearly !== prev.price_yearly) {
+      changes.push(
+        `${TIER_LABELS[tierKey]} yearly ${naira(prev.price_yearly)} → ${naira(next.price_yearly)}`,
+      );
+    }
+    return changes;
+  });
 
   if (socialConfig !== prevSocialConfig) {
     setPrevSocialConfig(socialConfig);
@@ -77,12 +129,21 @@ export function SubscriptionConfigTab() {
         key: "subscription_plans",
         value: config,
       });
+      setSavedConfig(config);
       toast.success("Pricing configuration saved successfully!");
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Failed to save configuration",
       );
     }
+  };
+
+  const handleSaveClick = () => {
+    if (priceChanges.length > 0) {
+      setPendingPriceConfirm(true);
+      return;
+    }
+    void handleSave();
   };
 
   const handleSaveSocial = async () => {
@@ -107,12 +168,19 @@ export function SubscriptionConfigTab() {
     );
   }
 
-  if (isError && !serverConfig) {
+  // Both queries gate the whole tab: the Save buttons submit this form's
+  // state, so rendering the editor off bundled defaults after a failed fetch
+  // is exactly what let one click reset live plan pricing.
+  if (isError || isSocialError) {
     return (
-      <div className="p-12 text-center text-red-500">
-        Failed to load configuration from the database. Please ensure migrations
-        are run and backend is running.
-      </div>
+      <ConfigLoadError
+        label="pricing configuration"
+        error={isError ? configError : socialError}
+        onRetry={() => {
+          void refetch();
+          void refetchSocial();
+        }}
+      />
     );
   }
 
@@ -284,7 +352,7 @@ export function SubscriptionConfigTab() {
         </CardContent>
         <CardFooter className="bg-slate-50 dark:bg-slate-800/50 p-4 border-t flex justify-end">
           <Button
-            onClick={() => void handleSave()}
+            onClick={handleSaveClick}
             disabled={updateMutation.isPending}
             className="bg-indigo-600 hover:bg-indigo-700"
           >
@@ -297,6 +365,16 @@ export function SubscriptionConfigTab() {
           </Button>
         </CardFooter>
       </Card>
+
+      <ConfirmDialog
+        open={pendingPriceConfirm}
+        onOpenChange={setPendingPriceConfirm}
+        title="Publish new plan pricing?"
+        description={`These prices go live on the user dashboard and the public pricing page as soon as you confirm: ${priceChanges.join("; ")}.`}
+        confirmLabel="Publish pricing"
+        variant="destructive"
+        onConfirm={() => void handleSave()}
+      />
 
       <SocialLinksConfigCard
         socialLinks={socialLinks}

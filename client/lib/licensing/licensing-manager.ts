@@ -3,7 +3,6 @@
  * Handles offline-first license verification and clock-tampering protection.
  */
 
-import { execute } from "@/lib/db/core";
 import { getStoreProfile, updateStoreMonotonicTime } from "@/lib/db/queries/setup";
 
 const LICENSE_TIERS = ["free", "local", "pro", "enterprise"] as const;
@@ -130,20 +129,3 @@ export async function checkLicenseStatus(): Promise<LicenseInfo> {
   }
 }
 
-/**
- * Activates a license by storing a cloud-verified token.
- * This is called after successful cloud synchronization or manual key entry.
- */
-export async function activateLicense(token: string) {
-  try {
-    const decoded = JSON.parse(token); 
-    await execute(
-      "UPDATE stores SET license_token = ?, subscription_tier = ?, updated_at = ?",
-      [token, decoded.tier || "pro", new Date().toISOString()]
-    );
-    return true;
-  } catch (_e) {
-    console.error("[Licensing] Failed to activate license:", _e);
-    return false;
-  }
-}

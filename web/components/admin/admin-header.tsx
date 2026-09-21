@@ -1,19 +1,19 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Menu, Zap, Globe, Loader2, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAdminStore } from "@/lib/store/use-admin-store";
 import { useAdminSummary } from "@/lib/api/admin-hooks";
-import { getBaseURL } from "@/lib/api/base-client";
-import { getCurrentEnvironmentName, ServerSelector } from "@/components/ui/server-selector";
+import { ServerSelector } from "@/components/ui/server-selector";
+import { useApiEnvironmentName } from "@/hooks/use-api-environment";
 import { ModeToggle } from "@/components/mode-toggle";
 import { AdminHeaderSearch } from "./admin-header-search";
 import { AdminHeaderNotifications } from "./admin-header-notifications";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Sheet,
   SheetContent,
@@ -29,27 +29,28 @@ export function AdminHeader() {
   const { latency } = useAdminStore();
   const { isLoading: summaryLoading } = useAdminSummary();
   const pathname = usePathname();
+  const router = useRouter();
   const { logout } = useAdminAuthStore();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const deployedEnv = process.env.NEXT_PUBLIC_APP_ENV;
-  const [environmentName, setEnvironmentName] = useState(
-    deployedEnv === "development" ? "Staging / Dev" : "Production",
-  );
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  // Shared with the dashboard's "Connected to ... Cluster" line so both name
+  // the API server this session actually talks to, not the build's NODE_ENV.
+  const { environmentName, isProduction } = useApiEnvironmentName();
 
-  useEffect(() => {
-    // Deployed builds (dumosrx.com / dev.dumosrx.com) bake NEXT_PUBLIC_APP_ENV
-    // in at build time, so trust it there. Locally that var isn't set, so fall
-    // back to inspecting whichever API server the Server Config selector points at.
-    if (!deployedEnv) {
-      // getBaseURL() reflects the Server Config selector's localStorage
-      // preference, which isn't available during SSR — must read post-mount
-      // to avoid a hydration mismatch against the server-rendered default.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setEnvironmentName(getCurrentEnvironmentName(getBaseURL()).replace(" Server", ""));
+  // logout() now awaits the server-side revoke before clearing local state, so
+  // this handler must await it too and then navigate itself - otherwise the
+  // admin layout's session-init effect gets a window in which to run.
+  const handleLogout = async () => {
+    if (isLoggingOut) return;
+    setIsLoggingOut(true);
+    try {
+      await logout();
+      setIsMobileMenuOpen(false);
+      router.push("/admin/login");
+    } finally {
+      setIsLoggingOut(false);
     }
-  }, [deployedEnv]);
-
-  const isProduction = environmentName === "Production";
+  };
 
   return (
     <header className="h-20 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-4 lg:px-8 z-10 shadow-sm">
@@ -161,7 +162,8 @@ export function AdminHeader() {
                 <ServerSelector />
               </div>
               <Button
-                onClick={logout}
+                onClick={() => void handleLogout()}
+                disabled={isLoggingOut}
                 variant="outline"
                 className="w-full justify-start text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 border-rose-200 dark:border-rose-900 rounded-xl h-12"
               >

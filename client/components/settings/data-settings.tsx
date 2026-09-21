@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Database, CloudOff, Save, Upload } from "lucide-react";
+import { Database, CloudOff, Save, Upload, Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -25,6 +25,7 @@ interface DataSettingsProps {
   handleDownloadBackup: () => void;
   handleRestoreBackup: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleRestoreBackupTauri: () => void;
+  handleUndoLastRestore?: () => void;
   isTauri: boolean;
   autoSyncEnabled: boolean;
   setAutoSyncEnabled: (val: boolean) => void;
@@ -41,6 +42,7 @@ export function DataSettings({
   handleDownloadBackup,
   handleRestoreBackup,
   handleRestoreBackupTauri,
+  handleUndoLastRestore,
   isTauri,
   autoSyncEnabled,
   setAutoSyncEnabled,
@@ -63,6 +65,7 @@ export function DataSettings({
   // parked here until the user confirms.
   const [pendingRestoreFile, setPendingRestoreFile] = useState<File | null>(null);
   const [showTauriRestoreConfirm, setShowTauriRestoreConfirm] = useState(false);
+  const [showUndoRestoreConfirm, setShowUndoRestoreConfirm] = useState(false);
   const restoreInputRef = useRef<HTMLInputElement>(null);
 
   // Lets the same file be picked again after a cancel: without this the
@@ -164,50 +167,94 @@ export function DataSettings({
 
           <div className="space-y-4">
             <h3 className="font-medium">Backup & Restore</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Button
-                variant="outline"
-                className="w-full justify-start cursor-pointer"
-                onClick={withRestriction(handleDownloadBackup)}
-              >
-                <Save className="w-4 h-4 mr-2" />
-                Download Local Backup
-              </Button>
-              {isTauri ? (
+            <div className="space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border p-4">
+                <div className="space-y-0.5">
+                  <p className="text-sm font-medium">Download Local Backup</p>
+                  <p className="text-sm text-muted-foreground">
+                    Save a full copy of this device&apos;s data as a .drx file.
+                  </p>
+                </div>
                 <Button
-                  variant="outline"
-                  className="w-full justify-start cursor-pointer"
-                  onClick={withRestriction(() =>
-                    setShowTauriRestoreConfirm(true),
-                  )}
+                  variant="default"
+                  className="cursor-pointer shrink-0"
+                  onClick={withRestriction(handleDownloadBackup)}
                 >
-                  <Upload className="w-4 h-4 mr-2" />
-                  Restore from File
+                  <Save className="w-4 h-4 mr-2" />
+                  Download
                 </Button>
-              ) : (
-                <div className="relative">
+              </div>
+
+              {isTauri ? (
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border p-4">
+                  <div className="space-y-0.5">
+                    <p className="text-sm font-medium">Restore from File</p>
+                    <p className="text-sm text-muted-foreground">
+                      Overwrite all data on this device with the contents of a
+                      .drx backup file. This cannot be undone.
+                    </p>
+                  </div>
                   <Button
                     variant="outline"
-                    className="w-full justify-start cursor-pointer"
-                    asChild
+                    className="cursor-pointer shrink-0"
+                    onClick={withRestriction(() =>
+                      setShowTauriRestoreConfirm(true),
+                    )}
                   >
-                    <label htmlFor="restore-db">
-                      <Upload className="w-4 h-4 mr-2" />
-                      Restore from File
-                    </label>
+                    <Upload className="w-4 h-4 mr-2" />
+                    Restore
                   </Button>
-                  <input
-                    ref={restoreInputRef}
-                    type="file"
-                    id="restore-db"
-                    className="hidden"
-                    accept=".drx"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
-                      setPendingRestoreFile(file);
-                    }}
-                  />
+                </div>
+              ) : (
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border p-4">
+                  <div className="space-y-0.5">
+                    <p className="text-sm font-medium">Restore from File</p>
+                    <p className="text-sm text-muted-foreground">
+                      Overwrite all data on this device with the contents of a
+                      .drx backup file. This cannot be undone.
+                    </p>
+                  </div>
+                  <div className="relative shrink-0">
+                    <Button variant="outline" className="cursor-pointer" asChild>
+                      <label htmlFor="restore-db">
+                        <Upload className="w-4 h-4 mr-2" />
+                        Restore
+                      </label>
+                    </Button>
+                    <input
+                      ref={restoreInputRef}
+                      type="file"
+                      id="restore-db"
+                      className="hidden"
+                      accept=".drx"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        setPendingRestoreFile(file);
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {!isTauri && handleUndoLastRestore && (
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border p-4">
+                  <div className="space-y-0.5">
+                    <p className="text-sm font-medium">Undo Last Restore</p>
+                    <p className="text-sm text-muted-foreground">
+                      Recovers this device&apos;s data as it stood immediately
+                      before the most recent restore, if one was done this
+                      session.
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    className="cursor-pointer shrink-0"
+                    onClick={() => setShowUndoRestoreConfirm(true)}
+                  >
+                    <Undo2 className="w-4 h-4 mr-2" />
+                    Undo
+                  </Button>
                 </div>
               )}
             </div>
@@ -252,6 +299,17 @@ export function DataSettings({
           } as unknown as React.ChangeEvent<HTMLInputElement>);
           setPendingRestoreFile(null);
           clearRestoreInput();
+        }}
+      />
+
+      <ConfirmDialog
+        open={showUndoRestoreConfirm}
+        onOpenChange={setShowUndoRestoreConfirm}
+        title="Undo the last restore?"
+        description="This will overwrite the current data on this device with whatever was here immediately before the most recent restore. If no restore has been done this session, there's nothing to undo."
+        confirmLabel="Undo Restore"
+        onConfirm={() => {
+          handleUndoLastRestore?.();
         }}
       />
     </>

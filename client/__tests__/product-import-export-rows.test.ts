@@ -21,6 +21,19 @@ describe("parseNumericValue", () => {
     expect(parseNumericValue(undefined)).toBeUndefined();
     expect(parseNumericValue("N/A")).toBeUndefined();
   });
+
+  it("rejects negative values instead of importing them as-is (High bug fix)", () => {
+    // Every field this feeds (cost/selling price, quantity, reorder level)
+    // is a real-world quantity that can never legitimately be negative.
+    expect(parseNumericValue(-500)).toBeUndefined();
+    expect(parseNumericValue("-500")).toBeUndefined();
+    expect(parseNumericValue("-₦1,500.00")).toBeUndefined();
+  });
+
+  it("still accepts zero", () => {
+    expect(parseNumericValue(0)).toBe(0);
+    expect(parseNumericValue("0")).toBe(0);
+  });
 });
 
 describe("mapRowToProduct", () => {

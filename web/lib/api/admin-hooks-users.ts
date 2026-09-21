@@ -8,7 +8,7 @@ export const useAdminUsers = (page = 1, search = "", role = "") => {
     queryKey: useScopedKey(["admin-users", page, search, role]),
     queryFn: () =>
       webApiClient.request<PaginatedResponse<AdminUser>>(
-        `admin/users?page=${page}${search ? `&search=${search}` : ""}${role ? `&role=${role}` : ""}`
+        `admin/users?page=${page}${search ? `&search=${encodeURIComponent(search)}` : ""}${role ? `&role=${encodeURIComponent(role)}` : ""}`
       ),
   });
 };
@@ -16,13 +16,13 @@ export const useAdminUsers = (page = 1, search = "", role = "") => {
 export const useMyReferrals = (userId?: string) => {
   return useQuery({
     queryKey: useScopedKey(["admin-my-referrals", userId]),
-    queryFn: () => webApiClient.request<PlatformReferrals>(`admin/my-referrals${userId ? `?user_id=${userId}` : ""}`),
+    queryFn: () => webApiClient.request<PlatformReferrals>(`admin/my-referrals${userId ? `?user_id=${encodeURIComponent(userId)}` : ""}`),
   });
 };
 
 export const checkReferralCode = (code: string, userId?: string) =>
   webApiClient.request<{ available: boolean; code: string }>(
-    `admin/referral-code/check?code=${encodeURIComponent(code)}${userId ? `&user_id=${userId}` : ""}`
+    `admin/referral-code/check?code=${encodeURIComponent(code)}${userId ? `&user_id=${encodeURIComponent(userId)}` : ""}`
   );
 
 export const useUpdateReferralCodeMutation = () => {
@@ -50,6 +50,22 @@ export const useGrantUserTrialMutation = () => {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["admin-users"] });
       void queryClient.invalidateQueries({ queryKey: ["admin-summary"] });
+    },
+  });
+};
+
+export const useActivateUserPlanMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, plan, billingCycle, amount, reference }: { id: string; plan: string; billingCycle: string; amount: number; reference?: string }) =>
+      webApiClient.request<unknown>(`admin/users/${id}/activate-plan`, {
+        method: "POST",
+        body: { plan, billing_cycle: billingCycle, amount, reference }
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-summary"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-revenue"] });
     },
   });
 };

@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { webApiClient } from "./client";
 import { useScopedKey } from "./query-scope";
+import { useAdminStore } from "@/lib/store/use-admin-store";
 import type {
   AdminSummary,
   AdminHealth,
@@ -14,7 +15,16 @@ import type {
 export const useAdminSummary = (options?: { enabled?: boolean }) => {
   return useQuery({
     queryKey: useScopedKey(["admin-summary"]),
-    queryFn: () => webApiClient.request<AdminSummary>("admin/summary"),
+    // Timed, because the admin header's "Cloud API: Nms" badge needs a real
+    // round-trip measurement. This is the one request every admin page makes
+    // (and it refetches as it goes stale), so it doubles as the ping instead
+    // of adding a dedicated health poll.
+    queryFn: async () => {
+      const startedAt = performance.now();
+      const data = await webApiClient.request<AdminSummary>("admin/summary");
+      useAdminStore.getState().setLatency(Math.round(performance.now() - startedAt));
+      return data;
+    },
     staleTime: 5 * 60 * 1000, // 5 minutes
     ...options,
   });
@@ -23,7 +33,7 @@ export const useAdminSummary = (options?: { enabled?: boolean }) => {
 export const useAdminStores = (page = 1, search = "", status = "", plan = "") => {
   return useQuery({
     queryKey: useScopedKey(["admin-stores", page, search, status, plan]),
-    queryFn: () => webApiClient.request<PaginatedResponse<AdminStoreSummary>>(`admin/stores?page=${page}${search ? `&search=${search}` : ""}${status ? `&status=${status}` : ""}${plan ? `&plan=${plan}` : ""}`),
+    queryFn: () => webApiClient.request<PaginatedResponse<AdminStoreSummary>>(`admin/stores?page=${page}${search ? `&search=${encodeURIComponent(search)}` : ""}${status ? `&status=${encodeURIComponent(status)}` : ""}${plan ? `&plan=${encodeURIComponent(plan)}` : ""}`),
   });
 };
 
@@ -77,7 +87,7 @@ export const useUpdateAccountManagerMutation = () => {
 export const useAdminProducts = (page = 1, search = "", category = "") => {
   return useQuery({
     queryKey: useScopedKey(["admin-products", page, search, category]),
-    queryFn: () => webApiClient.request<AdminProductsResponse>(`admin/products?page=${page}${search ? `&search=${search}` : ""}${category ? `&category=${category}` : ""}`),
+    queryFn: () => webApiClient.request<AdminProductsResponse>(`admin/products?page=${page}${search ? `&search=${encodeURIComponent(search)}` : ""}${category ? `&category=${encodeURIComponent(category)}` : ""}`),
   });
 };
 
@@ -170,6 +180,22 @@ export const useGrantTrialMutation = () => {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["admin-stores"] });
       void queryClient.invalidateQueries({ queryKey: ["admin-summary"] });
+    },
+  });
+};
+
+export const useActivatePlanMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, plan, billingCycle, amount, reference }: { id: string; plan: string; billingCycle: string; amount: number; reference?: string }) =>
+      webApiClient.request<unknown>(`admin/stores/${id}/activate-plan`, {
+        method: "POST",
+        body: { plan, billing_cycle: billingCycle, amount, reference }
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["admin-stores"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-summary"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-revenue"] });
     },
   });
 };

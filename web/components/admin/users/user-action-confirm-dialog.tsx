@@ -57,6 +57,12 @@ interface UserActionConfirmDialogProps {
   confirmLabel: string;
   isPending: boolean;
   onConfirm: () => void;
+  /** Extra content between the description and the footer - used by the
+   * delete dialog for its type-the-email confirmation field. */
+  children?: ReactNode;
+  /** Gates the confirm button on top of `isPending`, for dialogs that require
+   * something more than a single click (again: the delete dialog). */
+  confirmDisabled?: boolean;
 }
 
 /**
@@ -74,6 +80,8 @@ export function UserActionConfirmDialog({
   confirmLabel,
   isPending,
   onConfirm,
+  children,
+  confirmDisabled = false,
 }: UserActionConfirmDialogProps) {
   const classes = TONE_CLASSES[tone];
 
@@ -98,6 +106,7 @@ export function UserActionConfirmDialog({
             {description}
           </DialogDescription>
         </DialogHeader>
+        {children}
         <DialogFooter className="gap-2 pt-4">
           <Button
             variant="outline"
@@ -109,7 +118,7 @@ export function UserActionConfirmDialog({
           <Button
             onClick={onConfirm}
             className={cn("rounded-xl text-white font-bold h-12 shadow-lg", classes.button)}
-            disabled={isPending}
+            disabled={isPending || confirmDisabled}
           >
             {isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
             {confirmLabel}

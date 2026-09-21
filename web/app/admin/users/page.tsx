@@ -17,7 +17,6 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Card, CardContent } from "@/components/ui/card";
@@ -30,6 +29,7 @@ import {
   useDeleteUserMutation,
   useReactivateUserMutation,
   useGrantUserTrialMutation,
+  useActivateUserPlanMutation,
 } from "@/lib/api/admin-hooks";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -44,9 +44,11 @@ import { SendNotificationDialog } from "@/components/admin/users/send-notificati
 import { DeleteUserDialog } from "@/components/admin/users/delete-user-dialog";
 import { UserTable } from "@/components/admin/users/user-table";
 import { SharedGrantTrialDialog } from "@/components/admin/shared-grant-trial-dialog";
+import { SharedActivatePlanDialog } from "@/components/admin/shared-activate-plan-dialog";
 import { UserPagination } from "@/components/admin/users/user-pagination";
 import { BulkNotifyDialog } from "@/components/admin/users/bulk-notify-dialog";
 import type { AdminUser } from "@/lib/types/admin";
+import { escapeCsvCell } from "@/lib/utils";
 
 // Maps the filter dropdown's display labels to the backend's raw `role`
 // slugs (AdminService::getGlobalUsers's `role` query param does an exact
@@ -91,6 +93,7 @@ function GlobalUsersDirectoryContent() {
   const [isBulkNotifyDialogOpen, setIsBulkNotifyDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isTrialDialogOpen, setIsTrialDialogOpen] = useState(false);
+  const [isActivatePlanDialogOpen, setIsActivatePlanDialogOpen] = useState(false);
 
   const debouncedSearch = useDebounce(search, 500);
 
@@ -106,6 +109,7 @@ function GlobalUsersDirectoryContent() {
   const notifyMutation = useNotifyUserMutation();
   const deleteMutation = useDeleteUserMutation();
   const grantTrialMutation = useGrantUserTrialMutation();
+  const activatePlanMutation = useActivateUserPlanMutation();
   const bulkNotifyMutation = useBulkNotifyUsersMutation();
 
   const handlePageChange = (newPage: number) => {
@@ -119,18 +123,29 @@ function GlobalUsersDirectoryContent() {
 
   const handleExportCSV = () => {
     if (userList.length === 0) return;
-    const headers = ["ID", "Name", "Email", "Role", "Store", "Status"];
-    const csvData = userList.map((u: AdminUser) =>
-      [u.id, u.name, u.email, u.role, u.store, u.status].join(","),
-    );
-    const blob = new Blob([[headers.join(","), ...csvData].join("\n")], {
-      type: "text/csv",
-    });
-    const url = window.URL.createObjectURL(blob);
+    const csv = [
+      ["ID", "Name", "Email", "Role", "Store", "Status"],
+      ...userList.map((u: AdminUser) => [
+        u.id,
+        u.name,
+        u.email,
+        u.role,
+        u.store,
+        u.status,
+      ]),
+    ]
+      .map((row) => row.map((cell) => escapeCsvCell(cell)).join(","))
+      .join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
     a.download = `users-export-${new Date().toISOString().split("T")[0]}.csv`;
+    document.body.appendChild(a);
     a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
     toast.success("User list exported successfully");
   };
 
@@ -150,6 +165,26 @@ function GlobalUsersDirectoryContent() {
       onError: (err) => {
         toast.error("Action Failed", {
           description: err.message || "Failed to grant trial.",
+        });
+      }
+    });
+  };
+
+  const handleActivatePlan = (plan: string, billingCycle: string, amount: number, reference?: string) => {
+    if (!selectedUser) return;
+
+    activatePlanMutation.mutate({ id: selectedUser.id, plan, billingCycle, amount, reference }, {
+      onSuccess: () => {
+        toast.success("Plan Activated", {
+          description: `Activated ${billingCycle} ${plan} plan for ${selectedUser.name}.`,
+        });
+        setIsActivatePlanDialogOpen(false);
+        setSelectedUser(null);
+        void refetch();
+      },
+      onError: (err) => {
+        toast.error("Action Failed", {
+          description: err.message || "Failed to activate plan.",
         });
       }
     });
@@ -250,16 +285,13 @@ function GlobalUsersDirectoryContent() {
                       {label}
                     </DropdownMenuItem>
                   ))}
-                  <DropdownMenuSeparator className="my-2" />
-                  <DropdownMenuLabel className="text-[10px] uppercase tracking-widest text-slate-400 px-3 py-2">
-                    Billing Plan
-                  </DropdownMenuLabel>
-                  <DropdownMenuItem className="rounded-xl px-3 py-2 cursor-pointer font-bold">
-                    Starter
-                  </DropdownMenuItem>
-                  <DropdownMenuItem className="rounded-xl px-3 py-2 cursor-pointer font-bold">
-                    Enterprise
-                  </DropdownMenuItem>
+                  {/* No "Billing Plan -> Starter/Enterprise" section here:
+                      AdminUserService::getGlobalUsers() only filters by
+                      search/role (there is no plan param, and a plan lives on
+                      the store, not the user), so those two items could never
+                      do anything. Removed rather than left as dead controls -
+                      plan filtering belongs on the Store Fleet list, which
+                      already supports it. */}
                 </DropdownMenuContent>
               </DropdownMenu>
               <div className="h-8 w-px bg-slate-200 dark:bg-slate-800 mx-1 hidden md:block" />
@@ -283,6 +315,7 @@ function GlobalUsersDirectoryContent() {
               setIsReactivateDialogOpen={setIsReactivateDialogOpen}
               setIsDeleteDialogOpen={setIsDeleteDialogOpen}
               setIsTrialDialogOpen={setIsTrialDialogOpen}
+              setIsActivatePlanDialogOpen={setIsActivatePlanDialogOpen}
             />
           </div>
 
@@ -342,6 +375,14 @@ function GlobalUsersDirectoryContent() {
         targetName={selectedUser?.name}
         onConfirm={handleGrantTrial}
         isPending={grantTrialMutation.isPending}
+      />
+
+      <SharedActivatePlanDialog
+        open={isActivatePlanDialogOpen}
+        onOpenChange={setIsActivatePlanDialogOpen}
+        targetName={selectedUser?.name}
+        onConfirm={handleActivatePlan}
+        isPending={activatePlanMutation.isPending}
       />
 
       <BulkNotifyDialog

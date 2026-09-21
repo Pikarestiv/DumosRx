@@ -9,6 +9,8 @@ import {
   CheckCircle,
   Gift,
   FlaskConical,
+  Loader2,
+  BadgeCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -40,9 +42,15 @@ interface StoreTableProps {
   setSelectedStore: (store: AdminStoreSummary) => void;
   setIsSuspendDialogOpen: (open: boolean) => void;
   setIsTrialDialogOpen: (open: boolean) => void;
+  setIsActivatePlanDialogOpen: (open: boolean) => void;
   setIsViewDialogOpen: (open: boolean) => void;
   handleUnsuspend: (store: AdminStoreSummary) => void;
   handleToggleDemo: (store: AdminStoreSummary) => void;
+  /** Id of the store whose unsuspend/demo mutation is currently in flight,
+   * so only that row's menu items go disabled (a plain `isPending` flag
+   * would freeze every row). Guards against a double-click firing the same
+   * mutation twice. */
+  pendingStoreId: string | null;
   router: AppRouterInstance;
 }
 
@@ -54,9 +62,11 @@ export function StoreTable({
   setSelectedStore,
   setIsSuspendDialogOpen,
   setIsTrialDialogOpen,
+  setIsActivatePlanDialogOpen,
   setIsViewDialogOpen,
   handleUnsuspend,
   handleToggleDemo,
+  pendingStoreId,
   router,
 }: StoreTableProps) {
   // Suspend/unsuspend is super_admin-exclusive server-side. Hiding it for
@@ -194,13 +204,19 @@ export function StoreTable({
                     <StoreIcon className="h-4 w-4 text-slate-500" />
                     View Store Details
                   </DropdownMenuItem>
-                  <DropdownMenuItem 
-                    className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold"
-                    onClick={() => handleImpersonate(store)}
-                  >
-                    <ExternalLink className="h-4 w-4 text-indigo-500" />
-                    Impersonate (Admin)
-                  </DropdownMenuItem>
+                  {/* Impersonation is super_admin-exclusive server-side too
+                      (`role:super_admin` on the impersonate route), so the
+                      same "no dead menu item that would just 403" rule
+                      applies here. */}
+                  {isSuperAdmin && (
+                    <DropdownMenuItem
+                      className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold"
+                      onClick={() => handleImpersonate(store)}
+                    >
+                      <ExternalLink className="h-4 w-4 text-indigo-500" />
+                      Impersonate (Admin)
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem 
                     className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold"
                     onClick={() => handleViewBilling(store)}
@@ -210,10 +226,14 @@ export function StoreTable({
                   </DropdownMenuItem>
                   <DropdownMenuItem 
                     className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold"
-                    onClick={() => router.push(`/admin/system?search=${store.id}`)}
+                    onClick={() =>
+                      router.push(
+                        `/admin/activity?store_id=${encodeURIComponent(store.id)}&store_name=${encodeURIComponent(store.name)}`,
+                      )
+                    }
                   >
                     <History className="h-4 w-4 text-blue-500" />
-                    System Logs
+                    Activity Log
                   </DropdownMenuItem>
                   {canGrantTrials && (
                     <DropdownMenuItem
@@ -227,22 +247,52 @@ export function StoreTable({
                       Grant Trial
                     </DropdownMenuItem>
                   )}
+                  {canGrantTrials && (
+                    <DropdownMenuItem
+                      className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors"
+                      onClick={() => {
+                        setSelectedStore(store);
+                        setIsActivatePlanDialogOpen(true);
+                      }}
+                    >
+                      <BadgeCheck className="h-4 w-4" />
+                      Activate Paid Plan
+                    </DropdownMenuItem>
+                  )}
                   {isSuperAdmin && (
                     <>
                       <DropdownMenuSeparator className="my-2 bg-slate-100 dark:bg-slate-800" />
                       <DropdownMenuItem
                         className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold text-purple-500 hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-500/10 transition-colors"
-                        onClick={() => handleToggleDemo(store)}
+                        disabled={pendingStoreId === store.id}
+                        onSelect={(e) => {
+                          // Keep the menu open while the mutation runs so the
+                          // disabled/spinner state is actually visible.
+                          e.preventDefault();
+                          handleToggleDemo(store);
+                        }}
                       >
-                        <FlaskConical className="h-4 w-4" />
+                        {pendingStoreId === store.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <FlaskConical className="h-4 w-4" />
+                        )}
                         {store.is_demo ? "Unmark as Demo" : "Mark as Demo"}
                       </DropdownMenuItem>
                       {store.status === "Suspended" ? (
                         <DropdownMenuItem
                           className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors"
-                          onClick={() => handleUnsuspend(store)}
+                          disabled={pendingStoreId === store.id}
+                          onSelect={(e) => {
+                            e.preventDefault();
+                            handleUnsuspend(store);
+                          }}
                         >
-                          <CheckCircle className="h-4 w-4" />
+                          {pendingStoreId === store.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <CheckCircle className="h-4 w-4" />
+                          )}
                           Unsuspend Account
                         </DropdownMenuItem>
                       ) : (

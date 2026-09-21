@@ -5,16 +5,21 @@ import { CheckoutForm } from "@/components/storefront/checkout-form";
 import { getStorefrontSlugs } from "@/lib/api/storefront-slugs";
 
 interface CheckoutPageProps {
-  params: {
+  // Next 16 passes `params` as a Promise (see app/store/[store_slug]/page.tsx)
+  // - reading `params.store_slug` synchronously yields `undefined` in a
+  // production build, which posted the order to /storefront/undefined/checkout.
+  params: Promise<{
     store_slug: string;
-  };
+  }>;
 }
 
 export async function generateStaticParams() {
   return getStorefrontSlugs();
 }
 
-export default function CheckoutPage({ params }: CheckoutPageProps) {
+export default async function CheckoutPage({ params }: CheckoutPageProps) {
+  const { store_slug } = await params;
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <header className="bg-white border-b sticky top-0 z-40">
@@ -23,7 +28,7 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
             Checkout
           </div>
           <div className="flex items-center space-x-4">
-            <StorefrontCart storeSlug={params.store_slug} />
+            <StorefrontCart storeSlug={store_slug} />
           </div>
         </div>
       </header>
@@ -32,7 +37,7 @@ export default function CheckoutPage({ params }: CheckoutPageProps) {
         <h1 className="text-3xl font-extrabold tracking-tight text-gray-900 mb-8">
           Complete Your Order
         </h1>
-        <CheckoutForm storeSlug={params.store_slug} />
+        <CheckoutForm storeSlug={store_slug} />
       </main>
 
       <FooterSection />

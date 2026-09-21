@@ -4,16 +4,18 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Badge } from "@/components/ui/badge";
 import { ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useCartStore } from "@/lib/store/use-cart-store";
+import { useCart } from "@/lib/store/use-cart-store";
 import { toast } from "sonner";
 import type { StorefrontProduct } from "@/lib/types/storefront";
 
 interface ProductCardProps {
   product: StorefrontProduct;
+  /** Carts are partitioned per storefront - see lib/store/use-cart-store.ts. */
+  storeSlug: string;
 }
 
-export function ProductCard({ product }: ProductCardProps) {
-  const cart = useCartStore();
+export function ProductCard({ product, storeSlug }: ProductCardProps) {
+  const cart = useCart(storeSlug);
 
   const handleAddToCart = () => {
     cart.addItem({

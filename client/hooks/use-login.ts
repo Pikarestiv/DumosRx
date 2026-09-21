@@ -35,8 +35,14 @@ export function useLogin() {
         toast.error("Invalid credentials. Please try again.");
         setIsLoading(false);
       }
-    } catch {
-      toast.error("Login failed. Database might not be initialized.");
+    } catch (err) {
+      // Surfaces the real failure (e.g. a lockout countdown from
+      // login-lockout.ts) instead of always claiming the database isn't
+      // initialized, which misdiagnosed every other cause - same fix
+      // already applied to lock-screen.tsx's equivalent catch block.
+      toast.error(
+        err instanceof Error ? err.message : "Login failed. Database might not be initialized.",
+      );
       setIsLoading(false);
     }
   };

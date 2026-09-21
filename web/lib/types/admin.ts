@@ -171,6 +171,11 @@ export interface EmailTemplatesResponse {
 
 export interface TierFeatures {
   cloud_sync: boolean;
+  /** Access to the hosted web dashboard. Real key in the stored config (see
+   * SystemConfigSeeder) and read by the public pricing copy - it was just
+   * missing from this type, the plan editor and the bundled defaults, which
+   * made it read as permanently false. */
+  web_dashboard: boolean;
   mobile_app: boolean;
   ecommerce: boolean;
   smart_pos: boolean;
@@ -265,7 +270,9 @@ export interface AdminBroadcast {
   message: string;
   type: "info" | "warning" | "danger" | "success";
   target_type?: "all" | "specific";
-  user_ids?: AdminUser[];
+  /** Recipient user ids. The backend stores ids and matches recipients with
+   * `whereJsonContains('user_ids', $user->id)` — never full user objects. */
+  user_ids?: string[];
   expires_at?: string | null;
   is_active: boolean;
 }
@@ -275,7 +282,8 @@ export interface BroadcastFormData {
   message: string;
   type: string;
   target_type: "all" | "specific";
-  user_ids: AdminUser[];
+  /** Ids only — see AdminBroadcast.user_ids. */
+  user_ids: string[];
   expires_at: string;
   is_active: boolean;
 }

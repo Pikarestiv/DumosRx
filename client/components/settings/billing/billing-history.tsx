@@ -4,7 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Loader2, Receipt } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Receipt } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { toast } from "sonner";
 import { useBillingHistory } from "@/lib/hooks/use-billing";
@@ -26,9 +27,28 @@ export function BillingHistory() {
       </CardHeader>
       <CardContent>
         {isLoading ? (
-          <div className="flex justify-center py-8 text-muted-foreground">
-            <Loader2 className="w-6 h-6 animate-spin" />
-          </div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Date</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead>Amount</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Invoice</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {Array.from({ length: 3 }).map((_, i) => (
+                <TableRow key={i}>
+                  <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                  <TableCell><Skeleton className="h-5 w-16 rounded-full" /></TableCell>
+                  <TableCell className="text-right"><Skeleton className="h-4 w-16 ml-auto" /></TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         ) : isError ? (
           <div className="text-center py-8 text-sm text-destructive">
             Failed to load billing history — check your connection.

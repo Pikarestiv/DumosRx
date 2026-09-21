@@ -256,22 +256,6 @@ class DashboardService
             Log::error('DashboardService [Staff]: '.$e->getMessage());
         }
 
-        // Approximate storage usage based on data
-        $storageUsedGB = 0.05; // Base 50MB
-        try {
-            $salesCount = Sale::whereIn('cashier_id', $userIds)->count();
-            $customersCount = Customer::where('user_id', $userId)->count();
-            $logsCount = Schema::hasTable('activity_logs') ? ActivityLog::where('user_id', $userId)->count() : 0;
-
-            $totalRows = $salesCount + $customersCount + $logsCount;
-            $storageUsedMB = 50 + ($totalRows * 0.005); // Base 50MB + 5KB per row
-            $storageUsedGB = round($storageUsedMB / 1024, 3);
-        } catch (\Exception $e) {
-        }
-
-        $storageLimitGB = 10; // Default 10GB for Pro
-        $storagePercentage = min(100, round(($storageUsedGB / $storageLimitGB) * 100));
-
         return [
             'stats' => [
                 'total_sales' => [
@@ -288,11 +272,6 @@ class DashboardService
                 ],
                 'stores_count' => $storesCount,
                 'last_sync' => $lastSyncTime,
-                'cloud_storage' => [
-                    'used_gb' => $storageUsedGB,
-                    'limit_gb' => $storageLimitGB,
-                    'percentage' => $storagePercentage,
-                ],
             ],
             'stores' => $stores,
             'recent_sales' => $recentSales,
@@ -432,18 +411,6 @@ class DashboardService
             ];
         })->values();
 
-        $storageUsedGB = 0.05;
-        try {
-            $salesCount = Sale::whereIn('cashier_id', $userIds)->count();
-            $customersCount = Customer::where('user_id', $userId)->count();
-            $logsCount = Schema::hasTable('activity_logs') ? ActivityLog::where('user_id', $userId)->count() : 0;
-            $storageUsedMB = 50 + (($salesCount + $customersCount + $logsCount) * 0.005);
-            $storageUsedGB = round($storageUsedMB / 1024, 3);
-        } catch (\Exception $e) {
-        }
-        $storageLimitGB = 10;
-        $storagePercentage = min(100, round(($storageUsedGB / $storageLimitGB) * 100));
-
         return [
             'stats' => [
                 'total_sales' => ['value' => $totalSales, 'growth' => round($salesGrowth, 1).'%'],
@@ -451,7 +418,6 @@ class DashboardService
                 'customers' => ['value' => $totalCustomers, 'growth' => '+'.$newCustomersThisPeriod.' new'],
                 'stores_count' => $storesCount,
                 'last_sync' => $lastSyncTime,
-                'cloud_storage' => ['used_gb' => $storageUsedGB, 'limit_gb' => $storageLimitGB, 'percentage' => $storagePercentage],
             ],
             'stores' => $stores,
         ];

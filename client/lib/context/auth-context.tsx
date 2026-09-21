@@ -5,6 +5,13 @@ import * as Sentry from "@sentry/nextjs";
 import { setCurrentUser as setDbUser, logAction } from "@/lib/db/local-database";
 import { apiClient } from "@/lib/api/client";
 import { getUserByUsernameOrEmail, createDefaultAdmin, getUserPin, updateUserPin } from "@/lib/db/queries/auth";
+import { getTotalUserCount } from "@/lib/db/queries/setup";
+import {
+  checkLoginLockout,
+  recordLoginFailure,
+  recordLoginSuccess,
+  formatLockoutRemaining,
+} from "@/lib/utils/login-lockout";
 import { useAutoLockStore } from "@/lib/hooks/use-auto-lock";
 import { AUDIT_ACTIONS } from "@/lib/db/audit-actions";
 import { sync, isSyncing } from "@/lib/db/sync-engine";
@@ -30,6 +37,12 @@ async function waitForSyncToFinish(timeoutMs = 8000, pollMs = 150) {
 // single attempt.
 let lastPinRecoverySyncAt = 0;
 const PIN_RECOVERY_SYNC_COOLDOWN_MS = 10_000;
+
+// The documented default PIN for the zero-users bootstrap admin (see
+// login()'s fallback branch below). Requiring the typed PIN match this,
+// rather than accepting any 4 digits, means the bootstrap flow can't double
+// as a PIN-less login even in the one case it's allowed to fire.
+const DEFAULT_ADMIN_PIN = "1234";
 
 export interface User {
   id: string;
@@ -64,6 +77,11 @@ export interface HandoffApiUser {
 
 interface AuthContextType {
   user: User | null;
+  /** True once the mount-time localStorage read has completed, regardless
+   * of whether a saved user was found. See its declaration in
+   * AuthProvider for why `user !== null` alone can't distinguish
+   * "not hydrated yet" from "genuinely logged out". */
+  isHydrated: boolean;
   login: (username: string, pin?: string) => Promise<boolean>;
   /** Establishes a local session directly from a cross-origin handoff
    * (impersonation / dashboard → app), bypassing PIN entry. See the
@@ -121,6 +139,13 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isCloudLinked, setIsCloudLinked] = useState(false);
+  // Distinguishes "user is null because nobody's logged in" from "user is
+  // null because the mount effect below hasn't read localStorage yet" -
+  // consumers that need to know a staff member's fixed store_id (see
+  // store-context.tsx's hydration-race fix) can't tell those two apart from
+  // `user` alone. Flips true once, at the end of the mount effect,
+  // regardless of whether a saved user was actually found.
+  const [isHydrated, setIsHydrated] = useState(false);
 
   useEffect(() => {
     // Check for saved user in session
@@ -161,6 +186,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
+    setIsHydrated(true);
+
     const handleTokenSet = () => setIsCloudLinked(true);
     const handleTokenCleared = () => setIsCloudLinked(false);
 
@@ -176,6 +203,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (identifier: string, pin?: string) => {
     // For local-first, we check both username and email
     const cleanIdentifier = identifier.trim();
+
+    // Only a genuine PIN-based attempt is throttled - login(email) with no
+    // pin (the post-cloud-sync auto-login in app/setup/use-onboarding.ts)
+    // never guesses a secret, so it's not subject to this at all. Checked
+    // BEFORE the DB lookup so a locked-out caller gets instant feedback and
+    // can't extend their own lockout just by retrying while still locked.
+    if (pin) {
+      const lockout = checkLoginLockout(cleanIdentifier);
+      if (lockout.locked) {
+        throw new Error(
+          `Too many failed attempts. Try again in ${formatLockoutRemaining(lockout.remainingMs)}.`,
+        );
+      }
+    }
+
     let dbUser = await getUserByUsernameOrEmail(cleanIdentifier);
 
     if (dbUser) {
@@ -219,6 +261,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           username: cleanIdentifier,
           reason: "invalid_pin",
         }).catch(() => {});
+        if (pin) recordLoginFailure(cleanIdentifier);
         return false;
       }
 
@@ -299,11 +342,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         username: userProfile.username,
       }).catch(() => {});
 
+      recordLoginSuccess(cleanIdentifier);
       return true;
     }
 
-    // Fallback: If no users exist, create a default admin
-    if (cleanIdentifier.toLowerCase() === "admin") {
+    // Fallback: bootstrap a default admin, but ONLY on a genuinely fresh
+    // device with zero local users - previously this fired for ANY typed PIN
+    // whenever "admin" simply didn't match a local row, which a mid-sync or
+    // post-deletion device could hit with real users present. Also now
+    // requires the PIN match the documented default instead of accepting
+    // anything, so this can't double as a PIN-less login.
+    if (cleanIdentifier.toLowerCase() === "admin" && pin === DEFAULT_ADMIN_PIN) {
+      const totalUsers = await getTotalUserCount();
+      if (totalUsers > 0) {
+        logAction(AUDIT_ACTIONS.LOGIN_FAILED, "users", cleanIdentifier, {
+          username: cleanIdentifier,
+          reason: "default_admin_blocked_users_exist",
+        }).catch(() => {});
+        return false;
+      }
+
       const defaultAdmin: User = {
         id: "default-admin",
         first_name: "Default",
@@ -319,7 +377,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           first_name: defaultAdmin.first_name,
           last_name: defaultAdmin.last_name,
           username: defaultAdmin.username,
-          pin: "1234",
+          pin: DEFAULT_ADMIN_PIN,
           role: defaultAdmin.role
         });
       } catch (e) {
@@ -358,9 +416,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         username: defaultAdmin.username,
       }).catch(() => {});
 
+      recordLoginSuccess(cleanIdentifier);
       return true;
     }
 
+    if (pin) recordLoginFailure(cleanIdentifier);
     return false;
   };
 
@@ -498,6 +558,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     <AuthContext.Provider
       value={{
         user,
+        isHydrated,
         login,
         loginFromHandoff,
         logout,

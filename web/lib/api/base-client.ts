@@ -10,7 +10,13 @@ type ConfigWithMetadata = InternalAxiosRequestConfig & RequestMetadata;
 let initialApiUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.dumosrx.com/api/v1";
 
 if (typeof window !== "undefined") {
-  const storedUrl = localStorage.getItem("dumos_api_url");
+  // The override is a dev/QA affordance (see ServerSelector, which already
+  // hides itself in production). Honouring it in a production build would let
+  // anyone able to write one localStorage key repoint every admin API call -
+  // and the impersonation handoff redirect, which carries a live super_admin
+  // token - at a server they control.
+  const storedUrl =
+    process.env.NODE_ENV !== "production" ? localStorage.getItem("dumos_api_url") : null;
   if (storedUrl) {
     initialApiUrl = storedUrl;
   } else if (process.env.NODE_ENV === "development") {
@@ -84,6 +90,49 @@ apiClient.interceptors.request.use((config: ConfigWithMetadata) => {
 
   return config;
 });
+
+// A page usually fires several admin queries at once, so an expired session
+// produces a burst of simultaneous 401s. Without this, each one starts its own
+// POST /admin/session/refresh; the extra calls are pure waste at best, and race
+// each other over a rotating refresh cookie at worst. In-flight refreshes are
+// shared and the slot is cleared once settled.
+let refreshPromise: Promise<string> | null = null;
+
+const refreshSession = (isAdminPath: boolean): Promise<string> => {
+  if (refreshPromise) return refreshPromise;
+
+  refreshPromise = (async () => {
+    if (isAdminPath) {
+      // Admin sessions refresh via the HttpOnly refresh cookie, not a
+      // bearer token - see use-admin-auth-store.ts's initSession().
+      // Dynamic import, not a static one: use-admin-auth-store.ts
+      // imports client.ts which imports this file, so a static import
+      // here would create a cycle that breaks client.ts's
+      // `export default apiClient` with a TDZ crash at module load.
+      const { useAdminAuthStore } = await import("@/lib/store/use-admin-auth-store");
+      const { data } = await axios.post(
+        `${API_URL}/admin/session/refresh`,
+        {},
+        { withCredentials: true },
+      );
+      if (!data.token) throw new Error("No token in refresh response");
+      useAdminAuthStore.getState().setToken(data.token);
+      useAdminAuthStore.getState().setUser(data.user);
+      return data.token as string;
+    }
+
+    const { data } = await axios.post(`${API_URL}/refresh`, {}, { withCredentials: true });
+    if (!data.token || typeof window === "undefined") {
+      throw new Error("No token in refresh response");
+    }
+    localStorage.setItem("drx_token", data.token);
+    return data.token as string;
+  })().finally(() => {
+    refreshPromise = null;
+  });
+
+  return refreshPromise;
+};
 
 // Response interceptor for logging & 401 refresh
 apiClient.interceptors.response.use(
@@ -186,37 +235,20 @@ apiClient.interceptors.response.use(
           : "Unable to reach the server. Please check your connection and try again.";
     }
 
-    if (error.response?.status === 401 && !originalRequest._retry && !originalRequest.url.includes('/login') && !originalRequest.url.includes('/refresh')) {
+    if (
+      error.response?.status === 401 &&
+      originalRequest &&
+      !originalRequest._retry &&
+      !originalRequest.url?.includes('/login') &&
+      !originalRequest.url?.includes('/refresh')
+    ) {
       originalRequest._retry = true;
       const isAdminPath = typeof window !== "undefined" && window.location.pathname.startsWith('/admin');
 
       try {
-        if (isAdminPath) {
-          // Admin sessions refresh via the HttpOnly refresh cookie, not a
-          // bearer token - see use-admin-auth-store.ts's initSession().
-          // Dynamic import, not a static one: use-admin-auth-store.ts
-          // imports client.ts which imports this file, so a static import
-          // here would create a cycle that breaks client.ts's
-          // `export default apiClient` with a TDZ crash at module load.
-          const { useAdminAuthStore } = await import("@/lib/store/use-admin-auth-store");
-          const { data } = await axios.post(
-            `${API_URL}/admin/session/refresh`,
-            {},
-            { withCredentials: true },
-          );
-          if (!data.token) throw new Error("No token in refresh response");
-          useAdminAuthStore.getState().setToken(data.token);
-          useAdminAuthStore.getState().setUser(data.user);
-          originalRequest.headers.Authorization = `Bearer ${data.token}`;
-          return apiClient(originalRequest);
-        }
-
-        const { data } = await axios.post(`${API_URL}/refresh`, {}, { withCredentials: true });
-        if (data.token && typeof window !== "undefined") {
-          localStorage.setItem("drx_token", data.token);
-          originalRequest.headers.Authorization = `Bearer ${data.token}`;
-          return apiClient(originalRequest);
-        }
+        const token = await refreshSession(isAdminPath);
+        originalRequest.headers.Authorization = `Bearer ${token}`;
+        return apiClient(originalRequest);
       } catch (_refreshError) {
         if (typeof window !== "undefined") {
           const cleanPath = window.location.pathname.replace(/\/$/, "");

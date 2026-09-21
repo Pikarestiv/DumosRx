@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Send, Loader2, Users } from "lucide-react";
+import { Send, Loader2, Users, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -36,6 +36,20 @@ export function BulkNotifyDialog({
 }: BulkNotifyDialogProps) {
   const [title, setTitle] = useState("Administrative Message");
   const [message, setMessage] = useState("");
+  // Sending is two clicks, not one: with no filters applied this reaches every
+  // account on the platform by in-app notification *and* email, and the only
+  // required input is the message body (the title is pre-filled).
+  const [isConfirming, setIsConfirming] = useState(false);
+
+  const filterSummary = [
+    filters.role ? `role = ${filters.role}` : null,
+    filters.search ? `search = "${filters.search}"` : null,
+  ].filter(Boolean);
+
+  const handleClose = (open: boolean) => {
+    if (!open) setIsConfirming(false);
+    onOpenChange(open);
+  };
 
   const handleSend = () => {
     if (!title || !message) return;
@@ -48,9 +62,11 @@ export function BulkNotifyDialog({
           });
           setMessage("");
           setTitle("Administrative Message");
+          setIsConfirming(false);
           onOpenChange(false);
         },
         onError: (err) => {
+          setIsConfirming(false);
           toast.error("Failed to Send", { description: err.message });
         },
       },
@@ -58,7 +74,7 @@ export function BulkNotifyDialog({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+    <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="rounded-3xl border-slate-200 dark:border-slate-800 shadow-2xl">
         <DialogHeader>
           <DialogTitle className="text-2xl font-black flex items-center gap-3">
@@ -86,6 +102,7 @@ export function BulkNotifyDialog({
               className="rounded-xl border-2 focus-visible:ring-indigo-500 font-bold"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
+              disabled={isConfirming}
             />
           </div>
           <div className="space-y-2">
@@ -97,19 +114,38 @@ export function BulkNotifyDialog({
               className="min-h-[120px] rounded-2xl border-2 focus-visible:ring-indigo-500 font-medium p-4"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
+              disabled={isConfirming}
             />
           </div>
+          {isConfirming && (
+            <div className="flex items-start gap-3 p-4 bg-amber-50 dark:bg-amber-500/10 rounded-2xl border border-amber-200 dark:border-amber-500/20">
+              <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <p className="text-xs font-black text-amber-700 dark:text-amber-400">
+                  This sends a dashboard notification and an email to{" "}
+                  {recipientCount} user{recipientCount === 1 ? "" : "s"}.
+                </p>
+                <p className="text-[11px] font-bold text-amber-700/80 dark:text-amber-400/80">
+                  {filterSummary.length > 0
+                    ? `Filters being sent: ${filterSummary.join(", ")}.`
+                    : "No filters are applied - this is every user on the platform."}{" "}
+                  It cannot be recalled.
+                </p>
+              </div>
+            </div>
+          )}
         </div>
         <DialogFooter className="gap-2">
           <Button
             variant="outline"
-            onClick={() => onOpenChange(false)}
+            onClick={() => (isConfirming ? setIsConfirming(false) : handleClose(false))}
             className="rounded-xl border-2 font-bold h-12"
+            disabled={bulkNotifyMutation.isPending}
           >
-            Discard
+            {isConfirming ? "Back" : "Discard"}
           </Button>
           <Button
-            onClick={handleSend}
+            onClick={() => (isConfirming ? handleSend() : setIsConfirming(true))}
             className="rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-12 shadow-lg shadow-indigo-600/20 px-8"
             disabled={bulkNotifyMutation.isPending || !message || !title}
           >
@@ -118,7 +154,9 @@ export function BulkNotifyDialog({
             ) : (
               <Send className="h-4 w-4 mr-2" />
             )}
-            Send to All
+            {isConfirming
+              ? `Yes, Send to ${recipientCount} User${recipientCount === 1 ? "" : "s"}`
+              : "Send to All"}
           </Button>
         </DialogFooter>
       </DialogContent>

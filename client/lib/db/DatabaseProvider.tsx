@@ -52,6 +52,10 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
         import("@/lib/utils/error-logger").then(({ flushPendingCrashes }) => {
           flushPendingCrashes().catch(console.error);
         }).catch(console.error);
+        // One-time-per-boot cleanup of any leftover "draft" purchase orders
+        import("@/lib/db/queries/procurement").then(({ promoteDraftPurchaseOrdersToPending }) => {
+          promoteDraftPurchaseOrdersToPending().catch(console.error);
+        }).catch(console.error);
       })
       .catch((err) => {
         console.error("[DB] Failed to initialize database:", err);

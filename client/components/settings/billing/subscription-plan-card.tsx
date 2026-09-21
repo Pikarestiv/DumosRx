@@ -2,6 +2,7 @@
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Check, Loader2, Sparkles, CheckCircle2 } from "lucide-react";
 import type { SubscriptionPlanCatalogEntry } from "@/lib/constants/subscription-plans-catalog";
 import { isCurrentPlan } from "@/lib/utils/billing-pricing";
@@ -12,6 +13,7 @@ interface SubscriptionPlanCardProps {
   discountedPrice: number;
   formatPrice: (price: number) => string;
   currentPlanName: string | undefined;
+  isStatusLoading: boolean;
   onSubscribe: (planId: string, amount: number, planName: string) => void;
   onDowngradeRequest: (plan: { id: string; amount: number; name: string }) => void;
   isCurrentPlanHigherWeight: (planId: string) => boolean;
@@ -25,6 +27,7 @@ export function SubscriptionPlanCard({
   discountedPrice,
   formatPrice,
   currentPlanName,
+  isStatusLoading,
   onSubscribe,
   onDowngradeRequest,
   isCurrentPlanHigherWeight,
@@ -44,7 +47,10 @@ export function SubscriptionPlanCard({
             : "border-border/50"
       }`}
     >
-      {isCurrent && (
+      {isStatusLoading && (
+        <Skeleton className="absolute top-0 left-0 transform -translate-x-3 -translate-y-3 z-10 h-7 w-28 rounded-full" />
+      )}
+      {!isStatusLoading && isCurrent && (
         <div className="absolute top-0 left-0 transform -translate-x-3 -translate-y-3 z-10 bg-emerald-500 text-white text-xs font-bold px-4 py-1.5 rounded-full uppercase tracking-widest shadow-lg flex items-center gap-1.5">
           <CheckCircle2 className="w-3 h-3" />
           Current Plan
@@ -88,7 +94,7 @@ export function SubscriptionPlanCard({
       <CardFooter>
         <Button
           className="w-full font-bold"
-          disabled={isCurrent || loading !== null || paymentTabOpen}
+          disabled={isCurrent || loading !== null || paymentTabOpen || isStatusLoading}
           variant={isDowngrade ? "outline" : "default"}
           onClick={() =>
             isDowngrade

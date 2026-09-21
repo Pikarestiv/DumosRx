@@ -24,17 +24,26 @@ export const useReferralsSettings = () => {
   });
 };
 
-export const useReferralsRelationships = () => {
+// Both endpoints paginate at 20/page server-side. The page argument (and the
+// `meta` the response carries) is what lets the tables show more than the 20
+// most recent rows - the credit audit log silently truncated to one page.
+export const useReferralsRelationships = (page = 1) => {
   return useQuery({
-    queryKey: useScopedKey(["referrals-relationships"]),
-    queryFn: () => webApiClient.request<PaginatedResponse<ReferralRelationship>>("admin/referrals"),
+    queryKey: useScopedKey(["referrals-relationships", page]),
+    queryFn: () =>
+      webApiClient.request<PaginatedResponse<ReferralRelationship>>(
+        `admin/referrals?page=${page}`,
+      ),
   });
 };
 
-export const useReferralsTransactions = () => {
+export const useReferralsTransactions = (page = 1) => {
   return useQuery({
-    queryKey: useScopedKey(["referrals-transactions"]),
-    queryFn: () => webApiClient.request<PaginatedResponse<CreditTransaction>>("admin/referrals/transactions"),
+    queryKey: useScopedKey(["referrals-transactions", page]),
+    queryFn: () =>
+      webApiClient.request<PaginatedResponse<CreditTransaction>>(
+        `admin/referrals/transactions?page=${page}`,
+      ),
   });
 };
 
@@ -61,10 +70,13 @@ export const useAdjustReferralsCreditsMutation = () => {
       type: string;
       description: string;
     }) =>
-      webApiClient.request<unknown>("admin/referrals/adjust-credits", {
-        method: "POST",
-        body: payload,
-      }),
+      webApiClient.request<{ message: string; referral_credits: number }>(
+        "admin/referrals/adjust-credits",
+        {
+          method: "POST",
+          body: payload,
+        },
+      ),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["referrals-summary"] });
       void queryClient.invalidateQueries({ queryKey: ["referrals-relationships"] });

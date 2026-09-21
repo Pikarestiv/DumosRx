@@ -1,11 +1,12 @@
-import { query, execute } from "@/lib/db/core";
+import { query } from "@/lib/db/core";
+import { update, insert } from "@/lib/db/local-database";
 import type { UserDbRow } from "@/lib/types/user";
 
 export async function getUserByUsernameOrEmail(identifier: string) {
   const isEmail = identifier.includes("@");
   const field = isEmail ? "email" : "username";
   const users = await query<UserDbRow>(
-    `SELECT * FROM users WHERE LOWER(${field}) = LOWER(?) AND is_active = 1`,
+    `SELECT * FROM users WHERE LOWER(${field}) = LOWER(?) AND is_active = 1 AND (_deleted = 0 OR _deleted IS NULL)`,
     [identifier]
   );
   return users.length > 0 ? users[0] : null;
@@ -21,9 +22,28 @@ interface DefaultAdminInfo {
 }
 
 export async function createDefaultAdmin(adminInfo: DefaultAdminInfo) {
-  return query(
-    "INSERT OR IGNORE INTO users (id, first_name, last_name, username, pin, role, is_active) VALUES (?, ?, ?, ?, ?, ?, ?)",
-    [adminInfo.id, adminInfo.first_name, adminInfo.last_name, adminInfo.username, adminInfo.pin, adminInfo.role, 1]
+  // Goes through insert() (not a raw query) so this bootstrap account is
+  // actually pushed to the cloud like any other user - previously it was a
+  // raw INSERT OR IGNORE that never touched _sync_queue, so it stayed
+  // invisible to every other device/the server, and a factory-reset device
+  // would silently mint an independent, never-reconciled duplicate. The id
+  // stays the fixed "default-admin" sentinel: it's relied on elsewhere
+  // (staff-list.tsx disables editing/deleting this specific row) and the
+  // caller (auth-context.tsx's login()) only reaches this once it has
+  // already confirmed zero local users exist, so a same-id collision here
+  // would only happen from a genuine double-submit race, not routine use.
+  return insert(
+    "users",
+    {
+      id: adminInfo.id,
+      first_name: adminInfo.first_name,
+      last_name: adminInfo.last_name,
+      username: adminInfo.username,
+      pin: adminInfo.pin,
+      role: adminInfo.role,
+      is_active: 1,
+    },
+    { action: "CREATE_DEFAULT_ADMIN" },
   );
 }
 
@@ -33,7 +53,7 @@ export async function getUserPin(userId: string) {
 }
 
 export async function updateUserPin(userId: string, newPin: string) {
-  return execute("UPDATE users SET pin = ? WHERE id = ?", [newPin, userId]);
+  return update("users", userId, { pin: newPin });
 }
 
 export async function getStaffCount() {

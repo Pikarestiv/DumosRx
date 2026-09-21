@@ -17,6 +17,8 @@ import {
   Activity,
   ShieldCheck,
   X,
+  Loader2,
+  AlertTriangle,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -40,13 +42,15 @@ export function AdminHeaderSearch() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResults | null>(null);
-  const [_isSearching, setIsSearching] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const [showResults, setShowResults] = useState(false);
 
   useEffect(() => {
     const runSearch = async () => {
       if (searchQuery.length >= 2) {
         setIsSearching(true);
+        setSearchError(null);
         try {
           const results = await webApiClient.request<Record<string, SearchResultItem[]>>(
             `admin/search?query=${encodeURIComponent(searchQuery)}`,
@@ -69,11 +73,21 @@ export function AdminHeaderSearch() {
           setShowResults(true);
         } catch (error) {
           console.error("Search error:", error);
+          // Never leave the previous query's results on screen as if they
+          // answered this one.
+          setSearchResults(null);
+          setSearchError(
+            error instanceof Error && error.message
+              ? error.message
+              : "Search failed. Please try again.",
+          );
+          setShowResults(true);
         } finally {
           setIsSearching(false);
         }
       } else {
         setSearchResults(null);
+        setSearchError(null);
         setShowResults(false);
       }
     };
@@ -100,12 +114,16 @@ export function AdminHeaderSearch() {
         onKeyDown={handleSearch}
         onFocus={() => searchQuery.length >= 2 && setShowResults(true)}
       />
+      {isSearching && (
+        <Loader2 className="absolute right-11 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-indigo-500" />
+      )}
       {searchQuery && (
         <button
           onClick={() => {
             setSearchQuery("");
             setShowResults(false);
             setSearchResults(null);
+            setSearchError(null);
           }}
           className="absolute right-4 top-1/2 -translate-y-1/2 p-1 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-600 transition-all"
         >
@@ -114,14 +132,23 @@ export function AdminHeaderSearch() {
       )}
 
       {/* Search Results Dropdown */}
-      {showResults && searchResults && (
+      {showResults && (searchResults || searchError) && (
         <>
           <div
             className="fixed inset-0 z-40"
             onClick={() => setShowResults(false)}
           />
           <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 p-2 z-50 max-h-[480px] overflow-y-auto animate-in fade-in slide-in-from-top-2 duration-200">
-            {Object.entries(searchResults).map(
+            {searchError && (
+              <div className="p-8 text-center flex flex-col items-center gap-2">
+                <AlertTriangle className="h-6 w-6 text-rose-500" />
+                <p className="text-sm font-bold text-rose-500">{searchError}</p>
+                <p className="text-xs text-slate-400 font-medium">
+                  Edit your search to try again.
+                </p>
+              </div>
+            )}
+            {searchResults && Object.entries(searchResults).map(
               ([type, items]) =>
                 items.length > 0 && (
                   <div key={type} className="mb-4 last:mb-0">
@@ -239,7 +266,8 @@ export function AdminHeaderSearch() {
                   </div>
                 ),
             )}
-            {!Object.values(searchResults).some((items) => items.length > 0) && (
+            {searchResults &&
+              !Object.values(searchResults).some((items) => items.length > 0) && (
               <div className="p-8 text-center">
                 <p className="text-sm font-bold text-slate-500 italic">
                   No results found for "{searchQuery}"

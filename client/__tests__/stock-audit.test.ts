@@ -32,15 +32,29 @@ let batches: Record<string, FakeBatch>;
 let movements: FakeMovement[];
 let audits: FakeAudit[];
 
+// Relative to "now" so these stay unexpired as real time passes -
+// getBatchesForProduct excludes already-expired batches from FEFO picking.
+const NEAR_EXPIRY = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+const FAR_EXPIRY = new Date(Date.now() + 400 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
 vi.mock('@/lib/db/local-database', () => ({
   query: vi.fn(async (sql: string, params: unknown[] = []) => {
     if (sql.includes('SELECT quantity FROM stock_batches WHERE id = ?')) {
       const b = batches[params[0] as string];
       return b ? [{ quantity: b.quantity }] : [];
     }
-    if (sql.includes('FROM stock_batches WHERE product_id = ?')) {
+    if (sql.includes('is_active = 1 AND quantity > 0')) {
+      // getBatchesForProduct: only batches with real remaining quantity.
       return Object.values(batches)
         .filter((b) => b.product_id === params[0] && b.quantity > 0)
+        .sort((a, b) => (a.expiry_date || '').localeCompare(b.expiry_date || ''));
+    }
+    if (sql.includes('FROM stock_batches WHERE product_id = ?')) {
+      // getAllActiveBatchesForProduct: every batch regardless of quantity -
+      // the surplus/restock path needs to find a zero-quantity batch to top
+      // back up rather than treating it as nonexistent.
+      return Object.values(batches)
+        .filter((b) => b.product_id === params[0])
         .sort((a, b) => (a.expiry_date || '').localeCompare(b.expiry_date || ''));
     }
     return [];
@@ -151,8 +165,8 @@ describe('submitStockAudit (Cycle Count persistence)', () => {
   });
 
   it('deducts shrinkage FEFO across multiple batches when one is not enough', async () => {
-    batches['b1'] = { id: 'b1', product_id: 'p1', quantity: 5, expiry_date: '2026-09-01' };
-    batches['b2'] = { id: 'b2', product_id: 'p1', quantity: 20, expiry_date: '2027-03-01' };
+    batches['b1'] = { id: 'b1', product_id: 'p1', quantity: 5, expiry_date: NEAR_EXPIRY };
+    batches['b2'] = { id: 'b2', product_id: 'p1', quantity: 20, expiry_date: FAR_EXPIRY };
 
     // System says 25, counted 10 -> 15 missing. Soonest-expiring batch (b1,
     // qty 5) gets fully zeroed first, remaining 10 comes off b2.

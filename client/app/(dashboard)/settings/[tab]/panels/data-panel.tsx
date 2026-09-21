@@ -16,6 +16,7 @@ export function DataPanel(s: SettingsState) {
         handleDownloadBackup={() => void s.handleDownloadBackup()}
         handleRestoreBackup={(e) => void s.handleRestoreBackup(e)}
         handleRestoreBackupTauri={() => void s.handleRestoreBackupTauri()}
+        handleUndoLastRestore={() => void s.handleUndoLastRestore()}
         isTauri={s.isTauri}
         setIsCloudLinkOpen={s.setIsCloudLinkOpen}
         setSyncAfterLink={s.setSyncAfterLink}

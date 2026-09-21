@@ -472,18 +472,36 @@ export async function fetchProfitLossReportData(dateFrom?: string, dateTo?: stri
   const extra = salesFilterClause(filters, "s.");
   where += extra.clause; params.push(...extra.params);
 
-  const salesRows = await query<Record<string, unknown>>(
+  // Revenue and COGS are aggregated in separate queries rather than one
+  // query joined to sale_items: a LEFT JOIN fans each sale out once per line
+  // item, so SUM(s.total_amount) alongside a sale_items aggregate in the
+  // same query double(/triple/...)-counts every multi-item sale's revenue by
+  // its item count. Matches the pattern getAdvancedMonthlySalesData already
+  // uses for the same reason.
+  const revenueRows = await query<Record<string, unknown>>(
     `SELECT
       strftime('%Y-%m', s.transaction_date) as "Month",
-      SUM(s.total_amount) as "Revenue",
-      SUM(si.cost_price * si.quantity) as "COGS"
+      SUM(s.total_amount) as "Revenue"
      FROM sales s
-     LEFT JOIN sale_items si ON s.id = si.sale_id
      WHERE ${where}
      GROUP BY strftime('%Y-%m', s.transaction_date)
      ORDER BY 1 ASC`,
     params
   );
+  const cogsRows = await query<{ Month: string; COGS: number }>(
+    `SELECT
+      strftime('%Y-%m', s.transaction_date) as "Month",
+      SUM(si.cost_price * si.quantity) as "COGS"
+     FROM sale_items si
+     JOIN sales s ON s.id = si.sale_id
+     WHERE ${where}
+     GROUP BY strftime('%Y-%m', s.transaction_date)`,
+    params
+  );
+  const salesRows: Record<string, unknown>[] = revenueRows.map((r) => ({
+    ...r,
+    COGS: cogsRows.find((c) => c.Month === r["Month"])?.COGS || 0,
+  }));
 
   const expParams: string[] = [];
   let expWhere = "_deleted = 0";

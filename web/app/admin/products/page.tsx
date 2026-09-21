@@ -21,6 +21,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Card, CardContent } from "@/components/ui/card";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { toast } from "sonner";
 import {
   useAdminProducts,
@@ -37,6 +38,7 @@ export default function GlobalProductsManagement() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("all");
+  const [isStandardizeConfirmOpen, setIsStandardizeConfirmOpen] = useState(false);
   const debouncedSearch = useDebounce(search, 500);
 
   const {
@@ -106,7 +108,7 @@ export default function GlobalProductsManagement() {
     });
   };
 
-  const handleStandardize = () => {
+  const runStandardize = () => {
     toast.info("Standardization Started", {
       description: "Scanning catalog for inconsistencies...",
     });
@@ -155,7 +157,7 @@ export default function GlobalProductsManagement() {
           </Button>
           <Button
             className="bg-indigo-600 hover:bg-indigo-700 font-bold shadow-lg shadow-indigo-600/20 w-full sm:w-auto"
-            onClick={handleStandardize}
+            onClick={() => setIsStandardizeConfirmOpen(true)}
             disabled={standardizeMutation.isPending}
           >
             {standardizeMutation.isPending ? (
@@ -269,6 +271,17 @@ export default function GlobalProductsManagement() {
           )}
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={isStandardizeConfirmOpen}
+        onOpenChange={setIsStandardizeConfirmOpen}
+        title="Standardize the entire platform catalog?"
+        description={`This rewrites product records across every store on the platform${
+          productMeta?.total ? ` (${productMeta.total} catalog entries)` : ""
+        }, not just the ones shown here. It runs immediately and cannot be undone.`}
+        confirmLabel="Standardize catalog"
+        onConfirm={runStandardize}
+      />
     </div>
   );
 }

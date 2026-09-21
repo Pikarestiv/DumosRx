@@ -9,7 +9,7 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import { Plus, RefreshCw } from "lucide-react";
+import { Plus, RefreshCw, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 
 import { ReferralProgramSettings } from "./types";
@@ -21,7 +21,6 @@ import { ReferralsAuditLog } from "./referrals-audit-log";
 import { ReferralsAdjustDialog } from "./referrals-adjust-dialog";
 
 import {
-  useAdminUsers,
   useReferralsSummary,
   useReferralsSettings,
   useReferralsRelationships,
@@ -31,11 +30,33 @@ import {
 } from "@/lib/api/admin-hooks";
 
 export function ReferralsManager() {
-  const { data: summaryData, isLoading: loadingSummary } = useReferralsSummary();
-  const { data: settingsData, isLoading: loadingSettings } = useReferralsSettings();
-  const { data: referralsData, isLoading: loadingReferrals } = useReferralsRelationships();
-  const { data: transactionsData, isLoading: loadingTransactions } = useReferralsTransactions();
-  const { data: usersData, isLoading: loadingUsers } = useAdminUsers();
+  const [referralsPage, setReferralsPage] = useState(1);
+  const [transactionsPage, setTransactionsPage] = useState(1);
+
+  const {
+    data: summaryData,
+    isLoading: loadingSummary,
+    error: summaryError,
+    refetch: refetchSummary,
+  } = useReferralsSummary();
+  const {
+    data: settingsData,
+    isLoading: loadingSettings,
+    error: settingsError,
+    refetch: refetchSettings,
+  } = useReferralsSettings();
+  const {
+    data: referralsData,
+    isLoading: loadingReferrals,
+    error: referralsError,
+    refetch: refetchReferrals,
+  } = useReferralsRelationships(referralsPage);
+  const {
+    data: transactionsData,
+    isLoading: loadingTransactions,
+    error: transactionsError,
+    refetch: refetchTransactions,
+  } = useReferralsTransactions(transactionsPage);
 
   const updateSettingsMutation = useUpdateReferralsSettingsMutation();
   const adjustCreditsMutation = useAdjustReferralsCreditsMutation();
@@ -55,8 +76,13 @@ export function ReferralsManager() {
     try {
       await updateSettingsMutation.mutateAsync(settings);
       toast.success("Referral program settings updated");
-    } catch (_error) {
-      toast.error("Failed to save settings");
+    } catch (error) {
+      // The API layer already copies the server's `message` (including a
+      // 422's first validation error) onto the Error. Flattening everything
+      // to "Failed to save settings" threw that detail away.
+      toast.error(
+        error instanceof Error ? error.message : "Failed to save settings",
+      );
     }
   };
 
@@ -66,7 +92,7 @@ export function ReferralsManager() {
     type: "earned" | "spent" | "admin_adjustment",
     description: string
   ) => {
-    await adjustCreditsMutation.mutateAsync({
+    return await adjustCreditsMutation.mutateAsync({
       user_id: userId,
       amount,
       type,
@@ -78,8 +104,17 @@ export function ReferralsManager() {
     loadingSummary ||
     loadingSettings ||
     loadingReferrals ||
-    loadingTransactions ||
-    loadingUsers;
+    loadingTransactions;
+
+  // Any of these failing used to collapse into a page of zeroes and empty
+  // tables - identical to "this program has no activity". A platform_admin
+  // hitting a 403 on a super_admin-only endpoint looked exactly the same.
+  const failures: { label: string; error: unknown; retry: () => void }[] = [
+    { label: "Program summary", error: summaryError, retry: () => void refetchSummary() },
+    { label: "Program settings", error: settingsError, retry: () => void refetchSettings() },
+    { label: "Referral relationships", error: referralsError, retry: () => void refetchReferrals() },
+    { label: "Credit audit log", error: transactionsError, retry: () => void refetchTransactions() },
+  ].filter((f) => f.error);
 
   if (loading) {
     return (
@@ -92,10 +127,43 @@ export function ReferralsManager() {
   const summary = summaryData || null;
   const referrals = referralsData?.data || [];
   const transactions = transactionsData?.data || [];
-  const users = usersData?.data || [];
 
   return (
     <div className="space-y-6">
+      {failures.length > 0 && (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 dark:border-rose-900/40 dark:bg-rose-950/20 p-4 space-y-3">
+          <div className="flex items-start gap-3">
+            <ShieldAlert className="h-5 w-5 text-rose-500 mt-0.5 shrink-0" />
+            <div className="space-y-1">
+              <p className="font-bold text-rose-700 dark:text-rose-400">
+                Some referral data could not be loaded.
+              </p>
+              <ul className="text-sm text-rose-700/90 dark:text-rose-400/90 space-y-0.5">
+                {failures.map((f) => (
+                  <li key={f.label}>
+                    <span className="font-semibold">{f.label}:</span>{" "}
+                    {f.error instanceof Error
+                      ? f.error.message
+                      : "Request failed."}
+                  </li>
+                ))}
+              </ul>
+              <p className="text-xs text-rose-700/80 dark:text-rose-400/80">
+                Figures and tables below are incomplete - they are not
+                necessarily zero.
+              </p>
+            </div>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => failures.forEach((f) => f.retry())}
+          >
+            Retry
+          </Button>
+        </div>
+      )}
+
       {/* Summary Metrics Section */}
       <ReferralsSummaryCards summary={summary} />
 
@@ -131,16 +199,23 @@ export function ReferralsManager() {
       </div>
 
       {/* Relationships Table */}
-      <ReferralsRelationshipsTable referrals={referrals} />
+      <ReferralsRelationshipsTable
+        referrals={referrals}
+        meta={referralsData?.meta}
+        onPageChange={setReferralsPage}
+      />
 
       {/* Audit Logs Table */}
-      <ReferralsAuditLog transactions={transactions} />
+      <ReferralsAuditLog
+        transactions={transactions}
+        meta={transactionsData?.meta}
+        onPageChange={setTransactionsPage}
+      />
 
       {/* Adjustment Dialog Overlay */}
       <ReferralsAdjustDialog
         isOpen={isDialogOpen}
         onOpenChange={setIsDialogOpen}
-        users={users}
         onAdjust={handleAdjustCredits}
       />
     </div>

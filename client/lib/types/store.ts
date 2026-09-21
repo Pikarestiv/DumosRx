@@ -42,7 +42,6 @@ export interface FleetStats {
     customers: { value: number; growth: string };
     stores_count: number;
     last_sync: string;
-    cloud_storage: { used_gb: number; limit_gb: number; percentage: number };
   };
   stores: FleetStore[];
 }

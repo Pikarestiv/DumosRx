@@ -49,38 +49,34 @@ export function SystemSettings() {
             Manage application updates and system information
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="space-y-0.5">
-            <Label>Application Version</Label>
-            <p className="text-sm text-muted-foreground">
-              Current version: {APP_VERSION}
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <Label className="text-muted-foreground font-normal">Application Version</Label>
+            <p className="text-sm font-medium">{APP_VERSION}</p>
+          </div>
+
+          <Separator />
+
+          <div className="flex items-center justify-between">
+            <Label className="text-muted-foreground font-normal">Environment</Label>
+            <p className="text-sm font-medium">
+              {isTauri() ? "Desktop (Tauri)" : "Web Browser"}
             </p>
           </div>
 
           <Separator />
 
-          <div className="space-y-2">
-            <Label>System Information</Label>
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div className="space-y-1">
-                <p className="text-muted-foreground">Environment</p>
-                <p className="font-medium">
-                  {isTauri() ? "Desktop (Tauri)" : "Web Browser"}
-                </p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-muted-foreground">Platform</p>
-                <p className="font-medium">
-                  {typeof window !== "undefined"
-                    ? navigator.userAgent.includes("Mac")
-                      ? "MacOS"
-                      : navigator.userAgent.includes("Win")
-                        ? "Windows"
-                        : "Linux"
-                    : "Unknown"}
-                </p>
-              </div>
-            </div>
+          <div className="flex items-center justify-between">
+            <Label className="text-muted-foreground font-normal">Platform</Label>
+            <p className="text-sm font-medium">
+              {typeof window !== "undefined"
+                ? navigator.userAgent.includes("Mac")
+                  ? "MacOS"
+                  : navigator.userAgent.includes("Win")
+                    ? "Windows"
+                    : "Linux"
+                : "Unknown"}
+            </p>
           </div>
         </CardContent>
       </Card>

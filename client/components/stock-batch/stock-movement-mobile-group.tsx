@@ -37,8 +37,9 @@ export function StockMovementMobileGroup({
           )
             displayReason = `PO-${movement.reference}`;
 
+          const isTransfer = movement.type.toLowerCase().startsWith("transfer_");
           const signColor =
-            movement.type.toLowerCase() === "sale"
+            movement.type.toLowerCase() === "sale" || isTransfer
               ? "text-foreground"
               : isPositive
                 ? "text-emerald-600"

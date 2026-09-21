@@ -12,10 +12,14 @@ export function ReceiptSettingsPanel(s: SettingsState) {
       setLocalReceiptHeader={s.setLocalReceiptHeader}
       localReceiptFooter={s.localReceiptFooter}
       setLocalReceiptFooter={s.setLocalReceiptFooter}
+      localReceiptTagline={s.localReceiptTagline}
+      setLocalReceiptTagline={s.setLocalReceiptTagline}
       showLogo={s.showLogo}
       setShowLogo={s.setShowLogo}
-      showContact={s.showContact}
-      setShowContact={s.setShowContact}
+      showPhone={s.showPhone}
+      setShowPhone={s.setShowPhone}
+      showAddress={s.showAddress}
+      setShowAddress={s.setShowAddress}
       hidePoweredBy={s.hidePoweredBy}
       setHidePoweredBy={s.setHidePoweredBy}
       handleSaveReceiptSettings={s.handleSaveReceiptSettings}

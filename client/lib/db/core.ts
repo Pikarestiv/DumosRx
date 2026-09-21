@@ -184,10 +184,6 @@ export async function initDatabase(): Promise<any> {
 
     const webAdapter = makeSqlJsAdapter(db);
 
-    try {
-      db.run("UPDATE purchase_orders SET status = 'pending' WHERE status = 'draft'");
-    } catch (_e) {}
-
     await runSchemaMigrations(webAdapter, saveDatabase);
 
     return db;
@@ -617,13 +613,30 @@ export function getDatabaseBinary(): Uint8Array | null {
   return db.export();
 }
 
+// Tables a genuine DumosRx database must have; used to sanity-check a
+// restore candidate before it replaces the live database (see
+// restoreDatabase() below). Not exhaustive - just enough that a wrong file
+// of the right container format (e.g. some other app's .db/.sqlite) is
+// still caught, not just outright garbage that fails to parse at all.
+const RESTORE_SANITY_CHECK_TABLES = ["users", "stores", "products", "sales"];
+
 /**
  * Overwrites the current database with provided binary data: sql.js (web)
  * only. On desktop/mobile this would silently disconnect `db` from the real
  * file Tauri's SQL plugin manages without ever writing the restored data to
  * disk; use restoreDatabaseFromFile() there instead.
+ *
+ * Validates the candidate against a throwaway sql.js instance before
+ * touching the live `db` at all (an invalid/corrupt/wrong-app file throws
+ * here and the live database is left completely untouched), and snapshots
+ * the outgoing database into IndexedDB first so a restore that turns out to
+ * be wrong (valid SQLite, but not what the user meant to restore) can still
+ * be recovered — see restorePreRestoreSnapshot(). Returns whether that
+ * snapshot actually succeeded (e.g. false on an IndexedDB quota failure) so
+ * the caller can warn the user their usual undo option won't be available
+ * this time, rather than that failure being silently console-only.
  */
-export async function restoreDatabase(binaryData: Uint8Array): Promise<void> {
+export async function restoreDatabase(binaryData: Uint8Array): Promise<{ snapshotSucceeded: boolean }> {
   if (isTauri()) {
     throw new Error(
       "restoreDatabase() is web-only; use restoreDatabaseFromFile() on desktop/mobile.",
@@ -635,8 +648,56 @@ export async function restoreDatabase(binaryData: Uint8Array): Promise<void> {
     });
   }
 
-  db = new SQL.Database(binaryData);
+  // Constructed against a local variable, not `db` - a malformed file throws
+  // here (sql.js validates the SQLite file header) with the live database
+  // still fully intact.
+  const candidate = new SQL.Database(binaryData);
+  try {
+    const tableRows = candidate.exec(
+      "SELECT name FROM sqlite_master WHERE type='table'",
+    );
+    const tableNames = new Set(
+      (tableRows[0]?.values ?? []).map((row) => String(row[0])),
+    );
+    const missing = RESTORE_SANITY_CHECK_TABLES.filter((t) => !tableNames.has(t));
+    if (missing.length > 0) {
+      throw new Error(
+        `This file doesn't look like a DumosRx backup (missing table${missing.length > 1 ? "s" : ""}: ${missing.join(", ")}).`,
+      );
+    }
+  } catch (err) {
+    candidate.close();
+    throw err;
+  }
+
+  let snapshotSucceeded = true;
+  if (db) {
+    const outgoing = db.export();
+    await set(`${APP_NAME.toLowerCase()}_db_pre_restore_backup`, outgoing).catch(
+      (err) => {
+        snapshotSucceeded = false;
+        console.error("[DB] Failed to snapshot outgoing database before restore", err);
+      },
+    );
+    db.close();
+  }
+
+  db = candidate;
   await saveDatabase();
+  return { snapshotSucceeded };
+}
+
+/**
+ * Recovers the database as it stood immediately before the most recent
+ * restoreDatabase() call (web only) — the one-generation-deep safety net
+ * that restoreDatabase() snapshots into on every restore. Returns false
+ * (does nothing) if no snapshot exists yet.
+ */
+export async function restorePreRestoreSnapshot(): Promise<boolean> {
+  const snapshot = await get<Uint8Array>(`${APP_NAME.toLowerCase()}_db_pre_restore_backup`);
+  if (!snapshot) return false;
+  await restoreDatabase(snapshot);
+  return true;
 }
 
 /**
@@ -681,9 +742,16 @@ export async function backupDatabaseToFile(): Promise<{ success: boolean; path?:
   return { success: true, path: destPath };
 }
 
+// First 16 bytes of any genuine SQLite database file (the format's own
+// magic header) — used to reject an obviously-wrong file before it ever
+// touches the live database. See restoreDatabaseFromFile() below.
+const SQLITE_FILE_HEADER = "SQLite format 3\0";
+
 /**
  * Desktop/mobile-only restore: lets the user pick a backup file via a native
- * open dialog, closes the live SQL connection so the file isn't locked, then
+ * open dialog, validates it's at least a real SQLite file, snapshots the
+ * live database file (so a restore of the wrong-but-valid file can still be
+ * recovered), closes the live SQL connection so the file isn't locked, then
  * overwrites the real dumosrx.db file with it. The caller must reload the
  * app afterward so initDatabase() re-establishes a fresh connection against
  * the restored file.
@@ -702,18 +770,55 @@ export async function restoreDatabaseFromFile(): Promise<{ success: boolean }> {
     return { success: false }; // user cancelled, or somehow picked multiple
   }
 
+  const { copyFile, readFile, exists } = await import("@tauri-apps/plugin-fs");
+  const { appDataDir, join } = await import("@tauri-apps/api/path");
+
+  // Validate BEFORE touching the live connection/file at all: a garbage or
+  // wrong-app file must never get the chance to close the live db and
+  // partially overwrite it.
+  const candidateBytes = await readFile(sourcePath);
+  const header = new TextDecoder().decode(candidateBytes.slice(0, 16));
+  if (header !== SQLITE_FILE_HEADER) {
+    throw new Error("This file doesn't look like a valid SQLite database.");
+  }
+
+  const liveDbPath = await join(await appDataDir(), "dumosrx.db");
+
+  if (db) {
+    try {
+      // Force every committed transaction sitting in the -wal sidecar back
+      // into the main .db file BEFORE snapshotting it below. Without this, a
+      // raw copy of dumosrx.db alone can miss the most recent writes (WAL
+      // journaling is enabled - see initDatabase()), making the "recoverable"
+      // pre-restore snapshot silently incomplete for exactly the data most
+      // likely to matter (whatever the user was just doing).
+      await db.execute("PRAGMA wal_checkpoint(TRUNCATE);");
+    } catch (err) {
+      console.error("[DB] Failed to checkpoint WAL before restore snapshot:", err);
+    }
+  }
+
+  if (await exists(liveDbPath)) {
+    await copyFile(liveDbPath, `${liveDbPath}.pre-restore-backup`);
+  }
+
   if (db) {
     try {
       await db.close();
     } catch (err) {
+      // Do NOT proceed to overwrite the live file past a failed close: with
+      // WAL journaling enabled, a still-open connection's -wal/-shm sidecars
+      // can replay stale pre-restore data over the freshly-copied file on
+      // the next open, silently mixing pre- and post-restore state. Safer
+      // to fail the restore outright and let the user retry/reload first.
       console.error("[DB] Failed to close database connection before restore:", err);
+      throw new Error(
+        "Could not safely close the current database before restoring. Please restart the app and try again.",
+      );
     }
     db = null;
   }
 
-  const { copyFile } = await import("@tauri-apps/plugin-fs");
-  const { appDataDir, join } = await import("@tauri-apps/api/path");
-  const liveDbPath = await join(await appDataDir(), "dumosrx.db");
   await copyFile(sourcePath, liveDbPath);
 
   return { success: true };
@@ -1027,6 +1132,7 @@ export async function logAction(
   const record = {
     id,
     user_id: currentUser?.id || null,
+    store_id: getActiveStoreId(),
     action,
     table_name: table,
     record_id: recordId,

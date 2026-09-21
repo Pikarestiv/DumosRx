@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useAdminSummary } from "@/lib/api/admin-hooks";
 import { useRouter } from "next/navigation";
 import { AdminSkeleton } from "@/components/admin/admin-skeleton";
+import { useApiEnvironmentName } from "@/hooks/use-api-environment";
 
 import { StatsGrid } from "@/components/admin/dashboard/stats-grid";
 import { RecentStores } from "@/components/admin/dashboard/recent-stores";
@@ -19,6 +20,9 @@ export default function AdminDashboard() {
   const { data: summary, isLoading, error, refetch } = useAdminSummary();
   const router = useRouter();
   const [selectedStore, setSelectedStore] = useState<AdminStoreSummary | null>(null);
+  // Named after the API server this session actually talks to, not NODE_ENV:
+  // a local build pointed at production used to read "Dev Cluster".
+  const { environmentName } = useApiEnvironmentName();
 
   if (isLoading && !summary) {
     return <AdminSkeleton />;
@@ -56,12 +60,7 @@ export default function AdminDashboard() {
             Global Control
           </h1>
           <div className="text-slate-500 dark:text-slate-400 mt-1 font-medium italic flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
-            <span>
-              Connected to{" "}
-              {process.env.NODE_ENV === "development"
-                ? "Dev Cluster"
-                : "Production Cluster"}
-            </span>
+            <span>Connected to {environmentName} Cluster</span>
             <span className="hidden sm:inline">•</span>
             <LiveClock />
           </div>

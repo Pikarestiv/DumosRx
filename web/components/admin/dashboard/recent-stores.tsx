@@ -8,6 +8,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useRouter } from "next/navigation";
 import type { AdminStoreSummary } from "@/lib/types/admin";
 
 interface RecentStoresProps {
@@ -16,6 +17,8 @@ interface RecentStoresProps {
 }
 
 export function RecentStores({ recentStores, setSelectedStore }: RecentStoresProps) {
+  const router = useRouter();
+
   return (
     <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
       <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
@@ -23,7 +26,14 @@ export function RecentStores({ recentStores, setSelectedStore }: RecentStoresPro
           <h3 className="text-xl font-black text-slate-900 dark:text-white">Recent Stores</h3>
           <p className="text-xs font-medium text-slate-500">Newly registered business instances</p>
         </div>
-        <Button variant="ghost" size="sm" className="text-indigo-600 font-bold hover:bg-indigo-50">View All</Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-indigo-600 font-bold hover:bg-indigo-50"
+          onClick={() => router.push("/admin/stores")}
+        >
+          View All
+        </Button>
       </div>
       <div className="overflow-x-auto">
         <Table>

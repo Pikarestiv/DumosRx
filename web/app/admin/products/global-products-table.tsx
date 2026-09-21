@@ -25,7 +25,6 @@ import {
   ShieldAlert,
   Store,
 } from "lucide-react";
-import { toast } from "sonner";
 import type { GlobalProductSummary } from "@/lib/types/admin";
 
 interface GlobalProductsTableProps {
@@ -162,42 +161,31 @@ export function GlobalProductsTable({
                     Product Actions
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator className="bg-muted/50" />
-                  <DropdownMenuItem
-                    className="rounded-xl font-bold cursor-pointer group"
-                    onClick={() =>
-                      toast.info("Product detail view not yet available", {
-                        description:
-                          "There's no per-product detail page in the superadmin panel yet.",
-                      })
-                    }
-                  >
-                    <Eye className="h-4 w-4 mr-2 text-slate-400 group-hover:text-primary" />
+                  {/* Not yet implemented: there's no per-product detail page,
+                      no admin product-edit endpoint, and no per-entry
+                      standardize endpoint. Shown disabled rather than as live
+                      controls that only raise a toast. */}
+                  <DropdownMenuItem disabled className="rounded-xl font-bold">
+                    <Eye className="h-4 w-4 mr-2 text-slate-400" />
                     View Details
+                    <span className="ml-auto text-[10px] uppercase tracking-widest text-slate-400">
+                      Soon
+                    </span>
                   </DropdownMenuItem>
-                  <DropdownMenuItem
-                    className="rounded-xl font-bold cursor-pointer group"
-                    onClick={() =>
-                      toast.info("Product editing not yet available", {
-                        description:
-                          "There's no admin product-edit endpoint yet — this product belongs to a store's own inventory.",
-                      })
-                    }
-                  >
-                    <Plus className="h-4 w-4 mr-2 text-slate-400 group-hover:text-primary" />
+                  <DropdownMenuItem disabled className="rounded-xl font-bold">
+                    <Plus className="h-4 w-4 mr-2 text-slate-400" />
                     Edit Product
+                    <span className="ml-auto text-[10px] uppercase tracking-widest text-slate-400">
+                      Soon
+                    </span>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator className="bg-muted/50" />
-                  <DropdownMenuItem
-                    className="rounded-xl font-bold cursor-pointer group text-indigo-600"
-                    onClick={() =>
-                      toast.info("Per-entry standardization not yet available", {
-                        description:
-                          "Use \"Standardize Catalog\" above to normalize the whole catalog at once.",
-                      })
-                    }
-                  >
-                    <FileCheck className="h-4 w-4 mr-2 text-indigo-400 group-hover:text-indigo-600" />
+                  <DropdownMenuItem disabled className="rounded-xl font-bold">
+                    <FileCheck className="h-4 w-4 mr-2 text-slate-400" />
                     Standardize Entry
+                    <span className="ml-auto text-[10px] uppercase tracking-widest text-slate-400">
+                      Soon
+                    </span>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>

@@ -157,8 +157,10 @@ Route::prefix('v1')->group(function () {
             Route::post('/stores/{id}/mark-demo', [AdminStoreController::class, 'markStoreDemo'])->middleware('role:super_admin');
             Route::post('/stores/{id}/unmark-demo', [AdminStoreController::class, 'unmarkStoreDemo'])->middleware('role:super_admin');
             Route::post('/stores/{id}/grant-trial', [AdminStoreController::class, 'grantTrial']);
+            Route::post('/stores/{id}/activate-plan', [AdminStoreController::class, 'activatePlan']);
             Route::get('/stores/{id}/billing-history', [AdminStoreController::class, 'billingHistory'])->middleware('role:super_admin');
             Route::post('/users/{id}/grant-trial', [AdminUserController::class, 'grantUserTrial']);
+            Route::post('/users/{id}/activate-plan', [AdminUserController::class, 'activateUserPlan']);
             Route::get('/products', [AdminPlatformController::class, 'products'])->middleware('role:super_admin');
             Route::post('/products/standardize', [AdminPlatformController::class, 'standardize'])->middleware('role:super_admin');
             Route::get('/users', [AdminUserController::class, 'users'])->middleware('role:super_admin');
@@ -182,14 +184,16 @@ Route::prefix('v1')->group(function () {
             Route::get('/account-managers', [AdminStoreController::class, 'accountManagerCandidates'])->middleware('role:super_admin');
 
             // Email Templates
-            Route::apiResource('email-templates', \App\Http\Controllers\Api\Admin\EmailTemplateController::class)->only(['index', 'show', 'update']);
+            Route::apiResource('email-templates', \App\Http\Controllers\Api\Admin\EmailTemplateController::class)
+                ->only(['index', 'show', 'update'])
+                ->middleware('role:super_admin');
 
             // Feedback
-            Route::get('/feedback', [\App\Http\Controllers\Api\Web\FeedbackController::class, 'index']);
-            Route::post('/feedback/{id}/status', [\App\Http\Controllers\Api\Web\FeedbackController::class, 'updateStatus']);
+            Route::get('/feedback', [\App\Http\Controllers\Api\Web\FeedbackController::class, 'index'])->middleware('role:super_admin');
+            Route::post('/feedback/{id}/status', [\App\Http\Controllers\Api\Web\FeedbackController::class, 'updateStatus'])->middleware('role:super_admin');
 
             // Broadcasts
-            Route::prefix('announcements')->middleware('subscription:broadcast_create')->group(function () {
+            Route::prefix('announcements')->middleware(['subscription:broadcast_create', 'role:super_admin'])->group(function () {
                 Route::get('/', [BroadcastController::class, 'adminIndex']);
                 Route::post('/', [BroadcastController::class, 'store']);
                 Route::put('/{id}', [BroadcastController::class, 'update']);
@@ -198,26 +202,36 @@ Route::prefix('v1')->group(function () {
             });
 
             // Emails
-            Route::post('/mail/send', [MailController::class, 'send']);
+            Route::post('/mail/send', [MailController::class, 'send'])->middleware('role:super_admin');
 
             // System Configs
-            Route::put('/system-configs/{key}', [SystemConfigController::class, 'update']);
+            Route::put('/system-configs/{key}', [SystemConfigController::class, 'update'])->middleware('role:super_admin');
+
+            // Revenue (Marketing > Revenue tab)
+            Route::get('/marketing/revenue', [\App\Http\Controllers\Api\Admin\RevenueController::class, 'overview'])->middleware('role:super_admin');
 
             // Coupons
-            Route::get('/coupons', [\App\Http\Controllers\Api\Admin\CouponController::class, 'index']);
-            Route::post('/coupons', [\App\Http\Controllers\Api\Admin\CouponController::class, 'store']);
-            Route::put('/coupons/{coupon}', [\App\Http\Controllers\Api\Admin\CouponController::class, 'update']);
-            Route::put('/coupons/{coupon}/toggle', [\App\Http\Controllers\Api\Admin\CouponController::class, 'toggleActive']);
-            Route::get('/coupons/{coupon}/usages', [\App\Http\Controllers\Api\Admin\CouponController::class, 'usages']);
-            Route::delete('/coupons/{coupon}', [\App\Http\Controllers\Api\Admin\CouponController::class, 'destroy']);
+            Route::middleware('role:super_admin')->group(function () {
+                Route::get('/coupons', [\App\Http\Controllers\Api\Admin\CouponController::class, 'index']);
+                Route::post('/coupons', [\App\Http\Controllers\Api\Admin\CouponController::class, 'store']);
+                Route::put('/coupons/{coupon}', [\App\Http\Controllers\Api\Admin\CouponController::class, 'update']);
+                Route::put('/coupons/{coupon}/toggle', [\App\Http\Controllers\Api\Admin\CouponController::class, 'toggleActive']);
+                Route::get('/coupons/{coupon}/usages', [\App\Http\Controllers\Api\Admin\CouponController::class, 'usages']);
+                Route::delete('/coupons/{coupon}', [\App\Http\Controllers\Api\Admin\CouponController::class, 'destroy']);
+            });
 
             // Referrals
+            // The read endpoints stay on the group's manage_platform check:
+            // agents legitimately review their own referral pipeline there.
+            // Adjusting credit balances and rewriting the reward settings are
+            // a different matter - an agent holding manage_platform could
+            // otherwise award themselves credits.
             Route::get('/referrals/summary', [\App\Http\Controllers\Api\Admin\ReferralController::class, 'getSummary']);
             Route::get('/referrals', [\App\Http\Controllers\Api\Admin\ReferralController::class, 'getReferrals']);
             Route::get('/referrals/transactions', [\App\Http\Controllers\Api\Admin\ReferralController::class, 'getTransactions']);
-            Route::post('/referrals/adjust-credits', [\App\Http\Controllers\Api\Admin\ReferralController::class, 'adjustCredits']);
-            Route::get('/referrals/settings', [\App\Http\Controllers\Api\Admin\ReferralController::class, 'getSettings']);
-            Route::put('/referrals/settings', [\App\Http\Controllers\Api\Admin\ReferralController::class, 'updateSettings']);
+            Route::post('/referrals/adjust-credits', [\App\Http\Controllers\Api\Admin\ReferralController::class, 'adjustCredits'])->middleware('role:super_admin');
+            Route::get('/referrals/settings', [\App\Http\Controllers\Api\Admin\ReferralController::class, 'getSettings'])->middleware('role:super_admin');
+            Route::put('/referrals/settings', [\App\Http\Controllers\Api\Admin\ReferralController::class, 'updateSettings'])->middleware('role:super_admin');
         });
         // --- APP / TERMINAL ROUTES ---
         Route::prefix('app')->middleware('subscription')->group(function () {

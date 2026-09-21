@@ -13,6 +13,14 @@ export interface SubscriptionPlan {
   popular: boolean;
 }
 
+/** The canonical plan slugs, in tier order. Same keys as
+ * `SubscriptionConfig["tiers"]` and the backend's `subscription_plans`
+ * config - anything that lets an admin pick a plan should read these rather
+ * than accept free text. */
+export const PLAN_SLUGS = ["free", "starter", "pro", "enterprise"] as const;
+
+export type PlanSlug = (typeof PLAN_SLUGS)[number];
+
 export const getSubscriptionPlans = (
   config: Partial<SubscriptionConfig> | undefined,
   isYearly: boolean,

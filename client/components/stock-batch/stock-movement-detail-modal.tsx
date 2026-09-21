@@ -2,6 +2,7 @@ import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import {
   StockMovement,
   getTypeColor,
+  getTypeLabel,
   formatMovementDate,
   formatMovementTime,
 } from "./stock-movement-utils";
@@ -45,7 +46,7 @@ export function StockMovementDetailModal({
               <span
                 className={`text-[11px] font-semibold px-2 py-0.5 rounded-md capitalize inline-block ${getTypeColor(movement.type)}`}
               >
-                {movement.type}
+                {getTypeLabel(movement.type)}
               </span>
               <div
                 className={`text-[18px] font-semibold mt-1 ${movement.quantity > 0 ? "text-emerald-700" : "text-destructive"}`}

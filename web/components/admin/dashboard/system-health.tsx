@@ -1,4 +1,4 @@
-import { Globe, Activity, ShieldAlert, ChevronRight } from "lucide-react";
+import { Globe, Activity, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useRouter } from "next/navigation";
@@ -48,16 +48,22 @@ export function SystemHealth({ liveOperations, securityAlerts }: SystemHealthPro
             </Badge>
         </div>
         <div className="space-y-4">
+            {/* Deliberately not clickable: a security alert as returned by
+                AdminPlatformService::getPlatformSummary() carries only
+                title/source/time - no action, log id or user id - so there is
+                nothing to build an activity-log filter from. Rendering it with
+                a pointer cursor, a hover treatment and a chevron promised a
+                drill-down that does not exist; the "View Security Audit Trail"
+                button below is the real destination. */}
             {securityAlerts.map((alert, i: number) => (
-                <div key={i} className="flex items-start gap-3 group cursor-pointer">
-                    <div className="mt-1 p-1.5 bg-rose-500/10 text-rose-500 rounded-lg group-hover:bg-rose-500 group-hover:text-white transition-colors">
+                <div key={i} className="flex items-start gap-3">
+                    <div className="mt-1 p-1.5 bg-rose-500/10 text-rose-500 rounded-lg">
                         <ShieldAlert className="h-3 w-3" />
                     </div>
                     <div className="flex-1">
                         <p className="text-xs font-black text-slate-900 dark:text-slate-100">{alert.title}</p>
                         <p className="text-[10px] font-bold text-slate-500">{alert.source} • {alert.time}</p>
                     </div>
-                    <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-indigo-500" />
                 </div>
             ))}
             {securityAlerts.length === 0 && (

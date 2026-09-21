@@ -8,9 +8,12 @@ import { getStorefrontSlugs } from "@/lib/api/storefront-slugs";
 import type { StorefrontProduct } from "@/lib/types/storefront";
 
 interface StorefrontProps {
-  params: {
+  // Next 16 passes `params` as a Promise and, in a production build, it is a
+  // plain Promise with no property proxy - reading `params.store_slug`
+  // synchronously yields `undefined`, not the slug. It must be awaited.
+  params: Promise<{
     store_slug: string;
-  };
+  }>;
 }
 
 async function getStorefrontData(store_slug: string) {
@@ -35,7 +38,8 @@ export async function generateStaticParams() {
 }
 
 export default async function StorefrontPage({ params }: StorefrontProps) {
-  const data = await getStorefrontData(params.store_slug);
+  const { store_slug } = await params;
+  const data = await getStorefrontData(store_slug);
 
   if (!data) {
     notFound();
@@ -60,7 +64,7 @@ export default async function StorefrontPage({ params }: StorefrontProps) {
             <div className="font-bold text-xl text-emerald-700">{store.name}</div>
           </div>
           <div className="flex items-center space-x-4">
-            <StorefrontCart storeSlug={params.store_slug} />
+            <StorefrontCart storeSlug={store_slug} />
           </div>
         </div>
       </header>
@@ -99,7 +103,11 @@ export default async function StorefrontPage({ params }: StorefrontProps) {
             </div>
           ) : (
             products.map((product: StorefrontProduct) => (
-              <ProductCard key={product.id} product={product} />
+              <ProductCard
+                key={product.id}
+                product={product}
+                storeSlug={store_slug}
+              />
             ))
           )}
         </div>

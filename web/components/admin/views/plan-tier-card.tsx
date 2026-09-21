@@ -1,7 +1,89 @@
+import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import type { SubscriptionConfig, TierConfig, TierLimits, TierFeatures } from "@/lib/types/admin";
+
+/** Highest price this editor will accept, in naira. Mirrors the server-side
+ * ceiling in SystemConfigController::update - a typo with an extra zero or
+ * two is a far likelier explanation than a real ₦100m/month plan. */
+const MAX_PLAN_PRICE = 100_000_000;
+
+/** A price field that never lets a bad value into the saved config.
+ *
+ * The old implementation was `Number(e.target.value)` straight into form
+ * state, so clearing the box published `Number("") === 0` - a live, free,
+ * "paid" tier - and typing `-1` published a negative one. Here the raw text
+ * is kept as local draft state and only *committed* to the config once it
+ * parses as a positive number in range; anything else leaves the last good
+ * value in place and explains why. Blurring discards the rejected draft so
+ * what is on screen is always what would be saved. */
+function PriceInput({
+  label,
+  labelClass,
+  inputClass,
+  value,
+  disabled,
+  onCommit,
+}: {
+  label: string;
+  labelClass: string;
+  inputClass: string;
+  value: number;
+  disabled: boolean;
+  onCommit: (price: number) => void;
+}) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const [prevValue, setPrevValue] = useState(value);
+
+  // A committed change (or a fresh config load) wins over a stale draft.
+  if (value !== prevValue) {
+    setPrevValue(value);
+    setDraft(null);
+  }
+
+  const text = draft ?? String(value);
+  const parsed = Number(text);
+  const isRejected =
+    text.trim() === "" ||
+    !Number.isFinite(parsed) ||
+    parsed <= 0 ||
+    parsed > MAX_PLAN_PRICE;
+
+  return (
+    <div className="space-y-2">
+      <Label className={labelClass}>{label}</Label>
+      <Input
+        type="number"
+        min={1}
+        max={MAX_PLAN_PRICE}
+        className={`${inputClass} ${isRejected ? "border-rose-500 focus-visible:ring-rose-500" : ""}`}
+        value={text}
+        onChange={(e) => {
+          const next = e.target.value;
+          setDraft(next);
+          const candidate = Number(next);
+          if (
+            next.trim() !== "" &&
+            Number.isFinite(candidate) &&
+            candidate > 0 &&
+            candidate <= MAX_PLAN_PRICE
+          ) {
+            onCommit(candidate);
+          }
+        }}
+        onBlur={() => setDraft(null)}
+        disabled={disabled}
+      />
+      {isRejected && (
+        <p className="text-xs text-rose-500">
+          Enter a price between ₦1 and ₦{MAX_PLAN_PRICE.toLocaleString()}. Until
+          then ₦{value.toLocaleString()} stays saved.
+        </p>
+      )}
+    </div>
+  );
+}
 
 interface PlanTierCardProps {
   tierKey: "free" | "starter" | "pro" | "enterprise";
@@ -70,26 +152,22 @@ export function PlanTierCard({
       <div className="grid grid-cols-2 gap-4">
         {tierKey !== "free" && (
           <>
-            <div className="space-y-2">
-              <Label className={labelClass}>Price (₦) / Month</Label>
-              <Input
-                type="number"
-                className={inputClass}
-                value={tier.price_monthly}
-                onChange={(e) => updateTier({ price_monthly: Number(e.target.value) })}
-                disabled={!tier.active}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className={labelClass}>Price (₦) / Year</Label>
-              <Input
-                type="number"
-                className={inputClass}
-                value={tier.price_yearly}
-                onChange={(e) => updateTier({ price_yearly: Number(e.target.value) })}
-                disabled={!tier.active}
-              />
-            </div>
+            <PriceInput
+              label="Price (₦) / Month"
+              labelClass={labelClass}
+              inputClass={inputClass}
+              value={tier.price_monthly}
+              disabled={!tier.active}
+              onCommit={(price_monthly) => updateTier({ price_monthly })}
+            />
+            <PriceInput
+              label="Price (₦) / Year"
+              labelClass={labelClass}
+              inputClass={inputClass}
+              value={tier.price_yearly}
+              disabled={!tier.active}
+              onCommit={(price_yearly) => updateTier({ price_yearly })}
+            />
           </>
         )}
         <div className={`space-y-2 pt-2 border-t col-span-2 ${dividerClass}`}>
@@ -132,6 +210,7 @@ export function PlanTierCard({
           {(
             [
               { key: "cloud_sync", label: "Cloud Sync" },
+              { key: "web_dashboard", label: "Web Dashboard" },
               { key: "mobile_app", label: "Mobile App" },
               { key: "ecommerce", label: "E-commerce URL" },
               { key: "smart_pos", label: "Smart POS" },

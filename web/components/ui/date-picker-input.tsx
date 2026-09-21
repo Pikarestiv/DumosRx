@@ -90,6 +90,20 @@ export function DatePickerInput({
   const [inputValue, setInputValue] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [prevValue, setPrevValue] = useState(value);
+  // A fully-typed date that violates disablePast/disableFuture: kept on
+  // screen (so the user sees what was rejected) but never committed.
+  const [outOfBounds, setOutOfBounds] = useState(false);
+
+  const isOutOfBounds = (candidate: Date) => {
+    if (!disablePast && !disableFuture) return false;
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const day = new Date(candidate);
+    day.setHours(0, 0, 0, 0);
+    if (disablePast && day < startOfToday) return true;
+    if (disableFuture && day > startOfToday) return true;
+    return false;
+  };
 
   // Sync internal state with external value - done here (render body) rather
   // than in an effect so a controlled-value change is reflected in the same
@@ -137,17 +151,33 @@ export function DatePickerInput({
     if (digits.length === 8) {
       const parsedDate = parse(formatted, "dd/MM/yyyy", new Date());
       if (isValid(parsedDate)) {
+        // disablePast/disableFuture have to be enforced here too, not just
+        // via the calendar's `disabled` matcher: a date typed straight into
+        // the masked input never goes through the calendar, so without this
+        // an already-expired trial end date (or a future-dated expense)
+        // sails past the bound the caller asked for.
+        if (isOutOfBounds(parsedDate)) {
+          setDate(undefined);
+          setOutOfBounds(true);
+          onChange?.("");
+          return;
+        }
         setDate(parsedDate);
+        setOutOfBounds(false);
         onChange?.(format(parsedDate, "yyyy-MM-dd"));
         return;
       }
     }
     // Incomplete or invalid so far: clear the external value but keep
     // their typing on screen.
+    setOutOfBounds(false);
     onChange?.("");
   };
 
   const handleSelect = (selectedDate: Date | undefined) => {
+    // The calendar can't produce an out-of-bounds date (its own `disabled`
+    // matcher blocks those), so any pick clears the typed-entry warning.
+    setOutOfBounds(false);
     setDate(selectedDate);
     if (selectedDate && isValid(selectedDate)) {
       setInputValue(format(selectedDate, "dd/MM/yyyy"));
@@ -181,7 +211,22 @@ export function DatePickerInput({
           value={inputValue}
           onChange={handleInputChange}
           disabled={disabled}
-          className={cn("pr-10", inputClassName)}
+          aria-invalid={outOfBounds || undefined}
+          title={
+            outOfBounds
+              ? disablePast
+                ? "That date is in the past."
+                : "That date is in the future."
+              : undefined
+          }
+          className={cn(
+            "pr-10",
+            // The typed date was rejected for being out of bounds: flag it on
+            // the input itself rather than adding a message row, which would
+            // shift the inline filter/dialog layouts this is embedded in.
+            outOfBounds && "border-rose-500 focus-visible:ring-rose-500",
+            inputClassName,
+          )}
         />
         <Popover open={isOpen} onOpenChange={setIsOpen} modal={true}>
           <PopoverTrigger asChild>

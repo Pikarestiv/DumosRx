@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 import type { Coupon } from "@/lib/types/admin";
+import { PLAN_SLUGS } from "@/lib/constants/subscription-plans";
 import type {
   useGenerateCouponMutation,
   useUpdateCouponMutation,
@@ -101,23 +102,50 @@ export function CouponDialog({
             <Input
               type="number"
               min={0}
+              // A percentage has a ceiling; a naira amount and a number of
+              // trial days do not. Without this the "(0-100)" in the label
+              // was the only thing stopping a 500%-off coupon.
+              max={newCoupon.type === "discount_percent" ? 100 : undefined}
               value={newCoupon.value || ""}
               onChange={(e) =>
                 setNewCoupon({ ...newCoupon, value: Number(e.target.value) })
               }
             />
+            {newCoupon.type === "discount_percent" &&
+              (newCoupon.value ?? 0) > 100 && (
+                <p className="text-xs text-rose-500">
+                  A percentage discount cannot exceed 100%.
+                </p>
+              )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
               <Label>Target Plan (Optional)</Label>
-              <Input
-                placeholder="e.g. Starter"
-                value={newCoupon.target_plan || ""}
-                onChange={(e) =>
-                  setNewCoupon({ ...newCoupon, target_plan: e.target.value })
+              {/* Free text here silently produced coupons that matched no
+                  plan at all: the backend compares this against the real
+                  plan slug. */}
+              <Select
+                value={newCoupon.target_plan || "any"}
+                onValueChange={(v) =>
+                  setNewCoupon({
+                    ...newCoupon,
+                    target_plan: v === "any" ? null : v,
+                  })
                 }
-              />
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="All Plans" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="any">All Plans</SelectItem>
+                  {PLAN_SLUGS.map((slug) => (
+                    <SelectItem key={slug} value={slug} className="capitalize">
+                      {slug}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid gap-2">
               <Label>Interval (Optional)</Label>
@@ -155,14 +183,23 @@ export function CouponDialog({
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
               <Label>Max Total Uses</Label>
+              {/* An empty field is the only thing that means "unlimited".
+                  Mapping it to `null` here (rather than letting it become
+                  `Number("") === 0` and then be treated as falsy downstream)
+                  is what stops a typed-then-cleared limit from silently
+                  submitting as unlimited - the opposite of what was typed. */}
               <Input
                 type="number"
+                min={1}
                 placeholder="Unlimited"
-                value={newCoupon.max_uses || ""}
+                value={newCoupon.max_uses ?? ""}
                 onChange={(e) =>
                   setNewCoupon({
                     ...newCoupon,
-                    max_uses: Number(e.target.value),
+                    max_uses:
+                      e.target.value.trim() === ""
+                        ? null
+                        : Number(e.target.value),
                   })
                 }
               />

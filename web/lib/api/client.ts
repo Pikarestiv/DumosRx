@@ -252,14 +252,17 @@ class WebApiClient {
   // SYSTEM CONFIGS
   // ==========================================
 
+  /** Rejects on failure - deliberately. Swallowing the error and resolving
+   * `null` made every consumer's React Query call *succeed with null*, so
+   * `isError` never fired, the config editors silently fell back to their
+   * bundled defaults while looking like live config, and the next Save wrote
+   * those defaults over the real stored config (plan pricing reset,
+   * require_email_verification flipped off, suggestions dictionary wiped).
+   * A key that has never been saved is not an error: the endpoint answers
+   * 200 with `data: null` for it. */
   async getSystemConfig(key: string) {
-    try {
-      const { data } = await apiClient.get(`/system-configs/${key}`);
-      return data.data; // returning the inner 'data' which contains the JSON
-    } catch (error) {
-      console.warn(`[WebApiClient] Failed to fetch system config for ${key}`, error);
-      return null;
-    }
+    const { data } = await apiClient.get(`/system-configs/${key}`);
+    return data.data; // returning the inner 'data' which contains the JSON
   }
 
   async updateSystemConfig(key: string, value: unknown) {

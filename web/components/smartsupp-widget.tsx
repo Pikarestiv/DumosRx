@@ -18,7 +18,11 @@ export function SmartSuppWidget({ chatKey }: SmartSuppWidgetProps) {
   const pathname = usePathname() || "";
 
   const isDashboard = pathname.startsWith("/dashboard");
-  const isAdmin = pathname.startsWith("/admin") && pathname !== "/admin/login";
+  // The whole /admin tree, login page included: third-party JS running in the
+  // same origin as a super_admin session can hook fetch/XHR and read the
+  // bearer header off every admin request, so the script must not be loaded
+  // there at all. Hiding it with CSS (what this used to do) still ran it.
+  const isAdmin = pathname.startsWith("/admin");
 
   // Visible everywhere except the (now redirect-only) dashboard routes and
   // secure admin pages.
@@ -26,6 +30,12 @@ export function SmartSuppWidget({ chatKey }: SmartSuppWidgetProps) {
 
   useEffect(() => {
     if (!chatKey) return;
+    // Guarded here rather than only on the render path: once the loader is in
+    // the document it can't be unloaded. A soft navigation from a public page
+    // into /admin therefore leaves an already-running widget behind (the CSS
+    // block below still hides that), but a direct load of - or a reload on -
+    // any admin route never fetches it in the first place.
+    if (isAdmin) return;
 
     // Avoid double-injection
     if (document.getElementById("smartsupp-script")) {
@@ -48,7 +58,7 @@ export function SmartSuppWidget({ chatKey }: SmartSuppWidgetProps) {
     script.src = "https://www.smartsuppchat.com/loader.js?";
     document.head.appendChild(script);
 
-  }, [chatKey]);
+  }, [chatKey, isAdmin]);
 
   // Identify user once logged in (or clear identity on logout)
   useEffect(() => {

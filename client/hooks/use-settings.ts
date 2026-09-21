@@ -77,8 +77,10 @@ export function useSettings() {
     localResellerCommission,
     localReceiptHeader,
     localReceiptFooter,
+    localReceiptTagline,
     showLogo,
-    showContact,
+    showPhone,
+    showAddress,
     hidePoweredBy,
     lowStockAlert,
     expiryAlert,
@@ -265,8 +267,10 @@ export function useSettings() {
     void updateStoreProfile({
       receipt_header: localReceiptHeader,
       receipt_footer: localReceiptFooter,
+      receipt_tagline: localReceiptTagline,
       show_logo_on_receipt: showLogo ? 1 : 0,
-      show_contact_on_receipt: showContact ? 1 : 0,
+      show_phone_on_receipt: showPhone ? 1 : 0,
+      show_address_on_receipt: showAddress ? 1 : 0,
       // Only plans with canRemoveBranding may actually persist this as hidden.
       // Enforced here (not just in the UI) so a stale/tampered local value can't sneak past the gate.
       hide_powered_by: hidePoweredBy && canRemoveBranding ? 1 : 0,

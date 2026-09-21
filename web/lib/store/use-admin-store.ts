@@ -4,45 +4,33 @@ import { webApiClient } from "@/lib/api/client";
 
 interface AdminState {
   summary: unknown | null;
-  stores: unknown[] | null;
-  storeMeta: unknown | null;
-  products: unknown[] | null;
-  productMeta: unknown | null;
-  productMetrics: unknown | null;
-  productCategories: string[] | null;
-  users: unknown[] | null;
-  userMeta: unknown | null;
-  systemHealth: unknown | null;
   loading: boolean;
   error: string | null;
   lastFetched: number | null;
   latency: number;
 
   fetchSummary: (force?: boolean) => Promise<void>;
-  fetchStores: (page?: number, search?: string) => Promise<void>;
-  fetchProducts: (page?: number, search?: string, category?: string) => Promise<void>;
   standardizeProducts: () => Promise<unknown>;
-  fetchUsers: (page?: number, search?: string) => Promise<void>;
-  fetchHealth: () => Promise<void>;
+  setLatency: (ms: number) => void;
+  /** Wipes the in-memory state *and* the persisted `admin-storage` copy of
+   * it. Called from useAdminAuthStore.logout(): `summary` holds platform-wide
+   * data (revenue, recent store names, owner emails) and would otherwise
+   * survive a logout on a shared machine. */
+  reset: () => void;
 }
+
+const INITIAL_STATE = {
+  summary: null,
+  loading: false,
+  error: null,
+  lastFetched: null,
+  latency: 0,
+};
 
 export const useAdminStore = create<AdminState>()(
   persist(
     (set, get) => ({
-      summary: null,
-      stores: null,
-      storeMeta: null,
-      products: null,
-      productMeta: null,
-      productMetrics: null,
-      productCategories: null,
-      users: null,
-      userMeta: null,
-      systemHealth: null,
-      loading: false,
-      error: null,
-      lastFetched: null,
-      latency: 0,
+      ...INITIAL_STATE,
 
       fetchSummary: async (force = false) => {
         const { summary, lastFetched, loading } = get();
@@ -75,52 +63,6 @@ export const useAdminStore = create<AdminState>()(
         }
       },
 
-      fetchStores: async (page = 1, search = "") => {
-        set({ loading: true, error: null });
-
-        try {
-          const query = `admin/stores?page=${page}${search ? `&search=${search}` : ""}`;
-          const response = await webApiClient.request<{ data: unknown[]; meta: unknown }>(query);
-          set({
-            stores: response.data,
-            storeMeta: response.meta,
-            loading: false,
-            error: null,
-          });
-        } catch (err) {
-          set({
-            error: err instanceof Error ? err.message : "Failed to fetch stores",
-            loading: false,
-          });
-        }
-      },
-
-      fetchProducts: async (page = 1, search = "", category = "") => {
-        set({ loading: true, error: null });
-
-        try {
-          const query = `admin/products?page=${page}${search ? `&search=${search}` : ""}${category ? `&category=${category}` : ""}`;
-          const response = await webApiClient.request<{
-            products: { data: unknown[]; meta: unknown };
-            metrics: unknown;
-            categories: string[];
-          }>(query);
-          set({
-            products: response.products.data,
-            productMeta: response.products.meta,
-            productMetrics: response.metrics,
-            productCategories: response.categories,
-            loading: false,
-            error: null,
-          });
-        } catch (err) {
-          set({
-            error: err instanceof Error ? err.message : "Failed to fetch products",
-            loading: false,
-          });
-        }
-      },
-
       standardizeProducts: async () => {
         set({ loading: true, error: null });
         try {
@@ -136,44 +78,23 @@ export const useAdminStore = create<AdminState>()(
         }
       },
 
-      fetchHealth: async () => {
-        set({ loading: true, error: null });
-        try {
-          const response = await webApiClient.request<unknown>("admin/health");
-          set({ systemHealth: response, loading: false });
-        } catch (err) {
-          set({
-            error: err instanceof Error ? err.message : "Failed to fetch system health",
-            loading: false,
-          });
-        }
-      },
+      // Real round-trip timing, written by whichever admin request measured it
+      // (see useAdminSummary), so the header's "Cloud API: Nms" badge reflects
+      // an actual measurement instead of a permanent 0.
+      setLatency: (ms) => set({ latency: ms }),
 
-      fetchUsers: async (page = 1, search = "") => {
-        set({ loading: true, error: null });
-
-        try {
-          const query = `admin/users?page=${page}${search ? `&search=${search}` : ""}`;
-          const response = await webApiClient.request<{ data: unknown[]; meta: unknown }>(query);
-          set({
-            users: response.data,
-            userMeta: response.meta,
-            loading: false,
-            error: null,
-          });
-        } catch (err) {
-          set({
-            error: err instanceof Error ? err.message : "Failed to fetch users",
-            loading: false,
-          });
+      reset: () => {
+        set({ ...INITIAL_STATE });
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("admin-storage");
         }
       },
     }),
     {
       name: "admin-storage",
-      partialize: (state) => ({ 
-        summary: state.summary, 
-        lastFetched: state.lastFetched 
+      partialize: (state) => ({
+        summary: state.summary,
+        lastFetched: state.lastFetched
       }),
     }
   )

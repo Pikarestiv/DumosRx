@@ -77,7 +77,18 @@ export function useRegisterForm() {
       const agentRef = searchParams.get("agent_ref");
       const payload = agentRef ? { ...values, agent_ref: agentRef } : values;
       const response = await webApiClient.register(payload);
-      localStorage.setItem("drx_token", response.token);
+
+      // Storing whatever came back unchecked meant a success response with no
+      // `token` persisted the literal string "undefined", which then went out
+      // as `Bearer undefined` on every later request and surfaced as a generic
+      // 401 rather than a registration failure.
+      const token: unknown = response?.token;
+      if (typeof token !== "string" || token.length === 0) {
+        throw new Error(
+          "Registration did not return a valid session. Please try signing in, or contact support if the problem persists."
+        );
+      }
+      localStorage.setItem("drx_token", token);
 
       if (response.user?.require_email_verification) {
         toast.success(

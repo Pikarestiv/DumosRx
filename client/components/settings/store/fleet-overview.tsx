@@ -3,13 +3,51 @@
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, Lock } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Lock } from "lucide-react";
 import { useFleetStats } from "@/lib/hooks/use-fleet-stats";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { useStore } from "@/lib/context/store-context";
 import { FleetStatsCards } from "./fleet-stats-cards";
 import { FleetStatsTable } from "./fleet-stats-table";
 import { FleetDailySummary } from "./fleet-daily-summary";
+
+function FleetStatsCardsSkeleton() {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <Card key={i}>
+          <CardContent className="p-4 space-y-2">
+            <Skeleton className="h-3 w-24" />
+            <Skeleton className="h-7 w-16" />
+            <Skeleton className="h-5 w-14" />
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+function FleetStatsTableSkeleton() {
+  return (
+    <div className="space-y-3">
+      <div className="flex gap-4 px-2">
+        <Skeleton className="h-4 flex-1" />
+        <Skeleton className="h-4 w-20" />
+        <Skeleton className="h-4 w-24" />
+        <Skeleton className="h-4 w-20" />
+      </div>
+      {Array.from({ length: 3 }).map((_, i) => (
+        <div key={i} className="flex items-center gap-4 px-2 py-2">
+          <Skeleton className="h-4 flex-1" />
+          <Skeleton className="h-4 w-20" />
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-4 w-20" />
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export function FleetOverview() {
   const { canManageMultiStore, getUpgradeMessage } = useFeatureGate();
@@ -51,26 +89,6 @@ export function FleetOverview() {
     );
   }
 
-  if (isLoading) {
-    return (
-      <Card>
-        <CardContent className="p-8 flex justify-center">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (isError || !data) {
-    return (
-      <Card>
-        <CardContent className="p-6 text-sm text-destructive">
-          Failed to load fleet overview - check your connection.
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
     <Card>
       <CardHeader>
@@ -78,9 +96,22 @@ export function FleetOverview() {
         <CardDescription>A snapshot across every store on this account.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        <FleetStatsCards stats={data.stats} currencyCode={storeProfile?.currency} />
-        <FleetDailySummary />
-        <FleetStatsTable stores={data.stores} />
+        {isLoading ? (
+          <>
+            <FleetStatsCardsSkeleton />
+            <FleetStatsTableSkeleton />
+          </>
+        ) : isError || !data ? (
+          <p className="text-sm text-destructive">
+            Failed to load fleet overview - check your connection.
+          </p>
+        ) : (
+          <>
+            <FleetStatsCards stats={data.stats} currencyCode={storeProfile?.currency} />
+            <FleetDailySummary />
+            <FleetStatsTable stores={data.stores} />
+          </>
+        )}
       </CardContent>
     </Card>
   );

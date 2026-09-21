@@ -1,18 +1,31 @@
 "use client";
 
 import { Suspense, useEffect, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Loader2, ShieldAlert } from "lucide-react";
 import { apiClient } from "@/lib/api/client";
 import { useAuth } from "@/lib/context/auth-context";
 
+/**
+ * The codes arrive in the URL fragment (`#code=...&return_code=...`), not
+ * the query string: a fragment is never sent to this host's server, so the
+ * codes stay out of access logs and out of any Referer header for the 60s
+ * they remain redeemable. `searchParams` is therefore not where to look.
+ */
+function readHandoffCodes(): { code: string | null; returnCode: string | null } {
+  if (typeof window === "undefined") return { code: null, returnCode: null };
+  const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+  return { code: hash.get("code"), returnCode: hash.get("return_code") };
+}
+
 function CallbackHandler() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { loginFromHandoff } = useAuth();
-  const [error, setError] = useState<string | null>(() =>
-    searchParams.get("code") ? null : "Missing handoff code."
-  );
+  // Starts null rather than probing for the code here: the fragment is only
+  // readable on the client, so deriving initial state from it would render
+  // "Missing handoff code" during prerender and mismatch on hydration. The
+  // effect below sets it instead.
+  const [error, setError] = useState<string | null>(null);
 
   // Guards against React Strict Mode's dev-only double-invoke of mount
   // effects: without this, a second run reads the code/return_code this
@@ -26,8 +39,7 @@ function CallbackHandler() {
     if (hasRun.current) return;
     hasRun.current = true;
 
-    const code = searchParams.get("code");
-    const returnCode = searchParams.get("return_code");
+    const { code, returnCode } = readHandoffCodes();
 
     // Strip the codes from the visible URL/history immediately, before the
     // exchange network call, so they don't linger in browser history or get
@@ -35,6 +47,7 @@ function CallbackHandler() {
     window.history.replaceState({}, "", window.location.pathname);
 
     if (!code) {
+      setError("Missing handoff code.");
       return;
     }
 
@@ -58,11 +71,9 @@ function CallbackHandler() {
         setError(e instanceof Error ? e.message : "Failed to complete sign-in.");
       }
     })();
-    // Intentionally run once on mount only. Next.js patches window.history
-    // to keep its router state in sync, so the replaceState() call above
-    // produces a new `searchParams` object on the next render; if that's a
-    // dependency here, the effect re-fires with the now-stripped (empty)
-    // code and can loop / clobber the real result before it lands.
+    // Intentionally run once on mount only. The replaceState() call above
+    // strips the fragment, so a re-fire would read an empty code and could
+    // loop / clobber the real result before it lands.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

@@ -16,9 +16,16 @@ import { Badge } from "@/components/ui/badge";
 import { Save, RefreshCw, MessageCircle, Loader2, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { useSystemConfig, useUpdateSystemConfigMutation } from "@/lib/api/hooks";
+import { ConfigLoadError } from "./config-load-error";
 
 export function IntegrationsTab() {
-  const { data: smartsuppKey, isLoading } = useSystemConfig("smartsupp_key");
+  const {
+    data: smartsuppKey,
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useSystemConfig("smartsupp_key");
   const updateMutation = useUpdateSystemConfigMutation();
 
   const [key, setKey] = useState("");
@@ -59,6 +66,19 @@ export function IntegrationsTab() {
       <div className="flex items-center justify-center p-12">
         <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
       </div>
+    );
+  }
+
+  // The field starts empty, so a failed fetch previously rendered an "empty
+  // key / Disabled" card indistinguishable from a genuinely unset one - and
+  // Save would then clear the live Smartsupp key.
+  if (isError) {
+    return (
+      <ConfigLoadError
+        label="integration settings"
+        error={error}
+        onRetry={() => void refetch()}
+      />
     );
   }
 

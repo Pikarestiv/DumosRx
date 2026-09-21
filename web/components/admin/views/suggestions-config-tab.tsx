@@ -9,12 +9,19 @@ import { Save, RefreshCw, Loader2, Sparkles, Plus, X, Search } from "lucide-reac
 import { toast } from "sonner";
 import { useSystemConfig, useUpdateSystemConfigMutation } from "@/lib/api/hooks";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ConfigLoadError } from "./config-load-error";
 import type { SuggestionsConfig } from "@/lib/types/admin";
 
 type SuggestionType = "store_names" | "store_generics" | "store_categories" | "store_manufacturers" | "retail_names" | "retail_categories" | "retail_manufacturers";
 
 export function SuggestionsConfigTab() {
-  const { data: serverConfigData, isLoading, isError: _isError } = useSystemConfig("global_suggestions");
+  const {
+    data: serverConfigData,
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useSystemConfig("global_suggestions");
   const serverConfig = serverConfigData as Partial<SuggestionsConfig> | undefined;
   const updateMutation = useUpdateSystemConfigMutation();
 
@@ -82,7 +89,13 @@ export function SuggestionsConfigTab() {
   };
 
   const updateActiveArray = (newArr: string[]) => {
-    const updated = { ...config };
+    // Clone every level being written to: a shallow `{ ...config }` would
+    // share the same `store`/`retail` objects as the previous state and
+    // mutate it in place.
+    const updated: SuggestionsConfig = {
+      store: { ...config.store },
+      retail: { ...config.retail },
+    };
     switch (activeList) {
       case "store_names":
         updated.store.names = newArr;
@@ -147,6 +160,19 @@ export function SuggestionsConfigTab() {
       <div className="flex items-center justify-center p-12">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
+    );
+  }
+
+  // The initial state here is a set of *empty* arrays, so a failed fetch used
+  // to render an empty dictionary that Save would then write over the real
+  // one - wiping every global suggestion on the platform.
+  if (isError) {
+    return (
+      <ConfigLoadError
+        label="global suggestions dictionary"
+        error={error}
+        onRetry={() => void refetch()}
+      />
     );
   }
 

@@ -44,6 +44,18 @@ const PIN_RECOVERY_SYNC_COOLDOWN_MS = 10_000;
 // as a PIN-less login even in the one case it's allowed to fire.
 const DEFAULT_ADMIN_PIN = "1234";
 
+// Separate from "dumos_user": an impersonated profile (see loginFromHandoff)
+// must never be restored via the normal mount-effect path below, which also
+// calls setDbUser() - that moves the local DB's "current user" pointer to a
+// user belonging to another store, corrupting audit-log/performed_by
+// attribution for every write made in that session. Writing it under this
+// distinct key means the mount effect can restore it into React state ONLY
+// (session persists across a reload) without ever routing it through
+// setDbUser(). Previously it was written to "dumos_user" itself, so the
+// very next reload silently re-hydrated it through the normal path anyway,
+// defeating the separation loginFromHandoff's own doc comment describes.
+const IMPERSONATED_USER_STORAGE_KEY = "dumos_impersonated_user";
+
 export interface User {
   id: string;
   first_name: string;
@@ -169,7 +181,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    if (savedUser) {
+    // Checked BEFORE the normal savedUser branch below: an impersonated
+    // session (see loginFromHandoff / IMPERSONATED_USER_STORAGE_KEY's doc
+    // comment) restores into React state only, never through setDbUser().
+    const savedImpersonatedUser = localStorage.getItem(IMPERSONATED_USER_STORAGE_KEY);
+    if (savedImpersonatedUser) {
+      try {
+        setUser(JSON.parse(savedImpersonatedUser));
+      } catch (err) {
+        console.error("Failed to parse saved impersonated user, clearing corrupted session", err);
+        localStorage.removeItem(IMPERSONATED_USER_STORAGE_KEY);
+      }
+    } else if (savedUser) {
       try {
         const parsedUser = JSON.parse(savedUser);
         setUser(parsedUser);
@@ -310,6 +333,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // afterward — by anyone, not just the original impersonator — shows
       // a permanent, undismissable "Impersonation Mode" banner.
       localStorage.removeItem("impersonator_handoff_return_code");
+      // Same idea, for the impersonated profile itself: without this, a
+      // leftover impersonated session (never properly ended) would win over
+      // THIS real login on the very next reload, since the mount effect
+      // checks IMPERSONATED_USER_STORAGE_KEY before "dumos_user".
+      localStorage.removeItem(IMPERSONATED_USER_STORAGE_KEY);
 
       // Update recent users list
       const recentUsersStr = localStorage.getItem("dumos_recent_users");
@@ -390,6 +418,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       sessionStorage.setItem("dumos_session_authenticated", "1");
       useAutoLockStore.getState().unlock();
       localStorage.removeItem("impersonator_handoff_return_code");
+      localStorage.removeItem(IMPERSONATED_USER_STORAGE_KEY);
 
       // Update recent users list for default admin
       const recentUsersStr = localStorage.getItem("dumos_recent_users");
@@ -455,7 +484,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     setUser(userProfile);
     Sentry.setUser({ id: userProfile.id, username: userProfile.username, role: userProfile.role });
-    localStorage.setItem("dumos_user", JSON.stringify(userProfile));
+    // NOT "dumos_user" - see IMPERSONATED_USER_STORAGE_KEY's doc comment.
+    localStorage.setItem(IMPERSONATED_USER_STORAGE_KEY, JSON.stringify(userProfile));
     sessionStorage.setItem("dumos_session_authenticated", "1");
     useAutoLockStore.getState().unlock();
   };
@@ -472,6 +502,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setDbUser(null);
     Sentry.setUser(null);
     localStorage.removeItem("dumos_user");
+    localStorage.removeItem(IMPERSONATED_USER_STORAGE_KEY);
     sessionStorage.removeItem("dumos_session_authenticated");
     // See the matching comment in login(): an impersonated session that
     // ends via the ordinary "Sign Out" button instead of the banner's "End

@@ -8,6 +8,8 @@ import { apiClient } from "@/lib/api/client";
 import { WEB_APP_URL } from "@/lib/constants";
 
 const RETURN_CODE_KEY = "impersonator_handoff_return_code";
+// Keep in sync with auth-context.tsx's IMPERSONATED_USER_STORAGE_KEY.
+const IMPERSONATED_USER_KEY = "dumos_impersonated_user";
 
 export function ImpersonationBanner() {
   const [isImpersonating, setIsImpersonating] = useState(false);
@@ -34,6 +36,7 @@ export function ImpersonationBanner() {
       const { code } = await apiClient.createHandoffCode(adminToken);
 
       localStorage.removeItem(RETURN_CODE_KEY);
+      localStorage.removeItem(IMPERSONATED_USER_KEY);
       apiClient.clearToken();
 
       window.location.href = `${WEB_APP_URL}/admin/handoff?code=${code}`;

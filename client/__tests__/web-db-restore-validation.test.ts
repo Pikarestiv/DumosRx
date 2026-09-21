@@ -84,12 +84,13 @@ describe("restoreDatabase() (web) validation and pre-restore snapshot", () => {
   it("accepts a valid DumosRx backup, snapshots the outgoing db first, and the restore takes effect", async () => {
     const validBytes = makeValidDumosDbBytes("Restored Store");
 
-    await core.restoreDatabase(validBytes);
+    const restoreResult = await core.restoreDatabase(validBytes);
+    expect(restoreResult.snapshotSucceeded).toBe(true);
 
     const rows = core.getDatabaseBinary();
     const check = new SQL.Database(rows!);
-    const result = check.exec("SELECT name FROM stores WHERE id = 'store-1'");
-    expect(result[0]?.values[0]?.[0]).toBe("Restored Store");
+    const queryResult = check.exec("SELECT name FROM stores WHERE id = 'store-1'");
+    expect(queryResult[0]?.values[0]?.[0]).toBe("Restored Store");
     check.close();
 
     // The pre-restore snapshot must contain the ORIGINAL data, not the
@@ -124,6 +125,23 @@ describe("restoreDatabase() (web) validation and pre-restore snapshot", () => {
     const check = new SQL.Database(rows!);
     const result = check.exec("SELECT name FROM stores WHERE id = 'store-original'");
     expect(result[0]?.values[0]?.[0]).toBe("Original Store");
+    check.close();
+  });
+
+  it("still completes the restore but reports snapshotSucceeded: false when the IndexedDB write fails", async () => {
+    const idbKeyval = await import("idb-keyval");
+    vi.mocked(idbKeyval.set).mockRejectedValueOnce(new Error("QuotaExceededError"));
+
+    const validBytes = makeValidDumosDbBytes("Restored Store");
+    const result = await core.restoreDatabase(validBytes);
+
+    expect(result.snapshotSucceeded).toBe(false);
+    // The restore itself still went through - only the safety-net snapshot
+    // failed, which must not block the restore the user actually asked for.
+    const rows = core.getDatabaseBinary();
+    const check = new SQL.Database(rows!);
+    const checkResult = check.exec("SELECT name FROM stores WHERE id = 'store-1'");
+    expect(checkResult[0]?.values[0]?.[0]).toBe("Restored Store");
     check.close();
   });
 });

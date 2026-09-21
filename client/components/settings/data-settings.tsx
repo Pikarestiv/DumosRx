@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Database, CloudOff, Save, Upload } from "lucide-react";
+import { Database, CloudOff, Save, Upload, Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -25,6 +25,7 @@ interface DataSettingsProps {
   handleDownloadBackup: () => void;
   handleRestoreBackup: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleRestoreBackupTauri: () => void;
+  handleUndoLastRestore?: () => void;
   isTauri: boolean;
   autoSyncEnabled: boolean;
   setAutoSyncEnabled: (val: boolean) => void;
@@ -41,6 +42,7 @@ export function DataSettings({
   handleDownloadBackup,
   handleRestoreBackup,
   handleRestoreBackupTauri,
+  handleUndoLastRestore,
   isTauri,
   autoSyncEnabled,
   setAutoSyncEnabled,
@@ -63,6 +65,7 @@ export function DataSettings({
   // parked here until the user confirms.
   const [pendingRestoreFile, setPendingRestoreFile] = useState<File | null>(null);
   const [showTauriRestoreConfirm, setShowTauriRestoreConfirm] = useState(false);
+  const [showUndoRestoreConfirm, setShowUndoRestoreConfirm] = useState(false);
   const restoreInputRef = useRef<HTMLInputElement>(null);
 
   // Lets the same file be picked again after a cancel: without this the
@@ -233,6 +236,27 @@ export function DataSettings({
                   </div>
                 </div>
               )}
+
+              {!isTauri && handleUndoLastRestore && (
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border p-4">
+                  <div className="space-y-0.5">
+                    <p className="text-sm font-medium">Undo Last Restore</p>
+                    <p className="text-sm text-muted-foreground">
+                      Recovers this device&apos;s data as it stood immediately
+                      before the most recent restore, if one was done this
+                      session.
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    className="cursor-pointer shrink-0"
+                    onClick={() => setShowUndoRestoreConfirm(true)}
+                  >
+                    <Undo2 className="w-4 h-4 mr-2" />
+                    Undo
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         </CardContent>
@@ -275,6 +299,17 @@ export function DataSettings({
           } as unknown as React.ChangeEvent<HTMLInputElement>);
           setPendingRestoreFile(null);
           clearRestoreInput();
+        }}
+      />
+
+      <ConfirmDialog
+        open={showUndoRestoreConfirm}
+        onOpenChange={setShowUndoRestoreConfirm}
+        title="Undo the last restore?"
+        description="This will overwrite the current data on this device with whatever was here immediately before the most recent restore. If no restore has been done this session, there's nothing to undo."
+        confirmLabel="Undo Restore"
+        onConfirm={() => {
+          handleUndoLastRestore?.();
         }}
       />
     </>

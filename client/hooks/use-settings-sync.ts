@@ -4,6 +4,7 @@ import { APP_NAME } from "@/lib/constants";
 import {
   getDatabaseBinary,
   restoreDatabase,
+  restorePreRestoreSnapshot,
   resetDatabase,
   isTauri,
   backupDatabaseToFile,
@@ -105,20 +106,49 @@ export function useSettingsSync(
     const file = event.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
+    reader.onerror = () => {
+      toast.error("Failed to read the selected file. Please try again.");
+    };
     reader.onload = async (e) => {
       const result = e.target?.result;
       if (result instanceof ArrayBuffer) {
         try {
-          await restoreDatabase(new Uint8Array(result));
+          const { snapshotSucceeded } = await restoreDatabase(new Uint8Array(result));
+          if (!snapshotSucceeded) {
+            toast.warning(
+              "Restored, but couldn't save a pre-restore backup - \"Undo Last Restore\" won't be available for this one.",
+            );
+          }
           toast.success("Database restored successfully. Page will reload.");
           markRestoredForCloudLinkNotice();
           setTimeout(() => window.location.reload(), 1500);
         } catch (err) {
-          toast.error("Failed to restore database. Invalid file?");
+          // Surfaces restoreDatabase()'s actual validation message (e.g.
+          // "missing tables: ...") instead of a generic one, so a rejected
+          // restore tells the user WHY rather than just "invalid file".
+          toast.error(err instanceof Error ? err.message : "Failed to restore database. Invalid file?");
         }
       }
     };
     reader.readAsArrayBuffer(file);
+  };
+
+  // Undoes the most recent restoreDatabase() call (web only) by recovering
+  // the snapshot it took of the outgoing database right before overwriting
+  // it. Exists so that safety net is actually reachable from the UI, not
+  // just present in the code - see restorePreRestoreSnapshot()'s doc comment.
+  const handleUndoLastRestore = async () => {
+    try {
+      const recovered = await restorePreRestoreSnapshot();
+      if (!recovered) {
+        toast.error("No previous restore to undo.");
+        return;
+      }
+      toast.success("Restore undone. Page will reload.");
+      setTimeout(() => window.location.reload(), 1500);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to undo the last restore.");
+    }
   };
 
   const handleResetDatabase = async () => {
@@ -165,6 +195,7 @@ export function useSettingsSync(
     handleDownloadBackup,
     handleRestoreBackup,
     handleRestoreBackupTauri,
+    handleUndoLastRestore,
     handleResetDatabase,
     isTauri: isTauri(),
   };

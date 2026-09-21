@@ -138,6 +138,43 @@ describe("Tauri backup/restore orchestration", () => {
       expect(closeOrder).toBeLessThan(restoreCopyCallOrder);
     });
 
+    it("checkpoints the WAL into the main db file before snapshotting it, and before closing the connection", async () => {
+      openMock.mockResolvedValueOnce("/Users/cynthia/Downloads/old_backup.drx");
+
+      await core.restoreDatabaseFromFile();
+
+      // Without this, a raw copy of the live db file can miss committed
+      // transactions still sitting in the -wal sidecar (WAL journaling is
+      // enabled), making the pre-restore safety net silently incomplete.
+      expect(fakeDb.execute).toHaveBeenCalledWith("PRAGMA wal_checkpoint(TRUNCATE);");
+
+      const checkpointOrder = fakeDb.execute.mock.calls.findIndex(
+        (call) => call[0] === "PRAGMA wal_checkpoint(TRUNCATE);",
+      );
+      const checkpointCallOrder = fakeDb.execute.mock.invocationCallOrder[checkpointOrder];
+      const snapshotCopyOrder = copyFileMock.mock.calls.findIndex(
+        (call) => call[1] === "/fake/appdata/dumosrx.db.pre-restore-backup",
+      );
+      const snapshotCopyCallOrder = copyFileMock.mock.invocationCallOrder[snapshotCopyOrder];
+      const closeCallOrder = fakeDb.close.mock.invocationCallOrder[0];
+
+      expect(checkpointCallOrder).toBeLessThan(snapshotCopyCallOrder);
+      expect(checkpointCallOrder).toBeLessThan(closeCallOrder);
+    });
+
+    it("still proceeds with the restore even if the WAL checkpoint itself fails", async () => {
+      openMock.mockResolvedValueOnce("/Users/cynthia/Downloads/old_backup.drx");
+      fakeDb.execute.mockRejectedValueOnce(new Error("checkpoint failed"));
+
+      const result = await core.restoreDatabaseFromFile();
+
+      expect(result).toEqual({ success: true });
+      expect(copyFileMock).toHaveBeenCalledWith(
+        "/Users/cynthia/Downloads/old_backup.drx",
+        "/fake/appdata/dumosrx.db",
+      );
+    });
+
     it("aborts the restore (does not overwrite the file) if closing the old connection throws", async () => {
       openMock.mockResolvedValueOnce("/Users/cynthia/Downloads/old_backup.drx");
       fakeDb.close.mockRejectedValueOnce(new Error("connection already gone"));

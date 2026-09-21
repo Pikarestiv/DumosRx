@@ -631,9 +631,12 @@ const RESTORE_SANITY_CHECK_TABLES = ["users", "stores", "products", "sales"];
  * here and the live database is left completely untouched), and snapshots
  * the outgoing database into IndexedDB first so a restore that turns out to
  * be wrong (valid SQLite, but not what the user meant to restore) can still
- * be recovered — see restorePreRestoreSnapshot().
+ * be recovered — see restorePreRestoreSnapshot(). Returns whether that
+ * snapshot actually succeeded (e.g. false on an IndexedDB quota failure) so
+ * the caller can warn the user their usual undo option won't be available
+ * this time, rather than that failure being silently console-only.
  */
-export async function restoreDatabase(binaryData: Uint8Array): Promise<void> {
+export async function restoreDatabase(binaryData: Uint8Array): Promise<{ snapshotSucceeded: boolean }> {
   if (isTauri()) {
     throw new Error(
       "restoreDatabase() is web-only; use restoreDatabaseFromFile() on desktop/mobile.",
@@ -667,10 +670,12 @@ export async function restoreDatabase(binaryData: Uint8Array): Promise<void> {
     throw err;
   }
 
+  let snapshotSucceeded = true;
   if (db) {
     const outgoing = db.export();
     await set(`${APP_NAME.toLowerCase()}_db_pre_restore_backup`, outgoing).catch(
       (err) => {
+        snapshotSucceeded = false;
         console.error("[DB] Failed to snapshot outgoing database before restore", err);
       },
     );
@@ -679,6 +684,7 @@ export async function restoreDatabase(binaryData: Uint8Array): Promise<void> {
 
   db = candidate;
   await saveDatabase();
+  return { snapshotSucceeded };
 }
 
 /**
@@ -777,6 +783,21 @@ export async function restoreDatabaseFromFile(): Promise<{ success: boolean }> {
   }
 
   const liveDbPath = await join(await appDataDir(), "dumosrx.db");
+
+  if (db) {
+    try {
+      // Force every committed transaction sitting in the -wal sidecar back
+      // into the main .db file BEFORE snapshotting it below. Without this, a
+      // raw copy of dumosrx.db alone can miss the most recent writes (WAL
+      // journaling is enabled - see initDatabase()), making the "recoverable"
+      // pre-restore snapshot silently incomplete for exactly the data most
+      // likely to matter (whatever the user was just doing).
+      await db.execute("PRAGMA wal_checkpoint(TRUNCATE);");
+    } catch (err) {
+      console.error("[DB] Failed to checkpoint WAL before restore snapshot:", err);
+    }
+  }
+
   if (await exists(liveDbPath)) {
     await copyFile(liveDbPath, `${liveDbPath}.pre-restore-backup`);
   }

@@ -112,6 +112,14 @@ export const queryKeys = {
         ["sales", "sale_items"],
       ),
     posList: () => resource(["posCustomers"] as const, ["customers"]),
+    byId: (customerId: string | null | undefined) =>
+      resource(["customerById", customerId] as const, ["customers"]),
+  },
+  reseller: {
+    commissionList: () =>
+      resource(["resellerCommission", "list"] as const, ["sales", "customers"]),
+    commissionPendingTotal: () =>
+      resource(["resellerCommission", "pendingTotal"] as const, ["sales"]),
   },
   expenses: {
     all: () => resource(["expenses"] as const, ["expenses"]),

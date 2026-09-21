@@ -186,27 +186,6 @@ Open items below are grouped by severity (Critical → High → Medium → Low),
 - **Fix scope (not implemented):** not yet designed; may be acceptable to
   leave as a UX rough edge if fixing risks false negatives elsewhere.
 
-### Hand-rolled query keys bypass the `queryKeys` factory (store/user cache collisions)
-
-- **Where:** `client/components/reports/reseller-commission/reseller-commission-panel.tsx:52,57`
-  (`queryKey: ["resellerCommission", ...]`) and
-  `client/components/pos/transaction-details-dialog.tsx:55,87`
-  (`queryKey: ["customerById", sale?.customer_id]`).
-- **Context:** every entry in `client/lib/query-keys.ts`'s `queryKeys` factory
-  auto-suffixes the key with the active store id and current user id
-  (`resource()` helper) specifically so a store/user switch can never read or
-  write a cache slot the previous store/user's queries own. These two spots
-  write their `queryKey` by hand instead, so they carry no such suffix even
-  though their query functions resolve the store at call time.
-- **Effect:** the reseller-commission list/pending-total and a customer
-  looked up by id can be served from the wrong store's (or wrong user's)
-  cached data after a switch. Currently masked in practice only by
-  `switchStore()`'s broad `invalidateQueries()` sweep, not by any structural
-  guarantee — found via an Opus-dispatched audit pass, not reproduced live.
-- **Fix scope (not implemented):** route both through `queryKeys` (add a
-  `queryKeys.reseller.commission*()`/`queryKeys.customers.byId()` entry with
-  the right `meta.tables`) instead of a literal array.
-
 ### `stock-movements.tsx` doesn't refetch on store switch (useState, not React Query)
 
 - **Where:** `client/components/stock-batch/stock-movements.tsx:97-100`.

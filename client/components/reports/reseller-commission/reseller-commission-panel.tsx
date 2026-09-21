@@ -34,6 +34,7 @@ import {
   getPendingResellerCommissionTotal,
 } from "@/lib/db/queries/sales";
 import { useRedeemResellerCommissionMutation } from "@/lib/hooks/use-redeem-reseller-commission-mutation";
+import { queryKeys } from "@/lib/query-keys";
 import type { SaleWithDetails } from "@/lib/types/sale";
 
 type StatusFilter = "all" | "redeemed" | "pending";
@@ -49,12 +50,12 @@ export function ResellerCommissionPanel() {
   const redeemMutation = useRedeemResellerCommissionMutation();
 
   const { data: pendingTotal } = useQuery({
-    queryKey: ["resellerCommission", "pendingTotal"],
+    ...queryKeys.reseller.commissionPendingTotal(),
     queryFn: () => getPendingResellerCommissionTotal(),
   });
 
   const { data: sales = [], isLoading } = useQuery({
-    queryKey: ["resellerCommission", "list"],
+    ...queryKeys.reseller.commissionList(),
     queryFn: () => getResellerCommissionSales(),
   });
 

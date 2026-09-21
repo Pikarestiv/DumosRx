@@ -170,4 +170,54 @@ describe("login() default-admin bootstrap gating", () => {
     expect(success).toBe(false);
     expect(result.current.user).toBeNull();
   });
+
+  it("locks out a user after repeated wrong PINs, then unlocks after the login() call itself resets", async () => {
+    db.run(
+      `INSERT INTO users (id, first_name, last_name, username, pin, role, is_active, _deleted) VALUES ('real-user-2', 'Real', 'Cashier', 'cashier1', '1111', 'sales_staff', 1, 0)`,
+    );
+
+    const { result } = renderHook(() => useAuth(), { wrapper });
+
+    // 5 wrong PINs in a row.
+    for (let i = 0; i < 5; i++) {
+      let success = true;
+      await act(async () => {
+        success = await result.current.login("cashier1", "0000");
+      });
+      expect(success).toBe(false);
+    }
+
+    // The 6th attempt - even with the CORRECT pin - is blocked by the
+    // lockout, not by the PIN check.
+    await act(async () => {
+      await expect(result.current.login("cashier1", "1111")).rejects.toThrow(
+        /Too many failed attempts/,
+      );
+    });
+    expect(result.current.user).toBeNull();
+  });
+
+  it("does not lock out a different user sharing the same device", async () => {
+    db.run(
+      `INSERT INTO users (id, first_name, last_name, username, pin, role, is_active, _deleted) VALUES ('real-user-3', 'Real', 'Cashier', 'cashier2', '2222', 'sales_staff', 1, 0)`,
+    );
+    db.run(
+      `INSERT INTO users (id, first_name, last_name, username, pin, role, is_active, _deleted) VALUES ('real-user-4', 'Real', 'Owner', 'owner2', '3333', 'store_owner', 1, 0)`,
+    );
+
+    const { result } = renderHook(() => useAuth(), { wrapper });
+
+    for (let i = 0; i < 5; i++) {
+      await act(async () => {
+        await result.current.login("cashier2", "0000");
+      });
+    }
+
+    // A different user on the same device is unaffected.
+    let success = false;
+    await act(async () => {
+      success = await result.current.login("owner2", "3333");
+    });
+    expect(success).toBe(true);
+  });
 });

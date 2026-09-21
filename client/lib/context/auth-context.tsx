@@ -6,6 +6,12 @@ import { setCurrentUser as setDbUser, logAction } from "@/lib/db/local-database"
 import { apiClient } from "@/lib/api/client";
 import { getUserByUsernameOrEmail, createDefaultAdmin, getUserPin, updateUserPin } from "@/lib/db/queries/auth";
 import { getTotalUserCount } from "@/lib/db/queries/setup";
+import {
+  checkLoginLockout,
+  recordLoginFailure,
+  recordLoginSuccess,
+  formatLockoutRemaining,
+} from "@/lib/utils/login-lockout";
 import { useAutoLockStore } from "@/lib/hooks/use-auto-lock";
 import { AUDIT_ACTIONS } from "@/lib/db/audit-actions";
 import { sync, isSyncing } from "@/lib/db/sync-engine";
@@ -183,6 +189,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (identifier: string, pin?: string) => {
     // For local-first, we check both username and email
     const cleanIdentifier = identifier.trim();
+
+    // Only a genuine PIN-based attempt is throttled - login(email) with no
+    // pin (the post-cloud-sync auto-login in app/setup/use-onboarding.ts)
+    // never guesses a secret, so it's not subject to this at all. Checked
+    // BEFORE the DB lookup so a locked-out caller gets instant feedback and
+    // can't extend their own lockout just by retrying while still locked.
+    if (pin) {
+      const lockout = checkLoginLockout(cleanIdentifier);
+      if (lockout.locked) {
+        throw new Error(
+          `Too many failed attempts. Try again in ${formatLockoutRemaining(lockout.remainingMs)}.`,
+        );
+      }
+    }
+
     let dbUser = await getUserByUsernameOrEmail(cleanIdentifier);
 
     if (dbUser) {
@@ -226,6 +247,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           username: cleanIdentifier,
           reason: "invalid_pin",
         }).catch(() => {});
+        if (pin) recordLoginFailure(cleanIdentifier);
         return false;
       }
 
@@ -306,6 +328,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         username: userProfile.username,
       }).catch(() => {});
 
+      recordLoginSuccess(cleanIdentifier);
       return true;
     }
 
@@ -379,9 +402,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         username: defaultAdmin.username,
       }).catch(() => {});
 
+      recordLoginSuccess(cleanIdentifier);
       return true;
     }
 
+    if (pin) recordLoginFailure(cleanIdentifier);
     return false;
   };
 

@@ -4,6 +4,37 @@ A changelog of bugs that were tracked in `docs/KNOWN_BUGS.md` and have since bee
 
 ## 2026-09-21
 
+### feat: show PIN lockout countdown in the pin-entry UI, not just a toast
+- **Commit:** `479a9a7c`
+- The lockout below only surfaced via a toast (auto-dismisses in a few seconds, no visible reason the Unlock button stopped working). PinEntry now shows a persistent countdown (`role="alert"`) and disables the PIN input/pad while locked, with a live 1s-interval update.
+
+### fix: impersonated identity leaked back in through the normal login key on reload
+- **Commit:** `ab8f48f3`
+- `loginFromHandoff()` deliberately skips `setDbUser()` for an impersonated profile, but persisted it under the same `dumos_user` key the normal mount effect reads — the very next reload restored it through the ordinary path anyway, defeating the separation.
+- Now uses a distinct `dumos_impersonated_user` key, restored into React state only, never through `setDbUser()`. Also cleared on every successful normal login/logout.
+
+### fix: store/user hydration race could resolve queries against the wrong store
+- **Commit:** `fd03b43b`
+- `targetId = user?.store_id || activeStoreId` ran before `AuthProvider`'s own localStorage read completed — a staff member pinned to store B on a device whose `dumos_active_store_id` said store A had every query in that window read/write store A's data.
+- Added `AuthContext.isHydrated`, gated the resolver-mirroring effect and the `storeProfile` query on it.
+
+### fix: product import silently accepted negative cost/price/quantity values
+- **Commit:** `e0a962ed`
+- `parseNumericValue` accepted negatives and unbounded decimals, written straight into money/stock columns with no validation. Now rejects negative parses the same way it already rejects non-numeric ones.
+- Locale-formatted numbers (European `"1.500,00"`) are NOT addressed — needs a decision on which locale to assume, left open.
+
+### fix: updateStoreProfile no longer mints a phantom "My Store" row
+- **Commit:** `0b8c90c7`
+- Fell back to inserting a hardcoded `id: "default"` / "My Store" row whenever `storeProfile` was null — reachable from any settings write issued while the profile query was still loading. Now logs and skips the write instead.
+
+### fix: submitStockAudit used a stale caller-supplied systemQty
+- **Commit:** `72ef44a5`
+- `diff = countedQty - systemQty` used the caller-supplied `systemQty` as-is, never re-read inside the transaction — a sale landing between rendering and submit made it stale. Now re-reads the product's actual current quantity right before computing the diff.
+
+### fix(SECURITY): add exponential-backoff lockout to PIN login
+- **Commit:** `f2461540`
+- PIN login had no attempt limit at all — 10,000 guesses with nothing in the way. Added a client-side exponential-backoff lockout (5 failed attempts → 30s, doubling, capped at 30 minutes), keyed per identifier so it can't lock out other staff sharing a device, checked before the DB lookup so it can't be extended by retrying.
+
 ### fix: don't let one bad queue row's _version re-read fail its whole push batch
 - **Commit:** `fcd16e9d`
 - Follow-up from an Opus-dispatched review of the four Critical fixes below: the `_version` re-read (see the "local edit destroyed" entry below) ran inside a batch-wide `Promise.all`, so a throw from one item could reject the whole batch instead of just that item.

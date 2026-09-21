@@ -6,17 +6,6 @@ Open items below are grouped by severity (Critical → High → Medium → Low),
 
 ## Critical
 
-### SECURITY: PIN login has no attempt limit or lockout
-
-- **Where:** `client/components/auth/lock-screen.tsx:43-72` +
-  `client/lib/context/auth-context.tsx:176-223`.
-- **Effect:** a 4-digit PIN checked entirely offline, with only an audit-log
-  row written on failure — no counter, no backoff, no lockout. Full keyspace
-  is 10,000 guesses with nothing in the way; auto-submit-on-4th-digit makes
-  unattended brute-forcing a terminal fast.
-- **Fix scope (not implemented):** add an attempt counter with escalating
-  backoff/lockout, same pattern any login screen needs.
-
 ### `getUserByUsernameOrEmail` has no store scoping
 
 - **Where:** `client/lib/db/queries/auth.ts:9`.
@@ -32,68 +21,6 @@ Open items below are grouped by severity (Critical → High → Medium → Low),
   implementing.
 
 ## High
-
-### `submitStockAudit` uses a stale caller-supplied systemQty (same bug class as the loyalty-redemption gap)
-
-- **Where:** `client/lib/db/queries/inventory.ts:496-553`.
-- **Effect:** `diff = countedQty - systemQty` uses a `systemQty` never
-  re-read inside the transaction — a sale landing between the list
-  rendering and the audit submit makes the resulting adjustment silently
-  off by the concurrent movement. Reachable from both the product catalog's
-  quick-edit and the bulk-import stock-update path.
-- **Fix scope (not implemented):** re-read the current system quantity
-  inside the same transaction right before computing the diff, same fix
-  shape as the logged loyalty-redemption issue.
-
-### `updateStoreProfile` can mint a phantom "My Store" row
-
-- **Where:** `client/lib/context/store-context.tsx:391-409`.
-- **Effect:** falls back to `insert("stores", { id: "default", name: "My Store", ... })`
-  whenever `storeProfile` is null — reachable from any settings write
-  issued while the profile query is still loading, or for a staff member
-  whose fixed store was pruned. `setTheme` reaches this with a single
-  click, and the phantom row syncs to the server.
-- **Fix scope (not implemented):** don't silently create a store on a null
-  profile — surface a loading/error state instead, or block the write.
-
-### Product import accepts negative/malformed numbers with no validation
-
-- **Where:** `client/lib/db/queries/product-import.ts:149-190` +
-  `client/lib/utils/product-import-export.ts:119-125`
-  (`parseNumericValue`).
-- **Effect:** accepts negatives and unbounded decimals, written straight
-  into `selling_price`, `reorder_level`, `stock_batches.quantity` and
-  `stock_movements.quantity` with no validation or rounding. A negative or
-  malformed price/quantity column imports negative stock/money with no
-  warning; European-format numbers (`"1.500,00"`) parse as `1.50000` instead
-  of 1500.
-- **Fix scope (not implemented):** validate/reject non-numeric, negative,
-  and out-of-range values before import; handle locale-formatted numbers
-  explicitly rather than a naive parse.
-
-### Store/user hydration race: queries can read the wrong store during the hydration window
-
-- **Where:** `client/lib/context/store-context.tsx:152-160`.
-- **Effect:** `targetId = user?.store_id || activeStoreId` runs (and mirrors
-  into the global resolver) before `user` has hydrated from localStorage.
-  For a staff member pinned to store B on a device whose
-  `dumos_active_store_id` is store A, every query firing in that hydration
-  window reads store A's data.
-- **Fix scope (not implemented):** gate query-firing until `user` hydration
-  is confirmed complete, not just "truthy or not yet."
-
-### Impersonation identity leaks back in after a page reload
-
-- **Where:** `client/lib/context/auth-context.tsx:379-401` vs `:125-151`.
-- **Effect:** `loginFromHandoff` deliberately skips `setDbUser()` (by
-  design) but still writes the impersonated profile into
-  `localStorage["dumos_user"]`, which the mount effect reads back into
-  `setDbUser()` on the very next reload — so audit logs and `performed_by`
-  attribution flip to the impersonated identity after the first reload,
-  defeating the intended separation.
-- **Fix scope (not implemented):** don't persist the impersonated profile
-  under the same key the normal session hydration reads from, or mark it
-  so the mount effect skips it.
 
 ### Expense/report date-range filters compare a date-only column against a full ISO timestamp
 

@@ -146,6 +146,61 @@ describe("update()/softDelete() store-ownership check", () => {
   });
 
   /**
+   * options.storeId override (bug #8 fix): lets a caller like
+   * stock-transfers.ts's transferStock() write a row in a store other than
+   * whatever's globally "active", without ever touching the global resolver
+   * (the race the original fix closed - see the fix's commit message).
+   */
+  describe("options.storeId override", () => {
+    it("allows a write to a different store than the global, when the override names that store", async () => {
+      insertCategory("c1", "Drugs", "store-b");
+      core.setActiveStoreId("store-a"); // global says store-a is active...
+
+      // ...but the override explicitly authorizes writing store-b's row.
+      await update(
+        "categories",
+        "c1",
+        { name: "Cross-Store Edit" },
+        { storeId: "store-b" },
+      );
+
+      expect(readCategory("c1").name).toBe("cross-store edit");
+    });
+
+    it("still rejects a write when the override names a different store than the row's own", async () => {
+      insertCategory("c1", "Drugs", "store-b");
+      core.setActiveStoreId("store-a");
+
+      await expect(
+        update(
+          "categories",
+          "c1",
+          { name: "Hijacked" },
+          { storeId: "store-c" },
+        ),
+      ).rejects.toThrow("Cannot modify a record owned by a different store");
+
+      expect(readCategory("c1").name).toBe("Drugs");
+    });
+
+    it("claims a legacy NULL-store_id row for the override, not the (different) global", async () => {
+      insertCategory("c1", "Legacy", null);
+      core.setActiveStoreId("store-a");
+
+      await update(
+        "categories",
+        "c1",
+        { name: "Claimed By Override" },
+        { storeId: "store-b" },
+      );
+
+      const row = readCategory("c1");
+      expect(row.name).toBe("claimed by override");
+      expect(row.store_id).toBe("store-b");
+    });
+  });
+
+  /**
    * remove() (hard delete) — the same ownership check as update()/
    * softDelete(), with one deliberate difference for the legacy-NULL case:
    * a hard delete destroys the row outright, so "claim it, then destroy it"

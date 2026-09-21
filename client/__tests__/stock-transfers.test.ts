@@ -119,21 +119,24 @@ vi.mock('@/lib/db/local-database', () => ({
     if (table === 'stock_movements') movements.push(record as FakeMovement);
     return id;
   }),
-  update: vi.fn(async (table: string, id: string, data: Record<string, unknown>) => {
-    if (table === 'stock_batches') batches[id] = { ...batches[id], ...data };
-    if (table === 'products') products[id] = { ...products[id], ...data };
-    return id;
-  }),
+  update: vi.fn(
+    async (
+      table: string,
+      id: string,
+      data: Record<string, unknown>,
+      _options?: { storeId?: string },
+    ) => {
+      if (table === 'stock_batches') batches[id] = { ...batches[id], ...data };
+      if (table === 'products') products[id] = { ...products[id], ...data };
+      return id;
+    },
+  ),
   transaction: vi.fn(async (fn: () => Promise<unknown>) => fn()),
   generateId: vi.fn(() => nextId('transfer')),
 }));
 
-vi.mock('@/lib/db/core', () => ({
-  getActiveStoreId: vi.fn(() => null),
-  setActiveStoreId: vi.fn(),
-}));
-
 import { transferStock } from '@/lib/db/queries/stock-transfers';
+import { update as mockedUpdate } from '@/lib/db/local-database';
 
 describe('transferStock', () => {
   beforeEach(() => {
@@ -176,6 +179,21 @@ describe('transferStock', () => {
     expect(out).toMatchObject({ quantity: -20, store_id: 's1', reference_type: 'stock_transfer', unit_cost: 100 });
     expect(inn).toMatchObject({ quantity: 20, store_id: 's2', reference_type: 'stock_transfer', unit_cost: 100 });
     expect(out?.reference_id).toBe(inn?.reference_id);
+
+    // Regression coverage for bug #8's fix: the source batch's quantity
+    // deduction must pass an explicit storeId override (sourceStoreId)
+    // rather than relying on - or mutating - the global active-store
+    // resolver, which is what let a concurrent write elsewhere in the same
+    // process land unscoped during a transfer. transferStock() no longer
+    // imports lib/db/core at all, so there's nothing for it to touch even if
+    // it wanted to; this asserts the *positive* replacement, not just the
+    // absence of the old mechanism.
+    expect(mockedUpdate).toHaveBeenCalledWith(
+      'stock_batches',
+      'b1',
+      { quantity: 30 },
+      { storeId: 's1' },
+    );
   });
 
   it('rejects a transfer that exceeds available stock, writing nothing', async () => {
@@ -259,6 +277,11 @@ describe('transferStock', () => {
     expect(outRows).toHaveLength(2); // one row per source batch touched
     expect(outRows.find((m) => m.stock_batch_id === 'b1')).toMatchObject({ quantity: -5, unit_cost: 100 });
     expect(outRows.find((m) => m.stock_batch_id === 'b2')).toMatchObject({ quantity: -10, unit_cost: 130 });
+
+    // Every batch drawn from in the FEFO loop gets the same sourceStoreId
+    // override, not just the first one.
+    expect(mockedUpdate).toHaveBeenCalledWith('stock_batches', 'b1', { quantity: 0 }, { storeId: 's1' });
+    expect(mockedUpdate).toHaveBeenCalledWith('stock_batches', 'b2', { quantity: 10 }, { storeId: 's1' });
   });
 
   it('throws when the product does not exist in the source store', async () => {

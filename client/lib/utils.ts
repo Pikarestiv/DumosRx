@@ -32,7 +32,10 @@ function formatCfaSuffix(amount: number, maximumFractionDigits?: number) {
 export function formatCurrency(amount: number, currencyCode: string = "NGN") {
   const code = currencyCode.replace(/[^A-Z]/g, "") || "NGN"; // Ensure valid 3-letter code
   if (CFA_SUFFIX_CODES.has(code)) {
-    return formatCfaSuffix(amount);
+    // XAF/XOF are zero-minor-unit currencies - maximumFractionDigits left
+    // undefined here previously fell back to Intl's decimal-style default
+    // of 3, rendering e.g. "1,234.567 F" on cart rows, totals and receipts.
+    return formatCfaSuffix(amount, 0);
   }
   // Simple mapping for common symbols if the locale doesn't handle it well
   // but Intl.NumberFormat is generally robust.

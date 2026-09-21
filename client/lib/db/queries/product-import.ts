@@ -1,6 +1,6 @@
 import { query, transaction, getActiveStoreId, insert, update, createSupplier } from "@/lib/db/local-database";
 import { getCategoryByName, getSupplierByName } from "@/lib/db/queries/products";
-import { submitStockAudit } from "@/lib/db/queries/inventory";
+import { submitStockAudit, getAllActiveBatchesForProduct } from "@/lib/db/queries/inventory";
 import type { ProductImportRow } from "@/lib/utils/product-import-export";
 
 /**
@@ -141,6 +141,21 @@ export async function importProductRows(
           });
           if (options?.updateStockForMatched && row.quantity !== undefined) {
             matchedStockUpdates.set(existingId, { productId: existingId, quantity: row.quantity });
+          }
+          // cost_price lives on stock_batches, not products - there's no
+          // column here to include in the update() above. Re-importing a
+          // corrected price list used to leave margin/COGS reporting on
+          // the stale cost while reporting the row as "updated." Only
+          // correct it when unambiguous (exactly one active batch) - with
+          // more than one, which specific batch(es) a blanket file-level
+          // cost is meant to correct isn't something this import can infer,
+          // and guessing would misattribute cost the same way the
+          // now-fixed returned-COGS averaging bug did.
+          if (row.costPrice !== undefined) {
+            const activeBatches = await getAllActiveBatchesForProduct(existingId);
+            if (activeBatches.length === 1) {
+              await update("stock_batches", activeBatches[0].id, { cost_price: row.costPrice });
+            }
           }
           result.updated++;
           continue;

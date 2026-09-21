@@ -3,8 +3,26 @@
  */
 import { addMonths, isBefore, differenceInDays, format } from "date-fns";
 
+/** `new Date("YYYY-MM-DD")` parses a bare date-only string as UTC midnight,
+ * which then compares against a local-time `now` - batches flip to
+ * "expired" or show an off-by-one day count relative to the store's local
+ * calendar, disagreeing with the string-comparison expiry filters the FEFO
+ * SQL uses (`date(expiry_date) > date('now')` in
+ * lib/db/queries/inventory.ts). `stock_batches.expiry_date` is stored as a
+ * bare `YYYY-MM-DD`; for that shape, splitting the components and
+ * constructing the Date from them (rather than parsing the string) treats
+ * it as local midnight instead, consistent with `new Date()` for "now". A
+ * string carrying an explicit time/offset (a full ISO timestamp) has no
+ * such ambiguity and is left to native parsing. */
+const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
+const parseLocalDateOnly = (dateString: string): Date => {
+  if (!DATE_ONLY_RE.test(dateString)) return new Date(dateString);
+  const [year, month, day] = dateString.split("-").map(Number);
+  return new Date(year, month - 1, day);
+};
+
 export const getExpiryStatus = (expiryDate: string, warningMonths: number = 3) => {
-  const date = new Date(expiryDate);
+  const date = parseLocalDateOnly(expiryDate);
   const now = new Date();
   const warningDate = addMonths(now, warningMonths);
 
@@ -14,7 +32,7 @@ export const getExpiryStatus = (expiryDate: string, warningMonths: number = 3) =
 };
 
 export const getDaysToExpiry = (expiryDate: string) => {
-  return differenceInDays(new Date(expiryDate), new Date());
+  return differenceInDays(parseLocalDateOnly(expiryDate), new Date());
 };
 
 /** Short "Weekday, D Mon" label, e.g. "Tue, 3 Sep" — used in the dashboard

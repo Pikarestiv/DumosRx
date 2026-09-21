@@ -13,6 +13,20 @@ describe('Utility Functions', () => {
       const result = formatCurrency(50.5, 'USD');
       expect(result.replace(/\u00a0/g, ' ')).toMatch(/50.5/);
     });
+
+    // XAF/XOF (CFA-zone currencies) are zero-minor-unit - maximumFractionDigits
+    // left undefined previously fell back to Intl's decimal-style default of
+    // 3, rendering e.g. "1,234.567 F" on cart rows, totals and receipts
+    // (Medium bug fix, directly relevant to the Cameroon client).
+    it('formats XAF with no decimal places', () => {
+      const result = formatCurrency(1234.567, 'XAF');
+      expect(result.replace(/\u00a0/g, ' ')).toBe('1,235 F');
+    });
+
+    it('formats a whole-number XAF amount with no decimal places', () => {
+      const result = formatCurrency(1234, 'XAF');
+      expect(result.replace(/\u00a0/g, ' ')).toBe('1,234 F');
+    });
   });
 
   describe('formatMetricCurrency', () => {

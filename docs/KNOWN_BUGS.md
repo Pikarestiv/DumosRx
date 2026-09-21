@@ -24,45 +24,49 @@ Open items below are grouped by severity (Critical → High → Medium → Low),
 
 ### `sync-engine/pull.ts` stock-quantity correctness gaps
 
-- **Where:** `client/lib/db/sync-engine/pull.ts`.
-- **Findings from an Opus-dispatched audit pass (unverified against server
-  behavior — see specifics below):**
-  - `:273-283` — a pulled `stock_movements` row applies its quantity delta to
-    `stock_batches` only in the INSERT branch; a movement later soft-deleted
-    server-side arrives via the UPDATE branch (`:203-213`), which sets
-    `_deleted = 1` but never reverses the delta — permanent drift.
-  - `:284-297` — a UNIQUE-constraint error on that INSERT is caught/logged
-    and skipped, but the row is still treated as "seen" for cursor purposes,
-    so the missed delta is never retried.
-  - `:108-113` — the "stock_batches before stock_movements" ordering only
-    holds within one page; a movement arriving on page N whose batch only
-    arrives on page N+1 makes the batch UPDATE a silent no-op (the code's own
-    comment already says this loses the increment permanently).
-  - `:164-166` / `:47-48` — `stock_batches.quantity` is rebuilt purely by
-    replaying `stock_movements`, itself capped at `MAX_PULL_PAGES = 200` × 500
-    rows — a store with more history than that (or one the server ever
-    prunes) can never reach the correct quantity.
-  - `:115` — the transaction wraps one page, not the whole pull; a
-    multi-page pull that throws on page 3 can leave page 1's store-prune/
-    duplicate-remap already committed against data that was never fully
-    applied.
-- **Fix scope (not implemented):** needs verifying against the server first
-  (does it ever prune `stock_movements`? does a real store exceed ~100k
-  historical movements?) before deciding whether this is theoretical or
-  live-reachable — flagged, not yet investigated further.
+- **Where:** `client/lib/db/sync-engine/pull.ts` (421 lines — file has
+  changed shape since the original audit; line numbers below are current).
+- **Server-side verification (Opus-dispatched, 2026-09-21):**
+  - **Pruning: ruled out conclusively from code.** Nothing server-side ever
+    deletes/archives `stock_movements` — no scheduled job, console command,
+    queue job, or migration touches it. `App\Models\StockMovement` doesn't
+    even use `SoftDeletes` despite a migration having added a `deleted_at`
+    column to the table, so the server's generic sync soft-delete/restore
+    handling is a no-op for this table regardless; `StockMovementController`
+    only exposes read routes. Movements are genuinely append-only today, both
+    client- and server-side.
+  - **Real-store scale: no production DB access from this session — estimate
+    only.** Local dev DB has 487 seed rows (not representative). Based on
+    which client code paths insert `stock_movements` (sales, adjustments,
+    transfers, returns, receiving, imports), a moderately busy pharmacy could
+    plausibly reach the 100k-row cap in roughly 1-3 years of continuous
+    operation — a real, not purely academic, risk window for an app already
+    live, but this is a code-derived estimate, not a measurement.
+- **Per-finding status after verification:**
+  - `:253-283` (delta applied only on INSERT, never reversed on a later
+    soft-delete UPDATE) — **theoretical only, not currently reachable**:
+    nothing in the current client or server code ever soft-deletes or
+    updates an existing `stock_movements` row (matches the pruning finding
+    above; movements are immutable in practice today). Worth a defensive fix
+    eventually, not urgent.
+  - `:215-230` / `:284-297` (a UNIQUE-constraint-skipped INSERT is still
+    marked "seen" for cursor purposes, so it's never retried) — **confirmed
+    still live**, unchanged from the original audit.
+  - `:101-113` (cross-page "batches before movements" ordering isn't
+    guaranteed) — **confirmed still live**.
+  - `MAX_PULL_PAGES = 200` × 500-row pages (`:12`, server page size
+    confirmed at `SyncController.php:704`) — **100,000-row cap figure
+    confirmed accurate**.
+  - `:115` (transaction wraps one page, not the whole multi-page pull) —
+    **confirmed still live**.
+- **Fix scope (not implemented):** prioritize the two confirmed-live,
+  non-theoretical gaps — the UNIQUE-constraint-skip-not-retried case and the
+  cross-page batch/movement ordering — over the soft-delete-reversal case,
+  which has no current trigger. The single-page transaction scope is a
+  separate, larger design question (wrapping a whole multi-page pull in one
+  transaction changes failure/retry semantics considerably).
 
 ## Medium
-
-### Matched-product re-import silently skips updating cost_price
-
-- **Where:** `client/lib/db/queries/product-import.ts:134-146`.
-- **Effect:** the matched-product update branch writes name/category/
-  selling_price/reorder_level/barcode but never `cost_price`, despite the
-  importer mapping and parsing a Cost Price column. Re-importing a
-  corrected price list silently leaves margin/COGS reporting on the old
-  cost while reporting the row as "updated."
-- **Fix scope (not implemented):** include `cost_price` in the update
-  payload.
 
 ### Notification bell: not store-scoped, not React Query, dismissed state doesn't persist
 
@@ -74,28 +78,6 @@ Open items below are grouped by severity (Critical → High → Medium → Low),
   persistence, so every dismissed broadcast reappears as unread on reload.
 - **Fix scope (not implemented):** convert to store-scoped React Query;
   persist dismissed-broadcast ids (localStorage or a synced field).
-
-### Expiry-date checks parse a date-only column as UTC, disagreeing with local-time FEFO filters
-
-- **Where:** `client/lib/utils/date-utils.ts:6-18` (`getExpiryStatus`,
-  `getDaysToExpiry`).
-- **Effect:** `new Date(expiryDate)` on a `YYYY-MM-DD` string parses as UTC
-  midnight, then compares against local-time `now` — batches flip to
-  "expired" / show an off-by-one day count relative to the store's local
-  calendar, disagreeing with the string-comparison expiry filters the FEFO
-  SQL (fixed earlier this session) uses.
-- **Fix scope (not implemented):** compare using the same date-string
-  convention the FEFO SQL fix uses, not a UTC-parsed `Date`.
-
-### CFA/XAF currency formatting shows 3 decimal places
-
-- **Where:** `client/lib/utils.ts:24-30` (`formatCfaSuffix`).
-- **Effect:** `maximumFractionDigits: undefined` on a `decimal`-style
-  `Intl.NumberFormat` defaults to 3 — XAF/XOF (zero-minor-unit currency)
-  amounts render like `1,234.567 F` on cart rows, totals and receipts.
-  Directly relevant to the Cameroon client.
-- **Fix scope (not implemented):** set `maximumFractionDigits: 0` for
-  zero-decimal currencies.
 
 ### Procurement PO amountPaid has no validation
 

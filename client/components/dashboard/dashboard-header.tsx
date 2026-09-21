@@ -55,6 +55,7 @@ export function DashboardHeader({ onOpenFeedback }: DashboardHeaderProps) {
               availableStores={availableStores}
               activeStoreId={activeStoreId}
               onSwitchStore={switchStore}
+              isAdmin={isAdmin}
             />
             <span className="hidden sm:inline-block text-border">•</span>
             <span className="hidden sm:inline-block">{formatHeaderDate()}</span>

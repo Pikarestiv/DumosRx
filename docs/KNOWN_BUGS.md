@@ -304,6 +304,29 @@ Open items below are grouped by severity (Critical → High → Medium → Low),
 
 ## Low
 
+### `recordSyncFailure` can be called twice for the same queue item in one push run, overwriting the specific rejection reason
+
+- **Where:** `client/lib/db/sync-engine/push.ts` — the rejected-items block
+  (`recordSyncFailure(r.id, r.reason, true)`, pre-network-call) followed
+  later by either the `else` branch (`response.success === false`) or the
+  `catch` block, both of which iterate the *full* `batch` (not the
+  filtered `changes`) and call `recordSyncFailure` again on every item.
+- **Context:** found via an Opus-dispatched review of the `success: false`
+  handling fix (see FIXED_BUGS.md) — pre-existing in the `catch` block's
+  already-shipped pattern, not introduced by that fix.
+- **Effect:** only when one batch mixes some client-side-validation-rejected
+  items (bad UUID, missing `stock_batch_id`, etc.) with a whole-batch
+  server-level failure (either a thrown exception or `success: false`): the
+  second `recordSyncFailure` call overwrites the specific, useful rejection
+  reason (e.g. "Invalid category_id (not a UUID)") with the generic
+  batch-failure message, and bumps `retry_count` one extra, unwarranted
+  step. Not data-lossy — cosmetic (wrong error text) and narrow (requires
+  that specific overlap).
+- **Fix scope (not implemented):** skip items already recorded via the
+  pre-network-call rejected-items block when iterating `batch` in the
+  `else`/`catch` paths, e.g. by tracking their ids in a `Set` and filtering
+  them out before the second pass.
+
 ### `checkIsAdmin` uses substring match instead of exact role comparison
 
 - **Where:** `client/lib/context/auth-context.tsx:84-88`.

@@ -436,8 +436,9 @@ export async function getAdvancedMonthlySalesData(dateFilter: string, filters?: 
     `SELECT strftime('%Y-%m', r.created_at) as month, SUM(r.total_refunded) as refunds, SUM(ri.quantity * IFNULL((SELECT SUM(cost_price * quantity) * 1.0 / NULLIF(SUM(quantity), 0) FROM stock_batches WHERE product_id = m.id AND is_active = 1 AND _deleted = 0), 0)) as returned_cogs FROM returns r LEFT JOIN return_items ri ON ri.return_id = r.id LEFT JOIN products m ON ri.product_id = m.id WHERE r.created_at >= ? AND (r._deleted = 0 OR r._deleted IS NULL)${storeId ? " AND r.store_id = ?" : ""} GROUP BY strftime('%Y-%m', r.created_at) ORDER BY strftime('%Y-%m', r.created_at) ASC`, p1
   );
 
+  // date() on both sides: see the matching comment on fetchProfitLossReportData.
   const rawExpenseData = await query<{ month: string; expenses: number; }>(
-    `SELECT strftime('%Y-%m', date) as month, SUM(amount) as expenses FROM expenses WHERE date >= ? AND _deleted = 0${storeId ? " AND store_id = ?" : ""} GROUP BY strftime('%Y-%m', date)`, p1
+    `SELECT strftime('%Y-%m', date) as month, SUM(amount) as expenses FROM expenses WHERE date(date) >= date(?) AND _deleted = 0${storeId ? " AND store_id = ?" : ""} GROUP BY strftime('%Y-%m', date)`, p1
   );
 
   return { rawMonthlyData, rawMonthlyReturns, rawExpenseData };
@@ -505,8 +506,14 @@ export async function fetchProfitLossReportData(dateFrom?: string, dateTo?: stri
 
   const expParams: string[] = [];
   let expWhere = "_deleted = 0";
-  if (dateFrom) { expWhere += " AND date >= ?"; expParams.push(dateFrom); }
-  if (dateTo) { expWhere += " AND date <= ?"; expParams.push(dateTo); }
+  // date() on both sides: expenses.date is a date-only "YYYY-MM-DD" column,
+  // but dateFrom/dateTo (toQueryRange()) are full ISO timestamps like
+  // "2026-09-21T00:00:00.000Z" - a plain string compare made
+  // '2026-09-21' >= '2026-09-21T00:00:00.000Z' false, silently dropping
+  // every expense dated exactly on the range's first day. date() parses
+  // and normalizes either form the same way.
+  if (dateFrom) { expWhere += " AND date(date) >= date(?)"; expParams.push(dateFrom); }
+  if (dateTo) { expWhere += " AND date(date) <= date(?)"; expParams.push(dateTo); }
   if (storeId) { expWhere += " AND store_id = ?"; expParams.push(storeId); }
 
   const expRows = await query<{ month: string; expenses?: number }>(
@@ -559,8 +566,9 @@ export async function fetchCustomerReportData() {
 export async function fetchExpensesReportData(dateFrom?: string, dateTo?: string) {
   const params: string[] = [];
   let where = "_deleted = 0";
-  if (dateFrom) { where += " AND date >= ?"; params.push(dateFrom); }
-  if (dateTo) { where += " AND date <= ?"; params.push(dateTo); }
+  // See the matching comment in fetchProfitLossReportData above.
+  if (dateFrom) { where += " AND date(date) >= date(?)"; params.push(dateFrom); }
+  if (dateTo) { where += " AND date(date) <= date(?)"; params.push(dateTo); }
   const storeId = getActiveStoreId();
   if (storeId) { where += " AND store_id = ?"; params.push(storeId); }
 

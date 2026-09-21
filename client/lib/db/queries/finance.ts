@@ -112,9 +112,13 @@ export async function getSmoothedExpensesTotal({
   const storeId = getActiveStoreId();
   const scopeParams = [...(viewerId ? [viewerId] : []), ...(storeId ? [storeId] : [])];
 
+  // date() on both sides: expenses.date is a date-only "YYYY-MM-DD" column,
+  // but from/to here are full ISO timestamps (callers pass a JS Date's
+  // toISOString()) - a plain string compare silently drops any expense
+  // dated exactly on the window's start day. date() normalizes either form.
   const plainResult = await query<{ total: number }>(
     `SELECT SUM(amount) as total FROM expenses
-     WHERE _deleted = 0 AND date >= ? AND date < ? AND (covers_months IS NULL OR covers_months <= 0)
+     WHERE _deleted = 0 AND date(date) >= date(?) AND date(date) < date(?) AND (covers_months IS NULL OR covers_months <= 0)
      ${viewerId ? " AND user_id = ?" : ""}${storeId ? " AND store_id = ?" : ""}`,
     [from, to, ...scopeParams],
   );
@@ -158,9 +162,10 @@ export async function getCurrentMonthExpensesByCategory({
   const storeId = getActiveStoreId();
   const scopeParams = [...(viewerId ? [viewerId] : []), ...(storeId ? [storeId] : [])];
 
+  // See the matching comment in getSmoothedExpensesTotal above.
   const plainRows = await query<{ category: string; total: number }>(
     `SELECT category, SUM(amount) as total FROM expenses
-     WHERE _deleted = 0 AND date >= ? AND date < ? AND (covers_months IS NULL OR covers_months <= 0)
+     WHERE _deleted = 0 AND date(date) >= date(?) AND date(date) < date(?) AND (covers_months IS NULL OR covers_months <= 0)
      ${viewerId ? " AND user_id = ?" : ""}${storeId ? " AND store_id = ?" : ""}
      GROUP BY category`,
     [from, to, ...scopeParams],

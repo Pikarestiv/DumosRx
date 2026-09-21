@@ -97,6 +97,54 @@ describe("finance.ts / reports.ts financial aggregates", () => {
     });
   });
 
+  describe("date-only expenses.date vs. full ISO timestamp window bounds (High bug fix)", () => {
+    it("getSmoothedExpensesTotal includes an expense dated exactly on the window's first day", async () => {
+      // expenses.date is stored as a bare "YYYY-MM-DD" (see add-expense-
+      // dialog.tsx), but the window bounds passed in are full ISO
+      // timestamps (toISOString()) - a plain string compare made
+      // '2026-01-01' >= '2026-01-01T00:00:00.000Z' false, silently
+      // excluding this expense.
+      const window = currentMonthWindow();
+      const firstDayOfMonth = window.from.slice(0, 10); // "YYYY-MM-DD"
+      db.run(
+        `INSERT INTO expenses (id, category, amount, date, _deleted) VALUES ('e1', 'Rent', 15000, ?, 0)`,
+        [firstDayOfMonth],
+      );
+
+      expect(await getSmoothedExpensesTotal(window)).toBe(15000);
+    });
+
+    it("getCurrentMonthExpensesByCategory includes an expense dated exactly on the window's first day", async () => {
+      const window = currentMonthWindow();
+      const firstDayOfMonth = window.from.slice(0, 10);
+      db.run(
+        `INSERT INTO expenses (id, category, amount, date, _deleted) VALUES ('e1', 'Rent', 15000, ?, 0)`,
+        [firstDayOfMonth],
+      );
+
+      const rows = await getCurrentMonthExpensesByCategory(window);
+      expect(rows.find((r) => r.category === "Rent")?.total).toBe(15000);
+    });
+
+    it("fetchProfitLossReportData includes an expense dated exactly on dateFrom", async () => {
+      db.run(
+        `INSERT INTO sales (id, transaction_number, subtotal, total_amount, transaction_date, _deleted) VALUES ('s1', 'TXN-1', 10000, 10000, '2026-03-15', 0)`,
+      );
+      // Bare date, matching dateFrom exactly - dateFrom passed to
+      // fetchProfitLossReportData below is also a bare date string here
+      // (as the report filter UI supplies), but expenses.date must still
+      // be compared correctly regardless of which form either side takes.
+      db.run(
+        `INSERT INTO expenses (id, category, amount, date, _deleted) VALUES ('e1', 'Rent', 5000, '2026-03-01', 0)`,
+      );
+
+      const rows = await fetchProfitLossReportData("2026-03-01", "2026-03-31");
+      const march = rows.find((r) => r["Month"] === "2026-03");
+
+      expect(march!["Expenses"]).toBe("5000.00");
+    });
+  });
+
   describe("getCurrentMonthExpensesByCategory", () => {
     it("groups this month's expenses by category, excluding other months", async () => {
       db.run(

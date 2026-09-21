@@ -4,6 +4,16 @@ A changelog of bugs that were tracked in `docs/KNOWN_BUGS.md` and have since bee
 
 ## 2026-09-21
 
+### fix(CRITICAL): online-order fulfillment inserted into nonexistent sales columns and never set transaction_number
+- **Commit:** (pending)
+- Found while fixing the adjacent receipt/id-collision bug below: `useFulfillOnlineOrderMutation`'s `insert("sales", {...})` wrote `receipt_number`, `status`, and `customer_name` — none of which exist on `sales` (it has `transaction_number` UNIQUE NOT NULL, `payment_status`, and `customer_id` instead) — and never set `transaction_number` at all. `insert()` builds a raw parameterized INSERT from whatever keys it's given, with no schema filtering, so this threw a "no such column" SQLite error on every real online-order fulfillment; no test covered this hook.
+- Now writes only real `sales` columns: a proper unique `transaction_number` (see the id-collision fix below), and the order's `customer_name` folded into `notes` (`sales` has no free-text customer-name column, only `customer_id`, and online orders carry no matched customer record).
+
+### fix: receipt/id collisions from time-based, non-unique identifiers
+- **Commit:** (pending)
+- `use-pos-payment.ts`'s `` transaction_number = `TXN${Date.now()}` `` (against `sales.transaction_number TEXT UNIQUE NOT NULL`), `use-pos-held-transactions.ts`'s `` id = `held_${Date.now()}` `` (an explicit primary key), and `use-fulfill-online-order-mutation.ts`'s `` `ONL-${order.id.split("-")[0]}` `` (only the first UUID segment, not unique by construction) could all collide across two terminals acting in the same millisecond, or with clock skew.
+- All three now derive from `generateId()` (`lib/db/core.ts`), the same collision-safe generator used elsewhere in the app.
+
 ### fix: returned-item COGS was recomputed from current stock cost instead of the cost recorded at sale time
 - **Commits:** `0a0d515e`, `f2f822a0`
 - `getBIMetrics.returnedCogsData` and `getAdvancedMonthlySalesData.rawMonthlyReturns` averaged a product's *current* active-batch cost instead of using `sale_items.cost_price` — a cost change between sale and return misstated profit, and `IFNULL(…, 0)` silently reported zero returned COGS once a product had no active batches left. The subquery also had no `store_id` scoping.

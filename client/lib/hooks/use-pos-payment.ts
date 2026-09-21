@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { insert, update, transaction as runInTransaction } from "@/lib/db/local-database";
+import { generateId } from "@/lib/db/core";
 import { getCustomerBalance } from "@/lib/db/queries/customers";
 import { recordSaleItemStock } from "@/lib/db/queries/inventory";
 import { updatePrescriptionStatus, dispensePrescriptionRefill } from "@/lib/db/queries/prescriptions";
@@ -123,7 +124,12 @@ export function usePOSPayment({
     try {
       const user = JSON.parse(localStorage.getItem("dumos_user") || "{}");
       const cashierId = user?.id || null;
-      const transactionNumber = `TXN${Date.now()}`;
+      // Date.now() collides across two terminals checking out in the same
+      // millisecond (or with clock skew) - transaction_number is UNIQUE NOT
+      // NULL, so the losing terminal's sale hits a constraint violation and
+      // never syncs. generateId() is the same collision-safe id generator
+      // used everywhere else in the app.
+      const transactionNumber = `TXN-${generateId().split("-")[0].toUpperCase()}`;
 
       const earnedPoints = await computeEarnedPoints({
         selectedCustomer,

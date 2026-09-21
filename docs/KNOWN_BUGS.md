@@ -49,25 +49,6 @@ Open items below are grouped by severity (Critical → High → Medium → Low),
 - **Fix scope (not implemented):** route a `success: false` batch through
   the same `recordSyncFailure` path individual item failures already use.
 
-### Receipt/id collisions from time-based, non-unique identifiers
-
-- **Where:** `client/lib/hooks/use-pos-payment.ts:128` —
-  `` transaction_number = `TXN${Date.now()}` `` against a
-  `sales.transaction_number TEXT UNIQUE NOT NULL` column
-  (`client/lib/db/schema.ts:103`); `client/lib/hooks/use-pos-held-transactions.ts:47`
-  — `` id = `held_${Date.now()}` `` as an explicit primary key;
-  `client/lib/hooks/use-fulfill-online-order-mutation.ts:33` —
-  `` receipt_number: `ONL-${order.id.split("-")[0]}` `` (only the first UUID
-  segment).
-- **Effect:** two terminals in the same store checking out (or holding a
-  sale) in the same millisecond, or with clock skew, produce the same id —
-  the losing row hits a UNIQUE violation server-side and never syncs (sales),
-  or one held cart silently overwrites the other on sync (held transactions).
-  The online-order receipt number isn't unique by construction at all.
-- **Fix scope (not implemented):** generate these with the same collision-safe
-  id generator already used elsewhere (`generateId()`, `lib/db/core.ts`)
-  instead of a bare timestamp/id-prefix.
-
 ### `sync-engine/pull.ts` stock-quantity correctness gaps
 
 - **Where:** `client/lib/db/sync-engine/pull.ts`.

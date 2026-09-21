@@ -22,18 +22,27 @@ export function useFulfillOnlineOrderMutation() {
       // logging and cache invalidation like every other mutation.
       const saleId = generateId();
 
+      // sales has no receipt_number/status/customer_name columns (those
+      // belong to other tables) - this insert previously wrote them anyway,
+      // which throws a "no such column" error at the DB layer on every
+      // fulfillment, and never set transaction_number (UNIQUE NOT NULL)
+      // at all. transaction_number here also can't reuse order.id.split
+      // ("-")[0] alone - not unique by construction, and colliding with
+      // POS-issued numbers is possible since both share the same id space.
+      // customer_name has nowhere to go on `sales` (only customer_id, and
+      // online orders don't carry a matched customer record) - recorded in
+      // notes instead so it's still visible on the transaction.
       await insert("sales", {
         id: saleId,
         store_id: storeId,
+        transaction_number: `ONL-${generateId().split("-")[0].toUpperCase()}`,
         total_amount: order.total_amount,
         amount_paid: order.total_amount,
         change_given: 0,
         payment_method: order.payment_method,
         payment_status: "paid",
-        receipt_number: `ONL-${order.id.split("-")[0]}`,
         cashier_id: cashierId,
-        customer_name: order.customer_name,
-        status: "completed",
+        notes: order.customer_name ? `Online order - ${order.customer_name}` : "Online order",
       });
 
       // Insert each sale_items row and deduct/log the stock it consumed via

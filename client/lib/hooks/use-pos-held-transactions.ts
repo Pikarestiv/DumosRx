@@ -1,4 +1,5 @@
 import { insert, remove } from "@/lib/db/local-database";
+import { generateId } from "@/lib/db/core";
 import { toast } from "sonner";
 import { Customer } from "./use-pos-data";
 import type { POSProduct as Product } from "@/lib/types/product";
@@ -44,7 +45,10 @@ export function usePOSHeldTransactions({
     if (cart.length === 0) return;
 
     try {
-      const id = `held_${Date.now()}`;
+      // Date.now() as an explicit primary key collides across two terminals
+      // holding a sale in the same millisecond - the losing cart silently
+      // overwrites the other on sync. generateId() is collision-safe.
+      const id = generateId();
       await insert("held_transactions", {
         id,
         customer_id: selectedCustomer?.id || null,

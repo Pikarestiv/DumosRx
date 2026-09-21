@@ -119,9 +119,15 @@ export function HeaderStoreSwitcher({
           <DropdownMenuSeparator />
           <DropdownMenuItem
             onClick={handleCreateStore}
-            className="flex items-center gap-2 text-primary"
+            className="group flex items-center gap-2 text-primary"
           >
-            <Plus className="h-3.5 w-3.5" />
+            {/* DropdownMenuItem's base styles force any icon without its own
+                text-* class to text-muted-foreground permanently (see
+                dropdown-menu.tsx's `[&_svg:not([class*='text-'])]` rule), so
+                without an explicit color here the icon would stay muted while
+                the label text turns accent-foreground on hover/focus. Giving
+                it group-focus:text-accent-foreground keeps both in sync. */}
+            <Plus className="h-3.5 w-3.5 text-primary group-focus:text-accent-foreground" />
             <span>Create new store</span>
           </DropdownMenuItem>
         </DropdownMenuContent>

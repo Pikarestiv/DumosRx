@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { insert, update, transaction as runInTransaction } from "@/lib/db/local-database";
-import { generateId } from "@/lib/db/core";
+import { generateShortId } from "@/lib/db/core";
 import { getCustomerBalance } from "@/lib/db/queries/customers";
 import { recordSaleItemStock } from "@/lib/db/queries/inventory";
 import { updatePrescriptionStatus, dispensePrescriptionRefill } from "@/lib/db/queries/prescriptions";
@@ -129,7 +129,7 @@ export function usePOSPayment({
       // NULL, so the losing terminal's sale hits a constraint violation and
       // never syncs. generateId() is the same collision-safe id generator
       // used everywhere else in the app.
-      const transactionNumber = `TXN-${generateId().split("-")[0].toUpperCase()}`;
+      const transactionNumber = `TXN-${generateShortId()}`;
 
       const earnedPoints = await computeEarnedPoints({
         selectedCustomer,

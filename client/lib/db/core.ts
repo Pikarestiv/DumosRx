@@ -88,6 +88,16 @@ export function generateId(): string {
   });
 }
 
+/** A short, human-scannable identifier for a display field that still needs
+ * to be genuinely unique (receipt/transaction numbers) - not a wrapper
+ * every id needs, only ids a person reads. Uses the first two segments of
+ * generateId() (48 random bits) rather than the full id: enough headroom
+ * that a birthday collision needs tens of millions of transactions to
+ * become likely, while staying short enough to print on a receipt. */
+export function generateShortId(): string {
+  return generateId().split("-").slice(0, 2).join("").toUpperCase();
+}
+
 // STORE_SCOPED_TABLES and the schema-migration machinery now live in
 // ./schema-migrations; re-exported here so existing importers of
 // `STORE_SCOPED_TABLES` from "./core" keep working unchanged.

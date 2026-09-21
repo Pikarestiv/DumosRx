@@ -1,6 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
-import { generateId } from "@/lib/db/core";
+import { generateId, generateShortId } from "@/lib/db/core";
 import { insert } from "@/lib/db/base-helpers";
 import { getBatchesForProduct, recordSaleItemStock } from "@/lib/db/queries/inventory";
 import type { OnlineOrder } from "@/lib/types/online-order";
@@ -35,7 +35,12 @@ export function useFulfillOnlineOrderMutation() {
       await insert("sales", {
         id: saleId,
         store_id: storeId,
-        transaction_number: `ONL-${generateId().split("-")[0].toUpperCase()}`,
+        transaction_number: `ONL-${generateShortId()}`,
+        // NOT NULL with no schema default (unlike tax_amount/discount_total,
+        // which default to 0) - online orders carry no separate tax/discount
+        // breakdown, so this mirrors amount_paid below in treating the order
+        // total as the whole of it.
+        subtotal: order.total_amount,
         total_amount: order.total_amount,
         amount_paid: order.total_amount,
         change_given: 0,

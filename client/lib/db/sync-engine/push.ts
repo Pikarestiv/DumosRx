@@ -302,25 +302,51 @@ export async function pushChanges(
     try {
       const rejected: { id: number; reason: string }[] = [];
 
-      const mapped: SyncChange[] = batch.map((item) => {
-        const payload = JSON.parse(item.payload);
-        delete payload._deleted;
-        // _version is intentionally kept: the server's conflict resolution
-        // compares it against its own copy to decide whether this update is
-        // stale (see SyncController::push). Stripping it here used to force
-        // every conflict check onto the weaker updated_at-timestamp fallback,
-        // which trusts each device's local clock instead of a monotonic
-        // per-record counter.
-        delete payload._synced;
-        delete payload._synced_at;
+      const mapped: SyncChange[] = await Promise.all(
+        batch.map(async (item) => {
+          const payload = JSON.parse(item.payload);
+          delete payload._deleted;
+          // _version is intentionally kept: the server's conflict resolution
+          // compares it against its own copy to decide whether this update is
+          // stale (see SyncController::push). Stripping it here used to force
+          // every conflict check onto the weaker updated_at-timestamp fallback,
+          // which trusts each device's local clock instead of a monotonic
+          // per-record counter.
+          delete payload._synced;
+          delete payload._synced_at;
 
-        normalizeDatetimeFields(payload);
+          // Re-read the record's CURRENT local _version rather than trusting
+          // the one frozen into this queue row's payload at update()-time.
+          // Closes a race coalescePendingUpdates() doesn't cover: that fix
+          // only folds together edits queued BEFORE a push run starts. An
+          // edit made to the same record while an EARLIER push for it is
+          // still in flight queues a new row this run never saw; by the time
+          // that new row is picked up in a LATER push run, the earlier
+          // edit's response may have already bumped this row's local
+          // _version (see the `response.versions` handling below) — but the
+          // frozen payload still carries the pre-bump value, so it would
+          // collide against its own device's already-accepted change and get
+          // dropped as a false "version_conflict", silently losing a real,
+          // non-conflicting edit. Re-reading here means the payload actually
+          // sent always reflects this device's latest known state.
+          if (item.operation === "UPDATE") {
+            const current = await query<{ _version: number }>(
+              `SELECT _version FROM ${item.table_name} WHERE id = ?`,
+              [item.record_id],
+            );
+            if (current[0]?._version !== undefined) {
+              payload._version = current[0]._version;
+            }
+          }
 
-        return {
-          ...item,
-          payload,
-        };
-      });
+          normalizeDatetimeFields(payload);
+
+          return {
+            ...item,
+            payload,
+          };
+        }),
+      );
 
       const changes = mapped.filter((item) => {
         if (item.table_name === "products") {

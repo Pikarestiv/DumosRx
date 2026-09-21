@@ -139,6 +139,37 @@ describe("pushChanges handles a version_conflict failure as non-retryable", () =
     expect(toastWarning).not.toHaveBeenCalled();
   });
 
+  it("sends the record's CURRENT local _version, not a stale one frozen into the queue payload (Critical bug fix)", async () => {
+    // Reproduces the mid-flight-edit race: an earlier push for this record
+    // already completed and bumped the local row's _version to 2 (e.g. via
+    // the `versions` handling exercised in the test below), but THIS queue
+    // row was created by an update() call that ran before that bump landed,
+    // so its frozen payload still carries the old _version: 1. Without
+    // re-reading the current version at send time, this payload would be
+    // sent as-is, collide against the server's already-bumped version, and
+    // get dropped as a false "version_conflict" - silently losing a
+    // completely ordinary, non-conflicting edit.
+    db.run(`INSERT INTO products (id, name, selling_price, _version, _deleted) VALUES ('p3', 'Ibuprofen', 850, 2, 0)`);
+    db.run(
+      `INSERT INTO _sync_queue (id, table_name, record_id, operation, payload, created_at)
+       VALUES (3, 'products', 'p3', 'UPDATE', ?, '2026-09-04T00:00:00Z')`,
+      [JSON.stringify({ id: "p3", selling_price: 850, _version: 1 })], // stale!
+    );
+
+    apiClient.pushChanges.mockResolvedValueOnce({
+      success: true,
+      processed: 1,
+      failed: [],
+    });
+
+    const result = await pushChanges();
+
+    expect(result.pushed).toBe(1);
+    const sentChanges = apiClient.pushChanges.mock.calls[0][0].changes;
+    expect(sentChanges).toHaveLength(1);
+    expect(sentChanges[0].payload._version).toBe(2); // current, not the stale 1
+  });
+
   it("applies the server's authoritative returned version to the local row for an accepted UPDATE", async () => {
     db.run(`INSERT INTO products (id, name, selling_price, _version, _deleted) VALUES ('p2', 'Panadol', 600, 1, 0)`);
     db.run(

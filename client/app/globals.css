@@ -395,8 +395,8 @@ header .group:hover svg,
   scrollbar-color: var(--border) transparent;
 }
 *::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 11px;
+  height: 11px;
 }
 *::-webkit-scrollbar-track {
   background: transparent;

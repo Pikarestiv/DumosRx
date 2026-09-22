@@ -11,6 +11,7 @@ import {
   getCategoriesList,
 } from "@/lib/db/queries/products";
 import { useStore } from "@/lib/context/store-context";
+import { formatCurrency as formatCurrencyWithCode } from "@/lib/utils";
 import { genericFuzzySearch } from "@/lib/utils/search";
 import { getExpiryStatus } from "@/lib/utils/date-utils";
 import { Product, transformProduct } from "./types";
@@ -24,7 +25,7 @@ import { queryKeys } from "@/lib/query-keys";
 import { useSortableData } from "@/lib/hooks/use-sortable-data";
 
 export function ProductDatabase() {
-  const { storeType } = useStore();
+  const { storeType, storeProfile } = useStore();
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -178,13 +179,8 @@ export function ProductDatabase() {
   const isFiltering =
     searchTerm.trim() !== "" || categoryFilter !== "all" || statusFilter !== "all";
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-NG", {
-      style: "currency",
-      currency: "NGN",
-      minimumFractionDigits: 0,
-    }).format(amount);
-  };
+  const formatCurrency = (amount: number) =>
+    formatCurrencyWithCode(amount, storeProfile?.currency);
 
   return (
     <div className="flex flex-col flex-1 min-h-0 h-full gap-4">

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { StockBatchMetrics } from "./stock-batch-metrics";
 import { formatMetricCurrency } from "@/lib/utils";
 import { useStockBatchManagement } from "@/lib/hooks/use-stock-batch-management";
+import { useStore } from "@/lib/context/store-context";
 
 export function StockBatchManagement({
   currentTab = "overview",
@@ -21,6 +22,7 @@ export function StockBatchManagement({
     stats,
     handleTabChange,
   } = useStockBatchManagement(currentTab);
+  const { storeProfile } = useStore();
 
   return (
     <div className="flex flex-col flex-1 min-h-0 gap-6 relative">
@@ -57,7 +59,7 @@ export function StockBatchManagement({
             lowStockCount={stats.lowStockCount}
             expiringCount={stats.expiringSoonCount}
             activeCategories={stats.activeCategories}
-            formatCurrency={formatMetricCurrency}
+            formatCurrency={(amount) => formatMetricCurrency(amount, storeProfile?.currency)}
           />
           <StockOverview />
         </TabsContent>

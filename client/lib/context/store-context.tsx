@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, ReactNode } from "react";
 import * as Sentry from "@sentry/nextjs";
+import { toast } from "sonner";
 import { update } from "@/lib/db/local-database";
 import { setActiveStoreId as setResolvedStoreId } from "@/lib/db/core";
 import { useQuery } from "@tanstack/react-query";
@@ -450,7 +451,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   };
 
   const setTheme = (newTheme: string) => {
-    void updateStoreProfile({ theme: newTheme });
+    // Fire-and-forget by design (the UI applies the theme immediately,
+    // optimistically) — but a failed write must not fail silently, or the
+    // displayed theme and the persisted/synced one quietly diverge with no
+    // signal to the user.
+    updateStoreProfile({ theme: newTheme }).catch((err) => {
+      console.error("[StoreContext] Failed to persist theme change:", err);
+      toast.error("Couldn't save your theme choice — it may not stick after reload.");
+    });
   };
 
   const t = (key: string): string => {

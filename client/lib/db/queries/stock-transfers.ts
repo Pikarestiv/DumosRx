@@ -176,7 +176,11 @@ async function resolveDestCategoryId(
   );
   if (existing.length > 0) return existing[0].id;
 
-  return await insert("categories", { name, store_id: destStoreId });
+  return await insert(
+    "categories",
+    { name, store_id: destStoreId },
+    { storeId: destStoreId },
+  );
 }
 
 /**
@@ -198,30 +202,34 @@ async function createDestProduct(
     destStoreId,
   );
 
-  return await insert("products", {
-    name: product.name,
-    generic_name: product.generic_name ?? null,
-    category_id: destCategoryId,
-    manufacturer: product.manufacturer ?? null,
-    nafdac_number: product.nafdac_number ?? null,
-    dosage_form: product.dosage_form ?? null,
-    strength: product.strength ?? null,
-    pack_size: product.pack_size ?? null,
-    unit_of_measure: product.unit_of_measure ?? null,
-    description: product.description ?? null,
-    indications: product.indications ?? null,
-    contraindications: product.contraindications ?? null,
-    side_effects: product.side_effects ?? null,
-    storage_conditions: product.storage_conditions ?? null,
-    selling_price: product.selling_price ?? 0,
-    requires_prescription: product.requires_prescription ?? 0,
-    is_controlled: product.is_controlled ?? 0,
-    barcode: product.barcode ?? null,
-    base_unit: product.base_unit ?? "Unit",
-    bulk_unit: product.bulk_unit ?? null,
-    units_per_bulk: product.units_per_bulk ?? 1,
-    store_id: destStoreId,
-  });
+  return await insert(
+    "products",
+    {
+      name: product.name,
+      generic_name: product.generic_name ?? null,
+      category_id: destCategoryId,
+      manufacturer: product.manufacturer ?? null,
+      nafdac_number: product.nafdac_number ?? null,
+      dosage_form: product.dosage_form ?? null,
+      strength: product.strength ?? null,
+      pack_size: product.pack_size ?? null,
+      unit_of_measure: product.unit_of_measure ?? null,
+      description: product.description ?? null,
+      indications: product.indications ?? null,
+      contraindications: product.contraindications ?? null,
+      side_effects: product.side_effects ?? null,
+      storage_conditions: product.storage_conditions ?? null,
+      selling_price: product.selling_price ?? 0,
+      requires_prescription: product.requires_prescription ?? 0,
+      is_controlled: product.is_controlled ?? 0,
+      barcode: product.barcode ?? null,
+      base_unit: product.base_unit ?? "Unit",
+      bulk_unit: product.bulk_unit ?? null,
+      units_per_bulk: product.units_per_bulk ?? 1,
+      store_id: destStoreId,
+    },
+    { storeId: destStoreId },
+  );
 }
 
 /**
@@ -329,47 +337,59 @@ export async function transferStock(
     // The new batch's expiry is the earliest (most conservative) of
     // everything it was drawn from, so the destination's FEFO picking
     // never overstates shelf life.
-    const destBatchId = await insert("stock_batches", {
-      product_id: destProductId,
-      batch_number: `TRANSFER-${transferId.slice(0, 8).toUpperCase()}`,
-      expiry_date: earliestExpiry,
-      quantity,
-      cost_price: averageCost,
-      is_active: 1,
-      store_id: destStoreId,
-    });
+    const destBatchId = await insert(
+      "stock_batches",
+      {
+        product_id: destProductId,
+        batch_number: `TRANSFER-${transferId.slice(0, 8).toUpperCase()}`,
+        expiry_date: earliestExpiry,
+        quantity,
+        cost_price: averageCost,
+        is_active: 1,
+        store_id: destStoreId,
+      },
+      { storeId: destStoreId },
+    );
 
     for (const d of drawn) {
-      await insert("stock_movements", {
-        product_id: productId,
-        stock_batch_id: d.batchId,
-        movement_type: "transfer_out",
-        quantity: -Math.abs(d.qty),
-        unit_cost: d.cost,
-        total_cost: d.cost * d.qty,
-        reference_id: transferId,
-        reference_type: STOCK_TRANSFER_REFERENCE_TYPE,
-        reason: reason || `Transfer to ${destStore.name}`,
-        performed_by: performedBy,
-        movement_date: now,
-        store_id: sourceStoreId,
-      });
+      await insert(
+        "stock_movements",
+        {
+          product_id: productId,
+          stock_batch_id: d.batchId,
+          movement_type: "transfer_out",
+          quantity: -Math.abs(d.qty),
+          unit_cost: d.cost,
+          total_cost: d.cost * d.qty,
+          reference_id: transferId,
+          reference_type: STOCK_TRANSFER_REFERENCE_TYPE,
+          reason: reason || `Transfer to ${destStore.name}`,
+          performed_by: performedBy,
+          movement_date: now,
+          store_id: sourceStoreId,
+        },
+        { storeId: sourceStoreId },
+      );
     }
 
-    await insert("stock_movements", {
-      product_id: destProductId,
-      stock_batch_id: destBatchId,
-      movement_type: "transfer_in",
-      quantity,
-      unit_cost: averageCost,
-      total_cost: averageCost * quantity,
-      reference_id: transferId,
-      reference_type: STOCK_TRANSFER_REFERENCE_TYPE,
-      reason: reason || `Transfer from ${sourceStore.name}`,
-      performed_by: performedBy,
-      movement_date: now,
-      store_id: destStoreId,
-    });
+    await insert(
+      "stock_movements",
+      {
+        product_id: destProductId,
+        stock_batch_id: destBatchId,
+        movement_type: "transfer_in",
+        quantity,
+        unit_cost: averageCost,
+        total_cost: averageCost * quantity,
+        reference_id: transferId,
+        reference_type: STOCK_TRANSFER_REFERENCE_TYPE,
+        reason: reason || `Transfer from ${sourceStore.name}`,
+        performed_by: performedBy,
+        movement_date: now,
+        store_id: destStoreId,
+      },
+      { storeId: destStoreId },
+    );
 
     return {
       transferId,

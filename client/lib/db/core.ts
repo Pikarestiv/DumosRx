@@ -1118,10 +1118,18 @@ export async function logAction(
   table: string,
   recordId: string,
   details?: Record<string, unknown>,
+  // Mirrors assertStoreOwnership's overrideStoreId (base-helpers.ts): the
+  // one real caller that needs it is stock-transfers.ts's transferStock(),
+  // which legitimately writes rows in two different stores within one
+  // transaction. Without this, every audit-log row for a transfer's writes
+  // was attributed to whatever store the UI happened to have active rather
+  // than the source/destination store the write actually belongs to.
+  overrideStoreId?: string,
 ) {
   if (!db) return;
   const id = generateId();
   const now = new Date().toISOString();
+  const storeId = overrideStoreId ?? getActiveStoreId();
 
   await execute(
     `INSERT INTO audit_logs (id, user_id, store_id, action, table_name, record_id, details, created_at)
@@ -1129,7 +1137,7 @@ export async function logAction(
     [
       id,
       currentUser?.id || null,
-      getActiveStoreId(),
+      storeId,
       action,
       table,
       recordId,
@@ -1142,7 +1150,7 @@ export async function logAction(
   const record = {
     id,
     user_id: currentUser?.id || null,
-    store_id: getActiveStoreId(),
+    store_id: storeId,
     action,
     table_name: table,
     record_id: recordId,

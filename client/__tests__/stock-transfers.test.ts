@@ -136,7 +136,7 @@ vi.mock('@/lib/db/local-database', () => ({
 }));
 
 import { transferStock } from '@/lib/db/queries/stock-transfers';
-import { update as mockedUpdate } from '@/lib/db/local-database';
+import { update as mockedUpdate, insert as mockedInsert } from '@/lib/db/local-database';
 
 describe('transferStock', () => {
   beforeEach(() => {
@@ -194,6 +194,27 @@ describe('transferStock', () => {
       { quantity: 30 },
       { storeId: 's1' },
     );
+
+    // Low-severity fix (docs/KNOWN_BUGS.md): every insert() this function
+    // makes on behalf of a specific store must also pass that store as an
+    // explicit options.storeId, so the resulting audit_logs row (see
+    // logAction() in core.ts) is attributed to the store the write actually
+    // belongs to, not whatever store happens to be globally "active" in the
+    // UI during a cross-store transfer.
+    const insertCalls = vi.mocked(mockedInsert).mock.calls;
+    const destBatchCall = insertCalls.find(([table]: [string, ...unknown[]]) => table === 'stock_batches');
+    const transferOutCall = insertCalls.find(
+      ([table, data]: [string, Record<string, unknown>, ...unknown[]]) =>
+        table === 'stock_movements' && data.movement_type === 'transfer_out',
+    );
+    const transferInCall = insertCalls.find(
+      ([table, data]: [string, Record<string, unknown>, ...unknown[]]) =>
+        table === 'stock_movements' && data.movement_type === 'transfer_in',
+    );
+
+    expect(destBatchCall?.[2]).toEqual({ storeId: 's2' });
+    expect(transferOutCall?.[2]).toEqual({ storeId: 's1' });
+    expect(transferInCall?.[2]).toEqual({ storeId: 's2' });
   });
 
   it('rejects a transfer that exceeds available stock, writing nothing', async () => {

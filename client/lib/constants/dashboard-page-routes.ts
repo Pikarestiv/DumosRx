@@ -12,6 +12,23 @@ interface PageRoute {
   action?: PageAction;
   /** Action only shown to roles with stock-management access (admin/manager/specialist/store_owner). */
   actionAdminOnly?: boolean;
+  /** On top of actionAdminOnly's canManageStockBatch baseline, `action` is
+   * only shown to isAdmin — for a primary action that should be limited the
+   * same way Start Audit's secondaryAction already is (e.g. Transfer Stock:
+   * a direct, unapproved store-to-store move). A canManageStockBatch-but-
+   * not-isAdmin account (specialist) falls through to fallbackAction. */
+  actionRequiresIsAdmin?: boolean;
+  /** On top of actionAdminOnly, `action` additionally requires a multi-
+   * store-capable account (plan entitlement AND this device actually having
+   * 2+ synced stores — see DashboardHeader's hasMultiStoreAccess). A
+   * single-store or plan-ineligible account falls through to
+   * fallbackAction. */
+  actionRequiresMultiStore?: boolean;
+  /** Shown instead of `action` when the account passes actionAdminOnly's
+   * baseline but not actionRequiresIsAdmin/actionRequiresMultiStore — e.g.
+   * Transfer Stock (ledger) falls back to Add Product for an admin-capable
+   * account that isn't multi-store-qualified, rather than showing nothing. */
+  fallbackAction?: PageAction;
   /** An outline button shown before the primary action, desktop only (see
    * DashboardHeader) — for a page's other common action that isn't worth a
    * full second row of its own (e.g. Inventory's "Start Audit" next to "Add
@@ -63,8 +80,14 @@ export const PAGE_ROUTES: PageRoute[] = [
     path: "/inventory/ledger",
     title: "Stock Movements",
     desc: "Full audit trail of every stock movement: sales, receipts, and adjustments.",
-    action: { label: "Add Product", path: "/inventory/catalog?action=add" },
+    // Unlike every other action.path here, this doesn't navigate anywhere —
+    // stock-movements.tsx reads ?action=transfer on this same page (same
+    // pattern as Add Product's ?action=add) and opens the transfer dialog.
+    action: { label: "Transfer Stock", path: "/inventory/ledger?action=transfer" },
     actionAdminOnly: true,
+    actionRequiresIsAdmin: true,
+    actionRequiresMultiStore: true,
+    fallbackAction: { label: "Add Product", path: "/inventory/catalog?action=add" },
     secondaryAction: { label: "Start Audit", path: "/inventory/audits" },
     secondaryActionAdminOnly: true,
   },
@@ -161,17 +184,28 @@ export function getPageInfo(pathname: string): PageRoute | null {
 }
 
 /** Resolves the header's "+ Add X" action for the current route, honoring
- * actionAdminOnly. Greeting pages (dashboard home) don't use pageInfo for
- * title/desc, but can still declare an explicit action via PAGE_ROUTES, so
- * this re-looks-up the route rather than relying solely on pageInfo. */
+ * actionAdminOnly's canManageStockBatch baseline first, then narrowing via
+ * actionRequiresIsAdmin/actionRequiresMultiStore — an account that clears
+ * the baseline but not the narrower requirements gets fallbackAction
+ * instead of nothing. Greeting pages (dashboard home) don't use pageInfo
+ * for title/desc, but can still declare an explicit action via PAGE_ROUTES,
+ * so this re-looks-up the route rather than relying solely on pageInfo. */
 export function resolveHeaderAction(
   pathname: string,
   pageInfo: PageRoute | null,
   canManageStockBatch: boolean,
+  isAdmin: boolean,
+  hasMultiStoreAccess: boolean,
 ): PageAction | null {
   const matchedRoute = pageInfo?.action ? pageInfo : getPageRoute(pathname);
   if (!matchedRoute?.action) return null;
   if (matchedRoute.actionAdminOnly && !canManageStockBatch) return null;
+
+  const meetsNarrowerRequirements =
+    (!matchedRoute.actionRequiresIsAdmin || isAdmin) &&
+    (!matchedRoute.actionRequiresMultiStore || hasMultiStoreAccess);
+  if (!meetsNarrowerRequirements) return matchedRoute.fallbackAction ?? null;
+
   return matchedRoute.action;
 }
 

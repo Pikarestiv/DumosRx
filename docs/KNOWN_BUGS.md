@@ -76,25 +76,9 @@ Open items below are grouped by severity (Critical → High → Medium → Low),
 ## Pre-launch review findings (web/)
 
 Read-only review pass over `web/` (Next.js superadmin panel + marketing
-site), area by area. Nothing here was fixed — each entry is open. Same
-convention as the earlier `client/` pass: grouped by area, one entry per
-finding, removed outright once fixed.
-
-**impersonation / handoff**
-
-Verified correct and deliberately *not* listed as findings: `POST /admin/stores/{id}/impersonate` is `role:super_admin` server-side (`laravel-server/routes/api.php:180`), and handoff codes are genuinely single-use (`Cache::pull` get-and-delete) with a 60s TTL in `AuthHandoffController`. The findings that were here were around that core, not in it; all are now fixed.
-
-**billing / plans / coupons (money)**
-
-All findings in this area are now fixed. `getSystemConfig` rejects on failure instead of resolving `null`, and each consuming config tab (subscription/security/suggestions/integrations) shows a real error-with-retry state rather than editing — and then saving — bundled defaults. Plan prices are validated client-side and behind a confirmation step, and `SystemConfigController::update` now schema-checks the `subscription_plans` price fields. Coupon percentages are capped at 100 on both layers, `max_uses` no longer turns a cleared field into unlimited, the coupon list has a distinct error state, and Target Plan is a slug dropdown.
-
-**referrals / marketing**
-
-All findings in this area are now fixed. `ReferralController::adjustCredits` validates `amount` as `min:0.01`, so a negative amount can never reach the balance-check logic; the adjust dialog validates before submitting, adds an explicit confirmation step naming the wallet and direction, and resets on every close. The target-user picker is a search-driven single-select over the full user base, every query's error is surfaced in a retry banner, and both referral tables paginate through the server's `{ data, meta }` envelope.
-
-**landing / public pages**
-
-All findings in this area are now fixed. The public pricing page shows an explicit unavailable-with-retry state instead of quoting bundled ₦3,000/₦8,000/₦15,000 tiers when config fails to load, `web_dashboard` is a real feature key end to end (`TierFeatures`, the plan editor's toggle list and the bundled defaults), and `calculateDiscountPercent` clamps at 0 so a misconfigured yearly price can no longer render a negative "Save -20%" badge.
+site), area by area. Same convention as the earlier `client/` pass: grouped
+by area, one entry per finding, removed outright once fixed. Every area
+except auth has been fixed and moved to `FIXED_BUGS.md`.
 
 **auth (public register/login)**
 

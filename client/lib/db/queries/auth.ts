@@ -15,22 +15,33 @@ import type { UserDbRow } from "@/lib/types/user";
  * Known limit: usernames are unique per store, not globally -
  * `UNIQUE(store_id, username)` in schema.ts, matching the server's
  * 2026_08_01_000001_scope_username_uniqueness_to_store migration - so on a
- * multi-store device two rows can legitimately share a username and this
- * returns whichever SQLite yields first. The PIN check in login() rejects
- * the mismatch in every case except a genuine collision (same username AND
- * the same 4-digit PIN at two of this device's stores), which would log the
- * wrong person in. Closing that properly needs a store-disambiguating login
- * (e.g. a store picker when the identifier matches more than one row), not
- * a filter here, since there is no trustworthy "intended store" to filter by
- * before the user is known.
+ * multi-store device two rows can legitimately share a username. Returns
+ * EVERY matching row (not just the first) precisely so a caller can detect
+ * that ambiguity — see getUserByUsernameOrEmail below for the single-row
+ * convenience wrapper, and auth-context.tsx's login() for how it uses this
+ * to fail closed instead of silently picking one on a genuine collision
+ * (same username AND the same PIN at two of this device's stores).
  */
-export async function getUserByUsernameOrEmail(identifier: string) {
+export async function getUsersByUsernameOrEmail(identifier: string) {
   const isEmail = identifier.includes("@");
   const field = isEmail ? "email" : "username";
-  const users = await query<UserDbRow>(
+  return query<UserDbRow>(
     `SELECT * FROM users WHERE LOWER(${field}) = LOWER(?) AND is_active = 1 AND (_deleted = 0 OR _deleted IS NULL)`,
     [identifier]
   );
+}
+
+/**
+ * Single-row convenience wrapper around getUsersByUsernameOrEmail. Returns
+ * whichever SQLite yields first when more than one row matches (a genuine
+ * multi-store username collision) — callers that need to authenticate a PIN
+ * against a possibly-ambiguous identifier MUST use getUsersByUsernameOrEmail
+ * directly instead, so they can detect and refuse an ambiguous match rather
+ * than silently authenticating against a random one. See auth-context.tsx's
+ * login().
+ */
+export async function getUserByUsernameOrEmail(identifier: string) {
+  const users = await getUsersByUsernameOrEmail(identifier);
   return users.length > 0 ? users[0] : null;
 }
 

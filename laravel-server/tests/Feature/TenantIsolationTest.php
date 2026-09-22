@@ -288,4 +288,53 @@ class TenantIsolationTest extends TestCase
         $response->assertStatus(201);
         $this->assertDatabaseHas('customers', ['first_name' => 'New', 'user_id' => $this->ownerA->id]);
     }
+
+    // ---- Staff ----
+
+    public function test_staff_update_404s_for_another_tenants_staff_member()
+    {
+        $foreignStaff = User::create([
+            'first_name' => 'Staff', 'last_name' => 'B',
+            'email' => 'staffB@dumosrx.com', 'password' => bcrypt('password'),
+            'role' => 'sales_staff', 'store_id' => Store::where('user_id', $this->ownerB->id)->value('id'),
+        ]);
+
+        $response = $this->actingAs($this->ownerA)
+            ->putJson("/api/v1/staff/{$foreignStaff->id}", ['first_name' => 'Hijacked']);
+
+        $response->assertStatus(404);
+        $this->assertDatabaseHas('users', ['id' => $foreignStaff->id, 'first_name' => 'Staff']);
+    }
+
+    public function test_staff_destroy_404s_for_another_tenants_staff_member()
+    {
+        $foreignStaff = User::create([
+            'first_name' => 'Staff', 'last_name' => 'B',
+            'email' => 'staffB2@dumosrx.com', 'password' => bcrypt('password'),
+            'role' => 'sales_staff', 'store_id' => Store::where('user_id', $this->ownerB->id)->value('id'),
+        ]);
+
+        $response = $this->actingAs($this->ownerA)
+            ->deleteJson("/api/v1/staff/{$foreignStaff->id}");
+
+        $response->assertStatus(404);
+        $this->assertDatabaseHas('users', ['id' => $foreignStaff->id, 'is_active' => true]);
+    }
+
+    public function test_staff_store_rejects_another_tenants_store_id()
+    {
+        $foreignStoreId = Store::where('user_id', $this->ownerB->id)->value('id');
+
+        $response = $this->actingAs($this->ownerA)
+            ->postJson('/api/v1/staff', [
+                'first_name' => 'New',
+                'last_name' => 'Hire',
+                'username' => 'newhire',
+                'role' => 'sales_staff',
+                'store_id' => $foreignStoreId,
+            ]);
+
+        $response->assertStatus(422);
+        $this->assertDatabaseMissing('users', ['username' => 'newhire']);
+    }
 }

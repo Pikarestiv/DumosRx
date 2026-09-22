@@ -54,26 +54,73 @@ class SubscriptionService
     }
 
     /**
-     * Check if a user has access to a specific feature
+     * The subscription row that governs $owner's account RIGHT NOW: their
+     * current active+not-expired subscription, or — if none — the most
+     * recently active one PROVIDED it's still within the configured grace
+     * period past its end_date. Returns null (meaning: treat as 'free')
+     * only once even the grace window has elapsed.
+     *
+     * Shared by hasFeature()/checkLimit()/enforceStaffLimits()/
+     * StoreSummaryController so every one of them agrees on which tier an
+     * account is actually on during a lapsed-but-still-in-grace renewal —
+     * before this was factored out, only hasFeature() had the grace-period
+     * fallback, so checkLimit()/enforceStaffLimits() dropped straight to
+     * 'free' the moment end_date passed even though hasFeature() still
+     * granted paid features for the very same account, and
+     * enforceStaffLimits() (called on every sync request) actively
+     * deactivated staff and sent suspension notifications for accounts
+     * merely mid-renewal.
      */
-    public function hasFeature(User $user, $feature)
+    public function resolveEffectiveSubscription(User $owner): ?Subscription
     {
-        $owner = $this->getSubscriptionOwner($user);
         $sub = $owner->subscriptions()->where('status', 'active')->where('end_date', '>', now())->latest()->first();
-        
+
         if (!$sub) {
-            // Check if within grace period
             $systemConfig = SystemConfig::getVal('subscription_plans', []);
             $graceDays = $systemConfig['grace_period_days'] ?? 3;
             $sub = $owner->subscriptions()->where('status', 'active')->where('end_date', '>', now()->subDays($graceDays))->latest()->first();
         }
 
-        $plan = $sub ? $sub->plan_name : 'free';
-        
+        return $sub;
+    }
+
+    /**
+     * The plan name $owner is effectively on right now, per
+     * resolveEffectiveSubscription() above (grace-period aware), or
+     * 'free' if neither an active nor a still-in-grace subscription exists.
+     */
+    public function resolveEffectivePlan(User $owner): string
+    {
+        $sub = $this->resolveEffectiveSubscription($owner);
+
+        return $sub ? $sub->plan_name : 'free';
+    }
+
+    /**
+     * Check if a user has access to a specific feature
+     */
+    public function hasFeature(User $user, $feature)
+    {
+        $owner = $this->getSubscriptionOwner($user);
+        $plan = $this->resolveEffectivePlan($owner);
+
         $systemConfig = SystemConfig::getVal('subscription_plans', []);
         $features = $systemConfig['tiers'][$plan]['features'] ?? [];
-        
-        return $features[$feature] ?? false;
+
+        if (array_key_exists($feature, $features)) {
+            return (bool) $features[$feature];
+        }
+
+        // The flag key is genuinely absent from SystemConfig (as opposed to
+        // present-but-false) — on a deployment whose config predates this
+        // feature, fall back to the same pro/enterprise default
+        // StoreSummaryController::sendSummary() and SendEndOfDaySummaries
+        // agree on, rather than silently withholding it platform-wide.
+        if ($feature === 'daily_summary_email') {
+            return in_array($plan, ['pro', 'enterprise'], true);
+        }
+
+        return false;
     }
 
     /**
@@ -82,9 +129,7 @@ class SubscriptionService
     public function checkLimit(User $user, $type)
     {
         $owner = $this->getSubscriptionOwner($user);
-        $sub = $owner->subscriptions()->where('status', 'active')->where('end_date', '>', now())->latest()->first();
-        
-        $plan = $sub ? $sub->plan_name : 'free';
+        $plan = $this->resolveEffectivePlan($owner);
         $systemConfig = SystemConfig::getVal('subscription_plans', []);
         $limit = $systemConfig['tiers'][$plan]['limits'][$type] ?? 0;
 
@@ -97,7 +142,13 @@ class SubscriptionService
                 break;
             case 'staff':
                 $storeIds = Store::where('user_id', $owner->id)->pluck('id');
-                $current = User::whereIn('store_id', $storeIds)->count();
+                // Only active staff count against the quota — a
+                // deactivated row (possibly one enforceStaffLimits() itself
+                // suspended on an earlier downgrade) shouldn't keep
+                // inflating usage against the very quota it was excluded
+                // from to respect in the first place, permanently blocking
+                // reactivation/new hires even after upgrading back.
+                $current = User::whereIn('store_id', $storeIds)->where('is_active', true)->count();
                 break;
         }
 
@@ -109,9 +160,8 @@ class SubscriptionService
      */
     public function enforceStaffLimits(User $owner)
     {
-        $sub = $owner->subscriptions()->where('status', 'active')->where('end_date', '>', now())->latest()->first();
-        $plan = $sub ? $sub->plan_name : 'free';
-        
+        $plan = $this->resolveEffectivePlan($owner);
+
         $systemConfig = SystemConfig::getVal('subscription_plans', []);
         $limit = $systemConfig['tiers'][$plan]['limits']['staff'] ?? 0;
         

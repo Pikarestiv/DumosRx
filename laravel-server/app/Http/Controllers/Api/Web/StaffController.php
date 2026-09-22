@@ -131,6 +131,26 @@ class StaffController extends Controller
             'store_id' => 'required|exists:stores,id',
         ]);
 
+        // `exists:stores,id` above only checks the store exists ANYWHERE on
+        // the platform, not that it belongs to the caller — without this,
+        // a caller could plant a staff account into another tenant's store
+        // just by knowing/guessing its id. Mirrors visibleStaffQuery()'s own
+        // ownership scoping (super_admin may target any store; everyone
+        // else only their own).
+        $user = $request->user();
+        if (!$user->hasRole('super_admin')) {
+            $subscriptionService = app(\App\Services\SubscriptionService::class);
+            $owner = $subscriptionService->getSubscriptionOwner($user);
+            $ownedStoreIds = \App\Models\Store::where('user_id', $owner->id)->pluck('id')->toArray();
+
+            if (!in_array($request->store_id, $ownedStoreIds, true)) {
+                return response()->json([
+                    'message' => 'The selected store id is invalid.',
+                    'errors' => ['store_id' => ['The selected store id is invalid.']],
+                ], 422);
+            }
+        }
+
         $email = $request->email;
         if (empty($email)) {
             $email = $request->username . '@local.dumosrx.com';
@@ -207,8 +227,14 @@ class StaffController extends Controller
             new OA\Response(response: 422, ref: '#/components/responses/ValidationError'),
         ],
     )]
-    public function update(Request $request, User $staff)
+    public function update(Request $request, $id)
     {
+        // Scoped through the same visibility rules as index()/show() rather
+        // than raw route-model binding — otherwise PUT/PATCH /staff/{any id}
+        // could modify (and reset the password of) any user on the
+        // platform, not just one belonging to the caller's own tenant.
+        $staff = $this->visibleStaffQuery($request)->findOrFail($id);
+
         $request->validate([
             'first_name' => 'string',
             'last_name' => 'string',
@@ -283,8 +309,11 @@ class StaffController extends Controller
             new OA\Response(response: 404, ref: '#/components/responses/NotFound'),
         ],
     )]
-    public function destroy(User $staff)
+    public function destroy(Request $request, $id)
     {
+        // Same ownership scoping as update() above — otherwise DELETE
+        // /staff/{any id} could deactivate any user on the platform.
+        $staff = $this->visibleStaffQuery($request)->findOrFail($id);
         $staff->update(['is_active' => false]);
         return response()->json(['message' => 'Staff deactivated']);
     }

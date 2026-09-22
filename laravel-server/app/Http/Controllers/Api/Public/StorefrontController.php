@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\StorefrontProductResource;
 use App\Models\Store;
 use App\Models\Product;
+use App\Models\StockBatch;
 use App\Models\User;
 use App\Services\Payment\PaymentService;
 use App\Services\SubscriptionService;
@@ -193,11 +194,16 @@ class StorefrontController extends Controller
             'items.*.quantity' => 'required|integer|min:1',
         ]);
 
-        // Scoped to this store's own catalog. A product ID belonging to a
-        // different store must not be purchasable through this store's
-        // checkout - fetched in one batch rather than one query per item.
+        // Scoped to this store's own catalog, AND to the same is_active/
+        // show_online filter show() already applies. Without the latter, a
+        // product id harvested from an earlier (correctly filtered) catalog
+        // response stays purchasable forever even after being deactivated
+        // or hidden from the online store - fetched in one batch rather
+        // than one query per item.
         $productIds = collect($validated['items'])->pluck('product_id')->unique();
         $products = Product::where('user_id', $store->user_id)
+            ->where('is_active', true)
+            ->where('show_online', true)
             ->whereIn('id', $productIds)
             ->get()
             ->keyBy('id');
@@ -211,12 +217,28 @@ class StorefrontController extends Controller
 
         foreach ($validated['items'] as $item) {
             $product = $products[$item['product_id']];
-            $subtotal = $product->selling_price * $item['quantity'];
+            $requestedQty = $item['quantity'];
+
+            // Available stock is the sum of the product's stock batches
+            // (products carry no stock field of their own - see
+            // 2026_06_27_230048_migrate_stock_and_drop_stock_quantity_from_products).
+            // This only checks availability; unlike POS/SaleController it
+            // does not deduct anything yet - online orders start "pending"
+            // and stock is deducted when staff fulfil them (see the client's
+            // useFulfillOnlineOrderMutation), same as before this fix.
+            $availableQty = StockBatch::where('product_id', $product->id)->sum('quantity');
+            if ($availableQty < $requestedQty) {
+                return response()->json([
+                    'message' => "Insufficient stock for {$product->name}.",
+                ], 422);
+            }
+
+            $subtotal = $product->selling_price * $requestedQty;
             $totalAmount += $subtotal;
 
             $orderItems[] = [
                 'product_id' => $product->id,
-                'quantity' => $item['quantity'],
+                'quantity' => $requestedQty,
                 'unit_price' => $product->selling_price,
                 'subtotal' => $subtotal,
             ];

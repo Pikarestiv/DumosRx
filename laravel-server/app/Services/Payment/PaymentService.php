@@ -60,7 +60,7 @@ class PaymentService
     {
         $response = Http::withToken($this->paystackKey)
             ->post('https://api.paystack.co/transaction/initialize', [
-                'amount' => $amount * 100, // Paystack uses kobo
+                'amount' => (int) round($amount * 100), // Paystack uses kobo
                 'email' => $email,
                 'metadata' => $metadata,
                 'callback_url' => config('app.frontend_url') . '/dashboard/subscription/verify',

@@ -1,6 +1,6 @@
 import { insert, update, query } from "@/lib/db/local-database";
 import { getSaleItemBatches } from "@/lib/db/queries/sales";
-import { getStockBatchById } from "@/lib/db/queries/inventory";
+import { getStockBatchById, getOrCreateTargetBatchForProduct } from "@/lib/db/queries/inventory";
 
 interface RestoreParams {
   saleItemId: string;
@@ -120,19 +120,21 @@ export async function restoreReturnedStock(params: RestoreParams) {
     if (legacyStockBatchId) {
       await restoreBatchQuantity(legacyStockBatchId, remaining, { productId, costPrice, returnId, performedBy });
     } else {
-      await insert("stock_movements", {
-        product_id: productId,
-        stock_batch_id: null,
-        movement_type: "return",
-        quantity: Math.abs(remaining),
-        unit_cost: costPrice,
-        total_cost: costPrice * remaining,
-        reference_id: returnId,
-        reference_type: "return",
-        reason: "Customer return",
-        performed_by: performedBy || null,
-        movement_date: new Date().toISOString(),
+      // No specific batch to credit (no sale_item_batches rows and no
+      // legacy stock_batch_id) — previously this logged a stock_movements
+      // row with stock_batch_id: null and never touched stock_batches at
+      // all, so on-hand stock (SUM(stock_batches.quantity)) was never
+      // credited back even though the customer was refunded. Find a
+      // reasonable target batch for this product (or create one) and
+      // restore into it instead, the same way a stock audit's "found extra
+      // stock" branch picks/creates a target batch (see
+      // getOrCreateTargetBatchForProduct) — so the ledger and the actual
+      // on-hand total agree.
+      const targetBatch = await getOrCreateTargetBatchForProduct(productId, {
+        unitCost: costPrice,
+        batchNumberPrefix: "RETURN",
       });
+      await restoreBatchQuantity(targetBatch.id, remaining, { productId, costPrice, returnId, performedBy });
     }
   }
 }

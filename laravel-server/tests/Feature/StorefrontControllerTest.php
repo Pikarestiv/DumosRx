@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Product;
+use App\Models\StockBatch;
 use App\Models\Store;
 use App\Models\SystemConfig;
 use App\Models\User;
@@ -20,10 +21,37 @@ use Tests\TestCase;
  * - none of slugs()/show()/checkout() re-checked the owner's plan still
  *   includes the `store_url` feature, so a downgraded/lapsed account kept
  *   serving (and charging for) its storefront forever.
+ * - checkout() didn't apply show()'s own is_active/show_online filter, so a
+ *   deactivated/hidden product id was still purchasable, and it never
+ *   checked stock, so an order could be placed for more than the store has.
  */
 class StorefrontControllerTest extends TestCase
 {
     use RefreshDatabase;
+
+    /**
+     * A product that passes checkout()'s is_active/show_online filter, with
+     * enough stock (via a stock_batches row - products carry no stock field
+     * of their own) to cover any quantity these tests order.
+     */
+    private function purchasableProduct(array $attrs): Product
+    {
+        $product = Product::create(array_merge([
+            'is_active' => true,
+            'show_online' => true,
+        ], $attrs));
+
+        StockBatch::create([
+            'product_id' => $product->id,
+            'user_id' => $attrs['user_id'] ?? null,
+            'batch_number' => 'B-' . $product->id,
+            'quantity' => 100,
+            'cost_price' => 10,
+            'expiry_date' => now()->addYear(),
+        ]);
+
+        return $product;
+    }
 
     protected User $ownerA;
     protected Store $storeA;
@@ -125,7 +153,7 @@ class StorefrontControllerTest extends TestCase
 
     public function test_checkout_with_in_store_payment_does_not_require_verification()
     {
-        $product = Product::create(['name' => 'Panadol', 'selling_price' => 100, 'user_id' => $this->ownerA->id]);
+        $product = $this->purchasableProduct(['name' => 'Panadol', 'selling_price' => 100, 'user_id' => $this->ownerA->id]);
 
         $response = $this->postJson('/api/v1/storefront/store-a/checkout', [
             'customer_name' => 'Jane Doe',
@@ -140,7 +168,7 @@ class StorefrontControllerTest extends TestCase
 
     public function test_checkout_with_paystack_requires_a_reference()
     {
-        $product = Product::create(['name' => 'Panadol', 'selling_price' => 100, 'user_id' => $this->ownerA->id]);
+        $product = $this->purchasableProduct(['name' => 'Panadol', 'selling_price' => 100, 'user_id' => $this->ownerA->id]);
 
         $response = $this->postJson('/api/v1/storefront/store-a/checkout', [
             'customer_name' => 'Jane Doe',
@@ -155,7 +183,7 @@ class StorefrontControllerTest extends TestCase
 
     public function test_checkout_rejects_an_unverifiable_paystack_reference()
     {
-        $product = Product::create(['name' => 'Panadol', 'selling_price' => 100, 'user_id' => $this->ownerA->id]);
+        $product = $this->purchasableProduct(['name' => 'Panadol', 'selling_price' => 100, 'user_id' => $this->ownerA->id]);
 
         $this->mock(PaymentService::class, function ($mock) {
             $mock->shouldReceive('verifyTransaction')
@@ -177,7 +205,7 @@ class StorefrontControllerTest extends TestCase
 
     public function test_checkout_rejects_a_verified_payment_that_underpays_the_total()
     {
-        $product = Product::create(['name' => 'Panadol', 'selling_price' => 100, 'user_id' => $this->ownerA->id]);
+        $product = $this->purchasableProduct(['name' => 'Panadol', 'selling_price' => 100, 'user_id' => $this->ownerA->id]);
 
         $this->mock(PaymentService::class, function ($mock) {
             // Verified real payment, but for less than the 2-unit order total (200).
@@ -200,7 +228,7 @@ class StorefrontControllerTest extends TestCase
 
     public function test_checkout_accepts_a_verified_sufficient_paystack_payment()
     {
-        $product = Product::create(['name' => 'Panadol', 'selling_price' => 100, 'user_id' => $this->ownerA->id]);
+        $product = $this->purchasableProduct(['name' => 'Panadol', 'selling_price' => 100, 'user_id' => $this->ownerA->id]);
 
         $this->mock(PaymentService::class, function ($mock) {
             $mock->shouldReceive('verifyTransaction')
@@ -226,7 +254,7 @@ class StorefrontControllerTest extends TestCase
     public function test_checkout_rejects_orders_for_a_suspended_store()
     {
         $this->storeA->update(['status' => 'suspended']);
-        $product = Product::create(['name' => 'Panadol', 'selling_price' => 100, 'user_id' => $this->ownerA->id]);
+        $product = $this->purchasableProduct(['name' => 'Panadol', 'selling_price' => 100, 'user_id' => $this->ownerA->id]);
 
         $response = $this->postJson('/api/v1/storefront/store-a/checkout', [
             'customer_name' => 'Jane Doe',
@@ -250,7 +278,7 @@ class StorefrontControllerTest extends TestCase
     public function test_checkout_rejects_a_store_with_online_store_disabled()
     {
         $this->storeA->update(['online_store_enabled' => false]);
-        $product = Product::create(['name' => 'Panadol', 'selling_price' => 100, 'user_id' => $this->ownerA->id]);
+        $product = $this->purchasableProduct(['name' => 'Panadol', 'selling_price' => 100, 'user_id' => $this->ownerA->id]);
 
         $response = $this->postJson('/api/v1/storefront/store-a/checkout', [
             'customer_name' => 'Jane Doe',
@@ -283,7 +311,7 @@ class StorefrontControllerTest extends TestCase
                 'free' => ['features' => ['store_url' => false]],
             ],
         ]);
-        $product = Product::create(['name' => 'Panadol', 'selling_price' => 100, 'user_id' => $this->ownerA->id]);
+        $product = $this->purchasableProduct(['name' => 'Panadol', 'selling_price' => 100, 'user_id' => $this->ownerA->id]);
 
         $response = $this->postJson('/api/v1/storefront/store-a/checkout', [
             'customer_name' => 'Jane Doe',
@@ -312,7 +340,7 @@ class StorefrontControllerTest extends TestCase
 
     public function test_checkout_rejects_a_paystack_reference_already_used_by_another_order()
     {
-        $product = Product::create(['name' => 'Panadol', 'selling_price' => 100, 'user_id' => $this->ownerA->id]);
+        $product = $this->purchasableProduct(['name' => 'Panadol', 'selling_price' => 100, 'user_id' => $this->ownerA->id]);
 
         $this->mock(PaymentService::class, function ($mock) {
             $mock->shouldReceive('verifyTransaction')
@@ -354,7 +382,7 @@ class StorefrontControllerTest extends TestCase
      */
     public function test_checkout_rejects_a_duplicate_reference_even_when_the_first_order_was_not_paystack()
     {
-        $product = Product::create(['name' => 'Panadol', 'selling_price' => 100, 'user_id' => $this->ownerA->id]);
+        $product = $this->purchasableProduct(['name' => 'Panadol', 'selling_price' => 100, 'user_id' => $this->ownerA->id]);
 
         $first = $this->postJson('/api/v1/storefront/store-a/checkout', [
             'customer_name' => 'Jane Doe',
@@ -379,7 +407,7 @@ class StorefrontControllerTest extends TestCase
 
     public function test_checkout_notifies_the_store_owner_and_its_staff()
     {
-        $product = Product::create(['name' => 'Panadol', 'selling_price' => 100, 'user_id' => $this->ownerA->id]);
+        $product = $this->purchasableProduct(['name' => 'Panadol', 'selling_price' => 100, 'user_id' => $this->ownerA->id]);
         $staff = User::create([
             'first_name' => 'Store', 'last_name' => 'Staff',
             'email' => 'staffA@dumosrx.com', 'password' => bcrypt('password'),
@@ -402,5 +430,67 @@ class StorefrontControllerTest extends TestCase
                 'type' => 'online_order',
             ]);
         }
+    }
+
+    public function test_checkout_rejects_a_deactivated_product()
+    {
+        $product = $this->purchasableProduct([
+            'name' => 'Panadol', 'selling_price' => 100, 'user_id' => $this->ownerA->id,
+            'is_active' => false,
+        ]);
+
+        $response = $this->postJson('/api/v1/storefront/store-a/checkout', [
+            'customer_name' => 'Jane Doe',
+            'customer_phone' => '08000000000',
+            'payment_method' => 'in_store',
+            'items' => [['product_id' => $product->id, 'quantity' => 1]],
+        ]);
+
+        $response->assertStatus(404);
+        $this->assertDatabaseCount('online_orders', 0);
+    }
+
+    public function test_checkout_rejects_a_product_hidden_from_the_online_store()
+    {
+        $product = $this->purchasableProduct([
+            'name' => 'Panadol', 'selling_price' => 100, 'user_id' => $this->ownerA->id,
+            'show_online' => false,
+        ]);
+
+        $response = $this->postJson('/api/v1/storefront/store-a/checkout', [
+            'customer_name' => 'Jane Doe',
+            'customer_phone' => '08000000000',
+            'payment_method' => 'in_store',
+            'items' => [['product_id' => $product->id, 'quantity' => 1]],
+        ]);
+
+        $response->assertStatus(404);
+        $this->assertDatabaseCount('online_orders', 0);
+    }
+
+    public function test_checkout_rejects_an_order_exceeding_available_stock()
+    {
+        $product = Product::create([
+            'name' => 'Panadol', 'selling_price' => 100, 'user_id' => $this->ownerA->id,
+            'is_active' => true, 'show_online' => true,
+        ]);
+        StockBatch::create([
+            'product_id' => $product->id,
+            'user_id' => $this->ownerA->id,
+            'batch_number' => 'B-LOW',
+            'quantity' => 2,
+            'cost_price' => 10,
+            'expiry_date' => now()->addYear(),
+        ]);
+
+        $response = $this->postJson('/api/v1/storefront/store-a/checkout', [
+            'customer_name' => 'Jane Doe',
+            'customer_phone' => '08000000000',
+            'payment_method' => 'in_store',
+            'items' => [['product_id' => $product->id, 'quantity' => 3]],
+        ]);
+
+        $response->assertStatus(422);
+        $this->assertDatabaseCount('online_orders', 0);
     }
 }

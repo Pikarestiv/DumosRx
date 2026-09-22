@@ -199,6 +199,62 @@ class SyncValidationTest extends TestCase
         $response->assertJson(['success' => false, 'code' => 'SYNC_DISABLED']);
     }
 
+    /**
+     * Regression test for the subscription-status pull bug: the client's
+     * privileged syncSubscriptionStatus() call sends `?setup=1` with a
+     * `last_synced: { stores: "" }` body specifically to bypass the
+     * cloud_sync gate for this one call, on exactly the tiers (free/
+     * lapsed/suspended) that need their tier corrected — but the server
+     * used to compute isSetup purely from whether last_synced was empty,
+     * ignoring the `setup` param entirely, so this call was always rejected
+     * with SYNC_DISABLED on those same tiers.
+     */
+    public function test_pull_setup_override_bypasses_gate_for_the_stores_only_subscription_status_pull()
+    {
+        \App\Models\SystemConfig::setVal('subscription_plans', [
+            'tiers' => [
+                'free' => ['features' => ['cloud_sync' => false], 'limits' => ['stores' => -1]],
+            ],
+        ]);
+        $this->store->update(['last_sync_at' => now()->subDay()]);
+
+        $response = $this->actingAs($this->owner)
+            ->postJson('/api/v1/app/sync/pull?setup=1', ['last_synced' => ['stores' => '']]);
+
+        $response->assertStatus(200);
+        // The override must ALSO scope pull()'s own table fetching down to
+        // just `stores` — otherwise the gate override would double as a
+        // full initial sync of every table for an account whose plan
+        // explicitly disables cloud sync.
+        $response->assertJsonStructure(['changes' => ['stores']]);
+        $response->assertJsonMissingPath('changes.products');
+        $response->assertJsonMissingPath('changes.customers');
+    }
+
+    /**
+     * The `setup` override above must NOT become a general escape hatch: a
+     * request naming any other table (even alongside `stores`) is a real
+     * sync, not this one narrow privileged call, and must still be gated
+     * normally.
+     */
+    public function test_pull_setup_param_does_not_bypass_gate_for_a_normal_multi_table_pull()
+    {
+        \App\Models\SystemConfig::setVal('subscription_plans', [
+            'tiers' => [
+                'free' => ['features' => ['cloud_sync' => false], 'limits' => ['stores' => -1]],
+            ],
+        ]);
+        $this->store->update(['last_sync_at' => now()->subDay()]);
+
+        $response = $this->actingAs($this->owner)
+            ->postJson('/api/v1/app/sync/pull?setup=1', [
+                'last_synced' => ['stores' => '', 'products' => now()->toIso8601String()],
+            ]);
+
+        $response->assertStatus(403);
+        $response->assertJson(['success' => false, 'code' => 'SYNC_DISABLED']);
+    }
+
     public function test_a_super_admin_bypasses_all_sync_gating()
     {
         \App\Models\SystemConfig::setVal('subscription_plans', [

@@ -5,6 +5,7 @@ interface FakeBatch {
   product_id: string;
   quantity: number;
   expiry_date?: string;
+  is_active?: number;
 }
 
 interface FakeMovement {
@@ -36,25 +37,45 @@ let audits: FakeAudit[];
 // getBatchesForProduct excludes already-expired batches from FEFO picking.
 const NEAR_EXPIRY = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 const FAR_EXPIRY = new Date(Date.now() + 400 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+const PAST_EXPIRY = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+function isExpired(b: FakeBatch): boolean {
+  return !!b.expiry_date && new Date(b.expiry_date).getTime() < Date.now();
+}
 
 vi.mock('@/lib/db/local-database', () => ({
   query: vi.fn(async (sql: string, params: unknown[] = []) => {
-    if (sql.includes('SELECT quantity FROM stock_batches WHERE id = ?')) {
+    // Whitespace-normalized so this stays robust to multi-line SQL
+    // formatting in the real queries (getBatchesForProduct /
+    // getAllActiveBatchesForProduct both wrap across lines).
+    const normSql = sql.replace(/\s+/g, ' ').trim();
+    if (normSql.includes('SELECT quantity FROM stock_batches WHERE id = ?')) {
       const b = batches[params[0] as string];
       return b ? [{ quantity: b.quantity }] : [];
     }
-    if (sql.includes('is_active = 1 AND quantity > 0')) {
-      // getBatchesForProduct: only batches with real remaining quantity.
+    if (normSql.startsWith('SELECT COALESCE(SUM(quantity)')) {
+      // submitStockAudit's re-read of the product's current system qty -
+      // not exercised by these fixtures (item.systemQty is passed straight
+      // through as the expected value), so an empty result here just falls
+      // back to it via `?? item.systemQty`.
+      return [];
+    }
+    if (normSql.includes('is_active = 1 AND quantity > 0')) {
+      // getBatchesForProduct: only active, non-expired batches with real
+      // remaining quantity - matches the FEFO sale/deduction convention.
       return Object.values(batches)
-        .filter((b) => b.product_id === params[0] && b.quantity > 0)
+        .filter((b) => b.product_id === params[0] && b.quantity > 0 && b.is_active !== 0 && !isExpired(b))
         .sort((a, b) => (a.expiry_date || '').localeCompare(b.expiry_date || ''));
     }
-    if (sql.includes('FROM stock_batches WHERE product_id = ?')) {
-      // getAllActiveBatchesForProduct: every batch regardless of quantity -
-      // the surplus/restock path needs to find a zero-quantity batch to top
-      // back up rather than treating it as nonexistent.
+    if (normSql.includes('FROM stock_batches') && normSql.includes('WHERE product_id = ?')) {
+      // getAllActiveBatchesForProduct: every ACTIVE, non-expired batch
+      // regardless of quantity - the surplus/restock path needs to find a
+      // zero-quantity batch to top back up rather than treating it as
+      // nonexistent, but must never land found stock in an
+      // expired/deactivated batch (KNOWN_BUGS.md - stock audit restock
+      // into expired/deactivated batch).
       return Object.values(batches)
-        .filter((b) => b.product_id === params[0])
+        .filter((b) => b.product_id === params[0] && b.is_active !== 0 && !isExpired(b))
         .sort((a, b) => (a.expiry_date || '').localeCompare(b.expiry_date || ''));
     }
     return [];
@@ -105,6 +126,33 @@ describe('submitStockAudit (Cycle Count persistence)', () => {
     expect(movements).toHaveLength(1);
     expect(movements[0]).toMatchObject({ movement_type: 'adjustment', quantity: 15, stock_batch_id: 'b1' });
     expect(audits[0]).toMatchObject({ expected_quantity: 20, actual_quantity: 35, difference: 15 });
+  });
+
+  it('never lands found stock in an expired or deactivated batch (KNOWN_BUGS.md - stock audit restock into expired/deactivated batch)', async () => {
+    // Product's only existing batches are expired and deactivated - both
+    // must be skipped as restock targets, even though quantity math alone
+    // would happily add to either. A fresh batch should be opened instead.
+    batches['expired'] = { id: 'expired', product_id: 'p1', quantity: 5, expiry_date: PAST_EXPIRY };
+    batches['inactive'] = { id: 'inactive', product_id: 'p1', quantity: 5, expiry_date: FAR_EXPIRY, is_active: 0 };
+
+    await submitStockAudit(
+      [{ productId: 'p1', systemQty: 10, countedQty: 25, reason: 'Found', systemCostPrice: 40 }],
+      'user-1',
+    );
+
+    // Neither pre-existing batch was touched.
+    expect(batches['expired'].quantity).toBe(5);
+    expect(batches['inactive'].quantity).toBe(5);
+
+    // The found 15 units landed in a brand-new batch, valued at the known
+    // unit cost rather than left at 0.
+    const newBatch = Object.values(batches).find(
+      (b) => b.product_id === 'p1' && b.id !== 'expired' && b.id !== 'inactive',
+    ) as (FakeBatch & { cost_price?: number }) | undefined;
+    expect(newBatch?.quantity).toBe(15);
+    expect(newBatch?.cost_price).toBe(40);
+    expect(movements).toHaveLength(1);
+    expect(movements[0]).toMatchObject({ movement_type: 'adjustment', quantity: 15 });
   });
 
   it('opens a new batch when found stock has nowhere to go (product had zero batches)', async () => {

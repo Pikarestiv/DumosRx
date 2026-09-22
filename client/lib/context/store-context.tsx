@@ -7,6 +7,7 @@ import { update } from "@/lib/db/local-database";
 import { setActiveStoreId as setResolvedStoreId } from "@/lib/db/core";
 import { useQuery } from "@tanstack/react-query";
 import { queryClient } from "@/lib/query-client";
+import { clearPOSCartStorage } from "@/lib/hooks/use-pos-cart";
 import { getStoreById, getFirstStore, getAllStores } from "@/lib/db/queries/setup";
 import { useAuth } from "@/lib/context/auth-context";
 import { queryKeys } from "@/lib/query-keys";
@@ -336,6 +337,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           new Promise((resolve) => setTimeout(resolve, SWITCH_STORE_MAX_WAIT_MS)),
         ]);
         queryClient.clear();
+        // A POS cart staged against the outgoing store's product ids must
+        // not survive into the newly-active store — it isn't scoped by
+        // store, and checking it out against the new store would sell
+        // product ids/prices that belong to a different store entirely.
+        clearPOSCartStorage();
       } finally {
         setIsSwitchingStore(false);
       }

@@ -6,6 +6,7 @@ use App\Http\Controllers\Concerns\ScopesToTenant;
 use App\Http\Controllers\Controller;
 use App\Models\Category;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use OpenApi\Attributes as OA;
 
 class CategoryController extends Controller
@@ -70,7 +71,7 @@ class CategoryController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'parent_id' => 'nullable|exists:categories,id',
+            'parent_id' => ['nullable', Rule::exists('categories', 'id')->where('user_id', $this->tenantOwnerId($request))],
             'is_active' => 'nullable|boolean',
         ]);
 
@@ -125,7 +126,7 @@ class CategoryController extends Controller
         $validated = $request->validate([
             'name' => 'sometimes|string|max:255',
             'description' => 'nullable|string',
-            'parent_id' => 'nullable|exists:categories,id',
+            'parent_id' => ['nullable', Rule::exists('categories', 'id')->where('user_id', $this->tenantOwnerId($request))],
             'is_active' => 'nullable|boolean',
         ]);
 

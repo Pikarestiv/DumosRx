@@ -14,7 +14,7 @@ class StockMovement extends Model
     use HasFactory, HasUuids;
 
     protected $fillable = [
-        'stock_batch_id', 'product_id', 'movement_type', 'quantity',
+        'stock_batch_id', 'product_id', 'store_id', 'movement_type', 'quantity',
         'unit_cost', 'total_cost', 'reference_id', 'reference_type',
         'reason', 'performed_by', 'movement_date', '_synced_at',
     ];

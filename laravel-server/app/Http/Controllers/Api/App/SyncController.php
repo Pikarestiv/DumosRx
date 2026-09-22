@@ -14,6 +14,7 @@ use App\Models\Supplier;
 use App\Models\StockBatch;
 use App\Models\Store;
 use App\Models\User;
+use App\Models\Role;
 use App\Models\ActivityLog;
 use App\Models\Expense;
 use App\Models\StockMovement;
@@ -617,6 +618,22 @@ class SyncController extends Controller
         // never see them even after the push-side bug was fixed.
         $tables = ['products', 'stock_batches', 'categories', 'customers', 'suppliers', 'sales', 'sale_items', 'sale_item_batches', 'stores', 'users', 'stock_movements', 'purchase_orders', 'purchase_order_items', 'expenses', 'payment_accounts', 'requested_products', 'supplier_payments', 'returns', 'return_items', 'prescriptions', 'prescription_items', 'loyalty_tiers', 'loyalty_redemption_options', 'stock_audits', 'held_transactions', 'loyalty_transactions', 'customer_payments', 'audit_logs'];
 
+        // The privileged subscription-status pull (client's
+        // syncSubscriptionStatus()) sends `?setup=1` specifically to bypass
+        // the cloud_sync gate below — see isStoresOnlySetupOverridePull()'s
+        // own doc comment for why that override is only honored for a
+        // request shaped exactly like this one. Mirror that same narrowing
+        // here: even though validateSync() already scoped the GATE bypass
+        // to this exact request shape, pull() itself has no per-table
+        // request scoping of its own (every table in $tables above is
+        // always fetched, regardless of which ones the caller's
+        // `last_synced` actually named) — without this, the gate override
+        // would hand back a full initial sync of every table, not just the
+        // `stores` row this privileged call actually needs.
+        if ($this->isStoresOnlySetupOverridePull($request, $lastSyncedMap)) {
+            $tables = ['stores'];
+        }
+
         foreach ($tables as $table) {
             $modelClass = $this->getModelForTable($table);
 
@@ -1188,6 +1205,15 @@ class SyncController extends Controller
      */
     private function normalizePushPayload(Request $request, array $change, array $payload, ?string $currentStoreId, $currentUser, bool $isSuperAdmin, array $allowedStoreIds): array
     {
+        // Privilege-limit a client-originated `users` payload BEFORE any of
+        // the backfill logic below runs, so a stripped/rejected role can't
+        // still influence e.g. the store_id backfill just underneath. See
+        // sanitizeUserSyncPayload()'s own doc comment for what this closes.
+        if ($change['table_name'] === 'users' && $currentUser && !$isSuperAdmin) {
+            $recordId = $change['record_id'] ?? ($payload['id'] ?? null);
+            $payload = $this->sanitizeUserSyncPayload($payload, $recordId, $currentUser, $allowedStoreIds);
+        }
+
         // Ensure staff users get associated with the store
         if ($change['table_name'] === 'users' && $currentStoreId) {
             if (($payload['role'] ?? null) !== 'store_owner' && ($payload['role'] ?? null) !== 'admin') {
@@ -1388,6 +1414,139 @@ class SyncController extends Controller
     }
 
     /**
+     * users columns that must never be settable from a client-originated
+     * sync payload at all: platform-attribution/referral bookkeeping
+     * (registered_by_id, platform_referral_code, account_manager_id,
+     * referral_code/referred_by_id/referral_credits), verification/security
+     * state (email_verified_at, remember_token), account-deletion request
+     * state, and — critically — role_id, which could point at a privileged
+     * Role row (hasRole()/hasPermission() both consult the role_id
+     * relation, not just the `role` string column) even while `role` itself
+     * passes the allow-list below.
+     */
+    private const USER_SYNC_FORBIDDEN_FIELDS = [
+        'role_id', 'email_verified_at', 'remember_token',
+        'referral_code', 'referred_by_id', 'referral_credits',
+        'platform_referral_code', 'registered_by_id', 'account_manager_id',
+        'deletion_requested_at', 'deletion_reason',
+        'setup_reminder_level', 'setup_reminder_last_sent_at',
+    ];
+
+    /**
+     * users columns a SELF-edit sync push (recordId === currentUser->id) may
+     * ever set. Deliberately excludes role/store_id/is_active — a user must
+     * never be able to change their own role, store assignment or active
+     * status via sync, full stop (that's exactly the "cashier self-promotes
+     * to admin" exploit this allow-list closes). Sync bookkeeping fields
+     * (id/_version/_synced_at) and last_login_at are harmless passthrough
+     * the client always resends.
+     */
+    private const USER_SYNC_SELF_ALLOWED_FIELDS = [
+        'id', 'first_name', 'last_name', 'phone', 'email', 'username',
+        'password', 'pin', 'last_login_at', 'updated_at',
+        '_version', '_synced_at',
+    ];
+
+    /**
+     * Role slugs assignable to someone ELSE via sync, in ascending order of
+     * privilege, mirroring RolesAndPermissionsSeeder's store-level roles.
+     * super_admin/platform_admin/agent (platform-level) are never assignable
+     * via sync regardless of caller privilege. 'store_owner' is excluded
+     * here too — it's only ever reachable via the self-edit passthrough
+     * above (which now strips 'role' entirely), never assignable to
+     * another record via sync.
+     */
+    private const USER_SYNC_ASSIGNABLE_ROLES = ['admin', 'manager', 'specialist', 'sales_staff', 'auditor'];
+
+    /**
+     * Privilege-limits a client-originated `users` sync payload for a
+     * non-super-admin caller (a super_admin's own push bypasses this, same
+     * as every other ownership check in this controller). True allow-list,
+     * not a deny-list: self-edits are capped to a narrow safe-fields set
+     * (see USER_SYNC_SELF_ALLOWED_FIELDS), and edits to someone else's row
+     * are rejected outright unless the caller holds manage_staff — matching
+     * StaffController's own gate — with any `role` value additionally
+     * capped so a caller can never grant a role with MORE permissions than
+     * their own current role holds (never lateral-or-up beyond what they
+     * themselves have).
+     *
+     * Throws (caught by push()'s per-change savepoint, reported in
+     * `failed`) rather than silently dropping/keeping a stale value, so a
+     * rejected privilege-escalation attempt gets clear signal instead of a
+     * payload that silently didn't do what it asked.
+     */
+    private function sanitizeUserSyncPayload(array $payload, $recordId, $currentUser, array $allowedStoreIds): array
+    {
+        foreach (self::USER_SYNC_FORBIDDEN_FIELDS as $field) {
+            unset($payload[$field]);
+        }
+
+        $isSelf = $recordId !== null && (string) $recordId === (string) $currentUser->id;
+
+        if ($isSelf) {
+            // Self-edit: allow-list down to the safe self-service fields
+            // only. role/store_id/is_active are never in this set, so they
+            // silently fall away here rather than reaching forceFill() —
+            // this also naturally handles the web staff table's "re-submits
+            // the owner's current role verbatim" case, since dropping the
+            // field just leaves the DB's existing value untouched.
+            return array_intersect_key($payload, array_flip(self::USER_SYNC_SELF_ALLOWED_FIELDS));
+        }
+
+        // Editing someone else's row (e.g. a staff device pulling the
+        // owner's profile down — pushing changes TO it is not a legitimate
+        // client flow at all): require manage_staff before permitting ANY
+        // field change, matching StaffController's own authorization.
+        if (!$currentUser->hasPermission('manage_staff')) {
+            throw new \RuntimeException('Sync push: users payload attempted to modify another user without manage_staff permission');
+        }
+
+        if (array_key_exists('role', $payload) && $payload['role'] !== null) {
+            if (!in_array($payload['role'], self::USER_SYNC_ASSIGNABLE_ROLES, true)) {
+                throw new \RuntimeException('Sync push: users payload attempted to set a disallowed role');
+            }
+
+            if (!$this->roleIsAtOrBelowCallerPrivilege($payload['role'], $currentUser)) {
+                throw new \RuntimeException('Sync push: users payload attempted to grant a role above the caller\'s own privilege level');
+            }
+        }
+
+        if (array_key_exists('store_id', $payload) && $payload['store_id'] !== null) {
+            if (!in_array($payload['store_id'], $allowedStoreIds, true)) {
+                throw new \RuntimeException('Sync push: users payload attempted to set store_id outside caller\'s allowed stores');
+            }
+        }
+
+        return $payload;
+    }
+
+    /**
+     * Whether $roleSlug's permission set is a subset of (or equal to)
+     * $currentUser's own current permission set — i.e. NOT a privilege
+     * escalation. Compares actual Role->permissions rows rather than a
+     * hardcoded rank list, so it stays correct if permissions are ever
+     * re-seeded. 'store_owner' is treated as 'admin' (same permission set),
+     * mirroring User::hasPermission()'s own store_owner->admin fallback.
+     */
+    private function roleIsAtOrBelowCallerPrivilege(string $roleSlug, $currentUser): bool
+    {
+        $normalize = fn (string $slug) => $slug === 'store_owner' ? 'admin' : $slug;
+
+        $targetRole = Role::where('slug', $normalize($roleSlug))->first();
+        $targetPermissions = $targetRole
+            ? $targetRole->permissions()->pluck('slug')->all()
+            : [];
+
+        $callerRoleSlug = $currentUser->userRole?->slug ?? $currentUser->role;
+        $callerRole = $callerRoleSlug ? Role::where('slug', $normalize($callerRoleSlug))->first() : null;
+        $callerPermissions = $callerRole
+            ? $callerRole->permissions()->pluck('slug')->all()
+            : [];
+
+        return empty(array_diff($targetPermissions, $callerPermissions));
+    }
+
+    /**
      * The full set of store ids and user ids a non-super-admin caller may
      * write to, as [$allowedStoreIds, $allowedUserIds]. Deliberately NOT
      * narrowed by X-Store-Id (unlike resolvePushStoreId() above): this is
@@ -1539,6 +1698,33 @@ class SyncController extends Controller
         return $map[$tableName] ?? null;
     }
 
+    /**
+     * Whether this pull request is the client's privileged
+     * subscription-status pull (see client's syncSubscriptionStatus()),
+     * which sends `?setup=1` specifically to bypass the cloud_sync gate for
+     * this one call, on exactly the free/lapsed/suspended tiers that call
+     * exists to correct.
+     *
+     * `setup=1` is a plain client-controlled query param with no
+     * server-side corroboration of its own — honoring it outright for any
+     * pull would let a free/lapsed account keep the gate permanently
+     * bypassed on every subsequent (non-setup) sync too, not just this one
+     * narrow call, silently defeating the cloud_sync feature gate entirely.
+     * So this only fires for a request shaped EXACTLY like the privileged
+     * call always shapes itself: a `last_synced` map naming ONLY `stores`
+     * (a real full/incremental sync always also names the rest of pull()'s
+     * table list, even ones with an empty cursor — see that fixed $tables
+     * list). A genuinely-empty `last_synced` (a real first-ever full sync)
+     * is handled separately by validateSync()'s existing bypass and is not
+     * this method's concern.
+     */
+    private function isStoresOnlySetupOverridePull(Request $request, $lastSyncedMap): bool
+    {
+        return $request->boolean('setup')
+            && is_array($lastSyncedMap)
+            && array_keys($lastSyncedMap) === ['stores'];
+    }
+
     private function validateSync(Request $request, $isPush = true)
     {
         $user = $request->user();
@@ -1579,7 +1765,20 @@ class SyncController extends Controller
             // left as-is.
             $isSetup = $isPush
                 ? ($request->boolean('setup') && !($store && $store->last_sync_at))
-                : (!$isPush && empty($request->input('last_synced', [])));
+                // The pull-side `setup` flag has two distinct honored shapes:
+                // a genuinely empty `last_synced` (a real first-ever full
+                // sync, unaffected by the change below), or the narrow
+                // `stores`-only shape isStoresOnlySetupOverridePull() checks
+                // for — see that method's doc comment for why `setup=1`
+                // isn't simply honored outright the way it now half-is (this
+                // used to ignore the query param entirely, computing isSetup
+                // from `last_synced` alone, which meant the client's
+                // subscription-status pull — which always sends a non-empty
+                // `last_synced: { stores: "" }` specifically so it can bypass
+                // this gate — never actually got the bypass it asked for,
+                // and was rejected with SYNC_DISABLED for exactly the
+                // free/lapsed/suspended tiers that call exists to correct).
+                : (!$isPush && (empty($request->input('last_synced', [])) || $this->isStoresOnlySetupOverridePull($request, $request->input('last_synced', []))));
 
             if (!$isSetup) {
                 if (!$canSync) {

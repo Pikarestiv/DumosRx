@@ -151,4 +151,66 @@ describe("restoreReturnedStock - batch attribution across multiple partial retur
     // by sale2's unrelated return being wrongly netted against sale1's.
     expect(batchA[0].values[0][0]).toBe(9);
   });
+
+  describe("no recorded batch to credit (KNOWN_BUGS.md - return with no batch never restores stock)", () => {
+    // A sale line with no sale_item_batches rows and no legacyStockBatchId -
+    // e.g. a pre-batch-attribution sale, or one where the batch write was
+    // otherwise skipped at sale time.
+    beforeEach(() => {
+      db.run(
+        `INSERT INTO sale_items (id, sale_id, product_id, quantity, unit_price, total_price) VALUES
+          ('si_nobatch', 'sale1', 'p1', 5, 1000, 5000)`,
+      );
+    });
+
+    it("restores stock into an existing active batch instead of only logging a null-batch movement", async () => {
+      // batchA/batchB exist for p1 from the outer beforeEach (both at 0).
+      db.run(`INSERT INTO returns (id, sale_id, user_id) VALUES ('ret_nb', 'sale1', 'u1')`);
+      await restoreReturnedStock({
+        saleItemId: "si_nobatch",
+        productId: "p1",
+        costPrice: 500,
+        returnQuantity: 5,
+        returnId: "ret_nb",
+        saleId: "sale1",
+      });
+
+      const totalQty = db.exec(
+        `SELECT COALESCE(SUM(quantity), 0) FROM stock_batches WHERE product_id = 'p1'`,
+      );
+      // On-hand stock must actually go up by the returned quantity - not
+      // just get a stock_movements row referencing no real batch.
+      expect(totalQty[0].values[0][0]).toBe(5);
+
+      const movement = db.exec(
+        `SELECT stock_batch_id FROM stock_movements WHERE reference_id = 'ret_nb' AND movement_type = 'return'`,
+      );
+      expect(movement[0].values[0][0]).not.toBeNull();
+    });
+
+    it("creates a new batch when the product has no batch at all to restore into", async () => {
+      db.run(`DELETE FROM stock_batches WHERE product_id = 'p1'`);
+      db.run(`INSERT INTO returns (id, sale_id, user_id) VALUES ('ret_nb2', 'sale1', 'u1')`);
+      await restoreReturnedStock({
+        saleItemId: "si_nobatch",
+        productId: "p1",
+        costPrice: 500,
+        returnQuantity: 5,
+        returnId: "ret_nb2",
+        saleId: "sale1",
+      });
+
+      const batches = db.exec(
+        `SELECT quantity, cost_price FROM stock_batches WHERE product_id = 'p1'`,
+      );
+      expect(batches[0].values).toHaveLength(1);
+      expect(batches[0].values[0][0]).toBe(5);
+      expect(batches[0].values[0][1]).toBe(500);
+
+      const movement = db.exec(
+        `SELECT stock_batch_id FROM stock_movements WHERE reference_id = 'ret_nb2' AND movement_type = 'return'`,
+      );
+      expect(movement[0].values[0][0]).not.toBeNull();
+    });
+  });
 });

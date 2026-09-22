@@ -22,6 +22,26 @@ if (typeof window !== "undefined") {
   } else if (process.env.NODE_ENV === "development") {
     initialApiUrl = process.env.NEXT_PUBLIC_API_URL_STAGING || "https://api.dev.dumosrx.com/api/v1";
   }
+
+  // Registration used to persist its bearer token here (and a duplicate copy
+  // inside zustand's "auth-storage"). It no longer does, but anyone who
+  // registered before that change still has a live api.dumosrx.com credential
+  // sitting in this origin's localStorage with no expiry - so evict it on the
+  // first page that loads the API client rather than leaving it readable
+  // forever by any XSS foothold on this public marketing site.
+  try {
+    localStorage.removeItem("drx_token");
+    const persisted = localStorage.getItem("auth-storage");
+    if (persisted && persisted.includes('"token"')) {
+      const parsed = JSON.parse(persisted) as { state?: Record<string, unknown> };
+      if (parsed?.state && "token" in parsed.state) {
+        delete parsed.state.token;
+        localStorage.setItem("auth-storage", JSON.stringify(parsed));
+      }
+    }
+  } catch {
+    /* storage unavailable or malformed; nothing to evict */
+  }
 }
 
 export const API_URL = initialApiUrl;
@@ -56,11 +76,14 @@ apiClient.interceptors.request.use((config: ConfigWithMetadata) => {
 
   if (typeof window !== "undefined") {
     const isAdminPath = window.location.pathname.startsWith('/admin');
-    // Admin access token lives in memory only (zustand), never localStorage -
-    // see use-admin-auth-store.ts for why.
-    const token = isAdminPath
-      ? getAdminToken()
-      : localStorage.getItem("drx_token");
+    // /admin is the ONLY authenticated surface left on this origin, and its
+    // access token lives in memory only (zustand), never localStorage - see
+    // use-admin-auth-store.ts for why. Everything else dumosrx.com calls is
+    // public (landing system-config, verify-email, forgot/reset-password,
+    // support, storefront checkout), so there is no non-admin token to attach
+    // and, since use-register-form.ts stopped persisting one, nothing left in
+    // this origin's localStorage for an XSS foothold to replay.
+    const token = isAdminPath ? getAdminToken() : null;
 
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -125,7 +148,8 @@ const refreshSession = (isAdminPath: boolean): Promise<string> => {
     if (!data.token || typeof window === "undefined") {
       throw new Error("No token in refresh response");
     }
-    localStorage.setItem("drx_token", data.token);
+    // Returned for the in-flight retry only; deliberately not persisted (see
+    // the request interceptor above - this origin stores no bearer token).
     return data.token as string;
   })().finally(() => {
     refreshPromise = null;
@@ -253,12 +277,12 @@ apiClient.interceptors.response.use(
         if (typeof window !== "undefined") {
           const cleanPath = window.location.pathname.replace(/\/$/, "");
           const isAlreadyOnLoginPage = cleanPath === "/admin/login" || cleanPath === "/login";
+          // Only the admin surface has session state to clear here: this
+          // origin no longer stores a non-admin bearer token at all.
           if (isAdminPath) {
             const { useAdminAuthStore } = await import("@/lib/store/use-admin-auth-store");
             useAdminAuthStore.getState().setToken(null);
             useAdminAuthStore.getState().setUser(null);
-          } else {
-            localStorage.removeItem("drx_token");
           }
           if (!isAlreadyOnLoginPage) {
             const redirectParam = `?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`;

@@ -131,10 +131,11 @@ export const reportClientError = (method: string, url: string, status: number | 
   if (!shouldReportError(method, url, status || 0, message)) return;
   
   try {
-    const token = typeof window !== "undefined"
-      ? (window.location.pathname.startsWith('/admin')
-          ? getAdminToken()
-          : localStorage.getItem("drx_token"))
+    // Only /admin has a token on this origin, and it lives in memory only.
+    // Non-admin pages report client errors unauthenticated - see
+    // base-client.ts's request interceptor for why nothing is stored here.
+    const token = typeof window !== "undefined" && window.location.pathname.startsWith('/admin')
+      ? getAdminToken()
       : null;
       
     const headers: Record<string, string> = {

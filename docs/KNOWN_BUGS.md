@@ -129,54 +129,6 @@ Open items below are grouped by severity (Critical → High → Medium → Low),
 
 ## `client/` — older/unlabeled entries
 
-### `discount_amount` coupons cannot be created against a SQLite-backed database
-
-- **Where:** `laravel-server/database/migrations/2026_06_14_085200_update_coupon_type_enum.php`
-  widens the `coupons.type` enum to add `discount_amount` via a raw
-  `ALTER TABLE ... MODIFY COLUMN`, guarded by
-  `if (DB::connection()->getDriverName() === 'mysql')` — it's a no-op on
-  every other driver, including SQLite.
-- **Found while:** writing `laravel-server/tests/Feature/Admin/AdminMoneyValidationTest.php::test_non_percentage_coupon_above_100_is_still_accepted`,
-  which had to use `trial_extension` instead of `discount_amount` as its
-  "non-percentage" coupon type specifically to avoid this — `discount_amount`
-  fails a `CHECK` constraint left over from `2026_05_29_164200_create_coupons_tables.php`'s
-  original (narrower) enum on the SQLite connection the test suite runs
-  against.
-- **Effect:** any environment backed by SQLite — the test suite, and any
-  local dev setup that doesn't run MySQL — cannot create a `discount_amount`
-  coupon at all; `CouponController::store`'s own validation accepts the
-  value, and the insert then fails at the database layer. Production is
-  presumably MySQL, so this may be purely a test/dev-parity gap rather than
-  a production-reachable bug, but that should be confirmed rather than
-  assumed.
-- **Fix scope (not implemented):** either make the migration driver-agnostic
-  (SQLite has no native enum; the original column was almost certainly a
-  `CHECK` constraint Laravel generates from `->enum()`, which needs a
-  SQLite-specific rebuild — recreate the column/constraint rather than
-  `MODIFY COLUMN` — for that branch), or confirm production never runs
-  SQLite and downgrade this to a documented test-environment limitation
-  instead of a bug.
-
-### Impersonation return-hop still passes its handoff code via query string
-
-- **Where:** `client/components/dashboard/impersonation-banner.tsx:39` —
-  `window.location.href = \`${WEB_APP_URL}/admin/handoff?code=${code}\``,
-  navigating back from an impersonated store to the admin panel.
-- **Context:** found while fixing the matching outbound-leg issue (starting
-  an impersonation session, `web/app/admin/stores/page.tsx`), which now
-  passes its handoff codes via the URL fragment instead of the query string
-  specifically so they never reach a server's access logs or `Referer`
-  header. This return leg still uses the query string.
-- **Effect:** the code minted for this return hop lands in `web/admin/handoff`'s
-  server access logs and any `Referer` header sent from that page for the
-  remainder of its TTL. Same class of exposure as the outbound leg, on the
-  side that hands back to the *admin's own* session rather than the
-  impersonated store's.
-- **Fix scope (not implemented):** apply the same fragment-based approach
-  here — pass `code` via `#code=...` and update `web/app/admin/handoff`'s
-  receiving side to read `window.location.hash` instead of a query param,
-  mirroring `client/app/auth/callback/page.tsx`'s `readHandoffCodes()`.
-
 ### Account/store switch may briefly show the previous store's stale dashboard data (unreproduced)
 
 - **Where:** `client/lib/context/store-context.tsx`'s `switchStore()` calls

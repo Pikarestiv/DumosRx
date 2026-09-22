@@ -4,6 +4,11 @@ A changelog of bugs that were tracked in `docs/KNOWN_BUGS.md` and have since bee
 
 ## 2026-09-22
 
+### fix: impersonation return-hop query-string leak, discount_amount coupon rejected on SQLite
+- **Commit:** `a39e345e`
+- The impersonation return-hop (`impersonation-banner.tsx`) still sent its handoff code via `?code=...`, the same exposure the outbound leg (`web/app/admin/stores/page.tsx`) had already been fixed to avoid — the code lands in `web/admin/handoff`'s server access logs and any `Referer` header for its 60s TTL. Switched to the URL fragment (`#code=...`), and updated `web/app/admin/handoff`'s receiving side to read `window.location.hash` instead of `searchParams`, mirroring `client/app/auth/callback/page.tsx`'s existing fragment-reading pattern.
+- The migration widening `coupons.type` to add `discount_amount` was a MySQL-only `ALTER TABLE ... MODIFY COLUMN`, a no-op on SQLite — so any SQLite-backed environment (the test suite included) hit SQLite's leftover `CHECK` constraint and could never create a `discount_amount` coupon. Since this project doesn't install doctrine/dbal (what Laravel's `->change()` needs on SQLite), the migration now rebuilds the table for SQLite by capturing its actual `sqlite_master` DDL and swapping only the constraint's value list, for both `up()` and `down()` — verified against a real insert/rollback/re-insert round trip, not just that the migration runs. The coupon validation test that had worked around this with `trial_extension` now uses `discount_amount` directly.
+
 ### fix: fuzzy search noise on short terms, un-awaited settings writes, activity-log misattribution on transfers
 - **Commit:** `ff657387`
 - The fuzzy search fallback (`search.ts`) fired for terms as short as 3 characters at a flat Levenshtein distance of 3, and `searchProducts`'s fallback never scored `barcode` at all — a scanned barcode with no exact match returned unrelated products as "suggestions." Raised the minimum fuzzy-fallback length to 4, scaled the allowed distance by term length, and added `barcode` to the scored fields in both `searchProducts` and `genericFuzzySearch`.

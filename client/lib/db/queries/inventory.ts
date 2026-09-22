@@ -425,11 +425,22 @@ export async function getStockBatchStats(expiryDays: number = 30) {
         SUM(CASE WHEN (expiry_date IS NULL OR expiry_date = '') AND quantity > 0 THEN 1 ELSE 0 END) as missing_expiry,
         SUM(quantity * cost_price) as total_value
       FROM stock_batches
-      WHERE _deleted = 0 OR _deleted IS NULL
+      -- Scoped to the active store, not just to products of the active store:
+      -- filtering only products.store_id on the join let a batch attributed to
+      -- another store (or to a store_id-less legacy row) that hangs off one of
+      -- this store's products be summed into this store's valuation, on-hand
+      -- quantity, and expiry counts. fetchStockBatchReportData and
+      -- getBIMetrics's stock_batchValueData both scope stock_batches.store_id
+      -- directly (strict equality, no NULL fallback), so the three could
+      -- report different inventory values for the same store. The
+      -- _deleted predicate needs its own parentheses here, otherwise SQL
+      -- precedence turns this into
+      -- "_deleted = 0 OR (_deleted IS NULL AND store_id = ?)".
+      WHERE (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}
       GROUP BY product_id
     ) sb ON p.id = sb.product_id
     WHERE (p._deleted = 0 OR p._deleted IS NULL)${storeId ? " AND p.store_id = ?" : ""}`,
-    storeId ? [expiryDays.toString(), storeId] : [expiryDays.toString()],
+    storeId ? [expiryDays.toString(), storeId, storeId] : [expiryDays.toString()],
   );
   return result[0];
 }
@@ -743,6 +754,10 @@ export async function getFastMovers(days: number = 7) {
     LEFT JOIN previous_period p ON c.id = p.product_id
     ORDER BY soldQuantity DESC
     LIMIT 5`,
+    // previous_period deliberately carries no store filter of its own: it is
+    // only ever reached through the LEFT JOIN on current_period's already
+    // store-scoped product ids, so both sides of percentageChange draw on the
+    // same population (every sale of that product within each window).
     storeId
       ? [days.toString(), days.toString(), days.toString(), storeId, days.toString(), days.toString(), days.toString(), days.toString()]
       : [days.toString(), days.toString(), days.toString(), days.toString(), days.toString(), days.toString(), days.toString()]
@@ -789,10 +804,17 @@ export async function getStockMoM() {
     WHERE created_at >= ? AND movement_type = 'adjustment' AND (_deleted = 0 OR _deleted IS NULL) AND quantity > 0${storeId ? " AND store_id = ?" : ""}
   `, movementParams);
 
+  // Same population as getStockBatchStats's total_stock_batch_value (every
+  // non-deleted batch, no is_active filter): this value is the baseline the
+  // "+x% from last month" figure on the "Total stock value" card is measured
+  // against, and that card's value comes from getStockBatchStats. Filtering
+  // on is_active = 1 here made the percentage a ratio between two different
+  // populations - and silently dropped every batch synced down without an
+  // is_active value (NULL), which is neither active nor inactive to SQLite.
   const currentStock = await query<{ total_value?: number }>(`
     SELECT SUM(cost_price * quantity) as total_value
     FROM stock_batches
-    WHERE is_active = 1 AND (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}
+    WHERE (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}
   `, storeId ? [storeId] : []);
 
   const currentVal = currentStock[0]?.total_value || 0;

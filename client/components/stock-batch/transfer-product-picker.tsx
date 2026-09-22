@@ -124,7 +124,7 @@ export function TransferProductPicker({
       />
       {open && (
         <div className="absolute z-[999] w-full mt-1 bg-popover text-popover-foreground shadow-xl rounded-md border border-border outline-none animate-in fade-in-0 zoom-in-95 overflow-hidden">
-          <div className="max-h-60 overflow-y-auto hide-scrollbar p-1">
+          <div className="max-h-60 overflow-y-auto p-1">
             {filtered.length === 0 && (
               <div className="px-2 py-2 text-sm text-muted-foreground">
                 {loading ? "Loading products..." : emptyText}

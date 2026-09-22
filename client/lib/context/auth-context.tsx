@@ -17,8 +17,14 @@ import { AUDIT_ACTIONS } from "@/lib/db/audit-actions";
 import { sync, isSyncing } from "@/lib/db/sync-engine";
 import { queryClient } from "@/lib/query-client";
 import { isTauri } from "@/lib/db";
+import { setActiveStoreId as setResolvedStoreId } from "@/lib/db/core";
 import { getToken } from "@/lib/api/token-manager";
 import { mirrorAuthToken } from "@/lib/native/widget-bridge";
+import {
+  IMPERSONATED_USER_STORAGE_KEY,
+  clearImpersonatedSession,
+  isImpersonatedSession,
+} from "@/lib/utils/impersonation";
 
 // Polls until any in-flight sync finishes, so a caller that just triggered
 // (or piggybacked on) a sync can safely read fresh local data afterward.
@@ -44,6 +50,10 @@ const PIN_RECOVERY_SYNC_COOLDOWN_MS = 10_000;
 // as a PIN-less login even in the one case it's allowed to fire.
 const DEFAULT_ADMIN_PIN = "1234";
 
+// Re-exported from lib/utils/impersonation.ts (the React-free single source
+// of truth, so the sync engine, this context and the UI all agree on what an
+// impersonated session is) rather than re-declared here.
+//
 // Separate from "dumos_user": an impersonated profile (see loginFromHandoff)
 // must never be restored via the normal mount-effect path below, which also
 // calls setDbUser() - that moves the local DB's "current user" pointer to a
@@ -54,7 +64,7 @@ const DEFAULT_ADMIN_PIN = "1234";
 // setDbUser(). Previously it was written to "dumos_user" itself, so the
 // very next reload silently re-hydrated it through the normal path anyway,
 // defeating the separation loginFromHandoff's own doc comment describes.
-const IMPERSONATED_USER_STORAGE_KEY = "dumos_impersonated_user";
+// (declared in lib/utils/impersonation.ts, imported above)
 
 export interface User {
   id: string;
@@ -109,6 +119,13 @@ interface AuthContextType {
   verifyPin: (pin: string) => Promise<boolean>;
   linkCloudAccount: (email: string, password: string) => Promise<{ success: boolean; message: string }>;
   isCloudLinked: boolean;
+  /** True while this session came from a superadmin impersonation handoff
+   * (see loginFromHandoff). Read by any consumer that must behave
+   * differently under impersonation — e.g. SyncIndicator, which disables
+   * sync entirely — so nothing has to re-derive it from localStorage on its
+   * own. Backed by lib/utils/impersonation.ts's isImpersonatedSession(),
+   * the same check the sync engine itself uses. */
+  isImpersonating: boolean;
 }
 
 export const checkIsAdmin = (role?: string) => {
@@ -164,6 +181,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // `user` alone. Flips true once, at the end of the mount effect,
   // regardless of whether a saved user was actually found.
   const [isHydrated, setIsHydrated] = useState(false);
+  // Starts false rather than reading localStorage in the initializer: this
+  // renders on the server/prerender too, where localStorage doesn't exist,
+  // and a value derived from it would mismatch on hydration. The mount
+  // effect below sets it, and login/loginFromHandoff/logout keep it current.
+  const [isImpersonating, setIsImpersonating] = useState(false);
 
   useEffect(() => {
     // Check for saved user in session
@@ -214,6 +236,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.removeItem("dumos_user");
       }
     }
+
+    // Evaluated after the branch above (not inside it) so a session that
+    // holds only the impersonator return code — e.g. the profile key was
+    // cleared but "End Session" never completed — still reads as
+    // impersonated, exactly as the sync engine's own gate sees it.
+    setIsImpersonating(isImpersonatedSession());
 
     setIsHydrated(true);
 
@@ -303,6 +331,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         store_id: dbUser.store_id,
       };
 
+      // A store-pinned account (staff whose users.store_id is set, as
+      // opposed to an owner/admin with access to every store on this device)
+      // makes their own store the active store, immediately, as part of
+      // authenticating. store-context.tsx already gives `user.store_id`
+      // precedence over the switcher state for its own derived
+      // activeStoreId/targetId, but that is derived React state only - it
+      // never writes the persisted choice. Two things read the persisted
+      // value directly instead of going through useStore():
+      //
+      //  1. lib/api/client.ts's pushChanges()/pullChanges(), which stamp
+      //     X-Store-Id straight off localStorage["dumos_active_store_id"].
+      //     On an owner's device that had switched to store B, a store-A
+      //     cashier logging in would sync (push AND pull) against store B
+      //     for their entire session - the one place the derived-state
+      //     precedence doesn't reach.
+      //  2. store-context.tsx's own lazy initializer on the next mount, so
+      //     a stale value also survives into whatever session comes next.
+      //
+      // Setting the module-scope query resolver here too (rather than
+      // leaving it to StoreProvider's targetId effect) closes the window
+      // between login() returning and React committing that re-render:
+      // child effects - including React Query's own fetch subscriptions -
+      // run before the provider's effect, so a query firing in that gap
+      // would read the OUTGOING store's id. Same reasoning switchStore()
+      // documents for calling setResolvedStoreId() synchronously.
+      //
+      // Owners/admins (no fixed store_id) are deliberately untouched: their
+      // active store is their switcher choice, which store-context.tsx
+      // persists on their behalf.
+      if (dbUser.store_id) {
+        setResolvedStoreId(dbUser.store_id);
+        localStorage.setItem("dumos_active_store_id", dbUser.store_id);
+      }
+
       // Covers the "switch user" lock-screen flow (selecting a different
       // recent user and unlocking with their PIN), which calls login()
       // directly without ever going through logout() first. Without this,
@@ -338,12 +400,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // forever. Without this, ANY ordinary PIN login on that same device
       // afterward — by anyone, not just the original impersonator — shows
       // a permanent, undismissable "Impersonation Mode" banner.
-      localStorage.removeItem("impersonator_handoff_return_code");
       // Same idea, for the impersonated profile itself: without this, a
       // leftover impersonated session (never properly ended) would win over
       // THIS real login on the very next reload, since the mount effect
-      // checks IMPERSONATED_USER_STORAGE_KEY before "dumos_user".
-      localStorage.removeItem(IMPERSONATED_USER_STORAGE_KEY);
+      // checks IMPERSONATED_USER_STORAGE_KEY before "dumos_user". Both flags
+      // go together (clearImpersonatedSession), which also re-enables sync:
+      // the engine refuses to run while either is present.
+      clearImpersonatedSession();
+      setIsImpersonating(false);
 
       // Update recent users list
       const recentUsersStr = localStorage.getItem("dumos_recent_users");
@@ -423,8 +487,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem("dumos_user", JSON.stringify(defaultAdmin));
       sessionStorage.setItem("dumos_session_authenticated", "1");
       useAutoLockStore.getState().unlock();
-      localStorage.removeItem("impersonator_handoff_return_code");
-      localStorage.removeItem(IMPERSONATED_USER_STORAGE_KEY);
+      clearImpersonatedSession();
+      setIsImpersonating(false);
 
       // Update recent users list for default admin
       const recentUsersStr = localStorage.getItem("dumos_recent_users");
@@ -492,6 +556,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     Sentry.setUser({ id: userProfile.id, username: userProfile.username, role: userProfile.role });
     // NOT "dumos_user" - see IMPERSONATED_USER_STORAGE_KEY's doc comment.
     localStorage.setItem(IMPERSONATED_USER_STORAGE_KEY, JSON.stringify(userProfile));
+    // Set immediately (not left to the next mount) so consumers like
+    // SyncIndicator disable sync for this session without needing a reload.
+    setIsImpersonating(true);
     sessionStorage.setItem("dumos_session_authenticated", "1");
     useAutoLockStore.getState().unlock();
   };
@@ -508,12 +575,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setDbUser(null);
     Sentry.setUser(null);
     localStorage.removeItem("dumos_user");
-    localStorage.removeItem(IMPERSONATED_USER_STORAGE_KEY);
     sessionStorage.removeItem("dumos_session_authenticated");
     // See the matching comment in login(): an impersonated session that
     // ends via the ordinary "Sign Out" button instead of the banner's "End
-    // Session" button would otherwise leave this flag behind forever.
-    localStorage.removeItem("impersonator_handoff_return_code");
+    // Session" button would otherwise leave these flags behind forever.
+    clearImpersonatedSession();
+    setIsImpersonating(false);
     // Without this, cached query results (dashboard metrics, BI, etc.) from
     // the outgoing account stay in memory and get served to whichever
     // account logs in next, until their staleTime/gcTime lapses.
@@ -570,7 +637,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (response.token) {
         apiClient.setToken(response.token);
         setIsCloudLinked(true);
-        
+
+        // A credentialed cloud login is by definition not a superadmin
+        // handoff, and it replaces whatever token an impersonated session
+        // was carrying. Clearing the impersonation flags here matters
+        // because sync() now refuses to run while they're set: the
+        // onboarding cloud-restore flow (app/setup/use-onboarding.ts's
+        // startSyncProcess) runs immediately after this call and would
+        // otherwise be permanently blocked by leftover flags from an
+        // impersonated session that was never ended properly.
+        clearImpersonatedSession();
+        setIsImpersonating(false);
+
+
         // Update local user info if already logged in locally
         if (user) {
           const updatedUser = { ...user, email };
@@ -608,6 +687,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         verifyPin,
         linkCloudAccount,
         isCloudLinked,
+        isImpersonating,
       }}
     >
       {children}

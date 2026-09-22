@@ -2,6 +2,28 @@ import { query } from "@/lib/db/core";
 import { update, insert } from "@/lib/db/local-database";
 import type { UserDbRow } from "@/lib/types/user";
 
+/**
+ * Deliberately NOT scoped to the currently-active store. On a multi-store
+ * device (an owner/admin who has synced staff from more than one store) the
+ * product decision is "authenticate first, then follow the account": a
+ * successful login by a store-pinned user makes THEIR store the active one
+ * (see auth-context.tsx's login()), rather than the previously-selected
+ * store filtering who is allowed to log in. Scoping this query instead
+ * would lock a cashier out of a device whose switcher happens to be
+ * pointing at a sibling store.
+ *
+ * Known limit: usernames are unique per store, not globally -
+ * `UNIQUE(store_id, username)` in schema.ts, matching the server's
+ * 2026_08_01_000001_scope_username_uniqueness_to_store migration - so on a
+ * multi-store device two rows can legitimately share a username and this
+ * returns whichever SQLite yields first. The PIN check in login() rejects
+ * the mismatch in every case except a genuine collision (same username AND
+ * the same 4-digit PIN at two of this device's stores), which would log the
+ * wrong person in. Closing that properly needs a store-disambiguating login
+ * (e.g. a store picker when the identifier matches more than one row), not
+ * a filter here, since there is no trustworthy "intended store" to filter by
+ * before the user is known.
+ */
 export async function getUserByUsernameOrEmail(identifier: string) {
   const isEmail = identifier.includes("@");
   const field = isEmail ? "email" : "username";

@@ -159,5 +159,36 @@ describe("impersonation session storage separation", () => {
 
     expect(success).toBe(true);
     expect(localStorage.getItem("dumos_impersonated_user")).toBeNull();
+    // Also re-enables sync for this real session: sync() refuses to run
+    // while either impersonation flag is set.
+    expect(localStorage.getItem("impersonator_handoff_return_code")).toBeNull();
+    expect(result.current.isImpersonating).toBe(false);
+  });
+
+  it("exposes isImpersonating on the auth context, so consumers don't each read localStorage", async () => {
+    const { result } = renderHook(() => useAuth(), { wrapper });
+
+    await waitFor(() => expect(result.current.isHydrated).toBe(true));
+    expect(result.current.isImpersonating).toBe(false);
+
+    act(() => {
+      result.current.loginFromHandoff({
+        id: "foreign-user-4",
+        first_name: "Foreign",
+        last_name: "Staff",
+        username: "foreignstaff4",
+        role: "sales_staff",
+        store_id: "foreign-store",
+      });
+    });
+
+    await waitFor(() => expect(result.current.isImpersonating).toBe(true));
+
+    act(() => {
+      result.current.logout();
+    });
+
+    await waitFor(() => expect(result.current.isImpersonating).toBe(false));
+    expect(localStorage.getItem("dumos_impersonated_user")).toBeNull();
   });
 });

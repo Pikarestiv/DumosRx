@@ -7,9 +7,10 @@ import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api/client";
 import { WEB_APP_URL } from "@/lib/constants";
 
-const RETURN_CODE_KEY = "impersonator_handoff_return_code";
-// Keep in sync with auth-context.tsx's IMPERSONATED_USER_STORAGE_KEY.
-const IMPERSONATED_USER_KEY = "dumos_impersonated_user";
+import {
+  IMPERSONATED_USER_STORAGE_KEY as IMPERSONATED_USER_KEY,
+  IMPERSONATOR_RETURN_CODE_KEY as RETURN_CODE_KEY,
+} from "@/lib/utils/impersonation";
 
 export function ImpersonationBanner() {
   const [isImpersonating, setIsImpersonating] = useState(false);

@@ -59,6 +59,13 @@ vi.mock("@/lib/context/store-context", () => ({
   useStore: () => ({ storeProfile: null }),
 }));
 
+// SyncIndicator reads isImpersonating from the auth context (sync is
+// disabled wholesale during an impersonated session); this is an ordinary
+// non-impersonated session.
+vi.mock("@/lib/context/auth-context", () => ({
+  useAuth: () => ({ isImpersonating: false }),
+}));
+
 vi.mock("@/components/dashboard/auth-modal", () => ({
   AuthModal: () => null,
 }));

@@ -59,6 +59,13 @@ vi.mock("@/lib/query-keys", () => ({
   queryKeys: { sync: { queueCount: () => ({ queryKey: ["syncQueueCount"] }) } },
 }));
 
+// SyncIndicator reads isImpersonating from the auth context (sync is
+// disabled wholesale during an impersonated session); this is an ordinary
+// non-impersonated session.
+vi.mock("@/lib/context/auth-context", () => ({
+  useAuth: () => ({ isImpersonating: false }),
+}));
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let mockStoreProfile: any = null;
 vi.mock("@/lib/context/store-context", () => ({

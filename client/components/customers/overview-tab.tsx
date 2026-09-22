@@ -56,15 +56,26 @@ export function OverviewTab({ metrics }: { metrics: CustomerMetrics | null }) {
         </div>
       </Card>
 
-      {/* Customer Retention */}
+      {/* Purchase engagement over the trailing 30 days.
+          getCustomerRetentionMetrics() looks only at sales from the last 30
+          days that carry a customer_id, so every number in this card is
+          "last 30 days, identified customers only":
+            - retentionRate = customers with >1 sale in the window / customers
+              with >=1 sale in the window. That is a repeat-purchase rate
+              inside one window, not retention of a prior cohort or of the
+              store's customer base, so it is labelled for what it computes
+              (matching the dashboard tile in lib/hooks/use-bi-data.ts).
+            - avgVisits = sales in the window / customers who bought in the
+              window, i.e. visits per *buying* customer, not per registered
+              customer and not store-wide visits. */}
       <Card className="border rounded-[14px] p-5 shadow-sm flex flex-col justify-center items-center text-center">
         <h3 className="text-[14px] font-semibold w-full text-left">
-          Retention & Engagement
+          Engagement (Last 30 Days)
         </h3>
         <div className="grid grid-cols-2 w-full gap-4">
           <div className="border border-border rounded-lg p-4">
             <div className="text-[12px] text-muted-foreground mb-1">
-              Retention Rate
+              Repeat Purchase Rate
             </div>
             <div className="text-[24px] font-bold text-foreground">
               {metrics.retentionRate.toFixed(1)}%
@@ -72,7 +83,7 @@ export function OverviewTab({ metrics }: { metrics: CustomerMetrics | null }) {
           </div>
           <div className="border border-border rounded-lg p-4">
             <div className="text-[12px] text-muted-foreground mb-1">
-              Avg Visits/Mo
+              Avg Visits/Customer
             </div>
             <div className="text-[24px] font-bold text-foreground">
               {metrics.avgVisits.toFixed(1)}

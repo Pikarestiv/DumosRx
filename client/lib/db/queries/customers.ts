@@ -226,6 +226,26 @@ export async function getAllCustomers(): Promise<Customer[]> {
   }));
 }
 
+/**
+ * Purchase-engagement metrics over the trailing 30 days, restricted to sales
+ * that carry a customer_id (walk-in/anonymous sales are excluded from every
+ * numerator and denominator here).
+ *
+ * The returned field names are historical; what they actually measure is:
+ *  - `retentionRate`: customers with more than one sale inside the 30-day
+ *    window / customers with at least one sale inside it, as a percentage.
+ *    This is a repeat-purchase rate *within a single window* - it says nothing
+ *    about retention of a prior cohort or of the store's customer base, so the
+ *    UI labels it "Repeat Purchase Rate" (same resolution as the dashboard
+ *    tile in lib/hooks/use-bi-data.ts). Computing true retention would need a
+ *    cohort/baseline definition this app does not have, so the calculation is
+ *    deliberately left as-is and only described accurately.
+ *  - `avgVisits`: sales in the window / customers who bought in the window,
+ *    i.e. visits per *buying* customer over ~one month. Not per registered
+ *    customer, and not store-wide visits - hence "Avg Visits/Customer".
+ *  - `avgTransactionValue`: net revenue (refunds deducted) / sales in the
+ *    window.
+ */
 export async function getCustomerRetentionMetrics() {
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);

@@ -192,6 +192,21 @@ export async function getDashboardOverviewData(viewerId?: string) {
     storeId ? [yesterday, storeId] : [yesterday],
   );
 
+  // Yesterday's refunds, so the dashboard's "x% vs yesterday" comparison
+  // divides a net-of-refunds today by a net-of-refunds yesterday. Today's
+  // side (salesToday - refundsToday, see use-dashboard-overview.ts) has
+  // always netted refunds out; without this the denominator was gross
+  // revenue, so a day with any refund at all reported a fake drop (or a
+  // muted rise) against yesterday. Same date basis as refundsToday above:
+  // the return's own created_at, i.e. refunds *issued* yesterday, not
+  // refunds against sales made yesterday.
+  const refundsYesterday = await query<{ total?: number }>(
+    `SELECT SUM(r.total_refunded) as total
+     FROM returns r
+     WHERE date(r.created_at, 'localtime') = ? AND (r._deleted = 0 OR r._deleted IS NULL)${storeId ? " AND r.store_id = ?" : ""}`,
+    storeId ? [yesterday, storeId] : [yesterday],
+  );
+
   const activeCategories = await query<{ count?: number }>(
     `SELECT COUNT(DISTINCT category_id) as count FROM products WHERE _deleted = 0${storeId ? " AND store_id = ?" : ""}`,
     storeId ? [storeId] : [],
@@ -201,6 +216,7 @@ export async function getDashboardOverviewData(viewerId?: string) {
     salesToday: salesToday[0] || { total: 0, count: 0, cash: 0, card: 0, debt: 0 },
     refundsToday: refundsToday[0] || { total: 0, cash: 0, card: 0, debt: 0 },
     salesYesterday: salesYesterday[0] || { total: 0 },
+    refundsYesterday: refundsYesterday[0] || { total: 0 },
     activeCategories: activeCategories[0]?.count || 0,
     recentSales: recentSales || [],
     recentActivities: allActivities || []
@@ -372,8 +388,22 @@ export async function getBIMetrics(dateFilter: string, prevDateFilter: string, f
 
   // Previous Period
   const prevRevenueData = await query<{ total: number }>(`SELECT SUM(total_amount) as total FROM sales WHERE transaction_date >= ? AND transaction_date < ? AND _deleted = 0${storeId ? " AND store_id = ?" : ""}${bare.clause}`, sPrevBare);
+  // The previous period's tax and refunds, so the revenue-change and
+  // avg-transaction-change percentages compare like with like. The current
+  // period's figure those are measured against is Net Sales (total_amount
+  // minus tax minus refunds - see useBIData's netSales); leaving the
+  // denominator as gross, tax-inclusive total_amount understated every
+  // growth number by roughly the tax rate plus the refund rate.
+  const prevTaxData = await query<{ total: number }>(`SELECT SUM(tax_amount) as total FROM sales WHERE transaction_date >= ? AND transaction_date < ? AND _deleted = 0${storeId ? " AND store_id = ?" : ""}${bare.clause}`, sPrevBare);
+  const prevRefundsData = await query<{ total: number }>(`SELECT SUM(total_refunded) as total FROM returns WHERE created_at >= ? AND created_at < ? AND (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}`, sPrev);
   const prevTransactionData = await query<{ count: number }>(`SELECT COUNT(*) as count FROM sales WHERE transaction_date >= ? AND transaction_date < ? AND _deleted = 0${storeId ? " AND store_id = ?" : ""}${bare.clause}`, sPrevBare);
-  const prevCustomerData = await query<{ count: number }>(`SELECT COUNT(*) as count FROM customers WHERE created_at >= ? AND created_at < ? AND _deleted = 0${storeId ? " AND store_id = ?" : ""}`, sPrev);
+  // The customer base as it stood at the start of the current period (i.e.
+  // every customer created before it), NOT just the customers created during
+  // the previous window: the figure this is the baseline for is the
+  // all-time "Total Customers" count, so a window-only denominator made the
+  // card's "+x% vs last period" a nonsense ratio (all customers ever over
+  // one window's new signups - routinely several hundred percent).
+  const prevCustomerData = await query<{ count: number }>(`SELECT COUNT(*) as count FROM customers WHERE created_at < ? AND _deleted = 0${storeId ? " AND store_id = ?" : ""}`, storeId ? [dateFilter, storeId] : [dateFilter]);
 
   // Top Selling Products & Categories
   const topSellingByRevenue = await query<{ name: string; sales: number; units: number; category: string; }>(`SELECT m.name, SUM(si.total_price) as sales, SUM(si.quantity) as units, COALESCE(c.name, 'Uncategorized') as category FROM sale_items si JOIN products m ON si.product_id = m.id LEFT JOIN categories c ON m.category_id = c.id JOIN sales s ON si.sale_id = s.id WHERE s.transaction_date >= ? AND s.transaction_date <= ? AND s._deleted = 0${storeId ? " AND s.store_id = ?" : ""}${joined.clause} GROUP BY m.id ORDER BY sales DESC LIMIT 5`, s1JoinedCapped);
@@ -429,7 +459,7 @@ export async function getBIMetrics(dateFilter: string, prevDateFilter: string, f
   return {
     revenueData, grossSalesData, taxData, totalRefundsData, cogsData, returnedCogsData, expensesData,
     transactionData, stock_batchValueData, customerData, loyaltyData, retentionData,
-    prevRevenueData, prevTransactionData, prevCustomerData,
+    prevRevenueData, prevTaxData, prevRefundsData, prevTransactionData, prevCustomerData,
     topSellingByRevenue, topSellingByQuantity, categoryDistribution,
     productPerformance, cashierPerformance
   };

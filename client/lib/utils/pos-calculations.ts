@@ -8,7 +8,7 @@
 // displayed) rounds to the cent/kobo - otherwise the stored value can drift
 // from what the receipt/UI rounds and displays, and SUM()s in reports don't
 // tie out to the sum of displayed line values.
-function roundMoney(value: number): number {
+export function roundMoney(value: number): number {
   return Math.round(value * 100) / 100;
 }
 const MONEY_EPSILON = 0.01;

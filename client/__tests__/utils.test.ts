@@ -27,6 +27,26 @@ describe('Utility Functions', () => {
       const result = formatCurrency(1234, 'XAF');
       expect(result.replace(/\u00a0/g, ' ')).toBe('1,234 F');
     });
+
+    // A lowercase code (e.g. how a store setting might be stored/typed)
+    // previously got wiped to "" by the letters-only filter (which ran
+    // before case normalization), silently falling back to NGN instead of
+    // formatting as the actually-requested currency.
+    it('does not blank a valid lowercase currency code', () => {
+      const result = formatCurrency(50.5, 'usd');
+      expect(result.replace(/\u00a0/g, ' ')).toMatch(/50.5/);
+      expect(result).not.toMatch(/\u20a6/);
+    });
+
+    // A malformed residual code (not exactly 3 letters after sanitizing,
+    // e.g. "u$" -> "U" or "usd-x" -> "USDX") makes Intl.NumberFormat throw
+    // "Invalid currency code" uncaught, crashing the render tree of any
+    // money-displaying screen.
+    it('falls back to NGN instead of throwing on a malformed currency code', () => {
+      expect(() => formatCurrency(1500, 'u$')).not.toThrow();
+      const result = formatCurrency(1500, 'u$');
+      expect(result.replace(/\u00a0/g, ' ')).toMatch(/1,500/);
+    });
   });
 
   describe('formatMetricCurrency', () => {
@@ -109,6 +129,11 @@ describe('Utility Functions', () => {
 
     it('returns the pound symbol for GBP', () => {
       expect(getCurrencySymbol('GBP')).toBe('\u00a3');
+    });
+
+    it('does not throw and falls back to the Naira symbol for a malformed code', () => {
+      expect(() => getCurrencySymbol('u$')).not.toThrow();
+      expect(getCurrencySymbol('u$')).toBe('\u20a6');
     });
   });
 

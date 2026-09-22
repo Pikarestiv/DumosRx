@@ -14,11 +14,20 @@ export function cn(...inputs: ClassValue[]) {
  * puts "FCFA"/"CFA" as a prefix — also more compact on receipts and cart rows. */
 const CFA_SUFFIX_CODES = new Set(["XAF", "XOF"]);
 
+/** Normalizes a currency code before it's used anywhere below. Uppercases
+ * FIRST so a valid lowercase code (e.g. "usd", as a store setting might be
+ * saved) isn't stripped down to "" by the letters-only filter and silently
+ * replaced with the NGN fallback — the filter only exists to drop stray
+ * whitespace/punctuation, not to reject case. */
+function sanitizeCurrencyCode(currencyCode: string = "NGN") {
+  return currencyCode.toUpperCase().replace(/[^A-Z]/g, "") || "NGN";
+}
+
 /** True for currencies whose symbol is placed after the amount (see
  * CFA_SUFFIX_CODES) — for callers building their own "symbol + value"
  * strings (e.g. compact chart-axis labels) that need to flip the order. */
 export function isCfaSuffixCurrency(currencyCode: string = "NGN") {
-  return CFA_SUFFIX_CODES.has(currencyCode.replace(/[^A-Z]/g, "") || "NGN");
+  return CFA_SUFFIX_CODES.has(sanitizeCurrencyCode(currencyCode));
 }
 
 function formatCfaSuffix(amount: number, maximumFractionDigits?: number) {
@@ -30,7 +39,7 @@ function formatCfaSuffix(amount: number, maximumFractionDigits?: number) {
 }
 
 export function formatCurrency(amount: number, currencyCode: string = "NGN") {
-  const code = currencyCode.replace(/[^A-Z]/g, "") || "NGN"; // Ensure valid 3-letter code
+  const code = sanitizeCurrencyCode(currencyCode);
   if (CFA_SUFFIX_CODES.has(code)) {
     // XAF/XOF are zero-minor-unit currencies - maximumFractionDigits left
     // undefined here previously fell back to Intl's decimal-style default
@@ -38,12 +47,24 @@ export function formatCurrency(amount: number, currencyCode: string = "NGN") {
     return formatCfaSuffix(amount, 0);
   }
   // Simple mapping for common symbols if the locale doesn't handle it well
-  // but Intl.NumberFormat is generally robust.
-  return new Intl.NumberFormat("en-NG", {
-    style: "currency",
-    currency: code,
-    minimumFractionDigits: 0,
-  }).format(amount);
+  // but Intl.NumberFormat is generally robust. A code that survives
+  // sanitizeCurrencyCode (3 letters) but isn't a real ISO 4217 currency
+  // (e.g. a typo'd store setting) still makes Intl.NumberFormat throw
+  // uncaught - caught here so one bad code can't crash every money-
+  // displaying screen in the app.
+  try {
+    return new Intl.NumberFormat("en-NG", {
+      style: "currency",
+      currency: code,
+      minimumFractionDigits: 0,
+    }).format(amount);
+  } catch {
+    return new Intl.NumberFormat("en-NG", {
+      style: "currency",
+      currency: "NGN",
+      minimumFractionDigits: 0,
+    }).format(amount);
+  }
 }
 
 /** Same as formatCurrency, but always rounds to whole units for currencies
@@ -53,17 +74,26 @@ export function formatCurrency(amount: number, currencyCode: string = "NGN") {
  * Line-item prices, cart totals, and receipts should keep using
  * formatCurrency() so accounting precision isn't lost there. */
 export function formatMetricCurrency(amount: number, currencyCode: string = "NGN") {
-  const code = currencyCode.replace(/[^A-Z]/g, "") || "NGN";
+  const code = sanitizeCurrencyCode(currencyCode);
   if (CFA_SUFFIX_CODES.has(code)) {
     return formatCfaSuffix(amount, 0);
   }
   const noDecimalCurrencies = new Set(["NGN"]);
-  return new Intl.NumberFormat("en-NG", {
-    style: "currency",
-    currency: code,
-    minimumFractionDigits: 0,
-    maximumFractionDigits: noDecimalCurrencies.has(code) ? 0 : undefined,
-  }).format(amount);
+  try {
+    return new Intl.NumberFormat("en-NG", {
+      style: "currency",
+      currency: code,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: noDecimalCurrencies.has(code) ? 0 : undefined,
+    }).format(amount);
+  } catch {
+    return new Intl.NumberFormat("en-NG", {
+      style: "currency",
+      currency: "NGN",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount);
+  }
 }
 
 /** Just the currency symbol/prefix (e.g. "₦", "$"), for compact chart-axis
@@ -71,16 +101,25 @@ export function formatMetricCurrency(amount: number, currencyCode: string = "NGN
  * Derived from the same Intl formatter as formatCurrency() so the two never
  * disagree on which currency a store is actually using. */
 export function getCurrencySymbol(currencyCode: string = "NGN") {
-  const code = currencyCode.replace(/[^A-Z]/g, "") || "NGN";
+  const code = sanitizeCurrencyCode(currencyCode);
   if (CFA_SUFFIX_CODES.has(code)) {
     return "F";
   }
-  const parts = new Intl.NumberFormat("en-NG", {
-    style: "currency",
-    currency: code,
-    minimumFractionDigits: 0,
-  }).formatToParts(0);
-  return parts.find((p) => p.type === "currency")?.value ?? "";
+  try {
+    const parts = new Intl.NumberFormat("en-NG", {
+      style: "currency",
+      currency: code,
+      minimumFractionDigits: 0,
+    }).formatToParts(0);
+    return parts.find((p) => p.type === "currency")?.value ?? "";
+  } catch {
+    const parts = new Intl.NumberFormat("en-NG", {
+      style: "currency",
+      currency: "NGN",
+      minimumFractionDigits: 0,
+    }).formatToParts(0);
+    return parts.find((p) => p.type === "currency")?.value ?? "";
+  }
 }
 
 

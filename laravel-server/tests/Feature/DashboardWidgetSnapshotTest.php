@@ -67,13 +67,21 @@ class DashboardWidgetSnapshotTest extends TestCase
             'device_id' => 'test-device-'.uniqid(),
         ]);
 
-        // Today: counts.
-        Sale::create([
+        // Today: counts. store_id is set the same way a real synced sale
+        // always has it (SyncController's push backfills it via a raw DB
+        // insert, not Eloquent mass-assignment -- store_id isn't in Sale's
+        // $fillable, hence the direct property assignment below) -- the
+        // per-store card is scoped by store_id, not by cashier_id, since
+        // products/sales are stored under the tenant owner's user_id
+        // regardless of which branch rang them up.
+        $todaySale = Sale::create([
             'cashier_id' => $this->user->id,
             'subtotal' => 5000, 'total_amount' => 5000, 'amount_paid' => 5000,
             'payment_method' => 'cash', 'payment_status' => 'paid',
             'transaction_date' => now(),
         ]);
+        $todaySale->store_id = $store->id;
+        $todaySale->save();
 
         // Yesterday: must NOT count toward today_sales.
         $oldSale = Sale::create([
@@ -82,6 +90,7 @@ class DashboardWidgetSnapshotTest extends TestCase
             'payment_method' => 'cash', 'payment_status' => 'paid',
             'transaction_date' => now()->subDay(),
         ]);
+        $oldSale->store_id = $store->id;
         $oldSale->created_at = Carbon::yesterday();
         $oldSale->save();
 

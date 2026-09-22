@@ -5,7 +5,6 @@ namespace App\Services\Admin;
 use App\Mail\AdminNotification;
 use App\Models\ActivityLog;
 use App\Models\Role;
-use App\Models\Store;
 use App\Models\User;
 use App\Services\Admin\Concerns\ResolvesTrialDuration;
 use Illuminate\Support\Facades\Auth;
@@ -190,9 +189,6 @@ class AdminUserService
                 'license_key' => 'DRX-TRIAL-'.strtoupper(Str::random(12)),
             ]);
 
-            // Update store plan in UI cache / trigger sync
-            Store::where('user_id', $user->id)->update(['last_sync_at' => now()]);
-
             // Log activity
             $durationLabel = $endDate ? "until {$resolvedEndDate->toDateString()}" : $durationString;
             ActivityLog::create([
@@ -250,8 +246,6 @@ class AdminUserService
                     'user_id' => $user->id,
                 ],
             ]);
-
-            Store::where('user_id', $user->id)->update(['last_sync_at' => now()]);
 
             ActivityLog::create([
                 'user_id' => Auth::id(),

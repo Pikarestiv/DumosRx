@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Product;
 use App\Models\Store;
+use App\Models\SystemConfig;
 use App\Models\User;
 use App\Services\Payment\PaymentService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -16,6 +17,9 @@ use Tests\TestCase;
  *   product through any other store's checkout.
  * - checkout() trusted a client-supplied paystack_reference to mark an
  *   order paid with no server-side verification.
+ * - none of slugs()/show()/checkout() re-checked the owner's plan still
+ *   includes the `store_url` feature, so a downgraded/lapsed account kept
+ *   serving (and charging for) its storefront forever.
  */
 class StorefrontControllerTest extends TestCase
 {
@@ -28,6 +32,17 @@ class StorefrontControllerTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        // Only plan-gating behavior is under test in the dedicated
+        // test_* methods below; every other test here is about storefront
+        // isolation and payment handling, so grant `store_url` by default
+        // (free tier is `false` in the real seeded config) to keep those
+        // scenarios independent of billing state.
+        SystemConfig::setVal('subscription_plans', [
+            'tiers' => [
+                'free' => ['features' => ['store_url' => true]],
+            ],
+        ]);
 
         $this->ownerA = User::create([
             'first_name' => 'Owner', 'last_name' => 'A',
@@ -246,6 +261,120 @@ class StorefrontControllerTest extends TestCase
 
         $response->assertStatus(404);
         $this->assertDatabaseCount('online_orders', 0);
+    }
+
+    public function test_show_rejects_a_store_whose_plan_no_longer_includes_store_url()
+    {
+        SystemConfig::setVal('subscription_plans', [
+            'tiers' => [
+                'free' => ['features' => ['store_url' => false]],
+            ],
+        ]);
+
+        $response = $this->getJson('/api/v1/storefront/store-a');
+
+        $response->assertStatus(404);
+    }
+
+    public function test_checkout_rejects_a_store_whose_plan_no_longer_includes_store_url()
+    {
+        SystemConfig::setVal('subscription_plans', [
+            'tiers' => [
+                'free' => ['features' => ['store_url' => false]],
+            ],
+        ]);
+        $product = Product::create(['name' => 'Panadol', 'selling_price' => 100, 'user_id' => $this->ownerA->id]);
+
+        $response = $this->postJson('/api/v1/storefront/store-a/checkout', [
+            'customer_name' => 'Jane Doe',
+            'customer_phone' => '08000000000',
+            'payment_method' => 'in_store',
+            'items' => [['product_id' => $product->id, 'quantity' => 1]],
+        ]);
+
+        $response->assertStatus(404);
+        $this->assertDatabaseCount('online_orders', 0);
+    }
+
+    public function test_slugs_excludes_a_store_whose_plan_no_longer_includes_store_url()
+    {
+        SystemConfig::setVal('subscription_plans', [
+            'tiers' => [
+                'free' => ['features' => ['store_url' => false]],
+            ],
+        ]);
+
+        $response = $this->getJson('/api/v1/storefront-slugs');
+
+        $response->assertStatus(200);
+        $response->assertJsonMissing(['store-a']);
+    }
+
+    public function test_checkout_rejects_a_paystack_reference_already_used_by_another_order()
+    {
+        $product = Product::create(['name' => 'Panadol', 'selling_price' => 100, 'user_id' => $this->ownerA->id]);
+
+        $this->mock(PaymentService::class, function ($mock) {
+            $mock->shouldReceive('verifyTransaction')
+                ->once()
+                ->andReturn(['success' => true, 'amount' => 100]);
+        });
+
+        $first = $this->postJson('/api/v1/storefront/store-a/checkout', [
+            'customer_name' => 'Jane Doe',
+            'customer_phone' => '08000000000',
+            'payment_method' => 'paystack',
+            'paystack_reference' => 'REPLAYED-REF',
+            'items' => [['product_id' => $product->id, 'quantity' => 1]],
+        ]);
+        $first->assertStatus(201);
+
+        // A second checkout replaying the exact same (genuinely verified)
+        // reference must not mint a second paid order.
+        $replay = $this->postJson('/api/v1/storefront/store-a/checkout', [
+            'customer_name' => 'Jane Doe',
+            'customer_phone' => '08000000000',
+            'payment_method' => 'paystack',
+            'paystack_reference' => 'REPLAYED-REF',
+            'items' => [['product_id' => $product->id, 'quantity' => 1]],
+        ]);
+
+        $replay->assertStatus(422);
+        $this->assertDatabaseCount('online_orders', 1);
+    }
+
+    /**
+     * Regression: the duplicate-reference guard originally only ran (and
+     * only handled the unique-index QueryException) when
+     * payment_method === 'paystack'. Since paystack_reference is a plain
+     * optional string accepted for any payment method, and the column's
+     * uniqueness is shared across all of them, an in_store/transfer order
+     * carrying a reference could otherwise let a duplicate slip past the
+     * pre-check and 500 on the QueryException instead of 422ing.
+     */
+    public function test_checkout_rejects_a_duplicate_reference_even_when_the_first_order_was_not_paystack()
+    {
+        $product = Product::create(['name' => 'Panadol', 'selling_price' => 100, 'user_id' => $this->ownerA->id]);
+
+        $first = $this->postJson('/api/v1/storefront/store-a/checkout', [
+            'customer_name' => 'Jane Doe',
+            'customer_phone' => '08000000000',
+            'payment_method' => 'in_store',
+            'paystack_reference' => 'SHARED-REF',
+            'items' => [['product_id' => $product->id, 'quantity' => 1]],
+        ]);
+        $first->assertStatus(201);
+
+        $second = $this->postJson('/api/v1/storefront/store-a/checkout', [
+            'customer_name' => 'Jane Doe',
+            'customer_phone' => '08000000000',
+            'payment_method' => 'transfer',
+            'paystack_reference' => 'SHARED-REF',
+            'items' => [['product_id' => $product->id, 'quantity' => 1]],
+        ]);
+
+        $second->assertStatus(422);
+        $this->assertDatabaseCount('online_orders', 1);
     }
 
     public function test_checkout_notifies_the_store_owner_and_its_staff()

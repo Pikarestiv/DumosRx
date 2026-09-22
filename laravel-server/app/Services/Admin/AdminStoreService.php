@@ -348,10 +348,6 @@ class AdminStoreService
                 'license_key' => 'DRX-TRIAL-'.strtoupper(Str::random(12)),
             ]);
 
-            // Update store plan in UI cache / trigger sync
-            $store->last_sync_at = now();
-            $store->save();
-
             // Log activity
             $durationLabel = $endDate ? "until {$resolvedEndDate->toDateString()}" : $durationString;
             ActivityLog::create([
@@ -419,9 +415,6 @@ class AdminStoreService
                     'store_id' => $store->id,
                 ],
             ]);
-
-            $store->last_sync_at = now();
-            $store->save();
 
             ActivityLog::create([
                 'user_id' => Auth::id(),

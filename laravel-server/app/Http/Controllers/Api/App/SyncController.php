@@ -957,15 +957,17 @@ class SyncController extends Controller
      */
     private function touchStoreLastSyncAt(Request $request): void
     {
-        // Update the last sync time for the user's store
+        // Update the last sync time for the store the push actually wrote
+        // to -- resolved the same way push() itself resolves it, so a
+        // multi-store owner's other branches don't get their last_sync_at
+        // stamped by a push meant for a different store (see X-Store-Id
+        // header). Using an arbitrary "first" store here previously broke
+        // sync throttling and the dashboard's per-store online/offline
+        // status for any multi-store account.
         if ($request->user()) {
             $user = $request->user();
-            $store = null;
-            if ($user->store_id) {
-                $store = Store::where('id', $user->store_id)->first();
-            } else {
-                $store = Store::where('user_id', $user->id)->first();
-            }
+            $storeId = $this->resolvePushStoreId($request, $user);
+            $store = $storeId ? Store::where('id', $storeId)->first() : null;
 
             if ($store) {
                 $isFirstSync = is_null($store->last_sync_at);
@@ -1551,7 +1553,14 @@ class SyncController extends Controller
             $systemConfig = \App\Models\SystemConfig::getVal('subscription_plans', []);
             $canSync = $systemConfig['tiers'][$plan]['features']['cloud_sync'] ?? false;
 
-            $store = Store::where('user_id', $owner->id)->first() ?? Store::where('id', $user->store_id)->first();
+            // Resolved the same way push()/touchStoreLastSyncAt() resolve
+            // "the store being synced" (X-Store-Id when present and owned,
+            // else the caller's own store) -- an arbitrary "first" store
+            // here previously measured the interval throttle and the
+            // isSetup escape hatch against the wrong branch entirely for
+            // multi-store accounts.
+            $syncedStoreId = $this->resolvePushStoreId($request, $user);
+            $store = $syncedStoreId ? Store::where('id', $syncedStoreId)->first() : null;
 
             $isManual = $request->boolean('manual');
             // The client-supplied `setup` flag exists so a brand-new device

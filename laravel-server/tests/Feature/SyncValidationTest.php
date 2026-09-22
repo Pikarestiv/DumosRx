@@ -283,4 +283,81 @@ class SyncValidationTest extends TestCase
         $response->assertStatus(403);
         $response->assertJson(['success' => false, 'code' => 'STORE_LIMIT_EXCEEDED']);
     }
+
+    /**
+     * Regression: the interval-throttle check resolved "the store being
+     * synced" as `Store::where('user_id', $owner->id)->first() ??
+     * Store::where('id', $user->store_id)->first()` -- an arbitrary
+     * "first" store for a multi-store owner (whose own `store_id` is
+     * null), not the store named by X-Store-Id / actually written to by
+     * push(). A multi-store owner whose store A synced recently could get
+     * store B's push wrongly 429'd against store A's last_sync_at, even
+     * though store B itself had never synced.
+     */
+    public function test_sync_interval_throttle_is_scoped_to_the_store_requested_via_x_store_id_header()
+    {
+        \App\Models\SystemConfig::setVal('subscription_plans', [
+            'tiers' => [
+                'free' => ['features' => ['cloud_sync' => true], 'limits' => ['stores' => -1, 'sync_interval' => 60]],
+            ],
+        ]);
+
+        // Store A (the owner's earliest-created store) synced a minute ago
+        // -- well within the 60-minute interval.
+        $this->store->update(['last_sync_at' => now()->subMinute()]);
+
+        // Store B has never synced.
+        $storeB = Store::create([
+            'user_id' => $this->owner->id,
+            'name' => 'Store B',
+            'store_slug' => 'store-b-interval-test',
+            'device_id' => 'WEB-STORE-B-INTERVAL',
+        ]);
+
+        $response = $this->actingAs($this->owner)
+            ->withHeaders(['X-Store-Id' => $storeB->id])
+            ->postJson('/api/v1/app/sync/push', [
+                'changes' => [
+                    ['table_name' => 'not_a_real_table', 'operation' => 'INSERT', 'record_id' => 'x', 'payload' => null],
+                ],
+            ]);
+
+        $response->assertStatus(200);
+    }
+
+    /**
+     * Regression: touchStoreLastSyncAt() had the exact same "arbitrary
+     * first store" bug as the throttle check above -- a push to store B
+     * was stamping store A's last_sync_at instead, which inverted the web
+     * dashboard's per-store online/offline status for every multi-store
+     * account.
+     */
+    public function test_push_stamps_last_sync_at_on_the_store_requested_via_x_store_id_header_only()
+    {
+        \App\Models\SystemConfig::setVal('subscription_plans', [
+            'tiers' => [
+                'free' => ['features' => ['cloud_sync' => true], 'limits' => ['stores' => -1, 'sync_interval' => 0]],
+            ],
+        ]);
+
+        $this->store->update(['last_sync_at' => null]);
+        $storeB = Store::create([
+            'user_id' => $this->owner->id,
+            'name' => 'Store B',
+            'store_slug' => 'store-b-stamp-test',
+            'device_id' => 'WEB-STORE-B-STAMP',
+        ]);
+
+        $response = $this->actingAs($this->owner)
+            ->withHeaders(['X-Store-Id' => $storeB->id])
+            ->postJson('/api/v1/app/sync/push', [
+                'changes' => [
+                    ['table_name' => 'not_a_real_table', 'operation' => 'INSERT', 'record_id' => 'x', 'payload' => null],
+                ],
+            ]);
+
+        $response->assertStatus(200);
+        $this->assertNotNull($storeB->fresh()->last_sync_at);
+        $this->assertNull($this->store->fresh()->last_sync_at);
+    }
 }

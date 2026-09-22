@@ -1713,7 +1713,8 @@ class SyncEndpointTest extends TestCase
     // (every _version column is `integer default(1)` NOT NULL), but the guard
     // is `$payloadVersion !== null && $modelVersion !== null` — and a payload
     // may simply omit _version. The two tests below characterize both
-    // outcomes of that branch. See docs/KNOWN_BUGS.md.
+    // outcomes of that branch; see resolveUpdateConflict()'s docblock in
+    // SyncController.php for why the branch must stay.
 
     public function test_push_sync_rejects_an_older_update_with_no_version_via_the_timestamp_fallback()
     {

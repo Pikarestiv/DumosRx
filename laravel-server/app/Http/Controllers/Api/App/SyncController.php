@@ -1029,11 +1029,19 @@ class SyncController extends Controller
      *   (or an unconditional accept for a commutative/quantity-only change),
      *   with the server — never the payload — assigning the next version.
      * - either side missing a version: the legacy updated_at comparison,
-     *   which only rejects a strictly-older payload. Reachable today
-     *   whenever a payload simply omits _version (see docs/KNOWN_BUGS.md);
-     *   $newVersion stays null there because a legacy row has no version to
-     *   overwrite.
+     *   which only rejects a strictly-older payload. $newVersion stays null
+     *   there because a legacy row has no version to overwrite.
      * - neither applies: accepted with no new version.
+     *
+     * DO NOT remove the updated_at fallback branch as dead code: today's
+     * client (base-helpers.ts's update()) always sends _version, but the
+     * fallback is reachable whenever a payload omits it - from an older
+     * client version, or a hand-built payload - and is exercised directly by
+     * SyncEndpointTest::test_push_sync_rejects_an_older_update_with_no_version_via_the_timestamp_fallback,
+     * ::test_push_sync_accepts_a_newer_update_...,
+     * and incidentally by ::test_push_sync_handles_soft_deletes (an UPDATE
+     * with _deleted=1 and no _version). Confirm none of those still rely on
+     * it before deleting the branch.
      */
     private function resolveUpdateConflict(string $tableName, $model, array $payload, bool $isCommutativeTable, $recordId): array
     {

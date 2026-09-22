@@ -7,6 +7,7 @@ import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ResponsiveDetailPanel } from "@/components/ui/responsive-detail-panel";
 
+import { formatCurrency as formatCurrencyWithCode } from "@/lib/utils";
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import { getSuppliers } from "@/lib/db/local-database";
 import { useCreateSupplierMutation, useUpdateSupplierMutation } from "@/lib/hooks/use-supplier-mutations";
@@ -41,7 +42,7 @@ const transformSupplier = (apiData: SupplierDbRow): SupplierViewModel => ({
 });
 
 export function SupplierManagement() {
-  const { t: _t } = useStore();
+  const { t: _t, storeProfile } = useStore();
   const [searchTerm, setSearchTerm] = useState("");
   const [filter, setFilter] = useState("all");
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -119,13 +120,8 @@ export function SupplierManagement() {
       totalValue: (s: SupplierViewModel) => s.totalValue,
     });
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-NG", {
-      style: "currency",
-      currency: "NGN",
-      minimumFractionDigits: 0,
-    }).format(amount);
-  };
+  const formatCurrency = (amount: number) =>
+    formatCurrencyWithCode(amount, storeProfile?.currency);
 
   const formatDate = (dateString: string) => {
     return formatDateToDDMMYYYY(dateString);

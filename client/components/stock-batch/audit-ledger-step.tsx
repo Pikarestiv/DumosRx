@@ -3,9 +3,11 @@ import { Input } from "@/components/ui/input";
 import { FilterPill } from "@/components/ui/filter-pill";
 import { EditableNumberCell } from "@/components/ui/editable-number-cell";
 import { EmptyState } from "@/components/ui/empty-state";
+import { SortableHeaderCell } from "@/components/ui/sortable-header-cell";
 import type { AuditItem } from "./stock-audits";
 import { formatCurrency } from "@/lib/utils";
 import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
+import { useSortableData } from "@/lib/hooks/use-sortable-data";
 
 const ALL_CATEGORIES = "__all__";
 const GRID_COLS =
@@ -75,6 +77,31 @@ export function AuditLedgerStep({
     { diffQty: 0, diffCost: 0, diffSelling: 0 },
   );
 
+  const { sortKey, direction, toggleSort, sortedData } = useSortableData(
+    items,
+    {
+      name: (item) => item.name.toLowerCase(),
+      countedQty: (item) => item.countedQty ?? item.systemQty,
+      systemQty: (item) => item.systemQty,
+      diffQty: (item) => (item.countedQty ?? item.systemQty) - item.systemQty,
+      costPrice: (item) => item.costPrice ?? 0,
+      countedCost: (item) => item.countedCostPrice ?? item.costPrice ?? 0,
+      diffCost: (item) => {
+        const diffQty = (item.countedQty ?? item.systemQty) - item.systemQty;
+        return item.costPrice !== undefined ? diffQty * item.costPrice : 0;
+      },
+      sellingPrice: (item) => item.sellingPrice ?? 0,
+      countedSelling: (item) =>
+        item.countedSellingPrice ?? item.sellingPrice ?? 0,
+      diffSelling: (item) => {
+        const diffQty = (item.countedQty ?? item.systemQty) - item.systemQty;
+        return item.sellingPrice !== undefined
+          ? diffQty * item.sellingPrice
+          : 0;
+      },
+    },
+  );
+
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-300 pb-4">
       <div className="text-[17px] font-semibold mb-1.5">Physical inventory</div>
@@ -133,40 +160,99 @@ export function AuditLedgerStep({
                   role="columnheader"
                   className="text-left px-3 py-2 sticky left-0 z-10 bg-muted"
                 >
-                  Item
+                  <SortableHeaderCell
+                    label="Item"
+                    active={sortKey === "name"}
+                    direction={direction}
+                    onClick={() => toggleSort("name")}
+                  />
                 </div>
                 <div role="columnheader" className="text-right px-3 py-2">
-                  Counted Qty
+                  <SortableHeaderCell
+                    label="Counted Qty"
+                    active={sortKey === "countedQty"}
+                    direction={direction}
+                    onClick={() => toggleSort("countedQty")}
+                    className="justify-end"
+                  />
                 </div>
                 <div role="columnheader" className="text-right px-3 py-2">
-                  System Qty
+                  <SortableHeaderCell
+                    label="System Qty"
+                    active={sortKey === "systemQty"}
+                    direction={direction}
+                    onClick={() => toggleSort("systemQty")}
+                    className="justify-end"
+                  />
                 </div>
                 <div role="columnheader" className="text-right px-3 py-2">
-                  Diff Qty
+                  <SortableHeaderCell
+                    label="Diff Qty"
+                    active={sortKey === "diffQty"}
+                    direction={direction}
+                    onClick={() => toggleSort("diffQty")}
+                    className="justify-end"
+                  />
                 </div>
                 <div role="columnheader" className="text-right px-3 py-2">
-                  Cost Price
+                  <SortableHeaderCell
+                    label="Cost Price"
+                    active={sortKey === "costPrice"}
+                    direction={direction}
+                    onClick={() => toggleSort("costPrice")}
+                    className="justify-end"
+                  />
                 </div>
                 <div role="columnheader" className="text-right px-3 py-2">
-                  Counted Cost
+                  <SortableHeaderCell
+                    label="Counted Cost"
+                    active={sortKey === "countedCost"}
+                    direction={direction}
+                    onClick={() => toggleSort("countedCost")}
+                    className="justify-end"
+                  />
                 </div>
                 <div role="columnheader" className="text-right px-3 py-2">
-                  Diff Cost
+                  <SortableHeaderCell
+                    label="Diff Cost"
+                    active={sortKey === "diffCost"}
+                    direction={direction}
+                    onClick={() => toggleSort("diffCost")}
+                    className="justify-end"
+                  />
                 </div>
                 <div role="columnheader" className="text-right px-3 py-2">
-                  Selling Price
+                  <SortableHeaderCell
+                    label="Selling Price"
+                    active={sortKey === "sellingPrice"}
+                    direction={direction}
+                    onClick={() => toggleSort("sellingPrice")}
+                    className="justify-end"
+                  />
                 </div>
                 <div role="columnheader" className="text-right px-3 py-2">
-                  Counted Selling
+                  <SortableHeaderCell
+                    label="Counted Selling"
+                    active={sortKey === "countedSelling"}
+                    direction={direction}
+                    onClick={() => toggleSort("countedSelling")}
+                    className="justify-end"
+                  />
                 </div>
                 <div role="columnheader" className="text-right px-3 py-2">
-                  Diff Selling
+                  <SortableHeaderCell
+                    label="Diff Selling"
+                    active={sortKey === "diffSelling"}
+                    direction={direction}
+                    onClick={() => toggleSort("diffSelling")}
+                    className="justify-end"
+                  />
                 </div>
               </div>
             </div>
 
             <div role="rowgroup" className="divide-y divide-border">
-              {items.map((item) => {
+              {sortedData.map((item) => {
                 const countedQty = item.countedQty ?? item.systemQty;
                 const diffQty = countedQty - item.systemQty;
                 // Valued at the system price, not the counted one: this is

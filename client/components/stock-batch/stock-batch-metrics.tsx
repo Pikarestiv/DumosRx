@@ -6,10 +6,12 @@ import {
   TrendingDown,
   Calendar,
   Package,
+  ShoppingBag,
 } from "lucide-react";
 
 import { useStore } from "@/lib/context/store-context";
 import { useStockMoM } from "@/lib/hooks/use-analytics";
+import { useMyTodaySales } from "@/lib/hooks/use-my-today-sales";
 
 interface StockBatchMetricsProps {
   stock_batchValue: number;
@@ -30,29 +32,42 @@ export function StockBatchMetrics({
 }: StockBatchMetricsProps) {
   const { storeProfile } = useStore();
   const { data: momData } = useStockMoM();
+  const { isCashier, totalToday } = useMyTodaySales();
   const expiryDays = storeProfile?.expiry_warning_days || 90;
 
   return (
     <div className="-mx-4 sm:mx-0 px-4 sm:px-0">
       <div className="flex overflow-x-auto sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 pb-4 sm:pb-0 hide-scrollbar snap-x snap-mandatory">
-        
-        {/* Total Stock Value */}
-        <MetricCard
-          className="min-w-[180px] sm:min-w-0 snap-center shrink-0 border-border"
-          title="Total stock value"
-          value={formatCurrency(stock_batchValue)}
-          icon={<Wallet className="h-4 w-4" />}
-          iconBgClass="bg-blue-50 text-blue-700"
-          description={
-            momData ? (
-              <>
-                <span className={momData.percentChange >= 0 ? "text-emerald-600" : "text-rose-600"}>
-                  {momData.percentChange >= 0 ? "+" : ""}{momData.percentChange.toFixed(1)}%
-                </span> from last month
-              </>
-            ) : undefined
-          }
-        />
+
+        {/* Total Stock Value — cashiers don't manage inventory, so this is
+         * swapped for a metric that's actually theirs: today's own sales. */}
+        {isCashier ? (
+          <MetricCard
+            className="min-w-[180px] sm:min-w-0 snap-center shrink-0 border-border"
+            title="My sales today"
+            value={formatCurrency(totalToday)}
+            icon={<ShoppingBag className="h-4 w-4" />}
+            iconBgClass="bg-blue-50 text-blue-700"
+            description="Net of refunds"
+          />
+        ) : (
+          <MetricCard
+            className="min-w-[180px] sm:min-w-0 snap-center shrink-0 border-border"
+            title="Total stock value"
+            value={formatCurrency(stock_batchValue)}
+            icon={<Wallet className="h-4 w-4" />}
+            iconBgClass="bg-blue-50 text-blue-700"
+            description={
+              momData ? (
+                <>
+                  <span className={momData.percentChange >= 0 ? "text-emerald-600" : "text-rose-600"}>
+                    {momData.percentChange >= 0 ? "+" : ""}{momData.percentChange.toFixed(1)}%
+                  </span> from last month
+                </>
+              ) : undefined
+            }
+          />
+        )}
 
         {/* Total Products */}
         <MetricCard

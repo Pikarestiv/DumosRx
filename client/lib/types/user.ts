@@ -25,7 +25,11 @@ export interface StaffCreatePayload {
   email?: string;
   pin: string;
   role: string;
-  store_id: string;
+  // null (not "") when no store is active at creation time - an empty
+  // string matches neither `store_id = ?` nor the `store_id IS NULL`
+  // fallback getUsers()/local-database.ts checks for, making the account
+  // invisible in every staff list while still able to log in.
+  store_id: string | null;
 }
 
 export type StaffUpdatePayload = Partial<StaffCreatePayload>;

@@ -9,6 +9,22 @@ import { useStore } from "@/lib/context/store-context";
 import type { StaffUpdatePayload, StaffListItem } from "@/lib/types/user";
 import { StaffFormFields } from "./staff-form-fields";
 
+/**
+ * Resolves the store_id to actually persist for a staff row from the
+ * controlled <select>'s value (empty string when unselected/no store
+ * active) plus the currently active store as a fallback. Always returns
+ * `null`, never `""`, for "no store" — an empty string matches neither
+ * `store_id = ?` nor the `store_id IS NULL` fallback
+ * getUsers()/local-database.ts checks for, which made such an account
+ * invisible in every staff list while still able to log in.
+ */
+export function resolveStaffStoreId(
+  formStoreId: string,
+  activeStoreId: string | null,
+): string | null {
+  return formStoreId || activeStoreId || null;
+}
+
 interface StaffFormDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
@@ -100,7 +116,7 @@ export function StaffFormDialog({
         // it, so sending it unconditionally would silently overwrite
         // main-account rows (store_id === null) with activeStoreId.
         if (availableStores && availableStores.length > 1) {
-          updateData.store_id = formData.store_id;
+          updateData.store_id = resolveStaffStoreId(formData.store_id, activeStoreId);
         }
         if (formData.pin) {
           updateData.pin = formData.pin;
@@ -125,7 +141,7 @@ export function StaffFormDialog({
           email: formData.email,
           pin: formData.pin,
           role: formData.role,
-          store_id: formData.store_id || activeStoreId || "",
+          store_id: resolveStaffStoreId(formData.store_id, activeStoreId),
         };
 
         await create.mutateAsync(dataToSave);

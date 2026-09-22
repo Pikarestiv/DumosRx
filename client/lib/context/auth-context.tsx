@@ -113,8 +113,14 @@ interface AuthContextType {
 
 export const checkIsAdmin = (role?: string) => {
   if (!role) return false;
-  const normalizedRole = role.toLowerCase().replace(/[^a-z]/g, "");
-  return normalizedRole.includes("admin") || normalizedRole.includes("manager") || normalizedRole.includes("storeowner");
+  const normalizedRole = role.toLowerCase().replace(/[^a-z_]/g, "");
+  // super_admin must stay included: it's the platform's own top role (see
+  // checkCanFactoryReset below, which also lists it explicitly), and a
+  // prior fix specifically switched pos-transaction-history.tsx's return
+  // handling to checkIsAdmin BECAUSE the old exact-match-only check locked
+  // super_admin out of processing a return. Losing it here would silently
+  // revert that fix.
+  return ["admin", "manager", "store_owner", "super_admin"].includes(normalizedRole);
 };
 
 export const checkCanManageStockBatch = (role?: string) => {

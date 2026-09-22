@@ -4,6 +4,12 @@ A changelog of bugs that were tracked in `docs/KNOWN_BUGS.md` and have since bee
 
 ## 2026-09-22
 
+### fix: stop persisting the store-owner register token in web/'s localStorage
+- **Commit:** `ebc9cb96`
+- The KNOWN_BUGS entry for this had originally scoped a large migration (in-memory token + HttpOnly-cookie-refresh, mirroring the admin side) on the assumption of an ongoing dashboard session on `dumosrx.com`. Re-checked before starting that work: `web/app/dashboard` and `web/app/login` are both dead stubs that immediately redirect to `app.dumosrx.com` — `web/`'s own dashboard was already removed in an earlier pass. That left `register` as the only place still writing a bearer token (`drx_token`) to this origin's localStorage, where nothing ever used it again but any XSS foothold on this public marketing site (which also loads third-party JS via `smartsupp-widget.tsx`) could read and replay it against `api.dumosrx.com` indefinitely.
+- Registration now navigates straight to `app.dumosrx.com` with no token persisted anywhere on this origin; `base-client.ts`'s non-admin interceptor no longer reads `drx_token` at all (the actual mechanism that made a stored token replayable), with a one-time eviction clearing any legacy token left behind by past registrations. `use-auth-store.ts`'s unused `token` field/setter (zero callers) was removed along with it, and an eslint rule now bans the `"drx_token"` string literal outright so it can't quietly come back (no test runner exists in `web/` to pin this with a unit test instead).
+- Deliberately did NOT mint a handoff code for the `app.dumosrx.com` hop: its only handoff consumer (`client/app/auth/callback/page.tsx`) brands the arriving session as impersonated, which would be wrong for a brand-new registrant (sync disabled, impersonation banner, no local user record). A fresh registrant's correct entry point is the app's own onboarding, which links the cloud account with the credentials they just chose.
+
 ### fix: web/ pre-launch review pass — impersonation, billing/coupons, referrals, landing pages
 - **Commit:** `a8cd9b10`
 - Read-only review pass over `web/` (Next.js superadmin panel + marketing site), area by area. All findings across the following areas are fixed; only the auth (public register/login) area's token-storage item remains open in `KNOWN_BUGS.md`.

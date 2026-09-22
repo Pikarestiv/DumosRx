@@ -151,6 +151,40 @@ describe("pushChanges handles a version_conflict failure as non-retryable", () =
     infoSpy.mockRestore();
   });
 
+  it("does not let a whole-batch exception overwrite a specific pre-network rejection reason for an item already recorded", async () => {
+    // Item A: invalid category_id, rejected client-side BEFORE the network
+    // call (recordSyncFailure(..., true) with the specific reason).
+    db.run(
+      `INSERT INTO _sync_queue (id, table_name, record_id, operation, payload, created_at)
+       VALUES (10, 'products', 'p-bad', 'UPDATE', ?, '2026-09-04T00:00:00Z')`,
+      [JSON.stringify({ id: "p-bad", category_id: "not-a-uuid", _version: 1 })],
+    );
+    // Item B: an ordinary, otherwise-valid change in the SAME batch, so
+    // `changes` isn't empty and the network call (which then throws) is
+    // actually attempted, landing both items in the catch block's full
+    // `batch` iteration.
+    db.run(`INSERT INTO products (id, name, selling_price, _version, _deleted) VALUES ('p-ok', 'Vitamin C', 500, 1, 0)`);
+    db.run(
+      `INSERT INTO _sync_queue (id, table_name, record_id, operation, payload, created_at)
+       VALUES (11, 'products', 'p-ok', 'UPDATE', ?, '2026-09-04T00:00:01Z')`,
+      [JSON.stringify({ id: "p-ok", selling_price: 500, _version: 1 })],
+    );
+
+    apiClient.pushChanges.mockRejectedValueOnce(new Error("network timeout"));
+
+    await pushChanges();
+
+    const itemA = db.exec(`SELECT retry_count, last_error FROM _sync_queue WHERE id = 10`);
+    expect(itemA[0].values[0][0]).toBe(1); // bumped exactly once, not twice
+    // Specific reason preserved (reportImmediately's own "[REPORTED] " prefix
+    // is unrelated to this fix and expected here).
+    expect(itemA[0].values[0][1]).toContain("Invalid category_id (not a UUID)");
+
+    const itemB = db.exec(`SELECT retry_count, last_error FROM _sync_queue WHERE id = 11`);
+    expect(itemB[0].values[0][0]).toBe(1);
+    expect(itemB[0].values[0][1]).toBe("network timeout"); // unaffected, still gets the batch failure reason
+  });
+
   it("still routes an ordinary (non-conflict) failure reason through the normal backoff path, unaffected by this change", async () => {
     queueOneUpdate();
     apiClient.pushChanges.mockResolvedValueOnce({

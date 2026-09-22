@@ -299,6 +299,16 @@ export async function pushChanges(
 
     const batch = coalesced.slice(i, i + SYNC_BATCH_SIZE);
 
+    // Ids already given a specific, useful rejection reason by the
+    // pre-network-call validation pass below (bad UUID, missing required
+    // column, etc.). Declared here, above the try/catch, so both the
+    // whole-batch-failure branch (response.success === false) and the catch
+    // block — which both iterate the FULL `batch`, not just the filtered
+    // `changes` — can skip these ids instead of overwriting their specific
+    // reason with a generic batch-failure message and double-bumping
+    // retry_count.
+    const alreadyRejectedIds = new Set<number>();
+
     try {
       const rejected: { id: number; reason: string }[] = [];
 
@@ -457,6 +467,14 @@ export async function pushChanges(
             await recordSyncFailure(r.id, r.reason, true);
           }
         });
+        // Only recorded once the transaction has actually committed — if it
+        // throws partway (e.g. recordSyncFailure itself fails for one item)
+        // and rolls back, these ids must NOT be treated as "already
+        // recorded" by the else/catch passes below, or a real failure that
+        // never made it to the database would go completely unrecorded.
+        for (const r of rejected) {
+          alreadyRejectedIds.add(r.id);
+        }
       }
 
       if (changes.length === 0) {
@@ -581,6 +599,18 @@ export async function pushChanges(
               if (oldId === newId) continue;
               await remapForeignKey(oldId, newId, refs);
               await execute(`UPDATE ${table} SET _deleted = 1 WHERE id = ?`, [oldId]);
+              // remapForeignKey() only rewrites payload CONTENT (a foreign
+              // key value baked into some OTHER row's queued JSON) — it
+              // never touches this queue row's own `record_id` column,
+              // which is what the server actually looks the target row up
+              // by. Any edit still pending for the merged-away record
+              // itself (queued before this push ran) would otherwise keep
+              // targeting `oldId` forever, a record the server no longer
+              // has, failing on every retry until the backoff cap.
+              await execute(
+                `UPDATE _sync_queue SET record_id = ? WHERE table_name = ? AND record_id = ?`,
+                [newId, table, oldId],
+              );
             }
           }
 
@@ -662,6 +692,7 @@ export async function pushChanges(
         await transaction(async () => {
           for (const item of batch) {
             for (const id of idsFor(item.id)) {
+              if (alreadyRejectedIds.has(id)) continue;
               await recordSyncFailure(id, message);
             }
           }
@@ -676,6 +707,7 @@ export async function pushChanges(
       await transaction(async () => {
         for (const item of batch) {
           for (const id of idsFor(item.id)) {
+            if (alreadyRejectedIds.has(id)) continue;
             await recordSyncFailure(id, message);
           }
         }

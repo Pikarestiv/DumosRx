@@ -2,6 +2,41 @@
 
 A changelog of bugs that were tracked in `docs/KNOWN_BUGS.md` and have since been fixed. `KNOWN_BUGS.md` only ever holds *open* items — an entry is removed from it outright the moment it's fixed, not marked done in place — so this file is where the record of "what it was and when it got fixed" lives instead. Git history has the exact diffs; this is a scannable index into that history, one entry per fix, newest first.
 
+## 2026-09-22
+
+### fix: fuzzy search noise on short terms, un-awaited settings writes, activity-log misattribution on transfers
+- **Commit:** `ff657387`
+- The fuzzy search fallback (`search.ts`) fired for terms as short as 3 characters at a flat Levenshtein distance of 3, and `searchProducts`'s fallback never scored `barcode` at all — a scanned barcode with no exact match returned unrelated products as "suggestions." Raised the minimum fuzzy-fallback length to 4, scaled the allowed distance by term length, and added `barcode` to the scored fields in both `searchProducts` and `genericFuzzySearch`.
+- Two fire-and-forget writes reported success without awaiting: theme updates (`store-context.tsx`'s `setTheme`) and the loyalty earn-rate save (`loyalty-settings-dialog.tsx`) both toasted success immediately after a `void`-called write. Both now await (or catch) before toasting.
+- Activity-log rows for stock-transfer writes were attributed to whatever store the UI happened to have active, not the actual source/destination store, since `logAction()` read the global active-store resolver directly. Added an optional `overrideStoreId`, threaded through `insert()`/`update()`/`softDelete()`/`remove()`'s existing options. Default behavior for every other caller is unchanged — confirmed via an Opus-dispatched review, since `base-helpers.ts`/`core.ts` are used by nearly every write in the app.
+
+### fix: stock batch report store-id leak and P&L current-period window left uncapped
+- **Commit:** `017e3163`
+- `fetchStockBatchReportData` filtered `products.store_id` on the join but never `stock_batches.store_id` itself, so a legacy store_id-less batch could be summed into the active store's valuation. Fixed to match the strict `store_id = ?` convention `stock_batchValueData` already uses elsewhere in the same file for the identical valuation concept — an Opus-dispatched review of the first pass caught that it had kept an `OR store_id IS NULL` fallback, preserving the bug and disagreeing with the BI dashboard's own valuation tile.
+- `getBIMetrics`'s current-period queries used `transaction_date >= ?` with no upper bound while the expense side was already capped at "now." The first pass capped only revenue/gross-sales/tax/COGS/transaction queries; an Opus-dispatched review found `totalRefundsData`, `returnedCogsData`, `retentionData`, both top-selling queries, category distribution, and product/cashier performance were all still open-ended — extended the same capped window to all of them.
+
+### fix: prescription line-total rounding, currency-code sanitization crash, expense amount validation
+- **Commit:** `d66a6f2e`
+- Prescription line totals (`unitCost * quantity`) weren't rounded, letting float drift accumulate into a `REAL` money column. Exported the existing `roundMoney` helper from `pos-calculations.ts` and applied it here too.
+- Currency-code sanitization stripped non-uppercase characters before uppercasing, so a valid lowercase code ("usd") was blanked and silently fell back to NGN; a malformed residual code could also crash `Intl.NumberFormat` uncaught. Added `sanitizeCurrencyCode()` (uppercase, then filter) and wrapped every `Intl.NumberFormat` construction site in try/catch with an NGN fallback.
+- Expense amount had no numeric validation — a non-numeric amount stored `NaN`, nothing rounded to 2dp or rejected a negative value. Both expense mutations now reject non-positive amounts and round via `roundMoney`.
+
+### fix: lock screen leaves dashboard mounted/polling, editable-number-cell clobbers leading-zero decimals, silent prescription edit-load failures
+- **Commit:** `3defbda0`
+- The lock screen was a `fixed inset-0` overlay rendered over `children` — the dashboard stayed mounted, rendered, and refetching underneath it while "locked." Now `{!isLocked && children}`, so background polling actually stops. Trades this for losing in-progress component-local state on unlock (an open dialog, a part-filled form) — the highest-value case (an in-progress POS sale) is unaffected since the cart persists to its own zustand store.
+- `EditableNumberCell`'s `[value]` resync effect ran even while focused and mid-edit — an external value change landing mid-typing immediately overwrote the in-progress text, clobbering a leading-zero decimal like "0.05" back to "0". Now skipped while focused. An Opus-dispatched review of the first pass found its test used an uncontrolled harness where `value` never actually changed, so it passed against the unfixed component too; rewritten to force a genuine value change via `rerender` while focused, verified to fail against the unfixed component and pass against the fix.
+- Prescription edit-form load failures only `console.error`'d, leaving a confusing blank form with no visible error. Now also toasts.
+
+### fix: checkIsAdmin substring match and staff store_id "" vs null
+- **Commit:** `21d3ab38`
+- `checkIsAdmin` used a substring match (`.includes("admin")`) while every sibling role check uses exact array membership. Switched to `["admin","manager","store_owner","super_admin"].includes(...)`. An Opus-dispatched review of the first pass caught that its array omitted `super_admin` — the old substring match happened to include it, and a prior fix (`pos-transaction-history.tsx`) specifically relies on `checkIsAdmin` including the platform's top role for processing a return; losing it here would have silently reintroduced that bug.
+- Staff created with no active store wrote `store_id: ""` instead of `null`, matching neither `store_id = ?` nor the `store_id IS NULL` fallback `getUsers` checks for — invisible in every staff list while still able to log in. Extracted `resolveStaffStoreId()`, used at both the create and edit write sites.
+
+### fix: sync-push double recordSyncFailure overwrite and dangling queue rows after a duplicate-id remap
+- **Commit:** `6ad19971`
+- `recordSyncFailure` could be called twice for the same queue item in one push run: a pre-network client-side rejection's specific reason got overwritten by a later whole-batch failure's generic message. Tracked via a new `alreadyRejectedIds` Set, populated only after the pre-network transaction actually commits — an Opus-dispatched review caught the first pass adding to the Set inside the transaction, which would wrongly suppress a real failure record if that transaction rolled back.
+- The `id_map` duplicate-remap (two locally-created rows that turned out to be the same server record) left any other still-pending `_sync_queue` rows for the old id untouched, so they kept targeting an id the server no longer recognizes. Now remapped alongside the existing remap.
+
 ## 2026-09-21
 
 ### feat: one-time loyalty_defaults_seeded_at flag so deliberately-cleared tiers don't silently reseed

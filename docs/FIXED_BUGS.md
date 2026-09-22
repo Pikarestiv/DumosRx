@@ -4,6 +4,9 @@ A changelog of bugs that were tracked in `docs/KNOWN_BUGS.md` and have since bee
 
 ## 2026-09-22
 
+### verified: Detailed Sales Report PDF Transaction # overflow fix actually works
+- No code change — the `overflow: "hidden"` + explicit `columnFlex` fix already in `report-pdf-document.tsx` was previously flagged unverified (reporter said it didn't resolve it, and Chrome's built-in PDF viewer isn't screenshottable via this project's browser tooling). Rendered the actual component through `@react-pdf/renderer`'s Node-side `pdf()` API with realistic `TXN-`-prefixed 16-character transaction numbers (matching `generateShortId()`'s current output) and inspected the resulting PDF's real text/vector geometry with PyMuPDF instead of eyeballing a screenshot: the Transaction # column's border sits at x=139.5pt and every transaction-number string's rightmost glyph ends at x≤128pt — comfortably inside the cell, never bleeding into the Date column that starts at x=145.5pt. The fix holds; the entry was stale, not the bug.
+
 ### fix: impersonation return-hop query-string leak, discount_amount coupon rejected on SQLite
 - **Commit:** `a39e345e`
 - The impersonation return-hop (`impersonation-banner.tsx`) still sent its handoff code via `?code=...`, the same exposure the outbound leg (`web/app/admin/stores/page.tsx`) had already been fixed to avoid — the code lands in `web/admin/handoff`'s server access logs and any `Referer` header for its 60s TTL. Switched to the URL fragment (`#code=...`), and updated `web/app/admin/handoff`'s receiving side to read `window.location.hash` instead of `searchParams`, mirroring `client/app/auth/callback/page.tsx`'s existing fragment-reading pattern.

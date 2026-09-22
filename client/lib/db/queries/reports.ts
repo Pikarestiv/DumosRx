@@ -260,10 +260,10 @@ export async function fetchStockBatchReportData() {
       MIN(date(inv.expiry_date)) as "Nearest Expiry"
      FROM stock_batches inv
      JOIN products m ON inv.product_id = m.id
-     WHERE inv._deleted = 0 AND m._deleted = 0${storeId ? " AND m.store_id = ?" : ""}
+     WHERE inv._deleted = 0 AND m._deleted = 0${storeId ? " AND m.store_id = ? AND inv.store_id = ?" : ""}
      GROUP BY m.id
      ORDER BY m.name ASC`,
-    storeId ? [storeId] : [],
+    storeId ? [storeId, storeId] : [],
   );
 }
 
@@ -304,31 +304,43 @@ export async function fetchTopSellersReportData(dateFrom?: string, dateTo?: stri
 
 export async function getBIMetrics(dateFilter: string, prevDateFilter: string, filters?: SalesFilters) {
   const storeId = getActiveStoreId();
-  const s1 = storeId ? [dateFilter, storeId] : [dateFilter];
   const sPrev = storeId ? [prevDateFilter, dateFilter, storeId] : [prevDateFilter, dateFilter];
   const storeOnly = storeId ? [storeId] : [];
   // Bare-table queries (FROM sales, no alias) vs. joined queries (FROM
   // sale_items si JOIN sales s) need the filter clause/params on different
-  // sides of the alias, but both append after the dateFilter+storeId params
-  // already in s1/sPrev, since that's where they land in the WHERE text.
+  // sides of the alias, but both append after the dateFilter(+now)+storeId
+  // params already in the capped variants below/sPrev, since that's where
+  // they land in the WHERE text.
   const bare = salesFilterClause(filters, "");
   const joined = salesFilterClause(filters, "s.");
-  const s1Bare = [...s1, ...bare.params];
-  const s1Joined = [...s1, ...joined.params];
   const sPrevBare = [...sPrev, ...bare.params];
 
+  // Caps the current-period revenue/COGS/transaction window at "now", the
+  // same upper bound getSmoothedExpensesTotal below already applies to the
+  // expense side - without this, a future-dated or clock-skewed sale
+  // counted toward revenue in a window the matching expenses were excluded
+  // from, skewing the reported margin.
+  const now = new Date().toISOString();
+  const s1BareCapped = storeId
+    ? [dateFilter, now, storeId, ...bare.params]
+    : [dateFilter, now, ...bare.params];
+  const s1JoinedCapped = storeId
+    ? [dateFilter, now, storeId, ...joined.params]
+    : [dateFilter, now, ...joined.params];
+  const s1Capped = storeId ? [dateFilter, now, storeId] : [dateFilter, now];
+
   // Current Period
-  const revenueData = await query<{ total: number }>(`SELECT SUM(total_amount) as total FROM sales WHERE transaction_date >= ? AND (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}${bare.clause}`, s1Bare);
+  const revenueData = await query<{ total: number }>(`SELECT SUM(total_amount) as total FROM sales WHERE transaction_date >= ? AND transaction_date <= ? AND (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}${bare.clause}`, s1BareCapped);
   // Gross Sales: list-price total before any discount, tax, or refund -
   // subtotal is captured pre-discount at sale time (see pos-calculations.ts:
   // total_amount = subtotal + tax_amount - discount_total).
-  const grossSalesData = await query<{ total: number }>(`SELECT SUM(subtotal) as total FROM sales WHERE transaction_date >= ? AND (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}${bare.clause}`, s1Bare);
+  const grossSalesData = await query<{ total: number }>(`SELECT SUM(subtotal) as total FROM sales WHERE transaction_date >= ? AND transaction_date <= ? AND (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}${bare.clause}`, s1BareCapped);
   // Tax collected is pass-through, not real business revenue - subtracted
   // out of total_amount to get Net Sales (see getBIMetrics's totalRevenue
   // caller, use-bi-data.ts).
-  const taxData = await query<{ total: number }>(`SELECT SUM(tax_amount) as total FROM sales WHERE transaction_date >= ? AND (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}${bare.clause}`, s1Bare);
-  const totalRefundsData = await query<{ total: number }>(`SELECT SUM(total_refunded) as total FROM returns WHERE created_at >= ? AND (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}`, s1);
-  const cogsData = await query<{ total: number }>(`SELECT SUM(si.cost_price * si.quantity) as total FROM sale_items si JOIN sales s ON si.sale_id = s.id WHERE s.transaction_date >= ? AND (s._deleted = 0 OR s._deleted IS NULL)${storeId ? " AND s.store_id = ?" : ""}${joined.clause}`, s1Joined);
+  const taxData = await query<{ total: number }>(`SELECT SUM(tax_amount) as total FROM sales WHERE transaction_date >= ? AND transaction_date <= ? AND (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}${bare.clause}`, s1BareCapped);
+  const totalRefundsData = await query<{ total: number }>(`SELECT SUM(total_refunded) as total FROM returns WHERE created_at >= ? AND created_at <= ? AND (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}`, s1Capped);
+  const cogsData = await query<{ total: number }>(`SELECT SUM(si.cost_price * si.quantity) as total FROM sale_items si JOIN sales s ON si.sale_id = s.id WHERE s.transaction_date >= ? AND s.transaction_date <= ? AND (s._deleted = 0 OR s._deleted IS NULL)${storeId ? " AND s.store_id = ?" : ""}${joined.clause}`, s1JoinedCapped);
   // Uses the cost_price recorded on the original sale_items row, not a
   // recomputed current-stock average - the product's cost basis can change
   // between the sale and the return, and averaging over current active
@@ -342,21 +354,21 @@ export async function getBIMetrics(dateFilter: string, prevDateFilter: string, f
   // average cost_price per (sale_id, product_id) before joining keeps this
   // correct in that case, instead of fanning the return_items row out
   // across every matching sale_items row and overcounting the total.
-  const returnedCogsData = await query<{ total: number }>(`SELECT SUM(ri.quantity * IFNULL(si.avg_cost_price, 0)) as total FROM return_items ri JOIN returns r ON ri.return_id = r.id LEFT JOIN (SELECT sale_id, product_id, SUM(cost_price * quantity) * 1.0 / NULLIF(SUM(quantity), 0) as avg_cost_price FROM sale_items GROUP BY sale_id, product_id) si ON si.sale_id = r.sale_id AND si.product_id = ri.product_id WHERE r.created_at >= ? AND (r._deleted = 0 OR r._deleted IS NULL)${storeId ? " AND r.store_id = ?" : ""}`, s1);
+  const returnedCogsData = await query<{ total: number }>(`SELECT SUM(ri.quantity * IFNULL(si.avg_cost_price, 0)) as total FROM return_items ri JOIN returns r ON ri.return_id = r.id LEFT JOIN (SELECT sale_id, product_id, SUM(cost_price * quantity) * 1.0 / NULLIF(SUM(quantity), 0) as avg_cost_price FROM sale_items GROUP BY sale_id, product_id) si ON si.sale_id = r.sale_id AND si.product_id = ri.product_id WHERE r.created_at >= ? AND r.created_at <= ? AND (r._deleted = 0 OR r._deleted IS NULL)${storeId ? " AND r.store_id = ?" : ""}`, s1Capped);
   // Smoothed, not a raw SUM: a prepaid expense (covers_months set) is split
   // into equal calendar-month installments instead of hitting this whole
   // window as a lump sum wherever it happened to be logged. See
   // getSmoothedExpensesTotal for the "why".
   const smoothedExpensesTotal = await getSmoothedExpensesTotal({
     from: dateFilter,
-    to: new Date().toISOString(),
+    to: now,
   });
   const expensesData = [{ total: smoothedExpensesTotal }];
-  const transactionData = await query<{ count: number }>(`SELECT COUNT(*) as count FROM sales WHERE transaction_date >= ? AND _deleted = 0${storeId ? " AND store_id = ?" : ""}${bare.clause}`, s1Bare);
+  const transactionData = await query<{ count: number }>(`SELECT COUNT(*) as count FROM sales WHERE transaction_date >= ? AND transaction_date <= ? AND _deleted = 0${storeId ? " AND store_id = ?" : ""}${bare.clause}`, s1BareCapped);
   const stock_batchValueData = await query<{ value: number }>(`SELECT SUM(inv.cost_price * inv.quantity) as value FROM stock_batches inv WHERE (inv._deleted = 0 OR inv._deleted IS NULL)${storeId ? " AND inv.store_id = ?" : ""}`, storeOnly);
   const customerData = await query<{ count: number }>(`SELECT COUNT(*) as count FROM customers WHERE _deleted = 0${storeId ? " AND store_id = ?" : ""}`, storeOnly);
   const loyaltyData = await query<{ count: number }>(`SELECT COUNT(*) as count FROM customers WHERE loyalty_points > 0 AND _deleted = 0${storeId ? " AND store_id = ?" : ""}`, storeOnly);
-  const retentionData = await query<{ returning_count: number; total: number }>(`SELECT COUNT(DISTINCT CASE WHEN cnt > 1 THEN customer_id END) as returning_count, COUNT(DISTINCT customer_id) as total FROM (SELECT customer_id, COUNT(*) as cnt FROM sales WHERE transaction_date >= ? AND _deleted = 0 AND customer_id IS NOT NULL${storeId ? " AND store_id = ?" : ""} GROUP BY customer_id)`, s1);
+  const retentionData = await query<{ returning_count: number; total: number }>(`SELECT COUNT(DISTINCT CASE WHEN cnt > 1 THEN customer_id END) as returning_count, COUNT(DISTINCT customer_id) as total FROM (SELECT customer_id, COUNT(*) as cnt FROM sales WHERE transaction_date >= ? AND transaction_date <= ? AND _deleted = 0 AND customer_id IS NOT NULL${storeId ? " AND store_id = ?" : ""} GROUP BY customer_id)`, s1Capped);
 
   // Previous Period
   const prevRevenueData = await query<{ total: number }>(`SELECT SUM(total_amount) as total FROM sales WHERE transaction_date >= ? AND transaction_date < ? AND _deleted = 0${storeId ? " AND store_id = ?" : ""}${bare.clause}`, sPrevBare);
@@ -364,9 +376,9 @@ export async function getBIMetrics(dateFilter: string, prevDateFilter: string, f
   const prevCustomerData = await query<{ count: number }>(`SELECT COUNT(*) as count FROM customers WHERE created_at >= ? AND created_at < ? AND _deleted = 0${storeId ? " AND store_id = ?" : ""}`, sPrev);
 
   // Top Selling Products & Categories
-  const topSellingByRevenue = await query<{ name: string; sales: number; units: number; category: string; }>(`SELECT m.name, SUM(si.total_price) as sales, SUM(si.quantity) as units, COALESCE(c.name, 'Uncategorized') as category FROM sale_items si JOIN products m ON si.product_id = m.id LEFT JOIN categories c ON m.category_id = c.id JOIN sales s ON si.sale_id = s.id WHERE s.transaction_date >= ? AND s._deleted = 0${storeId ? " AND s.store_id = ?" : ""}${joined.clause} GROUP BY m.id ORDER BY sales DESC LIMIT 5`, s1Joined);
-  const topSellingByQuantity = await query<{ name: string; sales: number; units: number; category: string; }>(`SELECT m.name, SUM(si.total_price) as sales, SUM(si.quantity) as units, COALESCE(c.name, 'Uncategorized') as category FROM sale_items si JOIN products m ON si.product_id = m.id LEFT JOIN categories c ON m.category_id = c.id JOIN sales s ON si.sale_id = s.id WHERE s.transaction_date >= ? AND s._deleted = 0${storeId ? " AND s.store_id = ?" : ""}${joined.clause} GROUP BY m.id ORDER BY units DESC LIMIT 5`, s1Joined);
-  const categoryDistribution = await query<{ name: string; value: number; }>(`SELECT COALESCE(c.name, 'Uncategorized') as name, SUM(si.total_price) as value FROM sale_items si JOIN products m ON si.product_id = m.id LEFT JOIN categories c ON m.category_id = c.id JOIN sales s ON si.sale_id = s.id WHERE s.transaction_date >= ? AND s._deleted = 0${storeId ? " AND s.store_id = ?" : ""}${joined.clause} GROUP BY COALESCE(c.name, 'Uncategorized')`, s1Joined);
+  const topSellingByRevenue = await query<{ name: string; sales: number; units: number; category: string; }>(`SELECT m.name, SUM(si.total_price) as sales, SUM(si.quantity) as units, COALESCE(c.name, 'Uncategorized') as category FROM sale_items si JOIN products m ON si.product_id = m.id LEFT JOIN categories c ON m.category_id = c.id JOIN sales s ON si.sale_id = s.id WHERE s.transaction_date >= ? AND s.transaction_date <= ? AND s._deleted = 0${storeId ? " AND s.store_id = ?" : ""}${joined.clause} GROUP BY m.id ORDER BY sales DESC LIMIT 5`, s1JoinedCapped);
+  const topSellingByQuantity = await query<{ name: string; sales: number; units: number; category: string; }>(`SELECT m.name, SUM(si.total_price) as sales, SUM(si.quantity) as units, COALESCE(c.name, 'Uncategorized') as category FROM sale_items si JOIN products m ON si.product_id = m.id LEFT JOIN categories c ON m.category_id = c.id JOIN sales s ON si.sale_id = s.id WHERE s.transaction_date >= ? AND s.transaction_date <= ? AND s._deleted = 0${storeId ? " AND s.store_id = ?" : ""}${joined.clause} GROUP BY m.id ORDER BY units DESC LIMIT 5`, s1JoinedCapped);
+  const categoryDistribution = await query<{ name: string; value: number; }>(`SELECT COALESCE(c.name, 'Uncategorized') as name, SUM(si.total_price) as value FROM sale_items si JOIN products m ON si.product_id = m.id LEFT JOIN categories c ON m.category_id = c.id JOIN sales s ON si.sale_id = s.id WHERE s.transaction_date >= ? AND s.transaction_date <= ? AND s._deleted = 0${storeId ? " AND s.store_id = ?" : ""}${joined.clause} GROUP BY COALESCE(c.name, 'Uncategorized')`, s1JoinedCapped);
 
   // Full product performance (not top-N): revenue/units/cost per product so
   // the UI can sort by any column and compute margin. Doesn't net returns
@@ -388,10 +400,10 @@ export async function getBIMetrics(dateFilter: string, prevDateFilter: string, f
      JOIN products m ON si.product_id = m.id
      LEFT JOIN categories c ON m.category_id = c.id
      JOIN sales s ON si.sale_id = s.id
-     WHERE s.transaction_date >= ? AND s._deleted = 0${storeId ? " AND s.store_id = ?" : ""}${joined.clause}
+     WHERE s.transaction_date >= ? AND s.transaction_date <= ? AND s._deleted = 0${storeId ? " AND s.store_id = ?" : ""}${joined.clause}
      GROUP BY m.id
      ORDER BY revenue DESC`,
-    s1Joined,
+    s1JoinedCapped,
   );
 
   // Per-cashier performance: mirrors productPerformance's shape/scope
@@ -408,10 +420,10 @@ export async function getBIMetrics(dateFilter: string, prevDateFilter: string, f
        COUNT(*) as transactionCount, SUM(s.total_amount) as totalSales
      FROM sales s
      JOIN users u ON u.id = s.user_id
-     WHERE s.transaction_date >= ? AND s._deleted = 0${storeId ? " AND s.store_id = ?" : ""}${joined.clause}
+     WHERE s.transaction_date >= ? AND s.transaction_date <= ? AND s._deleted = 0${storeId ? " AND s.store_id = ?" : ""}${joined.clause}
      GROUP BY u.id
      ORDER BY totalSales DESC`,
-    s1Joined,
+    s1JoinedCapped,
   );
 
   return {

@@ -113,6 +113,46 @@ class AuthHandoffTest extends TestCase
         $this->assertNull(Cache::get("auth_handoff:{$code}"));
     }
 
+    /**
+     * The handoff endpoints are not impersonation-specific: `create`
+     * authenticates purely off the token in the request body, so ANY valid
+     * PersonalAccessToken can be wrapped in a code - including one minted by
+     * /register rather than by /admin/impersonate. This pins that down so a
+     * future change to `create` (e.g. requiring an impersonation marker on the
+     * token) can't silently break a non-impersonation caller.
+     */
+    public function test_a_token_minted_by_registration_round_trips_through_the_handoff(): void
+    {
+        $register = $this->postJson('/api/v1/register', [
+            'first_name' => 'New',
+            'last_name' => 'Registrant',
+            'email' => 'new-registrant@dumosrx.com',
+            'phone' => '08012345678',
+            'pin' => '1234',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'store_name' => 'New Registrant Pharmacy',
+            'store_type' => 'pharmacy',
+            'device_name' => 'web',
+        ]);
+
+        $register->assertSuccessful();
+        $token = $register->json('token');
+        $this->assertIsString($token);
+        $this->assertNotEmpty($token);
+
+        $create = $this->postJson('/api/v1/auth/handoff', ['token' => $token]);
+        $create->assertStatus(200);
+        $code = $create->json('code');
+
+        $consume = $this->postJson('/api/v1/auth/handoff/consume', ['code' => $code]);
+        $consume->assertStatus(200);
+        $consume->assertJson([
+            'token' => $token,
+            'user' => ['email' => 'new-registrant@dumosrx.com'],
+        ]);
+    }
+
     public function test_consume_expires_after_the_ttl(): void
     {
         $token = $this->user->createToken('test')->plainTextToken;

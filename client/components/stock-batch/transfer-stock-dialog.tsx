@@ -6,7 +6,6 @@ import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Combobox } from "@/components/ui/combobox";
 import {
   Select,
   SelectContent,
@@ -16,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { useStore } from "@/lib/context/store-context";
 import { useAuth } from "@/lib/context/auth-context";
+import { TransferProductPicker } from "./transfer-product-picker";
 import {
   getTransferableProducts,
   transferStock,
@@ -26,17 +26,6 @@ interface TransferStockDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onTransferred: () => void;
-}
-
-/** Formats a product's picker label with its live available quantity, e.g.
- * "Paracetamol 500mg — 42 Unit available", so the amount on hand is visible
- * right in the picker without a second lookup. Kept in sync with `products`
- * (the fetched list) via the label<->id map below, mirroring the
- * label/field mapping pattern ImportMappingDialog already uses for its own
- * Combobox. */
-function productLabel(product: TransferableProductRow): string {
-  const unit = product.base_unit || "unit";
-  return `${product.name} — ${product.available_quantity} ${unit} available`;
 }
 
 export function TransferStockDialog({
@@ -98,10 +87,6 @@ export function TransferStockDialog({
     };
   }, [sourceStoreId]);
 
-  const productLabelToId = useMemo(
-    () => new Map(products.map((p) => [productLabel(p), p.id])),
-    [products],
-  );
   const selectedProduct = useMemo(
     () => products.find((p) => p.id === productId) ?? null,
     [products, productId],
@@ -110,7 +95,9 @@ export function TransferStockDialog({
   const quantityNum = Number(quantity);
   const quantityValid = Number.isFinite(quantityNum) && quantityNum > 0;
   const exceedsAvailable =
-    selectedProduct != null && quantityValid && quantityNum > selectedProduct.available_quantity;
+    selectedProduct != null &&
+    quantityValid &&
+    quantityNum > selectedProduct.available_quantity;
 
   const canSubmit =
     !!sourceStoreId &&
@@ -146,8 +133,12 @@ export function TransferStockDialog({
     }
   };
 
-  const destStoreOptions = availableStores.filter((s) => s.id !== sourceStoreId);
-  const sourceStoreOptions = availableStores.filter((s) => s.id !== destStoreId);
+  const destStoreOptions = availableStores.filter(
+    (s) => s.id !== sourceStoreId,
+  );
+  const sourceStoreOptions = availableStores.filter(
+    (s) => s.id !== destStoreId,
+  );
 
   return (
     <ResponsiveModal
@@ -157,7 +148,11 @@ export function TransferStockDialog({
       description="Move stock from one store to another. This creates a paired transfer entry in both stores' movement history."
       footer={
         <div className="flex justify-end gap-2 p-4">
-          <Button variant="outline" onClick={() => handleOpenChange(false)}>
+          <Button
+            variant="outline"
+            className="hover:bg-primary/50"
+            onClick={() => handleOpenChange(false)}
+          >
             Cancel
           </Button>
           <Button onClick={() => void handleConfirm()} disabled={!canSubmit}>
@@ -166,7 +161,7 @@ export function TransferStockDialog({
         </div>
       }
     >
-      <div className="flex flex-col gap-4 p-4">
+      <div className="flex flex-col gap-4 pt-3 pb-0.5">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="transfer-source-store">From store</Label>
@@ -203,10 +198,16 @@ export function TransferStockDialog({
 
         <div className="flex flex-col gap-1.5">
           <Label>Product</Label>
-          <Combobox
-            options={Array.from(productLabelToId.keys())}
-            value={selectedProduct ? productLabel(selectedProduct) : ""}
-            onChange={(label) => setProductId(productLabelToId.get(label) ?? "")}
+          <TransferProductPicker
+            // Remounts (clearing its internal search text) whenever the
+            // source store — and so the product list — changes, rather
+            // than leaving stale search text from the previous store.
+            key={sourceStoreId}
+            products={products}
+            loading={loadingProducts}
+            disabled={!sourceStoreId || loadingProducts}
+            productId={productId}
+            onSelect={setProductId}
             placeholder={
               !sourceStoreId
                 ? "Select a source store first"
@@ -219,7 +220,6 @@ export function TransferStockDialog({
                 ? "No transferable stock in that store"
                 : "No option found."
             }
-            disabled={!sourceStoreId || loadingProducts}
           />
         </div>
 
@@ -238,12 +238,14 @@ export function TransferStockDialog({
           />
           {selectedProduct && (
             <p className="text-xs text-muted-foreground">
-              {selectedProduct.available_quantity} {selectedProduct.base_unit || "unit"}(s) available
+              {selectedProduct.available_quantity}{" "}
+              {selectedProduct.base_unit || "unit"}(s) available
             </p>
           )}
           {exceedsAvailable && (
             <p className="text-xs text-destructive">
-              Only {selectedProduct?.available_quantity} available — reduce the quantity.
+              Only {selectedProduct?.available_quantity} available - reduce the
+              quantity.
             </p>
           )}
         </div>

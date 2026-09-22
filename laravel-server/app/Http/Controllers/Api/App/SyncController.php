@@ -957,15 +957,17 @@ class SyncController extends Controller
      */
     private function touchStoreLastSyncAt(Request $request): void
     {
-        // Update the last sync time for the user's store
+        // Update the last sync time for the store the push actually wrote
+        // to -- resolved the same way push() itself resolves it, so a
+        // multi-store owner's other branches don't get their last_sync_at
+        // stamped by a push meant for a different store (see X-Store-Id
+        // header). Using an arbitrary "first" store here previously broke
+        // sync throttling and the dashboard's per-store online/offline
+        // status for any multi-store account.
         if ($request->user()) {
             $user = $request->user();
-            $store = null;
-            if ($user->store_id) {
-                $store = Store::where('id', $user->store_id)->first();
-            } else {
-                $store = Store::where('user_id', $user->id)->first();
-            }
+            $storeId = $this->resolvePushStoreId($request, $user);
+            $store = $storeId ? Store::where('id', $storeId)->first() : null;
 
             if ($store) {
                 $isFirstSync = is_null($store->last_sync_at);
@@ -1029,11 +1031,19 @@ class SyncController extends Controller
      *   (or an unconditional accept for a commutative/quantity-only change),
      *   with the server — never the payload — assigning the next version.
      * - either side missing a version: the legacy updated_at comparison,
-     *   which only rejects a strictly-older payload. Reachable today
-     *   whenever a payload simply omits _version (see docs/KNOWN_BUGS.md);
-     *   $newVersion stays null there because a legacy row has no version to
-     *   overwrite.
+     *   which only rejects a strictly-older payload. $newVersion stays null
+     *   there because a legacy row has no version to overwrite.
      * - neither applies: accepted with no new version.
+     *
+     * DO NOT remove the updated_at fallback branch as dead code: today's
+     * client (base-helpers.ts's update()) always sends _version, but the
+     * fallback is reachable whenever a payload omits it - from an older
+     * client version, or a hand-built payload - and is exercised directly by
+     * SyncEndpointTest::test_push_sync_rejects_an_older_update_with_no_version_via_the_timestamp_fallback,
+     * ::test_push_sync_accepts_a_newer_update_...,
+     * and incidentally by ::test_push_sync_handles_soft_deletes (an UPDATE
+     * with _deleted=1 and no _version). Confirm none of those still rely on
+     * it before deleting the branch.
      */
     private function resolveUpdateConflict(string $tableName, $model, array $payload, bool $isCommutativeTable, $recordId): array
     {
@@ -1543,7 +1553,14 @@ class SyncController extends Controller
             $systemConfig = \App\Models\SystemConfig::getVal('subscription_plans', []);
             $canSync = $systemConfig['tiers'][$plan]['features']['cloud_sync'] ?? false;
 
-            $store = Store::where('user_id', $owner->id)->first() ?? Store::where('id', $user->store_id)->first();
+            // Resolved the same way push()/touchStoreLastSyncAt() resolve
+            // "the store being synced" (X-Store-Id when present and owned,
+            // else the caller's own store) -- an arbitrary "first" store
+            // here previously measured the interval throttle and the
+            // isSetup escape hatch against the wrong branch entirely for
+            // multi-store accounts.
+            $syncedStoreId = $this->resolvePushStoreId($request, $user);
+            $store = $syncedStoreId ? Store::where('id', $syncedStoreId)->first() : null;
 
             $isManual = $request->boolean('manual');
             // The client-supplied `setup` flag exists so a brand-new device

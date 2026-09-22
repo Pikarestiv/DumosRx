@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, ReactNode } from "react";
 import * as Sentry from "@sentry/nextjs";
+import { toast } from "sonner";
 import { update } from "@/lib/db/local-database";
 import { setActiveStoreId as setResolvedStoreId } from "@/lib/db/core";
 import { useQuery } from "@tanstack/react-query";
@@ -81,13 +82,24 @@ interface StoreContextType {
   availableStores: StoreProfile[];
   switchStore: (storeId: string) => void;
   /**
-   * True for the duration of switchStore()'s async work (cancel + broad
-   * invalidate). React Query's invalidateQueries() marks queries stale and
-   * refetches in the background *without* clearing what's already rendered,
-   * so between the switch and the refetch resolving, screens can still be
-   * painting the previous store's data. Consumers (LicenseGuard) show a
-   * splash instead of that window. Defense-in-depth: the window has never
-   * been reproduced on a test device, but it's real by design.
+   * True for the duration of switchStore()'s async work (cancel + clear).
+   * Consumers (LicenseGuard) show a splash for that window so nothing ever
+   * paints mid-transition: `children` (and every query observer inside it)
+   * unmounts the instant this flips true, and remounts once it flips back,
+   * by which point queryClient.clear() below has already emptied the
+   * cache, so the remount finds no data to render for any query - store-
+   * scoped or not - rather than something stale.
+   *
+   * (An earlier version of this used invalidateQueries() instead of
+   * clear(), on the theory that a background refetch would land before the
+   * splash cleared. It didn't: invalidateQueries()'s default
+   * `refetchType: 'active'` only refetches queries with a mounted
+   * observer, and unmounting `children` synchronously - before the awaited
+   * invalidate call even runs - leaves zero active observers to refetch.
+   * The "round trip" resolved almost instantly without doing any real
+   * work, and the first render after remount read the previous store's
+   * data straight out of cache. clear() has no such gap: it doesn't depend
+   * on anything being mounted to do its job.)
    */
   isSwitchingStore: boolean;
   refetch: () => Promise<unknown>;
@@ -185,11 +197,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         // getting stuck showing nothing. A staff member's fixed store_id
         // genuinely disappearing is a deeper problem worth surfacing, not
         // papering over the same way.
+        //
+        // Clearing the stale id is NOT done here: a query function can be
+        // re-invoked on retry without a real change in circumstances, and
+        // doing it here previously fired setActiveStoreId(null) (a React
+        // state update) on every such invocation - which flips `targetId`
+        // mid-fetch, produces a new query key, and triggers a second fetch
+        // on every miss. The effect below runs once React Query has settled
+        // on a confirmed result instead.
         if (!user?.store_id) {
-          if (typeof window !== "undefined") {
-            localStorage.removeItem("dumos_active_store_id");
-          }
-          setActiveStoreId(null);
           return getFirstStore();
         }
         return null;
@@ -233,13 +249,29 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
 
 
-  // Sync activeStoreId back if we fell back to LIMIT 1
+  // Sync activeStoreId back whenever the resolved profile doesn't match
+  // targetId, for an owner/admin with no fixed store_id - covers both
+  // falling back to LIMIT 1 (no targetId at all) and a targetId that no
+  // longer resolves to a real store (queryFn's fallback returned a
+  // *different* store than requested; see the comment on the fallback
+  // branch above). Setting the resolved id directly, in one state update,
+  // rather than clearing to null first and letting a second effect pass
+  // pick that up - the two-step version doubled the number of query
+  // cycles this settles through (null is itself a distinct targetId,
+  // producing its own queryKey/fetch before this effect could fire again
+  // to land on the real value). Naturally runs at most once per mismatch:
+  // once synced, storeProfile.id === targetId and this can't fire again
+  // until a new mismatch appears.
   React.useEffect(() => {
-    if (storeProfile && !targetId && (!user || !user.store_id)) {
-       setActiveStoreId(storeProfile.id);
-       if (typeof window !== "undefined") {
-         localStorage.setItem("dumos_active_store_id", storeProfile.id);
-       }
+    if (
+      storeProfile &&
+      storeProfile.id !== targetId &&
+      (!user || !user.store_id)
+    ) {
+      setActiveStoreId(storeProfile.id);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("dumos_active_store_id", storeProfile.id);
+      }
     }
   }, [storeProfile, targetId, user]);
 
@@ -252,42 +284,58 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
 
     // Every store-scoped query reads the active store from lib/db/core.ts's
-    // module-scope resolver at call time, not from its React Query key, so
-    // without this, screens would keep showing the previous store's cached
-    // results until something else happened to invalidate them. Broad
-    // invalidation (not a table-filtered one) because switching stores is a
-    // deliberate, infrequent action, not a hot path; correctness here is
-    // worth more than avoiding a refetch.
+    // module-scope resolver at call time, not from its React Query key
+    // (queryKeys.ts's factory DOES suffix keys with the active store id,
+    // but plenty of call sites still hand-roll their own useQuery key and
+    // aren't covered by that), so without clearing the cache below, screens
+    // would keep showing the previous store's cached results indefinitely.
     //
     // Must set the resolver synchronously here rather than relying on the
     // useEffect above (which mirrors targetId into it): that effect only
-    // runs after React commits the re-render, which is after
-    // invalidateQueries() below has already kicked off refetches. Without
-    // this, those refetches would read the OLD store id (stale resolver),
-    // cache the old store's data under the same query keys, and never
-    // refetch again: the exact "needs a reload to reflect" bug.
+    // runs after React commits the re-render, which is after the async work
+    // below has already kicked off. Without this, work started in that gap
+    // would read the OLD store id (stale resolver), cache the old store's
+    // data under the same query keys, and never refetch again: the exact
+    // "needs a reload to reflect" bug.
     setResolvedStoreId(storeId);
-    // Cancels in-flight fetches from the outgoing store before
-    // invalidating: invalidateQueries() alone doesn't abort a request
-    // already in flight, and every query function reads the active store
-    // id from lib/db/core.ts's module-level resolver at execution time
-    // rather than from its React Query key. Without this, a request
-    // issued (and still pending) before the switch could resolve after
-    // resolvedStoreId flips and get cached as "fresh" under a store-
-    // unscoped key, momentarily showing the previous store's data.
-    // Hold a transition state until the cancel + invalidate round trip has
-    // settled, so nothing renders the outgoing store's still-cached data
-    // while its refetch is in flight. Capped by a timeout: a query that
+    // Cancels in-flight fetches from the outgoing store before clearing:
+    // clear() alone doesn't abort a request already in flight, and every
+    // query function reads the active store id from lib/db/core.ts's
+    // module-level resolver at execution time rather than from its React
+    // Query key. Without this, a request issued (and still pending) before
+    // the switch could resolve after resolvedStoreId flips and get cached
+    // as "fresh" under a store-unscoped key, momentarily showing the
+    // previous store's data.
+    //
+    // Hold a transition state until this settles, so nothing renders the
+    // outgoing store's still-cached data while cancellation is in flight.
+    // Capped by a timeout on the cancelQueries() step only: a fetch that
     // never settles must not strand the app on the splash screen - falling
     // back to the (at worst briefly stale) UI is better than a stuck one.
+    // clear() itself is synchronous (no network round trip, unlike the
+    // invalidateQueries() this used to call) and always runs after the
+    // race below, timeout or not, so the cache is never left un-cleared.
+    //
+    // clear() rather than invalidateQueries(): invalidateQueries() only
+    // marks queries stale and its default refetchType only refetches
+    // queries with an ACTIVE (mounted) observer - and setIsSwitchingStore
+    // below unmounts `children`, and every observer in it, synchronously,
+    // before any of this async work even starts. With zero active
+    // observers, invalidateQueries() did nothing but resolve immediately,
+    // and the remount after the splash cleared read the previous store's
+    // data straight out of cache. clear() doesn't depend on anything being
+    // mounted: it empties the cache outright, so the remount finds nothing
+    // to serve for any query and fetches fresh under the new store - the
+    // same approach the working multi-staff PIN "Switch Account" path
+    // already uses via auth-context.tsx's login()/logout().
     setIsSwitchingStore(true);
     void (async () => {
       try {
-        await queryClient.cancelQueries();
         await Promise.race([
-          queryClient.invalidateQueries(),
+          queryClient.cancelQueries(),
           new Promise((resolve) => setTimeout(resolve, SWITCH_STORE_MAX_WAIT_MS)),
         ]);
+        queryClient.clear();
       } finally {
         setIsSwitchingStore(false);
       }
@@ -430,7 +478,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   };
 
   const setTheme = (newTheme: string) => {
-    void updateStoreProfile({ theme: newTheme });
+    // Fire-and-forget by design (the UI applies the theme immediately,
+    // optimistically) — but a failed write must not fail silently, or the
+    // displayed theme and the persisted/synced one quietly diverge with no
+    // signal to the user.
+    updateStoreProfile({ theme: newTheme }).catch((err) => {
+      console.error("[StoreContext] Failed to persist theme change:", err);
+      toast.error("Couldn't save your theme choice — it may not stick after reload.");
+    });
   };
 
   const t = (key: string): string => {

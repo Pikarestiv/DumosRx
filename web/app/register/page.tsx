@@ -1,39 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { RegisterForm } from "@/components/auth/register-form";
 import { Suspense } from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
 
 export default function RegisterPage() {
-  const router = useRouter();
-  const [checking, setChecking] = useState(true);
-
-  useEffect(() => {
-    // localStorage isn't available during the server render of this client
-    // component, so the already-logged-in redirect check can only happen
-    // here, not during render.
-    const token = localStorage.getItem("drx_token");
-    if (token) {
-      router.push("/dashboard");
-    } else {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setChecking(false);
-    }
-  }, [router]);
-
-  if (checking) {
-    return (
-      <div className="min-h-dvh flex items-center justify-center bg-background">
-        <Loader2 className="h-10 w-10 text-primary animate-spin" />
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-dvh flex items-center justify-center p-4 relative overflow-hidden bg-background">
       {/* Background Layer */}

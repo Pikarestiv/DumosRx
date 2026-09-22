@@ -5,6 +5,7 @@ import {
   transaction,
   generateId,
 } from "@/lib/db/local-database";
+import { roundMoney } from "@/lib/utils/pos-calculations";
 
 /**
  * Data-model decision (see docs/superpowers or PR description for the
@@ -86,20 +87,26 @@ interface SourceProductRow {
 }
 
 /**
- * Available (positive-quantity, active, non-deleted) batches for a product,
- * FEFO-ordered — the exact same "soonest-expiring first" convention
- * recordSaleItemStock() (lib/db/queries/inventory.ts) already uses for
- * deducting stock on a sale, reused here rather than inventing a second
- * deduction order for transfers.
+ * Available (positive-quantity, active, non-deleted, non-expired) batches
+ * for a product, FEFO-ordered — the exact same "soonest-expiring first"
+ * convention getBatchesForProduct() (lib/db/queries/inventory.ts) already
+ * uses for deducting stock on a sale, reused here rather than inventing a
+ * second deduction order for transfers. Also scoped to storeId directly
+ * (not just via product_id): a batch can be attributed to another store
+ * (or be a store_id-less legacy row) while still hanging off this
+ * product_id, the same leak fixed in getStockBatchStats/
+ * fetchStockBatchReportData.
  */
 async function getAvailableSourceBatches(
   productId: string,
+  storeId: string,
 ): Promise<SourceBatchRow[]> {
   return query<SourceBatchRow>(
     `SELECT id, quantity, cost_price, expiry_date, created_at FROM stock_batches
-     WHERE product_id = ? AND _deleted = 0 AND is_active = 1 AND quantity > 0
-     ORDER BY expiry_date ASC, created_at ASC`,
-    [productId],
+     WHERE product_id = ? AND store_id = ? AND _deleted = 0 AND is_active = 1 AND quantity > 0
+       AND (expiry_date IS NULL OR expiry_date = '' OR date(expiry_date) > date('now'))
+     ORDER BY (expiry_date IS NULL) ASC, expiry_date ASC, created_at ASC`,
+    [productId, storeId],
   );
 }
 
@@ -176,7 +183,11 @@ async function resolveDestCategoryId(
   );
   if (existing.length > 0) return existing[0].id;
 
-  return await insert("categories", { name, store_id: destStoreId });
+  return await insert(
+    "categories",
+    { name, store_id: destStoreId },
+    { storeId: destStoreId },
+  );
 }
 
 /**
@@ -198,30 +209,34 @@ async function createDestProduct(
     destStoreId,
   );
 
-  return await insert("products", {
-    name: product.name,
-    generic_name: product.generic_name ?? null,
-    category_id: destCategoryId,
-    manufacturer: product.manufacturer ?? null,
-    nafdac_number: product.nafdac_number ?? null,
-    dosage_form: product.dosage_form ?? null,
-    strength: product.strength ?? null,
-    pack_size: product.pack_size ?? null,
-    unit_of_measure: product.unit_of_measure ?? null,
-    description: product.description ?? null,
-    indications: product.indications ?? null,
-    contraindications: product.contraindications ?? null,
-    side_effects: product.side_effects ?? null,
-    storage_conditions: product.storage_conditions ?? null,
-    selling_price: product.selling_price ?? 0,
-    requires_prescription: product.requires_prescription ?? 0,
-    is_controlled: product.is_controlled ?? 0,
-    barcode: product.barcode ?? null,
-    base_unit: product.base_unit ?? "Unit",
-    bulk_unit: product.bulk_unit ?? null,
-    units_per_bulk: product.units_per_bulk ?? 1,
-    store_id: destStoreId,
-  });
+  return await insert(
+    "products",
+    {
+      name: product.name,
+      generic_name: product.generic_name ?? null,
+      category_id: destCategoryId,
+      manufacturer: product.manufacturer ?? null,
+      nafdac_number: product.nafdac_number ?? null,
+      dosage_form: product.dosage_form ?? null,
+      strength: product.strength ?? null,
+      pack_size: product.pack_size ?? null,
+      unit_of_measure: product.unit_of_measure ?? null,
+      description: product.description ?? null,
+      indications: product.indications ?? null,
+      contraindications: product.contraindications ?? null,
+      side_effects: product.side_effects ?? null,
+      storage_conditions: product.storage_conditions ?? null,
+      selling_price: product.selling_price ?? 0,
+      requires_prescription: product.requires_prescription ?? 0,
+      is_controlled: product.is_controlled ?? 0,
+      barcode: product.barcode ?? null,
+      base_unit: product.base_unit ?? "Unit",
+      bulk_unit: product.bulk_unit ?? null,
+      units_per_bulk: product.units_per_bulk ?? 1,
+      store_id: destStoreId,
+    },
+    { storeId: destStoreId },
+  );
 }
 
 /**
@@ -277,7 +292,7 @@ export async function transferStock(
       throw new Error("Product not found in the source store");
     }
 
-    const batches = await getAvailableSourceBatches(productId);
+    const batches = await getAvailableSourceBatches(productId, sourceStoreId);
     const totalAvailable = batches.reduce((sum, b) => sum + b.quantity, 0);
     if (totalAvailable < quantity) {
       throw new Error(
@@ -315,7 +330,7 @@ export async function transferStock(
       );
     }
 
-    const averageCost = totalCost / quantity;
+    const averageCost = roundMoney(totalCost / quantity);
 
     let destProductId = await findDestProductId(sourceProduct, destStoreId);
     if (!destProductId) {
@@ -329,47 +344,59 @@ export async function transferStock(
     // The new batch's expiry is the earliest (most conservative) of
     // everything it was drawn from, so the destination's FEFO picking
     // never overstates shelf life.
-    const destBatchId = await insert("stock_batches", {
-      product_id: destProductId,
-      batch_number: `TRANSFER-${transferId.slice(0, 8).toUpperCase()}`,
-      expiry_date: earliestExpiry,
-      quantity,
-      cost_price: averageCost,
-      is_active: 1,
-      store_id: destStoreId,
-    });
+    const destBatchId = await insert(
+      "stock_batches",
+      {
+        product_id: destProductId,
+        batch_number: `TRANSFER-${transferId.slice(0, 8).toUpperCase()}`,
+        expiry_date: earliestExpiry,
+        quantity,
+        cost_price: averageCost,
+        is_active: 1,
+        store_id: destStoreId,
+      },
+      { storeId: destStoreId },
+    );
 
     for (const d of drawn) {
-      await insert("stock_movements", {
-        product_id: productId,
-        stock_batch_id: d.batchId,
-        movement_type: "transfer_out",
-        quantity: -Math.abs(d.qty),
-        unit_cost: d.cost,
-        total_cost: d.cost * d.qty,
-        reference_id: transferId,
-        reference_type: STOCK_TRANSFER_REFERENCE_TYPE,
-        reason: reason || `Transfer to ${destStore.name}`,
-        performed_by: performedBy,
-        movement_date: now,
-        store_id: sourceStoreId,
-      });
+      await insert(
+        "stock_movements",
+        {
+          product_id: productId,
+          stock_batch_id: d.batchId,
+          movement_type: "transfer_out",
+          quantity: -Math.abs(d.qty),
+          unit_cost: d.cost,
+          total_cost: roundMoney(d.cost * d.qty),
+          reference_id: transferId,
+          reference_type: STOCK_TRANSFER_REFERENCE_TYPE,
+          reason: reason || `Transfer to ${destStore.name}`,
+          performed_by: performedBy,
+          movement_date: now,
+          store_id: sourceStoreId,
+        },
+        { storeId: sourceStoreId },
+      );
     }
 
-    await insert("stock_movements", {
-      product_id: destProductId,
-      stock_batch_id: destBatchId,
-      movement_type: "transfer_in",
-      quantity,
-      unit_cost: averageCost,
-      total_cost: averageCost * quantity,
-      reference_id: transferId,
-      reference_type: STOCK_TRANSFER_REFERENCE_TYPE,
-      reason: reason || `Transfer from ${sourceStore.name}`,
-      performed_by: performedBy,
-      movement_date: now,
-      store_id: destStoreId,
-    });
+    await insert(
+      "stock_movements",
+      {
+        product_id: destProductId,
+        stock_batch_id: destBatchId,
+        movement_type: "transfer_in",
+        quantity,
+        unit_cost: averageCost,
+        total_cost: roundMoney(averageCost * quantity),
+        reference_id: transferId,
+        reference_type: STOCK_TRANSFER_REFERENCE_TYPE,
+        reason: reason || `Transfer from ${sourceStore.name}`,
+        performed_by: performedBy,
+        movement_date: now,
+        store_id: destStoreId,
+      },
+      { storeId: destStoreId },
+    );
 
     return {
       transferId,
@@ -400,7 +427,9 @@ export async function getTransferableProducts(
     `SELECT p.id, p.name, p.barcode, p.base_unit,
             COALESCE(SUM(sb.quantity), 0) as available_quantity
      FROM products p
-     JOIN stock_batches sb ON sb.product_id = p.id AND sb._deleted = 0 AND sb.is_active = 1
+     JOIN stock_batches sb ON sb.product_id = p.id AND sb.store_id = p.store_id
+       AND sb._deleted = 0 AND sb.is_active = 1
+       AND (sb.expiry_date IS NULL OR sb.expiry_date = '' OR date(sb.expiry_date) > date('now'))
      WHERE p._deleted = 0 AND p.store_id = ?
      GROUP BY p.id
      HAVING available_quantity > 0

@@ -85,6 +85,38 @@ describe("loyalty tiers/redemption options store scoping", () => {
     expect(storeBTiers.length).toBeGreaterThan(1);
   });
 
+  it("does not reseed a store that deliberately deleted every tier once loyalty_defaults_seeded_at is set", async () => {
+    db.run(
+      `INSERT INTO stores (id, name, loyalty_defaults_seeded_at) VALUES ('store-a', 'A', '2026-01-01T00:00:00.000Z')`,
+    );
+    core.setActiveStoreId("store-a");
+
+    // Zero tiers today, but the store was already seeded before (and the
+    // owner presumably deleted them on purpose) — must NOT reseed.
+    await ensureLoyaltyDefaultsSeeded("user-1");
+
+    const tiers = await getLoyaltyTiers();
+    const options = await getLoyaltyRedemptionOptions();
+    expect(tiers).toHaveLength(0);
+    expect(options).toHaveLength(0);
+  });
+
+  it("only ever seeds once — a second call after the flag is set is a no-op even with zero tiers", async () => {
+    db.run(`INSERT INTO stores (id, name) VALUES ('store-a', 'A')`);
+    core.setActiveStoreId("store-a");
+
+    await ensureLoyaltyDefaultsSeeded("user-1");
+    const seededTiers = await getLoyaltyTiers();
+    expect(seededTiers.length).toBeGreaterThan(0);
+
+    // Deliberately clear every tier, simulating the owner removing them.
+    db.run(`DELETE FROM loyalty_tiers WHERE store_id = 'store-a'`);
+    await ensureLoyaltyDefaultsSeeded("user-1");
+
+    const tiersAfterSecondCall = await getLoyaltyTiers();
+    expect(tiersAfterSecondCall).toHaveLength(0);
+  });
+
   it("seeds default redemption options with their monetary discount_value, where applicable", async () => {
     db.run(`INSERT INTO stores (id, name) VALUES ('store-a', 'A')`);
     core.setActiveStoreId("store-a");

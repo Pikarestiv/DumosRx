@@ -4,7 +4,8 @@ import { getUserInitials } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, Lock } from "lucide-react";
+import { formatLockoutRemaining } from "@/lib/utils/login-lockout";
 import { motion } from "framer-motion";
 import {
   InputOTP,
@@ -20,6 +21,9 @@ interface PinEntryProps {
   setPin: (val: string) => void;
   isLoading: boolean;
   hasError: boolean;
+  /** Milliseconds remaining on an active login-lockout for this user, or
+   * null when not locked out. See lib/utils/login-lockout.ts. */
+  lockoutRemainingMs?: number | null;
   handleLogin: (e: React.FormEvent) => void;
   onAutoSubmit: (pinValue: string) => void;
   onBack: () => void;
@@ -31,10 +35,12 @@ export function PinEntry({
   setPin,
   isLoading,
   hasError,
+  lockoutRemainingMs,
   handleLogin,
   onAutoSubmit,
   onBack,
 }: PinEntryProps) {
+  const isLockedOut = !!lockoutRemainingMs && lockoutRemainingMs > 0;
   // Touch capability decides this, not viewport width or user-agent sniffing:
   // iPadOS masks its UA to look like a Mac by default, and a tablet can easily
   // have a "desktop-width" viewport in landscape. Real touch devices get the
@@ -87,7 +93,8 @@ export function PinEntry({
                 setPin(value);
               }}
               onComplete={(value) => onAutoSubmit(value)}
-              autoFocus
+              autoFocus={!isLockedOut}
+              disabled={isLockedOut}
               inputMode={isTouchDevice ? "none" : "numeric"}
               containerClassName="gap-2"
             >
@@ -102,15 +109,24 @@ export function PinEntry({
               </InputOTPGroup>
             </InputOTP>
           </motion.div>
-          {isLoading && (
+          {isLockedOut ? (
+            <div
+              role="alert"
+              className="flex items-center justify-center gap-2 text-sm font-medium text-destructive text-center px-4"
+            >
+              <Lock className="h-4 w-4 shrink-0" />
+              Too many attempts. Try again in{" "}
+              {formatLockoutRemaining(lockoutRemainingMs as number)}.
+            </div>
+          ) : isLoading ? (
             <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
               Verifying...
             </div>
-          )}
+          ) : null}
         </div>
 
-        {isTouchDevice && (
+        {isTouchDevice && !isLockedOut && (
           <div className="mt-auto mb-3">
             <PinPad
               value={pin}

@@ -40,10 +40,20 @@ export function EditableNumberCell({
   onCancel?: () => void;
 }) {
   const [text, setText] = useState(String(value));
+  const [isFocused, setIsFocused] = useState(false);
 
   useEffect(() => {
+    // Skipped while focused: this effect exists to pick up an external
+    // (non-user-typed) change to `value` — e.g. another row's edit
+    // recalculating this one — while the field is idle. While the user is
+    // actively typing, `onChange` below already keeps `value` in lockstep
+    // for every valid intermediate value; re-running this resync mid-entry
+    // clobbered a leading-zero decimal ("0.05") back to "0" the instant the
+    // trailing digits made the parsed number equal 0 again after the "0."
+    // prefix was typed (see docs/KNOWN_BUGS.md).
+    if (isFocused) return;
     setText(String(value));
-  }, [value]);
+  }, [value, isFocused]);
 
   return (
     <input
@@ -65,6 +75,7 @@ export function EditableNumberCell({
         if (!isNaN(parsed)) onCommit(Math.max(min, parsed));
       }}
       onBlur={() => {
+        setIsFocused(false);
         if (text === "" || isNaN(parse(text))) setText(String(value));
         onBlur?.();
       }}
@@ -81,7 +92,10 @@ export function EditableNumberCell({
           onCancel?.();
         }
       }}
-      onFocus={(e) => e.target.select()}
+      onFocus={(e) => {
+        setIsFocused(true);
+        e.target.select();
+      }}
     />
   );
 }

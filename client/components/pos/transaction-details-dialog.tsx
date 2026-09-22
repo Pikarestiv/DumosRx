@@ -52,7 +52,7 @@ export function TransactionDetailsDialog({
     enabled: !!(open && sale?.id),
   });
   const { data: paymentCustomer } = useQuery({
-    queryKey: ["customerById", sale?.customer_id],
+    ...queryKeys.customers.byId(sale?.customer_id),
     queryFn: () => getCustomerById(sale?.customer_id ?? ""),
     enabled: showPaymentModal && !!sale?.customer_id,
   });

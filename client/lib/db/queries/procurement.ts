@@ -48,8 +48,10 @@ export async function getAllVendors() {
  * boot (see DatabaseProvider). Goes through update() (not a raw UPDATE) so
  * the change actually syncs to the cloud and isn't silently local-only. */
 export async function promoteDraftPurchaseOrdersToPending() {
+  const storeId = getActiveStoreId();
   const drafts = await query<{ id: string }>(
-    "SELECT id FROM purchase_orders WHERE status = 'draft' AND (_deleted = 0 OR _deleted IS NULL)",
+    `SELECT id FROM purchase_orders WHERE status = 'draft' AND (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}`,
+    storeId ? [storeId] : [],
   );
   for (const draft of drafts) {
     try {

@@ -107,8 +107,11 @@ export function useNewPrescription() {
       const fetchPrescription = async () => {
         try {
           const prescription = await getPrescriptionById(editRxId);
-          if (!prescription) return;
-          
+          if (!prescription) {
+            toast.error("Prescription not found");
+            return;
+          }
+
           setExistingPrescriptionData(prescription);
 
           const itemsData = await getPrescriptionItems(editRxId);
@@ -144,6 +147,7 @@ export function useNewPrescription() {
           });
         } catch (error) {
           console.error("Failed to fetch prescription to edit", error);
+          toast.error("Failed to load prescription for editing");
         }
       };
       void fetchPrescription();

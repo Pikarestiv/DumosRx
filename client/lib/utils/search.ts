@@ -42,6 +42,23 @@ export interface SearchProductResult<T> {
   isFuzzyFallback: boolean;
 }
 
+// Minimum term length before the fuzzy (typo-tolerant) fallback fires at
+// all. Below this, a term is too short for Levenshtein distance to be a
+// meaningful similarity signal — a 3-character term is within distance 3 of
+// huge swaths of unrelated short words/codes, so it used to return noisy
+// "suggestions" for what should just be an empty result.
+const MIN_FUZZY_TERM_LENGTH = 4;
+
+// Allowed Levenshtein distance scales with term length instead of a flat 3
+// for every term: a fixed cap of 3 let a 4-character term match almost
+// anything (up to 3 of its 4 characters could differ), which is most of the
+// reason short terms produced arbitrary matches.
+function maxFuzzyDistanceFor(termLength: number): number {
+  if (termLength <= 5) return 1;
+  if (termLength <= 8) return 2;
+  return 3;
+}
+
 export function searchProducts<
   T extends {
     name: string;
@@ -114,9 +131,11 @@ export function searchProducts<
   }
 
   // 4. Tier 4: Fuzzy Fallback (Only if no strict results and term is long enough)
-  if (term.length < 3) {
+  if (term.length < MIN_FUZZY_TERM_LENGTH) {
     return { results: [], isFuzzyFallback: false };
   }
+
+  const maxDistance = maxFuzzyDistanceFor(term.length);
 
   const fuzzyResults = products
     .map((med) => {
@@ -159,9 +178,24 @@ export function searchProducts<
         }
       }
 
+      // A scanned barcode with no exact match previously fell straight
+      // through to fuzzy-matching against product NAMES, with barcode never
+      // scored at all — a near-miss scan (one misread digit) should match
+      // on the barcode itself instead of surfacing unrelated products.
+      if (med.barcode) {
+        const barcode = med.barcode.toLowerCase();
+        minDistance = Math.min(
+          minDistance,
+          calculateLevenshteinDistance(
+            term,
+            barcode.substring(0, term.length + 2),
+          ),
+        );
+      }
+
       return { med, distance: minDistance };
     })
-    .filter((item) => item.distance <= 3); // Allow max 3 typos
+    .filter((item) => item.distance <= maxDistance);
 
   if (fuzzyResults.length > 0) {
     fuzzyResults.sort((a, b) => {
@@ -236,9 +270,11 @@ export function genericFuzzySearch<T>(
   }
 
   // Tier 4: Fuzzy Fallback
-  if (term.length < 3) {
+  if (term.length < MIN_FUZZY_TERM_LENGTH) {
     return { results: [], isFuzzyFallback: false };
   }
+
+  const maxDistance = maxFuzzyDistanceFor(term.length);
 
   const fuzzyResults = items
     .map((item) => {
@@ -272,7 +308,7 @@ export function genericFuzzySearch<T>(
 
       return { item, distance: minDistance };
     })
-    .filter((res) => res.distance <= 3); // Allow max 3 typos
+    .filter((res) => res.distance <= maxDistance);
 
   if (fuzzyResults.length > 0) {
     fuzzyResults.sort((a, b) => a.distance - b.distance);

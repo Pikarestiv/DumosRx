@@ -68,7 +68,13 @@ export function useBIData(dateRange?: DateRangeValue, filters?: SalesFilters) {
     return Math.round((r.returning_count / r.total) * 100);
   }, [metrics?.retentionData]);
 
-  const prevRevenue = metrics?.prevRevenueData[0]?.total || 0;
+  // Previous-period Net Sales, defined exactly like netSales above (gross
+  // total_amount minus tax minus refunds) so revenueChange/
+  // avgTransactionChange divide a net figure by a net figure.
+  const prevRevenue =
+    (metrics?.prevRevenueData[0]?.total || 0) -
+    (metrics?.prevTaxData[0]?.total || 0) -
+    (metrics?.prevRefundsData[0]?.total || 0);
   const prevTransactions = metrics?.prevTransactionData[0]?.count || 0;
   const prevCustomers = metrics?.prevCustomerData[0]?.count || 0;
 
@@ -143,6 +149,9 @@ export function useBIData(dateRange?: DateRangeValue, filters?: SalesFilters) {
         value: activeCustomers.toLocaleString(),
         change: `${customerChange >= 0 ? "+" : ""}${customerChange}%`,
         trend: customerChange >= 0 ? "up" : "down",
+        // Only the rows whose `change` really is a previous-period ratio get
+        // the card's "vs last period" suffix (see customer-behavior-tab.tsx).
+        isPeriodComparison: true,
       },
       {
         metric: "Loyalty Members",
@@ -152,18 +161,27 @@ export function useBIData(dateRange?: DateRangeValue, filters?: SalesFilters) {
             ? `${Math.round((loyaltyMembers / Math.max(activeCustomers, 1)) * 100)}% of total`
             : "0%",
         trend: "up",
+        isPeriodComparison: false,
       },
       {
         metric: "Avg. Transaction",
         value: formatCurrency(Math.floor(avgTransactionValue), currencyCode),
         change: `${avgTransactionChange >= 0 ? "+" : ""}${avgTransactionChange}%`,
         trend: avgTransactionChange >= 0 ? "up" : "down",
+        isPeriodComparison: true,
       },
       {
-        metric: "Customer Retention",
+        // Labelled for what the number actually is: the share of the
+        // customers who bought *inside this period* that bought more than
+        // once in it (walk-in/anonymous sales carry no customer_id and are
+        // excluded from both sides). It is not retention against the
+        // store's customer base or against a prior period, which is what
+        // "Customer Retention" implied.
+        metric: "Repeat Purchase Rate",
         value: `${retentionRate}%`,
         change: retentionRate >= 50 ? "Healthy" : "Needs attention",
         trend: retentionRate >= 50 ? "up" : "down",
+        isPeriodComparison: false,
       },
     ],
     [

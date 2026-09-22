@@ -265,11 +265,12 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
     performCheck,
   ]);
 
-  // isSwitchingStore covers the store-switch transition: every store-scoped
-  // query resolves its store at execution time, and invalidateQueries()
-  // keeps the previous store's data on screen until its refetch lands.
-  // Showing the splash for that window means a switch can never flash the
-  // outgoing store's dashboard. (See switchStore() in store-context.tsx.)
+  // isSwitchingStore covers the store-switch transition: switchStore()
+  // clears the query cache so the remount below finds nothing stale to
+  // serve, but that clear takes a moment (cancel in-flight fetches, then
+  // clear()). Showing the splash for that window means a switch can never
+  // flash the outgoing store's dashboard. (See switchStore() in
+  // store-context.tsx.)
   if (loading || isSwitchingStore) {
     return <SplashScreen />;
   }

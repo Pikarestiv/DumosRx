@@ -1,16 +1,17 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { Search, Lock, ArrowLeftRight } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Button } from "@/components/ui/button";
 import { format, isToday, isYesterday, differenceInDays } from "date-fns";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { genericFuzzySearch } from "@/lib/utils/search";
+import { queryKeys } from "@/lib/query-keys";
 
 const DESKTOP_ROW_HEIGHT = 52;
 import { StockMovementsSkeleton } from "./stock-movements-skeleton";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { StockMovement } from "./stock-movement-utils";
 import { StockMovementTypeFilter } from "./stock-movement-type-filter";
 import { StockMovementDesktopRow } from "./stock-movement-desktop-row";
@@ -24,6 +25,7 @@ import { SortableHeaderCell } from "@/components/ui/sortable-header-cell";
 import { useSortableData } from "@/lib/hooks/use-sortable-data";
 import { useStore } from "@/lib/context/store-context";
 import { useAuth } from "@/lib/context/auth-context";
+import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 
 type MovementSortKey = "date" | "product" | "type" | "quantity" | "reference" | "user";
 
@@ -51,9 +53,6 @@ function NoMovementsFound() {
 }
 
 export function StockMovements() {
-  const [movements, setMovements] = useState<StockMovement[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [initialLoad, setInitialLoad] = useState(true);
   const [hasFullHistory, setHasFullHistory] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
@@ -62,44 +61,64 @@ export function StockMovements() {
     useState<StockMovement | null>(null);
   const [showTransferDialog, setShowTransferDialog] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { availableStores } = useStore();
   const { isAdmin } = useAuth();
-  // Only meaningful (and only rendered) for a multi-store owner/admin
-  // account — a single-store account, or a cashier fixed to one store via
-  // user.store_id, has nothing to transfer between. This screen already
-  // gates the whole Ledger tab on canManageStockBatch (see
-  // useStockBatchManagement), so isAdmin here just narrows further to the
-  // roles this direct, unapproved store-to-store move should be limited to.
-  const canTransferStock = isAdmin && availableStores.length > 1;
+  const { canManageMultiStore } = useFeatureGate();
+  // Mirrors dashboard-header.tsx's hasMultiStoreAccess/actionRequiresIsAdmin
+  // gate on the Transfer Stock header action: plan entitlement AND this
+  // device actually having 2+ synced stores — a single-store account, or a
+  // cashier fixed to one store via user.store_id, has nothing to transfer
+  // between. This screen already gates the whole Ledger tab on
+  // canManageStockBatch (see useStockBatchManagement), so isAdmin here just
+  // narrows further to the roles this direct, unapproved store-to-store
+  // move should be limited to.
+  const canTransferStock = isAdmin && canManageMultiStore && availableStores.length > 1;
+
+  // Triggered from the header's "Transfer Stock" button (see
+  // dashboard-header.tsx), which — like Add Product's ?action=add — just
+  // navigates to this same page with a query param rather than owning any
+  // dialog state itself. Re-checks canTransferStock rather than trusting the
+  // URL: the header already gates the button on it, but this guards against
+  // someone hitting the link directly.
+  useEffect(() => {
+    if (searchParams.get("action") !== "transfer") return;
+    if (canTransferStock) setShowTransferDialog(true);
+    const newParams = new URLSearchParams(searchParams.toString());
+    newParams.delete("action");
+    const newUrl =
+      window.location.pathname +
+      (newParams.toString() ? `?${newParams.toString()}` : "");
+    router.replace(newUrl);
+  }, [searchParams, router, canTransferStock]);
 
   // Default view is bounded to recent activity since this log grows every sale/receive/adjustment.
   // Respects whatever window is currently active (30-day, custom range, or full history), so a
   // manual/pull refresh doesn't quietly revert someone back out of it. An explicit date range
   // takes precedence over full-history mode: it's a bounded window the user picked on purpose.
-  const fetchMovements = async () => {
-    setLoading(true);
-    try {
+  const movementsQuery = useQuery({
+    ...queryKeys.stockMovements.list(dateRange, hasFullHistory),
+    queryFn: async () => {
       const { getStockMovements } = await import("@/lib/db/local-database");
       const res = dateRange.from
         ? await getStockMovements(dateRange)
         : hasFullHistory
           ? await getStockMovements()
           : await getStockMovements({ sinceDays: RECENT_ACTIVITY_WINDOW_DAYS });
-      setMovements((res.data || []).map(mapMovement));
-    } catch (error) {
-      console.error("Failed to fetch stock movements:", error);
-    } finally {
-      setLoading(false);
-      setInitialLoad(false);
-    }
-  };
+      return (res.data || []).map(mapMovement);
+    },
+    // Keeps the previously loaded rows on screen while a new date range or
+    // history mode is fetched, instead of unmounting into a full skeleton —
+    // that would close an in-progress DateRangePicker Popover selection.
+    placeholderData: keepPreviousData,
+  });
+  const movements = movementsQuery.data ?? [];
+  const loading = movementsQuery.isFetching;
+  const initialLoad = movementsQuery.isLoading;
 
-  useEffect(() => {
-    void fetchMovements();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dateRange]);
-
-  usePullToRefreshHandler(fetchMovements);
+  usePullToRefreshHandler(async () => {
+    await movementsQuery.refetch();
+  });
 
   // Searching or filtering must match the entire log, not just the recent-activity window
   // that's loaded by default, so upgrade to full history the first time either is used.
@@ -107,22 +126,7 @@ export function StockMovements() {
   // purpose, so search/filter should stay scoped within it rather than silently discarding it.
   useEffect(() => {
     if (dateRange.from || hasFullHistory || (!searchTerm && typeFilter === "all")) return;
-    let cancelled = false;
-    async function fetchFullHistory() {
-      try {
-        const { getStockMovements } = await import("@/lib/db/local-database");
-        const res = await getStockMovements();
-        if (cancelled) return;
-        setMovements((res.data || []).map(mapMovement));
-        setHasFullHistory(true);
-      } catch (error) {
-        console.error("Failed to fetch full stock movement history:", error);
-      }
-    }
-    void fetchFullHistory();
-    return () => {
-      cancelled = true;
-    };
+    setHasFullHistory(true);
   }, [searchTerm, typeFilter, hasFullHistory, dateRange.from]);
 
   const preFilteredMovements = movements.filter((movement) => {
@@ -202,17 +206,6 @@ export function StockMovements() {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        {canTransferStock && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full gap-1.5 text-[12px]"
-            onClick={() => setShowTransferDialog(true)}
-          >
-            <ArrowLeftRight className="h-3.5 w-3.5" />
-            Transfer Stock
-          </Button>
-        )}
         <div className="flex items-center gap-2">
           <StockMovementTypeFilter
             typeFilter={typeFilter}
@@ -260,17 +253,6 @@ export function StockMovements() {
               <DateRangePicker value={dateRange} onChange={setDateRange} className="bg-muted/30 border-border" />
             </div>
             <div className="flex items-center gap-3 shrink-0">
-              {canTransferStock && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1.5 text-[12px]"
-                  onClick={() => setShowTransferDialog(true)}
-                >
-                  <ArrowLeftRight className="h-3.5 w-3.5" />
-                  Transfer Stock
-                </Button>
-              )}
               <div className="flex items-center gap-1.5 text-[11.5px] text-muted-foreground/70 whitespace-nowrap">
                 <Lock className="w-3.5 h-3.5" />
                 Immutable log, entries can&apos;t be edited
@@ -391,7 +373,7 @@ export function StockMovements() {
         <TransferStockDialog
           open={showTransferDialog}
           onOpenChange={setShowTransferDialog}
-          onTransferred={() => void fetchMovements()}
+          onTransferred={() => void movementsQuery.refetch()}
         />
       )}
     </div>

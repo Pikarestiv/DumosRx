@@ -120,6 +120,71 @@ describe("pushChanges handles a version_conflict failure as non-retryable", () =
     expect(message.toLowerCase()).toContain("product");
   });
 
+  it("mutes the toast for a version_conflict on an item that was already retried (likely its own prior attempt already landed)", async () => {
+    // Simulates a lost-response scenario: this queue row's first send
+    // already timed out once (recordSyncFailure bumped retry_count to 1
+    // before this, the retried, send). The version_conflict this retry now
+    // hits is very likely this device colliding with its own earlier,
+    // actually-successful write, not a genuinely conflicting edit.
+    db.run(`INSERT INTO products (id, name, selling_price, _version, _deleted) VALUES ('p1', 'Maca Gummies', 777, 1, 0)`);
+    db.run(
+      `INSERT INTO _sync_queue (id, table_name, record_id, operation, payload, created_at, retry_count)
+       VALUES (1, 'products', 'p1', 'UPDATE', ?, '2026-09-04T00:00:00Z', 1)`,
+      [JSON.stringify({ id: "p1", selling_price: 777, _version: 1 })],
+    );
+
+    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+    apiClient.pushChanges.mockResolvedValueOnce({
+      success: true,
+      processed: 0,
+      failed: [{ id: 1, table_name: "products", record_id: "p1", reason: "version_conflict" }],
+    });
+
+    await pushChanges();
+
+    // Still dropped from the queue like any other version_conflict...
+    const remaining = db.exec(`SELECT id FROM _sync_queue`);
+    expect(remaining.length).toBe(0);
+    // ...but no user-facing toast this time, just a quiet log.
+    expect(toastWarning).not.toHaveBeenCalled();
+    expect(infoSpy).toHaveBeenCalled();
+    infoSpy.mockRestore();
+  });
+
+  it("does not let a whole-batch exception overwrite a specific pre-network rejection reason for an item already recorded", async () => {
+    // Item A: invalid category_id, rejected client-side BEFORE the network
+    // call (recordSyncFailure(..., true) with the specific reason).
+    db.run(
+      `INSERT INTO _sync_queue (id, table_name, record_id, operation, payload, created_at)
+       VALUES (10, 'products', 'p-bad', 'UPDATE', ?, '2026-09-04T00:00:00Z')`,
+      [JSON.stringify({ id: "p-bad", category_id: "not-a-uuid", _version: 1 })],
+    );
+    // Item B: an ordinary, otherwise-valid change in the SAME batch, so
+    // `changes` isn't empty and the network call (which then throws) is
+    // actually attempted, landing both items in the catch block's full
+    // `batch` iteration.
+    db.run(`INSERT INTO products (id, name, selling_price, _version, _deleted) VALUES ('p-ok', 'Vitamin C', 500, 1, 0)`);
+    db.run(
+      `INSERT INTO _sync_queue (id, table_name, record_id, operation, payload, created_at)
+       VALUES (11, 'products', 'p-ok', 'UPDATE', ?, '2026-09-04T00:00:01Z')`,
+      [JSON.stringify({ id: "p-ok", selling_price: 500, _version: 1 })],
+    );
+
+    apiClient.pushChanges.mockRejectedValueOnce(new Error("network timeout"));
+
+    await pushChanges();
+
+    const itemA = db.exec(`SELECT retry_count, last_error FROM _sync_queue WHERE id = 10`);
+    expect(itemA[0].values[0][0]).toBe(1); // bumped exactly once, not twice
+    // Specific reason preserved (reportImmediately's own "[REPORTED] " prefix
+    // is unrelated to this fix and expected here).
+    expect(itemA[0].values[0][1]).toContain("Invalid category_id (not a UUID)");
+
+    const itemB = db.exec(`SELECT retry_count, last_error FROM _sync_queue WHERE id = 11`);
+    expect(itemB[0].values[0][0]).toBe(1);
+    expect(itemB[0].values[0][1]).toBe("network timeout"); // unaffected, still gets the batch failure reason
+  });
+
   it("still routes an ordinary (non-conflict) failure reason through the normal backoff path, unaffected by this change", async () => {
     queueOneUpdate();
     apiClient.pushChanges.mockResolvedValueOnce({

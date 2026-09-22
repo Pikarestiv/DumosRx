@@ -87,6 +87,42 @@ describe("importProductRows", () => {
     expect(batchCount[0].values[0][0]).toBe(1); // still just the original batch
   });
 
+  it("updates the matched product's cost_price when it has exactly one active batch (High/Medium bug fix)", async () => {
+    db.run(
+      `INSERT INTO products (id, name, barcode, selling_price, _deleted) VALUES ('p1', 'OLD NAME', '114', 500, 0)`,
+    );
+    db.run(
+      `INSERT INTO stock_batches (id, product_id, quantity, cost_price, _deleted, is_active) VALUES ('b1', 'p1', 10, 100, 0, 1)`,
+    );
+
+    const result = await importProductRows([
+      { name: "CYPRI GOLD SMALL SYRUP", costPrice: 150, barcode: "114" },
+    ]);
+
+    expect(result).toEqual({ created: 0, updated: 1, skipped: [], stockAdjusted: 0 });
+    const rows = db.exec(`SELECT cost_price FROM stock_batches WHERE id = 'b1'`);
+    expect(rows[0].values[0][0]).toBe(150);
+  });
+
+  it("leaves cost_price alone for a matched product with more than one active batch (ambiguous which to correct)", async () => {
+    db.run(
+      `INSERT INTO products (id, name, barcode, selling_price, _deleted) VALUES ('p1', 'OLD NAME', '114', 500, 0)`,
+    );
+    db.run(
+      `INSERT INTO stock_batches (id, product_id, quantity, cost_price, _deleted, is_active) VALUES
+        ('b1', 'p1', 10, 100, 0, 1),
+        ('b2', 'p1', 5, 120, 0, 1)`,
+    );
+
+    await importProductRows([{ name: "CYPRI GOLD SMALL SYRUP", costPrice: 150, barcode: "114" }]);
+
+    const rows = db.exec(`SELECT id, cost_price FROM stock_batches WHERE product_id = 'p1' ORDER BY id`);
+    expect(rows[0].values).toEqual([
+      ["b1", 100],
+      ["b2", 120],
+    ]);
+  });
+
   it("treats the same name in different categories as distinct products", async () => {
     db.run(`INSERT INTO categories (id, name, _deleted) VALUES ('c1', 'DRUGS', 0)`);
     db.run(

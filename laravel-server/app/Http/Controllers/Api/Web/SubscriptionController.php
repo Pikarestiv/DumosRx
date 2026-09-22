@@ -14,6 +14,7 @@ use App\Services\SubscriptionService;
 use App\Services\Payment\PaymentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Exception;
 use OpenApi\Attributes as OA;
 
@@ -292,49 +293,72 @@ class SubscriptionController extends Controller
             'amount' => 'required|numeric',
             'plan_name' => 'required|string',
             'coupon_code' => 'nullable|string',
-            'interval' => 'nullable|string',
+            'interval' => 'nullable|string|in:monthly,yearly',
             'use_credits' => 'nullable|boolean',
         ]);
 
         /** @var User $user */
         $user = Auth::user();
 
+        $planName = $request->plan_name;
+        $interval = $request->interval ?? 'monthly';
+
+        // The price is never trusted from the client -- re-derive it from the
+        // authoritative tier config so a forged `amount` can't self-activate
+        // a paid plan for free (or for less than its real price).
+        $systemConfig = SystemConfig::getVal('subscription_plans', []);
+        $tier = $systemConfig['tiers'][$planName] ?? null;
+
+        if (!$tier) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid plan selected.',
+            ], 422);
+        }
+
+        $baseAmount = (float) ($interval === 'yearly' ? ($tier['price_yearly'] ?? 0) : ($tier['price_monthly'] ?? 0));
+
+        $coupon = null;
+        $discountedAmount = $baseAmount;
+        if ($request->coupon_code) {
+            $couponResult = $subscriptionService->validateCoupon($user, $request->coupon_code, $planName, $interval);
+            if ($couponResult['valid']) {
+                $coupon = $couponResult['coupon'];
+                if ($coupon->type === 'discount_percent') {
+                    $discountedAmount -= $discountedAmount * ($coupon->value / 100);
+                } elseif ($coupon->type === 'discount_amount') {
+                    $discountedAmount -= $coupon->value;
+                }
+                $discountedAmount = max(0, $discountedAmount);
+            }
+        }
+
         $useCredits = $request->boolean('use_credits');
         $availableCredits = (float) $user->referral_credits;
         $creditsApplied = 0.00;
 
         if ($useCredits && $availableCredits > 0) {
-            $creditsApplied = min($availableCredits, $request->amount);
+            $creditsApplied = min($availableCredits, $discountedAmount);
         }
 
-        $finalAmount = $request->amount - $creditsApplied;
+        $finalAmount = $discountedAmount - $creditsApplied;
 
         // Handle 100% discounts / Free Trials / Paid fully by credits directly
         if ($finalAmount <= 0) {
             // Deduct credits if applied
             if ($creditsApplied > 0) {
-                $user->deductCredits($creditsApplied, "Applied credits to offset subscription to " . $request->plan_name);
+                $user->deductCredits($creditsApplied, "Applied credits to offset subscription to " . $planName);
             }
 
-            $daysToAdd = 30; // default for monthly
-            if ($request->interval === 'yearly') {
-                $daysToAdd = 365;
-            }
+            $daysToAdd = ($interval === 'yearly') ? 365 : 30;
 
-            $coupon = null;
-            if ($request->coupon_code) {
-                $couponResult = $subscriptionService->validateCoupon($user, $request->coupon_code, $request->plan_name, $request->interval ?? 'monthly');
-                if ($couponResult['valid']) {
-                    $coupon = $couponResult['coupon'];
-                    if ($coupon->type === 'trial_extension') {
-                        $daysToAdd = $coupon->value;
-                    }
-                }
+            if ($coupon && $coupon->type === 'trial_extension') {
+                $daysToAdd = $coupon->value;
             }
 
             $sub = Subscription::create([
                 'user_id' => $user->id,
-                'plan_name' => $request->plan_name,
+                'plan_name' => $planName,
                 'start_date' => now(),
                 'end_date' => now()->addDays($daysToAdd),
                 'status' => 'active',
@@ -361,11 +385,11 @@ class SubscriptionController extends Controller
                 $finalAmount,
                 $user->email,
                 [
-                    'plan_name' => $request->plan_name,
+                    'plan_name' => $planName,
                     'user_id' => $user->id,
                     'coupon_code' => $request->coupon_code,
                     'credits_applied' => $creditsApplied,
-                    'interval' => $request->interval ?? 'monthly'
+                    'interval' => $interval
                 ]
             );
 
@@ -377,11 +401,11 @@ class SubscriptionController extends Controller
                 'currency' => 'NGN',
                 'status' => 'pending',
                 'metadata' => [
-                    'plan_name' => $request->plan_name,
+                    'plan_name' => $planName,
                     'user_id' => $user->id,
                     'coupon_code' => $request->coupon_code,
                     'credits_applied' => $creditsApplied,
-                    'interval' => $request->interval ?? 'monthly'
+                    'interval' => $interval
                 ]
             ]);
 
@@ -442,77 +466,96 @@ class SubscriptionController extends Controller
         }
 
         try {
+            // Deliberately done OUTSIDE any row lock/transaction: it's a
+            // read-only call to Paystack and can take seconds (or hang), and
+            // Paystack's own "successful" answer for a given reference never
+            // changes, so nothing is lost by two concurrent calls both
+            // performing it. Holding a DB lock across it would instead tie
+            // up a connection (and risk lock-wait-timeout errors on queued
+            // callers) for the duration of a third-party HTTP call.
             $verification = $paymentService->verifyTransaction($txn->provider_reference, $txn->provider);
-
-            if ($verification['success']) {
-                $txn->update(['status' => 'success', 'metadata' => array_merge($txn->metadata ?? [], ['verification_data' => $verification['data']])]);
-
-                $user = User::find($txn->metadata['user_id'] ?? Auth::id());
-
-                // Create or Update Subscription
-                $interval = $txn->metadata['interval'] ?? 'monthly';
-                $sub = Subscription::create([
-                    'user_id' => $user ? $user->id : Auth::id(),
-                    'plan_name' => $txn->metadata['plan_name'],
-                    'start_date' => now(),
-                    'end_date' => ($interval === 'yearly') ? now()->addYear() : now()->addMonth(),
-                    'status' => 'active',
-                    'license_key' => 'DRX-' . strtoupper(bin2hex(random_bytes(8))),
-                ]);
-
-                $txn->update(['subscription_id' => $sub->id]);
-
-                // Deduct applied credits
-                $creditsApplied = (float) ($txn->metadata['credits_applied'] ?? 0);
-                if ($creditsApplied > 0 && $user) {
-                    $user->deductCredits($creditsApplied, "Applied credits to offset subscription to " . $txn->metadata['plan_name']);
-                }
-
-                // Award referral credits
-                if ($user && $user->referred_by_id) {
-                    $referralConfig = SystemConfig::getVal('referral_program', []);
-                    if ($referralConfig && ($referralConfig['enabled'] ?? false)) {
-                        $trigger = $referralConfig['reward_trigger'] ?? 'recurring';
-                        $isFirstTime = Subscription::where('user_id', $user->id)->count() <= 1;
-
-                        if ($trigger === 'recurring' || ($trigger === 'first' && $isFirstTime)) {
-                            $rewardPercentage = (float) ($referralConfig['reward_percentage'] ?? 10.0);
-                            $rewardAmount = (float) $txn->amount * ($rewardPercentage / 100);
-                            
-                            $referrer = $user->referredBy;
-                            if ($referrer && $rewardAmount > 0) {
-                                $referrer->addCredits(
-                                    $rewardAmount,
-                                    "Referral reward from " . $user->name . " subscribing to " . $txn->metadata['plan_name'],
-                                    $user->id
-                                );
-                            }
-                        }
-                    }
-                }
-
-                // Record coupon usage if present
-                if (!empty($txn->metadata['coupon_code'])) {
-                    $coupon = Coupon::where('code', $txn->metadata['coupon_code'])->first();
-                    if ($coupon && $user) {
-                        $subscriptionService = app(SubscriptionService::class);
-                        $subscriptionService->recordCouponUsage($coupon, $user, $sub);
-                    }
-                }
-
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Payment verified and subscription activated.',
-                    'subscription' => $sub
-                ]);
-            }
-
-            $txn->update(['status' => 'failed']);
-            return response()->json(['success' => false, 'message' => 'Payment verification failed.'], 400);
-
         } catch (Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
+
+        if (!$verification['success']) {
+            $txn->update(['status' => 'failed']);
+            return response()->json(['success' => false, 'message' => 'Payment verification failed.'], 400);
+        }
+
+        // Only the state transition + subscription creation is done under
+        // the lock: two concurrent calls that both verified successfully
+        // above must still not both create a subscription / award referral
+        // credit. The second call blocks here until the first commits, then
+        // sees status === 'success' and short-circuits.
+        return DB::transaction(function () use ($txn, $verification) {
+            $txn = PaymentTransaction::where('id', $txn->id)->lockForUpdate()->first();
+
+            if ($txn->status === 'success') {
+                return response()->json(['success' => true, 'message' => 'Payment already verified.']);
+            }
+
+            $txn->update(['status' => 'success', 'metadata' => array_merge($txn->metadata ?? [], ['verification_data' => $verification['data']])]);
+
+            $user = User::find($txn->metadata['user_id'] ?? Auth::id());
+
+            // Create or Update Subscription
+            $interval = $txn->metadata['interval'] ?? 'monthly';
+            $sub = Subscription::create([
+                'user_id' => $user ? $user->id : Auth::id(),
+                'plan_name' => $txn->metadata['plan_name'],
+                'start_date' => now(),
+                'end_date' => ($interval === 'yearly') ? now()->addYear() : now()->addMonth(),
+                'status' => 'active',
+                'license_key' => 'DRX-' . strtoupper(bin2hex(random_bytes(8))),
+            ]);
+
+            $txn->update(['subscription_id' => $sub->id]);
+
+            // Deduct applied credits
+            $creditsApplied = (float) ($txn->metadata['credits_applied'] ?? 0);
+            if ($creditsApplied > 0 && $user) {
+                $user->deductCredits($creditsApplied, "Applied credits to offset subscription to " . $txn->metadata['plan_name']);
+            }
+
+            // Award referral credits
+            if ($user && $user->referred_by_id) {
+                $referralConfig = SystemConfig::getVal('referral_program', []);
+                if ($referralConfig && ($referralConfig['enabled'] ?? false)) {
+                    $trigger = $referralConfig['reward_trigger'] ?? 'recurring';
+                    $isFirstTime = Subscription::where('user_id', $user->id)->count() <= 1;
+
+                    if ($trigger === 'recurring' || ($trigger === 'first' && $isFirstTime)) {
+                        $rewardPercentage = (float) ($referralConfig['reward_percentage'] ?? 10.0);
+                        $rewardAmount = (float) $txn->amount * ($rewardPercentage / 100);
+
+                        $referrer = $user->referredBy;
+                        if ($referrer && $rewardAmount > 0) {
+                            $referrer->addCredits(
+                                $rewardAmount,
+                                "Referral reward from " . $user->name . " subscribing to " . $txn->metadata['plan_name'],
+                                $user->id
+                            );
+                        }
+                    }
+                }
+            }
+
+            // Record coupon usage if present
+            if (!empty($txn->metadata['coupon_code'])) {
+                $coupon = Coupon::where('code', $txn->metadata['coupon_code'])->first();
+                if ($coupon && $user) {
+                    $subscriptionService = app(SubscriptionService::class);
+                    $subscriptionService->recordCouponUsage($coupon, $user, $sub);
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Payment verified and subscription activated.',
+                'subscription' => $sub
+            ]);
+        });
     }
 
     #[OA\Get(

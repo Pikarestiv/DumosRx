@@ -118,14 +118,38 @@ export function useProcessReturnMutation() {
 
           if (creditFraction > 0) {
             const creditPortionOfRefund = totalRefund * creditFraction;
+
+            // The credit portion of a return is debt forgiveness, not a
+            // collection event, but applyCreditPaymentFIFO() computes what a
+            // sale still owes as `total_amount - amount_paid`. Without also
+            // crediting that forgiven amount against amount_paid here, this
+            // sale's remaining balance would stay overstated by exactly the
+            // returned amount even though the customer no longer owes it -
+            // and once payment_status below flips to refunded/
+            // partially_refunded, a later credit payment would then have
+            // nothing left to correctly apply it against.
+            const owed = Math.max(
+              0,
+              (sale.total_amount || 0) - (sale.amount_paid || 0),
+            );
+            // Cap the debt forgiveness at what this sale actually still owes -
+            // crediting the customer's outstanding_balance by the full
+            // creditPortionOfRefund (rather than the capped `forgiven` amount)
+            // would over-credit the customer whenever the sale was already
+            // partially paid, silently eating into their other sales' debt.
+            const forgiven = Math.min(owed, creditPortionOfRefund);
+
             const balanceRows = await getCustomerBalance(sale.customer_id);
             const currentBalance = balanceRows[0]?.balance || 0;
             await update("customers", sale.customer_id, {
-              outstanding_balance: Math.max(
-                0,
-                currentBalance - creditPortionOfRefund,
-              ),
+              outstanding_balance: Math.max(0, currentBalance - forgiven),
             });
+
+            if (forgiven > 0) {
+              await update("sales", sale.id, {
+                amount_paid: Math.round(((sale.amount_paid || 0) + forgiven) * 100) / 100,
+              });
+            }
           }
 
           // A return must also undo its proportional share of whatever this

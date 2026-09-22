@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -27,6 +28,7 @@ import { useRouter } from "next/navigation";
 import { useOnlineOrdersModal } from "@/lib/store/use-online-orders-modal";
 import { useIsTouchDevice } from "@/lib/hooks/use-is-touch-device";
 import { useBroadcasts } from "@/lib/hooks/use-broadcasts";
+import { queryKeys } from "@/lib/query-keys";
 import type { Broadcast } from "@/lib/types/broadcast";
 import { cn } from "@/lib/utils";
 
@@ -71,12 +73,22 @@ export function NotificationBell() {
   const { user, isCloudLinked } = useAuth();
   const { storeProfile } = useStore();
   const router = useRouter();
+  const queryClient = useQueryClient();
   // Shared with BroadcastBanner (same query key/cache) so both fetch once
   // and poll on one interval instead of duplicating the network call.
   const { data: broadcastsData } = useBroadcasts(storeProfile?.id);
-  const [cloudNotifications, setCloudNotifications] = useState<
-    NotificationItem[]
-  >([]);
+  const { data: cloudNotifications = [] } = useQuery({
+    ...queryKeys.notifications.all(storeProfile?.id),
+    queryFn: async () => {
+      const data = await apiClient.getNotifications();
+      return Array.isArray(data) ? (data as NotificationItem[]) : [];
+    },
+    enabled: !!user && !!isCloudLinked,
+    refetchInterval: 60000,
+  });
+  const readBroadcastsStorageKey = storeProfile?.id
+    ? `dumosrx.readBroadcastIds.${storeProfile.id}`
+    : null;
   const [readBroadcastIds, setReadBroadcastIds] = useState<string[]>([]);
   const { onOpen } = useOnlineOrdersModal();
   // Touch capability decides Drawer vs Dropdown, not viewport width. A wide
@@ -89,21 +101,17 @@ export function NotificationBell() {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    if (!user || !isCloudLinked) return;
-    const fetchCloudNotifications = async () => {
-      try {
-        const data = await apiClient.getNotifications();
-        setCloudNotifications(Array.isArray(data) ? data : []);
-      } catch (e) {
-        console.error("Failed to fetch notifications", e);
-      }
-    };
-    void fetchCloudNotifications();
-    const interval = setInterval(() => {
-      void fetchCloudNotifications();
-    }, 60000); // Poll every minute
-    return () => clearInterval(interval);
-  }, [user, isCloudLinked]);
+    if (!readBroadcastsStorageKey) {
+      setReadBroadcastIds([]);
+      return;
+    }
+    try {
+      const raw = localStorage.getItem(readBroadcastsStorageKey);
+      setReadBroadcastIds(raw ? (JSON.parse(raw) as string[]) : []);
+    } catch {
+      setReadBroadcastIds([]);
+    }
+  }, [readBroadcastsStorageKey]);
 
   const notifications = useMemo(() => {
     const finalBroadcasts = Array.isArray(broadcastsData) ? broadcastsData : [];
@@ -124,11 +132,25 @@ export function NotificationBell() {
   const markAsRead = async (id: string) => {
     try {
       if (id.startsWith('broadcast-')) {
-        setReadBroadcastIds(prev => prev.includes(id) ? prev : [...prev, id]);
+        setReadBroadcastIds(prev => {
+          if (prev.includes(id)) return prev;
+          const next = [...prev, id];
+          if (readBroadcastsStorageKey) {
+            try {
+              localStorage.setItem(readBroadcastsStorageKey, JSON.stringify(next));
+            } catch (e) {
+              console.error("Failed to persist read broadcast id", e);
+            }
+          }
+          return next;
+        });
         return;
       }
       await apiClient.markNotificationRead(id);
-      setCloudNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+      queryClient.setQueryData<NotificationItem[]>(
+        queryKeys.notifications.all(storeProfile?.id).queryKey,
+        (prev) => (prev ?? []).map((n) => (n.id === id ? { ...n, isRead: true } : n)),
+      );
     } catch (e) {
       console.error(e);
     }

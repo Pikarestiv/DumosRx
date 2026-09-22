@@ -8,7 +8,7 @@ import { SELF_PURCHASE_VENDOR_ID } from "@/components/procurement/po-details-fie
 import { PODetailsDialog } from "@/components/procurement/po-details-dialog";
 import { POMobileCreateView } from "@/components/procurement/po-mobile-create-view";
 import { PODesktopCreateView } from "@/components/procurement/po-desktop-create-view";
-import { getLineTotal } from "@/components/procurement/po-line-item-math";
+import { getLineTotal, getValidatedAmountPaid } from "@/components/procurement/po-line-item-math";
 import { RequireRole } from "@/components/auth/require-role";
 import { toast } from "sonner";
 
@@ -151,7 +151,7 @@ function CreateOrderContent() {
           notes,
           items,
           paymentStatus,
-          amountPaid: paymentStatus !== "unpaid" ? Number(amountPaid) || 0 : 0,
+          amountPaid: paymentStatus !== "unpaid" ? getValidatedAmountPaid(amountPaid, totalAmount) : 0,
           dueDate: dueDate || null,
         },
         {
@@ -174,7 +174,7 @@ function CreateOrderContent() {
           notes,
           items,
           paymentStatus,
-          amountPaid: paymentStatus !== "unpaid" ? Number(amountPaid) || 0 : 0,
+          amountPaid: paymentStatus !== "unpaid" ? getValidatedAmountPaid(amountPaid, totalAmount) : 0,
           dueDate: dueDate || null,
         },
         {
@@ -217,7 +217,7 @@ function CreateOrderContent() {
         notes,
         items,
         paymentStatus,
-        amountPaid: paymentStatus !== "unpaid" ? Number(amountPaid) || 0 : 0,
+        amountPaid: paymentStatus !== "unpaid" ? getValidatedAmountPaid(amountPaid, totalAmount) : 0,
         dueDate: dueDate || null,
         type: poType,
       },

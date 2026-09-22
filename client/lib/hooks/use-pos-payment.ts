@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { insert, update, transaction as runInTransaction } from "@/lib/db/local-database";
+import { generateShortId } from "@/lib/db/core";
 import { getCustomerBalance } from "@/lib/db/queries/customers";
 import { recordSaleItemStock } from "@/lib/db/queries/inventory";
 import { updatePrescriptionStatus, dispensePrescriptionRefill } from "@/lib/db/queries/prescriptions";
@@ -13,6 +14,8 @@ import {
   computeResellerCommission,
   applyLoyaltyPointsForSale,
   buildReceiptTransaction,
+  InsufficientLoyaltyPointsError,
+  LoyaltyRedemptionBelowMinimumError,
   type PaymentMethod,
   type PaymentSplit,
 } from "./use-pos-payment-helpers";
@@ -55,6 +58,12 @@ interface UsePOSPaymentProps {
   /** Store-configurable base earn rate (points per currency unit spent),
    * before any loyalty-tier multiplier is applied. */
   loyaltyPointsPerCurrency?: number;
+  /** Called when the sale is rejected because the customer's real current
+   * points balance can't cover the redemption picked earlier in checkout
+   * (see InsufficientLoyaltyPointsError) - the caller should clear the
+   * stale redemption so retrying the same sale doesn't hit the same
+   * rejection again. */
+  onInsufficientLoyaltyPoints?: () => void;
 }
 
 export function usePOSPayment({
@@ -80,6 +89,7 @@ export function usePOSPayment({
   isResellerSale = false,
   resellerCommissionPercentage = 0,
   loyaltyPointsPerCurrency = 0.01,
+  onInsufficientLoyaltyPoints,
 }: UsePOSPaymentProps) {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   const [amountPaid, setAmountPaid] = useState("");
@@ -123,7 +133,12 @@ export function usePOSPayment({
     try {
       const user = JSON.parse(localStorage.getItem("dumos_user") || "{}");
       const cashierId = user?.id || null;
-      const transactionNumber = `TXN${Date.now()}`;
+      // Date.now() collides across two terminals checking out in the same
+      // millisecond (or with clock skew) - transaction_number is UNIQUE NOT
+      // NULL, so the losing terminal's sale hits a constraint violation and
+      // never syncs. generateId() is the same collision-safe id generator
+      // used everywhere else in the app.
+      const transactionNumber = `TXN-${generateShortId()}`;
 
       const earnedPoints = await computeEarnedPoints({
         selectedCustomer,
@@ -290,7 +305,15 @@ export function usePOSPayment({
       toast.success("Transaction completed successfully!");
     } catch (error) {
       console.error("Payment failed", error);
-      toast.error("An error occurred while processing payment");
+      if (
+        error instanceof InsufficientLoyaltyPointsError ||
+        error instanceof LoyaltyRedemptionBelowMinimumError
+      ) {
+        onInsufficientLoyaltyPoints?.();
+        toast.error(`${error.message}. The reward has been removed - please try the sale again.`);
+      } else {
+        toast.error("An error occurred while processing payment");
+      }
     } finally {
       setProcessingPayment(false);
     }

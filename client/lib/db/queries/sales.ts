@@ -93,7 +93,7 @@ export interface HeldTransaction {
 export async function getHeldTransactions() {
   const storeId = getActiveStoreId();
   return query<HeldTransaction>(
-    `SELECT * FROM held_transactions${storeId ? " WHERE store_id = ?" : ""} ORDER BY created_at DESC`,
+    `SELECT * FROM held_transactions WHERE (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""} ORDER BY created_at DESC`,
     storeId ? [storeId] : [],
   );
 }
@@ -101,7 +101,7 @@ export async function getHeldTransactions() {
 export async function getHeldTransactionCount() {
   const storeId = getActiveStoreId();
   const result = await query<{ count: number }>(
-    `SELECT COUNT(*) as count FROM held_transactions${storeId ? " WHERE store_id = ?" : ""}`,
+    `SELECT COUNT(*) as count FROM held_transactions WHERE (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}`,
     storeId ? [storeId] : [],
   );
   return result[0]?.count || 0;
@@ -282,8 +282,20 @@ export async function getRecentSales(
 
 export async function getRecentlySoldProductIds() {
   const storeId = getActiveStoreId();
+  // `SELECT DISTINCT product_id ... ORDER BY created_at` orders a column
+  // that isn't part of the DISTINCT result set, so SQLite is free to pick an
+  // arbitrary representative row per product - it can drop the
+  // most-recently-sold product entirely instead of ranking by its actual
+  // latest sale. Aggregating the true latest created_at per product first,
+  // then ordering by that, fixes the ordering without changing the result
+  // set (still one row per product_id).
   const data = await query<{ product_id: string }>(
-    `SELECT DISTINCT product_id FROM sale_items${storeId ? " WHERE store_id = ?" : ""} ORDER BY created_at DESC LIMIT 5`,
+    `SELECT product_id FROM (
+       SELECT product_id, MAX(created_at) as last_sold_at
+       FROM sale_items${storeId ? " WHERE store_id = ?" : ""}
+       GROUP BY product_id
+     )
+     ORDER BY last_sold_at DESC LIMIT 5`,
     storeId ? [storeId] : [],
   );
   return data.map((d) => d.product_id);
@@ -319,8 +331,21 @@ export async function getDailyCloseData(reportDate: string) {
     storeId ? [startIso, endIso, storeId] : [startIso, endIso],
   );
 
+  // Uses the sale-time cost_price (pre-aggregated per (sale_id, product_id)
+  // to stay correct when a sale has >1 sale_items row for the same
+  // product), not a recomputed current-stock average — see the matching
+  // fix on returnedCogsData/rawMonthlyReturns in reports.ts. return_items
+  // has no cost_price column of its own, so a `||` fallback here would
+  // always fire and silently use today's stock cost instead of the cost
+  // actually recorded at sale time.
   const returnItemsToday = await query<ReturnItemDetail & { med_cost_price?: number }>(
-    `SELECT ri.*, IFNULL((SELECT SUM(cost_price * quantity) * 1.0 / NULLIF(SUM(quantity), 0) FROM stock_batches WHERE product_id = ri.product_id AND is_active = 1 AND _deleted = 0), 0) as med_cost_price FROM return_items ri JOIN returns r ON ri.return_id = r.id LEFT JOIN products m ON ri.product_id = m.id WHERE r.created_at >= ? AND r.created_at <= ? AND (ri._deleted = 0 OR ri._deleted IS NULL) AND (r._deleted = 0 OR r._deleted IS NULL)${storeId ? " AND ri.store_id = ?" : ""}`,
+    `SELECT ri.*, IFNULL(si.avg_cost_price, 0) as med_cost_price
+     FROM return_items ri
+     JOIN returns r ON ri.return_id = r.id
+     LEFT JOIN products m ON ri.product_id = m.id
+     LEFT JOIN (SELECT sale_id, product_id, SUM(cost_price * quantity) * 1.0 / NULLIF(SUM(quantity), 0) as avg_cost_price FROM sale_items GROUP BY sale_id, product_id) si
+       ON si.sale_id = r.sale_id AND si.product_id = ri.product_id
+     WHERE r.created_at >= ? AND r.created_at <= ? AND (ri._deleted = 0 OR ri._deleted IS NULL) AND (r._deleted = 0 OR r._deleted IS NULL)${storeId ? " AND ri.store_id = ?" : ""}`,
     storeId ? [startIso, endIso, storeId] : [startIso, endIso],
   );
 

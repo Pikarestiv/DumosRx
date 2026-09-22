@@ -10,8 +10,8 @@ export async function getProductsWithDetails() {
     `SELECT m.*, c.name as category_name,
        (SELECT SUM(quantity) FROM stock_batches WHERE product_id = m.id AND _deleted = 0 AND is_active = 1) as stock_quantity,
        (SELECT SUM(cost_price * quantity) * 1.0 / NULLIF(SUM(quantity), 0) FROM stock_batches WHERE product_id = m.id AND _deleted = 0 AND is_active = 1 AND quantity > 0) as cost_price,
-       (SELECT expiry_date FROM stock_batches WHERE product_id = m.id AND _deleted = 0 AND quantity > 0 ORDER BY expiry_date ASC LIMIT 1) as expiry_date,
-       (SELECT batch_number FROM stock_batches WHERE product_id = m.id AND _deleted = 0 AND quantity > 0 ORDER BY expiry_date ASC LIMIT 1) as batch_number,
+       (SELECT expiry_date FROM stock_batches WHERE product_id = m.id AND _deleted = 0 AND is_active = 1 AND quantity > 0 ORDER BY expiry_date ASC LIMIT 1) as expiry_date,
+       (SELECT batch_number FROM stock_batches WHERE product_id = m.id AND _deleted = 0 AND is_active = 1 AND quantity > 0 ORDER BY expiry_date ASC LIMIT 1) as batch_number,
        (SELECT MAX(reconciled_at) FROM stock_audits WHERE product_id = m.id AND _deleted = 0 AND status = 'reconciled') as last_audited_at
      FROM products m
      LEFT JOIN categories c ON m.category_id = c.id
@@ -99,7 +99,7 @@ export async function getProductsWithStock(): Promise<POSProduct[]> {
     `SELECT p.*, c.name as category_name, COALESCE(SUM(sb.quantity), 0) as stock_quantity, GROUP_CONCAT(sb.batch_number, ', ') as batch_number, SUM(sb.cost_price * sb.quantity) * 1.0 / NULLIF(SUM(sb.quantity), 0) as avg_cost_price
      FROM products p
      LEFT JOIN categories c ON p.category_id = c.id AND c._deleted = 0
-     LEFT JOIN stock_batches sb ON p.id = sb.product_id AND sb._deleted = 0 AND sb.is_active = 1
+     LEFT JOIN stock_batches sb ON p.id = sb.product_id AND sb._deleted = 0 AND sb.is_active = 1 AND (sb.expiry_date IS NULL OR sb.expiry_date = '' OR date(sb.expiry_date) > date('now'))
      WHERE p._deleted = 0${storeId ? " AND p.store_id = ?" : ""}
      GROUP BY p.id
      ORDER BY p.name ASC`,

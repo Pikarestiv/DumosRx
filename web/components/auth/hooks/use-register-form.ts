@@ -1,10 +1,11 @@
 import { useState, useRef } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { toast } from "sonner";
 import { webApiClient } from "@/lib/api/client";
+import { getAppURL } from "@/lib/constants";
 
 export const registerSchema = z
   .object({
@@ -40,7 +41,6 @@ export const registerSchema = z
 export type RegisterFormValues = z.infer<typeof registerSchema>;
 
 export function useRegisterForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -78,17 +78,16 @@ export function useRegisterForm() {
       const payload = agentRef ? { ...values, agent_ref: agentRef } : values;
       const response = await webApiClient.register(payload);
 
-      // Storing whatever came back unchecked meant a success response with no
-      // `token` persisted the literal string "undefined", which then went out
-      // as `Bearer undefined` on every later request and surfaced as a generic
-      // 401 rather than a registration failure.
+      // `token` is read purely as a success signal: a 200 with no usable
+      // token means the account wasn't really provisioned, and saying so
+      // here beats letting the user discover it at the app. It is
+      // deliberately NOT stored anywhere on this origin - see below.
       const token: unknown = response?.token;
       if (typeof token !== "string" || token.length === 0) {
         throw new Error(
           "Registration did not return a valid session. Please try signing in, or contact support if the problem persists."
         );
       }
-      localStorage.setItem("drx_token", token);
 
       if (response.user?.require_email_verification) {
         toast.success(
@@ -98,7 +97,25 @@ export function useRegisterForm() {
         toast.success("Account created successfully!");
       }
 
-      router.push("/dashboard");
+      // The registration bearer token is never written to this origin's
+      // localStorage. dumosrx.com is a public marketing site that also loads
+      // third-party JS (see smartsupp-widget.tsx), and nothing on this origin
+      // has used that token since web/'s own dashboard was removed - so
+      // persisting it only left a live, replayable api.dumosrx.com credential
+      // sitting in localStorage indefinitely for any XSS foothold to read.
+      //
+      // The user is sent to app.dumosrx.com, which is where they already ended
+      // up before (router.push("/dashboard") hit a stub that immediately did
+      // window.location.href = getAppURL()). No handoff code is minted for this
+      // hop on purpose: the app's only handoff consumer is
+      // client/app/auth/callback/page.tsx, and its loginFromHandoff() marks the
+      // arriving session as an IMPERSONATED one (sets isImpersonating, writes
+      // dumos_impersonated_user, and deliberately skips setDbUser) - which for a
+      // brand-new registrant would disable sync, show the impersonation banner
+      // and leave them with no local user record. A fresh registrant's correct
+      // entry point is the app's own onboarding (/setup), which links the cloud
+      // account with the credentials they just chose.
+      window.location.href = getAppURL();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Registration failed. Please try again.");
     } finally {

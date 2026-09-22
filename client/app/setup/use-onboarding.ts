@@ -170,16 +170,79 @@ export function useOnboarding() {
           "INSERT INTO stores (id, name, is_initialized, created_at, updated_at, _synced, auto_sync_enabled, auto_sync_interval) VALUES (?, ?, ?, ?, ?, ?, 1, 30)",
           [storeId, storeName, 1, now, now, 0],
         );
+        // This offline branch inserts via raw execute() rather than the
+        // normal insert() helper (base-helpers.ts), so it must queue its own
+        // _sync_queue row the same way that helper does — otherwise this
+        // store/admin only ever reaches the server via the separate "mark
+        // everything dirty" fallback (local-database.ts), and never syncs at
+        // all if that path is missed.
+        await execute(
+          `INSERT INTO _sync_queue (table_name, record_id, operation, payload, created_at) VALUES (?, ?, ?, ?, ?)`,
+          [
+            "stores",
+            storeId,
+            "INSERT",
+            JSON.stringify({
+              id: storeId,
+              name: storeName,
+              is_initialized: 1,
+              created_at: now,
+              updated_at: now,
+              auto_sync_enabled: 1,
+              auto_sync_interval: 30,
+            }),
+            now,
+          ],
+        );
       } else {
         await execute(
           "UPDATE stores SET name = ?, is_initialized = 1, updated_at = ? WHERE id = ?",
           [storeName, now, storeId],
+        );
+        // Same rationale as the INSERT branch above: raw execute() bypasses
+        // the normal update() helper's automatic _sync_queue write, so this
+        // offline UPDATE must queue its own row too.
+        await execute(
+          `INSERT INTO _sync_queue (table_name, record_id, operation, payload, created_at) VALUES (?, ?, ?, ?, ?)`,
+          [
+            "stores",
+            storeId,
+            "UPDATE",
+            JSON.stringify({
+              id: storeId,
+              name: storeName,
+              is_initialized: 1,
+              updated_at: now,
+            }),
+            now,
+          ],
         );
       }
 
       await execute(
         "INSERT INTO users (id, first_name, last_name, username, pin, role, store_id, is_active, created_at, updated_at, _synced) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         [userId, firstName, lastName, username, pin, "admin", storeId, 1, now, now, 0],
+      );
+      await execute(
+        `INSERT INTO _sync_queue (table_name, record_id, operation, payload, created_at) VALUES (?, ?, ?, ?, ?)`,
+        [
+          "users",
+          userId,
+          "INSERT",
+          JSON.stringify({
+            id: userId,
+            first_name: firstName,
+            last_name: lastName,
+            username,
+            pin,
+            role: "admin",
+            store_id: storeId,
+            is_active: 1,
+            created_at: now,
+            updated_at: now,
+          }),
+          now,
+        ],
       );
 
       toast.success(`${storeName} configured and administrator created!`);

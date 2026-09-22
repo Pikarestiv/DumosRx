@@ -70,9 +70,26 @@ vi.mock('@/lib/db/local-database', () => ({
       return p && p.store_id === params[1] ? [p] : [];
     }
     if (sql.includes('FROM stock_batches') && sql.includes('WHERE product_id = ?') && sql.includes('quantity > 0')) {
+      const [productId, storeId] = params as string[];
+      const today = new Date().toISOString().slice(0, 10);
       return Object.values(batches)
-        .filter((b) => b.product_id === params[0] && b.quantity > 0 && !b._deleted)
-        .sort((a, b) => (a.expiry_date || '').localeCompare(b.expiry_date || '') || (a.created_at || '').localeCompare(b.created_at || ''));
+        .filter(
+          (b) =>
+            b.product_id === productId &&
+            b.store_id === storeId &&
+            b.quantity > 0 &&
+            !b._deleted &&
+            (!b.expiry_date || b.expiry_date === '' || b.expiry_date > today),
+        )
+        .sort((a, b) => {
+          const aNull = !a.expiry_date ? 1 : 0;
+          const bNull = !b.expiry_date ? 1 : 0;
+          if (aNull !== bNull) return aNull - bNull;
+          return (
+            (a.expiry_date || '').localeCompare(b.expiry_date || '') ||
+            (a.created_at || '').localeCompare(b.created_at || '')
+          );
+        });
     }
     if (sql.includes('FROM products WHERE barcode = ?')) {
       const found = Object.values(products).find(
@@ -136,7 +153,7 @@ vi.mock('@/lib/db/local-database', () => ({
 }));
 
 import { transferStock } from '@/lib/db/queries/stock-transfers';
-import { update as mockedUpdate } from '@/lib/db/local-database';
+import { update as mockedUpdate, insert as mockedInsert } from '@/lib/db/local-database';
 
 describe('transferStock', () => {
   beforeEach(() => {
@@ -194,6 +211,27 @@ describe('transferStock', () => {
       { quantity: 30 },
       { storeId: 's1' },
     );
+
+    // Low-severity fix (docs/KNOWN_BUGS.md): every insert() this function
+    // makes on behalf of a specific store must also pass that store as an
+    // explicit options.storeId, so the resulting audit_logs row (see
+    // logAction() in core.ts) is attributed to the store the write actually
+    // belongs to, not whatever store happens to be globally "active" in the
+    // UI during a cross-store transfer.
+    const insertCalls = vi.mocked(mockedInsert).mock.calls;
+    const destBatchCall = insertCalls.find(([table]: [string, ...unknown[]]) => table === 'stock_batches');
+    const transferOutCall = insertCalls.find(
+      ([table, data]: [string, Record<string, unknown>, ...unknown[]]) =>
+        table === 'stock_movements' && data.movement_type === 'transfer_out',
+    );
+    const transferInCall = insertCalls.find(
+      ([table, data]: [string, Record<string, unknown>, ...unknown[]]) =>
+        table === 'stock_movements' && data.movement_type === 'transfer_in',
+    );
+
+    expect(destBatchCall?.[2]).toEqual({ storeId: 's2' });
+    expect(transferOutCall?.[2]).toEqual({ storeId: 's1' });
+    expect(transferInCall?.[2]).toEqual({ storeId: 's2' });
   });
 
   it('rejects a transfer that exceeds available stock, writing nothing', async () => {
@@ -282,6 +320,71 @@ describe('transferStock', () => {
     // override, not just the first one.
     expect(mockedUpdate).toHaveBeenCalledWith('stock_batches', 'b1', { quantity: 0 }, { storeId: 's1' });
     expect(mockedUpdate).toHaveBeenCalledWith('stock_batches', 'b2', { quantity: 10 }, { storeId: 's1' });
+  });
+
+  it('never draws expired or already-sold-out other-store batches, and skips expired stock even when it sorts first', async () => {
+    products['p1'] = { id: 'p1', name: 'Amoxicillin', store_id: 's1' };
+    // Expired batch (would otherwise sort first under a bare `ORDER BY
+    // expiry_date ASC` with no filter) must be skipped entirely.
+    batches['expired'] = { id: 'expired', product_id: 'p1', quantity: 30, cost_price: 50, expiry_date: '2020-01-01', store_id: 's1' };
+    // A same-product batch sitting in a DIFFERENT store must never be drawn from.
+    batches['other-store'] = { id: 'other-store', product_id: 'p1', quantity: 100, cost_price: 10, expiry_date: '2027-01-01', store_id: 's2' };
+    // The only valid batch: non-expired, correct store.
+    batches['good'] = { id: 'good', product_id: 'p1', quantity: 40, cost_price: 200, expiry_date: '2027-06-01', store_id: 's1' };
+
+    const result = await transferStock({
+      sourceStoreId: 's1',
+      destStoreId: 's2',
+      productId: 'p1',
+      quantity: 10,
+      performedBy: 'user-1',
+    });
+
+    expect(batches['expired'].quantity).toBe(30); // untouched
+    expect(batches['other-store'].quantity).toBe(100); // untouched
+    expect(batches['good'].quantity).toBe(30); // 40 - 10
+    expect(result.averageCostPrice).toBe(200);
+  });
+
+  it('rejects a transfer as insufficient stock when only expired/other-store batches exist', async () => {
+    products['p1'] = { id: 'p1', name: 'Amoxicillin', store_id: 's1' };
+    batches['expired'] = { id: 'expired', product_id: 'p1', quantity: 30, cost_price: 50, expiry_date: '2020-01-01', store_id: 's1' };
+    batches['other-store'] = { id: 'other-store', product_id: 'p1', quantity: 100, cost_price: 10, expiry_date: '2027-01-01', store_id: 's2' };
+
+    await expect(
+      transferStock({ sourceStoreId: 's1', destStoreId: 's2', productId: 'p1', quantity: 5, performedBy: null }),
+    ).rejects.toThrow(/Insufficient stock/);
+  });
+
+  it('rounds the weighted-average cost to the cent instead of writing a long float', async () => {
+    products['p1'] = { id: 'p1', name: 'Vitamin C', store_id: 's1' };
+    batches['b1'] = { id: 'b1', product_id: 'p1', quantity: 1, cost_price: 133.33, expiry_date: '2027-01-01', store_id: 's1' };
+    batches['b2'] = { id: 'b2', product_id: 'p1', quantity: 1, cost_price: 150, expiry_date: '2027-02-01', store_id: 's1' };
+    batches['b3'] = { id: 'b3', product_id: 'p1', quantity: 1, cost_price: 99.99, expiry_date: '2027-03-01', store_id: 's1' };
+
+    const result = await transferStock({
+      sourceStoreId: 's1',
+      destStoreId: 's2',
+      productId: 'p1',
+      quantity: 3,
+      performedBy: null,
+    });
+
+    // Raw average is 127.77333333333334 -- must be rounded to the cent.
+    expect(result.averageCostPrice).toBe(127.77);
+    const destBatch = Object.values(batches).find((b) => b.product_id === result.destProductId);
+    expect(destBatch?.cost_price).toBe(127.77);
+
+    // total_cost is a separate multiplication (rounded average * quantity),
+    // which can itself reintroduce a long float (127.77 * 3 === 383.30999999999995)
+    // if not rounded again before being written to the movement row.
+    const inRow = movements.find((m) => m.movement_type === 'transfer_in');
+    expect(inRow?.total_cost).toBe(383.31);
+
+    const outRows = movements.filter((m) => m.movement_type === 'transfer_out');
+    expect(outRows.find((m) => m.stock_batch_id === 'b1')?.total_cost).toBe(133.33);
+    expect(outRows.find((m) => m.stock_batch_id === 'b2')?.total_cost).toBe(150);
+    expect(outRows.find((m) => m.stock_batch_id === 'b3')?.total_cost).toBe(99.99);
   });
 
   it('throws when the product does not exist in the source store', async () => {

@@ -55,6 +55,28 @@ describe('queryKeys factory', () => {
     const broadcasts = queryKeys.broadcasts.all('store-1');
     expect(broadcasts.meta.tables).toEqual([]);
   });
+
+  // Medium bug fix: reseller-commission-panel.tsx and
+  // transaction-details-dialog.tsx wrote their queryKey by hand
+  // (["resellerCommission", ...] / ["customerById", ...]) instead of going
+  // through this factory, so they carried no store/user suffix even though
+  // their query functions resolve the active store at call time - served
+  // from the wrong store's (or wrong user's) cached data after a switch.
+  it('store/user-suffixes the reseller commission list and pending-total keys', () => {
+    const list = queryKeys.reseller.commissionList();
+    expect(list.queryKey).toEqual(['resellerCommission', 'list', null, null]);
+    expect(list.meta.tables).toEqual(['sales', 'customers']);
+
+    const pendingTotal = queryKeys.reseller.commissionPendingTotal();
+    expect(pendingTotal.queryKey).toEqual(['resellerCommission', 'pendingTotal', null, null]);
+    expect(pendingTotal.meta.tables).toEqual(['sales']);
+  });
+
+  it('store/user-suffixes a customer-by-id lookup', () => {
+    const result = queryKeys.customers.byId('c1');
+    expect(result.queryKey).toEqual(['customerById', 'c1', null, null]);
+    expect(result.meta.tables).toEqual(['customers']);
+  });
 });
 
 // --- Predicate-based invalidation ---

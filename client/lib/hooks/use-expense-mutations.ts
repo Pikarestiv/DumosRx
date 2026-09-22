@@ -1,5 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
 import { insert, update, softDelete } from "@/lib/db/local-database";
+import { roundMoney } from "@/lib/utils/pos-calculations";
 
 interface ExpenseFormData {
   category: string;
@@ -20,9 +21,18 @@ interface SaveExpenseParams {
 export function useSaveExpenseMutation() {
   return useMutation({
     mutationFn: async ({ formData, expenseId, userId }: SaveExpenseParams) => {
+      const parsedAmount = parseFloat(formData.amount);
+      // Defense in depth: the add/edit dialog already rejects a non-numeric
+      // or non-positive amount before calling this mutation, but a REAL
+      // money column shouldn't rely solely on the caller having validated -
+      // and nothing upstream rounds to the cent, so float drift (e.g.
+      // "12.1" + floating-point rounding) could otherwise land un-rounded.
+      if (!(parsedAmount > 0)) {
+        throw new Error("Expense amount must be a positive number");
+      }
       const data = {
         ...formData,
-        amount: parseFloat(formData.amount),
+        amount: roundMoney(parsedAmount),
         covers_months: formData.covers_months ? parseInt(formData.covers_months, 10) : null,
         user_id: userId,
       };
@@ -52,7 +62,11 @@ interface QuickEditExpenseParams {
  * category — a narrower mutation than the full add/edit dialog's payload. */
 export function useQuickEditExpenseMutation() {
   return useMutation({
-    mutationFn: ({ id, amount, category }: QuickEditExpenseParams) =>
-      update("expenses", id, { amount, category }),
+    mutationFn: ({ id, amount, category }: QuickEditExpenseParams) => {
+      if (!(amount > 0)) {
+        throw new Error("Expense amount must be a positive number");
+      }
+      return update("expenses", id, { amount: roundMoney(amount), category });
+    },
   });
 }

@@ -5,6 +5,9 @@ import {
   calculateLoyaltyPointsAfterSale,
   calculateReturnPointsAdjustment,
   getApplicableTierMultiplier,
+  calculateExpiredPoints,
+  calculateAvailablePoints,
+  validateRedemption,
   LOYALTY_RULES,
 } from '@/lib/utils/loyalty-calculator';
 
@@ -123,6 +126,118 @@ describe('Loyalty Calculator', () => {
     it('contains expected default rules', () => {
       expect(LOYALTY_RULES.MIN_REDEMPTION_POINTS).toBe(100);
       expect(LOYALTY_RULES.POINTS_EXPIRY_MONTHS).toBe(12);
+    });
+  });
+
+  describe('validateRedemption (LOYALTY_RULES.MIN_REDEMPTION_POINTS floor)', () => {
+    it('rejects a reward costing less than the minimum, with a message naming the floor', () => {
+      const problem = validateRedemption(50, 5000);
+      expect(problem).toBe('Rewards must cost at least 100 points to redeem');
+    });
+
+    it('rejects rather than silently capping/no-opping — even one point below the floor', () => {
+      expect(validateRedemption(99, 5000)).not.toBeNull();
+    });
+
+    it('allows a reward exactly at the minimum', () => {
+      expect(validateRedemption(LOYALTY_RULES.MIN_REDEMPTION_POINTS, 5000)).toBeNull();
+    });
+
+    it('rejects when the available balance cannot cover an otherwise valid reward', () => {
+      expect(validateRedemption(500, 400)).toBe(
+        'Customer only has 400 unexpired points — this reward costs 500',
+      );
+    });
+
+    it('rejects a zero/negative points cost', () => {
+      expect(validateRedemption(0, 5000)).not.toBeNull();
+    });
+
+    it('honors a custom floor when one is passed', () => {
+      expect(validateRedemption(150, 5000, 200)).toBe(
+        'Rewards must cost at least 200 points to redeem',
+      );
+    });
+  });
+
+  describe('calculateExpiredPoints / calculateAvailablePoints (FIFO per-batch expiry)', () => {
+    const NOW = new Date('2026-09-22T12:00:00.000Z');
+    // 13 months before NOW -> outside the 12-month window.
+    const STALE = '2025-08-01T00:00:00.000Z';
+    // 2 months before NOW -> inside the window.
+    const RECENT = '2026-07-01T00:00:00.000Z';
+
+    it('expires an earn batch older than the expiry window', () => {
+      const ledger = [{ points: 300, type: 'earned', created_at: STALE }];
+      expect(calculateExpiredPoints(ledger, 300, NOW)).toBe(300);
+      expect(calculateAvailablePoints(300, ledger, NOW)).toBe(0);
+    });
+
+    it('keeps a recently-earned batch redeemable', () => {
+      const ledger = [{ points: 300, type: 'earned', created_at: RECENT }];
+      expect(calculateExpiredPoints(ledger, 300, NOW)).toBe(0);
+      expect(calculateAvailablePoints(300, ledger, NOW)).toBe(300);
+    });
+
+    it('expires only the stale batch when old and new earns are mixed', () => {
+      const ledger = [
+        { points: 300, type: 'earned', created_at: STALE },
+        { points: 200, type: 'earned', created_at: RECENT },
+      ];
+      expect(calculateExpiredPoints(ledger, 500, NOW)).toBe(300);
+      expect(calculateAvailablePoints(500, ledger, NOW)).toBe(200);
+    });
+
+    it('drains the oldest batches first, so a past redemption already consumed the stale points', () => {
+      const ledger = [
+        { points: 300, type: 'earned', created_at: STALE },
+        { points: 200, type: 'earned', created_at: RECENT },
+        { points: -300, type: 'redeemed', created_at: RECENT },
+      ];
+      // The 300 redeemed came out of the stale batch (FIFO), leaving only the
+      // 200 recent points — nothing left to expire.
+      expect(calculateExpiredPoints(ledger, 200, NOW)).toBe(0);
+      expect(calculateAvailablePoints(200, ledger, NOW)).toBe(200);
+    });
+
+    it('does not expire the same stale batch twice once an expiry row is recorded', () => {
+      const ledger = [
+        { points: 300, type: 'earned', created_at: STALE },
+        { points: 200, type: 'earned', created_at: RECENT },
+        { points: -300, type: 'expired', created_at: RECENT },
+      ];
+      expect(calculateExpiredPoints(ledger, 200, NOW)).toBe(0);
+    });
+
+    it('never expires a balance with no ledger rows behind it (imported/demo/manual balances)', () => {
+      expect(calculateExpiredPoints([], 5000, NOW)).toBe(0);
+      expect(calculateAvailablePoints(5000, [], NOW)).toBe(5000);
+    });
+
+    it('clamps expiry to the stored balance when the ledger claims more than the balance holds', () => {
+      const ledger = [{ points: 1000, type: 'earned', created_at: STALE }];
+      expect(calculateExpiredPoints(ledger, 120, NOW)).toBe(120);
+      expect(calculateAvailablePoints(120, ledger, NOW)).toBe(0);
+    });
+
+    it('never expires earns with a missing or unparseable created_at', () => {
+      const ledger = [
+        { points: 300, type: 'earned', created_at: null },
+        { points: 100, type: 'earned', created_at: 'not-a-date' },
+      ];
+      expect(calculateExpiredPoints(ledger, 400, NOW)).toBe(0);
+    });
+
+    it('is a no-op for a zero balance or a non-positive expiry window', () => {
+      const ledger = [{ points: 300, type: 'earned', created_at: STALE }];
+      expect(calculateExpiredPoints(ledger, 0, NOW)).toBe(0);
+      expect(calculateExpiredPoints(ledger, 300, NOW, 0)).toBe(0);
+    });
+
+    it('treats a batch earned exactly at the window boundary as still valid', () => {
+      // Exactly 12 months before NOW — not yet past the cutoff.
+      const ledger = [{ points: 300, type: 'earned', created_at: '2025-09-22T12:00:00.000Z' }];
+      expect(calculateExpiredPoints(ledger, 300, NOW)).toBe(0);
     });
   });
 });

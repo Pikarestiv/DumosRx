@@ -74,7 +74,7 @@ describe("usePOSPayment loyalty gating", () => {
     };
   }
 
-  const customer = { id: "c1", first_name: "Jane", loyalty_points: 100 } as any;
+  const customer = { id: "c1", first_name: "Jane", loyalty_points: 200 } as any;
   const cartItem = {
     id: "p1",
     name: "Panadol",
@@ -86,7 +86,7 @@ describe("usePOSPayment loyalty gating", () => {
 
   it("writes no loyalty_transactions rows when canUseLoyaltyProgram is false, even with points earned and a redemption staged", async () => {
     db.run(
-      `INSERT INTO customers (id, first_name, loyalty_points) VALUES ('c1', 'Jane', 100)`,
+      `INSERT INTO customers (id, first_name, loyalty_points) VALUES ('c1', 'Jane', 200)`,
     );
 
     const handle = renderPayment({
@@ -95,7 +95,9 @@ describe("usePOSPayment loyalty gating", () => {
       tax: 0,
       total: 280,
       discount: 20,
-      redeemedOption: { id: "r1", label: "20 off", pointsCost: 50, discountValue: 20 },
+      // pointsCost is at LOYALTY_RULES.MIN_REDEMPTION_POINTS (100): below
+      // that floor applyLoyaltyPointsForSale now rejects the sale outright.
+      redeemedOption: { id: "r1", label: "20 off", pointsCost: 100, discountValue: 20 },
       selectedCustomer: customer,
       clearCart: () => {},
       refetchProducts: () => {},
@@ -116,7 +118,7 @@ describe("usePOSPayment loyalty gating", () => {
 
   it("still writes both earn and redeem loyalty_transactions rows when canUseLoyaltyProgram is true (control case)", async () => {
     db.run(
-      `INSERT INTO customers (id, first_name, loyalty_points) VALUES ('c1', 'Jane', 100)`,
+      `INSERT INTO customers (id, first_name, loyalty_points) VALUES ('c1', 'Jane', 200)`,
     );
 
     const handle = renderPayment({
@@ -125,7 +127,9 @@ describe("usePOSPayment loyalty gating", () => {
       tax: 0,
       total: 280,
       discount: 20,
-      redeemedOption: { id: "r1", label: "20 off", pointsCost: 50, discountValue: 20 },
+      // pointsCost is at LOYALTY_RULES.MIN_REDEMPTION_POINTS (100): below
+      // that floor applyLoyaltyPointsForSale now rejects the sale outright.
+      redeemedOption: { id: "r1", label: "20 off", pointsCost: 100, discountValue: 20 },
       selectedCustomer: customer,
       clearCart: () => {},
       refetchProducts: () => {},

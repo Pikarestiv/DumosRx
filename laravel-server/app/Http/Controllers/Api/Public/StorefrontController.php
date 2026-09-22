@@ -6,12 +6,34 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\StorefrontProductResource;
 use App\Models\Store;
 use App\Models\Product;
+use App\Models\User;
 use App\Services\Payment\PaymentService;
+use App\Services\SubscriptionService;
 use Illuminate\Http\Request;
 use OpenApi\Attributes as OA;
 
 class StorefrontController extends Controller
 {
+    /**
+     * `online_store_enabled` alone isn't enough to gate this: it's a flag
+     * on the store row that stays `1` after the account downgrades off (or
+     * loses) the plan that includes the `store_url` feature, so the public
+     * endpoints must also re-check the owner's current entitlement.
+     */
+    private function storefrontEnabled(Store $store, SubscriptionService $subscriptionService): bool
+    {
+        if (! $store->online_store_enabled) {
+            return false;
+        }
+
+        $owner = User::find($store->user_id);
+        if (! $owner) {
+            return false;
+        }
+
+        return $subscriptionService->hasFeature($owner, 'store_url');
+    }
+
     #[OA\Get(
         path: '/storefront-slugs',
         summary: 'List every store slug with an active online store',
@@ -25,10 +47,41 @@ class StorefrontController extends Controller
     )]
     public function slugs()
     {
-        $slugs = Store::where('status', '!=', 'suspended')
+        $stores = Store::where('status', '!=', 'suspended')
             ->where('online_store_enabled', true)
             ->whereNotNull('store_slug')
-            ->pluck('store_slug');
+            ->get(['store_slug', 'user_id']);
+
+        // Batched rather than one hasFeature()/getSubscriptionOwner() call
+        // per store (each of which runs its own `subscriptions` queries):
+        // this is a public, unauthenticated endpoint, so a platform with
+        // many storefronts shouldn't turn one GET into ~3 queries per store.
+        $systemConfig = \App\Models\SystemConfig::getVal('subscription_plans', []);
+        $graceDays = $systemConfig['grace_period_days'] ?? 3;
+
+        // Matches SubscriptionService::hasFeature()'s own two-step lookup
+        // (a not-yet-expired subscription, or one still within the grace
+        // period) collapsed into the single widest window -- end_date >
+        // now() is a subset of end_date > now()->subDays($graceDays), so the
+        // latest matching row here is the same one hasFeature() would land
+        // on either way.
+        $ownerIds = $stores->pluck('user_id')->unique()->values();
+        $activePlanByOwner = \App\Models\Subscription::whereIn('user_id', $ownerIds)
+            ->where('status', 'active')
+            ->where('end_date', '>', now()->subDays($graceDays))
+            ->orderByDesc('created_at')
+            ->get(['user_id', 'plan_name'])
+            ->unique('user_id')
+            ->pluck('plan_name', 'user_id');
+
+        $slugs = $stores
+            ->filter(function (Store $store) use ($activePlanByOwner, $systemConfig) {
+                $plan = $activePlanByOwner->get($store->user_id, 'free');
+
+                return (bool) ($systemConfig['tiers'][$plan]['features']['store_url'] ?? false);
+            })
+            ->pluck('store_slug')
+            ->values();
 
         return response()->json(['slugs' => $slugs]);
     }
@@ -47,7 +100,7 @@ class StorefrontController extends Controller
             new OA\Response(response: 404, ref: '#/components/responses/NotFound'),
         ],
     )]
-    public function show($store_slug)
+    public function show($store_slug, SubscriptionService $subscriptionService)
     {
         $store = Store::where('store_slug', $store_slug)->firstOrFail();
 
@@ -56,7 +109,7 @@ class StorefrontController extends Controller
             return response()->json(['error' => 'Store unavailable'], 403);
         }
 
-        if (! $store->online_store_enabled) {
+        if (! $this->storefrontEnabled($store, $subscriptionService)) {
             return response()->json(['error' => 'Store unavailable'], 404);
         }
 
@@ -117,7 +170,7 @@ class StorefrontController extends Controller
             new OA\Response(response: 422, ref: '#/components/responses/ValidationError', description: 'Validation failure, or Paystack reference could not be verified / didn\'t cover the order total'),
         ],
     )]
-    public function checkout(Request $request, $store_slug, PaymentService $paymentService)
+    public function checkout(Request $request, $store_slug, PaymentService $paymentService, SubscriptionService $subscriptionService)
     {
         $store = Store::where('store_slug', $store_slug)->firstOrFail();
 
@@ -125,7 +178,7 @@ class StorefrontController extends Controller
             return response()->json(['error' => 'Store unavailable'], 403);
         }
 
-        if (! $store->online_store_enabled) {
+        if (! $this->storefrontEnabled($store, $subscriptionService)) {
             return response()->json(['error' => 'Store unavailable'], 404);
         }
 
@@ -169,6 +222,22 @@ class StorefrontController extends Controller
             ];
         }
 
+        // A verified reference stays "successful" at Paystack forever, so a
+        // caller can replay the same reference into any number of orders
+        // unless we also check it hasn't already been consumed. Checked
+        // regardless of payment_method (not just for 'paystack'): the
+        // reference column is shared and unique across all orders, so a
+        // transfer/in_store order could otherwise consume a reference a
+        // genuine Paystack checkout needs later.
+        if (!empty($validated['paystack_reference'])) {
+            $alreadyUsed = \App\Models\OnlineOrder::where('paystack_reference', $validated['paystack_reference'])->exists();
+            if ($alreadyUsed) {
+                return response()->json([
+                    'message' => 'This payment reference has already been used for another order.',
+                ], 422);
+            }
+        }
+
         $paymentStatus = 'pending';
         if ($validated['payment_method'] === 'paystack') {
             $verification = $paymentService->verifyTransaction($validated['paystack_reference'], 'paystack');
@@ -180,18 +249,30 @@ class StorefrontController extends Controller
             $paymentStatus = 'paid';
         }
 
-        $order = \App\Models\OnlineOrder::create([
-            'store_id' => $store->id,
-            'customer_name' => $validated['customer_name'],
-            'customer_phone' => $validated['customer_phone'],
-            'customer_address' => $validated['customer_address'] ?? null,
-            'total_amount' => $totalAmount,
-            'payment_method' => $validated['payment_method'],
-            'payment_status' => $paymentStatus,
-            'order_status' => 'pending',
-            'paystack_reference' => $validated['paystack_reference'] ?? null,
-            'synced_at' => now(), // Initial sync timestamp
-        ]);
+        try {
+            $order = \App\Models\OnlineOrder::create([
+                'store_id' => $store->id,
+                'customer_name' => $validated['customer_name'],
+                'customer_phone' => $validated['customer_phone'],
+                'customer_address' => $validated['customer_address'] ?? null,
+                'total_amount' => $totalAmount,
+                'payment_method' => $validated['payment_method'],
+                'payment_status' => $paymentStatus,
+                'order_status' => 'pending',
+                'paystack_reference' => $validated['paystack_reference'] ?? null,
+                'synced_at' => now(), // Initial sync timestamp
+            ]);
+        } catch (\Illuminate\Database\QueryException $e) {
+            // Belt-and-braces against the check-then-create race: the
+            // unique index on paystack_reference is the actual source of
+            // truth if two requests for the same reference land concurrently.
+            if (!empty($validated['paystack_reference']) && str_contains($e->getMessage(), 'paystack_reference')) {
+                return response()->json([
+                    'message' => 'This payment reference has already been used for another order.',
+                ], 422);
+            }
+            throw $e;
+        }
 
         $order->items()->createMany($orderItems);
 

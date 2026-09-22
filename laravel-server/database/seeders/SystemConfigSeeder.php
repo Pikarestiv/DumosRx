@@ -112,7 +112,18 @@ class SystemConfigSeeder extends Seeder
                         'stores' => -1,
                         'staff' => -1,
                         'inventories' => -1,
-                        'sync_interval' => 15,
+                        // 0 = instant sync, matching the client's own
+                        // fallback (use-feature-gate.ts's
+                        // getDefaultMinimumSyncIntervalMinutes: isEnterprise
+                        // ? 0 : ...) and web/'s bundled plan defaults
+                        // (subscription-config-defaults.ts). This was
+                        // previously 15, disagreeing with both — a stale
+                        // value nobody had updated here when "Enterprise =
+                        // instant sync" was established elsewhere, which
+                        // made every fresh Enterprise-tier row start with a
+                        // higher effective minimum sync interval than
+                        // intended.
+                        'sync_interval' => 0,
                     ],
                     'features' => [
                         'basic_inventory' => true,

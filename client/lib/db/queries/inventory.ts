@@ -94,7 +94,7 @@ export async function getBatchesForProduct(productId: string) {
   return query<StockBatch>(
     `SELECT * FROM stock_batches
      WHERE product_id = ? AND _deleted = 0 AND is_active = 1 AND quantity > 0
-       AND (expiry_date IS NULL OR date(expiry_date) > date('now'))
+       AND (expiry_date IS NULL OR expiry_date = '' OR date(expiry_date) > date('now'))
      ORDER BY (expiry_date IS NULL) ASC, expiry_date ASC, created_at ASC`,
     [productId],
   );
@@ -129,9 +129,17 @@ export async function getAllActiveBatchesForProduct(productId: string) {
  * on-hand stock going negative, same way an already-negative batch does
  * today) instead of vanishing untracked.
  */
-export async function getAnyActiveBatchForProduct(productId: string) {
+export async function getAnyActiveBatchForProduct(
+  productId: string,
+  options?: { includeExpired?: boolean },
+) {
+  const expiryFilter = options?.includeExpired
+    ? ""
+    : " AND (expiry_date IS NULL OR expiry_date = '' OR date(expiry_date) > date('now'))";
   return query<StockBatch>(
-    "SELECT * FROM stock_batches WHERE product_id = ? AND _deleted = 0 AND is_active = 1 ORDER BY updated_at DESC, created_at DESC LIMIT 1",
+    `SELECT * FROM stock_batches
+     WHERE product_id = ? AND _deleted = 0 AND is_active = 1${expiryFilter}
+     ORDER BY updated_at DESC, created_at DESC LIMIT 1`,
     [productId],
   );
 }
@@ -319,12 +327,12 @@ export async function getLowStockAlerts() {
   }>(
     `SELECT
       m.name as product,
-      SUM(inv.quantity) as quantity,
+      COALESCE(SUM(inv.quantity), 0) as quantity,
       m.reorder_level as threshold,
       m.base_unit as baseUnit
-     FROM stock_batches inv
-     JOIN products m ON inv.product_id = m.id
-     WHERE (inv._deleted = 0 OR inv._deleted IS NULL) AND (m._deleted = 0 OR m._deleted IS NULL)${storeId ? " AND m.store_id = ?" : ""}
+     FROM products m
+     LEFT JOIN stock_batches inv ON inv.product_id = m.id AND (inv._deleted = 0 OR inv._deleted IS NULL)
+     WHERE (m._deleted = 0 OR m._deleted IS NULL)${storeId ? " AND m.store_id = ?" : ""}
      GROUP BY m.id
      HAVING quantity <= m.reorder_level AND m.reorder_level > 0
      ORDER BY quantity ASC
@@ -425,11 +433,22 @@ export async function getStockBatchStats(expiryDays: number = 30) {
         SUM(CASE WHEN (expiry_date IS NULL OR expiry_date = '') AND quantity > 0 THEN 1 ELSE 0 END) as missing_expiry,
         SUM(quantity * cost_price) as total_value
       FROM stock_batches
-      WHERE _deleted = 0 OR _deleted IS NULL
+      -- Scoped to the active store, not just to products of the active store:
+      -- filtering only products.store_id on the join let a batch attributed to
+      -- another store (or to a store_id-less legacy row) that hangs off one of
+      -- this store's products be summed into this store's valuation, on-hand
+      -- quantity, and expiry counts. fetchStockBatchReportData and
+      -- getBIMetrics's stock_batchValueData both scope stock_batches.store_id
+      -- directly (strict equality, no NULL fallback), so the three could
+      -- report different inventory values for the same store. The
+      -- _deleted predicate needs its own parentheses here, otherwise SQL
+      -- precedence turns this into
+      -- "_deleted = 0 OR (_deleted IS NULL AND store_id = ?)".
+      WHERE (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}
       GROUP BY product_id
     ) sb ON p.id = sb.product_id
     WHERE (p._deleted = 0 OR p._deleted IS NULL)${storeId ? " AND p.store_id = ?" : ""}`,
-    storeId ? [expiryDays.toString(), storeId] : [expiryDays.toString()],
+    storeId ? [expiryDays.toString(), storeId, storeId] : [expiryDays.toString()],
   );
   return result[0];
 }
@@ -658,7 +677,15 @@ export async function submitStockAudit(
         // own reconciled counted quantity doesn't match any recorded
         // movement, and there's no trace of where the rest of it went.
         if (remaining > 0) {
-          const [fallbackBatch] = await getAnyActiveBatchForProduct(item.productId);
+          // includeExpired: true - unlike the sale-dispensing fallback (which
+          // correctly excludes expired stock), an audit needs to be able to
+          // write off a shortfall even when the product's only remaining
+          // batches are expired. Without this, a product whose entire stock
+          // has expired would return no fallback batch here and this whole
+          // shrinkage write would be silently skipped.
+          const [fallbackBatch] = await getAnyActiveBatchForProduct(item.productId, {
+            includeExpired: true,
+          });
           if (fallbackBatch) {
             await updateStockBatchQuantity(fallbackBatch.id, -remaining);
             await insert("stock_movements", {
@@ -743,6 +770,10 @@ export async function getFastMovers(days: number = 7) {
     LEFT JOIN previous_period p ON c.id = p.product_id
     ORDER BY soldQuantity DESC
     LIMIT 5`,
+    // previous_period deliberately carries no store filter of its own: it is
+    // only ever reached through the LEFT JOIN on current_period's already
+    // store-scoped product ids, so both sides of percentageChange draw on the
+    // same population (every sale of that product within each window).
     storeId
       ? [days.toString(), days.toString(), days.toString(), storeId, days.toString(), days.toString(), days.toString(), days.toString()]
       : [days.toString(), days.toString(), days.toString(), days.toString(), days.toString(), days.toString(), days.toString()]
@@ -772,14 +803,14 @@ export async function getStockMoM() {
   const added30 = await query<{ total_added?: number }>(`
     SELECT SUM(ABS(quantity) * IFNULL(unit_cost, 0)) as total_added
     FROM stock_movements
-    WHERE created_at >= ? AND movement_type IN ('purchase', 'return') AND (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}
+    WHERE created_at >= ? AND movement_type IN ('purchase', 'return', 'transfer_in') AND (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}
   `, movementParams);
 
   // Value removed in last 30 days
   const removed30 = await query<{ total_removed?: number }>(`
     SELECT SUM(ABS(quantity) * IFNULL(unit_cost, 0)) as total_removed
     FROM stock_movements
-    WHERE created_at >= ? AND movement_type IN ('sale', 'adjustment') AND (_deleted = 0 OR _deleted IS NULL) AND quantity < 0${storeId ? " AND store_id = ?" : ""}
+    WHERE created_at >= ? AND movement_type IN ('sale', 'adjustment', 'transfer_out') AND (_deleted = 0 OR _deleted IS NULL) AND quantity < 0${storeId ? " AND store_id = ?" : ""}
   `, movementParams);
 
   // Adjusted additions from positive adjustments
@@ -789,10 +820,17 @@ export async function getStockMoM() {
     WHERE created_at >= ? AND movement_type = 'adjustment' AND (_deleted = 0 OR _deleted IS NULL) AND quantity > 0${storeId ? " AND store_id = ?" : ""}
   `, movementParams);
 
+  // Same population as getStockBatchStats's total_stock_batch_value (every
+  // non-deleted batch, no is_active filter): this value is the baseline the
+  // "+x% from last month" figure on the "Total stock value" card is measured
+  // against, and that card's value comes from getStockBatchStats. Filtering
+  // on is_active = 1 here made the percentage a ratio between two different
+  // populations - and silently dropped every batch synced down without an
+  // is_active value (NULL), which is neither active nor inactive to SQLite.
   const currentStock = await query<{ total_value?: number }>(`
     SELECT SUM(cost_price * quantity) as total_value
     FROM stock_batches
-    WHERE is_active = 1 AND (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}
+    WHERE (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}
   `, storeId ? [storeId] : []);
 
   const currentVal = currentStock[0]?.total_value || 0;

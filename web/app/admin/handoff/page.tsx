@@ -1,18 +1,31 @@
 "use client";
 
 import { Suspense, useEffect, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Loader2, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 import { webApiClient } from "@/lib/api/client";
 import { useAdminAuthStore, type User } from "@/lib/store/use-admin-auth-store";
 
+/**
+ * The code arrives in the URL fragment (`#code=...`), not the query string:
+ * a fragment is never sent to this host's server, so it stays out of access
+ * logs and out of any Referer header for the 60s it remains redeemable. See
+ * client/app/auth/callback/page.tsx's readHandoffCodes() for the matching
+ * outbound leg.
+ */
+function readHandoffCode(): string | null {
+  if (typeof window === "undefined") return null;
+  return new URLSearchParams(window.location.hash.replace(/^#/, "")).get("code");
+}
+
 function HandoffHandler() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const [error, setError] = useState<string | null>(() =>
-    searchParams.get("code") ? null : "Missing handoff code."
-  );
+  // Starts null rather than probing for the code here: the fragment is only
+  // readable on the client, so deriving initial state from it would render
+  // "Missing handoff code" during prerender and mismatch on hydration. The
+  // effect below sets it instead.
+  const [error, setError] = useState<string | null>(null);
 
   // Guards against React Strict Mode's dev-only double-invoke of mount
   // effects: without this, a second run reads the code this same effect
@@ -26,10 +39,11 @@ function HandoffHandler() {
     if (hasRun.current) return;
     hasRun.current = true;
 
-    const code = searchParams.get("code");
+    const code = readHandoffCode();
     window.history.replaceState({}, "", window.location.pathname);
 
     if (!code) {
+      setError("Missing handoff code.");
       return;
     }
 

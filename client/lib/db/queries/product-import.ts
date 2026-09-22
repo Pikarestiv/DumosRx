@@ -1,27 +1,74 @@
 import { query, transaction, getActiveStoreId, insert, update, createSupplier } from "@/lib/db/local-database";
 import { getCategoryByName, getSupplierByName } from "@/lib/db/queries/products";
-import { submitStockAudit } from "@/lib/db/queries/inventory";
+import { submitStockAudit, getAllActiveBatchesForProduct } from "@/lib/db/queries/inventory";
 import type { ProductImportRow } from "@/lib/utils/product-import-export";
 
 /**
- * Groups row indexes that would collide on import (same dedupe key as
- * importProductRows: name+category, or name alone when no category was
- * mapped). Two rows in the same group would both match the same existing/new
- * product, silently merging what may be two distinct products — the caller
- * surfaces this as a pre-flight warning instead of writing it silently.
+ * Groups row indexes that would collide on import. findExistingProductId()
+ * only trusts a barcode when it actually hits an existing DB row — when it
+ * doesn't, that row falls through to a name+category lookup instead. So a
+ * barcode-only (or name+category-only) key can't predict every real
+ * collision: two rows sharing a barcode that doesn't exist in the DB yet
+ * would only be caught by name+category, and two rows sharing a barcode
+ * that DOES exist would only be caught by the barcode key. Both keys are
+ * computed and unioned (not a single fallback key) so a row is flagged as a
+ * duplicate if it collides under EITHER one. The barcode key is compared
+ * exact/case-sensitive (only trimmed) to match findExistingProductId()'s
+ * `barcode = ?` lookup, which has no COLLATE NOCASE.
  */
 export function findInFileDuplicates(rows: ProductImportRow[]): number[][] {
-  const groups = new Map<string, number[]>();
+  const byBarcode = new Map<string, number[]>();
+  const byNameCategory = new Map<string, number[]>();
+
   rows.forEach((row, index) => {
-    const key = `${row.name.trim().toLowerCase()}::${(row.category || "").trim().toLowerCase()}`;
-    const group = groups.get(key);
-    if (group) {
-      group.push(index);
-    } else {
-      groups.set(key, [index]);
+    const barcode = row.barcode?.trim();
+    if (barcode) {
+      const key = `barcode::${barcode}`;
+      const group = byBarcode.get(key);
+      if (group) group.push(index);
+      else byBarcode.set(key, [index]);
     }
+
+    const nameKey = `name::${row.name.trim().toLowerCase()}::${(row.category || "").trim().toLowerCase()}`;
+    const nameGroup = byNameCategory.get(nameKey);
+    if (nameGroup) nameGroup.push(index);
+    else byNameCategory.set(nameKey, [index]);
   });
-  return [...groups.values()].filter((group) => group.length > 1);
+
+  // Union-find: a row can belong to both a barcode group and a
+  // name+category group, and those two groups need merging whenever they
+  // share a row, so the reported clusters reflect every transitive
+  // collision rather than just one key at a time.
+  const parent = rows.map((_, i) => i);
+  const find = (x: number): number => {
+    while (parent[x] !== x) {
+      parent[x] = parent[parent[x]];
+      x = parent[x];
+    }
+    return x;
+  };
+  const union = (a: number, b: number) => {
+    const ra = find(a);
+    const rb = find(b);
+    if (ra !== rb) parent[ra] = rb;
+  };
+
+  for (const group of byBarcode.values()) {
+    for (let i = 1; i < group.length; i++) union(group[0], group[i]);
+  }
+  for (const group of byNameCategory.values()) {
+    for (let i = 1; i < group.length; i++) union(group[0], group[i]);
+  }
+
+  const clusters = new Map<number, number[]>();
+  rows.forEach((_, index) => {
+    const root = find(index);
+    const cluster = clusters.get(root);
+    if (cluster) cluster.push(index);
+    else clusters.set(root, [index]);
+  });
+
+  return [...clusters.values()].filter((group) => group.length > 1);
 }
 
 async function resolveCategoryId(name: string | undefined): Promise<string | undefined> {
@@ -141,6 +188,21 @@ export async function importProductRows(
           });
           if (options?.updateStockForMatched && row.quantity !== undefined) {
             matchedStockUpdates.set(existingId, { productId: existingId, quantity: row.quantity });
+          }
+          // cost_price lives on stock_batches, not products - there's no
+          // column here to include in the update() above. Re-importing a
+          // corrected price list used to leave margin/COGS reporting on
+          // the stale cost while reporting the row as "updated." Only
+          // correct it when unambiguous (exactly one active batch) - with
+          // more than one, which specific batch(es) a blanket file-level
+          // cost is meant to correct isn't something this import can infer,
+          // and guessing would misattribute cost the same way the
+          // now-fixed returned-COGS averaging bug did.
+          if (row.costPrice !== undefined) {
+            const activeBatches = await getAllActiveBatchesForProduct(existingId);
+            if (activeBatches.length === 1) {
+              await update("stock_batches", activeBatches[0].id, { cost_price: row.costPrice });
+            }
           }
           result.updated++;
           continue;

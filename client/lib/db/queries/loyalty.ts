@@ -1,5 +1,5 @@
-import { query, insert } from "@/lib/db/local-database";
-import { getActiveStoreId } from "@/lib/db/core";
+import { query, insert, update } from "@/lib/db/local-database";
+import { getActiveStoreId, transaction } from "@/lib/db/core";
 
 export interface LoyaltyTierRow {
   id: string;
@@ -98,6 +98,18 @@ export function buildDefaultRedemptionOptions(
   ];
 }
 
+/** The customer's dated points ledger, oldest first — the input to FIFO
+ * points-expiry math (see calculateExpiredPoints). Not store-scoped: the
+ * table has no store_id column, and customer_id is already store-unique. */
+export async function getCustomerLoyaltyLedger(customerId: string) {
+  return query<{ points: number; type: string; created_at: string | null }>(
+    `SELECT points, type, created_at FROM loyalty_transactions
+     WHERE customer_id = ? AND _deleted = 0
+     ORDER BY created_at ASC`,
+    [customerId],
+  );
+}
+
 export async function getLoyaltyTiers() {
   const storeId = getActiveStoreId();
   return query<LoyaltyTierRow>(
@@ -118,22 +130,47 @@ export async function getLoyaltyRedemptionOptions() {
  * Seeds the app's default tiers/redemption options as real, editable rows the
  * first time settings are opened on a store that has never customized them;
  * keeps existing stores' behavior unchanged until they actually edit something.
+ *
+ * Gated on `stores.loyalty_defaults_seeded_at` rather than "are there zero
+ * tiers/options right now" — that count-based check couldn't tell "never
+ * seeded" apart from "a store deliberately deleted every tier," so it
+ * silently reseeded a store that had cleared its tiers on purpose every time
+ * the settings dialog was reopened. Once this flag is set, seeding never
+ * runs again for that store, even if it later has zero tiers. A store
+ * upgrading from before this flag existed still gets exactly one more
+ * grandfather seed-or-skip decision (zero tiers seeds once more, any tiers
+ * present just sets the flag) — an accepted, one-time transition edge case.
  */
 export async function ensureLoyaltyDefaultsSeeded(userId?: string, currencySymbol?: string) {
-  const [tiers, options] = await Promise.all([
-    getLoyaltyTiers(),
-    getLoyaltyRedemptionOptions(),
-  ]);
+  const storeId = getActiveStoreId();
+  if (!storeId) return;
 
-  if (tiers.length === 0) {
-    for (const tier of DEFAULT_LOYALTY_TIERS) {
-      await insert("loyalty_tiers", { ...tier, user_id: userId });
-    }
-  }
+  await transaction(async () => {
+    const stores = await query<{ id: string; loyalty_defaults_seeded_at: string | null }>(
+      "SELECT id, loyalty_defaults_seeded_at FROM stores WHERE id = ?",
+      [storeId],
+    );
+    if (stores.length === 0 || stores[0].loyalty_defaults_seeded_at) return;
 
-  if (options.length === 0) {
-    for (const option of buildDefaultRedemptionOptions(currencySymbol)) {
-      await insert("loyalty_redemption_options", { ...option, user_id: userId });
+    const [tiers, options] = await Promise.all([
+      getLoyaltyTiers(),
+      getLoyaltyRedemptionOptions(),
+    ]);
+
+    if (tiers.length === 0) {
+      for (const tier of DEFAULT_LOYALTY_TIERS) {
+        await insert("loyalty_tiers", { ...tier, user_id: userId });
+      }
     }
-  }
+
+    if (options.length === 0) {
+      for (const option of buildDefaultRedemptionOptions(currencySymbol)) {
+        await insert("loyalty_redemption_options", { ...option, user_id: userId });
+      }
+    }
+
+    await update("stores", storeId, {
+      loyalty_defaults_seeded_at: new Date().toISOString(),
+    });
+  });
 }

@@ -7,7 +7,10 @@ import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api/client";
 import { WEB_APP_URL } from "@/lib/constants";
 
-const RETURN_CODE_KEY = "impersonator_handoff_return_code";
+import {
+  IMPERSONATED_USER_STORAGE_KEY as IMPERSONATED_USER_KEY,
+  IMPERSONATOR_RETURN_CODE_KEY as RETURN_CODE_KEY,
+} from "@/lib/utils/impersonation";
 
 export function ImpersonationBanner() {
   const [isImpersonating, setIsImpersonating] = useState(false);
@@ -34,9 +37,13 @@ export function ImpersonationBanner() {
       const { code } = await apiClient.createHandoffCode(adminToken);
 
       localStorage.removeItem(RETURN_CODE_KEY);
+      localStorage.removeItem(IMPERSONATED_USER_KEY);
       apiClient.clearToken();
 
-      window.location.href = `${WEB_APP_URL}/admin/handoff?code=${code}`;
+      // Fragment, not query string: never reaches web/admin/handoff's server
+      // access logs or a Referer header (see the outbound leg in
+      // web/app/admin/stores/page.tsx for the same reasoning).
+      window.location.href = `${WEB_APP_URL}/admin/handoff#code=${code}`;
     } catch (_error) {
       // The stored return code is single-use and short-lived (see its
       // creation in the superadmin panel) — if it's already expired or was

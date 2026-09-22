@@ -7,6 +7,10 @@ import { query, execute } from "../core";
 import { getValidColumns } from "./schema";
 import { devLog } from "@/lib/utils/dev-log";
 import { logCrash } from "@/lib/utils/error-logger";
+import {
+  isImpersonatedSession,
+  SYNC_DISABLED_IMPERSONATION_MESSAGE,
+} from "@/lib/utils/impersonation";
 
 let isSyncInProgress = false;
 
@@ -27,6 +31,25 @@ export async function sync(
       pushed: 0,
       pulled: 0,
       error: "Sync already in progress",
+    };
+  }
+
+  // Impersonation (a superadmin handing off into a store's app, see
+  // app/auth/callback/page.tsx + auth-context's loginFromHandoff) exists for
+  // read-only support/troubleshooting visibility, never for transacting on a
+  // store's behalf. Syncing during such a session would push local writes and
+  // pull-overwrite local state under ambiguous attribution, bypassing the
+  // store owner's own auto-sync settings and audit trail. Gated here rather
+  // than in the sync indicator's UI so no call site can bypass it — manual
+  // button, auto-sync interval/instant listener, store switch, license guard,
+  // the PIN-recovery sync, onboarding's post-restore sync — present or future.
+  if (isImpersonatedSession()) {
+    devLog("[SyncEngine] Sync skipped: impersonated session is read-only.");
+    return {
+      success: false,
+      pushed: 0,
+      pulled: 0,
+      error: SYNC_DISABLED_IMPERSONATION_MESSAGE,
     };
   }
 

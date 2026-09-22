@@ -401,7 +401,16 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
                   `animate-in ${animationClass} fade-in duration-200`,
               )}
             >
-              {children}
+              {/* Unmounted, not just visually covered, while locked: the
+                  lock overlay above is a fixed inset-0 layer, but leaving
+                  `children` mounted underneath kept the previous user's data
+                  on screen in the DOM and left every page-level polling/
+                  refetch hook in the current route still running while the
+                  device was supposedly locked (see docs/KNOWN_BUGS.md).
+                  Unmounting drops both; remounting on unlock is cheap and
+                  expected here, the same way switching routes already
+                  remounts this same subtree via the `key={pathname}` above. */}
+              {!isLocked && children}
             </div>
           </main>
         </div>

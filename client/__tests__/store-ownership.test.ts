@@ -201,6 +201,49 @@ describe("update()/softDelete() store-ownership check", () => {
   });
 
   /**
+   * Low-severity fix (docs/KNOWN_BUGS.md): logAction() used to read the
+   * global active-store resolver directly, regardless of any
+   * options.storeId override already passed to update()/insert() for the
+   * actual data write — so a cross-store write (e.g. stock-transfers.ts's
+   * transferStock(), writing the source store's row while some OTHER store
+   * is globally "active") produced a correctly-scoped data row but an
+   * audit_logs entry attributed to the wrong store. logAction() now accepts
+   * the same override, threaded through from update()/insert()'s options.
+   */
+  describe("logAction() store attribution", () => {
+    function readLatestAuditLogStoreId(): string | null {
+      const res = db.exec(
+        `SELECT store_id FROM audit_logs ORDER BY created_at DESC, rowid DESC LIMIT 1`,
+      );
+      return (res[0]?.values[0]?.[0] as string | null) ?? null;
+    }
+
+    it("attributes an update()'s audit log entry to options.storeId, not the global active store", async () => {
+      insertCategory("c1", "Drugs", "store-b");
+      core.setActiveStoreId("store-a"); // globally active store...
+
+      // ...but this write is explicitly authorized/attributed to store-b.
+      await update(
+        "categories",
+        "c1",
+        { name: "Cross-Store Edit" },
+        { storeId: "store-b" },
+      );
+
+      expect(readLatestAuditLogStoreId()).toBe("store-b");
+    });
+
+    it("still falls back to the global active store when no override is given", async () => {
+      insertCategory("c1", "Drugs", "store-a");
+      core.setActiveStoreId("store-a");
+
+      await update("categories", "c1", { name: "Ordinary Edit" });
+
+      expect(readLatestAuditLogStoreId()).toBe("store-a");
+    });
+  });
+
+  /**
    * remove() (hard delete) — the same ownership check as update()/
    * softDelete(), with one deliberate difference for the legacy-NULL case:
    * a hard delete destroys the row outright, so "claim it, then destroy it"

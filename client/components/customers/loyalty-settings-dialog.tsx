@@ -87,14 +87,19 @@ export function LoyaltySettingsDialog({ open, onOpenChange }: Props) {
     setEarnRateInput(String(perCurrency * 100));
   }, [open, storeProfile?.loyalty_points_per_currency]);
 
-  const handleSaveEarnRate = () => {
+  const handleSaveEarnRate = async () => {
     const per100 = Number.parseFloat(earnRateInput);
     if (!Number.isFinite(per100) || per100 < 0) {
       toast.error("Enter a valid, non-negative earn rate.");
       return;
     }
-    void updateStoreProfile({ loyalty_points_per_currency: per100 / 100 });
-    toast.success("Earn rate updated");
+    try {
+      await updateStoreProfile({ loyalty_points_per_currency: per100 / 100 });
+      toast.success("Earn rate updated");
+    } catch (err) {
+      console.error("Failed to update loyalty earn rate:", err);
+      toast.error("Failed to update earn rate. Please try again.");
+    }
   };
 
   const [tierFormOpen, setTierFormOpen] = useState(false);

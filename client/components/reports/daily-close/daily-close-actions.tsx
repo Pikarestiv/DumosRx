@@ -1,6 +1,7 @@
 import { RefObject } from "react";
 import { pdf } from "@react-pdf/renderer";
 import { format } from "date-fns";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Download, Printer } from "lucide-react";
 import {
@@ -28,7 +29,12 @@ export function DailyCloseActions({
   pdfInput,
 }: DailyCloseActionsProps) {
   const handlePrint = () => {
-    if (printRef.current) printNode(printRef.current);
+    if (printRef.current) {
+      printNode(printRef.current).catch((err) => {
+        console.error("[print] Failed to print daily close:", err);
+        toast.error("Couldn't open the print dialog. Please try again.");
+      });
+    }
   };
 
   const handleDownloadPdf = async () => {

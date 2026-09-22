@@ -228,8 +228,16 @@ export async function getUsers(storeId?: string | null) {
   // must not be coerced back into the active store id.
   const effectiveStoreId = storeId === undefined ? getActiveStoreId() : storeId;
   if (effectiveStoreId) {
+    // `role = 'store_owner'` is deliberately business-wide: it's the fleet
+    // account owner (assigned at signup, one per account, see
+    // RegistersAccounts::registerStoreOwner server-side), not tied to any
+    // one store, and must appear in every store's staff list regardless of
+    // its own store_id. `role = 'admin'` was previously OR'd in here too,
+    // but that's a per-store "local master" role created at onboarding with
+    // a real store_id — leaking it into every OTHER store's list was a bug,
+    // not intended fleet visibility (see docs/KNOWN_BUGS.md history).
     return await query<StaffListItem>(
-      `SELECT ${STAFF_LIST_COLUMNS} FROM users WHERE _deleted = 0 AND (store_id = ? OR store_id IS NULL OR role = 'admin' OR role = 'store_owner') ORDER BY first_name ASC`,
+      `SELECT ${STAFF_LIST_COLUMNS} FROM users WHERE _deleted = 0 AND (store_id = ? OR store_id IS NULL OR role = 'store_owner') ORDER BY first_name ASC`,
       [effectiveStoreId],
     );
   }

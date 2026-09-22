@@ -45,16 +45,21 @@ export function useDashboardOverview() {
     ? [dashboardData.refundsToday]
     : [];
   const recentActivities = dashboardData?.recentActivities || [];
-  const salesYesterday = dashboardData?.salesYesterday?.total || 0;
+  // Both sides of the "vs yesterday" comparison are net of refunds: the
+  // numerator (today) always was, and the denominator now is too - comparing
+  // net-today against gross-yesterday made any refund look like a sales drop.
+  const yesterdayRevenue =
+    (dashboardData?.salesYesterday?.total || 0) -
+    (dashboardData?.refundsYesterday?.total || 0);
   const activeCategories = dashboardData?.activeCategories || 0;
 
   const todayRevenue =
     (salesToday[0]?.total || 0) - (refundsToday[0]?.total || 0);
 
   let salesComparison: SalesComparison = { state: "none" };
-  if (salesYesterday > 0) {
-    const diff = todayRevenue - salesYesterday;
-    const percent = (Math.abs(diff) / salesYesterday) * 100;
+  if (yesterdayRevenue > 0) {
+    const diff = todayRevenue - yesterdayRevenue;
+    const percent = (Math.abs(diff) / yesterdayRevenue) * 100;
     salesComparison = { state: diff >= 0 ? "up" : "down", percent };
   } else if (todayRevenue > 0) {
     salesComparison = { state: "up", percent: 100 };

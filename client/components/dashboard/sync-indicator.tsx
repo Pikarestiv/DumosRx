@@ -14,6 +14,7 @@ import {
 import { sync, isSyncing as checkIsSyncing } from "@/lib/db/sync-engine";
 import { addSyncQueueChangeListener } from "@/lib/db/core";
 import { useStore } from "@/lib/context/store-context";
+import { useAuth } from "@/lib/context/auth-context";
 import { AuthModal } from "./auth-modal";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
@@ -41,6 +42,10 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [isLinked, setIsLinked] = useState(false);
   const { storeProfile } = useStore();
+  // One source of truth for "is this an impersonated session" (see
+  // lib/utils/impersonation.ts); sync() enforces the same rule internally,
+  // this only makes the refusal visible instead of silent.
+  const { isImpersonating } = useAuth();
 
   const { data: pendingCountData } = useQuery({
     ...queryKeys.sync.queueCount(),
@@ -87,6 +92,14 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
   };
 
   const handleManualSync = useCallback(async () => {
+    // Impersonation is read-only support access: sync is disabled for the
+    // whole session (sync() itself refuses too). Toasting rather than
+    // silently returning so a superadmin isn't left wondering why the
+    // indicator looks frozen.
+    if (isImpersonating) {
+      toast.info("Sync is disabled during an impersonated session.");
+      return;
+    }
     if (isSyncInProgress) return;
     setIsSyncInProgress(true);
     setStatus("syncing");
@@ -119,7 +132,7 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
     } finally {
       setIsSyncInProgress(false);
     }
-  }, [isSyncInProgress]);
+  }, [isSyncInProgress, isImpersonating]);
 
   // Background Auto-Sync Daemon. Two modes, switched purely by
   // auto_sync_interval's value: 0 means "sync instantly after any local
@@ -134,7 +147,10 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
     let debounceTimer: NodeJS.Timeout | null = null;
     let unsubscribe: (() => void) | null = null;
 
-    if (storeProfile?.auto_sync_enabled === 1 && isLinked) {
+    // No daemon at all while impersonating: neither the interval timer nor
+    // the sync-queue-change listener is even installed, so an impersonated
+    // session never so much as attempts a background push/pull.
+    if (storeProfile?.auto_sync_enabled === 1 && isLinked && !isImpersonating) {
       const intervalMinutes = storeProfile?.auto_sync_interval ?? 15;
 
       if (intervalMinutes === 0) {
@@ -163,9 +179,13 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
       if (debounceTimer) clearTimeout(debounceTimer);
       unsubscribe?.();
     };
-  }, [storeProfile?.auto_sync_enabled, storeProfile?.auto_sync_interval, isLinked, handleManualSync]);
+  }, [storeProfile?.auto_sync_enabled, storeProfile?.auto_sync_interval, isLinked, isImpersonating, handleManualSync]);
 
-  const stateKey = isSyncInProgress
+  // Wins over every other state: while impersonating there is nothing the
+  // indicator could usefully report about syncing, because no sync will run.
+  const stateKey = isImpersonating
+    ? "impersonating"
+    : isSyncInProgress
     ? "syncing"
     : status === "offline"
       ? "offline"
@@ -226,6 +246,14 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
       mobileBg: "bg-muted/50",
       tooltip: "Your data is securely backed up to the DumosRx cloud.",
     },
+    impersonating: {
+      label: "Sync Disabled",
+      icon: <CloudOff className={cn(iconClass, "text-muted-foreground")} />,
+      border: "border-muted-foreground/30",
+      desktopBg: "bg-sidebar-accent/5",
+      mobileBg: "bg-muted/50",
+      tooltip: "Sync is disabled during an impersonated session. Support access is read-only; nothing is pushed to or pulled from this store's cloud data.",
+    },
     unlinked: {
       label: "Not Linked",
       icon: <CloudOff className={cn(iconClass, "text-muted-foreground")} />,
@@ -252,7 +280,15 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
   if (isMobileHeader) {
     return (
       <>
-        <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full ${mobileBg} border ${statusBorder} max-w-fit transition-colors [&_svg]:w-3.5 [&_svg]:h-3.5 cursor-pointer`} onClick={() => void handleManualSync()}>
+        <div
+          title={isImpersonating ? tooltipText : undefined}
+          className={cn(
+            "flex items-center gap-1.5 px-3 py-1.5 rounded-full border max-w-fit transition-colors [&_svg]:w-3.5 [&_svg]:h-3.5",
+            mobileBg, statusBorder,
+            isImpersonating ? "cursor-not-allowed opacity-60" : "cursor-pointer",
+          )}
+          onClick={() => void handleManualSync()}
+        >
           {statusIcon}
           <span className="text-[12px] font-medium text-muted-foreground whitespace-nowrap">
             {statusLabel}
@@ -277,13 +313,16 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
       <div
         id="tour-sync-indicator"
         className={cn(
-          "border rounded-xl transition-all duration-300 cursor-pointer",
+          "border rounded-xl transition-all duration-300",
+          isImpersonating ? "cursor-not-allowed opacity-70" : "cursor-pointer",
           collapsed ? "p-2" : "p-2.5",
           statusBorder,
           desktopBg,
         )}
         onClick={() => {
-          if (status !== "offline") void handleManualSync();
+          // While impersonating, handleManualSync is a no-op that toasts the
+          // reason — still worth calling, hence the first branch.
+          if (isImpersonating || status !== "offline") void handleManualSync();
         }}
       >
         <TooltipProvider>
@@ -322,7 +361,8 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
                         )}
                       >
                         <button
-                          disabled={isSyncInProgress || status === "offline"}
+                          data-testid="sync-now-button"
+                          disabled={isImpersonating || isSyncInProgress || status === "offline"}
                           className="p-1 border border-sidebar-border rounded-md transition-colors disabled:opacity-30 cursor-pointer hover:bg-sidebar-accent relative z-10 pointer-events-none"
                         >
                           <RefreshCw
@@ -335,7 +375,7 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
                       </div>
                     </TooltipTrigger>
                     <TooltipContent side="top" className="font-semibold text-xs mb-1 bg-card border-accent/10">
-                      Sync Now
+                      {isImpersonating ? "Sync disabled while impersonating" : "Sync Now"}
                     </TooltipContent>
                   </Tooltip>
                 </div>

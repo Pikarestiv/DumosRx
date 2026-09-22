@@ -137,7 +137,7 @@ function withNormalizedName(
 export async function insert(
   table: string,
   data: Record<string, unknown>,
-  options?: { action?: string },
+  options?: { action?: string; storeId?: string },
 ): Promise<string> {
   const id = (data.id as string) || generateId();
   const now = new Date().toISOString();
@@ -177,7 +177,7 @@ export async function insert(
   // not a user action; logging it here would surface every silent crash
   // report as a "Created feedback" entry in the Activity Log.
   if (table !== "feedback") {
-    await logAction(options?.action || "INSERT", table, id, record);
+    await logAction(options?.action || "INSERT", table, id, record, options?.storeId);
   }
 
   queueTableInvalidation(table);
@@ -236,7 +236,7 @@ export async function update(
   await execute(`UPDATE ${table} SET ${setClause} WHERE id = ?`, values);
 
   await addToSyncQueue(table, id, "UPDATE", record);
-  await logAction(options?.action || "UPDATE", table, id, record);
+  await logAction(options?.action || "UPDATE", table, id, record, options?.storeId);
 
   queueTableInvalidation(table);
 }
@@ -258,7 +258,7 @@ export async function softDelete(table: string, id: string, options?: { storeId?
   await execute(updateQuery, params);
 
   await addToSyncQueue(table, id, "DELETE", { id });
-  await logAction("DELETE", table, id, { id });
+  await logAction("DELETE", table, id, { id }, options?.storeId);
 
   queueTableInvalidation(table);
 }
@@ -280,10 +280,13 @@ export async function remove(
   );
 
   await execute(`DELETE FROM ${table} WHERE id = ?`, [id]);
-  // Also remove from sync queue if it was pending
+  // Also remove any pending (not-yet-synced) queue entries for this record
+  // before queueing our own DELETE below, so a still-pending INSERT/UPDATE
+  // doesn't race the DELETE to the server.
   await execute(`DELETE FROM _sync_queue WHERE table_name = ? AND record_id = ?`, [table, id]);
+  await addToSyncQueue(table, id, "DELETE", { id });
 
-  await logAction(options?.action || "HARD_DELETE", table, id, existing[0] || { id });
+  await logAction(options?.action || "HARD_DELETE", table, id, existing[0] || { id }, options?.storeId);
 
   queueTableInvalidation(table);
 }

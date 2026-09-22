@@ -79,7 +79,10 @@ export function BarcodePrintDialog({
           printNode(
             printRef.current,
             getLabelPageStyle(storeProfile?.uppercase_display_enabled !== 0),
-          );
+          ).catch((err) => {
+            console.error("[print] Failed to print labels:", err);
+            toast.error("Couldn't open the print dialog. Please try again.");
+          });
         }
       });
 

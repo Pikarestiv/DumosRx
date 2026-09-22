@@ -299,6 +299,16 @@ export async function pushChanges(
 
     const batch = coalesced.slice(i, i + SYNC_BATCH_SIZE);
 
+    // Ids already given a specific, useful rejection reason by the
+    // pre-network-call validation pass below (bad UUID, missing required
+    // column, etc.). Declared here, above the try/catch, so both the
+    // whole-batch-failure branch (response.success === false) and the catch
+    // block — which both iterate the FULL `batch`, not just the filtered
+    // `changes` — can skip these ids instead of overwriting their specific
+    // reason with a generic batch-failure message and double-bumping
+    // retry_count.
+    const alreadyRejectedIds = new Set<number>();
+
     try {
       const rejected: { id: number; reason: string }[] = [];
 
@@ -457,6 +467,14 @@ export async function pushChanges(
             await recordSyncFailure(r.id, r.reason, true);
           }
         });
+        // Only recorded once the transaction has actually committed — if it
+        // throws partway (e.g. recordSyncFailure itself fails for one item)
+        // and rolls back, these ids must NOT be treated as "already
+        // recorded" by the else/catch passes below, or a real failure that
+        // never made it to the database would go completely unrecorded.
+        for (const r of rejected) {
+          alreadyRejectedIds.add(r.id);
+        }
       }
 
       if (changes.length === 0) {
@@ -501,6 +519,24 @@ export async function pushChanges(
         // one per underlying queue row.
         const versionConflicts: { table_name: string; record_id: string }[] = [];
 
+        // A response lost after the server actually committed (timeout,
+        // dropped connection) looks identical to a network failure from this
+        // device's point of view: it's caught below, routed through
+        // recordSyncFailure, and bumps this queue item's retry_count before
+        // the next attempt resends the same frozen payload. That resend then
+        // collides with the version bump from its OWN already-applied first
+        // attempt and is rejected here as a version_conflict — a false
+        // positive, not a real edit from elsewhere. retry_count > 0 at the
+        // time of a version_conflict is a cheap, already-available signal
+        // for "this was a retry, not a first attempt," so it's used to mute
+        // the toast for that case; a genuinely first-attempt conflict
+        // (retry_count still 0) still gets the normal toast. This can still
+        // occasionally mute a real conflict that happens to land on an
+        // already-retried item for an unrelated reason, but the cost of that
+        // is a missed notification, not lost or corrupted data — the
+        // server's version is kept either way.
+        const silencedConflicts: { table_name: string; record_id: string }[] = [];
+
         // Wrapped in a single transaction: a batch of up to SYNC_BATCH_SIZE
         // markSynced/recordSyncFailure/remapForeignKey calls each triggers
         // its own full-database sql.js export when run outside a
@@ -526,8 +562,19 @@ export async function pushChanges(
               // value now that nothing local is blocking it (see pull.ts's
               // pendingLocalEdit skip).
               const placeholders = underlyingIds.map(() => "?").join(", ");
+              const priorAttempts = await query<{ retry_count: number | null }>(
+                `SELECT retry_count FROM _sync_queue WHERE id IN (${placeholders})`,
+                underlyingIds,
+              );
+              const wasRetried = priorAttempts.some((row) => (row.retry_count ?? 0) > 0);
+
               await execute(`DELETE FROM _sync_queue WHERE id IN (${placeholders})`, underlyingIds);
-              versionConflicts.push({ table_name: f.table_name, record_id: f.record_id });
+
+              if (wasRetried) {
+                silencedConflicts.push({ table_name: f.table_name, record_id: f.record_id });
+              } else {
+                versionConflicts.push({ table_name: f.table_name, record_id: f.record_id });
+              }
             } else {
               for (const id of underlyingIds) {
                 await recordSyncFailure(id, f.reason);
@@ -552,6 +599,18 @@ export async function pushChanges(
               if (oldId === newId) continue;
               await remapForeignKey(oldId, newId, refs);
               await execute(`UPDATE ${table} SET _deleted = 1 WHERE id = ?`, [oldId]);
+              // remapForeignKey() only rewrites payload CONTENT (a foreign
+              // key value baked into some OTHER row's queued JSON) — it
+              // never touches this queue row's own `record_id` column,
+              // which is what the server actually looks the target row up
+              // by. Any edit still pending for the merged-away record
+              // itself (queued before this push ran) would otherwise keep
+              // targeting `oldId` forever, a record the server no longer
+              // has, failing on every retry until the backoff cap.
+              await execute(
+                `UPDATE _sync_queue SET record_id = ? WHERE table_name = ? AND record_id = ?`,
+                [newId, table, oldId],
+              );
             }
           }
 
@@ -607,6 +666,37 @@ export async function pushChanges(
             `A change to ${describeSyncedRecord(conflict.table_name)} could not be saved because the record changed since this edit — the server's current version was kept.`,
           );
         }
+        // Not surfaced to the user — see the retry_count comment above. Still
+        // logged so it's visible in a support/debug session, just not as a
+        // scary toast for what's very likely this device's own earlier
+        // write that already landed.
+        for (const conflict of silencedConflicts) {
+          console.info(
+            `[Sync] Retried edit to ${conflict.table_name}/${conflict.record_id} hit a version conflict — likely its own earlier attempt already applied; server's version kept, no toast shown.`,
+          );
+        }
+      } else {
+        // A batch-level failure response (success: false, distinct from a
+        // thrown exception - the request completed, the server just
+        // rejected the whole batch, e.g. auth/validation/rate-limit) had no
+        // handling at all here: no markSynced, no recordSyncFailure, no
+        // backoff, no retry counter, no crash report - every item in the
+        // batch was silently retried forever on each sync tick with zero
+        // visibility. Route it through the same recordSyncFailure path the
+        // catch block below already uses for a thrown error, keyed off the
+        // batch it actually sent (not `changes`, in case that var's scope
+        // ever narrows) so filtered-out/rejected items above are covered
+        // too, matching the catch block's own behavior.
+        failedBatches++;
+        const message = response.message || "Sync batch rejected by server";
+        await transaction(async () => {
+          for (const item of batch) {
+            for (const id of idsFor(item.id)) {
+              if (alreadyRejectedIds.has(id)) continue;
+              await recordSyncFailure(id, message);
+            }
+          }
+        });
       }
     } catch (error) {
       // Don't abort the whole push run over one bad batch; record backoff
@@ -617,6 +707,7 @@ export async function pushChanges(
       await transaction(async () => {
         for (const item of batch) {
           for (const id of idsFor(item.id)) {
+            if (alreadyRejectedIds.has(id)) continue;
             await recordSyncFailure(id, message);
           }
         }

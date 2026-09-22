@@ -13,13 +13,22 @@ interface User {
   require_email_verification?: boolean;
 }
 
+/**
+ * NOTE: this store deliberately holds NO token. It used to mirror the
+ * `drx_token` localStorage key into a persisted `token` field (a second
+ * copy of the same live api.dumosrx.com bearer credential, under the
+ * "auth-storage" key), but nothing ever read it - its only consumers,
+ * lib/api/query-scope.ts and components/smartsupp-widget.tsx, read `.user`.
+ * Since web/'s own dashboard was removed, no surface on this origin makes an
+ * authenticated non-admin request at all, so storing a token here was pure
+ * XSS-readable exposure. Admin auth is entirely separate and in-memory
+ * (use-admin-auth-store.ts).
+ */
 interface AuthState {
   user: User | null;
-  token: string | null;
   loading: boolean;
-  
+
   setUser: (user: User | null) => void;
-  setToken: (token: string | null) => void;
   fetchUser: () => Promise<void>;
   logout: () => void;
 }
@@ -28,18 +37,9 @@ export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
       user: null,
-      token: typeof window !== "undefined" ? localStorage.getItem("drx_token") : null,
       loading: false,
 
       setUser: (user) => set({ user }),
-      setToken: (token) => {
-        if (token) {
-          localStorage.setItem("drx_token", token);
-        } else {
-          localStorage.removeItem("drx_token");
-        }
-        set({ token });
-      },
 
       fetchUser: async () => {
         set({ loading: true });
@@ -48,13 +48,11 @@ export const useAuthStore = create<AuthState>()(
           set({ user, loading: false });
         } catch (_error) {
           set({ user: null, loading: false });
-          localStorage.removeItem("drx_token");
         }
       },
 
       logout: () => {
-        localStorage.removeItem("drx_token");
-        set({ user: null, token: null });
+        set({ user: null });
         // Without this, cached dashboard/query data from the outgoing
         // account stays in memory and gets served to whichever account
         // logs in next, until its staleTime lapses. cancelQueries() first:
@@ -67,7 +65,7 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: "auth-storage",
-      partialize: (state) => ({ user: state.user, token: state.token }),
+      partialize: (state) => ({ user: state.user }),
     }
   )
 );

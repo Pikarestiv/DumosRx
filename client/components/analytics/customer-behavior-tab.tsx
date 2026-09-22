@@ -18,6 +18,10 @@ interface CustomerBehaviorTabProps {
     value: string;
     change: string;
     trend: string;
+    /** True only when `change` is a percentage measured against the previous
+     * period - rows like "45% of total" or "Healthy" are not, and must not
+     * get the "vs last period" suffix. */
+    isPeriodComparison?: boolean;
   }[];
   purchasePatterns?: {
     slot: string;
@@ -52,7 +56,9 @@ export function CustomerBehaviorTab({
                 <div className={`flex items-center gap-1 flex-wrap ${isUp ? "text-emerald-600" : "text-red-600"}`}>
                   {isUp ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
                   <span>{metric.change}</span>
-                  <span className="text-muted-foreground font-medium">vs last period</span>
+                  {!!metric.isPeriodComparison && (
+                    <span className="text-muted-foreground font-medium">vs last period</span>
+                  )}
                 </div>
               }
             />

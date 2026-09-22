@@ -144,25 +144,30 @@ class DashboardService
 
         // Map Stores
         $storesCount = $userStores->count();
-        $stores = $userStores->map(function ($store) use ($storesCount, $userId) {
+        $stores = $userStores->map(function ($store) {
             $storeStaffIds = User::where('store_id', $store->id)->pluck('id')->toArray();
 
-            // If owner only has 1 store, include their ID in store staff for sales matching
-            $cashierIds = $storeStaffIds;
-            if ($storesCount === 1) {
-                $cashierIds[] = $userId;
-            }
-            $cashierIds = array_unique($cashierIds);
+            // Scoped by the row's own store_id, not by cashier/staff user
+            // id: products/stock_batches are stored under the tenant
+            // owner's user_id regardless of which branch they belong to,
+            // so a cashierIds-based filter can only ever ask "which rows
+            // belong to this tenant" (every store's answer), and excluding
+            // the owner's id whenever storesCount > 1 (the previous
+            // behaviour) made every multi-store account's per-store cards
+            // read 0 inventory / 0 low-stock / 0 expiring even though the
+            // tenant-wide totals above were correct. Sales/activity rows
+            // carry a real per-branch store_id for the same reason.
+            $storeId = $store->id;
 
             // Store Sales
-            $storeTotalSales = (float) Sale::whereIn('cashier_id', $cashierIds)->sum('total_amount');
-            $storeDailySales = (float) Sale::whereIn('cashier_id', $cashierIds)->whereDate('created_at', Carbon::today())->sum('total_amount');
+            $storeTotalSales = (float) Sale::where('store_id', $storeId)->sum('total_amount');
+            $storeDailySales = (float) Sale::where('store_id', $storeId)->whereDate('created_at', Carbon::today())->sum('total_amount');
 
             // Inventory
-            $storeInventory = DB::table('products')->whereIn('user_id', $cashierIds)->whereNull('deleted_at');
+            $storeInventory = DB::table('products')->where('store_id', $storeId)->whereNull('deleted_at');
             $totalInventory = $storeInventory->count();
             $lowStock = DB::table('products')
-                ->whereIn('products.user_id', $cashierIds)
+                ->where('products.store_id', $storeId)
                 ->whereNull('products.deleted_at')
                 ->leftJoin('stock_batches', 'products.id', '=', 'stock_batches.product_id')
                 ->select('products.id', 'products.reorder_level', DB::raw('SUM(COALESCE(stock_batches.quantity, 0)) as total_stock'))
@@ -175,15 +180,21 @@ class DashboardService
 
             // Expiring Items
             $warningDays = $store->expiry_warning_days ?? 90;
+            // Joined through products.store_id rather than filtering
+            // stock_batches.store_id directly: unlike products/sales,
+            // stock_batches isn't in SyncController's store_id-backfill
+            // list and pull() itself scopes batches via product_id for the
+            // same reason (SyncController::pull), so stock_batches.store_id
+            // can't be trusted as the sole source of truth here.
             $expiringItems = DB::table('stock_batches')
-                ->whereIn('user_id', $cashierIds)
+                ->whereIn('product_id', DB::table('products')->where('store_id', $storeId)->pluck('id'))
                 ->where('quantity', '>', 0)
                 ->where('expiry_date', '<=', now()->addDays($warningDays))
                 ->where('expiry_date', '>=', now()->toDateString())
                 ->count();
 
             // Recent Transactions
-            $recentTransactions = Sale::with('cashier')->whereIn('cashier_id', $cashierIds)
+            $recentTransactions = Sale::with('cashier')->where('store_id', $storeId)
                 ->orderBy('created_at', 'desc')
                 ->limit(5)
                 ->get()
@@ -205,8 +216,16 @@ class DashboardService
                     ];
                 });
 
-            // Recent Activities
-            $recentActivities = ActivityLog::whereIn('user_id', $cashierIds)
+            // Recent Activities. Unlike products/sales, activity_logs.store_id
+            // is never actually written by any of the ~20 ActivityLog::create()
+            // call sites (only a one-time historical backfill populated it),
+            // so scoping by store_id alone would leave this permanently
+            // empty. Staff activity is scoped reliably via storeStaffIds
+            // instead (user_id is always set); store_id is included too so a
+            // future write that does set it still gets picked up.
+            $recentActivities = ActivityLog::where(function ($q) use ($storeId, $storeStaffIds) {
+                $q->where('store_id', $storeId)->orWhereIn('user_id', $storeStaffIds);
+            })
                 ->where('action', '!=', 'CLIENT_API_ERROR')
                 ->with('user')
                 ->orderBy('created_at', 'desc')
@@ -370,18 +389,14 @@ class DashboardService
         }
 
         $storesCount = $userStores->count();
-        $stores = $userStores->map(function ($store) use ($storesCount, $userId) {
+        $stores = $userStores->map(function ($store) {
             $storeStaffIds = User::where('store_id', $store->id)->pluck('id')->toArray();
-            $cashierIds = $storeStaffIds;
-            if ($storesCount === 1) {
-                $cashierIds[] = $userId;
-            }
-            $cashierIds = array_unique($cashierIds);
+            $storeId = $store->id;
 
-            $storeTotalSales = (float) Sale::whereIn('cashier_id', $cashierIds)->sum('total_amount');
+            $storeTotalSales = (float) Sale::where('store_id', $storeId)->sum('total_amount');
 
             $lowStock = DB::table('products')
-                ->whereIn('products.user_id', $cashierIds)
+                ->where('products.store_id', $storeId)
                 ->whereNull('products.deleted_at')
                 ->leftJoin('stock_batches', 'products.id', '=', 'stock_batches.product_id')
                 ->select('products.id', 'products.reorder_level', DB::raw('SUM(COALESCE(stock_batches.quantity, 0)) as total_stock'))
@@ -391,8 +406,14 @@ class DashboardService
                 ->count();
 
             $warningDays = $store->expiry_warning_days ?? 90;
+            // Joined through products.store_id rather than filtering
+            // stock_batches.store_id directly: unlike products/sales,
+            // stock_batches isn't in SyncController's store_id-backfill
+            // list and pull() itself scopes batches via product_id for the
+            // same reason (SyncController::pull), so stock_batches.store_id
+            // can't be trusted as the sole source of truth here.
             $expiringItems = DB::table('stock_batches')
-                ->whereIn('user_id', $cashierIds)
+                ->whereIn('product_id', DB::table('products')->where('store_id', $storeId)->pluck('id'))
                 ->where('quantity', '>', 0)
                 ->where('expiry_date', '<=', now()->addDays($warningDays))
                 ->where('expiry_date', '>=', now()->toDateString())
@@ -448,24 +469,18 @@ class DashboardService
             Log::error('DashboardService::getWidgetSnapshot [Stores]: '.$e->getMessage());
         }
 
-        $storesCount = $userStores->count();
         $fleetLowStock = 0;
         $fleetExpiring = 0;
 
-        $stores = $userStores->map(function ($store) use ($storesCount, $userId, &$fleetLowStock, &$fleetExpiring) {
-            $storeStaffIds = User::where('store_id', $store->id)->pluck('id')->toArray();
-            $cashierIds = $storeStaffIds;
-            if ($storesCount === 1) {
-                $cashierIds[] = $userId;
-            }
-            $cashierIds = array_unique($cashierIds);
+        $stores = $userStores->map(function ($store) use (&$fleetLowStock, &$fleetExpiring) {
+            $storeId = $store->id;
 
-            $todayStoreSales = (float) Sale::whereIn('cashier_id', $cashierIds)
+            $todayStoreSales = (float) Sale::where('store_id', $storeId)
                 ->whereDate('created_at', now()->toDateString())
                 ->sum('total_amount');
 
             $lowStock = DB::table('products')
-                ->whereIn('products.user_id', $cashierIds)
+                ->where('products.store_id', $storeId)
                 ->whereNull('products.deleted_at')
                 ->leftJoin('stock_batches', 'products.id', '=', 'stock_batches.product_id')
                 ->select('products.id', 'products.reorder_level', DB::raw('SUM(COALESCE(stock_batches.quantity, 0)) as total_stock'))
@@ -475,8 +490,14 @@ class DashboardService
                 ->count();
 
             $warningDays = $store->expiry_warning_days ?? 90;
+            // Joined through products.store_id rather than filtering
+            // stock_batches.store_id directly: unlike products/sales,
+            // stock_batches isn't in SyncController's store_id-backfill
+            // list and pull() itself scopes batches via product_id for the
+            // same reason (SyncController::pull), so stock_batches.store_id
+            // can't be trusted as the sole source of truth here.
             $expiringItems = DB::table('stock_batches')
-                ->whereIn('user_id', $cashierIds)
+                ->whereIn('product_id', DB::table('products')->where('store_id', $storeId)->pluck('id'))
                 ->where('quantity', '>', 0)
                 ->where('expiry_date', '<=', now()->addDays($warningDays))
                 ->where('expiry_date', '>=', now()->toDateString())

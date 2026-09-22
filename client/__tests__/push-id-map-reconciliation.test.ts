@@ -90,6 +90,38 @@ describe("push.ts id_map reconciliation", () => {
     expect(payload.category_id).toBe(SERVER_CAT);
   });
 
+  it("remaps a still-pending _sync_queue row's own record_id, not just other rows' payload content, when its record is the one merged away", async () => {
+    db.run(`INSERT INTO categories (id, name, _deleted) VALUES (?, 'Analgesics', 0)`, [LOCAL_CAT]);
+    db.run(
+      `INSERT INTO _sync_queue (id, table_name, record_id, operation, payload, created_at) VALUES (1, 'categories', ?, 'INSERT', ?, '2026-08-01T00:00:00Z')`,
+      [LOCAL_CAT, JSON.stringify({ id: LOCAL_CAT, name: "Analgesics" })],
+    );
+    // A second, still-pending edit to the SAME (now duplicate) category —
+    // e.g. a rename queued locally before this push ran, currently backed
+    // off (next_retry_at in the future) so it's NOT part of this push's own
+    // batch, the same as a row that simply hadn't come due yet. Without
+    // remapping its own record_id, the server would look this up by the
+    // vanished LOCAL_CAT id and reject it forever.
+    db.run(
+      `INSERT INTO _sync_queue (id, table_name, record_id, operation, payload, created_at, next_retry_at) VALUES (3, 'categories', ?, 'UPDATE', ?, '2026-08-01T00:00:02Z', '2099-01-01T00:00:00Z')`,
+      [LOCAL_CAT, JSON.stringify({ id: LOCAL_CAT, name: "Analgesics (renamed)", _version: 1 })],
+    );
+
+    apiClient.pushChanges.mockResolvedValueOnce({
+      success: true,
+      processed: 1,
+      failed: [],
+      id_map: { categories: { [LOCAL_CAT]: SERVER_CAT } },
+    });
+
+    await pushChanges();
+
+    const queued = db.exec(`SELECT record_id, payload FROM _sync_queue WHERE id = 3`);
+    expect(queued[0].values[0][0]).toBe(SERVER_CAT);
+    const payload = JSON.parse(queued[0].values[0][1] as string);
+    expect(payload.id).toBe(SERVER_CAT);
+  });
+
   it("does nothing when the response has no id_map", async () => {
     db.run(`INSERT INTO categories (id, name, _deleted) VALUES (?, 'Analgesics', 0)`, [LOCAL_CAT]);
     db.run(

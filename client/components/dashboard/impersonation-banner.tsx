@@ -39,7 +39,10 @@ export function ImpersonationBanner() {
       localStorage.removeItem(IMPERSONATED_USER_KEY);
       apiClient.clearToken();
 
-      window.location.href = `${WEB_APP_URL}/admin/handoff?code=${code}`;
+      // Fragment, not query string: never reaches web/admin/handoff's server
+      // access logs or a Referer header (see the outbound leg in
+      // web/app/admin/stores/page.tsx for the same reasoning).
+      window.location.href = `${WEB_APP_URL}/admin/handoff#code=${code}`;
     } catch (_error) {
       // The stored return code is single-use and short-lived (see its
       // creation in the superadmin panel) — if it's already expired or was

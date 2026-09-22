@@ -171,21 +171,14 @@ class AdminMoneyValidationTest extends TestCase
         $response->assertCreated();
     }
 
-    /** The 100 ceiling must apply to percentages only - a trial extension of
-     * 500 days is odd but legal, and a naira amount obviously is.
-     *
-     * `trial_extension` is used here rather than `discount_amount` on
-     * purpose: the migration that widened the coupons `type` enum to include
-     * `discount_amount` is a MySQL-only `ALTER TABLE ... MODIFY COLUMN`, so
-     * on the SQLite test database that value still fails a CHECK constraint.
-     * That is a pre-existing schema/test-environment gap, unrelated to this
-     * validation change. */
+    /** The 100 ceiling must apply to percentages only - a naira amount of
+     * 500 is odd for a coupon but legal, since it isn't a percentage. */
     public function test_non_percentage_coupon_above_100_is_still_accepted(): void
     {
         $response = $this->actingAs($this->superAdmin())
             ->postJson('/api/v1/admin/coupons', [
-                'code' => 'LONGTRIAL'.uniqid(),
-                'type' => 'trial_extension',
+                'code' => 'BIGAMOUNT'.uniqid(),
+                'type' => 'discount_amount',
                 'value' => 500,
             ]);
 

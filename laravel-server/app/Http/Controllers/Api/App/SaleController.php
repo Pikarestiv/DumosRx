@@ -3,12 +3,17 @@
 namespace App\Http\Controllers\Api\App;
 
 use App\Http\Controllers\Controller;
+use App\Models\Product;
 use App\Models\Sale;
 use App\Models\SaleItem;
+use App\Models\SaleItemBatch;
+use App\Models\StockBatch;
+use App\Models\StockMovement;
 use App\Models\User;
 use App\Models\Store;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use OpenApi\Attributes as OA;
 
 class SaleController extends Controller
@@ -47,7 +52,7 @@ class SaleController extends Controller
     #[OA\Post(
         path: '/app/sales',
         summary: 'Record a sale (POS checkout)',
-        description: 'NOTE: item price is trusted from the request body (`unit_price`) rather than looked up server-side from the current product/batch price; client is responsible for sending the correct price.',
+        description: "Item price is looked up server-side from the product's current `selling_price` - any `unit_price` sent in the request body is ignored. Stock is checked and deducted FEFO (earliest-expiring batch first) across the product's stock batches; the sale is rejected with a 422 if there isn't enough stock.",
         tags: ['Sales'],
         security: [['sanctum' => []]],
         requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
@@ -72,44 +77,173 @@ class SaleController extends Controller
     )]
     public function store(Request $request)
     {
+        $user = $request->user();
+
+        // Same store-resolution convention used elsewhere in this
+        // controller/SyncController: staff carry a fixed `store_id` pointing
+        // at the Store row; an owner is found by owning a Store. $tenantId is
+        // the store owner's user id, which is how products/stock_batches are
+        // actually scoped (Product.user_id, StockBatch.user_id) - $store->id
+        // is the separate value `sales.store_id` itself expects.
+        $store = $user->store_id
+            ? Store::find($user->store_id)
+            : Store::where('user_id', $user->id)->first();
+        $tenantId = $store?->user_id ?? $user->id;
+
         $request->validate([
-            'items' => 'required|array',
-            'items.*.product_id' => 'required|exists:products,id',
+            'items' => 'required|array|min:1',
+            'items.*.product_id' => ['required', Rule::exists('products', 'id')->where('user_id', $tenantId)],
             'items.*.quantity' => 'required|integer|min:1',
-            'payment_method' => 'required|string',
-            'customer_id' => 'nullable|exists:customers,id',
+            'payment_method' => 'required|string|in:cash,card,transfer,mobile_money,insurance,mixed,credit',
+            'customer_id' => ['nullable', Rule::exists('customers', 'id')->where('user_id', $tenantId)],
+            'amount_paid' => 'nullable|numeric|min:0',
         ]);
 
-        $user = $request->user();
-        $tenantId = $user->store_id ? (Store::find($user->store_id)?->user_id ?? $user->id) : $user->id;
+        return DB::transaction(function () use ($request, $user, $tenantId, $store) {
+            $productIds = collect($request->items)->pluck('product_id')->unique();
 
-        return DB::transaction(function () use ($request, $user, $tenantId) {
-            // Create Sale Header
-            $sale = Sale::create([
-                'user_id' => $user->id,
-                'customer_id' => $request->customer_id,
-                'payment_method' => $request->payment_method,
-                'total_amount' => 0, // Will update
-                'status' => 'completed',
-                'invoice_number' => 'INV-' . strtoupper(uniqid())
-            ]);
+            // Scoped to the caller's own tenant - validated above via
+            // Rule::exists()->where(), re-fetched here (rather than trusted
+            // from the request) so price/name come from the real record.
+            $products = Product::where('user_id', $tenantId)
+                ->whereIn('id', $productIds)
+                ->get()
+                ->keyBy('id');
 
-            $total = 0;
-
-            foreach ($request->items as $item) {
-                $saleItem = new SaleItem([
-                    'product_id' => $item['product_id'],
-                    'quantity' => $item['quantity'],
-                    'unit_price' => $item['unit_price'] ?? 0, 
-                    'subtotal' => ($item['unit_price'] ?? 0) * $item['quantity']
-                ]);
-                $sale->items()->save($saleItem);
-                
-                $total += $saleItem->subtotal;
+            if ($products->count() !== $productIds->count()) {
+                abort(422, 'One or more products are invalid for this store.');
             }
 
-            $sale->total_amount = $total;
-            $sale->save();
+            // Price is always looked up server-side from the product's
+            // current selling_price - a client-submitted `unit_price` is
+            // ignored. Unlike the app's real offline-first sale path
+            // (client's local-database.ts createSale(), pushed to the
+            // server only via SyncController's version-checked sync), this
+            // REST endpoint creates the Sale directly and is not part of
+            // that trusted device-sync flow, so there's no equivalent
+            // architectural reason to trust a client-supplied price here.
+            $lines = [];
+            $total = 0;
+            foreach ($request->items as $item) {
+                $product = $products[$item['product_id']];
+                $quantity = (int) $item['quantity'];
+                $unitPrice = (float) $product->selling_price;
+                $subtotal = round($unitPrice * $quantity, 2);
+                $total += $subtotal;
+
+                $lines[] = [
+                    'product' => $product,
+                    'quantity' => $quantity,
+                    'unit_price' => $unitPrice,
+                    'total_price' => $subtotal,
+                ];
+            }
+
+            // Stock check + FEFO deduction (earliest-expiring batch first,
+            // spilling into the next batch once one is exhausted) - the same
+            // approach the client's own POS checkout uses
+            // (lib/db/queries/inventory.ts recordSaleItemStock()). Rows are
+            // locked for the duration of this transaction so two concurrent
+            // sales against the same batch can't both read the same
+            // pre-deduction quantity.
+            foreach ($lines as &$line) {
+                $remaining = $line['quantity'];
+
+                // Batches are the physical per-store inventory entity (unlike
+                // Product, which is a tenant-wide catalog row shared across a
+                // multi-store owner's locations) - scoped by store_id (with a
+                // null-store_id fallback for rows predating the store_id
+                // backfill, same "fail open for legacy data" reasoning used
+                // in SyncController) so a sale recorded against one store
+                // can't dispense stock physically held at another.
+                // is_active/expiry filtered and NULL-expiry sorted last so an
+                // inactive or already-expired batch is never dispensed and
+                // never jumps the FEFO queue ahead of dated batches.
+                $batches = StockBatch::where('user_id', $tenantId)
+                    ->where('product_id', $line['product']->id)
+                    ->where('quantity', '>', 0)
+                    ->where('is_active', true)
+                    ->whereRaw('(expiry_date IS NULL OR expiry_date > ?)', [now()])
+                    ->where(function ($q) use ($store) {
+                        $q->whereNull('store_id')->orWhere('store_id', $store?->id);
+                    })
+                    ->orderByRaw('expiry_date IS NULL')
+                    ->orderBy('expiry_date')
+                    ->lockForUpdate()
+                    ->get();
+
+                if ($batches->sum('quantity') < $remaining) {
+                    abort(422, "Insufficient stock for {$line['product']->name}.");
+                }
+
+                $costTotal = 0;
+                foreach ($batches as $batch) {
+                    if ($remaining <= 0) {
+                        break;
+                    }
+
+                    $deduct = min($remaining, $batch->quantity);
+                    $batch->quantity -= $deduct;
+                    $batch->save();
+                    $remaining -= $deduct;
+                    $costTotal += ($batch->cost_price ?? 0) * $deduct;
+
+                    $line['movements'][] = [
+                        'stock_batch_id' => $batch->id,
+                        'quantity' => $deduct,
+                        'unit_cost' => $batch->cost_price,
+                    ];
+                }
+
+                $line['cost_price'] = $line['quantity'] > 0 ? $costTotal / $line['quantity'] : 0;
+            }
+            unset($line);
+
+            $amountPaid = $request->filled('amount_paid') ? (float) $request->amount_paid : $total;
+
+            $sale = Sale::create([
+                'customer_id' => $request->customer_id,
+                'cashier_id' => $user->id,
+                'store_id' => $store?->id,
+                'payment_method' => $request->payment_method,
+                'payment_status' => 'completed',
+                'subtotal' => $total,
+                'total_amount' => $total,
+                'amount_paid' => $amountPaid,
+                'change_given' => max(0, round($amountPaid - $total, 2)),
+            ]);
+
+            foreach ($lines as $line) {
+                $saleItem = $sale->items()->create([
+                    'product_id' => $line['product']->id,
+                    'quantity' => $line['quantity'],
+                    'unit_price' => $line['unit_price'],
+                    'total_price' => $line['total_price'],
+                    'cost_price' => $line['cost_price'],
+                ]);
+
+                foreach ($line['movements'] ?? [] as $movement) {
+                    StockMovement::create([
+                        'stock_batch_id' => $movement['stock_batch_id'],
+                        'product_id' => $line['product']->id,
+                        'store_id' => $store?->id,
+                        'movement_type' => 'sale',
+                        'quantity' => -$movement['quantity'],
+                        'unit_cost' => $movement['unit_cost'],
+                        'total_cost' => $movement['unit_cost'] !== null ? $movement['unit_cost'] * $movement['quantity'] : null,
+                        'reference_id' => $sale->id,
+                        'reference_type' => 'sale',
+                        'performed_by' => $user->id,
+                        'movement_date' => now(),
+                    ]);
+
+                    SaleItemBatch::create([
+                        'sale_item_id' => $saleItem->id,
+                        'stock_batch_id' => $movement['stock_batch_id'],
+                        'quantity' => $movement['quantity'],
+                    ]);
+                }
+            }
 
             return response()->json($sale->load('items'), 201);
         });

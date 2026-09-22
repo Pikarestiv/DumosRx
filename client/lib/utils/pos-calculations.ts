@@ -17,6 +17,11 @@ export function calculateSubtotal(items: { subtotal: number }[]): number {
   return roundMoney(items.reduce((sum, item) => sum + (item.subtotal || 0), 0));
 }
 
+// VAT is charged on the net-of-discount amount, not the raw subtotal — a
+// discount is a reduction in the price charged, so tax should never be
+// computed on money the customer isn't actually being charged. Callers that
+// also apply a discount MUST pass (subtotal - discountAmount) here, not the
+// raw subtotal, or the customer is overcharged VAT on the discounted portion.
 export function calculateTax(subtotal: number, vatPercentage: number): number {
   if (subtotal < 0 || vatPercentage < 0) return 0;
   return roundMoney(subtotal * (vatPercentage / 100));
@@ -34,6 +39,13 @@ export function calculateDiscountAmount(
   return roundMoney(discount);
 }
 
+// NOTE: this still subtracts discountAmount from the raw subtotal even
+// though tax should be computed net-of-discount (see calculateTax above).
+// That's not double-subtracting: if the caller already computed `tax` from
+// (subtotal - discountAmount), then subtotal + tax - discountAmount equals
+// (subtotal - discountAmount) + tax, i.e. discounted-subtotal-plus-tax — the
+// correct total. Passing a `tax` computed from the raw subtotal here (the
+// old, buggy call pattern) would overcharge VAT; see use-pos-cart.ts.
 export function calculateTotal(
   subtotal: number,
   tax: number,
@@ -66,7 +78,7 @@ export function calculateProportionalRefund(params: {
   const returnShare = saleSubtotal > 0 ? itemsSubtotal / saleSubtotal : 0;
   const taxShare = returnShare * (saleTaxAmount || 0);
   const discountShare = returnShare * (saleDiscountAmount || 0);
-  return Math.max(0, itemsSubtotal + taxShare - discountShare);
+  return roundMoney(Math.max(0, itemsSubtotal + taxShare - discountShare));
 }
 
 export function calculateNetSaleAmount(

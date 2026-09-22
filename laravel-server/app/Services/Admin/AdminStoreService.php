@@ -334,6 +334,19 @@ class AdminStoreService
 
             $resolvedEndDate = $this->resolveTrialEndDate($durationString, $endDate);
 
+            // Refuse to silently discard remaining time on an existing
+            // active (non-trial) subscription that runs past what this
+            // trial would cover -- e.g. granting a 14-day goodwill trial
+            // must not void the remaining months of an annual plan.
+            $wouldShortenExisting = $user->subscriptions()
+                ->where('status', 'active')
+                ->where('end_date', '>', $resolvedEndDate)
+                ->exists();
+
+            if ($wouldShortenExisting) {
+                throw new \Exception('Store has an active subscription that extends beyond the requested trial period. Granting this trial would shorten their remaining paid time; extend or cancel it first.');
+            }
+
             // Optional: Mark previous active subscriptions as expired or just leave them
             $user->subscriptions()->where('status', 'active')->update(['status' => 'expired']);
 
@@ -388,6 +401,18 @@ class AdminStoreService
             }
 
             $endDate = $billingCycle === 'yearly' ? now()->addYear() : now()->addMonth();
+
+            // Same guard as grantTrial(): don't let manually activating a
+            // new paid plan silently expire an existing active subscription
+            // that runs further into the future.
+            $wouldShortenExisting = $user->subscriptions()
+                ->where('status', 'active')
+                ->where('end_date', '>', $endDate)
+                ->exists();
+
+            if ($wouldShortenExisting) {
+                throw new \Exception('Store already has an active subscription that extends beyond this billing cycle. Activating this plan would shorten their remaining paid time; extend or cancel it first.');
+            }
 
             $user->subscriptions()->where('status', 'active')->update(['status' => 'expired']);
 

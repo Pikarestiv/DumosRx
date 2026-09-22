@@ -21,6 +21,14 @@ class SyncEndpointTest extends TestCase
 
         \Illuminate\Support\Facades\Schema::disableForeignKeyConstraints();
 
+        // sanitizeUserSyncPayload()'s manage_staff/role-privilege gate (see
+        // Fix A) consults real Role/Permission rows via hasPermission(), the
+        // same way CheckPermission middleware and StaffController's routes
+        // do in production (seeded via DatabaseSeeder on every real
+        // deployment) - without seeding here, every `users` table push in
+        // this file would be wrongly rejected as lacking manage_staff.
+        $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
+
         $this->user = User::create([
             'first_name' => 'Admin',
             'last_name' => 'User',
@@ -1858,7 +1866,11 @@ class SyncEndpointTest extends TestCase
                         'id' => $userId,
                         'name' => 'Ada Lovelace Byron',
                         'username' => 'ada',
-                        'role' => 'cashier',
+                        // A real seeded role slug (see RolesAndPermissionsSeeder) —
+                        // this test is about name-splitting, not role handling, but
+                        // sanitizeUserSyncPayload() now rejects any role outside the
+                        // recognized staff-role allow-list.
+                        'role' => 'sales_staff',
                         'pin' => '4321',
                         '_synced' => 0,
                     ],
@@ -1978,5 +1990,310 @@ class SyncEndpointTest extends TestCase
         // Products are soft-deletable, so DELETE goes through Eloquent's
         // delete() (a soft delete), not a raw row removal.
         $this->assertSoftDeleted('products', ['id' => $productId]);
+    }
+
+    /**
+     * Regression test for the sync-push privilege-escalation bug: forceFill()
+     * on the UPDATE branch applied a users payload with no column allow-list
+     * at all, and authorizeChangeTarget() always permits a caller's own user
+     * id — so any authenticated staff/owner could push
+     * {"role":"super_admin"} against their own record_id and grant
+     * themselves platform-wide access.
+     *
+     * sanitizeUserSyncPayload() now closes this via a true allow-list: a
+     * self-edit (recordId === caller's own id) may only touch a fixed safe
+     * self-service field set that never includes `role` at all (see Fix A),
+     * so the field is silently dropped from the payload rather than the
+     * whole change being rejected - either way the DB-level guarantee is
+     * the same: a self-edit sync push can never change the caller's own
+     * role.
+     */
+    public function test_push_sync_rejects_self_promotion_to_super_admin_via_update()
+    {
+        $response = $this->actingAs($this->user)->postJson('/api/v1/app/sync/push', [
+            'setup' => true,
+            'changes' => [
+                [
+                    'table_name' => 'users',
+                    'operation' => 'UPDATE',
+                    'record_id' => $this->user->id,
+                    'payload' => [
+                        'id' => $this->user->id,
+                        'role' => 'super_admin',
+                    ],
+                ],
+            ],
+        ]);
+
+        $response->assertStatus(200);
+        $response->assertJsonCount(0, 'failed');
+        $this->assertDatabaseHas('users', [
+            'id' => $this->user->id,
+            'role' => 'admin',
+        ]);
+    }
+
+    /**
+     * Same bug, via the INSERT path: INSERT had no ownership check at all
+     * (the record doesn't exist yet to check ownership of), so a payload
+     * could mint a brand-new super_admin user outright.
+     */
+    public function test_push_sync_rejects_inserting_a_new_super_admin_user()
+    {
+        $newUserId = (string) \Illuminate\Support\Str::uuid();
+
+        $response = $this->actingAs($this->user)->postJson('/api/v1/app/sync/push', [
+            'setup' => true,
+            'changes' => [
+                [
+                    'table_name' => 'users',
+                    'operation' => 'INSERT',
+                    'record_id' => $newUserId,
+                    'payload' => [
+                        'id' => $newUserId,
+                        'first_name' => 'Evil',
+                        'last_name' => 'Admin',
+                        'username' => 'evil_admin',
+                        'pin' => '9999',
+                        'role' => 'super_admin',
+                    ],
+                ],
+            ],
+        ]);
+
+        $response->assertStatus(200);
+        $response->assertJsonCount(1, 'failed');
+        $this->assertDatabaseMissing('users', ['id' => $newUserId]);
+    }
+
+    /**
+     * Same bug, via a raw role_id pointing at the super_admin Role row:
+     * hasRole()/hasPermission() both consult the role_id relation, not just
+     * the `role` string column, so setting role_id alone (leaving `role`
+     * untouched) would otherwise still grant platform-wide access.
+     */
+    public function test_push_sync_strips_role_id_from_users_payload()
+    {
+        $superAdminRole = \App\Models\Role::firstOrCreate(
+            ['slug' => 'super_admin'],
+            ['name' => 'Super Admin']
+        );
+
+        $response = $this->actingAs($this->user)->postJson('/api/v1/app/sync/push', [
+            'setup' => true,
+            'changes' => [
+                [
+                    'table_name' => 'users',
+                    'operation' => 'UPDATE',
+                    'record_id' => $this->user->id,
+                    'payload' => [
+                        'id' => $this->user->id,
+                        'role_id' => $superAdminRole->id,
+                    ],
+                ],
+            ],
+        ]);
+
+        $response->assertStatus(200);
+        $response->assertJsonCount(0, 'failed');
+        $this->assertDatabaseHas('users', [
+            'id' => $this->user->id,
+            'role_id' => null,
+        ]);
+    }
+
+    /**
+     * Same bug, planting a staff account into another tenant's store via an
+     * explicit store_id the caller doesn't own.
+     */
+    public function test_push_sync_rejects_inserting_a_user_into_another_stores_store_id()
+    {
+        $otherOwner = User::create([
+            'first_name' => 'Other', 'last_name' => 'Owner',
+            'email' => 'other-owner@dumosrx.com', 'password' => bcrypt('password'),
+            'role' => 'admin',
+        ]);
+        $otherStore = Store::create([
+            'user_id' => $otherOwner->id,
+            'name' => 'Other Store',
+            'store_slug' => 'other-store',
+            'device_id' => 'WEB-OTHER',
+        ]);
+
+        $newUserId = (string) \Illuminate\Support\Str::uuid();
+
+        $response = $this->actingAs($this->user)->postJson('/api/v1/app/sync/push', [
+            'setup' => true,
+            'changes' => [
+                [
+                    'table_name' => 'users',
+                    'operation' => 'INSERT',
+                    'record_id' => $newUserId,
+                    'payload' => [
+                        'id' => $newUserId,
+                        'first_name' => 'Planted',
+                        'last_name' => 'Staff',
+                        'username' => 'planted_staff',
+                        'pin' => '1234',
+                        'role' => 'sales_staff',
+                        'store_id' => $otherStore->id,
+                    ],
+                ],
+            ],
+        ]);
+
+        $response->assertStatus(200);
+        $response->assertJsonCount(1, 'failed');
+        $this->assertDatabaseMissing('users', ['id' => $newUserId]);
+    }
+
+    /**
+     * Regression test for the Fix-A deny-list gap: sanitizeUserSyncPayload()
+     * used to only constrain `role`/`store_id` values, leaving every other
+     * users column (email/password/pin/etc) freely settable via forceFill()
+     * on ANY record the caller's ownership scope covers -
+     * resolveAllowedOwnershipScope() deliberately includes the store
+     * owner's own id in a staff device's allowed-user-ids so staff can PULL
+     * the owner's profile row, which also meant a cashier could PUSH
+     * {"email":..., "password":...} against the owner's record_id and take
+     * over the billing account. A caller editing a record that isn't their
+     * own must now hold manage_staff before any field change is permitted
+     * at all - a plain cashier never does, so the whole change is rejected.
+     */
+    public function test_push_sync_rejects_cashier_editing_owners_email_and_password()
+    {
+        $cashier = User::create([
+            'first_name' => 'Cashier', 'last_name' => 'Staff',
+            'username' => 'cashier_attacker',
+            'email' => 'cashier@dumosrx.com',
+            'store_id' => $this->store->id,
+            'password' => bcrypt('pin1234'),
+            'role' => 'sales_staff',
+        ]);
+
+        $response = $this->actingAs($cashier)->postJson('/api/v1/app/sync/push', [
+            'setup' => true,
+            'changes' => [
+                [
+                    'table_name' => 'users',
+                    'operation' => 'UPDATE',
+                    'record_id' => $this->user->id,
+                    'payload' => [
+                        'id' => $this->user->id,
+                        'email' => 'attacker@x.com',
+                        'password' => 'hunter2',
+                    ],
+                ],
+            ],
+        ]);
+
+        $response->assertStatus(200);
+        $response->assertJsonCount(1, 'failed');
+        $this->assertDatabaseHas('users', [
+            'id' => $this->user->id,
+            'email' => $this->user->email,
+        ]);
+        $this->assertTrue(\Illuminate\Support\Facades\Hash::check('password', $this->user->fresh()->password));
+    }
+
+    /**
+     * Regression test for the other Fix-A exploit: $allowedRoles used to
+     * permit 'admin' for ANY record regardless of the caller's own
+     * privilege level, so a sales_staff cashier could push {"role":"admin"}
+     * against their OWN record_id, gain manage_staff, and from there reset
+     * the owner's password via PUT /staff/{owner id} (visibleStaffQuery()
+     * deliberately includes the owner's own row) - bypassing
+     * StaffController's hardening entirely. Self-edits now never touch
+     * `role` at all (it's simply not in the self-service allow-list), so
+     * the field is dropped and the caller's role never changes.
+     */
+    public function test_push_sync_rejects_cashier_self_promotion_to_admin()
+    {
+        $cashier = User::create([
+            'first_name' => 'Cashier', 'last_name' => 'Staff',
+            'username' => 'cashier_self_promote',
+            'email' => 'cashier2@dumosrx.com',
+            'store_id' => $this->store->id,
+            'password' => bcrypt('pin1234'),
+            'role' => 'sales_staff',
+        ]);
+
+        $response = $this->actingAs($cashier)->postJson('/api/v1/app/sync/push', [
+            'setup' => true,
+            'changes' => [
+                [
+                    'table_name' => 'users',
+                    'operation' => 'UPDATE',
+                    'record_id' => $cashier->id,
+                    'payload' => [
+                        'id' => $cashier->id,
+                        'role' => 'admin',
+                    ],
+                ],
+            ],
+        ]);
+
+        $response->assertStatus(200);
+        $this->assertDatabaseHas('users', [
+            'id' => $cashier->id,
+            'role' => 'sales_staff',
+        ]);
+        $this->assertFalse($cashier->fresh()->hasPermission('manage_staff'));
+    }
+
+    /**
+     * Fix A also caps a manage_staff-holding caller's own privilege: they
+     * may only grant a role whose permission set is a subset of their own
+     * current one, never a lateral-or-up role with MORE permissions. An
+     * 'auditor' (manage_inventory, view_reports only - no manage_staff) has
+     * no business editing other users at all, but even a role with
+     * manage_staff and a narrower permission set than 'admin' must not be
+     * able to hand out 'admin'. Exercised here via 'specialist' (a subset
+     * of admin's permissions, no manage_staff) attempting to grant 'admin'
+     * to another staff record it does NOT own manage_staff for in the first
+     * place - the manage_staff gate alone already rejects this, so this
+     * documents that expectation rather than reaching the role-privilege
+     * comparison itself.
+     */
+    public function test_push_sync_rejects_role_grant_from_caller_without_manage_staff()
+    {
+        $specialist = User::create([
+            'first_name' => 'Specialist', 'last_name' => 'Staff',
+            'username' => 'specialist_staff',
+            'email' => 'specialist@dumosrx.com',
+            'store_id' => $this->store->id,
+            'password' => bcrypt('pin1234'),
+            'role' => 'specialist',
+        ]);
+        $otherStaff = User::create([
+            'first_name' => 'Other', 'last_name' => 'Staff',
+            'username' => 'other_staff',
+            'email' => 'other-staff@dumosrx.com',
+            'store_id' => $this->store->id,
+            'password' => bcrypt('pin1234'),
+            'role' => 'sales_staff',
+        ]);
+
+        $response = $this->actingAs($specialist)->postJson('/api/v1/app/sync/push', [
+            'setup' => true,
+            'changes' => [
+                [
+                    'table_name' => 'users',
+                    'operation' => 'UPDATE',
+                    'record_id' => $otherStaff->id,
+                    'payload' => [
+                        'id' => $otherStaff->id,
+                        'role' => 'admin',
+                    ],
+                ],
+            ],
+        ]);
+
+        $response->assertStatus(200);
+        $response->assertJsonCount(1, 'failed');
+        $this->assertDatabaseHas('users', [
+            'id' => $otherStaff->id,
+            'role' => 'sales_staff',
+        ]);
     }
 }

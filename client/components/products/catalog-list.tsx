@@ -184,7 +184,7 @@ export function CatalogList({
       {/* Rows */}
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto hide-scrollbar py-3 sm:py-0 mb-4"
+        className="flex-1 overflow-y-auto py-3 sm:py-0 mb-4"
       >
         {isLoading && filteredProducts.length === 0 && <CatalogListSkeleton />}
         {!isLoading && filteredProducts.length === 0 && (

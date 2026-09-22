@@ -334,7 +334,7 @@ export function ProductCombobox({
 
       {open && (showCreateNewOption || filteredOptions.length > 0) && (
         <div className="absolute z-[999] w-full mt-1 bg-popover text-popover-foreground shadow-xl rounded-md border border-border outline-none animate-in fade-in-0 zoom-in-95 overflow-hidden">
-          <div className="max-h-[300px] overflow-y-auto hide-scrollbar p-1">
+          <div className="max-h-[300px] overflow-y-auto p-1">
             {/* Always pinned above matches, whether or not anything is typed:
              * with no text it opens an empty "Add New Product" form (a real
              * discoverable entry point, not a dead end); once text exists the

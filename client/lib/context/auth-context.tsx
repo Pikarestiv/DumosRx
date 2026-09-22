@@ -4,7 +4,7 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import * as Sentry from "@sentry/nextjs";
 import { setCurrentUser as setDbUser, logAction } from "@/lib/db/local-database";
 import { apiClient } from "@/lib/api/client";
-import { getUserByUsernameOrEmail, createDefaultAdmin, getUserPin, updateUserPin } from "@/lib/db/queries/auth";
+import { getUsersByUsernameOrEmail, createDefaultAdmin, getUserPin, updateUserPin } from "@/lib/db/queries/auth";
 import { getTotalUserCount } from "@/lib/db/queries/setup";
 import {
   checkLoginLockout,
@@ -16,6 +16,7 @@ import { useAutoLockStore } from "@/lib/hooks/use-auto-lock";
 import { AUDIT_ACTIONS } from "@/lib/db/audit-actions";
 import { sync, isSyncing } from "@/lib/db/sync-engine";
 import { queryClient } from "@/lib/query-client";
+import { clearPOSCartStorage } from "@/lib/hooks/use-pos-cart";
 import { isTauri } from "@/lib/db";
 import { setActiveStoreId as setResolvedStoreId } from "@/lib/db/core";
 import { getToken } from "@/lib/api/token-manager";
@@ -260,6 +261,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (identifier: string, pin?: string) => {
     // For local-first, we check both username and email
     const cleanIdentifier = identifier.trim();
+    // Captured before any state changes below: distinguishes the ordinary
+    // "same cashier unlocks with their own PIN after auto-lock/idle timeout"
+    // flow (lock-screen calls login() directly, without logout() first, and
+    // `user` is still the same person who was locked out) from a genuine
+    // switch to a DIFFERENT user (lock-screen's "switch account" tile, or a
+    // fresh login after logout() already cleared `user` to null). Only the
+    // latter should wipe the in-progress POS cart below.
+    const previousUserId = user?.id;
 
     // Only a genuine PIN-based attempt is throttled - login(email) with no
     // pin (the post-cloud-sync auto-login in app/setup/use-onboarding.ts)
@@ -275,11 +284,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    let dbUser = await getUserByUsernameOrEmail(cleanIdentifier);
+    let candidates = await getUsersByUsernameOrEmail(cleanIdentifier);
+    // Usernames are unique per store, not globally (UNIQUE(store_id,
+    // username)) — on a multi-store device, more than one row can share this
+    // identifier. Narrow to whichever of them actually match the PIN typed;
+    // if a PIN was provided, that's who we're prepared to accept.
+    let matches = pin ? candidates.filter((u) => u.pin === pin) : candidates;
+    let dbUser = matches[0] ?? null;
 
-    if (dbUser) {
+    if (dbUser || candidates.length > 0) {
       // If PIN is provided, check it
-      if (pin && dbUser.pin !== pin) {
+      if (pin && !dbUser) {
         // A PIN reset via the web dashboard writes straight to the cloud
         // DB; this device only sees it once it next syncs down, which
         // could otherwise be minutes away. Rather than make a locked-out
@@ -302,8 +317,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (result?.error === "Sync already in progress") {
             await waitForSyncToFinish();
           }
-          dbUser = await getUserByUsernameOrEmail(cleanIdentifier);
+          candidates = await getUsersByUsernameOrEmail(cleanIdentifier);
+          matches = candidates.filter((u) => u.pin === pin);
+          dbUser = matches[0] ?? null;
         }
+      }
+
+      // More than one of this device's stores has a user with this exact
+      // identifier AND this exact PIN — a genuine collision (plausible with
+      // defaults like admin/1234). There is no trustworthy "intended store"
+      // to break the tie with here, so this fails closed rather than
+      // silently logging the caller in as whichever row SQLite yielded
+      // first (which could be a different store's staff member entirely).
+      if (pin && matches.length > 1) {
+        logAction(AUDIT_ACTIONS.LOGIN_FAILED, "users", cleanIdentifier, {
+          username: cleanIdentifier,
+          reason: "ambiguous_multi_store_match",
+          matchedStoreIds: matches.map((u) => u.store_id).join(","),
+        }).catch(() => {});
+        recordLoginFailure(cleanIdentifier);
+        throw new Error(
+          "This username and PIN match staff at more than one store on this device. Contact your admin to use a unique username, or sign in from a device scoped to a single store.",
+        );
       }
 
       if (!dbUser || (pin && dbUser.pin !== pin)) {
@@ -372,8 +407,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // rendering under the incoming user's session until they went stale.
       // cancelQueries() first since clear() alone doesn't abort a fetch
       // already in flight from the outgoing user.
+      //
+      // This also fires for the ordinary same-user unlock (lock-screen calls
+      // login() there too), which is harmless: clearing cached queries just
+      // means they refetch, unlike the POS cart clear below.
       void queryClient.cancelQueries();
       queryClient.clear();
+      // Same shared-terminal risk as logout(): the "switch user" path never
+      // goes through logout(), so without this the outgoing cashier's
+      // in-progress POS cart (and any staged discount/redeemed reward)
+      // would carry straight over into the incoming cashier's session.
+      //
+      // Gated on the login actually being a DIFFERENT user: login() is also
+      // how the lock-screen's ordinary "same cashier unlocks with their own
+      // PIN after auto-lock/idle timeout" flow re-authenticates. Clearing
+      // unconditionally here wiped a cashier's in-progress cart (items,
+      // discount, redeemed loyalty reward) every time they simply stepped
+      // away and came back - a daily-workflow data-loss regression. Only
+      // clear when we can tell this is genuinely a different person than
+      // whoever was previously logged in.
+      if (previousUserId && previousUserId !== dbUser.id) {
+        clearPOSCartStorage();
+      }
 
       setUser(userProfile);
       setDbUser(userProfile);
@@ -576,6 +631,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     Sentry.setUser(null);
     localStorage.removeItem("dumos_user");
     sessionStorage.removeItem("dumos_session_authenticated");
+    // Without this, a shared terminal's POS cart (items, discount, redeemed
+    // reward, reseller flag — all persisted under this one global key by
+    // use-pos-cart.ts's zustand store) survives logout and is inherited by
+    // whichever cashier signs in next.
+    clearPOSCartStorage();
     // See the matching comment in login(): an impersonated session that
     // ends via the ordinary "Sign Out" button instead of the banner's "End
     // Session" button would otherwise leave these flags behind forever.

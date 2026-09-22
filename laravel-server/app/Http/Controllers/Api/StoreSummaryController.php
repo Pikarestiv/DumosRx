@@ -28,22 +28,25 @@ class StoreSummaryController extends Controller
     {
         $user = $request->user();
 
-        // Check subscription tier
-        $subscription = Subscription::where('user_id', $user->id)
-            ->where('status', 'active')
-            ->first();
+        // Check subscription tier. Mirrors SubscriptionService::hasFeature()'s
+        // own owner-resolution (a staff member calling this must resolve to
+        // their store owner's subscription, not their own — they have none)
+        // and active/not-expired-with-grace-period logic, instead of a raw
+        // `Subscription::where('user_id', $user->id)->where('status',
+        // 'active')->first()` with no end_date filter/ordering at all, which
+        // could pick an arbitrary EXPIRED subscription row.
+        $subscriptionService = app(\App\Services\SubscriptionService::class);
+        $owner = $subscriptionService->getSubscriptionOwner($user);
+        $subscription = $subscriptionService->resolveEffectiveSubscription($owner);
 
-        $systemConfig = \App\Models\SystemConfig::getVal('subscription_plans', []);
-        $plan = $subscription ? $subscription->plan_name : 'free';
-        
         // Gates the end-of-day summary email — the flag name matches what
         // it actually does now (it never gated backups; that was a stale
-        // name carried over from an earlier iteration).
-        $hasFeature = isset($systemConfig['tiers'][$plan]['features']['daily_summary_email'])
-            ? $systemConfig['tiers'][$plan]['features']['daily_summary_email']
-            : in_array($plan, ['pro', 'enterprise']);
-
-        if (!$hasFeature) {
+        // name carried over from an earlier iteration). Delegated to
+        // SubscriptionService::hasFeature() (which owns the
+        // absent-flag-key pro/enterprise fallback) rather than duplicating
+        // that logic here, so this endpoint and the nightly
+        // SendEndOfDaySummaries cron always agree on who gets emailed.
+        if (!$subscriptionService->hasFeature($user, 'daily_summary_email')) {
             return response()->json([
                 'message' => 'This is a premium feature. Please upgrade your plan to access it.'
             ], 403);

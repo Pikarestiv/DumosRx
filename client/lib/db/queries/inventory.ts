@@ -102,15 +102,27 @@ export async function getBatchesForProduct(productId: string) {
 
 /**
  * Same as getBatchesForProduct but without the `quantity > 0` filter — used
- * where the caller needs to know "does this product have an existing batch
- * to attach to" rather than "which batches can I pick stock from" (FEFO
- * sale/deduction paths correctly want the filtered version; see
- * submitStockAudit's restock branch below for why the unfiltered version
- * matters there).
+ * where the caller needs to know "does this product have an existing,
+ * genuinely sellable batch to attach to" rather than "which batches can I
+ * pick stock from right now" (FEFO sale/deduction paths correctly want the
+ * filtered version; see submitStockAudit's restock branch below for why the
+ * unfiltered-on-quantity version matters there). Despite the name, this
+ * previously filtered only `_deleted = 0` — not `is_active = 1` or expiry —
+ * which let a stock audit's "found extra stock" branch write found units
+ * into an already-expired or deactivated batch, where they become
+ * permanently unsellable (the FEFO sale path excludes such batches) while
+ * still counting toward on-hand quantity/valuation. It also ordered by
+ * `expiry_date ASC` alone, and SQLite sorts NULL first under ASC, so a
+ * batch with no expiry date (common for non-perishables) would be picked
+ * ahead of one actually expiring soon. Both are fixed to match
+ * getBatchesForProduct's filtering/ordering convention.
  */
 export async function getAllActiveBatchesForProduct(productId: string) {
   return query<StockBatch>(
-    "SELECT * FROM stock_batches WHERE product_id = ? AND _deleted = 0 ORDER BY expiry_date ASC, created_at ASC",
+    `SELECT * FROM stock_batches
+     WHERE product_id = ? AND _deleted = 0 AND is_active = 1
+       AND (expiry_date IS NULL OR expiry_date = '' OR date(expiry_date) > date('now'))
+     ORDER BY (expiry_date IS NULL) ASC, expiry_date ASC, created_at ASC`,
     [productId],
   );
 }
@@ -317,6 +329,10 @@ export async function getExpiringBatches(days: number) {
   );
 }
 
+// Only counts batches the sale path can actually dispense from (active,
+// non-expired) toward on-hand quantity — a product whose entire stock has
+// expired or been deactivated must still show as needing reorder, not as
+// healthily stocked.
 export async function getLowStockAlerts() {
   const storeId = getActiveStoreId();
   return query<{
@@ -331,7 +347,9 @@ export async function getLowStockAlerts() {
       m.reorder_level as threshold,
       m.base_unit as baseUnit
      FROM products m
-     LEFT JOIN stock_batches inv ON inv.product_id = m.id AND (inv._deleted = 0 OR inv._deleted IS NULL)
+     LEFT JOIN stock_batches inv ON inv.product_id = m.id
+       AND (inv._deleted = 0 OR inv._deleted IS NULL) AND (inv.is_active = 1 OR inv.is_active IS NULL)
+       AND (inv.expiry_date IS NULL OR inv.expiry_date = '' OR date(inv.expiry_date) > date('now'))
      WHERE (m._deleted = 0 OR m._deleted IS NULL)${storeId ? " AND m.store_id = ?" : ""}
      GROUP BY m.id
      HAVING quantity <= m.reorder_level AND m.reorder_level > 0
@@ -427,7 +445,11 @@ export async function getStockBatchStats(expiryDays: number = 30) {
     FROM products p
     LEFT JOIN (
       SELECT product_id,
-        SUM(quantity) as total_qty,
+        -- Only active, non-expired stock counts toward "on hand" for the
+        -- low/critical stock counts below — the sale path can't dispense an
+        -- expired or deactivated batch, so it shouldn't count as available
+        -- stock here either (see getBatchesForProduct).
+        SUM(CASE WHEN (is_active = 1 OR is_active IS NULL) AND (expiry_date IS NULL OR expiry_date = '' OR date(expiry_date) > date('now')) THEN quantity ELSE 0 END) as total_qty,
         SUM(CASE WHEN expiry_date IS NOT NULL AND date(expiry_date) > date('now') AND date(expiry_date) <= date('now', '+' || ? || ' days') THEN 1 ELSE 0 END) as expiring_soon,
         SUM(CASE WHEN expiry_date IS NOT NULL AND date(expiry_date) <= date('now') THEN 1 ELSE 0 END) as expired,
         SUM(CASE WHEN (expiry_date IS NULL OR expiry_date = '') AND quantity > 0 THEN 1 ELSE 0 END) as missing_expiry,
@@ -487,8 +509,60 @@ export async function createStockBatch(batch: {
   quantity: number;
   expiry_date?: string;
   cost_price?: number;
+  store_id?: string;
 }) {
   return insert("stock_batches", batch);
+}
+
+/**
+ * Finds a genuinely active, non-expired batch to land newly-found or
+ * restored stock into, or creates one if none exists. Shared by
+ * submitStockAudit's "found extra stock" branch and
+ * restoreReturnedStock's no-recorded-batch fallback (see returns.ts) so
+ * neither writes stock into an expired/deactivated batch — where it would
+ * be permanently unsellable (the FEFO sale path excludes such batches)
+ * while still counting toward on-hand quantity/valuation — nor leaves the
+ * write untracked. The new batch (when one has to be created) is valued at
+ * `unitCost` and scoped to the product's own store_id, not whatever store
+ * happens to be active on this device.
+ */
+export async function getOrCreateTargetBatchForProduct(
+  productId: string,
+  options: { unitCost: number; batchNumberPrefix?: string },
+): Promise<StockBatch> {
+  const targets = await getAllActiveBatchesForProduct(productId);
+  if (targets.length > 0) return targets[0];
+
+  // store_id is added to `products` via a schema migration rather than the
+  // base CREATE TABLE, so a device/test harness that hasn't (or doesn't
+  // need to) run migrations may not have the column yet - fall back to no
+  // explicit store_id (insert()'s own active-store auto-scoping still
+  // applies) rather than let a missing column abort the whole restore/
+  // restock.
+  const productRows = await query<{ store_id: string | null }>(
+    "SELECT store_id FROM products WHERE id = ?",
+    [productId],
+  ).catch(() => []);
+  const newBatchId = crypto.randomUUID();
+  const batch: StockBatch = {
+    id: newBatchId,
+    product_id: productId,
+    batch_number: `${options.batchNumberPrefix || "ADJ"}-${new Date().toISOString().slice(0, 10)}`,
+    quantity: 0,
+    cost_price: options.unitCost,
+  };
+  const storeId = productRows[0]?.store_id;
+  await createStockBatch({
+    ...batch,
+    batch_number: batch.batch_number!,
+    // Only set explicitly when known — an explicit `store_id: undefined`
+    // key would still make it into the INSERT's column list and fail
+    // against a `stock_batches` table that predates the store_id migration
+    // column; omitting the key entirely instead lets insert()'s own
+    // active-store auto-scoping (or a legacy NULL) apply normally.
+    ...(storeId ? { store_id: storeId } : {}),
+  });
+  return batch;
 }
 
 export interface StockAuditSubmission {
@@ -593,54 +667,36 @@ export async function submitStockAudit(
       const unitCost = item.countedCostPrice ?? item.systemCostPrice ?? 0;
 
       if (diff > 0) {
-        // Found more stock than recorded: add it to the soonest-expiring
-        // *existing* batch (regardless of its current quantity — including
-        // zero, e.g. a batch a sync pull raced to zero, or one a prior
-        // audit/sale already depleted), or open a new one only if the
-        // product genuinely has none at all. Using the quantity>0-filtered
-        // `batches` here previously meant a batch sitting at exactly 0 was
-        // invisible to this check, so every restock onto it forked off a
-        // duplicate "AUDIT-..." batch instead of topping the real one back
-        // up — reproduced at scale (500+ products) during a bulk-import
-        // stock correction in the same session that found this.
-        const restockTargets = await getAllActiveBatchesForProduct(item.productId);
-        if (restockTargets.length > 0) {
-          await updateStockBatchQuantity(restockTargets[0].id, remaining);
-          await insert("stock_movements", {
-            product_id: item.productId,
-            stock_batch_id: restockTargets[0].id,
-            movement_type: "adjustment",
-            quantity: remaining,
-            unit_cost: unitCost,
-            total_cost: unitCost * remaining,
-            reason: item.reason || "Cycle count adjustment",
-            reference_id: auditId,
-            reference_type: "stock_audit",
-            performed_by: performedBy || null,
-            movement_date: new Date().toISOString(),
-          });
-        } else {
-          const newBatchId = crypto.randomUUID();
-          await createStockBatch({
-            id: newBatchId,
-            product_id: item.productId,
-            batch_number: `AUDIT-${new Date().toISOString().slice(0, 10)}`,
-            quantity: remaining,
-          });
-          await insert("stock_movements", {
-            product_id: item.productId,
-            stock_batch_id: newBatchId,
-            movement_type: "adjustment",
-            quantity: remaining,
-            unit_cost: unitCost,
-            total_cost: unitCost * remaining,
-            reason: item.reason || "Cycle count adjustment",
-            reference_id: auditId,
-            reference_type: "stock_audit",
-            performed_by: performedBy || null,
-            movement_date: new Date().toISOString(),
-          });
-        }
+        // Found more stock than recorded: add it to the soonest-expiring,
+        // genuinely active/non-expired *existing* batch (regardless of its
+        // current quantity — including zero, e.g. a batch a sync pull raced
+        // to zero, or one a prior audit/sale already depleted), or open a
+        // new one only if the product genuinely has no valid batch at all.
+        // getOrCreateTargetBatchForProduct excludes expired/deactivated
+        // batches (writing found stock into one would make it permanently
+        // unsellable, since the FEFO sale path refuses to dispense it, while
+        // it still counted toward on-hand quantity/valuation), and values a
+        // newly-created batch at unitCost/the product's real store_id
+        // instead of defaulting to 0 and whatever store happens to be
+        // active on this device.
+        const targetBatch = await getOrCreateTargetBatchForProduct(item.productId, {
+          unitCost,
+          batchNumberPrefix: "AUDIT",
+        });
+        await updateStockBatchQuantity(targetBatch.id, remaining);
+        await insert("stock_movements", {
+          product_id: item.productId,
+          stock_batch_id: targetBatch.id,
+          movement_type: "adjustment",
+          quantity: remaining,
+          unit_cost: unitCost,
+          total_cost: unitCost * remaining,
+          reason: item.reason || "Cycle count adjustment",
+          reference_id: auditId,
+          reference_type: "stock_audit",
+          performed_by: performedBy || null,
+          movement_date: new Date().toISOString(),
+        });
       } else {
         // Found less stock than recorded: deduct FEFO across batches until
         // the shortfall is accounted for or stock runs out.

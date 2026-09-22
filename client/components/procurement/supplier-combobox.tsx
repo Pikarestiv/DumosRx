@@ -133,7 +133,7 @@ export function SupplierCombobox({
 
       {open && (
         <div className="absolute z-[999] w-full mt-1 bg-popover text-popover-foreground shadow-xl rounded-md border border-border outline-none animate-in fade-in-0 zoom-in-95 overflow-hidden">
-          <div className="max-h-[300px] overflow-y-auto hide-scrollbar p-1">
+          <div className="max-h-[300px] overflow-y-auto p-1">
             <div
               onClick={() => {
                 onCreateNew();

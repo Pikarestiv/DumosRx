@@ -13,6 +13,7 @@ import {
   calculateMixedAmountPaid,
   calculateMixedChangeDue,
   calculateSalePaymentStatus,
+  roundMoney,
 } from '@/lib/utils/pos-calculations';
 
 describe('POS Calculations', () => {
@@ -43,6 +44,33 @@ describe('POS Calculations', () => {
     expect(calculateTotal(1000, 75, 150)).toBe(925);
     // Prevents negative total
     expect(calculateTotal(100, 0, 150)).toBe(0);
+  });
+
+  describe('VAT on net-of-discount subtotal (KNOWN_BUGS.md - VAT charged on pre-discount subtotal)', () => {
+    it('charges VAT on the discounted subtotal, not the raw subtotal', () => {
+      // Cart 10,000, discount 2,000, VAT 7.5%. Correct VAT is 7.5% of the
+      // net 8,000 = 600, not 7.5% of the raw 10,000 (= 750).
+      const subtotal = 10000;
+      const discountAmount = calculateDiscountAmount(subtotal, 2000, 'fixed');
+      const tax = calculateTax(subtotal - discountAmount, 7.5);
+      const total = calculateTotal(subtotal, tax, discountAmount);
+
+      expect(tax).toBe(600);
+      // 10,000 + 600 - 2,000 = 8,600, i.e. the discounted 8,000 net plus tax.
+      expect(total).toBe(8600);
+    });
+
+    it('a loyalty redemption (which shares the discount slot) is taxed the same way', () => {
+      // A ₦1,500 redeemed reward behaves exactly like a fixed discount for
+      // tax purposes, since it flows through the same discount amount.
+      const subtotal = 5000;
+      const redeemedDiscount = calculateDiscountAmount(subtotal, 1500, 'fixed');
+      const tax = calculateTax(subtotal - redeemedDiscount, 7.5);
+      const total = calculateTotal(subtotal, tax, redeemedDiscount);
+
+      expect(tax).toBe(roundMoney(3500 * 0.075));
+      expect(total).toBe(roundMoney(3500 + tax));
+    });
   });
 
   it('calculates change due correctly', () => {
@@ -130,6 +158,19 @@ describe('POS Calculations', () => {
         saleDiscountAmount: 0,
       });
       expect(refund).toBe(500);
+    });
+
+    it('rounds the refund to the cent instead of accumulating float dust', () => {
+      // Chosen so the raw arithmetic produces a repeating/non-terminating
+      // binary fraction (float dust) if not rounded.
+      const refund = calculateProportionalRefund({
+        itemsSubtotal: 10,
+        saleSubtotal: 30,
+        saleTaxAmount: 10,
+        saleDiscountAmount: 0,
+      });
+      // 10 + (1/3)*10 = 13.333... -> must round to 13.33
+      expect(refund).toBe(13.33);
     });
 
     it('never returns a negative refund', () => {

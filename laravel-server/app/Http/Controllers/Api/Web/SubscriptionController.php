@@ -49,11 +49,19 @@ class SubscriptionController extends Controller
     {
         /** @var User $user */
         $user = Auth::user();
-        $sub = Subscription::where('user_id', $user->id)
-            ->where('status', 'active')
-            ->where('end_date', '>', now())
-            ->latest()
-            ->first();
+        // Resolve to the subscription OWNER first — matching how
+        // CheckSubscription/SubscriptionService::hasFeature()/validateSync()
+        // already do it — since a staff member has no subscriptions of
+        // their own; querying $user->id directly always returned 'inactive'/
+        // null limits for staff regardless of the store's real plan.
+        $subscriptionService = app(SubscriptionService::class);
+        $owner = $subscriptionService->getSubscriptionOwner($user);
+        // Grace-period aware, matching hasFeature()/checkLimit()/
+        // StoreSummaryController elsewhere in the app — a raw `status =
+        // 'active' AND end_date > now()` query here reported 'inactive'
+        // during the grace window even while the rest of the app still
+        // granted paid-tier access for the same account.
+        $sub = $subscriptionService->resolveEffectiveSubscription($owner);
 
         if (!$sub) {
             return response()->json(['status' => 'inactive', 'message' => 'No active subscription found.']);
@@ -341,7 +349,13 @@ class SubscriptionController extends Controller
             $creditsApplied = min($availableCredits, $discountedAmount);
         }
 
-        $finalAmount = $discountedAmount - $creditsApplied;
+        // Rounded to kobo precision (2dp) here at the source, rather than
+        // only when comparing against the provider's response later -
+        // coupon-percentage arithmetic above (discountedAmount -= amount *
+        // percent/100) can otherwise leave $finalAmount with sub-kobo float
+        // noise (e.g. 13124.124) that PaymentService's own kobo rounding
+        // can never exactly match.
+        $finalAmount = round($discountedAmount - $creditsApplied, 2);
 
         // Handle 100% discounts / Free Trials / Paid fully by credits directly
         if ($finalAmount <= 0) {
@@ -455,7 +469,16 @@ class SubscriptionController extends Controller
             'reference' => 'required|string',
         ]);
 
-        $txn = PaymentTransaction::where('provider_reference', $request->reference)->first();
+        /** @var User $user */
+        $user = Auth::user();
+
+        // Scoped to the caller (via the user_id every transaction is created
+        // with in initiatePayment) so one user can't "verify" -- and thereby
+        // activate a subscription from -- a transaction reference that isn't
+        // theirs.
+        $txn = PaymentTransaction::where('provider_reference', $request->reference)
+            ->where('metadata->user_id', $user->id)
+            ->first();
 
         if (!$txn) {
             return response()->json(['success' => false, 'message' => 'Transaction not found.'], 404);
@@ -478,31 +501,88 @@ class SubscriptionController extends Controller
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
 
-        if (!$verification['success']) {
-            $txn->update(['status' => 'failed']);
+        // Mirrors StorefrontController::checkout's provider-amount check: a
+        // "successful" verification for the right reference isn't enough on
+        // its own if the amount actually paid was less than what the
+        // transaction was created for (e.g. a tampered/undercut client-side
+        // redirect flow, or a stale reference reused for a cheaper item).
+        // A small tolerance (1 kobo, i.e. 0.01 naira) absorbs the float
+        // precision PaymentService's `(int) round($amount * 100)` kobo
+        // conversion doesn't round-trip perfectly for - $txn->amount can
+        // retain sub-kobo precision from coupon-percentage arithmetic (e.g.
+        // 13124.124), while what actually comes back from the provider is
+        // always a whole kobo amount (e.g. 13124.12); without this a
+        // genuine full payment would otherwise fail a strict `<` compare.
+        $verifiedAmount = (float) ($verification['amount'] ?? 0);
+        if (!$verification['success'] || $verifiedAmount < (float) $txn->amount - 0.01) {
+            // Locked and re-checked the same way activateSubscriptionFromTransaction()
+            // is, so a stale/short verify call arriving after the webhook has
+            // already activated the subscription can't stomp its 'success'
+            // status back to 'failed' out from under an active subscription.
+            DB::transaction(function () use ($txn) {
+                $locked = PaymentTransaction::where('id', $txn->id)->lockForUpdate()->first();
+                if ($locked && $locked->status === 'pending') {
+                    $locked->update(['status' => 'failed']);
+                }
+            });
             return response()->json(['success' => false, 'message' => 'Payment verification failed.'], 400);
         }
 
-        // Only the state transition + subscription creation is done under
-        // the lock: two concurrent calls that both verified successfully
-        // above must still not both create a subscription / award referral
-        // credit. The second call blocks here until the first commits, then
-        // sees status === 'success' and short-circuits.
-        return DB::transaction(function () use ($txn, $verification) {
+        $result = $this->activateSubscriptionFromTransaction($txn, [
+            'verification_data' => $verification['data'] ?? [],
+        ]);
+
+        if ($result['already']) {
+            return response()->json(['success' => true, 'message' => 'Payment already verified.']);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Payment verified and subscription activated.',
+            'subscription' => $result['subscription'],
+        ]);
+    }
+
+    /**
+     * Single source of truth for "a payment transaction has been confirmed
+     * successful, now activate what it paid for" -- shared by verifyPayment()
+     * (the user's redirect-back call) and PaymentController::processSuccessfulPayment()
+     * (the provider's async webhook), since either one can be the first to
+     * observe success for a given reference.
+     *
+     * Idempotency: the status check + transition to 'success' happens under
+     * a row lock inside a DB transaction, matching the locking pattern
+     * verifyPayment already used before this method existed. Whichever
+     * caller (webhook or verify) gets here first for a given transaction
+     * does the real work; the other blocks on the lock, then sees
+     * status === 'success' and short-circuits via $result['already'].
+     *
+     * @param array $extraMetadata Merged into the transaction's metadata
+     *                             (e.g. ['webhook_data' => ...] or ['verification_data' => ...])
+     * @return array{already: bool, subscription: ?Subscription}
+     */
+    public function activateSubscriptionFromTransaction(PaymentTransaction $txn, array $extraMetadata = []): array
+    {
+        return DB::transaction(function () use ($txn, $extraMetadata) {
             $txn = PaymentTransaction::where('id', $txn->id)->lockForUpdate()->first();
 
             if ($txn->status === 'success') {
-                return response()->json(['success' => true, 'message' => 'Payment already verified.']);
+                return ['already' => true, 'subscription' => $txn->subscription_id ? Subscription::find($txn->subscription_id) : null];
             }
 
-            $txn->update(['status' => 'success', 'metadata' => array_merge($txn->metadata ?? [], ['verification_data' => $verification['data']])]);
+            $txn->update([
+                'status' => 'success',
+                'metadata' => array_merge($txn->metadata ?? [], $extraMetadata),
+            ]);
 
-            $user = User::find($txn->metadata['user_id'] ?? Auth::id());
+            $user = User::find($txn->metadata['user_id'] ?? null);
 
-            // Create or Update Subscription
+            // Correct end_date from the interval the transaction was
+            // actually created for (see initiatePayment), instead of always
+            // assuming monthly.
             $interval = $txn->metadata['interval'] ?? 'monthly';
             $sub = Subscription::create([
-                'user_id' => $user ? $user->id : Auth::id(),
+                'user_id' => $user ? $user->id : ($txn->metadata['user_id'] ?? null),
                 'plan_name' => $txn->metadata['plan_name'],
                 'start_date' => now(),
                 'end_date' => ($interval === 'yearly') ? now()->addYear() : now()->addMonth(),
@@ -511,6 +591,10 @@ class SubscriptionController extends Controller
             ]);
 
             $txn->update(['subscription_id' => $sub->id]);
+
+            if ($user) {
+                app(SubscriptionService::class)->enforceStaffLimits($user);
+            }
 
             // Deduct applied credits
             $creditsApplied = (float) ($txn->metadata['credits_applied'] ?? 0);
@@ -523,7 +607,17 @@ class SubscriptionController extends Controller
                 $referralConfig = SystemConfig::getVal('referral_program', []);
                 if ($referralConfig && ($referralConfig['enabled'] ?? false)) {
                     $trigger = $referralConfig['reward_trigger'] ?? 'recurring';
-                    $isFirstTime = Subscription::where('user_id', $user->id)->count() <= 1;
+
+                    // Computed excluding trial subscriptions (every user has
+                    // one from SubscriptionService::createTrial()) and the
+                    // paid subscription just created above, so a genuine
+                    // first-ever paid subscription is correctly identified
+                    // as "first time" instead of always failing this check.
+                    $priorPaidSubscriptions = Subscription::where('user_id', $user->id)
+                        ->where('is_trial', false)
+                        ->where('id', '!=', $sub->id)
+                        ->count();
+                    $isFirstTime = $priorPaidSubscriptions === 0;
 
                     if ($trigger === 'recurring' || ($trigger === 'first' && $isFirstTime)) {
                         $rewardPercentage = (float) ($referralConfig['reward_percentage'] ?? 10.0);
@@ -550,11 +644,7 @@ class SubscriptionController extends Controller
                 }
             }
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Payment verified and subscription activated.',
-                'subscription' => $sub
-            ]);
+            return ['already' => false, 'subscription' => $sub];
         });
     }
 

@@ -64,6 +64,26 @@ const usePOSCartStore = create<POSCartState>()(
   )
 );
 
+// Clears the persisted POS cart (cart items, discount, redeemed reward,
+// reseller flag) both in memory and in localStorage. A plain
+// `localStorage.removeItem("pos-cart-storage")` alone is NOT enough: this
+// store's zustand module only rehydrates from storage once, on creation, so
+// the in-memory cart state would survive untouched (and the very next cart
+// mutation would just re-persist it, undoing the removal). Call this at
+// every point the app tears down one session's context for another's —
+// logout, the lock-screen "switch user" flow, and a store switch — so a
+// shared terminal's next cashier (or the newly-active store) never inherits
+// a cart staged against the outgoing session.
+export function clearPOSCartStorage() {
+  usePOSCartStore.setState({
+    cart: [],
+    discount: 0,
+    discountType: "fixed",
+    redeemedOption: null,
+    isResellerSale: false,
+  });
+}
+
 export function usePOSCart(products: Product[]) {
   const { vatPercentage } = useStore();
   const { canUseLoyaltyProgram } = useFeatureGate();
@@ -126,10 +146,17 @@ export function usePOSCart(products: Product[]) {
   }, [canUseLoyaltyProgram, redeemedOption]);
 
   const subtotal = useMemo(() => calculateSubtotal(cart), [cart]);
-  const tax = useMemo(() => calculateTax(subtotal, vatPercentage), [subtotal, vatPercentage]);
   const calculatedDiscount = useMemo(
     () => calculateDiscountAmount(subtotal, discount, discountType),
     [subtotal, discount, discountType]
+  );
+  // VAT must be charged on the net-of-discount amount (this covers loyalty
+  // redemptions too, since they share this same discount slot — see
+  // redeemReward() above) — otherwise a discounted/redeemed sale is
+  // overcharged VAT on money the customer was never actually charged.
+  const tax = useMemo(
+    () => calculateTax(Math.max(0, subtotal - calculatedDiscount), vatPercentage),
+    [subtotal, calculatedDiscount, vatPercentage]
   );
   const total = useMemo(
     () => calculateTotal(subtotal, tax, calculatedDiscount),

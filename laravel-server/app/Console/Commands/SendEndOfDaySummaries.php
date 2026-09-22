@@ -3,11 +3,13 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
-use App\Models\Store;
 use App\Models\Subscription;
+use App\Models\User;
 use App\Mail\EndOfDaySummaryMail;
+use App\Services\SubscriptionService;
 use Illuminate\Support\Facades\Mail;
-use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class SendEndOfDaySummaries extends Command
 {
@@ -28,26 +30,47 @@ class SendEndOfDaySummaries extends Command
     /**
      * Execute the console command.
      */
-    public function handle()
+    public function handle(SubscriptionService $subscriptionService)
     {
         $this->info('Starting End of Day Summary job...');
 
-        // Fetch subscriptions that are Pro or Enterprise and currently active
-        $subscriptions = Subscription::with('user.stores')
-            ->whereIn('plan_name', ['pro', 'enterprise'])
-            ->where('status', 'active')
-            ->get();
+        // Every subscription is owned by a subscription OWNER (staff inherit
+        // via SubscriptionService::getSubscriptionOwner() but never own rows
+        // here directly), so iterate the distinct set of owners that have
+        // ever held a subscription rather than hardcoding a tier list.
+        $ownerIds = Subscription::query()->distinct()->pluck('user_id');
+        $owners = User::whereIn('id', $ownerIds)->get();
 
-        foreach ($subscriptions as $subscription) {
-            $user = $subscription->user;
-            if (!$user) {
+        foreach ($owners as $user) {
+            // Mirrors StoreSummaryController::sendSummary() — gate on the
+            // daily_summary_email feature flag (grace-period aware via
+            // resolveEffectiveSubscription()) instead of a raw
+            // status='active' check with no end_date filter, which never
+            // stops sending once a subscription lapses.
+            if (!$subscriptionService->hasFeature($user, 'daily_summary_email')) {
                 continue;
             }
 
-            // The EndOfDaySummaryMail constructor aggregates the metrics per-tenant
-            Mail::to($user->email)->send(new EndOfDaySummaryMail($user, $subscription));
-            
-            $this->info("Sent summary to {$user->email}.");
+            $subscription = $subscriptionService->resolveEffectiveSubscription($user);
+            if (!$subscription) {
+                continue;
+            }
+
+            try {
+                // The EndOfDaySummaryMail constructor aggregates the metrics per-tenant
+                Mail::to($user->email)->send(new EndOfDaySummaryMail($user, $subscription));
+
+                $this->info("Sent summary to {$user->email}.");
+            } catch (Throwable $e) {
+                // One bad recipient/mailer failure shouldn't abort the run
+                // for every other store.
+                Log::error('Failed to send end-of-day summary email', [
+                    'user_id' => $user->id,
+                    'email' => $user->email,
+                    'error' => $e->getMessage(),
+                ]);
+                $this->error("Failed to send summary to {$user->email}: {$e->getMessage()}");
+            }
         }
 
         $this->info('Job completed.');

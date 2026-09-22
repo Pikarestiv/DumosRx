@@ -123,6 +123,15 @@ export async function pullChanges(
     // comment where this is populated below). Applied once, in original
     // order, after every page across every table has been pulled.
     const deferredMovementDeltas: { stockBatchId: string; quantity: number }[] = [];
+    // When a delta gets deferred, stock_movements' own cursor stamp is held
+    // back here (rather than being committed with its page's transaction) so
+    // the stamp and the deltas it defers can commit atomically together in
+    // the final transaction below. Committing the cursor first would mean a
+    // crash in the window between the two left the cursor saying "these
+    // movements are pulled" while their deltas were never applied — and a
+    // movement is only ever seen by the insert branch once, so the increment
+    // would be lost permanently.
+    let deferredMovementCursor: string | null = null;
 
     let hasMoreAny = true;
     let page = 0;
@@ -341,7 +350,9 @@ export async function pullChanges(
                   // movement is only ever seen here once. Defer it instead
                   // — applied once every page has been pulled, by which
                   // point every batch this round could reference has
-                  // already been inserted.
+                  // already been inserted, in the very same transaction as
+                  // this table's cursor stamp (held back for exactly that
+                  // reason, see deferredMovementCursor).
                   const batchExists = await query<{ 1: number }>(
                     "SELECT 1 FROM stock_batches WHERE id = ?",
                     [data.stock_batch_id as string],
@@ -471,10 +482,22 @@ export async function pullChanges(
           // pull once the cursor moves past its updated_at.
           const tableHasMore = has_more?.[table] ?? false;
           if (!tableHasMore && !skippedTables.has(table)) {
-            await execute(
-              "INSERT OR REPLACE INTO _sync_state (table_name, last_synced_at) VALUES (?, ?)",
-              [table, server_timestamp],
-            );
+            // A pulled movement whose delta had to be deferred (its batch
+            // hadn't arrived yet) isn't fully applied until that delta is,
+            // so stock_movements' cursor must not be committed here, in
+            // this page's transaction: it's carried to the final
+            // transaction below and committed atomically with the deltas
+            // themselves. Otherwise a crash between this commit and that
+            // one would leave the cursor claiming the movements were
+            // pulled while their deltas were silently lost forever.
+            if (table === "stock_movements" && deferredMovementDeltas.length > 0) {
+              deferredMovementCursor = server_timestamp;
+            } else {
+              await execute(
+                "INSERT OR REPLACE INTO _sync_state (table_name, last_synced_at) VALUES (?, ?)",
+                [table, server_timestamp],
+              );
+            }
           }
         }
       }).catch((err) => {
@@ -487,12 +510,23 @@ export async function pullChanges(
       hasMoreAny = Object.values(has_more ?? {}).some(Boolean);
     }
 
-    if (deferredMovementDeltas.length > 0) {
+    // The deferred deltas and the stock_movements cursor stamp they belong to
+    // commit as one unit: either the movements count as pulled AND their
+    // deltas are applied, or neither happened and the next pull re-offers the
+    // same movements (whose insert branch will then re-derive the deltas).
+    // There is deliberately no window in between for a crash to fall into.
+    if (deferredMovementDeltas.length > 0 || deferredMovementCursor !== null) {
       await transaction(async () => {
         for (const d of deferredMovementDeltas) {
           await execute(
             "UPDATE stock_batches SET quantity = MAX(0, quantity + ?) WHERE id = ?",
             [d.quantity, d.stockBatchId],
+          );
+        }
+        if (deferredMovementCursor !== null) {
+          await execute(
+            "INSERT OR REPLACE INTO _sync_state (table_name, last_synced_at) VALUES (?, ?)",
+            ["stock_movements", deferredMovementCursor],
           );
         }
       });

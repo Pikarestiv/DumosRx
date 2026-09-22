@@ -142,5 +142,89 @@ describe("pullChanges: UNIQUE-constraint skip and cross-page batch/movement orde
       `SELECT quantity FROM stock_batches WHERE id = 'batch-cross-page'`,
     );
     expect(batchRows[0].values[0][0]).toBe(15);
+
+    // The stock_movements cursor is held back until the deferred delta is
+    // applied, then stamped in that same transaction — so by the end of a
+    // successful pull it must be stamped, not left behind.
+    const cursor = db.exec(
+      `SELECT last_synced_at FROM _sync_state WHERE table_name = 'stock_movements'`,
+    );
+    expect(cursor[0].values[0][0]).toBe("2026-09-19T00:00:01Z");
+  });
+
+  /**
+   * Residual gap from the same KNOWN_BUGS entry: the deferred delta used to
+   * be applied in a SEPARATE transaction committed AFTER the page loop had
+   * already committed stock_movements' cursor. A crash in that window lost
+   * the delta permanently (a movement's insert branch only ever runs once,
+   * so a re-pull past the advanced cursor never re-derives it).
+   *
+   * Here the deferred delta's UPDATE is forced to fail (via a RAISE(ABORT)
+   * trigger) to stand in for that crash. With the old two-transaction
+   * structure the cursor stamp from page 1 would already be committed and
+   * would survive; now the stamp lives in the same transaction as the
+   * deltas, so the failure must roll BOTH back, leaving the cursor unset and
+   * the movements eligible for a clean re-pull.
+   */
+  it("rolls the stock_movements cursor back together with a failed deferred delta (no crash window between them)", async () => {
+    db.run(
+      `CREATE TRIGGER fail_deferred_delta BEFORE UPDATE OF quantity ON stock_batches
+       BEGIN SELECT RAISE(ABORT, 'injected failure between cursor commit and deferred delta'); END;`,
+    );
+
+    try {
+      apiClient.pullChanges
+        .mockResolvedValueOnce({
+          success: true,
+          changes: {
+            stock_movements: [
+              {
+                id: "move-atomic",
+                product_id: "prod-1",
+                stock_batch_id: "batch-atomic",
+                movement_type: "purchase",
+                quantity: 7,
+                _version: 1,
+              },
+            ],
+          },
+          server_timestamp: "2026-09-20T00:00:01Z",
+          has_more: { stock_movements: false, stock_batches: true },
+        })
+        .mockResolvedValueOnce({
+          success: true,
+          changes: {
+            stock_batches: [
+              {
+                id: "batch-atomic",
+                product_id: "prod-1",
+                batch_number: "Opening Stock",
+                quantity: 0,
+                is_active: true,
+                _version: 1,
+              },
+            ],
+          },
+          server_timestamp: "2026-09-20T00:00:02Z",
+          has_more: { stock_batches: false },
+        });
+
+      await expect(pullChanges()).rejects.toThrow();
+
+      // The cursor must NOT be stamped: it was committed atomically with the
+      // delta that failed, so both rolled back.
+      const cursor = db.exec(
+        `SELECT last_synced_at FROM _sync_state WHERE table_name = 'stock_movements'`,
+      );
+      expect(cursor.length).toBe(0);
+
+      // The delta itself is of course not applied either.
+      const batchRows = db.exec(
+        `SELECT quantity FROM stock_batches WHERE id = 'batch-atomic'`,
+      );
+      expect(batchRows[0].values[0][0]).toBe(0);
+    } finally {
+      db.run(`DROP TRIGGER fail_deferred_delta`);
+    }
   });
 });

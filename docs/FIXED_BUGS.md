@@ -4,6 +4,28 @@ A changelog of bugs that were tracked in `docs/KNOWN_BUGS.md` and have since bee
 
 ## 2026-09-22
 
+### fix: dashboard ratio metrics computed numerator/denominator on mismatched populations
+- **Commit:** `35de5b37`
+- Audited every ratio-style dashboard/BI/customer-page tile for whether its denominator's population actually matched what its label implied. "Today's Sales" vs-yesterday % compared net-of-refunds today against gross (unrefunded) yesterday; Net Sales/Avg. Transaction period-over-period % compared a tax-and-refund-excluded current figure against a raw, tax-inclusive prior period; "Total Customers" period-over-period % used an all-time count as the "previous" baseline instead of the count as of the previous window's start; the Total Stock Value MoM % mixed an `is_active`-only current valuation against the card's all-non-deleted valuation. All four brought onto a consistent basis.
+- "Customer Retention" (dashboard tile) and the customers page's own "Retention Rate"/"Avg Visits/Mo" both compute a period-internal repeat-purchase rate, not retention against any cohort/baseline — relabeled to "Repeat Purchase Rate"/"Avg Visits/Customer" rather than inventing a new cohort definition with no unambiguous source of truth.
+
+### fix: getStockBatchStats leaked other stores' inventory value into the total
+- **Commit:** `ba0bb56c`
+- New reconciliation tests (cross-checking dashboard/report aggregates against an independently computed raw SQL sum for revenue, COGS, and inventory valuation) caught `getStockBatchStats` reporting a "Total stock value" nearly 6x the real figure for the active store — its inner `stock_batches` subquery filtered only `_deleted`, never `store_id`, so batch rows belonging to a different store hanging off one of the active store's products were summed in anyway. Same bug class already fixed once in `fetchStockBatchReportData`; this query had been missed.
+
+### feat: wire in LOYALTY_RULES minimum redemption and points expiry
+- **Commit:** `f640e89e`
+- `LOYALTY_RULES` (min redemption points, points expiry window) were defined but never enforced. Redemption now rejects (never silently caps) anything below `MIN_REDEMPTION_POINTS`. Expiry is computed via FIFO replay of the existing `loyalty_transactions` ledger, materialized at checkout as a negative `expired` row so a later replay can't double-expire the same points; any un-ledgered remainder of a customer's balance (demo seeding, direct edits) is treated as non-expiring rather than guessed at.
+
+### fix: sync pull's deferred stock_movements delta could still be lost on crash
+- **Commit:** `16ef5bc9`
+- The deferred delta for a `stock_movements` row whose `stock_batches` row hadn't arrived yet was applied in a separate transaction after the page loop's cursor commit — a crash in that window would lose the delta while the cursor stayed advanced. The `stock_movements` cursor stamp is now held back and committed inside the same transaction as the deferred delta application, so the two can only ever commit or roll back together.
+
+### fix: login store-scoping leak and unguarded sync during impersonation
+- **Commit:** `1ceb57e4`
+- Sync's `X-Store-Id` header read straight off `localStorage["dumos_active_store_id"]` instead of the store-context's derived precedence (`user.store_id` first), so a store-pinned staff member logging in on a device last switched to a different store would push/pull sync against the wrong store. `login()` now persists the correct active store immediately when the authenticated user has a fixed `store_id`.
+- Nothing gated sync during an impersonated (superadmin handoff) session — auto-sync and manual sync both fired exactly as in a normal session. Sync now short-circuits centrally in `sync-engine/index.ts`'s `sync()` whenever an impersonated session is active, and the sync indicator surfaces this explicitly instead of silently doing nothing.
+
 ### verified: Detailed Sales Report PDF Transaction # overflow fix actually works
 - No code change — the `overflow: "hidden"` + explicit `columnFlex` fix already in `report-pdf-document.tsx` was previously flagged unverified (reporter said it didn't resolve it, and Chrome's built-in PDF viewer isn't screenshottable via this project's browser tooling). Rendered the actual component through `@react-pdf/renderer`'s Node-side `pdf()` API with realistic `TXN-`-prefixed 16-character transaction numbers (matching `generateShortId()`'s current output) and inspected the resulting PDF's real text/vector geometry with PyMuPDF instead of eyeballing a screenshot: the Transaction # column's border sits at x=139.5pt and every transaction-number string's rightmost glyph ends at x≤128pt — comfortably inside the cell, never bleeding into the Date column that starts at x=145.5pt. The fix holds; the entry was stale, not the bug.
 

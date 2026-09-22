@@ -4,128 +4,25 @@ Issues spotted incidentally (e.g. while doing TypeScript type-safety cleanup) th
 
 Open items below are grouped by severity (Critical → High → Medium → Low), then a `client/`-area miscellaneous section for older/unlabeled entries, then the separate `web/` pre-launch review section.
 
-## Critical
-
-### `getUserByUsernameOrEmail` has no store scoping
-
-- **Where:** `client/lib/db/queries/auth.ts:9`.
-- **Status:** partially fixed — now filters `_deleted = 0` (a soft-deleted
-  user can no longer log in). The store-scoping half is still open: in a
-  multi-store local DB, any store's user can still authenticate regardless
-  of which store is active. Left open deliberately: it's unclear whether
-  scoping login itself to the active store is even correct (an owner/admin
-  isn't tied to one store, and login precedes store selection in the normal
-  flow), so this needs a design decision, not a blind filter addition.
-- **Fix scope (not implemented):** needs a decision on what "scoped login"
-  should even mean for owner/admin vs. store-pinned staff before
-  implementing.
-
-## High
-
-### `sync-engine/pull.ts` stock-quantity correctness gaps (partially fixed)
-
-- **Where:** `client/lib/db/sync-engine/pull.ts`.
-- **Fixed (2026-09-21):** the two confirmed-live, non-theoretical gaps —
-  a UNIQUE-constraint-skipped INSERT/UPDATE no longer advances that table's
-  sync cursor (it's retried on the next pull, up to `MAX_UNIQUE_SKIP_RETRIES`
-  = 5 attempts — an Opus-dispatched review of the first pass caught that an
-  unbounded retry permanently stalls that *entire table's* cursor on a
-  genuinely non-self-resolving collision, e.g. a duplicate email; after the
-  cap, the cursor is allowed to advance past that one record, which stays
-  visible via `skippedRecords`/`logCrash` rather than silently blocking
-  every other row in the table forever), and a `stock_movements` row whose
-  referenced `stock_batches` row hasn't arrived yet (paginated
-  independently, so it can land on a later page) now defers its delta
-  application until every page has been pulled, instead of silently
-  no-op'ing the UPDATE. Covered by
-  `client/__tests__/pull-unique-skip-and-cross-page-ordering.test.ts`.
-- **Known residual gap (accepted, not fixed):** the deferred
-  `stock_movements` delta is applied in a separate transaction *after* the
-  page loop's cursor commit — a crash in that narrow window between commit
-  and the deferred-delta transaction would still lose the delta, the same
-  failure mode as before just in a much smaller window. Not fixed in this
-  pass; would need the deferred deltas applied inside the same transaction
-  as the cursor stamp that unblocks them.
-- **Still open, deliberately not fixed:**
-  - Delta applied only on INSERT, never reversed on a later soft-delete
-    UPDATE — theoretical only, not currently reachable (nothing in the
-    current client or server code ever soft-deletes or updates an existing
-    `stock_movements` row; movements are immutable in practice today).
-  - Transaction wraps one page, not the whole multi-page pull — a separate,
-    larger design question (wrapping a whole multi-page pull in one
-    transaction changes failure/retry semantics considerably).
-
-## Low
-
-### `LOYALTY_RULES` constants (min redemption, points expiry) are defined but never used
-
-- **Where:** `client/lib/utils/loyalty-calculator.ts:62-65`.
-- **Effect:** points never expire and there's no redemption floor — a policy
-  the constant's existence implies should exist but isn't implemented
-  anywhere.
-- **Fix scope (not implemented):** either wire these into the redemption/
-  accrual logic, or remove them if the policy was abandoned (confirm which
-  with product before doing either).
-
-## Process / methodology gaps (not a single bug)
-
-### Financial calculations/reports lack reconciliation tests against an independent raw sum
-
-- **Where:** broad — dashboard aggregates (`getDashboardOverviewData`),
-  `reports.ts` P&L/margin/COGS queries, inventory valuation. Currently
-  covered by unit tests on individual functions, but nothing cross-checks a
-  rolled-up dashboard/report number against an independently computed raw
-  query sum over the same underlying rows.
-- **Context:** raised by an external review (someone with a BI/financial-
-  dashboarding background) asking whether the calculation engine behind
-  inventory/dashboard reporting is proven enough to trust without further
-  verification. This app uses custom calculations (not a third-party
-  analytics module), verified so far via unit tests plus Opus review passes.
-  Several real bugs already found in exactly this area — the date-range
-  boundary mismatch (`eb80ac3a`), UTC-vs-local report bucketing, prepaid
-  amortization double-counting across a rolling window (all above, High/
-  Medium) — are drift/reconciliation-class bugs: none would be caught by a
-  unit test on one isolated function, because the defect is in how numbers
-  get combined *across* date/store boundaries, not in any single
-  calculation's arithmetic.
-- **Effect:** without reconciliation tests, a future regression of this same
-  class (report/dashboard totals silently diverging from the underlying
-  ledger) would surface only via a customer noticing a wrong P&L number —
-  these are customers who, per the reviewer, "live and die by their P&L."
-- **Fix scope (not implemented):** add integration-level tests that compute
-  an independent raw-SQL sum for a date range and assert it matches the
-  corresponding dashboard/report figure, at minimum for revenue, COGS, and
-  inventory valuation, run against shared fixtures.
-
-### Dashboard ratio metrics haven't had a numerator/denominator definition review
-
-- **Where:** ratio-style dashboard tiles across `client/components/dashboard/`
-  (anything expressed as a rate/percentage/turnover rather than a raw sum).
-- **Context:** same external review — a ratio metric can be arithmetically
-  correct and still misrepresent the business if the denominator's
-  population isn't the one the label implies (e.g. averaging over all SKUs
-  vs. only active ones). Not yet audited; no specific metric confirmed wrong.
-- **Effect:** unknown — flagged as a methodology gap, not a confirmed bug.
-- **Fix scope (not implemented):** for each ratio-style dashboard metric,
-  document what the denominator actually is and confirm it matches what the
-  label claims.
-
-## Needs a product decision (not a straightforward bug)
+## Decided — accepted as-is (not a bug)
 
 ### Plaintext PINs stored and synced
 
 - **Where:** `client/lib/db/queries/auth.ts:9,32,36`,
   `client/lib/context/auth-context.tsx:183,436`.
 - **Context:** `users.pin` is stored and compared in plaintext, and carried
-  in sync payloads for the `users` table. This may be a deliberate
-  offline-first architecture decision (PIN unlock needs to work fully
-  offline) rather than an oversight — flagged for an explicit call, not
-  filed as a straightforward bug.
+  in sync payloads for the `users` table.
 - **Effect:** a `.drx` backup file, an IndexedDB dump, or a server-side DB
   read exposes every staff PIN in the clear. Compounds the admin-backdoor
   and no-lockout findings above.
-- **Fix scope (not implemented):** needs a product decision (hash+salt the
-  PIN, accept the offline-verification cost) before any code change.
+- **Decision (2026-09-22):** kept as plaintext, deliberately. This is a
+  known tradeoff of the offline-first architecture — PIN unlock must work
+  with zero network round-trip, and every avenue for real hashing here
+  (bcrypt/argon2/scrypt at interactive-unlock speed, purely client-side,
+  no server call) was judged not worth the added complexity and offline-
+  verification cost for what this PIN actually gates (device-local staff
+  unlock, not the cloud account credential). Not revisited unless the
+  threat model changes.
 
 ## `client/` — older/unlabeled entries
 

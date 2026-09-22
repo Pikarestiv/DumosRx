@@ -72,15 +72,20 @@ describe("applyLoyaltyPointsForSale re-validates the redemption against the real
   });
 
   it("still applies a redemption the real balance can genuinely cover", async () => {
+    // Balance raised above LOYALTY_RULES.MIN_REDEMPTION_POINTS (100), which
+    // is now a hard floor on a reward's cost - a 30-point redemption would be
+    // rejected by that rule rather than by the balance check under test here.
+    db.run(`UPDATE customers SET loyalty_points = 150 WHERE id = 'c1'`);
+
     await applyLoyaltyPointsForSale({
-      selectedCustomer: baseCustomer,
+      selectedCustomer: { ...baseCustomer, loyalty_points: 150 },
       canUseLoyaltyProgram: true,
       earnedPoints: 10,
-      redeemedOption: { id: "opt1", label: "₦500 off", pointsCost: 30, discountValue: 500 },
+      redeemedOption: { id: "opt1", label: "₦500 off", pointsCost: 100, discountValue: 500 },
       saleId: "s1",
     });
 
     const rows = db.exec(`SELECT loyalty_points FROM customers WHERE id = 'c1'`);
-    expect(rows[0].values[0][0]).toBe(30); // 50 + 10 earned - 30 redeemed
+    expect(rows[0].values[0][0]).toBe(60); // 150 + 10 earned - 100 redeemed
   });
 });

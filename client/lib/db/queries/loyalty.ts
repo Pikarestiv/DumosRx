@@ -98,6 +98,18 @@ export function buildDefaultRedemptionOptions(
   ];
 }
 
+/** The customer's dated points ledger, oldest first — the input to FIFO
+ * points-expiry math (see calculateExpiredPoints). Not store-scoped: the
+ * table has no store_id column, and customer_id is already store-unique. */
+export async function getCustomerLoyaltyLedger(customerId: string) {
+  return query<{ points: number; type: string; created_at: string | null }>(
+    `SELECT points, type, created_at FROM loyalty_transactions
+     WHERE customer_id = ? AND _deleted = 0
+     ORDER BY created_at ASC`,
+    [customerId],
+  );
+}
+
 export async function getLoyaltyTiers() {
   const storeId = getActiveStoreId();
   return query<LoyaltyTierRow>(

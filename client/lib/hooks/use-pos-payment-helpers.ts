@@ -1,10 +1,13 @@
 import { insert, update } from "@/lib/db/local-database";
 import { getCustomerLoyaltyPoints, getCustomerTotalSpent } from "@/lib/db/queries/customers";
-import { getLoyaltyTiers } from "@/lib/db/queries/loyalty";
+import { getCustomerLoyaltyLedger, getLoyaltyTiers } from "@/lib/db/queries/loyalty";
 import {
   calculateEarnedPoints,
+  calculateExpiredPoints,
   calculateLoyaltyPointsAfterSale,
   getApplicableTierMultiplier,
+  LOYALTY_RULES,
+  validateRedemption,
 } from "@/lib/utils/loyalty-calculator";
 import { calculateSplitShortage, calculateMixedAmountPaid, calculateMixedChangeDue } from "@/lib/utils/pos-calculations";
 import { CartItem, RedeemedOption } from "./use-pos-cart";
@@ -19,9 +22,21 @@ export type PaymentMethod = "cash" | "card" | "transfer" | "credit" | "mixed";
  * distinguished from a generic Error so the caller can show an actionable
  * message and clear the stale redemption instead of a bare failure toast. */
 export class InsufficientLoyaltyPointsError extends Error {
-  constructor() {
-    super("Customer no longer has enough points for this reward");
+  constructor(message = "Customer no longer has enough points for this reward") {
+    super(message);
     this.name = "InsufficientLoyaltyPointsError";
+  }
+}
+
+/** Thrown when a redemption is below LOYALTY_RULES.MIN_REDEMPTION_POINTS.
+ * Distinct from InsufficientLoyaltyPointsError because the fix is different:
+ * the customer's balance is fine, the reward itself is too cheap to redeem,
+ * so the cashier should pick a different reward rather than wait for points
+ * to accrue. */
+export class LoyaltyRedemptionBelowMinimumError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "LoyaltyRedemptionBelowMinimumError";
   }
 }
 
@@ -161,8 +176,29 @@ export async function applyLoyaltyPointsForSale(params: {
   // (captured when the cashier picked the customer, possibly stale by the
   // time checkout completes) — same staleness risk as the outstanding
   // balance write in use-pos-payment.ts.
-  const pointsRows = await getCustomerLoyaltyPoints(selectedCustomer.id);
+  const [pointsRows, ledger] = await Promise.all([
+    getCustomerLoyaltyPoints(selectedCustomer.id),
+    getCustomerLoyaltyLedger(selectedCustomer.id),
+  ]);
   const currentPoints = pointsRows[0]?.loyalty_points || 0;
+
+  // POINTS EXPIRY (LOYALTY_RULES.POINTS_EXPIRY_MONTHS) is materialized here,
+  // at the only place a sale already touches a customer's points balance, so
+  // there's no background job and no schema change.
+  //
+  // Data granularity available: `customers.loyalty_points` is the
+  // authoritative balance, and `loyalty_transactions` is a dated per-event
+  // ledger (earn/redeem rows written by checkout and returns). Semantics
+  // implemented: FIFO per-batch expiry replayed over that ledger — earn
+  // batches older than the expiry window that redemptions haven't already
+  // consumed are voided — with any part of the balance that has no ledger
+  // rows behind it (demo seeding, customer import, a directly-set balance)
+  // treated as non-expiring, since nothing dates it. See
+  // calculateExpiredPoints for the full policy. The deduction is recorded as
+  // a negative 'expired' ledger row so the next replay doesn't expire the
+  // same batches twice.
+  const expiredPoints = calculateExpiredPoints(ledger, currentPoints);
+  const availablePoints = Math.max(0, currentPoints - expiredPoints);
 
   // Reject rather than clamp: calculateLoyaltyPointsAfterSale floors the
   // resulting balance at 0, which used to mean a customer who no longer
@@ -171,17 +207,32 @@ export async function applyLoyaltyPointsForSale(params: {
   // free. Checked against the balance just re-read above, inside the same
   // transaction the sale itself runs in, so throwing here rolls back the
   // whole sale rather than leaving a half-applied discount.
-  if (redeemedOption && currentPoints < redeemedOption.pointsCost) {
-    throw new InsufficientLoyaltyPointsError();
+  if (redeemedOption) {
+    const problem = validateRedemption(redeemedOption.pointsCost, availablePoints);
+    if (problem) {
+      throw redeemedOption.pointsCost < LOYALTY_RULES.MIN_REDEMPTION_POINTS
+        ? new LoyaltyRedemptionBelowMinimumError(problem)
+        : new InsufficientLoyaltyPointsError(problem);
+    }
   }
 
   await update("customers", selectedCustomer.id, {
     loyalty_points: calculateLoyaltyPointsAfterSale(
-      currentPoints,
+      availablePoints,
       earnedPoints,
       redeemedOption?.pointsCost || 0,
     ),
   });
+
+  if (expiredPoints > 0) {
+    await insert("loyalty_transactions", {
+      customer_id: selectedCustomer.id,
+      points: -expiredPoints,
+      type: "expired",
+      transaction_id: saleId,
+      created_at: new Date().toISOString(),
+    });
+  }
 
   if (earnedPoints > 0) {
     await insert("loyalty_transactions", {

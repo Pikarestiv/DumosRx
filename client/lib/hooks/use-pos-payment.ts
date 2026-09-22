@@ -15,6 +15,7 @@ import {
   applyLoyaltyPointsForSale,
   buildReceiptTransaction,
   InsufficientLoyaltyPointsError,
+  LoyaltyRedemptionBelowMinimumError,
   type PaymentMethod,
   type PaymentSplit,
 } from "./use-pos-payment-helpers";
@@ -304,7 +305,10 @@ export function usePOSPayment({
       toast.success("Transaction completed successfully!");
     } catch (error) {
       console.error("Payment failed", error);
-      if (error instanceof InsufficientLoyaltyPointsError) {
+      if (
+        error instanceof InsufficientLoyaltyPointsError ||
+        error instanceof LoyaltyRedemptionBelowMinimumError
+      ) {
         onInsufficientLoyaltyPoints?.();
         toast.error(`${error.message}. The reward has been removed - please try the sale again.`);
       } else {

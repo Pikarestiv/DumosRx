@@ -182,6 +182,8 @@ export const queryKeys = {
     tiers: () => resource(["loyalty_tiers"] as const, ["loyalty_tiers"]),
     redemptionOptions: () =>
       resource(["loyalty_redemption_options"] as const, ["loyalty_redemption_options"]),
+    customerLedger: (customerId?: string) =>
+      resource(["loyalty_transactions", customerId] as const, ["loyalty_transactions"]),
   },
   pos: {
     products: () =>

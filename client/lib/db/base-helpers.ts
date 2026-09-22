@@ -280,8 +280,11 @@ export async function remove(
   );
 
   await execute(`DELETE FROM ${table} WHERE id = ?`, [id]);
-  // Also remove from sync queue if it was pending
+  // Also remove any pending (not-yet-synced) queue entries for this record
+  // before queueing our own DELETE below, so a still-pending INSERT/UPDATE
+  // doesn't race the DELETE to the server.
   await execute(`DELETE FROM _sync_queue WHERE table_name = ? AND record_id = ?`, [table, id]);
+  await addToSyncQueue(table, id, "DELETE", { id });
 
   await logAction(options?.action || "HARD_DELETE", table, id, existing[0] || { id }, options?.storeId);
 

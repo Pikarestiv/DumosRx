@@ -53,6 +53,7 @@ interface RawSale {
   store_id: string | null;
   transaction_date: string;
   total_amount: number;
+  tax_amount?: number;
   _deleted: number | null;
 }
 interface RawSaleItem {
@@ -228,11 +229,14 @@ describe("report/dashboard aggregate reconciliation against independent raw sums
     const rows = await reports.fetchProfitLossReportData(RANGE_FROM, RANGE_TO);
 
     // Independent path: whole sales rows, filtered and bucketed in JS.
+    // Revenue excludes tax_amount - VAT/tax collected on the government's
+    // behalf is a liability, not revenue (see docs/KNOWN_BUGS.md's tax/VAT
+    // finding and useBIData's netSales, which this report is aligned with).
     const expected = new Map<string, number>();
     for (const s of rawRows<RawSale>(`SELECT * FROM sales`)) {
       if (!live(s) || s.store_id !== STORE_A || !inRange(s.transaction_date)) continue;
       const k = localMonth(s.transaction_date);
-      expected.set(k, (expected.get(k) ?? 0) + s.total_amount);
+      expected.set(k, (expected.get(k) ?? 0) + (s.total_amount - (s.tax_amount || 0)));
     }
 
     const actual = new Map(rows.map((r) => [String(r["Month"]), Number(r["Revenue"])]));
@@ -240,8 +244,8 @@ describe("report/dashboard aggregate reconciliation against independent raw sums
     // Guard that the fixture actually exercised the range boundaries: sA2
     // (first ms of the range, local) and sA4 (last local day) are in, sA1 and
     // sA5 (just outside, on either end) are not, sAX is deleted, sB1 is the
-    // other store.
-    expect([...expected.values()].reduce((a, b) => a + b, 0)).toBe(2625 + 7665 + 1890);
+    // other store. Tax-excluded (subtotal) amounts: 2500 + 7300 + 1800.
+    expect([...expected.values()].reduce((a, b) => a + b, 0)).toBe(2500 + 7300 + 1800);
   });
 
   it("fetchSalesReportData's row-level totals reconcile with the same range's raw sales rows (independent of the report's own SQL filtering)", async () => {
@@ -354,7 +358,7 @@ describe("report/dashboard aggregate reconciliation against independent raw sums
       (s) => live(s) && s.store_id === STORE_A && inRange(s.transaction_date),
     );
     const idsInRange = new Set(salesInRange.map((s) => s.id));
-    const rawRevenue = salesInRange.reduce((a, s) => a + s.total_amount, 0);
+    const rawRevenue = salesInRange.reduce((a, s) => a + (s.total_amount - (s.tax_amount || 0)), 0);
     const rawCogs = rawRows<RawSaleItem>(`SELECT * FROM sale_items`)
       .filter((i) => idsInRange.has(i.sale_id))
       .reduce((a, i) => a + i.cost_price * i.quantity, 0);

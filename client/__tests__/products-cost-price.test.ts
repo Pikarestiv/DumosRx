@@ -40,7 +40,7 @@ describe("getProductsWithStock cost_price", () => {
       );
       CREATE TABLE stock_batches (
         id TEXT PRIMARY KEY, product_id TEXT, quantity INTEGER, cost_price REAL,
-        batch_number TEXT, is_active INTEGER DEFAULT 1, _deleted INTEGER DEFAULT 0
+        batch_number TEXT, expiry_date TEXT, is_active INTEGER DEFAULT 1, _deleted INTEGER DEFAULT 0
       );
     `);
     core.__setDatabaseForTesting(db);

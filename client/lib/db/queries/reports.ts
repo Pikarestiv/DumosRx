@@ -538,10 +538,15 @@ export async function fetchProfitLossReportData(dateFrom?: string, dateTo?: stri
   // same query double(/triple/...)-counts every multi-item sale's revenue by
   // its item count. Matches the pattern getAdvancedMonthlySalesData already
   // uses for the same reason.
+  // Revenue excludes tax_amount: VAT/tax collected on the government's
+  // behalf is a liability, not profit, and useBIData's netSales already
+  // backs it out the same way - Revenue here previously included it,
+  // inflating Gross/Net Profit and Margin % relative to the Analytics
+  // dashboard for the same period.
   const revenueRows = await query<Record<string, unknown>>(
     `SELECT
       strftime('%Y-%m', s.transaction_date, 'localtime') as "Month",
-      SUM(s.total_amount) as "Revenue"
+      SUM(s.total_amount - IFNULL(s.tax_amount, 0)) as "Revenue"
      FROM sales s
      WHERE ${where}
      GROUP BY strftime('%Y-%m', s.transaction_date, 'localtime')
@@ -611,13 +616,18 @@ export async function fetchCustomerReportData() {
       c.outstanding_balance as "Outstanding Balance",
       c.credit_limit as "Credit Limit",
       COUNT(s.id) as "Total Purchases",
-      SUM(s.total_amount) as "Total Spent",
+      COALESCE(SUM(
+        s.total_amount - COALESCE(
+          (SELECT SUM(r.total_refunded) FROM returns r WHERE r.sale_id = s.id AND (r._deleted = 0 OR r._deleted IS NULL)),
+          0
+        )
+      ), 0) as "Total Spent",
       MAX(date(s.transaction_date, 'localtime')) as "Last Purchase"
      FROM customers c
      LEFT JOIN sales s ON s.customer_id = c.id AND s._deleted = 0${storeId ? " AND s.store_id = ?" : ""}
      WHERE c._deleted = 0${storeId ? " AND c.store_id = ?" : ""}
      GROUP BY c.id
-     ORDER BY SUM(s.total_amount) DESC NULLS LAST`,
+     ORDER BY "Total Spent" DESC`,
     storeId ? [storeId, storeId] : [],
   );
 }

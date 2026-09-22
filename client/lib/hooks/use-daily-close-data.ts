@@ -195,8 +195,17 @@ export function useDailyCloseData(reportDate: string) {
       0,
     );
 
+    // VAT/tax collected on the government's behalf is a liability, not
+    // profit - back it out the same way useBIData's netSales does (gross
+    // total minus total tax minus total refunds), so this figure doesn't
+    // disagree with the Analytics dashboard for the same period.
+    const totalTaxToday = salesToday.reduce(
+      (sum, sale) => sum + (sale.tax_amount || 0),
+      0,
+    );
+
     const calculatedProfit =
-      totals.total - totalCostPrice - redeemedResellerPayouts;
+      totals.total - totalTaxToday - totalCostPrice - redeemedResellerPayouts;
     const topMeds = Object.values(itemMap)
       .sort((a, b) => b.quantity - a.quantity)
       .slice(0, 5);

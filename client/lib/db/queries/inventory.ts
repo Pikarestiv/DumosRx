@@ -94,7 +94,7 @@ export async function getBatchesForProduct(productId: string) {
   return query<StockBatch>(
     `SELECT * FROM stock_batches
      WHERE product_id = ? AND _deleted = 0 AND is_active = 1 AND quantity > 0
-       AND (expiry_date IS NULL OR date(expiry_date) > date('now'))
+       AND (expiry_date IS NULL OR expiry_date = '' OR date(expiry_date) > date('now'))
      ORDER BY (expiry_date IS NULL) ASC, expiry_date ASC, created_at ASC`,
     [productId],
   );
@@ -129,9 +129,17 @@ export async function getAllActiveBatchesForProduct(productId: string) {
  * on-hand stock going negative, same way an already-negative batch does
  * today) instead of vanishing untracked.
  */
-export async function getAnyActiveBatchForProduct(productId: string) {
+export async function getAnyActiveBatchForProduct(
+  productId: string,
+  options?: { includeExpired?: boolean },
+) {
+  const expiryFilter = options?.includeExpired
+    ? ""
+    : " AND (expiry_date IS NULL OR expiry_date = '' OR date(expiry_date) > date('now'))";
   return query<StockBatch>(
-    "SELECT * FROM stock_batches WHERE product_id = ? AND _deleted = 0 AND is_active = 1 ORDER BY updated_at DESC, created_at DESC LIMIT 1",
+    `SELECT * FROM stock_batches
+     WHERE product_id = ? AND _deleted = 0 AND is_active = 1${expiryFilter}
+     ORDER BY updated_at DESC, created_at DESC LIMIT 1`,
     [productId],
   );
 }
@@ -319,12 +327,12 @@ export async function getLowStockAlerts() {
   }>(
     `SELECT
       m.name as product,
-      SUM(inv.quantity) as quantity,
+      COALESCE(SUM(inv.quantity), 0) as quantity,
       m.reorder_level as threshold,
       m.base_unit as baseUnit
-     FROM stock_batches inv
-     JOIN products m ON inv.product_id = m.id
-     WHERE (inv._deleted = 0 OR inv._deleted IS NULL) AND (m._deleted = 0 OR m._deleted IS NULL)${storeId ? " AND m.store_id = ?" : ""}
+     FROM products m
+     LEFT JOIN stock_batches inv ON inv.product_id = m.id AND (inv._deleted = 0 OR inv._deleted IS NULL)
+     WHERE (m._deleted = 0 OR m._deleted IS NULL)${storeId ? " AND m.store_id = ?" : ""}
      GROUP BY m.id
      HAVING quantity <= m.reorder_level AND m.reorder_level > 0
      ORDER BY quantity ASC
@@ -669,7 +677,15 @@ export async function submitStockAudit(
         // own reconciled counted quantity doesn't match any recorded
         // movement, and there's no trace of where the rest of it went.
         if (remaining > 0) {
-          const [fallbackBatch] = await getAnyActiveBatchForProduct(item.productId);
+          // includeExpired: true - unlike the sale-dispensing fallback (which
+          // correctly excludes expired stock), an audit needs to be able to
+          // write off a shortfall even when the product's only remaining
+          // batches are expired. Without this, a product whose entire stock
+          // has expired would return no fallback batch here and this whole
+          // shrinkage write would be silently skipped.
+          const [fallbackBatch] = await getAnyActiveBatchForProduct(item.productId, {
+            includeExpired: true,
+          });
           if (fallbackBatch) {
             await updateStockBatchQuantity(fallbackBatch.id, -remaining);
             await insert("stock_movements", {
@@ -787,14 +803,14 @@ export async function getStockMoM() {
   const added30 = await query<{ total_added?: number }>(`
     SELECT SUM(ABS(quantity) * IFNULL(unit_cost, 0)) as total_added
     FROM stock_movements
-    WHERE created_at >= ? AND movement_type IN ('purchase', 'return') AND (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}
+    WHERE created_at >= ? AND movement_type IN ('purchase', 'return', 'transfer_in') AND (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}
   `, movementParams);
 
   // Value removed in last 30 days
   const removed30 = await query<{ total_removed?: number }>(`
     SELECT SUM(ABS(quantity) * IFNULL(unit_cost, 0)) as total_removed
     FROM stock_movements
-    WHERE created_at >= ? AND movement_type IN ('sale', 'adjustment') AND (_deleted = 0 OR _deleted IS NULL) AND quantity < 0${storeId ? " AND store_id = ?" : ""}
+    WHERE created_at >= ? AND movement_type IN ('sale', 'adjustment', 'transfer_out') AND (_deleted = 0 OR _deleted IS NULL) AND quantity < 0${storeId ? " AND store_id = ?" : ""}
   `, movementParams);
 
   // Adjusted additions from positive adjustments

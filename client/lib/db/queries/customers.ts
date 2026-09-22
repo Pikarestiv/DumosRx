@@ -142,9 +142,32 @@ export async function getCustomerById(id: string) {
  * outstanding_balance; the caller (recordCustomerPayment) does that. */
 async function applyCreditPaymentFIFO(customerId: string, amount: number) {
   const storeId = getActiveStoreId();
-  const pendingSales = await query<{ id: string; total_amount: number; amount_paid?: number }>(
-    `SELECT id, total_amount, amount_paid FROM sales
-     WHERE customer_id = ? AND payment_status IN ('pending', 'partial')
+  // Includes 'refunded'/'partially_refunded': a return against a credit sale
+  // overwrites payment_status with one of those (see
+  // use-process-return-mutation.ts), which would otherwise drop a sale that
+  // still has a nonzero balance (partial return, credit portion only
+  // partly forgiven) out of this ledger forever. The `owed <= 0` guard below
+  // is what keeps a fully-settled/fully-forgiven sale from being touched.
+  //
+  // The payment_method guard on the refunded/partially_refunded branch below
+  // protects against a legacy edge: a cash/card/transfer sale's amount_paid
+  // can be left at the schema default of 0 (e.g. old synced rows predating
+  // stricter writes), and once 'refunded'/'partially_refunded' are included
+  // here, such a sale would otherwise look like it owes its full
+  // total_amount and get swept into this credit ledger even though it was
+  // never actually sold on credit. 'pending'/'partial' sales aren't gated on
+  // payment_method - by construction (see calculateSalePaymentStatus) only a
+  // credit/mixed-with-credit sale ever gets those statuses in the first
+  // place.
+  const pendingSales = await query<{
+    id: string;
+    total_amount: number;
+    amount_paid?: number;
+    payment_status: string;
+  }>(
+    `SELECT id, total_amount, amount_paid, payment_status FROM sales
+     WHERE customer_id = ? AND payment_status IN ('pending', 'partial', 'refunded', 'partially_refunded')
+       AND (payment_status IN ('pending', 'partial') OR payment_method IN ('credit', 'mixed'))
        AND (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}
      ORDER BY created_at ASC`,
     storeId ? [customerId, storeId] : [customerId],
@@ -158,7 +181,21 @@ async function applyCreditPaymentFIFO(customerId: string, amount: number) {
 
     const applied = Math.min(owed, remaining);
     const newAmountPaid = Math.round(((sale.amount_paid || 0) + applied) * 100) / 100;
-    const newStatus = newAmountPaid >= sale.total_amount - MONEY_EPSILON ? "completed" : "partial";
+    const isFullySettled = newAmountPaid >= sale.total_amount - MONEY_EPSILON;
+    // A sale already marked 'refunded'/'partially_refunded' carries
+    // information the Refunded tab/badge (pos-transaction-history.tsx,
+    // transaction-item.tsx) key off of - overwriting it to
+    // 'completed'/'partial' here would silently erase that a return ever
+    // happened, even though this payment only settled the sale's remaining
+    // (unforgiven) debt. Leave those statuses alone; only 'pending'/'partial'
+    // sales get the normal completed/partial transition.
+    const wasRefundStatus =
+      sale.payment_status === "refunded" || sale.payment_status === "partially_refunded";
+    const newStatus = wasRefundStatus
+      ? sale.payment_status
+      : isFullySettled
+        ? "completed"
+        : "partial";
 
     await update("sales", sale.id, {
       amount_paid: newAmountPaid,

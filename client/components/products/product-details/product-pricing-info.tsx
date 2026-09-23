@@ -45,6 +45,17 @@ export function ProductPricingInfo({
             </p>
           </div>
         </div>
+        {product.lastBoughtPrice != null && (
+          <div>
+            <p className="text-sm text-muted-foreground">Last Bought Price</p>
+            <p className="font-bold text-lg">
+              {formatPrice(product.lastBoughtPrice)}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Cost of the most recently received stock batch
+            </p>
+          </div>
+        )}
         <Separator />
         <div>
           <p className="text-sm text-muted-foreground">Profit Margin</p>

@@ -1,4 +1,5 @@
 import { query, insert, update, transaction } from "@/lib/db/local-database";
+import { softDelete } from "@/lib/db/base-helpers";
 import { getActiveStoreId } from "@/lib/db/core";
 import { Customer, CustomerDbRow, CustomerTransactionRow } from "@/lib/types/customer";
 
@@ -330,4 +331,8 @@ export async function getCustomerRetentionMetrics() {
     avgVisits,
     avgTransactionValue,
   };
+}
+
+export async function deleteCustomer(id: string) {
+  return await softDelete("customers", id);
 }

@@ -1,4 +1,4 @@
-import { ChevronLeft, AlertCircle } from "lucide-react";
+import { ChevronLeft, AlertCircle, Trash2 } from "lucide-react";
 import { Customer } from "@/lib/hooks/use-customer-data";
 import { formatCurrency } from "@/lib/utils";
 
@@ -10,6 +10,8 @@ interface CustomerDetailPanelProps {
   onViewHistory?: (customer: Customer) => void;
   onEditProfile?: (customer: Customer) => void;
   onRecordPayment?: (customer: Customer) => void;
+  onDelete?: (customer: Customer) => void;
+  canDelete?: boolean;
 }
 
 export function CustomerDetailPanel({
@@ -20,6 +22,8 @@ export function CustomerDetailPanel({
   onViewHistory,
   onEditProfile,
   onRecordPayment,
+  onDelete,
+  canDelete = true,
 }: CustomerDetailPanelProps) {
   const detailFields = [
     { label: "Phone", value: customer.phone || "Not provided" },
@@ -64,6 +68,15 @@ export function CustomerDetailPanel({
         >
           {customer.tier}
         </span>
+        {canDelete && onDelete && (
+          <button
+            onClick={() => onDelete(customer)}
+            className="p-2 -mr-2 text-muted-foreground hover:text-destructive shrink-0"
+            title="Delete customer"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 md:p-5">

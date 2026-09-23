@@ -29,6 +29,7 @@ interface DirectoryTabProps {
   onEditProfile?: (customer: Customer) => void;
   onRecordPayment?: (customer: Customer) => void;
   onAddCustomer?: () => void;
+  onDeleteCustomer?: (customer: Customer) => void;
 }
 
 type CustFilter = "all" | "debt" | "loyalty";
@@ -66,10 +67,12 @@ export function DirectoryTab({
   onEditProfile,
   onRecordPayment,
   onAddCustomer,
+  onDeleteCustomer,
 }: DirectoryTabProps) {
   const [filter, setFilter] = useState<CustFilter>("all");
   const { user } = useAuth();
   const isAuditor = user?.role === "auditor";
+  const canDeleteCustomer = !isAuditor && user?.role !== "sales_staff";
 
   const desktopScrollRef = useRef<HTMLDivElement>(null);
 
@@ -155,6 +158,8 @@ export function DirectoryTab({
       onViewHistory={onViewHistory}
       onEditProfile={onEditProfile}
       onRecordPayment={onRecordPayment}
+      onDelete={onDeleteCustomer}
+      canDelete={canDeleteCustomer}
     />
   );
 

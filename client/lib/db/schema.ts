@@ -59,6 +59,8 @@ CREATE TABLE IF NOT EXISTS stock_batches (
   _deleted INTEGER DEFAULT 0
 );
 
+CREATE INDEX IF NOT EXISTS idx_stock_batches_product_id ON stock_batches(product_id);
+
 CREATE TABLE IF NOT EXISTS categories (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,

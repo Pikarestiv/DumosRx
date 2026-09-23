@@ -15,6 +15,7 @@ import {
   useDashboardOverview,
   type SalesComparison,
 } from "@/lib/hooks/use-dashboard-overview";
+import { useMyTodaySales } from "@/lib/hooks/use-my-today-sales";
 import { DashboardStats } from "./dashboard-stats";
 import { DashboardRecentActivity } from "./dashboard-recent-activity";
 import { DashboardQuickActions } from "./dashboard-quick-actions";
@@ -73,6 +74,7 @@ export function DashboardOverview() {
   } = useDashboardOverview();
 
   const router = useRouter();
+  const { isCashier, totalToday } = useMyTodaySales();
 
   // "Product added" activity rows carry the product's own id (see
   // use-dashboard-overview.ts) and have no dedicated details dialog wired
@@ -106,16 +108,24 @@ export function DashboardOverview() {
       icon: Package,
       colorScheme: "blue" as const,
     },
-    {
-      title: "Inventory Value",
-      value: formatMetricCurrency(
-        stock_batchStats.totalStockBatchValue,
-        storeProfile?.currency,
-      ),
-      comparison: "Calculated stock value",
-      icon: TrendingUp,
-      colorScheme: "amber" as const,
-    },
+    isCashier
+      ? {
+          title: "My Sales Today",
+          value: formatMetricCurrency(totalToday, storeProfile?.currency),
+          comparison: "Your net sales so far today",
+          icon: TrendingUp,
+          colorScheme: "amber" as const,
+        }
+      : {
+          title: "Inventory Value",
+          value: formatMetricCurrency(
+            stock_batchStats.totalStockBatchValue,
+            storeProfile?.currency,
+          ),
+          comparison: "Calculated stock value",
+          icon: TrendingUp,
+          colorScheme: "amber" as const,
+        },
     {
       title: "Orders Today",
       value: String(salesToday[0]?.count || 0),

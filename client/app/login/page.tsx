@@ -17,6 +17,7 @@ export default function LoginPage() {
     isNewCredentialsMode,
     userCount,
     recentUsers,
+    removeRecentUser,
     showRecentUserSelection,
     loginState,
     registerHandler,
@@ -79,6 +80,7 @@ export default function LoginPage() {
             userCount={userCount}
             showRecentUserSelection={showRecentUserSelection}
             recentUsers={recentUsers}
+            onRemoveRecentUser={removeRecentUser}
             isNewCredentialsMode={isNewCredentialsMode}
             onGoToRegister={registerHandler}
             onGoToCloud={cloudSetupHandler}

@@ -13,6 +13,7 @@ import { PinEntry } from "./pin-entry";
 
 interface LockScreenProps {
   recentUsers: RecentUser[];
+  onRemoveRecentUser?: (id: string) => void;
   onLoginAsOther: () => void;
   onSetUpNewDevice?: () => void;
   onUnlockSuccess?: () => void;
@@ -21,6 +22,7 @@ interface LockScreenProps {
 
 export function LockScreen({
   recentUsers,
+  onRemoveRecentUser,
   onLoginAsOther,
   onSetUpNewDevice,
   onUnlockSuccess,
@@ -154,6 +156,7 @@ export function LockScreen({
             key="grid"
             recentUsers={recentUsers}
             onSelectUser={setSelectedUser}
+            onRemoveUser={onRemoveRecentUser}
             onLoginAsOther={onLoginAsOther}
             onSetUpNewDevice={onSetUpNewDevice}
           />

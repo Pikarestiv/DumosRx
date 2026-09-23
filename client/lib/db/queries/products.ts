@@ -12,7 +12,8 @@ export async function getProductsWithDetails() {
        (SELECT SUM(cost_price * quantity) * 1.0 / NULLIF(SUM(quantity), 0) FROM stock_batches WHERE product_id = m.id AND _deleted = 0 AND is_active = 1 AND quantity > 0) as cost_price,
        (SELECT expiry_date FROM stock_batches WHERE product_id = m.id AND _deleted = 0 AND is_active = 1 AND quantity > 0 ORDER BY expiry_date ASC LIMIT 1) as expiry_date,
        (SELECT batch_number FROM stock_batches WHERE product_id = m.id AND _deleted = 0 AND is_active = 1 AND quantity > 0 ORDER BY expiry_date ASC LIMIT 1) as batch_number,
-       (SELECT MAX(reconciled_at) FROM stock_audits WHERE product_id = m.id AND _deleted = 0 AND status = 'reconciled') as last_audited_at
+       (SELECT MAX(reconciled_at) FROM stock_audits WHERE product_id = m.id AND _deleted = 0 AND status = 'reconciled') as last_audited_at,
+       (SELECT cost_price FROM stock_batches WHERE product_id = m.id AND _deleted = 0 AND cost_price > 0 AND batch_number NOT LIKE 'ADJ-%' ORDER BY created_at DESC LIMIT 1) as last_bought_price
      FROM products m
      LEFT JOIN categories c ON m.category_id = c.id
      WHERE m._deleted = 0${storeId ? " AND m.store_id = ?" : ""}

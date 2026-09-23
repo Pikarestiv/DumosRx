@@ -714,6 +714,21 @@ async function clearLegacyTransactionsOnce(
   }
 }
 
+// stock_batches.product_id has no index, so every correlated subquery
+// against it in getProductsWithDetails() (five of them, plus a sixth for
+// last_bought_price) does a full table scan per product row - the query
+// core.ts documents as the app's largest/slowest, already the one known to
+// yield mid-iteration under concurrent sync writes. CREATE INDEX IF NOT
+// EXISTS is naturally idempotent, so this doesn't strictly need tryRun's
+// swallow-on-rerun behavior, but it's used for consistency with the rest of
+// this file.
+async function ensureStockBatchesProductIndex(adapter: DbAdapter): Promise<void> {
+  await tryRun(
+    adapter,
+    `CREATE INDEX IF NOT EXISTS idx_stock_batches_product_id ON stock_batches(product_id)`,
+  );
+}
+
 // The full, ordered migration sequence initDatabase() applies to an existing
 // local database, identical on both backends. `onLegacyCleared` is only
 // supplied on the web/sql.js path, where an in-memory delete still has to be
@@ -729,4 +744,5 @@ export async function runSchemaMigrations(
   await clearOrphanedProductCategoryIds(adapter);
   await relaxPurchaseOrdersSupplierIdNullable(adapter);
   await clearLegacyTransactionsOnce(adapter, onLegacyCleared);
+  await ensureStockBatchesProductIndex(adapter);
 }

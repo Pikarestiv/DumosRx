@@ -12,6 +12,7 @@ import { LoyaltyTab } from "./loyalty-tab";
 import { AddCustomerModal } from "./add-customer-modal";
 import { EditCustomerModal } from "./edit-customer-modal";
 import { RecordPaymentModal } from "./record-payment-modal";
+import { CustomerDeleteDialog } from "./customer-delete-dialog";
 import { CustomerTabNav } from "./customer-tab-nav";
 
 export function CustomerManagement() {
@@ -35,10 +36,13 @@ export function CustomerManagement() {
     setEditingCustomer,
     payingCustomer,
     setPayingCustomer,
+    deletingCustomer,
+    setDeletingCustomer,
     handleAddCustomer,
     handleUpdateCustomer,
     handleViewHistory,
     handleRecordPayment,
+    handleCustomerDeleted,
   } = useCustomerManagement();
 
   return (
@@ -74,6 +78,7 @@ export function CustomerManagement() {
             onEditProfile={setEditingCustomer}
             onRecordPayment={setPayingCustomer}
             onAddCustomer={() => setIsAddCustomerOpen(true)}
+            onDeleteCustomer={setDeletingCustomer}
           />
         </TabsContent>
 
@@ -121,6 +126,21 @@ export function CustomerManagement() {
         currencyCode={storeProfile?.currency}
         onClose={() => setPayingCustomer(null)}
         onSubmit={handleRecordPayment}
+      />
+
+      <CustomerDeleteDialog
+        target={
+          deletingCustomer
+            ? {
+                id: deletingCustomer.id,
+                name: deletingCustomer.name,
+                outstandingBalance: deletingCustomer.outstanding_balance,
+              }
+            : null
+        }
+        currencyCode={storeProfile?.currency || "NGN"}
+        onClose={() => setDeletingCustomer(null)}
+        onSuccess={handleCustomerDeleted}
       />
     </div>
   );

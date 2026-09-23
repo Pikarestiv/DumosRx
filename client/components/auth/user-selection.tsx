@@ -1,13 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { RecentUser } from "@/lib/context/auth-context";
 import { getUserInitials, cn } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { motion } from "framer-motion";
-import { Plus } from "lucide-react";
+import { Plus, X } from "lucide-react";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 interface UserSelectionProps {
   recentUsers: RecentUser[];
   onSelectUser: (user: RecentUser) => void;
+  onRemoveUser?: (id: string) => void;
   onLoginAsOther: () => void;
   onSetUpNewDevice?: () => void;
 }
@@ -65,9 +67,17 @@ const tileVariants = {
 export function UserSelection({
   recentUsers,
   onSelectUser,
+  onRemoveUser,
   onLoginAsOther,
   onSetUpNewDevice,
 }: UserSelectionProps) {
+  const [removingUser, setRemovingUser] = useState<RecentUser | null>(null);
+  // ConfirmDialog keeps rendering through its exit animation after
+  // removingUser is nulled on confirm/close - keep the last real value
+  // around so the description doesn't flash "undefined" mid-fade.
+  const lastRemovingUser = useRef<RecentUser | null>(null);
+  if (removingUser) lastRemovingUser.current = removingUser;
+  const removingUserDisplay = removingUser ?? lastRemovingUser.current;
   // Determined client-side only (defaults to the Windows/Linux label on
   // first render) to avoid a hydration mismatch: navigator isn't available
   // during SSR.
@@ -134,56 +144,75 @@ export function UserSelection({
           {recentUsers.map((user, idx) => {
             const accent = AVATAR_ACCENTS[idx % AVATAR_ACCENTS.length];
             return (
-              <motion.button
+              <motion.div
                 key={user.id}
                 variants={tileVariants}
-                whileTap={{ scale: 0.94 }}
-                onClick={() => onSelectUser(user)}
-                className={cn(
-                  "group flex flex-col items-center gap-3 focus:outline-none",
-                  tileWidth,
-                )}
+                className={cn("group relative", tileWidth)}
               >
-                <div className="relative flex items-center justify-center">
-                  <div
-                    className={cn(
-                      "absolute inset-0 scale-90 rounded-full blur-xl opacity-0 transition-all duration-300 group-hover:scale-110 group-hover:opacity-100 group-focus-visible:scale-110 group-focus-visible:opacity-100",
-                      accent.glow,
-                    )}
-                  />
-                  <Avatar
-                    className={cn(
-                      "relative shadow-[0_2px_10px_rgba(0,0,0,0.1),0_-1px_3px_rgba(0,0,0,0.04)] ring-2 ring-black/5 dark:ring-white/10 transition-all duration-300 group-hover:scale-105 group-hover:ring-4 group-focus-visible:scale-105 group-focus-visible:ring-4 bg-card",
-                      accent.ring,
-                      avatarSize,
-                    )}
-                  >
-                    <AvatarFallback
+                {/* A plain button, not motion.button: the remove "x" below
+                   needs to be a sibling (not a nested interactive
+                   descendant, which the button content model disallows and
+                   which real browsers/AT can drop from the a11y tree). */}
+                <button
+                  type="button"
+                  onClick={() => onSelectUser(user)}
+                  className="flex w-full flex-col items-center gap-3 transition-transform focus:outline-none active:scale-[0.94]"
+                >
+                  <div className="relative flex items-center justify-center">
+                    <div
                       className={cn(
-                        "bg-muted/60 font-bold",
-                        accent.text,
-                        isSingle
-                          ? "text-3xl sm:text-4xl"
-                          : "text-xl sm:text-2xl",
+                        "absolute inset-0 scale-90 rounded-full blur-xl opacity-0 transition-all duration-300 group-hover:scale-110 group-hover:opacity-100 group-focus-visible:scale-110 group-focus-visible:opacity-100",
+                        accent.glow,
+                      )}
+                    />
+                    <Avatar
+                      className={cn(
+                        "relative shadow-[0_2px_10px_rgba(0,0,0,0.1),0_-1px_3px_rgba(0,0,0,0.04)] ring-2 ring-black/5 dark:ring-white/10 transition-all duration-300 group-hover:scale-105 group-hover:ring-4 group-focus-visible:scale-105 group-focus-visible:ring-4 bg-card",
+                        accent.ring,
+                        avatarSize,
                       )}
                     >
-                      {getUserInitials(user.first_name, user.last_name)}
-                    </AvatarFallback>
-                  </Avatar>
-                </div>
-                <div className="w-full space-y-1 text-center">
-                  <p className="truncate text-sm font-semibold text-foreground/80 transition-colors group-hover:text-foreground">
-                    {user.first_name}
-                  </p>
-                  <span
-                    className={cn(
-                      "inline-block truncate rounded-full bg-muted/70 px-2 py-0.5 text-[10px] font-medium capitalize text-muted-foreground",
-                    )}
+                      <AvatarFallback
+                        className={cn(
+                          "bg-muted/60 font-bold",
+                          accent.text,
+                          isSingle
+                            ? "text-3xl sm:text-4xl"
+                            : "text-xl sm:text-2xl",
+                        )}
+                      >
+                        {getUserInitials(user.first_name, user.last_name)}
+                      </AvatarFallback>
+                    </Avatar>
+                  </div>
+                  <div className="w-full space-y-1 text-center">
+                    <p className="truncate text-sm font-semibold text-foreground/80 transition-colors group-hover:text-foreground">
+                      {user.first_name}
+                    </p>
+                    <span
+                      className={cn(
+                        "inline-block truncate rounded-full bg-muted/70 px-2 py-0.5 text-[10px] font-medium capitalize text-muted-foreground",
+                      )}
+                    >
+                      {user.role.replace(/_/g, " ")}
+                    </span>
+                  </div>
+                </button>
+                {onRemoveUser && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setRemovingUser(user);
+                    }}
+                    className="absolute -top-1 -right-1 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-muted text-muted-foreground opacity-0 shadow-sm transition-opacity hover:bg-destructive hover:text-destructive-foreground group-hover:opacity-100 focus-visible:opacity-100 focus:outline-none"
+                    aria-label={`Remove ${user.first_name} from this device`}
+                    title="Remove from this device"
                   >
-                    {user.role.replace(/_/g, " ")}
-                  </span>
-                </div>
-              </motion.button>
+                    <X className="h-3 w-3" />
+                  </button>
+                )}
+              </motion.div>
             );
           })}
 
@@ -223,6 +252,19 @@ export function UserSelection({
           </button>
         </p>
       )}
+
+      <ConfirmDialog
+        open={!!removingUser}
+        onOpenChange={(open) => !open && setRemovingUser(null)}
+        onConfirm={() => {
+          if (removingUser) onRemoveUser?.(removingUser.id);
+          setRemovingUser(null);
+        }}
+        title="Remove from this screen"
+        description={`Remove ${removingUserDisplay?.first_name}'s quick-login tile from this device? Their account stays active - they can still sign back in with their username and PIN, and they'll reappear here after that.`}
+        confirmLabel="Remove"
+        variant="destructive"
+      />
     </motion.div>
   );
 }

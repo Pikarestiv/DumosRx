@@ -285,6 +285,14 @@ export function CatalogList({
                         {product.costPrice > 0
                           ? formatCurrency(product.costPrice)
                           : "-"}
+                        {product.lastBoughtPrice != null && (
+                          <div
+                            className="text-[10px] font-normal text-muted-foreground/60"
+                            title="Cost of the most recently received stock batch"
+                          >
+                            Last: {formatCurrency(product.lastBoughtPrice)}
+                          </div>
+                        )}
                       </div>
                       <EditableQuickNumberCell
                         displayValue={formatCurrency(product.sellingPrice)}

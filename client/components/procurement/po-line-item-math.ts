@@ -12,7 +12,11 @@ import type { POLineItemDraft } from "./po-item-ledger-table";
  */
 export function getImmediateUnitCost(item: POLineItemDraft): number {
   const unitsPerBulk = item.units_per_bulk || 1;
-  return item.cost_price_override !== undefined && item.cost_price_override !== ""
+  // Loose `!=` (not `!==`) deliberately also catches `null`: a PO reloaded
+  // from the DB hands back SQL NULL for an unset override, not
+  // `undefined` - `Number(null)` is `0`, which would silently read back
+  // as "override to zero cost" instead of "no override".
+  return item.cost_price_override != null && item.cost_price_override !== ""
     ? Number(item.cost_price_override)
     : item.unit_cost / unitsPerBulk;
 }

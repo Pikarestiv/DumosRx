@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { AuditLedgerStep } from "./audit-ledger-step";
 import { AuditReviewStep } from "./audit-review-step";
-import { ChevronLeft, CheckCircle2, Loader2, Printer } from "lucide-react";
+import { ChevronLeft, CheckCircle2, Loader2, Printer, ChevronDown } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getProductsWithDetails } from "@/lib/db/queries/products";
 import { sync } from "@/lib/db/sync-engine";
@@ -15,11 +15,18 @@ import { useStore } from "@/lib/context/store-context";
 import { toast } from "sonner";
 import type { ProductWithDetails } from "@/lib/types/product";
 import { LoadingOverlay } from "@/components/ui/loading-overlay";
+import { generateReportPdfBlob, downloadBlob } from "@/lib/utils/report-pdf";
+import { printNode } from "@/lib/utils/print-node";
 import {
-  generateReportPdfBlob,
-  openBlobForPrint,
-} from "@/lib/utils/report-pdf";
-import { buildStockAuditRows } from "@/lib/utils/product-import-export";
+  buildStockAuditRows,
+  buildBlobFromRows,
+} from "@/lib/utils/product-import-export";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 type AuditStep = "ledger" | "review" | "done";
 const ALL_CATEGORIES = "__all__";
@@ -156,31 +163,66 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
     await new Promise((resolve) => requestAnimationFrame(resolve));
   };
 
-  const handlePrint = async () => {
-    await setPrintProgress("Preparing rows...", 25);
-    try {
-      const { headers, rows, columnFlex } = buildStockAuditRows(
+  const printableRef = useRef<HTMLDivElement>(null);
+
+  // Was called fresh (3x per render, rebuilding the full items array each
+  // time) for the always-mounted hidden printable table plus both export
+  // handlers - memoized so a store with thousands of products doesn't redo
+  // that work 3x on every render.
+  const {
+    headers: auditHeaders,
+    rows: auditRowData,
+    columnFlex: auditColumnFlex,
+  } = useMemo(
+    () =>
+      buildStockAuditRows(
         items.map((i) => ({
           name: i.name,
           category: i.category,
           quantity: i.systemQty,
         })),
-      );
+      ),
+    [items],
+  );
+
+  /** Prints the sheet directly (no PDF render step) via the hidden table
+   * below - a real browser print dialog, not a PDF opened in a new tab. */
+  const handlePrint = async () => {
+    if (!printableRef.current) return;
+    try {
+      await printNode(printableRef.current);
+    } catch (error) {
+      console.error("Failed to print stock audit sheet:", error);
+      toast.error("Couldn't open the print dialog. Please try again.");
+    }
+  };
+
+  const handleDownloadPdf = async () => {
+    await setPrintProgress("Preparing rows...", 25);
+    try {
       await setPrintProgress("Rendering PDF...", 60);
       const blob = await generateReportPdfBlob({
         storeName: storeProfile?.name || "",
         title: "Stock Audit Sheet",
         subtitle: `${items.length} product(s)`,
-        headers,
-        rows,
-        columnFlex,
+        headers: auditHeaders,
+        rows: auditRowData,
+        columnFlex: auditColumnFlex,
       });
-      openBlobForPrint(blob);
+      downloadBlob(blob, `StockAudit_${new Date().toISOString().slice(0, 10)}.pdf`);
       await setPrintProgress("Done", 100);
       await new Promise((resolve) => setTimeout(resolve, 400));
     } finally {
       setPrintStage(null);
     }
+  };
+
+  const handleExport = (format: "csv" | "xlsx") => {
+    const blob = buildBlobFromRows(auditHeaders, auditRowData, format, "Stock Audit");
+    downloadBlob(
+      blob,
+      `StockAudit_${new Date().toISOString().slice(0, 10)}.${format}`,
+    );
   };
 
   const submitAuditMutation = useSubmitStockAuditMutation();
@@ -224,6 +266,48 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
         <LoadingOverlay message={printStage.message} progress={printStage.progress} />
       )}
 
+      {/* Off-screen (not display:none, so it still lays out for printNode's
+         clone) printable sheet - kept in sync with `items` on every render,
+         separate from the editable ledger table shown on screen. */}
+      <div
+        style={{ position: "fixed", top: 0, left: "-9999px" }}
+        aria-hidden="true"
+      >
+        <div ref={printableRef} className="p-6">
+          <h1 className="text-lg font-bold mb-1">
+            {storeProfile?.name || ""} - Stock Audit Sheet
+          </h1>
+          <p className="text-sm text-muted-foreground mb-4">
+            {items.length} product(s)
+          </p>
+          <table className="w-full text-sm border-collapse">
+            <thead>
+              <tr>
+                {auditHeaders.map((h) => (
+                  <th
+                    key={h}
+                    className="border border-border px-2 py-1 text-left"
+                  >
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {auditRowData.map((row, i) => (
+                <tr key={i}>
+                  {auditHeaders.map((h) => (
+                    <td key={h} className="border border-border px-2 py-1">
+                      {String(row[h] ?? "")}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       {/* Header, top padding clears the status bar / Tauri title bar */}
       <div
         className="flex items-center gap-3 px-4 md:px-6 pb-4 md:pb-5 border-b border-border bg-card"
@@ -250,14 +334,37 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
         </div>
         <div className="ml-auto flex items-center gap-2">
           {step === "ledger" && (
-            <button
-              className="flex items-center gap-1.5 text-[12px] font-medium px-3 py-1.5 rounded-full border border-border hover:bg-muted transition-colors disabled:opacity-60"
-              onClick={() => void handlePrint()}
-              disabled={!!printStage || items.length === 0}
-            >
-              <Printer className="w-3.5 h-3.5" />
-              Print
-            </button>
+            <DropdownMenu>
+              <div className="flex">
+                <button
+                  className="flex items-center gap-1.5 text-[12px] font-medium px-3 py-1.5 rounded-l-full border border-r-0 border-border hover:bg-muted transition-colors disabled:opacity-60"
+                  onClick={() => void handlePrint()}
+                  disabled={!!printStage || items.length === 0}
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  Print
+                </button>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    className="flex items-center px-2 py-1.5 rounded-r-full border border-border hover:bg-muted transition-colors disabled:opacity-60"
+                    disabled={!!printStage || items.length === 0}
+                  >
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  </button>
+                </DropdownMenuTrigger>
+              </div>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => void handleDownloadPdf()}>
+                  Download PDF
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExport("csv")}>
+                  Export CSV
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExport("xlsx")}>
+                  Export Excel
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
           <div className="hidden md:flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-200 rounded-full px-3 py-1.5">
             <div className="w-2 h-2 rounded-full bg-emerald-500"></div>

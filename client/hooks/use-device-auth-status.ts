@@ -39,5 +39,15 @@ export function useDeviceAuthStatus() {
     };
   }, []);
 
-  return { isChecking, userCount, recentUsers };
+  const removeRecentUser = (id: string) => {
+    const next = recentUsers.filter((u) => u.id !== id);
+    setRecentUsers(next);
+    try {
+      localStorage.setItem("dumos_recent_users", JSON.stringify(next));
+    } catch (e) {
+      console.error("Failed to persist recent users", e);
+    }
+  };
+
+  return { isChecking, userCount, recentUsers, removeRecentUser };
 }

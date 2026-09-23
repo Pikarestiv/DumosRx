@@ -21,6 +21,7 @@ export interface StockMovement {
   user: string;
   supplier?: string;
   batchNumber?: string;
+  needsReview?: boolean;
 }
 
 export const FILTER_TYPES = [

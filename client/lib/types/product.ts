@@ -29,6 +29,7 @@ export interface ProductWithDetails extends Product {
   expiry_date?: string | null;
   batch_number?: string;
   last_audited_at?: string | null;
+  last_bought_price?: number | null;
 }
 
 /** Row shape returned by getProductsWithStock()'s raw query: `products`
@@ -104,4 +105,5 @@ export interface ProductViewModel {
   requiresPrescription: boolean;
   isControlled: boolean;
   lastAuditedAt?: string | null;
+  lastBoughtPrice?: number | null;
 }

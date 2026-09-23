@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { useDailyCloseData } from "@/lib/hooks/use-daily-close-data";
 import { useStore } from "@/lib/context/store-context";
+import { useAuth } from "@/lib/context/auth-context";
 import { TransactionDetailsDialog } from "@/components/pos/transaction-details-dialog";
 import type { Sale } from "@/lib/types/sale";
 
@@ -20,6 +21,11 @@ interface DailyCloseReportProps {
 
 export function DailyCloseReport({ reportDate }: DailyCloseReportProps) {
   const { storeProfile } = useStore();
+  const { user } = useAuth();
+  // Profit is hidden from cashiers specifically, not everyone who isn't
+  // admin - an auditor has read access to every sale/return/expense this
+  // figure is derived from, so there's no reason to hide the derived number.
+  const showProfit = user?.role !== "sales_staff";
   const {
     currencyCode,
     salesToday,
@@ -28,7 +34,7 @@ export function DailyCloseReport({ reportDate }: DailyCloseReportProps) {
     totalProfit,
     topSellingMeds,
     exportToCSV,
-  } = useDailyCloseData(reportDate);
+  } = useDailyCloseData(reportDate, showProfit);
 
   const [isSalesModalOpen, setIsSalesModalOpen] = useState(false);
   const [isRefundsModalOpen, setIsRefundsModalOpen] = useState(false);
@@ -55,6 +61,7 @@ export function DailyCloseReport({ reportDate }: DailyCloseReportProps) {
           aggregatedTotals={aggregatedTotals}
           totalProfit={totalProfit}
           openSalesModal={openSalesModal}
+          showProfit={showProfit}
         />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -80,6 +87,7 @@ export function DailyCloseReport({ reportDate }: DailyCloseReportProps) {
           aggregatedTotals,
           totalProfit,
           topSellingMeds,
+          showProfit,
         }}
       />
 

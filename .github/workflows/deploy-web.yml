@@ -7,6 +7,12 @@ on:
     paths:
       - 'web/**'
   workflow_dispatch:
+  # Fired by the Laravel server (App\Console\Commands\RebuildStorefrontIfDirty)
+  # when a store's online/slug settings changed - see that command and
+  # Store::boot() for the debouncing that keeps this from firing on every
+  # single toggle.
+  repository_dispatch:
+    types: [storefront-changed]
 
 jobs:
   deploy:

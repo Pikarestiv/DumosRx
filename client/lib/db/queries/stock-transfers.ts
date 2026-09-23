@@ -6,6 +6,7 @@ import {
   generateId,
 } from "@/lib/db/local-database";
 import { roundMoney } from "@/lib/utils/pos-calculations";
+import { checkIsAdmin } from "@/lib/context/auth-context";
 
 /**
  * Data-model decision (see docs/superpowers or PR description for the
@@ -25,10 +26,15 @@ import { roundMoney } from "@/lib/utils/pos-calculations";
  * other device/terminal until that server work lands — worse than not
  * having a header table at all. `getStockTransferHistory()` below
  * reconstructs the same "one row per transfer" view by grouping
- * stock_movements on reference_id, so the UI doesn't need one. If/when the
- * "cashier requests, admin approves" workflow (explicitly out of scope
- * here) gets built, that's the natural point to revisit this and add a
- * real `status`-bearing header table with the server migration to match.
+ * stock_movements on reference_id, so the UI doesn't need one.
+ *
+ * "Cashier requests, owner reviews later": rather than a real approval gate
+ * (nothing here is ever blocked pending approval - the transfer always
+ * takes effect immediately, same as an admin-initiated one), a
+ * non-admin-initiated transfer's two rows are flagged
+ * `status: "needs_review"` (see `initiatedByRole` below) so an owner can
+ * spot it after the fact. Added directly to stock_movements rather than a
+ * new header table, for the same already-synced-table reasoning above.
  */
 export const STOCK_TRANSFER_REFERENCE_TYPE = "stock_transfer";
 
@@ -41,6 +47,12 @@ export interface StockTransferParams {
   quantity: number;
   performedBy: string | null;
   reason?: string;
+  /** The initiating user's role. When not admin-tier (e.g. a cashier
+   * requesting stock from another store, no owner immediately available),
+   * both rows this transfer writes are flagged `status: "needs_review"` so
+   * an owner can check it after the fact — the transfer itself still takes
+   * effect immediately either way; nothing here blocks it. */
+  initiatedByRole?: string;
 }
 
 export interface StockTransferResult {
@@ -259,7 +271,10 @@ export async function transferStock(
     quantity,
     performedBy,
     reason,
+    initiatedByRole,
   } = params;
+
+  const needsReview = !checkIsAdmin(initiatedByRole);
 
   if (!sourceStoreId || !destStoreId) {
     throw new Error("Both a source and destination store are required");
@@ -374,6 +389,7 @@ export async function transferStock(
           performed_by: performedBy,
           movement_date: now,
           store_id: sourceStoreId,
+          status: needsReview ? "needs_review" : null,
         },
         { storeId: sourceStoreId },
       );
@@ -394,6 +410,7 @@ export async function transferStock(
         performed_by: performedBy,
         movement_date: now,
         store_id: destStoreId,
+        status: needsReview ? "needs_review" : null,
       },
       { storeId: destStoreId },
     );

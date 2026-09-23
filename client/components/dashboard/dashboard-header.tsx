@@ -43,7 +43,14 @@ export function DashboardHeader({ onOpenFeedback }: DashboardHeaderProps) {
   const hasMultiStoreAccess = canManageMultiStore && availableStores.length > 1;
 
   const pageInfo = getPageInfo(pathname);
-  const action = resolveHeaderAction(pathname, pageInfo, canManageStockBatch, isAdmin, hasMultiStoreAccess);
+  const action = resolveHeaderAction(
+    pathname,
+    pageInfo,
+    canManageStockBatch,
+    isAdmin,
+    hasMultiStoreAccess,
+    user?.role === "sales_staff",
+  );
   // Start Audit was gated on isAdmin (not canManageStockBatch, which also
   // covers the "specialist" role) before it moved into the shared header —
   // passing isAdmin here keeps that exact gate rather than widening it.

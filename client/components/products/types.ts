@@ -30,6 +30,10 @@ export const transformProduct = (apiData: ProductWithDetails): Product => ({
   bulkUnit: apiData.bulk_unit || "",
   unitsPerBulk: Number(apiData.units_per_bulk) || 1,
   lastAuditedAt: apiData.last_audited_at || null,
+  lastBoughtPrice:
+    apiData.last_bought_price !== null && apiData.last_bought_price !== undefined
+      ? Number(apiData.last_bought_price)
+      : null,
   showOnline: apiData.show_online === 1,
   requiresPrescription: apiData.requires_prescription === 1,
   isControlled: apiData.is_controlled === 1,

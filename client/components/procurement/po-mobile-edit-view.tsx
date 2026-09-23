@@ -14,6 +14,7 @@ interface POMobileEditViewProps {
   poId: string | null;
   selectedSupplierName: string;
   totalAmount: number;
+  poType: "standard" | "immediate";
   products: POProduct[];
   items: POLineItemDraft[];
   onItemsChange: (items: POLineItemDraft[]) => void;
@@ -33,6 +34,7 @@ export function POMobileEditView({
   poId,
   selectedSupplierName,
   totalAmount,
+  poType,
   products,
   items,
   onItemsChange,
@@ -95,7 +97,7 @@ export function POMobileEditView({
           onEdit={onOpenEditDetails}
         />
         <POItemBuilder
-          poType="standard"
+          poType={poType}
           products={products}
           items={items}
           onItemsChange={onItemsChange}

@@ -1,6 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
 import { insert, update, generateId } from "@/lib/db/local-database";
-import { recordCustomerPayment } from "@/lib/db/queries/customers";
+import { recordCustomerPayment, deleteCustomer } from "@/lib/db/queries/customers";
 import type { CustomerFormPayload } from "@/lib/types/customer";
 
 export interface NewCustomerData {
@@ -90,5 +90,11 @@ export function useRecordCustomerPaymentMutation() {
   return useMutation({
     mutationFn: ({ customerId, amount, paymentMethod, notes }: RecordCustomerPaymentParams) =>
       recordCustomerPayment(customerId, amount, paymentMethod, notes),
+  });
+}
+
+export function useDeleteCustomerMutation() {
+  return useMutation({
+    mutationFn: (id: string) => deleteCustomer(id),
   });
 }

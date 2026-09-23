@@ -12,6 +12,7 @@ export interface LoginTabProps {
   userCount: number;
   showRecentUserSelection: boolean;
   recentUsers: RecentUser[];
+  onRemoveRecentUser?: (id: string) => void;
   showTraditionalLogin: boolean;
   isNewCredentialsMode: boolean;
   username: string;
@@ -32,6 +33,7 @@ export function LoginTab({
   userCount,
   showRecentUserSelection,
   recentUsers,
+  onRemoveRecentUser,
   showTraditionalLogin,
   isNewCredentialsMode,
   username,
@@ -64,6 +66,7 @@ export function LoginTab({
         <div className="flex-1 flex flex-col pt-1 pb-0 px-4 sm:pb-6 sm:px-6">
           <LockScreen
             recentUsers={recentUsers}
+            onRemoveRecentUser={onRemoveRecentUser}
             onLoginAsOther={() => setShowTraditionalLogin(true)}
             onSetUpNewDevice={onGoToCloud}
           />

@@ -23,6 +23,7 @@ class ActivityLog extends Model
         'table_name',
         'record_id',
         'details',
+        'correlation_id',
         '_version',
     ];
 

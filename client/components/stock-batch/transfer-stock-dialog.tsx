@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useStore } from "@/lib/context/store-context";
-import { useAuth } from "@/lib/context/auth-context";
+import { useAuth, checkIsAdmin } from "@/lib/context/auth-context";
 import { TransferProductPicker } from "./transfer-product-picker";
 import {
   getTransferableProducts,
@@ -33,11 +33,20 @@ export function TransferStockDialog({
   onOpenChange,
   onTransferred,
 }: TransferStockDialogProps) {
-  const { availableStores } = useStore();
+  const { availableStores, activeStoreId } = useStore();
   const { user } = useAuth();
+  const isAdmin = checkIsAdmin(user?.role);
 
   const [sourceStoreId, setSourceStoreId] = useState("");
-  const [destStoreId, setDestStoreId] = useState("");
+  const [manualDestStoreId, setManualDestStoreId] = useState("");
+  // A cashier can only PULL stock into their own active store, not push it
+  // out to an arbitrary store - the button that opens this dialog is
+  // labeled "Request stock from another store" (pos-layout-header.tsx),
+  // and letting a non-admin freely move stock out with only a
+  // needs_review flag after the fact would be a real gap. Admins keep the
+  // full from/to picker via manualDestStoreId.
+  const destStoreId = isAdmin ? manualDestStoreId : activeStoreId || "";
+  const setDestStoreId = setManualDestStoreId;
   const [products, setProducts] = useState<TransferableProductRow[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [productId, setProductId] = useState("");
@@ -119,6 +128,7 @@ export function TransferStockDialog({
         quantity: quantityNum,
         performedBy: user?.id ?? null,
         reason: reason.trim() || undefined,
+        initiatedByRole: user?.role,
       });
       toast.success(
         `Transferred ${result.quantityTransferred} unit(s) of ${selectedProduct?.name ?? "product"}`,
@@ -181,18 +191,28 @@ export function TransferStockDialog({
 
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="transfer-dest-store">To store</Label>
-            <Select value={destStoreId} onValueChange={setDestStoreId}>
-              <SelectTrigger id="transfer-dest-store" className="w-full">
-                <SelectValue placeholder="Select destination store" />
-              </SelectTrigger>
-              <SelectContent>
-                {destStoreOptions.map((store) => (
-                  <SelectItem key={store.id} value={store.id}>
-                    {store.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {isAdmin ? (
+              <Select value={destStoreId} onValueChange={setDestStoreId}>
+                <SelectTrigger id="transfer-dest-store" className="w-full">
+                  <SelectValue placeholder="Select destination store" />
+                </SelectTrigger>
+                <SelectContent>
+                  {destStoreOptions.map((store) => (
+                    <SelectItem key={store.id} value={store.id}>
+                      {store.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <div
+                id="transfer-dest-store"
+                className="flex h-9 w-full items-center rounded-md border border-input bg-muted/50 px-3 text-sm text-muted-foreground"
+              >
+                {availableStores.find((s) => s.id === destStoreId)?.name ||
+                  "Your store"}
+              </div>
+            )}
           </div>
         </div>
 

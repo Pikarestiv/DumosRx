@@ -1,4 +1,5 @@
 import { Copy, Check, HelpCircle, Edit2 } from "lucide-react";
+import { addMonths, format, isAfter } from "date-fns";
 import { STOREFRONT_BASE_URL } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +15,7 @@ interface StoreProfileSectionProps {
   isEditingProfile: boolean;
   localStoreSlug?: string;
   setLocalStoreSlug?: (val: string) => void;
+  storeSlugChangedAt?: string | null;
   localPcn: string;
   setLocalPcn: (val: string) => void;
   showRetailSuggestions?: boolean;
@@ -35,6 +37,7 @@ export function StoreProfileSection({
   isEditingProfile,
   localStoreSlug,
   setLocalStoreSlug,
+  storeSlugChangedAt,
   localPcn,
   setLocalPcn,
   showRetailSuggestions = false,
@@ -57,9 +60,25 @@ export function StoreProfileSection({
     setTimeout(() => setCopied(false), 2000);
   };
 
+  // Server-enforced cooldown backstop lives in Store::boot() (Laravel) - this
+  // is just the UI-side reflection of the same 6-month rule, computed from
+  // the same store_slug_changed_at the server stamps. First-ever slug set
+  // (no changed-at yet) is never restricted.
+  const nextEligibleSlugChange = storeSlugChangedAt
+    ? addMonths(new Date(storeSlugChangedAt), 6)
+    : null;
+  const slugChangeLocked =
+    !!nextEligibleSlugChange && isAfter(nextEligibleSlugChange, new Date());
+
   const handleEditClick = () => {
     if (!canUseEcommerce) {
       toast.error(getUpgradeMessage('store_url', "Upgrade to a premium plan to customize your storefront URL."));
+      return;
+    }
+    if (slugChangeLocked && nextEligibleSlugChange) {
+      toast.error(
+        `You can change your storefront URL once every 6 months. You'll be able to change it again on ${format(nextEligibleSlugChange, "d MMM yyyy")} — contact support if you need it sooner.`,
+      );
       return;
     }
     setIsEditingSlug(true);

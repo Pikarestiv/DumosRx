@@ -30,6 +30,7 @@ export function BusinessInfoPanel(s: SettingsState) {
         handleRemoveLogo={s.handleRemoveLogo}
         localStoreSlug={s.localStoreSlug}
         setLocalStoreSlug={s.setLocalStoreSlug}
+        storeSlugChangedAt={s.storeProfile?.store_slug_changed_at}
         localPcn={s.localPcn}
         setLocalPcn={s.setLocalPcn}
         showRetailSuggestions={s.showRetailSuggestions}

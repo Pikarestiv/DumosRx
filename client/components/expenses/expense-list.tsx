@@ -13,12 +13,12 @@ import { ExpenseCategoryFilter } from "./expense-category-filter";
 import { Card } from "@/components/ui/card";
 import { Expense } from "@/lib/db/queries/finance";
 import { ExpenseInsightsStrip } from "./expense-insights-strip";
+import { useAuth } from "@/lib/context/auth-context";
 import { SortableHeaderCell } from "@/components/ui/sortable-header-cell";
 import { useSortableData } from "@/lib/hooks/use-sortable-data";
 import { useQuickEditExpenseMutation } from "@/lib/hooks/use-expense-mutations";
 import { ExpenseDesktopRow, CATEGORY_META, type ExpenseDraft } from "./expense-desktop-row";
 import { EmptyState as SharedEmptyState } from "@/components/ui/empty-state";
-import { useAuth } from "@/lib/context/auth-context";
 
 type ExpenseSortKey = "date" | "category" | "description" | "method" | "amount";
 
@@ -45,7 +45,9 @@ export function ExpenseList() {
     selectedExpense,
     expenses,
   } = useExpensesPage();
-  const { isAdmin } = useAuth();
+  const { user, canManageStockBatch } = useAuth();
+  const canAddExpense =
+    canManageStockBatch || user?.role === "sales_staff";
 
   const { sortKey, direction, toggleSort, sortedData: sortedExpenses } =
     useSortableData<Expense, ExpenseSortKey>(filteredExpenses, {
@@ -107,7 +109,7 @@ export function ExpenseList() {
       title="No expenses found"
       className="p-10"
       action={
-        isAdmin
+        canAddExpense
           ? { label: "Add Expense", href: "/expenses?action=add" }
           : undefined
       }

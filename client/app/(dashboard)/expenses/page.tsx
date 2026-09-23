@@ -43,7 +43,7 @@ function ExpensesPageContent() {
 
 export default function ExpensesPage() {
   return (
-    <RequireRole>
+    <RequireRole allowSalesStaff>
       <ExpensesPageContent />
     </RequireRole>
   );

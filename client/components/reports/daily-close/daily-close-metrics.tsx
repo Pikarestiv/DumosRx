@@ -18,6 +18,7 @@ interface DailyCloseMetricsProps {
   };
   totalProfit: number;
   openSalesModal: (filter: string) => void;
+  showProfit?: boolean;
 }
 
 export function DailyCloseMetrics({
@@ -25,6 +26,7 @@ export function DailyCloseMetrics({
   aggregatedTotals,
   totalProfit,
   openSalesModal,
+  showProfit = true,
 }: DailyCloseMetricsProps) {
   return (
     <div className="flex flex-col gap-5">
@@ -73,18 +75,20 @@ export function DailyCloseMetrics({
         </div>
       </div>
 
-      <MetricCard
-        className="border-emerald-200/50"
-        title="Total Profit (Est.)"
-        value={formatMetricCurrency(totalProfit, currencyCode)}
-        icon={<TrendingUp className="h-4 w-4" />}
-        iconBgClass={
-          totalProfit >= 0
-            ? "bg-emerald-50 text-emerald-700"
-            : "bg-red-50 text-red-700"
-        }
-        valueClassName={`font-serif ${totalProfit >= 0 ? "text-emerald-600" : "text-destructive"}`}
-      />
+      {showProfit && (
+        <MetricCard
+          className="border-emerald-200/50"
+          title="Total Profit (Est.)"
+          value={formatMetricCurrency(totalProfit, currencyCode)}
+          icon={<TrendingUp className="h-4 w-4" />}
+          iconBgClass={
+            totalProfit >= 0
+              ? "bg-emerald-50 text-emerald-700"
+              : "bg-red-50 text-red-700"
+          }
+          valueClassName={`font-serif ${totalProfit >= 0 ? "text-emerald-600" : "text-destructive"}`}
+        />
+      )}
     </div>
   );
 }

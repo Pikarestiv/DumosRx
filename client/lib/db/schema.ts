@@ -59,6 +59,8 @@ CREATE TABLE IF NOT EXISTS stock_batches (
   _deleted INTEGER DEFAULT 0
 );
 
+CREATE INDEX IF NOT EXISTS idx_stock_batches_product_id ON stock_batches(product_id);
+
 CREATE TABLE IF NOT EXISTS categories (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
@@ -289,6 +291,8 @@ CREATE TABLE IF NOT EXISTS stores (
   id TEXT PRIMARY KEY,
   name TEXT,
   store_slug TEXT UNIQUE,
+  store_slug_changed_at TEXT,
+  storefront_dirty_at TEXT,
   store_type TEXT DEFAULT 'store',
   device_id TEXT UNIQUE,
   user_id TEXT,
@@ -312,6 +316,7 @@ CREATE TABLE IF NOT EXISTS stores (
   receipt_footer TEXT,
   receipt_tagline TEXT,
   show_logo_on_receipt INTEGER DEFAULT 1,
+  receipt_logo_position TEXT DEFAULT 'above',
   show_contact_on_receipt INTEGER DEFAULT 1,
   show_phone_on_receipt INTEGER DEFAULT 1,
   show_address_on_receipt INTEGER DEFAULT 1,
@@ -391,6 +396,7 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   table_name TEXT,
   record_id TEXT,
   details TEXT,
+  correlation_id TEXT,
   created_at TEXT,
   updated_at TEXT,
   _version INTEGER DEFAULT 1,
@@ -430,6 +436,10 @@ CREATE TABLE IF NOT EXISTS purchase_order_items (
   units_per_bulk INTEGER NOT NULL,
   unit_cost REAL NOT NULL,
   subtotal REAL NOT NULL,
+  selling_price REAL,
+  cost_price_override REAL,
+  lot_number TEXT,
+  expiry_date TEXT,
   created_at TEXT,
   updated_at TEXT,
   _version INTEGER DEFAULT 1,
@@ -572,6 +582,7 @@ CREATE TABLE IF NOT EXISTS stock_movements (
   reason TEXT,
   performed_by TEXT,
   movement_date TEXT,
+  status TEXT,
   created_at TEXT,
   updated_at TEXT,
   _version INTEGER DEFAULT 1,

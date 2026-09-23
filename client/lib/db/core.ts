@@ -1125,6 +1125,10 @@ export async function logAction(
   // was attributed to whatever store the UI happened to have active rather
   // than the source/destination store the write actually belongs to.
   overrideStoreId?: string,
+  // Ties every row one multi-step operation writes (e.g. everything a
+  // single sale touches) together for the Activity Log to collapse into
+  // one entry - see correlation_id's schema-migrations.ts comment.
+  correlationId?: string,
 ) {
   if (!db) return;
   const id = generateId();
@@ -1132,8 +1136,8 @@ export async function logAction(
   const storeId = overrideStoreId ?? getActiveStoreId();
 
   await execute(
-    `INSERT INTO audit_logs (id, user_id, store_id, action, table_name, record_id, details, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO audit_logs (id, user_id, store_id, action, table_name, record_id, details, correlation_id, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       currentUser?.id || null,
@@ -1142,6 +1146,7 @@ export async function logAction(
       table,
       recordId,
       details ? JSON.stringify(details) : null,
+      correlationId || null,
       now,
     ],
   );
@@ -1155,6 +1160,7 @@ export async function logAction(
     table_name: table,
     record_id: recordId,
     details: details ? JSON.stringify(details) : null,
+    correlation_id: correlationId || null,
     created_at: now,
     updated_at: now,
   };

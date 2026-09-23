@@ -79,6 +79,7 @@ export function useSettings() {
     localReceiptFooter,
     localReceiptTagline,
     showLogo,
+    logoPosition,
     showPhone,
     showAddress,
     hidePoweredBy,
@@ -269,6 +270,7 @@ export function useSettings() {
       receipt_footer: localReceiptFooter,
       receipt_tagline: localReceiptTagline,
       show_logo_on_receipt: showLogo ? 1 : 0,
+      receipt_logo_position: logoPosition,
       show_phone_on_receipt: showPhone ? 1 : 0,
       show_address_on_receipt: showAddress ? 1 : 0,
       // Only plans with canRemoveBranding may actually persist this as hidden.

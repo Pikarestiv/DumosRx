@@ -304,6 +304,12 @@ const SYNC_COLUMN_MIGRATIONS: { table: string; columns: string[] }[] = [
       "_synced_at TEXT",
       "_deleted INTEGER DEFAULT 0",
       "store_id TEXT",
+      // Ties every audit_logs row written inside one multi-step operation
+      // (e.g. all ~10-15 rows a single sale writes across sales,
+      // sale_items, stock_batches, stock_movements, customers,
+      // loyalty_transactions) together, so the Activity Log can collapse
+      // them into one entry instead of showing each as a separate action.
+      "correlation_id TEXT",
     ],
   },
   {
@@ -354,6 +360,14 @@ const SYNC_COLUMN_MIGRATIONS: { table: string; columns: string[] }[] = [
       "_synced_at TEXT",
       "_deleted INTEGER DEFAULT 0",
       "store_id TEXT",
+      // Immediate-purchase per-line-item overrides (selling price, cost
+      // override, lot/expiry) - previously only ever consumed transiently
+      // at receiving time and never persisted, so saving an in-progress
+      // Immediate Purchase as a draft silently discarded them.
+      "selling_price REAL",
+      "cost_price_override REAL",
+      "lot_number TEXT",
+      "expiry_date TEXT",
     ],
   },
   {
@@ -465,7 +479,7 @@ const SYNC_COLUMN_MIGRATIONS: { table: string; columns: string[] }[] = [
       // pcn_license/registration_number.
       "tax_number TEXT",
       // Store-wide % of a reseller sale's markup remitted back to the
-      // reseller. See ResellerCommissionPanel / use-pos-payment.ts.
+      // reseller. See use-pos-payment.ts / use-redeem-reseller-commission-mutation.ts.
       "reseller_commission_percentage REAL DEFAULT 0",
       // One-time gate for ensureLoyaltyDefaultsSeeded() (loyalty.ts) - set
       // the first time default tiers/redemption options are ever seeded for
@@ -474,6 +488,15 @@ const SYNC_COLUMN_MIGRATIONS: { table: string; columns: string[] }[] = [
       // NULL on every existing row until this migration's store's first
       // post-upgrade seed decision.
       "loyalty_defaults_seeded_at TEXT",
+      // Whether the receipt header shows the store logo above the store
+      // name (default, matches every existing store's current receipt) or
+      // beside it. See ReceiptView / receipt-customization-card.tsx.
+      "receipt_logo_position TEXT DEFAULT 'above'",
+      // Server-managed bookkeeping for the storefront rebuild pipeline -
+      // mirrored here only so pull sync's dynamic column list doesn't fail
+      // with "no such column"; nothing in this app writes to them.
+      "store_slug_changed_at TEXT",
+      "storefront_dirty_at TEXT",
     ],
   },
   {
@@ -495,6 +518,11 @@ const SYNC_COLUMN_MIGRATIONS: { table: string; columns: string[] }[] = [
       "_deleted INTEGER DEFAULT 0",
       "stock_batch_id TEXT",
       "store_id TEXT",
+      // Set to "needs_review" on a cross-store transfer's two rows
+      // (transfer_out/transfer_in) when the initiating user isn't
+      // admin-tier - a cashier-requested transfer still takes effect
+      // immediately, just flagged for the owner to check afterward.
+      "status TEXT",
     ],
   },
   { table: "payment_accounts", columns: ["user_id TEXT", "store_id TEXT"] },
@@ -714,6 +742,21 @@ async function clearLegacyTransactionsOnce(
   }
 }
 
+// stock_batches.product_id has no index, so every correlated subquery
+// against it in getProductsWithDetails() (five of them, plus a sixth for
+// last_bought_price) does a full table scan per product row - the query
+// core.ts documents as the app's largest/slowest, already the one known to
+// yield mid-iteration under concurrent sync writes. CREATE INDEX IF NOT
+// EXISTS is naturally idempotent, so this doesn't strictly need tryRun's
+// swallow-on-rerun behavior, but it's used for consistency with the rest of
+// this file.
+async function ensureStockBatchesProductIndex(adapter: DbAdapter): Promise<void> {
+  await tryRun(
+    adapter,
+    `CREATE INDEX IF NOT EXISTS idx_stock_batches_product_id ON stock_batches(product_id)`,
+  );
+}
+
 // The full, ordered migration sequence initDatabase() applies to an existing
 // local database, identical on both backends. `onLegacyCleared` is only
 // supplied on the web/sql.js path, where an in-memory delete still has to be
@@ -729,4 +772,5 @@ export async function runSchemaMigrations(
   await clearOrphanedProductCategoryIds(adapter);
   await relaxPurchaseOrdersSupplierIdNullable(adapter);
   await clearLegacyTransactionsOnce(adapter, onLegacyCleared);
+  await ensureStockBatchesProductIndex(adapter);
 }

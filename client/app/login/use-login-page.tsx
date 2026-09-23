@@ -25,7 +25,8 @@ export function useLoginPageState() {
   // accounts already exist, to avoid ever showing two separate lock screens.
   const isNewCredentialsMode = searchParams.get("mode") === "new";
 
-  const { isChecking, userCount, recentUsers } = useDeviceAuthStatus();
+  const { isChecking, userCount, recentUsers, removeRecentUser } =
+    useDeviceAuthStatus();
   const { isAuthenticated } = useAuth();
   const loginState = useLogin();
   const { showTraditionalLogin } = loginState;
@@ -146,6 +147,7 @@ export function useLoginPageState() {
     isNewCredentialsMode,
     userCount,
     recentUsers,
+    removeRecentUser,
     showRecentUserSelection,
     loginState,
     registerHandler,

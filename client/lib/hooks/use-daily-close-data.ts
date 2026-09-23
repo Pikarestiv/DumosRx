@@ -13,7 +13,7 @@ interface PaymentSplitEntry {
   accountId?: string;
 }
 
-export function useDailyCloseData(reportDate: string) {
+export function useDailyCloseData(reportDate: string, showProfit = true) {
   const { storeProfile } = useStore();
   const currencyCode = storeProfile?.currency;
 
@@ -224,7 +224,9 @@ export function useDailyCloseData(reportDate: string) {
       ["Total Refunds", aggregatedTotals.refunds.toString()],
       ["Cash Expected", aggregatedTotals.cash.toString()],
       ["Transfer / Mobile", aggregatedTotals.transfer.toString()],
-      ["Total Net Profit (Est.)", totalProfit.toString()],
+      ...(showProfit
+        ? [["Total Net Profit (Est.)", totalProfit.toString()]]
+        : []),
       [],
       ["Payment Breakdown"],
       ["Method", "Amount"],

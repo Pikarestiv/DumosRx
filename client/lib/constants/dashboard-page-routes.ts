@@ -12,6 +12,12 @@ interface PageRoute {
   action?: PageAction;
   /** Action only shown to roles with stock-management access (admin/manager/specialist/store_owner). */
   actionAdminOnly?: boolean;
+  /** Additionally lets a sales_staff (cashier) account through
+   * actionAdminOnly's baseline - for the one route (Expenses) cashiers are
+   * also meant to reach, without opening the gate to every other
+   * non-admin role (e.g. auditor, a read-only role that shouldn't get a
+   * write action here either). */
+  actionAllowSalesStaff?: boolean;
   /** On top of actionAdminOnly's canManageStockBatch baseline, `action` is
    * only shown to isAdmin — for a primary action that should be limited the
    * same way Start Audit's secondaryAction already is (e.g. Transfer Stock:
@@ -155,6 +161,7 @@ export const PAGE_ROUTES: PageRoute[] = [
     desc: "Track and manage your pharmacy's operational expenses.",
     action: { label: "Add Expense", path: "/expenses?action=add" },
     actionAdminOnly: true,
+    actionAllowSalesStaff: true,
   },
   {
     path: "/reports",
@@ -196,10 +203,16 @@ export function resolveHeaderAction(
   canManageStockBatch: boolean,
   isAdmin: boolean,
   hasMultiStoreAccess: boolean,
+  isSalesStaff = false,
 ): PageAction | null {
   const matchedRoute = pageInfo?.action ? pageInfo : getPageRoute(pathname);
   if (!matchedRoute?.action) return null;
-  if (matchedRoute.actionAdminOnly && !canManageStockBatch) return null;
+  if (
+    matchedRoute.actionAdminOnly &&
+    !canManageStockBatch &&
+    !(matchedRoute.actionAllowSalesStaff && isSalesStaff)
+  )
+    return null;
 
   const meetsNarrowerRequirements =
     (!matchedRoute.actionRequiresIsAdmin || isAdmin) &&

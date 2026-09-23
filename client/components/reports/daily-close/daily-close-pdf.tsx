@@ -51,6 +51,7 @@ interface DailyClosePdfProps {
   totalProfit: number;
   topSellingMeds: { name: string; quantity: number; revenue: number }[];
   generatedAt: string;
+  showProfit?: boolean;
 }
 
 export function DailyClosePdf({
@@ -61,6 +62,7 @@ export function DailyClosePdf({
   totalProfit,
   topSellingMeds,
   generatedAt,
+  showProfit = true,
 }: DailyClosePdfProps) {
   return (
     <Document>
@@ -78,12 +80,14 @@ export function DailyClosePdf({
               {money(currencyCode, aggregatedTotals.total)}
             </Text>
           </View>
-          <View style={styles.metricBox}>
-            <Text style={styles.metricLabel}>Net Profit (Est.)</Text>
-            <Text style={styles.metricValue}>
-              {money(currencyCode, totalProfit)}
-            </Text>
-          </View>
+          {showProfit && (
+            <View style={styles.metricBox}>
+              <Text style={styles.metricLabel}>Net Profit (Est.)</Text>
+              <Text style={styles.metricValue}>
+                {money(currencyCode, totalProfit)}
+              </Text>
+            </View>
+          )}
           <View style={styles.metricBox}>
             <Text style={styles.metricLabel}>Refunds</Text>
             <Text style={styles.metricValue}>

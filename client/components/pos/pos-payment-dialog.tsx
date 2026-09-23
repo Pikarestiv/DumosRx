@@ -3,7 +3,7 @@
 import { PaymentMethodSelector } from "./payment-method-selector";
 import { PaymentSplits } from "./payment-splits";
 
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -71,9 +71,29 @@ export function POSPaymentDialog({
   const { defaults, setDefaultAccount, clearDefaultAccount } =
     useDefaultPaymentAccounts();
 
+  // Re-syncs to `total` whenever it changes (e.g. a reseller markup raises
+  // it after the dialog was first opened) as long as the field still holds
+  // the value we auto-filled last time - i.e. the cashier hasn't typed a
+  // different amount themselves. Tracking the *previous* auto-filled value
+  // in a ref (rather than only checking "is it blank") is what makes this
+  // re-run on a stale-but-non-blank amount instead of leaving it stuck.
+  const lastAutoFilledRef = useRef<string | null>(null);
   useEffect(() => {
-    if (showPaymentDialog && (!amountPaid || amountPaid === "0")) {
-      setAmountPaid(total.toString());
+    if (!showPaymentDialog) {
+      // Reset on close so a value a cashier manually typed in a previous
+      // sale can't be silently overwritten just because a later sale's
+      // total happens to match it.
+      lastAutoFilledRef.current = null;
+      return;
+    }
+    const isBlank = !amountPaid || amountPaid === "0";
+    const stillAutoFilled =
+      lastAutoFilledRef.current !== null &&
+      amountPaid === lastAutoFilledRef.current;
+    if (isBlank || stillAutoFilled) {
+      const next = total.toString();
+      lastAutoFilledRef.current = next;
+      setAmountPaid(next);
     }
   }, [showPaymentDialog, total, paymentMethod, amountPaid, setAmountPaid]);
 

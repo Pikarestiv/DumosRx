@@ -46,7 +46,6 @@ interface PODetailsFieldsProps {
   setDueDate: (date: string) => void;
   amountPaid: string;
   setAmountPaid: (amount: string) => void;
-  totalAmount: number;
   onOpenAddSupplier: () => void;
   /** Editing an existing PO is only ever done for Standard POs (Immediate
    * ones are created already "received" and never enter an editable
@@ -72,7 +71,6 @@ export function PODetailsFields({
   setDueDate,
   amountPaid,
   setAmountPaid,
-  totalAmount,
   onOpenAddSupplier,
   hideTypeToggle,
 }: PODetailsFieldsProps) {
@@ -80,8 +78,23 @@ export function PODetailsFields({
     <div className="flex flex-col gap-4">
       {!hideTypeToggle && (
         <div className="space-y-1.5">
-          <Label className="text-[12.5px] font-semibold text-foreground">
+          <Label className="text-[12.5px] font-semibold text-foreground flex items-center gap-1">
             Order Type
+            <TooltipProvider delayDuration={0}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <HelpCircle className="w-3 h-3 opacity-50 cursor-pointer" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>
+                    Immediate Purchase receives stock and updates prices
+                    right away in one pass. Purchase Order just records the
+                    order - stock and pricing are entered later when you
+                    receive it.
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </Label>
           <Tabs
             value={poType}
@@ -182,26 +195,19 @@ export function PODetailsFields({
         </div>
       </div>
 
-      {paymentStatus !== "unpaid" && (
+      {paymentStatus === "partial" && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="space-y-1.5 md:col-span-2">
             <Label className="text-[12.5px] font-semibold text-foreground">
-              Amount Paid (
-              {paymentStatus === "paid" ? "Total" : "Initial Payment"})
+              Amount Paid (Initial Payment)
             </Label>
             <Input
               type="number"
               placeholder="0.00"
               className="w-full border border-border rounded-[10px] px-3.5 h-11 text-[13px] bg-card shadow-sm"
-              value={paymentStatus === "paid" ? totalAmount : amountPaid}
+              value={amountPaid}
               onChange={(e) => setAmountPaid(e.target.value)}
-              disabled={paymentStatus === "paid"}
             />
-            {paymentStatus === "paid" && (
-              <p className="text-[11px] text-muted-foreground">
-                Automatically set to the order total. No need to enter it.
-              </p>
-            )}
           </div>
         </div>
       )}

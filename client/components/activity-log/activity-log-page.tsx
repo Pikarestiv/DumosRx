@@ -43,6 +43,7 @@ export function ActivityLogPage() {
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [dateRange, setDateRange] = useState<DateRangeValue>({});
   const [selectedEntry, setSelectedEntry] = useState<AuditLogRow | null>(null);
+  const [relatedEntries, setRelatedEntries] = useState<AuditLogRow[]>([]);
   const [sortKey, setSortKey] = useState<ActivityLogSortKey>("created_at");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
 
@@ -173,7 +174,10 @@ export function ActivityLogPage() {
           sortKey={sortKey}
           sortDirection={sortDirection}
           onToggleSort={toggleSort}
-          onSelect={setSelectedEntry}
+          onSelect={(row, related) => {
+            setSelectedEntry(row);
+            setRelatedEntries(related.filter((r) => r.id !== row.id));
+          }}
         />
 
         {/* Mobile: rows become stacked, tappable cards instead of a
@@ -182,7 +186,10 @@ export function ActivityLogPage() {
         <ActivityLogMobileList
           rows={rows}
           isLoading={isLoading}
-          onSelect={setSelectedEntry}
+          onSelect={(row, related) => {
+            setSelectedEntry(row);
+            setRelatedEntries(related.filter((r) => r.id !== row.id));
+          }}
         />
 
         <TablePagination
@@ -201,12 +208,27 @@ export function ActivityLogPage() {
       <ResponsiveDetailPanel
         open={!!selectedEntry}
         onOpenChange={(open) => {
-          if (!open) setSelectedEntry(null);
+          if (!open) {
+            setSelectedEntry(null);
+            setRelatedEntries([]);
+          }
         }}
       >
         <ActivityLogDetailPanel
           entry={selectedEntry}
-          onClose={() => setSelectedEntry(null)}
+          relatedEntries={relatedEntries}
+          onSelectRelated={(entry) => {
+            setRelatedEntries(
+              [selectedEntry, ...relatedEntries].filter(
+                (r): r is AuditLogRow => !!r && r.id !== entry.id,
+              ),
+            );
+            setSelectedEntry(entry);
+          }}
+          onClose={() => {
+            setSelectedEntry(null);
+            setRelatedEntries([]);
+          }}
         />
       </ResponsiveDetailPanel>
     </div>

@@ -164,6 +164,9 @@ interface RecordSaleItemStockParams {
   costPrice: number;
   subtotal: number;
   cashierId: string | null;
+  /** Ties this line item's audit_logs rows to the rest of the sale's, so
+   * the Activity Log can collapse them into one entry. */
+  correlationId?: string;
 }
 
 /**
@@ -182,6 +185,7 @@ export async function recordSaleItemStock({
   costPrice,
   subtotal,
   cashierId,
+  correlationId,
 }: RecordSaleItemStockParams) {
   // Prefer FEFO picking among batches that still show positive stock; if the
   // product's true stock is already fully depleted, fall back to whatever
@@ -203,7 +207,7 @@ export async function recordSaleItemStock({
     unit_price: unitPrice,
     cost_price: costPrice || 0,
     total_price: subtotal,
-  });
+  }, { correlationId });
 
   let remainingToDeduct = quantity;
 
@@ -252,9 +256,12 @@ export async function recordSaleItemStock({
       oversoldBatchIds.add(batch.id);
     }
 
-    await update("stock_batches", batch.id, {
-      quantity: Math.max(0, batch.quantity - deduction),
-    });
+    await update(
+      "stock_batches",
+      batch.id,
+      { quantity: Math.max(0, batch.quantity - deduction) },
+      { correlationId },
+    );
 
     deductionByBatchId.set(
       batch.id,
@@ -289,7 +296,7 @@ export async function recordSaleItemStock({
       sale_item_id: saleItemId,
       stock_batch_id: batchId,
       quantity: deduction,
-    });
+    }, { correlationId });
 
     await insert("stock_movements", {
       product_id: productId,
@@ -305,7 +312,7 @@ export async function recordSaleItemStock({
         : "Customer sale",
       performed_by: cashierId,
       movement_date: new Date().toISOString(),
-    });
+    }, { correlationId });
   }
 
   return saleItemId;

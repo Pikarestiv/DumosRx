@@ -20,6 +20,9 @@ export function useSettingsForm(storeProfile: StoreProfile | null, minimumSyncIn
   const [localReceiptFooter, setLocalReceiptFooter] = useState(storeProfile?.receipt_footer || "");
   const [localReceiptTagline, setLocalReceiptTagline] = useState(storeProfile?.receipt_tagline || "");
   const [showLogo, setShowLogo] = useState(storeProfile?.show_logo_on_receipt === 1);
+  const [logoPosition, setLogoPosition] = useState<"above" | "beside">(
+    storeProfile?.receipt_logo_position === "beside" ? "beside" : "above",
+  );
   const [showPhone, setShowPhone] = useState(storeProfile?.show_phone_on_receipt === 1);
   const [showAddress, setShowAddress] = useState(storeProfile?.show_address_on_receipt === 1);
   const [hidePoweredBy, setHidePoweredBy] = useState(storeProfile?.hide_powered_by === 1);
@@ -60,6 +63,9 @@ export function useSettingsForm(storeProfile: StoreProfile | null, minimumSyncIn
       setLocalReceiptFooter(storeProfile.receipt_footer || "");
       setLocalReceiptTagline(storeProfile.receipt_tagline || "");
       setShowLogo(storeProfile.show_logo_on_receipt === 1);
+      setLogoPosition(
+        storeProfile.receipt_logo_position === "beside" ? "beside" : "above",
+      );
       setShowPhone(storeProfile.show_phone_on_receipt === 1);
       setShowAddress(storeProfile.show_address_on_receipt === 1);
       setHidePoweredBy(storeProfile.hide_powered_by === 1);
@@ -105,6 +111,7 @@ export function useSettingsForm(storeProfile: StoreProfile | null, minimumSyncIn
     localReceiptFooter, setLocalReceiptFooter,
     localReceiptTagline, setLocalReceiptTagline,
     showLogo, setShowLogo,
+    logoPosition, setLogoPosition,
     showPhone, setShowPhone,
     showAddress, setShowAddress,
     hidePoweredBy, setHidePoweredBy,

@@ -158,6 +158,9 @@ export function useCustomerManagement() {
   const [isAddCustomerOpen, setIsAddCustomerOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [payingCustomer, setPayingCustomer] = useState<Customer | null>(null);
+  const [deletingCustomer, setDeletingCustomer] = useState<Customer | null>(
+    null,
+  );
   const [activityFilterCustomer, setActivityFilterCustomer] =
     useState<Customer | null>(null);
 
@@ -207,6 +210,15 @@ export function useCustomerManagement() {
       }
     }
     setEditingCustomer(null);
+  };
+
+  const handleCustomerDeleted = () => {
+    if (selectedCustomer?.id === deletingCustomer?.id) {
+      setSelectedCustomer(null);
+    }
+    setDeletingCustomer(null);
+    // No explicit refetch: softDelete's queueTableInvalidation("customers")
+    // already invalidates this query.
   };
 
   const handleViewHistory = (customer: Customer) => {
@@ -267,10 +279,13 @@ export function useCustomerManagement() {
     setEditingCustomer,
     payingCustomer,
     setPayingCustomer,
+    deletingCustomer,
+    setDeletingCustomer,
 
     handleAddCustomer,
     handleUpdateCustomer,
     handleViewHistory,
     handleRecordPayment,
+    handleCustomerDeleted,
   };
 }

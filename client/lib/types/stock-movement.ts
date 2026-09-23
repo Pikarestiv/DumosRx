@@ -19,6 +19,7 @@ export interface StockMovementDbRow {
   performed_by_name?: string;
   batch_number?: string;
   supplier_name?: string;
+  status?: string | null;
 }
 
 /** Row shape returned by getProductHistory()'s stockMovements query: a

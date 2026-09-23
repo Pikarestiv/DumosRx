@@ -23,6 +23,7 @@ import { RequireRole } from "@/components/auth/require-role";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import type { POLineItemDraft } from "@/components/procurement/po-item-ledger-table";
+import { getLineTotal, getValidatedAmountPaid } from "@/components/procurement/po-line-item-math";
 import type { NewProductPayload, ProductViewModel } from "@/lib/types/product";
 import type { SupplierPayload } from "@/lib/types/supplier";
 
@@ -47,6 +48,16 @@ function EditOrderContent() {
     string | null
   >(null);
   const [isAddSupplierOpen, setIsAddSupplierOpen] = useState(false);
+  // Was hardcoded "standard" everywhere below, which hid every
+  // Immediate-Purchase-only field (lot/expiry/New Cost/Review Price) when
+  // resuming an Immediate draft via "Edit Order" (any PO with status
+  // pending/sent gets that button - see purchase-order-details.tsx - not
+  // just Standard ones). The values still round-tripped correctly once
+  // coerceOptionalNumber's null handling was fixed, just weren't visible
+  // or re-editable. The type itself is never changed here (the toggle
+  // stays locked/hidden either way), just read for display; set in the
+  // seeding effect below once poQuery.data loads.
+  const [poType, setPoType] = useState<"standard" | "immediate">("standard");
 
   const { suppliers, products, refetch: fetchData } = useProcurementData();
 
@@ -81,6 +92,7 @@ function EditOrderContent() {
     // unsaved edits with the freshly refetched data.
     if (seededPoIdRef.current === id) return;
     seededPoIdRef.current = id;
+    if (poQuery.data.type === "immediate") setPoType("immediate");
     const poData = poQuery.data;
     setSelectedSupplierId(poData.supplier_id || SELF_PURCHASE_VENDOR_ID);
     setNotes(poData.notes || "");
@@ -137,7 +149,14 @@ function EditOrderContent() {
     });
   };
 
-  const totalAmount = items.reduce((sum, item) => sum + item.subtotal, 0);
+  // getLineTotal, not item.subtotal directly: subtotal only gets refreshed
+  // when unit cost changes (po-item-ledger-table.tsx), so editing just the
+  // quantity leaves it stale - same reason lib/db/procurement.ts recomputes
+  // total_amount itself at save time rather than trusting this field.
+  const totalAmount = items.reduce(
+    (sum, item) => sum + getLineTotal(item, "standard"),
+    0,
+  );
 
   const updatePurchaseOrderMutation = useUpdatePurchaseOrderMutation();
   const isSubmitting = updatePurchaseOrderMutation.isPending;
@@ -161,7 +180,12 @@ function EditOrderContent() {
         notes,
         items,
         paymentStatus,
-        amountPaid: paymentStatus !== "unpaid" ? Number(amountPaid) || 0 : 0,
+        amountPaid:
+          paymentStatus === "unpaid"
+            ? 0
+            : paymentStatus === "paid"
+              ? totalAmount
+              : getValidatedAmountPaid(amountPaid, totalAmount),
         dueDate: dueDate || null,
       },
       {
@@ -202,6 +226,7 @@ function EditOrderContent() {
         poId={id}
         selectedSupplierName={selectedSupplierName}
         totalAmount={totalAmount}
+        poType={poType}
         products={products}
         items={items}
         onItemsChange={setItems}
@@ -263,7 +288,7 @@ function EditOrderContent() {
           onEdit={() => setIsEditDetailsOpen(true)}
         />
         <POItemBuilder
-          poType="standard"
+          poType={poType}
           products={products}
           items={items}
           onItemsChange={setItems}
@@ -277,7 +302,7 @@ function EditOrderContent() {
       <PODetailsDialog
         open={isEditDetailsOpen}
         onOpenChange={setIsEditDetailsOpen}
-        poType="standard"
+        poType={poType}
         setPoType={() => {}}
         hideTypeToggle
         suppliers={suppliers}
@@ -291,7 +316,6 @@ function EditOrderContent() {
         setDueDate={setDueDate}
         amountPaid={amountPaid}
         setAmountPaid={setAmountPaid}
-        totalAmount={totalAmount}
         onOpenAddSupplier={() => setIsAddSupplierOpen(true)}
       />
 

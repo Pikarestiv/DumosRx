@@ -18,7 +18,7 @@
 // every deploy - the strategy below already updates cached assets on every
 // successful network fetch); activate() deletes any cache left behind by an
 // older version.
-const CACHE_VERSION = "dumosrx-v2";
+const CACHE_VERSION = "dumosrx-v3";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -108,21 +108,42 @@ self.addEventListener("fetch", (event) => {
   // document) tries the network first so a page never goes visibly stale,
   // but falls back to the cache - and finally to a cached "/" shell - if the
   // network is unavailable, instead of the browser's offline error page.
+  //
+  // isHtmlResponse guards every response this branch might cache or return:
+  // a navigation must always resolve to a real HTML document. Without this,
+  // anything that ever ended up cached under a page's URL with the wrong
+  // body - a React Server Component flight payload (the same route's own
+  // .txt sibling file, this app's static export writes both - see
+  // scripts/generate-precache-manifest.ts), a stale entry left by an older
+  // SW version, a response cut short mid-download - would get served
+  // straight to the browser as "the page". Since that body isn't HTML, the
+  // browser doesn't parse it; it just prints the raw text on screen, which
+  // is exactly what happened here: a page restored/launched offline showed
+  // its own RSC payload's raw serialized text instead of rendering.
+  const isHtmlResponse = (response) =>
+    !!response && (response.headers.get("content-type") || "").includes("text/html");
+
   if (request.mode === "navigate") {
     event.respondWith(
       (async () => {
+        const cache = await caches.open(CACHE_VERSION);
         try {
           const response = await fetch(request);
-          const cache = await caches.open(CACHE_VERSION);
-          await cache.put(request, response.clone());
-          return response;
+          if (response.ok && isHtmlResponse(response)) {
+            await cache.put(request, response.clone());
+            return response;
+          }
+          // A non-HTML or non-ok network response for a navigation (a
+          // misrouted request, an intermediary's error page, ...) is never
+          // trustworthy enough to show the user or to cache - fall through
+          // to the offline cache path below instead of returning it.
+          throw new Error(`Unexpected navigate response: ${response.status} ${response.headers.get("content-type")}`);
         } catch {
-          const cache = await caches.open(CACHE_VERSION);
-          return (
-            (await cache.match(request)) ||
-            (await cache.match("/")) ||
-            Response.error()
-          );
+          const cached = await cache.match(request);
+          if (isHtmlResponse(cached)) return cached;
+          const shell = await cache.match("/");
+          if (isHtmlResponse(shell)) return shell;
+          return Response.error();
         }
       })(),
     );

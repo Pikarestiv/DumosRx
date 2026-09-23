@@ -11,8 +11,9 @@ import { useAuth, checkIsAdmin, checkCanViewAllActivity } from "@/lib/context/au
 import { TransactionDetailsDialog } from "./transaction-details-dialog";
 import { calculateNetSaleAmount, calculateAvgBasket } from "@/lib/utils/pos-calculations";
 import { genericFuzzySearch } from "@/lib/utils/search";
-import { getRecentSales } from "@/lib/db/queries/sales";
+import { getRecentSales, getPendingResellerCommissionTotal } from "@/lib/db/queries/sales";
 import { queryKeys } from "@/lib/query-keys";
+import { formatCurrency } from "@/lib/utils";
 import type { DateRangeValue } from "@/components/ui/date-range-picker";
 import type { SaleWithDetails } from "@/lib/types/sale";
 
@@ -50,6 +51,14 @@ export function POSTransactionHistory({
   // string checks don't recognize role variants the way checkIsAdmin does.
   const canReturn = checkIsAdmin(user?.role);
   const canViewAllActivity = checkCanViewAllActivity(user?.role);
+
+  // Surfaced only while filtering to reseller sales, replacing the summary
+  // card the old standalone Reseller Commission tab used to show.
+  const { data: pendingCommissionTotal } = useQuery({
+    ...queryKeys.reseller.commissionPendingTotal(),
+    queryFn: () => getPendingResellerCommissionTotal(),
+    enabled: canReturn && saleTypeFilter === "Reseller",
+  });
 
   // The `recentSales` prop is a fixed 100-row snapshot (see usePOSData) -
   // fine as the default view, but a picked date range can reach further back
@@ -178,6 +187,17 @@ export function POSTransactionHistory({
   return (
     <div className="flex flex-col gap-6">
       <TransactionMetrics metrics={todayMetrics} currencyCode={currencyCode} />
+
+      {canReturn && saleTypeFilter === "Reseller" && (
+        <div className="flex items-center justify-between gap-2 rounded-lg border border-violet-200 bg-violet-50 dark:bg-violet-950/20 dark:border-violet-900 px-4 py-3">
+          <span className="text-sm font-medium text-violet-700 dark:text-violet-300">
+            Pending reseller commissions
+          </span>
+          <span className="text-sm font-bold text-violet-700 dark:text-violet-300">
+            {formatCurrency(pendingCommissionTotal || 0, currencyCode)}
+          </span>
+        </div>
+      )}
 
       <TransactionFilters
         searchQuery={searchQuery}

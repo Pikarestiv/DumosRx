@@ -198,9 +198,7 @@ export async function getSaleByTransactionNumber(transactionNumber: string) {
   return rows[0] || null;
 }
 
-/** Every reseller sale with a commission, newest first — fuzzy-searched and
- * filtered client-side in ResellerCommissionPanel rather than here, since the
- * volume of reseller sales is small compared to all sales. */
+/** Every reseller sale with a commission, newest first. */
 export async function getResellerCommissionSales() {
   const storeId = getActiveStoreId();
   return query<SaleWithDetails>(

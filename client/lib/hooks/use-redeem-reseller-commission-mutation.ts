@@ -33,7 +33,7 @@ export async function redeemResellerCommission({
   userId,
   claimType = "commission",
 }: RedeemParams) {
-  await transaction(async () => {
+  return await transaction(async () => {
     const rows = await query<Sale>(`SELECT * FROM sales WHERE id = ? AND _deleted = 0`, [saleId]);
     const sale = rows[0];
     if (!sale) throw new Error("Sale not found");
@@ -43,18 +43,19 @@ export async function redeemResellerCommission({
     const redeemedAmount =
       claimType === "store_claim" ? 0 : sale.reseller_commission_amount || 0;
 
-    await update(
-      "sales",
-      saleId,
-      {
-        reseller_commission_redeemed: 1,
-        reseller_commission_redeemed_amount: redeemedAmount,
-        reseller_commission_claim_type: claimType,
-        reseller_commission_redeemed_at: new Date().toISOString(),
-        reseller_commission_redeemed_by: userId || null,
-      },
-      { action: AUDIT_ACTIONS.RESELLER_COMMISSION_REDEEMED },
-    );
+    const patch = {
+      reseller_commission_redeemed: 1,
+      reseller_commission_redeemed_amount: redeemedAmount,
+      reseller_commission_claim_type: claimType,
+      reseller_commission_redeemed_at: new Date().toISOString(),
+      reseller_commission_redeemed_by: userId || null,
+    };
+
+    await update("sales", saleId, patch, {
+      action: AUDIT_ACTIONS.RESELLER_COMMISSION_REDEEMED,
+    });
+
+    return patch;
   });
 }
 

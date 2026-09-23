@@ -23,6 +23,7 @@ import { RequireRole } from "@/components/auth/require-role";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import type { POLineItemDraft } from "@/components/procurement/po-item-ledger-table";
+import { getLineTotal, getValidatedAmountPaid } from "@/components/procurement/po-line-item-math";
 import type { NewProductPayload, ProductViewModel } from "@/lib/types/product";
 import type { SupplierPayload } from "@/lib/types/supplier";
 
@@ -137,7 +138,14 @@ function EditOrderContent() {
     });
   };
 
-  const totalAmount = items.reduce((sum, item) => sum + item.subtotal, 0);
+  // getLineTotal, not item.subtotal directly: subtotal only gets refreshed
+  // when unit cost changes (po-item-ledger-table.tsx), so editing just the
+  // quantity leaves it stale - same reason lib/db/procurement.ts recomputes
+  // total_amount itself at save time rather than trusting this field.
+  const totalAmount = items.reduce(
+    (sum, item) => sum + getLineTotal(item, "standard"),
+    0,
+  );
 
   const updatePurchaseOrderMutation = useUpdatePurchaseOrderMutation();
   const isSubmitting = updatePurchaseOrderMutation.isPending;
@@ -166,7 +174,7 @@ function EditOrderContent() {
             ? 0
             : paymentStatus === "paid"
               ? totalAmount
-              : Math.min(Number(amountPaid) || 0, totalAmount),
+              : getValidatedAmountPaid(amountPaid, totalAmount),
         dueDate: dueDate || null,
       },
       {

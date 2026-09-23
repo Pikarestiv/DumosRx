@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { AuditLedgerStep } from "./audit-ledger-step";
 import { AuditReviewStep } from "./audit-review-step";
 import { ChevronLeft, CheckCircle2, Loader2, Printer, ChevronDown } from "lucide-react";
@@ -165,14 +165,25 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
 
   const printableRef = useRef<HTMLDivElement>(null);
 
-  const auditRows = () =>
-    buildStockAuditRows(
-      items.map((i) => ({
-        name: i.name,
-        category: i.category,
-        quantity: i.systemQty,
-      })),
-    );
+  // Was called fresh (3x per render, rebuilding the full items array each
+  // time) for the always-mounted hidden printable table plus both export
+  // handlers - memoized so a store with thousands of products doesn't redo
+  // that work 3x on every render.
+  const {
+    headers: auditHeaders,
+    rows: auditRowData,
+    columnFlex: auditColumnFlex,
+  } = useMemo(
+    () =>
+      buildStockAuditRows(
+        items.map((i) => ({
+          name: i.name,
+          category: i.category,
+          quantity: i.systemQty,
+        })),
+      ),
+    [items],
+  );
 
   /** Prints the sheet directly (no PDF render step) via the hidden table
    * below - a real browser print dialog, not a PDF opened in a new tab. */
@@ -189,15 +200,14 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
   const handleDownloadPdf = async () => {
     await setPrintProgress("Preparing rows...", 25);
     try {
-      const { headers, rows, columnFlex } = auditRows();
       await setPrintProgress("Rendering PDF...", 60);
       const blob = await generateReportPdfBlob({
         storeName: storeProfile?.name || "",
         title: "Stock Audit Sheet",
         subtitle: `${items.length} product(s)`,
-        headers,
-        rows,
-        columnFlex,
+        headers: auditHeaders,
+        rows: auditRowData,
+        columnFlex: auditColumnFlex,
       });
       downloadBlob(blob, `StockAudit_${new Date().toISOString().slice(0, 10)}.pdf`);
       await setPrintProgress("Done", 100);
@@ -208,8 +218,7 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
   };
 
   const handleExport = (format: "csv" | "xlsx") => {
-    const { headers, rows } = auditRows();
-    const blob = buildBlobFromRows(headers, rows, format, "Stock Audit");
+    const blob = buildBlobFromRows(auditHeaders, auditRowData, format, "Stock Audit");
     downloadBlob(
       blob,
       `StockAudit_${new Date().toISOString().slice(0, 10)}.${format}`,
@@ -271,36 +280,31 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
           <p className="text-sm text-muted-foreground mb-4">
             {items.length} product(s)
           </p>
-          {(() => {
-            const { headers, rows } = auditRows();
-            return (
-              <table className="w-full text-sm border-collapse">
-                <thead>
-                  <tr>
-                    {headers.map((h) => (
-                      <th
-                        key={h}
-                        className="border border-border px-2 py-1 text-left"
-                      >
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((row, i) => (
-                    <tr key={i}>
-                      {headers.map((h) => (
-                        <td key={h} className="border border-border px-2 py-1">
-                          {String(row[h] ?? "")}
-                        </td>
-                      ))}
-                    </tr>
+          <table className="w-full text-sm border-collapse">
+            <thead>
+              <tr>
+                {auditHeaders.map((h) => (
+                  <th
+                    key={h}
+                    className="border border-border px-2 py-1 text-left"
+                  >
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {auditRowData.map((row, i) => (
+                <tr key={i}>
+                  {auditHeaders.map((h) => (
+                    <td key={h} className="border border-border px-2 py-1">
+                      {String(row[h] ?? "")}
+                    </td>
                   ))}
-                </tbody>
-              </table>
-            );
-          })()}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
 

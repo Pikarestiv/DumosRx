@@ -79,7 +79,13 @@ export function POSPaymentDialog({
   // re-run on a stale-but-non-blank amount instead of leaving it stuck.
   const lastAutoFilledRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!showPaymentDialog) return;
+    if (!showPaymentDialog) {
+      // Reset on close so a value a cashier manually typed in a previous
+      // sale can't be silently overwritten just because a later sale's
+      // total happens to match it.
+      lastAutoFilledRef.current = null;
+      return;
+    }
     const isBlank = !amountPaid || amountPaid === "0";
     const stillAutoFilled =
       lastAutoFilledRef.current !== null &&

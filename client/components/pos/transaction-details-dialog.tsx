@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { formatCurrency } from "@/lib/utils";
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import { Button } from "@/components/ui/button";
@@ -64,27 +64,37 @@ export function TransactionDetailsDialog({
   const recordPaymentMutation = useRecordCustomerPaymentMutation();
   const redeemMutation = useRedeemResellerCommissionMutation();
 
+  // `sale` is a snapshot the caller captured in its own state (selectedSale
+  // etc.) - it's never refetched after a redeem, so without this the dialog
+  // would keep showing "Not yet redeemed" (and both action buttons enabled)
+  // even though the redeem already succeeded. Reset whenever a different
+  // sale is opened so a stale override never leaks onto the next one.
+  const [redeemOverride, setRedeemOverride] = useState<Partial<
+    SaleWithDetails
+  > | null>(null);
+  useEffect(() => {
+    setRedeemOverride(null);
+  }, [sale?.id]);
+
   if (!sale) return null;
+
+  const effectiveSale = redeemOverride ? { ...sale, ...redeemOverride } : sale;
 
   const handleRedeemCommission = async (
     claimType: "commission" | "store_claim",
   ) => {
     try {
-      await redeemMutation.mutateAsync({
+      const patch = await redeemMutation.mutateAsync({
         saleId: sale.id,
         userId: user?.id,
         claimType,
       });
-      void queryClient.invalidateQueries({ queryKey: ["resellerCommission"] });
-      void queryClient.invalidateQueries({ queryKey: ["sales"] });
-      toast.success(
-        claimType === "commission"
-          ? "Commission marked as redeemed"
-          : "Markup kept as store revenue",
-      );
+      setRedeemOverride({
+        ...patch,
+        reseller_commission_redeemed_by: patch.reseller_commission_redeemed_by ?? undefined,
+      });
     } catch (error) {
       console.error("Failed to redeem reseller commission:", error);
-      toast.error("Failed to redeem commission. Please try again.");
     }
   };
 
@@ -259,20 +269,20 @@ export function TransactionDetailsDialog({
           )}
         </div>
 
-        {!!sale.is_reseller_sale && isAdmin && (
+        {!!effectiveSale.is_reseller_sale && isAdmin && (
           <div className="mt-3 p-3 sm:p-4 border border-violet-200 bg-violet-50 dark:bg-violet-950/20 dark:border-violet-900 rounded-lg space-y-2">
             <div className="flex items-center justify-between gap-2">
               <p className="text-sm font-medium text-violet-700 dark:text-violet-300">
                 Reseller markup:{" "}
-                {formatCurrency(sale.reseller_markup_amount || 0, currencyCode)}
+                {formatCurrency(effectiveSale.reseller_markup_amount || 0, currencyCode)}
               </p>
-              {sale.reseller_commission_redeemed ? (
+              {effectiveSale.reseller_commission_redeemed ? (
                 <span className="text-xs font-medium text-emerald-600">
-                  {sale.reseller_commission_claim_type === "store_claim"
+                  {effectiveSale.reseller_commission_claim_type === "store_claim"
                     ? "Store kept markup"
                     : "Commission redeemed"}
-                  {sale.reseller_commission_redeemed_at &&
-                    ` on ${formatDateToDDMMYYYY(sale.reseller_commission_redeemed_at)}`}
+                  {effectiveSale.reseller_commission_redeemed_at &&
+                    ` on ${formatDateToDDMMYYYY(effectiveSale.reseller_commission_redeemed_at)}`}
                 </span>
               ) : (
                 <span className="text-xs font-medium text-amber-600">
@@ -280,7 +290,7 @@ export function TransactionDetailsDialog({
                 </span>
               )}
             </div>
-            {!sale.reseller_commission_redeemed && (
+            {!effectiveSale.reseller_commission_redeemed && (
               <div className="flex flex-wrap gap-2">
                 <Button
                   size="sm"
@@ -290,7 +300,7 @@ export function TransactionDetailsDialog({
                 >
                   Redeem Commission
                 </Button>
-                {(sale.reseller_markup_amount || 0) > 0 && (
+                {(effectiveSale.reseller_markup_amount || 0) > 0 && (
                   <Button
                     size="sm"
                     variant="outline"

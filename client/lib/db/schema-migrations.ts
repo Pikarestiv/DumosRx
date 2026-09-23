@@ -304,6 +304,12 @@ const SYNC_COLUMN_MIGRATIONS: { table: string; columns: string[] }[] = [
       "_synced_at TEXT",
       "_deleted INTEGER DEFAULT 0",
       "store_id TEXT",
+      // Ties every audit_logs row written inside one multi-step operation
+      // (e.g. all ~10-15 rows a single sale writes across sales,
+      // sale_items, stock_batches, stock_movements, customers,
+      // loyalty_transactions) together, so the Activity Log can collapse
+      // them into one entry instead of showing each as a separate action.
+      "correlation_id TEXT",
     ],
   },
   {
@@ -354,6 +360,14 @@ const SYNC_COLUMN_MIGRATIONS: { table: string; columns: string[] }[] = [
       "_synced_at TEXT",
       "_deleted INTEGER DEFAULT 0",
       "store_id TEXT",
+      // Immediate-purchase per-line-item overrides (selling price, cost
+      // override, lot/expiry) - previously only ever consumed transiently
+      // at receiving time and never persisted, so saving an in-progress
+      // Immediate Purchase as a draft silently discarded them.
+      "selling_price REAL",
+      "cost_price_override REAL",
+      "lot_number TEXT",
+      "expiry_date TEXT",
     ],
   },
   {

@@ -14,6 +14,7 @@ import { insert, update } from "./base-helpers";
 import {
   getPurchaseOrderById,
   updatePurchaseOrderStatus,
+  coerceOptionalNumber,
   type DraftPOLineItem,
 } from "./procurement";
 
@@ -194,6 +195,10 @@ export async function createAndReceivePurchaseOrder(
         units_per_bulk: item.units_per_bulk,
         unit_cost: item.unit_cost,
         subtotal: computeImmediateLineTotal(item),
+        selling_price: coerceOptionalNumber(item.selling_price),
+        cost_price_override: coerceOptionalNumber(item.cost_price_override),
+        lot_number: item.lot_number || null,
+        expiry_date: item.expiry_date || null,
         created_at: now,
       });
 

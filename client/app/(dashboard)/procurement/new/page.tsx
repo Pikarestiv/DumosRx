@@ -197,8 +197,8 @@ function CreateOrderContent() {
   /** Lets an Immediate Purchase be parked as an ordinary draft (same call
    * Standard POs use) instead of receiving stock right away, so entry in
    * progress survives a restart. Item-level fields that only exist for the
-   * immediate flow (lot/expiry/price overrides) aren't persisted here — same
-   * as a Standard draft, they're re-entered later at receiving time. */
+   * immediate flow (lot/expiry/price overrides) are persisted along with
+   * everything else, so resuming the draft shows exactly what was typed. */
   const handleSaveDraft = () => {
     if (items.length === 0) {
       toast.error("Add at least one item to the order");

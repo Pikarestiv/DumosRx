@@ -5,6 +5,10 @@ import { describeActivity } from "./describe-activity";
 
 interface ActivityLogDetailPanelProps {
   entry: AuditLogRow | null;
+  /** Other rows sharing this entry's correlation_id (e.g. every other
+   * action the same sale wrote), for the "Related Actions" section. */
+  relatedEntries?: AuditLogRow[];
+  onSelectRelated?: (entry: AuditLogRow) => void;
   onClose: () => void;
 }
 
@@ -41,7 +45,12 @@ function formatValue(value: unknown): string {
  * delete) as a readable field list instead of leaving it invisible. Covers
  * every table generically (no per-table label map), since Activity Log spans
  * the whole store rather than one product's history. */
-export function ActivityLogDetailPanel({ entry, onClose }: ActivityLogDetailPanelProps) {
+export function ActivityLogDetailPanel({
+  entry,
+  relatedEntries = [],
+  onSelectRelated,
+  onClose,
+}: ActivityLogDetailPanelProps) {
   if (!entry) return null;
 
   let parsedDetails: Record<string, unknown> | null = null;
@@ -131,6 +140,31 @@ export function ActivityLogDetailPanel({ entry, onClose }: ActivityLogDetailPane
             </p>
           )}
         </div>
+
+        {relatedEntries.length > 0 && (
+          <div>
+            <div className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide mb-2">
+              Related Actions ({relatedEntries.length})
+            </div>
+            <div className="flex flex-col gap-1.5">
+              {relatedEntries.map((related) => (
+                <button
+                  key={related.id}
+                  type="button"
+                  onClick={() => onSelectRelated?.(related)}
+                  className="flex items-center justify-between gap-3 text-left text-[12.5px] rounded-lg border border-border/50 px-3 py-2 hover:bg-muted/50 transition-colors"
+                >
+                  <span className="font-medium text-foreground truncate">
+                    {describeActivity(related)}
+                  </span>
+                  <span className="text-muted-foreground shrink-0">
+                    {related.table_name}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

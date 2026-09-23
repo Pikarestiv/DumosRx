@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { insert, update, transaction as runInTransaction } from "@/lib/db/local-database";
-import { generateShortId } from "@/lib/db/core";
+import { generateShortId, generateId } from "@/lib/db/core";
 import { getCustomerBalance } from "@/lib/db/queries/customers";
 import { recordSaleItemStock } from "@/lib/db/queries/inventory";
 import { updatePrescriptionStatus, dispensePrescriptionRefill } from "@/lib/db/queries/prescriptions";
@@ -161,7 +161,15 @@ export function usePOSPayment({
       // error. A cashier who then retries the sale double-books revenue and
       // double-decrements whatever stock did get deducted the first time.
       const saleId = await runInTransaction(async () => {
-        const newSaleId = await insert("sales", {
+        // Pre-generated (rather than letting insert() assign one) so every
+        // other write this sale makes - line items, stock deduction,
+        // credit-balance update, loyalty points - can tag its audit_logs
+        // row with the same id as the correlationId, letting the Activity
+        // Log collapse them into one entry instead of showing each action
+        // to a store owner separately.
+        const newSaleId = generateId();
+        await insert("sales", {
+          id: newSaleId,
           transaction_number: transactionNumber,
           customer_id: selectedCustomer?.id || null,
           user_id: cashierId,
@@ -215,7 +223,7 @@ export function usePOSPayment({
           reseller_commission_percentage: isResellerSale ? resellerCommissionPercentage : 0,
           reseller_commission_amount: resellerCommissionAmount,
           reseller_markup_amount: resellerMarkup,
-        });
+        }, { correlationId: newSaleId });
 
         for (const item of cart) {
           await recordSaleItemStock({
@@ -226,6 +234,7 @@ export function usePOSPayment({
             costPrice: item.cost_price || 0,
             subtotal: item.subtotal,
             cashierId,
+            correlationId: newSaleId,
           });
         }
 
@@ -237,17 +246,23 @@ export function usePOSPayment({
         if (paymentMethod === "credit" && selectedCustomer) {
           const balanceRows = await getCustomerBalance(selectedCustomer.id);
           const currentBalance = balanceRows[0]?.balance || 0;
-          await update("customers", selectedCustomer.id, {
-            outstanding_balance: currentBalance + total,
-          });
+          await update(
+            "customers",
+            selectedCustomer.id,
+            { outstanding_balance: currentBalance + total },
+            { correlationId: newSaleId },
+          );
         } else if (paymentMethod === "mixed" && selectedCustomer) {
           const creditSplit = paymentSplits.find((s) => s.method === "credit");
           if (creditSplit && creditSplit.amount > 0) {
             const balanceRows = await getCustomerBalance(selectedCustomer.id);
             const currentBalance = balanceRows[0]?.balance || 0;
-            await update("customers", selectedCustomer.id, {
-              outstanding_balance: currentBalance + creditSplit.amount,
-            });
+            await update(
+              "customers",
+              selectedCustomer.id,
+              { outstanding_balance: currentBalance + creditSplit.amount },
+              { correlationId: newSaleId },
+            );
           }
         }
 
@@ -257,6 +272,7 @@ export function usePOSPayment({
           earnedPoints,
           redeemedOption,
           saleId: newSaleId,
+          correlationId: newSaleId,
         });
 
         return newSaleId;

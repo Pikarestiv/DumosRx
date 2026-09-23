@@ -6,6 +6,15 @@ import { query, generateId, transaction, getActiveStoreId } from "./core";
 import { insert, update, softDelete } from "./base-helpers";
 import type { SupplierPayload, SupplierDbRow } from "@/lib/types/supplier";
 
+/** Line-item form fields (selling_price, cost_price_override) come in as
+ * `number | string | undefined` from raw form inputs - blank/undefined
+ * means "not overridden," not zero. */
+export function coerceOptionalNumber(value: number | string | undefined): number | null {
+  if (value === undefined || value === "") return null;
+  const num = Number(value);
+  return Number.isFinite(num) ? num : null;
+}
+
 export interface PurchaseOrder {
   id: string;
   order_number?: string;
@@ -42,11 +51,19 @@ export interface PurchaseOrderItem {
   bulk_unit: string;
   /** Live conversion factor from the product record; always used for receiving math, since units_per_bulk above is a point-in-time snapshot that can go stale if the product's packaging is edited later. */
   product_units_per_bulk: number;
+  selling_price?: number | string;
+  cost_price_override?: number | string;
+  lot_number?: string;
+  expiry_date?: string;
 }
 
 /** A line item as it exists in the create/edit PO form before submission:
  * not yet persisted, so it has no `id`/`po_id` (those are assigned by
- * createPurchaseOrder()/updatePurchaseOrder()). */
+ * createPurchaseOrder()/updatePurchaseOrder()). Immediate-purchase-only
+ * fields are optional here (rather than only on ImmediateLineItemDraft)
+ * so a Standard PO's items - which never set them - and an Immediate
+ * Purchase's - which do - can share one persistence path and both survive
+ * being saved as a draft. */
 export interface DraftPOLineItem {
   product_id: string;
   product_name: string;
@@ -55,6 +72,10 @@ export interface DraftPOLineItem {
   units_per_bulk: number;
   unit_cost: number;
   subtotal: number;
+  cost_price_override?: number | string;
+  lot_number?: string;
+  expiry_date?: string;
+  selling_price?: number | string;
 }
 
 export interface PODetailItem {
@@ -187,6 +208,10 @@ export async function createPurchaseOrder(
         units_per_bulk: item.units_per_bulk,
         unit_cost: item.unit_cost,
         subtotal: item.bulk_quantity * item.unit_cost,
+        selling_price: coerceOptionalNumber(item.selling_price),
+        cost_price_override: coerceOptionalNumber(item.cost_price_override),
+        lot_number: item.lot_number || null,
+        expiry_date: item.expiry_date || null,
         created_at: now
       });
     }
@@ -243,6 +268,10 @@ export async function updatePurchaseOrder(
         units_per_bulk: item.units_per_bulk,
         unit_cost: item.unit_cost,
         subtotal: item.bulk_quantity * item.unit_cost,
+        selling_price: coerceOptionalNumber(item.selling_price),
+        cost_price_override: coerceOptionalNumber(item.cost_price_override),
+        lot_number: item.lot_number || null,
+        expiry_date: item.expiry_date || null,
         created_at: now
       });
     }

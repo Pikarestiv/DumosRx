@@ -162,8 +162,11 @@ export async function applyLoyaltyPointsForSale(params: {
   earnedPoints: number;
   redeemedOption: RedeemedOption | null | undefined;
   saleId: string;
+  /** Ties these audit_logs rows to the rest of the sale's - see
+   * correlation_id's schema-migrations.ts comment. */
+  correlationId?: string;
 }): Promise<void> {
-  const { selectedCustomer, canUseLoyaltyProgram, earnedPoints, redeemedOption, saleId } =
+  const { selectedCustomer, canUseLoyaltyProgram, earnedPoints, redeemedOption, saleId, correlationId } =
     params;
 
   if (
@@ -216,13 +219,18 @@ export async function applyLoyaltyPointsForSale(params: {
     }
   }
 
-  await update("customers", selectedCustomer.id, {
-    loyalty_points: calculateLoyaltyPointsAfterSale(
-      availablePoints,
-      earnedPoints,
-      redeemedOption?.pointsCost || 0,
-    ),
-  });
+  await update(
+    "customers",
+    selectedCustomer.id,
+    {
+      loyalty_points: calculateLoyaltyPointsAfterSale(
+        availablePoints,
+        earnedPoints,
+        redeemedOption?.pointsCost || 0,
+      ),
+    },
+    { correlationId },
+  );
 
   if (expiredPoints > 0) {
     await insert("loyalty_transactions", {
@@ -231,7 +239,7 @@ export async function applyLoyaltyPointsForSale(params: {
       type: "expired",
       transaction_id: saleId,
       created_at: new Date().toISOString(),
-    });
+    }, { correlationId });
   }
 
   if (earnedPoints > 0) {
@@ -241,7 +249,7 @@ export async function applyLoyaltyPointsForSale(params: {
       type: "earned",
       transaction_id: saleId,
       created_at: new Date().toISOString(),
-    });
+    }, { correlationId });
   }
 
   if (redeemedOption) {
@@ -251,7 +259,7 @@ export async function applyLoyaltyPointsForSale(params: {
       type: "redeemed",
       transaction_id: saleId,
       created_at: new Date().toISOString(),
-    });
+    }, { correlationId });
   }
 }
 

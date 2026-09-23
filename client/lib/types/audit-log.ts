@@ -9,4 +9,5 @@ export interface AuditLogRow {
   details?: string | null;
   created_at?: string;
   user_name?: string;
+  correlation_id?: string | null;
 }

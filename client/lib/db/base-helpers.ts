@@ -137,7 +137,7 @@ function withNormalizedName(
 export async function insert(
   table: string,
   data: Record<string, unknown>,
-  options?: { action?: string; storeId?: string },
+  options?: { action?: string; storeId?: string; correlationId?: string },
 ): Promise<string> {
   const id = (data.id as string) || generateId();
   const now = new Date().toISOString();
@@ -177,7 +177,7 @@ export async function insert(
   // not a user action; logging it here would surface every silent crash
   // report as a "Created feedback" entry in the Activity Log.
   if (table !== "feedback") {
-    await logAction(options?.action || "INSERT", table, id, record, options?.storeId);
+    await logAction(options?.action || "INSERT", table, id, record, options?.storeId, options?.correlationId);
   }
 
   queueTableInvalidation(table);
@@ -189,7 +189,7 @@ export async function update(
   table: string,
   id: string,
   data: Record<string, unknown>,
-  options?: { action?: string; storeId?: string },
+  options?: { action?: string; storeId?: string; correlationId?: string },
 ): Promise<void> {
   await assertStoreOwnership(table, id, true, options?.storeId);
 
@@ -236,12 +236,12 @@ export async function update(
   await execute(`UPDATE ${table} SET ${setClause} WHERE id = ?`, values);
 
   await addToSyncQueue(table, id, "UPDATE", record);
-  await logAction(options?.action || "UPDATE", table, id, record, options?.storeId);
+  await logAction(options?.action || "UPDATE", table, id, record, options?.storeId, options?.correlationId);
 
   queueTableInvalidation(table);
 }
 
-export async function softDelete(table: string, id: string, options?: { storeId?: string }): Promise<void> {
+export async function softDelete(table: string, id: string, options?: { storeId?: string; correlationId?: string }): Promise<void> {
   await assertStoreOwnership(table, id, true, options?.storeId);
 
   const now = new Date().toISOString();
@@ -258,7 +258,7 @@ export async function softDelete(table: string, id: string, options?: { storeId?
   await execute(updateQuery, params);
 
   await addToSyncQueue(table, id, "DELETE", { id });
-  await logAction("DELETE", table, id, { id }, options?.storeId);
+  await logAction("DELETE", table, id, { id }, options?.storeId, options?.correlationId);
 
   queueTableInvalidation(table);
 }
@@ -266,7 +266,7 @@ export async function softDelete(table: string, id: string, options?: { storeId?
 export async function remove(
   table: string,
   id: string,
-  options?: { action?: string; storeId?: string },
+  options?: { action?: string; storeId?: string; correlationId?: string },
 ): Promise<void> {
   await assertStoreOwnership(table, id, /* claimLegacyRow */ false, options?.storeId);
 
@@ -286,7 +286,7 @@ export async function remove(
   await execute(`DELETE FROM _sync_queue WHERE table_name = ? AND record_id = ?`, [table, id]);
   await addToSyncQueue(table, id, "DELETE", { id });
 
-  await logAction(options?.action || "HARD_DELETE", table, id, existing[0] || { id }, options?.storeId);
+  await logAction(options?.action || "HARD_DELETE", table, id, existing[0] || { id }, options?.storeId, options?.correlationId);
 
   queueTableInvalidation(table);
 }

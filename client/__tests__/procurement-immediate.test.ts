@@ -40,7 +40,9 @@ describe("createAndReceivePurchaseOrder", () => {
       );
       CREATE TABLE purchase_order_items (
         id TEXT PRIMARY KEY, po_id TEXT, product_id TEXT, bulk_quantity INTEGER,
-        units_per_bulk INTEGER, unit_cost REAL, subtotal REAL, created_at TEXT, updated_at TEXT,
+        units_per_bulk INTEGER, unit_cost REAL, subtotal REAL,
+        selling_price REAL, cost_price_override REAL, lot_number TEXT, expiry_date TEXT,
+        created_at TEXT, updated_at TEXT,
         _version INTEGER DEFAULT 1, _synced INTEGER DEFAULT 0, _deleted INTEGER DEFAULT 0
       );
       CREATE TABLE products (
@@ -64,7 +66,7 @@ describe("createAndReceivePurchaseOrder", () => {
       );
       CREATE TABLE audit_logs (
         id TEXT PRIMARY KEY, user_id TEXT, store_id TEXT, action TEXT, table_name TEXT,
-        record_id TEXT, details TEXT, created_at TEXT
+        record_id TEXT, details TEXT, correlation_id TEXT, created_at TEXT
       );
     `);
     core.__setDatabaseForTesting(db);

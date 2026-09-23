@@ -206,6 +206,68 @@ entry is the "what shipped" summary.
   (`StoreSlugCooldownTest.php` for a Carbon 3 sign bug that would have
   permanently locked every slug change after the first one).
 
+### Cashier/store-owner bug-fix batch, evening continuation: DONE (2026-09-23)
+
+A second pass the same day, working directly through a store owner's live
+testing notes one item at a time (not a spec), ending with a
+`/code-review high` pass against the whole batch's diff. See
+`client/AGENTS.md`/`laravel-server/AGENTS.md` for the durable
+architectural notes this entry doesn't repeat.
+
+- **Cashier dashboard metrics fixed properly**: "Today's Sales" no longer
+  shows store-wide revenue to cashiers (replaced with "My Transactions
+  Today", a count) — and the underlying "my sales today" query, found to
+  be silently undercounting a cashier who personally rings more than 100
+  sales in a day, now filters by date in SQL instead of an undated
+  `LIMIT 100` fetch filtered client-side.
+- **Reseller vs. store-markup sales split**: a store staff member pricing
+  above normal purely for the store's own benefit (no real reseller
+  involved) is now a distinct choice at the point of sale from an actual
+  reseller/agent sale — separate `sales.markup_type`, a required choice
+  before checkout, pre-settled at checkout with no commission and no
+  pending-redemption state (previously required remembering to click
+  "Store Claims Markup" afterward), its own badge/filter everywhere a
+  reseller sale is shown, and a new store-level `markup_sales_enabled`
+  toggle (default off — an existing Pro/Enterprise store already using
+  reseller sales loses that POS row until the owner flips it on; see
+  `docs/KNOWN_BUGS.md` Medium section).
+- **Cross-store transfer requests, admin-controllable**: the
+  cashier-transfer-request button added earlier the same day is now
+  gated behind a `staff_can_request_transfers` store toggle (default
+  off, Settings → Multiple Stores) — admin-tier roles could always use
+  it and still can regardless of the setting.
+- **Cancellable stock-audit PDF export**: the PDF render already ran off
+  the main thread in a Web Worker; the full-viewport progress overlay
+  just had no Cancel button. Added one, wired to actually terminate the
+  worker.
+- **Two real crash/offline bugs found and fixed**: "Loading chunk N
+  failed" (a tab left open across a redeploy) now auto-reloads once
+  instead of showing the crash screen — covering both the React-throw
+  case and the more common rejected-dynamic-import case, plus Safari/
+  Firefox's different wording for the same failure. Separately, an
+  iPhone home-screen PWA install restarted offline was found to show raw
+  React Server Component flight-payload text instead of the app — this
+  static export writes each route as both a `.html` page and a `.txt`
+  RSC payload, and the service worker had no check that a navigation
+  response was actually HTML before serving it as "the page."
+- **Server sync gap, again:** `sales.markup_type` and the two new
+  `stores.*` toggles above shipped client-side with no matching Laravel
+  migration — the exact same failure class as this same day's earlier
+  batch (`activity_logs.correlation_id`, the `stock_movements.movement_type`
+  ENUM), caught this time by code review before it ever reached
+  production. This is now a proven-recurring gotcha across three
+  separate incidents in one week — see `laravel-server/AGENTS.md`'s sync
+  engine section, now a mandatory-checklist item, not just documented.
+- **Review also caught, self-inflicted:** the chunk-crash fix's own
+  service-worker change initially made a genuine, current 404/500 page
+  get treated the same as being offline (served stale cached content
+  instead) — reverted to only checking content-type, not status.
+- **Verification:** full client (`vitest`, 778 tests) and server
+  (`php artisan test`, 278 tests) suites green throughout; the two new
+  Laravel migrations were verified by actually running the full
+  migration chain against a throwaway sqlite db and inspecting the
+  resulting columns/defaults, not just reviewing the migration files.
+
 ---
 
 ## 🟢 Quick Wins (hours – ~1 day)

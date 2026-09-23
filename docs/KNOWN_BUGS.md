@@ -8,12 +8,12 @@ Open items below are grouped by severity (Critical → High → Medium → Low),
 
 ## Critical
 
-### `laravel-server/` — 8 migrations from 2026-09-23 not yet run on production
-`laravel-server/database/migrations/2026_09_23_*.php` (8 files)
+### `laravel-server/` — 10 migrations from 2026-09-23 not yet run on production
+`laravel-server/database/migrations/2026_09_23_*.php` (10 files)
 
-These add `stores.receipt_logo_position`, `activity_logs.correlation_id`, `purchase_order_items.{selling_price,cost_price_override,lot_number}`, `stock_movements.status`, `stores.{storefront_dirty_at,store_slug_changed_at}`, and widen `stock_movements.movement_type` from an incomplete MySQL `ENUM` to `VARCHAR`. All verified safe (additive `ALTER TABLE`, `--pretend` reviewed, applied cleanly to the local dev DB, full `php artisan test` suite green: 278 passed).
+These add `stores.receipt_logo_position`, `activity_logs.correlation_id`, `purchase_order_items.{selling_price,cost_price_override,lot_number}`, `stock_movements.status`, `stores.{storefront_dirty_at,store_slug_changed_at}`, `sales.markup_type`, `stores.{staff_can_request_transfers,markup_sales_enabled}`, and widen `stock_movements.movement_type` from an incomplete MySQL `ENUM` to `VARCHAR`. All verified safe (additive `ALTER TABLE`, `--pretend` reviewed, applied cleanly to a throwaway sqlite db (the last two, added later the same day) and the local dev DB, full `php artisan test` suite green: 278 passed).
 
-**Until these are deployed and run on production**, any device syncing a change to those columns gets `SQLSTATE[42S22]: Unknown column` (confirmed live: `activity_logs.correlation_id`, `stock_movements` transfer rows via the old `movement_type` ENUM) and the push silently fails for that row — it stays in the client's local `_sync_queue` retrying forever, not lost, but never reaching the server either.
+**Until these are deployed and run on production**, any device syncing a change to those columns gets `SQLSTATE[42S22]: Unknown column` (confirmed live: `activity_logs.correlation_id`, `stock_movements` transfer rows via the old `movement_type` ENUM; the last three were caught by code review before ever shipping, not yet confirmed live) and the push silently fails for that row — it stays in the client's local `_sync_queue` retrying forever, not lost, but never reaching the server either.
 
 Production migrations run through a protected route, not direct `artisan` access (no SSH on the shared host — see `laravel-server/AGENTS.md`): `GET https://<production-domain>/migrate-db?key=<MIGRATE_DB_KEY>`. Deploy this branch first, then hit that route. Remove this entry once confirmed run.
 
@@ -29,6 +29,11 @@ Production migrations run through a protected route, not direct `artisan` access
 ---
 
 ## Medium
+
+### `client/` — existing Pro/Enterprise stores will lose the "Reseller sale" POS row on deploy, silently
+`client/lib/hooks/use-feature-gate.ts` (`isMarkupSalesEnabled`), `stores.markup_sales_enabled`
+
+New store-level toggle added 2026-09-23, default `0` (explicit product requirement — deliberate, not an oversight). Any store already on Pro/Enterprise and actively using reseller-commission sales before this ships will find the POS cart's "Reseller sale" row gone the moment it deploys, with no in-app notice explaining why, until the owner finds and turns on the new toggle in Settings → Register Configs ("Enable Markup Sales"). Not a bug to fix — the default was explicitly requested — but worth a release note / proactive heads-up to any store already using the feature before this ships, so it doesn't read as a broken app to them.
 
 ---
 

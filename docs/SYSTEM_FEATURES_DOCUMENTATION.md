@@ -42,7 +42,7 @@ The desktop application is built for speed, reliability, and ease of use. It con
 
 **Proforma Quotes:** Give a customer a price breakdown for their shopping list before they commit — no sale is recorded and no stock leaves your shelves until it's actually charged.
 
-**Reseller Sales:** Selling through an independent reseller who found their own client at a marked-up price? Mark the sale as a reseller sale, adjust item prices up to what the reseller quoted, and the system automatically works out their commission (a percentage of the markup, set once in Settings) for you to pay out whenever they come to collect it.
+**Reseller Sales & Store Markups:** Selling above your normal price? Mark the sale up and choose why: for an independent reseller who found their own client (the system works out their commission automatically, a percentage of the markup set once in Settings, for you to pay out whenever they collect it), or as a markup your store simply keeps for itself, with the money going straight into your books instead of sitting around waiting to be settled. Either way it's clearly badged and filterable in your sales history, so you can always tell the two apart. Turn this on for your staff in Settings → Register Configs (off by default).
 
 ### 📦 Inventory & Stock Management
 
@@ -54,7 +54,7 @@ The desktop application is built for speed, reliability, and ease of use. It con
 
 **Procurement:** Generate Purchase Orders for your suppliers. When the goods arrive, the system automatically updates your stock levels. Your catalog also shows the price you last actually paid for each product, right alongside its running average cost.
 
-**Borrow Stock Between Branches:** Running low on something and the owner isn't around? A cashier can pull stock in from another one of your branches right from the checkout screen — it moves immediately, and is flagged for you to review afterward.
+**Borrow Stock Between Branches:** Running low on something and the owner isn't around? A cashier can pull stock in from another one of your branches right from the checkout screen — it moves immediately, and is flagged for you to review afterward. You decide who's allowed to do this: managers and admins always can, and you can choose whether to extend that to regular staff too (Settings → Multiple Stores, off for staff by default).
 
 **Supplier Debt Ledger:** Track goods received on credit from your suppliers, manage your business cash flow, and log partial or full payments against outstanding purchase orders.
 

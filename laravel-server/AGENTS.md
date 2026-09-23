@@ -120,16 +120,35 @@ migration here **and** the corresponding update on the `client/` side
   bodies; put explanatory comments in `schema-migrations.ts`'s ALTER-TABLE
   array instead (real JS, `//` comments are fine there).
 - **A synced column added only on one side is a live production incident,
-  not just a lint failure:** a device that writes to a client-only column
-  fails every subsequent sync push for that row with `Unknown column` (it
-  stays queued locally, retrying forever, never reaching the server) —
-  confirmed live 2026-09-23 for `activity_logs.correlation_id` before its
-  migration was deployed. Always add BOTH the client schema/migration AND
-  a matching Laravel migration + `$fillable` entry in the same change; the
-  most recent example migration to copy the idempotent
-  `Schema::hasColumn(...)` guard pattern from is whatever's newest under
-  `database/migrations/` (search for "Server-side counterpart to the
-  client's").
+  not just a lint failure — and this has now recurred three separate
+  times in the same week (2026-09-23):** `activity_logs.correlation_id`,
+  `stock_movements.movement_type`'s incomplete `ENUM`, and (same day,
+  later batch) `sales.markup_type` +
+  `stores.staff_can_request_transfers`/`markup_sales_enabled` all shipped
+  client-side and got caught — the first two live in production sync
+  errors, the third by a `/code-review high` pass before it ever shipped.
+  **Treat "does this new synced column have a matching Laravel migration
+  in the same change?" as a mandatory checklist item for any PR that
+  touches `client/lib/db/schema.ts`, not something to catch on review.**
+  A device that writes to a client-only column fails every subsequent
+  sync push for that row with `Unknown column` (stays queued locally,
+  retrying forever, never reaching the server). Always add BOTH the
+  client schema/migration AND a matching Laravel migration in the same
+  change; the most recent example migrations to copy the idempotent
+  `Schema::hasColumn(...)` guard pattern from are
+  `2026_09_23_000006_add_markup_type_to_sales.php` and
+  `2026_09_23_000007_add_staff_transfer_and_markup_toggles_to_stores.php`
+  (or search `database/migrations/` for "Server-side counterpart to the
+  client's" more generally).
+  **Note on `$fillable`:** `SyncController::push()` writes every incoming
+  row via `$model->forceFill($payload)`, which bypasses `$fillable`
+  entirely — so a missing `$fillable` entry is *not* what breaks sync (a
+  missing DB column is). Add the `$fillable`/`$casts` entry anyway,
+  immediately, in the same change: other mass-assignment paths in this
+  codebase (e.g. web-dashboard controllers using `fill()`/`create()`) do
+  respect it, and a column that's `forceFill`-writable but not
+  `$fillable` is a silent trap for the next person who writes a normal
+  Eloquent update against the same model.
 - **A MySQL `ENUM` column for a client-controlled string field is a
   recurring footgun, not a one-off bug:** `stock_movements.movement_type`
   was created as an `ENUM` back in 2024 that never actually matched every

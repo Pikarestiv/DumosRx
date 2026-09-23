@@ -580,6 +580,7 @@ CREATE TABLE IF NOT EXISTS stock_movements (
   reason TEXT,
   performed_by TEXT,
   movement_date TEXT,
+  status TEXT,
   created_at TEXT,
   updated_at TEXT,
   _version INTEGER DEFAULT 1,

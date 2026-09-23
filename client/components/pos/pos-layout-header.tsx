@@ -8,14 +8,18 @@ import {
   Search,
   FileClock,
   Scan,
+  ArrowLeftRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Store as StoreIcon } from "lucide-react";
 import { useStore } from "@/lib/context/store-context";
+import { useAuth, checkCanProcessSales } from "@/lib/context/auth-context";
+import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { APP_NAME } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { CameraScannerDialog } from "./camera-scanner-dialog";
+import { TransferStockDialog } from "@/components/stock-batch/transfer-stock-dialog";
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { usePosFullscreenStore } from "@/lib/hooks/use-pos-fullscreen";
@@ -40,8 +44,15 @@ export function POSLayoutHeader({
   onScanSuccess,
 }: POSLayoutHeaderProps) {
   const router = useRouter();
-  const { storeProfile } = useStore();
+  const { storeProfile, availableStores } = useStore();
+  const { user } = useAuth();
+  const { canManageMultiStore } = useFeatureGate();
+  const canRequestTransfer =
+    checkCanProcessSales(user?.role) &&
+    canManageMultiStore &&
+    availableStores.length > 1;
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [isTransferOpen, setIsTransferOpen] = useState(false);
   const searchParams = useSearchParams();
   const isFullscreen = usePosFullscreenStore((s) => s.isFullscreen);
   const setFullscreen = usePosFullscreenStore((s) => s.setFullscreen);
@@ -174,6 +185,23 @@ export function POSLayoutHeader({
           )}
         </Button>
 
+        {/* Request Stock from Another Store: cashiers have no other way to
+            reach the multi-store transfer flow (the Ledger tab's own entry
+            point requires stock-management access) - a cashier's request
+            still moves stock immediately, just flagged "needs_review" for
+            the owner to check afterward (see stock-transfers.ts). */}
+        {canRequestTransfer && (
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setIsTransferOpen(true)}
+            className="h-10 w-10 shrink-0 rounded-xl border-border/50 bg-background text-muted-foreground hover:text-foreground"
+            title="Request stock from another store"
+          >
+            <ArrowLeftRight className="h-4 w-4" />
+          </Button>
+        )}
+
         {/* Held Sales Button */}
         <Button
           variant="outline"
@@ -200,6 +228,14 @@ export function POSLayoutHeader({
         onClose={() => setIsScannerOpen(false)}
         onScanSuccess={onScanSuccess}
       />
+
+      {canRequestTransfer && (
+        <TransferStockDialog
+          open={isTransferOpen}
+          onOpenChange={setIsTransferOpen}
+          onTransferred={() => setIsTransferOpen(false)}
+        />
+      )}
     </header>
   );
 }

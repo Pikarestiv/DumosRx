@@ -18,12 +18,20 @@ export function StockMovementDesktopRow({ movement, onSelect }: Props) {
         {formatMovementTime(movement.date)}
       </div>
       <div className={`text-[13px] font-semibold truncate ${capsClass}`}>{movement.product}</div>
-      <div>
+      <div className="flex items-center gap-1.5">
         <span
           className={`text-[11px] font-semibold px-2 py-0.5 rounded-md capitalize ${getTypeColor(movement.type)}`}
         >
           {getTypeLabel(movement.type)}
         </span>
+        {movement.needsReview && (
+          <span
+            className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-700"
+            title="Requested by a cashier - not yet reviewed"
+          >
+            Needs Review
+          </span>
+        )}
       </div>
       <div
         className={`text-[14px] font-semibold ${isPositive ? "text-emerald-700" : "text-destructive"}`}

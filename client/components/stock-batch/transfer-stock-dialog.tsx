@@ -119,6 +119,7 @@ export function TransferStockDialog({
         quantity: quantityNum,
         performedBy: user?.id ?? null,
         reason: reason.trim() || undefined,
+        initiatedByRole: user?.role,
       });
       toast.success(
         `Transferred ${result.quantityTransferred} unit(s) of ${selectedProduct?.name ?? "product"}`,

@@ -513,6 +513,11 @@ const SYNC_COLUMN_MIGRATIONS: { table: string; columns: string[] }[] = [
       "_deleted INTEGER DEFAULT 0",
       "stock_batch_id TEXT",
       "store_id TEXT",
+      // Set to "needs_review" on a cross-store transfer's two rows
+      // (transfer_out/transfer_in) when the initiating user isn't
+      // admin-tier - a cashier-requested transfer still takes effect
+      // immediately, just flagged for the owner to check afterward.
+      "status TEXT",
     ],
   },
   { table: "payment_accounts", columns: ["user_id TEXT", "store_id TEXT"] },

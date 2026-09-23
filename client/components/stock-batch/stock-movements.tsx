@@ -43,6 +43,7 @@ function mapMovement(m: StockMovementDbRow): StockMovement {
     user: m.performed_by_name?.trim() || "System",
     supplier: m.supplier_name || undefined,
     batchNumber: m.batch_number || undefined,
+    needsReview: m.status === "needs_review",
   };
 }
 

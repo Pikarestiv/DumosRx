@@ -78,6 +78,8 @@ interface ReceiptCustomizationCardProps {
   setLocalReceiptTagline: (val: string) => void;
   showLogo: boolean;
   setShowLogo: (val: boolean) => void;
+  logoPosition: "above" | "beside";
+  setLogoPosition: (val: "above" | "beside") => void;
   showPhone: boolean;
   setShowPhone: (val: boolean) => void;
   showAddress: boolean;
@@ -100,6 +102,8 @@ export function ReceiptCustomizationCard({
   setLocalReceiptTagline,
   showLogo,
   setShowLogo,
+  logoPosition,
+  setLogoPosition,
   showPhone,
   setShowPhone,
   showAddress,
@@ -314,6 +318,37 @@ export function ReceiptCustomizationCard({
                 </p>
               )}
             </div>
+            {!!(showLogo && canCustomizeTheme) && (
+              <div className="flex items-center justify-between rounded-lg border p-4">
+                <div className="space-y-0.5">
+                  <Label className="text-base">Logo Position</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Above the store name, or beside it
+                  </p>
+                </div>
+                {!!isEditing && (
+                  <Select
+                    value={logoPosition}
+                    onValueChange={(val) =>
+                      setLogoPosition(val as "above" | "beside")
+                    }
+                  >
+                    <SelectTrigger className="w-[140px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="above">Above</SelectItem>
+                      <SelectItem value="beside">Beside</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+                {!isEditing && (
+                  <p className="text-sm font-medium capitalize">
+                    {logoPosition}
+                  </p>
+                )}
+              </div>
+            )}
             <ReceiptToggleRow
               label="Show Phone"
               description="Include phone number on receipt"
@@ -379,6 +414,7 @@ export function ReceiptCustomizationCard({
             localReceiptFooter={localReceiptFooter}
             localReceiptTagline={localReceiptTagline}
             showLogo={showLogo && canCustomizeTheme}
+            logoPosition={logoPosition}
             showPhone={showPhone}
             showAddress={showAddress}
             hidePoweredBy={hidePoweredBy && canRemoveBranding}

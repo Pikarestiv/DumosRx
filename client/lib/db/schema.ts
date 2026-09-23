@@ -314,6 +314,7 @@ CREATE TABLE IF NOT EXISTS stores (
   receipt_footer TEXT,
   receipt_tagline TEXT,
   show_logo_on_receipt INTEGER DEFAULT 1,
+  receipt_logo_position TEXT DEFAULT 'above',
   show_contact_on_receipt INTEGER DEFAULT 1,
   show_phone_on_receipt INTEGER DEFAULT 1,
   show_address_on_receipt INTEGER DEFAULT 1,

@@ -39,6 +39,7 @@ export interface StoreProfile {
   receipt_footer?: string;
   receipt_tagline?: string;
   show_logo_on_receipt?: number;
+  receipt_logo_position?: "above" | "beside";
   show_contact_on_receipt?: number;
   show_phone_on_receipt?: number;
   show_address_on_receipt?: number;

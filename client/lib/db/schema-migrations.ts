@@ -465,7 +465,7 @@ const SYNC_COLUMN_MIGRATIONS: { table: string; columns: string[] }[] = [
       // pcn_license/registration_number.
       "tax_number TEXT",
       // Store-wide % of a reseller sale's markup remitted back to the
-      // reseller. See ResellerCommissionPanel / use-pos-payment.ts.
+      // reseller. See use-pos-payment.ts / use-redeem-reseller-commission-mutation.ts.
       "reseller_commission_percentage REAL DEFAULT 0",
       // One-time gate for ensureLoyaltyDefaultsSeeded() (loyalty.ts) - set
       // the first time default tiers/redemption options are ever seeded for
@@ -474,6 +474,10 @@ const SYNC_COLUMN_MIGRATIONS: { table: string; columns: string[] }[] = [
       // NULL on every existing row until this migration's store's first
       // post-upgrade seed decision.
       "loyalty_defaults_seeded_at TEXT",
+      // Whether the receipt header shows the store logo above the store
+      // name (default, matches every existing store's current receipt) or
+      // beside it. See ReceiptView / receipt-customization-card.tsx.
+      "receipt_logo_position TEXT DEFAULT 'above'",
     ],
   },
   {

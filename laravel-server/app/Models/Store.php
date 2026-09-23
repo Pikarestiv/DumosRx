@@ -34,6 +34,7 @@ class Store extends Model
         'receipt_footer',
         'receipt_tagline',
         'show_logo_on_receipt',
+        'receipt_logo_position',
         'show_contact_on_receipt',
         'show_phone_on_receipt',
         'show_address_on_receipt',

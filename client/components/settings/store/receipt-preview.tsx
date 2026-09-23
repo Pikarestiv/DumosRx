@@ -10,6 +10,7 @@ interface ReceiptPreviewProps {
   localReceiptFooter: string;
   localReceiptTagline: string;
   showLogo: boolean;
+  logoPosition?: "above" | "beside";
   showPhone: boolean;
   showAddress: boolean;
   hidePoweredBy?: boolean;
@@ -24,27 +25,48 @@ export function ReceiptPreview({
   localReceiptFooter,
   localReceiptTagline,
   showLogo,
+  logoPosition = "above",
   showPhone,
   showAddress,
   hidePoweredBy = false,
 }: ReceiptPreviewProps) {
+  const logoImg = showLogo && localLogo && (
+    <img
+      src={localLogo}
+      alt="Store logo"
+      className={
+        logoPosition === "beside"
+          ? "h-8 w-8 object-contain shrink-0"
+          : "h-10 w-10 mx-auto object-contain mb-1"
+      }
+    />
+  );
+  const nameBlock = (
+    <div className={logoPosition === "beside" ? "text-left" : undefined}>
+      <div className="font-bold text-xs uppercase">
+        {localName || "DUMOSRX STORE"}
+      </div>
+      {localReceiptTagline && (
+        <div className="text-[8px] italic mt-0.5">{localReceiptTagline}</div>
+      )}
+    </div>
+  );
+
   return (
     <div className="w-full md:w-64 flex-shrink-0">
       <Label className="mb-3 block">Live Preview</Label>
       <div className="bg-white text-black p-4 shadow-md rounded-sm border-t-8 border-primary font-mono text-[10px] space-y-2 select-none pointer-events-none">
         <div className="text-center border-b border-black pb-2 mb-2">
-          {showLogo && localLogo && (
-            <img
-              src={localLogo}
-              alt="Store logo"
-              className="h-10 w-10 mx-auto object-contain mb-1"
-            />
-          )}
-          <div className="font-bold text-xs uppercase">
-            {localName || "DUMOSRX STORE"}
-          </div>
-          {localReceiptTagline && (
-            <div className="text-[8px] italic mt-0.5">{localReceiptTagline}</div>
+          {logoPosition === "beside" ? (
+            <div className="flex items-center justify-center gap-2">
+              {logoImg}
+              {nameBlock}
+            </div>
+          ) : (
+            <>
+              {logoImg}
+              {nameBlock}
+            </>
           )}
           {(showPhone || showAddress) && (
             <div className="text-[8px] leading-tight mt-0.5">

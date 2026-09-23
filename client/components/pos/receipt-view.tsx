@@ -96,17 +96,45 @@ export function ReceiptView({
     >
       {/* Header */}
       <div className="text-center border-b border-black pb-4 mb-4">
-        {canCustomizeTheme && storeProfile?.show_logo_on_receipt === 1 && storeProfile?.logo_url && (
-          <img
-            src={storeProfile.logo_url}
-            alt="Store logo"
-            className="h-12 w-12 mx-auto object-contain mb-2 filter grayscale"
-          />
-        )}
-        <h2 className="text-xl font-bold uppercase">{storeProfile?.name}</h2>
-        {storeProfile?.receipt_tagline && (
-          <p className="italic">{storeProfile.receipt_tagline}</p>
-        )}
+        {(() => {
+          const showLogo =
+            canCustomizeTheme &&
+            storeProfile?.show_logo_on_receipt === 1 &&
+            !!storeProfile?.logo_url;
+          const beside = showLogo && storeProfile?.receipt_logo_position === "beside";
+
+          const logoImg = showLogo && storeProfile?.logo_url && (
+            <img
+              src={storeProfile.logo_url}
+              alt="Store logo"
+              className={
+                beside
+                  ? "h-10 w-10 object-contain filter grayscale shrink-0"
+                  : "h-12 w-12 mx-auto object-contain mb-2 filter grayscale"
+              }
+            />
+          );
+          const nameBlock = (
+            <div className={beside ? "text-left" : undefined}>
+              <h2 className="text-xl font-bold uppercase">{storeProfile?.name}</h2>
+              {storeProfile?.receipt_tagline && (
+                <p className="italic">{storeProfile.receipt_tagline}</p>
+              )}
+            </div>
+          );
+
+          return beside ? (
+            <div className="flex items-center justify-center gap-2 mb-1">
+              {logoImg}
+              {nameBlock}
+            </div>
+          ) : (
+            <>
+              {logoImg}
+              {nameBlock}
+            </>
+          );
+        })()}
         {storeProfile?.show_address_on_receipt === 1 && storeProfile?.address && (
           <p>{storeProfile.address}</p>
         )}

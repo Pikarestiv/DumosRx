@@ -3,6 +3,7 @@
 import { useEffect, ReactNode } from "react";
 import { logCrash } from "@/lib/utils/error-logger";
 import { devLog } from "@/lib/utils/dev-log";
+import { CHUNK_RELOAD_GUARD_KEY } from "@/lib/utils/chunk-error";
 
 // Benign browser-internal notices that show up as window "error" events but
 // don't indicate anything actually broke, e.g. ResizeObserver's loop-limit
@@ -18,6 +19,13 @@ function isIgnorableError(message: unknown): boolean {
 export function GlobalErrorListener({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (typeof window === "undefined") return;
+
+    // Reaching here means the app booted cleanly, so any earlier
+    // chunk-load-triggered auto-reload (see error-boundary.tsx) worked -
+    // clear its guard so a later, unrelated chunk error in this same tab
+    // session still gets its own one-time auto-reload instead of going
+    // straight to the crash screen.
+    window.sessionStorage.removeItem(CHUNK_RELOAD_GUARD_KEY);
 
     const handleError = (event: ErrorEvent) => {
       if (isIgnorableError(event.error || event.message)) return;

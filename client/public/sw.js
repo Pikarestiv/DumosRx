@@ -1,23 +1,54 @@
-// Runtime-caching service worker for the PWA install path.
+// Runtime-caching + precaching service worker for the PWA install path.
 //
 // This app is built with `output: "export"` (next.config.mjs), so build
 // filenames are content-hashed and unknown ahead of time - there's no static
-// manifest to precache against without adding real build tooling (next-pwa /
-// Workbox's injectManifest). Instead this caches same-origin GET requests as
-// they're actually made: the first (online) load of any asset populates the
-// cache, and every load after that - including fully offline - can be served
-// from it. This replaces the previous no-op stub, which only registered a
-// fetch handler to satisfy the browser's "installable" check and cached
-// nothing at all.
+// manifest to precache against without adding real build tooling. Instead of
+// a Workbox plugin (which would mean a second webpack-mutating config
+// wrapper stacked on next.config.mjs's existing withSentryConfig, and would
+// replace or restructure this hand-rolled file), a small postbuild script
+// (scripts/generate-precache-manifest.ts) writes /precache-manifest.json
+// listing every URL in the static export. install() below fetches that and
+// caches everything up front, so a device that has NEVER opened this app
+// online before can still launch it offline right after installing. Runtime
+// caching (below) is unchanged and still covers everything else: the first
+// (online) load of any asset not in the manifest (or a later deploy's
+// changed assets) populates the cache the same way it always did.
 //
 // Bump CACHE_VERSION on any change to the caching strategy itself (not on
 // every deploy - the strategy below already updates cached assets on every
 // successful network fetch); activate() deletes any cache left behind by an
 // older version.
-const CACHE_VERSION = "dumosrx-v1";
+const CACHE_VERSION = "dumosrx-v2";
 
-self.addEventListener("install", () => {
-  self.skipWaiting();
+self.addEventListener("install", (event) => {
+  event.waitUntil(
+    (async () => {
+      try {
+        const response = await fetch("/precache-manifest.json");
+        if (!response.ok) throw new Error(`Manifest fetch failed: ${response.status}`);
+        const urls = await response.json();
+        const cache = await caches.open(CACHE_VERSION);
+        await cache.addAll(urls);
+        // Only activate this version once precaching actually succeeded -
+        // failing the whole install (by not calling skipWaiting, and letting
+        // the thrown error below reject the install promise) keeps whatever
+        // service worker was already controlling the page in charge, rather
+        // than activating with an empty/partial cache.
+        self.skipWaiting();
+      } catch (err) {
+        // Deliberately does NOT call skipWaiting() here: whatever service
+        // worker (if any) was already controlling the page stays in charge
+        // rather than this version activating with an empty/partial cache.
+        // A missing manifest (e.g. served from a dev server, or an export
+        // that predates the postbuild script) or a transient network
+        // failure both land here - on the very first install ever (no prior
+        // SW to fall back to), this just means the page loads over the
+        // network as normal until a later install attempt succeeds, rather
+        // than "succeeding" into a false sense of offline-readiness.
+        console.error("[SW] Precache failed, install not activated:", err);
+      }
+    })(),
+  );
 });
 
 self.addEventListener("activate", (event) => {

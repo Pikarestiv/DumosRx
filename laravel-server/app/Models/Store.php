@@ -108,7 +108,19 @@ class Store extends Model
             $isFirstTimeSet = empty($previousSlug);
             $lastChanged = $model->getOriginal('store_slug_changed_at');
 
-            if (!$isFirstTimeSet && $lastChanged && now()->diffInMonths($lastChanged) < 6) {
+            // Compared via addMonths/lt rather than diffInMonths() < 6:
+            // Carbon 3's diffInMonths() returns a SIGNED value ($other -
+            // $this), so now()->diffInMonths($past) is negative and
+            // "< 6" was always true - permanently locking every slug
+            // after the first change instead of unlocking it after 6
+            // months. This form has no sign ambiguity and mirrors the
+            // client-side check (store-profile-section.tsx's
+            // isAfter(addMonths(changed, 6), now)) exactly.
+            if (
+                !$isFirstTimeSet
+                && $lastChanged
+                && now()->lt(\Carbon\Carbon::parse($lastChanged)->addMonths(6))
+            ) {
                 $model->store_slug = $previousSlug;
                 return;
             }

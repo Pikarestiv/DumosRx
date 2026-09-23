@@ -28,12 +28,32 @@ self.addEventListener("install", (event) => {
         if (!response.ok) throw new Error(`Manifest fetch failed: ${response.status}`);
         const urls = await response.json();
         const cache = await caches.open(CACHE_VERSION);
-        await cache.addAll(urls);
-        // Only activate this version once precaching actually succeeded -
-        // failing the whole install (by not calling skipWaiting, and letting
-        // the thrown error below reject the install promise) keeps whatever
-        // service worker was already controlling the page in charge, rather
-        // than activating with an empty/partial cache.
+        // Per-URL rather than cache.addAll(urls): addAll is atomic - one
+        // 404 (a file the deploy step didn't upload, a host rule on some
+        // path) would silently abort precaching every other URL too.
+        // allSettled lets the rest still get cached and only the specific
+        // misses get logged.
+        const results = await Promise.allSettled(
+          urls.map(async (url) => {
+            const res = await fetch(url);
+            if (!res.ok) throw new Error(`${url}: ${res.status}`);
+            await cache.put(url, res);
+          }),
+        );
+        const failed = results.filter((r) => r.status === "rejected");
+        if (failed.length > 0) {
+          console.error(
+            `[SW] Precache: ${failed.length}/${urls.length} URLs failed:`,
+            failed.map((r) => r.reason?.message || r.reason),
+          );
+        }
+        // Only activate this version once precaching actually ran - failing
+        // the whole install (by letting the thrown error below reject the
+        // install promise) keeps whatever service worker was already
+        // controlling the page in charge, rather than activating with a
+        // totally empty cache. A partial precache (some URLs failed above)
+        // still activates - most of the app shell being cached beats none
+        // of it, and the failures are already logged.
         self.skipWaiting();
       } catch (err) {
         // Deliberately does NOT call skipWaiting() here: whatever service
@@ -46,6 +66,13 @@ self.addEventListener("install", (event) => {
         // network as normal until a later install attempt succeeds, rather
         // than "succeeding" into a false sense of offline-readiness.
         console.error("[SW] Precache failed, install not activated:", err);
+        // Rethrown deliberately: an async waitUntil() callback that merely
+        // resolves (even after a caught error) tells the browser install
+        // succeeded, which calls activate() regardless of skipWaiting() -
+        // on a brand-new install (no prior SW to "stay in charge") this
+        // would otherwise activate this worker with an empty cache. Only a
+        // rejected waitUntil promise actually fails the install.
+        throw err;
       }
     })(),
   );

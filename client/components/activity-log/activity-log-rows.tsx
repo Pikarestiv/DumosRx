@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { format } from "date-fns";
 import { History } from "lucide-react";
 import { SortableHeaderCell } from "@/components/ui/sortable-header-cell";
@@ -74,6 +75,7 @@ export function ActivityLogDesktopTable({
   onToggleSort,
   onSelect,
 }: ActivityLogRowsProps) {
+  const groupedRows = useMemo(() => groupByCorrelation(rows), [rows]);
   return (
     <div
       role="table"
@@ -121,7 +123,7 @@ export function ActivityLogDesktopTable({
           <ActivityLogEmptyRow message="No activity found for this filter." />
         )}
         {!isLoading &&
-          groupByCorrelation(rows).map(({ primary: row, group }) => (
+          groupedRows.map(({ primary: row, group }) => (
             <div
               key={row.id}
               role="row"
@@ -170,6 +172,7 @@ export function ActivityLogMobileList({
   isLoading,
   onSelect,
 }: Pick<ActivityLogRowsProps, "rows" | "isLoading" | "onSelect">) {
+  const groupedRows = useMemo(() => groupByCorrelation(rows), [rows]);
   return (
     <div className="sm:hidden flex-1 overflow-y-auto divide-y divide-border">
       {isLoading && (
@@ -181,7 +184,7 @@ export function ActivityLogMobileList({
         <EmptyState icon={History} title="No activity found for this filter" className="py-8" />
       )}
       {!isLoading &&
-        groupByCorrelation(rows).map(({ primary: row, group }) => (
+        groupedRows.map(({ primary: row, group }) => (
           <div
             key={row.id}
             tabIndex={0}

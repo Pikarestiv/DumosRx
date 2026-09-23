@@ -8,9 +8,19 @@ import type { SupplierPayload, SupplierDbRow } from "@/lib/types/supplier";
 
 /** Line-item form fields (selling_price, cost_price_override) come in as
  * `number | string | undefined` from raw form inputs - blank/undefined
- * means "not overridden," not zero. */
-export function coerceOptionalNumber(value: number | string | undefined): number | null {
-  if (value === undefined || value === "") return null;
+ * means "not overridden," not zero. Also accepts `null` even though the
+ * declared type doesn't advertise it: a PO reloaded from the DB via
+ * getPurchaseOrderById() genuinely hands back SQL NULL for an unset
+ * override (not `undefined`), and re-saving that PO (e.g. via
+ * updatePurchaseOrder after editing something else) routes the same value
+ * straight back through this function - `Number(null) === 0` would
+ * silently turn "no override" into a literal, permanent 0 override. */
+export function coerceOptionalNumber(
+  value: number | string | null | undefined,
+): number | null {
+  if (value === undefined || value === null || String(value).trim() === "") {
+    return null;
+  }
   const num = Number(value);
   return Number.isFinite(num) ? num : null;
 }

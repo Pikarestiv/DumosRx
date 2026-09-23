@@ -58,6 +58,8 @@ export function validatePaymentReadiness(params: {
   paymentSplits: PaymentSplit[];
   requirePaymentAccount: boolean;
   selectedAccountId: string;
+  isResellerSale?: boolean;
+  markupType?: "reseller" | "store" | null;
 }): string | null {
   const {
     paymentMethod,
@@ -68,11 +70,20 @@ export function validatePaymentReadiness(params: {
     paymentSplits,
     requirePaymentAccount,
     selectedAccountId,
+    isResellerSale = false,
+    markupType = null,
   } = params;
 
   if (!paymentMethod) return "Please select a payment method";
   if (requireSaleNotes && !saleNote.trim()) {
     return "Please add a note for this sale";
+  }
+  // Forces the cashier to pick a lane rather than silently defaulting to
+  // one - a "Reseller sale" with no chosen type would otherwise be
+  // ambiguous about whether a real commission is owed or the store just
+  // kept the markup.
+  if (isResellerSale && !markupType) {
+    return "Please choose whether this is for a reseller agent or a store markup";
   }
 
   if (paymentMethod === "cash") {
@@ -135,9 +146,12 @@ export async function computeEarnedPoints(params: {
 export function computeResellerCommission(params: {
   cart: CartItem[];
   isResellerSale: boolean;
+  /** "store" means the markup stays with the store, not a real reseller -
+   * no commission is ever owed regardless of resellerCommissionPercentage. */
+  markupType?: "reseller" | "store" | null;
   resellerCommissionPercentage: number;
 }): { resellerMarkup: number; resellerCommissionAmount: number } {
-  const { cart, isResellerSale, resellerCommissionPercentage } = params;
+  const { cart, isResellerSale, markupType, resellerCommissionPercentage } = params;
 
   const resellerMarkup = isResellerSale
     ? cart.reduce(
@@ -146,9 +160,10 @@ export function computeResellerCommission(params: {
         0,
       )
     : 0;
-  const resellerCommissionAmount = isResellerSale
-    ? resellerMarkup * (resellerCommissionPercentage / 100)
-    : 0;
+  const resellerCommissionAmount =
+    isResellerSale && markupType !== "store"
+      ? resellerMarkup * (resellerCommissionPercentage / 100)
+      : 0;
 
   return { resellerMarkup, resellerCommissionAmount };
 }

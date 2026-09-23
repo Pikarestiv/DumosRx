@@ -270,10 +270,22 @@ export function TransactionDetailsDialog({
         </div>
 
         {!!effectiveSale.is_reseller_sale && isAdmin && (
-          <div className="mt-3 p-3 sm:p-4 border border-violet-200 bg-violet-50 dark:bg-violet-950/20 dark:border-violet-900 rounded-lg space-y-2">
+          <div
+            className={
+              effectiveSale.markup_type === "store"
+                ? "mt-3 p-3 sm:p-4 border border-blue-200 bg-blue-50 dark:bg-blue-950/20 dark:border-blue-900 rounded-lg space-y-2"
+                : "mt-3 p-3 sm:p-4 border border-violet-200 bg-violet-50 dark:bg-violet-950/20 dark:border-violet-900 rounded-lg space-y-2"
+            }
+          >
             <div className="flex items-center justify-between gap-2">
-              <p className="text-sm font-medium text-violet-700 dark:text-violet-300">
-                Reseller markup:{" "}
+              <p
+                className={
+                  effectiveSale.markup_type === "store"
+                    ? "text-sm font-medium text-blue-700 dark:text-blue-300"
+                    : "text-sm font-medium text-violet-700 dark:text-violet-300"
+                }
+              >
+                {effectiveSale.markup_type === "store" ? "Store markup" : "Reseller markup"}:{" "}
                 {formatCurrency(effectiveSale.reseller_markup_amount || 0, currencyCode)}
               </p>
               {effectiveSale.reseller_commission_redeemed ? (

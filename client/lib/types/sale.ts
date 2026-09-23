@@ -20,6 +20,12 @@ export interface Sale {
   points_earned?: number;
   points_redeemed?: number;
   is_reseller_sale?: number;
+  /** Distinguishes a real reseller/agent sale (commission owed, goes
+   * through the redeem/store-claim decision) from a store staff member
+   * pricing above normal for their own reasons (markup pre-settled
+   * straight to the store - see use-pos-payment.ts). Only meaningful when
+   * is_reseller_sale is set. */
+  markup_type?: "reseller" | "store" | null;
   reseller_commission_percentage?: number;
   reseller_commission_amount?: number;
   /** Full markup (selling price above the normal price, summed across line

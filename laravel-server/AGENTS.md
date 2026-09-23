@@ -106,6 +106,58 @@ migration here **and** the corresponding update on the `client/` side
 (`client/lib/db/schema.ts` + sync engine coverage) — see `.agents/AGENTS.md`
 §4 and `client/AGENTS.md` for the client-side half of this.
 
+- **Table-name mismatches:** the client's sync table name doesn't always
+  match the real MySQL table — check `getModelForTable()` in
+  `SyncController.php` first. E.g. client `audit_logs` → server model
+  `ActivityLog` → real table `activity_logs`. Add any new column to
+  `activity_logs`, not a nonexistent `audit_logs` table.
+- **`tests/Feature/SyncSchemaParityTest.php`** parses `client/lib/db/schema.ts`'s
+  raw `CREATE TABLE` SQL via regex to assert every column the server's
+  `getModelForTable()` claims to sync actually exists server-side. It does
+  **not** strip SQL comments — a `--` comment line inside a `CREATE TABLE
+  (...)` block in `schema.ts` gets parsed as a bogus column and fails this
+  test. Don't add inline `--` comments inside `schema.ts`'s CREATE TABLE
+  bodies; put explanatory comments in `schema-migrations.ts`'s ALTER-TABLE
+  array instead (real JS, `//` comments are fine there).
+- **A synced column added only on one side is a live production incident,
+  not just a lint failure — and this has now recurred three separate
+  times in the same week (2026-09-23):** `activity_logs.correlation_id`,
+  `stock_movements.movement_type`'s incomplete `ENUM`, and (same day,
+  later batch) `sales.markup_type` +
+  `stores.staff_can_request_transfers`/`markup_sales_enabled` all shipped
+  client-side and got caught — the first two live in production sync
+  errors, the third by a `/code-review high` pass before it ever shipped.
+  **Treat "does this new synced column have a matching Laravel migration
+  in the same change?" as a mandatory checklist item for any PR that
+  touches `client/lib/db/schema.ts`, not something to catch on review.**
+  A device that writes to a client-only column fails every subsequent
+  sync push for that row with `Unknown column` (stays queued locally,
+  retrying forever, never reaching the server). Always add BOTH the
+  client schema/migration AND a matching Laravel migration in the same
+  change; the most recent example migrations to copy the idempotent
+  `Schema::hasColumn(...)` guard pattern from are
+  `2026_09_23_000006_add_markup_type_to_sales.php` and
+  `2026_09_23_000007_add_staff_transfer_and_markup_toggles_to_stores.php`
+  (or search `database/migrations/` for "Server-side counterpart to the
+  client's" more generally).
+  **Note on `$fillable`:** `SyncController::push()` writes every incoming
+  row via `$model->forceFill($payload)`, which bypasses `$fillable`
+  entirely — so a missing `$fillable` entry is *not* what breaks sync (a
+  missing DB column is). Add the `$fillable`/`$casts` entry anyway,
+  immediately, in the same change: other mass-assignment paths in this
+  codebase (e.g. web-dashboard controllers using `fill()`/`create()`) do
+  respect it, and a column that's `forceFill`-writable but not
+  `$fillable` is a silent trap for the next person who writes a normal
+  Eloquent update against the same model.
+- **A MySQL `ENUM` column for a client-controlled string field is a
+  recurring footgun, not a one-off bug:** `stock_movements.movement_type`
+  was created as an `ENUM` back in 2024 that never actually matched every
+  value the client sends (`transfer_out`/`transfer_in` were never in the
+  list) — every stock transfer silently failed to sync from day one until
+  caught and fixed 2026-09-23 (converted to `VARCHAR`). If a client column
+  is free-form (no fixed, server-enforced set of values), don't constrain
+  it with a server-side `ENUM` — the two lists *will* drift.
+
 ## Known gotcha: MySQL timezone vs. Laravel's UTC clock
 
 See `.agents/AGENTS.md` §6 for the full writeup (Namecheap shared hosting's
@@ -114,10 +166,56 @@ MySQL runs `time_zone = SYSTEM`, ~4h behind UTC; raw `NOW()`/
 `updated_at`-based pull filter). Short version: never use MySQL's own
 `NOW()` in raw SQL against this database — let Eloquent set timestamps.
 
+## Model boot() hooks for cross-cutting, debounced side effects
+
+`app/Models/Store.php`'s `boot()` (added 2026-09-23) is the pattern to
+follow for "something must happen whenever a column changes, regardless of
+which endpoint/sync path changed it": a `static::saving()` closure can
+silently revert just one dirty attribute back to its original value
+(without failing the whole save — other legitimately-changed fields in the
+same request/sync push still persist) to enforce a business rule like a
+cooldown; a `static::saved()` closure can stamp a "dirty" bookkeeping flag
+via a **raw `DB::table(...)->update(...)`, not another `$model->save()`**
+(a second `save()` would re-fire these same boot events). A scheduled
+command (`App\Console\Commands\RebuildStorefrontIfDirty`, `routes/console.php`)
+then debounces the actual expensive side effect (a GitHub Actions
+`repository_dispatch` triggering a full site rebuild) by batching however
+many rows went dirty since its last run into one action, instead of firing
+per-change. `store_slug_changed_at`/`storefront_dirty_at` are deliberately
+**not** in `$fillable` — they're server-only bookkeeping columns, set only
+by these hooks, never accepted from a client sync payload (client mirrors
+them in its own schema only so pull sync's dynamic column list doesn't
+break on an unknown column — see `client/AGENTS.md`).
+
+**Carbon 3 gotcha:** `diffInMonths()` (and the other `diffIn*` methods)
+return a **signed** value (`$other - $this`) in Carbon 3, unlike Carbon 2's
+absolute-value default. `now()->diffInMonths($pastDate) < N` is always
+true (permanently negative) — this exact bug shipped and was caught before
+merge in the slug-cooldown check above. Prefer `now()->lt($date->addMonths(N))`
+style comparisons over `diffIn*() < N` to sidestep the sign question
+entirely.
+
+## Outbound third-party API calls
+
+Convention: `Illuminate\Support\Facades\Http::withToken(...)`, never a raw
+`curl`/`GuzzleHttp` client — see `AdminPlatformService::getRecentErrors()`
+(Sentry) or `RebuildStorefrontIfDirty` (GitHub) for the pattern (short
+`->timeout()`, try/catch, log-and-continue on failure rather than throwing).
+Credentials go in `config/dumos.php` (a project-specific config file, this
+app doesn't use `config/services.php`) reading from `.env` via `env()` —
+never call `env()` directly outside a config file. There is **no confirmed
+queue-worker process running in production** (no `queue:work` in any
+schedule/cron, no Horizon, no supervisor config — `QUEUE_CONNECTION=database`
+is set but nothing has been confirmed to drain the `jobs` table on the
+shared host): don't dispatch a `ShouldQueue` job for something that must
+actually run — do it synchronously (fast, timeout-guarded) or via
+`routes/console.php`'s `Schedule::command(...)`, which the OS cron does
+reliably run.
+
 ## Testing
 
 ```
-./vendor/bin/phpunit --testsuite=Feature   # 89 tests as of 2026-08-26 — treat any drop as a regression
+php artisan test                            # 278 tests as of 2026-09-23 — treat any drop as a regression
 php -l path/to/File.php                     # quick syntax check for a single file
 ```
 
@@ -133,6 +231,17 @@ touches the DB, so it's covered as a Feature test instead.
 
 ```
 php artisan serve       # local dev server
-php artisan migrate     # apply migrations
+php artisan migrate     # apply migrations — LOCAL DEV DB ONLY, see below
 php artisan tinker      # also used by client/'s test:schema script
 ```
+
+**Production has no SSH/direct `artisan` access.** The shared host is
+reached only through the app itself: migrations run via a protected route,
+`GET https://<production-domain>/migrate-db?key=<MIGRATE_DB_KEY>`
+(`routes/web.php`, guarded by `config('app.migrate_db_key')` /
+`MIGRATE_DB_KEY` env — 403s without the correct key). This means **new
+migrations do nothing on production until (a) this branch is deployed and
+(b) someone hits that route** — always verify pending migrations first
+with `php artisan migrate --pretend` against local, and flag to the user
+that production still needs the deploy+route step; don't assume "I wrote
+the migration" means "it's live."

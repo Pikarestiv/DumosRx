@@ -127,8 +127,22 @@ export function PODetailsFields({
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="space-y-1.5">
-          <Label className="text-[12.5px] font-semibold text-foreground">
+          <Label className="text-[12.5px] font-semibold text-foreground flex items-center gap-1">
             Select Vendor
+            <TooltipProvider delayDuration={0}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <HelpCircle className="w-3 h-3 opacity-50 cursor-pointer" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>
+                    The supplier you&apos;re ordering from. Pick
+                    &quot;Self / Walk-in Purchase&quot; if there&apos;s no
+                    vendor on file for this order.
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </Label>
           <SupplierCombobox
             value={selectedSupplierId}

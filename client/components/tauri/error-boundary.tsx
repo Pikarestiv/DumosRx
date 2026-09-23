@@ -2,6 +2,7 @@
 
 import React, { Component, ErrorInfo, ReactNode } from "react";
 import { logCrash } from "@/lib/utils/error-logger";
+import { CHUNK_RELOAD_GUARD_KEY, isChunkLoadError } from "@/lib/utils/chunk-error";
 
 interface Props {
   children: ReactNode;
@@ -25,6 +26,14 @@ export class ErrorBoundary extends Component<Props, State> {
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error("Uncaught component error:", error, errorInfo);
     void logCrash(error, true);
+
+    if (isChunkLoadError(error) && typeof window !== "undefined") {
+      const alreadyTried = window.sessionStorage.getItem(CHUNK_RELOAD_GUARD_KEY);
+      if (!alreadyTried) {
+        window.sessionStorage.setItem(CHUNK_RELOAD_GUARD_KEY, "1");
+        window.location.reload();
+      }
+    }
   }
 
   public render() {

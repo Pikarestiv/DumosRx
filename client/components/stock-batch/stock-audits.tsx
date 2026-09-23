@@ -15,7 +15,11 @@ import { useStore } from "@/lib/context/store-context";
 import { toast } from "sonner";
 import type { ProductWithDetails } from "@/lib/types/product";
 import { LoadingOverlay } from "@/components/ui/loading-overlay";
-import { generateReportPdfBlob, downloadBlob } from "@/lib/utils/report-pdf";
+import {
+  generateReportPdfBlob,
+  downloadBlob,
+  PdfGenerationCancelledError,
+} from "@/lib/utils/report-pdf";
 import { printNode } from "@/lib/utils/print-node";
 import {
   buildStockAuditRows,
@@ -164,6 +168,7 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
   };
 
   const printableRef = useRef<HTMLDivElement>(null);
+  const pdfAbortRef = useRef<AbortController | null>(null);
 
   // Was called fresh (3x per render, rebuilding the full items array each
   // time) for the always-mounted hidden printable table plus both export
@@ -199,22 +204,37 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
 
   const handleDownloadPdf = async () => {
     await setPrintProgress("Preparing rows...", 25);
+    const controller = new AbortController();
+    pdfAbortRef.current = controller;
     try {
       await setPrintProgress("Rendering PDF...", 60);
-      const blob = await generateReportPdfBlob({
-        storeName: storeProfile?.name || "",
-        title: "Stock Audit Sheet",
-        subtitle: `${items.length} product(s)`,
-        headers: auditHeaders,
-        rows: auditRowData,
-        columnFlex: auditColumnFlex,
-      });
+      const blob = await generateReportPdfBlob(
+        {
+          storeName: storeProfile?.name || "",
+          title: "Stock Audit Sheet",
+          subtitle: `${items.length} product(s)`,
+          headers: auditHeaders,
+          rows: auditRowData,
+          columnFlex: auditColumnFlex,
+        },
+        controller.signal,
+      );
       downloadBlob(blob, `StockAudit_${new Date().toISOString().slice(0, 10)}.pdf`);
       await setPrintProgress("Done", 100);
       await new Promise((resolve) => setTimeout(resolve, 400));
+    } catch (error) {
+      if (!(error instanceof PdfGenerationCancelledError)) {
+        console.error("Failed to generate stock audit PDF:", error);
+        toast.error("Couldn't generate the PDF. Please try again.");
+      }
     } finally {
+      pdfAbortRef.current = null;
       setPrintStage(null);
     }
+  };
+
+  const handleCancelPdfDownload = () => {
+    pdfAbortRef.current?.abort();
   };
 
   const handleExport = (format: "csv" | "xlsx") => {
@@ -263,7 +283,11 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-background w-full h-full">
       {printStage && (
-        <LoadingOverlay message={printStage.message} progress={printStage.progress} />
+        <LoadingOverlay
+          message={printStage.message}
+          progress={printStage.progress}
+          onCancel={handleCancelPdfDownload}
+        />
       )}
 
       {/* Off-screen (not display:none, so it still lays out for printNode's

@@ -64,6 +64,9 @@ class Store extends Model
         'reseller_commission_percentage',
         'loyalty_points_per_currency',
         'loyalty_defaults_seeded_at',
+        'staff_can_request_transfers',
+        'markup_sales_enabled',
+        'timezone',
     ];
 
     protected $casts = [
@@ -75,6 +78,8 @@ class Store extends Model
         'require_sale_notes' => 'boolean',
         'display_stock_levels' => 'boolean',
         'uppercase_display_enabled' => 'boolean',
+        'staff_can_request_transfers' => 'boolean',
+        'markup_sales_enabled' => 'boolean',
         'last_sync_at' => 'datetime',
         '_synced_at' => 'datetime',
         'loyalty_defaults_seeded_at' => 'datetime',
@@ -170,5 +175,27 @@ class Store extends Model
     public function sales()
     {
         return $this->hasMany(Sale::class);
+    }
+
+    /**
+     * [start, end] Carbon instants (in UTC, since created_at columns are
+     * stored/compared in UTC) spanning the store's own local calendar day
+     * for $date (default: today in the store's timezone), not the server's
+     * UTC calendar day. Callers bucketing sales/activity "by day" should
+     * use this instead of whereDate('created_at', ...), which compares
+     * against the UTC date of a UTC-stored timestamp regardless of where
+     * the store actually is.
+     */
+    public function localDayRangeUtc(?string $date = null): array
+    {
+        $tz = $this->timezone ?: 'UTC';
+        $day = $date
+            ? \Illuminate\Support\Carbon::parse($date, $tz)
+            : \Illuminate\Support\Carbon::now($tz);
+
+        return [
+            $day->copy()->startOfDay()->utc(),
+            $day->copy()->endOfDay()->utc(),
+        ];
     }
 }

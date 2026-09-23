@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   ShoppingCart,
   Trash2,
@@ -15,7 +15,7 @@ import { RequestItemDialog } from "./request-item-dialog";
 import { ProformaPreviewDialog } from "./proforma-preview-dialog";
 import { POSCartItem } from "./pos-cart-item";
 import { POSRedeemReward } from "./pos-redeem-reward";
-import type { CartItem, RedeemedOption } from "@/lib/hooks/use-pos-cart";
+import type { CartItem, RedeemedOption, MarkupType } from "@/lib/hooks/use-pos-cart";
 import type { Customer } from "@/lib/types/customer";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 
@@ -46,6 +46,8 @@ interface POSCartProps {
   onEditPrescription?: () => void;
   isResellerSale?: boolean;
   setIsResellerSale?: (value: boolean) => void;
+  markupType?: MarkupType | null;
+  setMarkupType?: (value: MarkupType | null) => void;
   updateUnitPrice?: (id: string, price: number) => void;
 }
 
@@ -76,12 +78,27 @@ export function POSCart({
   onEditPrescription,
   isResellerSale = false,
   setIsResellerSale,
+  markupType = null,
+  setMarkupType,
   updateUnitPrice,
 }: POSCartProps) {
   const [showDiscount, setShowDiscount] = useState(false);
   const [showRequestDialog, setShowRequestDialog] = useState(false);
   const [showProformaDialog, setShowProformaDialog] = useState(false);
-  const { withRestriction, canUseResellerCommission, canUseProformaQuotes } = useFeatureGate();
+  const { withRestriction, canUseResellerCommission, canUseMarkupSales, canUseProformaQuotes } = useFeatureGate();
+
+  // canUseMarkupSales can flip false mid-session (an admin disables the
+  // markup_sales_enabled toggle on another device, or downgrades plan) -
+  // without this, a cart that already had isResellerSale persisted true
+  // would lose the entire row below (including the only Switch that turns
+  // it back off), leaving validatePaymentReadiness's markup-type-required
+  // guard permanently blocking checkout with no way to clear it short of
+  // discarding the cart.
+  useEffect(() => {
+    if (!canUseMarkupSales && isResellerSale) {
+      setIsResellerSale?.(false);
+    }
+  }, [canUseMarkupSales, isResellerSale, setIsResellerSale]);
 
   return (
     <div className="flex flex-col h-full">
@@ -101,18 +118,46 @@ export function POSCart({
           )}
         </div>
       )}
-      {cart.length > 0 && (
-        <div className="mx-5 mt-3 flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-border bg-muted/20 shrink-0">
-          <span className="text-[11.5px] font-semibold text-foreground">
-            Reseller sale
-          </span>
-          <Switch
-            checked={isResellerSale}
-            onCheckedChange={withRestriction(
-              (v: boolean) => setIsResellerSale?.(v),
-              { featureAllowed: canUseResellerCommission, featureKey: "reseller_commission" },
-            )}
-          />
+      {cart.length > 0 && canUseMarkupSales && (
+        <div className="mx-5 mt-3 flex flex-col gap-2 px-3 py-2 rounded-lg border border-border bg-muted/20 shrink-0">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11.5px] font-semibold text-foreground">
+              Reseller sale
+            </span>
+            <Switch
+              checked={isResellerSale}
+              onCheckedChange={withRestriction(
+                (v: boolean) => setIsResellerSale?.(v),
+                { featureAllowed: canUseResellerCommission, featureKey: "reseller_commission" },
+              )}
+            />
+          </div>
+          {isResellerSale && (
+            <div className="flex gap-1.5">
+              <button
+                type="button"
+                onClick={() => setMarkupType?.("reseller")}
+                className={`flex-1 rounded-md px-2 py-1.5 text-[11px] font-semibold transition-colors ${
+                  markupType === "reseller"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-background border border-border text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                For a Reseller Agent
+              </button>
+              <button
+                type="button"
+                onClick={() => setMarkupType?.("store")}
+                className={`flex-1 rounded-md px-2 py-1.5 text-[11px] font-semibold transition-colors ${
+                  markupType === "store"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-background border border-border text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Store Markup
+              </button>
+            </div>
+          )}
         </div>
       )}
       <div className="flex-1 overflow-y-auto px-5 py-1.5 min-h-[120px]">

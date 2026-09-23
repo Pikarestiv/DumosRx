@@ -145,7 +145,10 @@ export function POSTransactionHistory({
         if (sale.payment_method?.toLowerCase() !== paymentFilter.toLowerCase())
           return false;
       }
-      if (saleTypeFilter === "Reseller" && !sale.is_reseller_sale) {
+      if (saleTypeFilter === "Reseller" && (!sale.is_reseller_sale || sale.markup_type === "store")) {
+        return false;
+      }
+      if (saleTypeFilter === "StoreMarkup" && (!sale.is_reseller_sale || sale.markup_type !== "store")) {
         return false;
       }
       return true;

@@ -3,6 +3,7 @@
 import { useEffect, ReactNode } from "react";
 import { logCrash } from "@/lib/utils/error-logger";
 import { devLog } from "@/lib/utils/dev-log";
+import { CHUNK_RELOAD_GUARD_KEY, isChunkLoadError } from "@/lib/utils/chunk-error";
 
 // Benign browser-internal notices that show up as window "error" events but
 // don't indicate anything actually broke, e.g. ResizeObserver's loop-limit
@@ -19,14 +20,38 @@ export function GlobalErrorListener({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
+    // Reaching here means the app booted cleanly, so any earlier
+    // chunk-load-triggered auto-reload (see error-boundary.tsx) worked -
+    // clear its guard so a later, unrelated chunk error in this same tab
+    // session still gets its own one-time auto-reload instead of going
+    // straight to the crash screen.
+    window.sessionStorage.removeItem(CHUNK_RELOAD_GUARD_KEY);
+
+    // Most real stale-chunk failures never reach ErrorBoundary's
+    // componentDidCatch at all: a route-level dynamic import() rejecting
+    // (client-side navigation to code that isn't loaded yet) surfaces here,
+    // as an unhandled promise rejection, not a React render-time throw. See
+    // error-boundary.tsx for the matching React-throw case and why the
+    // reload is guarded to once per tab session.
+    const reloadOnChunkError = (error: unknown) => {
+      if (!isChunkLoadError(error instanceof Error ? error : undefined)) return false;
+      if (typeof window === "undefined") return false;
+      if (window.sessionStorage.getItem(CHUNK_RELOAD_GUARD_KEY)) return false;
+      window.sessionStorage.setItem(CHUNK_RELOAD_GUARD_KEY, "1");
+      window.location.reload();
+      return true;
+    };
+
     const handleError = (event: ErrorEvent) => {
       if (isIgnorableError(event.error || event.message)) return;
       void logCrash(event.error || event.message, true);
+      reloadOnChunkError(event.error);
     };
 
     const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
       if (isIgnorableError(event.reason)) return;
       void logCrash(event.reason, true);
+      reloadOnChunkError(event.reason);
     };
 
     window.addEventListener("error", handleError);

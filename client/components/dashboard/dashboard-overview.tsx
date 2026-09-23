@@ -74,7 +74,7 @@ export function DashboardOverview() {
   } = useDashboardOverview();
 
   const router = useRouter();
-  const { isCashier, totalToday } = useMyTodaySales();
+  const { isCashier, totalToday, transactionsToday } = useMyTodaySales();
 
   // "Product added" activity rows carry the product's own id (see
   // use-dashboard-overview.ts) and have no dedicated details dialog wired
@@ -91,16 +91,24 @@ export function DashboardOverview() {
   };
 
   const statsCards = [
-    {
-      title: "Today's Sales",
-      value: formatMetricCurrency(
-        stats.dailySalesRevenue,
-        storeProfile?.currency,
-      ),
-      comparison: renderSalesComparison(salesComparison),
-      icon: ShoppingCart,
-      colorScheme: "green" as const,
-    },
+    isCashier
+      ? {
+          title: "My Transactions Today",
+          value: String(transactionsToday),
+          comparison: "Sales you've rung up today",
+          icon: ShoppingCart,
+          colorScheme: "green" as const,
+        }
+      : {
+          title: "Today's Sales",
+          value: formatMetricCurrency(
+            stats.dailySalesRevenue,
+            storeProfile?.currency,
+          ),
+          comparison: renderSalesComparison(salesComparison),
+          icon: ShoppingCart,
+          colorScheme: "green" as const,
+        },
     {
       title: `Total ${t("products")}`,
       value: stats.totalProducts.toLocaleString(),

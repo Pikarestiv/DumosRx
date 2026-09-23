@@ -22,7 +22,7 @@ class Sale extends Model
         'tax_percentage', 'total_amount', 'payment_method', 'payment_status',
         'amount_paid', 'change_given', 'points_earned', 'points_redeemed',
         'transaction_date', 'notes', 'receipt_printed', 'payment_details',
-        'is_reseller_sale', 'reseller_commission_percentage', 'reseller_commission_amount',
+        'is_reseller_sale', 'markup_type', 'reseller_commission_percentage', 'reseller_commission_amount',
         'reseller_markup_amount', 'reseller_commission_redeemed', 'reseller_commission_redeemed_amount',
         'reseller_commission_claim_type', 'reseller_commission_redeemed_at', 'reseller_commission_redeemed_by',
     ];

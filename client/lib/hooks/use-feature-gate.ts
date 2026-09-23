@@ -24,6 +24,23 @@ export function isLoyaltyProgramEnabled(
 }
 
 /**
+ * The POS cart's "Reseller sale" row (both the reseller-commission and
+ * store-markup sub-types) is gated on BOTH the plan-tier entitlement
+ * (`tierAllows`, from getFeature('reseller_commission', ...)) AND the
+ * store's own on/off toggle (`stores.markup_sales_enabled`). Unlike
+ * isLoyaltyProgramEnabled, this defaults OFF (`storeToggle === 1`, not
+ * `!== 0`) - an owner has to explicitly turn it on before any staff can
+ * mark up a sale at all. Extracted as a pure function for the same
+ * unit-testability reason as isLoyaltyProgramEnabled.
+ */
+export function isMarkupSalesEnabled(
+  tierAllows: boolean,
+  storeToggle: number | undefined | null,
+): boolean {
+  return tierAllows && storeToggle === 1;
+}
+
+/**
  * Fallback used only when the server's subscription_plans config has no
  * explicit `limits.sync_interval` for the current tier (see getLimit()
  * below). Extracted as a pure function (same reasoning as
@@ -218,8 +235,17 @@ export function useFeatureGate() {
     // report filtering) plus the BI/analytics dashboard and their CSV/PDF
     // exports.
     canUseAdvancedReports: getFeature('advanced_reports', 'advanced_reports', isPro || isEnterprise),
-    // The POS "Reseller sale" toggle/commission tracking and its report tab.
+    // Plan-tier entitlement only, independent of the store's own toggle -
+    // same reasoning as canAccessLoyaltyProgramPlan above. The Register
+    // Configs settings switch uses this (not canUseMarkupSales) so it stays
+    // visible/toggleable even while off.
     canUseResellerCommission: getFeature('reseller_commission', 'reseller_commission', isPro || isEnterprise),
+    // Combined gate actually enforced at runtime (the POS cart's "Reseller
+    // sale" row): plan tier AND the store's own toggle.
+    canUseMarkupSales: isMarkupSalesEnabled(
+      getFeature('reseller_commission', 'reseller_commission', isPro || isEnterprise),
+      storeProfile?.markup_sales_enabled,
+    ),
     // The POS "Preview Quote" (proforma) flow.
     canUseProformaQuotes: getFeature('proforma_quotes', 'proforma_quotes', isPro || isEnterprise),
     // The End-of-Day / Daily Close report tab, including its own export —

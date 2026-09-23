@@ -161,7 +161,8 @@ class DashboardService
 
             // Store Sales
             $storeTotalSales = (float) Sale::where('store_id', $storeId)->sum('total_amount');
-            $storeDailySales = (float) Sale::where('store_id', $storeId)->whereDate('created_at', Carbon::today())->sum('total_amount');
+            [$storeDayStart, $storeDayEnd] = $store->localDayRangeUtc();
+            $storeDailySales = (float) Sale::where('store_id', $storeId)->whereBetween('created_at', [$storeDayStart, $storeDayEnd])->sum('total_amount');
 
             // Inventory
             $storeInventory = DB::table('products')->where('store_id', $storeId)->whereNull('deleted_at');
@@ -453,6 +454,11 @@ class DashboardService
 
         $todayFleetSales = 0;
         try {
+            // Fleet-wide total across all of the owner's stores, which may
+            // span timezones - a single "today" cutoff can't be exactly
+            // right for every store at once, so this stays on the server's
+            // UTC day. The per-store breakdown below uses each store's own
+            // local day via Store::localDayRangeUtc().
             $todayFleetSales = (float) Sale::whereIn('cashier_id', $userIds)
                 ->whereDate('created_at', now()->toDateString())
                 ->sum('total_amount');
@@ -475,8 +481,9 @@ class DashboardService
         $stores = $userStores->map(function ($store) use (&$fleetLowStock, &$fleetExpiring) {
             $storeId = $store->id;
 
+            [$storeDayStart, $storeDayEnd] = $store->localDayRangeUtc();
             $todayStoreSales = (float) Sale::where('store_id', $storeId)
-                ->whereDate('created_at', now()->toDateString())
+                ->whereBetween('created_at', [$storeDayStart, $storeDayEnd])
                 ->sum('total_amount');
 
             $lowStock = DB::table('products')

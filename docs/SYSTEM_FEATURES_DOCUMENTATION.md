@@ -38,11 +38,11 @@ The desktop application is built for speed, reliability, and ease of use. It con
 
 **Park Transactions:** Put a customer's cart on "Hold" if they need to grab another item, allowing you to serve the next person in line.
 
-**Custom Receipts:** Print thermal receipts customized with your store's logo and details. Print a formal **Tax Invoice** variant that adds your store's tax/VAT number to the header, for customers who need one for their own records.
+**Custom Receipts:** Print thermal receipts customized with your store's logo and details, with the logo shown above or beside your store name — whichever you prefer. Print a formal **Tax Invoice** variant that adds your store's tax/VAT number to the header, for customers who need one for their own records.
 
 **Proforma Quotes:** Give a customer a price breakdown for their shopping list before they commit — no sale is recorded and no stock leaves your shelves until it's actually charged.
 
-**Reseller Sales:** Selling through an independent reseller who found their own client at a marked-up price? Mark the sale as a reseller sale, adjust item prices up to what the reseller quoted, and the system automatically works out their commission (a percentage of the markup, set once in Settings) for you to pay out whenever they come to collect it.
+**Reseller Sales & Store Markups:** Selling above your normal price? Mark the sale up and choose why: for an independent reseller who found their own client (the system works out their commission automatically, a percentage of the markup set once in Settings, for you to pay out whenever they collect it), or as a markup your store simply keeps for itself, with the money going straight into your books instead of sitting around waiting to be settled. Either way it's clearly badged and filterable in your sales history, so you can always tell the two apart. Turn this on for your staff in Settings → Register Configs (off by default).
 
 ### 📦 Inventory & Stock Management
 
@@ -52,7 +52,9 @@ The desktop application is built for speed, reliability, and ease of use. It con
 
 **Stock Adjustments:** Easily log and track write-offs for lost, stolen, or damaged goods.
 
-**Procurement:** Generate Purchase Orders for your suppliers. When the goods arrive, the system automatically updates your stock levels.
+**Procurement:** Generate Purchase Orders for your suppliers. When the goods arrive, the system automatically updates your stock levels. Your catalog also shows the price you last actually paid for each product, right alongside its running average cost.
+
+**Borrow Stock Between Branches:** Running low on something and the owner isn't around? A cashier can pull stock in from another one of your branches right from the checkout screen — it moves immediately, and is flagged for you to review afterward. You decide who's allowed to do this: managers and admins always can, and you can choose whether to extend that to regular staff too (Settings → Multiple Stores, off for staff by default).
 
 **Supplier Debt Ledger:** Track goods received on credit from your suppliers, manage your business cash flow, and log partial or full payments against outstanding purchase orders.
 
@@ -104,7 +106,7 @@ Your Cloud Dashboard is your management hub. Log in from any web browser to get 
 
 We take the safety of your business data seriously.
 
-**Always-On Operation:** Your store never stops. If the internet drops, your Desktop POS keeps working flawlessly. Once the connection returns, it quietly backs up all new sales to the cloud.
+**Always-On Operation:** Your store never stops. If the internet drops, your Desktop POS keeps working flawlessly — even a brand-new install can launch and start ringing up sales fully offline, right from its very first use. Once the connection returns, it quietly backs up all new sales to the cloud.
 
 **Anti-Tampering Protection:** Our system detects if anyone tries to manipulate the computer's clock to bypass security, immediately locking the terminal to protect your data.
 

@@ -21,7 +21,10 @@ const PAYMENT_OPTIONS = [
   { value: "Transfer", label: "Transfer" },
 ];
 
-const SALE_TYPE_OPTIONS = [{ value: "Reseller", label: "Reseller" }];
+const SALE_TYPE_OPTIONS = [
+  { value: "Reseller", label: "Reseller" },
+  { value: "StoreMarkup", label: "Store Markup" },
+];
 
 export function TransactionFilters({
   searchQuery,

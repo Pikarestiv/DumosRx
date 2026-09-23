@@ -8,6 +8,15 @@ Open items below are grouped by severity (Critical → High → Medium → Low),
 
 ## Critical
 
+### `laravel-server/` — 10 migrations from 2026-09-23 not yet run on production
+`laravel-server/database/migrations/2026_09_23_*.php` (10 files)
+
+These add `stores.receipt_logo_position`, `activity_logs.correlation_id`, `purchase_order_items.{selling_price,cost_price_override,lot_number}`, `stock_movements.status`, `stores.{storefront_dirty_at,store_slug_changed_at}`, `sales.markup_type`, `stores.{staff_can_request_transfers,markup_sales_enabled}`, and widen `stock_movements.movement_type` from an incomplete MySQL `ENUM` to `VARCHAR`. All verified safe (additive `ALTER TABLE`, `--pretend` reviewed, applied cleanly to a throwaway sqlite db (the last two, added later the same day) and the local dev DB, full `php artisan test` suite green: 278 passed).
+
+**Until these are deployed and run on production**, any device syncing a change to those columns gets `SQLSTATE[42S22]: Unknown column` (confirmed live: `activity_logs.correlation_id`, `stock_movements` transfer rows via the old `movement_type` ENUM; the last three were caught by code review before ever shipping, not yet confirmed live) and the push silently fails for that row — it stays in the client's local `_sync_queue` retrying forever, not lost, but never reaching the server either.
+
+Production migrations run through a protected route, not direct `artisan` access (no SSH on the shared host — see `laravel-server/AGENTS.md`): `GET https://<production-domain>/migrate-db?key=<MIGRATE_DB_KEY>`. Deploy this branch first, then hit that route. Remove this entry once confirmed run. (Also now covers `2026_09_23_000008_add_timezone_to_stores.php`, added the same day — additive, `stores.timezone` defaults to `'UTC'`.)
+
 ---
 
 ## High
@@ -21,9 +30,26 @@ Open items below are grouped by severity (Critical → High → Medium → Low),
 
 ## Medium
 
+### `client/` — auth bearer token kept in `localStorage` instead of an HttpOnly cookie (accepted tradeoff, confirmed 2026-09-23)
+`client/lib/api/token-manager.ts:7-25`
+
+`auth_token` (the Sanctum bearer token) is read/written via `localStorage`, not an HttpOnly cookie. Any XSS in the client app could read `localStorage.auth_token` and exfiltrate a long-lived session token, versus an HttpOnly cookie which JS can't read at all. The admin web session already avoids this (`drx_admin_session` is a proper `HttpOnly` cookie — see `AdminStoreController::impersonateStore`).
+
+Investigated switching this: `token-manager.ts`'s `setToken`/`clearToken` call `mirrorAuthToken`/`clearMirroredAuthToken` (`client/lib/native/widget-bridge.ts`), which hand the raw token to native Tauri (Rust) code so the home-screen widget can make its own authenticated background HTTP requests entirely outside the webview. An HttpOnly cookie is by definition unreadable by JS, so it can't be mirrored to native code — swapping to one would break the widget's live data rather than just change a storage mechanism. Fixing this for real means a dual-path auth design (webview uses a cookie for its own requests; native widget code gets a separate, narrowly-scoped token via its own exchange) — a real architecture change, not a quick fix. Left as-is for now; revisit as a scoped project, not a bug-fix pass.
+
+### `client/` — existing Pro/Enterprise stores will lose the "Reseller sale" POS row on deploy, silently
+`client/lib/hooks/use-feature-gate.ts` (`isMarkupSalesEnabled`), `stores.markup_sales_enabled`
+
+New store-level toggle added 2026-09-23, default `0` (explicit product requirement — deliberate, not an oversight). Any store already on Pro/Enterprise and actively using reseller-commission sales before this ships will find the POS cart's "Reseller sale" row gone the moment it deploys, with no in-app notice explaining why, until the owner finds and turns on the new toggle in Settings → Register Configs ("Enable Markup Sales"). Not a bug to fix — the default was explicitly requested — but worth a release note / proactive heads-up to any store already using the feature before this ships, so it doesn't read as a broken app to them.
+
 ---
 
 ## Low
+
+### `laravel-server/` — some `feedback` sync pushes rejected as "forbidden", cause not yet investigated
+`app/Http/Controllers/Api/App/SyncController.php` (~line 357, `authorizeChangeTarget` check)
+
+Seen live in a production sync response: two `feedback` table rows rejected with `reason: "forbidden"` (the record exists but doesn't resolve to the caller's authorized store/user scope). Not reproduced or root-caused — could be stale `_sync_queue` entries from before an account/store switch on that device, or a genuine ownership-scoping gap specific to `feedback`. Rows stay queued locally, not lost. Investigate if it recurs or affects more than a couple of stale rows.
 
 ---
 

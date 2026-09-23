@@ -98,6 +98,23 @@ bespoke multi-row writes (and even then, wrap them in
 inserts/updates across `stock_audits`, `stock_batches`, `stock_movements`,
 and `products` in one atomic transaction).
 
+**`options.correlationId`** (added 2026-09-23, all four helpers +
+`logAction()` in `core.ts`) ties every `audit_logs` row one multi-step
+operation writes together — e.g. a single sale's ~10-15 rows across
+`sales`/`sale_items`/`stock_batches`/`stock_movements`/`customers`/
+`loyalty_transactions` all share the sale's own id as `correlationId`, so
+the Activity Log (`components/activity-log/`) can collapse them into one
+"Sale processed (+N more)" entry instead of showing each write separately.
+Generate the id up front (e.g. `generateId()`, then pass it as `data.id`
+into the first `insert()` so the correlation id and the primary record's
+own id are the same value) and thread it through every subsequent
+insert/update/softDelete call in that operation — see
+`lib/hooks/use-pos-payment.ts`'s `handlePayment` for the reference
+pattern. Grouping is purely presentational (`groupByCorrelation` in
+`activity-log-rows.tsx`, adjacency-only within the current page — no
+SQL/pagination change), so it's safe to add to a new multi-step write
+without touching the Activity Log's query/sort/search paths at all.
+
 ### Sync engine (`lib/db/sync-engine/`)
 
 `sync(isManual, isSetup)` in `index.ts` does one push-then-pull cycle:
@@ -247,6 +264,63 @@ e2e/                       Playwright end-to-end specs
   icon-only edit button that reopens `PODetailsDialog`. Don't put the
   details form and the item table on screen at the same time again — that
   was the exact complaint (Moniebook-inspired) this flow replaced.
+  `purchase_order_items` also persists `selling_price`,
+  `cost_price_override`, `lot_number`, `expiry_date` (added 2026-09-23) so
+  an Immediate Purchase saved as a draft and resumed later keeps what was
+  typed — coerce these via `coerceOptionalNumber()` (`lib/db/procurement.ts`),
+  which explicitly treats `null` (what a reloaded row's unset override
+  reads back as) the same as `undefined`/`""`: `Number(null) === 0` will
+  silently turn "no override" into a real, permanent zero if you bypass
+  it. The **edit page reads the PO's real `type`** (not hardcoded
+  `"standard"`) to decide which columns to show — it used to assume only
+  Standard POs are ever resumed via "Edit Order," which was wrong (any
+  `pending`/`sent` PO gets that button, including an Immediate draft).
+
+## Cashier (`sales_staff`) visibility gating — a recurring pattern, not a one-off
+
+A cashier account should never see store-wide profit/margin figures or
+manage stock/settings beyond their own sales. The established check is a
+direct `user?.role === "sales_staff"` (or `!== "sales_staff"` to show
+something to everyone else), matching the pattern already used in
+`daily-close-report.tsx`, `transaction-metrics.tsx`,
+`product-pricing-info.tsx`, and `transaction-details-dialog.tsx` — **not**
+`checkIsAdmin()`/`isAdmin`, which also excludes `auditor` and `specialist`
+(read-only/stock-managing roles that have no reason to be denied a
+profit figure they can already derive from data they can see elsewhere).
+When adding a new profit/margin display, gate it the same way and check
+sibling surfaces: profit has leaked from more than one place before
+(Daily Close's aggregate was gated once, then found still visible via
+drilling into an individual sale's `TransactionDetailsDialog` from three
+different entry points — POS history, the dashboard activity feed, and
+Daily Close's own sales list — because the dialog itself wasn't gated).
+For a permission that's admin-plus-one-specific-role rather than a clean
+admin/non-admin split (e.g. "cashiers can also reach this, but auditors
+still can't"), see `dashboard-page-routes.ts`'s `actionAllowSalesStaff`
+flag and `RequireRole`'s `allowSalesStaff` prop for the pattern — don't
+just delete/loosen the existing `actionAdminOnly`/`canManageStockBatch`
+check, that widens the gate for every non-admin role at once, not just
+the one you meant to add.
+
+## PWA offline precaching
+
+`public/sw.js` does both runtime caching (stale-while-revalidate for
+same-origin static assets, network-first-with-cache-fallback for
+navigations) and, since 2026-09-23, install-time **precaching**: a
+`postbuild` script (`scripts/generate-precache-manifest.ts`) walks the
+static export's `out/` directory and writes `precache-manifest.json`,
+which `sw.js`'s `install` handler fetches and caches per-URL (not the
+atomic `cache.addAll()` — one bad URL degrades instead of silently
+killing the whole precache) before calling `skipWaiting()`. **On any
+change to the install/precache logic, an async handler that merely
+`console.error`s a caught failure and returns normally still reports
+"install succeeded" to the browser** — a real failure must `throw` so the
+`event.waitUntil()` promise actually rejects, otherwise this SW version
+activates with an empty/partial cache instead of leaving whatever worker
+was previously in charge running. Bump `CACHE_VERSION` on any change to
+the caching *strategy* itself (not on every deploy — the runtime-caching
+half already refreshes assets on every successful fetch). This only
+matters for the browser/PWA target; Tauri loads `out/` directly off disk
+via its own protocol and doesn't go through this service worker at all.
 
 ## UI conventions worth knowing before changing shared components
 
@@ -370,10 +444,60 @@ npm run release           # scripts/release.ts: version bump + release flow
 
 ## Current focus / recent work (update this section as work continues)
 
-Most recent work (see `git log` for full detail) was the **Procurement
-revamp**: replacing one-at-a-time PO item entry with the Moniebook-inspired
-bulk ledger table, and splitting Standard vs. Immediate PO types. Design doc
-at `docs/superpowers/specs/2026-08-29-procurement-revamp-design.md`,
+Most recent work (2026-09-23, see `git log` for full detail) was a large,
+mostly-independent bug-fix/small-feature batch, largely driven by "what's
+still annoying a cashier or a store owner" feedback. Notable pieces beyond
+what's already covered above:
+
+- **Cashier UX/permission sweep**: last-bought-price column on the
+  Catalog (sourced from the most recently received, non-`ADJ-%` stock
+  batch — see `getProductsWithDetails()`), customer deletion (soft
+  delete, blocked while the customer has an outstanding balance),
+  "remove from this device" on login-picker tiles (local-only, doesn't
+  touch the account), Expenses surfaced to cashiers, and the profit-hiding
+  sweep described in the Cashier visibility section above.
+- **Reseller sales merged into Recent Transactions**: the old standalone
+  admin-only "Reseller Commission" tab/panel (`FEATURE_ROADMAP_SPEC.md`'s
+  2026-09-16/17 entry) is **gone** — reseller sales now show inline in
+  `pos-transaction-history.tsx` with a badge + a "Sale Type" filter, and
+  the redeem/store-claim actions live directly in
+  `TransactionDetailsDialog` (admin-gated). If you find a stale reference
+  to `reseller-commission-panel.tsx`, it's dead documentation.
+- **Cross-store stock transfer**: a cashier can now request stock from
+  another store directly from POS (`pos-layout-header.tsx`, gated on
+  `checkCanProcessSales` + multi-store access) — it takes effect
+  immediately (pull-only: the destination is locked to their own active
+  store, they can't push stock out to an arbitrary one), flagged
+  `stock_movements.status = "needs_review"` for the owner to check
+  afterward (see the "Needs Review" badge in `stock-movement-*-row.tsx`).
+- **Stock audit export**: split the single ambiguous "Print" action
+  (PDF-then-`window.open`, which neither printed nor downloaded cleanly)
+  into real Print (native dialog via `printNode()` against a hidden
+  printable table), Download PDF, and new Export CSV/Excel.
+- **Receipt logo position**: per-store "above"/"beside" toggle
+  (`stores.receipt_logo_position`), Settings → Receipt.
+- **PO fixes**: "Amount Paid" hidden entirely (not just disabled) when
+  "Fully Paid" is selected, its submitted value taken directly from the
+  order total rather than a possibly-stale field on both create and edit;
+  the edit page's `totalAmount` now derives from `getLineTotal()`
+  (`item.subtotal` only updates on cost edits, not quantity ones — a
+  "Fully Paid" order with an edited quantity was persisting a mismatched
+  `amount_paid`).
+- **PWA offline precaching** and **audit-log correlation grouping**: see
+  their own sections above.
+- **Cross-repo lesson, hit live in production**: added a client column
+  without its matching Laravel migration + `$fillable` entry breaks sync
+  for every device touching that column, permanently, until fixed —
+  happened twice in this session alone (`activity_logs.correlation_id`,
+  and a years-old pre-existing case, `stock_movements.movement_type`
+  being a MySQL `ENUM` that never actually matched the client's values).
+  See `laravel-server/AGENTS.md`'s sync-engine section for the fuller
+  writeup — read it before adding any new synced column.
+
+Before that, the **Procurement revamp**: replacing one-at-a-time PO item
+entry with the Moniebook-inspired bulk ledger table, and splitting
+Standard vs. Immediate PO types. Design doc at
+`docs/superpowers/specs/2026-08-29-procurement-revamp-design.md`,
 implementation plan at
 `docs/superpowers/plans/2026-08-29-procurement-revamp.md` (both worth
 reading before touching this area again — they carry the "why" behind the
@@ -439,6 +563,19 @@ Before that, work focused on the **Inventory** area:
 - QuickBooks/Moniebook CSV/XLS catalog import (real reference file:
   `QB POS Inventory Items Export.xls` under `refs/`) is still an open,
   unscoped feature idea from the same requirements-gathering session.
-- "Last Received" per product (from `stock_movements` where
-  `movement_type = 'purchase'`) was discussed as a good follow-up to Last
-  Audited but deliberately deferred as a separate piece of work.
+
+**Also still open, from the 2026-09-23 batch:**
+- PO draft persistence resurfaced a UI gap rather than a data one: values
+  now round-trip correctly, but nothing surfaces them anywhere except the
+  edit screen's ledger table — no read-only summary view shows a resumed
+  draft's saved overrides before you open it for editing.
+- Audit Log's pagination count is still computed over ungrouped rows, so
+  "25 of N" can show noticeably fewer than 25 visible entries on a page
+  with a large sale in it (grouping is presentational-only by design, see
+  the correlationId section above — the SQL/pagination layer was
+  deliberately left untouched, this is the known cost of that choice).
+- The PWA precache manifest includes every file in the static export
+  (every route's HTML/JS chunks, both sql.js wasm binaries) with no
+  curation — fine at current app size, but worth revisiting (a smaller
+  "app shell only" manifest, lazy-caching the rest) if the export grows
+  enough to make first-install download size a real complaint.

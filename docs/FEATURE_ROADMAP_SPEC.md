@@ -141,6 +141,70 @@ Client feature-gathering item (Cynthia referral), originally described as "over-
   - **Server sync gap:** the 7 new SQLite columns (`stores.reseller_commission_percentage`; 6 on `sales`) had no Laravel migration or `$fillable` entries — would have permanently broken sync push for every sale, the exact failure class `fix_sync_schema_drift.php` documents. None of the 8 task briefs had considered the server side at all; caught only at the final whole-branch review. Fixed with a migration following the existing `add_uppercase_display_enabled_to_stores.php` template, actually run (migrate → rollback → migrate) against the test DB, not just reviewed.
   - **Related pre-existing gap, found but out of scope, fixed separately:** the same "no server migration" bug already existed for `stores.tax_number` (the Tax Invoice feature above, shipped just before this one) — flagged during this feature's final review, fixed in a follow-up commit once the user asked for it.
 - **Process note:** built with the `subagent-driven-development` skill — a fresh implementer subagent per task, a spec+quality review after each (2 of 8 tasks needed one fix round), and a final whole-branch review on a more capable model that caught cross-task issues no single task-scoped review could see (the held-transaction duplicate bug, the keystroke-clamp UX bug, and the missing server migration).
+- **Superseded 2026-09-23:** the standalone admin-only "Reseller Commission" tab/panel described above (`ResellerCommissionPanel`, on Reports) was removed. Reseller sales are now shown inline in Recent Transactions (a badge + "Sale Type" filter) and the redeem/store-claim actions moved into `TransactionDetailsDialog` itself (still admin-gated) — see the 2026-09-23 batch entry below. The underlying data model (commission % setting, immutable per-sale snapshot, redeemed status/timestamp/staff) is unchanged, only where it's surfaced.
+
+### Cashier/store-owner bug-fix & small-feature batch: DONE (2026-09-23)
+
+A large, mostly-independent batch driven by direct store-owner/cashier
+feedback rather than one spec. Reviewed in three separate passes by a
+more capable model (per-batch, not per-task), each of which caught and
+fixed real bugs before merge — see `client/AGENTS.md` and
+`laravel-server/AGENTS.md` for the durable architectural notes; this
+entry is the "what shipped" summary.
+
+- **Cashier visibility/permission sweep:** hid profit/margin from
+  `sales_staff` everywhere it was reachable (Daily Close's aggregate,
+  the product pricing panel, and — the one review caught — the
+  transaction detail dialog reachable from three separate entry points,
+  which would have quietly defeated the Daily Close fix alone). Added
+  customer deletion (blocked while a balance is outstanding, so debt
+  can't silently vanish from reports), a last-bought-price catalog
+  column, a login-picker tile "remove from this device" action, and
+  surfaced Expenses to cashiers (nav + header action + route guard,
+  narrowly — not by loosening the existing admin-only gate for every
+  non-admin role, which the first pass of this same change did by
+  mistake and a review caught).
+- **Reseller sales merged into Recent Transactions**, replacing the
+  standalone tab — see the note above.
+- **Cross-store stock transfer for cashiers**, pull-only, flagged for
+  owner review afterward — see `client/AGENTS.md`'s cashier-gating
+  section.
+- **Purchase Order fixes:** Immediate Purchase draft fields
+  (selling price, cost override, lot, expiry) now actually persist
+  through a save-as-draft/resume cycle (previously silently discarded);
+  "Amount Paid" hidden on "Fully Paid"; the edit page now shows the
+  correct field set for a resumed Immediate draft instead of always
+  assuming Standard.
+- **Stock audit export** split into real Print/Download PDF/Export
+  CSV+Excel, replacing one ambiguous PDF-then-`window.open` action.
+- **Receipt logo position** (per-store above/beside toggle).
+- **Activity Log correlation grouping**: a single sale's ~10-15 audit
+  log rows now collapse into one entry with a "Related Actions"
+  drill-down.
+- **PWA offline precaching**: a fresh install can now launch fully
+  offline immediately, not only after having been opened online once.
+- **Storefront auto-rebuild**: going online/offline or changing a
+  store's slug now triggers an automatic, debounced (max one rebuild
+  per 15-minute window) static-site rebuild via GitHub Actions, instead
+  of requiring someone to notice and manually redeploy `web/`. Added a
+  6-month slug-change cooldown (contact support to change sooner).
+- **Two real, pre-existing (not introduced by this batch) production
+  sync bugs found and fixed:** `stock_movements.movement_type` has been
+  a MySQL `ENUM` since 2024 that never actually included the values
+  stock transfers write (`transfer_out`/`transfer_in`) — every transfer
+  has silently failed to sync since that feature shipped, only
+  discovered when this batch's own cashier-transfer feature increased
+  transfer volume enough to notice in a live sync error. Converted to
+  `VARCHAR`. Separately, this batch's own `activity_logs.correlation_id`
+  migration was live-caught not yet deployed to production before the
+  column was in active use client-side — see
+  `docs/KNOWN_BUGS.md` Critical section, remove that entry once
+  confirmed deployed.
+- **Verification:** full client (`vitest`, 765 tests) and server
+  (`php artisan test`, 278 tests) suites green throughout, plus fresh
+  regression coverage for the two bugs the review passes caught
+  (`StoreSlugCooldownTest.php` for a Carbon 3 sign bug that would have
+  permanently locked every slug change after the first one).
 
 ---
 

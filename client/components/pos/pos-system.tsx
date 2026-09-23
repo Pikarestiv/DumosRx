@@ -64,6 +64,8 @@ export function POSSystem() {
     clearRedemption,
     isResellerSale,
     setIsResellerSale,
+    markupType,
+    setMarkupType,
     updateUnitPrice,
     canUseSmartSuggestions,
     withRestriction,
@@ -269,6 +271,8 @@ export function POSSystem() {
         onEditPrescription={handleEditPrescription}
         isResellerSale={isResellerSale}
         setIsResellerSale={setIsResellerSale}
+        markupType={markupType}
+        setMarkupType={setMarkupType}
         updateUnitPrice={updateUnitPrice}
         selectedCustomer={selectedCustomer}
         customers={customers}

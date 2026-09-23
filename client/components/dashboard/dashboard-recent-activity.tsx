@@ -15,6 +15,7 @@ import {
   RotateCcw,
   Package,
   Handshake,
+  Tag,
   type LucideIcon,
 } from "lucide-react";
 import type { ActivityFeedItem as ActivityItem } from "@/lib/types/dashboard-activity";
@@ -131,15 +132,26 @@ function ActivityList({
                   <span className="truncate">
                     {activity.message.split(":")[0]}
                   </span>
-                  {!!activity.rawActivity.is_reseller_sale && (
-                    <Badge
-                      variant="secondary"
-                      className="bg-violet-100 text-violet-700 hover:bg-violet-100/80 border-0 shrink-0 gap-1 px-1.5"
-                    >
-                      <Handshake className="h-3 w-3" />
-                      Reseller
-                    </Badge>
-                  )}
+                  {!!activity.rawActivity.is_reseller_sale &&
+                    activity.rawActivity.markup_type === "store" && (
+                      <Badge
+                        variant="secondary"
+                        className="bg-blue-100 text-blue-700 hover:bg-blue-100/80 border-0 shrink-0 gap-1 px-1.5"
+                      >
+                        <Tag className="h-3 w-3" />
+                        Store Markup
+                      </Badge>
+                    )}
+                  {!!activity.rawActivity.is_reseller_sale &&
+                    activity.rawActivity.markup_type !== "store" && (
+                      <Badge
+                        variant="secondary"
+                        className="bg-violet-100 text-violet-700 hover:bg-violet-100/80 border-0 shrink-0 gap-1 px-1.5"
+                      >
+                        <Handshake className="h-3 w-3" />
+                        Reseller
+                      </Badge>
+                    )}
                 </p>
                 <p className="text-xs text-muted-foreground truncate">
                   {activity.message.split(":")[1]?.trim()}

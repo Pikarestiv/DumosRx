@@ -125,6 +125,7 @@ CREATE TABLE IF NOT EXISTS sales (
   points_redeemed REAL DEFAULT 0,
   receipt_printed INTEGER DEFAULT 0,
   is_reseller_sale INTEGER DEFAULT 0,
+  markup_type TEXT DEFAULT 'reseller',
   reseller_commission_percentage REAL DEFAULT 0,
   reseller_commission_amount REAL DEFAULT 0,
   reseller_markup_amount REAL DEFAULT 0,
@@ -346,7 +347,8 @@ CREATE TABLE IF NOT EXISTS stores (
   loyalty_points_per_currency REAL DEFAULT 0.01,
   uppercase_display_enabled INTEGER DEFAULT 1,
   loyalty_defaults_seeded_at TEXT,
-  staff_can_request_transfers INTEGER DEFAULT 0
+  staff_can_request_transfers INTEGER DEFAULT 0,
+  markup_sales_enabled INTEGER DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS expenses (

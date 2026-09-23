@@ -36,7 +36,7 @@ export function RegisterConfigCard({
   uppercaseDisplayEnabled,
   setUppercaseDisplayEnabled,
 }: RegisterConfigCardProps) {
-  const { updateStoreProfile } = useStore();
+  const { storeProfile, updateStoreProfile } = useStore();
 
   // Each row saves immediately on toggle — same as Payment Methods — rather
   // than sitting behind a Save button, so there's nothing to persist directly
@@ -70,6 +70,15 @@ export function RegisterConfigCard({
       onCheckedChange: (checked) => {
         setUppercaseDisplayEnabled(checked);
         void updateStoreProfile({ uppercase_display_enabled: checked ? 1 : 0 });
+      },
+    },
+    {
+      id: "markup-sales",
+      label: "Enable Markup Sales",
+      description: "Let staff mark up a sale's price at checkout - either for a reseller agent (commission owed) or as a store markup kept in-house. Off by default.",
+      checked: storeProfile?.markup_sales_enabled === 1,
+      onCheckedChange: (checked) => {
+        void updateStoreProfile({ markup_sales_enabled: checked ? 1 : 0 });
       },
     },
   ];

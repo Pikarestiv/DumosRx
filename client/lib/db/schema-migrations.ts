@@ -222,6 +222,13 @@ const SYNC_COLUMN_MIGRATIONS: { table: string; columns: string[] }[] = [
       "reseller_commission_claim_type TEXT",
       "reseller_commission_redeemed_at TEXT",
       "reseller_commission_redeemed_by TEXT",
+      // Distinguishes a real reseller/agent sale (commission owed, subject
+      // to the redeem/store-claim decision above) from a store staff
+      // member simply pricing above normal for their own reasons (markup
+      // goes straight to the store, pre-settled - see use-pos-payment.ts).
+      // DEFAULT 'reseller' so every existing is_reseller_sale row keeps its
+      // current pending-redemption behavior unchanged.
+      "markup_type TEXT DEFAULT 'reseller'",
     ],
   },
   {
@@ -502,6 +509,11 @@ const SYNC_COLUMN_MIGRATIONS: { table: string; columns: string[] }[] = [
       // stock-transfers.ts), so this stays opt-in rather than silently
       // granting every existing store's staff that ability on upgrade.
       "staff_can_request_transfers INTEGER DEFAULT 0",
+      // Off by default: gates the POS cart's entire "Reseller sale" row
+      // (both the reseller-commission and store-markup sub-types) behind
+      // an explicit owner opt-in, on top of the existing plan-tier check -
+      // see isMarkupSalesEnabled in use-feature-gate.ts.
+      "markup_sales_enabled INTEGER DEFAULT 0",
     ],
   },
   {

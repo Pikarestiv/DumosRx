@@ -28,17 +28,24 @@ export interface RedeemedOption {
   discountValue: number;
 }
 
+export type MarkupType = "reseller" | "store";
+
 interface POSCartState {
   cart: CartItem[];
   discount: number;
   discountType: "fixed" | "percentage";
   redeemedOption: RedeemedOption | null;
   isResellerSale: boolean;
+  /** Which kind of markup this is: a real reseller/agent (commission owed)
+   * or a store-kept markup. Only meaningful while isResellerSale is true;
+   * null until the cashier picks one (see pos-cart.tsx). */
+  markupType: MarkupType | null;
   setCart: (cart: CartItem[] | ((prev: CartItem[]) => CartItem[])) => void;
   setDiscount: (discount: number) => void;
   setDiscountType: (type: "fixed" | "percentage") => void;
   setRedeemedOption: (option: RedeemedOption | null) => void;
   setIsResellerSale: (value: boolean) => void;
+  setMarkupType: (value: MarkupType | null) => void;
 }
 
 const usePOSCartStore = create<POSCartState>()(
@@ -49,6 +56,7 @@ const usePOSCartStore = create<POSCartState>()(
       discountType: "fixed",
       redeemedOption: null,
       isResellerSale: false,
+      markupType: null,
       setCart: (updater) =>
         set((state) => ({
           cart: typeof updater === "function" ? updater(state.cart) : updater,
@@ -57,6 +65,7 @@ const usePOSCartStore = create<POSCartState>()(
       setDiscountType: (discountType) => set({ discountType }),
       setRedeemedOption: (redeemedOption) => set({ redeemedOption }),
       setIsResellerSale: (isResellerSale) => set({ isResellerSale }),
+      setMarkupType: (markupType) => set({ markupType }),
     }),
     {
       name: "pos-cart-storage",
@@ -81,6 +90,7 @@ export function clearPOSCartStorage() {
     discountType: "fixed",
     redeemedOption: null,
     isResellerSale: false,
+    markupType: null,
   });
 }
 
@@ -97,6 +107,8 @@ export function usePOSCart(products: Product[]) {
   const setRedeemedOption = usePOSCartStore((state) => state.setRedeemedOption);
   const isResellerSale = usePOSCartStore((state) => state.isResellerSale);
   const setStoreIsResellerSale = usePOSCartStore((state) => state.setIsResellerSale);
+  const markupType = usePOSCartStore((state) => state.markupType);
+  const setMarkupType = usePOSCartStore((state) => state.setMarkupType);
   const [isHydrated, setIsHydrated] = useState(false);
 
   // A manual discount edit and a loyalty redemption share the same discount
@@ -243,6 +255,7 @@ export function usePOSCart(products: Product[]) {
           subtotal: item.original_unit_price * item.quantity,
         })),
       );
+      setMarkupType(null);
     }
   };
 
@@ -250,6 +263,7 @@ export function usePOSCart(products: Product[]) {
     setCart([]);
     setDiscount(0);
     setStoreIsResellerSale(false);
+    setMarkupType(null);
   };
 
   const restoreCart = (
@@ -287,5 +301,7 @@ export function usePOSCart(products: Product[]) {
     updateUnitPrice,
     isResellerSale: isHydrated ? isResellerSale : false,
     setIsResellerSale,
+    markupType: isHydrated ? markupType : null,
+    setMarkupType,
   };
 }

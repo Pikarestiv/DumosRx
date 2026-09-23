@@ -77,6 +77,10 @@ export interface StoreProfile {
    * Admin-tier roles (see checkIsAdmin) can always request transfers
    * regardless of this setting. */
   staff_can_request_transfers?: number;
+  /** Off by default: gates the POS cart's "Reseller sale" row (both the
+   * reseller-commission and store-markup sub-types) - see
+   * isMarkupSalesEnabled in use-feature-gate.ts. */
+  markup_sales_enabled?: number;
 }
 
 interface StoreContextType {

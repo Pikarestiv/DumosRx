@@ -73,6 +73,7 @@ describe("usePOSPayment reseller commission", () => {
       clearCart: () => {},
       refetchProducts: () => {},
       isResellerSale: true,
+      markupType: "reseller",
       resellerCommissionPercentage: 20,
     });
 
@@ -83,9 +84,70 @@ describe("usePOSPayment reseller commission", () => {
 
     // Markup = (150-100)*1 + (20-20)*2 = 50. Commission = 50 * 20% = 10.
     const rows = db.exec(
-      `SELECT is_reseller_sale, reseller_commission_percentage, reseller_commission_amount, reseller_markup_amount FROM sales`,
+      `SELECT is_reseller_sale, markup_type, reseller_commission_percentage, reseller_commission_amount, reseller_markup_amount, reseller_commission_redeemed FROM sales`,
     );
-    expect(rows[0].values[0]).toEqual([1, 20, 10, 50]);
+    expect(rows[0].values[0]).toEqual([1, "reseller", 20, 10, 50, 0]);
+  });
+
+  it("pre-settles a store-markup sale at checkout - no commission owed, nothing pending", async () => {
+    const cartItem = {
+      id: "p1", name: "Cement Bag", unit_price: 150, original_unit_price: 100,
+      cost_price: 60, quantity: 1, subtotal: 150,
+    } as any;
+
+    const handle = renderPayment({
+      cart: [cartItem],
+      subtotal: 150,
+      tax: 0,
+      total: 150,
+      discount: 0,
+      selectedCustomer: null,
+      clearCart: () => {},
+      refetchProducts: () => {},
+      isResellerSale: true,
+      markupType: "store",
+      resellerCommissionPercentage: 20,
+    });
+
+    act(() => handle.get().setAmountPaid("150"));
+    await act(async () => {
+      await handle.get().handlePayment();
+    });
+
+    // Markup = 150-100 = 50, but store keeps it all - no commission, and
+    // already marked redeemed/store_claim at checkout, not left pending.
+    const rows = db.exec(
+      `SELECT is_reseller_sale, markup_type, reseller_commission_amount, reseller_markup_amount, reseller_commission_redeemed, reseller_commission_claim_type FROM sales`,
+    );
+    expect(rows[0].values[0]).toEqual([1, "store", 0, 50, 1, "store_claim"]);
+  });
+
+  it("blocks checkout when reseller sale is on but no markup type was chosen", async () => {
+    const cartItem = {
+      id: "p1", name: "Cement Bag", unit_price: 150, original_unit_price: 100,
+      cost_price: 60, quantity: 1, subtotal: 150,
+    } as any;
+
+    const handle = renderPayment({
+      cart: [cartItem],
+      subtotal: 150,
+      tax: 0,
+      total: 150,
+      discount: 0,
+      selectedCustomer: null,
+      clearCart: () => {},
+      refetchProducts: () => {},
+      isResellerSale: true,
+      resellerCommissionPercentage: 20,
+    });
+
+    act(() => handle.get().setAmountPaid("150"));
+    await act(async () => {
+      await handle.get().handlePayment();
+    });
+
+    const rows = db.exec(`SELECT COUNT(*) FROM sales`);
+    expect(rows[0].values[0]).toEqual([0]);
   });
 
   it("writes no commission fields when isResellerSale is false, even if prices differ from original", async () => {

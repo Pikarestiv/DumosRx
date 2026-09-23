@@ -52,6 +52,12 @@ interface UsePOSPaymentProps {
    * loyalty writes rather than silently bypassing the gate. */
   canUseLoyaltyProgram?: boolean;
   isResellerSale?: boolean;
+  /** "reseller" (commission owed, goes through the redeem/store-claim
+   * flow) or "store" (markup kept by the store, pre-settled at checkout -
+   * see use-pos-payment-helpers.ts's computeResellerCommission). Required
+   * whenever isResellerSale is true - validatePaymentReadiness blocks
+   * checkout otherwise. */
+  markupType?: "reseller" | "store" | null;
   /** Store-wide % of the markup remitted to the reseller - snapshotted onto
    * the sale at checkout time, never recalculated later. */
   resellerCommissionPercentage?: number;
@@ -87,6 +93,7 @@ export function usePOSPayment({
   isRefillDispense = false,
   canUseLoyaltyProgram = false,
   isResellerSale = false,
+  markupType = null,
   resellerCommissionPercentage = 0,
   loyaltyPointsPerCurrency = 0.01,
   onInsufficientLoyaltyPoints,
@@ -122,6 +129,8 @@ export function usePOSPayment({
       paymentSplits,
       requirePaymentAccount,
       selectedAccountId,
+      isResellerSale,
+      markupType,
     });
     if (validationError) {
       toast.error(validationError);
@@ -150,8 +159,14 @@ export function usePOSPayment({
       const { resellerMarkup, resellerCommissionAmount } = computeResellerCommission({
         cart,
         isResellerSale,
+        markupType,
         resellerCommissionPercentage,
       });
+      // A store-markup sale has no reseller to pay, so there's nothing to
+      // redeem later - settle it right here, at checkout, instead of
+      // leaving it sitting in "Not yet redeemed" until someone remembers
+      // to click Store Claims Markup in Transaction Details.
+      const isStoreMarkup = isResellerSale && markupType === "store";
 
       // Every write below (the sale row, its line items + stock deduction,
       // any credit-balance update, loyalty points) must land together or
@@ -220,9 +235,17 @@ export function usePOSPayment({
           notes: saleNote.trim() || "POS Sale",
           prescription_id: dispensedRxId || null,
           is_reseller_sale: isResellerSale ? 1 : 0,
+          markup_type: isResellerSale ? markupType : null,
           reseller_commission_percentage: isResellerSale ? resellerCommissionPercentage : 0,
           reseller_commission_amount: resellerCommissionAmount,
           reseller_markup_amount: resellerMarkup,
+          ...(isStoreMarkup && {
+            reseller_commission_redeemed: 1,
+            reseller_commission_redeemed_amount: 0,
+            reseller_commission_claim_type: "store_claim",
+            reseller_commission_redeemed_at: new Date().toISOString(),
+            reseller_commission_redeemed_by: cashierId,
+          }),
         }, { correlationId: newSaleId });
 
         for (const item of cart) {

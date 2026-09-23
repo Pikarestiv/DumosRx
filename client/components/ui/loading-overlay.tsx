@@ -9,6 +9,10 @@ interface LoadingOverlayProps {
    * the bar at its pre-step value and jump when they resolve - that's
    * expected, not a bug. */
   progress?: number;
+  /** Shows a Cancel button when provided. Only wire this up for steps that
+   * can actually be aborted cleanly (e.g. terminating a Web Worker) - for a
+   * synchronous main-thread step there's nothing to cancel into. */
+  onCancel?: () => void;
 }
 
 /** Full-viewport overlay for work that runs long enough to look like the app
@@ -17,7 +21,7 @@ interface LoadingOverlayProps {
  * to show for it. Mount it, then yield a frame (e.g.
  * `await new Promise(r => requestAnimationFrame(r))`) before starting a
  * synchronous step, so the overlay actually gets to paint first. */
-export function LoadingOverlay({ message = "Working...", progress }: LoadingOverlayProps) {
+export function LoadingOverlay({ message = "Working...", progress, onCancel }: LoadingOverlayProps) {
   const showBar = typeof progress === "number";
   return (
     <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center gap-3 bg-background/80 backdrop-blur-sm">
@@ -36,6 +40,15 @@ export function LoadingOverlay({ message = "Working...", progress }: LoadingOver
         {message}
         {showBar && ` (${Math.round(progress)}%)`}
       </p>
+      {onCancel && (
+        <button
+          type="button"
+          onClick={onCancel}
+          className="mt-1 text-xs font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+        >
+          Cancel
+        </button>
+      )}
     </div>
   );
 }

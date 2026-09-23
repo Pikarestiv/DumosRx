@@ -18,7 +18,6 @@ import { useSortableData } from "@/lib/hooks/use-sortable-data";
 import { useQuickEditExpenseMutation } from "@/lib/hooks/use-expense-mutations";
 import { ExpenseDesktopRow, CATEGORY_META, type ExpenseDraft } from "./expense-desktop-row";
 import { EmptyState as SharedEmptyState } from "@/components/ui/empty-state";
-import { useAuth } from "@/lib/context/auth-context";
 
 type ExpenseSortKey = "date" | "category" | "description" | "method" | "amount";
 
@@ -45,7 +44,6 @@ export function ExpenseList() {
     selectedExpense,
     expenses,
   } = useExpensesPage();
-  const { isAdmin } = useAuth();
 
   const { sortKey, direction, toggleSort, sortedData: sortedExpenses } =
     useSortableData<Expense, ExpenseSortKey>(filteredExpenses, {
@@ -106,11 +104,7 @@ export function ExpenseList() {
       icon={ReceiptText}
       title="No expenses found"
       className="p-10"
-      action={
-        isAdmin
-          ? { label: "Add Expense", href: "/expenses?action=add" }
-          : undefined
-      }
+      action={{ label: "Add Expense", href: "/expenses?action=add" }}
     />
   );
 

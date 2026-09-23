@@ -53,22 +53,6 @@ export function ReportsTabNav({ isAdmin }: ReportsTabNavProps) {
           <ResponsiveTabLabel short="Analytics" long="Analytics & Insights" />
         </TabsTrigger>
       )}
-      {isAdmin && (
-        <TabsTrigger value="reseller_commission" className={tabTriggerClass}>
-          <svg
-            className="w-3.5 h-3.5"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <path d="M21 12V7H5a2 2 0 010-4h14v4" />
-            <path d="M3 5v14a2 2 0 002 2h16v-5" />
-            <path d="M18 12a2 2 0 000 4h4v-4z" />
-          </svg>
-          <ResponsiveTabLabel short="Reseller" long="Reseller Commission" />
-        </TabsTrigger>
-      )}
     </TabsList>
   );
 }

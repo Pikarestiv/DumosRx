@@ -61,7 +61,7 @@ export function MobileMoreDrawer({
           { name: "Activity Log", href: "/activity-log", icon: History },
           { name: "Settings", href: "/settings", icon: Settings },
         ]
-      : []),
+      : [{ name: "Expenses", href: "/expenses", icon: Wallet }]),
   ];
 
   return (

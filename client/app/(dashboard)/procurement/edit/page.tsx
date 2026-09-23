@@ -161,7 +161,12 @@ function EditOrderContent() {
         notes,
         items,
         paymentStatus,
-        amountPaid: paymentStatus !== "unpaid" ? Number(amountPaid) || 0 : 0,
+        amountPaid:
+          paymentStatus === "unpaid"
+            ? 0
+            : paymentStatus === "paid"
+              ? totalAmount
+              : Math.min(Number(amountPaid) || 0, totalAmount),
         dueDate: dueDate || null,
       },
       {
@@ -291,7 +296,6 @@ function EditOrderContent() {
         setDueDate={setDueDate}
         amountPaid={amountPaid}
         setAmountPaid={setAmountPaid}
-        totalAmount={totalAmount}
         onOpenAddSupplier={() => setIsAddSupplierOpen(true)}
       />
 

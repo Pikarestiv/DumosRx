@@ -12,7 +12,6 @@ import { DatePickerInput } from "@/components/ui/date-picker-input";
 import { getLocalTodayDate } from "@/lib/utils";
 
 import { DailyCloseReport } from "@/components/reports/daily-close-report";
-import { ResellerCommissionPanel } from "@/components/reports/reseller-commission/reseller-commission-panel";
 import { ReportsTabNav } from "./reports-tab-nav";
 import { LockedModuleOverlay } from "@/components/dashboard/locked-module-overlay";
 
@@ -29,7 +28,6 @@ export default function ReportsPage() {
     if (tabParam === "daily_close") return "daily_close";
     if (isAdmin && tabParam === "analytics") return "analytics";
     if (isAdmin && tabParam === "reports") return "reports";
-    if (isAdmin && tabParam === "reseller_commission") return "reseller_commission";
     return defaultTab;
   });
 
@@ -40,7 +38,6 @@ export default function ReportsPage() {
       if (tabParam === "daily_close") setActiveTab("daily_close");
       else if (isAdmin && tabParam === "analytics") setActiveTab("analytics");
       else if (isAdmin && tabParam === "reports") setActiveTab("reports");
-      else if (isAdmin && tabParam === "reseller_commission") setActiveTab("reseller_commission");
       else setActiveTab(defaultTab);
     }
   }, [tabParam, isAdmin, defaultTab]);
@@ -95,15 +92,6 @@ export default function ReportsPage() {
           <div className="relative w-full h-full min-h-[500px]">
             <LockedModuleOverlay featureName="Advanced Reports" featureKey="advanced_reports" />
             <BusinessIntelligenceDashboard />
-          </div>
-        </TabsContent>
-      )}
-
-      {isAdmin && (
-        <TabsContent value="reseller_commission" className="mt-0 border-none p-0">
-          <div className="relative w-full h-full min-h-[500px]">
-            <LockedModuleOverlay featureName="Reseller Commission" featureKey="reseller_commission" />
-            <ResellerCommissionPanel />
           </div>
         </TabsContent>
       )}

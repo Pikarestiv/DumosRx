@@ -18,6 +18,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getTransactionDetails } from "@/lib/db/queries/sales";
 import { getCustomerById } from "@/lib/db/queries/customers";
 import { useRecordCustomerPaymentMutation } from "@/lib/hooks/use-customer-mutations";
+import { useRedeemResellerCommissionMutation } from "@/lib/hooks/use-redeem-reseller-commission-mutation";
 import { queryKeys } from "@/lib/query-keys";
 import { usePrintReceipt } from "./use-print-receipt";
 import { RecordPaymentModal } from "@/components/customers/record-payment-modal";
@@ -41,7 +42,8 @@ export function TransactionDetailsDialog({
   currencyCode,
   onReturnClick,
 }: TransactionDetailsDialogProps) {
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
+  const showProfit = user?.role !== "sales_staff";
   const { print, portal } = usePrintReceipt();
   const queryClient = useQueryClient();
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -60,8 +62,31 @@ export function TransactionDetailsDialog({
   const items = detailsData?.items || [];
   const returnsData = detailsData?.returnsData || [];
   const recordPaymentMutation = useRecordCustomerPaymentMutation();
+  const redeemMutation = useRedeemResellerCommissionMutation();
 
   if (!sale) return null;
+
+  const handleRedeemCommission = async (
+    claimType: "commission" | "store_claim",
+  ) => {
+    try {
+      await redeemMutation.mutateAsync({
+        saleId: sale.id,
+        userId: user?.id,
+        claimType,
+      });
+      void queryClient.invalidateQueries({ queryKey: ["resellerCommission"] });
+      void queryClient.invalidateQueries({ queryKey: ["sales"] });
+      toast.success(
+        claimType === "commission"
+          ? "Commission marked as redeemed"
+          : "Markup kept as store revenue",
+      );
+    } catch (error) {
+      console.error("Failed to redeem reseller commission:", error);
+      toast.error("Failed to redeem commission. Please try again.");
+    }
+  };
 
   const hasOutstandingBalance =
     (sale.payment_status === "pending" || sale.payment_status === "partial") &&
@@ -220,17 +245,65 @@ export function TransactionDetailsDialog({
               </p>
             )}
           </div>
-          <div>
-            <p className="text-xs sm:text-sm text-muted-foreground">
-              Total Profit
-            </p>
-            <p
-              className={`font-medium text-base sm:text-lg ${profit >= 0 ? "text-emerald-600" : "text-destructive"}`}
-            >
-              {formatCurrency(profit, currencyCode)}
-            </p>
-          </div>
+          {showProfit && (
+            <div>
+              <p className="text-xs sm:text-sm text-muted-foreground">
+                Total Profit
+              </p>
+              <p
+                className={`font-medium text-base sm:text-lg ${profit >= 0 ? "text-emerald-600" : "text-destructive"}`}
+              >
+                {formatCurrency(profit, currencyCode)}
+              </p>
+            </div>
+          )}
         </div>
+
+        {!!sale.is_reseller_sale && isAdmin && (
+          <div className="mt-3 p-3 sm:p-4 border border-violet-200 bg-violet-50 dark:bg-violet-950/20 dark:border-violet-900 rounded-lg space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm font-medium text-violet-700 dark:text-violet-300">
+                Reseller markup:{" "}
+                {formatCurrency(sale.reseller_markup_amount || 0, currencyCode)}
+              </p>
+              {sale.reseller_commission_redeemed ? (
+                <span className="text-xs font-medium text-emerald-600">
+                  {sale.reseller_commission_claim_type === "store_claim"
+                    ? "Store kept markup"
+                    : "Commission redeemed"}
+                  {sale.reseller_commission_redeemed_at &&
+                    ` on ${formatDateToDDMMYYYY(sale.reseller_commission_redeemed_at)}`}
+                </span>
+              ) : (
+                <span className="text-xs font-medium text-amber-600">
+                  Not yet redeemed
+                </span>
+              )}
+            </div>
+            {!sale.reseller_commission_redeemed && (
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => void handleRedeemCommission("commission")}
+                  disabled={redeemMutation.isPending}
+                >
+                  Redeem Commission
+                </Button>
+                {(sale.reseller_markup_amount || 0) > 0 && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => void handleRedeemCommission("store_claim")}
+                    disabled={redeemMutation.isPending}
+                  >
+                    Store Claims Markup
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         <TransactionItemsView items={items} currencyCode={currencyCode} />
       </ScrollFade>

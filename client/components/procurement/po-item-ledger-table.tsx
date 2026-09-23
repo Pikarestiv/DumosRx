@@ -58,15 +58,35 @@ export function POItemLedgerTable({
           <div role="row" className={`grid ${gridCols} bg-muted/40 text-muted-foreground text-[11px] uppercase font-semibold`}>
             <div role="columnheader" className="text-left px-3 py-2 sticky left-0 bg-muted/40">Item</div>
             {poType === "immediate" && (
-              <div role="columnheader" className="text-right px-3 py-2">Stock</div>
+              <div
+                role="columnheader"
+                className="text-right px-3 py-2"
+                title="Quantity currently on hand, before this order is received"
+              >
+                Stock
+              </div>
             )}
             <div role="columnheader" className="text-right px-3 py-2">
               {poType === "immediate" ? "Received" : "Qty"}
             </div>
             {poType === "immediate" && (
-              <div role="columnheader" className="text-right px-3 py-2">Current Cost</div>
+              <div
+                role="columnheader"
+                className="text-right px-3 py-2"
+                title="The product's cost price on file before this order - for comparison only, not editable here"
+              >
+                Current Cost
+              </div>
             )}
-            <div role="columnheader" className="text-right px-3 py-2">
+            <div
+              role="columnheader"
+              className="text-right px-3 py-2"
+              title={
+                poType === "immediate"
+                  ? "The cost you're actually paying this time - leave blank to keep using the product's current cost"
+                  : undefined
+              }
+            >
               {poType === "immediate" ? "New Cost" : "Unit Cost"}
             </div>
             {poType === "immediate" && (
@@ -79,7 +99,13 @@ export function POItemLedgerTable({
               {poType === "immediate" ? "Total" : "Subtotal"}
             </div>
             {poType === "immediate" && (
-              <div role="columnheader" className="text-right px-3 py-2">Sell Price</div>
+              <div
+                role="columnheader"
+                className="text-right px-3 py-2"
+                title="Updates the product's selling price store-wide once this order is received - leave blank to keep the current price"
+              >
+                Sell Price
+              </div>
             )}
             <div role="columnheader" />
           </div>

@@ -45,7 +45,7 @@ export function ActivityLogDesktopTable({
     >
       <div
         role="rowgroup"
-        className="sticky top-0 z-10 bg-muted/40 border-b border-border"
+        className="sticky top-0 z-10 bg-muted border-b border-border"
       >
         <div
           role="row"

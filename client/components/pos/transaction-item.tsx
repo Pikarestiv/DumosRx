@@ -1,6 +1,6 @@
 import React from 'react';
 import { format, parseISO } from 'date-fns';
-import { Receipt, RotateCcw, Banknote, CreditCard, ArrowLeftRight, Pill } from 'lucide-react';
+import { Receipt, RotateCcw, Banknote, CreditCard, ArrowLeftRight, Pill, Handshake } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { formatCurrency } from '@/lib/utils';
@@ -145,6 +145,15 @@ export function TransactionItem({
               >
                 <Pill className="h-3 w-3" />
                 Rx
+              </Badge>
+            )}
+            {!!sale.is_reseller_sale && (
+              <Badge
+                variant="secondary"
+                className="bg-violet-100 text-violet-700 hover:bg-violet-100/80 border-0 shrink-0 gap-1 px-1.5"
+              >
+                <Handshake className="h-3 w-3" />
+                Reseller
               </Badge>
             )}
           </div>

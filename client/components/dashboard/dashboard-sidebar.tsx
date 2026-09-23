@@ -94,6 +94,7 @@ export function DashboardSidebar({
           { name: "Activity Log", href: "/activity-log", icon: History },
         ]
       : [
+          { name: "Expenses", href: "/expenses", icon: Wallet },
           {
             name: "Daily Close",
             href: "/reports?tab=daily_close",

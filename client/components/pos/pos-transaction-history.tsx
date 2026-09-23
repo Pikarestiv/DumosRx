@@ -41,6 +41,7 @@ export function POSTransactionHistory({
   const [searchQuery, setSearchQuery] = useState("");
   const [dateRange, setDateRange] = useState<DateRangeValue>({});
   const [paymentFilter, setPaymentFilter] = useState<string>("All");
+  const [saleTypeFilter, setSaleTypeFilter] = useState<string>("All");
 
   const { user } = useAuth();
   // Was only checking the literal strings "store_owner"/"admin"/"manager".
@@ -135,9 +136,12 @@ export function POSTransactionHistory({
         if (sale.payment_method?.toLowerCase() !== paymentFilter.toLowerCase())
           return false;
       }
+      if (saleTypeFilter === "Reseller" && !sale.is_reseller_sale) {
+        return false;
+      }
       return true;
     });
-  }, [salesSource, searchQuery, paymentFilter]);
+  }, [salesSource, searchQuery, paymentFilter, saleTypeFilter]);
 
   // Group by relative date
   const groupedSales = useMemo(() => {
@@ -182,6 +186,8 @@ export function POSTransactionHistory({
         setDateRange={setDateRange}
         paymentFilter={paymentFilter}
         setPaymentFilter={setPaymentFilter}
+        saleTypeFilter={saleTypeFilter}
+        setSaleTypeFilter={setSaleTypeFilter}
       />
 
       <TransactionList

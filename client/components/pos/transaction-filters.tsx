@@ -11,6 +11,8 @@ interface TransactionFiltersProps {
   setDateRange: (range: DateRangeValue) => void;
   paymentFilter: string;
   setPaymentFilter: (filter: string) => void;
+  saleTypeFilter: string;
+  setSaleTypeFilter: (filter: string) => void;
 }
 
 const PAYMENT_OPTIONS = [
@@ -19,6 +21,8 @@ const PAYMENT_OPTIONS = [
   { value: "Transfer", label: "Transfer" },
 ];
 
+const SALE_TYPE_OPTIONS = [{ value: "Reseller", label: "Reseller" }];
+
 export function TransactionFilters({
   searchQuery,
   setSearchQuery,
@@ -26,6 +30,8 @@ export function TransactionFilters({
   setDateRange,
   paymentFilter,
   setPaymentFilter,
+  saleTypeFilter,
+  setSaleTypeFilter,
 }: TransactionFiltersProps) {
   return (
     <div className="flex flex-col gap-4">
@@ -55,6 +61,13 @@ export function TransactionFilters({
           value={paymentFilter}
           onValueChange={setPaymentFilter}
           options={PAYMENT_OPTIONS}
+          allValue="All"
+        />
+        <FilterPill
+          label="Sale Type"
+          value={saleTypeFilter}
+          onValueChange={setSaleTypeFilter}
+          options={SALE_TYPE_OPTIONS}
           allValue="All"
         />
       </div>

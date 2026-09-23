@@ -257,12 +257,15 @@ export function buildStockAuditRows(
   return { headers, rows, columnFlex };
 }
 
-export function buildExportBlob(
-  products: ExportableProduct[],
-  columns: (keyof ExportableProduct)[],
+/** Shared by buildExportBlob (product columns) and any other flat
+ * headers/rows export (e.g. the Stock Audit sheet) that isn't shaped like
+ * ExportableProduct - same CSV/XLSX writer, just not tied to product columns. */
+export function buildBlobFromRows(
+  headers: string[],
+  data: Record<string, unknown>[],
   format: "csv" | "xlsx",
+  sheetName = "Sheet1",
 ): Blob {
-  const { headers, rows: data } = buildExportRows(products, columns);
   const sheet = XLSX.utils.json_to_sheet(data, { header: headers });
 
   if (format === "csv") {
@@ -271,9 +274,18 @@ export function buildExportBlob(
   }
 
   const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, sheet, "Products");
+  XLSX.utils.book_append_sheet(workbook, sheet, sheetName);
   const buffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
   return new Blob([buffer], {
     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   });
+}
+
+export function buildExportBlob(
+  products: ExportableProduct[],
+  columns: (keyof ExportableProduct)[],
+  format: "csv" | "xlsx",
+): Blob {
+  const { headers, rows: data } = buildExportRows(products, columns);
+  return buildBlobFromRows(headers, data, format, "Products");
 }

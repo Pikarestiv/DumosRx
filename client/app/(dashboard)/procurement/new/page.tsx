@@ -151,7 +151,7 @@ function CreateOrderContent() {
           notes,
           items,
           paymentStatus,
-          amountPaid: paymentStatus !== "unpaid" ? getValidatedAmountPaid(amountPaid, totalAmount) : 0,
+          amountPaid: paymentStatus === "unpaid" ? 0 : paymentStatus === "paid" ? totalAmount : getValidatedAmountPaid(amountPaid, totalAmount),
           dueDate: dueDate || null,
         },
         {
@@ -174,7 +174,7 @@ function CreateOrderContent() {
           notes,
           items,
           paymentStatus,
-          amountPaid: paymentStatus !== "unpaid" ? getValidatedAmountPaid(amountPaid, totalAmount) : 0,
+          amountPaid: paymentStatus === "unpaid" ? 0 : paymentStatus === "paid" ? totalAmount : getValidatedAmountPaid(amountPaid, totalAmount),
           dueDate: dueDate || null,
         },
         {
@@ -217,7 +217,7 @@ function CreateOrderContent() {
         notes,
         items,
         paymentStatus,
-        amountPaid: paymentStatus !== "unpaid" ? getValidatedAmountPaid(amountPaid, totalAmount) : 0,
+        amountPaid: paymentStatus === "unpaid" ? 0 : paymentStatus === "paid" ? totalAmount : getValidatedAmountPaid(amountPaid, totalAmount),
         dueDate: dueDate || null,
         type: poType,
       },

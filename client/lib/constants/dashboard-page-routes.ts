@@ -154,7 +154,6 @@ export const PAGE_ROUTES: PageRoute[] = [
     title: "Expenses",
     desc: "Track and manage your pharmacy's operational expenses.",
     action: { label: "Add Expense", path: "/expenses?action=add" },
-    actionAdminOnly: true,
   },
   {
     path: "/reports",

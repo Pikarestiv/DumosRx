@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { DollarSign } from "lucide-react";
 import type { Product } from "./use-product-details";
+import { useAuth } from "@/lib/context/auth-context";
 
 interface ProductPricingInfoProps {
   product: Product;
@@ -14,6 +15,8 @@ export function ProductPricingInfo({
   formatPrice,
   profitMargin,
 }: ProductPricingInfoProps) {
+  const { user } = useAuth();
+  const showProfit = user?.role !== "sales_staff";
   const unit = product.baseUnit || "unit";
 
   return (
@@ -56,22 +59,26 @@ export function ProductPricingInfo({
             </p>
           </div>
         )}
-        <Separator />
-        <div>
-          <p className="text-sm text-muted-foreground">Profit Margin</p>
-          <p className="font-bold text-lg text-primary">
-            {profitMargin !== null ? `${profitMargin}%` : "-"}
-          </p>
-          <p className="text-xs text-muted-foreground">Based on avg. cost</p>
-        </div>
-        <div>
-          <p className="text-sm text-muted-foreground">Profit per {unit}</p>
-          <p className="font-bold text-lg text-primary">
-            {product.costPrice > 0
-              ? formatPrice(product.sellingPrice - product.costPrice)
-              : "-"}
-          </p>
-        </div>
+        {showProfit && (
+          <>
+            <Separator />
+            <div>
+              <p className="text-sm text-muted-foreground">Profit Margin</p>
+              <p className="font-bold text-lg text-primary">
+                {profitMargin !== null ? `${profitMargin}%` : "-"}
+              </p>
+              <p className="text-xs text-muted-foreground">Based on avg. cost</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Profit per {unit}</p>
+              <p className="font-bold text-lg text-primary">
+                {product.costPrice > 0
+                  ? formatPrice(product.sellingPrice - product.costPrice)
+                  : "-"}
+              </p>
+            </div>
+          </>
+        )}
       </CardContent>
     </Card>
   );

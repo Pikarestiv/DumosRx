@@ -64,6 +64,8 @@ class Store extends Model
         'reseller_commission_percentage',
         'loyalty_points_per_currency',
         'loyalty_defaults_seeded_at',
+        'staff_can_request_transfers',
+        'markup_sales_enabled',
     ];
 
     protected $casts = [
@@ -75,6 +77,8 @@ class Store extends Model
         'require_sale_notes' => 'boolean',
         'display_stock_levels' => 'boolean',
         'uppercase_display_enabled' => 'boolean',
+        'staff_can_request_transfers' => 'boolean',
+        'markup_sales_enabled' => 'boolean',
         'last_sync_at' => 'datetime',
         '_synced_at' => 'datetime',
         'loyalty_defaults_seeded_at' => 'datetime',

@@ -129,15 +129,22 @@ self.addEventListener("fetch", (event) => {
         const cache = await caches.open(CACHE_VERSION);
         try {
           const response = await fetch(request);
-          if (response.ok && isHtmlResponse(response)) {
+          // Deliberately NOT gated on response.ok: a genuine, current 404/
+          // 500 HTML error page from the network is still real, current
+          // information and must be shown/cached as-is (this matches the
+          // pre-existing behavior before the isHtmlResponse guard below was
+          // added) - only its body's actual type matters here, not its
+          // status code.
+          if (isHtmlResponse(response)) {
             await cache.put(request, response.clone());
             return response;
           }
-          // A non-HTML or non-ok network response for a navigation (a
-          // misrouted request, an intermediary's error page, ...) is never
-          // trustworthy enough to show the user or to cache - fall through
-          // to the offline cache path below instead of returning it.
-          throw new Error(`Unexpected navigate response: ${response.status} ${response.headers.get("content-type")}`);
+          // A non-HTML network response for a navigation (an RSC flight
+          // payload landing here instead of at its own .txt URL, a
+          // misrouted request, ...) is never trustworthy enough to show the
+          // user or to cache - fall through to the offline cache path below
+          // instead of returning it.
+          throw new Error(`Unexpected navigate response content-type: ${response.headers.get("content-type")}`);
         } catch {
           const cached = await cache.match(request);
           if (isHtmlResponse(cached)) return cached;

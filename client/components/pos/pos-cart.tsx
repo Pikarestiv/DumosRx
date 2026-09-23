@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   ShoppingCart,
   Trash2,
@@ -86,6 +86,19 @@ export function POSCart({
   const [showRequestDialog, setShowRequestDialog] = useState(false);
   const [showProformaDialog, setShowProformaDialog] = useState(false);
   const { withRestriction, canUseResellerCommission, canUseMarkupSales, canUseProformaQuotes } = useFeatureGate();
+
+  // canUseMarkupSales can flip false mid-session (an admin disables the
+  // markup_sales_enabled toggle on another device, or downgrades plan) -
+  // without this, a cart that already had isResellerSale persisted true
+  // would lose the entire row below (including the only Switch that turns
+  // it back off), leaving validatePaymentReadiness's markup-type-required
+  // guard permanently blocking checkout with no way to clear it short of
+  // discarding the cart.
+  useEffect(() => {
+    if (!canUseMarkupSales && isResellerSale) {
+      setIsResellerSale?.(false);
+    }
+  }, [canUseMarkupSales, isResellerSale, setIsResellerSale]);
 
   return (
     <div className="flex flex-col h-full">

@@ -9,7 +9,9 @@ import {
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 import { useStore } from "@/lib/context/store-context";
+import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 
 interface RegisterConfigCardProps {
   requireSaleNotes: boolean;
@@ -26,6 +28,7 @@ interface ConfigRow {
   description: string;
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;
+  locked?: boolean;
 }
 
 export function RegisterConfigCard({
@@ -37,6 +40,7 @@ export function RegisterConfigCard({
   setUppercaseDisplayEnabled,
 }: RegisterConfigCardProps) {
   const { storeProfile, updateStoreProfile } = useStore();
+  const { canUseResellerCommission } = useFeatureGate();
 
   // Each row saves immediately on toggle — same as Payment Methods — rather
   // than sitting behind a Save button, so there's nothing to persist directly
@@ -80,6 +84,11 @@ export function RegisterConfigCard({
       onCheckedChange: (checked) => {
         void updateStoreProfile({ markup_sales_enabled: checked ? 1 : 0 });
       },
+      // Plan-tier entitlement, same gate the POS cart's reseller row itself
+      // enforces (canUseMarkupSales) - without this a Free/Starter owner
+      // could flip the toggle on and have it silently persist as a dead
+      // setting, since the POS row would still never appear.
+      locked: !canUseResellerCommission,
     },
   ];
 
@@ -98,14 +107,18 @@ export function RegisterConfigCard({
             className="flex items-center justify-between gap-4 rounded-lg border p-4"
           >
             <div className="space-y-0.5">
-              <Label htmlFor={row.id} className="text-base">
-                {row.label}
-              </Label>
+              <div className="flex items-center gap-2">
+                <Label htmlFor={row.id} className="text-base">
+                  {row.label}
+                </Label>
+                {row.locked && <Badge variant="outline">Pro Feature</Badge>}
+              </div>
               <p className="text-sm text-muted-foreground">{row.description}</p>
             </div>
             <Switch
               id={row.id}
               checked={row.checked}
+              disabled={row.locked}
               onCheckedChange={row.onCheckedChange}
             />
           </div>

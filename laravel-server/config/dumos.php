@@ -27,4 +27,21 @@ return [
         'api_token' => env('SENTRY_API_TOKEN'),
         'org_slug' => env('SENTRY_ORG_SLUG', 'dumos-technologies'),
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | GitHub Actions (storefront rebuild)
+    |--------------------------------------------------------------------------
+    |
+    | Personal access token (classic, `repo` scope) used to trigger a
+    | repository_dispatch event on the deploy-web.yml workflow when a
+    | store's storefront goes online/offline or changes its slug. See
+    | App\Console\Commands\RebuildStorefrontIfDirty.
+    |
+    */
+    'github' => [
+        'token' => env('GITHUB_TOKEN'),
+        // "owner/repo" - no default; must be set explicitly in .env.
+        'repo' => env('GITHUB_REPO'),
+    ],
 ];

@@ -40,6 +40,7 @@ interface BusinessInformationCardProps {
   handleRemoveLogo: () => void;
   localStoreSlug?: string;
   setLocalStoreSlug?: (val: string) => void;
+  storeSlugChangedAt?: string | null;
   localPcn: string;
   setLocalPcn: (val: string) => void;
   showRetailSuggestions?: boolean;
@@ -71,6 +72,7 @@ export function BusinessInformationCard({
   handleRemoveLogo,
   localStoreSlug,
   setLocalStoreSlug,
+  storeSlugChangedAt,
   localPcn,
   setLocalPcn,
   showRetailSuggestions = false,
@@ -327,6 +329,7 @@ export function BusinessInformationCard({
           isEditingProfile={isEditingProfile}
           localStoreSlug={localStoreSlug}
           setLocalStoreSlug={setLocalStoreSlug}
+          storeSlugChangedAt={storeSlugChangedAt}
           localPcn={localPcn}
           setLocalPcn={setLocalPcn}
           showRetailSuggestions={showRetailSuggestions}

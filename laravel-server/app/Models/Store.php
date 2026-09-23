@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 /**
@@ -77,6 +78,8 @@ class Store extends Model
         'last_sync_at' => 'datetime',
         '_synced_at' => 'datetime',
         'loyalty_defaults_seeded_at' => 'datetime',
+        'store_slug_changed_at' => 'datetime',
+        'storefront_dirty_at' => 'datetime',
     ];
 
     protected static function boot()
@@ -85,6 +88,47 @@ class Store extends Model
         static::creating(function ($model) {
             if (empty($model->id)) {
                 $model->id = (string) Str::uuid();
+            }
+        });
+
+        // Slug-change cooldown: once every 6 months, otherwise contact
+        // support. The client's Settings UI already disables the field
+        // during the cooldown window using the same store_slug_changed_at
+        // this stamps - this is the server-side backstop against a stale
+        // UI or a direct API call. Reverts just the slug attribute (not
+        // the whole save) so any other legitimate field changes bundled in
+        // the same request/sync push still go through normally. The
+        // first-ever slug set (no prior value) is never restricted.
+        static::saving(function ($model) {
+            if (!$model->isDirty('store_slug')) {
+                return;
+            }
+
+            $previousSlug = $model->getOriginal('store_slug');
+            $isFirstTimeSet = empty($previousSlug);
+            $lastChanged = $model->getOriginal('store_slug_changed_at');
+
+            if (!$isFirstTimeSet && $lastChanged && now()->diffInMonths($lastChanged) < 6) {
+                $model->store_slug = $previousSlug;
+                return;
+            }
+
+            if (!$isFirstTimeSet) {
+                $model->store_slug_changed_at = now();
+            }
+        });
+
+        // Debounced storefront rebuild trigger: stamps a dirty flag rather
+        // than firing GitHub's repository_dispatch API directly from here,
+        // so three toggles in two minutes (on/off/on) queue one rebuild via
+        // the scheduled command (RebuildStorefrontIfDirty) instead of
+        // three. A raw DB write (not another ->save()) avoids re-firing
+        // these same boot events.
+        static::saved(function ($model) {
+            if ($model->wasChanged(['online_store_enabled', 'store_slug'])) {
+                DB::table('stores')->where('id', $model->id)->update([
+                    'storefront_dirty_at' => now(),
+                ]);
             }
         });
     }

@@ -492,6 +492,11 @@ const SYNC_COLUMN_MIGRATIONS: { table: string; columns: string[] }[] = [
       // name (default, matches every existing store's current receipt) or
       // beside it. See ReceiptView / receipt-customization-card.tsx.
       "receipt_logo_position TEXT DEFAULT 'above'",
+      // Server-managed bookkeeping for the storefront rebuild pipeline -
+      // mirrored here only so pull sync's dynamic column list doesn't fail
+      // with "no such column"; nothing in this app writes to them.
+      "store_slug_changed_at TEXT",
+      "storefront_dirty_at TEXT",
     ],
   },
   {

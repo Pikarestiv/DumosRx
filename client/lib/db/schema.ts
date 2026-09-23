@@ -291,6 +291,8 @@ CREATE TABLE IF NOT EXISTS stores (
   id TEXT PRIMARY KEY,
   name TEXT,
   store_slug TEXT UNIQUE,
+  store_slug_changed_at TEXT,
+  storefront_dirty_at TEXT,
   store_type TEXT DEFAULT 'store',
   device_id TEXT UNIQUE,
   user_id TEXT,

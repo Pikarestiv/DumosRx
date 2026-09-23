@@ -61,6 +61,10 @@ export interface StoreProfile {
   loyalty_points_per_currency?: number;
   uppercase_display_enabled?: number;
   store_slug?: string;
+  /** Server-set the last time store_slug actually changed (not on the
+   * first-ever set) - drives the Settings UI's "you can change this again
+   * on [date]" cooldown message. Read-only: nothing in this app writes it. */
+  store_slug_changed_at?: string | null;
   updated_at?: string;
   license_token?: string;
   last_monotonic_time?: string;

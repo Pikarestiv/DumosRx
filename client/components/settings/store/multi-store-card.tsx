@@ -13,6 +13,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { useStore } from "@/lib/context/store-context";
 import { apiClient } from "@/lib/api/client";
@@ -23,7 +25,7 @@ import { FleetDeleteDialog } from "./fleet-delete-dialog";
 
 export function MultiStoreCard() {
   const { canManageMultiStore, getUpgradeMessage } = useFeatureGate();
-  const { activeStoreId } = useStore();
+  const { activeStoreId, storeProfile, updateStoreProfile } = useStore();
   const queryClient = useQueryClient();
   const [stores, setStores] = useState<FleetStore[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -126,7 +128,7 @@ export function MultiStoreCard() {
           Add Store
         </Button>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-6">
         <FleetList
           stores={stores}
           isLoading={isLoading}
@@ -141,6 +143,29 @@ export function MultiStoreCard() {
             setIsFormOpen(true);
           }}
         />
+
+        <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
+          <div className="space-y-0.5">
+            <Label htmlFor="staff-can-request-transfers" className="text-sm font-medium">
+              Allow staff to request stock transfers
+            </Label>
+            <p className="text-xs text-muted-foreground max-w-sm">
+              When on, cashiers and specialists can request stock from
+              another store from the POS screen, not just admins/owners.
+              The transfer still moves stock immediately - staff-initiated
+              ones are just flagged for review afterward.
+            </p>
+          </div>
+          <Switch
+            id="staff-can-request-transfers"
+            checked={storeProfile?.staff_can_request_transfers === 1}
+            onCheckedChange={(checked) => {
+              void updateStoreProfile({
+                staff_can_request_transfers: checked ? 1 : 0,
+              });
+            }}
+          />
+        </div>
       </CardContent>
 
       <FleetFormDialog

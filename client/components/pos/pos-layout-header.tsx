@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Store as StoreIcon } from "lucide-react";
 import { useStore } from "@/lib/context/store-context";
-import { useAuth, checkCanProcessSales } from "@/lib/context/auth-context";
+import { useAuth, checkCanRequestStockTransfer } from "@/lib/context/auth-context";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { APP_NAME } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -48,7 +48,7 @@ export function POSLayoutHeader({
   const { user } = useAuth();
   const { canManageMultiStore } = useFeatureGate();
   const canRequestTransfer =
-    checkCanProcessSales(user?.role) &&
+    checkCanRequestStockTransfer(user?.role, storeProfile?.staff_can_request_transfers) &&
     canManageMultiStore &&
     availableStores.length > 1;
   const [isScannerOpen, setIsScannerOpen] = useState(false);

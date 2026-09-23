@@ -153,6 +153,20 @@ export const checkCanProcessSales = (role?: string) => {
   return ["admin", "manager", "specialist", "sales_staff", "store_owner"].includes(normalizedRole);
 };
 
+/** Whether this user can open the POS header's "Request stock from another
+ * store" dialog. Admin-tier roles always can; everyone else needs the
+ * store's staff_can_request_transfers setting turned on (off by default -
+ * see multi-store-card.tsx). Doesn't check plan tier or store count -
+ * callers (pos-layout-header.tsx) combine this with canManageMultiStore and
+ * availableStores.length. */
+export const checkCanRequestStockTransfer = (
+  role: string | undefined,
+  staffCanRequestTransfers: number | undefined,
+) => {
+  if (!checkCanProcessSales(role)) return false;
+  return checkIsAdmin(role) || staffCanRequestTransfers === 1;
+};
+
 /** Activity/history views (audit logs, stock movements, sales, expenses,
  * purchase orders, stock audits, prescriptions, returns) are scoped to the
  * viewer's own actions unless they're a store owner or admin; everyone

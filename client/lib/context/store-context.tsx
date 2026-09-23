@@ -72,6 +72,11 @@ export interface StoreProfile {
   is_demo?: number;
   require_sale_notes?: number;
   display_stock_levels?: number;
+  /** Off by default: whether non-admin staff (specialist, sales_staff) can
+   * use the POS header's "Request stock from another store" button.
+   * Admin-tier roles (see checkIsAdmin) can always request transfers
+   * regardless of this setting. */
+  staff_can_request_transfers?: number;
 }
 
 interface StoreContextType {

@@ -497,6 +497,11 @@ const SYNC_COLUMN_MIGRATIONS: { table: string; columns: string[] }[] = [
       // with "no such column"; nothing in this app writes to them.
       "store_slug_changed_at TEXT",
       "storefront_dirty_at TEXT",
+      // Off by default: a cashier-initiated transfer request still moves
+      // stock immediately (just flagged needs_review - see
+      // stock-transfers.ts), so this stays opt-in rather than silently
+      // granting every existing store's staff that ability on upgrade.
+      "staff_can_request_transfers INTEGER DEFAULT 0",
     ],
   },
   {

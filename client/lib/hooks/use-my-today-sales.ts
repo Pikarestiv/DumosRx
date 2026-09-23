@@ -24,20 +24,24 @@ export function useMyTodaySales() {
     enabled: isCashier && !!user?.id,
   });
 
-  const totalToday = useMemo(() => {
-    if (!recentSales) return 0;
-    return recentSales
-      .filter((s) => s.created_at && isToday(parseISO(s.created_at)))
-      .reduce(
-        (acc, s) =>
-          acc +
-          calculateNetSaleAmount(
-            Number(s.total_amount) || Number(s.total) || 0,
-            Number(s.total_refunded) || 0,
-          ),
-        0,
-      );
+  const salesToday = useMemo(() => {
+    if (!recentSales) return [];
+    return recentSales.filter(
+      (s) => s.created_at && isToday(parseISO(s.created_at)),
+    );
   }, [recentSales]);
 
-  return { isCashier, totalToday };
+  const totalToday = useMemo(() => {
+    return salesToday.reduce(
+      (acc, s) =>
+        acc +
+        calculateNetSaleAmount(
+          Number(s.total_amount) || Number(s.total) || 0,
+          Number(s.total_refunded) || 0,
+        ),
+      0,
+    );
+  }, [salesToday]);
+
+  return { isCashier, totalToday, transactionsToday: salesToday.length };
 }

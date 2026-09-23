@@ -44,10 +44,10 @@ describe("getRecentSales with a dateRange", () => {
   it("returns more than 100 same-day rows for one cashier when a dateRange is passed", async () => {
     const today = "2026-09-23";
     for (let i = 0; i < 120; i++) {
-      insertSale(`s${i}`, `${today} 10:${String(i % 60).padStart(2, "0")}:00`);
+      insertSale(`s${i}`, `${today}T10:${String(i % 60).padStart(2, "0")}:00.000Z`);
     }
     // A handful of older sales from the same cashier must not leak in.
-    insertSale("old-1", "2026-09-20 10:00:00");
+    insertSale("old-1", "2026-09-20T10:00:00.000Z");
 
     const rows = await getRecentSales("user-1", { from: today, to: today });
     expect(rows.length).toBe(120);
@@ -55,7 +55,7 @@ describe("getRecentSales with a dateRange", () => {
 
   it("still caps the undated form at 100, matching the pre-existing behavior", async () => {
     for (let i = 0; i < 120; i++) {
-      insertSale(`s${i}`, `2026-09-23 10:${String(i % 60).padStart(2, "0")}:00`);
+      insertSale(`s${i}`, `2026-09-23T10:${String(i % 60).padStart(2, "0")}:00.000Z`);
     }
 
     const rows = await getRecentSales("user-1");

@@ -297,18 +297,27 @@ class SaleController extends Controller
     )]
     public function dailySales(Request $request)
     {
-        $date = $request->get('date', now()->toDateString());
         $user = $request->user();
 
         if ($user->store_id) {
+            $store = Store::find($user->store_id);
             $userIds = User::where('store_id', $user->store_id)->pluck('id')->toArray();
         } else {
+            $store = Store::where('user_id', $user->id)->first();
             $storeIds = Store::where('user_id', $user->id)->pluck('id')->toArray();
             $userIds = User::whereIn('store_id', $storeIds)->pluck('id')->push($user->id)->toArray();
         }
 
+        // Bucket by the store's own local calendar day, not the server's
+        // UTC day - see Store::localDayRangeUtc().
+        $date = $request->get('date');
+        [$rangeStart, $rangeEnd] = $store
+            ? $store->localDayRangeUtc($date)
+            : (new Store())->localDayRangeUtc($date);
+        $date = $date ?? now($store?->timezone ?? 'UTC')->toDateString();
+
         $sales = Sale::whereIn('cashier_id', $userIds)
-            ->whereDate('created_at', $date)
+            ->whereBetween('created_at', [$rangeStart, $rangeEnd])
             ->with('items')
             ->get();
 

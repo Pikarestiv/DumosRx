@@ -13,6 +13,7 @@ use App\Models\Sale;
 use App\Models\Expense;
 use App\Models\Prescription;
 use App\Models\StockBatch;
+use App\Models\Store;
 use Carbon\Carbon;
 
 class EndOfDaySummaryMail extends Mailable
@@ -31,19 +32,25 @@ class EndOfDaySummaryMail extends Mailable
         $this->user = $user;
         $this->subscription = $subscription;
         
-        $today = Carbon::today();
-        
+        // Bucket by the store's own local calendar day, not the server's
+        // UTC day - see Store::localDayRangeUtc().
+        $store = Store::where('user_id', $user->id)->first();
+        $today = $store ? Carbon::now($store->timezone ?: 'UTC') : Carbon::today();
+        [$rangeStart, $rangeEnd] = $store
+            ? $store->localDayRangeUtc()
+            : [Carbon::today(), Carbon::today()->endOfDay()];
+
         // Aggregate metrics for this user's tenant
         $sales = Sale::where('user_id', $user->id)
-            ->whereDate('created_at', $today)
+            ->whereBetween('created_at', [$rangeStart, $rangeEnd])
             ->get();
-            
+
         $expenses = Expense::where('user_id', $user->id)
-            ->whereDate('created_at', $today)
+            ->whereBetween('created_at', [$rangeStart, $rangeEnd])
             ->sum('amount');
-            
+
         $prescriptionsCount = Prescription::where('user_id', $user->id)
-            ->whereDate('created_at', $today)
+            ->whereBetween('created_at', [$rangeStart, $rangeEnd])
             ->count();
             
         $lowStockCount = StockBatch::where('user_id', $user->id)

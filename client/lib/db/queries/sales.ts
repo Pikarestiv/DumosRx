@@ -252,11 +252,11 @@ export async function getRecentSales(
   let dateFilter = "";
   if (dateRange?.from) {
     dateFilter += " AND s.created_at >= ?";
-    params.push(`${dateRange.from} 00:00:00`);
+    params.push(`${dateRange.from}T00:00:00.000Z`);
   }
   if (dateRange?.to) {
     dateFilter += " AND s.created_at <= ?";
-    params.push(`${dateRange.to} 23:59:59`);
+    params.push(`${dateRange.to}T23:59:59.999Z`);
   }
   if (storeId) params.push(storeId);
 

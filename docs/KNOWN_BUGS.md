@@ -15,7 +15,7 @@ These add `stores.receipt_logo_position`, `activity_logs.correlation_id`, `purch
 
 **Until these are deployed and run on production**, any device syncing a change to those columns gets `SQLSTATE[42S22]: Unknown column` (confirmed live: `activity_logs.correlation_id`, `stock_movements` transfer rows via the old `movement_type` ENUM; the last three were caught by code review before ever shipping, not yet confirmed live) and the push silently fails for that row — it stays in the client's local `_sync_queue` retrying forever, not lost, but never reaching the server either.
 
-Production migrations run through a protected route, not direct `artisan` access (no SSH on the shared host — see `laravel-server/AGENTS.md`): `GET https://<production-domain>/migrate-db?key=<MIGRATE_DB_KEY>`. Deploy this branch first, then hit that route. Remove this entry once confirmed run.
+Production migrations run through a protected route, not direct `artisan` access (no SSH on the shared host — see `laravel-server/AGENTS.md`): `GET https://<production-domain>/migrate-db?key=<MIGRATE_DB_KEY>`. Deploy this branch first, then hit that route. Remove this entry once confirmed run. (Also now covers `2026_09_23_000008_add_timezone_to_stores.php`, added the same day — additive, `stores.timezone` defaults to `'UTC'`.)
 
 ---
 
@@ -29,6 +29,13 @@ Production migrations run through a protected route, not direct `artisan` access
 ---
 
 ## Medium
+
+### `client/` — auth bearer token kept in `localStorage` instead of an HttpOnly cookie (accepted tradeoff, confirmed 2026-09-23)
+`client/lib/api/token-manager.ts:7-25`
+
+`auth_token` (the Sanctum bearer token) is read/written via `localStorage`, not an HttpOnly cookie. Any XSS in the client app could read `localStorage.auth_token` and exfiltrate a long-lived session token, versus an HttpOnly cookie which JS can't read at all. The admin web session already avoids this (`drx_admin_session` is a proper `HttpOnly` cookie — see `AdminStoreController::impersonateStore`).
+
+Investigated switching this: `token-manager.ts`'s `setToken`/`clearToken` call `mirrorAuthToken`/`clearMirroredAuthToken` (`client/lib/native/widget-bridge.ts`), which hand the raw token to native Tauri (Rust) code so the home-screen widget can make its own authenticated background HTTP requests entirely outside the webview. An HttpOnly cookie is by definition unreadable by JS, so it can't be mirrored to native code — swapping to one would break the widget's live data rather than just change a storage mechanism. Fixing this for real means a dual-path auth design (webview uses a cookie for its own requests; native widget code gets a separate, narrowly-scoped token via its own exchange) — a real architecture change, not a quick fix. Left as-is for now; revisit as a scoped project, not a bug-fix pass.
 
 ### `client/` — existing Pro/Enterprise stores will lose the "Reseller sale" POS row on deploy, silently
 `client/lib/hooks/use-feature-gate.ts` (`isMarkupSalesEnabled`), `stores.markup_sales_enabled`

@@ -298,6 +298,19 @@ export function usePOSPayment({
           correlationId: newSaleId,
         });
 
+        // Committed inside the same transaction as the sale itself, not
+        // after it: this used to run once the transaction had already
+        // committed and returned, so an interruption between the sale
+        // committing and this running left the sale durably recorded but
+        // the prescription still "pending" - dispensable a second time.
+        if (dispensedRxId) {
+          if (isRefillDispense) {
+            await dispensePrescriptionRefill(dispensedRxId);
+          } else {
+            await updatePrescriptionStatus(dispensedRxId, "completed");
+          }
+        }
+
         return newSaleId;
       });
 
@@ -329,13 +342,9 @@ export function usePOSPayment({
       setPaymentSplits([]);
       setSaleNote("");
 
-      // Update prescription status if this was a dispensed prescription
+      // Prescription status is already updated atomically with the sale
+      // inside runInTransaction() above; just clear the local UI state here.
       if (dispensedRxId) {
-        if (isRefillDispense) {
-          await dispensePrescriptionRefill(dispensedRxId);
-        } else {
-          await updatePrescriptionStatus(dispensedRxId, "completed");
-        }
         setDispensedRxId?.(null);
       }
 

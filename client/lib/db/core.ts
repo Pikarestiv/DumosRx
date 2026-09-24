@@ -217,6 +217,14 @@ export async function saveDatabase(): Promise<void> {
 // deferred-saveDatabase() half of what this flag is for.
 let inTransaction = false;
 
+// Lets a composed multi-statement helper (e.g. insert() in base-helpers.ts)
+// decide whether it needs to open its own transaction() for atomicity, or is
+// already running inside a caller's transaction() and must not (nesting
+// deadlocks - see transaction()'s doc comment below).
+export function isInTransaction(): boolean {
+  return inTransaction;
+}
+
 // How many rows query() fetches before yielding a tick back to the browser
 // (see the loop below) — large enough that small/typical queries (the vast
 // majority) never pay the setTimeout round-trip at all.

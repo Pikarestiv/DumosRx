@@ -66,8 +66,20 @@ export function PwaRegistrar() {
     const handleControllerChange = () => {
       if (hasReloadedForUpdate) return;
       hasReloadedForUpdate = true;
+      // Reloads immediately rather than after a delay to let the toast be
+      // seen (the original version waited 1200ms): sw.js's activate() prunes
+      // cache entries not in the new build's manifest BEFORE clients.claim()
+      // fires this event, so by the time this handler runs, the old build's
+      // chunks are already gone from both cache and (on a real deploy) the
+      // server. Every millisecond this tab keeps running the old build's
+      // already-loaded JS during that window is a chance for some lazy
+      // import() to request one of those now-gone chunks - confirmed live as
+      // "TypeError: Cannot read properties of undefined (reading 'call')"
+      // (a stale chunk reference webpack's runtime can no longer resolve),
+      // which the 1200ms delay was directly responsible for widening from a
+      // near-zero window into an actually-hit one.
       toast.info("App updated - reloading...");
-      setTimeout(() => window.location.reload(), 1200);
+      window.location.reload();
     };
     navigator.serviceWorker.addEventListener("controllerchange", handleControllerChange);
 

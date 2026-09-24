@@ -400,7 +400,21 @@ export async function query<T = Record<string, unknown>>(
       } catch {
         // Already invalid — this is exactly the case being retried.
       }
-      if (!closedRetryUsed && /closed|finalized/i.test(message)) {
+      // "closed"/"finalized" was the only observed wording when this retry
+      // was written, but the same live-statement-vs-concurrent-write race
+      // surfaces under other spellings too, now that insert()/update()/
+      // softDelete()/remove() each open their own transaction() (2026-09-24)
+      // instead of running as bare statements - a transaction()'s BEGIN can
+      // land while an unrelated large query() is mid-yield far more often
+      // now than before. Seen in production: sql.js's own SQLITE_MISUSE
+      // string ("bad parameter or other API misuse") when a step() runs
+      // against a statement invalidated by that interleaved BEGIN, and a
+      // RangeError ("Array buffer allocation failed") from the WASM heap
+      // when the same interleaving corrupts the statement's internal
+      // buffer bookkeeping. Both are connection-state corruption from this
+      // exact race, not genuine SQL/data errors, so they get the same
+      // discard-and-retry treatment.
+      if (!closedRetryUsed && /closed|finalized|bad parameter|api misuse|allocation failed/i.test(message)) {
         closedRetryUsed = true;
         if (startedOutsideTransaction) await awaitSettledTransactions();
         continue;

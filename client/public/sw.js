@@ -52,8 +52,17 @@ self.addEventListener("install", (event) => {
         // can't be tolerated as "most of the app shell still works", since
         // losing it turns every uncached offline route into a hard error
         // instead of at least showing the app shell.
-        if (!(await cache.match("/"))) {
-          throw new Error("Precache: \"/\" (the offline shell fallback) failed to cache");
+        //
+        // Checked against THIS install's own result, not cache.match("/")
+        // after the fact: CACHE_VERSION is deliberately not bumped per
+        // deploy (see comment above), so a stale "/" left over from a
+        // previous successful install would otherwise make this check pass
+        // even when the current fetch for "/" just failed, silently
+        // activating a worker that (re)serves an old deploy's shell instead
+        // of failing loudly as intended.
+        const shellIndex = urls.indexOf("/");
+        if (shellIndex === -1 || results[shellIndex].status === "rejected") {
+          throw new Error('Precache: "/" (the offline shell fallback) failed to cache');
         }
         // Only activate this version once precaching actually ran - failing
         // the whole install (by letting the thrown error below reject the
@@ -95,6 +104,33 @@ self.addEventListener("activate", (event) => {
           .filter((name) => name !== CACHE_VERSION)
           .map((name) => caches.delete(name)),
       );
+
+      // Prune entries no longer in the current build's manifest.
+      // CACHE_VERSION is deliberately not bumped per deploy (see comment
+      // above), so without this, every deploy's newly hashed /_next chunks -
+      // plus, before the navigate/RSC cache-key normalization above existed,
+      // a full duplicate HTML document per distinct query string ever
+      // navigated to - just accumulated in the same cache indefinitely. That
+      // kind of unbounded growth is exactly what can exceed an iOS device's
+      // per-origin storage quota, and when iOS evicts a quota-exceeding
+      // origin it evicts the cache entirely, which is indistinguishable from
+      // the service worker never having run at all.
+      try {
+        const manifestResponse = await fetch("/precache-manifest.json");
+        if (manifestResponse.ok) {
+          const currentUrls = new Set(await manifestResponse.json());
+          const cache = await caches.open(CACHE_VERSION);
+          const requests = await cache.keys();
+          await Promise.all(
+            requests
+              .filter((req) => !currentUrls.has(new URL(req.url).pathname))
+              .map((req) => cache.delete(req)),
+          );
+        }
+      } catch (err) {
+        console.error("[SW] Cache prune failed:", err);
+      }
+
       await self.clients.claim();
     })(),
   );
@@ -135,6 +171,19 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       (async () => {
         const cache = await caches.open(CACHE_VERSION);
+        // This static export serves the same document for a route
+        // regardless of its query string (out/.htaccess rewrites purely on
+        // pathname; query params like "/pos?dispense_rx=12" are read
+        // client-side after hydration), so the cache key is normalized to
+        // the pathname alone - same fix as the ".txt" RSC payload below.
+        // Without this, restoring a backgrounded query-bearing route offline
+        // (iOS reloading a suspended tab, a hard refresh) never matched the
+        // precached bare-pathname entry and fell back to the "/" shell
+        // instead of the actual page, and every distinct query value online
+        // would otherwise cache a full duplicate HTML document forever
+        // (CACHE_VERSION is intentionally not bumped per deploy).
+        const navigateUrl = new URL(request.url);
+        const navigateCacheKey = new Request(navigateUrl.origin + navigateUrl.pathname);
         try {
           // iOS Safari can leave a doomed fetch pending for tens of seconds
           // on a dead connection instead of rejecting quickly (unlike
@@ -152,7 +201,7 @@ self.addEventListener("fetch", (event) => {
           // added) - only its body's actual type matters here, not its
           // status code.
           if (isHtmlResponse(response)) {
-            await cache.put(request, response.clone());
+            await cache.put(navigateCacheKey, response.clone());
             return response;
           }
           // A non-HTML network response for a navigation (an RSC flight
@@ -162,7 +211,7 @@ self.addEventListener("fetch", (event) => {
           // instead of returning it.
           throw new Error(`Unexpected navigate response content-type: ${response.headers.get("content-type")}`);
         } catch {
-          const cached = await cache.match(request);
+          const cached = await cache.match(navigateCacheKey);
           if (isHtmlResponse(cached)) return cached;
           const shell = await cache.match("/");
           if (isHtmlResponse(shell)) return shell;

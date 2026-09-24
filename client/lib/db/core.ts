@@ -13,6 +13,9 @@ import {
   makeSqlJsAdapter,
   runSchemaMigrations,
 } from "./schema-migrations";
+import { initWriterLock, isWriterTab, onWriterTabChange } from "./tab-lock";
+
+export { isWriterTab, onWriterTabChange };
 
 // Dual-backend handle: sql.js's Database in the browser, @tauri-apps/plugin-sql's
 // Database (a different, incompatible shape: .execute()/.select() vs sql.js's
@@ -196,10 +199,51 @@ export async function initDatabase(): Promise<any> {
 
     await runSchemaMigrations(webAdapter, saveDatabase);
 
+    // Elects exactly one open tab as the writer (see tab-lock.ts / C1 in
+    // docs/KNOWN_BUGS.md); every other tab becomes read-only until this one
+    // closes. Only reached once per page load (initDatabase() early-returns
+    // above once `db` is set), so this never registers more than one lock
+    // request per tab. Awaited (rather than fire-and-forget) so a caller
+    // that awaits initDatabase() can immediately read this tab's initial
+    // writer/read-only role via isWriterTab() - this only waits for that
+    // initial decision, never for an eventual promotion.
+    await initWriterLock(rehydrateFromIndexedDb);
+
     return db;
   } catch (err) {
     console.error("[DB] Failed to initialize database:", err);
     throw err;
+  }
+}
+
+/**
+ * Re-reads the shared IndexedDB snapshot and replaces the in-memory `db`
+ * with it. Called by tab-lock.ts exactly once per tab, at the moment a
+ * previously read-only tab is promoted to writer: the promoted tab's
+ * in-memory copy predates whatever the outgoing writer committed right
+ * before closing, so it must catch up before it's allowed to write itself -
+ * otherwise it would silently resurrect stale rows the outgoing writer had
+ * already changed or deleted, the same class of data loss C1 exists to
+ * close. Deliberately does not re-run schema migrations (this tab already
+ * ran them once at its own initDatabase(), and the outgoing writer - running
+ * the same build - would already have applied any that landed since).
+ */
+async function rehydrateFromIndexedDb(): Promise<void> {
+  if (!SQL) return;
+  const savedData = await get<Uint8Array>(`${APP_NAME.toLowerCase()}_db`);
+  if (!savedData) return;
+  try {
+    const fresh = new SQL.Database(savedData);
+    fresh.run(SCHEMA_SQL);
+    try {
+      db?.close?.();
+    } catch {
+      // Best-effort - a failed close of the now-discarded instance doesn't
+      // block adopting the freshly-loaded one below.
+    }
+    db = fresh;
+  } catch (err) {
+    console.error("[DB] Failed to rehydrate database after writer-lock promotion", err);
   }
 }
 
@@ -474,6 +518,23 @@ export function queueTableInvalidation(table: string): void {
   }
 }
 
+// Shared by execute() and transaction(): this tab lost (or never won) the
+// single-writer election in tab-lock.ts, so it must not touch the shared
+// sql.js database at all - see C1 in docs/KNOWN_BUGS.md. Dispatches the same
+// rate-limited-by-listener pattern DatabaseProvider already uses for
+// dumos_db_save_failed, so the UI can surface a clear message instead of an
+// uncaught write silently corrupting nothing (good) but also silently doing
+// nothing (bad, and confusing without this signal).
+function assertWritable(): void {
+  if (isTauri() || isWriterTab()) return;
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("dumos_db_read_only_write_blocked"));
+  }
+  throw new Error(
+    "This tab is read-only because DumosRx is already open in another tab or window. Switch to that tab, or close it, to make changes here.",
+  );
+}
+
 export async function execute(
   sql: string,
   params: (string | number | null | Uint8Array)[] = [],
@@ -493,6 +554,8 @@ export async function execute(
     await db.execute(sql, params);
     return;
   }
+
+  assertWritable();
 
   db.run(sql, params);
   // Marks the shared sql.js connection as having been written to, so any
@@ -612,6 +675,8 @@ export async function transaction<T>(fn: () => Promise<T>): Promise<T> {
       // Database unavailable; let fn() surface whatever error it hits.
       return await fn();
     }
+
+    assertWritable();
 
     let began = false;
     try {

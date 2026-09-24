@@ -11,7 +11,7 @@ import {
   useState,
   ReactNode,
 } from "react";
-import { initDatabase, isTauri } from "./local-database";
+import { initDatabase, isTauri, isWriterTab, onWriterTabChange } from "./local-database";
 import { devLog } from "@/lib/utils/dev-log";
 import { toast } from "sonner";
 
@@ -19,6 +19,7 @@ interface DatabaseContextType {
   isReady: boolean;
   isOffline: boolean;
   isTauriApp: boolean;
+  isReadOnlyTab: boolean;
   error: Error | null;
 }
 
@@ -26,6 +27,7 @@ const DatabaseContext = createContext<DatabaseContextType>({
   isReady: false,
   isOffline: false,
   isTauriApp: false,
+  isReadOnlyTab: false,
   error: null,
 });
 
@@ -40,6 +42,7 @@ interface DatabaseProviderProps {
 export function DatabaseProvider({ children }: DatabaseProviderProps) {
   const [isReady, setIsReady] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
+  const [isReadOnlyTab, setIsReadOnlyTab] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const isTauriApp = isTauri();
 
@@ -48,6 +51,12 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
     initDatabase()
       .then(() => {
         setIsReady(true);
+        // Reflects tab-lock.ts's single-writer election (see C1 in
+        // docs/KNOWN_BUGS.md) - initDatabase() has already registered this
+        // tab's lock request by the time it resolves, so isWriterTab()'s
+        // current value plus this subscription together cover both the
+        // initial state and any later promotion.
+        setIsReadOnlyTab(!isWriterTab());
         devLog("[DB] Local database initialized");
         // Flush any offline crashes queued in localStorage
         import("@/lib/utils/error-logger").then(({ flushPendingCrashes }) => {
@@ -101,6 +110,41 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
     };
+  }, []);
+
+  // Tracks this tab's writer/read-only role (see tab-lock.ts / C1 in
+  // docs/KNOWN_BUGS.md) for as long as the provider is mounted, so a
+  // promotion (the writer tab elsewhere closing) updates the UI without
+  // needing a reload.
+  useEffect(() => {
+    return onWriterTabChange((isWriter) => {
+      setIsReadOnlyTab(!isWriter);
+      if (isWriter) {
+        toast.success("This tab can now save changes.", { duration: 5000 });
+      }
+    });
+  }, []);
+
+  // Every write attempt from a read-only tab throws (core.ts's
+  // assertWritable()) so nothing is silently dropped, but a thrown error
+  // alone can look like a generic failure. Rate-limited the same way
+  // dumos_db_save_failed is below, so repeatedly tapping a disabled-looking
+  // action doesn't spam toasts.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    let lastShownAt = 0;
+    const handleBlocked = () => {
+      const now = Date.now();
+      if (now - lastShownAt < 10000) return;
+      lastShownAt = now;
+      toast.error(
+        "This tab is read-only - DumosRx is already open in another tab or window.",
+        { duration: 8000 },
+      );
+    };
+    window.addEventListener("dumos_db_read_only_write_blocked", handleBlocked);
+    return () =>
+      window.removeEventListener("dumos_db_read_only_write_blocked", handleBlocked);
   }, []);
 
   // core.ts's saveDatabase() previously only console.error'd a failed local
@@ -162,7 +206,15 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
   }
 
   return (
-    <DatabaseContext.Provider value={{ isReady, isOffline, isTauriApp, error }}>
+    <DatabaseContext.Provider
+      value={{ isReady, isOffline, isTauriApp, isReadOnlyTab, error }}
+    >
+      {isReadOnlyTab && (
+        <div className="sticky top-0 z-50 w-full bg-amber-500 px-4 py-1.5 text-center text-xs font-medium text-amber-950">
+          Read-only tab — DumosRx is already open elsewhere. Switch to that
+          tab, or close it, to make changes here.
+        </div>
+      )}
       {children}
     </DatabaseContext.Provider>
   );

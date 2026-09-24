@@ -49,6 +49,7 @@
     "clsx": "^2.1.1",
     "cmdk": "1.0.4",
     "date-fns": "^4.4.0",
+    "exceljs": "^4.4.0",
     "framer-motion": "^12.38.0",
     "html5-qrcode": "^2.3.8",
     "idb-keyval": "^6.2.6",
@@ -66,7 +67,6 @@
     "sql.js": "^1.13.0",
     "tailwind-merge": "^3.7.0",
     "vaul": "^1.1.2",
-    "xlsx": "^0.18.5",
     "zustand": "^5.0.10"
   },
   "devDependencies": {
@@ -94,6 +94,7 @@
     "vitest": "^4.1.10"
   },
   "overrides": {
-    "@radix-ui/react-dismissable-layer": "^1.1.13"
+    "@radix-ui/react-dismissable-layer": "^1.1.13",
+    "uuid": "^14.0.2"
   }
 }

@@ -10,7 +10,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Upload, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/lib/context/auth-context";
-import type { WorkBook } from "xlsx";
 import {
   readWorkbookFile,
   parseWorkbookSheet,
@@ -18,6 +17,7 @@ import {
   mapRowToProduct,
   FIELD_LABELS,
   type ColumnMapping,
+  type ParsedWorkbook,
   type ProductField,
   type ProductImportRow,
 } from "@/lib/utils/product-import-export";
@@ -55,7 +55,7 @@ export function ImportMappingDialog({
   onImported,
 }: ImportMappingDialogProps) {
   const [step, setStep] = useState<Step>("pick-file");
-  const [workbook, setWorkbook] = useState<WorkBook | null>(null);
+  const [workbook, setWorkbook] = useState<ParsedWorkbook | null>(null);
   const [headers, setHeaders] = useState<string[]>([]);
   const [rows, setRows] = useState<Record<string, unknown>[]>([]);
   const [mapping, setMapping] = useState<ColumnMapping>({});
@@ -82,7 +82,7 @@ export function ImportMappingDialog({
     onOpenChange(next);
   };
 
-  const loadSheet = (wb: WorkBook, sheetName: string) => {
+  const loadSheet = (wb: ParsedWorkbook, sheetName: string) => {
     const parsed = parseWorkbookSheet(wb, sheetName);
     setHeaders(parsed.headers);
     setRows(parsed.rows);
@@ -91,12 +91,21 @@ export function ImportMappingDialog({
   };
 
   const handleFile = async (file: File) => {
-    const wb = await readWorkbookFile(file);
-    setWorkbook(wb);
-    if (wb.SheetNames.length > 1) {
-      setStep("pick-sheet");
-    } else {
-      loadSheet(wb, wb.SheetNames[0]);
+    try {
+      const wb = await readWorkbookFile(file);
+      setWorkbook(wb);
+      if (wb.sheetNames.length > 1) {
+        setStep("pick-sheet");
+      } else {
+        loadSheet(wb, wb.sheetNames[0]);
+      }
+    } catch (err) {
+      // readWorkbookFile() throws a user-facing message for the one
+      // expected failure mode (a legacy .xls file - see its own comment);
+      // anything else is an unexpected parse failure.
+      toast.error(
+        err instanceof Error ? err.message : "Couldn't read that file. Please check the format and try again.",
+      );
     }
   };
 
@@ -142,7 +151,7 @@ export function ImportMappingDialog({
       open={open}
       onOpenChange={handleOpenChange}
       title="Import products"
-      description="Upload a CSV or XLS/XLSX file."
+      description="Upload a CSV or XLSX file. (Legacy .xls files aren't supported — re-save as .xlsx first.)"
     >
       <div className="flex flex-col gap-4 p-4">
         {step === "pick-file" && (
@@ -150,7 +159,7 @@ export function ImportMappingDialog({
             <Button variant="outline" asChild className="cursor-pointer">
               <label htmlFor="product-import-file">
                 <Upload className="w-4 h-4 mr-2" />
-                Select CSV or XLS/XLSX File
+                Select CSV or XLSX File
               </label>
             </Button>
             <input
@@ -169,11 +178,11 @@ export function ImportMappingDialog({
         {step === "pick-sheet" && workbook && (
           <>
             <p className="text-sm text-muted-foreground">
-              This file has {workbook.SheetNames.length} sheets. Select the
+              This file has {workbook.sheetNames.length} sheets. Select the
               one with your product list.
             </p>
             <Combobox
-              options={workbook.SheetNames}
+              options={workbook.sheetNames}
               value=""
               placeholder="Select a sheet"
               onChange={(sheetName) => loadSheet(workbook, sheetName)}
@@ -245,7 +254,7 @@ export function ImportMappingDialog({
               <Button
                 variant="outline"
                 onClick={() =>
-                  workbook && workbook.SheetNames.length > 1
+                  workbook && workbook.sheetNames.length > 1
                     ? setStep("pick-sheet")
                     : reset()
                 }

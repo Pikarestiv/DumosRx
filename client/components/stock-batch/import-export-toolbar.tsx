@@ -94,7 +94,7 @@ export function ImportExportToolbar({
           format === "csv" ? "Building CSV..." : "Building spreadsheet...",
           60,
         );
-        const blob = buildExportBlob(products, columns, format);
+        const blob = await buildExportBlob(products, columns, format);
         downloadBlob(blob, `DumosRx_Products_${dateStr}.${format}`);
       }
 

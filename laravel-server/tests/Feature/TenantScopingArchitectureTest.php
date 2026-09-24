@@ -13,8 +13,9 @@ use Tests\TestCase;
  * PurchaseOrderController, all initially missing it; the same pattern
  * resurfaced in ActivityLogController, found while writing this test).
  *
- * Asserts every controller under Api/*, Api/App/* and Api/Web/* that
- * references a tenant-owned model either uses the ScopesToTenant trait, or
+ * Asserts every controller under Api/*, Api/App/*, Api/Web/*, Api/Admin/* and
+ * Api/Public/* that references a tenant-owned model either uses the
+ * ScopesToTenant trait, or
  * is named on the explicit ALLOWED_WITHOUT_TRAIT list below with a reason
  * why its own scoping is genuinely equivalent. Deliberately a lightweight
  * source-text scan, not a full static analyzer or AST walk: good enough to
@@ -67,6 +68,21 @@ class TenantScopingArchitectureTest extends TestCase
         // gap: narrower-than-tenant scoping is the actual intended behavior
         // here, so ScopesToTenant's owner-wide resolution doesn't apply.
         'NotificationController',
+        // Public storefront endpoints: unauthenticated (no $request->user()
+        // for tenantOwnerId() to resolve at all), scoped instead by the
+        // store the URL's slug resolves to ($store->user_id / $store->id
+        // throughout). A different tenant boundary than "the caller's own
+        // tenant" - the request has no caller identity to scope by.
+        'StorefrontController',
+        // ActivityLog::create() here logs the super_admin's OWN action
+        // (user_id => $admin->id) ending an impersonation session - a
+        // write of one platform-level audit row, not a query filtered by
+        // (and therefore needing scoping to) any tenant.
+        'AdminStoreController',
+        // products()'s `categories` list is deliberately platform-wide
+        // (super_admin only, route-gated) - "across all stores" per its own
+        // OA summary. Intentional cross-tenant access, not a gap.
+        'AdminPlatformController',
     ];
 
     public function test_every_controller_touching_tenant_owned_models_uses_scopes_to_tenant(): void
@@ -108,7 +124,7 @@ class TenantScopingArchitectureTest extends TestCase
         $this->assertEmpty(
             $violations,
             "Tenant-scoping architecture violation(s):\n- ".implode("\n- ", $violations)
-                ."\n\nEvery controller under Api/*, Api/App/* and Api/Web/* that queries a tenant-owned model "
+                ."\n\nEvery controller under Api/*, Api/App/*, Api/Web/*, Api/Admin/* and Api/Public/* that queries a tenant-owned model "
                 .'must use ScopesToTenant, or be added to TenantScopingArchitectureTest::ALLOWED_WITHOUT_TRAIT '
                 ."with a documented reason its own scoping is equivalent.\n"
                 .'See docs/KNOWN_BUGS.md\'s Recommended Engineering Improvements.',
@@ -122,6 +138,8 @@ class TenantScopingArchitectureTest extends TestCase
             app_path('Http/Controllers/Api'),
             app_path('Http/Controllers/Api/App'),
             app_path('Http/Controllers/Api/Web'),
+            app_path('Http/Controllers/Api/Admin'),
+            app_path('Http/Controllers/Api/Public'),
         ];
 
         $files = [];
@@ -135,6 +153,18 @@ class TenantScopingArchitectureTest extends TestCase
         return $files;
     }
 
+    /**
+     * Matches `Model::` (including a fully-qualified `\App\Models\Model::`,
+     * since `\b` fires right after the backslash) anywhere in the file.
+     * Known blind spots, deliberately accepted for a lightweight source scan
+     * rather than a full static analyzer: route-model binding
+     * (`function show(Product $product)` with no literal `Product::`
+     * anywhere), a model reached only through a relationship
+     * (`$store->products()->where(...)`), and a model queried only inside an
+     * injected service class rather than the controller itself. None of
+     * today's in-scope controllers hit these (verified by hand while writing
+     * this test), but a future one could - this scan won't catch that case.
+     */
     private function referencesAnyTenantModel(string $contents): bool
     {
         foreach (self::TENANT_OWNED_MODELS as $model) {

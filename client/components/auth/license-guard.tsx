@@ -235,8 +235,21 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
         // Force a full cloud sync so any recent subscription renewals are
         // pulled down and written to the local stores table before we
         // re-evaluate the license locally.
+        //
+        // Raced against a timeout: `navigator.onLine` is unreliable on iOS
+        // Safari (it commonly reports `true` on a joined-but-dead network -
+        // a captive portal, disabled cellular with an associated Wi-Fi
+        // radio, etc.), and the underlying fetch has no timeout of its own,
+        // so a doomed sync could otherwise hang for iOS's own multi-second
+        // to multi-minute network-stack timeout with this component's
+        // SplashScreen blocking the entire app the whole time.
         const { sync } = await import("@/lib/db/sync-engine");
-        await sync(true);
+        await Promise.race([
+          sync(true),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("License sync timed out")), 5000),
+          ),
+        ]);
       } catch (e) {
         console.error("[LicenseGuard] Failed to sync on status refresh:", e);
       }

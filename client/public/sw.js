@@ -47,6 +47,14 @@ self.addEventListener("install", (event) => {
             failed.map((r) => r.reason?.message || r.reason),
           );
         }
+        // "/" is the last-resort fallback every other offline navigation
+        // miss falls back to below - unlike every other URL, its failure
+        // can't be tolerated as "most of the app shell still works", since
+        // losing it turns every uncached offline route into a hard error
+        // instead of at least showing the app shell.
+        if (!(await cache.match("/"))) {
+          throw new Error("Precache: \"/\" (the offline shell fallback) failed to cache");
+        }
         // Only activate this version once precaching actually ran - failing
         // the whole install (by letting the thrown error below reject the
         // install promise) keeps whatever service worker was already
@@ -128,7 +136,15 @@ self.addEventListener("fetch", (event) => {
       (async () => {
         const cache = await caches.open(CACHE_VERSION);
         try {
-          const response = await fetch(request);
+          // iOS Safari can leave a doomed fetch pending for tens of seconds
+          // on a dead connection instead of rejecting quickly (unlike
+          // Chrome/Android), which otherwise shows a spinner for that whole
+          // window before the offline fallback below ever kicks in.
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 4000);
+          const response = await fetch(request, { signal: controller.signal }).finally(() =>
+            clearTimeout(timeout),
+          );
           // Deliberately NOT gated on response.ok: a genuine, current 404/
           // 500 HTML error page from the network is still real, current
           // information and must be shown/cached as-is (this matches the
@@ -163,16 +179,31 @@ self.addEventListener("fetch", (event) => {
   // effectively static, so a cached copy is never wrong - while updating the
   // cache from the network in the background for next time. Falls through to
   // the network directly on a cold cache.
+  //
+  // Next's RSC payload requests (the ".txt" sibling of every route, fetched
+  // on client-side navigation) append a "?_rsc=<hash>" query string that
+  // encodes the route being navigated FROM, so it changes on every
+  // navigation and never matches what generate-precache-manifest.ts wrote
+  // the file under (its bare pathname, no query). The payload itself is
+  // static per route in this export regardless of that hash, so the query is
+  // stripped for both the cache lookup and the cache write - otherwise every
+  // offline soft-navigation missed the precached ".txt" entirely and Next
+  // silently fell back to a full page reload.
+  const requestUrl = new URL(request.url);
+  const cacheKey = requestUrl.pathname.endsWith(".txt")
+    ? new Request(requestUrl.origin + requestUrl.pathname)
+    : request;
+
   event.respondWith(
     (async () => {
       const cache = await caches.open(CACHE_VERSION);
-      const cached = await cache.match(request);
+      const cached = await cache.match(cacheKey);
 
       const networkFetch = (async () => {
         try {
           const response = await fetch(request);
           // Only cache real, successful, non-opaque responses.
-          if (response.ok) await cache.put(request, response.clone());
+          if (response.ok) await cache.put(cacheKey, response.clone());
           return response;
         } catch {
           return undefined;

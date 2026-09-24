@@ -56,10 +56,18 @@ function main() {
     return;
   }
 
-  // Always include the root document explicitly by its un-suffixed form
-  // too ("/" as well as "/index.html") since navigations request "/".
-  if (urls.includes("/index.html") && !urls.includes("/")) {
-    urls.push("/");
+  // Also include every page's un-suffixed route form (e.g. "/dashboard" as
+  // well as "/dashboard.html", "/" as well as "/index.html"): out/.htaccess
+  // rewrites the extensionless route to its .html sibling server-side, but a
+  // real navigation's request URL - and therefore the URL the service
+  // worker's cache.match() looks up - is always the extensionless one. Only
+  // caching the .html form left every route but "/" missing its actual
+  // navigable cache key.
+  const routeUrls = urls
+    .filter((url) => url.endsWith(".html"))
+    .map((url) => (url === "/index.html" ? "/" : url.slice(0, -".html".length)));
+  for (const routeUrl of routeUrls) {
+    if (!urls.includes(routeUrl)) urls.push(routeUrl);
   }
 
   writeFileSync(MANIFEST_PATH, JSON.stringify(urls));

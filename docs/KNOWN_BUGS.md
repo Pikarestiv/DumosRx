@@ -141,16 +141,10 @@ New store-level toggle, default `0` (explicit, deliberate product requirement). 
 
 ## Low Priority Findings
 
-> **L1, L2 fixed 2026-09-24** (alongside the M7–M9 CI/CD hardening batch) — see `docs/FIXED_BUGS.md`.
-
-### L3. Tauri backend's `query()`/`execute()` has no corruption-retry, unlike the heavily-hardened sql.js path — currently safe, but the reason isn't documented in `core.ts`
-- **File:** `client/lib/db/core.ts`. The asymmetry is currently fine because the vendored `tauri-plugin-sql` fork caps the pool at `max_connections(1)` specifically to make this safe — but that fact lives only in the vendored plugin's own comment, not in `core.ts` or `AGENTS.md`. A future upgrade of `@tauri-apps/plugin-sql` back to a stock (non-vendored) build could silently drop that cap and reopen the exact race sql.js's retry logic exists for. **Fix:** cross-reference `src-tauri/vendor/tauri-plugin-sql`'s `max_connections(1)` in a `core.ts` comment or in `AGENTS.md`'s Database section.
+> **L1, L2 fixed 2026-09-24** (alongside the M7–M9 CI/CD hardening batch), and **L3, L5 fixed 2026-09-24** separately — see `docs/FIXED_BUGS.md`.
 
 ### L4. `POST /app/sales` accepts no discount/tax fields (latent, currently unreferenced)
 - **File:** `laravel-server` `SaleController::store`. Every sale created through this REST path would get `discount_amount`/`tax_amount` left null while `subtotal`/`total_amount` are the raw undiscounted sum — but this endpoint is currently defined in `client/lib/api/client.ts` and never actually called from anywhere in `client/`. Not an active production bug; flagged so it isn't silently wired up later without addressing the gap.
-
-### L5. A handful of query invalidations bypass the `queryKeys` factory
-- **File:** `client/components/dashboard/multi-store-card.tsx`, `header-store-switcher.tsx`, `transaction-details-dialog.tsx` call `invalidateQueries({ queryKey: [...] })` with hand-written array literals instead of the factory. Functionally correct today (TanStack Query's default prefix matching still works), but renaming a key in `query-keys.ts` would silently break these call sites with no compiler error.
 
 ### L6. `client/` — manifest `theme_color` doesn't follow dark mode *(carried forward, unchanged)*
 - **File:** `client/public/manifest.json:8`, `client/app/layout.tsx:66-68`. `manifest.json` hardcodes `theme_color`/`background_color` to `#ffffff`; `layout.tsx`'s `viewport.themeColor` correctly switches to black under `prefers-color-scheme: dark`. On Android, the manifest's value drives the install splash screen, so a dark-mode user briefly sees a white splash before the dark app renders. The Web App Manifest spec has no conditional-syntax equivalent for this, so it can't be fully fixed without picking one scheme's splash over the other — left as the light-mode default since it also matches the manifest's own `background_color`.

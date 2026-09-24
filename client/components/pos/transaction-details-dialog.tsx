@@ -119,7 +119,13 @@ export function TransactionDetailsDialog({
       notes,
     });
     toast.success("Payment recorded successfully");
-    void queryClient.invalidateQueries({ queryKey: ["customerById", sale.customer_id] });
+    // Derives the key from the factory (with a throwaway .slice to drop
+    // the trailing activeStoreId/currentUserId resource() appends) rather
+    // than duplicating the "customerById" literal, so a rename in
+    // query-keys.ts can't silently desync from this call site.
+    void queryClient.invalidateQueries({
+      queryKey: queryKeys.customers.byId(sale.customer_id).queryKey.slice(0, 2),
+    });
     setShowPaymentModal(false);
   };
 

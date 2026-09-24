@@ -576,6 +576,15 @@ export async function awaitSettledTransactions(): Promise<void> {
  * alone), this falls back to running `fn` without transaction semantics
  * rather than blocking the operation entirely: no worse than the previous
  * behavior, just not improved for that run.
+ *
+ * That risk is currently closed, not just tolerated: the vendored
+ * `@tauri-apps/plugin-sql` fork (`src-tauri/vendor/tauri-plugin-sql/src/
+ * wrapper.rs`) caps its sqlx pool at `.max_connections(1)` specifically so
+ * every call serializes onto the same connection, restoring real
+ * transactional semantics across the BEGIN/COMMIT sequence. If that vendored
+ * fork is ever replaced with a stock (non-vendored) build of the plugin —
+ * e.g. during an upgrade — this cap, and the guarantee it provides, would
+ * silently disappear unless re-applied there.
  */
 export async function transaction<T>(fn: () => Promise<T>): Promise<T> {
   // Reserve our place in line before awaiting anything, so two calls

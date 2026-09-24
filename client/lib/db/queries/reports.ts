@@ -471,7 +471,19 @@ export async function getBIMetrics(
   // out of total_amount to get Net Sales (see getBIMetrics's totalRevenue
   // caller, use-bi-data.ts).
   const taxData = await query<{ total: number }>(`SELECT SUM(tax_amount) as total FROM sales WHERE transaction_date >= ? AND transaction_date <= ? AND (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}${bare.clause}`, s1BareCapped);
-  const totalRefundsData = await query<{ total: number }>(`SELECT SUM(r.total_refunded) as total FROM returns r LEFT JOIN sales s ON s.id = r.sale_id WHERE r.created_at >= ? AND r.created_at <= ? AND (r._deleted = 0 OR r._deleted IS NULL)${storeId ? " AND r.store_id = ?" : ""}${joined.clause}`, s1CappedJoined);
+  // EX-VAT refunds. r.total_refunded is VAT-INCLUSIVE (calculateProportionalRefund
+  // in pos-calculations.ts bakes the refunded line's tax share into it), but
+  // every figure this feeds (useBIData's netSales = revenue - tax - refunds)
+  // is ex-VAT: subtracting the raw refund from ex-VAT revenue removes the
+  // refunded VAT a second time, since SUM(tax_amount) above already took it
+  // out. Net out only the refund's ex-VAT share -
+  // refund * (total_amount - tax_amount) / total_amount - the same fix
+  // already applied in fetchProfitLossReportData's refundRows and the Daily
+  // Close report (see use-daily-close-data.ts for the algebra). Falls back to
+  // the full refund when the original sale row can't be joined to compute the
+  // ratio. Deliberately NOT joined to return_items: a returns-level
+  // SUM(total_refunded) alongside a return_items join fans out per item.
+  const totalRefundsData = await query<{ total: number }>(`SELECT SUM(CASE WHEN s.total_amount IS NOT NULL AND s.total_amount != 0 THEN r.total_refunded * (s.total_amount - IFNULL(s.tax_amount, 0)) / s.total_amount ELSE r.total_refunded END) as total FROM returns r LEFT JOIN sales s ON s.id = r.sale_id WHERE r.created_at >= ? AND r.created_at <= ? AND (r._deleted = 0 OR r._deleted IS NULL)${storeId ? " AND r.store_id = ?" : ""}${joined.clause}`, s1CappedJoined);
   const cogsData = await query<{ total: number }>(`SELECT SUM(si.cost_price * si.quantity) as total FROM sale_items si JOIN sales s ON si.sale_id = s.id WHERE s.transaction_date >= ? AND s.transaction_date <= ? AND (s._deleted = 0 OR s._deleted IS NULL)${storeId ? " AND s.store_id = ?" : ""}${joined.clause}`, s1JoinedCapped);
   // Uses the cost_price recorded on the original sale_items row, not a
   // recomputed current-stock average - the product's cost basis can change
@@ -511,7 +523,9 @@ export async function getBIMetrics(
   // denominator as gross, tax-inclusive total_amount understated every
   // growth number by roughly the tax rate plus the refund rate.
   const prevTaxData = await query<{ total: number }>(`SELECT SUM(tax_amount) as total FROM sales WHERE transaction_date >= ? AND transaction_date < ? AND (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}${bare.clause}`, sPrevBare);
-  const prevRefundsData = await query<{ total: number }>(`SELECT SUM(r.total_refunded) as total FROM returns r LEFT JOIN sales s ON s.id = r.sale_id WHERE r.created_at >= ? AND r.created_at < ? AND (r._deleted = 0 OR r._deleted IS NULL)${storeId ? " AND r.store_id = ?" : ""}${joined.clause}`, sPrevJoined);
+  // Ex-VAT, exactly like totalRefundsData above - the baseline has to be the
+  // same definition as the current period's netSales it's compared against.
+  const prevRefundsData = await query<{ total: number }>(`SELECT SUM(CASE WHEN s.total_amount IS NOT NULL AND s.total_amount != 0 THEN r.total_refunded * (s.total_amount - IFNULL(s.tax_amount, 0)) / s.total_amount ELSE r.total_refunded END) as total FROM returns r LEFT JOIN sales s ON s.id = r.sale_id WHERE r.created_at >= ? AND r.created_at < ? AND (r._deleted = 0 OR r._deleted IS NULL)${storeId ? " AND r.store_id = ?" : ""}${joined.clause}`, sPrevJoined);
   const prevTransactionData = await query<{ count: number }>(`SELECT COUNT(*) as count FROM sales WHERE transaction_date >= ? AND transaction_date < ? AND (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}${bare.clause}`, sPrevBare);
   // The customer base as it stood at the start of the current period (i.e.
   // every customer created before it), NOT just the customers created during

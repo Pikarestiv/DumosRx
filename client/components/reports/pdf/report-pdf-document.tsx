@@ -23,6 +23,16 @@ const styles = StyleSheet.create({
     marginTop: 2,
     marginBottom: 14,
   },
+  note: {
+    fontSize: 8.5,
+    color: "#7a5b00",
+    backgroundColor: "#fdf6e3",
+    borderLeftWidth: 2,
+    borderColor: "#e0b400",
+    padding: 6,
+    marginBottom: 14,
+    lineHeight: 1.4,
+  },
   table: {
     borderWidth: 1,
     borderColor: "#d0d0d0",
@@ -68,6 +78,8 @@ interface ReportPdfDocumentProps {
   storeName: string;
   title: string;
   subtitle?: string;
+  /** Optional caveat about the figures, rendered under the subtitle. */
+  note?: string;
   headers: string[];
   rows: Record<string, unknown>[];
   generatedAt: string;
@@ -80,6 +92,7 @@ export function ReportPdfDocument({
   storeName,
   title,
   subtitle,
+  note,
   headers,
   rows,
   generatedAt,
@@ -90,9 +103,10 @@ export function ReportPdfDocument({
       <Page size="A4" orientation="landscape" style={styles.page}>
         <Text style={styles.storeName}>{storeName}</Text>
         <Text style={styles.title}>{title}</Text>
-        <Text style={styles.subtitle}>
+        <Text style={[styles.subtitle, note ? { marginBottom: 4 } : {}]}>
           {subtitle ? `${subtitle}, ` : ""}Generated {generatedAt}
         </Text>
+        {note && <Text style={styles.note}>{note}</Text>}
 
         <View style={styles.table}>
           <View style={[styles.row, styles.headerRow]}>

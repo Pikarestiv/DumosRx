@@ -6,6 +6,9 @@ export interface ReportPdfInput {
   storeName: string;
   title: string;
   subtitle?: string;
+  /** Optional caveat about the figures (e.g. a filtered P&L excluding
+   * expenses), rendered under the subtitle in the document header. */
+  note?: string;
   headers: string[];
   rows: Record<string, unknown>[];
   columnFlex?: number[];

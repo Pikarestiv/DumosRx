@@ -71,10 +71,14 @@ export function useBIData(dateRange?: DateRangeValue, filters?: SalesFilters) {
   // Gross Sales: list-price total before discount, tax, or refunds.
   const grossSales = metrics?.grossSalesData[0]?.total || 0;
   const totalTax = metrics?.taxData[0]?.total || 0;
+  // Already netted to its EX-VAT share by getBIMetrics (total_refunded is
+  // VAT-inclusive; see the comment on totalRefundsData in reports.ts), so the
+  // subtraction below removes each refund's VAT exactly once - via totalTax -
+  // instead of twice. Nothing extra to adjust here.
   const totalRefunds = metrics?.totalRefundsData[0]?.total || 0;
   // Net Sales: what the business actually keeps after discounts (already
   // baked into total_amount), tax collected on the government's behalf
-  // (not real revenue), and refunds.
+  // (not real revenue), and the ex-VAT value of what came back as refunds.
   const netSales = (metrics?.revenueData[0]?.total || 0) - totalTax - totalRefunds;
   // totalRevenue kept as an alias for netSales, not a separate tax-inclusive
   // figure: every consumer of this hook (BIKeyMetrics' "Total Revenue" card,

@@ -348,6 +348,47 @@ describe("report/dashboard aggregate reconciliation against independent raw sums
     // sale just past the closed range's end (sA5) and exclude the one before
     // its start (sA1) - i.e. this is a different number than the test above.
     expect(expected).toBe(2625 + 7665 + 1890 + 945);
+
+    // ...and the Net Sales figure useBIData builds out of these three
+    // queries: revenue - tax - refunds. total_refunded is VAT-INCLUSIVE
+    // (calculateProportionalRefund bakes the refunded line's tax share into
+    // it) while revenue-minus-tax is ex-VAT, so getBIMetrics nets each refund
+    // down to its ex-VAT share first - refund * (total_amount - tax_amount) /
+    // total_amount - exactly as fetchProfitLossReportData's refundRows does.
+    // Subtracting the raw 800 here would take r1's VAT out twice.
+    const salesById = new Map(rawRows<RawSale>(`SELECT * FROM sales`).map((s) => [s.id, s]));
+    const expectedTax = rawRows<RawSale>(`SELECT * FROM sales`)
+      .filter((s) => live(s) && s.store_id === STORE_A && inRange(s.transaction_date, RANGE_FROM, now))
+      .reduce((a, s) => a + (s.tax_amount || 0), 0);
+    const expectedRefunds = rawRows<RawReturn>(`SELECT * FROM returns`)
+      .filter((r) => live(r) && r.store_id === STORE_A && inRange(r.created_at, RANGE_FROM, now))
+      .reduce((a, r) => {
+        const sale = salesById.get(r.sale_id);
+        return (
+          a +
+          (sale && sale.total_amount
+            ? (r.total_refunded * (sale.total_amount - (sale.tax_amount || 0))) / sale.total_amount
+            : r.total_refunded)
+        );
+      }, 0);
+
+    expect(metrics.taxData[0].total).toBe(expectedTax);
+    expect(metrics.totalRefundsData[0].total).toBeCloseTo(expectedRefunds, 6);
+    // r1 refunds 800 (VAT-inclusive) against sA3, whose total is 7665 with
+    // 365 of tax: ex-VAT share = 800 * (7665 - 365)/7665 = 800 * 7300/7665
+    // = 16000/21 ~= 761.90 (the remaining ~38.10 is refunded VAT, already
+    // removed by the tax term).
+    expect(expectedRefunds).toBeCloseTo(16000 / 21, 6);
+    // Net Sales, as useBIData computes it: 2625 + 7665 + 1890 + 945 = 13125
+    // gross, less 125 + 365 + 90 + 45 = 625 tax, less 761.90 ex-VAT refund
+    // = 11738.10. (The old, buggy definition subtracted the full 800 and
+    // reported 11700 - understated by r1's 38.10 of refunded VAT.)
+    const netSales =
+      (metrics.revenueData[0].total || 0) -
+      (metrics.taxData[0].total || 0) -
+      (metrics.totalRefundsData[0].total || 0);
+    expect(netSales).toBeCloseTo(13125 - 625 - 16000 / 21, 6);
+    expect(netSales).toBeCloseTo(11738.0952, 4);
   });
 
   it("getDashboardOverviewData's salesToday reconciles with a raw-row JS sum bucketed by local calendar day", async () => {

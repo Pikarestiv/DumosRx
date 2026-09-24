@@ -103,7 +103,7 @@ Areas specifically audited and found **clean**: webhook signature verification (
 
 ## Architecture & Maintainability
 
-- **The recurring failure pattern across this review's Critical/High findings is "fix applied to one endpoint, not mirrored to a structurally identical sibling."** `laravel-server/tests/Feature/ArchitectureTest.php` already exists specifically to keep one such convention (Controller/Service separation) honest via a test rather than review alone — the same approach could catch this pattern. **Recommended change (still open):** add an architecture test asserting every controller under `Api/App/*`/`Api/Web/*` that queries a tenant-owned table (`stock_batches`, `stock_movements`, `purchase_orders`, `products`, etc.) either `use`s `ScopesToTenant` or is on an explicit allow-list — this would catch the next instance of this pattern automatically instead of needing another manual review pass.
+- **The recurring failure pattern across this review's Critical/High findings is "fix applied to one endpoint, not mirrored to a structurally identical sibling."** `laravel-server/tests/Feature/TenantScopingArchitectureTest.php` now guards against the tenant-scoping instance of this pattern specifically — see `docs/FIXED_BUGS.md`.
 
 ---
 
@@ -115,17 +115,15 @@ Areas specifically audited and found **clean**: webhook signature verification (
 
 ## Recommended Engineering Improvements
 
-1. Add the `ScopesToTenant`-usage architecture test described above — the single highest-leverage remaining change from this review, since it's a backstop against the *next* instance of the "fix not mirrored to sibling" pattern.
-2. Add CI-level `npm audit`/`composer audit` steps (report-only initially) so the next dependency-CVE surface is found automatically rather than by a manual review pass.
+1. Add CI-level `npm audit`/`composer audit` steps (report-only initially) so the next dependency-CVE surface is found automatically rather than by a manual review pass.
 
 ---
 
 ## Suggested Fix Order
 
 1. **C1** (deploy the pending 2026-09-23 migrations) and **H2** (confirm `FLUTTERWAVE_SECRET_HASH` in production) — pure deployment/ops actions, zero remaining code risk, should not wait on anything else.
-2. **Recommended Engineering Improvement #1** (the `ScopesToTenant`-usage architecture test) — cheap, high-leverage, no design decision needed.
-3. **M2** (Next.js 15→16 migration for `client/`), **M3** (localStorage-token architecture), and **M1** (Laravel 11→12 upgrade) — schedule as their own design/upgrade projects.
-4. **M5** (reseller-sale rollout communication) — not a code task; confirm with product/support whether the release note already went out, then remove the entry.
-5. **M4, L1, L2** — accepted tradeoffs / latent-unreferenced-code notes with no real fix pending; nothing to schedule.
+2. **M2** (Next.js 15→16 migration for `client/`), **M3** (localStorage-token architecture), and **M1** (Laravel 11→12 upgrade) — schedule as their own design/upgrade projects.
+3. **M5** (reseller-sale rollout communication) — not a code task; confirm with product/support whether the release note already went out, then remove the entry.
+4. **M4, L1, L2** — accepted tradeoffs / latent-unreferenced-code notes with no real fix pending; nothing to schedule.
 
 This order pulls the pure-ops item (C1) to the front regardless of severity ranking, since it requires no code changes and is pending only on someone triggering a deploy.

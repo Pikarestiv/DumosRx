@@ -4,6 +4,16 @@ on:
     tags:
       - 'v*'
 
+# Not scoped by tag/ref: deploy-ftp's "FTP Deploy Root Files" step targets
+# the SAME /downloads.dumosrx.com/ root (and its shared
+# .ftp-deploy-sync-state-root.json) regardless of which tag triggered it, so
+# two releases pushed close together would otherwise race that shared state
+# file/directory. Releases are infrequent enough that serializing whole runs
+# (rather than just the shared step) is an acceptable cost for correctness.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
   release:
     permissions:
@@ -193,9 +203,11 @@ jobs:
   deploy-ftp:
     needs: [release, release-android]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         
       - name: Download all release assets
         env:
@@ -277,7 +289,7 @@ jobs:
           cp .github/downloads-index.php root-assets/index.php
 
       - name: FTP Deploy Binaries to Version Folder
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+        uses: SamKirkland/FTP-Deploy-Action@8e83cea8672e3fbcbb9fdafff34debf6ae4c5f65 # v4.3.5
         with:
           server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}
@@ -287,7 +299,7 @@ jobs:
           state-name: .ftp-deploy-sync-state-${{ github.ref_name }}.json
 
       - name: FTP Deploy Root Files
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+        uses: SamKirkland/FTP-Deploy-Action@8e83cea8672e3fbcbb9fdafff34debf6ae4c5f65 # v4.3.5
         with:
           server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}

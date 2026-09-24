@@ -97,29 +97,19 @@ The return-hop handoff code is minted once, at impersonation start, and expires 
 
 > **M5 fixed 2026-09-24** — see `docs/FIXED_BUGS.md`.
 
-### M6. `assertStoreOwnership`'s legacy-row "claim" write runs outside the atomic transaction it precedes
-- **Category:** Bug / Data Integrity — **Highly Likely**
-- **File:** `client/lib/db/base-helpers.ts` (`update()`/`softDelete()` calling `assertStoreOwnership()` before `transaction(writeUpdate)`/`transaction(writeSoftDelete)`)
+> **M6, M7, M8, M9 fixed 2026-09-24** — see `docs/FIXED_BUGS.md`. Fixing M9 surfaced a much larger dependency-vulnerability surface than originally scoped — see **M14** below, opened as a separate, deliberately-not-yet-fixed finding rather than silently expanded into.
 
-For a legacy (`store_id IS NULL`) row, the ownership "claim" (`UPDATE ... SET store_id = ?`) commits as its own bare statement before the actual edit's transaction runs. A crash between the two leaves the row claimed with the intended edit lost — and a second store later touching the same row is then rejected as belonging to someone else, even though nothing visibly changed from their perspective. **Fix:** fold the claim into the same transaction as the write/queue/log.
+### M14. `composer audit` surface is far larger than M9's original scope — 36 advisories across 11 packages remain after M9's fix
+- **Category:** Dependency — **Confirmed** (via `composer audit`, run 2026-09-24 while fixing M9)
+- **File:** `laravel-server/composer.json`/`composer.lock`
 
-### M7. FTP-deploying CI workflows have no `concurrency:` guard
-- **Category:** Reliability — **Confirmed** (`grep -n concurrency .github/workflows/*.yml` returns nothing)
-- **File:** `.github/workflows/deploy-client.yml`, `deploy-web.yml`, `deploy-backend.yml`, `deploy-dev.yml`, `release.yml`
+**What is wrong:** M9 was scoped to `symfony/routing`/`yaml`/`process` specifically. Re-running `composer audit` after fixing those three found the vulnerability surface is much broader and had grown since the original review: `league/commonmark` (12 advisories), `guzzlehttp/guzzle` (9), `guzzlehttp/psr7` (4), **`laravel/framework` itself (3)**, `symfony/mime` (2), plus one each on `symfony/polyfill-intl-idn`, `symfony/mailer`, `symfony/http-kernel`, `symfony/http-foundation`, `psy/psysh` (dev-only REPL), and `phpunit/phpunit` (dev-only test runner).
 
-`SamKirkland/FTP-Deploy-Action` diffs against a local state file to decide what to upload/delete, then writes it back. Two overlapping runs against the same `server-dir` (two quick pushes, or a manual dispatch racing a push-triggered run) race that read-modify-write, potentially interleaving uploads or clobbering the state file so a later deploy thinks files are already in sync when they aren't. **Fix:** add `concurrency: { group: deploy-client-${{ github.ref }}, cancel-in-progress: false }` to each workflow.
+**Why this wasn't folded into M9's fix:** Unlike M9's three packages (isolated patch-level bumps within their installed minor version, zero-risk), several of these — `laravel/framework` itself, and `guzzlehttp/guzzle`'s major-version-spanning advisories — are core framework/HTTP-client dependencies where a `composer update` could pull in behavior changes across the whole app, not a contained patch. That deserves its own review pass and regression testing, not a same-breath addition to an already-landed fix.
 
-### M8. `chmod -R 777 storage bootstrap/cache` in both backend deploy workflows
-- **Category:** Security — **Confirmed**
-- **File:** `.github/workflows/deploy-backend.yml`, `deploy-dev.yml`
+**Recommended fix:** Run `composer audit` fresh, triage each package: dev-only tooling (`psy/psysh`, `phpunit/phpunit`) is lowest risk to bump; `symfony/mime`/`http-kernel`/`http-foundation`/`polyfill-intl-idn` are likely the same "already on the right minor, needs a patch release" shape as M9's fix; `laravel/framework` and `guzzlehttp/guzzle`/`psr7` need a real compatibility check (test suite + manual smoke test of anything doing outbound HTTP — payment webhooks, Sentry, etc. — since Guzzle is Laravel's default HTTP client) before bumping.
 
-Deploys `laravel-server/storage/` (sessions, logs, uploads) and `bootstrap/cache/` (compiled config/routes) world-writable on shared hosting, where file permissions are one of few isolation mechanisms between tenants on the box. **Fix:** use `775` with correct group ownership, scoped only to subdirectories that actually need write access.
-
-### M9. Transitive Symfony CVEs in `laravel-server`
-- **Category:** Dependency — **Confirmed** (via `composer audit`)
-- **File:** `laravel-server/composer.json`
-
-`symfony/routing` carries two medium CVEs (dot-segment URL-generation bypass; route-requirement regex bypass → off-site `//host` URL injection) most relevant to this app's redirect/auth-handoff URL generation for emails and links. `symfony/yaml` has three low-severity DoS advisories. **Fix:** `composer update symfony/routing symfony/yaml symfony/process`.
+**Priority:** Schedule as its own pass with the full test suite run before/after; not blocking, since none of these are known-exploited-in-the-wild critical CVEs on this app's actual attack surface as far as this review could determine, but shouldn't sit indefinitely either.
 
 ### M10. Major-version dependency drift between `client/` and `web/` during an active code-migration effort
 - **Category:** Architecture — **Confirmed**
@@ -151,11 +141,7 @@ New store-level toggle, default `0` (explicit, deliberate product requirement). 
 
 ## Low Priority Findings
 
-### L1. `deploy-ftp` job in `release.yml` uses unpinned action tags while the rest of the file pins to commit SHAs
-- **File:** `.github/workflows/release.yml:198,280,290` — `actions/checkout@v4` and `SamKirkland/FTP-Deploy-Action@v4.3.4` (a mutable tag, and an older version than the SHA-pinned `v4.3.5` used elsewhere). A moved/compromised tag would silently execute different code with access to FTP credentials pushing to the public downloads/updater feed. **Fix:** pin to the same commit SHAs already used elsewhere in the repo.
-
-### L2. No `permissions:` block on the four FTP-only deploy workflows
-- **File:** `deploy-client.yml`, `deploy-web.yml`, `deploy-backend.yml`, `deploy-dev.yml` — implicit `GITHUB_TOKEN` scope, unused by these jobs but a missing defense-in-depth layer against a compromised transitive action. **Fix:** add `permissions: contents: read` (or `{}`).
+> **L1, L2 fixed 2026-09-24** (alongside the M7–M9 CI/CD hardening batch) — see `docs/FIXED_BUGS.md`.
 
 ### L3. Tauri backend's `query()`/`execute()` has no corruption-retry, unlike the heavily-hardened sql.js path — currently safe, but the reason isn't documented in `core.ts`
 - **File:** `client/lib/db/core.ts`. The asymmetry is currently fine because the vendored `tauri-plugin-sql` fork caps the pool at `max_connections(1)` specifically to make this safe — but that fact lives only in the vendored plugin's own comment, not in `core.ts` or `AGENTS.md`. A future upgrade of `@tauri-apps/plugin-sql` back to a stock (non-vendored) build could silently drop that cap and reopen the exact race sql.js's retry logic exists for. **Fix:** cross-reference `src-tauri/vendor/tauri-plugin-sql`'s `max_connections(1)` in a `core.ts` comment or in `AGENTS.md`'s Database section.
@@ -182,12 +168,13 @@ New store-level toggle, default `0` (explicit, deliberate product requirement). 
 | `StaffController::update()` role has no privilege ceiling | Medium | **Fixed** 2026-09-24 |
 | Inconsistent `drx_admin_session` cookie issuance across 3 paths | Medium | **Fixed** 2026-09-24 |
 | Impersonation overwrites admin's own session cookie | Medium | **Fixed** 2026-09-24 |
-| M8 — `chmod 777` on deployed Laravel storage/cache | Medium | Open |
-| M9 — transitive Symfony CVEs (routing/yaml) | Medium | Open |
+| `chmod 777` on deployed Laravel storage/cache | Medium | **Fixed** 2026-09-24 |
+| Transitive Symfony CVEs (routing/yaml/process) | Medium | **Fixed** 2026-09-24 |
+| M14 — broader `composer audit` surface (laravel/framework, guzzle, commonmark) | Medium | Open |
 | M11 — auth token in `localStorage`, not HttpOnly cookie | Medium | Open (accepted tradeoff) |
 | H3 — Next.js high/critical CVEs; unpatched `xlsx` CVEs | High | Open |
-| L1 — unpinned action tag in `release.yml`'s FTP job | Low | Open |
-| L2 — missing `permissions:` block on 4 deploy workflows | Low | Open |
+| Unpinned action tag in `release.yml`'s FTP job | Low | **Fixed** 2026-09-24 |
+| Missing `permissions:` block on 4 deploy workflows | Low | **Fixed** 2026-09-24 |
 
 Areas specifically audited and found **clean** (no regression, matches documented prior fixes): webhook signature verification (constant-time, fail-closed) and idempotent lock-guarded payment activation; sync push's role/field allow-list (`SyncController::sanitizeUserSyncPayload`); `AuthHandoffController`'s single-use/60s-TTL/high-entropy handoff codes and fragment-based transport; CORS allowlist (no wildcard, explicit origins); admin access-token storage (memory-only, never in `localStorage`); XSS surface in `web/` (no `dangerouslySetInnerHTML` on user content); path traversal in `.github/downloads-index.php` (no user input reaches any filesystem path); secrets in `.env.example` files and git history (none found); PIN login lockout (already fixed, still correct).
 
@@ -217,7 +204,7 @@ Areas specifically audited and found **clean** (no regression, matches documente
 - **No test exercises cross-tab/cross-instance persistence** in `client/lib/db/` (C5) — all existing DB tests use a single injected database instance. A harness simulating two independent instances sharing a mocked IndexedDB store would need to be built from scratch to cover this.
 - ~~**No test covers `usePOSPayment.handlePayment`'s double-invocation behavior**~~ — **closed 2026-09-24**: `use-pos-payment-double-submit.test.ts` added, verified to fail against the pre-fix code.
 - ~~**No test pins the admin-session-cookie's security properties**~~ — **closed 2026-09-24**: `AdminSessionCookieTest.php` now asserts `SameSite`/cookie-presence directly at `refresh()`, `login()`, `impersonateStore()`, and `restoreSession()`.
-- **`composer audit`/`npm audit` are not run in CI** (inferred from workflow contents — none of the five workflows invoke either) — the dependency CVEs in H3/M9 would have been caught automatically. Add an audit step (non-blocking initially, since some advisories currently have no fix) to at least surface new ones going forward.
+- **`composer audit`/`npm audit` are not run in CI** (inferred from workflow contents — none of the five workflows invoke either) — the dependency CVEs in H3/M14 would have been caught automatically, and M14's broader surface was only found by running the audit manually. Add an audit step (non-blocking initially, since some advisories currently have no fix) to at least surface new ones going forward.
 
 ---
 
@@ -225,20 +212,20 @@ Areas specifically audited and found **clean** (no regression, matches documente
 
 1. **Still open:** add the `ScopesToTenant`-usage architecture test described above — the single highest-leverage remaining change from this review, since it targets the *pattern* behind the fixed staff-IDOR and stock-batch/movement/PO findings, not just their individual instances.
 2. ~~Extract `StaffController::store()`'s store-ownership check and `SyncController::roleIsAtOrBelowCallerPrivilege()` into shared helpers~~ — **done 2026-09-24**: both now live on a shared `EnforcesStaffOwnership` trait, used by `StaffController` (`store()` and `update()`) and `SyncController`.
-3. Consolidate all `drx_admin_session` cookie writes through the existing `buildAdminSessionCookie()`/`forgetAdminSessionCookie()` helpers — no call site should hand-roll `cookie(...)` for this cookie name.
-4. Add CI-level `npm audit`/`composer audit` steps (report-only initially) so H3/M9-class findings surface automatically rather than needing a manual review pass.
-5. Pin every third-party GitHub Action to a commit SHA (matching the convention already used in most of `release.yml`) and add `concurrency:`/`permissions:` blocks to the four FTP-only deploy workflows.
-6. Treat the client/web dependency-drift (M10) and the multi-tab data-loss risk (C5) as scoped mini-projects with their own design pass, not quick patches — both require an actual decision (version-alignment policy; single-writer-tab architecture) rather than a local code change.
+3. ~~Consolidate all `drx_admin_session` cookie writes through the existing `buildAdminSessionCookie()`/`forgetAdminSessionCookie()` helpers~~ — **done 2026-09-24**: extracted onto a shared `ManagesAdminSessionCookie` trait, used by both `AuthenticatesSessions` and `AdminStoreController`; `refresh()`/`impersonateStore()` no longer write the cookie at all, `restoreSession()` now routes through the shared helper.
+4. ~~Add CI-level `npm audit`/`composer audit` steps~~ — **still open**: M14 was only found by running `composer audit` manually; wiring this into CI (report-only initially) would surface the next one automatically.
+5. ~~Pin every third-party GitHub Action to a commit SHA... and add `concurrency:`/`permissions:` blocks~~ — **done 2026-09-24**: all five workflows now pin every action to a SHA, have `concurrency:` groups, and have explicit `permissions: contents: read` where none existed before.
+6. Treat the client/web dependency-drift (M10) and the multi-tab data-loss risk (C5) as scoped mini-projects with their own design pass, not quick patches — both require an actual decision (version-alignment policy; single-writer-tab architecture) rather than a local code change. **M14** (the broader `composer audit` surface) belongs in this same "needs its own review pass" category.
 
 ---
 
 ## Suggested Fix Order
 
-**Done (2026-09-24):** the cross-tenant staff IDOR + role-privilege ceiling, the stock-batch/movement/PO 500s + tenant under-scoping, the hardcoded seeder password, the admin-session-cookie hardening regression (former H1/M2/M3), the client token-clearing-on-network-blip regression (former H2), and the POS double-submit guard (former M5) are all fixed, tested, and merged — see `docs/FIXED_BUGS.md`. Remaining order below, renumbered:
+**Done (2026-09-24):** the cross-tenant staff IDOR + role-privilege ceiling, the stock-batch/movement/PO 500s + tenant under-scoping, the hardcoded seeder password, the admin-session-cookie hardening regression (former H1/M2/M3), the client token-clearing-on-network-blip regression (former H2), the POS double-submit guard (former M5), the legacy-row claim transaction boundary (former M6), and the CI/CD hardening batch (former M7/M8/M9/L1/L2 — concurrency guards, `chmod`, Symfony CVEs, action pinning, `permissions:` blocks) are all fixed, tested, and merged — see `docs/FIXED_BUGS.md`. Remaining order below, renumbered:
 
 1. **C6** (deploy the pending 2026-09-23 migrations) and **H4** (confirm `FLUTTERWAVE_SECRET_HASH` in production) — pure deployment/ops actions, zero remaining code risk, should not wait on anything else.
-2. **M6** (legacy-row claim transaction boundary), **M7–M9** (CI/CD hardening: concurrency guards, `chmod`, Symfony bump) — batch as a CI/infra hardening pass.
-3. **H3** (Next.js/xlsx CVE remediation) — schedule with normal regression testing given these are major-adjacent framework bumps.
+2. **H3** (Next.js/xlsx CVE remediation) — schedule with normal regression testing given these are major-adjacent framework bumps.
+3. **M14** (the broader `composer audit` surface found while fixing M9 — `laravel/framework`, `guzzlehttp/*`, `league/commonmark`) — needs its own compatibility review, not a quick patch like M9 was.
 4. **Recommended Engineering Improvement #1** (the `ScopesToTenant`-usage architecture test) — still the single highest-leverage remaining change, since it's a backstop against the *next* instance of the "fix not mirrored to sibling" pattern, not just the three already fixed.
 5. **C5** (multi-tab data loss) and **M10/M11** (dependency drift, localStorage-token architecture) — schedule as their own design passes; not blocking for the above, but shouldn't be indefinitely deferred given C5's silent-data-loss nature.
 6. **M13** (reseller-sale rollout communication) — not a code task; confirm with product/support whether the release note already went out, then remove the entry.

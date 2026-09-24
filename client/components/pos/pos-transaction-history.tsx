@@ -13,7 +13,7 @@ import { calculateNetSaleAmount, calculateAvgBasket } from "@/lib/utils/pos-calc
 import { genericFuzzySearch } from "@/lib/utils/search";
 import { getRecentSales, getPendingResellerCommissionTotal } from "@/lib/db/queries/sales";
 import { queryKeys } from "@/lib/query-keys";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, getLocalTodayDate } from "@/lib/utils";
 import type { DateRangeValue } from "@/components/ui/date-range-picker";
 import type { SaleWithDetails } from "@/lib/types/sale";
 
@@ -72,11 +72,23 @@ export function POSTransactionHistory({
   });
   const salesSource = dateRange.from ? rangeSales : recentSales;
 
-  // Compute metrics for "Today"
+  // Today's metric cards are fetched date-scoped in SQL rather than derived
+  // from the `recentSales` prop: that prop is an undated, LIMIT-100 snapshot
+  // (see usePOSData), so on a busy day - or any day following one with 100+
+  // sales - today's earliest (or all of today's) rows were pushed out of the
+  // snapshot before the client-side "is it today" filter ever ran, and the
+  // cards understated revenue/transactions. Same pattern as
+  // use-my-today-sales.ts, scoped to everyone when the viewer may see all
+  // activity (matching how usePOSData scopes `recentSales`). Today's local
+  // date is part of the query key, so the cards also roll over at midnight.
+  const today = getLocalTodayDate();
+  const { data: todaySalesData } = useQuery({
+    ...queryKeys.sales.recent(rangeUserId, { from: today, to: today }),
+    queryFn: () => getRecentSales(rangeUserId, { from: today, to: today }),
+  });
+
   const todayMetrics = useMemo(() => {
-    const todaySales = (recentSales || []).filter(
-      (s) => s.created_at && isToday(parseISO(s.created_at)),
-    );
+    const todaySales = todaySalesData || [];
 
     // Net of refunds: a fully-returned sale should not still count toward
     // today's revenue, here or anywhere else that reads this figure.
@@ -104,7 +116,7 @@ export function POSTransactionHistory({
     );
 
     return { totalSales, transactions, refunded, avgBasket };
-  }, [recentSales]);
+  }, [todaySalesData]);
 
   // Filtered sales. Date range filtering happens at the query level (see
   // salesSource above) - not here - since a picked range can reach past the

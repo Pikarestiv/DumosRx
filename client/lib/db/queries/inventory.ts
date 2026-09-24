@@ -442,8 +442,13 @@ export async function getStockBatchStats(expiryDays: number = 30) {
     `SELECT
       COUNT(p.id) AS total_products,
       SUM(CASE WHEN p.is_active = 1 THEN 1 ELSE 0 END) AS active_products,
-      SUM(CASE WHEN COALESCE(sb.total_qty, 0) <= p.reorder_level AND COALESCE(sb.total_qty, 0) > 0 THEN 1 ELSE 0 END) AS low_stock_count,
-      SUM(CASE WHEN COALESCE(sb.total_qty, 0) = 0 THEN 1 ELSE 0 END) AS critical_stock_count,
+      -- Both require is_active = 1 AND reorder_level > 0, matching the
+      -- "Low stock" drill-down list's own HAVING clause below - without
+      -- these, critical_stock_count in particular counted every deactivated/
+      -- never-restocked product (reorder_level defaults to 0) as needing
+      -- reorder, so the card overshot the very list it links to.
+      SUM(CASE WHEN p.is_active = 1 AND p.reorder_level > 0 AND COALESCE(sb.total_qty, 0) <= p.reorder_level AND COALESCE(sb.total_qty, 0) > 0 THEN 1 ELSE 0 END) AS low_stock_count,
+      SUM(CASE WHEN p.is_active = 1 AND p.reorder_level > 0 AND COALESCE(sb.total_qty, 0) = 0 THEN 1 ELSE 0 END) AS critical_stock_count,
       SUM(COALESCE(sb.expiring_soon, 0)) AS expiring_soon_count,
       SUM(COALESCE(sb.expired, 0)) AS expired_count,
       SUM(COALESCE(sb.missing_expiry, 0)) AS missing_expiry_count,

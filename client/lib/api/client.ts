@@ -200,24 +200,15 @@ class ApiClient extends FleetBillingApiClient {
   }
 
   // Dashboard endpoints
-  async getDashboardStats() {
-    // Aggregate stats from multiple endpoints
-    const [products, dailySales, expiringItems, lowStockItems] =
-      await Promise.all([
-        this.getProducts(1, 1).catch((): CloudListResponse => ({ total: 0 })),
-        this.getDailySales().catch((): CloudListResponse => ({ total: 0, revenue: 0 })),
-        this.getExpiringItems(30).catch((): CloudListResponse => ({ data: [] })),
-        this.getLowStockItems().catch((): CloudListResponse => ({ data: [] })),
-      ]);
-
-    return {
-      totalProducts: products.total || products.data?.length || 0,
-      dailySalesRevenue: dailySales.revenue || dailySales.total || 0,
-      expiringSoon: expiringItems.count || expiringItems.data?.length || 0,
-      lowStockCount: lowStockItems.count || lowStockItems.data?.length || 0,
-    };
-  }
-
+  //
+  // There is deliberately no getDashboardStats() here. One used to exist,
+  // unused, assembling dashboard-shaped numbers (totalProducts,
+  // dailySalesRevenue, expiringSoon, lowStockCount) from the cloud API -
+  // server-side, not netted of refunds, and bucketed by UTC day. It looked
+  // like a drop-in replacement for the real dashboard figures, which come
+  // from the local SQLite queries (getDashboardOverviewData /
+  // getStockBatchStats) and are refund-netted and bucketed by the store's
+  // LOCAL day. Do not reintroduce it: the dashboard reads local data.
   async getRecentActivity(limit = 5) {
     return this.request<CloudListResponse>(`/activity?limit=${limit}`).catch(
       (): CloudListResponse => ({ data: [] }),

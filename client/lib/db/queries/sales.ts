@@ -249,14 +249,25 @@ export async function getRecentSales(
   const storeFilter = storeId ? ` AND s.store_id = ?` : "";
   const params: string[] = [...(userId ? [userId] : [])];
 
+  // `dateRange` carries plain yyyy-MM-dd calendar dates on the STORE's local
+  // wall clock (see use-my-today-sales.ts's getLocalTodayDate() and the
+  // DateRangePicker), but created_at is stored as a UTC instant. Appending a
+  // literal "T00:00:00.000Z"/"T23:59:59.999Z" treated those local dates as
+  // UTC midnight, shifting the day boundary by the store's UTC offset - in
+  // UTC+1 a sale rung at 00:30 local (23:30Z the day before) fell into the
+  // previous day's bucket. Widen the local day to its UTC-equivalent instant
+  // the same way getDailyCloseData/getSalesTotalsByPaymentMethod/
+  // getTopStaffByDate above and toQueryRange() in lib/utils/date-range.ts do.
   let dateFilter = "";
   if (dateRange?.from) {
+    const [year, month, day] = dateRange.from.split("-").map(Number);
     dateFilter += " AND s.created_at >= ?";
-    params.push(`${dateRange.from}T00:00:00.000Z`);
+    params.push(new Date(year, month - 1, day, 0, 0, 0, 0).toISOString());
   }
   if (dateRange?.to) {
+    const [year, month, day] = dateRange.to.split("-").map(Number);
     dateFilter += " AND s.created_at <= ?";
-    params.push(`${dateRange.to}T23:59:59.999Z`);
+    params.push(new Date(year, month - 1, day, 23, 59, 59, 999).toISOString());
   }
   if (storeId) params.push(storeId);
 

@@ -58,22 +58,8 @@ Production migrations run through a protected route, not direct `artisan` access
 ## High Priority Findings
 
 > **H1 fixed 2026-09-24**, along with M2/M3 below (the same admin-session-cookie hardening regression) — see `docs/FIXED_BUGS.md`.
-
-### H2. `base-client.ts`'s 401 handler clears the auth token on network blips, undoing prior hardening
-- **Category:** Bug / Reliability — **Confirmed**
-- **File:** `client/lib/api/base-client.ts:161-186`, in concert with `client/lib/api/token-manager.ts:75-91`
-
-**What is wrong:** `refreshTokenSilently()` was deliberately hardened (per `FIXED_BUGS.md`'s PWA-audit entry) to only call `clearToken()` on a definitive 401/403 refresh response — a network error, timeout, captive portal, or transient 5xx leaves the token untouched. `base-client.ts`'s own 401-handling block undoes this one layer up: if the refresh doesn't produce a *new* token for *any* reason, it falls through to an unconditional `clearToken()` regardless of why.
-
-**How it fails in production:** A store on a flaky connection makes a normal API call, gets a 401 needing a routine refresh; `refreshTokenSilently`'s 5s-timeout fetch aborts due to the bad connection and, by design, leaves the token alone. `base-client.ts` then sees `tokenAfterRefresh === tokenBeforeRefresh` and calls `clearToken()` anyway — deleting the token, clearing the native widget mirror, and unlinking the store from cloud sync on a connection blip, not an invalid session. This retry branch is additionally gated on `navigator.onLine`, already documented elsewhere as unreliable — if it reads `false` while a 401 legitimately arrived, `clearToken()` fires immediately with no retry attempt at all.
-
-**Recommended fix:** Give `refreshTokenSilently()` a return value or distinguishable error indicating *why* it didn't produce a new token ("confirmed invalid" vs. "could not confirm"), and only call `clearToken()` in `base-client.ts` on the former.
-
-**Tests to add:** A unit test for `BaseApiClient.request()` mocking three outcomes of `refreshTokenSilently` (timeout/network error, non-401/403 status, genuine 401/403), asserting `clearToken()` fires only in the last case.
-
-**Priority:** Fix soon — this reintroduces exactly the "device silently and permanently drops out of cloud sync" failure mode a prior fix targeted, just at a different call frame.
-
----
+>
+> **H2 fixed 2026-09-24** — see `docs/FIXED_BUGS.md`.
 
 ### H3. Known-vulnerable Next.js versions in `client/` and `web/`; `xlsx` has unpatched prototype-pollution/ReDoS CVEs
 - **Category:** Dependency / Security — **Confirmed** (via `npm audit`)
@@ -109,11 +95,7 @@ The Flutterwave webhook was previously (wrongly) authenticated against `encrypti
 
 The return-hop handoff code is minted once, at impersonation start, and expires after 60 seconds — but the UI holds onto it in `localStorage` for the entire impersonation session, which realistically lasts minutes. Every admin who impersonates for longer than a minute and clicks "End Session" hits the expired-code branch and is bounced to a fresh login instead of returning smoothly. This is the expected outcome of normal use, not an edge case. **Fix:** either mint a fresh return-mechanism at click time rather than relying on session-start-time state, or keep the admin's own tab open in parallel so returning is just navigating back (which works via the independent HttpOnly cookie regardless of the handoff code).
 
-### M5. `usePOSPayment.handlePayment` has no re-entrancy guard — relies entirely on a render tick
-- **Category:** Bug / Reliability — **Possible** (no reproduction; a clear structural gap against the codebase's own double-submit patterns elsewhere)
-- **File:** `client/lib/hooks/use-pos-payment.ts:122-368`, `client/components/pos/pos-payment-dialog.tsx:157-166`
-
-`handlePayment` sets `processingPayment` as a side effect but never checks it (or any ref-based lock) before proceeding — the only protection against a second invocation is the submit button's `disabled={processingPayment}` prop, which only takes effect a render tick after the click that triggered it. This is a touchscreen POS app (Tauri Android target) where double-tap/ghost-click is a known real phenomenon this codebase has already had to special-case elsewhere (`globals.css`'s `hover:` media-query fix). A close-enough double-tap could pass validation twice, each generating its own `transactionNumber` (so the UNIQUE constraint doesn't catch it), producing two `sales` rows, double stock deduction, and double loyalty/commission for one physical transaction. **Fix:** add `if (processingPayment) return;` as the first line of `handlePayment`. **Test:** invoke `handlePayment()` twice synchronously against a mocked transaction runner; assert only one `insert("sales", ...)`.
+> **M5 fixed 2026-09-24** — see `docs/FIXED_BUGS.md`.
 
 ### M6. `assertStoreOwnership`'s legacy-row "claim" write runs outside the atomic transaction it precedes
 - **Category:** Bug / Data Integrity — **Highly Likely**
@@ -233,7 +215,7 @@ Areas specifically audited and found **clean** (no regression, matches documente
 - ~~**Zero feature-test coverage** for `StockBatchController`, `StockMovementController`, and `PurchaseOrderController`~~ — **closed 2026-09-24**: `StockBatchControllerTest`, `StockMovementControllerTest`, `PurchaseOrderControllerTest` added alongside the scoping fix (see `FIXED_BUGS.md`), covering both the happy path and staff-vs-owner tenant scoping.
 - ~~**`TenantIsolationTest.php` gap:** doesn't test *reassigning* an already-visible row's `store_id` to a foreign tenant~~ — **closed 2026-09-24**: `test_staff_update_rejects_reassigning_store_id_to_another_tenant` added. Still worth treating as a template for auditing any *other* endpoint that accepts a foreign-key field pointing at tenant-scoped data on update — this class of gap isn't proven closed everywhere, just at this one site.
 - **No test exercises cross-tab/cross-instance persistence** in `client/lib/db/` (C5) — all existing DB tests use a single injected database instance. A harness simulating two independent instances sharing a mocked IndexedDB store would need to be built from scratch to cover this.
-- **No test covers `usePOSPayment.handlePayment`'s double-invocation behavior** (M5) — add a synchronous double-call test against a mocked transaction runner.
+- ~~**No test covers `usePOSPayment.handlePayment`'s double-invocation behavior**~~ — **closed 2026-09-24**: `use-pos-payment-double-submit.test.ts` added, verified to fail against the pre-fix code.
 - ~~**No test pins the admin-session-cookie's security properties**~~ — **closed 2026-09-24**: `AdminSessionCookieTest.php` now asserts `SameSite`/cookie-presence directly at `refresh()`, `login()`, `impersonateStore()`, and `restoreSession()`.
 - **`composer audit`/`npm audit` are not run in CI** (inferred from workflow contents — none of the five workflows invoke either) — the dependency CVEs in H3/M9 would have been caught automatically. Add an audit step (non-blocking initially, since some advisories currently have no fix) to at least surface new ones going forward.
 
@@ -252,16 +234,14 @@ Areas specifically audited and found **clean** (no regression, matches documente
 
 ## Suggested Fix Order
 
-**Done (2026-09-24):** the cross-tenant staff IDOR + role-privilege ceiling, the stock-batch/movement/PO 500s + tenant under-scoping, the hardcoded seeder password, and the admin-session-cookie hardening regression (former H1/M2/M3) are all fixed, tested, and merged — see `docs/FIXED_BUGS.md`. Remaining order below, renumbered:
+**Done (2026-09-24):** the cross-tenant staff IDOR + role-privilege ceiling, the stock-batch/movement/PO 500s + tenant under-scoping, the hardcoded seeder password, the admin-session-cookie hardening regression (former H1/M2/M3), the client token-clearing-on-network-blip regression (former H2), and the POS double-submit guard (former M5) are all fixed, tested, and merged — see `docs/FIXED_BUGS.md`. Remaining order below, renumbered:
 
 1. **C6** (deploy the pending 2026-09-23 migrations) and **H4** (confirm `FLUTTERWAVE_SECRET_HASH` in production) — pure deployment/ops actions, zero remaining code risk, should not wait on anything else.
-2. **H2** (client token cleared on network blips) — a reliability regression of previously-fixed behavior; moderate effort, real user impact (devices silently unlinking from sync).
-3. **M5** (POS double-submit guard) — small, isolated, high-value fix given the touchscreen deployment target.
-4. **M6** (legacy-row claim transaction boundary), **M7–M9** (CI/CD hardening: concurrency guards, `chmod`, Symfony bump) — batch as a CI/infra hardening pass.
-5. **H3** (Next.js/xlsx CVE remediation) — schedule with normal regression testing given these are major-adjacent framework bumps.
-6. **Recommended Engineering Improvement #1** (the `ScopesToTenant`-usage architecture test) — still the single highest-leverage remaining change, since it's a backstop against the *next* instance of the "fix not mirrored to sibling" pattern, not just the three already fixed.
-7. **C5** (multi-tab data loss) and **M10/M11** (dependency drift, localStorage-token architecture) — schedule as their own design passes; not blocking for the above, but shouldn't be indefinitely deferred given C5's silent-data-loss nature.
-8. **M13** (reseller-sale rollout communication) — not a code task; confirm with product/support whether the release note already went out, then remove the entry.
-9. **M12, L1–L6** — low-effort cleanup/accepted tradeoffs, bundle into any of the above passes opportunistically.
+2. **M6** (legacy-row claim transaction boundary), **M7–M9** (CI/CD hardening: concurrency guards, `chmod`, Symfony bump) — batch as a CI/infra hardening pass.
+3. **H3** (Next.js/xlsx CVE remediation) — schedule with normal regression testing given these are major-adjacent framework bumps.
+4. **Recommended Engineering Improvement #1** (the `ScopesToTenant`-usage architecture test) — still the single highest-leverage remaining change, since it's a backstop against the *next* instance of the "fix not mirrored to sibling" pattern, not just the three already fixed.
+5. **C5** (multi-tab data loss) and **M10/M11** (dependency drift, localStorage-token architecture) — schedule as their own design passes; not blocking for the above, but shouldn't be indefinitely deferred given C5's silent-data-loss nature.
+6. **M13** (reseller-sale rollout communication) — not a code task; confirm with product/support whether the release note already went out, then remove the entry.
+7. **M12, L1–L6** — low-effort cleanup/accepted tradeoffs, bundle into any of the above passes opportunistically.
 
 This order pulls pure-ops items (C6, H4) to the front regardless of severity ranking, since they require no code changes and are pending only on someone triggering a deploy.

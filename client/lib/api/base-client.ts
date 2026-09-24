@@ -168,21 +168,36 @@ export class BaseApiClient {
           // refresh-and-retry before forcing the user to re-link; clearing
           // unconditionally on every 401 logged store owners out far more
           // often than the token was actually invalid.
-          if (
-            !isAuthEndpoint &&
-            !isRetry &&
-            typeof window !== "undefined" &&
-            navigator.onLine
-          ) {
-            const tokenBeforeRefresh = getToken();
-            await refreshTokenSilently(this.baseURL);
-            const tokenAfterRefresh = getToken();
-            if (tokenAfterRefresh && tokenAfterRefresh !== tokenBeforeRefresh) {
+          if (!isAuthEndpoint && !isRetry && typeof window !== "undefined") {
+            // Trusts refreshTokenSilently()'s own outcome instead of
+            // inferring it from whether the token changed. The previous
+            // "clear whenever we didn't get a *new* token" logic also
+            // fired on a network blip, timeout, captive portal, or
+            // transient 5xx during the refresh call itself - exactly the
+            // cases refreshTokenSilently() is deliberately hardened to NOT
+            // treat as proof of invalidity - undoing that hardening one
+            // call frame up and silently, permanently unlinking the device
+            // from cloud sync over a connectivity hiccup rather than an
+            // actual invalid session. Also no longer gated on
+            // navigator.onLine (unreliable - see the PWA offline-audit
+            // findings elsewhere in this codebase): attempting anyway just
+            // costs a bounded 5s timeout via refreshTokenSilently's own
+            // AbortController if genuinely offline, landing on
+            // "unconfirmed" below, which is the correct outcome either way
+            // - whereas skipping the attempt on a false "offline" reading
+            // previously cleared the token immediately with zero chance to
+            // confirm it first.
+            const outcome = await refreshTokenSilently(this.baseURL);
+            if (outcome === "refreshed") {
               return this.request<T>(endpoint, options, true);
             }
+            if (outcome === "confirmed-invalid") {
+              clearToken();
+            }
+            // "unconfirmed": leave the token in place.
+          } else {
+            clearToken();
           }
-
-          clearToken();
         }
 
         if (

@@ -20,7 +20,7 @@ class PaymentService
     /**
      * Initialize a transaction with Paystack (Primary) or Flutterwave (Fallback)
      */
-    public function initializeTransaction($amount, $email, $metadata = [])
+    public function initializeTransaction($amount, $email, $metadata = [], ?string $callbackUrl = null)
     {
         $systemConfig = \App\Models\SystemConfig::getVal('subscription_plans', []);
         $paystackEnabled = $systemConfig['enable_paystack'] ?? true;
@@ -32,23 +32,23 @@ class PaymentService
 
         if ($paystackEnabled && !$flutterwaveEnabled) {
             // Only Paystack is enabled
-            return $this->initializePaystack($amount, $email, $metadata);
+            return $this->initializePaystack($amount, $email, $metadata, $callbackUrl);
         }
 
         if (!$paystackEnabled && $flutterwaveEnabled) {
             // Only Flutterwave is enabled
-            return $this->initializeFlutterwave($amount, $email, $metadata);
+            return $this->initializeFlutterwave($amount, $email, $metadata, $callbackUrl);
         }
 
         // Both are enabled: Try Paystack first
         try {
-            return $this->initializePaystack($amount, $email, $metadata);
+            return $this->initializePaystack($amount, $email, $metadata, $callbackUrl);
         } catch (\Exception $e) {
             Log::warning("Paystack initialization failed, falling back to Flutterwave: " . $e->getMessage());
-            
+
             // Fallback to Flutterwave
             try {
-                return $this->initializeFlutterwave($amount, $email, $metadata);
+                return $this->initializeFlutterwave($amount, $email, $metadata, $callbackUrl);
             } catch (\Exception $fe) {
                 Log::error("Both payment gateways failed: " . $fe->getMessage());
                 throw new \Exception("Unable to initialize payment gateway. Please try again later.");
@@ -56,14 +56,21 @@ class PaymentService
         }
     }
 
-    protected function initializePaystack($amount, $email, $metadata)
+    protected function initializePaystack($amount, $email, $metadata, ?string $callbackUrl = null)
     {
         $response = Http::withToken($this->paystackKey)
             ->post('https://api.paystack.co/transaction/initialize', [
                 'amount' => (int) round($amount * 100), // Paystack uses kobo
                 'email' => $email,
                 'metadata' => $metadata,
-                'callback_url' => config('app.frontend_url') . '/dashboard/subscription/verify',
+                // Every caller previously got the subscription-verify page
+                // regardless of what they were actually paying for - a
+                // storefront checkout redirected a paying customer into a
+                // page that 404s on their reference, so the order never got
+                // created despite the charge succeeding. Callers now pass
+                // their own return URL; the subscription flow's callers omit
+                // it and keep the original default.
+                'callback_url' => $callbackUrl ?? (config('app.frontend_url') . '/dashboard/subscription/verify'),
             ]);
 
         if (!$response->successful()) {
@@ -71,7 +78,7 @@ class PaymentService
         }
 
         $data = $response->json();
-        
+
         return [
             'provider' => 'paystack',
             'reference' => $data['data']['reference'],
@@ -79,7 +86,7 @@ class PaymentService
         ];
     }
 
-    protected function initializeFlutterwave($amount, $email, $metadata)
+    protected function initializeFlutterwave($amount, $email, $metadata, ?string $callbackUrl = null)
     {
         // Flutterwave's POST /v3/payments response body only carries
         // {"data": {"link": ...}} - it does NOT echo tx_ref back. Reading it
@@ -93,7 +100,7 @@ class PaymentService
                 'tx_ref' => $txRef,
                 'amount' => $amount,
                 'currency' => 'NGN',
-                'redirect_url' => config('app.frontend_url') . '/dashboard/subscription/verify',
+                'redirect_url' => $callbackUrl ?? (config('app.frontend_url') . '/dashboard/subscription/verify'),
                 'customer' => [
                     'email' => $email,
                 ],

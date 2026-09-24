@@ -76,6 +76,14 @@ Route::prefix('v1')->group(function () {
     // Public Storefront
     Route::get('/storefront-slugs', [\App\Http\Controllers\Api\Public\StorefrontController::class, 'slugs']);
     Route::get('/storefront/{store_slug}', [\App\Http\Controllers\Api\Public\StorefrontController::class, 'show']);
+    // Step 1 of the online-payment flow: mints the payment reference
+    // server-side and reserves it for this cart/store. Throttled on its own
+    // (unlike the rest of the storefront): it's an unauthenticated endpoint
+    // that makes an outbound call to Paystack on every hit, so it's the one
+    // place a stranger can spend the platform's provider quota.
+    Route::middleware('throttle:storefront-checkout')->group(function () {
+        Route::post('/storefront/{store_slug}/checkout/initialize', [\App\Http\Controllers\Api\Public\StorefrontController::class, 'initializeCheckout']);
+    });
     Route::post('/storefront/{store_slug}/checkout', [\App\Http\Controllers\Api\Public\StorefrontController::class, 'checkout']);
 
     // Webhooks (Public)

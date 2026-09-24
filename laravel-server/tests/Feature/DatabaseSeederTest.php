@@ -20,8 +20,9 @@ class DatabaseSeederTest extends TestCase
 
     public function test_local_env_uses_the_documented_default_password_when_unset()
     {
-        // app()->environment() defaults to 'testing' here, which this
-        // seeder treats the same as any other non-production environment.
+        // app()->environment() defaults to 'testing' here, which the
+        // seeder buckets with 'local' as the only environments allowed the
+        // documented default password.
         putenv('SEED_SUPER_ADMIN_PASSWORD');
         unset($_ENV['SEED_SUPER_ADMIN_PASSWORD'], $_SERVER['SEED_SUPER_ADMIN_PASSWORD']);
 
@@ -48,6 +49,37 @@ class DatabaseSeederTest extends TestCase
         $this->assertFalse(
             Hash::check('Admin123#', $admin->password),
             'Production must never fall back to the hardcoded default password.'
+        );
+    }
+
+    /**
+     * Regression coverage for a review finding on the first pass of this
+     * fix: the original discriminator was `environment('production')`
+     * (exact match only), so a real, internet-facing deployment with any
+     * OTHER environment string (`staging`, `development`, the actual
+     * `deploy-dev.yml`-deployed host, etc.) fell through to the
+     * hardcoded-default branch just because it wasn't literally
+     * "production". The discriminator is now `!environment(['local',
+     * 'testing'])`, so any deployed-but-not-local environment name is
+     * treated the same as production.
+     */
+    public function test_non_local_non_testing_env_does_not_use_the_hardcoded_default_when_unset()
+    {
+        putenv('SEED_SUPER_ADMIN_PASSWORD');
+        unset($_ENV['SEED_SUPER_ADMIN_PASSWORD'], $_SERVER['SEED_SUPER_ADMIN_PASSWORD']);
+
+        app()->instance('env', 'staging');
+
+        try {
+            (new DatabaseSeeder())->run();
+        } finally {
+            app()->instance('env', 'testing');
+        }
+
+        $admin = User::where('email', 'admin@dumosrx.com')->firstOrFail();
+        $this->assertFalse(
+            Hash::check('Admin123#', $admin->password),
+            'A deployed non-local, non-testing environment must never fall back to the hardcoded default password, regardless of its exact name.'
         );
     }
 

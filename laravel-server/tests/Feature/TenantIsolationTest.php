@@ -401,4 +401,34 @@ class TenantIsolationTest extends TestCase
         $response->assertStatus(422);
         $this->assertDatabaseHas('users', ['id' => $this->staffA->id, 'role' => 'sales_staff']);
     }
+
+    /**
+     * update()'s privilege-ceiling check (see above) was fixed alongside
+     * the store_id-reassignment IDOR, but an independent review pass
+     * caught that store() (creation) was left as the unfixed sibling of
+     * the same asymmetry — the exact "fix on one endpoint, not mirrored to
+     * a structurally identical sibling" pattern this whole review area is
+     * about. This is create's equivalent of
+     * test_staff_update_rejects_role_grant_above_callers_own_privilege.
+     */
+    public function test_staff_store_rejects_role_grant_above_callers_own_privilege()
+    {
+        $auditorA = User::create([
+            'first_name' => 'Auditor', 'last_name' => 'A',
+            'email' => 'auditorA@dumosrx.com', 'password' => bcrypt('password'),
+            'role' => 'auditor', 'store_id' => $this->storeA->id,
+        ]);
+
+        $response = $this->actingAs($auditorA)
+            ->postJson('/api/v1/staff', [
+                'first_name' => 'New',
+                'last_name' => 'Hire',
+                'username' => 'privesc',
+                'role' => 'manager',
+                'store_id' => $this->storeA->id,
+            ]);
+
+        $response->assertStatus(422);
+        $this->assertDatabaseMissing('users', ['username' => 'privesc']);
+    }
 }

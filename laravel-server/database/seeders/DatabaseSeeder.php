@@ -39,15 +39,26 @@ class DatabaseSeeder extends Seeder
             // instead of a predictable committed string. Local/dev keeps
             // the documented default (README's Quick Start) for onboarding
             // convenience, since a local DB is not a real credential.
+            //
+            // Discriminator is `!environment(['local', 'testing'])`, NOT
+            // `environment('production')` — an exact-match-only production
+            // check left any other deployed environment string (`staging`,
+            // `development`, `dev`, `demo`, ...) falling through to the
+            // hardcoded default. `deploy-dev.yml` FTPs this exact seeder to
+            // a real, internet-facing host (api.dev.dumosrx.com) behind the
+            // same MIGRATE_DB_KEY-gated /migrate-db route production uses —
+            // whatever APP_ENV that host happens to be set to, it must not
+            // land in the "local convenience" branch just because it isn't
+            // literally "production".
             $password = env('SEED_SUPER_ADMIN_PASSWORD');
             $generatedPassword = null;
 
             if (!$password) {
-                if (app()->environment('production')) {
+                if (app()->environment(['local', 'testing'])) {
+                    $password = 'Admin123#';
+                } else {
                     $generatedPassword = Str::random(24);
                     $password = $generatedPassword;
-                } else {
-                    $password = 'Admin123#';
                 }
             }
 

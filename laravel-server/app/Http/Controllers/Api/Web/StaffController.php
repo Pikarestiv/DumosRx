@@ -174,6 +174,19 @@ class StaffController extends Controller
             ], 422);
         }
 
+        // Mirrors update()'s identical check (and SyncController's
+        // sync-push path) — without it, any manage_staff holder could
+        // create a brand-new staff row at a role above their own privilege
+        // level, the same escalation update() was fixed against. Caught by
+        // an independent Opus review pass after the initial fix landed
+        // update()'s check but missed this sibling.
+        if (!$user->hasRole('super_admin') && !$this->roleIsAtOrBelowCallerPrivilege($request->role, $user)) {
+            return response()->json([
+                'message' => 'You cannot grant a role above your own privilege level.',
+                'errors' => ['role' => ['You cannot grant a role above your own privilege level.']],
+            ], 422);
+        }
+
         $email = $request->email;
         if (empty($email)) {
             $email = $request->username . '@local.dumosrx.com';

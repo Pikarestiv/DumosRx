@@ -111,6 +111,44 @@ class AdminSessionCookieTest extends TestCase
         $this->assertSame('strict', strtolower((string) $cookie->getSameSite()));
     }
 
+    /**
+     * The Strict/HttpOnly fix above was necessary but not sufficient: an
+     * independent review pass caught that the cookie's VALUE was still the
+     * raw general-ability token passed in the request body, not a
+     * `refresh`-ability-scoped one — so a cookie built from it would fail
+     * refreshAdminSession()'s `$refreshToken->can('refresh')` gate and get
+     * the session cleared on the very next reload, defeating the whole
+     * point of "restoring" a session. Exercises the actual cookie value
+     * end-to-end against the real refresh endpoint, not just its
+     * attributes.
+     */
+    public function test_restore_session_cookie_value_actually_satisfies_refresh_admin_session()
+    {
+        $accessToken = $this->superAdmin->createToken('admin-web')->plainTextToken;
+
+        $restoreResponse = $this->actingAs($this->superAdmin)
+            ->postJson('/api/v1/admin/restore-session', ['token' => $accessToken]);
+        $restoreResponse->assertStatus(200);
+
+        $cookie = $this->findCookie($restoreResponse, 'drx_admin_session');
+        $this->assertNotNull($cookie);
+
+        // withUnencryptedCookie (not withCookie): this cookie is excepted
+        // from EncryptCookies server-side (bootstrap/app.php), so a test
+        // that encrypted it here would send a value the server never
+        // decrypts, defeating the round trip. withCredentials() is also
+        // required - Laravel's test client sends NO cookies at all on a
+        // postJson()/json() call otherwise (prepareCookiesForJsonRequest()
+        // returns [] unless this is set), independent of anything this fix
+        // touches.
+        $refreshResponse = $this->withUnencryptedCookie('drx_admin_session', $cookie->getValue())
+            ->withCredentials()
+            ->postJson('/api/v1/admin/session/refresh');
+
+        $refreshResponse->assertStatus(200);
+        $refreshResponse->assertJsonStructure(['token', 'user']);
+    }
+
     private function findCookie($response, string $name)
     {
         foreach ($response->headers->getCookies() as $cookie) {

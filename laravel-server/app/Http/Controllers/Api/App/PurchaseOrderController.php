@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\App;
 
+use App\Http\Controllers\Concerns\ScopesToTenant;
 use App\Http\Controllers\Controller;
 use App\Models\PurchaseOrder;
 use App\Models\Store;
@@ -11,6 +12,8 @@ use OpenApi\Attributes as OA;
 
 class PurchaseOrderController extends Controller
 {
+    use ScopesToTenant;
+
     #[OA\Get(
         path: '/purchase-orders',
         summary: 'List purchase orders for the store (across all staff)',
@@ -30,12 +33,15 @@ class PurchaseOrderController extends Controller
     )]
     public function index(Request $request)
     {
-        $user = $request->user();
         $limit = $request->get('limit', 50);
 
-        // Filter by users in the same store
-        $storeIds = Store::where('user_id', $user->id)->pluck('id')->toArray();
-        $userIds = User::whereIn('store_id', $storeIds)->pluck('id')->push($user->id)->toArray();
+        // Filter by users across every store owned by the caller's tenant
+        // (resolved via ScopesToTenant so a staff caller — whose own id
+        // owns no Store row — sees the same list their owner would, not
+        // an empty/self-only set).
+        $ownerId = $this->tenantOwnerId($request);
+        $storeIds = Store::where('user_id', $ownerId)->pluck('id')->toArray();
+        $userIds = User::whereIn('store_id', $storeIds)->pluck('id')->push($ownerId)->toArray();
 
         $orders = PurchaseOrder::whereIn('ordered_by', $userIds)
             ->with(['supplier', 'orderedBy'])

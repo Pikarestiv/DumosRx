@@ -33,6 +33,11 @@ class TenantIsolationTest extends TestCase
     {
         parent::setUp();
 
+        // Needed for the role-privilege-ceiling test below, which compares
+        // real Role->permissions rows (empty tables would make every role
+        // vacuously "at or below" any other).
+        $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
+
         $this->ownerA = User::create([
             'first_name' => 'Owner', 'last_name' => 'A',
             'email' => 'ownerA@dumosrx.com', 'password' => bcrypt('password'),
@@ -336,5 +341,64 @@ class TenantIsolationTest extends TestCase
 
         $response->assertStatus(422);
         $this->assertDatabaseMissing('users', ['username' => 'newhire']);
+    }
+
+    public function test_staff_update_rejects_reassigning_store_id_to_another_tenant()
+    {
+        $foreignStoreId = Store::where('user_id', $this->ownerB->id)->value('id');
+
+        // staffA already belongs to Store A, so it's visible to ownerA
+        // (unlike the 404 tests above, which cover an entirely invisible
+        // row) — the bug was specifically that a caller could re-parent a
+        // row they can already see into a store they don't own.
+        $response = $this->actingAs($this->ownerA)
+            ->putJson("/api/v1/staff/{$this->staffA->id}", [
+                'store_id' => $foreignStoreId,
+            ]);
+
+        $response->assertStatus(422);
+        $this->assertDatabaseHas('users', [
+            'id' => $this->staffA->id,
+            'store_id' => $this->storeA->id,
+        ]);
+    }
+
+    public function test_staff_update_allows_keeping_own_store_id()
+    {
+        // Sanity check for the fix above: re-submitting the SAME store_id
+        // (the normal "edit some other field" case) must still succeed.
+        $response = $this->actingAs($this->ownerA)
+            ->putJson("/api/v1/staff/{$this->staffA->id}", [
+                'first_name' => 'Updated',
+                'store_id' => $this->storeA->id,
+            ]);
+
+        $response->assertStatus(200);
+        $this->assertDatabaseHas('users', [
+            'id' => $this->staffA->id,
+            'first_name' => 'Updated',
+            'store_id' => $this->storeA->id,
+        ]);
+    }
+
+    public function test_staff_update_rejects_role_grant_above_callers_own_privilege()
+    {
+        // Give staffA a role with strictly fewer permissions than the
+        // caller (managerA), so a granted-role check has something real to
+        // reject. auditor only has view_reports/view_own_sales per the
+        // seeder, well below manager's full staff permission set.
+        $managerA = User::create([
+            'first_name' => 'Manager', 'last_name' => 'A',
+            'email' => 'managerA@dumosrx.com', 'password' => bcrypt('password'),
+            'role' => 'auditor', 'store_id' => $this->storeA->id,
+        ]);
+
+        $response = $this->actingAs($managerA)
+            ->putJson("/api/v1/staff/{$this->staffA->id}", [
+                'role' => 'manager',
+            ]);
+
+        $response->assertStatus(422);
+        $this->assertDatabaseHas('users', ['id' => $this->staffA->id, 'role' => 'sales_staff']);
     }
 }

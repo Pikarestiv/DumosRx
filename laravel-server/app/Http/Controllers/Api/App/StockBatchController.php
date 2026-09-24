@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\App;
 
+use App\Http\Controllers\Concerns\ScopesToTenant;
 use App\Http\Controllers\Controller;
 use App\Models\StockBatch;
 use Illuminate\Http\Request;
@@ -10,6 +11,8 @@ use OpenApi\Attributes as OA;
 
 class StockBatchController extends Controller
 {
+    use ScopesToTenant;
+
     #[OA\Get(
         path: '/app/stock-batches',
         summary: 'List stock batches',
@@ -25,8 +28,8 @@ class StockBatchController extends Controller
     {
         $limit = $request->get('limit', 50);
 
-        $inventory = StockBatch::where('user_id', $request->user()->id)
-            ->with('medicine')
+        $inventory = StockBatch::where('user_id', $this->tenantOwnerId($request))
+            ->with('product')
             ->latest()
             ->paginate($limit);
 
@@ -45,8 +48,8 @@ class StockBatchController extends Controller
     )]
     public function lowStock(Request $request)
     {
-        $inventory = StockBatch::where('user_id', $request->user()->id)
-            ->with('medicine')
+        $inventory = StockBatch::where('user_id', $this->tenantOwnerId($request))
+            ->with('product')
             ->whereColumn('quantity', '<=', 'reorder_level')
             ->get();
 
@@ -69,8 +72,8 @@ class StockBatchController extends Controller
         $days = (int) $request->get('days', 90);
         $date = now()->addDays($days);
 
-        $inventory = StockBatch::where('user_id', $request->user()->id)
-            ->with('medicine')
+        $inventory = StockBatch::where('user_id', $this->tenantOwnerId($request))
+            ->with('product')
             ->whereDate('expiry_date', '<=', $date)
             ->whereDate('expiry_date', '>=', now())
             ->orderBy('expiry_date')
@@ -94,7 +97,7 @@ class StockBatchController extends Controller
     public function value(Request $request)
     {
         $totalValue = DB::table('stock_batches')
-            ->where('user_id', $request->user()->id)
+            ->where('user_id', $this->tenantOwnerId($request))
             ->select(DB::raw('SUM(quantity * cost_price) as total_value'))
             ->value('total_value');
 

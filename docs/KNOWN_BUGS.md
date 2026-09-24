@@ -1,64 +1,300 @@
-# Known Bugs / Data Gaps
+# Known Bugs & Engineering Review
 
-Issues spotted incidentally (e.g. while doing TypeScript type-safety cleanup) that aren't fixed yet, tracked here so they don't get lost. Not an exhaustive bug tracker; just a landing spot for "worth fixing later" findings. Fixed entries are removed outright rather than marked — this file is a to-do list, not a changelog (git history is the changelog).
+Deep adversarial review of the whole monorepo (`client/`, `web/`, `laravel-server/`, CI/CD), conducted 2026-09-24 via six parallel scoped passes (laravel auth/authz/payments/tenancy, laravel business logic/data/tests, client offline-sync engine, client UI/state/POS flows, web admin panel/auth handoff, CI/CD/config/dependencies), each cross-checked against `docs/FIXED_BUGS.md` to avoid re-reporting closed items and to catch regressions. Every finding below was traced to concrete code, not inferred from patterns; several were independently re-verified against the actual model/controller source before being included here.
 
-Open items below are grouped by severity (Critical → High → Medium → Low), then a `client/`-area miscellaneous section for older/unlabeled entries.
-
----
-
-## Critical
-
-### `laravel-server/` — 10 migrations from 2026-09-23 not yet run on production
-`laravel-server/database/migrations/2026_09_23_*.php` (10 files)
-
-These add `stores.receipt_logo_position`, `activity_logs.correlation_id`, `purchase_order_items.{selling_price,cost_price_override,lot_number}`, `stock_movements.status`, `stores.{storefront_dirty_at,store_slug_changed_at}`, `sales.markup_type`, `stores.{staff_can_request_transfers,markup_sales_enabled}`, and widen `stock_movements.movement_type` from an incomplete MySQL `ENUM` to `VARCHAR`. All verified safe (additive `ALTER TABLE`, `--pretend` reviewed, applied cleanly to a throwaway sqlite db (the last two, added later the same day) and the local dev DB, full `php artisan test` suite green: 278 passed).
-
-**Until these are deployed and run on production**, any device syncing a change to those columns gets `SQLSTATE[42S22]: Unknown column` (confirmed live: `activity_logs.correlation_id`, `stock_movements` transfer rows via the old `movement_type` ENUM; the last three were caught by code review before ever shipping, not yet confirmed live) and the push silently fails for that row — it stays in the client's local `_sync_queue` retrying forever, not lost, but never reaching the server either.
-
-Production migrations run through a protected route, not direct `artisan` access (no SSH on the shared host — see `laravel-server/AGENTS.md`): `GET https://<production-domain>/migrate-db?key=<MIGRATE_DB_KEY>`. Deploy this branch first, then hit that route. Remove this entry once confirmed run. (Also now covers `2026_09_23_000008_add_timezone_to_stores.php`, added the same day — additive, `stores.timezone` defaults to `'UTC'`.)
+This file holds **open** items only — see `docs/FIXED_BUGS.md` for the changelog of everything already fixed, including the extensive 2026-09-21/22/23 sweeps this review builds on.
 
 ---
 
-## High
+## Executive Summary
 
-### `laravel-server/` — `FLUTTERWAVE_SECRET_HASH` must be set in production before this deploys, or every Flutterwave webhook 500s
-`app/Http/Controllers/Api/Web/PaymentController.php` (Flutterwave webhook handler), `config/payment.php`, `.env.example`
+**Overall health:** This is an unusually well-audited codebase for its size — `docs/FIXED_BUGS.md` documents dozens of prior Opus/Sonnet review cycles that already closed the "obvious" classes of bug (tenant isolation, payment idempotency, sync conflict resolution, float/rounding drift, PWA offline handling). This pass confirms most of that prior work holds up under a fresh adversarial read. It also found that the review process itself has a gap: several fixes were applied to one code path but not mirrored onto a structurally identical sibling path, and two live-crashing/live-exploitable bugs sat undetected because they're in less-traveled, undertested corners of `laravel-server/`. **The four Critical findings from this pass (staff IDOR + role-privilege ceiling, stock-batch/movement/PO 500s + tenant under-scoping, hardcoded seeder password) are now fixed and tested as of 2026-09-24** — see `docs/FIXED_BUGS.md`.
 
-The Flutterwave webhook was previously (wrongly) authenticated against `encryption_key`; it now correctly compares against a new `flutterwave.secret_hash` config value, read from `FLUTTERWAVE_SECRET_HASH`. This is not declared in production `.env` yet. Deliberately fails closed (500, webhook rejected) if the secret is empty — safe, but it means **every Flutterwave subscription payment silently stops activating** the moment this deploys, until someone copies the Secret Hash from the Flutterwave dashboard's webhook settings into production's `.env`. Not evident from the app itself (Paystack continues working fine); would surface as "customer paid via Flutterwave, subscription never activated" support tickets. Remove this entry once confirmed set on production.
+**Most important remaining risks:**
+- Two browser/PWA tabs open against the same install can silently destroy each other's entire local database (committed sales, stock movements, sync queue) with no error surfaced — inherent to the current sql.js + whole-blob IndexedDB persistence design, not a small patch (**C5**, still open).
+- The admin-session-cookie hardening documented in `web/AGENTS.md` (2026-08-26 redesign) has partially regressed: a sibling endpoint (`/refresh`) and the impersonation flow both still mint the pre-redesign cookie shape (`SameSite=None`, unscoped-ability token) under the same cookie name (**H1/M2/M3**, still open — the same "fix on one endpoint, not mirrored to its sibling" pattern the now-fixed staff-IDOR bug had).
+- Two production deployment/ops actions remain pending and are pure blockers, not code work: the 2026-09-23 migrations still need running on production (**C6**), and `FLUTTERWAVE_SECRET_HASH` needs confirming in production `.env` (**H4**).
 
----
+**Testing maturity:** Strong where it's been exercised — `TenantIsolationTest.php`, `SaleControllerTest.php`, the client's 794-file vitest suite, and repeated fixture-based reconciliation tests catch real regressions. Coverage was uneven going into this review: `StockBatchController`, `StockMovementController`, and `PurchaseOrderController` had **zero** feature tests (exactly where two of this review's Critical bugs lived), and `TenantIsolationTest.php` had a specific gap (store_id *reassignment* of an already-visible row, vs. rejecting an initially-invalid store_id) that let the `StaffController::update` IDOR through undetected. Both gaps are now closed — see `docs/FIXED_BUGS.md` — but the underlying lesson (coverage tends to exist for the *initial* creation-time check of a class of bug and not its update-time sibling) is worth keeping in mind when reviewing new endpoints.
 
-## Medium
+**Performance observations:** No systemic scalability problems found. The two concrete issues are localized: an unmemoized POS product grid re-rendering the full catalog on every cart mutation (worse on low-end Android tablets, the project's actual deployment target for the "grocery/supermarket" vertical), and unpinned dependency versions carrying known Next.js CVEs.
 
-### `client/` — auth bearer token kept in `localStorage` instead of an HttpOnly cookie (accepted tradeoff, confirmed 2026-09-23)
-`client/lib/api/token-manager.ts:7-25`
-
-`auth_token` (the Sanctum bearer token) is read/written via `localStorage`, not an HttpOnly cookie. Any XSS in the client app could read `localStorage.auth_token` and exfiltrate a long-lived session token, versus an HttpOnly cookie which JS can't read at all. The admin web session already avoids this (`drx_admin_session` is a proper `HttpOnly` cookie — see `AdminStoreController::impersonateStore`).
-
-Investigated switching this: `token-manager.ts`'s `setToken`/`clearToken` call `mirrorAuthToken`/`clearMirroredAuthToken` (`client/lib/native/widget-bridge.ts`), which hand the raw token to native Tauri (Rust) code so the home-screen widget can make its own authenticated background HTTP requests entirely outside the webview. An HttpOnly cookie is by definition unreadable by JS, so it can't be mirrored to native code — swapping to one would break the widget's live data rather than just change a storage mechanism. Fixing this for real means a dual-path auth design (webview uses a cookie for its own requests; native widget code gets a separate, narrowly-scoped token via its own exchange) — a real architecture change, not a quick fix. Left as-is for now; revisit as a scoped project, not a bug-fix pass.
-
-### `client/` — a long-open tab can 404 on a lazy chunk after a deploy that edits `sw.js`
-`client/public/sw.js` (`activate()`'s cache prune)
-
-`activate()` now prunes cache entries not in the current build's manifest (added 2026-09-24 to stop unbounded growth across deploys). This only runs when `sw.js`'s own bytes change (the browser only re-checks the SW script then), but when it does, an already-open tab still running the *old* build's JS can lazy-load a chunk that both the cache prune and the new deploy's server files have already removed — a chunk-load error, while fully online, until the user reloads. This mirrors how a plain Next.js app already behaves on a deploy with no service worker at all (the SW was incidentally providing extra resilience here); treated as an accepted tradeoff of the "new SW takes over immediately" design rather than special-cased. `pwa-registrar.tsx`'s `controllerchange` reload (added the same day) mitigates the common case by reloading the tab onto the new build as soon as the new SW takes control, but a chunk requested in the brief window between prune and reload could still race it.
-
-### `client/` — existing Pro/Enterprise stores will lose the "Reseller sale" POS row on deploy, silently
-`client/lib/hooks/use-feature-gate.ts` (`isMarkupSalesEnabled`), `stores.markup_sales_enabled`
-
-New store-level toggle added 2026-09-23, default `0` (explicit product requirement — deliberate, not an oversight). Any store already on Pro/Enterprise and actively using reseller-commission sales before this ships will find the POS cart's "Reseller sale" row gone the moment it deploys, with no in-app notice explaining why, until the owner finds and turns on the new toggle in Settings → Register Configs ("Enable Markup Sales"). Not a bug to fix — the default was explicitly requested — but worth a release note / proactive heads-up to any store already using the feature before this ships, so it doesn't read as a broken app to them.
+**Security observations:** The security posture is generally mature (constant-time webhook signature checks, row-locked idempotent payment activation, single-use time-limited handoff codes, a real allow-list on the sync privilege-escalation path). The gaps found are consistently the same shape: **a security fix applied to one endpoint was not mirrored onto a structurally identical sibling** (`store()` vs `update()` in `StaffController`; `login()` vs `refresh()`/`impersonateStore()` in the admin cookie flow). This is a process risk, not a one-off mistake — worth a lint/architecture-test rule (see Recommended Engineering Improvements).
 
 ---
 
-## Low
+## Critical Findings
 
-### `client/` — manifest `theme_color` doesn't follow dark mode
-`client/public/manifest.json:8`, `client/app/layout.tsx:66-68`
+> **C1–C4 fixed 2026-09-24** (cross-tenant staff IDOR + role-privilege ceiling; stock-batch/movement/purchase-order 500s + tenant under-scoping; hardcoded seeder password) — see `docs/FIXED_BUGS.md`. Renumbered below; C2/C3's original "500s on every call for real users" impact claim was corrected during the fix: neither `client/` nor `web/` actually calls any of the five affected endpoints today (verified by grep), so this was live-breaking, publicly-reachable API surface rather than a user-facing outage. C1 also turned up a second, more interesting bug while writing its regression test: the literal reproduction was coincidentally already blocked by an unrelated query filter, which itself needed separating out so the real fix wasn't dead code — see the `FIXED_BUGS.md` entry for detail.
 
-`manifest.json` hardcodes `theme_color`/`background_color` to `#ffffff`; `layout.tsx`'s `viewport.themeColor` correctly switches to black under `prefers-color-scheme: dark`. On Android, the *manifest's* value drives the install splash screen, so a dark-mode user briefly sees a white splash before the dark app renders. The Web App Manifest spec has no equivalent of `<meta name="theme-color" media="...">`'s conditional syntax, so this can't be fully fixed without picking one color scheme's splash over the other — left as the light-mode default since that also matches the manifest's own `background_color`.
+### C5. Two browser/PWA tabs can silently destroy each other's committed data (multi-tab last-write-wins)
+- **Category:** Reliability / Architecture — **Confirmed** by code reading (relies on the sql.js/IndexedDB design, not empirically reproduced in a live browser)
+- **File:** `client/lib/db/core.ts` (`initDatabase()`, `saveDatabase()`, `execute()`, `transaction()`)
+
+**What is wrong:** On the web/PWA (non-Tauri) build, the local SQLite database is an in-memory sql.js instance held in module-scope JS state — one independent, private copy **per browser tab**. Every write persists via `saveDatabase()`, which does a full `db.export()` and overwrites a single shared IndexedDB key wholesale, with no version/CAS check, no cross-tab lock (`navigator.locks`), and no `BroadcastChannel`/`storage`-event coordination anywhere in `lib/db/`. `isSyncInProgress`/`transactionQueue` are also module-level, so they only serialize writes *within one tab*.
+
+**How it fails in production:** Tab A processes a POS sale; its transaction commits and `saveDatabase()` persists an image including the new sale, line items, stock deduction, and `_sync_queue` entries. Tab B (a manager's dashboard tab open at the same time, or the same install left open twice, or even just its own periodic background sync tick) — whose in-memory copy predates Tab A's sale — calls `saveDatabase()` next and unconditionally overwrites the shared IndexedDB blob with its own, sale-less image. Tab A's entire committed, audit-logged sale (row, line items, stock movements, and its now-unreachable `_sync_queue` entries — so it can never even be pushed to the server after the fact) is permanently gone the next time any tab reloads. This is ordinary usage (two tabs open on one machine), not adversarial timing, and it produces no error, toast, or retry path — unlike every other data-loss scenario already documented and mitigated in this file.
+
+**Recommended fix:** Architecture-level, not a one-line patch: acquire the Web Locks API (or a `BroadcastChannel`-based leader election) around `initDatabase()`/every write path so only one tab is ever the writer; other tabs become read-only views that re-hydrate on a signal, or proxy writes to the elected leader. At minimum, detect the multi-tab condition and block/warn the second tab rather than silently corrupting shared state.
+
+**Tests to add:** A harness simulating two independent `core.ts` instances sharing a mocked IndexedDB store — write via "tab A," then via "tab B" without B re-reading A's save, and assert whether A's write survives (currently, no test exercises cross-tab/cross-instance persistence at all).
+
+**Priority:** Scope as a dedicated project (matches the existing "accepted tradeoff, needs a real architecture change" pattern already used for the localStorage-token item below) rather than a quick fix — but it should be scheduled, since it is a silent, no-warning data-loss path for an app whose defining premise is "every screen works fully offline" and data must survive to sync later.
 
 ---
 
-## `client/` — older/unlabeled entries
+### C6. `laravel-server/` — 10 migrations from 2026-09-23 not yet run on production *(carried forward, unresolved — confirmed still accurate by this review)*
+- **Category:** Reliability / Deployment — **Confirmed**
+- **File:** `laravel-server/database/migrations/2026_09_23_*.php` (10 files)
 
-No open items currently — the last one (account/store switch stale
-dashboard data) is fixed, see `FIXED_BUGS.md`.
+These add `stores.receipt_logo_position`, `activity_logs.correlation_id`, `purchase_order_items.{selling_price,cost_price_override,lot_number}`, `stock_movements.status`, `stores.{storefront_dirty_at,store_slug_changed_at}`, `sales.markup_type`, `stores.{staff_can_request_transfers,markup_sales_enabled}`, `stores.timezone`, and widen `stock_movements.movement_type` from an incomplete MySQL `ENUM` to `VARCHAR`. All verified safe (additive `ALTER TABLE`, `--pretend` reviewed, applied cleanly to a throwaway sqlite db and the local dev DB, full `php artisan test` suite green). This review's CI/CD and business-logic passes independently re-confirmed all ten are additive/idempotent and match the migrations currently on disk.
+
+**Until these are deployed and run on production**, any device syncing a change to those columns gets `SQLSTATE[42S22]: Unknown column` and the push silently fails for that row — it stays in the client's local `_sync_queue` retrying forever, never lost, but never reaching the server either.
+
+Production migrations run through a protected route, not direct `artisan` access (no SSH on the shared host): `GET https://<production-domain>/migrate-db?key=<MIGRATE_DB_KEY>`. Deploy this branch first, then hit that route. **Remove this entry once confirmed run.** (The hardcoded-seeder-password issue that same route also re-runs on every hit is now fixed — see `docs/FIXED_BUGS.md` — so this is now a pure deploy/ops action with no remaining code risk.)
+
+---
+
+## High Priority Findings
+
+### H1. `AuthController::refresh()` mints the hardened admin-session cookie with pre-redesign (weak) properties, bypassing its `device_name` gate
+- **Category:** Security — **Confirmed**
+- **File:** `laravel-server/app/Http/Controllers/Api/Concerns/AuthenticatesSessions.php::refresh()` (contrast with `login()` and `buildAdminSessionCookie()`)
+
+**What is wrong:** `login()` was correctly hardened to only mint the `drx_admin_session` refresh cookie when `device_name === 'web'`, via `buildAdminSessionCookie()` (`SameSite=Strict`, token scoped to the `refresh` ability only) — this closed a real CSRF-shaped hole (see `web/AGENTS.md`'s "Admin auth architecture" section). `refresh()` — the endpoint `AGENTS.md` explicitly says belongs to `client/`'s unrelated bearer-token flow — hardcodes its own inline cookie-building with **no `device_name` gate**, the pre-redesign `SameSite=None`-when-secure` policy, and the caller's full, unscoped bearer token (not `refresh`-ability-limited).
+
+**Why it matters:** `/refresh` sits behind plain `auth:sanctum` (any valid bearer token, any device). Every device that calls it — including `client/`'s Tauri desktop app, which refreshes silently after 7 days — causes the API to set a `drx_admin_session` cookie for the `.dumosrx.com` domain, `SameSite=None`, holding a general-purpose (non-ability-restricted) bearer token. This is exactly the credential shape ("unscoped token in a widely-sendable cookie") the 2026-08-26 redesign existed to eliminate.
+
+**How it fails in production:** If that response is ever processed by a browser context sharing the `dumosrx.com` cookie jar (a webview also touching `app.dumosrx.com`/`dumosrx.com`, or any future proxy/webview overlap), a raw, non-scoped bearer token sits in a `SameSite=None` cookie. Separately, any accidental client call to `/refresh` instead of `/admin/session/refresh` from an admin session would clobber the correct `Strict` cookie with a weaker one.
+
+**Recommended fix:** Delete the inline cookie-building in `refresh()` (it's an unaudited duplicate of the pre-fix pattern), or gate it the same way `login()` does and route it through `buildAdminSessionCookie()`.
+
+**Tests to add:** Assert `POST /refresh` with a non-`web` `device_name` token sets no `drx_admin_session` cookie; assert any cookie it does set (if kept) is `SameSite=Strict` and `refresh`-scoped.
+
+**Priority:** Fix soon — real exploitability today is gated by client cross-origin credential settings (see M-series findings below for the related impersonation-cookie issue, which has fewer mitigating preconditions), but this directly contradicts a documented, previously-audited security invariant.
+
+---
+
+### H2. `base-client.ts`'s 401 handler clears the auth token on network blips, undoing prior hardening
+- **Category:** Bug / Reliability — **Confirmed**
+- **File:** `client/lib/api/base-client.ts:161-186`, in concert with `client/lib/api/token-manager.ts:75-91`
+
+**What is wrong:** `refreshTokenSilently()` was deliberately hardened (per `FIXED_BUGS.md`'s PWA-audit entry) to only call `clearToken()` on a definitive 401/403 refresh response — a network error, timeout, captive portal, or transient 5xx leaves the token untouched. `base-client.ts`'s own 401-handling block undoes this one layer up: if the refresh doesn't produce a *new* token for *any* reason, it falls through to an unconditional `clearToken()` regardless of why.
+
+**How it fails in production:** A store on a flaky connection makes a normal API call, gets a 401 needing a routine refresh; `refreshTokenSilently`'s 5s-timeout fetch aborts due to the bad connection and, by design, leaves the token alone. `base-client.ts` then sees `tokenAfterRefresh === tokenBeforeRefresh` and calls `clearToken()` anyway — deleting the token, clearing the native widget mirror, and unlinking the store from cloud sync on a connection blip, not an invalid session. This retry branch is additionally gated on `navigator.onLine`, already documented elsewhere as unreliable — if it reads `false` while a 401 legitimately arrived, `clearToken()` fires immediately with no retry attempt at all.
+
+**Recommended fix:** Give `refreshTokenSilently()` a return value or distinguishable error indicating *why* it didn't produce a new token ("confirmed invalid" vs. "could not confirm"), and only call `clearToken()` in `base-client.ts` on the former.
+
+**Tests to add:** A unit test for `BaseApiClient.request()` mocking three outcomes of `refreshTokenSilently` (timeout/network error, non-401/403 status, genuine 401/403), asserting `clearToken()` fires only in the last case.
+
+**Priority:** Fix soon — this reintroduces exactly the "device silently and permanently drops out of cloud sync" failure mode a prior fix targeted, just at a different call frame.
+
+---
+
+### H3. Known-vulnerable Next.js versions in `client/` and `web/`; `xlsx` has unpatched prototype-pollution/ReDoS CVEs
+- **Category:** Dependency / Security — **Confirmed** (via `npm audit`)
+- **File:** `client/package.json` (`next@15.2.4`), `web/package.json` (`next@16.1.4`)
+
+`npm audit` (client, production deps): 6 vulnerabilities (5 high, 1 critical) — `next@15.2.4` carries ~19 advisories fixed only by upgrading to `15.5.26`, including an unauthenticated RCE on Windows-hosted servers and an unauthenticated RCE in the Image Optimization API via AVIF. `xlsx *` — prototype pollution (GHSA-4r6h-8v6p-xvw6) and ReDoS (GHSA-5pgg-2g8v-p4x9), both **no fix available** upstream.
+
+`npm audit` (web, production deps): 7 vulnerabilities (1 moderate, 5 high, 1 critical) — same advisory family, fixed only by `next@16.3.6`.
+
+**Why it matters:** `client/`'s static export runs as the actual in-store POS app; the RCE-class Next.js advisories are mostly build-time/dev-server risk for a statically-exported app, not live-attack-surface risk in production for `client/` specifically. `web/`'s Next.js **is** a live deployed server, and several of its advisories (cache poisoning, SSRF via rewrites, CSRF bypass) are directly relevant there. `xlsx` is used for bulk product import/export (per `docs/FEATURE_LIST.md`), a plausible path for untrusted spreadsheet input in both apps.
+
+**Recommended fix:** Bump `next` to `15.5.26` (client) / `16.3.6` (web). For `xlsx`, since no upstream fix exists, evaluate migrating the bulk-import/export path to a maintained alternative (e.g. `exceljs`) rather than suppressing the advisory.
+
+**Priority:** Schedule the Next.js bumps soon (test the build/export pipeline after — this project pins majors deliberately); track `xlsx` as a longer-term migration.
+
+---
+
+### H4. `laravel-server/` — `FLUTTERWAVE_SECRET_HASH` must be set in production before this deploys, or every Flutterwave webhook 500s *(carried forward, unresolved)*
+- **Category:** Reliability / Payments — **Confirmed** (code fails closed as designed; production `.env` state itself can't be verified from the repo)
+- **File:** `app/Http/Controllers/Api/Web/PaymentController.php` (Flutterwave webhook handler), `config/payment.php`, `.env.example`
+
+The Flutterwave webhook was previously (wrongly) authenticated against `encryption_key`; it now correctly compares against `flutterwave.secret_hash`, read from `FLUTTERWAVE_SECRET_HASH`. This review confirmed the variable **is** documented with a clear comment in `laravel-server/.env.example`, but whether it has actually been set in production `.env` can't be verified from the repo. Deliberately fails closed (500, webhook rejected) if empty — safe, but means **every Flutterwave subscription payment silently stops activating** the moment this deploys, until someone copies the Secret Hash from the Flutterwave dashboard into production's `.env`. Not evident from the app itself (Paystack continues working fine); would surface as "customer paid via Flutterwave, subscription never activated" support tickets. **Remove this entry once confirmed set on production.**
+
+---
+
+## Medium Priority Findings
+
+### M1. `StaffController::update()`'s `role` field has no privilege-ceiling check
+- **Category:** Security (latent privilege escalation) — **Highly Likely**
+- **File:** `StaffController::update()` vs. `SyncController::roleIsAtOrBelowCallerPrivilege()`
+
+The sync-push path explicitly caps any `role` grant to "at or below the caller's own privilege," with comments describing exactly the "cashier self-promotes" exploit it closes. `StaffController::update()`'s validation is just `'role' => 'string|in:admin,manager,...'` — any caller with `manage_staff` can set any staff row (including their own) to any listed role, with no comparison to their own privilege. Blast radius is limited *today* because `admin`/`store_owner`/`manager` currently share an identical permission set, but the gap becomes a real escalation the moment those roles are ever differentiated (already conceptually distinguished in seeder comments as "Store Admin" vs. "Store Manager"). **Fix:** reuse `roleIsAtOrBelowCallerPrivilege()` in `StaffController::update()` before accepting a role change. **Test:** pin today's "identical permission set" assumption so a future differentiation change is forced to also address this gate.
+
+### M2. Admin session cookie (`drx_admin_session`) is written by three inconsistent code paths
+- **Category:** Security / Architecture — **Confirmed** facts, **Possible** practical exploitability (gated by client credential settings)
+- **File:** `AuthenticatesSessions::refresh()`, `AdminStoreController::impersonateStore()`/`restoreSession()`
+
+Beyond H1's `refresh()` issue: `impersonateStore()`/`restoreSession()` also write the same cookie name/domain with a full-ability token and `SameSite=None` in production; `restoreSession()`'s own doc comment still references the deleted `AuthenticateFromCookie` middleware. The realistic live-risk path is impersonation specifically, since it's a routine, real admin action (not hypothetical) whose response the admin's own browser genuinely processes. **Fix:** give these flows their own distinctly-named cookie, or route all `drx_admin_session` writes through the existing `buildAdminSessionCookie()`/`forgetAdminSessionCookie()` helpers. **Test:** assert `impersonateStore()`'s `Set-Cookie` is `SameSite=Strict`; assert a `refresh()`/`impersonateStore()`-minted token can't satisfy `refreshAdminSession()`'s ability check unless scoped to `['refresh']`.
+
+### M3. `impersonateStore()` overwrites the super_admin's own refresh cookie with the impersonated user's token
+- **Category:** Security / Reliability — **Confirmed**, impact mitigated (no cross-privilege hijack results, just session breakage)
+- **File:** `AdminStoreController::impersonateStore()`
+
+The impersonated store owner's full bearer token gets written into the same `drx_admin_session` cookie name the admin's own `Strict`, `refresh`-scoped cookie uses. The next `POST /admin/session/refresh` call correctly rejects it (ability mismatch) and 401s — so the admin is silently logged out of their own `dumosrx.com` session by the act of impersonating, producing confusing "randomly logged out after impersonating" reports. Also means a subsequent `/logout` deletes the impersonated user's token instead of the admin's own. **Fix:** stop writing `drx_admin_session` from `impersonateStore()` entirely — the frontend consumes the token from the JSON body, not this cookie.
+
+### M4. Impersonation "End Session" is expected to fail in ordinary use — 60s handoff-code TTL vs. minutes-long real sessions
+- **Category:** Reliability / Bug — **Highly Likely**
+- **File:** `client/components/dashboard/impersonation-banner.tsx`, `AuthHandoffController` (`TTL_SECONDS = 60`)
+
+The return-hop handoff code is minted once, at impersonation start, and expires after 60 seconds — but the UI holds onto it in `localStorage` for the entire impersonation session, which realistically lasts minutes. Every admin who impersonates for longer than a minute and clicks "End Session" hits the expired-code branch and is bounced to a fresh login instead of returning smoothly. This is the expected outcome of normal use, not an edge case. **Fix:** either mint a fresh return-mechanism at click time rather than relying on session-start-time state, or keep the admin's own tab open in parallel so returning is just navigating back (which works via the independent HttpOnly cookie regardless of the handoff code).
+
+### M5. `usePOSPayment.handlePayment` has no re-entrancy guard — relies entirely on a render tick
+- **Category:** Bug / Reliability — **Possible** (no reproduction; a clear structural gap against the codebase's own double-submit patterns elsewhere)
+- **File:** `client/lib/hooks/use-pos-payment.ts:122-368`, `client/components/pos/pos-payment-dialog.tsx:157-166`
+
+`handlePayment` sets `processingPayment` as a side effect but never checks it (or any ref-based lock) before proceeding — the only protection against a second invocation is the submit button's `disabled={processingPayment}` prop, which only takes effect a render tick after the click that triggered it. This is a touchscreen POS app (Tauri Android target) where double-tap/ghost-click is a known real phenomenon this codebase has already had to special-case elsewhere (`globals.css`'s `hover:` media-query fix). A close-enough double-tap could pass validation twice, each generating its own `transactionNumber` (so the UNIQUE constraint doesn't catch it), producing two `sales` rows, double stock deduction, and double loyalty/commission for one physical transaction. **Fix:** add `if (processingPayment) return;` as the first line of `handlePayment`. **Test:** invoke `handlePayment()` twice synchronously against a mocked transaction runner; assert only one `insert("sales", ...)`.
+
+### M6. `assertStoreOwnership`'s legacy-row "claim" write runs outside the atomic transaction it precedes
+- **Category:** Bug / Data Integrity — **Highly Likely**
+- **File:** `client/lib/db/base-helpers.ts` (`update()`/`softDelete()` calling `assertStoreOwnership()` before `transaction(writeUpdate)`/`transaction(writeSoftDelete)`)
+
+For a legacy (`store_id IS NULL`) row, the ownership "claim" (`UPDATE ... SET store_id = ?`) commits as its own bare statement before the actual edit's transaction runs. A crash between the two leaves the row claimed with the intended edit lost — and a second store later touching the same row is then rejected as belonging to someone else, even though nothing visibly changed from their perspective. **Fix:** fold the claim into the same transaction as the write/queue/log.
+
+### M7. FTP-deploying CI workflows have no `concurrency:` guard
+- **Category:** Reliability — **Confirmed** (`grep -n concurrency .github/workflows/*.yml` returns nothing)
+- **File:** `.github/workflows/deploy-client.yml`, `deploy-web.yml`, `deploy-backend.yml`, `deploy-dev.yml`, `release.yml`
+
+`SamKirkland/FTP-Deploy-Action` diffs against a local state file to decide what to upload/delete, then writes it back. Two overlapping runs against the same `server-dir` (two quick pushes, or a manual dispatch racing a push-triggered run) race that read-modify-write, potentially interleaving uploads or clobbering the state file so a later deploy thinks files are already in sync when they aren't. **Fix:** add `concurrency: { group: deploy-client-${{ github.ref }}, cancel-in-progress: false }` to each workflow.
+
+### M8. `chmod -R 777 storage bootstrap/cache` in both backend deploy workflows
+- **Category:** Security — **Confirmed**
+- **File:** `.github/workflows/deploy-backend.yml`, `deploy-dev.yml`
+
+Deploys `laravel-server/storage/` (sessions, logs, uploads) and `bootstrap/cache/` (compiled config/routes) world-writable on shared hosting, where file permissions are one of few isolation mechanisms between tenants on the box. **Fix:** use `775` with correct group ownership, scoped only to subdirectories that actually need write access.
+
+### M9. Transitive Symfony CVEs in `laravel-server`
+- **Category:** Dependency — **Confirmed** (via `composer audit`)
+- **File:** `laravel-server/composer.json`
+
+`symfony/routing` carries two medium CVEs (dot-segment URL-generation bypass; route-requirement regex bypass → off-site `//host` URL injection) most relevant to this app's redirect/auth-handoff URL generation for emails and links. `symfony/yaml` has three low-severity DoS advisories. **Fix:** `composer update symfony/routing symfony/yaml symfony/process`.
+
+### M10. Major-version dependency drift between `client/` and `web/` during an active code-migration effort
+- **Category:** Architecture — **Confirmed**
+- **File:** `client/package.json`, `web/package.json`
+
+`next` 15.2.4 vs 16.1.4, `sonner` ^1.7 vs ^2.0 (breaking toast API changes), `tailwind-merge` ^2.5 vs ^3.4 (breaking config API), `eslint` ^8 vs ^9, several `@radix-ui/*` packages one-to-two majors apart. The README explicitly frames `web/`'s dashboard code as being actively ported into `client/` in phases — a component copy-pasted between the two during that migration compiles fine (each app has *a* version) but can behave subtly differently with no compiler-level warning. **Fix:** align these specific shared UI-layer packages to the same major version across both apps before porting more dashboard code.
+
+### M11. `client/` — auth bearer token kept in `localStorage` instead of an HttpOnly cookie *(carried forward — accepted tradeoff, confirmed unchanged by this review)*
+- **Category:** Security — **Confirmed**, deliberately accepted
+- **File:** `client/lib/api/token-manager.ts:7-25`
+
+`auth_token` (the Sanctum bearer token) is read/written via `localStorage`, not an HttpOnly cookie. Any XSS in the client app could read `localStorage.auth_token` and exfiltrate a long-lived session token, versus an HttpOnly cookie which JS can't read at all. The admin web session already avoids this (see `web/`'s hardened design, itself reviewed in H1/M2/M3 above).
+
+Previously investigated and rejected as a quick fix: `token-manager.ts`'s `setToken`/`clearToken` call `mirrorAuthToken`/`clearMirroredAuthToken` (`client/lib/native/widget-bridge.ts`), which hand the raw token to native Tauri (Rust) code so the home-screen widget can make its own authenticated background HTTP requests entirely outside the webview. An HttpOnly cookie is by definition unreadable by JS, so it can't be mirrored to native code — swapping to one would break the widget's live data rather than just change a storage mechanism. A real fix means a dual-path auth design (webview uses a cookie for its own requests; native widget code gets a separate, narrowly-scoped token via its own exchange) — a genuine architecture change, not a quick fix. Left as-is; revisit as a scoped project alongside **C5** (both are client/ auth/storage architecture work).
+
+### M12. `client/` — a long-open tab can 404 on a lazy chunk after a deploy that edits `sw.js` *(carried forward, confirmed unchanged by this review)*
+- **Category:** Reliability — **Confirmed**, accepted tradeoff
+- **File:** `client/public/sw.js` (`activate()`'s cache prune)
+
+`activate()` prunes cache entries not in the current build's manifest, to stop unbounded cache growth across deploys. This only runs when `sw.js`'s own bytes change, but when it does, an already-open tab still running the *old* build's JS can lazy-load a chunk that both the cache prune and the new deploy's server files have already removed — a chunk-load error, while fully online, until reload. This mirrors how a plain Next.js app with no service worker already behaves on deploy (the SW was incidentally providing extra resilience here). `pwa-registrar.tsx`'s `controllerchange` reload mitigates the common case by reloading onto the new build as soon as the new SW takes control, but a chunk requested in the brief window between prune and reload could still race it. This review's client UI/state pass confirmed the current code still matches this description exactly, with no regression.
+
+### M13. `client/` — existing Pro/Enterprise stores lose the "Reseller sale" POS row on deploy, silently *(carried forward — confirm whether already deployed)*
+- **Category:** UX / Deployment — **Confirmed** as designed; open only pending confirmation of rollout communication
+- **File:** `client/lib/hooks/use-feature-gate.ts` (`isMarkupSalesEnabled`), `stores.markup_sales_enabled`
+
+New store-level toggle, default `0` (explicit, deliberate product requirement). Any store already on Pro/Enterprise and actively using reseller-commission sales before this ships finds the POS cart's "Reseller sale" row gone the moment it deploys, with no in-app notice, until the owner finds and enables the new toggle in Settings → Register Configs. Not a bug to fix — the default was explicitly requested — but still needs a release note / proactive heads-up to any store already using the feature, so it doesn't read as broken. **Remove this entry once that communication has gone out** (this is a coordination/communication follow-up, not a code fix).
+
+---
+
+## Low Priority Findings
+
+### L1. `deploy-ftp` job in `release.yml` uses unpinned action tags while the rest of the file pins to commit SHAs
+- **File:** `.github/workflows/release.yml:198,280,290` — `actions/checkout@v4` and `SamKirkland/FTP-Deploy-Action@v4.3.4` (a mutable tag, and an older version than the SHA-pinned `v4.3.5` used elsewhere). A moved/compromised tag would silently execute different code with access to FTP credentials pushing to the public downloads/updater feed. **Fix:** pin to the same commit SHAs already used elsewhere in the repo.
+
+### L2. No `permissions:` block on the four FTP-only deploy workflows
+- **File:** `deploy-client.yml`, `deploy-web.yml`, `deploy-backend.yml`, `deploy-dev.yml` — implicit `GITHUB_TOKEN` scope, unused by these jobs but a missing defense-in-depth layer against a compromised transitive action. **Fix:** add `permissions: contents: read` (or `{}`).
+
+### L3. Tauri backend's `query()`/`execute()` has no corruption-retry, unlike the heavily-hardened sql.js path — currently safe, but the reason isn't documented in `core.ts`
+- **File:** `client/lib/db/core.ts`. The asymmetry is currently fine because the vendored `tauri-plugin-sql` fork caps the pool at `max_connections(1)` specifically to make this safe — but that fact lives only in the vendored plugin's own comment, not in `core.ts` or `AGENTS.md`. A future upgrade of `@tauri-apps/plugin-sql` back to a stock (non-vendored) build could silently drop that cap and reopen the exact race sql.js's retry logic exists for. **Fix:** cross-reference `src-tauri/vendor/tauri-plugin-sql`'s `max_connections(1)` in a `core.ts` comment or in `AGENTS.md`'s Database section.
+
+### L4. `POST /app/sales` accepts no discount/tax fields (latent, currently unreferenced)
+- **File:** `laravel-server` `SaleController::store`. Every sale created through this REST path would get `discount_amount`/`tax_amount` left null while `subtotal`/`total_amount` are the raw undiscounted sum — but this endpoint is currently defined in `client/lib/api/client.ts` and never actually called from anywhere in `client/`. Not an active production bug; flagged so it isn't silently wired up later without addressing the gap.
+
+### L5. A handful of query invalidations bypass the `queryKeys` factory
+- **File:** `client/components/dashboard/multi-store-card.tsx`, `header-store-switcher.tsx`, `transaction-details-dialog.tsx` call `invalidateQueries({ queryKey: [...] })` with hand-written array literals instead of the factory. Functionally correct today (TanStack Query's default prefix matching still works), but renaming a key in `query-keys.ts` would silently break these call sites with no compiler error.
+
+### L6. `client/` — manifest `theme_color` doesn't follow dark mode *(carried forward, unchanged)*
+- **File:** `client/public/manifest.json:8`, `client/app/layout.tsx:66-68`. `manifest.json` hardcodes `theme_color`/`background_color` to `#ffffff`; `layout.tsx`'s `viewport.themeColor` correctly switches to black under `prefers-color-scheme: dark`. On Android, the manifest's value drives the install splash screen, so a dark-mode user briefly sees a white splash before the dark app renders. The Web App Manifest spec has no conditional-syntax equivalent for this, so it can't be fully fixed without picking one scheme's splash over the other — left as the light-mode default since it also matches the manifest's own `background_color`.
+
+---
+
+## Security Findings (index)
+
+| Finding | Severity | Status |
+|---|---|---|
+| Cross-tenant staff reassignment IDOR | Critical | **Fixed** 2026-09-24 |
+| Hardcoded super-admin password in production seeder | Critical | **Fixed** 2026-09-24 |
+| H1 — `/refresh` mints weak admin-session cookie, bypasses device gate | High | Open |
+| H4 — `FLUTTERWAVE_SECRET_HASH` production `.env` status unverified | High | Open (needs prod confirmation) |
+| M1 — `StaffController::update()` role has no privilege ceiling | Medium | Open |
+| M2 — inconsistent `drx_admin_session` cookie issuance across 3 paths | Medium | Open |
+| M3 — impersonation overwrites admin's own session cookie | Medium | Open |
+| M8 — `chmod 777` on deployed Laravel storage/cache | Medium | Open |
+| M9 — transitive Symfony CVEs (routing/yaml) | Medium | Open |
+| M11 — auth token in `localStorage`, not HttpOnly cookie | Medium | Open (accepted tradeoff) |
+| H3 — Next.js high/critical CVEs; unpatched `xlsx` CVEs | High | Open |
+| L1 — unpinned action tag in `release.yml`'s FTP job | Low | Open |
+| L2 — missing `permissions:` block on 4 deploy workflows | Low | Open |
+
+Areas specifically audited and found **clean** (no regression, matches documented prior fixes): webhook signature verification (constant-time, fail-closed) and idempotent lock-guarded payment activation; sync push's role/field allow-list (`SyncController::sanitizeUserSyncPayload`); `AuthHandoffController`'s single-use/60s-TTL/high-entropy handoff codes and fragment-based transport; CORS allowlist (no wildcard, explicit origins); admin access-token storage (memory-only, never in `localStorage`); XSS surface in `web/` (no `dangerouslySetInnerHTML` on user content); path traversal in `.github/downloads-index.php` (no user input reaches any filesystem path); secrets in `.env.example` files and git history (none found); PIN login lockout (already fixed, still correct).
+
+---
+
+## Performance & Scalability
+
+- **M5-adjacent: unmemoized POS product grid** (`client/components/pos/pos-product-list.tsx`) — `POSProductCard` is a plain function component; the parent recomputes `cartQuantityMap`, several `Set`s, and grouped/sorted product arrays as new references on every render, defeating any future `React.memo` and guaranteeing every visible card re-renders on any cart mutation. On a large catalog (supermarket/grocery vertical, explicitly supported per `AGENTS.md`, no windowing on the "all products" grid), this is effectively **O(catalog size)** re-render work per cart tap, on hardware (Android tablets) where that's most visible. **Fix:** `useMemo` the derived maps/arrays keyed on `cart`/`filteredProducts`; wrap `POSProductCard` in `React.memo`; consider virtualization above a few hundred SKUs.
+- **H3-adjacent:** outdated `next` versions carry cache-poisoning and SSRF-via-rewrites advisories relevant to `web/`'s live server (separate from the RCE-class findings already listed as security issues).
+- No N+1 query patterns, unbounded pagination, or missing-index issues were found in the areas reviewed (`SaleController`, stock/purchase-order controllers, dashboard aggregation queries) — foreign-key columns are auto-indexed via Laravel's `foreignUuid()->constrained()`, and prior fixes (documented in `FIXED_BUGS.md`) already addressed several store-scoping-driven full-table-scan risks.
+
+---
+
+## Architecture & Maintainability
+
+- **The recurring failure pattern across this review's Critical/High findings is "fix applied to one endpoint, not mirrored to a structurally identical sibling"**: `StaffController::store()` vs. `update()` (fixed — see `FIXED_BUGS.md`); `AuthController::login()` vs. `refresh()`/`impersonateStore()` (H1, M2, M3, still open); `ProductController`/`CustomerController`'s tenant-scoping fix vs. `StockBatchController`/`StockMovementController`/`PurchaseOrderController` (fixed — see `FIXED_BUGS.md`). **What's wrong:** each fix closed one instance of a class of bug without a mechanism to prevent the same class recurring in a sibling file. **Why it matters:** `laravel-server/tests/Feature/ArchitectureTest.php` already exists specifically to keep one such convention (Controller/Service separation) honest via a test rather than review alone — the same approach could catch this pattern. **Recommended change (still open):** add an architecture test asserting every controller under `Api/App/*`/`Api/Web/*` that queries a tenant-owned table (`stock_batches`, `stock_movements`, `purchase_orders`, `products`, etc.) either `use`s `ScopesToTenant` or is on an explicit allow-list — this would have caught the stock-batch/movement/PO scoping bug mechanically, and would catch the next instance of this pattern automatically instead of needing another manual review pass.
+- **`client/lib/db/base-helpers.ts`'s per-row-write transaction pattern (M6)** is otherwise sound (already hardened against several documented partial-write scenarios) — the legacy-row claim gap is a narrow miss in an otherwise well-designed piece of infrastructure, not a sign of a broader problem.
+- **The multi-tab data-loss risk (C5)** is a consequence of an architectural choice (sql.js + whole-blob IndexedDB persistence, one instance per tab) made for good reasons (offline-first, no server dependency) — not a design mistake, but a gap in that design that should be closed deliberately rather than patched incidentally.
+- **Dependency drift between `client/` and `web/` (M10)** is a natural consequence of the two apps evolving independently before the current migration effort began; worth resolving as part of that migration's own scope rather than as a standalone task.
+
+---
+
+## Testing Gaps
+
+- ~~**Zero feature-test coverage** for `StockBatchController`, `StockMovementController`, and `PurchaseOrderController`~~ — **closed 2026-09-24**: `StockBatchControllerTest`, `StockMovementControllerTest`, `PurchaseOrderControllerTest` added alongside the scoping fix (see `FIXED_BUGS.md`), covering both the happy path and staff-vs-owner tenant scoping.
+- ~~**`TenantIsolationTest.php` gap:** doesn't test *reassigning* an already-visible row's `store_id` to a foreign tenant~~ — **closed 2026-09-24**: `test_staff_update_rejects_reassigning_store_id_to_another_tenant` added. Still worth treating as a template for auditing any *other* endpoint that accepts a foreign-key field pointing at tenant-scoped data on update — this class of gap isn't proven closed everywhere, just at this one site.
+- **No test exercises cross-tab/cross-instance persistence** in `client/lib/db/` (C5) — all existing DB tests use a single injected database instance. A harness simulating two independent instances sharing a mocked IndexedDB store would need to be built from scratch to cover this.
+- **No test covers `usePOSPayment.handlePayment`'s double-invocation behavior** (M5) — add a synchronous double-call test against a mocked transaction runner.
+- **No test pins the admin-session-cookie's security properties** (`SameSite`, ability-scoping) at the endpoints identified in H1/M2/M3 — add feature tests asserting cookie attributes directly, not just functional login/refresh behavior, since this is exactly the kind of property that regresses silently (as it did here).
+- **`composer audit`/`npm audit` are not run in CI** (inferred from workflow contents — none of the five workflows invoke either) — the dependency CVEs in H3/M9 would have been caught automatically. Add an audit step (non-blocking initially, since some advisories currently have no fix) to at least surface new ones going forward.
+
+---
+
+## Recommended Engineering Improvements
+
+1. **Still open:** add the `ScopesToTenant`-usage architecture test described above — the single highest-leverage remaining change from this review, since it targets the *pattern* behind the fixed staff-IDOR and stock-batch/movement/PO findings, not just their individual instances.
+2. ~~Extract `StaffController::store()`'s store-ownership check and `SyncController::roleIsAtOrBelowCallerPrivilege()` into shared helpers~~ — **done 2026-09-24**: both now live on a shared `EnforcesStaffOwnership` trait, used by `StaffController` (`store()` and `update()`) and `SyncController`.
+3. Consolidate all `drx_admin_session` cookie writes through the existing `buildAdminSessionCookie()`/`forgetAdminSessionCookie()` helpers — no call site should hand-roll `cookie(...)` for this cookie name.
+4. Add CI-level `npm audit`/`composer audit` steps (report-only initially) so H3/M9-class findings surface automatically rather than needing a manual review pass.
+5. Pin every third-party GitHub Action to a commit SHA (matching the convention already used in most of `release.yml`) and add `concurrency:`/`permissions:` blocks to the four FTP-only deploy workflows.
+6. Treat the client/web dependency-drift (M10) and the multi-tab data-loss risk (C5) as scoped mini-projects with their own design pass, not quick patches — both require an actual decision (version-alignment policy; single-writer-tab architecture) rather than a local code change.
+
+---
+
+## Suggested Fix Order
+
+**Done (2026-09-24):** the cross-tenant staff IDOR + role-privilege ceiling, the stock-batch/movement/PO 500s + tenant under-scoping, and the hardcoded seeder password are all fixed, tested, and merged — see `docs/FIXED_BUGS.md`. Remaining order below, renumbered:
+
+1. **C6** (deploy the pending 2026-09-23 migrations) and **H4** (confirm `FLUTTERWAVE_SECRET_HASH` in production) — pure deployment/ops actions, zero remaining code risk (the seeder-password issue that same route also re-ran on every hit is now fixed), should not wait on anything else.
+2. **H1, M2, M3** (admin-session-cookie inconsistencies) — same shape of bug as the now-fixed staff-IDOR (a fix on one endpoint not mirrored to a sibling); fix as one pass.
+3. **H2** (client token cleared on network blips) — a reliability regression of previously-fixed behavior; moderate effort, real user impact (devices silently unlinking from sync).
+4. **M5** (POS double-submit guard) — small, isolated, high-value fix given the touchscreen deployment target.
+5. **M6** (legacy-row claim transaction boundary), **M7–M9** (CI/CD hardening: concurrency guards, `chmod`, Symfony bump) — batch as a CI/infra hardening pass.
+6. **H3** (Next.js/xlsx CVE remediation) — schedule with normal regression testing given these are major-adjacent framework bumps.
+7. **Recommended Engineering Improvement #1** (the `ScopesToTenant`-usage architecture test) — do this alongside item 2 above if possible, since it directly targets the pattern behind both the fixed staff-IDOR and stock-batch/movement/PO bugs, and would have caught the admin-cookie inconsistency's sibling-drift shape too if adapted to that concern.
+8. **C5** (multi-tab data loss) and **M10/M11** (dependency drift, localStorage-token architecture) — schedule as their own design passes; not blocking for the above, but shouldn't be indefinitely deferred given C5's silent-data-loss nature.
+9. **M13** (reseller-sale rollout communication) — not a code task; confirm with product/support whether the release note already went out, then remove the entry.
+10. **M12, L1–L6** — low-effort cleanup/accepted tradeoffs, bundle into any of the above passes opportunistically.
+
+This order pulls pure-ops items (C6, H4) to the front regardless of severity ranking, since they require no code changes and are pending only on someone triggering a deploy.

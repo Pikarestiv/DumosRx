@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\App;
 
+use App\Http\Controllers\Concerns\ScopesToTenant;
 use App\Http\Controllers\Controller;
 use App\Models\StockMovement;
 use App\Models\Store;
@@ -11,6 +12,24 @@ use OpenApi\Attributes as OA;
 
 class StockMovementController extends Controller
 {
+    use ScopesToTenant;
+
+    /**
+     * All user ids whose stock movements belong to "the store" from the
+     * caller's point of view: every user (owner + staff) across every
+     * store owned by the caller's tenant. Resolves through
+     * tenantOwnerId() first so a staff caller (whose own id owns no
+     * Store row) sees the same ledger their owner would, not an
+     * empty/self-only set.
+     */
+    private function ledgerUserIds(Request $request): array
+    {
+        $ownerId = $this->tenantOwnerId($request);
+        $storeIds = Store::where('user_id', $ownerId)->pluck('id')->toArray();
+
+        return User::whereIn('store_id', $storeIds)->pluck('id')->push($ownerId)->toArray();
+    }
+
     #[OA\Get(
         path: '/stock-movements',
         summary: 'List the stock ledger (sales, restocks, adjustments) for the store',
@@ -30,15 +49,11 @@ class StockMovementController extends Controller
     )]
     public function index(Request $request)
     {
-        $user = $request->user();
         $limit = $request->get('limit', 50);
-
-        // Filter by users in the same store
-        $storeIds = Store::where('user_id', $user->id)->pluck('id')->toArray();
-        $userIds = User::whereIn('store_id', $storeIds)->pluck('id')->push($user->id)->toArray();
+        $userIds = $this->ledgerUserIds($request);
 
         $movements = StockMovement::whereIn('performed_by', $userIds)
-            ->with(['medicine', 'user'])
+            ->with(['product', 'user'])
             ->latest()
             ->paginate($limit);
 
@@ -48,8 +63,8 @@ class StockMovementController extends Controller
                 'id' => $m->id,
                 'created_at' => $m->created_at ? $m->created_at->toIso8601String() : null,
                 'date' => $m->movement_date ? $m->movement_date->toIso8601String() : null,
-                'medicine_name' => $m->medicine ? $m->medicine->name : 'Unknown',
-                'medicine' => $m->medicine,
+                'medicine_name' => $m->product ? $m->product->name : 'Unknown',
+                'medicine' => $m->product,
                 'type' => $m->movement_type === 'adjustment' ? 'adjustment' : ($m->quantity > 0 ? 'in' : 'out'),
                 'movement_type' => $m->movement_type,
                 'quantity' => $m->quantity,
@@ -89,15 +104,12 @@ class StockMovementController extends Controller
     )]
     public function adjustments(Request $request)
     {
-        $user = $request->user();
         $limit = $request->get('limit', 50);
-
-        $storeIds = Store::where('user_id', $user->id)->pluck('id')->toArray();
-        $userIds = User::whereIn('store_id', $storeIds)->pluck('id')->push($user->id)->toArray();
+        $userIds = $this->ledgerUserIds($request);
 
         $adjustments = StockMovement::whereIn('performed_by', $userIds)
             ->whereIn('movement_type', ['adjustment', 'expired', 'damaged'])
-            ->with(['medicine', 'user'])
+            ->with(['product', 'user'])
             ->latest()
             ->paginate($limit);
 
@@ -106,8 +118,8 @@ class StockMovementController extends Controller
                 'id' => $a->id,
                 'created_at' => $a->created_at ? $a->created_at->toIso8601String() : null,
                 'date' => $a->movement_date ? $a->movement_date->toIso8601String() : null,
-                'medicine_name' => $a->medicine ? $a->medicine->name : 'Unknown',
-                'medicine' => $a->medicine,
+                'medicine_name' => $a->product ? $a->product->name : 'Unknown',
+                'medicine' => $a->product,
                 'adjustment_type' => $a->quantity > 0 ? 'increase' : 'decrease',
                 'type' => $a->quantity > 0 ? 'increase' : 'decrease',
                 'quantity' => $a->quantity,

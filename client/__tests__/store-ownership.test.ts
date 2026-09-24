@@ -186,6 +186,51 @@ describe("update()/softDelete() store-ownership check", () => {
   });
 
   /**
+   * Regression coverage (docs/KNOWN_BUGS.md L9 / docs/FIXED_BUGS.md): the
+   * legacy-row claim previously ran as a statement whose column
+   * (`store_id`) was never part of the sync-queue payload, so the local
+   * write committed the claim but the server never learned about it -
+   * every other device would still see the row as unclaimed indefinitely.
+   * The claim is now folded into the same record/payload the rest of the
+   * edit uses, so it reaches the server the same way.
+   */
+  describe("legacy-row claim reaches the sync queue", () => {
+    function latestQueuePayload(table: string, id: string): Record<string, unknown> {
+      const res = db.exec(
+        `SELECT payload FROM _sync_queue WHERE table_name = '${table}' AND record_id = '${id}' ORDER BY created_at DESC, rowid DESC LIMIT 1`,
+      );
+      return JSON.parse(res[0].values[0][0] as string);
+    }
+
+    it("update(): claimed store_id is included in the queued UPDATE payload", async () => {
+      insertCategory("c1", "Legacy", null);
+      core.setActiveStoreId("store-a");
+
+      await update("categories", "c1", { name: "Legacy Renamed" });
+
+      expect(latestQueuePayload("categories", "c1").store_id).toBe("store-a");
+    });
+
+    it("softDelete(): claimed store_id is included in the queued DELETE payload", async () => {
+      insertCategory("c1", "Legacy", null);
+      core.setActiveStoreId("store-a");
+
+      await softDelete("categories", "c1");
+
+      expect(latestQueuePayload("categories", "c1").store_id).toBe("store-a");
+    });
+
+    it("update(): does NOT add a store_id field to the payload when no claim is needed", async () => {
+      insertCategory("c1", "Drugs", "store-a");
+      core.setActiveStoreId("store-a");
+
+      await update("categories", "c1", { name: "Renamed" });
+
+      expect(latestQueuePayload("categories", "c1")).not.toHaveProperty("store_id");
+    });
+  });
+
+  /**
    * options.storeId override (bug #8 fix): lets a caller like
    * stock-transfers.ts's transferStock() write a row in a store other than
    * whatever's globally "active", without ever touching the global resolver

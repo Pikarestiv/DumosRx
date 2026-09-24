@@ -22,15 +22,30 @@ trait EnforcesStaffOwnership
      * being merely `exists:stores,id` in validation only proves the store
      * exists SOMEWHERE on the platform — this proves it's actually the
      * caller's own.
+     *
+     * $currentStoreId — the target row's OWN store_id before this write —
+     * is required to safely handle a `null` $storeId. A store owner's own
+     * row legitimately has `store_id = null` (they aren't tied to one
+     * store the way staff are), and update()'s validation allows
+     * resubmitting that row unchanged, so `null` can't simply be rejected
+     * outright. But nulling out an existing NON-null store_id would orphan
+     * that row from tenant visibility entirely (`visibleStaffBaseQuery()`
+     * / `ScopesToTenant::tenantOwnerId()` both stop resolving it to any
+     * real tenant) — silently, since nothing else currently rejects this.
+     * So `null` is only allowed through when it's a genuine no-op: the
+     * row's current store_id is ALSO already null. Passing no
+     * $currentStoreId (the default) means "no existing row to compare
+     * against" — used by store() (creation), where store_id is validated
+     * `required` and so is never actually null by the time this runs.
      */
-    protected function storeIdBelongsToCaller(?string $storeId, $currentUser): bool
+    protected function storeIdBelongsToCaller(?string $storeId, $currentUser, ?string $currentStoreId = null): bool
     {
         if ($currentUser->hasRole('super_admin')) {
             return true;
         }
 
         if ($storeId === null) {
-            return true;
+            return $currentStoreId === null;
         }
 
         $subscriptionService = app(\App\Services\SubscriptionService::class);

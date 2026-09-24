@@ -258,6 +258,17 @@ export async function update(
     updated_at: now,
     _version: version,
     _synced: 0,
+    // Folded into the same record as the rest of the edit (rather than a
+    // separate UPDATE statement) so the claim is included in BOTH the
+    // local write AND the addToSyncQueue() payload below — previously the
+    // claim was a second, separate statement whose column was never part
+    // of `record`, so the server never learned about it: it committed
+    // locally (atomically with the edit, as of the earlier fix for this)
+    // but stayed invisible to every other device pulling this row later.
+    // Overrides any store_id the caller's own `data` might have set,
+    // matching the claim's existing semantics of always using the active
+    // store, not a caller-supplied value.
+    ...(ownership.needsClaim ? { store_id: ownership.activeStoreId } : {}),
   });
 
   const setClause = Object.keys(record)
@@ -273,17 +284,11 @@ export async function update(
   // See insert()'s comment above: the row write, its sync-queue entry, and
   // its audit-log entry must land together, or a kill between them can leave
   // an updated row that never reaches the server. The legacy-row claim (if
-  // needed — see assertStoreOwnership()'s doc comment) is included here too,
-  // for the same reason: it must commit atomically with the actual edit,
-  // not as a separate statement beforehand.
+  // needed — see assertStoreOwnership()'s doc comment) is folded into
+  // `record` above for the same reason: it must commit atomically with the
+  // actual edit, and it must reach the server the same way the rest of the
+  // edit does.
   const writeUpdate = async () => {
-    if (ownership.needsClaim) {
-      await execute(`UPDATE ${table} SET store_id = ? WHERE id = ?`, [
-        ownership.activeStoreId,
-        id,
-      ]);
-    }
-
     await execute(`UPDATE ${table} SET ${setClause} WHERE id = ?`, values);
 
     await addToSyncQueue(table, id, "UPDATE", record);
@@ -304,29 +309,31 @@ export async function softDelete(table: string, id: string, options?: { storeId?
 
   const now = new Date().toISOString();
 
-  let updateQuery = `UPDATE ${table} SET _deleted = 1, updated_at = ?, _synced = 0 WHERE id = ?`;
-  let params: (string | number | null)[] = [now, id];
+  // Claim column/value folded into the same statement (rather than a
+  // separate UPDATE) so it's included in the DELETE sync payload below too
+  // — see update()'s identical fix/comment above for why a separate,
+  // un-synced claim statement left the server never learning about it.
+  const claimClause = ownership.needsClaim ? ", store_id = ?" : "";
+  const claimParam = ownership.needsClaim ? [ownership.activeStoreId] : [];
+
+  let updateQuery = `UPDATE ${table} SET _deleted = 1, updated_at = ?, _synced = 0${claimClause} WHERE id = ?`;
+  let params: (string | number | null)[] = [now, ...claimParam, id];
 
   if (table === "users") {
     const suffix = `_del_${Date.now()}`;
-    updateQuery = `UPDATE ${table} SET _deleted = 1, updated_at = ?, _synced = 0, email = email || ?, username = username || ? WHERE id = ?`;
-    params = [now, suffix, suffix, id];
+    updateQuery = `UPDATE ${table} SET _deleted = 1, updated_at = ?, _synced = 0${claimClause}, email = email || ?, username = username || ? WHERE id = ?`;
+    params = [now, ...claimParam, suffix, suffix, id];
   }
 
-  // See insert()'s comment above: same atomicity requirement. The
-  // legacy-row claim (if needed) is included here too — see writeUpdate()'s
-  // comment in update() above.
-  const writeSoftDelete = async () => {
-    if (ownership.needsClaim) {
-      await execute(`UPDATE ${table} SET store_id = ? WHERE id = ?`, [
-        ownership.activeStoreId,
-        id,
-      ]);
-    }
+  const deletePayload: Record<string, unknown> = ownership.needsClaim
+    ? { id, store_id: ownership.activeStoreId }
+    : { id };
 
+  // See insert()'s comment above: same atomicity requirement.
+  const writeSoftDelete = async () => {
     await execute(updateQuery, params);
 
-    await addToSyncQueue(table, id, "DELETE", { id });
+    await addToSyncQueue(table, id, "DELETE", deletePayload);
     await logAction("DELETE", table, id, { id }, options?.storeId, options?.correlationId);
   };
 

@@ -431,4 +431,47 @@ class TenantIsolationTest extends TestCase
         $response->assertStatus(422);
         $this->assertDatabaseMissing('users', ['username' => 'privesc']);
     }
+
+    /**
+     * Regression coverage for a gap found in EnforcesStaffOwnership's
+     * null-store_id handling (docs/KNOWN_BUGS.md L7): the early `return
+     * true` for a null $storeId exists so editing the owner's own
+     * null-store_id "Main Account" row keeps working, but applied
+     * unconditionally it also let a caller null out an actual STAFF row's
+     * store_id, silently orphaning it from every tenant-scoped query. Only
+     * a genuine no-op (the row's own store_id is ALSO already null) should
+     * be allowed through.
+     */
+    public function test_staff_update_rejects_nulling_an_existing_staff_rows_store_id()
+    {
+        $response = $this->actingAs($this->ownerA)
+            ->putJson("/api/v1/staff/{$this->staffA->id}", [
+                'store_id' => null,
+            ]);
+
+        $response->assertStatus(422);
+        $this->assertDatabaseHas('users', [
+            'id' => $this->staffA->id,
+            'store_id' => $this->storeA->id,
+        ]);
+    }
+
+    public function test_staff_update_allows_resubmitting_owners_own_already_null_store_id()
+    {
+        // The owner's own row legitimately has a null store_id - this must
+        // keep working (e.g. editing any other field on the "Main Account"
+        // row, which resubmits store_id verbatim).
+        $response = $this->actingAs($this->ownerA)
+            ->putJson("/api/v1/staff/{$this->ownerA->id}", [
+                'first_name' => 'Updated',
+                'store_id' => null,
+            ]);
+
+        $response->assertStatus(200);
+        $this->assertDatabaseHas('users', [
+            'id' => $this->ownerA->id,
+            'first_name' => 'Updated',
+            'store_id' => null,
+        ]);
+    }
 }

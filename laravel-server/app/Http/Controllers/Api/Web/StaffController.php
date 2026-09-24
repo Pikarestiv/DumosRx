@@ -319,8 +319,14 @@ class StaffController extends Controller
         // this was the same field's update path missing it. Skipped when
         // store_id isn't being changed, so editing the owner's own
         // null-store_id "Main Account" row (see the role-validation
-        // comment above) isn't affected.
-        if ($request->has('store_id') && !$this->storeIdBelongsToCaller($request->store_id, $request->user())) {
+        // comment above) isn't affected. $staff->store_id (the row's OWN
+        // current value) is passed through so a `null` submission is only
+        // treated as a harmless no-op when the row is ALREADY null —
+        // actively nulling out an existing staff row's store_id would
+        // otherwise silently orphan it from every tenant-scoped query
+        // (see EnforcesStaffOwnership::storeIdBelongsToCaller()'s doc
+        // comment).
+        if ($request->has('store_id') && !$this->storeIdBelongsToCaller($request->store_id, $request->user(), $staff->store_id)) {
             return response()->json([
                 'message' => 'The selected store id is invalid.',
                 'errors' => ['store_id' => ['The selected store id is invalid.']],

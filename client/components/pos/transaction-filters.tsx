@@ -41,6 +41,7 @@ export function TransactionFilters({
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
+          aria-label="Search transactions by receipt, customer, or item"
           placeholder="Search receipt, customer, or item"
           className="pl-9 h-12 rounded-xl bg-card border-border/50"
           value={searchQuery}

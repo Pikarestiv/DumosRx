@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useHeldTransactions, useDeleteHeldTransactionMutation } from "@/lib/hooks/use-sales-data";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -61,6 +62,17 @@ export function HeldTransactionsDialog({
       void loadHeldTransactions();
     }
   }, [isOpen, loadHeldTransactions]);
+
+  // Discarding a held sale is irreversible, so the trash icon only opens a
+  // confirmation; the mutation runs from the dialog's confirm action.
+  const [deleteTarget, setDeleteTarget] = useState<HeldTransaction | null>(null);
+  // Keeps the name rendered while ConfirmDialog's exit animation plays out
+  // after the target is cleared (same pattern as CustomerDeleteDialog).
+  const lastDeleteTarget = useRef<HeldTransaction | null>(null);
+  if (deleteTarget) lastDeleteTarget.current = deleteTarget;
+  const deleteTargetName =
+    (deleteTarget ?? lastDeleteTarget.current)?.customer_name ||
+    "Walk-in Customer";
 
   const handleDelete = (id: string) => {
     if (deleteMutation.isPending) return;
@@ -155,8 +167,9 @@ export function HeldTransactionsDialog({
                   <Button
                     variant="destructive"
                     size="icon"
+                    aria-label={`Discard held sale for ${item.customer_name || "Walk-in Customer"}`}
                     className="h-9 w-9 sm:h-10 sm:w-10 rounded-lg sm:rounded-xl shrink-0"
-                    onClick={() => handleDelete(item.id)}
+                    onClick={() => setDeleteTarget(item)}
                     disabled={deletingId === item.id}
                   >
                     {deletingId === item.id ? (
@@ -179,6 +192,20 @@ export function HeldTransactionsDialog({
             </div>
           ))}
       </div>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        onConfirm={() => {
+          const target = deleteTarget;
+          setDeleteTarget(null);
+          if (target) handleDelete(target.id);
+        }}
+        title="Discard held sale?"
+        description={`The held sale for ${deleteTargetName} will be permanently discarded. This can't be undone.`}
+        confirmLabel="Discard sale"
+        variant="destructive"
+      />
     </ResponsiveModal>
   );
 }

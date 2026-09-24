@@ -143,13 +143,16 @@ export function POSCustomerSelector({
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
+              aria-label="Search customers by name or phone number"
               placeholder="Search by name or phone number"
               className="pl-9 h-10 rounded-xl"
             />
           </div>
 
-          <div
-            className="flex items-center gap-2.5 px-3 py-[11px] border border-dashed border-border rounded-xl cursor-pointer text-primary hover:bg-primary/5 transition-colors mt-0.5"
+          <button
+            type="button"
+            aria-expanded={showAddForm}
+            className="w-full flex items-center gap-2.5 px-3 py-[11px] border border-dashed border-border rounded-xl cursor-pointer text-primary hover:bg-primary/5 transition-colors mt-0.5 outline-none focus-visible:ring-[3px] focus-visible:ring-ring"
             onClick={() => setShowAddForm(!showAddForm)}
           >
             <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
@@ -158,18 +161,20 @@ export function POSCustomerSelector({
             <span className="text-[12.5px] font-semibold">
               Add new customer
             </span>
-          </div>
+          </button>
 
           {showAddForm && (
             <div className="flex flex-col gap-3 p-3 bg-muted/50 border border-border rounded-xl">
               <div className="flex gap-2.5">
                 <Input
+                  aria-label="First name"
                   placeholder="First name"
                   value={newFirstName}
                   onChange={(e) => setNewFirstName(e.target.value)}
                   className="flex-1 h-9"
                 />
                 <Input
+                  aria-label="Last name"
                   placeholder="Last name"
                   value={newLastName}
                   onChange={(e) => setNewLastName(e.target.value)}
@@ -177,6 +182,7 @@ export function POSCustomerSelector({
                 />
               </div>
               <Input
+                aria-label="Phone number"
                 placeholder="Phone number"
                 value={newPhone}
                 onChange={(e) => setNewPhone(e.target.value)}

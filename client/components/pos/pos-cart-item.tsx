@@ -75,7 +75,10 @@ export function POSCartItem({ item, currencyCode, isLast, updateQuantity, remove
   return (
     <div className="relative overflow-hidden rounded-lg">
       {!isLocked && (
-        <div className="absolute inset-0 flex items-center justify-end pr-4 bg-destructive text-destructive-foreground">
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 flex items-center justify-end pr-4 bg-destructive text-destructive-foreground"
+        >
           <Trash2 className="w-4 h-4" />
         </div>
       )}
@@ -133,7 +136,9 @@ export function POSCartItem({ item, currencyCode, isLast, updateQuantity, remove
         {!isLocked && (
           <div className="flex items-center border border-border rounded-lg overflow-hidden shrink-0 bg-muted/30">
             <button
-              className="w-6 h-6 flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors cursor-pointer"
+              type="button"
+              aria-label="Decrease quantity"
+              className="w-6 h-6 flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring"
               onClick={() => updateQuantity(item.id, item.quantity - 1)}
             >
               <Minus className="w-3 h-3" strokeWidth={2.5} />
@@ -153,7 +158,9 @@ export function POSCartItem({ item, currencyCode, isLast, updateQuantity, remove
               className="w-9 text-center text-xs font-semibold bg-transparent border-0 outline-none focus:ring-1 focus:ring-primary rounded [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
             <button
-              className="w-6 h-6 flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors cursor-pointer"
+              type="button"
+              aria-label="Increase quantity"
+              className="w-6 h-6 flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring"
               onClick={() => updateQuantity(item.id, item.quantity + 1)}
             >
               <Plus className="w-3 h-3" strokeWidth={2.5} />
@@ -164,12 +171,14 @@ export function POSCartItem({ item, currencyCode, isLast, updateQuantity, remove
           {formatCurrency(item.subtotal, currencyCode)}
         </div>
         {!isLocked && (
-          <div
-            className="text-muted-foreground hover:text-destructive cursor-pointer shrink-0 ml-1"
+          <button
+            type="button"
+            aria-label={`Remove ${item.name} from cart`}
+            className="text-muted-foreground hover:text-destructive cursor-pointer shrink-0 ml-1 rounded p-1 outline-none focus-visible:ring-2 focus-visible:ring-ring"
             onClick={() => removeFromCart(item.id)}
           >
             <Trash2 className="w-3.5 h-3.5" />
-          </div>
+          </button>
         )}
       </motion.div>
     </div>

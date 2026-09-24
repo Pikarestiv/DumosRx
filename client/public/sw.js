@@ -20,11 +20,34 @@
 // older version.
 const CACHE_VERSION = "dumosrx-v3";
 
+// A dead connection can leave a fetch pending far longer on iOS Safari than
+// on Chrome before it rejects (the same asymmetry the navigate handler below
+// works around) - install and activate both fetch the manifest and must not
+// hang indefinitely on it, since the manifest fetch failing should degrade
+// (skip precaching / skip pruning) rather than stall the SW lifecycle.
+// `cache: "no-store"` guards against a stale, previously-cached manifest:
+// Apache emits no explicit Cache-Control for it, so without this a browser's
+// heuristic freshness could serve a prior deploy's manifest, which for
+// activate's pruning would mean deleting the CURRENT build's freshly
+// precached chunks because their names aren't in the stale list.
+async function fetchManifest(timeoutMs = 4000) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch("/precache-manifest.json", {
+      cache: "no-store",
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 self.addEventListener("install", (event) => {
   event.waitUntil(
     (async () => {
       try {
-        const response = await fetch("/precache-manifest.json");
+        const response = await fetchManifest();
         if (!response.ok) throw new Error(`Manifest fetch failed: ${response.status}`);
         const urls = await response.json();
         const cache = await caches.open(CACHE_VERSION);
@@ -116,7 +139,7 @@ self.addEventListener("activate", (event) => {
       // origin it evicts the cache entirely, which is indistinguishable from
       // the service worker never having run at all.
       try {
-        const manifestResponse = await fetch("/precache-manifest.json");
+        const manifestResponse = await fetchManifest();
         if (manifestResponse.ok) {
           const currentUrls = new Set(await manifestResponse.json());
           const cache = await caches.open(CACHE_VERSION);
@@ -194,6 +217,21 @@ self.addEventListener("fetch", (event) => {
           const response = await fetch(request, { signal: controller.signal }).finally(() =>
             clearTimeout(timeout),
           );
+          // A navigation's redirect mode is always "manual" (inherited here
+          // despite the AbortSignal downgrading mode to "same-origin" -
+          // redirect is a separate field the Request constructor carries
+          // over unchanged), so a same-origin 3xx (e.g. .htaccess's
+          // trailing-slash redirect) resolves to an opaque "opaqueredirect"
+          // response: status 0, no headers. That must be handed straight
+          // back to the browser to follow, like any normal redirect - it is
+          // not page content, so it must bypass (and must never be cached
+          // by) the isHtmlResponse check below, which would otherwise treat
+          // its empty content-type as "not real content", discard it, and
+          // serve the offline/shell fallback instead of following the
+          // redirect, even while fully online.
+          if (response.type === "opaqueredirect") {
+            return response;
+          }
           // Deliberately NOT gated on response.ok: a genuine, current 404/
           // 500 HTML error page from the network is still real, current
           // information and must be shown/cached as-is (this matches the

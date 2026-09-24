@@ -14,23 +14,7 @@ Deep adversarial review of the whole monorepo (`client/`, `web/`, `laravel-serve
 
 ## Critical Findings
 
-### C1. Two browser/PWA tabs can silently destroy each other's committed data (multi-tab last-write-wins)
-- **Category:** Reliability / Architecture — **Confirmed** by code reading (relies on the sql.js/IndexedDB design, not empirically reproduced in a live browser)
-- **File:** `client/lib/db/core.ts` (`initDatabase()`, `saveDatabase()`, `execute()`, `transaction()`)
-
-**What is wrong:** On the web/PWA (non-Tauri) build, the local SQLite database is an in-memory sql.js instance held in module-scope JS state — one independent, private copy **per browser tab**. Every write persists via `saveDatabase()`, which does a full `db.export()` and overwrites a single shared IndexedDB key wholesale, with no version/CAS check, no cross-tab lock (`navigator.locks`), and no `BroadcastChannel`/`storage`-event coordination anywhere in `lib/db/`. `isSyncInProgress`/`transactionQueue` are also module-level, so they only serialize writes *within one tab*.
-
-**How it fails in production:** Tab A processes a POS sale; its transaction commits and `saveDatabase()` persists an image including the new sale, line items, stock deduction, and `_sync_queue` entries. Tab B (a manager's dashboard tab open at the same time, or the same install left open twice, or even just its own periodic background sync tick) — whose in-memory copy predates Tab A's sale — calls `saveDatabase()` next and unconditionally overwrites the shared IndexedDB blob with its own, sale-less image. Tab A's entire committed, audit-logged sale (row, line items, stock movements, and its now-unreachable `_sync_queue` entries — so it can never even be pushed to the server after the fact) is permanently gone the next time any tab reloads. This is ordinary usage (two tabs open on one machine), not adversarial timing, and it produces no error, toast, or retry path — unlike every other data-loss scenario already documented and mitigated in this file.
-
-**Recommended fix:** Architecture-level, not a one-line patch: acquire the Web Locks API (or a `BroadcastChannel`-based leader election) around `initDatabase()`/every write path so only one tab is ever the writer; other tabs become read-only views that re-hydrate on a signal, or proxy writes to the elected leader. At minimum, detect the multi-tab condition and block/warn the second tab rather than silently corrupting shared state.
-
-**Tests to add:** A harness simulating two independent `core.ts` instances sharing a mocked IndexedDB store — write via "tab A," then via "tab B" without B re-reading A's save, and assert whether A's write survives (currently, no test exercises cross-tab/cross-instance persistence at all).
-
-**Priority:** Scope as a dedicated project rather than a quick fix — but it should be scheduled, since it is a silent, no-warning data-loss path for an app whose defining premise is "every screen works fully offline" and data must survive to sync later.
-
----
-
-### C2. `laravel-server/` — 10 migrations from 2026-09-23 not yet run on production
+### C1. `laravel-server/` — 10 migrations from 2026-09-23 not yet run on production
 - **Category:** Reliability / Deployment — **Confirmed**
 - **File:** `laravel-server/database/migrations/2026_09_23_*.php` (10 files)
 
@@ -72,7 +56,7 @@ Its 3 remaining advisories (temporary signed-URL path confusion; CRLF injection 
 
 `auth_token` (the Sanctum bearer token) is read/written via `localStorage`, not an HttpOnly cookie. Any XSS in the client app could read `localStorage.auth_token` and exfiltrate a long-lived session token, versus an HttpOnly cookie which JS can't read at all.
 
-Previously investigated and rejected as a quick fix: `token-manager.ts`'s `setToken`/`clearToken` call `mirrorAuthToken`/`clearMirroredAuthToken` (`client/lib/native/widget-bridge.ts`), which hand the raw token to native Tauri (Rust) code so the home-screen widget can make its own authenticated background HTTP requests entirely outside the webview. An HttpOnly cookie is by definition unreadable by JS, so it can't be mirrored to native code — swapping to one would break the widget's live data rather than just change a storage mechanism. A real fix means a dual-path auth design (webview uses a cookie for its own requests; native widget code gets a separate, narrowly-scoped token via its own exchange) — a genuine architecture change, not a quick fix. Revisit as a scoped project alongside **C1** (both are `client/` auth/storage architecture work).
+Previously investigated and rejected as a quick fix: `token-manager.ts`'s `setToken`/`clearToken` call `mirrorAuthToken`/`clearMirroredAuthToken` (`client/lib/native/widget-bridge.ts`), which hand the raw token to native Tauri (Rust) code so the home-screen widget can make its own authenticated background HTTP requests entirely outside the webview. An HttpOnly cookie is by definition unreadable by JS, so it can't be mirrored to native code — swapping to one would break the widget's live data rather than just change a storage mechanism. A real fix means a dual-path auth design (webview uses a cookie for its own requests; native widget code gets a separate, narrowly-scoped token via its own exchange) — a genuine architecture change, not a quick fix. Revisit as a scoped project of its own — `client/` auth/storage architecture work.
 
 ### M4. `client/` — a long-open tab can 404 on a lazy chunk after a deploy that edits `sw.js`
 - **Category:** Reliability — **Confirmed**, accepted tradeoff
@@ -120,13 +104,11 @@ Areas specifically audited and found **clean**: webhook signature verification (
 ## Architecture & Maintainability
 
 - **The recurring failure pattern across this review's Critical/High findings is "fix applied to one endpoint, not mirrored to a structurally identical sibling."** `laravel-server/tests/Feature/ArchitectureTest.php` already exists specifically to keep one such convention (Controller/Service separation) honest via a test rather than review alone — the same approach could catch this pattern. **Recommended change (still open):** add an architecture test asserting every controller under `Api/App/*`/`Api/Web/*` that queries a tenant-owned table (`stock_batches`, `stock_movements`, `purchase_orders`, `products`, etc.) either `use`s `ScopesToTenant` or is on an explicit allow-list — this would catch the next instance of this pattern automatically instead of needing another manual review pass.
-- **The multi-tab data-loss risk (C1)** is a consequence of an architectural choice (sql.js + whole-blob IndexedDB persistence, one instance per tab) made for good reasons (offline-first, no server dependency) — not a design mistake, but a gap in that design that should be closed deliberately rather than patched incidentally.
 
 ---
 
 ## Testing Gaps
 
-- **No test exercises cross-tab/cross-instance persistence** in `client/lib/db/` (**C1**) — all existing DB tests use a single injected database instance. A harness simulating two independent instances sharing a mocked IndexedDB store would need to be built from scratch to cover this.
 - **`composer audit`/`npm audit` are not run in CI** (inferred from workflow contents — none of the five workflows invoke either). Add an audit step (non-blocking initially, since some advisories currently have no fix) to at least surface new ones going forward.
 
 ---
@@ -140,10 +122,10 @@ Areas specifically audited and found **clean**: webhook signature verification (
 
 ## Suggested Fix Order
 
-1. **C2** (deploy the pending 2026-09-23 migrations) and **H2** (confirm `FLUTTERWAVE_SECRET_HASH` in production) — pure deployment/ops actions, zero remaining code risk, should not wait on anything else.
+1. **C1** (deploy the pending 2026-09-23 migrations) and **H2** (confirm `FLUTTERWAVE_SECRET_HASH` in production) — pure deployment/ops actions, zero remaining code risk, should not wait on anything else.
 2. **Recommended Engineering Improvement #1** (the `ScopesToTenant`-usage architecture test) — cheap, high-leverage, no design decision needed.
-3. **C1** (multi-tab data loss), **M2** (Next.js 15→16 migration for `client/`), **M3** (localStorage-token architecture), and **M1** (Laravel 11→12 upgrade) — schedule as their own design/upgrade projects; not blocking for the above, but shouldn't be indefinitely deferred given C1's silent-data-loss nature.
+3. **M2** (Next.js 15→16 migration for `client/`), **M3** (localStorage-token architecture), and **M1** (Laravel 11→12 upgrade) — schedule as their own design/upgrade projects.
 4. **M5** (reseller-sale rollout communication) — not a code task; confirm with product/support whether the release note already went out, then remove the entry.
 5. **M4, L1, L2** — accepted tradeoffs / latent-unreferenced-code notes with no real fix pending; nothing to schedule.
 
-This order pulls pure-ops items (C2, H2) to the front regardless of severity ranking, since they require no code changes and are pending only on someone triggering a deploy.
+This order pulls the pure-ops item (C1) to the front regardless of severity ranking, since it requires no code changes and is pending only on someone triggering a deploy.

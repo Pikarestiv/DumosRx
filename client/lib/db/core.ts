@@ -13,9 +13,9 @@ import {
   makeSqlJsAdapter,
   runSchemaMigrations,
 } from "./schema-migrations";
-import { initWriterLock, isWriterTab, onWriterTabChange } from "./tab-lock";
+import { initWriterLock, isWriterTab, onWriterTabChange, onPromotionFailed } from "./tab-lock";
 
-export { isWriterTab, onWriterTabChange };
+export { isWriterTab, onWriterTabChange, onPromotionFailed };
 
 // Dual-backend handle: sql.js's Database in the browser, @tauri-apps/plugin-sql's
 // Database (a different, incompatible shape: .execute()/.select() vs sql.js's
@@ -195,19 +195,27 @@ export async function initDatabase(): Promise<any> {
       db.run(SCHEMA_SQL);
     }
 
+    // Elects exactly one open tab as the writer (see tab-lock.ts / C1 in
+    // docs/KNOWN_BUGS.md) BEFORE running migrations below, not after: one of
+    // those migrations (clearLegacyTransactionsOnce) can itself persist a
+    // destructive one-time cleanup to the shared IndexedDB snapshot via the
+    // callback passed to runSchemaMigrations. Deciding writer/read-only
+    // first, and gating that callback on it, means a soon-to-be-read-only
+    // tab that raced a real writer tab to this point can still mutate its
+    // OWN in-memory `db` (needed so its later reads see the current schema)
+    // but can never itself write that mutation back to shared storage.
+    // Every other tab becomes read-only until this one closes. Only reached
+    // once per page load (initDatabase() early-returns above once `db` is
+    // set), so this never registers more than one lock request per tab.
+    // Awaited (rather than fire-and-forget) so a caller that awaits
+    // initDatabase() can immediately read this tab's initial writer/
+    // read-only role via isWriterTab() - this only waits for that initial
+    // decision, never for an eventual promotion.
+    await initWriterLock(rehydrateFromIndexedDb);
+
     const webAdapter = makeSqlJsAdapter(db);
 
-    await runSchemaMigrations(webAdapter, saveDatabase);
-
-    // Elects exactly one open tab as the writer (see tab-lock.ts / C1 in
-    // docs/KNOWN_BUGS.md); every other tab becomes read-only until this one
-    // closes. Only reached once per page load (initDatabase() early-returns
-    // above once `db` is set), so this never registers more than one lock
-    // request per tab. Awaited (rather than fire-and-forget) so a caller
-    // that awaits initDatabase() can immediately read this tab's initial
-    // writer/read-only role via isWriterTab() - this only waits for that
-    // initial decision, never for an eventual promotion.
-    await initWriterLock(rehydrateFromIndexedDb);
+    await runSchemaMigrations(webAdapter, isWriterTab() ? saveDatabase : undefined);
 
     return db;
   } catch (err) {
@@ -227,11 +235,25 @@ export async function initDatabase(): Promise<any> {
  * close. Deliberately does not re-run schema migrations (this tab already
  * ran them once at its own initDatabase(), and the outgoing writer - running
  * the same build - would already have applied any that landed since).
+ *
+ * Returns whether it's now safe for this tab to become the writer: `true`
+ * either after a successful rehydrate, or when there's genuinely nothing to
+ * rehydrate from yet (no snapshot has ever been saved - this tab's own
+ * already-loaded copy is already the most current state there is). `false`
+ * only on an actual read failure, which tab-lock.ts treats as "refuse to
+ * promote" rather than risk writing over the real snapshot with a stale
+ * copy - see initWriterLock()'s doc comment.
  */
-async function rehydrateFromIndexedDb(): Promise<void> {
-  if (!SQL) return;
-  const savedData = await get<Uint8Array>(`${APP_NAME.toLowerCase()}_db`);
-  if (!savedData) return;
+async function rehydrateFromIndexedDb(): Promise<boolean> {
+  if (!SQL) return false;
+  let savedData: Uint8Array | undefined;
+  try {
+    savedData = await get<Uint8Array>(`${APP_NAME.toLowerCase()}_db`);
+  } catch (err) {
+    console.error("[DB] Failed to read IndexedDB while rehydrating after writer-lock promotion", err);
+    return false;
+  }
+  if (!savedData) return true;
   try {
     const fresh = new SQL.Database(savedData);
     fresh.run(SCHEMA_SQL);
@@ -242,8 +264,10 @@ async function rehydrateFromIndexedDb(): Promise<void> {
       // block adopting the freshly-loaded one below.
     }
     db = fresh;
+    return true;
   } catch (err) {
     console.error("[DB] Failed to rehydrate database after writer-lock promotion", err);
+    return false;
   }
 }
 

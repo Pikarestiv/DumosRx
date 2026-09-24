@@ -25,6 +25,7 @@ const LOCK_NAME = "dumosrx-db-writer";
 let writerTab = true;
 
 const writerChangeListeners = new Set<(isWriter: boolean) => void>();
+const promotionFailedListeners = new Set<() => void>();
 
 function setWriterTab(value: boolean): void {
   if (writerTab === value) return;
@@ -41,6 +42,17 @@ export function isWriterTab(): boolean {
 export function onWriterTabChange(fn: (isWriter: boolean) => void): () => void {
   writerChangeListeners.add(fn);
   return () => writerChangeListeners.delete(fn);
+}
+
+/** Fires when this tab won the lock on promotion but refused to become
+ * writer because rehydrating from IndexedDB failed (see initWriterLock's
+ * promoted branch below) - this tab is permanently stuck read-only until
+ * reloaded, since the lock was released back rather than held on stale
+ * data. Lets the UI tell the user to reload, rather than leaving them on a
+ * silently-still-read-only tab with no explanation. */
+export function onPromotionFailed(fn: () => void): () => void {
+  promotionFailedListeners.add(fn);
+  return () => promotionFailedListeners.delete(fn);
 }
 
 // Holds the lock (or the queued request) open for as long as this tab lives.
@@ -65,8 +77,19 @@ function holdForever(): Promise<void> {
  * writer tab stays open. Callers (initDatabase()) can safely await it before
  * returning, since the `ifAvailable` check below never blocks on another
  * tab's lifetime.
+ *
+ * `onPromoted` must resolve `true` only if it actually caught this tab's
+ * local database up to what the outgoing writer last persisted - resolving
+ * `false` (or rejecting) means this tab releases the lock it was just
+ * granted WITHOUT ever becoming writer, rather than risk overwriting the
+ * shared IndexedDB snapshot with this tab's now-known-stale copy the next
+ * time it saves (exactly the C1 data loss this module exists to prevent,
+ * just re-opened on the rehydrate-failure path instead of the no-election-
+ * at-all path). The lock then sits released - a differently-timed retry
+ * (e.g. the user reloading this tab) can still win it later; see
+ * onPromotionFailed() for how the UI is told to prompt that.
  */
-export function initWriterLock(onPromoted: () => void | Promise<void>): Promise<void> {
+export function initWriterLock(onPromoted: () => Promise<boolean>): Promise<void> {
   if (typeof navigator === "undefined" || !navigator.locks) {
     // Web Locks API unsupported (very old browser - it's shipped in every
     // major browser since early 2022). Can't coordinate across tabs at all,
@@ -89,7 +112,19 @@ export function initWriterLock(onPromoted: () => void | Promise<void>): Promise<
         setWriterTab(false);
         resolveInitialRole();
         await navigator.locks.request(LOCK_NAME, { mode: "exclusive" }, async () => {
-          await onPromoted();
+          let rehydrated = false;
+          try {
+            rehydrated = await onPromoted();
+          } catch (err) {
+            console.error("[DB] Rehydrate-on-promotion threw", err);
+          }
+          if (!rehydrated) {
+            console.error(
+              "[DB] Refusing to promote this tab to writer: rehydrating from IndexedDB failed. Reload this tab to retry.",
+            );
+            for (const fn of promotionFailedListeners) fn();
+            return; // release the lock without ever writing from this tab
+          }
           setWriterTab(true);
           return holdForever();
         });

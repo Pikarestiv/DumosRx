@@ -327,7 +327,13 @@ function worksheetToSpreadsheet(worksheet: ExcelJS.Worksheet): ParsedSpreadsheet
   }
 
   const rows: Record<string, unknown>[] = [];
-  const rowCount = worksheet.actualRowCount || worksheet.rowCount;
+  // worksheet.actualRowCount is the count of NON-EMPTY rows, not the last
+  // row's index - a sheet with any blank row (common in real QuickBooks/
+  // Moniebook exports as a section separator) made this loop stop short and
+  // silently drop every row after it. worksheet.rowCount is the real last
+  // row number; the hasValue check below already skips blank rows within
+  // that range, matching sheet_to_json's old blankrows:false behavior.
+  const rowCount = worksheet.rowCount;
   for (let r = 2; r <= rowCount; r++) {
     const excelRow = worksheet.getRow(r);
     if (!excelRow || excelRow.cellCount === 0) continue;

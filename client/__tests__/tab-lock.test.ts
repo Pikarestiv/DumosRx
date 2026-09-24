@@ -79,7 +79,7 @@ describe("tab-lock", () => {
       "@/lib/db/tab-lock"
     );
 
-    const onPromoted = vi.fn(async () => {});
+    const onPromoted = vi.fn(async () => true);
     const onChange = vi.fn();
     onWriterTabChange(onChange);
 
@@ -102,6 +102,45 @@ describe("tab-lock", () => {
     expect(isWriterTab()).toBe(true);
     expect(onChange).toHaveBeenCalledWith(false);
     expect(onChange).toHaveBeenCalledWith(true);
+  });
+
+  it("refuses to promote (and notifies onPromotionFailed) when rehydrating on promotion fails, rather than writing stale data", async () => {
+    let queuedGrant: ((lock?: unknown) => Promise<void>) | null = null;
+
+    Object.defineProperty(navigator, "locks", {
+      configurable: true,
+      value: {
+        request: (
+          _name: string,
+          opts: { ifAvailable?: boolean },
+          cb: (lock: unknown) => Promise<void>,
+        ) => {
+          if (opts.ifAvailable) return Promise.resolve(cb(null));
+          queuedGrant = cb;
+          return new Promise<void>(() => {});
+        },
+      },
+    });
+    const { initWriterLock, isWriterTab, onPromotionFailed } = await import(
+      "@/lib/db/tab-lock"
+    );
+
+    const onPromoted = vi.fn(async () => false); // simulates a failed rehydrate
+    const onFailed = vi.fn();
+    onPromotionFailed(onFailed);
+
+    await initWriterLock(onPromoted);
+    expect(isWriterTab()).toBe(false);
+
+    void queuedGrant!();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(onPromoted).toHaveBeenCalledTimes(1);
+    // Still read-only: refusing to promote on a failed rehydrate must never
+    // silently flip this tab to writer over possibly-stale local data.
+    expect(isWriterTab()).toBe(false);
+    expect(onFailed).toHaveBeenCalledTimes(1);
   });
 
   it("falls back to writer if the lock request itself rejects", async () => {

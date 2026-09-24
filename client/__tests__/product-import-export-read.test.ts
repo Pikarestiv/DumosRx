@@ -51,6 +51,27 @@ describe("readWorkbookFile / parseWorkbookSheet", () => {
     expect(parsed.rows).toHaveLength(2);
   });
 
+  it("doesn't truncate rows after a blank separator row in an xlsx sheet (worksheet.actualRowCount undercounts vs. rowCount)", async () => {
+    const ExcelJS = (await import("exceljs")).default;
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("Products");
+    sheet.addRow(["Product Name", "Cost Price"]);
+    sheet.addRow(["Panadol", 50]);
+    sheet.addRow([]); // blank separator row, as real QuickBooks/Moniebook exports often have
+    sheet.addRow(["Amoxicillin", 120]);
+    const buffer = await workbook.xlsx.writeBuffer();
+    const file = new File([buffer], "products.xlsx", {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+
+    const parsed = await parseSpreadsheetFile(file);
+
+    expect(parsed.rows).toEqual([
+      { "Product Name": "Panadol", "Cost Price": 50 },
+      { "Product Name": "Amoxicillin", "Cost Price": 120 },
+    ]);
+  });
+
   it("round-trips a real xlsx file: build one with buildBlobFromRows, then read it back and get the same data", async () => {
     const headers = ["Product Name", "Cost Price"];
     const rows = [

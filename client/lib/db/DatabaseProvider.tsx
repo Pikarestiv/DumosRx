@@ -11,7 +11,7 @@ import {
   useState,
   ReactNode,
 } from "react";
-import { initDatabase, isTauri, isWriterTab, onWriterTabChange } from "./local-database";
+import { initDatabase, isTauri, isWriterTab, onWriterTabChange, onPromotionFailed } from "./local-database";
 import { devLog } from "@/lib/utils/dev-log";
 import { toast } from "sonner";
 
@@ -122,6 +122,23 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
       if (isWriter) {
         toast.success("This tab can now save changes.", { duration: 5000 });
       }
+    });
+  }, []);
+
+  // Fires only when this tab won the writer-lock queue but then refused to
+  // actually take over, because rehydrating its local database from
+  // IndexedDB failed (see tab-lock.ts's initWriterLock() doc comment) -
+  // deliberately fail-closed, so this tab never risks persisting a stale
+  // copy over the real one. Without this, the tab would just look stuck
+  // read-only forever with no explanation; a reload gets it back in line
+  // for promotion (or becomes the writer outright, if it's now the only
+  // tab open).
+  useEffect(() => {
+    return onPromotionFailed(() => {
+      toast.error(
+        "Couldn't reconnect this tab to the local database. Please reload the page.",
+        { duration: 15000 },
+      );
     });
   }, []);
 

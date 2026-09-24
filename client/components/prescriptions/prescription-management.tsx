@@ -97,12 +97,14 @@ export function PrescriptionManagement() {
             className="flex items-center gap-3 px-4 pb-4 border-b border-border bg-card shrink-0"
             style={{ paddingTop: "calc(var(--tauri-top, 0px) + 1rem)" }}
           >
-            <div
-              className="w-[38px] h-[38px] rounded-[10px] bg-muted flex items-center justify-center cursor-pointer text-muted-foreground shrink-0 hover:bg-muted/80 transition-colors"
+            <button
+              type="button"
+              aria-label="Back"
+              className="w-[38px] h-[38px] rounded-[10px] bg-muted flex items-center justify-center cursor-pointer text-muted-foreground shrink-0 hover:bg-muted/80 transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring"
               onClick={closeNewPrescription}
             >
               <ArrowLeft className="w-[17px] h-[17px]" />
-            </div>
+            </button>
             <h2 className="text-[17px] font-serif font-bold">
               New Prescription
             </h2>

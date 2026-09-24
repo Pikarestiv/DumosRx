@@ -56,6 +56,11 @@ export function SearchableInput({ options, value, onValueChange, onEscapeKey, on
   // the input's own bounding rect escapes every ancestor's overflow/stacking
   // context, the same way Radix's Popover/DropdownMenu do internally.
   const [menuRect, setMenuRect] = React.useState<{ top?: number; bottom?: number; left: number; width: number } | null>(null)
+  // Stable per-instance ids: the input keeps DOM focus and points at the
+  // highlighted option through aria-activedescendant, so each option needs
+  // its own id and two of these on one page must not collide.
+  const listboxId = React.useId()
+  const optionId = (index: number) => `${listboxId}-opt-${index}`
 
   React.useEffect(() => {
     setInputValue(getLabelForValue(value))
@@ -119,10 +124,28 @@ export function SearchableInput({ options, value, onValueChange, onEscapeKey, on
 
   const showMenu = open && filteredOptions.length > 0 && menuRect
 
+  // The input holds focus, so the browser never scrolls the menu itself:
+  // keep the active option in view manually.
+  React.useEffect(() => {
+    if (!showMenu || activeIndex < 0) return
+    menuRef.current
+      ?.querySelector<HTMLElement>(`#${CSS.escape(optionId(activeIndex))}`)
+      ?.scrollIntoView({ block: "nearest" })
+    // optionId derives from listboxId, stable for this instance.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeIndex, showMenu])
+
   return (
     <div className="relative w-full" ref={containerRef}>
       <Input
         {...props}
+        role="combobox"
+        aria-expanded={!!showMenu}
+        aria-controls={showMenu ? listboxId : undefined}
+        aria-autocomplete="list"
+        aria-activedescendant={
+          showMenu && activeIndex >= 0 ? optionId(activeIndex) : undefined
+        }
         value={inputValue}
         autoComplete="off"
         onChange={(e) => {
@@ -142,7 +165,16 @@ export function SearchableInput({ options, value, onValueChange, onEscapeKey, on
             setActiveIndex((prev) => Math.min(prev + 1, filteredOptions.length - 1))
           } else if (e.key === "ArrowUp") {
             e.preventDefault()
+            if (!open) setOpen(true)
             setActiveIndex((prev) => Math.max(prev - 1, 0))
+          } else if (e.key === "Home" && open) {
+            e.preventDefault()
+            setActiveIndex(0)
+          } else if (e.key === "End" && open) {
+            e.preventDefault()
+            setActiveIndex(filteredOptions.length - 1)
+          } else if (e.key === "Tab") {
+            setOpen(false)
           } else if (e.key === "Enter") {
             if (open) {
               e.preventDefault()
@@ -172,10 +204,18 @@ export function SearchableInput({ options, value, onValueChange, onEscapeKey, on
             minWidth: menuRect.width,
           }}
         >
-          <div className="max-h-60 overflow-y-auto p-1">
+          <div
+            id={listboxId}
+            role="listbox"
+            aria-label={props["aria-label"] ?? props.placeholder ?? "Suggestions"}
+            className="max-h-60 overflow-y-auto p-1"
+          >
             {filteredOptions.map((option, index) => (
               <div
                 key={`${option.value}-${index}`}
+                id={optionId(index)}
+                role="option"
+                aria-selected={option.value === value}
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => {
                   setInputValue(option.label)

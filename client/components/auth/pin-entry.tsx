@@ -86,6 +86,12 @@ export function PinEntry({
             transition={{ duration: 0.4 }}
           >
             <InputOTP
+              // `id` is forwarded by OTPInput onto the real <input>, so the
+              // <Label htmlFor="pin"> above actually resolves to it.
+              id="pin"
+              aria-label="PIN"
+              aria-invalid={hasError || undefined}
+              aria-describedby={hasError && !isLockedOut ? "pin-error" : undefined}
               maxLength={4}
               pattern="^[0-9]+$"
               value={pin}
@@ -119,9 +125,21 @@ export function PinEntry({
               {formatLockoutRemaining(lockoutRemainingMs as number)}.
             </div>
           ) : isLoading ? (
-            <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+            <div
+              aria-live="polite"
+              className="flex items-center justify-center gap-2 text-sm text-muted-foreground"
+            >
               <Loader2 className="h-4 w-4 animate-spin" />
               Verifying...
+            </div>
+          ) : hasError ? (
+            // The shake animation alone conveyed nothing to assistive tech.
+            <div
+              id="pin-error"
+              role="alert"
+              className="flex items-center justify-center gap-2 text-sm font-medium text-destructive text-center px-4"
+            >
+              Incorrect PIN. Please try again.
             </div>
           ) : null}
         </div>

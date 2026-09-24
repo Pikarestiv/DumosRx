@@ -9,42 +9,76 @@ import { useMonthlySalesData } from "./use-monthly-sales-data";
 import { getBIMetrics, type SalesFilters } from "@/lib/db/queries/reports";
 import { queryKeys } from "@/lib/query-keys";
 import { formatCurrency } from "@/lib/utils";
+import { toQueryRange } from "@/lib/utils/date-range";
 import { useStore } from "@/lib/context/store-context";
 import type { DateRangeValue } from "@/components/ui/date-range-picker";
 
 const CATEGORY_CHART_COLORS = ["#0ea5e9", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"];
 
-/** @param dateRange - defaults to the last 180 days when `from` is unset.
- * The previous-period comparison window is the same length immediately
- * before `from` (e.g. a 30-day range compares against the 30 days before
- * that), matching the old fixed-bucket behavior this replaces. */
+/** @param dateRange - defaults to the last 180 days when `from` is unset, and
+ * to "up to now" when `to` is unset. Both ends are honoured: the selected
+ * range's END is the upper bound of every current-period query, not "now"
+ * (a range ending last month used to silently include everything since).
+ * The previous-period comparison window is the same length as the SELECTED
+ * range, immediately before it (e.g. 1-31 March compares against 29 Jan -
+ * 28 Feb), rather than a "now minus from"-wide window anchored to now. */
 export function useBIData(dateRange?: DateRangeValue, filters?: SalesFilters) {
   const { storeProfile } = useStore();
   const currencyCode = storeProfile?.currency;
 
-  const { dateFilter, prevDateFilter } = useMemo(() => {
+  const { dateFilter, toFilter, prevDateFilter } = useMemo(() => {
     const now = new Date();
-    const from = dateRange?.from ? new Date(dateRange.from) : subDays(now, 180);
-    const windowMs = Math.max(now.getTime() - from.getTime(), 1);
+    // toQueryRange() widens the picker's date-only values to LOCAL midnight /
+    // end-of-day, which is the calendar every report query buckets against
+    // (strftime(..., 'localtime')); `new Date("2026-03-01")` would anchor
+    // them to UTC midnight and shift the boundaries by the store's offset.
+    // Guarded because DateRangeValue can in principle already carry a full
+    // ISO timestamp, which toQueryRange's yyyy-MM-dd parser can't read.
+    const dateOnly = (v?: string) => (v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : undefined);
+    const widened = toQueryRange({
+      from: dateOnly(dateRange?.from),
+      to: dateOnly(dateRange?.to),
+    });
+    const fromRaw = widened.from ?? dateRange?.from;
+    const toRaw = widened.to ?? dateRange?.to;
+
+    const from = fromRaw ? new Date(fromRaw) : subDays(now, 180);
+    const to = toRaw ? new Date(toRaw) : now;
+    const windowMs = Math.max(to.getTime() - from.getTime(), 1);
     const prev = new Date(from.getTime() - windowMs);
     return {
       dateFilter: from.toISOString(),
+      toFilter: to.toISOString(),
       prevDateFilter: prev.toISOString(),
     };
-  }, [dateRange?.from]);
+  }, [dateRange?.from, dateRange?.to]);
 
+  // toFilter is appended to the factory's key rather than added to the
+  // factory itself (lib/query-keys.ts is owned elsewhere) - without it two
+  // ranges sharing a `from` would read each other's cached metrics.
+  const metricsKey = queryKeys.bi.metrics(
+    dateFilter,
+    prevDateFilter,
+    filters?.staffId,
+    filters?.paymentMethod,
+  );
   const { data: metrics } = useQuery({
-    ...queryKeys.bi.metrics(dateFilter, prevDateFilter, filters?.staffId, filters?.paymentMethod),
-    queryFn: () => getBIMetrics(dateFilter, prevDateFilter, filters)
+    ...metricsKey,
+    queryKey: [...metricsKey.queryKey, toFilter],
+    queryFn: () => getBIMetrics(dateFilter, prevDateFilter, filters, toFilter)
   });
 
   // Gross Sales: list-price total before discount, tax, or refunds.
   const grossSales = metrics?.grossSalesData[0]?.total || 0;
   const totalTax = metrics?.taxData[0]?.total || 0;
+  // Already netted to its EX-VAT share by getBIMetrics (total_refunded is
+  // VAT-inclusive; see the comment on totalRefundsData in reports.ts), so the
+  // subtraction below removes each refund's VAT exactly once - via totalTax -
+  // instead of twice. Nothing extra to adjust here.
   const totalRefunds = metrics?.totalRefundsData[0]?.total || 0;
   // Net Sales: what the business actually keeps after discounts (already
   // baked into total_amount), tax collected on the government's behalf
-  // (not real revenue), and refunds.
+  // (not real revenue), and the ex-VAT value of what came back as refunds.
   const netSales = (metrics?.revenueData[0]?.total || 0) - totalTax - totalRefunds;
   // totalRevenue kept as an alias for netSales, not a separate tax-inclusive
   // figure: every consumer of this hook (BIKeyMetrics' "Total Revenue" card,

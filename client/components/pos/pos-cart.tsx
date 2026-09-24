@@ -264,12 +264,13 @@ export function POSCart({
           )}
           {!redeemedOption && !(showDiscount || discount > 0) && (
             <div className="flex justify-between text-[12.5px] text-muted-foreground">
-              <span
-                className="text-primary font-semibold cursor-pointer hover:underline"
+              <button
+                type="button"
+                className="text-primary font-semibold cursor-pointer hover:underline outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
                 onClick={() => setShowDiscount(true)}
               >
                 + Add discount
-              </span>
+              </button>
               <span>{formatCurrency(0, currencyCode)}</span>
             </div>
           )}

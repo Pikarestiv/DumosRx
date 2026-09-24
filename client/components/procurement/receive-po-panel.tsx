@@ -226,12 +226,14 @@ export function ReceivePOPanel({
   return (
     <div className="flex flex-col h-full overflow-hidden">
       <div className="flex items-center gap-3 p-5 border-b border-border">
-        <div
-          className="w-[38px] h-[38px] rounded-[10px] bg-muted flex items-center justify-center cursor-pointer text-muted-foreground shrink-0 hover:bg-muted/80 transition-colors"
+        <button
+          type="button"
+          aria-label="Close"
+          className="w-[38px] h-[38px] rounded-[10px] bg-muted flex items-center justify-center cursor-pointer text-muted-foreground shrink-0 hover:bg-muted/80 transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring"
           onClick={onBack}
         >
           <ArrowLeft className="w-[17px] h-[17px]" />
-        </div>
+        </button>
         <div className="min-w-0 flex-1">
           <h3 className="text-[17px] font-bold text-foreground truncate">
             Receive Goods

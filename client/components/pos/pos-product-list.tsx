@@ -89,8 +89,13 @@ function POSProductCard({
   const capsClass = useUppercaseDisplayClass();
 
   return (
-    <div
-      className={`relative p-2 sm:p-3 border rounded-xl sm:rounded-2xl transition-all duration-200 shadow-[0_1px_3px_rgba(0,0,0,0.02)] flex flex-col ${cardStyle} ${isOutOfStock ? "opacity-60 grayscale-[0.5] cursor-not-allowed" : "cursor-pointer"}`}
+    <button
+      type="button"
+      // Not `disabled`: clicking an out-of-stock tile still surfaces the
+      // "This item is out of stock" toast, and a disabled button would drop it
+      // out of the tab order entirely.
+      aria-disabled={isOutOfStock || undefined}
+      className={`relative w-full text-left p-2 sm:p-3 border rounded-xl sm:rounded-2xl transition-all duration-200 shadow-[0_1px_3px_rgba(0,0,0,0.02)] flex flex-col outline-none focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:border-ring ${cardStyle} ${isOutOfStock ? "opacity-60 grayscale-[0.5] cursor-not-allowed" : "cursor-pointer"}`}
       onClick={() => addToCart(product)}
     >
       {indicator}
@@ -131,7 +136,7 @@ function POSProductCard({
           </div>
         )}
       </div>
-    </div>
+    </button>
   );
 }
 
@@ -266,9 +271,10 @@ export function POSProductList({
               </div>
 
               {!canUseSmartSuggestions && (
-                <div
+                <button
+                  type="button"
                   onClick={onUpgradeClick}
-                  className="bg-primary/5 border border-primary/10 rounded-xl p-4 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-primary/10 transition-colors"
+                  className="w-full bg-primary/5 border border-primary/10 rounded-xl p-4 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-primary/10 transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring"
                 >
                   <Lock className="h-5 w-5 text-primary mb-2" />
                   <p className="text-sm font-semibold text-primary">
@@ -278,7 +284,7 @@ export function POSProductList({
                     Upgrade your plan to automatically recommend related
                     products based on the customer's cart.
                   </p>
-                </div>
+                </button>
               )}
               {canUseSmartSuggestions && suggestionsList.length > 0 && (
                 <div className="flex gap-3 overflow-x-auto pb-2 px-4 mx-0 sm:px-0 hide-scrollbar snap-x snap-mandatory">

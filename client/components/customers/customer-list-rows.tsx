@@ -17,8 +17,16 @@ export function CustomerMobileRow({
 }: RowCommonProps) {
   return (
     <div
+      role="button"
+      tabIndex={0}
       onClick={() => onSelect(customer)}
-      className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${isSelected ? "bg-primary/10 border-primary/30" : "bg-card hover:bg-primary/5"}`}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onSelect(customer);
+        }
+      }}
+      className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring ${isSelected ? "bg-primary/10 border-primary/30" : "bg-card hover:bg-primary/5"}`}
     >
       <div className="w-10 h-10 shrink-0 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-[13px]">
         {customer.name.substring(0, 2).toUpperCase()}
@@ -56,8 +64,16 @@ export function CustomerDesktopRow({
 }: DesktopRowProps) {
   return (
     <div
+      role="button"
+      tabIndex={0}
       onClick={() => onSelect(customer)}
-      className={`absolute top-0 left-0 w-full grid grid-cols-[1.6fr_1.1fr_80px_70px_100px_110px] items-center gap-2 px-4 py-2.5 cursor-pointer border-b transition-colors ${isSelected ? "bg-primary/10" : "hover:bg-primary/5"}`}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onSelect(customer);
+        }
+      }}
+      className={`absolute top-0 left-0 w-full grid grid-cols-[1.6fr_1.1fr_80px_70px_100px_110px] items-center gap-2 px-4 py-2.5 cursor-pointer border-b transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset ${isSelected ? "bg-primary/10" : "hover:bg-primary/5"}`}
       style={style}
     >
       <div className="flex items-center gap-3 min-w-0">

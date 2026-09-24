@@ -33,6 +33,7 @@
  */
 
 import { getActiveStoreId, getCurrentUserId } from "./db/core";
+import { getLocalTodayDate } from "./utils";
 
 function resource<K extends readonly unknown[]>(queryKey: K, tables: string[]) {
   return {
@@ -63,8 +64,15 @@ export const queryKeys = {
     expiring: (expiryDays: number) =>
       resource(["expiringBatches", expiryDays] as const, ["stock_batches", "products"]),
     overview: () => resource(["stockOverviewData"] as const, ["products", "stock_batches"]),
+    // getStockBatchStats reads `FROM products p LEFT JOIN (...stock_batches)`,
+    // so a product edit/add/deactivate changes these numbers too - without
+    // "products" listed, the stat cards stayed stale until something happened
+    // to touch stock_batches.
     stats: (expiryDays: number) =>
-      resource(["stockBatchStats", expiryDays] as const, ["stock_batches"]),
+      resource(["stockBatchStats", expiryDays] as const, ["stock_batches", "products"]),
+    // getStockMoM reads stock_movements (30-day added/removed value) and
+    // stock_batches (current valuation).
+    mom: () => resource(["stockMoM"] as const, ["stock_movements", "stock_batches"]),
     available: () =>
       resource(["availableStockBatches"] as const, ["stock_batches", "products"]),
     forProduct: (productId: string) =>
@@ -194,8 +202,13 @@ export const queryKeys = {
       resource(["setupData", "totalRecordCount"] as const, ["products", "sales"]),
   },
   dashboard: {
+    // Today's local date is part of the key because getDashboardOverviewData
+    // computes "today" internally (getLocalTodayDate(), same call as here):
+    // without it, a terminal left open overnight kept serving yesterday's
+    // cached figures under a "Today's Sales" label. Sharing the exact same
+    // helper means key and query function can never disagree about the day.
     overview: (viewerId?: string) =>
-      resource(["dashboardOverviewData", viewerId] as const, [
+      resource(["dashboardOverviewData", viewerId, getLocalTodayDate()] as const, [
         "sales",
         "returns",
         "stock_movements",

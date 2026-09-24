@@ -27,7 +27,9 @@ export function SettingsHeader({
         <ChevronLeft className="h-5 w-5" />
       </Button>
 
-      <div className="text-lg font-semibold capitalize">{title}</div>
+      {/* The page's <h1>: every settings route renders this header, and the
+          app sidebar/header are hidden here, so this is the only title. */}
+      <h1 className="text-lg font-semibold capitalize">{title}</h1>
 
       {showBadge && (
         <div className="ml-auto hidden sm:block">

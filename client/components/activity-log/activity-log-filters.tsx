@@ -46,6 +46,7 @@ export function ActivityLogFilters({
         value={search}
         onChange={onSearchChange}
         placeholder="Search by action, table, or staff member"
+        aria-label="Search activity log"
         inputClassName="bg-muted border-transparent"
       />
 

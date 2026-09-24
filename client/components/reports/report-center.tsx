@@ -16,6 +16,7 @@ import {
   Loader2,
   CheckCircle2,
   TrendingUp,
+  Info,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -27,6 +28,7 @@ import {
 import { ReportFiltersBar, type ReportFiltersValue } from "@/components/reports/report-filters-bar";
 import {
   useReportExport,
+  getReportNote,
   RecentDownload,
   ReportId,
 } from "@/lib/hooks/use-report-export";
@@ -154,6 +156,14 @@ export function ReportCenter() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {reports.map((report) => {
               const isLoading = loadingReport === report.id;
+              // Only set for a report whose figures the active filters change
+              // the meaning of - today, a staff/payment-method-filtered
+              // Profit & Loss, which reports no expenses on purpose. Same
+              // copy the exported CSV/PDF carries.
+              const note = getReportNote(report.id, {
+                staffId: filters.staffId,
+                paymentMethod: filters.paymentMethod,
+              });
               return (
                 <div
                   key={report.id}
@@ -172,6 +182,14 @@ export function ReportCenter() {
                     <p className="text-[11.5px] text-muted-foreground line-clamp-2 leading-snug">
                       {report.description}
                     </p>
+                    {note && (
+                      <div className="flex items-start gap-1.5 mt-2 p-2 rounded-[10px] border border-amber-500/30 bg-amber-500/10">
+                        <Info className="h-3 w-3 text-amber-600 dark:text-amber-500 shrink-0 mt-[1px]" />
+                        <p className="text-[11px] leading-snug text-amber-700 dark:text-amber-400">
+                          {note}
+                        </p>
+                      </div>
+                    )}
                     <div className="flex flex-wrap items-center gap-2 mt-3">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>

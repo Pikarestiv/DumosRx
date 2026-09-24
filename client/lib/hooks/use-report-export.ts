@@ -99,7 +99,35 @@ const NAME_COLUMNS_BY_REPORT: Partial<Record<ReportId, readonly string[]>> = {
   top_sellers: ["Product", "Category"],
 };
 
-function formatCsv(headers: string[], rows: Record<string, unknown>[]): string {
+/**
+ * A filtered Profit & Loss reports 0 expenses on purpose - an expense carries
+ * no staff/payment-method attribution that means the same thing as the sales
+ * filter (see the "JUDGEMENT CALL" comment on fetchProfitLossReportData in
+ * lib/db/queries/reports.ts). That's deliberate, but silent: this is the copy
+ * that says so, shared by the CSV, the PDF and the on-screen Report Center
+ * banner so all three read the same.
+ */
+export const PROFIT_LOSS_FILTERED_NOTE =
+  "Expenses are excluded because this report is filtered by staff or payment method - these figures are a contribution margin, not a full store P&L. Run it without a filter for the complete picture.";
+
+/** The note a report carries for the filters it was run with, if any.
+ * Returns undefined when nothing needs saying (every report but a filtered
+ * Profit & Loss, today). */
+export function getReportNote(
+  reportId: ReportId,
+  filters?: SalesFilters,
+): string | undefined {
+  if (reportId === "profit-loss" && (filters?.staffId || filters?.paymentMethod)) {
+    return PROFIT_LOSS_FILTERED_NOTE;
+  }
+  return undefined;
+}
+
+function formatCsv(
+  headers: string[],
+  rows: Record<string, unknown>[],
+  note?: string,
+): string {
   const escape = (v: unknown) => {
     const s = String(v ?? "");
     return s.includes(",") || s.includes('"') || s.includes("\n")
@@ -108,7 +136,10 @@ function formatCsv(headers: string[], rows: Record<string, unknown>[]): string {
   };
   const headerRow = headers.map(escape).join(",");
   const dataRows = rows.map((row) => headers.map((h) => escape(row[h])).join(","));
-  return [headerRow, ...dataRows].join("\n");
+  // The note goes above the header row (and is blank-line separated) so a
+  // spreadsheet still reads the header + data block underneath it as a table.
+  const noteRows = note ? [escape(note), ""] : [];
+  return [...noteRows, headerRow, ...dataRows].join("\n");
 }
 
 function triggerCsvDownload(content: string, filename: string): number {
@@ -184,7 +215,11 @@ export function useReportExport() {
     async (reportId: ReportId, dateFrom?: string, dateTo?: string, filters?: SalesFilters) => {
       const config = REPORT_CONFIG[reportId];
       const rows = await getRows(reportId, dateFrom, dateTo, filters);
-      const csv = formatCsv(config.headers as unknown as string[], rows);
+      const csv = formatCsv(
+        config.headers as unknown as string[],
+        rows,
+        getReportNote(reportId, filters),
+      );
       const dateStr = new Date().toISOString().slice(0, 10);
       const filename = `${config.filenamePrefix}_${dateStr}.csv`;
       const bytes = triggerCsvDownload(csv, filename);
@@ -210,6 +245,10 @@ export function useReportExport() {
         storeName: storeProfile?.name || "Store",
         title: config.label,
         subtitle,
+        // Sits under the subtitle in the PDF's header block - same mechanism,
+        // a second line, so a caveat about the figures travels with the
+        // exported document instead of living only in the app's UI.
+        note: getReportNote(reportId, filters),
         headers: config.headers as unknown as string[],
         rows,
         columnFlex: (config as { columnFlex?: number[] }).columnFlex,

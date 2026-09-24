@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, type ComponentProps } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -55,8 +55,23 @@ const NotificationItemContent = ({ notif }: { notif: NotificationItem }) => (
   </>
 );
 
-const NotificationTrigger = ({ unreadCount }: { unreadCount: number }) => (
-  <Button variant="ghost" size="icon" className="relative">
+const NotificationTrigger = ({
+  unreadCount,
+  ...props
+}: { unreadCount: number } & ComponentProps<typeof Button>) => (
+  // Spreads {...props} so Radix's `asChild` trigger props (aria-haspopup,
+  // aria-expanded, keyboard handlers, ref) land on the real <button>.
+  <Button
+    variant="ghost"
+    size="icon"
+    className="relative"
+    aria-label={
+      unreadCount > 0
+        ? `Notifications, ${unreadCount} unread`
+        : "Notifications"
+    }
+    {...props}
+  >
     <Bell className="h-5 w-5" />
     {unreadCount > 0 && (
       <Badge 
@@ -176,9 +191,7 @@ export function NotificationBell() {
     return (
       <DropdownMenu open={open} onOpenChange={setOpen}>
         <DropdownMenuTrigger asChild>
-          <div>
-            <NotificationTrigger unreadCount={unreadCount} />
-          </div>
+          <NotificationTrigger unreadCount={unreadCount} />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-80">
           <DropdownMenuLabel>Notifications</DropdownMenuLabel>
@@ -210,9 +223,7 @@ export function NotificationBell() {
   return (
     <Drawer open={open} onOpenChange={setOpen}>
       <DrawerTrigger asChild>
-        <div>
-          <NotificationTrigger unreadCount={unreadCount} />
-        </div>
+        <NotificationTrigger unreadCount={unreadCount} />
       </DrawerTrigger>
       <DrawerContent className="max-h-[85vh] p-0 pb-6 rounded-t-xl" onOpenAutoFocus={(e) => e.preventDefault()}>
         <DrawerHeader className="px-6 pt-2 pb-2 text-left">

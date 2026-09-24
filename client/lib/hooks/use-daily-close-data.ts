@@ -108,10 +108,36 @@ export function useDailyCloseData(reportDate: string, showProfit = true) {
       }
     });
 
+    // Sales keyed by id so a refund can find the sale it belongs to - used
+    // below for the VAT netting (see totalTaxToday). Only covers sales made
+    // TODAY; a refund against an earlier day's sale has no row here.
+    const salesById = new Map(salesToday.map((s) => [s.id, s]));
+    let refundedTaxToday = 0;
+
     returnsToday.forEach((ret) => {
       totals.total -= ret.total_refunded;
       totals.refunds += ret.total_refunded;
       const method = ret.payment_method?.toLowerCase();
+
+      // The VAT share already backed out of totals.total by this refund.
+      // calculateProportionalRefund (pos-calculations.ts) builds a refund as
+      //   R = q + (q/subtotal)*tax - (q/subtotal)*discount
+      // for returned-items subtotal q, so with total_amount = subtotal + tax
+      // - discount the refunded tax share collapses to
+      //   taxShare = R * tax_amount / total_amount
+      // without needing the return's line items at all.
+      const originalSale = salesById.get(ret.sale_id);
+      if (originalSale && originalSale.total_amount) {
+        refundedTaxToday +=
+          (ret.total_refunded * (originalSale.tax_amount || 0)) / originalSale.total_amount;
+      }
+
+      let returnDetails: { splits?: PaymentSplitEntry[]; accountId?: string } | null = null;
+      try {
+        if (ret.payment_details) returnDetails = JSON.parse(ret.payment_details);
+      } catch (e) {
+        console.error("Error parsing payment details on return", e);
+      }
 
       if (method === "mixed") {
         // The return flow has no way to record which specific method(s) a
@@ -124,13 +150,7 @@ export function useDailyCloseData(reportDate: string, showProfit = true) {
         // here is debt forgiveness, not a cash-drawer event, but it keeps
         // "credit extended today" consistent with a full refund actually
         // writing that credit back off, the same as the non-mixed case.
-        let mixedDetails: { splits?: PaymentSplitEntry[] } | null = null;
-        try {
-          if (ret.payment_details) mixedDetails = JSON.parse(ret.payment_details);
-        } catch (e) {
-          console.error("Error parsing payment details on return", e);
-        }
-        const splits = (mixedDetails?.splits || []).filter((s) => s.amount > 0);
+        const splits = (returnDetails?.splits || []).filter((s) => s.amount > 0);
         const splitsTotal = splits.reduce((sum, s) => sum + s.amount, 0);
         if (splitsTotal > 0) {
           splits.forEach((split) => {
@@ -140,6 +160,14 @@ export function useDailyCloseData(reportDate: string, showProfit = true) {
               (totals as Record<"cash" | "card" | "transfer" | "credit" | "total" | "refunds", number>)[
                 splitMethod as "cash" | "card" | "transfer" | "credit" | "total" | "refunds"
               ] -= share;
+              // Decrement the specific sub-account line too, not just the
+              // parent card/transfer total - otherwise a card's itemized
+              // sub-lines ("Moniepoint POS", ...) stopped summing to the
+              // card total as soon as anything was refunded. Mirrors the
+              // sales loop's addAccountTotal call, with a negative amount.
+              if (splitMethod === "card" || splitMethod === "transfer") {
+                addAccountTotal(splitMethod, split.accountId || null, -share);
+              }
             }
           });
         }
@@ -149,8 +177,12 @@ export function useDailyCloseData(reportDate: string, showProfit = true) {
         method !== "refunds"
       ) {
         (totals as Record<"cash" | "card" | "transfer" | "credit" | "total" | "refunds", number>)[method as "cash" | "card" | "transfer" | "credit" | "total" | "refunds"] -= ret.total_refunded;
+        if (method === "card" || method === "transfer") {
+          addAccountTotal(method, returnDetails?.accountId || null, -ret.total_refunded);
+        }
       } else if (method === "mobile") {
         totals.transfer -= ret.total_refunded;
+        addAccountTotal("transfer", returnDetails?.accountId || null, -ret.total_refunded);
       }
     });
 
@@ -196,13 +228,33 @@ export function useDailyCloseData(reportDate: string, showProfit = true) {
     );
 
     // VAT/tax collected on the government's behalf is a liability, not
-    // profit - back it out the same way useBIData's netSales does (gross
-    // total minus total tax minus total refunds), so this figure doesn't
-    // disagree with the Analytics dashboard for the same period.
-    const totalTaxToday = salesToday.reduce(
-      (sum, sale) => sum + (sale.tax_amount || 0),
-      0,
-    );
+    // profit, so it's backed out of the day's revenue. It has to be backed
+    // out EXACTLY ONCE, which is why this is net of refunded VAT:
+    //
+    //   totals.total  = SUM(total_amount) - SUM(total_refunded)
+    //   total_amount  = subtotal + tax - discount
+    //   total_refunded (per calculateProportionalRefund) is VAT-INCLUSIVE:
+    //                 = q + taxShare - discountShare
+    //
+    // so for a sale that was partly refunded, subtracting the full
+    // SUM(tax_amount) removed the refunded portion's VAT a SECOND time - it
+    // had already left via total_refunded inside totals.total. Netting it:
+    //
+    //   profit = (SUM(total) - SUM(refund)) - (SUM(tax) - SUM(taxShare)) - cost
+    //          = (subtotal - discount) - (q - discountShare) - cost
+    //
+    // i.e. ex-VAT revenue minus the ex-VAT value of what came back, minus
+    // cost. Each VAT component is now subtracted exactly once.
+    //
+    // Limitation: refundedTaxToday can only be computed for refunds whose
+    // ORIGINAL SALE is in today's set (getDailyCloseData windows sales by
+    // transaction_date and returns by created_at, so a refund of an earlier
+    // day's sale has no sale row to read tax_amount/total_amount from). That
+    // case isn't double-subtracted anyway - the old sale's VAT was never in
+    // totalTaxToday - it's merely understated by that refund's VAT share.
+    const totalTaxToday =
+      salesToday.reduce((sum, sale) => sum + (sale.tax_amount || 0), 0) -
+      refundedTaxToday;
 
     const calculatedProfit =
       totals.total - totalTaxToday - totalCostPrice - redeemedResellerPayouts;

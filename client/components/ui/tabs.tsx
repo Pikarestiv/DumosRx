@@ -37,7 +37,10 @@ function TabsList({
     <TabsPrimitive.List
       data-slot="tabs-list"
       className={cn(
-        "flex overflow-x-auto hide-scrollbar items-center max-w-full",
+        // The container is horizontally scrollable, which makes Chrome put it in
+        // the tab order so keyboard users can scroll a long tab list. Give it a
+        // visible focus ring instead of removing it from the tab order.
+        "flex overflow-x-auto hide-scrollbar items-center max-w-full outline-none focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
         variant === "default"
           ? "gap-1.5 bg-card border-0 md:border border-border rounded-[11px] p-1 shadow-none md:shadow-sm"
           : "gap-2 bg-transparent shadow-none p-0",
@@ -54,9 +57,9 @@ const tabsTriggerVariants = cva(
     variants: {
       variant: {
         default:
-          "gap-1.5 rounded-lg border px-4 py-2 bg-card border-border text-muted-foreground data-[state=inactive]:hover:bg-primary/10 data-[state=inactive]:hover:border-primary/50 data-[state=inactive]:hover:text-primary data-[state=active]:bg-primary data-[state=active]:border-primary data-[state=active]:text-white data-[state=active]:shadow-sm data-[state=active]:hover:bg-primary data-[state=active]:hover:text-white data-[state=active]:hover:border-primary",
+          "gap-1.5 rounded-lg border px-4 py-2 bg-card border-border text-muted-foreground data-[state=inactive]:hover:bg-primary/10 data-[state=inactive]:hover:border-primary/50 data-[state=inactive]:hover:text-primary data-[state=active]:bg-primary data-[state=active]:border-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=active]:hover:bg-primary data-[state=active]:hover:text-primary-foreground data-[state=active]:hover:border-primary",
         chips:
-          "gap-1.5 rounded-full border px-3.5 py-1.5 bg-transparent border-transparent text-muted-foreground data-[state=inactive]:hover:bg-primary/10 data-[state=inactive]:hover:border-primary/50 data-[state=inactive]:hover:text-primary data-[state=active]:bg-primary data-[state=active]:border-primary data-[state=active]:text-white data-[state=active]:shadow-sm data-[state=active]:hover:bg-primary data-[state=active]:hover:text-white data-[state=active]:hover:border-primary",
+          "gap-1.5 rounded-full border px-3.5 py-1.5 bg-transparent border-transparent text-muted-foreground data-[state=inactive]:hover:bg-primary/10 data-[state=inactive]:hover:border-primary/50 data-[state=inactive]:hover:text-primary data-[state=active]:bg-primary data-[state=active]:border-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=active]:hover:bg-primary data-[state=active]:hover:text-primary-foreground data-[state=active]:hover:border-primary",
       },
     },
     defaultVariants: {

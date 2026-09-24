@@ -53,6 +53,32 @@ class StorefrontControllerTest extends TestCase
         return $product;
     }
 
+    /**
+     * Step 1 of the two-step online-payment flow: asks the server to mint a
+     * payment reference reserved for this exact cart on this store. Returns
+     * the reference checkout() will then accept.
+     *
+     * $items is the same [['product_id' => ..., 'quantity' => ...], ...]
+     * shape the checkout call takes.
+     */
+    private function initializePaystackCheckout(array $items, string $reference = 'DRX-SF-REF', string $slug = 'store-a'): \Illuminate\Testing\TestResponse
+    {
+        $this->mock(PaymentService::class, function ($mock) use ($reference) {
+            $mock->shouldReceive('initializeTransaction')
+                ->once()
+                ->andReturn([
+                    'provider' => 'paystack',
+                    'reference' => $reference,
+                    'checkout_url' => 'https://checkout.paystack.com/' . $reference,
+                ]);
+        });
+
+        return $this->postJson("/api/v1/storefront/{$slug}/checkout/initialize", [
+            'customer_email' => 'jane@example.com',
+            'items' => $items,
+        ]);
+    }
+
     protected User $ownerA;
     protected Store $storeA;
     protected User $ownerB;
@@ -181,9 +207,143 @@ class StorefrontControllerTest extends TestCase
         $this->assertDatabaseCount('online_orders', 0);
     }
 
+    public function test_initialize_reserves_the_reference_for_this_cart_and_store()
+    {
+        $product = $this->purchasableProduct(['name' => 'Panadol', 'selling_price' => 100, 'user_id' => $this->ownerA->id]);
+
+        $response = $this->initializePaystackCheckout(
+            [['product_id' => $product->id, 'quantity' => 2]],
+            'DRX-SF-INIT'
+        );
+
+        $response->assertStatus(200);
+        $response->assertJson([
+            'success' => true,
+            'transaction_reference' => 'DRX-SF-INIT',
+            'payment_url' => 'https://checkout.paystack.com/DRX-SF-INIT',
+        ]);
+
+        // The durable "reference R is reserved for cart C on store S" record
+        // exists BEFORE the customer could ever have paid.
+        $this->assertDatabaseHas('storefront_payment_intents', [
+            'reference' => 'DRX-SF-INIT',
+            'store_id' => $this->storeA->id,
+            'status' => 'pending',
+            'amount' => 200.00,
+        ]);
+    }
+
+    public function test_initialize_prices_the_cart_server_side_and_rejects_unpurchasable_items()
+    {
+        $foreignProduct = Product::create(['name' => 'Store B Product', 'selling_price' => 100, 'user_id' => $this->ownerB->id]);
+
+        // No PaymentService mock: the provider must never be called for a
+        // cart that can't be priced against this store's own catalog.
+        $response = $this->postJson('/api/v1/storefront/store-a/checkout/initialize', [
+            'customer_email' => 'jane@example.com',
+            'items' => [['product_id' => $foreignProduct->id, 'quantity' => 1]],
+        ]);
+
+        $response->assertStatus(404);
+        $this->assertDatabaseCount('storefront_payment_intents', 0);
+    }
+
+    /**
+     * The gap this whole two-step flow exists to close: a reference for a
+     * charge made entirely outside this app (the merchant's Paystack
+     * dashboard, a payment link, another product on the same account) is
+     * genuinely "successful for at least the order total in NGN", so every
+     * verification check below would pass it. It is rejected because no
+     * initialize step ever minted it for this cart.
+     */
+    public function test_checkout_rejects_a_reference_this_app_never_issued_even_if_paystack_verifies_it()
+    {
+        $product = $this->purchasableProduct(['name' => 'Panadol', 'selling_price' => 100, 'user_id' => $this->ownerA->id]);
+
+        $this->mock(PaymentService::class, function ($mock) {
+            // Would happily confirm the charge - it must never be asked.
+            $mock->shouldNotReceive('verifyTransaction');
+        });
+
+        $response = $this->postJson('/api/v1/storefront/store-a/checkout', [
+            'customer_name' => 'Jane Doe',
+            'customer_phone' => '08000000000',
+            'payment_method' => 'paystack',
+            'paystack_reference' => 'CHARGE-MADE-IN-THE-PAYSTACK-DASHBOARD',
+            'items' => [['product_id' => $product->id, 'quantity' => 1]],
+        ]);
+
+        $response->assertStatus(422);
+        $this->assertDatabaseCount('online_orders', 0);
+    }
+
+    public function test_checkout_rejects_a_reference_reserved_on_a_different_store()
+    {
+        $storeB = Store::create([
+            'user_id' => $this->ownerB->id, 'name' => 'Store B',
+            'store_slug' => 'store-b', 'device_id' => 'WEB-B',
+            'online_store_enabled' => true,
+        ]);
+        $productB = $this->purchasableProduct(['name' => 'B Panadol', 'selling_price' => 100, 'user_id' => $this->ownerB->id]);
+        $productA = $this->purchasableProduct(['name' => 'A Panadol', 'selling_price' => 100, 'user_id' => $this->ownerA->id]);
+
+        $init = $this->initializePaystackCheckout(
+            [['product_id' => $productB->id, 'quantity' => 1]],
+            'DRX-SF-FOR-STORE-B',
+            'store-b'
+        );
+        $init->assertStatus(200);
+        $this->assertSame($storeB->id, \App\Models\StorefrontPaymentIntent::first()->store_id);
+
+        $this->mock(PaymentService::class, function ($mock) {
+            $mock->shouldNotReceive('verifyTransaction');
+        });
+
+        $response = $this->postJson('/api/v1/storefront/store-a/checkout', [
+            'customer_name' => 'Jane Doe',
+            'customer_phone' => '08000000000',
+            'payment_method' => 'paystack',
+            'paystack_reference' => 'DRX-SF-FOR-STORE-B',
+            'items' => [['product_id' => $productA->id, 'quantity' => 1]],
+        ]);
+
+        $response->assertStatus(422);
+        $this->assertDatabaseCount('online_orders', 0);
+    }
+
+    public function test_checkout_rejects_a_reference_reserved_for_a_different_cart()
+    {
+        $cheap = $this->purchasableProduct(['name' => 'Panadol', 'selling_price' => 100, 'user_id' => $this->ownerA->id]);
+        $expensive = $this->purchasableProduct(['name' => 'Insulin', 'selling_price' => 100, 'user_id' => $this->ownerA->id]);
+
+        $this->initializePaystackCheckout(
+            [['product_id' => $cheap->id, 'quantity' => 1]],
+            'DRX-SF-CART-A'
+        )->assertStatus(200);
+
+        $this->mock(PaymentService::class, function ($mock) {
+            $mock->shouldNotReceive('verifyTransaction');
+        });
+
+        // Same money, different basket: still not the order that was paid for.
+        $response = $this->postJson('/api/v1/storefront/store-a/checkout', [
+            'customer_name' => 'Jane Doe',
+            'customer_phone' => '08000000000',
+            'payment_method' => 'paystack',
+            'paystack_reference' => 'DRX-SF-CART-A',
+            'items' => [['product_id' => $expensive->id, 'quantity' => 1]],
+        ]);
+
+        $response->assertStatus(422);
+        $this->assertDatabaseCount('online_orders', 0);
+    }
+
     public function test_checkout_rejects_an_unverifiable_paystack_reference()
     {
         $product = $this->purchasableProduct(['name' => 'Panadol', 'selling_price' => 100, 'user_id' => $this->ownerA->id]);
+        $items = [['product_id' => $product->id, 'quantity' => 1]];
+
+        $this->initializePaystackCheckout($items, 'FAKE-REF')->assertStatus(200);
 
         $this->mock(PaymentService::class, function ($mock) {
             $mock->shouldReceive('verifyTransaction')
@@ -196,22 +356,30 @@ class StorefrontControllerTest extends TestCase
             'customer_phone' => '08000000000',
             'payment_method' => 'paystack',
             'paystack_reference' => 'FAKE-REF',
-            'items' => [['product_id' => $product->id, 'quantity' => 1]],
+            'items' => $items,
         ]);
 
         $response->assertStatus(422);
         $this->assertDatabaseCount('online_orders', 0);
+        // A failed confirmation must not burn the reservation - the customer
+        // can retry the same reference once the payment actually lands.
+        $this->assertDatabaseHas('storefront_payment_intents', [
+            'reference' => 'FAKE-REF', 'status' => 'pending',
+        ]);
     }
 
     public function test_checkout_rejects_a_verified_payment_that_underpays_the_total()
     {
         $product = $this->purchasableProduct(['name' => 'Panadol', 'selling_price' => 100, 'user_id' => $this->ownerA->id]);
+        $items = [['product_id' => $product->id, 'quantity' => 2]];
+
+        $this->initializePaystackCheckout($items, 'REAL-BUT-UNDERPAID')->assertStatus(200);
 
         $this->mock(PaymentService::class, function ($mock) {
             // Verified real payment, but for less than the 2-unit order total (200).
             $mock->shouldReceive('verifyTransaction')
                 ->once()
-                ->andReturn(['success' => true, 'amount' => 100]);
+                ->andReturn(['success' => true, 'amount' => 100, 'currency' => 'NGN']);
         });
 
         $response = $this->postJson('/api/v1/storefront/store-a/checkout', [
@@ -219,7 +387,33 @@ class StorefrontControllerTest extends TestCase
             'customer_phone' => '08000000000',
             'payment_method' => 'paystack',
             'paystack_reference' => 'REAL-BUT-UNDERPAID',
-            'items' => [['product_id' => $product->id, 'quantity' => 2]],
+            'items' => $items,
+        ]);
+
+        $response->assertStatus(422);
+        $this->assertDatabaseCount('online_orders', 0);
+    }
+
+    public function test_checkout_rejects_a_verified_payment_settled_in_another_currency()
+    {
+        $product = $this->purchasableProduct(['name' => 'Panadol', 'selling_price' => 100, 'user_id' => $this->ownerA->id]);
+        $items = [['product_id' => $product->id, 'quantity' => 1]];
+
+        $this->initializePaystackCheckout($items, 'REAL-BUT-WRONG-CURRENCY')->assertStatus(200);
+
+        $this->mock(PaymentService::class, function ($mock) {
+            // 100 of something that isn't naira can't satisfy a ₦100 order.
+            $mock->shouldReceive('verifyTransaction')
+                ->once()
+                ->andReturn(['success' => true, 'amount' => 100, 'currency' => 'GHS']);
+        });
+
+        $response = $this->postJson('/api/v1/storefront/store-a/checkout', [
+            'customer_name' => 'Jane Doe',
+            'customer_phone' => '08000000000',
+            'payment_method' => 'paystack',
+            'paystack_reference' => 'REAL-BUT-WRONG-CURRENCY',
+            'items' => $items,
         ]);
 
         $response->assertStatus(422);
@@ -229,11 +423,14 @@ class StorefrontControllerTest extends TestCase
     public function test_checkout_accepts_a_verified_sufficient_paystack_payment()
     {
         $product = $this->purchasableProduct(['name' => 'Panadol', 'selling_price' => 100, 'user_id' => $this->ownerA->id]);
+        $items = [['product_id' => $product->id, 'quantity' => 1]];
+
+        $this->initializePaystackCheckout($items, 'REAL-REF-123')->assertStatus(200);
 
         $this->mock(PaymentService::class, function ($mock) {
             $mock->shouldReceive('verifyTransaction')
                 ->once()
-                ->andReturn(['success' => true, 'amount' => 100]);
+                ->andReturn(['success' => true, 'amount' => 100, 'currency' => 'NGN']);
         });
 
         $response = $this->postJson('/api/v1/storefront/store-a/checkout', [
@@ -241,13 +438,19 @@ class StorefrontControllerTest extends TestCase
             'customer_phone' => '08000000000',
             'payment_method' => 'paystack',
             'paystack_reference' => 'REAL-REF-123',
-            'items' => [['product_id' => $product->id, 'quantity' => 1]],
+            'items' => $items,
         ]);
 
         $response->assertStatus(201);
         $this->assertDatabaseHas('online_orders', [
             'payment_status' => 'paid',
             'paystack_reference' => 'REAL-REF-123',
+        ]);
+        // The reservation is spent, and points at the order it paid for.
+        $this->assertDatabaseHas('storefront_payment_intents', [
+            'reference' => 'REAL-REF-123',
+            'status' => 'consumed',
+            'online_order_id' => $response->json('order.id'),
         ]);
     }
 
@@ -341,11 +544,14 @@ class StorefrontControllerTest extends TestCase
     public function test_checkout_rejects_a_paystack_reference_already_used_by_another_order()
     {
         $product = $this->purchasableProduct(['name' => 'Panadol', 'selling_price' => 100, 'user_id' => $this->ownerA->id]);
+        $items = [['product_id' => $product->id, 'quantity' => 1]];
+
+        $this->initializePaystackCheckout($items, 'REPLAYED-REF')->assertStatus(200);
 
         $this->mock(PaymentService::class, function ($mock) {
             $mock->shouldReceive('verifyTransaction')
                 ->once()
-                ->andReturn(['success' => true, 'amount' => 100]);
+                ->andReturn(['success' => true, 'amount' => 100, 'currency' => 'NGN']);
         });
 
         $first = $this->postJson('/api/v1/storefront/store-a/checkout', [
@@ -353,22 +559,98 @@ class StorefrontControllerTest extends TestCase
             'customer_phone' => '08000000000',
             'payment_method' => 'paystack',
             'paystack_reference' => 'REPLAYED-REF',
-            'items' => [['product_id' => $product->id, 'quantity' => 1]],
+            'items' => $items,
         ]);
         $first->assertStatus(201);
 
-        // A second checkout replaying the exact same (genuinely verified)
-        // reference must not mint a second paid order.
+        // A second checkout replaying the exact same (genuinely verified,
+        // genuinely app-issued) reference must not mint a second paid order.
         $replay = $this->postJson('/api/v1/storefront/store-a/checkout', [
             'customer_name' => 'Jane Doe',
             'customer_phone' => '08000000000',
             'payment_method' => 'paystack',
             'paystack_reference' => 'REPLAYED-REF',
-            'items' => [['product_id' => $product->id, 'quantity' => 1]],
+            'items' => $items,
         ]);
 
         $replay->assertStatus(422);
         $this->assertDatabaseCount('online_orders', 1);
+    }
+
+    /**
+     * Regression: OnlineOrder soft-deletes, so the duplicate-reference
+     * lookup has to run withTrashed() - otherwise a reference could be
+     * replayed by first getting the order it paid for cancelled/deleted.
+     * The consumed payment intent is a second, independent guard on the
+     * same replay.
+     */
+    public function test_checkout_rejects_a_reference_whose_order_has_since_been_soft_deleted()
+    {
+        $product = $this->purchasableProduct(['name' => 'Panadol', 'selling_price' => 100, 'user_id' => $this->ownerA->id]);
+        $items = [['product_id' => $product->id, 'quantity' => 1]];
+
+        $this->initializePaystackCheckout($items, 'TRASHED-REF')->assertStatus(200);
+
+        $this->mock(PaymentService::class, function ($mock) {
+            $mock->shouldReceive('verifyTransaction')
+                ->once()
+                ->andReturn(['success' => true, 'amount' => 100, 'currency' => 'NGN']);
+        });
+
+        $first = $this->postJson('/api/v1/storefront/store-a/checkout', [
+            'customer_name' => 'Jane Doe',
+            'customer_phone' => '08000000000',
+            'payment_method' => 'paystack',
+            'paystack_reference' => 'TRASHED-REF',
+            'items' => $items,
+        ]);
+        $first->assertStatus(201);
+
+        \App\Models\OnlineOrder::findOrFail($first->json('order.id'))->delete();
+
+        $replay = $this->postJson('/api/v1/storefront/store-a/checkout', [
+            'customer_name' => 'Jane Doe',
+            'customer_phone' => '08000000000',
+            'payment_method' => 'paystack',
+            'paystack_reference' => 'TRASHED-REF',
+            'items' => $items,
+        ]);
+
+        $replay->assertStatus(422);
+        $this->assertSame(1, \App\Models\OnlineOrder::withTrashed()->count());
+    }
+
+    /**
+     * Regression: a reference already consumed to activate somebody's
+     * subscription (recorded in payment_transactions, not online_orders)
+     * must not be spendable on storefront goods.
+     */
+    public function test_checkout_rejects_a_reference_already_recorded_as_a_subscription_payment()
+    {
+        $product = $this->purchasableProduct(['name' => 'Panadol', 'selling_price' => 100, 'user_id' => $this->ownerA->id]);
+
+        \App\Models\PaymentTransaction::create([
+            'provider' => 'paystack',
+            'provider_reference' => 'SUBSCRIPTION-REF',
+            'amount' => 5000,
+            'currency' => 'NGN',
+            'status' => 'success',
+        ]);
+
+        $this->mock(PaymentService::class, function ($mock) {
+            $mock->shouldNotReceive('verifyTransaction');
+        });
+
+        $response = $this->postJson('/api/v1/storefront/store-a/checkout', [
+            'customer_name' => 'Jane Doe',
+            'customer_phone' => '08000000000',
+            'payment_method' => 'paystack',
+            'paystack_reference' => 'SUBSCRIPTION-REF',
+            'items' => [['product_id' => $product->id, 'quantity' => 1]],
+        ]);
+
+        $response->assertStatus(422);
+        $this->assertDatabaseCount('online_orders', 0);
     }
 
     /**

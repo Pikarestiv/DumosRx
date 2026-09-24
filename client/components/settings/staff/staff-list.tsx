@@ -190,6 +190,7 @@ export function StaffList({
                           variant="ghost"
                           size="icon"
                           onClick={() => handleEditClick(user)}
+                          aria-label={`Edit ${user.username}`}
                           className="h-8 w-8 text-muted-foreground hover:text-primary"
                           disabled={user.id === "default-admin"}
                         >
@@ -200,6 +201,7 @@ export function StaffList({
                             variant="ghost"
                             size="icon"
                             onClick={() => onReactivate(user.id)}
+                            aria-label={`Reactivate ${user.username}`}
                             className="h-8 w-8 text-muted-foreground hover:text-emerald-600"
                           >
                             <RotateCcw className="w-4 h-4" />
@@ -209,6 +211,7 @@ export function StaffList({
                             variant="ghost"
                             size="icon"
                             onClick={() => handleDeleteClick(user)}
+                            aria-label={`Delete ${user.username}`}
                             className="h-8 w-8 text-muted-foreground hover:text-destructive"
                             disabled={user.id === "default-admin"}
                           >
@@ -275,6 +278,7 @@ export function StaffList({
                       variant="ghost"
                       size="icon"
                       onClick={() => handleEditClick(user)}
+                      aria-label={`Edit ${user.username}`}
                       className="h-8 w-8 text-muted-foreground hover:text-primary"
                       disabled={user.id === "default-admin"}
                     >
@@ -285,6 +289,7 @@ export function StaffList({
                         variant="ghost"
                         size="icon"
                         onClick={() => onReactivate(user.id)}
+                        aria-label={`Reactivate ${user.username}`}
                         className="h-8 w-8 text-muted-foreground hover:text-emerald-600"
                       >
                         <RotateCcw className="w-4 h-4" />
@@ -294,6 +299,7 @@ export function StaffList({
                         variant="ghost"
                         size="icon"
                         onClick={() => handleDeleteClick(user)}
+                        aria-label={`Delete ${user.username}`}
                         className="h-8 w-8 text-muted-foreground hover:text-destructive"
                         disabled={user.id === "default-admin"}
                       >

@@ -48,6 +48,7 @@ export function ReturnItemRow({ item, quantity, selected, maxQty, currencyCode, 
           <Button
             variant="outline"
             size="icon"
+            aria-label="Decrease quantity"
             className="h-8 w-8 rounded-r-none border-r-0"
             onClick={() => onQtyChange(quantity - 1)}
             disabled={fullyReturned || quantity <= 1}
@@ -64,6 +65,7 @@ export function ReturnItemRow({ item, quantity, selected, maxQty, currencyCode, 
           <Button
             variant="outline"
             size="icon"
+            aria-label="Increase quantity"
             className="h-8 w-8 rounded-l-none border-l-0"
             onClick={() => onQtyChange(quantity + 1)}
             disabled={fullyReturned || quantity >= maxQty}

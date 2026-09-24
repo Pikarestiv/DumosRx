@@ -12,6 +12,8 @@ import {
   registerInvalidateTablesFn,
   queueTableInvalidation,
   awaitSettledTransactions,
+  transaction,
+  isInTransaction,
 } from "./core";
 import { queryClient } from "../query-client";
 import type { SyncQueueItem } from "@/lib/types/sync";
@@ -167,17 +169,36 @@ export async function insert(
     | Uint8Array
   )[];
 
-  await execute(
-    `INSERT INTO ${table} (${columns.join(", ")}) VALUES (${placeholders})`,
-    values,
-  );
+  // The row write, its sync-queue entry, and its audit-log entry must land
+  // together: outside a transaction, execute() persists (saveDatabase()) after
+  // EACH statement independently, so the app being killed between any two of
+  // them (iOS backgrounding a PWA tab is aggressive about this) could leave
+  // the row committed with no _sync_queue entry - silently and permanently
+  // unsynced, since pushChanges() only ever reads the queue, never the table
+  // itself. Wrapping in transaction() makes all three one atomic unit with a
+  // single save. Skipped when already inside a caller's transaction() (e.g.
+  // createSale() doing several inserts) since transaction() calls can't
+  // nest - execute() there already participates in the outer transaction and
+  // is just as atomic.
+  const writeRow = async () => {
+    await execute(
+      `INSERT INTO ${table} (${columns.join(", ")}) VALUES (${placeholders})`,
+      values,
+    );
 
-  await addToSyncQueue(table, id, "INSERT", record);
-  // "feedback" holds background crash/error telemetry (see error-logger.ts),
-  // not a user action; logging it here would surface every silent crash
-  // report as a "Created feedback" entry in the Activity Log.
-  if (table !== "feedback") {
-    await logAction(options?.action || "INSERT", table, id, record, options?.storeId, options?.correlationId);
+    await addToSyncQueue(table, id, "INSERT", record);
+    // "feedback" holds background crash/error telemetry (see error-logger.ts),
+    // not a user action; logging it here would surface every silent crash
+    // report as a "Created feedback" entry in the Activity Log.
+    if (table !== "feedback") {
+      await logAction(options?.action || "INSERT", table, id, record, options?.storeId, options?.correlationId);
+    }
+  };
+
+  if (isInTransaction()) {
+    await writeRow();
+  } else {
+    await transaction(writeRow);
   }
 
   queueTableInvalidation(table);
@@ -233,10 +254,21 @@ export async function update(
     | Uint8Array
   )[];
 
-  await execute(`UPDATE ${table} SET ${setClause} WHERE id = ?`, values);
+  // See insert()'s comment above: the row write, its sync-queue entry, and
+  // its audit-log entry must land together, or a kill between them can leave
+  // an updated row that never reaches the server.
+  const writeUpdate = async () => {
+    await execute(`UPDATE ${table} SET ${setClause} WHERE id = ?`, values);
 
-  await addToSyncQueue(table, id, "UPDATE", record);
-  await logAction(options?.action || "UPDATE", table, id, record, options?.storeId, options?.correlationId);
+    await addToSyncQueue(table, id, "UPDATE", record);
+    await logAction(options?.action || "UPDATE", table, id, record, options?.storeId, options?.correlationId);
+  };
+
+  if (isInTransaction()) {
+    await writeUpdate();
+  } else {
+    await transaction(writeUpdate);
+  }
 
   queueTableInvalidation(table);
 }
@@ -255,10 +287,19 @@ export async function softDelete(table: string, id: string, options?: { storeId?
     params = [now, suffix, suffix, id];
   }
 
-  await execute(updateQuery, params);
+  // See insert()'s comment above: same atomicity requirement.
+  const writeSoftDelete = async () => {
+    await execute(updateQuery, params);
 
-  await addToSyncQueue(table, id, "DELETE", { id });
-  await logAction("DELETE", table, id, { id }, options?.storeId, options?.correlationId);
+    await addToSyncQueue(table, id, "DELETE", { id });
+    await logAction("DELETE", table, id, { id }, options?.storeId, options?.correlationId);
+  };
+
+  if (isInTransaction()) {
+    await writeSoftDelete();
+  } else {
+    await transaction(writeSoftDelete);
+  }
 
   queueTableInvalidation(table);
 }
@@ -279,14 +320,24 @@ export async function remove(
     [id],
   );
 
-  await execute(`DELETE FROM ${table} WHERE id = ?`, [id]);
-  // Also remove any pending (not-yet-synced) queue entries for this record
-  // before queueing our own DELETE below, so a still-pending INSERT/UPDATE
-  // doesn't race the DELETE to the server.
-  await execute(`DELETE FROM _sync_queue WHERE table_name = ? AND record_id = ?`, [table, id]);
-  await addToSyncQueue(table, id, "DELETE", { id });
+  // See insert()'s comment above: same atomicity requirement - here a torn
+  // write is worse than usual, since this is a hard, unrecoverable delete.
+  const writeRemove = async () => {
+    await execute(`DELETE FROM ${table} WHERE id = ?`, [id]);
+    // Also remove any pending (not-yet-synced) queue entries for this record
+    // before queueing our own DELETE below, so a still-pending INSERT/UPDATE
+    // doesn't race the DELETE to the server.
+    await execute(`DELETE FROM _sync_queue WHERE table_name = ? AND record_id = ?`, [table, id]);
+    await addToSyncQueue(table, id, "DELETE", { id });
 
-  await logAction(options?.action || "HARD_DELETE", table, id, existing[0] || { id }, options?.storeId, options?.correlationId);
+    await logAction(options?.action || "HARD_DELETE", table, id, existing[0] || { id }, options?.storeId, options?.correlationId);
+  };
+
+  if (isInTransaction()) {
+    await writeRemove();
+  } else {
+    await transaction(writeRemove);
+  }
 
   queueTableInvalidation(table);
 }

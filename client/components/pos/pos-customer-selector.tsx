@@ -103,8 +103,16 @@ export function POSCustomerSelector({
 
       {/* Trigger */}
       <div
-        className="flex items-center gap-2.5 px-3 py-2.5 bg-primary/5 border border-primary/20 rounded-[10px] cursor-pointer hover:bg-primary/10 transition-colors"
+        role="button"
+        tabIndex={0}
+        className="flex items-center gap-2.5 px-3 py-2.5 bg-primary/5 border border-primary/20 rounded-[10px] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring hover:bg-primary/10 transition-colors"
         onClick={() => setOpen(true)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setOpen(true);
+          }
+        }}
       >
         <div className="w-[30px] h-[30px] rounded-full bg-primary/10 text-primary flex items-center justify-center text-[11.5px] font-bold shrink-0">
           {initials}
@@ -143,13 +151,16 @@ export function POSCustomerSelector({
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
+              aria-label="Search customers by name or phone number"
               placeholder="Search by name or phone number"
               className="pl-9 h-10 rounded-xl"
             />
           </div>
 
-          <div
-            className="flex items-center gap-2.5 px-3 py-[11px] border border-dashed border-border rounded-xl cursor-pointer text-primary hover:bg-primary/5 transition-colors mt-0.5"
+          <button
+            type="button"
+            aria-expanded={showAddForm}
+            className="w-full flex items-center gap-2.5 px-3 py-[11px] border border-dashed border-border rounded-xl cursor-pointer text-primary hover:bg-primary/5 transition-colors mt-0.5 outline-none focus-visible:ring-[3px] focus-visible:ring-ring"
             onClick={() => setShowAddForm(!showAddForm)}
           >
             <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
@@ -158,18 +169,20 @@ export function POSCustomerSelector({
             <span className="text-[12.5px] font-semibold">
               Add new customer
             </span>
-          </div>
+          </button>
 
           {showAddForm && (
             <div className="flex flex-col gap-3 p-3 bg-muted/50 border border-border rounded-xl">
               <div className="flex gap-2.5">
                 <Input
+                  aria-label="First name"
                   placeholder="First name"
                   value={newFirstName}
                   onChange={(e) => setNewFirstName(e.target.value)}
                   className="flex-1 h-9"
                 />
                 <Input
+                  aria-label="Last name"
                   placeholder="Last name"
                   value={newLastName}
                   onChange={(e) => setNewLastName(e.target.value)}
@@ -177,6 +190,7 @@ export function POSCustomerSelector({
                 />
               </div>
               <Input
+                aria-label="Phone number"
                 placeholder="Phone number"
                 value={newPhone}
                 onChange={(e) => setNewPhone(e.target.value)}
@@ -201,10 +215,19 @@ export function POSCustomerSelector({
           <div className="overflow-y-auto max-h-[300px] -mx-1 px-1 pb-4">
             <div className="flex flex-col gap-2.5">
               <div
-                className="flex items-center gap-3 px-3 py-[11px] border border-border rounded-xl cursor-pointer hover:border-primary hover:bg-primary/5 transition-colors"
+                role="button"
+                tabIndex={0}
+                className="flex items-center gap-3 px-3 py-[11px] border border-border rounded-xl cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring hover:border-primary hover:bg-primary/5 transition-colors"
                 onClick={() => {
                   onSelectCustomer(null);
                   setOpen(false);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    onSelectCustomer(null);
+                    setOpen(false);
+                  }
                 }}
               >
                 <div className="w-[30px] h-[30px] rounded-full bg-primary/10 text-primary flex items-center justify-center text-[11.5px] font-bold shrink-0">
@@ -239,10 +262,19 @@ export function POSCustomerSelector({
                   return (
                     <div
                       key={c.id}
-                      className="flex items-center gap-3 px-3 py-[11px] border border-border rounded-xl cursor-pointer hover:border-primary hover:bg-primary/5 transition-colors"
+                      role="button"
+                      tabIndex={0}
+                      className="flex items-center gap-3 px-3 py-[11px] border border-border rounded-xl cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring hover:border-primary hover:bg-primary/5 transition-colors"
                       onClick={() => {
                         onSelectCustomer(c);
                         setOpen(false);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          onSelectCustomer(c);
+                          setOpen(false);
+                        }
                       }}
                     >
                       <div className="w-[30px] h-[30px] rounded-full bg-primary/10 text-primary flex items-center justify-center text-[11.5px] font-bold shrink-0">

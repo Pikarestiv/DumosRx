@@ -16,7 +16,15 @@ import { isStandalonePwa } from "@/lib/utils/platform";
 
 function isIos() {
   if (typeof window === "undefined") return false;
-  return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  // iPadOS 13+ Safari sends a desktop macOS user agent by default
+  // ("Macintosh; Intel Mac OS X..."), so the UA-string check alone misses
+  // essentially every modern iPad - and since iOS never fires
+  // beforeinstallprompt either, an iPad user fell through both install paths
+  // entirely with no guidance at all. maxTouchPoints > 1 is the standard way
+  // to tell a touchscreen "Mac" (real iPad) apart from an actual Mac
+  // (mouse/trackpad, maxTouchPoints === 0).
+  const isIpadOs = /Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1;
+  return (/iPad|iPhone|iPod/.test(navigator.userAgent) || isIpadOs) && !window.MSStream;
 }
 
 /**
@@ -29,7 +37,15 @@ function isIos() {
 function isIosSafari() {
   if (typeof window === "undefined") return false;
   const ua = navigator.userAgent;
-  const isOtherIosBrowser = /CriOS|FxiOS|EdgiOS|OPiOS|mercury/i.test(ua);
+  // In-app WebViews (Facebook, Instagram, LinkedIn, etc.) render on WebKit
+  // and include "Safari" in their UA string just like real Safari does, but
+  // have no Share -> Add to Home Screen action, so the "safari" branch's
+  // instructions don't work there - the "other-browser" fallback below
+  // (correctly telling the user to open in Safari) needs to catch these too.
+  const isOtherIosBrowser =
+    /CriOS|FxiOS|EdgiOS|OPiOS|mercury|FBAN|FBAV|Instagram|Line\/|MicroMessenger|LinkedInApp|Twitter|Pinterest|Snapchat|GSA\//i.test(
+      ua,
+    );
   return /Safari/.test(ua) && !isOtherIosBrowser;
 }
 

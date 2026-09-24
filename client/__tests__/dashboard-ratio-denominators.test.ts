@@ -136,15 +136,19 @@ describe("dashboard ratio metrics: denominator populations", () => {
 
     const metrics = await getBIMetrics(from, prevFrom);
 
-    // Previous-period Net Sales = 1000 - 100 tax - 200 refunds = 700; the
-    // current period's own figure is 2000 - 200 - 500 = 1300. Both sides of
+    // Refunds come back netted to their EX-VAT share (total_refunded is
+    // VAT-inclusive, revenue-minus-tax is not - see totalRefundsData in
+    // reports.ts): r-prev 200 * (1000 - 100)/1000 = 180, r-curr
+    // 500 * (2000 - 200)/2000 = 450.
+    // Previous-period Net Sales = 1000 - 100 tax - 180 refunds = 720; the
+    // current period's own figure is 2000 - 200 - 450 = 1350. Both sides of
     // revenueChange/avgTransactionChange now come from the same definition.
     expect(metrics.prevRevenueData[0].total).toBe(1000);
     expect(metrics.prevTaxData[0].total).toBe(100);
-    expect(metrics.prevRefundsData[0].total).toBe(200);
+    expect(metrics.prevRefundsData[0].total).toBeCloseTo(180, 6);
     // The current window's tax/refunds must not bleed into the baseline.
     expect(metrics.taxData[0].total).toBe(200);
-    expect(metrics.totalRefundsData[0].total).toBe(500);
+    expect(metrics.totalRefundsData[0].total).toBeCloseTo(450, 6);
   });
 
   it("baselines the customer count against the whole customer base as of the window start, not just the previous window's signups", async () => {

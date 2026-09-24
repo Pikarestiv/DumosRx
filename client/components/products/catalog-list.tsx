@@ -212,8 +212,16 @@ export function CatalogList({
                   style={{ transform: `translateY(${virtualRow.start}px)` }}
                 >
                   <div
+                    role="button"
+                    tabIndex={0}
                     onClick={() => onSelectProduct(product)}
-                    className={`group px-4 py-3 sm:py-2 rounded-xl sm:rounded-none border sm:border-t-0 sm:border-r-0 sm:border-b border-border cursor-pointer transition-colors ${
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        onSelectProduct(product);
+                      }
+                    }}
+                    className={`group px-4 py-3 sm:py-2 rounded-xl sm:rounded-none border sm:border-t-0 sm:border-r-0 sm:border-b border-border cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset transition-colors ${
                       isSelected
                         ? "bg-primary/5 border-l-2 border-l-primary"
                         : "bg-card sm:bg-transparent hover:bg-muted/50 border-l-2 border-l-transparent"

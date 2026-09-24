@@ -337,15 +337,17 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
         className="flex items-center gap-3 px-4 md:px-6 pb-4 md:pb-5 border-b border-border bg-card"
         style={{ paddingTop: "calc(var(--tauri-top, 0px) + 1rem)" }}
       >
-        <div
-          className="w-8 h-8 md:w-[38px] md:h-[38px] rounded-[10px] bg-muted/30 flex items-center justify-center cursor-pointer text-muted-foreground shrink-0 hover:bg-muted hover:border hover:border-border transition-colors"
+        <button
+          type="button"
+          aria-label="Back"
+          className="w-8 h-8 md:w-[38px] md:h-[38px] rounded-[10px] bg-muted/30 flex items-center justify-center cursor-pointer text-muted-foreground shrink-0 hover:bg-muted hover:border hover:border-border transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring"
           onClick={() => {
             if (step === "review") setStep("ledger");
             else onClose();
           }}
         >
           <ChevronLeft className="w-5 h-5" />
-        </div>
+        </button>
         <div>
           <div className="text-[14px] md:text-[15px] font-semibold">
             Cycle Count

@@ -121,6 +121,7 @@ export function StaffActivitiesTab() {
             setPage(1);
           }}
           placeholder="Search by action or staff member"
+          aria-label="Search staff activity"
           inputClassName="bg-muted border-transparent"
         />
 

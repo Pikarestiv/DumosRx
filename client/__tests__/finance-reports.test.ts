@@ -241,29 +241,40 @@ describe("finance.ts / reports.ts financial aggregates", () => {
       expect(returnedCogsData[0]?.total).toBe(1000); // 2 * 500, still uses the recorded sale cost
     });
 
-    it("getAdvancedMonthlySalesData.rawMonthlyReturns uses the same sale-time cost", async () => {
+    it("getAdvancedMonthlySalesData.rawMonthlyReturns uses the same sale-time cost, and doesn't fan total_refunded out across the return's line items", async () => {
       const now = todayISO();
       db.run(
-        `INSERT INTO sales (id, transaction_number, subtotal, total_amount, transaction_date, _deleted) VALUES ('s1', 'TXN-1', 4000, 4000, ?, 0)`,
+        `INSERT INTO sales (id, transaction_number, subtotal, total_amount, transaction_date, _deleted) VALUES ('s1', 'TXN-1', 5000, 5000, ?, 0)`,
         [now],
       );
       db.run(
-        `INSERT INTO sale_items (id, sale_id, product_id, quantity, unit_price, total_price, cost_price) VALUES ('si1', 's1', 'prod1', 4, 1000, 4000, 500)`,
+        `INSERT INTO sale_items (id, sale_id, product_id, quantity, unit_price, total_price, cost_price) VALUES
+          ('si1', 's1', 'prod1', 4, 1000, 4000, 500),
+          ('si2', 's1', 'prod2', 1, 1000, 1000, 700)`,
       );
       db.run(
         `INSERT INTO stock_batches (id, product_id, quantity, cost_price, is_active, _deleted) VALUES ('b1', 'prod1', 10, 800, 1, 0)`,
       );
       db.run(
-        `INSERT INTO returns (id, sale_id, user_id, total_refunded, created_at, _deleted) VALUES ('r1', 's1', 'u1', 2000, ?, 0)`,
+        `INSERT INTO returns (id, sale_id, user_id, total_refunded, created_at, _deleted) VALUES ('r1', 's1', 'u1', 3000, ?, 0)`,
         [now],
       );
+      // TWO line items on one return: SUM(r.total_refunded) in the same query
+      // as a return_items join would fan the returns row out and report
+      // 2 * 3000 = 6000 refunded (a Critical bug this fixture now covers -
+      // the old single-line-item fixture couldn't see it).
       db.run(
-        `INSERT INTO return_items (id, return_id, product_id, quantity, unit_price, subtotal) VALUES ('ri1', 'r1', 'prod1', 2, 1000, 2000)`,
+        `INSERT INTO return_items (id, return_id, product_id, quantity, unit_price, subtotal) VALUES
+          ('ri1', 'r1', 'prod1', 2, 1000, 2000),
+          ('ri2', 'r1', 'prod2', 1, 1000, 1000)`,
       );
 
       const { rawMonthlyReturns } = await getAdvancedMonthlySalesData(otherMonthISO());
       const thisMonth = rawMonthlyReturns.find((r) => r.month === now.slice(0, 7));
-      expect(thisMonth?.returned_cogs).toBe(1000);
+      // 2 * 500 (prod1, sale-time cost) + 1 * 700 (prod2).
+      expect(thisMonth?.returned_cogs).toBe(1700);
+      // The return's own total, once - not once per returned line item.
+      expect(thisMonth?.refunds).toBe(3000);
     });
 
     it("getBIMetrics.returnedCogsData doesn't fan out when a sale has two sale_items rows for the same product", async () => {
@@ -488,6 +499,75 @@ describe("finance.ts / reports.ts financial aggregates", () => {
 
       expect(april!["Expenses"]).toBe("0.00");
       expect(april!["Net Profit"]).toBe("50000.00");
+    });
+
+    it("amortizes a prepaid expense across its covers_months instead of charging the whole lump sum to one month", async () => {
+      // High bug fix: the P&L summed raw expenses.amount per month while the
+      // BI dashboard already smoothed prepaid expenses via
+      // getSmoothedExpensesTotal, so a month that merely happened to contain
+      // the annual rent payment looked catastrophically unprofitable and the
+      // two surfaces disagreed for the same period.
+      db.run(
+        `INSERT INTO sales (id, transaction_number, subtotal, total_amount, transaction_date, _deleted) VALUES ('s1', 'TXN-1', 100000, 100000, '2026-03-15', 0)`,
+      );
+      db.run(
+        `INSERT INTO expenses (id, category, amount, date, covers_months, _deleted) VALUES ('e1', 'Rent', 120000, '2026-03-01', 12, 0)`,
+      );
+
+      const rows = await fetchProfitLossReportData("2026-01-01", "2026-12-31");
+      const march = rows.find((r) => r["Month"] === "2026-03");
+
+      // 120000 / 12, not the raw 120000.
+      expect(march!["Expenses"]).toBe("10000.00");
+      expect(march!["Net Profit"]).toBe("90000.00"); // 100000 revenue - 10000
+      // ...and the later installments land in their own months, which have no
+      // sales at all - they must still be emitted (see the expense-only month
+      // test below).
+      expect(rows.find((r) => r["Month"] === "2026-06")?.["Expenses"]).toBe("10000.00");
+    });
+
+    it("emits a month that has expenses but no sales at all", async () => {
+      // High bug fix: the report was built by mapping over revenue rows, so an
+      // expense-only month simply vanished from the P&L.
+      db.run(
+        `INSERT INTO sales (id, transaction_number, subtotal, total_amount, transaction_date, _deleted) VALUES ('s1', 'TXN-1', 100000, 100000, '2026-03-15', 0)`,
+      );
+      db.run(
+        `INSERT INTO expenses (id, category, amount, date, _deleted) VALUES ('e1', 'Rent', 20000, '2026-07-05', 0)`,
+      );
+
+      const rows = await fetchProfitLossReportData("2026-01-01", "2026-12-31");
+      const july = rows.find((r) => r["Month"] === "2026-07");
+
+      expect(july).toBeDefined();
+      expect(july!["Revenue"]).toBe("0.00");
+      expect(july!["COGS"]).toBe("0.00");
+      expect(july!["Expenses"]).toBe("20000.00");
+      expect(july!["Net Profit"]).toBe("-20000.00");
+    });
+
+    it("nets refunds out of Revenue and returned items' cost out of COGS", async () => {
+      // High bug fix: the exported P&L reported GROSS revenue/COGS while every
+      // other revenue surface (useBIData, getCurrentMonthRevenue) nets refunds.
+      db.run(
+        `INSERT INTO sales (id, transaction_number, subtotal, total_amount, transaction_date, _deleted) VALUES ('s1', 'TXN-1', 100000, 100000, '2026-03-15', 0)`,
+      );
+      db.run(
+        `INSERT INTO sale_items (id, sale_id, product_id, quantity, unit_price, total_price, cost_price) VALUES ('si1', 's1', 'prod1', 10, 10000, 100000, 4000)`,
+      );
+      db.run(
+        `INSERT INTO returns (id, sale_id, user_id, total_refunded, created_at, _deleted) VALUES ('r1', 's1', 'u1', 20000, '2026-03-20T10:00:00.000Z', 0)`,
+      );
+      db.run(
+        `INSERT INTO return_items (id, return_id, product_id, quantity, unit_price, subtotal) VALUES ('ri1', 'r1', 'prod1', 2, 10000, 20000)`,
+      );
+
+      const rows = await fetchProfitLossReportData("2026-01-01", "2026-12-31");
+      const march = rows.find((r) => r["Month"] === "2026-03");
+
+      expect(march!["Revenue"]).toBe("80000.00"); // 100000 - 20000 refunded
+      expect(march!["COGS"]).toBe("32000.00"); // 40000 - 2 * 4000 returned
+      expect(march!["Gross Profit"]).toBe("48000.00");
     });
 
     it("respects the dateFrom/dateTo filters", async () => {

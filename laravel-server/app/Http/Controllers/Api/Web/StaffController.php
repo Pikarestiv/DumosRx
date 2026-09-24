@@ -170,7 +170,10 @@ class StaffController extends Controller
             'role' => $request->role,
             'role_id' => $roleObj ? $roleObj->id : null,
             'password' => $password,
-            'pin' => $pin,
+            // Hashed, never stored raw - see User::hashPin(). $password
+            // above is still derived from the RAW pin, since that's the
+            // separate (server-side) session credential.
+            'pin' => User::hashPin($pin),
             'is_active' => true,
         ]);
 
@@ -269,7 +272,15 @@ class StaffController extends Controller
         ]);
 
         $data = $request->only(['first_name', 'last_name', 'email', 'username', 'role', 'pin', 'store_id', 'is_active']);
-        
+
+        // A PIN change through this endpoint must be hashed too, not just
+        // one set at creation - $request->only() above would otherwise write
+        // the raw 4 digits straight back into the column.
+        if (array_key_exists('pin', $data)) {
+            $data['pin'] = User::hashPin($data['pin']);
+        }
+
+
         if (isset($data['is_active']) && $data['is_active'] == true && !$staff->is_active) {
             if (!app(\App\Services\SubscriptionService::class)->checkLimit($request->user(), 'staff')) {
                 return response()->json([

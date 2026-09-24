@@ -20,11 +20,34 @@
 // older version.
 const CACHE_VERSION = "dumosrx-v3";
 
+// A dead connection can leave a fetch pending far longer on iOS Safari than
+// on Chrome before it rejects (the same asymmetry the navigate handler below
+// works around) - install and activate both fetch the manifest and must not
+// hang indefinitely on it, since the manifest fetch failing should degrade
+// (skip precaching / skip pruning) rather than stall the SW lifecycle.
+// `cache: "no-store"` guards against a stale, previously-cached manifest:
+// Apache emits no explicit Cache-Control for it, so without this a browser's
+// heuristic freshness could serve a prior deploy's manifest, which for
+// activate's pruning would mean deleting the CURRENT build's freshly
+// precached chunks because their names aren't in the stale list.
+async function fetchManifest(timeoutMs = 4000) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch("/precache-manifest.json", {
+      cache: "no-store",
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 self.addEventListener("install", (event) => {
   event.waitUntil(
     (async () => {
       try {
-        const response = await fetch("/precache-manifest.json");
+        const response = await fetchManifest();
         if (!response.ok) throw new Error(`Manifest fetch failed: ${response.status}`);
         const urls = await response.json();
         const cache = await caches.open(CACHE_VERSION);
@@ -46,6 +69,23 @@ self.addEventListener("install", (event) => {
             `[SW] Precache: ${failed.length}/${urls.length} URLs failed:`,
             failed.map((r) => r.reason?.message || r.reason),
           );
+        }
+        // "/" is the last-resort fallback every other offline navigation
+        // miss falls back to below - unlike every other URL, its failure
+        // can't be tolerated as "most of the app shell still works", since
+        // losing it turns every uncached offline route into a hard error
+        // instead of at least showing the app shell.
+        //
+        // Checked against THIS install's own result, not cache.match("/")
+        // after the fact: CACHE_VERSION is deliberately not bumped per
+        // deploy (see comment above), so a stale "/" left over from a
+        // previous successful install would otherwise make this check pass
+        // even when the current fetch for "/" just failed, silently
+        // activating a worker that (re)serves an old deploy's shell instead
+        // of failing loudly as intended.
+        const shellIndex = urls.indexOf("/");
+        if (shellIndex === -1 || results[shellIndex].status === "rejected") {
+          throw new Error('Precache: "/" (the offline shell fallback) failed to cache');
         }
         // Only activate this version once precaching actually ran - failing
         // the whole install (by letting the thrown error below reject the
@@ -87,6 +127,33 @@ self.addEventListener("activate", (event) => {
           .filter((name) => name !== CACHE_VERSION)
           .map((name) => caches.delete(name)),
       );
+
+      // Prune entries no longer in the current build's manifest.
+      // CACHE_VERSION is deliberately not bumped per deploy (see comment
+      // above), so without this, every deploy's newly hashed /_next chunks -
+      // plus, before the navigate/RSC cache-key normalization above existed,
+      // a full duplicate HTML document per distinct query string ever
+      // navigated to - just accumulated in the same cache indefinitely. That
+      // kind of unbounded growth is exactly what can exceed an iOS device's
+      // per-origin storage quota, and when iOS evicts a quota-exceeding
+      // origin it evicts the cache entirely, which is indistinguishable from
+      // the service worker never having run at all.
+      try {
+        const manifestResponse = await fetchManifest();
+        if (manifestResponse.ok) {
+          const currentUrls = new Set(await manifestResponse.json());
+          const cache = await caches.open(CACHE_VERSION);
+          const requests = await cache.keys();
+          await Promise.all(
+            requests
+              .filter((req) => !currentUrls.has(new URL(req.url).pathname))
+              .map((req) => cache.delete(req)),
+          );
+        }
+      } catch (err) {
+        console.error("[SW] Cache prune failed:", err);
+      }
+
       await self.clients.claim();
     })(),
   );
@@ -127,8 +194,54 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       (async () => {
         const cache = await caches.open(CACHE_VERSION);
+        // This static export serves the same document for a route
+        // regardless of its query string (out/.htaccess rewrites purely on
+        // pathname; query params like "/pos?dispense_rx=12" are read
+        // client-side after hydration), so the cache key is normalized to
+        // the pathname alone - same fix as the ".txt" RSC payload below.
+        // Without this, restoring a backgrounded query-bearing route offline
+        // (iOS reloading a suspended tab, a hard refresh) never matched the
+        // precached bare-pathname entry and fell back to the "/" shell
+        // instead of the actual page, and every distinct query value online
+        // would otherwise cache a full duplicate HTML document forever
+        // (CACHE_VERSION is intentionally not bumped per deploy).
+        //
+        // The trailing slash is stripped too (except for "/" itself):
+        // out/.htaccess 301s "/settings/" to "/settings" online, but nothing
+        // precaches "/settings/" as its own key, so a bookmarked or manually
+        // typed trailing-slash URL used to miss the cache offline and fall
+        // back to the "/" shell instead of the real page.
+        const navigateUrl = new URL(request.url);
+        const navigatePathname =
+          navigateUrl.pathname.length > 1 && navigateUrl.pathname.endsWith("/")
+            ? navigateUrl.pathname.slice(0, -1)
+            : navigateUrl.pathname;
+        const navigateCacheKey = new Request(navigateUrl.origin + navigatePathname);
         try {
-          const response = await fetch(request);
+          // iOS Safari can leave a doomed fetch pending for tens of seconds
+          // on a dead connection instead of rejecting quickly (unlike
+          // Chrome/Android), which otherwise shows a spinner for that whole
+          // window before the offline fallback below ever kicks in.
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 4000);
+          const response = await fetch(request, { signal: controller.signal }).finally(() =>
+            clearTimeout(timeout),
+          );
+          // A navigation's redirect mode is always "manual" (inherited here
+          // despite the AbortSignal downgrading mode to "same-origin" -
+          // redirect is a separate field the Request constructor carries
+          // over unchanged), so a same-origin 3xx (e.g. .htaccess's
+          // trailing-slash redirect) resolves to an opaque "opaqueredirect"
+          // response: status 0, no headers. That must be handed straight
+          // back to the browser to follow, like any normal redirect - it is
+          // not page content, so it must bypass (and must never be cached
+          // by) the isHtmlResponse check below, which would otherwise treat
+          // its empty content-type as "not real content", discard it, and
+          // serve the offline/shell fallback instead of following the
+          // redirect, even while fully online.
+          if (response.type === "opaqueredirect") {
+            return response;
+          }
           // Deliberately NOT gated on response.ok: a genuine, current 404/
           // 500 HTML error page from the network is still real, current
           // information and must be shown/cached as-is (this matches the
@@ -136,7 +249,7 @@ self.addEventListener("fetch", (event) => {
           // added) - only its body's actual type matters here, not its
           // status code.
           if (isHtmlResponse(response)) {
-            await cache.put(request, response.clone());
+            await cache.put(navigateCacheKey, response.clone());
             return response;
           }
           // A non-HTML network response for a navigation (an RSC flight
@@ -146,7 +259,7 @@ self.addEventListener("fetch", (event) => {
           // instead of returning it.
           throw new Error(`Unexpected navigate response content-type: ${response.headers.get("content-type")}`);
         } catch {
-          const cached = await cache.match(request);
+          const cached = await cache.match(navigateCacheKey);
           if (isHtmlResponse(cached)) return cached;
           const shell = await cache.match("/");
           if (isHtmlResponse(shell)) return shell;
@@ -163,16 +276,31 @@ self.addEventListener("fetch", (event) => {
   // effectively static, so a cached copy is never wrong - while updating the
   // cache from the network in the background for next time. Falls through to
   // the network directly on a cold cache.
+  //
+  // Next's RSC payload requests (the ".txt" sibling of every route, fetched
+  // on client-side navigation) append a "?_rsc=<hash>" query string that
+  // encodes the route being navigated FROM, so it changes on every
+  // navigation and never matches what generate-precache-manifest.ts wrote
+  // the file under (its bare pathname, no query). The payload itself is
+  // static per route in this export regardless of that hash, so the query is
+  // stripped for both the cache lookup and the cache write - otherwise every
+  // offline soft-navigation missed the precached ".txt" entirely and Next
+  // silently fell back to a full page reload.
+  const requestUrl = new URL(request.url);
+  const cacheKey = requestUrl.pathname.endsWith(".txt")
+    ? new Request(requestUrl.origin + requestUrl.pathname)
+    : request;
+
   event.respondWith(
     (async () => {
       const cache = await caches.open(CACHE_VERSION);
-      const cached = await cache.match(request);
+      const cached = await cache.match(cacheKey);
 
       const networkFetch = (async () => {
         try {
           const response = await fetch(request);
           // Only cache real, successful, non-opaque responses.
-          if (response.ok) await cache.put(request, response.clone());
+          if (response.ok) await cache.put(cacheKey, response.clone());
           return response;
         } catch {
           return undefined;

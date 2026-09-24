@@ -54,6 +54,15 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(30)->by($request->ip());
         });
 
+        // Public storefront "start an online payment" step. Every call makes
+        // an outbound transaction/initialize request to Paystack, so it needs
+        // a ceiling even though it's unauthenticated - but a generous one: a
+        // shopper legitimately retries (wrong card, abandoned tab, a reprice
+        // in between), and several shoppers can share one NATed IP.
+        RateLimiter::for('storefront-checkout', function (Request $request) {
+            return Limit::perMinute(15)->by($request->ip());
+        });
+
         Gate::define('manage-staff', function (User $user) {
             $role = $user->getAttribute('role');
             return \in_array($role, ['super_admin', 'manager', 'admin'], true);

@@ -281,13 +281,21 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
     return (
       <>
         <div
+          role="button"
+          tabIndex={0}
           title={isImpersonating ? tooltipText : undefined}
           className={cn(
-            "flex items-center gap-1.5 px-3 py-1.5 rounded-full border max-w-fit transition-colors [&_svg]:w-3.5 [&_svg]:h-3.5",
+            "flex items-center gap-1.5 px-3 py-1.5 rounded-full border max-w-fit transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring [&_svg]:w-3.5 [&_svg]:h-3.5",
             mobileBg, statusBorder,
             isImpersonating ? "cursor-not-allowed opacity-60" : "cursor-pointer",
           )}
           onClick={() => void handleManualSync()}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              void handleManualSync();
+            }
+          }}
         >
           {statusIcon}
           <span className="text-[12px] font-medium text-muted-foreground whitespace-nowrap">
@@ -312,17 +320,32 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
     <div className="px-2 pb-1">
       <div
         id="tour-sync-indicator"
+        role="button"
+        tabIndex={0}
         className={cn(
-          "border rounded-xl transition-all duration-300",
+          "border rounded-xl transition-all duration-300 outline-none focus-visible:ring-2 focus-visible:ring-ring",
           isImpersonating ? "cursor-not-allowed opacity-70" : "cursor-pointer",
           collapsed ? "p-2" : "p-2.5",
           statusBorder,
           desktopBg,
         )}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            void handleManualSync();
+          }
+        }}
         onClick={() => {
-          // While impersonating, handleManualSync is a no-op that toasts the
-          // reason — still worth calling, hence the first branch.
-          if (isImpersonating || status !== "offline") void handleManualSync();
+          // Always callable regardless of `status` (previously gated on
+          // `status !== "offline"`): that status comes from navigator.onLine,
+          // which iOS/Android can misreport as false right after wake before
+          // the radio has settled, disabling the user's own manual-sync
+          // escape hatch on a device that's actually online. sync() itself
+          // already checks navigator.onLine and fails gracefully with an
+          // "Offline..." message if it's genuinely offline, so there's
+          // nothing this guard was protecting against that sync() doesn't
+          // already handle.
+          void handleManualSync();
         }}
       >
         <TooltipProvider>
@@ -361,9 +384,22 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
                         )}
                       >
                         <button
+                          type="button"
                           data-testid="sync-now-button"
-                          disabled={isImpersonating || isSyncInProgress || status === "offline"}
-                          className="p-1 border border-sidebar-border rounded-md transition-colors disabled:opacity-30 cursor-pointer hover:bg-sidebar-accent relative z-10 pointer-events-none"
+                          onClick={(e) => {
+                            // The whole card (#tour-sync-indicator) has its
+                            // own onClick calling handleManualSync too, so
+                            // without this a click on the button itself fires
+                            // it twice - the second call hits sync()'s mutex,
+                            // toasts a spurious "already in progress" error,
+                            // and its finally{} clears isSyncInProgress while
+                            // the first call is still running.
+                            e.stopPropagation();
+                            handleManualSync();
+                          }}
+                          disabled={isImpersonating || isSyncInProgress}
+                          aria-label="Sync now"
+                          className="p-1 border border-sidebar-border rounded-md transition-colors disabled:opacity-30 cursor-pointer hover:bg-sidebar-accent relative z-10"
                         >
                           <RefreshCw
                             className={cn(

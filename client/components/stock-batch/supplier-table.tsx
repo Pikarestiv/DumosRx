@@ -109,8 +109,16 @@ export function SupplierTable({
           return (
             <div
               key={supplier.id}
+              role="button"
+              tabIndex={0}
               onClick={() => onRowClick?.(supplier)}
-              className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onRowClick?.(supplier);
+                }
+              }}
+              className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring ${
                 isSelected
                   ? "bg-primary/10 border-primary/30"
                   : "bg-card border-border hover:bg-primary/5"
@@ -220,7 +228,7 @@ export function SupplierTable({
                     onRowClick?.(supplier);
                   }
                 }}
-                className={`group grid grid-cols-[1.3fr_1fr_90px_90px_100px_28px] gap-2 items-center px-4 py-[14px] border-b border-border/50 cursor-pointer transition-colors ${
+                className={`group grid grid-cols-[1.3fr_1fr_90px_90px_100px_28px] gap-2 items-center px-4 py-[14px] border-b border-border/50 cursor-pointer transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset ${
                   isSelected ? "bg-primary/10 hover:bg-primary/10" : "hover:bg-primary/5"
                 }`}
               >

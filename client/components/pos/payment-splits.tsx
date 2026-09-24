@@ -162,9 +162,12 @@ export function PaymentSplits({
             <Button
               variant="ghost"
               size="icon"
+              aria-label="Remove payment split"
               onClick={() => removeSplit(index)}
             >
-              <span className="text-destructive font-bold">X</span>
+              <span aria-hidden="true" className="text-destructive font-bold">
+                X
+              </span>
             </Button>
           </div>
         ))}

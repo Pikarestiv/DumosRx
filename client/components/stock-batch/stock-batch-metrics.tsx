@@ -87,7 +87,7 @@ export function StockBatchMetrics({
           valueClassName="text-amber-700"
           icon={<TrendingDown className="h-4 w-4 hover-rotate-icon" />}
           iconBgClass="bg-amber-50 text-amber-700"
-          description="Below reorder level"
+          description="At/below reorder level, incl. out of stock"
           descriptionClassName="text-amber-700/70"
         />
 

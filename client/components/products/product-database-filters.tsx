@@ -45,6 +45,7 @@ export function ProductDatabaseFilters({
           value={searchTerm}
           onChange={setSearchTerm}
           placeholder="Search by name or SKU"
+          aria-label="Search products"
         />
         {canManageStockBatch && (
           <>

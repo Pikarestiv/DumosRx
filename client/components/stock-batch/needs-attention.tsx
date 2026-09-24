@@ -131,12 +131,13 @@ export function NeedsAttention({ stockData }: { stockData: StockItem[] }) {
           </div>
         )}
       </div>
-      <div
-        className="text-[12.5px] text-primary font-semibold cursor-pointer hover:underline"
+      <button
+        type="button"
+        className="text-[12.5px] text-primary font-semibold cursor-pointer hover:underline rounded-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring"
         onClick={() => router.push("/inventory/catalog?status=low_stock")}
       >
         View all
-      </div>
+      </button>
     </div>
   );
 

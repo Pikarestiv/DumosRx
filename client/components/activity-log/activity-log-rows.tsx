@@ -135,7 +135,7 @@ export function ActivityLogDesktopTable({
                   onSelect(row, group);
                 }
               }}
-              className={`grid ${GRID_COLS} items-center hover:bg-accent/30 cursor-pointer text-[12.5px]`}
+              className={`grid ${GRID_COLS} items-center hover:bg-accent/30 cursor-pointer text-[12.5px] outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset`}
             >
               <div role="cell" className="px-4 py-2.5">
                 <div className="font-semibold text-foreground flex items-center gap-1.5">
@@ -187,6 +187,7 @@ export function ActivityLogMobileList({
         groupedRows.map(({ primary: row, group }) => (
           <div
             key={row.id}
+            role="button"
             tabIndex={0}
             onClick={() => onSelect(row, group)}
             onKeyDown={(e) => {
@@ -195,7 +196,7 @@ export function ActivityLogMobileList({
                 onSelect(row, group);
               }
             }}
-            className="p-4 space-y-1 active:bg-accent/30 cursor-pointer"
+            className="p-4 space-y-1 active:bg-accent/30 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
           >
             <div className="font-semibold text-foreground text-[13px] flex items-center gap-1.5">
               {describeActivity(row)}

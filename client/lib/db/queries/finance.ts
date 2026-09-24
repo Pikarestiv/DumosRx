@@ -136,9 +136,15 @@ export async function getSmoothedExpensesTotal({
   // but from/to here are full ISO timestamps (callers pass a JS Date's
   // toISOString()) - a plain string compare silently drops any expense
   // dated exactly on the window's start day. date() normalizes either form.
+  //
+  // `to` is INCLUSIVE, matching every other dateTo in these reports (see
+  // reports.ts). A strict "< date(?)" here meant that when a caller passed
+  // `to = now` (the common case - see getBIMetrics), every expense dated
+  // TODAY was silently excluded from the BI dashboard's expense total, no
+  // matter how far into the day it was logged.
   const plainResult = await query<{ total: number }>(
     `SELECT SUM(amount) as total FROM expenses
-     WHERE _deleted = 0 AND date(date) >= date(?) AND date(date) < date(?) AND (covers_months IS NULL OR covers_months <= 0)
+     WHERE _deleted = 0 AND date(date) >= date(?) AND date(date) <= date(?) AND (covers_months IS NULL OR covers_months <= 0)
      ${viewerId ? " AND user_id = ?" : ""}${storeId ? " AND store_id = ?" : ""}`,
     [from, to, ...scopeParams],
   );
@@ -154,7 +160,11 @@ export async function getSmoothedExpensesTotal({
   );
 
   const windowStart = new Date(from);
-  const windowEnd = new Date(to);
+  // getSmoothedAmountInWindow treats windowEnd as EXCLUSIVE; +1ms turns the
+  // inclusive `to` above into that exclusive bound, so an amortized
+  // installment overlapping the instant `to` itself is still counted -
+  // matching the plain-expense query's now-inclusive semantics above.
+  const windowEnd = new Date(new Date(to).getTime() + 1);
 
   const smoothedTotal = amortized.reduce(
     (sum, exp) => sum + getSmoothedAmountInWindow(exp, windowStart, windowEnd),
@@ -182,10 +192,11 @@ export async function getCurrentMonthExpensesByCategory({
   const storeId = getActiveStoreId();
   const scopeParams = [...(viewerId ? [viewerId] : []), ...(storeId ? [storeId] : [])];
 
-  // See the matching comment in getSmoothedExpensesTotal above.
+  // See the matching comment in getSmoothedExpensesTotal above - `to` is
+  // inclusive here too, for the same reason.
   const plainRows = await query<{ category: string; total: number }>(
     `SELECT category, SUM(amount) as total FROM expenses
-     WHERE _deleted = 0 AND date(date) >= date(?) AND date(date) < date(?) AND (covers_months IS NULL OR covers_months <= 0)
+     WHERE _deleted = 0 AND date(date) >= date(?) AND date(date) <= date(?) AND (covers_months IS NULL OR covers_months <= 0)
      ${viewerId ? " AND user_id = ?" : ""}${storeId ? " AND store_id = ?" : ""}
      GROUP BY category`,
     [from, to, ...scopeParams],
@@ -199,7 +210,7 @@ export async function getCurrentMonthExpensesByCategory({
   );
 
   const windowStart = new Date(from);
-  const windowEnd = new Date(to);
+  const windowEnd = new Date(new Date(to).getTime() + 1);
 
   const totalsByCategory = new Map<string, number>();
   for (const row of plainRows) {

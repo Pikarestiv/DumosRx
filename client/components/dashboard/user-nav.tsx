@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useState, useEffect } from "react";
+import { Fragment, useState, useEffect, type ComponentProps } from "react";
 import { useAuth, type User } from "@/lib/context/auth-context";
 import { useRouter } from "next/navigation";
 import { useAccountActions } from "@/lib/hooks/use-account-actions";
@@ -29,23 +29,33 @@ import { getUserInitials } from "@/lib/utils";
 import { useIsTouchDevice } from "@/lib/hooks/use-is-touch-device";
 import { cn } from "@/lib/utils";
 
+// {...props} is spread onto the Button so Radix's `asChild` trigger props
+// (aria-haspopup, aria-expanded, keyboard handlers, ref) land on the real
+// <button> instead of being stranded on a non-focusable wrapper <div>.
 const NavTrigger = ({
   initials,
   user,
   showDetails,
+  className,
+  ...props
 }: {
   initials: string;
   user?: User;
   showDetails?: boolean;
-}) => (
+} & ComponentProps<typeof Button>) => (
   <Button
     variant="ghost"
+    // When showDetails is on, the name/role text inside supplies the
+    // accessible name; only the bare-avatar variant needs a label.
+    aria-label={showDetails && user ? undefined : "Account menu"}
     className={cn(
       "relative rounded-xl hover:bg-muted/50 transition-colors text-foreground hover:text-foreground",
       showDetails
         ? "h-auto w-full flex items-center justify-start gap-3 p-2"
         : "h-8 w-8 rounded-full p-0",
+      className,
     )}
+    {...props}
   >
     <Avatar
       className={cn(
@@ -94,6 +104,7 @@ const SettingsIconButton = ({
   <Button
     variant="ghost"
     size={size}
+    aria-label="Settings"
     className="shrink-0 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50"
     onClick={onClick}
   >
@@ -173,13 +184,12 @@ export function UserNav({
     <div className={cn("flex items-center gap-1", showDetails ? "w-full" : "")}>
       <DropdownMenu open={open} onOpenChange={setOpen}>
         <DropdownMenuTrigger asChild>
-          <div className={cn(showDetails ? "flex-1 min-w-0" : "")}>
-            <NavTrigger
-              initials={initials}
-              user={user}
-              showDetails={showDetails}
-            />
-          </div>
+          <NavTrigger
+            initials={initials}
+            user={user}
+            showDetails={showDetails}
+            className={cn(showDetails ? "flex-1 min-w-0" : "")}
+          />
         </DropdownMenuTrigger>
 
         <DropdownMenuContent
@@ -245,9 +255,7 @@ export function UserNav({
   const renderMobileDrawer = () => (
     <Drawer open={open} onOpenChange={setOpen}>
       <DrawerTrigger asChild>
-        <div>
-          <NavTrigger initials={initials} />
-        </div>
+        <NavTrigger initials={initials} />
       </DrawerTrigger>
 
       <DrawerContent

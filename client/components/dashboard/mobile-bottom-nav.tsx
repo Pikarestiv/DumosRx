@@ -90,6 +90,8 @@ export function MobileBottomNav({
           <div className="relative w-16 h-full flex justify-center">
             <Link
               href="/pos"
+              aria-label="Point of sale"
+              aria-current={pathname.startsWith("/pos") ? "page" : undefined}
               style={{ boxShadow: "0 6px 16px rgba(32,84,224,0.4)" }}
               className={cn(
                 "absolute -top-6 flex flex-col items-center justify-center w-[60px] h-[60px] rounded-full bg-primary text-primary-foreground border-[4px] border-background hover:scale-105 active:scale-95 transition-transform",

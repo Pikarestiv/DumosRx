@@ -26,6 +26,11 @@ export function UnitSelect({ id, value, onValueChange, placeholder }: UnitSelect
   const [filter, setFilter] = React.useState(value || "");
   const [activeIndex, setActiveIndex] = React.useState(-1);
   const containerRef = React.useRef<HTMLDivElement>(null);
+  const listRef = React.useRef<HTMLDivElement>(null);
+  // Per-instance ids so the input (which keeps focus) can point at the
+  // highlighted row via aria-activedescendant.
+  const listboxId = React.useId();
+  const rowId = (index: number) => `${listboxId}-row-${index}`;
 
   const customUnits = React.useMemo<string[]>(() => {
     try {
@@ -93,10 +98,29 @@ export function UnitSelect({ id, value, onValueChange, placeholder }: UnitSelect
     ...(canCreate ? [{ type: "create" as const }] : []),
   ];
 
+  const listOpen = open && rows.length > 0;
+
+  // Nothing else scrolls the list while the input holds focus.
+  React.useEffect(() => {
+    if (!listOpen || activeIndex < 0) return;
+    listRef.current
+      ?.querySelector<HTMLElement>(`#${CSS.escape(rowId(activeIndex))}`)
+      ?.scrollIntoView({ block: "nearest" });
+    // rowId derives from listboxId, stable for this instance.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeIndex, listOpen]);
+
   return (
     <div className="relative w-full" ref={containerRef}>
       <Input
         id={id}
+        role="combobox"
+        aria-expanded={listOpen}
+        aria-controls={listOpen ? listboxId : undefined}
+        aria-autocomplete="list"
+        aria-activedescendant={
+          listOpen && activeIndex >= 0 ? rowId(activeIndex) : undefined
+        }
         value={filter}
         autoComplete="off"
         placeholder={placeholder}
@@ -115,7 +139,16 @@ export function UnitSelect({ id, value, onValueChange, placeholder }: UnitSelect
             setActiveIndex((prev) => Math.min(prev + 1, rows.length - 1));
           } else if (e.key === "ArrowUp") {
             e.preventDefault();
+            if (!open) setOpen(true);
             setActiveIndex((prev) => Math.max(prev - 1, 0));
+          } else if (e.key === "Home" && open) {
+            e.preventDefault();
+            setActiveIndex(0);
+          } else if (e.key === "End" && open) {
+            e.preventDefault();
+            setActiveIndex(rows.length - 1);
+          } else if (e.key === "Tab") {
+            setOpen(false);
           } else if (e.key === "Enter") {
             if (open) {
               e.preventDefault();
@@ -133,13 +166,28 @@ export function UnitSelect({ id, value, onValueChange, placeholder }: UnitSelect
           }
         }}
       />
-      {open && rows.length > 0 && (
+      {listOpen && (
         <div className="absolute z-[999] w-full mt-1 bg-popover text-popover-foreground shadow-xl rounded-md border border-border outline-none overflow-hidden">
-          <div className="max-h-60 overflow-y-auto p-1">
+          <div
+            ref={listRef}
+            id={listboxId}
+            role="listbox"
+            aria-label={placeholder || "Unit"}
+            className="max-h-60 overflow-y-auto p-1"
+          >
             {filteredOptions.map((opt, index) => (
               <div
                 key={opt}
-                onClick={() => selectOption(opt)}
+                id={rowId(index)}
+                role="option"
+                aria-selected={opt === value}
+                // onMouseDown + preventDefault so the input never blurs -
+                // a blur would close the list before a click event landed.
+                onMouseDown={(e) => {
+                  if (e.button !== 0) return;
+                  e.preventDefault();
+                  selectOption(opt);
+                }}
                 className={cn(
                   "relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground",
                   index === activeIndex && "bg-accent text-accent-foreground"
@@ -150,7 +198,14 @@ export function UnitSelect({ id, value, onValueChange, placeholder }: UnitSelect
             ))}
             {canCreate && (
               <div
-                onClick={() => void createAndSelect()}
+                id={rowId(filteredOptions.length)}
+                role="option"
+                aria-selected={activeIndex === filteredOptions.length}
+                onMouseDown={(e) => {
+                  if (e.button !== 0) return;
+                  e.preventDefault();
+                  void createAndSelect();
+                }}
                 className={cn(
                   "relative flex cursor-pointer select-none items-center gap-1.5 rounded-sm px-2 py-1.5 text-sm outline-none text-primary hover:bg-primary hover:text-primary-foreground",
                   activeIndex === filteredOptions.length && "bg-primary text-primary-foreground"

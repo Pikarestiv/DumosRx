@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, beforeEach } from "vitest";
+import { describe, it, expect, beforeAll, beforeEach, afterAll } from "vitest";
 import initSqlJs, { type Database } from "sql.js";
 
 /**
@@ -15,8 +15,14 @@ describe("getRecentSales with a dateRange", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");
   let getRecentSales: typeof import("@/lib/db/queries/sales").getRecentSales;
+  let originalTZ: string | undefined;
 
   beforeAll(async () => {
+    // Africa/Lagos (UTC+1, no DST) so local and UTC calendar dates genuinely
+    // differ near midnight - see reports-timezone.test.ts, same pattern.
+    originalTZ = process.env.TZ;
+    process.env.TZ = "Africa/Lagos";
+
     core = await import("@/lib/db/core");
     getRecentSales = (await import("@/lib/db/queries/sales")).getRecentSales;
     const { SCHEMA_SQL } = await import("@/lib/db/schema");
@@ -60,5 +66,38 @@ describe("getRecentSales with a dateRange", () => {
 
     const rows = await getRecentSales("user-1");
     expect(rows.length).toBe(100);
+  });
+
+  /**
+   * The dateRange is a LOCAL calendar date, but created_at is a UTC instant.
+   * At UTC+1, 2026-09-23T23:30Z is already 2026-09-24 00:30 on the store's
+   * wall clock, so it belongs to the NEXT local day. Bucketing it by literal
+   * UTC midnight put it on 09-23 instead - understating "today" for every
+   * store off UTC+0.
+   */
+  it("buckets a sale near local midnight by the LOCAL day, not the UTC day", async () => {
+    insertSale("late-utc", "2026-09-23T23:30:00.000Z"); // 2026-09-24 00:30 local
+    insertSale("mid-day-23", "2026-09-23T10:00:00.000Z"); // 2026-09-23 11:00 local
+
+    const day24 = await getRecentSales("user-1", { from: "2026-09-24", to: "2026-09-24" });
+    expect(day24.map((r) => r.id)).toEqual(["late-utc"]);
+
+    const day23 = await getRecentSales("user-1", { from: "2026-09-23", to: "2026-09-23" });
+    expect(day23.map((r) => r.id)).toEqual(["mid-day-23"]);
+  });
+
+  it("excludes a sale that is still the previous local day at UTC+1", async () => {
+    // 2026-09-23T23:59:59.999Z is 2026-09-24 00:59 local => next local day.
+    // 2026-09-22T23:30:00.000Z is 2026-09-23 00:30 local => in range.
+    insertSale("early-local-23", "2026-09-22T23:30:00.000Z");
+    insertSale("next-local-day", "2026-09-23T23:59:59.999Z");
+
+    const day23 = await getRecentSales("user-1", { from: "2026-09-23", to: "2026-09-23" });
+    expect(day23.map((r) => r.id)).toEqual(["early-local-23"]);
+  });
+
+  afterAll(() => {
+    if (originalTZ === undefined) delete process.env.TZ;
+    else process.env.TZ = originalTZ;
   });
 });

@@ -157,12 +157,14 @@ export function PrescriptionDetailPanel({
   return (
     <Card className="flex flex-col h-full bg-card p-0 pb-4 gap-0 overflow-hidden border-none rounded-none shadow-none">
       <div className="flex items-center gap-3 px-4 pb-4 pt-4 border-b border-border">
-        <div
-          className="w-[38px] h-[38px] rounded-[10px] bg-muted flex items-center justify-center cursor-pointer text-muted-foreground shrink-0 hover:bg-muted/80 transition-colors"
+        <button
+          type="button"
+          aria-label="Close"
+          className="w-[38px] h-[38px] rounded-[10px] bg-muted flex items-center justify-center cursor-pointer text-muted-foreground shrink-0 hover:bg-muted/80 transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring"
           onClick={onClose}
         >
           <ArrowLeft className="w-[17px] h-[17px]" />
-        </div>
+        </button>
         <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[12px] font-bold shrink-0">
           {getInitials(prescription.patientName)}
         </div>

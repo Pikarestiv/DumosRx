@@ -203,11 +203,35 @@ export async function initDatabase(): Promise<any> {
   }
 }
 
+// Rate-limits the user-facing warning below to once per this window: a
+// QuotaExceededError (or any other persistent save failure) would otherwise
+// re-fire on every single write - potentially every keystroke-adjacent
+// action - which is as good as no signal at all.
+const SAVE_FAILURE_NOTICE_INTERVAL_MS = 5 * 60 * 1000;
+let lastSaveFailureNoticeAt = 0;
+
 export async function saveDatabase(): Promise<void> {
   if (!db) return;
   const data = db.export();
   await set(`${APP_NAME.toLowerCase()}_db`, data).catch(err => {
+    // Previously logged to console.error only: the app kept looking
+    // completely healthy while writes silently stopped persisting (most
+    // plausibly a QuotaExceededError, on the same per-origin storage budget
+    // the PWA's precache competes against), with everything since the last
+    // successful save lost on next launch and no way for the user to know
+    // until then. Dispatched as a window event (matching this codebase's
+    // existing auth_token_cleared/dumos_sync_completed pattern) rather than
+    // importing a toast library into this low-level module directly.
     console.error("Failed to save DB to IndexedDB", err);
+    if (typeof window !== "undefined") {
+      const now = Date.now();
+      if (now - lastSaveFailureNoticeAt > SAVE_FAILURE_NOTICE_INTERVAL_MS) {
+        lastSaveFailureNoticeAt = now;
+        window.dispatchEvent(
+          new CustomEvent("dumos_db_save_failed", { detail: { error: err } }),
+        );
+      }
+    }
   });
 }
 
@@ -216,6 +240,14 @@ export async function saveDatabase(): Promise<void> {
 // yield above can also read it. See execute()/transaction() below for the
 // deferred-saveDatabase() half of what this flag is for.
 let inTransaction = false;
+
+// Lets a composed multi-statement helper (e.g. insert() in base-helpers.ts)
+// decide whether it needs to open its own transaction() for atomicity, or is
+// already running inside a caller's transaction() and must not (nesting
+// deadlocks - see transaction()'s doc comment below).
+export function isInTransaction(): boolean {
+  return inTransaction;
+}
 
 // How many rows query() fetches before yielding a tick back to the browser
 // (see the loop below) — large enough that small/typical queries (the vast

@@ -12,3 +12,8 @@ refs/*
 # their node_modules/vendor; this covers a root-level node_modules if one
 # ever gets created, e.g. by running npm install from the repo root)
 node_modules/
+
+# /brag output — generated marketing video + its Hyperframes project/assets,
+# not app source; keep the .mp4/.jpg locally rather than tracking in git
+brag-output/
+brag-output-*/

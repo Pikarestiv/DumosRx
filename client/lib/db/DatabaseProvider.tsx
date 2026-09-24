@@ -13,6 +13,7 @@ import {
 } from "react";
 import { initDatabase, isTauri } from "./local-database";
 import { devLog } from "@/lib/utils/dev-log";
+import { toast } from "sonner";
 
 interface DatabaseContextType {
   isReady: boolean;
@@ -56,6 +57,20 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
         import("@/lib/db/queries/procurement").then(({ promoteDraftPurchaseOrdersToPending }) => {
           promoteDraftPurchaseOrdersToPending().catch(console.error);
         }).catch(console.error);
+        // One-time-per-boot repair for rows left with no _sync_queue entry
+        // by a write that was interrupted between its row INSERT and its
+        // queue INSERT (e.g. iOS killing a backgrounded PWA tab mid-write) -
+        // insert()/update()/etc. in base-helpers.ts now do those atomically
+        // going forward, but this backfills anything already stranded from
+        // before that fix, or from any write path that still bypasses those
+        // helpers. Previously requeueOrphanedRows() only ran from inside
+        // remapForeignKey()'s identity-reconcile path, never at plain launch.
+        Promise.all([
+          import("@/lib/db/reconcile-identity"),
+          import("@/lib/db/schema-migrations"),
+        ]).then(([{ requeueOrphanedRows }, { STORE_SCOPED_TABLES }]) => {
+          requeueOrphanedRows(STORE_SCOPED_TABLES).catch(console.error);
+        }).catch(console.error);
       })
       .catch((err) => {
         console.error("[DB] Failed to initialize database:", err);
@@ -86,6 +101,24 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
     };
+  }, []);
+
+  // core.ts's saveDatabase() previously only console.error'd a failed local
+  // persist (most plausibly a full IndexedDB quota, on the same per-origin
+  // storage budget the PWA's precache competes against) - the app kept
+  // looking completely healthy while writes silently stopped persisting.
+  // Surfaced here (rate-limited at the dispatch site in core.ts) so the user
+  // has some signal before everything since the last successful save is
+  // lost on next launch.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handleSaveFailed = () => {
+      toast.error("Unable to save local data - your device may be low on storage.", {
+        duration: 10000,
+      });
+    };
+    window.addEventListener("dumos_db_save_failed", handleSaveFailed);
+    return () => window.removeEventListener("dumos_db_save_failed", handleSaveFailed);
   }, []);
 
   if (error) {

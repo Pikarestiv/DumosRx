@@ -1,6 +1,7 @@
 import { query } from "@/lib/db/core";
 import { update, insert } from "@/lib/db/local-database";
 import type { UserDbRow } from "@/lib/types/user";
+import { hashPin } from "@/lib/utils/pin-hash";
 
 /**
  * Deliberately NOT scoped to the currently-active store. On a multi-store
@@ -72,7 +73,10 @@ export async function createDefaultAdmin(adminInfo: DefaultAdminInfo) {
       first_name: adminInfo.first_name,
       last_name: adminInfo.last_name,
       username: adminInfo.username,
-      pin: adminInfo.pin,
+      // Hashed like every other stored PIN, even though the bootstrap
+      // value itself is a documented constant (DEFAULT_ADMIN_PIN) - once
+      // this row exists, ordinary login verifies against this column.
+      pin: hashPin(adminInfo.pin),
       role: adminInfo.role,
       is_active: 1,
     },
@@ -85,8 +89,31 @@ export async function getUserPin(userId: string) {
   return users.length > 0 ? users[0].pin : null;
 }
 
+/** Stores a PIN hashed, never raw - see lib/utils/pin-hash.ts. Goes through
+ * update() so it queues for sync push like any other local write, which is
+ * also how a hash reaches the server and, from there, every other device. */
 export async function updateUserPin(userId: string, newPin: string) {
-  return update("users", userId, { pin: newPin });
+  return update("users", userId, { pin: hashPin(newPin) });
+}
+
+/**
+ * The lazy half of the plaintext-PIN migration: called right after a
+ * successful login that matched a LEGACY plaintext `users.pin`, it rewrites
+ * that row's PIN as a bcrypt hash of the very PIN just verified.
+ *
+ * Deliberately never throws - the login it follows has already succeeded,
+ * and a failed rewrite only means this row stays plaintext until the next
+ * login tries again. Nothing user-visible happens either way: no forced
+ * reset, no prompt.
+ */
+export async function migrateLegacyPinToHash(userId: string, verifiedPin: string) {
+  try {
+    await updateUserPin(userId, verifiedPin);
+    return true;
+  } catch (e) {
+    console.error("Failed to upgrade stored PIN to a hash", e);
+    return false;
+  }
 }
 
 export async function getStaffCount() {

@@ -155,7 +155,7 @@ class SubscriptionPaymentTest extends TestCase
         $this->mock(PaymentService::class, function ($mock) {
             $mock->shouldReceive('verifyTransaction')
                 ->once()
-                ->andReturn(['success' => true, 'amount' => 8000, 'data' => []]);
+                ->andReturn(['success' => true, 'amount' => 8000, 'currency' => 'NGN', 'data' => []]);
         });
 
         $response = $this->actingAs($this->user)->postJson('/api/v1/subscription/verify', [
@@ -188,7 +188,7 @@ class SubscriptionPaymentTest extends TestCase
         $this->mock(PaymentService::class, function ($mock) {
             $mock->shouldReceive('verifyTransaction')
                 ->once()
-                ->andReturn(['success' => true, 'amount' => 13124.12, 'data' => []]);
+                ->andReturn(['success' => true, 'amount' => 13124.12, 'currency' => 'NGN', 'data' => []]);
         });
 
         $response = $this->actingAs($this->user)->postJson('/api/v1/subscription/verify', [

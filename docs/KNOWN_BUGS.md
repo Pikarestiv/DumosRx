@@ -2,7 +2,7 @@
 
 Issues spotted incidentally (e.g. while doing TypeScript type-safety cleanup) that aren't fixed yet, tracked here so they don't get lost. Not an exhaustive bug tracker; just a landing spot for "worth fixing later" findings. Fixed entries are removed outright rather than marked — this file is a to-do list, not a changelog (git history is the changelog).
 
-Open items below are grouped by severity (Critical → High → Medium → Low), then a `client/`-area miscellaneous section for older/unlabeled entries, then the separate `web/` pre-launch review section.
+Open items below are grouped by severity (Critical → High → Medium → Low), then a `client/`-area miscellaneous section for older/unlabeled entries.
 
 ---
 
@@ -21,10 +21,10 @@ Production migrations run through a protected route, not direct `artisan` access
 
 ## High
 
-### `laravel-server/` — staff PINs are stored in plaintext and serialized to API clients
-`app/Models/User.php:34` (fillable `pin`), `:58-61` (`$hidden` omits it), `app/Http/Controllers/Api/Web/StaffController.php:153`, `app/Http/Controllers/Api/Concerns/AuthenticatesSessions.php:267-270`
+### `laravel-server/` — `FLUTTERWAVE_SECRET_HASH` must be set in production before this deploys, or every Flutterwave webhook 500s
+`app/Http/Controllers/Api/Web/PaymentController.php` (Flutterwave webhook handler), `config/payment.php`, `.env.example`
 
-`users.pin` is a plain `string(4)` column (`2026_05_16_070000_add_sync_fields_to_users_table.php:16`) written verbatim by `StaffController::store`/`update` and by sync push, never hashed. It is also absent from `$hidden`, so every endpoint that returns a `User` model serializes it: `GET /api/v1/user` returns the caller's PIN on every session bootstrap, `GET /api/v1/staff` returns the PIN of every staff member in the store, and sync pull ships them to each device. The PIN is the actual POS login credential (`client/lib/db/queries/auth.ts` compares it directly), so this is a credential disclosed in plaintext at rest and in transit-to-client.
+The Flutterwave webhook was previously (wrongly) authenticated against `encryption_key`; it now correctly compares against a new `flutterwave.secret_hash` config value, read from `FLUTTERWAVE_SECRET_HASH`. This is not declared in production `.env` yet. Deliberately fails closed (500, webhook rejected) if the secret is empty — safe, but it means **every Flutterwave subscription payment silently stops activating** the moment this deploys, until someone copies the Secret Hash from the Flutterwave dashboard's webhook settings into production's `.env`. Not evident from the app itself (Paystack continues working fine); would surface as "customer paid via Flutterwave, subscription never activated" support tickets. Remove this entry once confirmed set on production.
 
 ---
 
@@ -37,6 +37,11 @@ Production migrations run through a protected route, not direct `artisan` access
 
 Investigated switching this: `token-manager.ts`'s `setToken`/`clearToken` call `mirrorAuthToken`/`clearMirroredAuthToken` (`client/lib/native/widget-bridge.ts`), which hand the raw token to native Tauri (Rust) code so the home-screen widget can make its own authenticated background HTTP requests entirely outside the webview. An HttpOnly cookie is by definition unreadable by JS, so it can't be mirrored to native code — swapping to one would break the widget's live data rather than just change a storage mechanism. Fixing this for real means a dual-path auth design (webview uses a cookie for its own requests; native widget code gets a separate, narrowly-scoped token via its own exchange) — a real architecture change, not a quick fix. Left as-is for now; revisit as a scoped project, not a bug-fix pass.
 
+### `client/` — a long-open tab can 404 on a lazy chunk after a deploy that edits `sw.js`
+`client/public/sw.js` (`activate()`'s cache prune)
+
+`activate()` now prunes cache entries not in the current build's manifest (added 2026-09-24 to stop unbounded growth across deploys). This only runs when `sw.js`'s own bytes change (the browser only re-checks the SW script then), but when it does, an already-open tab still running the *old* build's JS can lazy-load a chunk that both the cache prune and the new deploy's server files have already removed — a chunk-load error, while fully online, until the user reloads. This mirrors how a plain Next.js app already behaves on a deploy with no service worker at all (the SW was incidentally providing extra resilience here); treated as an accepted tradeoff of the "new SW takes over immediately" design rather than special-cased. `pwa-registrar.tsx`'s `controllerchange` reload (added the same day) mitigates the common case by reloading the tab onto the new build as soon as the new SW takes control, but a chunk requested in the brief window between prune and reload could still race it.
+
 ### `client/` — existing Pro/Enterprise stores will lose the "Reseller sale" POS row on deploy, silently
 `client/lib/hooks/use-feature-gate.ts` (`isMarkupSalesEnabled`), `stores.markup_sales_enabled`
 
@@ -46,10 +51,10 @@ New store-level toggle added 2026-09-23, default `0` (explicit product requireme
 
 ## Low
 
-### `laravel-server/` — some `feedback` sync pushes rejected as "forbidden", cause not yet investigated
-`app/Http/Controllers/Api/App/SyncController.php` (~line 357, `authorizeChangeTarget` check)
+### `client/` — manifest `theme_color` doesn't follow dark mode
+`client/public/manifest.json:8`, `client/app/layout.tsx:66-68`
 
-Seen live in a production sync response: two `feedback` table rows rejected with `reason: "forbidden"` (the record exists but doesn't resolve to the caller's authorized store/user scope). Not reproduced or root-caused — could be stale `_sync_queue` entries from before an account/store switch on that device, or a genuine ownership-scoping gap specific to `feedback`. Rows stay queued locally, not lost. Investigate if it recurs or affects more than a couple of stale rows.
+`manifest.json` hardcodes `theme_color`/`background_color` to `#ffffff`; `layout.tsx`'s `viewport.themeColor` correctly switches to black under `prefers-color-scheme: dark`. On Android, the *manifest's* value drives the install splash screen, so a dark-mode user briefly sees a white splash before the dark app renders. The Web App Manifest spec has no equivalent of `<meta name="theme-color" media="...">`'s conditional syntax, so this can't be fully fixed without picking one color scheme's splash over the other — left as the light-mode default since that also matches the manifest's own `background_color`.
 
 ---
 

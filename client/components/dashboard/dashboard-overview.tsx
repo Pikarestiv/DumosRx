@@ -170,6 +170,11 @@ export function DashboardOverview() {
 
   return (
     <div className="space-y-6">
+      {/* The visual design has no page title here, but the page still needs a
+          top-level heading for screen-reader/landmark navigation. */}
+      <h1 className="sr-only">
+        Dashboard{storeProfile?.name ? ` - ${storeProfile.name}` : ""}
+      </h1>
       <DashboardStats statsCards={statsCards} />
 
       <DashboardActionCenter

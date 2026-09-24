@@ -57,6 +57,16 @@ class User extends Authenticatable
      */
     protected $hidden = [
         'password',
+        // The POS unlock PIN (bcrypt-hashed since
+        // 2026_09_24_000000_widen_users_pin_column). Hidden so no endpoint
+        // that returns a User model (GET /user, GET /staff, ...) serializes
+        // it - defense in depth on top of the hashing itself.
+        //
+        // The ONE consumer that legitimately needs it is the sync pull,
+        // which ships the hash down to each device so local (fully offline)
+        // PIN login can verify against it; SyncController::mapPullRowForClient
+        // re-exposes it for the 'users' table only.
+        'pin',
         'remember_token',
     ];
 
@@ -71,6 +81,44 @@ class User extends Authenticatable
         'is_active' => 'boolean',
         'password' => 'hashed',
     ];
+
+    /**
+     * Hashes a POS unlock PIN for storage in `users.pin`.
+     *
+     * PINs used to be stored in plaintext and were serialized straight out
+     * to every client; they're bcrypt-hashed now, by the same mechanism as
+     * `password`. Verification happens CLIENT-side (POS login is fully
+     * offline and never reaches the server), so the hash is what syncs down
+     * to devices.
+     *
+     * Idempotent: a value that is already a bcrypt hash is returned
+     * untouched, so a re-save of an existing user, or a hashed PIN arriving
+     * from a client, never gets double-hashed. Null/empty passes through so
+     * "no PIN set" stays distinguishable from "PIN set to empty string".
+     */
+    public static function hashPin(?string $pin): ?string
+    {
+        if ($pin === null || $pin === '') {
+            return $pin;
+        }
+
+        // Hash::isHashed() (== password_get_info()) only recognizes PHP's
+        // own $2y$/$2a$ prefixes - it returns FALSE for a $2b$ hash, which
+        // is exactly what the client's bcryptjs produces. A client-hashed
+        // PIN reaching this method would therefore fail the idempotency
+        // check and get hashed a second time (hash-of-a-hash), silently
+        // breaking that PIN forever. Not reachable today (the sync push
+        // path writes `pin` without calling this, and every controller that
+        // does call it validates `pin` as size:4, which a 60-char hash
+        // fails) - but one relaxed validation rule away from a real lockout,
+        // so detect all three real bcrypt prefixes directly instead of
+        // trusting PHP's narrower notion of "hashed".
+        if (preg_match('/^\$2[aby]\$\d{2}\$/', $pin) === 1) {
+            return $pin;
+        }
+
+        return \Illuminate\Support\Facades\Hash::make($pin);
+    }
 
     public function userRole()
     {

@@ -11,8 +11,16 @@ export function StockMovementDesktopRow({ movement, onSelect }: Props) {
   const capsClass = useUppercaseDisplayClass();
   return (
     <div
+      role="button"
+      tabIndex={0}
       onClick={onSelect}
-      className="grid grid-cols-[100px_1fr_130px_100px_1fr_120px] gap-2 px-4 py-3 items-center border-b border-border cursor-pointer hover:bg-accent/50 transition-colors"
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onSelect();
+        }
+      }}
+      className="grid grid-cols-[100px_1fr_130px_100px_1fr_120px] gap-2 px-4 py-3 items-center border-b border-border cursor-pointer hover:bg-accent/50 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
     >
       <div className="text-[12px] text-muted-foreground">
         {formatMovementTime(movement.date)}

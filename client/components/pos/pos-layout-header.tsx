@@ -92,15 +92,16 @@ export function POSLayoutHeader({
         <Button
           variant="outline"
           size="icon"
+          aria-label="Back to dashboard"
           className="md:hidden h-9 w-9 rounded-xl bg-muted/50 border-border/50 text-muted-foreground hover:text-foreground shrink-0"
           onClick={() => router.push("/dashboard")}
         >
           <ChevronLeft className="h-5 w-5" />
         </Button>
         <div className="flex flex-col gap-0.5">
-          <span className="text-foreground text-base sm:text-lg font-semibold tracking-tight whitespace-nowrap leading-none">
+          <h1 className="text-foreground text-base sm:text-lg font-semibold tracking-tight whitespace-nowrap leading-none">
             Point of sale
-          </span>
+          </h1>
           <div className="flex items-center gap-1 font-medium text-muted-foreground text-[10px] sm:text-xs">
             <StoreIcon className="h-3 w-3" />
             <span className="truncate max-w-[120px] sm:max-w-[200px]">
@@ -120,6 +121,7 @@ export function POSLayoutHeader({
             <Input
               ref={searchInputRef}
               type="text"
+              aria-label="Search products or SKU"
               placeholder="Search products or SKU"
               value={searchTerm}
               onChange={(e) => onSearchChange(e.target.value)}
@@ -163,6 +165,8 @@ export function POSLayoutHeader({
         <Button
           variant="outline"
           size="icon"
+          aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+          aria-pressed={isFullscreen}
           className="h-10 w-10 shrink-0 rounded-xl border-border/50 bg-background text-muted-foreground hover:text-foreground hidden lg:flex"
           onClick={() => {
             if (!document.fullscreenElement) {
@@ -196,6 +200,7 @@ export function POSLayoutHeader({
             size="icon"
             onClick={() => setIsTransferOpen(true)}
             className="h-10 w-10 shrink-0 rounded-xl border-border/50 bg-background text-muted-foreground hover:text-foreground"
+            aria-label="Request stock from another store"
             title="Request stock from another store"
           >
             <ArrowLeftRight className="h-4 w-4" />
@@ -207,6 +212,11 @@ export function POSLayoutHeader({
           variant="outline"
           size="icon"
           onClick={onOpenHeldSales}
+          aria-label={
+            heldSalesCount > 0
+              ? `Held transactions, ${heldSalesCount} held`
+              : "Held transactions"
+          }
           className={cn(
             "relative h-10 w-10 shrink-0 rounded-xl border-border/50 bg-background hover:text-foreground transition-colors",
             heldSalesCount > 0
@@ -216,7 +226,7 @@ export function POSLayoutHeader({
         >
           <FileClock className="h-5 w-5" />
           {heldSalesCount > 0 && (
-            <span className="absolute -top-1.5 -right-1.5 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-destructive px-1 text-[11px] font-bold text-destructive-foreground border-2 border-background">
+            <span aria-hidden="true" className="absolute -top-1.5 -right-1.5 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-destructive px-1 text-[11px] font-bold text-destructive-foreground border-2 border-background">
               {heldSalesCount > 99 ? "99+" : heldSalesCount}
             </span>
           )}

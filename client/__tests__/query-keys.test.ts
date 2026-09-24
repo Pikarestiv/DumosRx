@@ -13,6 +13,14 @@ vi.mock('../lib/db/core', async () => {
     execute: vi.fn(),
     query: vi.fn(),
     logAction: vi.fn(),
+    // insert()/update()/etc. in base-helpers.ts now wrap their writes in
+    // transaction() for atomicity (see docs/FIXED_BUGS.md's 2026-09-24
+    // entry). The real transaction() calls initDatabase() when `db` is unset
+    // - true in this test environment - which tries to load the real sql.js
+    // wasm binary and fails. Mocked to just invoke its callback directly,
+    // matching this suite's intent of exercising the predicate-building
+    // logic, not real transaction/DB semantics.
+    transaction: vi.fn((fn: () => unknown) => fn()),
   };
 });
 

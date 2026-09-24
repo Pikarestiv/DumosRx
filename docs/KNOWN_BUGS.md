@@ -12,7 +12,7 @@ This file holds **open** items only — see `docs/FIXED_BUGS.md` for the changel
 
 **Most important remaining risks:**
 - Two browser/PWA tabs open against the same install can silently destroy each other's entire local database (committed sales, stock movements, sync queue) with no error surfaced — inherent to the current sql.js + whole-blob IndexedDB persistence design, not a small patch (**C5**, still open).
-- The admin-session-cookie hardening documented in `web/AGENTS.md` (2026-08-26 redesign) has partially regressed: a sibling endpoint (`/refresh`) and the impersonation flow both still mint the pre-redesign cookie shape (`SameSite=None`, unscoped-ability token) under the same cookie name (**H1/M2/M3**, still open — the same "fix on one endpoint, not mirrored to its sibling" pattern the now-fixed staff-IDOR bug had).
+- ~~The admin-session-cookie hardening documented in `web/AGENTS.md` (2026-08-26 redesign) has partially regressed~~ — **fixed 2026-09-24** (was H1/M2/M3, the same "fix on one endpoint, not mirrored to its sibling" pattern the staff-IDOR bug had) — see `docs/FIXED_BUGS.md`.
 - Two production deployment/ops actions remain pending and are pure blockers, not code work: the 2026-09-23 migrations still need running on production (**C6**), and `FLUTTERWAVE_SECRET_HASH` needs confirming in production `.env` (**H4**).
 
 **Testing maturity:** Strong where it's been exercised — `TenantIsolationTest.php`, `SaleControllerTest.php`, the client's 794-file vitest suite, and repeated fixture-based reconciliation tests catch real regressions. Coverage was uneven going into this review: `StockBatchController`, `StockMovementController`, and `PurchaseOrderController` had **zero** feature tests (exactly where two of this review's Critical bugs lived), and `TenantIsolationTest.php` had a specific gap (store_id *reassignment* of an already-visible row, vs. rejecting an initially-invalid store_id) that let the `StaffController::update` IDOR through undetected. Both gaps are now closed — see `docs/FIXED_BUGS.md` — but the underlying lesson (coverage tends to exist for the *initial* creation-time check of a class of bug and not its update-time sibling) is worth keeping in mind when reviewing new endpoints.
@@ -57,23 +57,7 @@ Production migrations run through a protected route, not direct `artisan` access
 
 ## High Priority Findings
 
-### H1. `AuthController::refresh()` mints the hardened admin-session cookie with pre-redesign (weak) properties, bypassing its `device_name` gate
-- **Category:** Security — **Confirmed**
-- **File:** `laravel-server/app/Http/Controllers/Api/Concerns/AuthenticatesSessions.php::refresh()` (contrast with `login()` and `buildAdminSessionCookie()`)
-
-**What is wrong:** `login()` was correctly hardened to only mint the `drx_admin_session` refresh cookie when `device_name === 'web'`, via `buildAdminSessionCookie()` (`SameSite=Strict`, token scoped to the `refresh` ability only) — this closed a real CSRF-shaped hole (see `web/AGENTS.md`'s "Admin auth architecture" section). `refresh()` — the endpoint `AGENTS.md` explicitly says belongs to `client/`'s unrelated bearer-token flow — hardcodes its own inline cookie-building with **no `device_name` gate**, the pre-redesign `SameSite=None`-when-secure` policy, and the caller's full, unscoped bearer token (not `refresh`-ability-limited).
-
-**Why it matters:** `/refresh` sits behind plain `auth:sanctum` (any valid bearer token, any device). Every device that calls it — including `client/`'s Tauri desktop app, which refreshes silently after 7 days — causes the API to set a `drx_admin_session` cookie for the `.dumosrx.com` domain, `SameSite=None`, holding a general-purpose (non-ability-restricted) bearer token. This is exactly the credential shape ("unscoped token in a widely-sendable cookie") the 2026-08-26 redesign existed to eliminate.
-
-**How it fails in production:** If that response is ever processed by a browser context sharing the `dumosrx.com` cookie jar (a webview also touching `app.dumosrx.com`/`dumosrx.com`, or any future proxy/webview overlap), a raw, non-scoped bearer token sits in a `SameSite=None` cookie. Separately, any accidental client call to `/refresh` instead of `/admin/session/refresh` from an admin session would clobber the correct `Strict` cookie with a weaker one.
-
-**Recommended fix:** Delete the inline cookie-building in `refresh()` (it's an unaudited duplicate of the pre-fix pattern), or gate it the same way `login()` does and route it through `buildAdminSessionCookie()`.
-
-**Tests to add:** Assert `POST /refresh` with a non-`web` `device_name` token sets no `drx_admin_session` cookie; assert any cookie it does set (if kept) is `SameSite=Strict` and `refresh`-scoped.
-
-**Priority:** Fix soon — real exploitability today is gated by client cross-origin credential settings (see M-series findings below for the related impersonation-cookie issue, which has fewer mitigating preconditions), but this directly contradicts a documented, previously-audited security invariant.
-
----
+> **H1 fixed 2026-09-24**, along with M2/M3 below (the same admin-session-cookie hardening regression) — see `docs/FIXED_BUGS.md`.
 
 ### H2. `base-client.ts`'s 401 handler clears the auth token on network blips, undoing prior hardening
 - **Category:** Bug / Reliability — **Confirmed**
@@ -117,23 +101,7 @@ The Flutterwave webhook was previously (wrongly) authenticated against `encrypti
 
 ## Medium Priority Findings
 
-### M1. `StaffController::update()`'s `role` field has no privilege-ceiling check
-- **Category:** Security (latent privilege escalation) — **Highly Likely**
-- **File:** `StaffController::update()` vs. `SyncController::roleIsAtOrBelowCallerPrivilege()`
-
-The sync-push path explicitly caps any `role` grant to "at or below the caller's own privilege," with comments describing exactly the "cashier self-promotes" exploit it closes. `StaffController::update()`'s validation is just `'role' => 'string|in:admin,manager,...'` — any caller with `manage_staff` can set any staff row (including their own) to any listed role, with no comparison to their own privilege. Blast radius is limited *today* because `admin`/`store_owner`/`manager` currently share an identical permission set, but the gap becomes a real escalation the moment those roles are ever differentiated (already conceptually distinguished in seeder comments as "Store Admin" vs. "Store Manager"). **Fix:** reuse `roleIsAtOrBelowCallerPrivilege()` in `StaffController::update()` before accepting a role change. **Test:** pin today's "identical permission set" assumption so a future differentiation change is forced to also address this gate.
-
-### M2. Admin session cookie (`drx_admin_session`) is written by three inconsistent code paths
-- **Category:** Security / Architecture — **Confirmed** facts, **Possible** practical exploitability (gated by client credential settings)
-- **File:** `AuthenticatesSessions::refresh()`, `AdminStoreController::impersonateStore()`/`restoreSession()`
-
-Beyond H1's `refresh()` issue: `impersonateStore()`/`restoreSession()` also write the same cookie name/domain with a full-ability token and `SameSite=None` in production; `restoreSession()`'s own doc comment still references the deleted `AuthenticateFromCookie` middleware. The realistic live-risk path is impersonation specifically, since it's a routine, real admin action (not hypothetical) whose response the admin's own browser genuinely processes. **Fix:** give these flows their own distinctly-named cookie, or route all `drx_admin_session` writes through the existing `buildAdminSessionCookie()`/`forgetAdminSessionCookie()` helpers. **Test:** assert `impersonateStore()`'s `Set-Cookie` is `SameSite=Strict`; assert a `refresh()`/`impersonateStore()`-minted token can't satisfy `refreshAdminSession()`'s ability check unless scoped to `['refresh']`.
-
-### M3. `impersonateStore()` overwrites the super_admin's own refresh cookie with the impersonated user's token
-- **Category:** Security / Reliability — **Confirmed**, impact mitigated (no cross-privilege hijack results, just session breakage)
-- **File:** `AdminStoreController::impersonateStore()`
-
-The impersonated store owner's full bearer token gets written into the same `drx_admin_session` cookie name the admin's own `Strict`, `refresh`-scoped cookie uses. The next `POST /admin/session/refresh` call correctly rejects it (ability mismatch) and 401s — so the admin is silently logged out of their own `dumosrx.com` session by the act of impersonating, producing confusing "randomly logged out after impersonating" reports. Also means a subsequent `/logout` deletes the impersonated user's token instead of the admin's own. **Fix:** stop writing `drx_admin_session` from `impersonateStore()` entirely — the frontend consumes the token from the JSON body, not this cookie.
+> **M1, M2, M3 fixed 2026-09-24** — see `docs/FIXED_BUGS.md`. M1 (role-privilege ceiling) was fixed alongside C1 (same function, `StaffController::update()`); M2/M3 (admin-session-cookie inconsistencies) were fixed alongside H1 (same underlying cookie-hardening regression).
 
 ### M4. Impersonation "End Session" is expected to fail in ordinary use — 60s handoff-code TTL vs. minutes-long real sessions
 - **Category:** Reliability / Bug — **Highly Likely**
@@ -227,11 +195,11 @@ New store-level toggle, default `0` (explicit, deliberate product requirement). 
 |---|---|---|
 | Cross-tenant staff reassignment IDOR | Critical | **Fixed** 2026-09-24 |
 | Hardcoded super-admin password in production seeder | Critical | **Fixed** 2026-09-24 |
-| H1 — `/refresh` mints weak admin-session cookie, bypasses device gate | High | Open |
+| `/refresh` mints weak admin-session cookie, bypasses device gate | High | **Fixed** 2026-09-24 |
 | H4 — `FLUTTERWAVE_SECRET_HASH` production `.env` status unverified | High | Open (needs prod confirmation) |
-| M1 — `StaffController::update()` role has no privilege ceiling | Medium | Open |
-| M2 — inconsistent `drx_admin_session` cookie issuance across 3 paths | Medium | Open |
-| M3 — impersonation overwrites admin's own session cookie | Medium | Open |
+| `StaffController::update()` role has no privilege ceiling | Medium | **Fixed** 2026-09-24 |
+| Inconsistent `drx_admin_session` cookie issuance across 3 paths | Medium | **Fixed** 2026-09-24 |
+| Impersonation overwrites admin's own session cookie | Medium | **Fixed** 2026-09-24 |
 | M8 — `chmod 777` on deployed Laravel storage/cache | Medium | Open |
 | M9 — transitive Symfony CVEs (routing/yaml) | Medium | Open |
 | M11 — auth token in `localStorage`, not HttpOnly cookie | Medium | Open (accepted tradeoff) |
@@ -253,7 +221,7 @@ Areas specifically audited and found **clean** (no regression, matches documente
 
 ## Architecture & Maintainability
 
-- **The recurring failure pattern across this review's Critical/High findings is "fix applied to one endpoint, not mirrored to a structurally identical sibling"**: `StaffController::store()` vs. `update()` (fixed — see `FIXED_BUGS.md`); `AuthController::login()` vs. `refresh()`/`impersonateStore()` (H1, M2, M3, still open); `ProductController`/`CustomerController`'s tenant-scoping fix vs. `StockBatchController`/`StockMovementController`/`PurchaseOrderController` (fixed — see `FIXED_BUGS.md`). **What's wrong:** each fix closed one instance of a class of bug without a mechanism to prevent the same class recurring in a sibling file. **Why it matters:** `laravel-server/tests/Feature/ArchitectureTest.php` already exists specifically to keep one such convention (Controller/Service separation) honest via a test rather than review alone — the same approach could catch this pattern. **Recommended change (still open):** add an architecture test asserting every controller under `Api/App/*`/`Api/Web/*` that queries a tenant-owned table (`stock_batches`, `stock_movements`, `purchase_orders`, `products`, etc.) either `use`s `ScopesToTenant` or is on an explicit allow-list — this would have caught the stock-batch/movement/PO scoping bug mechanically, and would catch the next instance of this pattern automatically instead of needing another manual review pass.
+- **The recurring failure pattern across this review's Critical/High findings is "fix applied to one endpoint, not mirrored to a structurally identical sibling"**: `StaffController::store()` vs. `update()`, `AuthController::login()` vs. `refresh()`/`impersonateStore()`, and `ProductController`/`CustomerController`'s tenant-scoping fix vs. `StockBatchController`/`StockMovementController`/`PurchaseOrderController` — all three now fixed, see `FIXED_BUGS.md`. **What's wrong:** each original fix closed one instance of a class of bug without a mechanism to prevent the same class recurring in a sibling file. **Why it matters:** `laravel-server/tests/Feature/ArchitectureTest.php` already exists specifically to keep one such convention (Controller/Service separation) honest via a test rather than review alone — the same approach could catch this pattern. **Recommended change (still open):** add an architecture test asserting every controller under `Api/App/*`/`Api/Web/*` that queries a tenant-owned table (`stock_batches`, `stock_movements`, `purchase_orders`, `products`, etc.) either `use`s `ScopesToTenant` or is on an explicit allow-list — this would have caught the stock-batch/movement/PO scoping bug mechanically, and would catch the next instance of this pattern automatically instead of needing another manual review pass. All three now-fixed instances also picked up a shared trait as part of their fix (`EnforcesStaffOwnership`, `ManagesAdminSessionCookie`) specifically so they can't drift apart again — the architecture test would still be valuable as a backstop for the *next* new instance of this pattern, not these three.
 - **`client/lib/db/base-helpers.ts`'s per-row-write transaction pattern (M6)** is otherwise sound (already hardened against several documented partial-write scenarios) — the legacy-row claim gap is a narrow miss in an otherwise well-designed piece of infrastructure, not a sign of a broader problem.
 - **The multi-tab data-loss risk (C5)** is a consequence of an architectural choice (sql.js + whole-blob IndexedDB persistence, one instance per tab) made for good reasons (offline-first, no server dependency) — not a design mistake, but a gap in that design that should be closed deliberately rather than patched incidentally.
 - **Dependency drift between `client/` and `web/` (M10)** is a natural consequence of the two apps evolving independently before the current migration effort began; worth resolving as part of that migration's own scope rather than as a standalone task.
@@ -266,7 +234,7 @@ Areas specifically audited and found **clean** (no regression, matches documente
 - ~~**`TenantIsolationTest.php` gap:** doesn't test *reassigning* an already-visible row's `store_id` to a foreign tenant~~ — **closed 2026-09-24**: `test_staff_update_rejects_reassigning_store_id_to_another_tenant` added. Still worth treating as a template for auditing any *other* endpoint that accepts a foreign-key field pointing at tenant-scoped data on update — this class of gap isn't proven closed everywhere, just at this one site.
 - **No test exercises cross-tab/cross-instance persistence** in `client/lib/db/` (C5) — all existing DB tests use a single injected database instance. A harness simulating two independent instances sharing a mocked IndexedDB store would need to be built from scratch to cover this.
 - **No test covers `usePOSPayment.handlePayment`'s double-invocation behavior** (M5) — add a synchronous double-call test against a mocked transaction runner.
-- **No test pins the admin-session-cookie's security properties** (`SameSite`, ability-scoping) at the endpoints identified in H1/M2/M3 — add feature tests asserting cookie attributes directly, not just functional login/refresh behavior, since this is exactly the kind of property that regresses silently (as it did here).
+- ~~**No test pins the admin-session-cookie's security properties**~~ — **closed 2026-09-24**: `AdminSessionCookieTest.php` now asserts `SameSite`/cookie-presence directly at `refresh()`, `login()`, `impersonateStore()`, and `restoreSession()`.
 - **`composer audit`/`npm audit` are not run in CI** (inferred from workflow contents — none of the five workflows invoke either) — the dependency CVEs in H3/M9 would have been caught automatically. Add an audit step (non-blocking initially, since some advisories currently have no fix) to at least surface new ones going forward.
 
 ---
@@ -284,17 +252,16 @@ Areas specifically audited and found **clean** (no regression, matches documente
 
 ## Suggested Fix Order
 
-**Done (2026-09-24):** the cross-tenant staff IDOR + role-privilege ceiling, the stock-batch/movement/PO 500s + tenant under-scoping, and the hardcoded seeder password are all fixed, tested, and merged — see `docs/FIXED_BUGS.md`. Remaining order below, renumbered:
+**Done (2026-09-24):** the cross-tenant staff IDOR + role-privilege ceiling, the stock-batch/movement/PO 500s + tenant under-scoping, the hardcoded seeder password, and the admin-session-cookie hardening regression (former H1/M2/M3) are all fixed, tested, and merged — see `docs/FIXED_BUGS.md`. Remaining order below, renumbered:
 
-1. **C6** (deploy the pending 2026-09-23 migrations) and **H4** (confirm `FLUTTERWAVE_SECRET_HASH` in production) — pure deployment/ops actions, zero remaining code risk (the seeder-password issue that same route also re-ran on every hit is now fixed), should not wait on anything else.
-2. **H1, M2, M3** (admin-session-cookie inconsistencies) — same shape of bug as the now-fixed staff-IDOR (a fix on one endpoint not mirrored to a sibling); fix as one pass.
-3. **H2** (client token cleared on network blips) — a reliability regression of previously-fixed behavior; moderate effort, real user impact (devices silently unlinking from sync).
-4. **M5** (POS double-submit guard) — small, isolated, high-value fix given the touchscreen deployment target.
-5. **M6** (legacy-row claim transaction boundary), **M7–M9** (CI/CD hardening: concurrency guards, `chmod`, Symfony bump) — batch as a CI/infra hardening pass.
-6. **H3** (Next.js/xlsx CVE remediation) — schedule with normal regression testing given these are major-adjacent framework bumps.
-7. **Recommended Engineering Improvement #1** (the `ScopesToTenant`-usage architecture test) — do this alongside item 2 above if possible, since it directly targets the pattern behind both the fixed staff-IDOR and stock-batch/movement/PO bugs, and would have caught the admin-cookie inconsistency's sibling-drift shape too if adapted to that concern.
-8. **C5** (multi-tab data loss) and **M10/M11** (dependency drift, localStorage-token architecture) — schedule as their own design passes; not blocking for the above, but shouldn't be indefinitely deferred given C5's silent-data-loss nature.
-9. **M13** (reseller-sale rollout communication) — not a code task; confirm with product/support whether the release note already went out, then remove the entry.
-10. **M12, L1–L6** — low-effort cleanup/accepted tradeoffs, bundle into any of the above passes opportunistically.
+1. **C6** (deploy the pending 2026-09-23 migrations) and **H4** (confirm `FLUTTERWAVE_SECRET_HASH` in production) — pure deployment/ops actions, zero remaining code risk, should not wait on anything else.
+2. **H2** (client token cleared on network blips) — a reliability regression of previously-fixed behavior; moderate effort, real user impact (devices silently unlinking from sync).
+3. **M5** (POS double-submit guard) — small, isolated, high-value fix given the touchscreen deployment target.
+4. **M6** (legacy-row claim transaction boundary), **M7–M9** (CI/CD hardening: concurrency guards, `chmod`, Symfony bump) — batch as a CI/infra hardening pass.
+5. **H3** (Next.js/xlsx CVE remediation) — schedule with normal regression testing given these are major-adjacent framework bumps.
+6. **Recommended Engineering Improvement #1** (the `ScopesToTenant`-usage architecture test) — still the single highest-leverage remaining change, since it's a backstop against the *next* instance of the "fix not mirrored to sibling" pattern, not just the three already fixed.
+7. **C5** (multi-tab data loss) and **M10/M11** (dependency drift, localStorage-token architecture) — schedule as their own design passes; not blocking for the above, but shouldn't be indefinitely deferred given C5's silent-data-loss nature.
+8. **M13** (reseller-sale rollout communication) — not a code task; confirm with product/support whether the release note already went out, then remove the entry.
+9. **M12, L1–L6** — low-effort cleanup/accepted tradeoffs, bundle into any of the above passes opportunistically.
 
 This order pulls pure-ops items (C6, H4) to the front regardless of severity ranking, since they require no code changes and are pending only on someone triggering a deploy.

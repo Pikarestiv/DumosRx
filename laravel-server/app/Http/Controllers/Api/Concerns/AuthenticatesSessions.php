@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Concerns;
 
+use App\Http\Controllers\Concerns\ManagesAdminSessionCookie;
 use App\Models\User;
 use App\Services\SubscriptionService;
 use App\Mail\NewDeviceLoginEmail;
@@ -29,6 +30,8 @@ use OpenApi\Attributes as OA;
  */
 trait AuthenticatesSessions
 {
+    use ManagesAdminSessionCookie;
+
     #[OA\Post(
         path: '/login',
         summary: 'Log in and obtain a Sanctum bearer token',
@@ -175,7 +178,7 @@ trait AuthenticatesSessions
     #[OA\Post(
         path: '/refresh',
         summary: 'Rotate the current access token',
-        description: 'Deletes the current token and issues a new one (also refreshes the `drx_admin_session` cookie).',
+        description: "Deletes the current token and issues a new one. This is client/'s bearer-token-only flow (see token-manager.ts's refreshTokenSilently) — it does not touch the drx_admin_session cookie; that belongs entirely to /admin/session/refresh's separate, ability-scoped refresh-cookie flow.",
         tags: ['Auth'],
         security: [['sanctum' => []]],
         responses: [
@@ -192,20 +195,19 @@ trait AuthenticatesSessions
         $user->currentAccessToken()->delete();
         $token = $user->createToken("web")->plainTextToken;
 
+        // Previously also set drx_admin_session here, unconditionally, to
+        // the full-ability token above with the pre-2026-08-26-redesign
+        // SameSite=None pattern — reachable by ANY bearer-token caller
+        // (this route has no device_name gate, unlike login()'s equivalent
+        // cookie-minting), reintroducing exactly the credential shape
+        // (general-ability token in a widely-sendable cookie) that redesign
+        // eliminated. This endpoint is client/'s bearer-token-only flow
+        // (see AGENTS.md) and has no cookie dependency at all — removed
+        // rather than gated, since it never needed to set this cookie.
         return response()->json([
             "token" => $token,
             "user" => $user,
-        ])->withCookie(cookie(
-                    "drx_admin_session",
-                    $token,
-                    60 * 24,
-                    "/",
-                    $request->getHost() === "localhost" || filter_var($request->getHost(), FILTER_VALIDATE_IP) ? null : "." . implode(".", array_slice(explode(".", $request->getHost()), -2)),
-                    $request->isSecure(),
-                    true,
-                    false,
-                    $request->isSecure() ? "None" : "Lax"
-                ));
+        ]);
     }
 
     #[OA\Post(
@@ -269,45 +271,9 @@ trait AuthenticatesSessions
         return $request->user();
     }
 
-    private function adminSessionCookieDomain(Request $request): ?string
-    {
-        return $request->getHost() === 'localhost' || filter_var($request->getHost(), FILTER_VALIDATE_IP)
-            ? null
-            : '.' . implode('.', array_slice(explode('.', $request->getHost()), -2));
-    }
-
-    private function buildAdminSessionCookie(Request $request, string $value)
-    {
-        return cookie(
-            'drx_admin_session',
-            $value,
-            60 * 24,
-            '/',
-            $this->adminSessionCookieDomain($request),
-            $request->isSecure(),
-            true, // httpOnly
-            false,
-            // Strict: this cookie now only ever needs to be sent to our own
-            // /admin/session/refresh endpoint from our own admin panel, so
-            // it never needs to travel cross-site. Closes off the CSRF-shaped
-            // hole the old SameSite=None + global cookie-to-header promotion
-            // combination left open.
-            'Strict'
-        );
-    }
-
-    private function forgetAdminSessionCookie(Request $request)
-    {
-        return cookie(
-            'drx_admin_session',
-            '',
-            -1,
-            '/',
-            $this->adminSessionCookieDomain($request),
-            $request->isSecure(),
-            true,
-            false,
-            'Strict'
-        );
-    }
+    // adminSessionCookieDomain()/buildAdminSessionCookie()/
+    // forgetAdminSessionCookie() now live on the shared
+    // ManagesAdminSessionCookie trait (used above), so this controller and
+    // AdminStoreController's impersonation flow can't drift apart on the
+    // cookie's security attributes again.
 }

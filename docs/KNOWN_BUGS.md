@@ -85,11 +85,7 @@ The Flutterwave webhook was previously (wrongly) authenticated against `encrypti
 
 > **M1, M2, M3 fixed 2026-09-24** — see `docs/FIXED_BUGS.md`. M1 (role-privilege ceiling) was fixed alongside C1 (same function, `StaffController::update()`); M2/M3 (admin-session-cookie inconsistencies) were fixed alongside H1 (same underlying cookie-hardening regression).
 
-### M4. Impersonation "End Session" is expected to fail in ordinary use — 60s handoff-code TTL vs. minutes-long real sessions
-- **Category:** Reliability / Bug — **Highly Likely**
-- **File:** `client/components/dashboard/impersonation-banner.tsx`, `AuthHandoffController` (`TTL_SECONDS = 60`)
-
-The return-hop handoff code is minted once, at impersonation start, and expires after 60 seconds — but the UI holds onto it in `localStorage` for the entire impersonation session, which realistically lasts minutes. Every admin who impersonates for longer than a minute and clicks "End Session" hits the expired-code branch and is bounced to a fresh login instead of returning smoothly. This is the expected outcome of normal use, not an edge case. **Fix:** either mint a fresh return-mechanism at click time rather than relying on session-start-time state, or keep the admin's own tab open in parallel so returning is just navigating back (which works via the independent HttpOnly cookie regardless of the handoff code).
+> **M4 fixed 2026-09-24** — see `docs/FIXED_BUGS.md`.
 
 > **M5 fixed 2026-09-24** — see `docs/FIXED_BUGS.md`.
 

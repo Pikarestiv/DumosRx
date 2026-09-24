@@ -211,7 +211,7 @@ class StorefrontControllerTest extends TestCase
             // Verified real payment, but for less than the 2-unit order total (200).
             $mock->shouldReceive('verifyTransaction')
                 ->once()
-                ->andReturn(['success' => true, 'amount' => 100]);
+                ->andReturn(['success' => true, 'amount' => 100, 'currency' => 'NGN']);
         });
 
         $response = $this->postJson('/api/v1/storefront/store-a/checkout', [
@@ -233,7 +233,7 @@ class StorefrontControllerTest extends TestCase
         $this->mock(PaymentService::class, function ($mock) {
             $mock->shouldReceive('verifyTransaction')
                 ->once()
-                ->andReturn(['success' => true, 'amount' => 100]);
+                ->andReturn(['success' => true, 'amount' => 100, 'currency' => 'NGN']);
         });
 
         $response = $this->postJson('/api/v1/storefront/store-a/checkout', [
@@ -345,7 +345,7 @@ class StorefrontControllerTest extends TestCase
         $this->mock(PaymentService::class, function ($mock) {
             $mock->shouldReceive('verifyTransaction')
                 ->once()
-                ->andReturn(['success' => true, 'amount' => 100]);
+                ->andReturn(['success' => true, 'amount' => 100, 'currency' => 'NGN']);
         });
 
         $first = $this->postJson('/api/v1/storefront/store-a/checkout', [

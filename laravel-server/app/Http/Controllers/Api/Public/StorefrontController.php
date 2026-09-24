@@ -252,7 +252,23 @@ class StorefrontController extends Controller
         // transfer/in_store order could otherwise consume a reference a
         // genuine Paystack checkout needs later.
         if (!empty($validated['paystack_reference'])) {
-            $alreadyUsed = \App\Models\OnlineOrder::where('paystack_reference', $validated['paystack_reference'])->exists();
+            // withTrashed(): OnlineOrder soft-deletes, so a cancelled/deleted
+            // order still has permanently consumed its reference - without
+            // this the same reference could be replayed by first getting the
+            // order it paid for deleted.
+            $alreadyUsed = \App\Models\OnlineOrder::withTrashed()
+                ->where('paystack_reference', $validated['paystack_reference'])
+                ->exists();
+
+            // A subscription payment is recorded in payment_transactions, not
+            // online_orders, so without this check a reference already
+            // consumed to activate somebody's plan could be replayed here to
+            // get storefront goods for free (and vice-versa).
+            if (!$alreadyUsed) {
+                $alreadyUsed = \App\Models\PaymentTransaction::where('provider_reference', $validated['paystack_reference'])
+                    ->exists();
+            }
+
             if ($alreadyUsed) {
                 return response()->json([
                     'message' => 'This payment reference has already been used for another order.',
@@ -263,7 +279,16 @@ class StorefrontController extends Controller
         $paymentStatus = 'pending';
         if ($validated['payment_method'] === 'paystack') {
             $verification = $paymentService->verifyTransaction($validated['paystack_reference'], 'paystack');
-            if (!($verification['success'] ?? false) || (float) ($verification['amount'] ?? 0) < $totalAmount) {
+
+            // The amount is only comparable to the order total if it settled
+            // in the same currency the catalogue is priced in.
+            $verifiedCurrency = strtoupper((string) ($verification['currency'] ?? ''));
+            $expectedCurrency = strtoupper((string) config('payment.currency', 'NGN'));
+
+            if (!($verification['success'] ?? false)
+                || $verifiedCurrency !== $expectedCurrency
+                || (float) ($verification['amount'] ?? 0) < $totalAmount
+            ) {
                 return response()->json([
                     'message' => 'Payment could not be verified for this order.',
                 ], 422);
@@ -272,18 +297,28 @@ class StorefrontController extends Controller
         }
 
         try {
-            $order = \App\Models\OnlineOrder::create([
-                'store_id' => $store->id,
-                'customer_name' => $validated['customer_name'],
-                'customer_phone' => $validated['customer_phone'],
-                'customer_address' => $validated['customer_address'] ?? null,
-                'total_amount' => $totalAmount,
-                'payment_method' => $validated['payment_method'],
-                'payment_status' => $paymentStatus,
-                'order_status' => 'pending',
-                'paystack_reference' => $validated['paystack_reference'] ?? null,
-                'synced_at' => now(), // Initial sync timestamp
-            ]);
+            // The order and its items are written together: a failure
+            // part-way through would otherwise leave a paid order with zero
+            // items while having permanently burned the payment reference
+            // (the unique index means it can never be retried).
+            $order = \Illuminate\Support\Facades\DB::transaction(function () use ($store, $validated, $totalAmount, $paymentStatus, $orderItems) {
+                $order = \App\Models\OnlineOrder::create([
+                    'store_id' => $store->id,
+                    'customer_name' => $validated['customer_name'],
+                    'customer_phone' => $validated['customer_phone'],
+                    'customer_address' => $validated['customer_address'] ?? null,
+                    'total_amount' => $totalAmount,
+                    'payment_method' => $validated['payment_method'],
+                    'payment_status' => $paymentStatus,
+                    'order_status' => 'pending',
+                    'paystack_reference' => $validated['paystack_reference'] ?? null,
+                    'synced_at' => now(), // Initial sync timestamp
+                ]);
+
+                $order->items()->createMany($orderItems);
+
+                return $order;
+            });
         } catch (\Illuminate\Database\QueryException $e) {
             // Belt-and-braces against the check-then-create race: the
             // unique index on paystack_reference is the actual source of
@@ -295,8 +330,6 @@ class StorefrontController extends Controller
             }
             throw $e;
         }
-
-        $order->items()->createMany($orderItems);
 
         // Notify store users. Store has no users() relationship - staff
         // resolve to it via their own store_id, the owner via Store.user_id

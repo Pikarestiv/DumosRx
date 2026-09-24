@@ -513,8 +513,16 @@ class SubscriptionController extends Controller
         // 13124.124), while what actually comes back from the provider is
         // always a whole kobo amount (e.g. 13124.12); without this a
         // genuine full payment would otherwise fail a strict `<` compare.
+        // The amount alone is meaningless without the unit it was paid in:
+        // both providers report the settlement currency, so a charge for
+        // "13124" of anything other than the naira the transaction was
+        // created in must not be allowed to satisfy it.
         $verifiedAmount = (float) ($verification['amount'] ?? 0);
-        if (!$verification['success'] || $verifiedAmount < (float) $txn->amount - 0.01) {
+        $verifiedCurrency = strtoupper((string) ($verification['currency'] ?? ''));
+        $expectedCurrency = strtoupper((string) ($txn->currency ?: 'NGN'));
+        $currencyOk = $verifiedCurrency === $expectedCurrency;
+
+        if (!$verification['success'] || !$currencyOk || $verifiedAmount < (float) $txn->amount - 0.01) {
             // Locked and re-checked the same way activateSubscriptionFromTransaction()
             // is, so a stale/short verify call arriving after the webhook has
             // already activated the subscription can't stomp its 'success'

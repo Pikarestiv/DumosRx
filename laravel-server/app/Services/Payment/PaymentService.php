@@ -81,9 +81,16 @@ class PaymentService
 
     protected function initializeFlutterwave($amount, $email, $metadata)
     {
+        // Flutterwave's POST /v3/payments response body only carries
+        // {"data": {"link": ...}} - it does NOT echo tx_ref back. Reading it
+        // out of the response therefore stored a NULL reference on the
+        // PaymentTransaction, so no webhook or verify call could ever match
+        // it again. Keep the locally generated ref and return that.
+        $txRef = 'DRX-FW-' . uniqid();
+
         $response = Http::withToken($this->flutterwaveKey)
             ->post('https://api.flutterwave.com/v3/payments', [
-                'tx_ref' => 'DRX-FW-' . uniqid(),
+                'tx_ref' => $txRef,
                 'amount' => $amount,
                 'currency' => 'NGN',
                 'redirect_url' => config('app.frontend_url') . '/dashboard/subscription/verify',
@@ -105,7 +112,7 @@ class PaymentService
 
         return [
             'provider' => 'flutterwave',
-            'reference' => $data['data']['tx_ref'], // Note: FW uses tx_ref for tracking
+            'reference' => $txRef, // Note: FW uses tx_ref for tracking
             'checkout_url' => $data['data']['link']
         ];
     }
@@ -135,6 +142,10 @@ class PaymentService
         return [
             'success' => $data['data']['status'] === 'success',
             'amount' => $data['data']['amount'] / 100,
+            // Paystack returns the currency the charge actually settled in.
+            // Callers must assert it, otherwise a charge in a weaker unit
+            // (e.g. 5000 of some other currency) can satisfy a naira amount.
+            'currency' => $data['data']['currency'] ?? null,
             'data' => $data['data']
         ];
     }
@@ -154,6 +165,7 @@ class PaymentService
         return [
             'success' => $data['data']['status'] === 'successful',
             'amount' => $data['data']['amount'],
+            'currency' => $data['data']['currency'] ?? null,
             'data' => $data['data']
         ];
     }

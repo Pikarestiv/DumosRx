@@ -318,7 +318,9 @@ export async function recordSaleItemStock({
   return saleItemId;
 }
 
-export async function getExpiringBatches(days: number) {
+// Same 90-day default as getStockBatchStats / the schema, so an omitted
+// argument can never narrow the window below what the UI caption promises.
+export async function getExpiringBatches(days: number = 90) {
   const storeId = getActiveStoreId();
   return query<ExpiringItem>(
     `
@@ -436,7 +438,10 @@ export interface StockBatchStatsRow {
   active_categories: number;
 }
 
-export async function getStockBatchStats(expiryDays: number = 30) {
+// Default 90, matching `expiry_warning_days INTEGER DEFAULT 90` in the schema
+// and every UI caption/fallback. A 30 here silently re-introduced the
+// count-vs-caption mismatch for any caller that omits the argument.
+export async function getStockBatchStats(expiryDays: number = 90) {
   const storeId = getActiveStoreId();
   const result = await query<StockBatchStatsRow>(
     `SELECT

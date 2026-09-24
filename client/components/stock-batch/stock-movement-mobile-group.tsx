@@ -48,8 +48,16 @@ export function StockMovementMobileGroup({
           return (
             <div
               key={movement.id}
+              role="button"
+              tabIndex={0}
               onClick={() => onSelect(movement)}
-              className="flex items-center gap-3 p-3 rounded-xl border border-border bg-card shadow-sm cursor-pointer hover:bg-accent/50 transition-colors"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onSelect(movement);
+                }
+              }}
+              className="flex items-center gap-3 p-3 rounded-xl border border-border bg-card shadow-sm cursor-pointer hover:bg-accent/50 transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring"
             >
               <div
                 className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${iconBg}`}

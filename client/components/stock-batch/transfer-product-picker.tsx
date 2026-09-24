@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { searchProducts } from "@/lib/utils/search";
@@ -52,6 +52,7 @@ export function TransferProductPicker({
   const [term, setTerm] = useState("");
   const [activeIndex, setActiveIndex] = useState(-1);
   const containerRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   // Product names are always stored lowercase — same display convention as
   // everywhere else product names render (stock-movement-desktop-row.tsx,
   // catalog-list.tsx, pos-product-list.tsx, ...).
@@ -80,6 +81,21 @@ export function TransferProductPicker({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Per-instance ids: the input keeps DOM focus and names the highlighted
+  // row through aria-activedescendant.
+  const listboxId = useId();
+  const rowId = (index: number) => `${listboxId}-row-${index}`;
+
+  // The input holds focus, so nothing scrolls the list on its own.
+  useEffect(() => {
+    if (!open || activeIndex < 0) return;
+    listRef.current
+      ?.querySelector<HTMLElement>(`#${CSS.escape(rowId(activeIndex))}`)
+      ?.scrollIntoView({ block: "nearest" });
+    // rowId derives from listboxId, stable for this instance.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeIndex, open]);
+
   const commit = (product: TransferableProductRow | null) => {
     onSelect(product ? product.id : "");
     setTerm(product ? product.name : "");
@@ -89,6 +105,13 @@ export function TransferProductPicker({
   return (
     <div className="relative w-full" ref={containerRef}>
       <Input
+        role="combobox"
+        aria-expanded={open}
+        aria-controls={open ? listboxId : undefined}
+        aria-autocomplete="list"
+        aria-activedescendant={
+          open && activeIndex >= 0 ? rowId(activeIndex) : undefined
+        }
         value={term}
         disabled={disabled}
         autoComplete="off"
@@ -107,7 +130,16 @@ export function TransferProductPicker({
             setActiveIndex((prev) => Math.min(prev + 1, filtered.length - 1));
           } else if (e.key === "ArrowUp") {
             e.preventDefault();
+            if (!open) setOpen(true);
             setActiveIndex((prev) => Math.max(prev - 1, 0));
+          } else if (e.key === "Home" && open) {
+            e.preventDefault();
+            setActiveIndex(0);
+          } else if (e.key === "End" && open) {
+            e.preventDefault();
+            setActiveIndex(filtered.length - 1);
+          } else if (e.key === "Tab") {
+            setOpen(false);
           } else if (e.key === "Enter" && open) {
             e.preventDefault();
             if (activeIndex >= 0 && activeIndex < filtered.length) {
@@ -124,7 +156,13 @@ export function TransferProductPicker({
       />
       {open && (
         <div className="absolute z-[999] w-full mt-1 bg-popover text-popover-foreground shadow-xl rounded-md border border-border outline-none animate-in fade-in-0 zoom-in-95 overflow-hidden">
-          <div className="max-h-60 overflow-y-auto p-1">
+          <div
+            ref={listRef}
+            id={listboxId}
+            role="listbox"
+            aria-label={placeholder || "Products"}
+            className="max-h-60 overflow-y-auto p-1"
+          >
             {filtered.length === 0 && (
               <div className="px-2 py-2 text-sm text-muted-foreground">
                 {loading ? "Loading products..." : emptyText}
@@ -133,6 +171,9 @@ export function TransferProductPicker({
             {filtered.map((product, idx) => (
               <div
                 key={product.id}
+                id={rowId(idx)}
+                role="option"
+                aria-selected={product.id === productId}
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => commit(product)}
                 className={cn(

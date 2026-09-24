@@ -60,12 +60,14 @@ export function POMobileEditView({
           paddingBottom: "0.75rem",
         }}
       >
-        <div
-          className="w-[38px] h-[38px] rounded-[10px] bg-muted flex items-center justify-center cursor-pointer text-muted-foreground shrink-0 hover:bg-muted/80 transition-colors"
+        <button
+          type="button"
+          aria-label="Back"
+          className="w-[38px] h-[38px] rounded-[10px] bg-muted flex items-center justify-center cursor-pointer text-muted-foreground shrink-0 hover:bg-muted/80 transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring"
           onClick={() => router.push("/procurement")}
         >
           <ArrowLeft className="w-[17px] h-[17px]" />
-        </div>
+        </button>
         <div className="min-w-0">
           <div className="text-[15px] font-serif font-bold leading-tight">
             Edit Purchase Order

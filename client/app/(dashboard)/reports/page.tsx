@@ -49,6 +49,9 @@ export default function ReportsPage() {
 
   return (
     <Tabs value={activeTab} onValueChange={handleTabChange} className="gap-4">
+      {/* The page design has no title slot; a top-level heading is still
+          required for screen-reader/landmark navigation (WCAG 1.3.1/2.4.6). */}
+      <h1 className="sr-only">Reports</h1>
       <div className="flex flex-col md:flex-row md:items-center gap-2.5">
         <ReportsTabNav isAdmin={isAdmin} />
 

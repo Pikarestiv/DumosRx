@@ -52,10 +52,24 @@ export function ExpenseDesktopRow({
 
   return (
     <div
-      className="group absolute top-0 left-0 w-full grid grid-cols-[110px_150px_1fr_130px_120px_28px] gap-2 items-center px-5 py-3.5 border-b border-border/50 hover:bg-muted/50 cursor-pointer transition-colors"
+      // Not a real <button>: the row itself is clickable but also contains
+      // its own inline-edit controls (select, number cell, save/cancel
+      // buttons), and nesting those inside a button is invalid HTML.
+      role="button"
+      tabIndex={isEditing ? -1 : 0}
+      className="group absolute top-0 left-0 w-full grid grid-cols-[110px_150px_1fr_130px_120px_28px] gap-2 items-center px-5 py-3.5 border-b border-border/50 hover:bg-muted/50 cursor-pointer transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
       style={style}
       onClick={() => {
         if (!isEditing) onSelect();
+      }}
+      onKeyDown={(e) => {
+        // Only when the row itself has focus - otherwise Space/Enter typed
+        // into one of the inline-edit fields would re-open the detail panel.
+        if (e.target !== e.currentTarget) return;
+        if (!isEditing && (e.key === "Enter" || e.key === " ")) {
+          e.preventDefault();
+          onSelect();
+        }
       }}
     >
       <div className="text-[13px] font-medium">

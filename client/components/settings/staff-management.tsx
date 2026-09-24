@@ -187,6 +187,7 @@ export function StaffManagement() {
               value={search}
               onChange={setSearch}
               placeholder="Search by name or username"
+              aria-label="Search staff"
               inputClassName="bg-muted border-transparent"
             />
 

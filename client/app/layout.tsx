@@ -60,8 +60,8 @@ export const metadata: Metadata = {
 export const viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  // No maximumScale/userScalable: blocking pinch-zoom is a WCAG 1.4.4 (Resize
+  // Text) failure. Nothing in the app depends on a fixed viewport scale.
   viewportFit: "cover",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "white" },

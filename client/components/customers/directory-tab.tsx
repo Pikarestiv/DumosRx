@@ -142,6 +142,7 @@ export function DirectoryTab({
       <input
         type="text"
         placeholder="Search customers by name, email, or phone"
+        aria-label="Search customers"
         value={searchTerm}
         onChange={(e) => onSearchChange(e.target.value)}
         className="w-full bg-card border border-border lg:bg-muted lg:border-none rounded-[10px] pl-9 pr-4 py-2 text-[13px] focus:ring-1 focus:ring-primary outline-none"

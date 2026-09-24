@@ -33,7 +33,7 @@
   --popover-foreground: oklch(0.205 0 0); /* #1f2937 - popover text */
   --primary: oklch(0.55 0.18 250); /* Dumos Blue */
   --primary-foreground: oklch(1 0 0); /* #ffffff - primary button text */
-  --secondary: oklch(0.556 0 0); /* #6b7280 - secondary elements */
+  --secondary: oklch(0.49 0 0); /* #606060 - secondary elements (darkened from 0.556/#737373: text consumers are Badge's text-xs label and Button's text-sm secondary-variant label, both normal text needing AA 4.5:1 against white --secondary-foreground. 0.556 gave 4.73:1 solid but only 3.89:1 at a /90 hover state; 0.49 gives 6.26:1 solid and 4.94:1 at /90 - both Badge and Button hover at /90, not /80, to land inside that verified ratio. Non-text consumers - slider/progress-bar track fills - just read visibly darker, no AA requirement applies to them.) */
   --secondary-foreground: oklch(1 0 0); /* #ffffff - secondary button text */
   --muted: oklch(0.97 0 0); /* #f1f5f9 - muted backgrounds */
   --muted-foreground: oklch(0.53 0 0); /* #6c6c6c - muted text (darkened from 0.556 to clear WCAG AA 4.5:1 against both --background 4.84:1 and --card 5.28:1) */

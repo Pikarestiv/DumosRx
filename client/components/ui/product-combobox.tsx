@@ -100,11 +100,13 @@ function SourceBadge({
 }
 
 function ProductComboboxItem({
+  id,
   option,
   isSelected,
   isActive,
   onSelect,
 }: {
+  id: string;
   option: SelectedProduct;
   isSelected: boolean;
   isActive: boolean;
@@ -112,7 +114,18 @@ function ProductComboboxItem({
 }) {
   return (
     <div
-      onClick={onSelect}
+      id={id}
+      role="option"
+      aria-selected={isSelected}
+      // The input keeps DOM focus and drives this list via
+      // aria-activedescendant, so options are not themselves tabbable.
+      // onMouseDown (not onClick) + preventDefault so the input never blurs
+      // (a blur would close the list before a click event could fire).
+      onMouseDown={(e) => {
+        if (e.button !== 0) return; // left-click/primary touch only
+        e.preventDefault();
+        onSelect();
+      }}
       className={cn(
         "relative flex cursor-pointer select-none flex-col items-start rounded-sm py-2 px-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground group",
         isActive && "bg-accent text-accent-foreground",
@@ -140,17 +153,26 @@ function ProductComboboxItem({
 }
 
 function AddNewProductOption({
+  id,
   value,
   isActive,
   onSelect,
 }: {
+  id: string;
   value: string;
   isActive: boolean;
   onSelect: () => void;
 }) {
   return (
     <div
-      onClick={onSelect}
+      id={id}
+      role="option"
+      aria-selected={isActive}
+      onMouseDown={(e) => {
+        if (e.button !== 0) return;
+        e.preventDefault();
+        onSelect();
+      }}
       className={cn(
         "relative flex cursor-pointer select-none items-center gap-1.5 rounded-sm py-2 px-2 mb-1 text-sm font-semibold outline-none bg-primary/10 text-primary hover:bg-primary/15",
         isActive && "bg-primary/20",
@@ -176,7 +198,19 @@ export function ProductCombobox({
 }: ProductComboboxProps) {
   const [open, setOpen] = React.useState(false);
   const containerRef = React.useRef<HTMLDivElement>(null);
+  const listRef = React.useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = React.useState(-1);
+  // Stable per-instance id prefix so the input's aria-activedescendant can
+  // point at the active option, and so two comboboxes on one page never
+  // collide.
+  const listboxId = React.useId();
+  // activeIndex -1 is the pinned "Create new product" row when it is shown.
+  const optionId = (idx: number) =>
+    idx === -1 ? `${listboxId}-create` : `${listboxId}-opt-${idx}`;
+  const activeDescendant =
+    open && (activeIndex >= 0 || showCreateNewOption)
+      ? optionId(activeIndex)
+      : undefined;
 
   React.useEffect(() => {
     setActiveIndex(-1);
@@ -257,6 +291,18 @@ export function ProductCombobox({
     });
   }, [deferredValue, allSuggestions]);
 
+  // Keep the aria-activedescendant option scrolled into view: the input
+  // holds focus, so the browser will not scroll the list on its own.
+  React.useEffect(() => {
+    if (!open) return;
+    const el = listRef.current?.querySelector<HTMLElement>(
+      `#${CSS.escape(optionId(activeIndex))}`,
+    );
+    el?.scrollIntoView({ block: "nearest" });
+    // optionId is derived from listboxId, which is stable for this instance.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeIndex, open]);
+
   // Handle clicks outside to close the menu
   React.useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -278,6 +324,11 @@ export function ProductCombobox({
           <Search className="hidden sm:block absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
         )}
         <Input
+          role="combobox"
+          aria-expanded={open}
+          aria-controls={open ? listboxId : undefined}
+          aria-autocomplete="list"
+          aria-activedescendant={activeDescendant}
           value={value}
           onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
             onChange({ name: e.target.value, source: "new" });
@@ -295,15 +346,39 @@ export function ProductCombobox({
               );
             } else if (e.key === "ArrowUp") {
               e.preventDefault();
-              setActiveIndex((prev) => Math.max(prev - 1, 0));
+              if (!open) setOpen(true);
+              // Floor of -1, not 0, so ArrowUp can walk back up onto the
+              // pinned "Create new product" row instead of getting stuck on
+              // the first match.
+              setActiveIndex((prev) =>
+                Math.max(prev - 1, showCreateNewOption ? -1 : 0),
+              );
+            } else if (e.key === "Home") {
+              if (open) {
+                e.preventDefault();
+                setActiveIndex(showCreateNewOption ? -1 : 0);
+              }
+            } else if (e.key === "End") {
+              if (open) {
+                e.preventDefault();
+                setActiveIndex(filteredOptions.length - 1);
+              }
             } else if (e.key === "Enter") {
               if (open) {
                 e.preventDefault();
                 if (activeIndex >= 0 && activeIndex < filteredOptions.length) {
                   onChange(filteredOptions[activeIndex]);
+                } else if (activeIndex === -1 && showCreateNewOption) {
+                  if (onCreateNew) {
+                    onCreateNew(value);
+                  } else {
+                    onChange({ name: value, source: "new" });
+                  }
                 }
                 setOpen(false);
               }
+            } else if (e.key === "Tab") {
+              setOpen(false);
             }
           }}
           placeholder={placeholder}
@@ -334,7 +409,13 @@ export function ProductCombobox({
 
       {open && (showCreateNewOption || filteredOptions.length > 0) && (
         <div className="absolute z-[999] w-full mt-1 bg-popover text-popover-foreground shadow-xl rounded-md border border-border outline-none animate-in fade-in-0 zoom-in-95 overflow-hidden">
-          <div className="max-h-[300px] overflow-y-auto p-1">
+          <div
+            ref={listRef}
+            id={listboxId}
+            role="listbox"
+            aria-label={placeholder}
+            className="max-h-[300px] overflow-y-auto p-1"
+          >
             {/* Always pinned above matches, whether or not anything is typed:
              * with no text it opens an empty "Add New Product" form (a real
              * discoverable entry point, not a dead end); once text exists the
@@ -345,6 +426,7 @@ export function ProductCombobox({
              * product you're naming" is not a meaningful action there. */}
             {showCreateNewOption && (
               <AddNewProductOption
+                id={optionId(-1)}
                 value={value}
                 isActive={activeIndex === -1}
                 onSelect={() => {
@@ -360,6 +442,7 @@ export function ProductCombobox({
             {filteredOptions.map((option, idx) => (
               <ProductComboboxItem
                 key={`${option.source}_${option.name}_${idx}`}
+                id={optionId(idx)}
                 option={option}
                 isSelected={value === option.name}
                 isActive={idx === activeIndex}

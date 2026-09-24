@@ -238,6 +238,14 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
     // height: 100dvh a few levels down, and tracks mobile browser chrome
     // collapsing/expanding, unlike the static h-screen/100vh.
     <div className="h-dvh bg-background relative">
+      {/* First focusable element in the shell: lets keyboard/screen-reader
+          users jump the persistent sidebar and header nav (WCAG 2.4.1). */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[9500] focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-primary-foreground focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+      >
+        Skip to content
+      </a>
       {isLocked && (
         <div
           // z-[9000], not higher than TauriTitleBar's z-[9999], otherwise
@@ -390,7 +398,9 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
             threshold={threshold}
           />
           <main
-            className={cn("flex-1 min-h-0 flex flex-col", mainClassName)}
+            id="main-content"
+            tabIndex={-1}
+            className={cn("flex-1 min-h-0 flex flex-col outline-none", mainClassName)}
             style={mainStyle}
           >
             <div

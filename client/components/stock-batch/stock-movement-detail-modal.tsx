@@ -72,12 +72,13 @@ export function StockMovementDetailModal({
               <div className="text-[13px] text-foreground">{movement.user}</div>
             </div>
           </div>
-          <div
-            className="text-[12px] font-semibold text-primary mt-5 cursor-pointer hover:underline"
+          <button
+            type="button"
+            className="text-[12px] font-semibold text-primary mt-5 cursor-pointer hover:underline rounded-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring"
             onClick={onViewInCatalog}
           >
             View product in Catalog →
-          </div>
+          </button>
         </div>
       )}
     </ResponsiveModal>

@@ -122,6 +122,7 @@ export function ExpenseList() {
       <input
         type="text"
         placeholder="Search by description"
+        aria-label="Search expenses"
         className="border-0 outline-none text-[13px] w-full bg-transparent text-foreground placeholder:text-muted-foreground"
         value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
@@ -157,8 +158,16 @@ export function ExpenseList() {
           return (
             <div
               key={expense.id}
+              role="button"
+              tabIndex={0}
               onClick={() => setSelectedExpenseId(expense.id)}
-              className="flex items-center gap-3 p-3 rounded-xl border bg-card hover:bg-primary/5 cursor-pointer transition-colors"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setSelectedExpenseId(expense.id);
+                }
+              }}
+              className="flex items-center gap-3 p-3 rounded-xl border bg-card hover:bg-primary/5 cursor-pointer transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring"
             >
               <div className="w-10 h-10 shrink-0 rounded-full bg-primary/10 text-primary flex items-center justify-center">
                 <ReceiptText className="w-4 h-4" />

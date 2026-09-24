@@ -126,7 +126,7 @@ export function ActivityLogPage() {
         </div>
 
         <div>
-          <div className="text-[17px] font-serif font-bold">Activity Log</div>
+          <h1 className="text-[17px] font-serif font-bold">Activity Log</h1>
           <div className="text-[12.5px] text-muted-foreground">
             Every recorded action across the store, {total} total
           </div>

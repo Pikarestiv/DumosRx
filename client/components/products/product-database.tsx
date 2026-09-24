@@ -191,6 +191,7 @@ export function ProductDatabase() {
             value={searchTerm}
             onChange={setSearchTerm}
             placeholder="Search by name or SKU"
+            aria-label="Search products"
             inputClassName="bg-card border-border"
           />
           <div className="flex items-center gap-2 flex-wrap">

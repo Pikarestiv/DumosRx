@@ -141,7 +141,10 @@ export function EditableCategoryCell({
 
   return (
     <div
-      className="flex items-center gap-1 min-w-0 cursor-pointer"
+      role="button"
+      tabIndex={0}
+      aria-label={`Edit category (${product.category || "Uncategorized"})`}
+      className="flex items-center gap-1 min-w-0 cursor-pointer rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring"
       onClick={(e) => {
         e.stopPropagation();
         // Start empty rather than pre-filled with the current category:
@@ -150,6 +153,14 @@ export function EditableCategoryCell({
         // current value instead of showing every category to pick from.
         setValue("");
         setEditing(true);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          e.stopPropagation();
+          setValue("");
+          setEditing(true);
+        }
       }}
     >
       <span className={`text-[11px] font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded-md truncate max-w-[120px] inline-block ${capsClass}`}>
@@ -170,6 +181,7 @@ export function EditableQuickNumberCell({
   canEdit,
   hasTouchCapability,
   onSave,
+  ariaLabel,
 }: {
   displayValue: string;
   displayClassName?: string;
@@ -180,6 +192,7 @@ export function EditableQuickNumberCell({
   canEdit: boolean;
   hasTouchCapability: boolean;
   onSave: (value: number) => void;
+  ariaLabel?: string;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
@@ -224,11 +237,22 @@ export function EditableQuickNumberCell({
 
   return (
     <div
-      className="flex items-center gap-1 cursor-pointer"
+      role="button"
+      tabIndex={0}
+      aria-label={ariaLabel ?? `Edit value (${displayValue})`}
+      className="flex items-center gap-1 cursor-pointer rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring"
       onClick={(e) => {
         e.stopPropagation();
         setDraft(value);
         setEditing(true);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          e.stopPropagation();
+          setDraft(value);
+          setEditing(true);
+        }
       }}
     >
       <span className={displayClassName}>{displayValue}</span>

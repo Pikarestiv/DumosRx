@@ -140,6 +140,7 @@ export function ActivityTab({
         <input
           type="text"
           placeholder="Search by customer or transaction ID"
+          aria-label="Search customer activity"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="w-full bg-card border border-border md:bg-muted md:border-none rounded-[10px] pl-9 pr-4 py-2 text-[13px] focus:ring-1 focus:ring-primary outline-none"

@@ -98,8 +98,16 @@ export function PrescriptionList({
                 style={{ transform: `translateY(${virtualRow.start}px)` }}
               >
               <div
+                role="button"
+                tabIndex={0}
                 onClick={() => onSelect(rx)}
-                className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer border transition-colors ${
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    onSelect(rx);
+                  }
+                }}
+                className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer border transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring ${
                   isSelected
                     ? "border-primary bg-primary/5"
                     : "border-border bg-card lg:border-transparent lg:bg-transparent hover:bg-muted/50"

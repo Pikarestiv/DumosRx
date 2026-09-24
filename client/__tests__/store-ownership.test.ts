@@ -146,6 +146,46 @@ describe("update()/softDelete() store-ownership check", () => {
   });
 
   /**
+   * Regression coverage (docs/KNOWN_BUGS.md/FIXED_BUGS.md): the legacy-row
+   * claim used to run as its own bare (non-transactional) statement before
+   * the caller's write transaction even started, so a failure between the
+   * two committed the claim but lost the actual edit — and left the row
+   * permanently claimed by this store even though nothing else about it
+   * changed. The claim is now applied as the first statement inside the
+   * same transaction() as the real write, so a failure anywhere in that
+   * transaction rolls back BOTH together.
+   */
+  describe("legacy-row claim atomicity", () => {
+    it("update(): rolls back the claim too when the write itself fails, leaving the row NULL-store_id and unedited", async () => {
+      insertCategory("c1", "Legacy", null);
+      core.setActiveStoreId("store-a");
+
+      // "nonexistent_column" isn't a real column on `categories` - the
+      // claim UPDATE (setting store_id) would succeed first, then this
+      // second UPDATE throws a real SQL error, which must roll back the
+      // whole transaction including the already-applied claim. Before the
+      // fix, the claim ran as its own bare statement before this
+      // transaction even started, so it would have survived this failure
+      // and permanently claimed the row with the edit lost.
+      await expect(
+        update("categories", "c1", { nonexistent_column: "x" } as any),
+      ).rejects.toThrow();
+
+      const row = readCategory("c1");
+      expect(row.store_id).toBeNull();
+      expect(row.name).toBe("Legacy");
+    });
+
+    // softDelete() shares the identical transaction()-wrapped
+    // claim-then-write pattern exercised above for update() (same code
+    // shape, same fix) - not re-tested separately here to avoid a
+    // near-duplicate test with no additional coverage value; its own
+    // claim-application happy path is already covered above ("allows
+    // deleting a legacy NULL-store_id row and claims it for the active
+    // store").
+  });
+
+  /**
    * options.storeId override (bug #8 fix): lets a caller like
    * stock-transfers.ts's transferStock() write a row in a store other than
    * whatever's globally "active", without ever touching the global resolver

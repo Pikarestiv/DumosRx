@@ -63,19 +63,13 @@ Production migrations run through a protected route, not direct `artisan` access
 >
 > **H2 fixed 2026-09-24** — see `docs/FIXED_BUGS.md`.
 
-### H3. Known-vulnerable Next.js versions in `client/` and `web/`; `xlsx` has unpatched prototype-pollution/ReDoS CVEs
-- **Category:** Dependency / Security — **Confirmed** (via `npm audit`)
-- **File:** `client/package.json` (`next@15.2.4`), `web/package.json` (`next@16.1.4`)
+> **H3 fixed 2026-09-24** (the Next.js CVEs — `xlsx` remains, see below) — see `docs/FIXED_BUGS.md`.
 
-`npm audit` (client, production deps): 6 vulnerabilities (5 high, 1 critical) — `next@15.2.4` carries ~19 advisories fixed only by upgrading to `15.5.26`, including an unauthenticated RCE on Windows-hosted servers and an unauthenticated RCE in the Image Optimization API via AVIF. `xlsx *` — prototype pollution (GHSA-4r6h-8v6p-xvw6) and ReDoS (GHSA-5pgg-2g8v-p4x9), both **no fix available** upstream.
+### H3-remainder. `xlsx` still has unpatched prototype-pollution/ReDoS CVEs — no upstream fix exists
+- **Category:** Dependency / Security — **Confirmed**, **no fix available**
+- **File:** `client/package.json` (`xlsx`)
 
-`npm audit` (web, production deps): 7 vulnerabilities (1 moderate, 5 high, 1 critical) — same advisory family, fixed only by `next@16.3.6`.
-
-**Why it matters:** `client/`'s static export runs as the actual in-store POS app; the RCE-class Next.js advisories are mostly build-time/dev-server risk for a statically-exported app, not live-attack-surface risk in production for `client/` specifically. `web/`'s Next.js **is** a live deployed server, and several of its advisories (cache poisoning, SSRF via rewrites, CSRF bypass) are directly relevant there. `xlsx` is used for bulk product import/export (per `docs/FEATURE_LIST.md`), a plausible path for untrusted spreadsheet input in both apps.
-
-**Recommended fix:** Bump `next` to `15.5.26` (client) / `16.3.6` (web). For `xlsx`, since no upstream fix exists, evaluate migrating the bulk-import/export path to a maintained alternative (e.g. `exceljs`) rather than suppressing the advisory.
-
-**Priority:** Schedule the Next.js bumps soon (test the build/export pipeline after — this project pins majors deliberately); track `xlsx` as a longer-term migration.
+`xlsx *` — prototype pollution (GHSA-4r6h-8v6p-xvw6) and ReDoS (GHSA-5pgg-2g8v-p4x9). Used for bulk product import/export (per `docs/FEATURE_LIST.md`), a plausible path for untrusted spreadsheet input. **Recommended fix:** evaluate migrating the bulk-import/export path to a maintained alternative (e.g. `exceljs`) — this is a real code-level migration (different API surface), not a version bump, so it's tracked separately from the now-fixed Next.js CVEs rather than blocking them.
 
 ---
 
@@ -99,25 +93,23 @@ The return-hop handoff code is minted once, at impersonation start, and expires 
 
 > **M5 fixed 2026-09-24** — see `docs/FIXED_BUGS.md`.
 
-> **M6, M7, M8, M9 fixed 2026-09-24** — see `docs/FIXED_BUGS.md`. Fixing M9 surfaced a much larger dependency-vulnerability surface than originally scoped — see **M14** below, opened as a separate, deliberately-not-yet-fixed finding rather than silently expanded into.
+> **M6, M7, M8, M9 fixed 2026-09-24** — see `docs/FIXED_BUGS.md`. Fixing M9 surfaced a much larger dependency-vulnerability surface than originally scoped, tracked separately as **M14** below — that's now also mostly fixed (2026-09-24), with `laravel/framework` itself the one remaining survivor (needs a major-version upgrade, not a patch).
 
-### M14. `composer audit` surface is far larger than M9's original scope — 36 advisories across 11 packages remain after M9's fix
+### M14. `laravel/framework` itself needs a major-version upgrade (11→12) to close its 3 remaining CVEs *(mostly resolved 2026-09-24 — this is the one survivor)*
 - **Category:** Dependency — **Confirmed** (via `composer audit`, run 2026-09-24 while fixing M9)
 - **File:** `laravel-server/composer.json`/`composer.lock`
 
-**What is wrong:** M9 was scoped to `symfony/routing`/`yaml`/`process` specifically. Re-running `composer audit` after fixing those three found the vulnerability surface is much broader and had grown since the original review: `league/commonmark` (12 advisories), `guzzlehttp/guzzle` (9), `guzzlehttp/psr7` (4), **`laravel/framework` itself (3)**, `symfony/mime` (2), plus one each on `symfony/polyfill-intl-idn`, `symfony/mailer`, `symfony/http-kernel`, `symfony/http-foundation`, `psy/psysh` (dev-only REPL), and `phpunit/phpunit` (dev-only test runner).
+**What was wrong:** M9 was scoped to `symfony/routing`/`yaml`/`process` specifically. Re-running `composer audit` after fixing those three found the vulnerability surface was much broader and had grown since the original review: `league/commonmark` (12 advisories), `guzzlehttp/guzzle` (9), `guzzlehttp/psr7` (4), **`laravel/framework` itself (3)**, `symfony/mime` (2), plus one each on `symfony/polyfill-intl-idn`, `symfony/mailer`, `symfony/http-kernel`, `symfony/http-foundation`, `psy/psysh` (dev-only REPL), and `phpunit/phpunit` (dev-only test runner).
 
-**Why this wasn't folded into M9's fix:** Unlike M9's three packages (isolated patch-level bumps within their installed minor version, zero-risk), several of these — `laravel/framework` itself, and `guzzlehttp/guzzle`'s major-version-spanning advisories — are core framework/HTTP-client dependencies where a `composer update` could pull in behavior changes across the whole app, not a contained patch. That deserves its own review pass and regression testing, not a same-breath addition to an already-landed fix.
+**Resolved 2026-09-24, except `laravel/framework` itself:** on inspection, every package except `laravel/framework` had a patch/minor-level fix available *within its currently-installed major version* — `guzzlehttp/guzzle` needed `<7.15.2` (installed `7.10.0`, well within the `^7.8.2` constraint `laravel/framework` itself requires), `guzzlehttp/psr7` needed `<2.12.3`, `league/commonmark` needed `<2.10.0`, the `symfony/*` packages needed the same "already on the right minor, needs a patch release" bump M9's fix was, and `psy/psysh`/`phpunit/phpunit` are dev-only tooling with trivial patch bumps. `composer update` with all ten targeted, `--with-all-dependencies`, resolved cleanly with zero major-version changes and `laravel/framework` itself untouched at `v11.48.0`. Full Laravel suite green after (341 passed), plus a manual boot/route-list/swagger-doc-generation smoke test. See `docs/FIXED_BUGS.md`.
 
-**Recommended fix:** Run `composer audit` fresh, triage each package: dev-only tooling (`psy/psysh`, `phpunit/phpunit`) is lowest risk to bump; `symfony/mime`/`http-kernel`/`http-foundation`/`polyfill-intl-idn` are likely the same "already on the right minor, needs a patch release" shape as M9's fix; `laravel/framework` and `guzzlehttp/guzzle`/`psr7` need a real compatibility check (test suite + manual smoke test of anything doing outbound HTTP — payment webhooks, Sentry, etc. — since Guzzle is Laravel's default HTTP client) before bumping.
-
-**Priority:** Schedule as its own pass with the full test suite run before/after; not blocking, since none of these are known-exploited-in-the-wild critical CVEs on this app's actual attack surface as far as this review could determine, but shouldn't sit indefinitely either.
+**Still open — `laravel/framework` itself:** its 3 remaining advisories (temporary signed-URL path confusion; CRLF injection in the default `email` validation rule) all require `>=12.60.0`/`>=12.61.1` at minimum — there is no patched Laravel 11.x release for these; the fix landed only in Laravel 12. This genuinely requires a major-version framework upgrade (11→12), which is its own multi-day project (config/provider compatibility, deprecated-API audit, full regression pass) — correctly out of scope for a dependency-patch pass. **Recommended next step:** schedule a dedicated Laravel 11→12 upgrade project; until then, be aware the CRLF-injection advisory specifically concerns the default `email` validation rule used throughout this app's registration/staff-creation forms (`'email' => 'nullable|email|...'`), so a defense-in-depth mitigation (stripping CR/LF from email inputs before they reach any raw mail-header construction) could be considered as a stopgap if this is judged worth doing before the full upgrade.
 
 ### M10. Major-version dependency drift between `client/` and `web/` during an active code-migration effort
 - **Category:** Architecture — **Confirmed**
 - **File:** `client/package.json`, `web/package.json`
 
-`next` 15.2.4 vs 16.1.4, `sonner` ^1.7 vs ^2.0 (breaking toast API changes), `tailwind-merge` ^2.5 vs ^3.4 (breaking config API), `eslint` ^8 vs ^9, several `@radix-ui/*` packages one-to-two majors apart. The README explicitly frames `web/`'s dashboard code as being actively ported into `client/` in phases — a component copy-pasted between the two during that migration compiles fine (each app has *a* version) but can behave subtly differently with no compiler-level warning. **Fix:** align these specific shared UI-layer packages to the same major version across both apps before porting more dashboard code.
+`next` 15.5.26 vs 16.3.6 (both bumped 2026-09-24 for CVE remediation — see the now-fixed H3 — but the *major*-version gap between the two apps is unchanged), `sonner` ^1.7 vs ^2.0 (breaking toast API changes), `tailwind-merge` ^2.5 vs ^3.4 (breaking config API), `eslint` ^8 vs ^9, several `@radix-ui/*` packages one-to-two majors apart. The README explicitly frames `web/`'s dashboard code as being actively ported into `client/` in phases — a component copy-pasted between the two during that migration compiles fine (each app has *a* version) but can behave subtly differently with no compiler-level warning. **Fix:** align these specific shared UI-layer packages to the same major version across both apps before porting more dashboard code.
 
 ### M11. `client/` — auth bearer token kept in `localStorage` instead of an HttpOnly cookie *(carried forward — accepted tradeoff, confirmed unchanged by this review)*
 - **Category:** Security — **Confirmed**, deliberately accepted
@@ -184,9 +176,11 @@ The claim statement (`UPDATE {table} SET store_id = ? WHERE id = ?`) doesn't set
 | Impersonation overwrites admin's own session cookie | Medium | **Fixed** 2026-09-24 |
 | `chmod 777` on deployed Laravel storage/cache | Medium | **Fixed** 2026-09-24 |
 | Transitive Symfony CVEs (routing/yaml/process) | Medium | **Fixed** 2026-09-24 |
-| M14 — broader `composer audit` surface (laravel/framework, guzzle, commonmark) | Medium | Open |
+| M14 — `guzzlehttp/*`, `league/commonmark`, `symfony/*`, dev tooling (all patch-level) | Medium | **Fixed** 2026-09-24 |
+| M14-remainder — `laravel/framework` itself (needs a major 11→12 upgrade) | Medium | Open |
 | M11 — auth token in `localStorage`, not HttpOnly cookie | Medium | Open (accepted tradeoff) |
-| H3 — Next.js high/critical CVEs; unpatched `xlsx` CVEs | High | Open |
+| H3 — Next.js high/critical CVEs | High | **Fixed** 2026-09-24 |
+| H3-remainder — unpatched `xlsx` CVEs (no upstream fix) | High | Open |
 | Unpinned action tag in `release.yml`'s FTP job | Low | **Fixed** 2026-09-24 |
 | Missing `permissions:` block on 4 deploy workflows | Low | **Fixed** 2026-09-24 |
 
@@ -197,7 +191,7 @@ Areas specifically audited and found **clean** (no regression, matches documente
 ## Performance & Scalability
 
 - **M5-adjacent: unmemoized POS product grid** (`client/components/pos/pos-product-list.tsx`) — `POSProductCard` is a plain function component; the parent recomputes `cartQuantityMap`, several `Set`s, and grouped/sorted product arrays as new references on every render, defeating any future `React.memo` and guaranteeing every visible card re-renders on any cart mutation. On a large catalog (supermarket/grocery vertical, explicitly supported per `AGENTS.md`, no windowing on the "all products" grid), this is effectively **O(catalog size)** re-render work per cart tap, on hardware (Android tablets) where that's most visible. **Fix:** `useMemo` the derived maps/arrays keyed on `cart`/`filteredProducts`; wrap `POSProductCard` in `React.memo`; consider virtualization above a few hundred SKUs.
-- **H3-adjacent:** outdated `next` versions carry cache-poisoning and SSRF-via-rewrites advisories relevant to `web/`'s live server (separate from the RCE-class findings already listed as security issues).
+- ~~**H3-adjacent:** outdated `next` versions carry cache-poisoning and SSRF-via-rewrites advisories relevant to `web/`'s live server~~ — **fixed 2026-09-24** alongside H3.
 - No N+1 query patterns, unbounded pagination, or missing-index issues were found in the areas reviewed (`SaleController`, stock/purchase-order controllers, dashboard aggregation queries) — foreign-key columns are auto-indexed via Laravel's `foreignUuid()->constrained()`, and prior fixes (documented in `FIXED_BUGS.md`) already addressed several store-scoping-driven full-table-scan risks.
 
 ---
@@ -218,7 +212,7 @@ Areas specifically audited and found **clean** (no regression, matches documente
 - **No test exercises cross-tab/cross-instance persistence** in `client/lib/db/` (C5) — all existing DB tests use a single injected database instance. A harness simulating two independent instances sharing a mocked IndexedDB store would need to be built from scratch to cover this.
 - ~~**No test covers `usePOSPayment.handlePayment`'s double-invocation behavior**~~ — **closed 2026-09-24**: `use-pos-payment-double-submit.test.ts` added, verified to fail against the pre-fix code.
 - ~~**No test pins the admin-session-cookie's security properties**~~ — **closed 2026-09-24**: `AdminSessionCookieTest.php` now asserts `SameSite`/cookie-presence directly at `refresh()`, `login()`, `impersonateStore()`, and `restoreSession()`.
-- **`composer audit`/`npm audit` are not run in CI** (inferred from workflow contents — none of the five workflows invoke either) — the dependency CVEs in H3/M14 would have been caught automatically, and M14's broader surface was only found by running the audit manually. Add an audit step (non-blocking initially, since some advisories currently have no fix) to at least surface new ones going forward.
+- **`composer audit`/`npm audit` are not run in CI** (inferred from workflow contents — none of the five workflows invoke either) — the dependency CVEs closed as H3/M14 (and M14's residual `laravel/framework` finding) would have been caught automatically, and M14's original broader surface was only found by running the audit manually. Add an audit step (non-blocking initially, since some advisories currently have no fix) to at least surface new ones going forward.
 
 ---
 
@@ -229,20 +223,20 @@ Areas specifically audited and found **clean** (no regression, matches documente
 3. ~~Consolidate all `drx_admin_session` cookie writes through the existing `buildAdminSessionCookie()`/`forgetAdminSessionCookie()` helpers~~ — **done 2026-09-24**: extracted onto a shared `ManagesAdminSessionCookie` trait, used by both `AuthenticatesSessions` and `AdminStoreController`; `refresh()`/`impersonateStore()` no longer write the cookie at all, `restoreSession()` now routes through the shared helper.
 4. ~~Add CI-level `npm audit`/`composer audit` steps~~ — **still open**: M14 was only found by running `composer audit` manually; wiring this into CI (report-only initially) would surface the next one automatically.
 5. ~~Pin every third-party GitHub Action to a commit SHA... and add `concurrency:`/`permissions:` blocks~~ — **done 2026-09-24**: all five workflows now pin every action to a SHA, have `concurrency:` groups, and have explicit `permissions: contents: read` where none existed before.
-6. Treat the client/web dependency-drift (M10) and the multi-tab data-loss risk (C5) as scoped mini-projects with their own design pass, not quick patches — both require an actual decision (version-alignment policy; single-writer-tab architecture) rather than a local code change. **M14** (the broader `composer audit` surface) belongs in this same "needs its own review pass" category.
+6. Treat the client/web dependency-drift (M10) and the multi-tab data-loss risk (C5) as scoped mini-projects with their own design pass, not quick patches — both require an actual decision (version-alignment policy; single-writer-tab architecture) rather than a local code change. **M14-remainder** (`laravel/framework` 11→12) belongs in this same "needs its own review pass" category — it's a real framework-upgrade project now, not a dependency patch.
 
 ---
 
 ## Suggested Fix Order
 
-**Done (2026-09-24):** the cross-tenant staff IDOR + role-privilege ceiling, the stock-batch/movement/PO 500s + tenant under-scoping, the hardcoded seeder password, the admin-session-cookie hardening regression (former H1/M2/M3), the client token-clearing-on-network-blip regression (former H2), the POS double-submit guard (former M5), the legacy-row claim transaction boundary (former M6), and the CI/CD hardening batch (former M7/M8/M9/L1/L2 — concurrency guards, `chmod`, Symfony CVEs, action pinning, `permissions:` blocks) are all fixed, tested, and merged — see `docs/FIXED_BUGS.md`. Remaining order below, renumbered:
+**Done (2026-09-24):** the cross-tenant staff IDOR + role-privilege ceiling, the stock-batch/movement/PO 500s + tenant under-scoping, the hardcoded seeder password, the admin-session-cookie hardening regression (former H1/M2/M3), the client token-clearing-on-network-blip regression (former H2), the POS double-submit guard (former M5), the legacy-row claim transaction boundary (former M6), the CI/CD hardening batch (former M7/M8/M9/L1/L2), three gaps an independent Opus review caught in the above, two low-priority maintainability findings (L3/L5), the Next.js CVE remediation (former H3 — `next` bumped to `15.5.26` in `client/` and `16.3.6` in `web/`, both builds verified), and the broader dependency surface found while fixing M9 (former M14 — `guzzlehttp/*`/`league/commonmark`/remaining `symfony/*`/dev tooling, all patch-level) are all fixed, tested, and merged — see `docs/FIXED_BUGS.md`. Remaining order below, renumbered:
 
 1. **C6** (deploy the pending 2026-09-23 migrations) and **H4** (confirm `FLUTTERWAVE_SECRET_HASH` in production) — pure deployment/ops actions, zero remaining code risk, should not wait on anything else.
-2. **H3** (Next.js/xlsx CVE remediation) — schedule with normal regression testing given these are major-adjacent framework bumps.
-3. **M14** (the broader `composer audit` surface found while fixing M9 — `laravel/framework`, `guzzlehttp/*`, `league/commonmark`) — needs its own compatibility review, not a quick patch like M9 was.
-4. **Recommended Engineering Improvement #1** (the `ScopesToTenant`-usage architecture test) — still the single highest-leverage remaining change, since it's a backstop against the *next* instance of the "fix not mirrored to sibling" pattern, not just the three already fixed.
-5. **C5** (multi-tab data loss) and **M10/M11** (dependency drift, localStorage-token architecture) — schedule as their own design passes; not blocking for the above, but shouldn't be indefinitely deferred given C5's silent-data-loss nature.
+2. **Recommended Engineering Improvement #1** (the `ScopesToTenant`-usage architecture test) — still the single highest-leverage remaining change, since it's a backstop against the *next* instance of the "fix not mirrored to sibling" pattern, not just the ones already fixed.
+3. **C5** (multi-tab data loss), **M10/M11** (dependency drift, localStorage-token architecture), and **M14-remainder** (Laravel 11→12 upgrade) — schedule as their own design/upgrade projects; not blocking for the above, but shouldn't be indefinitely deferred given C5's silent-data-loss nature.
+4. **H3-remainder** (`xlsx` migration to a maintained alternative) — a real code migration (different API), not a version bump; lower urgency than the Next.js CVEs since it's scoped to the bulk-import/export feature specifically.
+5. **L7, L8, L9** (the three LOW findings from the Opus vetting pass) — each needs a small product/design decision first (see their entries above), then a quick fix.
 6. **M13** (reseller-sale rollout communication) — not a code task; confirm with product/support whether the release note already went out, then remove the entry.
-7. **M12, L1–L6** — low-effort cleanup/accepted tradeoffs, bundle into any of the above passes opportunistically.
+7. **M12, L4, L6** — accepted tradeoffs / latent-unreferenced-code notes with no real fix pending; nothing to schedule.
 
 This order pulls pure-ops items (C6, H4) to the front regardless of severity ranking, since they require no code changes and are pending only on someone triggering a deploy.

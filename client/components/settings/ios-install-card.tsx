@@ -16,7 +16,15 @@ import { isStandalonePwa } from "@/lib/utils/platform";
 
 function isIos() {
   if (typeof window === "undefined") return false;
-  return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  // iPadOS 13+ Safari sends a desktop macOS user agent by default
+  // ("Macintosh; Intel Mac OS X..."), so the UA-string check alone misses
+  // essentially every modern iPad - and since iOS never fires
+  // beforeinstallprompt either, an iPad user fell through both install paths
+  // entirely with no guidance at all. maxTouchPoints > 1 is the standard way
+  // to tell a touchscreen "Mac" (real iPad) apart from an actual Mac
+  // (mouse/trackpad, maxTouchPoints === 0).
+  const isIpadOs = /Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1;
+  return (/iPad|iPhone|iPod/.test(navigator.userAgent) || isIpadOs) && !window.MSStream;
 }
 
 /**

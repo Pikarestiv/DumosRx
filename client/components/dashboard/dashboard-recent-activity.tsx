@@ -114,12 +114,21 @@ function ActivityList({
         return (
           <div
             key={activity.id}
+            role={onActivityClick ? "button" : undefined}
+            tabIndex={onActivityClick ? 0 : undefined}
             className={`group flex items-center justify-between py-3 border-b border-border/50 last:border-0 transition-all duration-200 ${
               onActivityClick
-                ? "cursor-pointer hover:bg-muted/30 sm:px-2 rounded-lg -mx-2 px-2"
+                ? "cursor-pointer hover:bg-muted/30 sm:px-2 rounded-lg -mx-2 px-2 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
                 : ""
             }`}
             onClick={() => onActivityClick && onActivityClick(activity)}
+            onKeyDown={(e) => {
+              if (!onActivityClick) return;
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onActivityClick(activity);
+              }
+            }}
           >
             <div className="flex items-center gap-3 overflow-hidden">
               <div

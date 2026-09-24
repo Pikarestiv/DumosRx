@@ -103,8 +103,16 @@ export function POSCustomerSelector({
 
       {/* Trigger */}
       <div
-        className="flex items-center gap-2.5 px-3 py-2.5 bg-primary/5 border border-primary/20 rounded-[10px] cursor-pointer hover:bg-primary/10 transition-colors"
+        role="button"
+        tabIndex={0}
+        className="flex items-center gap-2.5 px-3 py-2.5 bg-primary/5 border border-primary/20 rounded-[10px] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring hover:bg-primary/10 transition-colors"
         onClick={() => setOpen(true)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setOpen(true);
+          }
+        }}
       >
         <div className="w-[30px] h-[30px] rounded-full bg-primary/10 text-primary flex items-center justify-center text-[11.5px] font-bold shrink-0">
           {initials}
@@ -207,10 +215,19 @@ export function POSCustomerSelector({
           <div className="overflow-y-auto max-h-[300px] -mx-1 px-1 pb-4">
             <div className="flex flex-col gap-2.5">
               <div
-                className="flex items-center gap-3 px-3 py-[11px] border border-border rounded-xl cursor-pointer hover:border-primary hover:bg-primary/5 transition-colors"
+                role="button"
+                tabIndex={0}
+                className="flex items-center gap-3 px-3 py-[11px] border border-border rounded-xl cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring hover:border-primary hover:bg-primary/5 transition-colors"
                 onClick={() => {
                   onSelectCustomer(null);
                   setOpen(false);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    onSelectCustomer(null);
+                    setOpen(false);
+                  }
                 }}
               >
                 <div className="w-[30px] h-[30px] rounded-full bg-primary/10 text-primary flex items-center justify-center text-[11.5px] font-bold shrink-0">
@@ -245,10 +262,19 @@ export function POSCustomerSelector({
                   return (
                     <div
                       key={c.id}
-                      className="flex items-center gap-3 px-3 py-[11px] border border-border rounded-xl cursor-pointer hover:border-primary hover:bg-primary/5 transition-colors"
+                      role="button"
+                      tabIndex={0}
+                      className="flex items-center gap-3 px-3 py-[11px] border border-border rounded-xl cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring hover:border-primary hover:bg-primary/5 transition-colors"
                       onClick={() => {
                         onSelectCustomer(c);
                         setOpen(false);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          onSelectCustomer(c);
+                          setOpen(false);
+                        }
                       }}
                     >
                       <div className="w-[30px] h-[30px] rounded-full bg-primary/10 text-primary flex items-center justify-center text-[11.5px] font-bold shrink-0">

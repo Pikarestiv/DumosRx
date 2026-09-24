@@ -123,8 +123,16 @@ export function TransactionItem({
 
   return (
     <div
-      className="bg-card text-card-foreground p-3 rounded-2xl shadow-sm border border-border/50 cursor-pointer hover:border-primary/30 transition-colors flex flex-col sm:flex-row sm:items-center justify-between group gap-3 sm:gap-0"
+      role="button"
+      tabIndex={0}
+      className="bg-card text-card-foreground p-3 rounded-2xl shadow-sm border border-border/50 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring hover:border-primary/30 transition-colors flex flex-col sm:flex-row sm:items-center justify-between group gap-3 sm:gap-0"
       onClick={onClick}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onClick();
+        }
+      }}
     >
       <div className="flex items-center gap-3 min-w-0 flex-1 w-full">
         <div

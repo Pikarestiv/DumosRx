@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import { getDeviceId } from "@/lib/utils/device-id";
 import {
@@ -226,8 +226,15 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
   const [license, setLicense] = useState<LicenseInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [deviceId, setDeviceId] = useState("DUMOS-OFFLINE-772X");
+  // Bumped at the start of every performCheck() run so an overlapping
+  // earlier run (e.g. a storeProfile change firing again while a prior
+  // run's sync-timeout race is still resolving) can tell it's stale once it
+  // finally settles, instead of clobbering a newer run's `loading`/`license`
+  // state with its own now-outdated result.
+  const checkGeneration = useRef(0);
 
   const performCheck = useCallback(async () => {
+    const generation = ++checkGeneration.current;
     setLoading(true);
 
     if (typeof window !== "undefined" && navigator.onLine) {
@@ -257,6 +264,7 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
 
     // Re-read the (now refreshed) local DB
     const status = await checkLicenseStatus();
+    if (generation !== checkGeneration.current) return;
     setLicense(status);
     setLoading(false);
   }, []);

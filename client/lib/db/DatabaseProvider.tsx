@@ -13,6 +13,7 @@ import {
 } from "react";
 import { initDatabase, isTauri } from "./local-database";
 import { devLog } from "@/lib/utils/dev-log";
+import { toast } from "sonner";
 
 interface DatabaseContextType {
   isReady: boolean;
@@ -100,6 +101,24 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
     };
+  }, []);
+
+  // core.ts's saveDatabase() previously only console.error'd a failed local
+  // persist (most plausibly a full IndexedDB quota, on the same per-origin
+  // storage budget the PWA's precache competes against) - the app kept
+  // looking completely healthy while writes silently stopped persisting.
+  // Surfaced here (rate-limited at the dispatch site in core.ts) so the user
+  // has some signal before everything since the last successful save is
+  // lost on next launch.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handleSaveFailed = () => {
+      toast.error("Unable to save local data - your device may be low on storage.", {
+        duration: 10000,
+      });
+    };
+    window.addEventListener("dumos_db_save_failed", handleSaveFailed);
+    return () => window.removeEventListener("dumos_db_save_failed", handleSaveFailed);
   }, []);
 
   if (error) {

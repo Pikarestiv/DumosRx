@@ -205,8 +205,18 @@ self.addEventListener("fetch", (event) => {
         // instead of the actual page, and every distinct query value online
         // would otherwise cache a full duplicate HTML document forever
         // (CACHE_VERSION is intentionally not bumped per deploy).
+        //
+        // The trailing slash is stripped too (except for "/" itself):
+        // out/.htaccess 301s "/settings/" to "/settings" online, but nothing
+        // precaches "/settings/" as its own key, so a bookmarked or manually
+        // typed trailing-slash URL used to miss the cache offline and fall
+        // back to the "/" shell instead of the real page.
         const navigateUrl = new URL(request.url);
-        const navigateCacheKey = new Request(navigateUrl.origin + navigateUrl.pathname);
+        const navigatePathname =
+          navigateUrl.pathname.length > 1 && navigateUrl.pathname.endsWith("/")
+            ? navigateUrl.pathname.slice(0, -1)
+            : navigateUrl.pathname;
+        const navigateCacheKey = new Request(navigateUrl.origin + navigatePathname);
         try {
           // iOS Safari can leave a doomed fetch pending for tens of seconds
           // on a dead connection instead of rejecting quickly (unlike

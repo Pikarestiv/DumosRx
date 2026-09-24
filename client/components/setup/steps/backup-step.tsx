@@ -62,9 +62,18 @@ export function BackupStep({
         </CardHeader>
         <CardContent className="p-0">
           <div
-            className={`flex flex-col items-center justify-center border-2 border-dashed border-border rounded-xl p-4 md:p-8 transition-colors ${isLoading ? "bg-background/10 cursor-not-allowed opacity-70" : "bg-background/30 hover:bg-background/50 cursor-pointer group"}`}
+            role="button"
+            tabIndex={isLoading ? -1 : 0}
+            className={`flex flex-col items-center justify-center border-2 border-dashed border-border rounded-xl p-4 md:p-8 outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors ${isLoading ? "bg-background/10 cursor-not-allowed opacity-70" : "bg-background/30 hover:bg-background/50 cursor-pointer group"}`}
             onClick={() => {
               if (!isLoading) fileInputRef.current?.click();
+            }}
+            onKeyDown={(e) => {
+              if (isLoading) return;
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                fileInputRef.current?.click();
+              }
             }}
           >
             <input

@@ -37,6 +37,26 @@ The Flutterwave webhook was previously (wrongly) authenticated against `encrypti
 
 Investigated switching this: `token-manager.ts`'s `setToken`/`clearToken` call `mirrorAuthToken`/`clearMirroredAuthToken` (`client/lib/native/widget-bridge.ts`), which hand the raw token to native Tauri (Rust) code so the home-screen widget can make its own authenticated background HTTP requests entirely outside the webview. An HttpOnly cookie is by definition unreadable by JS, so it can't be mirrored to native code — swapping to one would break the widget's live data rather than just change a storage mechanism. Fixing this for real means a dual-path auth design (webview uses a cookie for its own requests; native widget code gets a separate, narrowly-scoped token via its own exchange) — a real architecture change, not a quick fix. Left as-is for now; revisit as a scoped project, not a bug-fix pass.
 
+### `client/` — a long-open tab can 404 on a lazy chunk after a deploy that edits `sw.js`
+`client/public/sw.js` (`activate()`'s cache prune)
+
+`activate()` now prunes cache entries not in the current build's manifest (added 2026-09-24 to stop unbounded growth across deploys). This only runs when `sw.js`'s own bytes change (the browser only re-checks the SW script then), but when it does, an already-open tab still running the *old* build's JS can lazy-load a chunk that both the cache prune and the new deploy's server files have already removed — a chunk-load error, while fully online, until the user reloads. This mirrors how a plain Next.js app already behaves on a deploy with no service worker at all (the SW was incidentally providing extra resilience here); treated as an accepted tradeoff of the "new SW takes over immediately" design rather than special-cased. `pwa-registrar.tsx`'s `controllerchange` reload (added the same day) mitigates the common case by reloading the tab onto the new build as soon as the new SW takes control, but a chunk requested in the brief window between prune and reload could still race it.
+
+### `client/` — offline hard-navigation to a trailing-slash URL falls back to the shell instead of the real page
+`client/public/sw.js` (navigate handler's cache-key normalization)
+
+The navigate handler normalizes cache keys to pathname-only (fixed 2026-09-24 for query strings), but doesn't collapse a trailing slash: `out/.htaccess` redirects `/settings/` → `/settings` online, but offline, a navigation to `/settings/` misses the precached `/settings` entry and falls back to the `/` shell. Low exposure — only reachable via a bookmarked or manually-typed trailing-slash URL, since the online 301 means the app itself never produces one.
+
+### `client/` — `SyncIndicator`'s manual sync button can be disabled while the device is actually online
+`client/components/dashboard/sync-indicator.tsx:89,160,169,325,377`
+
+Status (and whether the manual sync button/card-click even does anything) is derived purely from `navigator.onLine` and the `online`/`offline` browser events, same unreliable signal `license-guard.tsx`'s blocking sync was fixed for (2026-09-24). If a device reports `false` on wake before its radio has settled, the card shows "offline" and disables the user's own escape hatch to force a sync, with no way to override until the event self-corrects.
+
+### `client/` — `saveDatabase()` failures (e.g. a full IndexedDB quota) are invisible to the user
+`client/lib/db/core.ts:206-212`
+
+A failed `db.export()`/IndexedDB `set()` (most plausibly a `QuotaExceededError`, on the same iOS per-origin storage budget the PWA cache competes against) is caught and logged to `console.error` only. The app continues to look completely healthy while writes silently stop persisting, and everything since the last successful save is lost on next launch. No user-facing signal exists for this failure mode.
+
 ### `client/` — existing Pro/Enterprise stores will lose the "Reseller sale" POS row on deploy, silently
 `client/lib/hooks/use-feature-gate.ts` (`isMarkupSalesEnabled`), `stores.markup_sales_enabled`
 
@@ -45,6 +65,21 @@ New store-level toggle added 2026-09-23, default `0` (explicit product requireme
 ---
 
 ## Low
+
+### `client/` — manifest `theme_color` doesn't follow dark mode
+`client/public/manifest.json:8`, `client/app/layout.tsx:66-68`
+
+`manifest.json` hardcodes `theme_color`/`background_color` to `#ffffff`; `layout.tsx`'s `viewport.themeColor` correctly switches to black under `prefers-color-scheme: dark`. On Android, the *manifest's* value drives the install splash screen, so a dark-mode user briefly sees a white splash before the dark app renders. The Web App Manifest spec has no equivalent of `<meta name="theme-color" media="...">`'s conditional syntax, so this can't be fully fixed without picking one color scheme's splash over the other — left as the light-mode default since that also matches the manifest's own `background_color`.
+
+### `client/` — iOS install instructions can show inside non-Safari in-app browsers that can't use them
+`client/components/settings/ios-install-card.tsx:33`
+
+`isIosSafari()`'s `/Safari/.test(ua)` check is also true inside Facebook/Instagram/LinkedIn's in-app WebViews on iOS (their UA strings contain "Safari" and don't match the `CriOS|FxiOS|EdgiOS|OPiOS|mercury` exclusion list), but those in-app browsers have no Share → Add to Home Screen action. A user who opens the app's settings page from such a link sees install instructions that don't work in their current browser. Narrow: requires reaching Settings specifically from within an in-app browser.
+
+### `client/` — `LicenseGuard.performCheck()` has no run-cancellation guard
+`client/components/auth/license-guard.tsx:230-262`
+
+Two overlapping `performCheck()` runs (e.g. a `storeProfile` change firing while a prior sync-timeout race is still resolving) can interleave `setLoading(true)`/`setLoading(false)`, briefly unblocking the splash screen on an earlier run's result before a later run commits its own. Both runs read the same local DB, so the practical impact is close to zero, but there's no generation counter to make a stale run's result a no-op.
 
 ### `client/` — remaining click-only elements without keyboard/screen-reader support
 7 sites across `components/`

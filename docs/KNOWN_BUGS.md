@@ -44,16 +44,6 @@ Production migrations run through a protected route, not direct `artisan` access
 
 ## High Priority Findings
 
-### H1. `xlsx` has unpatched prototype-pollution/ReDoS CVEs — no upstream fix exists
-- **Category:** Dependency / Security — **Confirmed**, **no fix available**
-- **File:** `client/package.json` (`xlsx`)
-
-`xlsx *` — prototype pollution (GHSA-4r6h-8v6p-xvw6) and ReDoS (GHSA-5pgg-2g8v-p4x9). Used for bulk product import/export (per `docs/FEATURE_LIST.md`), a plausible path for untrusted spreadsheet input.
-
-**Migration risk, not a clean swap:** the obvious replacement, `exceljs`, does **not** support the legacy `.xls` (Excel 97-2003 binary) format at all — only `.xlsx`/`.csv`. `client/lib/utils/product-import-export.ts`'s own header-alias table is explicitly built from real QuickBooks POS and Moniebook export files (per its comments), both of which commonly produce `.xls`. A silent library swap would drop that support and break real store owners' bulk-import workflows. This needs a product decision (is `.xls` import still required, or can it be dropped/handled via a separate conversion step) before any code change, not a unilateral engineering call.
-
-**Recommended fix:** Decide on `.xls` support first, then either (a) migrate to `exceljs` for `.xlsx`/`.csv` and drop `.xls` (with a clear in-app message telling users to re-save as `.xlsx`), or (b) keep `xlsx` for `.xls` reads only (a narrower, still-untrusted-input surface) while moving `.xlsx` writes to a maintained library.
-
 ### H2. `laravel-server/` — `FLUTTERWAVE_SECRET_HASH` must be set in production before this deploys, or every Flutterwave webhook 500s
 - **Category:** Reliability / Payments — **Confirmed** (code fails closed as designed; production `.env` state itself can't be verified from the repo)
 - **File:** `app/Http/Controllers/Api/Web/PaymentController.php` (Flutterwave webhook handler), `config/payment.php`, `.env.example`
@@ -113,7 +103,6 @@ New store-level toggle, default `0` (explicit, deliberate product requirement). 
 | Finding | Severity | Status |
 |---|---|---|
 | H2 — `FLUTTERWAVE_SECRET_HASH` production `.env` status unverified | High | Open (needs prod confirmation) |
-| H1 — unpatched `xlsx` CVEs (no upstream fix, migration needs a product decision) | High | Open |
 | M1 — `laravel/framework` itself (needs a major 11→12 upgrade) | Medium | Open |
 | M3 — auth token in `localStorage`, not HttpOnly cookie | Medium | Open (accepted tradeoff) |
 
@@ -154,8 +143,7 @@ Areas specifically audited and found **clean**: webhook signature verification (
 1. **C2** (deploy the pending 2026-09-23 migrations) and **H2** (confirm `FLUTTERWAVE_SECRET_HASH` in production) — pure deployment/ops actions, zero remaining code risk, should not wait on anything else.
 2. **Recommended Engineering Improvement #1** (the `ScopesToTenant`-usage architecture test) — cheap, high-leverage, no design decision needed.
 3. **C1** (multi-tab data loss), **M2** (Next.js 15→16 migration for `client/`), **M3** (localStorage-token architecture), and **M1** (Laravel 11→12 upgrade) — schedule as their own design/upgrade projects; not blocking for the above, but shouldn't be indefinitely deferred given C1's silent-data-loss nature.
-4. **H1** (`xlsx` — needs a product decision on `.xls` support before any code change).
-5. **M5** (reseller-sale rollout communication) — not a code task; confirm with product/support whether the release note already went out, then remove the entry.
-6. **M4, L1, L2** — accepted tradeoffs / latent-unreferenced-code notes with no real fix pending; nothing to schedule.
+4. **M5** (reseller-sale rollout communication) — not a code task; confirm with product/support whether the release note already went out, then remove the entry.
+5. **M4, L1, L2** — accepted tradeoffs / latent-unreferenced-code notes with no real fix pending; nothing to schedule.
 
 This order pulls pure-ops items (C2, H2) to the front regardless of severity ranking, since they require no code changes and are pending only on someone triggering a deploy.

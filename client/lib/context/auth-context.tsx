@@ -4,7 +4,14 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import * as Sentry from "@sentry/nextjs";
 import { setCurrentUser as setDbUser, logAction } from "@/lib/db/local-database";
 import { apiClient } from "@/lib/api/client";
-import { getUsersByUsernameOrEmail, createDefaultAdmin, getUserPin, updateUserPin } from "@/lib/db/queries/auth";
+import {
+  getUsersByUsernameOrEmail,
+  createDefaultAdmin,
+  getUserPin,
+  updateUserPin,
+  migrateLegacyPinToHash,
+} from "@/lib/db/queries/auth";
+import { pinMatches, needsPinRehash } from "@/lib/utils/pin-hash";
 import { getTotalUserCount } from "@/lib/db/queries/setup";
 import {
   checkLoginLockout,
@@ -303,7 +310,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // username)) — on a multi-store device, more than one row can share this
     // identifier. Narrow to whichever of them actually match the PIN typed;
     // if a PIN was provided, that's who we're prepared to accept.
-    let matches = pin ? candidates.filter((u) => u.pin === pin) : candidates;
+    // pinMatches() (not `u.pin === pin`) because a stored PIN is a bcrypt
+    // hash now; it still accepts a legacy plaintext value, which is what
+    // makes the lazy migration below possible without locking anyone out.
+    let matches = pin ? candidates.filter((u) => pinMatches(pin, u.pin)) : candidates;
     let dbUser = matches[0] ?? null;
 
     if (dbUser || candidates.length > 0) {
@@ -332,7 +342,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             await waitForSyncToFinish();
           }
           candidates = await getUsersByUsernameOrEmail(cleanIdentifier);
-          matches = candidates.filter((u) => u.pin === pin);
+          matches = candidates.filter((u) => pinMatches(pin, u.pin));
           dbUser = matches[0] ?? null;
         }
       }
@@ -355,7 +365,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         );
       }
 
-      if (!dbUser || (pin && dbUser.pin !== pin)) {
+      if (!dbUser || (pin && !pinMatches(pin, dbUser.pin))) {
         // The acting user_id on this row will be whoever was previously
         // logged in on this device (or null), not the failed identifier:
         // audit_logs attributes actions to the current session, and there
@@ -369,6 +379,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }).catch(() => {});
         if (pin) recordLoginFailure(cleanIdentifier);
         return false;
+      }
+
+      // The PIN just verified against a LEGACY plaintext value: this
+      // successful login is where it becomes a hash. Fire-and-forget (the
+      // login must not depend on the write landing) and it goes through the
+      // ordinary update() path, so it queues for sync push and from there
+      // propagates to the server and down to this account's other devices.
+      // Nothing is user-visible: no reset, no prompt.
+      if (pin && needsPinRehash(dbUser.pin)) {
+        void migrateLegacyPinToHash(dbUser.id, pin);
       }
 
       const userProfile: User = {
@@ -671,7 +691,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const currentStoredPin = await getUserPin(user.id);
     if (!currentStoredPin) return { success: false, message: "User not found" };
 
-    if (currentStoredPin !== currentPin) {
+    if (!pinMatches(currentPin, currentStoredPin)) {
       return { success: false, message: "Current PIN is incorrect" };
     }
 
@@ -690,10 +710,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const verifyPin = async (pin: string) => {
     if (!user) return false;
     const storedPin = await getUserPin(user.id);
-    if (storedPin) {
-      return storedPin === pin;
+    if (!storedPin) return false;
+
+    if (!pinMatches(pin, storedPin)) return false;
+
+    // Same lazy migration as login(): any successful verification of a
+    // legacy plaintext PIN is a chance to upgrade it in place.
+    if (needsPinRehash(storedPin)) {
+      void migrateLegacyPinToHash(user.id, pin);
     }
-    return false;
+    return true;
   };
 
   const linkCloudAccount = async (email: string, password: string) => {

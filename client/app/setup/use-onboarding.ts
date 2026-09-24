@@ -12,6 +12,7 @@ import { apiClient } from "@/lib/api/client";
 import { toast } from "sonner";
 import { markRestoredForCloudLinkNotice } from "@/lib/utils/post-restore-notice";
 import type { StoreOption } from "@/lib/types/store";
+import { hashPin } from "@/lib/utils/pin-hash";
 
 export type OnboardingStep = "welcome" | "register" | "cloud" | "backup" | "syncing" | "select-store";
 
@@ -93,6 +94,11 @@ export function useOnboarding() {
     setIsLoading(true);
     try {
       const now = new Date().toISOString();
+      // Every local write of this PIN below stores the hash, never the raw
+      // digits (see lib/utils/pin-hash.ts). The raw `pin` is still what's
+      // sent to the registration API (which hashes it server-side) and what
+      // login() is called with at the end.
+      const hashedPin = hashPin(pin);
 
       // Brand-new setup (no cloud account linked yet): always create the
       // account + store in the cloud first, then seed local SQLite with the
@@ -143,7 +149,7 @@ export function useOnboarding() {
 
         await execute(
           "INSERT INTO users (id, first_name, last_name, username, pin, role, store_id, is_active, created_at, updated_at, _synced) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-          [response.user.id, firstName, lastName, username, pin, "admin", store.id, 1, now, now, 1],
+          [response.user.id, firstName, lastName, username, hashedPin, "admin", store.id, 1, now, now, 1],
         );
 
         localStorage.setItem("dumos_active_store_id", store.id);
@@ -221,7 +227,7 @@ export function useOnboarding() {
 
       await execute(
         "INSERT INTO users (id, first_name, last_name, username, pin, role, store_id, is_active, created_at, updated_at, _synced) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        [userId, firstName, lastName, username, pin, "admin", storeId, 1, now, now, 0],
+        [userId, firstName, lastName, username, hashedPin, "admin", storeId, 1, now, now, 0],
       );
       await execute(
         `INSERT INTO _sync_queue (table_name, record_id, operation, payload, created_at) VALUES (?, ?, ?, ?, ?)`,
@@ -234,7 +240,7 @@ export function useOnboarding() {
             first_name: firstName,
             last_name: lastName,
             username,
-            pin,
+            pin: hashedPin,
             role: "admin",
             store_id: storeId,
             is_active: 1,

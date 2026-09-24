@@ -109,7 +109,8 @@ trait RegistersAccounts
             'email' => $request->email,
             'phone' => $request->phone,
             'username' => $request->username,
-            'pin' => $request->pin,
+            // Hashed, never stored raw - see User::hashPin().
+            'pin' => User::hashPin($request->pin),
             'password' => Hash::make($request->password),
             'role' => $roleSlug,
             'role_id' => $roleObj ? $roleObj->id : null,

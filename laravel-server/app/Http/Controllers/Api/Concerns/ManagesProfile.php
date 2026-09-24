@@ -87,7 +87,9 @@ trait ManagesProfile
             'pin' => 'required|string|size:4',
         ]);
 
-        $user->pin = $request->pin;
+        // Hashed, never stored raw - see User::hashPin(). Verification is
+        // client-side/offline, so only the hash ever needs to leave here.
+        $user->pin = \App\Models\User::hashPin($request->pin);
         $user->save();
 
         return response()->json([

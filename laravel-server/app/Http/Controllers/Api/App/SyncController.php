@@ -209,7 +209,7 @@ class SyncController extends Controller
 
                 $now = now();
 
-                $payload = $this->normalizePushPayload($request, $change, $payload, $currentStoreId, $currentUser, $isSuperAdmin, $allowedStoreIds);
+                $payload = $this->normalizePushPayload($request, $change, $payload, $currentStoreId, $currentUser, $isSuperAdmin, $allowedStoreIds, $allowedUserIds);
 
                 $recordId = $change['record_id'] ?? ($payload['id'] ?? null);
 
@@ -259,7 +259,30 @@ class SyncController extends Controller
                         // Force missing required fields for users
                         if ($change['table_name'] === 'users') {
                             if (empty($model->password)) {
-                                $model->password = \Illuminate\Support\Facades\Hash::make($payload['pin'] ?? '1234');
+                                // $payload['pin'] used to be the raw 4-digit
+                                // PIN a device pushed for a user it created
+                                // offline, so hashing it here gave that
+                                // account a working web-dashboard password
+                                // equal to their PIN (StaffController::store
+                                // does the same thing intentionally for the
+                                // online creation path). The client now
+                                // hashes `pin` before it's ever written
+                                // locally, so this fallback would otherwise
+                                // hash an already-hashed value - not a
+                                // lockout (the row still gets SOME password),
+                                // but it silently drops the "log into the
+                                // dashboard with your PIN" convenience for
+                                // every offline-created user. Detect that
+                                // case and fall back to the same generic
+                                // placeholder StaffController::store already
+                                // uses when no PIN was supplied at all,
+                                // rather than deriving a password from a
+                                // value that no longer represents a secret
+                                // the user actually knows.
+                                $rawPin = (isset($payload['pin']) && preg_match('/^\$2[aby]\$\d{2}\$/', $payload['pin']) !== 1)
+                                    ? $payload['pin']
+                                    : '1234';
+                                $model->password = \Illuminate\Support\Facades\Hash::make($rawPin);
                             }
                             if (empty($model->first_name)) {
                                 $model->first_name = $payload['first_name'] ?? 'User';
@@ -863,6 +886,11 @@ class SyncController extends Controller
 
         // Map users fields for SQLite
         if ($table === 'users') {
+            // `pin` is in User::$hidden (so no ordinary API response leaks
+            // it), but POS login is fully offline and verifies the typed PIN
+            // against the locally-stored value - the device can only do that
+            // if the pull ships it. It's a bcrypt hash now, not the raw PIN.
+            $array['pin'] = $item->getAttribute('pin');
             if (empty($array['username'])) {
                 $array['username'] = $array['email'] ?: 'user_' . substr($array['id'], 0, 8);
             }
@@ -1203,7 +1231,7 @@ class SyncController extends Controller
      * Every rule below is lifted verbatim from push()'s inline pipeline —
      * see the individual comments for the incident each one came from.
      */
-    private function normalizePushPayload(Request $request, array $change, array $payload, ?string $currentStoreId, $currentUser, bool $isSuperAdmin, array $allowedStoreIds): array
+    private function normalizePushPayload(Request $request, array $change, array $payload, ?string $currentStoreId, $currentUser, bool $isSuperAdmin, array $allowedStoreIds, array $allowedUserIds = []): array
     {
         // Privilege-limit a client-originated `users` payload BEFORE any of
         // the backfill logic below runs, so a stripped/rejected role can't
@@ -1267,6 +1295,26 @@ class SyncController extends Controller
             // the raw key in the payload after deriving from it fails the
             // INSERT/UPDATE with an unknown-column error.
             unset($payload['name']);
+        }
+
+        // `feedback` is the one synced table whose ownership is user_id and
+        // ONLY user_id (no store_id column, and it isn't in pull()'s table
+        // list either — it's push-only telemetry/support tickets). It was
+        // absent from both normalization lists, so whatever the client put in
+        // user_id was stored verbatim: in practice the literal "anonymous"
+        // the crash logger writes when no user is in localStorage, or a
+        // previous account's id after a store/account switch. The row inserts
+        // fine (push()'s INSERT branch has no ownership check) and is then
+        // permanently rejected 'forbidden' on every subsequent push, because
+        // push() turns an INSERT for an already-existing id into an UPDATE,
+        // which authorizeChangeTarget() does check. Stamp it to the caller
+        // instead, matching the store_id backfill convention a few lines
+        // below — but only when it names nobody the caller may write for, so
+        // a colleague's genuine ticket keeps its author.
+        if ($change['table_name'] === 'feedback' && $currentUser && !$isSuperAdmin) {
+            if (empty($payload['user_id']) || !in_array($payload['user_id'], $allowedUserIds, true)) {
+                $payload['user_id'] = $currentUser->id;
+            }
         }
 
         // Inject user_id for core tables if missing
@@ -1602,7 +1650,49 @@ class SyncController extends Controller
         // a legacy sync — the actual attack surface this check closes
         // (harvesting record ids off the public storefront) only ever
         // yields rows with a real store_id already set.
-        return isset($model->user_id) ? in_array($model->user_id, $allowedUserIds, true) : true;
+        if (!isset($model->user_id)) {
+            return true;
+        }
+
+        if (in_array($model->user_id, $allowedUserIds, true)) {
+            return true;
+        }
+
+        // The row names a user id that isn't in the caller's scope. Before
+        // rejecting, distinguish "belongs to another tenant" (a real denial)
+        // from "names nobody at all" — a dangling id that resolves to no
+        // `users` row is ownership that couldn't be determined, exactly like
+        // the null case above, not another tenant's property.
+        //
+        // This is not hypothetical: the client's crash logger
+        // (client/lib/utils/error-logger.ts) writes `feedback` rows with the
+        // literal string user_id "anonymous" whenever it can't read a logged-in
+        // user out of localStorage (a crash before login, after logout, or
+        // with storage unavailable). `feedback` carries no store_id, so it
+        // lands here; the INSERT branch of push() has no ownership check, so
+        // the server happily stores the row; and then every later push of
+        // that same row — push() rewrites an INSERT for an already-existing
+        // id into an UPDATE, so a retried/re-queued crash report always
+        // becomes one — was rejected 'forbidden' forever, which is exactly
+        // the production symptom logged in docs/KNOWN_BUGS.md. The same
+        // applies to any row left behind by an account switch whose original
+        // user has since been deleted.
+        //
+        // Deliberately on the reject path only: this extra lookup runs just
+        // for a change that was about to be denied, never for the overwhelming
+        // majority that resolve through store_id or an in-scope user_id.
+        // A dangling id confers no privilege — anyone could create such a row
+        // themselves — so failing open here matches the existing fallback's
+        // reasoning rather than widening it.
+        //
+        // withTrashed(): User uses SoftDeletes, whose global scope makes a
+        // plain whereKey()->exists() return false for a deleted staff member
+        // or store owner too — a REAL user's rows, not a dangling id. Without
+        // this, any of a deactivated/removed user's un-store-scoped rows
+        // become writable by any authenticated sync caller who happens to
+        // know the id, which is exactly the "another tenant's property" case
+        // this fallback exists to keep denied.
+        return !User::withTrashed()->whereKey($model->user_id)->exists();
     }
 
     /**

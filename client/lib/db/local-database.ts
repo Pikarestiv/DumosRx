@@ -22,6 +22,7 @@ import type { PrescriptionItemInsertPayload } from "@/lib/types/prescription";
 import type { StaffCreatePayload, StaffUpdatePayload, StaffListItem } from "@/lib/types/user";
 import type { Product } from "@/lib/types/product";
 import type { CustomerDbRow } from "@/lib/types/customer";
+import { hashPin } from "@/lib/utils/pin-hash";
 
 const STOCK_MOVEMENT_AUDIT_ACTIONS: Record<string, string> = {
   adjustment: AUDIT_ACTIONS.STOCK_ADJUSTMENT,
@@ -249,6 +250,10 @@ export async function getUsers(storeId?: string | null) {
 export async function createUser(data: StaffCreatePayload) {
   return await insert("users", {
     ...data,
+    // Staff created here are created LOCALLY and pushed up by the sync
+    // engine, so this is a real PIN write site: hash it, never store the
+    // raw digits. See lib/utils/pin-hash.ts.
+    ...(data.pin ? { pin: hashPin(data.pin) } : {}),
     id: data.id || crypto.randomUUID(),
     is_active: 1,
     created_at: new Date().toISOString(),
@@ -258,7 +263,9 @@ export async function createUser(data: StaffCreatePayload) {
 }
 
 export async function updateUser(id: string, data: StaffUpdatePayload) {
-  return await update("users", id, data);
+  // Same reasoning as createUser(): an admin changing someone's PIN from
+  // the staff dialog must store a hash, not the 4 digits they typed.
+  return await update("users", id, data.pin ? { ...data, pin: hashPin(data.pin) } : data);
 }
 
 export async function deleteUser(id: string) {

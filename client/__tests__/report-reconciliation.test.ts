@@ -64,6 +64,21 @@ interface RawSaleItem {
   total_price: number;
   _deleted: number | null;
 }
+interface RawReturn {
+  id: string;
+  sale_id: string;
+  store_id: string | null;
+  created_at: string;
+  total_refunded: number;
+  _deleted: number | null;
+}
+interface RawReturnItem {
+  id: string;
+  return_id: string;
+  product_id: string;
+  quantity: number;
+  _deleted: number | null;
+}
 interface RawBatch {
   id: string;
   product_id: string;
@@ -103,6 +118,37 @@ describe("report/dashboard aggregate reconciliation against independent raw sums
   const localMonth = (ts: string) => {
     const d = new Date(ts);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  };
+
+  /** The report's numbers come back already rounded to 2dp (toFixed(2)), so
+   * an independently computed expectation with a repeating decimal in it
+   * (a quantity-weighted average cost) has to be rounded the same way. */
+  const round2 = (m: Map<string, number>) =>
+    new Map([...m].map(([k, v]) => [k, Number(v.toFixed(2))]));
+
+  /** Independent returned-COGS per local month of the return's created_at:
+   * every live in-range store-A return's items valued at the quantity-
+   * weighted sale-time cost for that (sale_id, product_id). */
+  const returnedCogsByMonth = () => {
+    const saleItems = rawRows<RawSaleItem & { sale_id: string; product_id: string }>(
+      `SELECT * FROM sale_items`,
+    );
+    const avgCost = (saleId: string, productId: string) => {
+      const rows = saleItems.filter((i) => i.sale_id === saleId && i.product_id === productId);
+      const qty = rows.reduce((a, i) => a + i.quantity, 0);
+      if (!qty) return 0;
+      return rows.reduce((a, i) => a + i.cost_price * i.quantity, 0) / qty;
+    };
+    const items = rawRows<RawReturnItem>(`SELECT * FROM return_items`);
+    const out = new Map<string, number>();
+    for (const r of rawRows<RawReturn>(`SELECT * FROM returns`)) {
+      if (!live(r) || r.store_id !== STORE_A || !inRange(r.created_at)) continue;
+      const k = localMonth(r.created_at);
+      for (const i of items.filter((x) => x.return_id === r.id && live(x))) {
+        out.set(k, (out.get(k) ?? 0) + i.quantity * avgCost(r.sale_id, i.product_id));
+      }
+    }
+    return out;
   };
 
   /** Independent local calendar day, same idea. */
@@ -231,21 +277,47 @@ describe("report/dashboard aggregate reconciliation against independent raw sums
     // Independent path: whole sales rows, filtered and bucketed in JS.
     // Revenue excludes tax_amount - VAT/tax collected on the government's
     // behalf is a liability, not revenue (see docs/KNOWN_BUGS.md's tax/VAT
-    // finding and useBIData's netSales, which this report is aligned with).
+    // finding and useBIData's netSales, which this report is aligned with) -
+    // and is NET OF REFUNDS, the same as every other revenue surface
+    // (useBIData's netSales, getCurrentMonthRevenue). Refunds are bucketed by
+    // the return's own created_at, the basis the report windows them on.
+    //
+    // total_refunded is VAT-INCLUSIVE (calculateProportionalRefund bakes the
+    // refunded line's tax share into it), while this revenue figure is
+    // ex-VAT - so only the ex-VAT share of a refund nets out here:
+    // refund * (sale.total_amount - sale.tax_amount) / sale.total_amount.
+    // Subtracting the raw refund would over-subtract by the refunded VAT
+    // (the same bug already fixed in the Daily Close report).
+    const salesById = new Map(rawRows<RawSale>(`SELECT * FROM sales`).map((s) => [s.id, s]));
     const expected = new Map<string, number>();
     for (const s of rawRows<RawSale>(`SELECT * FROM sales`)) {
       if (!live(s) || s.store_id !== STORE_A || !inRange(s.transaction_date)) continue;
       const k = localMonth(s.transaction_date);
       expected.set(k, (expected.get(k) ?? 0) + (s.total_amount - (s.tax_amount || 0)));
     }
+    for (const r of rawRows<RawReturn>(`SELECT * FROM returns`)) {
+      if (!live(r) || r.store_id !== STORE_A || !inRange(r.created_at)) continue;
+      const k = localMonth(r.created_at);
+      const sale = salesById.get(r.sale_id);
+      const exVatRefund =
+        sale && sale.total_amount
+          ? (r.total_refunded * (sale.total_amount - (sale.tax_amount || 0))) / sale.total_amount
+          : r.total_refunded;
+      expected.set(k, (expected.get(k) ?? 0) - exVatRefund);
+    }
 
     const actual = new Map(rows.map((r) => [String(r["Month"]), Number(r["Revenue"])]));
-    expect(actual).toEqual(expected);
+    expect(actual).toEqual(round2(expected));
     // Guard that the fixture actually exercised the range boundaries: sA2
     // (first ms of the range, local) and sA4 (last local day) are in, sA1 and
     // sA5 (just outside, on either end) are not, sAX is deleted, sB1 is the
-    // other store. Tax-excluded (subtotal) amounts: 2500 + 7300 + 1800.
-    expect([...expected.values()].reduce((a, b) => a + b, 0)).toBe(2500 + 7300 + 1800);
+    // other store. Tax-excluded (subtotal) amounts 2500 + 7300 + 1800, less
+    // r1's 800 refund against sA3 netted down to its ex-VAT share
+    // (800 * 7300/7665 = 16000/21).
+    expect([...expected.values()].reduce((a, b) => a + b, 0)).toBeCloseTo(
+      2500 + 7300 + 1800 - 16000 / 21,
+      6,
+    );
   });
 
   it("fetchSalesReportData's row-level totals reconcile with the same range's raw sales rows (independent of the report's own SQL filtering)", async () => {
@@ -328,11 +400,20 @@ describe("report/dashboard aggregate reconciliation against independent raw sums
       const k = localMonth(s.transaction_date);
       expected.set(k, (expected.get(k) ?? 0) + i.cost_price * i.quantity);
     }
+    // ...less the cost of what came back, bucketed by the return's created_at
+    // (the report nets returned COGS out the same way useBIData's totalCogs
+    // does), valued at the quantity-weighted sale-time cost.
+    for (const [month, cost] of returnedCogsByMonth()) {
+      expected.set(month, (expected.get(month) ?? 0) - cost);
+    }
 
     const actual = new Map(rows.map((r) => [String(r["Month"]), Number(r["COGS"])]));
-    expect(actual).toEqual(expected);
-    // sA2 (300*2 + 900*1) + sA3 (300*4 + 320*2 + 900*3) + sA4 (950*1).
-    expect(actual.get("2026-03")).toBe(1500 + 4540 + 950);
+    expect(actual).toEqual(round2(expected));
+    // sA2 (300*2 + 900*1) + sA3 (300*4 + 320*2 + 900*3) + sA4 (950*1), less
+    // r1's 2 returned p1 units at sA3's weighted cost (4*300 + 2*320)/6.
+    expect(actual.get("2026-03")).toBe(
+      Number((1500 + 4540 + 950 - (2 * 1840) / 6).toFixed(2)),
+    );
   });
 
   it("getBIMetrics's COGS reconciles with a raw sale_items JS sum over the same open-ended window", async () => {
@@ -358,13 +439,34 @@ describe("report/dashboard aggregate reconciliation against independent raw sums
       (s) => live(s) && s.store_id === STORE_A && inRange(s.transaction_date),
     );
     const idsInRange = new Set(salesInRange.map((s) => s.id));
-    const rawRevenue = salesInRange.reduce((a, s) => a + (s.total_amount - (s.tax_amount || 0)), 0);
-    const rawCogs = rawRows<RawSaleItem>(`SELECT * FROM sale_items`)
-      .filter((i) => idsInRange.has(i.sale_id))
-      .reduce((a, i) => a + i.cost_price * i.quantity, 0);
+    const salesById = new Map(rawRows<RawSale>(`SELECT * FROM sales`).map((s) => [s.id, s]));
+    // Both sides net of returns, matching the report (and useBIData): refunds
+    // out of revenue, returned items' sale-time cost out of COGS. Refunds are
+    // netted at their EX-VAT share only - total_refunded is VAT-inclusive,
+    // see the matching comment on the Revenue reconciliation test above.
+    const rawRefunds = rawRows<RawReturn>(`SELECT * FROM returns`)
+      .filter((r) => live(r) && r.store_id === STORE_A && inRange(r.created_at))
+      .reduce((a, r) => {
+        const sale = salesById.get(r.sale_id);
+        const exVat =
+          sale && sale.total_amount
+            ? (r.total_refunded * (sale.total_amount - (sale.tax_amount || 0))) / sale.total_amount
+            : r.total_refunded;
+        return a + exVat;
+      }, 0);
+    const rawRevenue =
+      salesInRange.reduce((a, s) => a + (s.total_amount - (s.tax_amount || 0)), 0) - rawRefunds;
+    const rawReturnedCogs = [...returnedCogsByMonth().values()].reduce((a, b) => a + b, 0);
+    const rawCogs =
+      rawRows<RawSaleItem>(`SELECT * FROM sale_items`)
+        .filter((i) => idsInRange.has(i.sale_id))
+        .reduce((a, i) => a + i.cost_price * i.quantity, 0) - rawReturnedCogs;
 
     const reportGross = rows.reduce((a, r) => a + Number(r["Gross Profit"]), 0);
-    expect(reportGross).toBeCloseTo(rawRevenue - rawCogs, 6);
+    // 10838.10 revenue (2500 + 7300 + 1800 - r1's ex-VAT refund share
+    // 800*7300/7665 = 16000/21 ~= 761.90) - 6376.67 COGS (6990 less r1's
+    // 2 units at (4*300 + 2*320)/6 = 306.67 each).
+    expect(reportGross).toBeCloseTo(rawRevenue - rawCogs, 2);
   });
 
   // ---------------------------------------------------- inventory valuation

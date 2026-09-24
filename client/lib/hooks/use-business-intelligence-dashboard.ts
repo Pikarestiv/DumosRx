@@ -3,6 +3,7 @@ import { format, subDays } from "date-fns";
 import { toast } from "sonner";
 import { useBIData } from "@/lib/hooks/use-bi-data";
 import { useReportExport } from "@/lib/hooks/use-report-export";
+import { toQueryRange } from "@/lib/utils/date-range";
 import type { ReportFiltersValue } from "@/components/reports/report-filters-bar";
 
 /** All business logic for the Analytics/BI dashboard: shared filter state
@@ -22,8 +23,14 @@ export function useBusinessIntelligenceDashboard() {
   const handleExportReports = async () => {
     setExporting(true);
     try {
-      const from = filters.dateRange.from ? `${filters.dateRange.from}T00:00:00.000Z` : undefined;
-      const to = filters.dateRange.to ? `${filters.dateRange.to}T23:59:59.999Z` : undefined;
+      // toQueryRange(), not manual "T00:00:00.000Z"/"T23:59:59.999Z" string
+      // concatenation: the picker's date-only values name days on the store's
+      // LOCAL wall clock, which is the calendar every report query buckets
+      // against (strftime(..., 'localtime')). Pinning them to literal UTC
+      // midnight shifted this export's day/month boundaries by the store's
+      // UTC offset relative to the very same P&L export run from Report
+      // Center, which already goes through toQueryRange().
+      const { from, to } = toQueryRange(filters.dateRange);
       await exportReportCsv("profit-loss", from, to, {
         staffId: filters.staffId,
         paymentMethod: filters.paymentMethod,

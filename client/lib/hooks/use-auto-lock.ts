@@ -20,9 +20,18 @@ interface AutoLockState {
   updateActivity: () => void;
 }
 
+// zustand's persist middleware writes this tab's entire state to localStorage
+// synchronously on every set(). updateActivity() is wired to mousemove/
+// touchstart/scroll (see useAutoLockTimer below), so without throttling it
+// forces a blocking localStorage write on every single touch and scroll
+// frame - widening the touchstart-to-click timing window that can drop a tap
+// on iPad. A lock timer only needs second-ish resolution, not the write on
+// every event.
+const ACTIVITY_WRITE_THROTTLE_MS = 5000;
+
 export const useAutoLockStore = create<AutoLockState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       duration: 5,
       isLocked: false,
       lastActivity: Date.now(),
@@ -36,7 +45,11 @@ export const useAutoLockStore = create<AutoLockState>()(
           lastActivity: Date.now(),
           forceAccountSelection: false,
         }),
-      updateActivity: () => set({ lastActivity: Date.now() }),
+      updateActivity: () => {
+        const now = Date.now();
+        if (now - get().lastActivity < ACTIVITY_WRITE_THROTTLE_MS) return;
+        set({ lastActivity: now });
+      },
     }),
     {
       name: "dumos_autolock",

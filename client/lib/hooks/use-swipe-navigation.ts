@@ -15,7 +15,11 @@ export function useSwipeNavigation(
   const { onSwipePastEnd } = options;
   const router = useRouter();
   const pathname = usePathname();
-  const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
+  // Ref, not state: this is read only inside handleTouchEnd, never rendered.
+  // A setState here fired a root re-render between touchstart and the
+  // browser's tap-to-click synthesis, which could drop an in-flight tap on
+  // touch devices (iPad).
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
   const [direction, setDirection] = useState<SwipeDirection>(null);
 
   const currentIndex = tabs.findIndex((t) => pathname.startsWith(t));
@@ -47,15 +51,15 @@ export function useSwipeNavigation(
       }
       el = el.parentElement;
     }
-    setTouchStart({ x: e.touches[0].clientX, y: e.touches[0].clientY });
+    touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
-    if (!touchStart) return;
+    if (!touchStart.current) return;
     const endX = e.changedTouches[0].clientX;
     const endY = e.changedTouches[0].clientY;
-    const diffX = endX - touchStart.x;
-    const diffY = endY - touchStart.y;
+    const diffX = endX - touchStart.current.x;
+    const diffY = endY - touchStart.current.y;
 
     if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 50) {
       if (currentIndex !== -1) {
@@ -74,7 +78,7 @@ export function useSwipeNavigation(
         }
       }
     }
-    setTouchStart(null);
+    touchStart.current = null;
   };
 
   return { handleTouchStart, handleTouchEnd, direction };

@@ -361,9 +361,22 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
                         )}
                       >
                         <button
+                          type="button"
                           data-testid="sync-now-button"
+                          onClick={(e) => {
+                            // The whole card (#tour-sync-indicator) has its
+                            // own onClick calling handleManualSync too, so
+                            // without this a click on the button itself fires
+                            // it twice - the second call hits sync()'s mutex,
+                            // toasts a spurious "already in progress" error,
+                            // and its finally{} clears isSyncInProgress while
+                            // the first call is still running.
+                            e.stopPropagation();
+                            handleManualSync();
+                          }}
                           disabled={isImpersonating || isSyncInProgress || status === "offline"}
-                          className="p-1 border border-sidebar-border rounded-md transition-colors disabled:opacity-30 cursor-pointer hover:bg-sidebar-accent relative z-10 pointer-events-none"
+                          aria-label="Sync now"
+                          className="p-1 border border-sidebar-border rounded-md transition-colors disabled:opacity-30 cursor-pointer hover:bg-sidebar-accent relative z-10"
                         >
                           <RefreshCw
                             className={cn(

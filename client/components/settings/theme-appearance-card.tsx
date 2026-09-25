@@ -15,32 +15,32 @@ const colorThemes = [
   {
     id: "default",
     name: "Dumos Blue",
-    style: { backgroundColor: "oklch(0.55 0.18 250)" },
+    style: { backgroundColor: "#0072d5" }, // oklch(0.55 0.18 250)
   },
   {
     id: "ocean",
     name: "Ocean Breeze",
-    style: { backgroundColor: "oklch(0.588 0.158 241.966)" },
+    style: { backgroundColor: "#0084d1" }, // oklch(0.588 0.158 241.966)
   },
   {
     id: "emerald",
     name: "Emerald Health",
-    style: { backgroundColor: "oklch(0.627 0.194 149.214)" },
+    style: { backgroundColor: "#00a63e" }, // oklch(0.627 0.194 149.214)
   },
   {
     id: "ruby",
     name: "Ruby Retail",
-    style: { backgroundColor: "oklch(0.577 0.245 27.325)" },
+    style: { backgroundColor: "#e7000b" }, // oklch(0.577 0.245 27.325)
   },
   {
     id: "midnight",
     name: "Midnight Gold",
-    style: { backgroundColor: "oklch(0.696 0.151 77.212)" },
+    style: { backgroundColor: "#d08e00" }, // oklch(0.696 0.151 77.212)
   },
   {
     id: "slate",
     name: "Professional Slate",
-    style: { backgroundColor: "oklch(0.439 0 0)" },
+    style: { backgroundColor: "#525252" }, // oklch(0.439 0 0)
   },
 ];
 

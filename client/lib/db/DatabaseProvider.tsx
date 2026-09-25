@@ -179,6 +179,9 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
   // tab open).
   useEffect(() => {
     return onPromotionFailed(() => {
+      // Otherwise a handoff acked just before this failure leaves
+      // handoffState stuck on "requesting" with no usable control.
+      setHandoffState("offer-force");
       toast.error(
         "Couldn't reconnect this tab to the local database. Please reload the page.",
         { duration: 15000 },
@@ -199,7 +202,7 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
       if (now - lastShownAt < 10000) return;
       lastShownAt = now;
       toast.error(
-        "This tab is read-only - DumosRx is already open in another tab or window.",
+        "This tab is read-only because DumosRx is already open in another tab or window.",
         { duration: 8000 },
       );
     };
@@ -283,7 +286,7 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
         // z-[9500]) - TauriTitleBar's z-[9999] doesn't need to be beaten.
         <div className="sticky top-0 z-[9500] w-full bg-amber-500 px-4 py-1.5 text-center text-xs font-medium text-amber-950 flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
           <span>
-            Read-only tab — DumosRx is already open elsewhere. Switch to that
+            Read-only tab: DumosRx is already open elsewhere. Switch to that
             window, or close it, to make changes here.
           </span>
           {handoffState === "offer-force" || handoffState === "forcing" ? (

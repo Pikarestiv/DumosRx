@@ -304,7 +304,9 @@ function cellPlainValue(value: ExcelJS.CellValue): unknown {
   if (value === null || value === undefined) return "";
   if (value instanceof Date) return value;
   if (typeof value === "object") {
-    if ("result" in value) return value.result ?? "";
+    // A broken formula (#REF!/#DIV/0!) is {error} or {formula, result: {error}}.
+    if ("error" in value) return "";
+    if ("result" in value) return cellPlainValue(value.result ?? "");
     if ("richText" in value) {
       return value.richText.map((t) => t.text).join("");
     }

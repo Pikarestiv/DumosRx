@@ -340,7 +340,24 @@ jobs:
           name: root-assets-${{ github.ref_name }}
           path: root-assets/
 
+      # Queue order here isn't push order (a slower tag can arrive later);
+      # compare versions directly so an older tag can never overwrite a newer one.
+      - name: Guard against deploying a stale updater.json
+        run: |
+          set -e
+          NEW_VERSION=$(node -pe "require('./root-assets/updater.json').version")
+          LIVE_VERSION=$(curl -fsSL https://downloads.dumosrx.com/updater.json 2>/dev/null | node -pe "JSON.parse(require('fs').readFileSync(0,'utf8')).version" 2>/dev/null || echo "0.0.0")
+          echo "This tag's version: $NEW_VERSION; currently live version: $LIVE_VERSION"
+          LATEST=$(printf '%s\n%s\n' "$LIVE_VERSION" "$NEW_VERSION" | sort -V | tail -n1)
+          if [ "$LATEST" != "$NEW_VERSION" ]; then
+            echo "Live version ($LIVE_VERSION) is newer than this tag's version ($NEW_VERSION) — skipping root deploy to avoid regressing the updater feed."
+            echo "SKIP_ROOT_DEPLOY=true" >> "$GITHUB_ENV"
+          else
+            echo "SKIP_ROOT_DEPLOY=false" >> "$GITHUB_ENV"
+          fi
+
       - name: FTP Deploy Root Files
+        if: env.SKIP_ROOT_DEPLOY != 'true'
         uses: SamKirkland/FTP-Deploy-Action@8e83cea8672e3fbcbb9fdafff34debf6ae4c5f65 # v4.3.5
         with:
           server: ${{ secrets.FTP_SERVER }}

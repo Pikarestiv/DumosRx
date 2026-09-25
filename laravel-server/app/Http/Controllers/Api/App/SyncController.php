@@ -538,6 +538,13 @@ class SyncController extends Controller
                         : $modelClass::find($change['record_id']);
 
                     if ($target) {
+                        // Client's legacy-row store_id claim (base-helpers.ts's
+                        // softDelete()) — applied before authorization so a
+                        // legacy row's claim actually reaches the server.
+                        if (empty($target->store_id) && !empty($payload['store_id']) && \Illuminate\Support\Facades\Schema::hasColumn($target->getTable(), 'store_id')) {
+                            $target->store_id = $payload['store_id'];
+                        }
+
                         if ($currentUser && !$isSuperAdmin && !$this->authorizeChangeTarget($change['table_name'], $target, $allowedStoreIds, $allowedUserIds)) {
                             DB::commit();
                             $failed[] = [
@@ -547,6 +554,9 @@ class SyncController extends Controller
                                 'reason' => 'forbidden',
                             ];
                             continue;
+                        }
+                        if ($target->isDirty('store_id')) {
+                            $target->save();
                         }
                         $target->delete();
                     }

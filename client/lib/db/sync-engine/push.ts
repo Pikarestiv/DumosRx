@@ -662,14 +662,8 @@ export async function pushChanges(
         // server-side, only that its own edit no longer matches what it was
         // based on. State what happened, not an unverifiable cause.
         for (const conflict of versionConflicts) {
-          // `feedback` is push-only crash/support telemetry (see
-          // error-logger.ts) that the user never views or edits locally —
-          // there's no "edit" for them to recognize losing, so a loud toast
-          // here is just confusing noise, not an actionable notice. Most of
-          // these trace back to the anonymous/account-switch user_id
-          // rewrite in SyncController::push turning a later retry's INSERT
-          // into an UPDATE against a payload with no matching base version.
-          // Log it instead, same as an already-silenced retry conflict.
+          // feedback is push-only telemetry the user never edits locally —
+          // nothing for them to act on, so log rather than toast.
           if (conflict.table_name === "feedback") {
             console.info(
               `[Sync] Feedback record ${conflict.record_id} hit a version conflict; server's version kept, no toast shown.`,

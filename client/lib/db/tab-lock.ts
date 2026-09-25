@@ -67,7 +67,8 @@ function holdForever(): Promise<void> {
 
 type HandoffMessage =
   | { type: "takeover-request"; requestId: string }
-  | { type: "takeover-ack"; requestId: string };
+  | { type: "takeover-ack"; requestId: string }
+  | { type: "steal-notice" };
 
 // Cross-tab channel used only for the graceful writer handoff below - never
 // for the election itself, which stays entirely on the Web Locks API. Lazily
@@ -76,7 +77,15 @@ type HandoffMessage =
 let handoffChannel: BroadcastChannel | null = null;
 function getHandoffChannel(): BroadcastChannel | null {
   if (typeof BroadcastChannel === "undefined") return null;
-  if (!handoffChannel) handoffChannel = new BroadcastChannel(HANDOFF_CHANNEL_NAME);
+  if (!handoffChannel) {
+    handoffChannel = new BroadcastChannel(HANDOFF_CHANNEL_NAME);
+    // navigator.locks' {steal: true} revokes a lock without notifying its
+    // holder - this is the only way a merely-slow (not dead) old writer
+    // finds out it lost the election before its next write.
+    handoffChannel.addEventListener("message", (event: MessageEvent<HandoffMessage>) => {
+      if (event.data?.type === "steal-notice") setWriterTab(false);
+    });
+  }
   return handoffChannel;
 }
 
@@ -214,6 +223,7 @@ export function stealWriterLock(onPromoted: () => Promise<boolean>): Promise<boo
   if (typeof navigator === "undefined" || !navigator.locks) return Promise.resolve(false);
 
   queuedPromotionController?.abort();
+  const channel = getHandoffChannel();
 
   // Resolves as soon as the promotion decision is made, same as
   // initWriterLock's resolveInitialRole() - the granted request's callback
@@ -224,6 +234,7 @@ export function stealWriterLock(onPromoted: () => Promise<boolean>): Promise<boo
     navigator.locks
       .request(LOCK_NAME, { mode: "exclusive", steal: true }, async () => {
         const promoted = await promoteToWriter(onPromoted);
+        if (promoted) channel?.postMessage({ type: "steal-notice" } satisfies HandoffMessage);
         resolve(promoted);
         if (promoted) return holdUntilTakeover();
       })

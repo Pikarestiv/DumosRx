@@ -3,7 +3,7 @@ import { pullChanges } from "./pull";
 import { SyncResult, PullResponse } from "./types";
 import { apiClient } from "@/lib/api/client";
 import { queryClient } from "@/lib/query-client";
-import { query, execute } from "../core";
+import { query, execute, isTauri, isWriterTab } from "../core";
 import { getValidColumns } from "./schema";
 import { devLog } from "@/lib/utils/dev-log";
 import { logCrash } from "@/lib/utils/error-logger";
@@ -50,6 +50,18 @@ export async function sync(
       pushed: 0,
       pulled: 0,
       error: SYNC_DISABLED_IMPERSONATION_MESSAGE,
+    };
+  }
+
+  // A read-only tab (tab-lock.ts) must never write; catch it before
+  // push/pull throw mid-sync via core.ts's assertWritable().
+  if (!isTauri() && !isWriterTab()) {
+    devLog("[SyncEngine] Sync skipped: this tab is read-only.");
+    return {
+      success: false,
+      pushed: 0,
+      pulled: 0,
+      error: "This tab is read-only. Switch to the tab where DumosRx is active to sync.",
     };
   }
 

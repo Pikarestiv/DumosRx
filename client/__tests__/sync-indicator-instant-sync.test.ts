@@ -66,6 +66,10 @@ vi.mock("@/lib/context/auth-context", () => ({
   useAuth: () => ({ isImpersonating: false }),
 }));
 
+vi.mock("@/lib/db/DatabaseProvider", () => ({
+  useDatabase: () => ({ isReadOnlyTab: false }),
+}));
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let mockStoreProfile: any = null;
 vi.mock("@/lib/context/store-context", () => ({

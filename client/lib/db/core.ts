@@ -860,6 +860,7 @@ export async function restoreDatabase(binaryData: Uint8Array): Promise<{ snapsho
       "restoreDatabase() is web-only; use restoreDatabaseFromFile() on desktop/mobile.",
     );
   }
+  assertWritable();
   if (!SQL) {
     SQL = await initSqlJs({
       locateFile: (file: string) => `/${file}`,
@@ -1266,6 +1267,7 @@ const LOCAL_WIPE_TABLES = [
  */
 export async function resetDatabase(): Promise<void> {
   if (!db) await initDatabase();
+  assertWritable();
 
   const tablesToClear = LOCAL_WIPE_TABLES;
 
@@ -1297,6 +1299,7 @@ export async function resetDatabase(): Promise<void> {
  */
 export async function clearDatabaseForNewStore(): Promise<void> {
   if (!db) await initDatabase();
+  assertWritable();
 
   const tablesToClear = [...LOCAL_WIPE_TABLES, "stores", "users"];
 

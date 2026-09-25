@@ -35,10 +35,10 @@ vi.mock("@/lib/db/sync-engine", () => ({
   isSyncing: () => false,
 }));
 
-let registeredListener: (() => void) | null = null;
+let registeredListener: ((tables: string[]) => void) | null = null;
 const unsubscribeSpy = vi.fn();
 vi.mock("@/lib/db/core", () => ({
-  addSyncQueueChangeListener: vi.fn((fn: () => void) => {
+  addSyncQueueChangeListener: vi.fn((fn: (tables: string[]) => void) => {
     registeredListener = fn;
     return () => {
       unsubscribeSpy();
@@ -118,11 +118,39 @@ describe("SyncIndicator instant sync (auto_sync_interval === 0)", () => {
     await render({ auto_sync_enabled: 1, auto_sync_interval: 0 });
 
     await act(async () => {
-      registeredListener?.();
-      registeredListener?.();
-      registeredListener?.();
+      registeredListener?.(["products"]);
+      registeredListener?.(["sales"]);
+      registeredListener?.(["products"]);
     });
 
+    await act(async () => {
+      vi.advanceTimersByTime(2000);
+      await Promise.resolve();
+    });
+
+    expect(mockSync).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not trigger a sync for an audit_logs-only change (a PIN login/logout)", async () => {
+    await render({ auto_sync_enabled: 1, auto_sync_interval: 0 });
+
+    await act(async () => {
+      registeredListener?.(["audit_logs"]);
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(2000);
+      await Promise.resolve();
+    });
+
+    expect(mockSync).not.toHaveBeenCalled();
+  });
+
+  it("still triggers when audit_logs changes alongside a real business-data table (e.g. a sale)", async () => {
+    await render({ auto_sync_enabled: 1, auto_sync_interval: 0 });
+
+    await act(async () => {
+      registeredListener?.(["sales", "audit_logs"]);
+    });
     await act(async () => {
       vi.advanceTimersByTime(2000);
       await Promise.resolve();

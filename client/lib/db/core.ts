@@ -586,15 +586,23 @@ export function registerInvalidateTablesFn(
 // mobile header, mobile drawer) whose subscribe/unsubscribe lifecycles are
 // independent; a single slot would let one instance's unmount silently
 // kill another still-mounted instance's subscription.
-const syncQueueChangeListeners = new Set<() => void>();
+// Callback receives which table(s) actually changed - a transaction can
+// batch several distinct tables into one notification (see the flush in
+// transaction()'s finally block below), so a listener that only cares
+// about REAL business-data changes (not e.g. audit_logs's login/logout
+// telemetry) needs to see the full set, not just "something changed".
+const syncQueueChangeListeners = new Set<(tables: string[]) => void>();
 
-export function addSyncQueueChangeListener(fn: () => void): () => void {
+export function addSyncQueueChangeListener(
+  fn: (tables: string[]) => void,
+): () => void {
   syncQueueChangeListeners.add(fn);
   return () => syncQueueChangeListeners.delete(fn);
 }
 
-function notifySyncQueueChangeListeners(): void {
-  for (const fn of syncQueueChangeListeners) fn();
+function notifySyncQueueChangeListeners(tables: Iterable<string>): void {
+  const tableList = Array.from(tables);
+  for (const fn of syncQueueChangeListeners) fn(tableList);
 }
 
 export function queueTableInvalidation(table: string): void {
@@ -602,7 +610,7 @@ export function queueTableInvalidation(table: string): void {
     pendingInvalidations.add(table);
   } else {
     invalidateTablesFn?.([table]);
-    notifySyncQueueChangeListeners();
+    notifySyncQueueChangeListeners([table]);
   }
 }
 
@@ -813,7 +821,7 @@ export async function transaction<T>(fn: () => Promise<T>): Promise<T> {
       pendingInvalidations = null;
       if (tables && tables.size > 0) {
         invalidateTablesFn?.(tables);
-        notifySyncQueueChangeListeners();
+        notifySyncQueueChangeListeners(tables);
       }
     }
   } finally {

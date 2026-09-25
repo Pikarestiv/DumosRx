@@ -274,6 +274,7 @@ Route::prefix('v1')->group(function () {
             // Sync
             Route::post('/sync/push', [SyncController::class, 'push']);
             Route::post('/sync/pull', [SyncController::class, 'pull']);
+            Route::get('/sync/counts', [SyncController::class, 'counts']);
         });
 
     });

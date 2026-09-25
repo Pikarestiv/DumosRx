@@ -161,7 +161,16 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
       const intervalMinutes = storeProfile?.auto_sync_interval ?? 15;
 
       if (intervalMinutes === 0) {
-        unsubscribe = addSyncQueueChangeListener(() => {
+        unsubscribe = addSyncQueueChangeListener((tables) => {
+          // audit_logs alone (a PIN login/logout, a failed-login attempt,
+          // a PIN change) is low-priority telemetry, not something another
+          // device needs to see right now - it still reaches the server
+          // via the next real sync (app open, reconnect, or a genuine
+          // business-data change), just not on its OWN dedicated instant
+          // round. A mixed batch (e.g. a sale, which also logAction()s)
+          // still triggers normally: only skipped when audit_logs is the
+          // ONLY table that changed.
+          if (tables.every((t) => t === "audit_logs")) return;
           if (debounceTimer) clearTimeout(debounceTimer);
           debounceTimer = setTimeout(() => {
             if (navigator.onLine && !checkIsSyncing()) {

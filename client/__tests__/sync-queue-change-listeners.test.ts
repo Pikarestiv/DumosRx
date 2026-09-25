@@ -39,6 +39,16 @@ describe("addSyncQueueChangeListener", () => {
     expect(calls.length).toBe(2);
   });
 
+  it("passes the touched table name to the listener outside a transaction", () => {
+    const calls: string[][] = [];
+    const unsubscribe = addSyncQueueChangeListener((tables) => calls.push(tables));
+
+    queueTableInvalidation("audit_logs");
+
+    unsubscribe();
+    expect(calls).toEqual([["audit_logs"]]);
+  });
+
   it("batches notifications into exactly one call after a transaction commits, even with multiple table touches", async () => {
     const calls: number[] = [];
     const unsubscribe = addSyncQueueChangeListener(() => calls.push(1));
@@ -51,6 +61,21 @@ describe("addSyncQueueChangeListener", () => {
 
     unsubscribe();
     expect(calls.length).toBe(1);
+  });
+
+  it("passes every distinct touched table to the batched post-transaction notification", async () => {
+    const calls: string[][] = [];
+    const unsubscribe = addSyncQueueChangeListener((tables) => calls.push(tables));
+
+    await transaction(async () => {
+      queueTableInvalidation("sales");
+      queueTableInvalidation("audit_logs");
+      queueTableInvalidation("sales");
+    });
+
+    unsubscribe();
+    expect(calls.length).toBe(1);
+    expect(new Set(calls[0])).toEqual(new Set(["sales", "audit_logs"]));
   });
 
   it("does not notify after unsubscribe", () => {

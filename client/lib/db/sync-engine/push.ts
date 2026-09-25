@@ -662,8 +662,22 @@ export async function pushChanges(
         // server-side, only that its own edit no longer matches what it was
         // based on. State what happened, not an unverifiable cause.
         for (const conflict of versionConflicts) {
+          // `feedback` is push-only crash/support telemetry (see
+          // error-logger.ts) that the user never views or edits locally —
+          // there's no "edit" for them to recognize losing, so a loud toast
+          // here is just confusing noise, not an actionable notice. Most of
+          // these trace back to the anonymous/account-switch user_id
+          // rewrite in SyncController::push turning a later retry's INSERT
+          // into an UPDATE against a payload with no matching base version.
+          // Log it instead, same as an already-silenced retry conflict.
+          if (conflict.table_name === "feedback") {
+            console.info(
+              `[Sync] Feedback record ${conflict.record_id} hit a version conflict; server's version kept, no toast shown.`,
+            );
+            continue;
+          }
           toast.warning(
-            `A change to ${describeSyncedRecord(conflict.table_name)} could not be saved because the record changed since this edit — the server's current version was kept.`,
+            `A change to ${describeSyncedRecord(conflict.table_name)} could not be saved because the record changed since this edit. The server's current version was kept.`,
           );
         }
         // Not surfaced to the user — see the retry_count comment above. Still
@@ -672,7 +686,7 @@ export async function pushChanges(
         // write that already landed.
         for (const conflict of silencedConflicts) {
           console.info(
-            `[Sync] Retried edit to ${conflict.table_name}/${conflict.record_id} hit a version conflict — likely its own earlier attempt already applied; server's version kept, no toast shown.`,
+            `[Sync] Retried edit to ${conflict.table_name}/${conflict.record_id} hit a version conflict, likely its own earlier attempt already applied; server's version kept, no toast shown.`,
           );
         }
       } else {

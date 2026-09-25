@@ -12,20 +12,6 @@ Deep adversarial review of the whole monorepo (`client/`, `web/`, `laravel-serve
 
 ---
 
-## Critical Findings
-
-### C1. `laravel-server/` — 10 migrations from 2026-09-23 not yet run on production
-- **Category:** Reliability / Deployment — **Confirmed**
-- **File:** `laravel-server/database/migrations/2026_09_23_*.php` (10 files)
-
-These add `stores.receipt_logo_position`, `activity_logs.correlation_id`, `purchase_order_items.{selling_price,cost_price_override,lot_number}`, `stock_movements.status`, `stores.{storefront_dirty_at,store_slug_changed_at}`, `sales.markup_type`, `stores.{staff_can_request_transfers,markup_sales_enabled}`, `stores.timezone`, and widen `stock_movements.movement_type` from an incomplete MySQL `ENUM` to `VARCHAR`. All verified safe (additive `ALTER TABLE`, `--pretend` reviewed, applied cleanly to a throwaway sqlite db and the local dev DB, full `php artisan test` suite green).
-
-**Until these are deployed and run on production**, any device syncing a change to those columns gets `SQLSTATE[42S22]: Unknown column` and the push silently fails for that row — it stays in the client's local `_sync_queue` retrying forever, never lost, but never reaching the server either.
-
-Production migrations run through a protected route, not direct `artisan` access (no SSH on the shared host): `GET https://<production-domain>/migrate-db?key=<MIGRATE_DB_KEY>`. Deploy this branch first, then hit that route. **Remove this entry once confirmed run.**
-
----
-
 ## High Priority Findings
 
 ### H2. `laravel-server/` — `FLUTTERWAVE_SECRET_HASH` must be set in production before this deploys, or every Flutterwave webhook 500s

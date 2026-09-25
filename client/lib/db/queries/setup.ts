@@ -22,6 +22,19 @@ export async function getSyncQueueCount() {
   return result[0]?.count || 0;
 }
 
+/** Per-table/operation breakdown of what's actually sitting in `_sync_queue`,
+ * for the sync indicator's "what's pending" detail view — the plain count
+ * alone gives no way to tell "351 tiny stock movements" from "351 products",
+ * which matters for judging whether a slow sync is expected or stuck. */
+export async function getSyncQueueBreakdown() {
+  return query<{ table_name: string; operation: string; count: number }>(
+    `SELECT table_name, operation, COUNT(*) as count
+     FROM _sync_queue
+     GROUP BY table_name, operation
+     ORDER BY count DESC`,
+  );
+}
+
 export async function getTotalRecordCount() {
   const res = await query<{ total: number }>(
     "SELECT (SELECT COUNT(*) FROM products) + (SELECT COUNT(*) FROM sales) as total"

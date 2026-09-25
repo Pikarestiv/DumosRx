@@ -115,6 +115,12 @@ jobs:
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
+        with:
+          # Explicit override: the action's default `packages` list includes
+          # the legacy "tools" package, which Google has removed from the SDK
+          # repository. Requesting it makes sdkmanager exit 1 before this step
+          # installs anything, even though nothing here actually needs it.
+          packages: 'platform-tools'
 
       - name: Install Android NDK
         run: |

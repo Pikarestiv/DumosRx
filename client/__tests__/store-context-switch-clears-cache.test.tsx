@@ -45,8 +45,8 @@ vi.mock("@/lib/db/sync-engine", () => ({
   isSyncing: vi.fn(() => false),
 }));
 
-const cancelQueries = vi.fn(async () => {});
-const invalidateQueries = vi.fn(async () => {});
+const cancelQueries = vi.fn(async (..._args: unknown[]) => {});
+const invalidateQueries = vi.fn(async (..._args: unknown[]) => {});
 const clear = vi.fn();
 
 vi.mock("@/lib/query-client", () => ({

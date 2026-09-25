@@ -385,6 +385,62 @@ class SyncPushOwnershipTest extends TestCase
      * id - but this is real tenant property, not nobody's row, so it must
      * stay forbidden. withTrashed() is what tells the two apart.
      */
+    /**
+     * Root cause of production report "Sync item stuck after 5 attempts on
+     * audit_logs/<id>: forbidden". audit_logs rows get server-assigned
+     * auto-increment ids, so push() dedupes a client-generated audit_logs
+     * INSERT by properties->client_id instead of id - but that check used to
+     * be global, not scoped to the pushing store. A device that generates
+     * the same local id under two different stores (e.g. switching active
+     * store while an earlier audit-log INSERT for the previous store is
+     * still queued) had its second store's legitimate new row silently
+     * rewritten into an UPDATE against the FIRST store's row, which
+     * authorizeChangeTarget() then correctly rejected as forbidden - and
+     * since audit_logs is append-only, nothing ever re-queues it, so that
+     * log entry never synced.
+     */
+    public function test_audit_log_insert_with_same_client_id_as_another_stores_row_still_succeeds()
+    {
+        $sharedClientId = 'client-generated-audit-id-1';
+
+        $pushAs = fn (User $user) => $this->actingAs($user)->postJson('/api/v1/app/sync/push', [
+            'setup' => true,
+            'changes' => [
+                [
+                    'table_name' => 'audit_logs',
+                    'operation' => 'INSERT',
+                    'record_id' => $sharedClientId,
+                    'payload' => [
+                        'id' => $sharedClientId,
+                        'user_id' => 'anonymous',
+                        'action' => 'login',
+                        'table_name' => 'users',
+                        'record_id' => 'irrelevant',
+                        '_version' => 1,
+                    ],
+                ],
+            ],
+        ]);
+
+        // Victim's device pushes first, taking the shared client_id.
+        $pushAs($this->victimOwner)->assertJsonCount(0, 'failed');
+
+        // Attacker's device independently generated the same local id (e.g.
+        // it switched active store while this item was still queued from a
+        // previous store) and pushes it as its own new row.
+        $response = $pushAs($this->attackerOwner);
+        $response->assertStatus(200);
+        $response->assertJsonCount(0, 'failed');
+
+        $rowsByStore = DB::table('activity_logs')
+            ->where('properties', 'like', '%'.$sharedClientId.'%')
+            ->pluck('store_id')
+            ->all();
+
+        $this->assertContains($this->victimStore->id, $rowsByStore);
+        $this->assertContains($this->attackerStore->id, $rowsByStore);
+    }
+
     public function test_update_of_a_feedback_row_owned_by_a_soft_deleted_user_is_still_forbidden()
     {
         $deletedStaff = User::create([

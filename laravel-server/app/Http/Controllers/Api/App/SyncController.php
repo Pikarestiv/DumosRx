@@ -218,7 +218,21 @@ class SyncController extends Controller
 
                 if ($change['operation'] === 'INSERT' && $recordId) {
                     if ($change['table_name'] === 'audit_logs') {
-                        $exists = $modelClass::where('properties->client_id', $recordId)->exists();
+                        // Scoped to this push's store, not just client_id: a
+                        // client-generated audit_logs id is only guaranteed
+                        // unique on the device that created it, not globally.
+                        // A device that switches active store while an audit
+                        // log INSERT from the PREVIOUS store is still queued
+                        // reuses that same local id under the new store's
+                        // push - an unscoped match here silently turned that
+                        // INSERT into an UPDATE against the other store's
+                        // row, which authorizeChangeTarget() below then
+                        // correctly (but permanently, since audit_logs are
+                        // append-only and nothing ever re-queues it) rejected
+                        // as 'forbidden', losing that log entry for good.
+                        $exists = $modelClass::where('properties->client_id', $recordId)
+                            ->where('store_id', $currentStoreId)
+                            ->exists();
                     } else {
                         // Use withTrashed to catch soft-deleted items so we don't get Duplicate Entry crashes
                         $exists = \method_exists($modelClass, 'trashed') 

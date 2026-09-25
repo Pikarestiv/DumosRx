@@ -104,3 +104,7 @@ The Namecheap shared-hosting box's MySQL is configured with `time_zone = SYSTEM`
 - **UI/UX Interactions:** NEVER use `window.confirm` for user confirmations. ALWAYS use a custom modal or `AlertDialog` component (e.g. from Radix/Shadcn) to maintain consistent design and avoid native browser popups.
 - **Backend verification isn't UI verification:** Testing permission/role logic via `tinker` (or any backend-only harness) only confirms the *server-side* logic works — it does not catch UI-layer bugs like an inverted filter condition, a role missing from a nav's visibility list, or a page that's reachable but its data call still 403s. When a change spans both a backend permission model and a frontend that renders around it (nav visibility, gated buttons, redirects), do a real logged-in browser smoke test as part of the same pass — not as a follow-up after the user asks — especially for anything role- or permission-gated.
 - **E2E Testing (Playwright, client/ only):** covered in `client/AGENTS.md` (`global.setup.ts` IndexedDB seeding, the `e2e/fixtures.ts` test fixture, page coverage expectations) — update that file, not this one, if the E2E setup changes.
+
+## 10. 📝 Commit Messages
+
+From now on, every commit message must follow the [Conventional Commits](https://www.conventionalcommits.org/) format (`feat:`, `fix:`, `chore:`, `docs:`, `refactor:`, `test:`, etc.) and be a single sentence — no multiline bodies.

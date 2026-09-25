@@ -168,6 +168,7 @@ export const queryKeys = {
   },
   sync: {
     queueCount: () => resource(["syncQueueCount"] as const, ["_sync_queue"]),
+    queueBreakdown: () => resource(["syncQueueBreakdown"] as const, ["_sync_queue"]),
   },
   licensing: {
     status: () => resource(["licenseStatus"] as const, ["stores"]),

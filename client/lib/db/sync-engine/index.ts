@@ -5,6 +5,7 @@ import { apiClient } from "@/lib/api/client";
 import { queryClient } from "@/lib/query-client";
 import { query, execute, isTauri, isWriterTab } from "../core";
 import { getValidColumns } from "./schema";
+import { getSyncQueueBreakdown } from "@/lib/db/queries/setup";
 import { devLog } from "@/lib/utils/dev-log";
 import { logCrash } from "@/lib/utils/error-logger";
 import {
@@ -176,7 +177,18 @@ export async function sync(
     };
   } catch (error) {
     console.error("Sync failed:", error);
-    logCrash(error, false, { area: "sync-run" }).catch(() => {});
+    // Not shown to the user anywhere — attached only so a support session
+    // (searching Sentry by area:sync-run) can see what was actually sitting
+    // in the queue when this failed, e.g. distinguishing "a huge one-time
+    // bulk import backlog" from "stuck on the same handful of records every
+    // time" without needing remote access to the device.
+    const queueBreakdown = await getSyncQueueBreakdown().catch(() => null);
+    logCrash(error, false, {
+      area: "sync-run",
+      queueBreakdown: queueBreakdown
+        ? JSON.stringify(queueBreakdown.slice(0, 20))
+        : undefined,
+    }).catch(() => {});
     return {
       success: false,
       pushed: 0,

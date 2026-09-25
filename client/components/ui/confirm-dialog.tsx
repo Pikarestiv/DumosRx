@@ -106,6 +106,7 @@ export function ConfirmDialog({
               value={pin}
               onChange={(value) => setPin(value)}
               className="md:input-mode-numeric"
+              autoComplete="off"
             >
               <InputOTPGroup>
                 <InputOTPSlot index={0} />

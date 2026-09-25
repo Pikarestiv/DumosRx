@@ -77,6 +77,7 @@ export function TraditionalLoginForm({
               inputMode="numeric"
               value={pin}
               onChange={(value) => setPin(value)}
+              autoComplete="off"
             >
               <InputOTPGroup className="gap-3 w-full">
                 {[0, 1, 2, 3].map((idx) => (

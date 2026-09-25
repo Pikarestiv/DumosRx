@@ -119,6 +119,7 @@ export function StaffFormFields({
               }))
             }
             className="md:input-mode-numeric"
+            autoComplete="off"
           >
             <InputOTPGroup>
               <InputOTPSlot index={0} />

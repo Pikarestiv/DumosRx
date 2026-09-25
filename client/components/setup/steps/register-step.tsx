@@ -316,6 +316,7 @@ export function RegisterStep({
                   maxLength={4}
                   value={pin}
                   onChange={(value) => setPin(value)}
+                  autoComplete="off"
                 >
                   <InputOTPGroup className="gap-2">
                     <InputOTPSlot

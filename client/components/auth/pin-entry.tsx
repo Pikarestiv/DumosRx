@@ -102,6 +102,7 @@ export function PinEntry({
               autoFocus={!isLockedOut}
               disabled={isLockedOut}
               inputMode={isTouchDevice ? "none" : "numeric"}
+              autoComplete="off"
               containerClassName="gap-2"
             >
               <InputOTPGroup className="gap-2 sm:gap-3 w-full max-w-[280px] justify-center mx-auto">

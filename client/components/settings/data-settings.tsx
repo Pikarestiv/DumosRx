@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Database, CloudOff, Save, Upload, Undo2 } from "lucide-react";
+import { Database, CloudOff, Save, Upload, Undo2, RotateCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -21,6 +21,7 @@ const RESTORE_CONFIRM_DESCRIPTION =
 interface DataSettingsProps {
   isCloudLinked: boolean;
   handleSync: () => void;
+  handleForceFullResync: () => void;
   setIsCloudLinkOpen: (val: boolean) => void;
   handleDownloadBackup: () => void;
   handleRestoreBackup: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -38,6 +39,7 @@ interface DataSettingsProps {
 export function DataSettings({
   isCloudLinked,
   handleSync,
+  handleForceFullResync,
   setIsCloudLinkOpen,
   handleDownloadBackup,
   handleRestoreBackup,
@@ -66,6 +68,7 @@ export function DataSettings({
   const [pendingRestoreFile, setPendingRestoreFile] = useState<File | null>(null);
   const [showTauriRestoreConfirm, setShowTauriRestoreConfirm] = useState(false);
   const [showUndoRestoreConfirm, setShowUndoRestoreConfirm] = useState(false);
+  const [showForceResyncConfirm, setShowForceResyncConfirm] = useState(false);
   const restoreInputRef = useRef<HTMLInputElement>(null);
 
   // Lets the same file be picked again after a cancel: without this the
@@ -257,6 +260,29 @@ export function DataSettings({
                   </Button>
                 </div>
               )}
+
+              {isCloudLinked && (
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border p-4">
+                  <div className="space-y-0.5">
+                    <p className="text-sm font-medium">Force Full Resync</p>
+                    <p className="text-sm text-muted-foreground">
+                      Re-downloads every record from the cloud from scratch,
+                      instead of only what changed since the last sync. Use
+                      this if data on another device doesn&apos;t match what
+                      this device shows after an ordinary sync. Can take a
+                      while on a large catalog or a slow connection.
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    className="cursor-pointer shrink-0"
+                    onClick={() => setShowForceResyncConfirm(true)}
+                  >
+                    <RotateCw className="w-4 h-4 mr-2" />
+                    Resync
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         </CardContent>
@@ -310,6 +336,17 @@ export function DataSettings({
         confirmLabel="Undo Restore"
         onConfirm={() => {
           handleUndoLastRestore?.();
+        }}
+      />
+
+      <ConfirmDialog
+        open={showForceResyncConfirm}
+        onOpenChange={setShowForceResyncConfirm}
+        title="Force a full resync?"
+        description="Re-downloads every record from the cloud from scratch instead of only recent changes. This device's own not-yet-synced changes are pushed first and are never discarded, but a large catalog can take a while to re-download."
+        confirmLabel="Resync Everything"
+        onConfirm={() => {
+          handleForceFullResync();
         }}
       />
     </>

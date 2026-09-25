@@ -13,7 +13,7 @@ import {
   getActiveStoreId,
 } from "@/lib/db/core";
 import { AUDIT_ACTIONS } from "@/lib/db/audit-actions";
-import { sync, syncSubscriptionStatus } from "@/lib/db/sync-engine";
+import { sync, syncSubscriptionStatus, forceFullResync } from "@/lib/db/sync-engine";
 import { markRestoredForCloudLinkNotice } from "@/lib/utils/post-restore-notice";
 import { clearToken } from "@/lib/api/token-manager";
 
@@ -45,6 +45,26 @@ export function useSettingsSync(
         return `Sync complete! Pushed ${data.pushed}, Pulled ${data.pulled}`;
       },
       error: "Sync failed. Please check your connection.",
+    });
+  };
+
+  // Recovery path for a device whose pull cursor has drifted ahead of
+  // content it never actually received (e.g. a mid-round crash) — every
+  // ordinary sync since then has "succeeded" while silently never re-
+  // fetching the missed rows, since a stuck cursor gives no error to act
+  // on. Clears the local pull cursor and re-fetches every table from
+  // scratch; never touches local data or this device's own pending
+  // outbound changes. See lib/db/sync-engine/index.ts's forceFullResync.
+  const handleForceFullResync = async () => {
+    if (!isCloudLinked) return;
+
+    toast.promise(forceFullResync(), {
+      loading: "Re-downloading all data from the cloud...",
+      success: (data) => {
+        refetchStore();
+        return `Resync complete! Pushed ${data.pushed}, Pulled ${data.pulled}`;
+      },
+      error: "Resync failed. Please check your connection.",
     });
   };
 
@@ -192,6 +212,7 @@ export function useSettingsSync(
     syncAfterLink,
     setSyncAfterLink,
     handleSync,
+    handleForceFullResync,
     handleDownloadBackup,
     handleRestoreBackup,
     handleRestoreBackupTauri,

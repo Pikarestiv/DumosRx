@@ -13,6 +13,7 @@ export function DataPanel(s: SettingsState) {
         setAutoSyncInterval={s.setAutoSyncInterval}
         handleSaveAutoSyncSettings={s.handleSaveAutoSyncSettings}
         handleSync={() => void s.handleSync()}
+        handleForceFullResync={() => void s.handleForceFullResync()}
         handleDownloadBackup={() => void s.handleDownloadBackup()}
         handleRestoreBackup={(e) => void s.handleRestoreBackup(e)}
         handleRestoreBackupTauri={() => void s.handleRestoreBackupTauri()}

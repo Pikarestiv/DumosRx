@@ -38,18 +38,6 @@ The Flutterwave webhook was previously (wrongly) authenticated against `encrypti
 
 ## Medium Priority Findings
 
-### M1. `laravel/framework` itself needs a major-version upgrade (11→12) to close its 3 remaining CVEs
-- **Category:** Dependency — **Confirmed** (via `composer audit`)
-- **File:** `laravel-server/composer.json`/`composer.lock`
-
-Its 3 remaining advisories (temporary signed-URL path confusion; CRLF injection in the default `email` validation rule) all require `>=12.60.0`/`>=12.61.1` at minimum — there is no patched Laravel 11.x release for these; the fix landed only in Laravel 12. This genuinely requires a major-version framework upgrade, which is its own multi-day project (config/provider compatibility, deprecated-API audit, full regression pass). **Recommended next step:** schedule a dedicated Laravel 11→12 upgrade project; until then, be aware the CRLF-injection advisory specifically concerns the default `email` validation rule used throughout this app's registration/staff-creation forms (`'email' => 'nullable|email|...'`), so a defense-in-depth mitigation (stripping CR/LF from email inputs before they reach any raw mail-header construction) could be considered as a stopgap if this is judged worth doing before the full upgrade.
-
-### M2. `client/` and `web/` remain on different Next.js majors (15 vs 16)
-- **Category:** Architecture — **Confirmed**, deliberate for now
-- **File:** `client/package.json` (`next@15.5.26`), `web/package.json` (`next@16.3.6`)
-
-`client/` is a Tauri-wrapped static export with its own build/native-shell constraints, and jumping it to Next 16 is a materially bigger, riskier change than a patch-level CVE fix. **Fix:** schedule the `client/` → Next 16 migration as its own project once the `web/` → `client/` dashboard port (the actual reason version parity matters) is further along, not as a quick dependency bump.
-
 ### M3. `client/` — auth bearer token kept in `localStorage` instead of an HttpOnly cookie
 - **Category:** Security — **Confirmed**, deliberately accepted
 - **File:** `client/lib/api/token-manager.ts:7-25`
@@ -87,7 +75,6 @@ New store-level toggle, default `0` (explicit, deliberate product requirement). 
 | Finding | Severity | Status |
 |---|---|---|
 | H2 — `FLUTTERWAVE_SECRET_HASH` production `.env` status unverified | High | Open (needs prod confirmation) |
-| M1 — `laravel/framework` itself (needs a major 11→12 upgrade) | Medium | Open |
 | M3 — auth token in `localStorage`, not HttpOnly cookie | Medium | Open (accepted tradeoff) |
 
 Areas specifically audited and found **clean**: webhook signature verification (constant-time, fail-closed) and idempotent lock-guarded payment activation; sync push's role/field allow-list (`SyncController::sanitizeUserSyncPayload`); `AuthHandoffController`'s single-use/60s-TTL/high-entropy handoff codes and fragment-based transport; CORS allowlist (no wildcard, explicit origins); admin access-token storage (memory-only, never in `localStorage`); XSS surface in `web/` (no `dangerouslySetInnerHTML` on user content); path traversal in `.github/downloads-index.php` (no user input reaches any filesystem path); secrets in `.env.example` files and git history (none found); PIN login lockout.
@@ -122,7 +109,7 @@ Areas specifically audited and found **clean**: webhook signature verification (
 ## Suggested Fix Order
 
 1. **C1** (deploy the pending 2026-09-23 migrations) and **H2** (confirm `FLUTTERWAVE_SECRET_HASH` in production) — pure deployment/ops actions, zero remaining code risk, should not wait on anything else.
-2. **M2** (Next.js 15→16 migration for `client/`), **M3** (localStorage-token architecture), and **M1** (Laravel 11→12 upgrade) — schedule as their own design/upgrade projects.
+2. **M3** (localStorage-token architecture) — schedule as its own design project.
 3. **M5** (reseller-sale rollout communication) — not a code task; confirm with product/support whether the release note already went out, then remove the entry.
 4. **M4, L1, L2** — accepted tradeoffs / latent-unreferenced-code notes with no real fix pending; nothing to schedule.
 

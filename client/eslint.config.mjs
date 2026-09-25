@@ -1,23 +1,12 @@
-import { dirname } from "path";
-import { fileURLToPath } from "url";
-import { FlatCompat } from "@eslint/eslintrc";
+import nextVitals from "eslint-config-next/core-web-vitals";
+import nextTs from "eslint-config-next/typescript";
 import unusedImports from "eslint-plugin-unused-imports";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-// eslint-config-next@15.x's exports are still legacy (eslintrc-shaped, not
-// a flat-config array) - unlike web/'s newer eslint-config-next@16.x,
-// which exports flat-config arrays directly (see web/eslint.config.mjs).
-// FlatCompat bridges the two: `next/core-web-vitals`/`next/typescript` here
-// are resolved via this package's own `require.resolve`, same as the
-// standard Next.js ESLint-9 migration path.
-const compat = new FlatCompat({
-  baseDirectory: __dirname,
-});
-
+// eslint-config-next@16.x exports flat-config arrays directly (matching
+// web/eslint.config.mjs) - no FlatCompat bridge needed as of the Next 16 bump.
 const eslintConfig = [
-  ...compat.extends("next/core-web-vitals", "next/typescript"),
+  ...nextVitals,
+  ...nextTs,
   {
     plugins: {
       "unused-imports": unusedImports,
@@ -40,6 +29,13 @@ const eslintConfig = [
       "react/no-unused-prop-types": "warn",
       "react/no-unused-state": "warn",
       "react-hooks/exhaustive-deps": "warn",
+      // New React Compiler rules in eslint-config-next@16 - see docs/FIXED_BUGS.md.
+      "react-hooks/set-state-in-effect": "warn",
+      "react-hooks/purity": "warn",
+      "react-hooks/refs": "warn",
+      "react-hooks/static-components": "warn",
+      "react-hooks/immutability": "warn",
+      "react-hooks/preserve-manual-memoization": "warn",
       "react/no-unescaped-entities": "off",
       "@typescript-eslint/no-explicit-any": "warn",
       "@typescript-eslint/no-non-null-assertion": "warn",
@@ -79,6 +75,13 @@ const eslintConfig = [
       "@typescript-eslint/no-misused-promises": "warn",
       "@typescript-eslint/require-await": "warn",
       "@typescript-eslint/switch-exhaustiveness-check": "warn",
+    },
+  },
+  {
+    // Playwright's `use` fixture param is misread as React's use() hook.
+    files: ["e2e/**/*.ts"],
+    rules: {
+      "react-hooks/rules-of-hooks": "off",
     },
   },
   {

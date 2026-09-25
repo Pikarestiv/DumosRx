@@ -48,14 +48,20 @@ const nextConfig = {
   //     },
   //   ];
   // },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
   typescript: {
     ignoreBuildErrors: true,
   },
   images: {
     unoptimized: true,
+  },
+  // Turbopack (default builder as of Next 16) equivalent of the webpack
+  // fallback below - see docs/FIXED_BUGS.md for why sql.js needs this.
+  turbopack: {
+    resolveAlias: {
+      fs: { browser: "./lib/polyfills/browser-empty.js" },
+      path: { browser: "./lib/polyfills/browser-empty.js" },
+      crypto: { browser: "./lib/polyfills/browser-empty.js" },
+    },
   },
   webpack: (config, { isServer }) => {
     if (!isServer) {

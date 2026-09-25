@@ -205,6 +205,7 @@ export function POSSystem() {
                   filteredProducts={filteredProducts}
                   isFuzzyFallback={isFuzzyFallback}
                   addToCart={handleAddToCart}
+                  scrollElementRef={productsPullToRefresh.scrollRef}
                   productTerm={t("product")}
                   searchTerm={searchTerm}
                   currencyCode={storeProfile?.currency}

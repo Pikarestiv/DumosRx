@@ -15,12 +15,13 @@ import {
 import { formatCurrency } from "@/lib/utils";
 import { getCategoryIcon } from "@/lib/constants/category-icons";
 import { RequestItemDialog } from "@/components/pos/request-item-dialog";
+import { VirtualizedProductGrid } from "@/components/pos/pos-virtualized-product-grid";
 import type { POSProduct } from "@/lib/types/product";
 import type { CartItem } from "@/lib/hooks/use-pos-cart";
 import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
 
 type PosGroup = "suggestion" | "recent" | "common" | "standard";
-type GroupedProduct = POSProduct & { posGroup: PosGroup };
+export type GroupedProduct = POSProduct & { posGroup: PosGroup };
 
 interface POSProductListProps {
   loadingProducts: boolean;
@@ -37,9 +38,13 @@ interface POSProductListProps {
   canUseSmartSuggestions?: boolean;
   onUpgradeClick?: () => void;
   displayStockLevels?: boolean;
+  /** Shared scroll container this list renders inside of — see
+   * VirtualizedProductGrid's own doc comment for why it can't create its
+   * own. */
+  scrollElementRef: React.RefObject<HTMLDivElement | null>;
 }
 
-const POSProductCard = memo(function POSProductCard({
+export const POSProductCard = memo(function POSProductCard({
   product,
   currencyCode,
   addToCart,
@@ -155,6 +160,7 @@ export function POSProductList({
   canUseSmartSuggestions = false,
   onUpgradeClick,
   displayStockLevels = true,
+  scrollElementRef,
 }: POSProductListProps) {
   const [showRequestDialog, setShowRequestDialog] = useState(false);
 
@@ -264,18 +270,14 @@ export function POSProductList({
       {!loadingProducts &&
         filteredProducts.length > 0 &&
         searchTerm.trim().length > 0 && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-3">
-            {sortedProducts.map((product) => (
-              <POSProductCard
-                key={product.id}
-                product={product}
-                currencyCode={currencyCode}
-                addToCart={addToCart}
-                cartQuantity={cartQuantityMap.get(product.id) || 0}
-                displayStockLevels={displayStockLevels}
-              />
-            ))}
-          </div>
+          <VirtualizedProductGrid
+            products={sortedProducts}
+            currencyCode={currencyCode}
+            addToCart={addToCart}
+            cartQuantityMap={cartQuantityMap}
+            displayStockLevels={displayStockLevels}
+            scrollElementRef={scrollElementRef}
+          />
         )}
 
       {!loadingProducts &&
@@ -363,18 +365,14 @@ export function POSProductList({
                   <Package className="h-3.5 w-3.5 text-gray-500" />
                   All products
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-3">
-                  {commonAndRemainingList.map((product) => (
-                    <POSProductCard
-                      key={product.id}
-                      product={product}
-                      currencyCode={currencyCode}
-                      addToCart={addToCart}
-                      cartQuantity={cartQuantityMap.get(product.id) || 0}
-                      displayStockLevels={displayStockLevels}
-                    />
-                  ))}
-                </div>
+                <VirtualizedProductGrid
+                  products={commonAndRemainingList}
+                  currencyCode={currencyCode}
+                  addToCart={addToCart}
+                  cartQuantityMap={cartQuantityMap}
+                  displayStockLevels={displayStockLevels}
+                  scrollElementRef={scrollElementRef}
+                />
               </div>
             )}
           </div>

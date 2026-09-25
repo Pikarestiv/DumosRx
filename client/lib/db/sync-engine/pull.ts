@@ -52,17 +52,42 @@ function recordUniqueSkipAndCheckGiveUp(table: string, recordId: string): boolea
   return nextCount > MAX_UNIQUE_SKIP_RETRIES;
 }
 
+// Enough to log in and land on the dashboard: store identity plus who can
+// authenticate. Everything else (products, stock_batches, sales, ...)
+// still gets pulled in the SAME call, on the SAME page loop below - this
+// only decides when `onCriticalTablesReady` fires, not what's fetched.
+const SETUP_CRITICAL_TABLES = ["stores", "users"];
+
 /**
  * Pull changes from server
+ *
+ * `onCriticalTablesReady`, when passed, fires once — the first time every
+ * table in SETUP_CRITICAL_TABLES has fully drained its backlog for this
+ * round (or, as a fallback, once at the very end if that never happened
+ * mid-loop, e.g. an account with zero staff/store changes this round) —
+ * so a caller mid-first-sync (see startSyncProcess in use-onboarding.ts)
+ * can let the user log in and land on the dashboard as soon as identity
+ * data is in place, while this same call keeps running underneath to pull
+ * everything else. Never fires more than once. No-op for a normal
+ * (non-setup) pull that doesn't pass it.
  */
 export async function pullChanges(
   isManual: boolean = false,
-  isSetup: boolean = false
+  isSetup: boolean = false,
+  onCriticalTablesReady?: () => void,
 ): Promise<{
   pulled: number;
   updatedTables?: string[];
   error?: unknown;
 }> {
+  const criticalTablesPending = new Set(SETUP_CRITICAL_TABLES);
+  let criticalReadyFired = false;
+  const fireCriticalReadyOnce = () => {
+    if (criticalReadyFired) return;
+    criticalReadyFired = true;
+    onCriticalTablesReady?.();
+  };
+
   try {
     // Get last sync timestamp for each table
     const syncState = await query<{
@@ -482,6 +507,7 @@ export async function pullChanges(
           // pull once the cursor moves past its updated_at.
           const tableHasMore = has_more?.[table] ?? false;
           if (!tableHasMore && !skippedTables.has(table)) {
+            criticalTablesPending.delete(table);
             // A pulled movement whose delta had to be deferred (its batch
             // hadn't arrived yet) isn't fully applied until that delta is,
             // so stock_movements' cursor must not be committed here, in
@@ -508,6 +534,14 @@ export async function pullChanges(
       });
 
       hasMoreAny = Object.values(has_more ?? {}).some(Boolean);
+
+      // Checked after the page's transaction has actually committed, same
+      // reasoning as every other "report once committed" spot in this
+      // file - stores/users are typically small enough (a full snapshot,
+      // and a handful of staff) to drain within the very first page.
+      if (criticalTablesPending.size === 0) {
+        fireCriticalReadyOnce();
+      }
     }
 
     // The deferred deltas and the stock_movements cursor stamp they belong to
@@ -539,6 +573,13 @@ export async function pullChanges(
         { area: "sync-pull", table: s.table, recordId: s.recordId },
       ).catch(() => {});
     }
+
+    // Fallback for the rare case the per-page check above never saw
+    // criticalTablesPending empty (e.g. this round had zero stores/users
+    // changes at all, so the loop broke on an empty `changes` before ever
+    // reaching that check) - still guarantees a caller waiting on this
+    // isn't stuck forever just because there was nothing new to report.
+    fireCriticalReadyOnce();
 
     return { pulled: pulledCount, updatedTables };
   } catch (error) {

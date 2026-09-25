@@ -421,6 +421,90 @@ textarea,
   box-shadow: 0 0 0 1px var(--primary);
 }
 
+/* Chrome <111 (e.g. Windows 7) can't parse color-mix(), so every Tailwind
+   opacity-modifier utility on one of THIS app's own theme colors (primary,
+   accent, destructive, muted, sidebar-accent, *-foreground - CSS variables
+   resolved at runtime for live theme switching, unlike Tailwind's own
+   built-in palette, which it can precompute a real hex fallback for)
+   silently falls back to the SOLID, full-opacity color instead of the
+   intended faint tint. That's not just a wrong shade - it collides with
+   sibling foreground text/icons rendered at their own normal (unaffected)
+   color, making them functionally invisible: a "5% tint" card behind dark
+   body text becomes a solid saturated block dark text can't be read on; a
+   category icon at 70% opacity on a "5% tint" swatch becomes the exact
+   same solid color as its own background; an avatar's initials disappear
+   into its own now-solid backdrop. Overridden to fully transparent
+   instead: loses the tint, but can never again collide with whatever's
+   drawn on top of it. Scoped to opacity <=40% - the "faint surface tint"
+   pattern actually responsible for this; a `/90`-style near-solid overlay
+   already reads as intended once it falls back to fully solid. See
+   scripts/ (none checked in - regenerate by grepping
+   `(bg|border)-(primary|secondary|accent|destructive|muted|sidebar-accent)
+   (-foreground)?/[0-9]+` across app/components/lib and keeping opacity
+   <=40) if a new low-opacity utility on one of these tokens gets added and
+   needs the same treatment. */
+@supports not (color: color-mix(in lab, red, red)) {
+  [class~="bg-accent-foreground/10"] { background-color: transparent; }
+  [class~="bg-accent/10"] { background-color: transparent; }
+  [class~="bg-accent/20"] { background-color: transparent; }
+  [class~="bg-accent/30"] { background-color: transparent; }
+  [class~="bg-accent/5"] { background-color: transparent; }
+  [class~="bg-destructive/10"] { background-color: transparent; }
+  [class~="bg-destructive/20"] { background-color: transparent; }
+  [class~="bg-destructive/5"] { background-color: transparent; }
+  [class~="bg-muted-foreground/20"] { background-color: transparent; }
+  [class~="bg-muted-foreground/30"] { background-color: transparent; }
+  [class~="bg-muted/10"] { background-color: transparent; }
+  [class~="bg-muted/20"] { background-color: transparent; }
+  [class~="bg-muted/30"] { background-color: transparent; }
+  [class~="bg-muted/40"] { background-color: transparent; }
+  [class~="bg-primary/10"] { background-color: transparent; }
+  [class~="bg-primary/15"] { background-color: transparent; }
+  [class~="bg-primary/20"] { background-color: transparent; }
+  [class~="bg-primary/30"] { background-color: transparent; }
+  [class~="bg-primary/40"] { background-color: transparent; }
+  [class~="bg-primary/5"] { background-color: transparent; }
+  [class~="bg-sidebar-accent/10"] { background-color: transparent; }
+  [class~="bg-sidebar-accent/5"] { background-color: transparent; }
+  [class~="border-accent/10"] { border-color: transparent; }
+  [class~="border-accent/20"] { border-color: transparent; }
+  [class~="border-accent/5"] { border-color: transparent; }
+  [class~="border-destructive/10"] { border-color: transparent; }
+  [class~="border-destructive/20"] { border-color: transparent; }
+  [class~="border-destructive/30"] { border-color: transparent; }
+  [class~="border-muted-foreground/10"] { border-color: transparent; }
+  [class~="border-muted-foreground/30"] { border-color: transparent; }
+  [class~="border-primary-foreground/20"] { border-color: transparent; }
+  [class~="border-primary/10"] { border-color: transparent; }
+  [class~="border-primary/20"] { border-color: transparent; }
+  [class~="border-primary/30"] { border-color: transparent; }
+  [class~="border-primary/40"] { border-color: transparent; }
+  /* Same fallback problem, on box-shadow's color instead of background/
+     border: shadow-primary/20's fallback is --tw-shadow-color: var(--primary)
+     with no alpha at all, turning a soft 20%-tint shadow into a heavy,
+     fully-opaque one. */
+  [class~="shadow-primary/20"] { --tw-shadow-color: transparent; }
+  [class~="shadow-destructive/10"] { --tw-shadow-color: transparent; }
+  [class~="hover:bg-accent/10"]:hover { background-color: transparent; }
+  [class~="hover:bg-accent/20"]:hover { background-color: transparent; }
+  [class~="hover:bg-accent/30"]:hover { background-color: transparent; }
+  [class~="hover:bg-accent/5"]:hover { background-color: transparent; }
+  [class~="hover:bg-destructive/10"]:hover { background-color: transparent; }
+  [class~="hover:bg-destructive/20"]:hover { background-color: transparent; }
+  [class~="hover:bg-muted-foreground/20"]:hover { background-color: transparent; }
+  [class~="hover:bg-muted/30"]:hover { background-color: transparent; }
+  [class~="hover:bg-primary/10"]:hover { background-color: transparent; }
+  [class~="hover:bg-primary/15"]:hover { background-color: transparent; }
+  [class~="hover:bg-primary/20"]:hover { background-color: transparent; }
+  [class~="hover:bg-primary/30"]:hover { background-color: transparent; }
+  [class~="hover:bg-primary/5"]:hover { background-color: transparent; }
+  [class~="hover:bg-sidebar-accent/10"]:hover { background-color: transparent; }
+  [class~="hover:border-primary/30"]:hover { border-color: transparent; }
+  [class~="hover:border-primary/40"]:hover { border-color: transparent; }
+  .dark [class~="dark:bg-accent/20"] { background-color: transparent; }
+  .dark [class~="dark:bg-primary/30"] { background-color: transparent; }
+}
+
 @keyframes scan-line {
   0% {
     top: 0;

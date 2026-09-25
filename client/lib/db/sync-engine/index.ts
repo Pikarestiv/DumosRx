@@ -56,7 +56,12 @@ if (typeof window !== "undefined") {
  */
 export async function sync(
   isManual: boolean = false,
-  isSetup: boolean = false
+  isSetup: boolean = false,
+  // Setup-only: lets a caller mid-first-sync (see startSyncProcess in
+  // use-onboarding.ts) move on as soon as store/user identity is pulled,
+  // while this same call keeps running underneath for everything else. See
+  // pullChanges's own doc comment. No-op for every other caller.
+  onCriticalTablesReady?: () => void,
 ): Promise<SyncResult> {
   if (isSyncInProgress) {
     return {
@@ -131,7 +136,7 @@ export async function sync(
   try {
     isSyncInProgress = true;
     const pushResult = await pushChanges(isManual, isSetup);
-    const pullResult = await pullChanges(isManual, isSetup);
+    const pullResult = await pullChanges(isManual, isSetup, onCriticalTablesReady);
 
     if (pushResult.pushed > 0 || pullResult.pulled > 0) {
       devLog(

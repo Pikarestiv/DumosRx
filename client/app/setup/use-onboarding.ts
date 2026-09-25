@@ -381,56 +381,85 @@ export function useOnboarding() {
   };
 
   const startSyncProcess = async (email?: string) => {
+    // Set once identity data (store + users) has been pulled and this
+    // function has moved on to login/navigation — guards the two callers
+    // below (the onCriticalTablesReady callback, which can in principle
+    // fire more than the intended once across retries, and the outer
+    // catch/failure handling) from double-running that transition, and
+    // tells the failure paths whether the user is already past the point
+    // of no return (logged in / mid-navigation) or still safe to bounce
+    // back to the "cloud" step.
+    let identityReady = false;
+
+    const proceedOnceIdentityReady = async () => {
+      if (identityReady) return;
+      identityReady = true;
+
+      setSyncProgress(80);
+      setSyncStatus("Verifying account...");
+
+      // Verify we actually have users in the synced data
+      const totalCount = await getTotalUserCount();
+      if (totalCount === 0) {
+        // If no user exists, maybe we already created one but just making sure
+        const stores = await getLocalStores();
+        setExistingStores(stores);
+
+        setSyncStatus("No account data found");
+        toast.warning("Synchronization finished, but no staff accounts were found. Let's set up your local account.");
+
+        await new Promise((r) => setTimeout(r, 1500));
+        setJustCloudLinkedForRegister(true);
+        setStep("register");
+        return;
+      }
+
+      setSyncProgress(100);
+      setSyncStatus("Signing you in...");
+      if (email) {
+        // The rest of this account's data (products, stock, sales, ...)
+        // keeps pulling in the background under the still-running sync()
+        // call below — the same auto-sync progress the dashboard already
+        // shows for any other device, not something this screen waits on.
+        toast.success("Account ready! The rest of your data will keep syncing in the background.");
+        await login(email);
+        setTimeout(() => router.push("/dashboard"), 800);
+      } else {
+        toast.success(`${totalCount} accounts recovered. Please log in.`);
+        setTimeout(() => router.push("/login"), 800);
+      }
+    };
+
     try {
       setSyncProgress(10);
       setSyncStatus("Connecting to cloud storage...");
       await new Promise((r) => setTimeout(r, 800));
-      
+
       setSyncProgress(30);
       setSyncStatus("Preparing data migration...");
-      
-      const result = await sync(false, true);
-      
-      if (result.success) {
-        setSyncProgress(80);
-        setSyncStatus("Verifying synced records...");
-        
-        // Verify we actually have users in the synced data
-        const totalCount = await getTotalUserCount();
-        if (totalCount === 0) {
-          // If no user exists, maybe we already created one but just making sure
-          const stores = await getLocalStores();
-          setExistingStores(stores);
-          
-          setSyncStatus("No account data found");
-          toast.warning("Synchronization finished, but no staff accounts were found. Let's set up your local account.");
 
-          await new Promise((r) => setTimeout(r, 1500));
-          setJustCloudLinkedForRegister(true);
-          setStep("register");
-          return;
-        }
+      const result = await sync(false, true, () => void proceedOnceIdentityReady());
 
-        setSyncProgress(100);
-        setSyncStatus("Sync complete!");
-        if (email) {
-          toast.success(`Sync complete! Logging you into the local dashboard...`);
-          await login(email);
-          setTimeout(() => router.push("/dashboard"), 1500);
-        } else {
-          toast.success(`Sync complete! ${totalCount} accounts recovered. Please log in.`);
-          setTimeout(() => router.push("/login"), 1500);
-        }
-      } else {
+      if (!result.success && !identityReady) {
         setSyncStatus("Synchronization failed");
         toast.error(`Sync failed: ${result.error || "Unknown error"}`);
         setStep("cloud");
+      } else if (!result.success) {
+        // Identity was already pulled and the user is logged in/navigating
+        // away by the time the REST of this round failed — nothing to roll
+        // back to "cloud" for. The next normal sync (auto or manual, from
+        // the dashboard) picks up wherever this one left off.
+        console.warn("Background portion of setup sync failed after login:", result.error);
       }
     } catch (_err) {
       console.error("Sync error:", _err);
-      setSyncStatus("Error during sync");
-      toast.error("An unexpected error occurred during sync");
-      setStep("cloud");
+      if (!identityReady) {
+        setSyncStatus("Error during sync");
+        toast.error("An unexpected error occurred during sync");
+        setStep("cloud");
+      } else {
+        console.warn("Background portion of setup sync threw after login:", _err);
+      }
     }
   };
 

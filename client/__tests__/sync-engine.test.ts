@@ -299,6 +299,95 @@ describe('Sync Engine & Local Database', () => {
     });
   });
 
+  describe('pullChanges() onCriticalTablesReady (setup fast-login path)', () => {
+    it('fires once stores and users have drained, even while another table still has more pages', async () => {
+      vi.mocked(apiClient.pullChanges)
+        .mockResolvedValueOnce({
+          success: true,
+          changes: {
+            stores: [{ id: 'store-1', name: 'Store One', _version: 1, deleted_at: null }],
+            users: [{ id: 'user-1', username: 'owner', role: 'store_owner', _version: 1, deleted_at: null }],
+            products: [{ id: 'p1', name: 'Panadol', _version: 1, deleted_at: null }],
+          },
+          server_timestamp: '2026-09-25T00:00:00Z',
+          has_more: { stores: false, users: false, products: true },
+        })
+        .mockResolvedValueOnce({
+          success: true,
+          changes: {
+            products: [{ id: 'p2', name: 'Ibuprofen', _version: 1, deleted_at: null }],
+          },
+          server_timestamp: '2026-09-25T00:00:00Z',
+          has_more: { products: false },
+        });
+
+      vi.mocked(query).mockImplementation(async (sql: string) => {
+        if (sql.includes('_sync_state')) return [];
+        if (sql.includes('PRAGMA table_info')) return [{ name: 'id' }, { name: 'name' }, { name: '_version' }];
+        if (sql.includes('SELECT 1 FROM')) return [];
+        return [];
+      });
+
+      const onCriticalTablesReady = vi.fn();
+      await pullChanges(false, true, onCriticalTablesReady);
+
+      expect(onCriticalTablesReady).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not fire until every page has been fetched when stores/users are still pending', async () => {
+      vi.mocked(apiClient.pullChanges)
+        .mockResolvedValueOnce({
+          success: true,
+          changes: {
+            stores: [{ id: 'store-1', name: 'Store One', _version: 1, deleted_at: null }],
+            users: [{ id: 'user-1', username: 'owner', role: 'store_owner', _version: 1, deleted_at: null }],
+          },
+          server_timestamp: '2026-09-25T00:00:00Z',
+          // stores still has another page; users is already fully drained.
+          has_more: { stores: true, users: false },
+        })
+        .mockResolvedValueOnce({
+          success: true,
+          changes: {
+            stores: [{ id: 'store-2', name: 'Store Two', _version: 1, deleted_at: null }],
+          },
+          server_timestamp: '2026-09-25T00:00:00Z',
+          has_more: { stores: false },
+        });
+
+      vi.mocked(query).mockImplementation(async (sql: string) => {
+        if (sql.includes('_sync_state')) return [];
+        if (sql.includes('PRAGMA table_info')) return [{ name: 'id' }, { name: 'name' }, { name: '_version' }];
+        if (sql.includes('SELECT 1 FROM')) return [];
+        return [];
+      });
+
+      let pullCallCountWhenFired = -1;
+      const onCriticalTablesReady = vi.fn(() => {
+        pullCallCountWhenFired = vi.mocked(apiClient.pullChanges).mock.calls.length;
+      });
+      await pullChanges(false, true, onCriticalTablesReady);
+
+      // Falls back to firing once at the very end regardless (see pull.ts's
+      // doc comment on the fallback) — but only via that fallback, after
+      // BOTH pages were already fetched, never mid-round while stores was
+      // still outstanding.
+      expect(onCriticalTablesReady).toHaveBeenCalledTimes(1);
+      expect(pullCallCountWhenFired).toBe(2);
+    });
+
+    it('is a no-op when not passed (normal, non-setup pulls)', async () => {
+      vi.mocked(apiClient.pullChanges).mockResolvedValueOnce({
+        success: true,
+        changes: {},
+        server_timestamp: '2026-09-25T00:00:00Z',
+      });
+      vi.mocked(query).mockResolvedValue([]);
+
+      await expect(pullChanges()).resolves.toBeDefined();
+    });
+  });
+
   describe('sync() cache invalidation', () => {
     beforeEach(() => {
       localStorage.setItem('auth_token', 'test-token');

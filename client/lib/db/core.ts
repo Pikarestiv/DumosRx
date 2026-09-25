@@ -13,9 +13,43 @@ import {
   makeSqlJsAdapter,
   runSchemaMigrations,
 } from "./schema-migrations";
-import { initWriterLock, isWriterTab, onWriterTabChange, onPromotionFailed } from "./tab-lock";
+import {
+  initWriterLock,
+  isWriterTab,
+  onWriterTabChange,
+  onPromotionFailed,
+  requestWriterTakeover,
+  stealWriterLock,
+} from "./tab-lock";
 
 export { isWriterTab, onWriterTabChange, onPromotionFailed };
+
+/**
+ * UI entry point for the graceful writer handoff (see tab-lock.ts's
+ * requestWriterTakeover()): asks the current writer tab/window to force a
+ * save and voluntarily drop to read-only, freeing the Web Lock for this
+ * tab. On "acked", this tab's already-queued lock request (registered by
+ * initWriterLock() above) gets granted just like a natural writer-tab
+ * close, running rehydrateFromIndexedDb() before promoting - no different
+ * handling needed here. Callers should offer forceWriterTakeover() when
+ * this resolves "timeout" (the other side didn't respond - likely frozen
+ * or crashed) or "unsupported" (no BroadcastChannel in this browser).
+ */
+export function requestWriterHandoff(): Promise<"acked" | "timeout" | "unsupported"> {
+  return requestWriterTakeover();
+}
+
+/**
+ * Fallback for requestWriterHandoff() timing out or being unsupported:
+ * forcibly takes the Web Lock via {steal: true} rather than waiting
+ * indefinitely for an unresponsive holder. Rehydrates from IndexedDB before
+ * promoting, same as normal promotion - see stealWriterLock()'s doc comment
+ * for why the outgoing holder's own unsaved changes (if any) are lost here,
+ * unlike the graceful path.
+ */
+export function forceWriterTakeover(): Promise<boolean> {
+  return stealWriterLock(rehydrateFromIndexedDb);
+}
 
 // Dual-backend handle: sql.js's Database in the browser, @tauri-apps/plugin-sql's
 // Database (a different, incompatible shape: .execute()/.select() vs sql.js's
@@ -107,10 +141,35 @@ export function generateShortId(): string {
 export { STORE_SCOPED_TABLES };
 
 
+// Tracks an in-flight initDatabase() call so concurrent callers share it
+// instead of each running the full body. `db` stays null for the whole
+// async duration of the first call (WASM load + IndexedDB read + schema
+// run), and query()/execute()/transaction()/etc. each independently do
+// `if (!db) await initDatabase()` - at real app startup several fire around
+// the same time, so without this they'd all race past that null check and
+// each register their own writer-lock request via initWriterLock() below,
+// piling up duplicate pending Web Lock requests for this one tab (observed
+// live: 14+ for a single tab). That breaks the writer-handoff feature in
+// tab-lock.ts: a tab dropping the lock to hand off could immediately
+// re-grant itself the lock from one of its own leftover duplicates.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let initDatabasePromise: Promise<any> | null = null;
+
 // Returns the same deliberately-untyped dual-backend handle `db` holds — see
 // its declaration above.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function initDatabase(): Promise<any> {
+export function initDatabase(): Promise<any> {
+  if (db) return Promise.resolve(db);
+  if (!initDatabasePromise) {
+    initDatabasePromise = initDatabaseInternal().finally(() => {
+      initDatabasePromise = null;
+    });
+  }
+  return initDatabasePromise;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function initDatabaseInternal(): Promise<any> {
   if (db) return db;
 
   if (isTauri()) {
@@ -210,8 +269,13 @@ export async function initDatabase(): Promise<any> {
     // Awaited (rather than fire-and-forget) so a caller that awaits
     // initDatabase() can immediately read this tab's initial writer/
     // read-only role via isWriterTab() - this only waits for that initial
-    // decision, never for an eventual promotion.
-    await initWriterLock(rehydrateFromIndexedDb);
+    // decision, never for an eventual promotion. saveDatabase is passed as
+    // the graceful-handoff callback (see requestWriterHandoff() below): if
+    // this tab is (or becomes) the writer and another tab asks to take
+    // over, its current in-memory changes get force-saved before this tab
+    // drops to read-only, so the requester never rehydrates a copy that's
+    // missing this tab's own last writes.
+    await initWriterLock(rehydrateFromIndexedDb, saveDatabase);
 
     const webAdapter = makeSqlJsAdapter(db);
 

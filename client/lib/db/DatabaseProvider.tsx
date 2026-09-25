@@ -11,7 +11,15 @@ import {
   useState,
   ReactNode,
 } from "react";
-import { initDatabase, isTauri, isWriterTab, onWriterTabChange, onPromotionFailed } from "./local-database";
+import {
+  initDatabase,
+  isTauri,
+  isWriterTab,
+  onWriterTabChange,
+  onPromotionFailed,
+  requestWriterHandoff,
+  forceWriterTakeover,
+} from "./local-database";
 import { devLog } from "@/lib/utils/dev-log";
 import { toast } from "sonner";
 
@@ -45,6 +53,41 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
   const [isReadOnlyTab, setIsReadOnlyTab] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const isTauriApp = isTauri();
+
+  // Drives the read-only banner's "Use this window" flow (see
+  // requestWriterHandoff()/forceWriterTakeover() in core.ts): "idle" (not
+  // attempted, or a previous attempt is done), "requesting" (waiting on the
+  // graceful handoff's ack), "offer-force" (it timed out or this browser
+  // has no BroadcastChannel - offer the steal fallback instead), "forcing"
+  // (steal in progress).
+  const [handoffState, setHandoffState] = useState<
+    "idle" | "requesting" | "offer-force" | "forcing"
+  >("idle");
+
+  const handleUseThisWindow = async () => {
+    setHandoffState("requesting");
+    const result = await requestWriterHandoff();
+    // On "acked" this tab's own queued lock request still has to actually
+    // get granted and rehydrate (asynchronously, via onWriterTabChange
+    // below) before isReadOnlyTab flips - leave handoffState "requesting"
+    // rather than reset to "idle" here, so the button doesn't flash back to
+    // its initial label for the brief gap before that happens.
+    if (result !== "acked") setHandoffState("offer-force");
+  };
+
+  const handleForceTakeover = async () => {
+    setHandoffState("forcing");
+    const promoted = await forceWriterTakeover();
+    if (!promoted) {
+      setHandoffState("offer-force");
+      toast.error(
+        "Couldn't take over as the writer tab. Try closing the other window manually.",
+        { duration: 8000 },
+      );
+    }
+    // On success, onWriterTabChange below flips isReadOnlyTab and the
+    // banner (along with handoffState) disappears with it.
+  };
 
   // Initialize database
   useEffect(() => {
@@ -120,6 +163,7 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
     return onWriterTabChange((isWriter) => {
       setIsReadOnlyTab(!isWriter);
       if (isWriter) {
+        setHandoffState("idle");
         toast.success("This tab can now save changes.", { duration: 5000 });
       }
     });
@@ -227,9 +271,38 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
       value={{ isReady, isOffline, isTauriApp, isReadOnlyTab, error }}
     >
       {isReadOnlyTab && (
-        <div className="sticky top-0 z-50 w-full bg-amber-500 px-4 py-1.5 text-center text-xs font-medium text-amber-950">
-          Read-only tab — DumosRx is already open elsewhere. Switch to that
-          tab, or close it, to make changes here.
+        // z-[9500]: must render above every other full-screen overlay this
+        // app can show while a tab is read-only - SplashScreen's z-[100]
+        // (components/ui/splash-screen.tsx, shown by LicenseGuard while
+        // loading) AND dashboard-layout.tsx's PIN-lock screen at z-[9000].
+        // This banner sat at z-50 before, underneath both, making the "Use
+        // this window instead" handoff button invisible and unclickable on
+        // a read-only tab stuck behind either one. 9500 matches this
+        // codebase's existing "above everything except TauriTitleBar"
+        // convention (see dashboard-layout.tsx's own skip-link, also
+        // z-[9500]) - TauriTitleBar's z-[9999] doesn't need to be beaten.
+        <div className="sticky top-0 z-[9500] w-full bg-amber-500 px-4 py-1.5 text-center text-xs font-medium text-amber-950 flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
+          <span>
+            Read-only tab — DumosRx is already open elsewhere. Switch to that
+            window, or close it, to make changes here.
+          </span>
+          {handoffState === "offer-force" || handoffState === "forcing" ? (
+            <button
+              onClick={() => void handleForceTakeover()}
+              className="underline font-semibold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+              disabled={handoffState === "forcing"}
+            >
+              {handoffState === "forcing" ? "Taking over…" : "Couldn’t reach it — force takeover"}
+            </button>
+          ) : (
+            <button
+              onClick={() => void handleUseThisWindow()}
+              className="underline font-semibold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+              disabled={handoffState === "requesting"}
+            >
+              {handoffState === "requesting" ? "Asking other window…" : "Use this window instead"}
+            </button>
+          )}
         </div>
       )}
       {children}

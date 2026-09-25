@@ -30,7 +30,7 @@ describe("read-only tab write blocking", () => {
           opts.ifAvailable ? Promise.resolve(cb(null)) : new Promise(() => {}),
       },
     });
-    await tabLock.initWriterLock(vi.fn());
+    await tabLock.initWriterLock(vi.fn(), vi.fn());
     expect(tabLock.isWriterTab()).toBe(false);
 
     const SQL = await initSqlJs({
@@ -65,7 +65,7 @@ describe("read-only tab write blocking", () => {
           opts.ifAvailable ? Promise.resolve(cb(null)) : new Promise(() => {}),
       },
     });
-    await tabLock.initWriterLock(vi.fn());
+    await tabLock.initWriterLock(vi.fn(), vi.fn());
 
     const SQL = await initSqlJs({
       locateFile: () => require.resolve("sql.js/dist/sql-wasm.wasm"),
@@ -93,7 +93,7 @@ describe("read-only tab write blocking", () => {
           opts.ifAvailable ? Promise.resolve(cb(null)) : new Promise(() => {}),
       },
     });
-    await tabLock.initWriterLock(vi.fn());
+    await tabLock.initWriterLock(vi.fn(), vi.fn());
 
     const SQL = await initSqlJs({
       locateFile: () => require.resolve("sql.js/dist/sql-wasm.wasm"),

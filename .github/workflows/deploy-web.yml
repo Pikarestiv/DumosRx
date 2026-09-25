@@ -14,10 +14,21 @@ on:
   repository_dispatch:
     types: [storefront-changed]
 
+# Two overlapping runs (a quick second push, a repository_dispatch racing a
+# push-triggered run, or workflow_dispatch racing either) would otherwise
+# race FTP-Deploy-Action's local state file and the actual upload order
+# against dumosrx.com. Queue instead of cancelling, so an in-flight deploy
+# always finishes rather than leaving a partial upload behind.
+concurrency:
+  group: deploy-web-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   deploy:
     name: Build & Deploy Web
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     defaults:
       run:
         working-directory: ./web

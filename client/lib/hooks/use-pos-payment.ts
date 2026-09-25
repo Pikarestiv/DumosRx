@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { insert, update, transaction as runInTransaction } from "@/lib/db/local-database";
 import { generateShortId, generateId } from "@/lib/db/core";
@@ -104,6 +104,20 @@ export function usePOSPayment({
   const [selectedAccountId, setSelectedAccountId] = useState<string>("");
   const [paymentSplits, setPaymentSplits] = useState<PaymentSplit[]>([]);
   const [processingPayment, setProcessingPayment] = useState(false);
+  // Synchronous re-entrancy guard: the Process Payment button's own
+  // `disabled={processingPayment}` prop only takes effect after React
+  // commits the setProcessingPayment(true) below - a render tick behind
+  // the click that caused it. A close-enough double-tap/ghost-click (a
+  // real phenomenon on the touchscreen POS tablets this app targets, see
+  // globals.css's hover: media-query fix for the same touch/click
+  // ambiguity) can dispatch a second handlePayment() call before that
+  // render lands, each generating its own unique transactionNumber (so
+  // the UNIQUE constraint doesn't catch it as a duplicate) - producing two
+  // sales rows, double stock deduction, and double loyalty/commission for
+  // one physical transaction. A ref updates synchronously, unlike state,
+  // so it closes this gap where checking `processingPayment` itself would
+  // not (both calls would still read the same pre-render value).
+  const processingPaymentRef = useRef(false);
   const [completedTransaction, setCompletedTransaction] =
     useState<ReceiptTransaction | null>(null);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
@@ -120,6 +134,8 @@ export function usePOSPayment({
   }, [cart.length]);
 
   const handlePayment = async () => {
+    if (processingPaymentRef.current) return;
+
     const validationError = validatePaymentReadiness({
       paymentMethod,
       requireSaleNotes,
@@ -137,6 +153,7 @@ export function usePOSPayment({
       return;
     }
 
+    processingPaymentRef.current = true;
     setProcessingPayment(true);
 
     try {
@@ -363,6 +380,7 @@ export function usePOSPayment({
         toast.error("An error occurred while processing payment");
       }
     } finally {
+      processingPaymentRef.current = false;
       setProcessingPayment(false);
     }
   };

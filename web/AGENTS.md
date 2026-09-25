@@ -79,13 +79,19 @@ together). The current design:
   were updated only to read/write the token via `useAdminAuthStore` instead
   of the now-removed `localStorage["drx_admin_token"]` key — the handoff
   code mechanism itself is unchanged and out of scope.
-- `AdminController::restoreSession()` (`/admin/restore-session`) is dead
-  code from the current UI's perspective — `useRestoreSessionMutation` in
-  `lib/api/admin-hooks-stores.ts` is defined but never called anywhere.
-  Left as-is; if it's wired up in the future, note it still sets the
-  `drx_admin_session` cookie via the *old* `SameSite=None`-style call
-  pattern and would need the same `Strict` treatment as
-  `buildAdminSessionCookie()`.
+- `AdminStoreController::restoreSession()` (`/admin/restore-session`) is
+  dead code from the current UI's perspective — `useRestoreSessionMutation`
+  in `lib/api/admin-hooks-stores.ts` is defined but never called anywhere.
+  Left in place (in case it's wired up later) but hardened in the
+  2026-09-24 review: it now sets `drx_admin_session` via the same shared
+  `ManagesAdminSessionCookie::buildAdminSessionCookie()` helper
+  `login()`/`refreshAdminSession()` use (`Strict`), not a hand-rolled
+  `SameSite=None` copy. `AdminStoreController::impersonateStore()` — used
+  live by `app/admin/stores/page.tsx` above — previously had the same
+  hand-rolled `SameSite=None` cookie write; it's removed entirely there,
+  since the impersonation flow only ever consumes the JSON body's `token`
+  for the handoff-code exchange, never this cookie. See
+  `docs/FIXED_BUGS.md`.
 - `client/`'s login/refresh flow (`client/lib/api/token-manager.ts`) is
   entirely separate and was deliberately left untouched — it's bearer-token
   based, has no cookie dependency, and silently refreshes only after 7 days

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Store, Lock, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import {
   Card,
   CardContent,
@@ -57,8 +58,13 @@ export function MultiStoreCard() {
   // data as soon as that pull does complete, instead of serving a cache
   // that never refreshes.
   const invalidateStoreCaches = () => {
-    void queryClient.invalidateQueries({ queryKey: ["allStores"] });
-    void queryClient.invalidateQueries({ queryKey: ["storeProfile"] });
+    // Prefix-matches every cached variant of these queries regardless of
+    // which store/user args they were fetched with (a plain string
+    // literal would do the same, but derives the prefix from the factory
+    // - via a throwaway call - instead of duplicating it, so a rename in
+    // query-keys.ts can't silently desync from this call site).
+    void queryClient.invalidateQueries({ queryKey: queryKeys.stores.all().queryKey.slice(0, 1) });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.stores.profile().queryKey.slice(0, 1) });
   };
 
   const handleMutationSuccess = () => {

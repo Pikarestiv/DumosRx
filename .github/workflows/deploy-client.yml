@@ -8,10 +8,21 @@ on:
       - "client/**"
   workflow_dispatch:
 
+# Two overlapping runs (a quick second push, or workflow_dispatch racing a
+# push-triggered run) would otherwise race FTP-Deploy-Action's local state
+# file and the actual upload order against app.dumosrx.com. Queue instead
+# of cancelling, so an in-flight deploy always finishes rather than leaving
+# a partial upload behind.
+concurrency:
+  group: deploy-client-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   client-deploy:
     name: 🎉 Deploy Client
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: 🚚 Get latest code
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7

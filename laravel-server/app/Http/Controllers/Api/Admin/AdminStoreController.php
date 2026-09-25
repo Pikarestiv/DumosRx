@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Admin;
 
+use App\Http\Controllers\Concerns\ManagesAdminSessionCookie;
 use App\Models\ActivityLog;
 use App\Services\Admin\AdminStoreService;
 use Illuminate\Http\Request;
@@ -11,6 +12,8 @@ use OpenApi\Attributes as OA;
 
 class AdminStoreController extends AdminBaseController
 {
+    use ManagesAdminSessionCookie;
+
     protected $adminStoreService;
 
     public function __construct(AdminStoreService $adminStoreService)
@@ -355,7 +358,7 @@ class AdminStoreController extends AdminBaseController
     #[OA\Post(
         path: '/admin/stores/{id}/impersonate',
         summary: "Start impersonating a store's owner session",
-        description: 'Sets the `drx_admin_session` cookie to the impersonated user\'s token; use `/admin/restore-session` to end it.',
+        description: "Returns the impersonated user's token in the JSON body; the admin panel passes it straight to /admin/handoff's createHandoffCode() for cross-origin transfer to app.dumosrx.com (see AuthHandoffController) — it never uses a cookie.",
         tags: ['Admin'],
         security: [['sanctum' => []]],
         parameters: [new OA\Parameter(name: 'id', in: 'path', description: 'Store ID', required: true, schema: new OA\Schema(type: 'string'))],
@@ -370,22 +373,18 @@ class AdminStoreController extends AdminBaseController
         try {
             $data = $this->adminStoreService->impersonateStore($id);
 
-            $response = response()->json($data);
-
-            // Set the session cookie to the impersonated user's token
-            $response->withCookie(cookie(
-                'drx_admin_session',
-                $data['token'],
-                60 * 24,
-                '/',
-                $request->getHost() === 'localhost' || filter_var($request->getHost(), FILTER_VALIDATE_IP) ? null : '.' . implode('.', array_slice(explode('.', $request->getHost()), -2)),
-                $request->isSecure(),
-                true,
-                false,
-                $request->isSecure() ? 'None' : 'Lax'
-            ));
-
-            return $response;
+            // Previously also set drx_admin_session here, to the
+            // impersonated user's own full-ability token, with the
+            // pre-2026-08-26-redesign SameSite=None pattern. The admin
+            // panel's actual impersonation flow (app/admin/stores/page.tsx)
+            // never reads this cookie — it uses the JSON body's `token`
+            // directly for the handoff-code exchange — so this write served
+            // no purpose except silently overwriting the calling admin's
+            // own Strict, refresh-scoped drx_admin_session cookie with the
+            // impersonated user's unscoped one on every impersonation,
+            // breaking the admin's own dumosrx.com session on next reload.
+            // Removed rather than fixed-in-place, since nothing needs it.
+            return response()->json($data);
         } catch (\Exception $e) {
             Log::error("Admin Impersonate Error: " . $e->getMessage());
             return response()->json(['error' => 'Impersonation failed: ' . $e->getMessage()], 500);
@@ -395,7 +394,7 @@ class AdminStoreController extends AdminBaseController
     #[OA\Post(
         path: '/admin/restore-session',
         summary: "End impersonation and restore the admin's own session",
-        description: 'The supplied token must resolve to a real Sanctum token owned by a super_admin; it is not trusted blindly, since this cookie doubles as the bearer token for every subsequent request (see AuthenticateFromCookie middleware).',
+        description: 'Dead code from the current UI\'s perspective (useRestoreSessionMutation is defined but never called — impersonation return uses the handoff-code flow instead) — kept working and hardened rather than removed, in case it is wired up later. The supplied token must resolve to a real Sanctum token owned by a super_admin; it is not trusted blindly.',
         tags: ['Admin'],
         security: [['sanctum' => []]],
         requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
@@ -430,20 +429,23 @@ class AdminStoreController extends AdminBaseController
             'status' => 'success'
         ]);
 
-        $response = response()->json(['message' => 'Session restored']);
+        // Previously hand-rolled its own SameSite=None cookie call, AND put
+        // the raw validated token (a general-ability access token) directly
+        // into it. Fixed to route through the same hardened (Strict,
+        // HttpOnly) cookie builder login()/refreshAdminSession() use, per
+        // AGENTS.md's own note that this needs that treatment before it's
+        // ever wired up — but an independent review pass after that first
+        // fix caught that the cookie's VALUE was still wrong: this cookie
+        // must only ever hold a `refresh`-ability-scoped token (that's what
+        // refreshAdminSession()'s `$refreshToken->can('refresh')` gate
+        // checks), never a general one, so a cookie built from
+        // $validated['token'] as-is would fail that gate and get the
+        // session cleared on the very next reload. Mints a fresh
+        // refresh-scoped token for the same admin instead, exactly like
+        // login()/refreshAdminSession() do.
+        $refreshToken = $admin->createToken('admin-refresh', ['refresh'])->plainTextToken;
 
-        $response->withCookie(cookie(
-            'drx_admin_session',
-            $validated['token'],
-            60 * 24,
-            '/',
-            $request->getHost() === 'localhost' || filter_var($request->getHost(), FILTER_VALIDATE_IP) ? null : '.' . implode('.', array_slice(explode('.', $request->getHost()), -2)),
-            $request->isSecure(),
-            true,
-            false,
-            $request->isSecure() ? 'None' : 'Lax'
-        ));
-
-        return $response;
+        return response()->json(['message' => 'Session restored'])
+            ->withCookie($this->buildAdminSessionCookie($request, $refreshToken));
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Web;
 
+use App\Http\Controllers\Concerns\ScopesToTenant;
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\Store;
@@ -12,6 +13,8 @@ use OpenApi\Attributes as OA;
 
 class ActivityLogController extends Controller
 {
+    use ScopesToTenant;
+
     #[OA\Get(
         path: '/logs',
         summary: "List the caller's store activity log (owner + all staff)",
@@ -24,17 +27,21 @@ class ActivityLogController extends Controller
     )]
     public function index(Request $request)
     {
-        $admin = $request->user();
-        
-        // Get all stores owned by the admin
-        $storeIds = Store::where('user_id', $admin->id)->pluck('id');
-        
-        // Get all staff users in those stores
-        $userIds = clone $storeIds; // wait, storeIds is a collection of UUIDs
+        // Was `$storeIds = Store::where('user_id', $admin->id)` using the
+        // CALLER's own id - correct for a store owner, but 'manager' and
+        // 'auditor' staff roles also hold the `view_reports` permission
+        // this route requires (see RolesAndPermissionsSeeder), and a staff
+        // user never owns a Store row. For them this returned zero stores,
+        // so $staffIds fell through to just their own id and the endpoint
+        // silently returned only the caller's own actions - not "the
+        // store's activity log (owner + all staff)" this endpoint's own
+        // doc comment promises. tenantOwnerId() resolves to the same owner
+        // regardless of whether the caller is the owner or their staff.
+        $ownerId = $this->tenantOwnerId($request);
+
+        $storeIds = Store::where('user_id', $ownerId)->pluck('id');
         $staffIds = User::whereIn('store_id', $storeIds)->pluck('id');
-        
-        // Include the admin's own ID
-        $staffIds->push($admin->id);
+        $staffIds->push($ownerId);
 
         $logs = ActivityLog::with('user')
             ->whereIn('user_id', $staffIds)
@@ -88,7 +95,7 @@ class ActivityLogController extends Controller
             'details' => $request->input('details'),
             'device_id' => $deviceId,
             'ip' => $request->ip(),
-            'user_agent' => $request->userAgent()
+            'user_agent' => $request->userAgent(),
         ]);
 
         // Log to ActivityLog table (requires a user; guest errors only go to laravel.log)
@@ -103,7 +110,7 @@ class ActivityLogController extends Controller
                     'error_message' => $request->input('message'),
                     'details' => $request->input('details'),
                     'device_id' => $deviceId,
-                ]
+                ],
             ]);
         }
 

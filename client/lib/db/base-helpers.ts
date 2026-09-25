@@ -42,6 +42,16 @@ registerInvalidateTablesFn((tables) => {
 });
 
 /**
+ * Return type of assertStoreOwnership() — see its doc comment. A
+ * discriminated union (rather than an optional `activeStoreId`) so
+ * TypeScript itself enforces that a claim is never applied without the id
+ * to claim it for.
+ */
+type OwnershipCheck =
+  | { needsClaim: true; activeStoreId: string }
+  | { needsClaim: false };
+
+/**
  * Enforces per-row store ownership before update()/softDelete()/remove()
  * mutate a STORE_SCOPED_TABLES row, closing the cross-tenant write gap
  * described in docs/features/_known-bugs.md item #8: without this, any
@@ -51,28 +61,40 @@ registerInvalidateTablesFn((tables) => {
  * enforcing it on the write path.
  *
  * Three outcomes, matching the controller's ruling exactly:
- *  - row.store_id === activeStoreId → allowed, no-op here.
+ *  - row.store_id === activeStoreId → allowed, `{ needsClaim: false }`.
  *  - row.store_id is NULL (pre-migration legacy row, see
- *    backfillStoreIdOnLegacyRows in core.ts) → allowed, AND — for update()/
- *    softDelete(), where `claimLegacyRow` is true — claimed for the active
- *    store as part of this call, so a second store touching it later hits
- *    the reject branch instead of clobbering it forever. remove() passes
- *    `claimLegacyRow: false`: it's a hard, unrecoverable DELETE, so
- *    claiming the row first (an UPDATE) only to destroy it in the very next
- *    statement protects nothing — there's no row left afterward for the
- *    claim to matter to. The delete is simply allowed outright.
+ *    backfillStoreIdOnLegacyRows in core.ts) → allowed, with
+ *    `{ needsClaim: true, activeStoreId }` telling update()/softDelete()
+ *    to claim it for the active store as part of their own write, so a
+ *    second store touching it later hits the reject branch instead of
+ *    clobbering it forever. remove() ignores `needsClaim`: it's a hard,
+ *    unrecoverable DELETE, so claiming the row first only to destroy it in
+ *    the very next statement protects nothing — there's no row left
+ *    afterward for the claim to matter to. The delete is simply allowed
+ *    outright.
  *  - row.store_id is a different, known store → rejected with a thrown
  *    Error, not a silent no-op, so a caller that ignores the failure can't
  *    mistake it for success.
  *
- * Deliberately fails OPEN (does nothing) when getActiveStoreId() is
- * null/undefined — early app boot, or another edge case where the active
- * store genuinely isn't known yet — matching insert()'s existing "only
- * auto-scope when storeId is truthy" behavior, so this never blocks a
- * legitimate write purely because store resolution hasn't happened yet. This
- * is a narrow allowance, not a general bypass: it only fires when the
- * *local* module-scope resolver has nothing set, which is not something a
- * caller can trigger from outside this process.
+ * This function used to perform the claim UPDATE itself, as its own bare
+ * (non-transactional) statement, before the caller's write transaction even
+ * started. A crash between the two committed the claim but lost the
+ * caller's actual edit — and left the row claimed by this store, so a
+ * SECOND store later touching the same row was then rejected as belonging
+ * to someone else, even though nothing had visibly changed from that
+ * store's perspective. It now only reports whether a claim is needed;
+ * update()/softDelete() apply it as the first statement inside their own
+ * transaction, so the claim and the edit can only ever commit or roll back
+ * together.
+ *
+ * Deliberately fails OPEN (does nothing, `{ needsClaim: false }`) when
+ * getActiveStoreId() is null/undefined — early app boot, or another edge
+ * case where the active store genuinely isn't known yet — matching
+ * insert()'s existing "only auto-scope when storeId is truthy" behavior, so
+ * this never blocks a legitimate write purely because store resolution
+ * hasn't happened yet. This is a narrow allowance, not a general bypass: it
+ * only fires when the *local* module-scope resolver has nothing set, which
+ * is not something a caller can trigger from outside this process.
  *
  * `overrideStoreId`, when passed, is checked against instead of the global
  * resolver — for the one real system-level caller found to need cross-store
@@ -84,37 +106,31 @@ registerInvalidateTablesFn((tables) => {
 async function assertStoreOwnership(
   table: string,
   id: string,
-  claimLegacyRow: boolean = true,
   overrideStoreId?: string,
-): Promise<void> {
-  if (!STORE_SCOPED_TABLES.includes(table)) return;
+): Promise<OwnershipCheck> {
+  if (!STORE_SCOPED_TABLES.includes(table)) return { needsClaim: false };
 
   const activeStoreId = overrideStoreId ?? getActiveStoreId();
-  if (!activeStoreId) return;
+  if (!activeStoreId) return { needsClaim: false };
 
   const rows = await query<{ store_id: string | null }>(
     `SELECT store_id FROM ${table} WHERE id = ?`,
     [id],
   );
   const row = rows[0];
-  if (!row) return; // No such row; let the caller's own statement naturally no-op.
+  if (!row) return { needsClaim: false }; // No such row; let the caller's own statement naturally no-op.
 
   if (row.store_id === null || row.store_id === undefined) {
-    if (claimLegacyRow) {
-      // Legacy pre-migration row: claim it for the active store as part of
-      // this write, so it stops being shared after this first edit.
-      await execute(`UPDATE ${table} SET store_id = ? WHERE id = ?`, [
-        activeStoreId,
-        id,
-      ]);
-    }
-    // remove(): nothing to claim — the row is about to be hard-deleted.
-    return;
+    // Legacy pre-migration row: the caller claims it for the active store
+    // as part of its own write — see this function's doc comment above.
+    return { needsClaim: true, activeStoreId };
   }
 
   if (row.store_id !== activeStoreId) {
     throw new Error("Cannot modify a record owned by a different store");
   }
+
+  return { needsClaim: false };
 }
 
 // Every products.name / categories.name write funnels through insert()/
@@ -212,7 +228,7 @@ export async function update(
   data: Record<string, unknown>,
   options?: { action?: string; storeId?: string; correlationId?: string },
 ): Promise<void> {
-  await assertStoreOwnership(table, id, true, options?.storeId);
+  const ownership = await assertStoreOwnership(table, id, options?.storeId);
 
   const now = new Date().toISOString();
 
@@ -242,6 +258,17 @@ export async function update(
     updated_at: now,
     _version: version,
     _synced: 0,
+    // Folded into the same record as the rest of the edit (rather than a
+    // separate UPDATE statement) so the claim is included in BOTH the
+    // local write AND the addToSyncQueue() payload below — previously the
+    // claim was a second, separate statement whose column was never part
+    // of `record`, so the server never learned about it: it committed
+    // locally (atomically with the edit, as of the earlier fix for this)
+    // but stayed invisible to every other device pulling this row later.
+    // Overrides any store_id the caller's own `data` might have set,
+    // matching the claim's existing semantics of always using the active
+    // store, not a caller-supplied value.
+    ...(ownership.needsClaim ? { store_id: ownership.activeStoreId } : {}),
   });
 
   const setClause = Object.keys(record)
@@ -256,7 +283,11 @@ export async function update(
 
   // See insert()'s comment above: the row write, its sync-queue entry, and
   // its audit-log entry must land together, or a kill between them can leave
-  // an updated row that never reaches the server.
+  // an updated row that never reaches the server. The legacy-row claim (if
+  // needed — see assertStoreOwnership()'s doc comment) is folded into
+  // `record` above for the same reason: it must commit atomically with the
+  // actual edit, and it must reach the server the same way the rest of the
+  // edit does.
   const writeUpdate = async () => {
     await execute(`UPDATE ${table} SET ${setClause} WHERE id = ?`, values);
 
@@ -274,24 +305,35 @@ export async function update(
 }
 
 export async function softDelete(table: string, id: string, options?: { storeId?: string; correlationId?: string }): Promise<void> {
-  await assertStoreOwnership(table, id, true, options?.storeId);
+  const ownership = await assertStoreOwnership(table, id, options?.storeId);
 
   const now = new Date().toISOString();
 
-  let updateQuery = `UPDATE ${table} SET _deleted = 1, updated_at = ?, _synced = 0 WHERE id = ?`;
-  let params: (string | number | null)[] = [now, id];
+  // Claim column/value folded into the same statement (rather than a
+  // separate UPDATE) so it's included in the DELETE sync payload below too
+  // — see update()'s identical fix/comment above for why a separate,
+  // un-synced claim statement left the server never learning about it.
+  const claimClause = ownership.needsClaim ? ", store_id = ?" : "";
+  const claimParam = ownership.needsClaim ? [ownership.activeStoreId] : [];
+
+  let updateQuery = `UPDATE ${table} SET _deleted = 1, updated_at = ?, _synced = 0${claimClause} WHERE id = ?`;
+  let params: (string | number | null)[] = [now, ...claimParam, id];
 
   if (table === "users") {
     const suffix = `_del_${Date.now()}`;
-    updateQuery = `UPDATE ${table} SET _deleted = 1, updated_at = ?, _synced = 0, email = email || ?, username = username || ? WHERE id = ?`;
-    params = [now, suffix, suffix, id];
+    updateQuery = `UPDATE ${table} SET _deleted = 1, updated_at = ?, _synced = 0${claimClause}, email = email || ?, username = username || ? WHERE id = ?`;
+    params = [now, ...claimParam, suffix, suffix, id];
   }
+
+  const deletePayload: Record<string, unknown> = ownership.needsClaim
+    ? { id, store_id: ownership.activeStoreId }
+    : { id };
 
   // See insert()'s comment above: same atomicity requirement.
   const writeSoftDelete = async () => {
     await execute(updateQuery, params);
 
-    await addToSyncQueue(table, id, "DELETE", { id });
+    await addToSyncQueue(table, id, "DELETE", deletePayload);
     await logAction("DELETE", table, id, { id }, options?.storeId, options?.correlationId);
   };
 
@@ -309,7 +351,10 @@ export async function remove(
   id: string,
   options?: { action?: string; storeId?: string; correlationId?: string },
 ): Promise<void> {
-  await assertStoreOwnership(table, id, /* claimLegacyRow */ false, options?.storeId);
+  // Ignores the returned needsClaim (if the row is a legacy row) — this is
+  // a hard, unrecoverable DELETE, so claiming it first only to destroy it
+  // in the very next statement protects nothing.
+  await assertStoreOwnership(table, id, options?.storeId);
 
   // Fetched before the delete so the audit trail still has a record of what
   // was destroyed. This is a hard, unrecoverable delete (unlike softDelete),

@@ -66,6 +66,10 @@ vi.mock("@/lib/context/auth-context", () => ({
   useAuth: () => ({ isImpersonating: false }),
 }));
 
+vi.mock("@/lib/db/DatabaseProvider", () => ({
+  useDatabase: () => ({ isReadOnlyTab: false }),
+}));
+
 vi.mock("@/components/dashboard/auth-modal", () => ({
   AuthModal: () => null,
 }));

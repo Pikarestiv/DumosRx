@@ -67,6 +67,10 @@ vi.mock("@/lib/context/auth-context", () => ({
   useAuth: () => ({ isImpersonating: mockIsImpersonating }),
 }));
 
+vi.mock("@/lib/db/DatabaseProvider", () => ({
+  useDatabase: () => ({ isReadOnlyTab: false }),
+}));
+
 /**
  * Companion to sync-blocked-during-impersonation.test.ts: sync() itself is
  * the real gate, but the indicator must SAY so rather than silently doing

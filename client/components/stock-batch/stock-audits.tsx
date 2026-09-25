@@ -237,8 +237,8 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
     pdfAbortRef.current?.abort();
   };
 
-  const handleExport = (format: "csv" | "xlsx") => {
-    const blob = buildBlobFromRows(auditHeaders, auditRowData, format, "Stock Audit");
+  const handleExport = async (format: "csv" | "xlsx") => {
+    const blob = await buildBlobFromRows(auditHeaders, auditRowData, format, "Stock Audit");
     downloadBlob(
       blob,
       `StockAudit_${new Date().toISOString().slice(0, 10)}.${format}`,
@@ -383,10 +383,10 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
                 <DropdownMenuItem onClick={() => void handleDownloadPdf()}>
                   Download PDF
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleExport("csv")}>
+                <DropdownMenuItem onClick={() => void handleExport("csv")}>
                   Export CSV
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleExport("xlsx")}>
+                <DropdownMenuItem onClick={() => void handleExport("xlsx")}>
                   Export Excel
                 </DropdownMenuItem>
               </DropdownMenuContent>

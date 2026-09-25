@@ -8,10 +8,21 @@ on:
       - "laravel-server/**"
   workflow_dispatch:
 
+# Two overlapping runs (a quick second push, or workflow_dispatch racing a
+# push-triggered run) would otherwise race FTP-Deploy-Action's local state
+# file and the actual upload order against api.dumosrx.com. Queue instead
+# of cancelling, so an in-flight deploy always finishes rather than leaving
+# a partial upload behind.
+concurrency:
+  group: deploy-backend-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   web-deploy:
     name: 🎉 Deploy
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: 🚚 Get latest code
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
@@ -29,7 +40,14 @@ jobs:
           mkdir -p storage/framework/sessions
           mkdir -p storage/framework/views
           mkdir -p storage/framework/cache
-          chmod -R 777 storage bootstrap/cache
+          # 775, not 777: this deploys to shared hosting (no SSH, see
+          # laravel-server/AGENTS.md), where file permissions are one of
+          # the few isolation mechanisms between tenants on the box.
+          # storage/ holds session files and bootstrap/cache/ holds
+          # compiled config Laravel trusts implicitly on every request -
+          # world-writable is broader than Laravel needs and a well-known
+          # hardening anti-pattern.
+          chmod -R 775 storage bootstrap/cache
 
       - name: 📦 Install Dependencies
         run: |

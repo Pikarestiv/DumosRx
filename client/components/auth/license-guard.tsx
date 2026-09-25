@@ -262,10 +262,25 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
       }
     }
 
-    // Re-read the (now refreshed) local DB
-    const status = await checkLicenseStatus();
+    // Re-read the (now refreshed) local DB. Guarded: checkLicenseStatus()
+    // does a local write of its own (updateStoreMonotonicTime), which
+    // throws on a read-only tab (see tab-lock.ts / C1 in docs/KNOWN_BUGS.md)
+    // - previously uncaught here, so the whole async function rejected
+    // before reaching setLoading(false), leaving `loading` true forever and
+    // SplashScreen stuck on screen permanently. On failure, `license` is
+    // left as whatever it already was (null on first mount, unchanged on a
+    // "Check Again" retry) rather than reset - a transient failure must
+    // never regress an already-valid session into the locked-out branch
+    // below, and a null license already fails open into isExpiredSub rather
+    // than hard-locking on an unproven failure.
+    let status: LicenseInfo | null = null;
+    try {
+      status = await checkLicenseStatus();
+    } catch (err) {
+      console.error("[LicenseGuard] checkLicenseStatus() threw:", err);
+    }
     if (generation !== checkGeneration.current) return;
-    setLicense(status);
+    if (status) setLicense(status);
     setLoading(false);
   }, []);
 

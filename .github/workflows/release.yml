@@ -193,9 +193,27 @@ jobs:
   deploy-ftp:
     needs: [release, release-android]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    # Scoped by tag, not shared across releases: this job's own FTP step
+    # ("FTP Deploy Binaries to Version Folder") writes to a
+    # tag-specific /downloads.dumosrx.com/<tag>/ path and state file, so two
+    # different tags releasing close together don't touch each other's
+    # files - only a re-run of the SAME tag needs to queue. The one truly
+    # shared-resource step (the root /downloads.dumosrx.com/ index +
+    # updater.json) is split into deploy-ftp-root below, with its own
+    # unscoped (cross-tag) concurrency group - previously this whole job's
+    # concurrency was accidentally coupled to that one step's requirement
+    # via a single workflow-wide group, which meant a second tag pushed
+    # while an earlier release was still running had its ENTIRE run
+    # (including this now-independent per-tag upload) silently cancelled
+    # rather than queued, with no failure signal.
+    concurrency:
+      group: deploy-ftp-${{ github.ref }}
+      cancel-in-progress: false
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         
       - name: Download all release assets
         env:
@@ -277,7 +295,7 @@ jobs:
           cp .github/downloads-index.php root-assets/index.php
 
       - name: FTP Deploy Binaries to Version Folder
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+        uses: SamKirkland/FTP-Deploy-Action@8e83cea8672e3fbcbb9fdafff34debf6ae4c5f65 # v4.3.5
         with:
           server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}
@@ -286,8 +304,61 @@ jobs:
           server-dir: /downloads.dumosrx.com/${{ github.ref_name }}/
           state-name: .ftp-deploy-sync-state-${{ github.ref_name }}.json
 
+      # Handed off to deploy-ftp-root below (a separate job, since it needs
+      # its own cross-tag concurrency group) rather than deployed here
+      # directly - see that job for why. Jobs don't share a filesystem, so
+      # this goes through upload-artifact/download-artifact.
+      - name: Upload root files for deploy-ftp-root
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: root-assets-${{ github.ref_name }}
+          path: root-assets/
+          retention-days: 1
+
+  deploy-ftp-root:
+    needs: deploy-ftp
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    # Unscoped (NOT per-tag, unlike deploy-ftp above): this is the one
+    # actually shared-resource step - it writes updater.json and the
+    # downloads-index.php-derived index into the SAME
+    # /downloads.dumosrx.com/ root regardless of which tag triggered it,
+    # via the same .ftp-deploy-sync-state-root.json state file. Two
+    # releases pushed close together must queue here specifically, not
+    # race FTP-Deploy-Action's read-modify-write of that shared state.
+    # Releases are infrequent enough that serializing just this one step
+    # (rather than the whole per-tag deploy-ftp job above) is a small,
+    # bounded cost.
+    concurrency:
+      group: release-root-files
+      cancel-in-progress: false
+    steps:
+      - name: Download root files from deploy-ftp
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
+        with:
+          name: root-assets-${{ github.ref_name }}
+          path: root-assets/
+
+      # Queue order here isn't push order (a slower tag can arrive later);
+      # compare versions directly so an older tag can never overwrite a newer one.
+      - name: Guard against deploying a stale updater.json
+        run: |
+          set -e
+          NEW_VERSION=$(node -pe "require('./root-assets/updater.json').version")
+          LIVE_VERSION=$(curl -fsSL https://downloads.dumosrx.com/updater.json 2>/dev/null | node -pe "JSON.parse(require('fs').readFileSync(0,'utf8')).version" 2>/dev/null || echo "0.0.0")
+          echo "This tag's version: $NEW_VERSION; currently live version: $LIVE_VERSION"
+          LATEST=$(printf '%s\n%s\n' "$LIVE_VERSION" "$NEW_VERSION" | sort -V | tail -n1)
+          if [ "$LATEST" != "$NEW_VERSION" ]; then
+            echo "Live version ($LIVE_VERSION) is newer than this tag's version ($NEW_VERSION) — skipping root deploy to avoid regressing the updater feed."
+            echo "SKIP_ROOT_DEPLOY=true" >> "$GITHUB_ENV"
+          else
+            echo "SKIP_ROOT_DEPLOY=false" >> "$GITHUB_ENV"
+          fi
+
       - name: FTP Deploy Root Files
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+        if: env.SKIP_ROOT_DEPLOY != 'true'
+        uses: SamKirkland/FTP-Deploy-Action@8e83cea8672e3fbcbb9fdafff34debf6ae4c5f65 # v4.3.5
         with:
           server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}

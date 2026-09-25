@@ -13,6 +13,43 @@ import {
   makeSqlJsAdapter,
   runSchemaMigrations,
 } from "./schema-migrations";
+import {
+  initWriterLock,
+  isWriterTab,
+  onWriterTabChange,
+  onPromotionFailed,
+  requestWriterTakeover,
+  stealWriterLock,
+} from "./tab-lock";
+
+export { isWriterTab, onWriterTabChange, onPromotionFailed };
+
+/**
+ * UI entry point for the graceful writer handoff (see tab-lock.ts's
+ * requestWriterTakeover()): asks the current writer tab/window to force a
+ * save and voluntarily drop to read-only, freeing the Web Lock for this
+ * tab. On "acked", this tab's already-queued lock request (registered by
+ * initWriterLock() above) gets granted just like a natural writer-tab
+ * close, running rehydrateFromIndexedDb() before promoting - no different
+ * handling needed here. Callers should offer forceWriterTakeover() when
+ * this resolves "timeout" (the other side didn't respond - likely frozen
+ * or crashed) or "unsupported" (no BroadcastChannel in this browser).
+ */
+export function requestWriterHandoff(): Promise<"acked" | "timeout" | "unsupported"> {
+  return requestWriterTakeover();
+}
+
+/**
+ * Fallback for requestWriterHandoff() timing out or being unsupported:
+ * forcibly takes the Web Lock via {steal: true} rather than waiting
+ * indefinitely for an unresponsive holder. Rehydrates from IndexedDB before
+ * promoting, same as normal promotion - see stealWriterLock()'s doc comment
+ * for why the outgoing holder's own unsaved changes (if any) are lost here,
+ * unlike the graceful path.
+ */
+export function forceWriterTakeover(): Promise<boolean> {
+  return stealWriterLock(rehydrateFromIndexedDb);
+}
 
 // Dual-backend handle: sql.js's Database in the browser, @tauri-apps/plugin-sql's
 // Database (a different, incompatible shape: .execute()/.select() vs sql.js's
@@ -104,10 +141,35 @@ export function generateShortId(): string {
 export { STORE_SCOPED_TABLES };
 
 
+// Tracks an in-flight initDatabase() call so concurrent callers share it
+// instead of each running the full body. `db` stays null for the whole
+// async duration of the first call (WASM load + IndexedDB read + schema
+// run), and query()/execute()/transaction()/etc. each independently do
+// `if (!db) await initDatabase()` - at real app startup several fire around
+// the same time, so without this they'd all race past that null check and
+// each register their own writer-lock request via initWriterLock() below,
+// piling up duplicate pending Web Lock requests for this one tab (observed
+// live: 14+ for a single tab). That breaks the writer-handoff feature in
+// tab-lock.ts: a tab dropping the lock to hand off could immediately
+// re-grant itself the lock from one of its own leftover duplicates.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let initDatabasePromise: Promise<any> | null = null;
+
 // Returns the same deliberately-untyped dual-backend handle `db` holds — see
 // its declaration above.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function initDatabase(): Promise<any> {
+export function initDatabase(): Promise<any> {
+  if (db) return Promise.resolve(db);
+  if (!initDatabasePromise) {
+    initDatabasePromise = initDatabaseInternal().finally(() => {
+      initDatabasePromise = null;
+    });
+  }
+  return initDatabasePromise;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function initDatabaseInternal(): Promise<any> {
   if (db) return db;
 
   if (isTauri()) {
@@ -192,14 +254,84 @@ export async function initDatabase(): Promise<any> {
       db.run(SCHEMA_SQL);
     }
 
+    // Elects exactly one open tab as the writer (see tab-lock.ts / C1 in
+    // docs/KNOWN_BUGS.md) BEFORE running migrations below, not after: one of
+    // those migrations (clearLegacyTransactionsOnce) can itself persist a
+    // destructive one-time cleanup to the shared IndexedDB snapshot via the
+    // callback passed to runSchemaMigrations. Deciding writer/read-only
+    // first, and gating that callback on it, means a soon-to-be-read-only
+    // tab that raced a real writer tab to this point can still mutate its
+    // OWN in-memory `db` (needed so its later reads see the current schema)
+    // but can never itself write that mutation back to shared storage.
+    // Every other tab becomes read-only until this one closes. Only reached
+    // once per page load (initDatabase() early-returns above once `db` is
+    // set), so this never registers more than one lock request per tab.
+    // Awaited (rather than fire-and-forget) so a caller that awaits
+    // initDatabase() can immediately read this tab's initial writer/
+    // read-only role via isWriterTab() - this only waits for that initial
+    // decision, never for an eventual promotion. saveDatabase is passed as
+    // the graceful-handoff callback (see requestWriterHandoff() below): if
+    // this tab is (or becomes) the writer and another tab asks to take
+    // over, its current in-memory changes get force-saved before this tab
+    // drops to read-only, so the requester never rehydrates a copy that's
+    // missing this tab's own last writes.
+    await initWriterLock(rehydrateFromIndexedDb, saveDatabase);
+
     const webAdapter = makeSqlJsAdapter(db);
 
-    await runSchemaMigrations(webAdapter, saveDatabase);
+    await runSchemaMigrations(webAdapter, isWriterTab() ? saveDatabase : undefined);
 
     return db;
   } catch (err) {
     console.error("[DB] Failed to initialize database:", err);
     throw err;
+  }
+}
+
+/**
+ * Re-reads the shared IndexedDB snapshot and replaces the in-memory `db`
+ * with it. Called by tab-lock.ts exactly once per tab, at the moment a
+ * previously read-only tab is promoted to writer: the promoted tab's
+ * in-memory copy predates whatever the outgoing writer committed right
+ * before closing, so it must catch up before it's allowed to write itself -
+ * otherwise it would silently resurrect stale rows the outgoing writer had
+ * already changed or deleted, the same class of data loss C1 exists to
+ * close. Deliberately does not re-run schema migrations (this tab already
+ * ran them once at its own initDatabase(), and the outgoing writer - running
+ * the same build - would already have applied any that landed since).
+ *
+ * Returns whether it's now safe for this tab to become the writer: `true`
+ * either after a successful rehydrate, or when there's genuinely nothing to
+ * rehydrate from yet (no snapshot has ever been saved - this tab's own
+ * already-loaded copy is already the most current state there is). `false`
+ * only on an actual read failure, which tab-lock.ts treats as "refuse to
+ * promote" rather than risk writing over the real snapshot with a stale
+ * copy - see initWriterLock()'s doc comment.
+ */
+async function rehydrateFromIndexedDb(): Promise<boolean> {
+  if (!SQL) return false;
+  let savedData: Uint8Array | undefined;
+  try {
+    savedData = await get<Uint8Array>(`${APP_NAME.toLowerCase()}_db`);
+  } catch (err) {
+    console.error("[DB] Failed to read IndexedDB while rehydrating after writer-lock promotion", err);
+    return false;
+  }
+  if (!savedData) return true;
+  try {
+    const fresh = new SQL.Database(savedData);
+    fresh.run(SCHEMA_SQL);
+    try {
+      db?.close?.();
+    } catch {
+      // Best-effort - a failed close of the now-discarded instance doesn't
+      // block adopting the freshly-loaded one below.
+    }
+    db = fresh;
+    return true;
+  } catch (err) {
+    console.error("[DB] Failed to rehydrate database after writer-lock promotion", err);
+    return false;
   }
 }
 
@@ -474,6 +606,23 @@ export function queueTableInvalidation(table: string): void {
   }
 }
 
+// Shared by execute() and transaction(): this tab lost (or never won) the
+// single-writer election in tab-lock.ts, so it must not touch the shared
+// sql.js database at all - see C1 in docs/KNOWN_BUGS.md. Dispatches the same
+// rate-limited-by-listener pattern DatabaseProvider already uses for
+// dumos_db_save_failed, so the UI can surface a clear message instead of an
+// uncaught write silently corrupting nothing (good) but also silently doing
+// nothing (bad, and confusing without this signal).
+function assertWritable(): void {
+  if (isTauri() || isWriterTab()) return;
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("dumos_db_read_only_write_blocked"));
+  }
+  throw new Error(
+    "This tab is read-only because DumosRx is already open in another tab or window. Switch to that tab, or close it, to make changes here.",
+  );
+}
+
 export async function execute(
   sql: string,
   params: (string | number | null | Uint8Array)[] = [],
@@ -493,6 +642,8 @@ export async function execute(
     await db.execute(sql, params);
     return;
   }
+
+  assertWritable();
 
   db.run(sql, params);
   // Marks the shared sql.js connection as having been written to, so any
@@ -576,6 +727,15 @@ export async function awaitSettledTransactions(): Promise<void> {
  * alone), this falls back to running `fn` without transaction semantics
  * rather than blocking the operation entirely: no worse than the previous
  * behavior, just not improved for that run.
+ *
+ * That risk is currently closed, not just tolerated: the vendored
+ * `@tauri-apps/plugin-sql` fork (`src-tauri/vendor/tauri-plugin-sql/src/
+ * wrapper.rs`) caps its sqlx pool at `.max_connections(1)` specifically so
+ * every call serializes onto the same connection, restoring real
+ * transactional semantics across the BEGIN/COMMIT sequence. If that vendored
+ * fork is ever replaced with a stock (non-vendored) build of the plugin —
+ * e.g. during an upgrade — this cap, and the guarantee it provides, would
+ * silently disappear unless re-applied there.
  */
 export async function transaction<T>(fn: () => Promise<T>): Promise<T> {
   // Reserve our place in line before awaiting anything, so two calls
@@ -603,6 +763,8 @@ export async function transaction<T>(fn: () => Promise<T>): Promise<T> {
       // Database unavailable; let fn() surface whatever error it hits.
       return await fn();
     }
+
+    assertWritable();
 
     let began = false;
     try {
@@ -698,6 +860,7 @@ export async function restoreDatabase(binaryData: Uint8Array): Promise<{ snapsho
       "restoreDatabase() is web-only; use restoreDatabaseFromFile() on desktop/mobile.",
     );
   }
+  assertWritable();
   if (!SQL) {
     SQL = await initSqlJs({
       locateFile: (file: string) => `/${file}`,
@@ -1104,6 +1267,7 @@ const LOCAL_WIPE_TABLES = [
  */
 export async function resetDatabase(): Promise<void> {
   if (!db) await initDatabase();
+  assertWritable();
 
   const tablesToClear = LOCAL_WIPE_TABLES;
 
@@ -1135,6 +1299,7 @@ export async function resetDatabase(): Promise<void> {
  */
 export async function clearDatabaseForNewStore(): Promise<void> {
   if (!db) await initDatabase();
+  assertWritable();
 
   const tablesToClear = [...LOCAL_WIPE_TABLES, "stores", "users"];
 

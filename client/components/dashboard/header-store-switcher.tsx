@@ -5,6 +5,7 @@ import { Store as StoreIcon, ChevronDown, Check, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { APP_NAME } from "@/lib/constants";
+import { queryKeys } from "@/lib/query-keys";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -80,6 +81,16 @@ export function HeaderStoreSwitcher({
     setIsCreateOpen(true);
   };
 
+  // Prefix-matches every cached variant of these queries regardless of
+  // which store/user args they were fetched with (a plain string literal
+  // would do the same, but derives the prefix from the factory - via a
+  // throwaway call - instead of duplicating it, so a rename in
+  // query-keys.ts can't silently desync from this call site).
+  const invalidateStoreCaches = () => {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.stores.all().queryKey.slice(0, 1) });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.stores.profile().queryKey.slice(0, 1) });
+  };
+
   // Fleet writes (FleetFormDialog -> useSaveFleetStoreMutation) go straight
   // to the cloud API and never touch local SQLite, so this dropdown's own
   // `availableStores` (backed by a local-DB query) won't show the new store
@@ -88,15 +99,13 @@ export function HeaderStoreSwitcher({
   // switchStore in store-context.tsx) and invalidate once it's actually
   // landed, so the new store shows up without needing a manual refresh.
   const handleCreateSuccess = () => {
-    void queryClient.invalidateQueries({ queryKey: ["allStores"] });
-    void queryClient.invalidateQueries({ queryKey: ["storeProfile"] });
+    invalidateStoreCaches();
 
     if (typeof window !== "undefined" && navigator.onLine) {
       void import("@/lib/db/sync-engine").then(({ sync }) =>
         sync().then((result) => {
           if (result.success) {
-            void queryClient.invalidateQueries({ queryKey: ["allStores"] });
-            void queryClient.invalidateQueries({ queryKey: ["storeProfile"] });
+            invalidateStoreCaches();
           }
         }),
       );

@@ -7,9 +7,20 @@ on:
   workflow_dispatch:
 
 jobs:
+  # Each job below gets its own concurrency group (not one workflow-wide
+  # group) since they deploy independent targets (dev.dumosrx.com,
+  # app.dev.dumosrx.com, api.dev.dumosrx.com) and shouldn't needlessly
+  # queue behind each other - but two overlapping runs of the SAME job
+  # (a quick second push, or workflow_dispatch racing a push-triggered
+  # run) would otherwise race that job's own FTP-Deploy-Action state file.
   deploy-web:
     name: Build & Deploy Frontend (Dev)
     runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-dev-web-${{ github.ref }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
     defaults:
       run:
         working-directory: ./web
@@ -59,6 +70,11 @@ jobs:
   deploy-client:
     name: Build & Deploy Client App (Dev)
     runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-dev-client-${{ github.ref }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
     steps:
       - name: 🚚 Get latest code
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
@@ -102,6 +118,11 @@ jobs:
   deploy-backend:
     name: Build & Deploy Backend (Dev)
     runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-dev-backend-${{ github.ref }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
     steps:
       - name: Checkout code
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
@@ -119,7 +140,8 @@ jobs:
           mkdir -p storage/framework/sessions
           mkdir -p storage/framework/views
           mkdir -p storage/framework/cache
-          chmod -R 777 storage bootstrap/cache
+          # 775, not 777 - see deploy-backend.yml's identical step for why.
+          chmod -R 775 storage bootstrap/cache
 
       - name: Install Dependencies
         run: |

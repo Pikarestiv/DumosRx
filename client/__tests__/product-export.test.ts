@@ -16,21 +16,21 @@ describe("buildExportBlob", () => {
     },
   ];
 
-  it("includes every EXPORT_COLUMNS label by default", () => {
+  it("includes every EXPORT_COLUMNS label by default", async () => {
     const allKeys = EXPORT_COLUMNS.map((c) => c.key);
-    const blob = buildExportBlob(products, allKeys, "csv");
+    const blob = await buildExportBlob(products, allKeys, "csv");
     expect(blob.type).toContain("text/csv");
   });
 
   it("only includes the selected columns, in the fixed EXPORT_COLUMNS order (not selection order)", async () => {
-    const blob = buildExportBlob(products, ["sellingPrice", "name"], "csv");
+    const blob = await buildExportBlob(products, ["sellingPrice", "name"], "csv");
     const text = await blob.text();
-    const [header] = text.trim().split("\n");
+    const [header] = text.trim().split("\r\n");
     expect(header).toBe("Product Name,Selling Price");
   });
 
-  it("produces an xlsx blob with the correct MIME type", () => {
-    const blob = buildExportBlob(products, ["name"], "xlsx");
+  it("produces an xlsx blob with the correct MIME type", async () => {
+    const blob = await buildExportBlob(products, ["name"], "xlsx");
     expect(blob.type).toBe(
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     );

@@ -67,6 +67,9 @@ class SaleController extends Controller
                 )),
                 new OA\Property(property: 'payment_method', type: 'string'),
                 new OA\Property(property: 'customer_id', type: 'string', nullable: true),
+                new OA\Property(property: 'discount_type', type: 'string', enum: ['fixed', 'percentage'], nullable: true),
+                new OA\Property(property: 'discount_amount', type: 'number', format: 'float', nullable: true, description: 'A fixed amount, or a percentage (0-100) when discount_type is percentage.'),
+                new OA\Property(property: 'tax_amount', type: 'number', format: 'float', nullable: true),
             ],
         )),
         responses: [
@@ -97,6 +100,13 @@ class SaleController extends Controller
             'payment_method' => 'required|string|in:cash,card,transfer,mobile_money,insurance,mixed,credit',
             'customer_id' => ['nullable', Rule::exists('customers', 'id')->where('user_id', $tenantId)],
             'amount_paid' => 'nullable|numeric|min:0',
+            'discount_type' => 'nullable|string|in:fixed,percentage',
+            'discount_amount' => ['nullable', 'numeric', 'min:0', function ($attribute, $value, $fail) use ($request) {
+                if ($request->input('discount_type') === 'percentage' && $value > 100) {
+                    $fail('The discount percentage may not be greater than 100.');
+                }
+            }],
+            'tax_amount' => 'nullable|numeric|min:0',
         ]);
 
         return DB::transaction(function () use ($request, $user, $tenantId, $store) {
@@ -199,7 +209,20 @@ class SaleController extends Controller
             }
             unset($line);
 
-            $amountPaid = $request->filled('amount_paid') ? (float) $request->amount_paid : $total;
+            // Discount/tax mirror use-pos-payment.ts's fixed-or-percentage shape - see docs/FIXED_BUGS.md.
+            $subtotal = $total;
+            $discountType = $request->input('discount_type', 'fixed');
+            $rawDiscount = (float) ($request->input('discount_amount') ?? 0);
+            $discountAmount = $discountType === 'percentage'
+                ? round($subtotal * $rawDiscount / 100, 2)
+                : round($rawDiscount, 2);
+            // A flat discount larger than the subtotal would otherwise flip
+            // total_amount negative.
+            $discountAmount = min($discountAmount, $subtotal);
+            $taxAmount = round((float) ($request->input('tax_amount') ?? 0), 2);
+            $grandTotal = round($subtotal - $discountAmount + $taxAmount, 2);
+
+            $amountPaid = $request->filled('amount_paid') ? (float) $request->amount_paid : $grandTotal;
 
             $sale = Sale::create([
                 'customer_id' => $request->customer_id,
@@ -207,10 +230,16 @@ class SaleController extends Controller
                 'store_id' => $store?->id,
                 'payment_method' => $request->payment_method,
                 'payment_status' => 'completed',
-                'subtotal' => $total,
-                'total_amount' => $total,
+                'subtotal' => $subtotal,
+                'discount_total' => $discountAmount,
+                'discount_amount' => $rawDiscount,
+                'discount_percentage' => $discountType === 'percentage' ? $rawDiscount : 0,
+                'discount_type' => $discountType,
+                'tax_amount' => $taxAmount,
+                'tax_percentage' => $subtotal > 0 ? round($taxAmount / $subtotal * 100, 2) : 0,
+                'total_amount' => $grandTotal,
                 'amount_paid' => $amountPaid,
-                'change_given' => max(0, round($amountPaid - $total, 2)),
+                'change_given' => max(0, round($amountPaid - $grandTotal, 2)),
             ]);
 
             foreach ($lines as $line) {

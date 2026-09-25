@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Web;
 
+use App\Http\Controllers\Concerns\EnforcesStaffOwnership;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -11,6 +12,8 @@ use OpenApi\Attributes as OA;
 
 class StaffController extends Controller
 {
+    use EnforcesStaffOwnership;
+
     #[OA\Get(
         path: '/staff',
         summary: "List staff accounts for the caller's store(s)",
@@ -24,43 +27,68 @@ class StaffController extends Controller
         ],
     )]
     /**
-     * Query scoped to staff the caller is allowed to see: super_admin sees
-     * everyone (optionally filtered to one store), everyone else sees only
-     * their own store's staff (or themselves). Shared by index() and show()
-     * so a staff record invisible to index() can't be fetched directly by
-     * ID via show() either.
+     * Query scoped to staff the caller is allowed to see AT ALL: super_admin
+     * sees everyone, everyone else sees only their own store's staff (or
+     * themselves). No store_id filtering here — see visibleStaffQuery()
+     * below for that. Used directly (not via visibleStaffQuery()) by
+     * show()/update()/destroy(), which target one record by ID: those
+     * endpoints must not have their target-row lookup influenced by a
+     * `store_id` value that also happens to appear in the request body as
+     * the field being written (update()'s payload) — conflating the two
+     * previously meant a foreign store_id in an update() payload
+     * incidentally 404'd instead of being explicitly rejected, which broke
+     * silently the one time someone needed to tell the two cases apart
+     * (see EnforcesStaffOwnership::storeIdBelongsToCaller(), which is now
+     * the actual, load-bearing check for that case).
      */
-    private function visibleStaffQuery(Request $request)
+    private function visibleStaffBaseQuery(Request $request)
     {
         $user = $request->user();
 
         if ($user->hasRole('super_admin')) {
-            $query = User::where('role', '!=', 'super_admin');
-
-            if ($request->has('store_id') && $request->store_id !== 'all') {
-                $query->where('store_id', $request->store_id);
-            }
-        } else {
-            $subscriptionService = app(\App\Services\SubscriptionService::class);
-            $owner = $subscriptionService->getSubscriptionOwner($user);
-
-            $storeIds = \App\Models\Store::where('user_id', $owner->id)->pluck('id')->toArray();
-
-            $query = User::where(function($q) use ($storeIds, $owner) {
-                $q->whereIn('store_id', $storeIds)
-                  ->orWhere('id', $owner->id);
-            });
-
-            if ($request->has('store_id') && $request->store_id !== 'all') {
-                if (in_array($request->store_id, $storeIds)) {
-                    $query->where('store_id', $request->store_id);
-                } else {
-                    $query->whereNull('id');
-                }
-            }
+            return User::where('role', '!=', 'super_admin');
         }
 
-        return $query;
+        $subscriptionService = app(\App\Services\SubscriptionService::class);
+        $owner = $subscriptionService->getSubscriptionOwner($user);
+
+        $storeIds = \App\Models\Store::where('user_id', $owner->id)->pluck('id')->toArray();
+
+        return User::where(function ($q) use ($storeIds, $owner) {
+            $q->whereIn('store_id', $storeIds)
+              ->orWhere('id', $owner->id);
+        });
+    }
+
+    /**
+     * visibleStaffBaseQuery() plus an optional `?store_id=` list filter —
+     * only meaningful for index(), where `store_id` is genuinely a query
+     * param narrowing which stores' staff to list, not a field being
+     * written. Do NOT use this for show()/update()/destroy(); use
+     * visibleStaffBaseQuery() directly there.
+     */
+    private function visibleStaffQuery(Request $request)
+    {
+        $user = $request->user();
+        $query = $this->visibleStaffBaseQuery($request);
+
+        if (!$request->has('store_id') || $request->store_id === 'all') {
+            return $query;
+        }
+
+        if ($user->hasRole('super_admin')) {
+            return $query->where('store_id', $request->store_id);
+        }
+
+        $subscriptionService = app(\App\Services\SubscriptionService::class);
+        $owner = $subscriptionService->getSubscriptionOwner($user);
+        $storeIds = \App\Models\Store::where('user_id', $owner->id)->pluck('id')->toArray();
+
+        if (in_array($request->store_id, $storeIds)) {
+            return $query->where('store_id', $request->store_id);
+        }
+
+        return $query->whereNull('id');
     }
 
     public function index(Request $request)
@@ -83,7 +111,7 @@ class StaffController extends Controller
     )]
     public function show(Request $request, $id)
     {
-        $staff = $this->visibleStaffQuery($request)->findOrFail($id);
+        $staff = $this->visibleStaffBaseQuery($request)->findOrFail($id);
         return response()->json($staff);
     }
 
@@ -136,19 +164,27 @@ class StaffController extends Controller
         // a caller could plant a staff account into another tenant's store
         // just by knowing/guessing its id. Mirrors visibleStaffQuery()'s own
         // ownership scoping (super_admin may target any store; everyone
-        // else only their own).
+        // else only their own). See EnforcesStaffOwnership — update() below
+        // uses the same check on the identical field.
         $user = $request->user();
-        if (!$user->hasRole('super_admin')) {
-            $subscriptionService = app(\App\Services\SubscriptionService::class);
-            $owner = $subscriptionService->getSubscriptionOwner($user);
-            $ownedStoreIds = \App\Models\Store::where('user_id', $owner->id)->pluck('id')->toArray();
+        if (!$this->storeIdBelongsToCaller($request->store_id, $user)) {
+            return response()->json([
+                'message' => 'The selected store id is invalid.',
+                'errors' => ['store_id' => ['The selected store id is invalid.']],
+            ], 422);
+        }
 
-            if (!in_array($request->store_id, $ownedStoreIds, true)) {
-                return response()->json([
-                    'message' => 'The selected store id is invalid.',
-                    'errors' => ['store_id' => ['The selected store id is invalid.']],
-                ], 422);
-            }
+        // Mirrors update()'s identical check (and SyncController's
+        // sync-push path) — without it, any manage_staff holder could
+        // create a brand-new staff row at a role above their own privilege
+        // level, the same escalation update() was fixed against. Caught by
+        // an independent Opus review pass after the initial fix landed
+        // update()'s check but missed this sibling.
+        if (!$user->hasRole('super_admin') && !$this->roleIsAtOrBelowCallerPrivilege($request->role, $user)) {
+            return response()->json([
+                'message' => 'You cannot grant a role above your own privilege level.',
+                'errors' => ['role' => ['You cannot grant a role above your own privilege level.']],
+            ], 422);
         }
 
         $email = $request->email;
@@ -235,8 +271,12 @@ class StaffController extends Controller
         // Scoped through the same visibility rules as index()/show() rather
         // than raw route-model binding — otherwise PUT/PATCH /staff/{any id}
         // could modify (and reset the password of) any user on the
-        // platform, not just one belonging to the caller's own tenant.
-        $staff = $this->visibleStaffQuery($request)->findOrFail($id);
+        // platform, not just one belonging to the caller's own tenant. Uses
+        // the base (unfiltered-by-store_id) query, not visibleStaffQuery():
+        // this endpoint's payload legitimately contains a `store_id` key
+        // as the field being WRITTEN, which must not also be read as a
+        // list-style filter narrowing which row can be found by $id.
+        $staff = $this->visibleStaffBaseQuery($request)->findOrFail($id);
 
         $request->validate([
             'first_name' => 'string',
@@ -270,6 +310,42 @@ class StaffController extends Controller
             // changed (e.g. role) was the problem.
             'store_id' => 'nullable|exists:stores,id',
         ]);
+
+        // `exists:stores,id` above only checks the store exists ANYWHERE on
+        // the platform — without this, a caller with manage_staff could
+        // reassign their own or a subordinate's store_id into a store they
+        // don't own, granting themselves staff-level access to that
+        // tenant's data. store() above already guarded this on create;
+        // this was the same field's update path missing it. Skipped when
+        // store_id isn't being changed, so editing the owner's own
+        // null-store_id "Main Account" row (see the role-validation
+        // comment above) isn't affected. $staff->store_id (the row's OWN
+        // current value) is passed through so a `null` submission is only
+        // treated as a harmless no-op when the row is ALREADY null —
+        // actively nulling out an existing staff row's store_id would
+        // otherwise silently orphan it from every tenant-scoped query
+        // (see EnforcesStaffOwnership::storeIdBelongsToCaller()'s doc
+        // comment).
+        if ($request->has('store_id') && !$this->storeIdBelongsToCaller($request->store_id, $request->user(), $staff->store_id)) {
+            return response()->json([
+                'message' => 'The selected store id is invalid.',
+                'errors' => ['store_id' => ['The selected store id is invalid.']],
+            ], 422);
+        }
+
+        // Mirrors SyncController's identical check on the sync-push path:
+        // without it, any manage_staff holder could grant themselves or a
+        // subordinate a role above their own privilege level. Not currently
+        // exploitable for extra permissions (admin/store_owner/manager
+        // share one permission set today, see RolesAndPermissionsSeeder),
+        // but must hold once those roles are ever differentiated.
+        if ($request->has('role') && !$request->user()->hasRole('super_admin')
+            && !$this->roleIsAtOrBelowCallerPrivilege($request->role, $request->user())) {
+            return response()->json([
+                'message' => 'You cannot grant a role above your own privilege level.',
+                'errors' => ['role' => ['You cannot grant a role above your own privilege level.']],
+            ], 422);
+        }
 
         $data = $request->only(['first_name', 'last_name', 'email', 'username', 'role', 'pin', 'store_id', 'is_active']);
 
@@ -324,7 +400,7 @@ class StaffController extends Controller
     {
         // Same ownership scoping as update() above — otherwise DELETE
         // /staff/{any id} could deactivate any user on the platform.
-        $staff = $this->visibleStaffQuery($request)->findOrFail($id);
+        $staff = $this->visibleStaffBaseQuery($request)->findOrFail($id);
         $staff->update(['is_active' => false]);
         return response()->json(['message' => 'Staff deactivated']);
     }

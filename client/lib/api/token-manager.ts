@@ -1,7 +1,21 @@
 import { mirrorAuthToken, clearMirroredAuthToken } from "@/lib/native/widget-bridge";
 
+/**
+ * "refreshed": got a new token, safe to retry the original request.
+ * "confirmed-invalid": the server gave a definitive 401/403 - the token is
+ * actually dead (already cleared by the time this returns).
+ * "unconfirmed": couldn't reach the server, or got some other status
+ * (timeout, network error, captive portal, transient 5xx) - NOT evidence
+ * the token is invalid; the existing token is left untouched. Callers must
+ * not treat "didn't get a new token" as equivalent to "confirmed-invalid" -
+ * that conflation previously caused base-client.ts to clear a perfectly
+ * good token on a connectivity hiccup, silently and permanently unlinking
+ * the device from cloud sync. See docs/FIXED_BUGS.md.
+ */
+export type RefreshOutcome = "refreshed" | "confirmed-invalid" | "unconfirmed";
+
 let token: string | null = null;
-let refreshPromise: Promise<void> | null = null;
+let refreshPromise: Promise<RefreshOutcome> | null = null;
 const REFRESH_THRESHOLD_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 if (typeof window !== "undefined") {
@@ -37,17 +51,17 @@ export const clearToken = () => {
 
 export const getRefreshThreshold = () => REFRESH_THRESHOLD_MS;
 
-export const refreshTokenSilently = async (baseURL: string): Promise<void> => {
+export const refreshTokenSilently = async (baseURL: string): Promise<RefreshOutcome> => {
   if (refreshPromise) {
     return refreshPromise;
   }
 
-  refreshPromise = (async () => {
+  refreshPromise = (async (): Promise<RefreshOutcome> => {
     try {
       const url = `${baseURL}/refresh`;
       const currentToken = getToken();
 
-      if (!currentToken) return;
+      if (!currentToken) return "unconfirmed";
 
       // base-client.ts awaits this before every API request once the token
       // is stale, so an un-timed fetch here blocks every request behind it -
@@ -71,7 +85,9 @@ export const refreshTokenSilently = async (baseURL: string): Promise<void> => {
         const data = await response.json();
         if (data.token) {
           setToken(data.token);
+          return "refreshed";
         }
+        return "unconfirmed";
       } else if (response.status === 401 || response.status === 403) {
         // Only a definitive "this token is invalid" response should unlink
         // the store from cloud sync. Any other status - a captive portal's
@@ -80,8 +96,10 @@ export const refreshTokenSilently = async (baseURL: string): Promise<void> => {
         // dropped the device out of sync (sync() then returns
         // "Unauthenticated" forever) until the user manually re-links.
         clearToken();
+        return "confirmed-invalid";
       } else {
         console.error(`Silent token refresh got non-auth failure status ${response.status}; keeping existing token`);
+        return "unconfirmed";
       }
     } catch (error) {
       // Network errors (offline, timeout/abort above, DNS failure, etc.)
@@ -89,6 +107,7 @@ export const refreshTokenSilently = async (baseURL: string): Promise<void> => {
       // the non-401/403 branch above. Leave the token in place; the next
       // successful request or refresh attempt will sort it out.
       console.error("Silent token refresh failed:", error);
+      return "unconfirmed";
     } finally {
       refreshPromise = null;
     }

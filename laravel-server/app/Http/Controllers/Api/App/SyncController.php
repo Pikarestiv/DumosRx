@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\App;
 
+use App\Http\Controllers\Concerns\EnforcesStaffOwnership;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -26,6 +27,8 @@ use OpenApi\Attributes as OA;
 
 class SyncController extends Controller
 {
+    use EnforcesStaffOwnership;
+
     #[OA\Post(
         path: '/app/sync/push',
         summary: 'Push offline-first client changes to the server',
@@ -535,6 +538,13 @@ class SyncController extends Controller
                         : $modelClass::find($change['record_id']);
 
                     if ($target) {
+                        // Client's legacy-row store_id claim (base-helpers.ts's
+                        // softDelete()) — applied before authorization so a
+                        // legacy row's claim actually reaches the server.
+                        if (empty($target->store_id) && !empty($payload['store_id']) && \Illuminate\Support\Facades\Schema::hasColumn($target->getTable(), 'store_id')) {
+                            $target->store_id = $payload['store_id'];
+                        }
+
                         if ($currentUser && !$isSuperAdmin && !$this->authorizeChangeTarget($change['table_name'], $target, $allowedStoreIds, $allowedUserIds)) {
                             DB::commit();
                             $failed[] = [
@@ -544,6 +554,9 @@ class SyncController extends Controller
                                 'reason' => 'forbidden',
                             ];
                             continue;
+                        }
+                        if ($target->isDirty('store_id')) {
+                            $target->save();
                         }
                         $target->delete();
                     }
@@ -1568,31 +1581,10 @@ class SyncController extends Controller
         return $payload;
     }
 
-    /**
-     * Whether $roleSlug's permission set is a subset of (or equal to)
-     * $currentUser's own current permission set — i.e. NOT a privilege
-     * escalation. Compares actual Role->permissions rows rather than a
-     * hardcoded rank list, so it stays correct if permissions are ever
-     * re-seeded. 'store_owner' is treated as 'admin' (same permission set),
-     * mirroring User::hasPermission()'s own store_owner->admin fallback.
-     */
-    private function roleIsAtOrBelowCallerPrivilege(string $roleSlug, $currentUser): bool
-    {
-        $normalize = fn (string $slug) => $slug === 'store_owner' ? 'admin' : $slug;
-
-        $targetRole = Role::where('slug', $normalize($roleSlug))->first();
-        $targetPermissions = $targetRole
-            ? $targetRole->permissions()->pluck('slug')->all()
-            : [];
-
-        $callerRoleSlug = $currentUser->userRole?->slug ?? $currentUser->role;
-        $callerRole = $callerRoleSlug ? Role::where('slug', $normalize($callerRoleSlug))->first() : null;
-        $callerPermissions = $callerRole
-            ? $callerRole->permissions()->pluck('slug')->all()
-            : [];
-
-        return empty(array_diff($targetPermissions, $callerPermissions));
-    }
+    // roleIsAtOrBelowCallerPrivilege() now lives on the shared
+    // EnforcesStaffOwnership trait (used above), so the REST staff
+    // endpoints (StaffController) and this sync-push path can't drift
+    // apart on what counts as a privilege escalation.
 
     /**
      * The full set of store ids and user ids a non-super-admin caller may

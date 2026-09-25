@@ -662,8 +662,16 @@ export async function pushChanges(
         // server-side, only that its own edit no longer matches what it was
         // based on. State what happened, not an unverifiable cause.
         for (const conflict of versionConflicts) {
+          // feedback is push-only telemetry the user never edits locally —
+          // nothing for them to act on, so log rather than toast.
+          if (conflict.table_name === "feedback") {
+            console.info(
+              `[Sync] Feedback record ${conflict.record_id} hit a version conflict; server's version kept, no toast shown.`,
+            );
+            continue;
+          }
           toast.warning(
-            `A change to ${describeSyncedRecord(conflict.table_name)} could not be saved because the record changed since this edit — the server's current version was kept.`,
+            `A change to ${describeSyncedRecord(conflict.table_name)} could not be saved because the record changed since this edit. The server's current version was kept.`,
           );
         }
         // Not surfaced to the user — see the retry_count comment above. Still
@@ -672,7 +680,7 @@ export async function pushChanges(
         // write that already landed.
         for (const conflict of silencedConflicts) {
           console.info(
-            `[Sync] Retried edit to ${conflict.table_name}/${conflict.record_id} hit a version conflict — likely its own earlier attempt already applied; server's version kept, no toast shown.`,
+            `[Sync] Retried edit to ${conflict.table_name}/${conflict.record_id} hit a version conflict, likely its own earlier attempt already applied; server's version kept, no toast shown.`,
           );
         }
       } else {

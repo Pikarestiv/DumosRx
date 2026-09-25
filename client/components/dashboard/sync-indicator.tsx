@@ -15,6 +15,7 @@ import { sync, isSyncing as checkIsSyncing } from "@/lib/db/sync-engine";
 import { addSyncQueueChangeListener } from "@/lib/db/core";
 import { useStore } from "@/lib/context/store-context";
 import { useAuth } from "@/lib/context/auth-context";
+import { useDatabase } from "@/lib/db/DatabaseProvider";
 import { AuthModal } from "./auth-modal";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
@@ -46,6 +47,8 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
   // lib/utils/impersonation.ts); sync() enforces the same rule internally,
   // this only makes the refusal visible instead of silent.
   const { isImpersonating } = useAuth();
+  // Same reasoning as isImpersonating above, for a read-only tab.
+  const { isReadOnlyTab } = useDatabase();
 
   const { data: pendingCountData } = useQuery({
     ...queryKeys.sync.queueCount(),
@@ -100,6 +103,10 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
       toast.info("Sync is disabled during an impersonated session.");
       return;
     }
+    if (isReadOnlyTab) {
+      toast.info("This tab is read-only. Switch to the tab where DumosRx is active to sync.");
+      return;
+    }
     if (isSyncInProgress) return;
     setIsSyncInProgress(true);
     setStatus("syncing");
@@ -132,7 +139,7 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
     } finally {
       setIsSyncInProgress(false);
     }
-  }, [isSyncInProgress, isImpersonating]);
+  }, [isSyncInProgress, isImpersonating, isReadOnlyTab]);
 
   // Background Auto-Sync Daemon. Two modes, switched purely by
   // auto_sync_interval's value: 0 means "sync instantly after any local
@@ -150,7 +157,7 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
     // No daemon at all while impersonating: neither the interval timer nor
     // the sync-queue-change listener is even installed, so an impersonated
     // session never so much as attempts a background push/pull.
-    if (storeProfile?.auto_sync_enabled === 1 && isLinked && !isImpersonating) {
+    if (storeProfile?.auto_sync_enabled === 1 && isLinked && !isImpersonating && !isReadOnlyTab) {
       const intervalMinutes = storeProfile?.auto_sync_interval ?? 15;
 
       if (intervalMinutes === 0) {
@@ -179,7 +186,7 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
       if (debounceTimer) clearTimeout(debounceTimer);
       unsubscribe?.();
     };
-  }, [storeProfile?.auto_sync_enabled, storeProfile?.auto_sync_interval, isLinked, isImpersonating, handleManualSync]);
+  }, [storeProfile?.auto_sync_enabled, storeProfile?.auto_sync_interval, isLinked, isImpersonating, isReadOnlyTab, handleManualSync]);
 
   // Wins over every other state: while impersonating there is nothing the
   // indicator could usefully report about syncing, because no sync will run.

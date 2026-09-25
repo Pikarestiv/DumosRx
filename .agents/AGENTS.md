@@ -47,14 +47,22 @@ not as a follow-up:
 - **Known Bugs:** If you spot a real bug or data gap while working on something else (e.g. during a refactor, type-safety pass, or code review) and are not fixing it as part of the current task, log it in `docs/KNOWN_BUGS.md` instead of letting it go unrecorded. Include where it is, what's wrong, and the fix if known.
 - A stale doc is worse than no doc — if you notice one of these files contradicts the current code while you're in the area, fix it as part of your change rather than leaving it for later.
 
-## 3. 🏗️ Architecture & Separation of Concerns
+## 3. 💬 Code Comments — Self-Documenting Code, Not Inline Explanations
+
+Do not write inline comments or multi-line comment blocks in source code to explain what code does or why an architectural choice was made. Code must be self-documenting (clear naming, small functions, obvious structure).
+
+- Maximum 2 lines of inline comment per case, reserved only for critical, hyper-local hacks or external API workarounds (e.g. a browser quirk, an undocumented library behavior, a temporary patch pending an upstream fix).
+- Document feature choices, engineering trade-offs, and architectural decisions in a dedicated Markdown file under `/docs` (or the relevant package's `AGENTS.md`, per §2 above) instead — not in the code.
+- **Retroactive cleanup on touch:** whenever you edit a file that still has pre-existing explanatory comments (written before this rule, or by another tool), migrate them out to the appropriate `/docs` file (or rewrite the code so the comment is unnecessary) as part of that same pass, not as a separate follow-up task.
+
+## 4. 🏗️ Architecture & Separation of Concerns
 
 - **Frontend (Next.js/Tauri):** Strictly separate business logic (Custom Hooks, Zustand, TanStack Query, Services) from UI logic (Shadcn components).
 - **Backend (Laravel 11):** Strictly separate Controllers (routing/HTTP layer) from Services (business logic layer).
 - **File Constraints:** Keep files strictly below 350 lines. Break them down if they get too large. Code must be highly modular, DRY, and clean (no unused variables or imports).
 - **No Hardcoded URLs:** Never hardcode external links or API endpoints (e.g., `https://downloads.dumosrx.com/...`) directly in UI components. Always import them from `constants.ts` or environment variables (e.g., `process.env.NEXT_PUBLIC_...`).
 
-## 4. 📴 Offline-First Sync (client/ only — see client/AGENTS.md for the full architecture)
+## 5. 📴 Offline-First Sync (client/ only — see client/AGENTS.md for the full architecture)
 
 DumosRx is an offline-first application (SQLite local, Laravel MySQL cloud) connected by a bidirectional Sync Engine. The one rule worth repeating here because it spans both repos:
 
@@ -62,7 +70,7 @@ DumosRx is an offline-first application (SQLite local, Laravel MySQL cloud) conn
 
 Everything else (the `insert()`/`update()`/`softDelete()` helper pattern, `_sync_queue`, conflict handling) is documented in `client/AGENTS.md` — that's the file to update if it changes.
 
-## 5. 🎨 Design Language & Aesthetics
+## 6. 🎨 Design Language & Aesthetics
 
 To maintain the DumosRx "Premium" feel:
 
@@ -73,7 +81,7 @@ To maintain the DumosRx "Premium" feel:
 - **Tooltips:** Use Radix UI tooltips with a subtle 1000ms delay to prevent flickering.
 - **Localization (Dates):** Always maintain`DD/MM/YYYY date structure` for UI elements instead of the US format (`MM/DD/YYYY`). Use custom DatePicker components (like `DatePickerInput`) rather than native `<input type="date">` to enforce this visual format across all browsers.
 
-## 6. 🕐 Server Clock / MySQL Timezone Gotcha (laravel-server only)
+## 7. 🕐 Server Clock / MySQL Timezone Gotcha (laravel-server only)
 
 The Namecheap shared-hosting box's MySQL is configured with `time_zone = SYSTEM`, which reports the OS's raw local clock (observed as **EDT**, ~4 hours behind UTC) instead of converting to UTC. Laravel's PHP layer (`date.timezone = UTC`) generates all of its own timestamps (`now()`, `updated_at` via Eloquent, `_synced_at`) correctly in UTC — the two clocks disagree by design unless corrected.
 
@@ -82,14 +90,14 @@ The Namecheap shared-hosting box's MySQL is configured with `time_zone = SYSTEM`
 - **phpMyAdmin (or any direct DB client) still shows raw local time.** Its session is separate from the app's PDO connections, so `NOW()`/`CURRENT_TIMESTAMP()` run there will still return the ~4-hours-behind local clock, not UTC, unless you explicitly run `SET time_zone = '+00:00';` at the top of that session first. When manually inspecting or correcting timestamp columns via phpMyAdmin, either do that, or set an explicit literal UTC timestamp (e.g. `'2026-08-02 00:00:00'`) rather than relying on `NOW()`.
 - **General rule:** never use MySQL's `NOW()`/`CURRENT_TIMESTAMP()` in raw SQL against this database, in migrations or otherwise — let Eloquent set timestamps (it already does, correctly, in UTC).
 
-## 7. 🔒 Security & Optimization Standards
+## 8. 🔒 Security & Optimization Standards
 
 - **Prototype Pollution:** Never perform dynamic bracket lookup `obj[key]` using values fetched directly from inputs. Use ES6 `Map` or strict `switch` statements.
 - **JWT & Anti-Tampering:** Subscription licenses are verified via offline JWT checks. Do not alter the `LicenseGuard` anti-backdating logic without explicit instruction.
 - **Pagination:** Always use pagination, limit offsets, or cursor-based scrolling to limit page results to 50 items to prevent UI thrashing.
 - **Admin auth tokens (web/ only):** The `web/` admin panel's access token lives in memory only (Zustand), never `localStorage` — see `web/AGENTS.md` for the full architecture. If you're touching admin login/refresh/logout, read that section first; don't reintroduce a `localStorage` copy of the token or a middleware that promotes an ambient cookie into a bearer header for general API routes.
 
-## 8. 🧪 Testing & Validation
+## 9. 🧪 Testing & Validation
 
 - Whenever a new feature is implemented, an architectural change is made, or an existing calculation is modified, **you must check whether to update existing tests or add new ones.**
 - Data integrity calculations, sync operations, and offline reconciliation flows MUST always be covered by automated tests to prevent silent data corruption.

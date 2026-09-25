@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { ShieldAlert, LogOut } from "lucide-react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api/client";
 import { WEB_APP_URL } from "@/lib/constants";
@@ -14,7 +13,6 @@ import {
 
 export function ImpersonationBanner() {
   const [isImpersonating, setIsImpersonating] = useState(false);
-  const [ending, setEnding] = useState(false);
 
   useEffect(() => {
     setIsImpersonating(!!localStorage.getItem(RETURN_CODE_KEY));
@@ -22,41 +20,33 @@ export function ImpersonationBanner() {
 
   if (!isImpersonating) return null;
 
-  const handleEndImpersonation = async () => {
-    const returnCode = localStorage.getItem(RETURN_CODE_KEY);
-    if (!returnCode) return;
-
-    setEnding(true);
-    try {
-      // The stored value from the original handoff is itself a one-time
-      // code (see client/app/auth/callback/page.tsx). Redeem it now to get
-      // the admin's real token back, then immediately re-wrap it in a fresh
-      // code for the trip back to dumosrx.com. Two hops, but neither origin
-      // ever sees the other's raw token, and each code is single-use.
-      const { token: adminToken } = await apiClient.consumeHandoffCode(returnCode);
-      const { code } = await apiClient.createHandoffCode(adminToken);
-
-      localStorage.removeItem(RETURN_CODE_KEY);
-      localStorage.removeItem(IMPERSONATED_USER_KEY);
-      apiClient.clearToken();
-
-      // Fragment, not query string: never reaches web/admin/handoff's server
-      // access logs or a Referer header (see the outbound leg in
-      // web/app/admin/stores/page.tsx for the same reasoning).
-      window.location.href = `${WEB_APP_URL}/admin/handoff#code=${code}`;
-    } catch (_error) {
-      // The stored return code is single-use and short-lived (see its
-      // creation in the superadmin panel) — if it's already expired or was
-      // already consumed, there is no path back to the admin session left.
-      // Clearing it here rather than leaving it in place means the user
-      // lands back on this same banner with a working "End Session" button
-      // forever, unable to dismiss it or use it. Better to drop back to an
-      // ordinary (non-impersonating) view of their current session.
-      toast.error("Your admin session has expired. Please sign in to the admin panel again.");
-      localStorage.removeItem(RETURN_CODE_KEY);
-      setIsImpersonating(false);
-      setEnding(false);
-    }
+  const handleEndImpersonation = () => {
+    // Previously redeemed the stored return-hop code (a one-time,
+    // 60-SECOND-lived handoff code minted back when impersonation
+    // *started*) via consumeHandoffCode/createHandoffCode. That's the
+    // expected outcome of any normal-length impersonation session, not an
+    // edge case — every admin who spent more than a minute here hit the
+    // catch branch below and got bounced to a fresh /admin/login instead
+    // of back to their own session. No fresh code can be minted at click
+    // time either, since nothing on this side holds a live admin
+    // credential to mint one from.
+    //
+    // The actual fix: the admin's own dumosrx.com session was never
+    // disturbed by impersonating in the first place (impersonateStore()
+    // no longer touches drx_admin_session at all — see
+    // docs/FIXED_BUGS.md) and lives entirely in that independent,
+    // HttpOnly, 24h refresh cookie on the web/ origin. Navigating straight
+    // to /admin lets its own layout (see app/admin/layout.tsx's
+    // initSession() effect) silently re-establish the session from that
+    // cookie — no handoff code, no TTL, no redemption round-trip needed.
+    // This only fails if the admin's own cookie has itself expired (a
+    // realistic 24h-plus session), which is a much rarer case than "spent
+    // more than a minute looking around," and lands on the ordinary
+    // /admin/login flow rather than a confusing dead end.
+    localStorage.removeItem(RETURN_CODE_KEY);
+    localStorage.removeItem(IMPERSONATED_USER_KEY);
+    apiClient.clearToken();
+    window.location.href = `${WEB_APP_URL}/admin`;
   };
 
   return (
@@ -69,9 +59,8 @@ export function ImpersonationBanner() {
         <Button
           variant="ghost"
           size="sm"
-          disabled={ending}
           className="h-7 px-3 text-[10px] font-black uppercase tracking-widest bg-primary text-white hover:bg-primary/90 rounded-lg flex items-center gap-2"
-          onClick={() => void handleEndImpersonation()}
+          onClick={handleEndImpersonation}
         >
           <LogOut className="h-3 w-3" />
           End Session

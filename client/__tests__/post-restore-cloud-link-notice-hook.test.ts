@@ -77,7 +77,7 @@ describe("usePostRestoreCloudLinkNotice", () => {
 
   it("only shows the toast once even if the component re-renders", async () => {
     sessionStorage.setItem("dumos_just_restored", "1");
-    let onLinkCloud = vi.fn();
+    const onLinkCloud = vi.fn();
 
     const { usePostRestoreCloudLinkNotice } = await import(
       "@/lib/hooks/use-post-restore-cloud-link-notice"

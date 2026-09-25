@@ -421,7 +421,15 @@ function bumpWriteEpoch(): void {
 // torn. Bounded so a device under permanently continuous write load returns
 // *something* rather than looping forever; in practice one retry is enough,
 // since the retry re-runs against whatever state the writes have reached.
-const QUERY_TORN_READ_ATTEMPTS = 4;
+// Shares this same budget with the misuse-class retry below (both `continue`
+// the same loop), so it's kept comfortably above MAX_MISUSE_RETRIES: a torn
+// read detected on the last available attempt is returned to the caller
+// silently un-retried (the exact "truncated result that looks authoritative
+// but isn't" case the comment below calls out as the more dangerous of the
+// two failure modes) rather than actually failing loudly, so this must never
+// be tight enough for the misuse retries to consume the torn-read retry's
+// only remaining chance.
+const QUERY_TORN_READ_ATTEMPTS = 6;
 
 export async function query<T = Record<string, unknown>>(
   sql: string,

@@ -1780,9 +1780,24 @@ class SyncController extends Controller
         // Scoped to the tables actually implicated in the known stuck-
         // cursor failure mode (inventory + sales) rather than every synced
         // table - a targeted, cheap check, not a second sync engine.
+        // stock_batches must be scoped EXACTLY the way pull() scopes it
+        // (line ~845: whereIn('product_id', Product::whereIn('store_id', ...)
+        // ->pluck('id'))), not by stock_batches.store_id directly. Product
+        // uses SoftDeletes, so that pull-side subquery silently excludes
+        // batches belonging to a deleted product — completely routine
+        // (discontinuing/removing a product) for a store like this one.
+        // Counting by store_id alone here would count those orphaned-
+        // product batches too, permanently disagreeing with what pull()
+        // can ever actually deliver: a device would look "behind" by
+        // exactly that many rows forever, since forceFullResync() re-runs
+        // the very same pull scoping and can never close a gap that isn't
+        // real. Matching this exactly is what keeps the health check
+        // comparing apples to apples.
+        $nonDeletedProductIds = Product::where('store_id', $currentStoreId)->pluck('id');
+
         $counts = [
             'products' => DB::table('products')->where('store_id', $currentStoreId)->whereNull('deleted_at')->count(),
-            'stock_batches' => DB::table('stock_batches')->where('store_id', $currentStoreId)->whereNull('deleted_at')->count(),
+            'stock_batches' => DB::table('stock_batches')->whereIn('product_id', $nonDeletedProductIds)->whereNull('deleted_at')->count(),
             'sales' => DB::table('sales')->where('store_id', $currentStoreId)->whereNull('deleted_at')->count(),
             'customers' => DB::table('customers')->where('store_id', $currentStoreId)->whereNull('deleted_at')->count(),
             'categories' => DB::table('categories')->where('store_id', $currentStoreId)->whereNull('deleted_at')->count(),

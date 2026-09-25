@@ -12,6 +12,30 @@ const HEALTH_CHECK_TABLES = ["products", "stock_batches", "sales", "customers", 
 const LAST_CHECK_KEY = "dumos_last_sync_health_check";
 const CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
+// Tracks the previous run's per-table gap (server - local) so a deficit
+// that a resync genuinely can't fix - e.g. a row permanently stuck behind
+// a UNIQUE-constraint collision pull.ts already gives up retrying after 5
+// attempts (recordUniqueSkipAndCheckGiveUp) - doesn't turn this into an
+// unbounded once-a-day forceFullResync() forever. A resync re-runs the
+// exact same pull scoping that produced the gap in the first place, so if
+// it didn't shrink, running it again won't either.
+const LAST_DEFICIT_KEY = "dumos_sync_health_deficit_state";
+const MAX_NON_IMPROVING_RESYNCS = 2;
+
+interface DeficitState {
+  gaps: Record<string, number>;
+  nonImprovingCount: number;
+}
+
+function readDeficitState(): DeficitState | null {
+  try {
+    const raw = localStorage.getItem(LAST_DEFICIT_KEY);
+    return raw ? (JSON.parse(raw) as DeficitState) : null;
+  } catch {
+    return null;
+  }
+}
+
 async function getLocalCounts(storeId: string): Promise<Record<string, number>> {
   const counts: Record<string, number> = {};
   for (const table of HEALTH_CHECK_TABLES) {
@@ -42,6 +66,16 @@ async function getLocalCounts(storeId: string): Promise<Record<string, number>> 
  * logs the specifics to Sentry (area: sync-health-check) either way, so a
  * future occurrence is a searchable signal instead of something only found
  * by hand.
+ *
+ * Backs off after MAX_NON_IMPROVING_RESYNCS consecutive checks whose gap
+ * didn't shrink: a resync re-runs the exact same pull scoping that
+ * produced the gap, so a deficit that survives one resync unchanged is a
+ * genuinely unrecoverable row (e.g. a permanent UNIQUE-constraint
+ * collision pull.ts already gave up retrying), not a stuck cursor - and
+ * without this, that single bad row would trigger a full catalog re-
+ * download every single day, forever, for no benefit. Still logs every
+ * time either way, tagged givingUp so the two cases stay distinguishable
+ * in Sentry.
  */
 export async function checkSyncHealth(): Promise<void> {
   if (typeof window === "undefined") return;
@@ -80,25 +114,53 @@ export async function checkSyncHealth(): Promise<void> {
     const localCounts = await getLocalCounts(storeId);
 
     const deficits: Record<string, { local: number; server: number }> = {};
+    const gaps: Record<string, number> = {};
     for (const table of HEALTH_CHECK_TABLES) {
       const local = localCounts[table] ?? 0;
       const server = serverCounts[table] ?? 0;
       if (local < server) {
         deficits[table] = { local, server };
+        gaps[table] = server - local;
       }
     }
 
-    if (Object.keys(deficits).length === 0) return;
+    if (Object.keys(deficits).length === 0) {
+      // Recovered (or never had a gap) - nothing to carry forward.
+      localStorage.removeItem(LAST_DEFICIT_KEY);
+      return;
+    }
+
+    const previous = readDeficitState();
+    // "Improved" means at least one previously-gapped table's gap actually
+    // shrank - not just that the SET of gapped tables changed, since a
+    // table recovering while a different one develops a fresh gap is still
+    // real progress worth another resync attempt.
+    const improved =
+      !previous ||
+      Object.entries(previous.gaps).some(
+        ([table, prevGap]) => (gaps[table] ?? 0) < prevGap,
+      );
+    const nonImprovingCount = improved ? 0 : (previous?.nonImprovingCount ?? 0) + 1;
+    const givingUp = nonImprovingCount >= MAX_NON_IMPROVING_RESYNCS;
+
+    localStorage.setItem(
+      LAST_DEFICIT_KEY,
+      JSON.stringify({ gaps, nonImprovingCount } satisfies DeficitState),
+    );
 
     await logCrash(
       new Error(
-        `Sync health check found this device behind the server: ${JSON.stringify(deficits)}`,
+        givingUp
+          ? `Sync health check: this device has a persistent deficit a resync hasn't fixed after ${nonImprovingCount} attempts - likely a permanently unrecoverable row (see pull.ts's UNIQUE-collision give-up), not a stuck cursor: ${JSON.stringify(deficits)}`
+          : `Sync health check found this device behind the server: ${JSON.stringify(deficits)}`,
       ),
       false,
-      { area: "sync-health-check", deficits: JSON.stringify(deficits) },
+      { area: "sync-health-check", deficits: JSON.stringify(deficits), givingUp: String(givingUp) },
     );
 
-    await forceFullResync();
+    if (!givingUp) {
+      await forceFullResync();
+    }
   } catch (error) {
     // Best-effort: a failed health check just means the timestamp above
     // wasn't stamped (already handled per-branch), so it naturally retries

@@ -126,4 +126,82 @@ describe("checkSyncHealth", () => {
 
     expect(getSyncCountsMock).not.toHaveBeenCalled();
   });
+
+  describe("backoff on a non-improving deficit (a resync genuinely can't fix)", () => {
+    // Each simulated "day" clears the 24h gate so checkSyncHealth() runs
+    // again within a single test, exactly like this device checking in on
+    // consecutive days.
+    function simulateNextDay() {
+      localStorage.removeItem("dumos_last_sync_health_check");
+    }
+
+    const sameDeficitCounts = {
+      success: true,
+      counts: { products: 2705, stock_batches: 4000, sales: 5, customers: 3, categories: 13 },
+    };
+    function mockSameLocalDeficit() {
+      mockLocalCounts({ products: 2700, stock_batches: 4000, sales: 5, customers: 3, categories: 13 });
+    }
+
+    it("still resyncs on the second consecutive non-improving check", async () => {
+      getSyncCountsMock.mockResolvedValue(sameDeficitCounts);
+      mockSameLocalDeficit();
+
+      await checkSyncHealth();
+      expect(forceFullResyncMock).toHaveBeenCalledTimes(1);
+
+      simulateNextDay();
+      await checkSyncHealth();
+      expect(forceFullResyncMock).toHaveBeenCalledTimes(2);
+    });
+
+    it("stops resyncing on the third consecutive non-improving check, but keeps logging", async () => {
+      getSyncCountsMock.mockResolvedValue(sameDeficitCounts);
+      mockSameLocalDeficit();
+
+      await checkSyncHealth();
+      simulateNextDay();
+      await checkSyncHealth();
+      simulateNextDay();
+      await checkSyncHealth();
+
+      // Not a third resync - the first two already proved it doesn't help.
+      expect(forceFullResyncMock).toHaveBeenCalledTimes(2);
+      expect(logCrashMock).toHaveBeenCalledTimes(3);
+      const [, , lastContext] = logCrashMock.mock.calls[2];
+      expect(lastContext.givingUp).toBe("true");
+    });
+
+    it("resumes resyncing once the deficit actually improves", async () => {
+      getSyncCountsMock.mockResolvedValue(sameDeficitCounts);
+      mockSameLocalDeficit();
+
+      await checkSyncHealth();
+      simulateNextDay();
+      await checkSyncHealth();
+      simulateNextDay();
+      await checkSyncHealth();
+      expect(forceFullResyncMock).toHaveBeenCalledTimes(2); // backed off on the 3rd
+
+      // A later, smaller gap - real progress, worth trying again.
+      mockLocalCounts({ products: 2703, stock_batches: 4000, sales: 5, customers: 3, categories: 13 });
+      simulateNextDay();
+      await checkSyncHealth();
+
+      expect(forceFullResyncMock).toHaveBeenCalledTimes(3);
+    });
+
+    it("clears the tracked deficit once the device fully catches up", async () => {
+      getSyncCountsMock.mockResolvedValue(sameDeficitCounts);
+      mockSameLocalDeficit();
+      await checkSyncHealth();
+      expect(localStorage.getItem("dumos_sync_health_deficit_state")).not.toBeNull();
+
+      mockLocalCounts({ products: 2705, stock_batches: 4000, sales: 5, customers: 3, categories: 13 });
+      simulateNextDay();
+      await checkSyncHealth();
+
+      expect(localStorage.getItem("dumos_sync_health_deficit_state")).toBeNull();
+    });
+  });
 });

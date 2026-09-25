@@ -14,7 +14,10 @@ vi.mock("@/lib/db/queries/reports", () => ({
   fetchTopSellersReportData: vi.fn(async () => []),
 }));
 
-const generateReportPdfBlobMock = vi.fn(async () => new Blob(["pdf"]));
+const generateReportPdfBlobMock = vi.fn(
+  async (_input: import("@/lib/utils/report-pdf").ReportPdfInput, _signal?: AbortSignal) =>
+    new Blob(["pdf"]),
+);
 vi.mock("@/lib/utils/report-pdf", () => ({
   generateReportPdfBlob: generateReportPdfBlobMock,
   downloadBlob: vi.fn(() => 100),

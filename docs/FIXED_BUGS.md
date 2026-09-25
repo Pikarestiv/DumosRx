@@ -4,6 +4,16 @@ A changelog of bugs that were tracked in `docs/KNOWN_BUGS.md` and have since bee
 
 ## 2026-09-25
 
+### fix: memoize the POS product grid's derived data and card component (Performance & Scalability finding)
+- `pos-product-list.tsx` rebuilt `cartQuantityMap`, three `Set`s, and the grouped/sorted product arrays as new references on every render, and `POSProductCard` wasn't memoized — every visible card re-rendered on any cart mutation regardless of catalog size (effectively O(catalog size) work per tap).
+- Wrapped the grouping/sorting work (keyed on `filteredProducts`/`suggestions`/`recentlySoldIds`/`commonlySoldIds`) and `cartQuantityMap` (keyed on `cart`) in `useMemo`, and wrapped `POSProductCard` in `React.memo`. Deliberately did NOT touch `use-pos-cart.ts`'s `addToCart` to make it referentially stable too (which would be needed for `React.memo` to skip re-renders on the exact cart-tap case this finding calls out) — its `updateQuantity` path re-derives the authoritative stock figure from live `products` state rather than trusting the tapped card's own (possibly stale, e.g. after a multi-device stock sync) prop, and collapsing that into a pure `useCallback([])` would have meant trusting the stale value instead. The `useMemo` fix still closes the actual O(catalog) recomputation cost described in the finding; `React.memo` remains a no-op until/unless `addToCart`'s stability is addressed as its own scoped change.
+- New test: `__tests__/pos-product-list-memoization.test.tsx` (grouping/cart-badge correctness survives rerenders with different props; not a render-count test, which would be brittle).
+
+### fix: `POST /app/sales` now accepts discount/tax fields (L1)
+- Flagged as latent/unreferenced — no client code calls this REST endpoint — but the gap (no way to specify a discount or tax at all) was real, so closed it now rather than leave it for whoever wires the endpoint up later without noticing.
+- `SaleController::store` now accepts optional `discount_type` (`fixed`/`percentage`), `discount_amount`, and `tax_amount`, mirroring the shape the client's own offline POS checkout (`use-pos-payment.ts`) already writes into the local `sales` schema. A percentage discount over 100 is rejected (422); a flat discount larger than the subtotal is clamped to the subtotal rather than going negative.
+- New tests in `SaleControllerTest`: fixed discount + tax, percentage discount, over-100 percentage rejection, flat-discount-exceeds-subtotal clamping. Full Laravel suite green (350 passed, up from 346).
+
 ### fix: Laravel 11→12 and `client/` Next.js 15→16 upgrades (M1, M2)
 - Both were flagged as needing their own multi-day/high-risk project. In practice, everything else in the stack (PHP 8.2, Node 20, React 19, Tailwind 4, Sentry) had already moved ahead of the two laggards, so both upgrades resolved cleanly with no dependency conflicts.
 - **Laravel:** `composer require laravel/framework:^12.0` resolved to `v12.69.2` with one new package (`symfony/polyfill-php84`) and zero conflicts — `sanctum`, `l5-swagger`, `sentry-laravel` already tolerated 12. `composer audit` now reports zero advisories (was 3). Full suite green (346 passed) with no code changes needed — the app was already on the minimal `bootstrap/app.php` skeleton.

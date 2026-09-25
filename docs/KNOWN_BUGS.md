@@ -52,18 +52,9 @@ Previously investigated and rejected as a quick fix: `token-manager.ts`'s `setTo
 
 `activate()` prunes cache entries not in the current build's manifest, to stop unbounded cache growth across deploys. This only runs when `sw.js`'s own bytes change, but when it does, an already-open tab still running the *old* build's JS can lazy-load a chunk that both the cache prune and the new deploy's server files have already removed — a chunk-load error, while fully online, until reload. This mirrors how a plain Next.js app with no service worker already behaves on deploy (the SW was incidentally providing extra resilience here). `pwa-registrar.tsx`'s `controllerchange` reload mitigates the common case by reloading onto the new build as soon as the new SW takes control, but a chunk requested in the brief window between prune and reload could still race it.
 
-### M5. `client/` — existing Pro/Enterprise stores lose the "Reseller sale" POS row on deploy, silently
-- **Category:** UX / Deployment — **Confirmed** as designed; open only pending confirmation of rollout communication
-- **File:** `client/lib/hooks/use-feature-gate.ts` (`isMarkupSalesEnabled`), `stores.markup_sales_enabled`
-
-New store-level toggle, default `0` (explicit, deliberate product requirement). Any store already on Pro/Enterprise and actively using reseller-commission sales before this ships finds the POS cart's "Reseller sale" row gone the moment it deploys, with no in-app notice, until the owner finds and enables the new toggle in Settings → Register Configs. Not a bug to fix — the default was explicitly requested — but still needs a release note / proactive heads-up to any store already using the feature, so it doesn't read as broken. **Remove this entry once that communication has gone out** (this is a coordination/communication follow-up, not a code fix).
-
 ---
 
 ## Low Priority Findings
-
-### L1. `POST /app/sales` accepts no discount/tax fields (latent, currently unreferenced)
-- **File:** `laravel-server` `SaleController::store`. Every sale created through this REST path would get `discount_amount`/`tax_amount` left null while `subtotal`/`total_amount` are the raw undiscounted sum — but this endpoint is currently defined in `client/lib/api/client.ts` and never actually called from anywhere in `client/`. Not an active production bug; flagged so it isn't silently wired up later without addressing the gap.
 
 ### L2. `client/` — manifest `theme_color` doesn't follow dark mode
 - **File:** `client/public/manifest.json:8`, `client/app/layout.tsx:66-68`. `manifest.json` hardcodes `theme_color`/`background_color` to `#ffffff`; `layout.tsx`'s `viewport.themeColor` correctly switches to black under `prefers-color-scheme: dark`. On Android, the manifest's value drives the install splash screen, so a dark-mode user briefly sees a white splash before the dark app renders. The Web App Manifest spec has no conditional-syntax equivalent for this, so it can't be fully fixed without picking one scheme's splash over the other — left as the light-mode default since it also matches the manifest's own `background_color`.
@@ -83,7 +74,6 @@ Areas specifically audited and found **clean**: webhook signature verification (
 
 ## Performance & Scalability
 
-- **Unmemoized POS product grid** (`client/components/pos/pos-product-list.tsx`) — `POSProductCard` is a plain function component; the parent recomputes `cartQuantityMap`, several `Set`s, and grouped/sorted product arrays as new references on every render, defeating any future `React.memo` and guaranteeing every visible card re-renders on any cart mutation. On a large catalog (supermarket/grocery vertical, explicitly supported per `AGENTS.md`, no windowing on the "all products" grid), this is effectively **O(catalog size)** re-render work per cart tap, on hardware (Android tablets) where that's most visible. **Fix:** `useMemo` the derived maps/arrays keyed on `cart`/`filteredProducts`; wrap `POSProductCard` in `React.memo`; consider virtualization above a few hundred SKUs.
 - No N+1 query patterns, unbounded pagination, or missing-index issues were found in the areas reviewed (`SaleController`, stock/purchase-order controllers, dashboard aggregation queries) — foreign-key columns are auto-indexed via Laravel's `foreignUuid()->constrained()`.
 
 ---
@@ -110,7 +100,6 @@ Areas specifically audited and found **clean**: webhook signature verification (
 
 1. **C1** (deploy the pending 2026-09-23 migrations) and **H2** (confirm `FLUTTERWAVE_SECRET_HASH` in production) — pure deployment/ops actions, zero remaining code risk, should not wait on anything else.
 2. **M3** (localStorage-token architecture) — schedule as its own design project.
-3. **M5** (reseller-sale rollout communication) — not a code task; confirm with product/support whether the release note already went out, then remove the entry.
-4. **M4, L1, L2** — accepted tradeoffs / latent-unreferenced-code notes with no real fix pending; nothing to schedule.
+3. **M4, L2** — accepted tradeoffs with no real fix pending short of a larger project (deploy-asset retention for M4); nothing to schedule unless that project is commissioned.
 
 This order pulls the pure-ops item (C1) to the front regardless of severity ranking, since it requires no code changes and is pending only on someone triggering a deploy.

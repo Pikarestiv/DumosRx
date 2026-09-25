@@ -323,4 +323,83 @@ class SaleControllerTest extends TestCase
         $response->assertStatus(422);
         $this->assertEquals(10, $otherStoreBatch->fresh()->quantity);
     }
+
+    /**
+     * Regression test for L1 (docs/KNOWN_BUGS.md): this endpoint used to
+     * accept no discount/tax fields at all, so total_amount was always the
+     * raw undiscounted subtotal no matter what a future caller sent.
+     */
+    public function test_applies_a_fixed_discount_and_tax()
+    {
+        $product = $this->stockedProduct($this->owner, price: 100);
+
+        $response = $this->actingAs($this->owner)->postJson('/api/v1/app/sales', [
+            'items' => [['product_id' => $product->id, 'quantity' => 2]],
+            'payment_method' => 'cash',
+            'discount_type' => 'fixed',
+            'discount_amount' => 30,
+            'tax_amount' => 10,
+        ]);
+
+        $response->assertStatus(201);
+        $sale = Sale::first();
+        $this->assertEquals(200, $sale->subtotal);
+        $this->assertEquals(30, $sale->discount_total);
+        $this->assertEquals(10, $sale->tax_amount);
+        // 200 - 30 discount + 10 tax
+        $this->assertEquals(180, $sale->total_amount);
+        $this->assertEquals(180, $sale->amount_paid);
+    }
+
+    public function test_applies_a_percentage_discount()
+    {
+        $product = $this->stockedProduct($this->owner, price: 100);
+
+        $response = $this->actingAs($this->owner)->postJson('/api/v1/app/sales', [
+            'items' => [['product_id' => $product->id, 'quantity' => 2]],
+            'payment_method' => 'cash',
+            'discount_type' => 'percentage',
+            'discount_amount' => 10,
+        ]);
+
+        $response->assertStatus(201);
+        $sale = Sale::first();
+        $this->assertEquals(200, $sale->subtotal);
+        // 10% of 200
+        $this->assertEquals(20, $sale->discount_total);
+        $this->assertEquals(10, $sale->discount_percentage);
+        $this->assertEquals(180, $sale->total_amount);
+    }
+
+    public function test_rejects_a_percentage_discount_over_100()
+    {
+        $product = $this->stockedProduct($this->owner, price: 100);
+
+        $response = $this->actingAs($this->owner)->postJson('/api/v1/app/sales', [
+            'items' => [['product_id' => $product->id, 'quantity' => 1]],
+            'payment_method' => 'cash',
+            'discount_type' => 'percentage',
+            'discount_amount' => 150,
+        ]);
+
+        $response->assertStatus(422);
+        $this->assertDatabaseCount('sales', 0);
+    }
+
+    public function test_a_flat_discount_larger_than_the_subtotal_never_goes_negative()
+    {
+        $product = $this->stockedProduct($this->owner, price: 100);
+
+        $response = $this->actingAs($this->owner)->postJson('/api/v1/app/sales', [
+            'items' => [['product_id' => $product->id, 'quantity' => 1]],
+            'payment_method' => 'cash',
+            'discount_type' => 'fixed',
+            'discount_amount' => 500,
+        ]);
+
+        $response->assertStatus(201);
+        $sale = Sale::first();
+        $this->assertEquals(100, $sale->discount_total);
+        $this->assertEquals(0, $sale->total_amount);
+    }
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { memo, useMemo, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
@@ -39,7 +39,7 @@ interface POSProductListProps {
   displayStockLevels?: boolean;
 }
 
-function POSProductCard({
+const POSProductCard = memo(function POSProductCard({
   product,
   currencyCode,
   addToCart,
@@ -138,7 +138,7 @@ function POSProductCard({
       </div>
     </button>
   );
-}
+});
 
 export function POSProductList({
   loadingProducts,
@@ -158,40 +158,59 @@ export function POSProductList({
 }: POSProductListProps) {
   const [showRequestDialog, setShowRequestDialog] = useState(false);
 
-  // Use a map for O(1) lookups
-  const cartQuantityMap = new Map(
-    cart.map((item) => [item.id, item.quantity]),
+  // O(1) lookups; memoized for a stable reference (see POSProductCard's memo() below).
+  const cartQuantityMap = useMemo(
+    () => new Map(cart.map((item) => [item.id, item.quantity])),
+    [cart],
   );
 
-  // Segment the products for prioritization
-  const suggestionsSet = new Set(suggestions.map((s) => s.id));
-  const recentSet = new Set(recentlySoldIds);
-  const commonSet = new Set(commonlySoldIds);
+  // Segment/sort for prioritization - the O(catalog size) part; memoized.
+  const {
+    suggestionsList,
+    recentlySoldList,
+    commonlySoldList,
+    remainingList,
+    sortedProducts,
+    commonAndRemainingList,
+  } = useMemo(() => {
+    const suggestionsSet = new Set(suggestions.map((s) => s.id));
+    const recentSet = new Set(recentlySoldIds);
+    const commonSet = new Set(commonlySoldIds);
 
-  const suggestionsList: GroupedProduct[] = [];
-  const recentlySoldList: GroupedProduct[] = [];
-  const commonlySoldList: GroupedProduct[] = [];
-  const remainingList: GroupedProduct[] = [];
+    const suggestionsList: GroupedProduct[] = [];
+    const recentlySoldList: GroupedProduct[] = [];
+    const commonlySoldList: GroupedProduct[] = [];
+    const remainingList: GroupedProduct[] = [];
 
-  filteredProducts.forEach((product) => {
-    if (suggestionsSet.has(product.id)) {
-      suggestionsList.push({ ...product, posGroup: "suggestion" });
-    } else if (recentSet.has(product.id)) {
-      recentlySoldList.push({ ...product, posGroup: "recent" });
-    } else if (commonSet.has(product.id)) {
-      commonlySoldList.push({ ...product, posGroup: "common" });
-    } else {
-      remainingList.push({ ...product, posGroup: "standard" });
-    }
-  });
+    filteredProducts.forEach((product) => {
+      if (suggestionsSet.has(product.id)) {
+        suggestionsList.push({ ...product, posGroup: "suggestion" });
+      } else if (recentSet.has(product.id)) {
+        recentlySoldList.push({ ...product, posGroup: "recent" });
+      } else if (commonSet.has(product.id)) {
+        commonlySoldList.push({ ...product, posGroup: "common" });
+      } else {
+        remainingList.push({ ...product, posGroup: "standard" });
+      }
+    });
 
-  // Combine lists, keeping prioritized groups at the top
-  const sortedProducts = [
-    ...suggestionsList,
-    ...recentlySoldList,
-    ...commonlySoldList,
-    ...remainingList,
-  ];
+    // Combine lists, keeping prioritized groups at the top
+    const sortedProducts = [
+      ...suggestionsList,
+      ...recentlySoldList,
+      ...commonlySoldList,
+      ...remainingList,
+    ];
+
+    return {
+      suggestionsList,
+      recentlySoldList,
+      commonlySoldList,
+      remainingList,
+      sortedProducts,
+      commonAndRemainingList: [...commonlySoldList, ...remainingList],
+    };
+  }, [filteredProducts, suggestions, recentlySoldIds, commonlySoldIds]);
 
   return (
     <div className=" pb-19">
@@ -345,7 +364,7 @@ export function POSProductList({
                   All products
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-3">
-                  {[...commonlySoldList, ...remainingList].map((product) => (
+                  {commonAndRemainingList.map((product) => (
                     <POSProductCard
                       key={product.id}
                       product={product}

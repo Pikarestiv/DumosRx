@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { POSProductCard, type GroupedProduct } from "./pos-product-list";
 import type { POSProduct } from "@/lib/types/product";
@@ -94,15 +94,31 @@ export function VirtualizedProductGrid({
   // (category filter, mobile search, any suggestion/recently-sold
   // carousels above it) — react-virtual's `scrollMargin` needs this to
   // translate its own row offsets into the scroll container's actual
-  // coordinate space. Recomputed whenever the row count changes, since
-  // content above this grid (e.g. the suggestions carousel appearing only
-  // once there's something to suggest) can shift it.
+  // coordinate space. Content above this grid can change height for
+  // reasons that have nothing to do with this grid's OWN row count — the
+  // Smart Suggestions section switches between a one-liner and a full
+  // card carousel as the cart changes, the category filter/search can
+  // rewrap, the pull-to-refresh indicator animates — so recomputing only
+  // on `rows.length` left `scrollMargin` stale exactly when the cart or
+  // filters changed without also changing how many products matched:
+  // every virtual row then drew at the wrong offset against a scroll
+  // container measuring something else, a mis-rendered grid mid-checkout.
+  // Recomputed after every render instead (any layout-affecting change,
+  // including ones this component has no explicit dependency on) — cheap
+  // (one offsetTop read) and self-limiting: setState is a no-op once the
+  // value stops changing, so this can't loop.
   const [scrollMargin, setScrollMargin] = useState(0);
-  useEffect(() => {
-    if (containerRef.current) {
+  // Deliberately no deps array: this must re-check on every render,
+  // including ones this component has no explicit dependency for (see the
+  // comment above). The `!==` guard is what actually prevents a loop, not
+  // a deps array — adding [scrollMargin] would make this only re-run when
+  // scrollMargin itself changes, defeating the point.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useLayoutEffect(() => {
+    if (containerRef.current && containerRef.current.offsetTop !== scrollMargin) {
       setScrollMargin(containerRef.current.offsetTop);
     }
-  }, [rows.length]);
+  });
 
   const rowVirtualizer = useVirtualizer({
     count: rows.length,

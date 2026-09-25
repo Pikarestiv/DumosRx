@@ -7,6 +7,7 @@ import { toast } from "sonner";
 // component's own JS, instead of only once AndroidInstallCard happens to
 // mount (which is too late - see that module's comment).
 import "@/lib/hooks/use-install-prompt";
+import { isDevelopment } from "@/lib/constants";
 
 // sw.js calls skipWaiting()/clients.claim() unconditionally on every
 // install, so a new deploy's worker takes over an already-open tab without
@@ -23,6 +24,9 @@ let hasReloadedForUpdate = false;
 
 export function PwaRegistrar() {
   useEffect(() => {
+    // precache-manifest.json is a build artifact that never exists under
+    // `next dev` - see docs/FIXED_BUGS.md for why registering here 404s.
+    if (isDevelopment) return;
     if (!("serviceWorker" in navigator)) return;
 
     const register = () => {

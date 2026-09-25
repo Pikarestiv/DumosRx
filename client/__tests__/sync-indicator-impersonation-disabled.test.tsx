@@ -35,9 +35,9 @@ vi.mock("@/lib/db/sync-engine", () => ({
   isSyncing: () => false,
 }));
 
-let registeredListener: (() => void) | null = null;
+let registeredListener: ((tables: string[]) => void) | null = null;
 vi.mock("@/lib/db/core", () => ({
-  addSyncQueueChangeListener: vi.fn((fn: () => void) => {
+  addSyncQueueChangeListener: vi.fn((fn: (tables: string[]) => void) => {
     registeredListener = fn;
     return () => {
       registeredListener = null;
@@ -156,7 +156,7 @@ describe("SyncIndicator during an impersonated session", () => {
 
     expect(registeredListener).not.toBeNull();
     await act(async () => {
-      registeredListener?.();
+      registeredListener?.(["products"]);
     });
     await act(async () => {
       vi.advanceTimersByTime(2000);

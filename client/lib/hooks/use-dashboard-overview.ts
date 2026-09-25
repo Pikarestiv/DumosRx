@@ -9,6 +9,7 @@ import { formatCurrency } from "@/lib/utils";
 import { queryKeys } from "@/lib/query-keys";
 import type { DashboardActivity, ActivityFeedItem } from "@/lib/types/dashboard-activity";
 import { capitalizeWords } from "@/lib/hooks/use-uppercase-display";
+import { getTypeLabel } from "@/components/stock-batch/stock-movement-utils";
 
 export type SalesComparison =
   | { state: "none" }
@@ -89,7 +90,7 @@ export function useDashboardOverview() {
       );
       amount = isNaN(val) ? "N/A" : formatCurrency(val, storeProfile?.currency);
     } else if (activity.activity_type === "stock_movement") {
-      message = `Stock ${activity.movement_type}: ${Math.abs(activity.quantity ?? 0)} units`;
+      message = `Stock ${getTypeLabel(activity.movement_type ?? "").toLowerCase()}: ${Math.abs(activity.quantity ?? 0)} units`;
       const val = Number(activity.total_cost);
       if (!isNaN(val) && val > 0) {
         amount = formatCurrency(val, storeProfile?.currency);

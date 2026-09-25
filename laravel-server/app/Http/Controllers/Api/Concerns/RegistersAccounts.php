@@ -74,6 +74,7 @@ trait RegistersAccounts
             'ref' => 'nullable|string',
             'referrer' => 'nullable|string',
             'agent_ref' => 'nullable|string',
+            'device_name' => 'nullable|string',
         ]);
 
         $referredById = null;
@@ -177,7 +178,9 @@ trait RegistersAccounts
             $user->save();
         }
 
-        $token = $user->createToken('auth_token')->plainTextToken;
+        // Was the literal string 'auth_token' - showed up verbatim as the
+        // session's device name in Settings -> Sessions & Devices.
+        $token = $user->createToken($request->device_name ?? 'Client App')->plainTextToken;
 
         return response()->json([
             'message' => 'User registered successfully',

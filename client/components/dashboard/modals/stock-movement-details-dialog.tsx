@@ -9,6 +9,7 @@ import {
   getTypeColor,
   getTypeIcon,
   getTypeIconBg,
+  getTypeLabel,
   formatMovementDate,
   formatMovementTime,
 } from "@/components/stock-batch/stock-movement-utils";
@@ -73,7 +74,7 @@ export function StockMovementDetailsDialog({
             <span
               className={`text-[11px] font-semibold px-2 py-0.5 rounded-md capitalize inline-block ${getTypeColor(movement.movement_type)}`}
             >
-              {movement.movement_type}
+              {getTypeLabel(movement.movement_type)}
             </span>
             <div
               className={`text-[18px] font-semibold mt-1 ${isPositive ? "text-emerald-700" : "text-destructive"}`}

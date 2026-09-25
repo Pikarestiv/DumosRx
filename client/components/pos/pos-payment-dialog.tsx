@@ -256,7 +256,7 @@ export function POSPaymentDialog({
           )}
 
         {setSaleNote && (
-          <div>
+          <div className="mb-0.5">
             <label className="text-sm font-medium">
               Sale Note{" "}
               {requireSaleNotes && <span className="text-destructive">*</span>}

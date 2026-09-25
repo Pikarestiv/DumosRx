@@ -34,6 +34,26 @@ export function ProductBatchHistory({
     return <NoBatchRecordsFound storeType={storeType} />;
   }
 
+  // Matches the real FEFO deduction order (see docs/FIXED_BUGS.md) - only
+  // the batch this would actually pick first counts as "sell first".
+  const sellFirstBatchId = [...batches]
+    .filter(
+      (b) =>
+        b.is_active !== 0 &&
+        b.quantity > 0 &&
+        (!b.expiry_date || new Date(b.expiry_date) > new Date()),
+    )
+    .sort((a, b) => {
+      if (!a.expiry_date !== !b.expiry_date) return a.expiry_date ? -1 : 1;
+      if (a.expiry_date && b.expiry_date) {
+        const diff = new Date(a.expiry_date).getTime() - new Date(b.expiry_date).getTime();
+        if (diff !== 0) return diff;
+      }
+      return (
+        new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime()
+      );
+    })[0]?.id;
+
   return (
     <div className="flex flex-col gap-3">
       {batches.map((batch) => {
@@ -70,7 +90,8 @@ export function ProductBatchHistory({
               </span>
             </div>
             <div className="text-[13px] text-muted-foreground">
-              {batch.quantity} units · Sell first (FEFO)
+              {batch.quantity} units
+              {batch.id === sellFirstBatchId && " · Sell first (FEFO)"}
             </div>
           </div>
         );

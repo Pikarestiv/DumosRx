@@ -4,7 +4,6 @@ import { useStore } from "@/lib/context/store-context";
 import { APP_NAME } from "@/lib/constants";
 import Barcode from "react-barcode";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
-import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import { ReceiptPaperSize } from "@/lib/hooks/use-receipt-paper-size";
 import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
 
@@ -265,11 +264,7 @@ export function ReceiptView({
               </div>
             )}
 
-            <div className="flex justify-between mt-2 pt-2 border-t border-dashed border-black">
-              <span>Date:</span>
-              <span>{formatDateToDDMMYYYY(transaction.date)}</span>
-            </div>
-            <div className="flex justify-between font-bold">
+            <div className="flex justify-between font-bold mt-2 pt-2 border-t border-dashed border-black">
               <span>Total paid:</span>
               <span>{formatCurrency(transaction.amountPaid)}</span>
             </div>

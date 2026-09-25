@@ -16,9 +16,14 @@ function getDeviceIcon(session: Session) {
   return Monitor;
 }
 
+// Pre-fix registrations named their token literally 'auth_token' (see
+// RegistersAccounts.php) - treated as absent so those sessions still fall
+// back to a real, readable name instead of showing that internal string.
+const NOT_A_REAL_DEVICE_NAME = new Set(["unknown", "auth_token"]);
+
 function parseDeviceName(session: Session) {
   // Use device_name from login if available. Web falls back to UA parsing.
-  if (session.name && session.name.toLowerCase() !== "unknown") return session.name;
+  if (session.name && !NOT_A_REAL_DEVICE_NAME.has(session.name.toLowerCase())) return session.name;
   const ua = session.user_agent || "";
   if (!ua) return "Unknown Device";
   let os = "Unknown OS";

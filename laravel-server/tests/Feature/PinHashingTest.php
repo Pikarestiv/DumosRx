@@ -188,6 +188,52 @@ class PinHashingTest extends TestCase
         $this->assertTrue(Hash::check('1357', $registrant->pin));
     }
 
+    /**
+     * Regression test: registration used to create the personal access
+     * token with the literal name 'auth_token', which then showed up
+     * verbatim as the device name in Settings -> Sessions & Devices.
+     */
+    public function test_registration_names_the_token_after_the_device_not_literally_auth_token(): void
+    {
+        $response = $this->postJson('/api/v1/register', [
+            'first_name' => 'New',
+            'last_name' => 'Registrant',
+            'email' => 'device-name@dumosrx.com',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'store_name' => 'Device Name Pharmacy',
+            'store_type' => 'pharmacy',
+            'device_name' => 'Chrome on Windows',
+        ]);
+
+        $response->assertSuccessful();
+
+        $registrant = User::where('email', 'device-name@dumosrx.com')->firstOrFail();
+        $token = $registrant->tokens()->first();
+        $this->assertNotNull($token);
+        $this->assertSame('Chrome on Windows', $token->name);
+    }
+
+    public function test_registration_without_a_device_name_still_avoids_the_literal_auth_token_name(): void
+    {
+        $response = $this->postJson('/api/v1/register', [
+            'first_name' => 'New',
+            'last_name' => 'Registrant',
+            'email' => 'no-device-name@dumosrx.com',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'store_name' => 'No Device Name Pharmacy',
+            'store_type' => 'pharmacy',
+        ]);
+
+        $response->assertSuccessful();
+
+        $registrant = User::where('email', 'no-device-name@dumosrx.com')->firstOrFail();
+        $token = $registrant->tokens()->first();
+        $this->assertNotNull($token);
+        $this->assertNotSame('auth_token', $token->name);
+    }
+
     public function test_staff_endpoints_do_not_serialize_the_pin(): void
     {
         $staff = User::create([

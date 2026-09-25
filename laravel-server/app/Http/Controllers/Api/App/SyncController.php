@@ -1749,6 +1749,51 @@ class SyncController extends Controller
         return null;
     }
 
+    #[OA\Get(
+        path: '/api/v1/app/sync/counts',
+        description: "Authoritative server-side row counts, per table, for the caller's store — NOT a data pull, just COUNT(*)s. Exists so a device can periodically verify its local counts actually match the server instead of trusting an incremental pull's cursor never got stuck (see docs/KNOWN_BUGS.md: a device's pull cursor can, rarely, advance past content it never actually received — e.g. after a crash mid-round — leaving every SUBSEQUENT delta pull \"succeed\" while silently never re-offering the missed rows, with no error anywhere to notice it by). A device finding its own local count doesn't match this response is the signal to run a full resync, not a partial one.",
+        tags: ['Sync'],
+        security: [['sanctum' => []]],
+        parameters: [new OA\HeaderParameter(name: 'X-Store-Id', description: 'Which of the caller\'s stores to check (defaults to their primary store)', schema: new OA\Schema(type: 'string'))],
+        responses: [
+            new OA\Response(response: 200, description: 'Row counts per table', content: new OA\JsonContent(properties: [
+                new OA\Property(property: 'success', type: 'boolean'),
+                new OA\Property(property: 'counts', type: 'object', additionalProperties: new OA\AdditionalProperties(type: 'integer')),
+            ])),
+            new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
+        ],
+    )]
+    public function counts(Request $request)
+    {
+        $currentUser = $request->user();
+        $currentStoreId = $currentUser ? $this->resolvePushStoreId($request, $currentUser) : null;
+
+        if (!$currentStoreId) {
+            return response()->json(['success' => true, 'counts' => []]);
+        }
+
+        // Deliberately NOT run through validateSync()'s plan-interval
+        // throttle: that throttle exists to bound the cost of a real data
+        // pull, not a handful of COUNT(*)s, and gating this behind the same
+        // window it's meant to double-check would leave it just as capable
+        // of silently never running as the pull cursor it exists to verify.
+        // Scoped to the tables actually implicated in the known stuck-
+        // cursor failure mode (inventory + sales) rather than every synced
+        // table - a targeted, cheap check, not a second sync engine.
+        $counts = [
+            'products' => DB::table('products')->where('store_id', $currentStoreId)->whereNull('deleted_at')->count(),
+            'stock_batches' => DB::table('stock_batches')->where('store_id', $currentStoreId)->whereNull('deleted_at')->count(),
+            'sales' => DB::table('sales')->where('store_id', $currentStoreId)->whereNull('deleted_at')->count(),
+            'customers' => DB::table('customers')->where('store_id', $currentStoreId)->whereNull('deleted_at')->count(),
+            'categories' => DB::table('categories')->where('store_id', $currentStoreId)->whereNull('deleted_at')->count(),
+        ];
+
+        return response()->json([
+            'success' => true,
+            'counts' => $counts,
+        ]);
+    }
+
     public function getModelForTable($tableName)
     {
         $map = [

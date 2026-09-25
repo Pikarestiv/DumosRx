@@ -283,6 +283,22 @@ class ApiClient extends FleetBillingApiClient {
     });
   }
 
+  // Authoritative row counts, per table, for the caller's store - not a
+  // pull, just COUNT(*)s a device periodically checks itself against. See
+  // lib/db/sync-engine/health-check.ts for why this exists.
+  async getSyncCounts(): Promise<{ success: boolean; counts: Record<string, number> }> {
+    const headers: Record<string, string> = {};
+    if (typeof window !== "undefined") {
+      const activeStoreId = localStorage.getItem("dumos_active_store_id");
+      if (activeStoreId) {
+        headers["X-Store-Id"] = activeStoreId;
+      }
+      headers["X-Device-Id"] = getDeviceId();
+    }
+
+    return this.request("/app/sync/counts", { headers });
+  }
+
   async pullChanges(
     payload: {
       last_synced: Record<string, string>;

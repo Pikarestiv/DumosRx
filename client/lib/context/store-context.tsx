@@ -408,6 +408,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           if (result.success) {
             devLog("[StoreContext] Sync successful, refetching local store profile");
             await refetch();
+            // Self-gated to once per 24h; a no-op on every other call here.
+            // See health-check.ts's own doc comment for why this exists.
+            const { checkSyncHealth } = await import("@/lib/db/sync-engine/health-check");
+            void checkSyncHealth();
           }
         } catch (e) {
           console.error("[StoreContext] Auto-sync failed", e);

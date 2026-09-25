@@ -1,6 +1,26 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
+import { createRef } from "react";
 import type { POSProduct } from "@/lib/types/product";
+
+// These tests exercise grouping/sorting/cart-quantity logic, not
+// virtualization mechanics (that belongs in e2e/browser tests, where real
+// layout exists) - jsdom reports zero size for every element, so the real
+// useVirtualizer would compute an empty visible range here and every
+// assertion below would find nothing. Stubbed to render every row
+// unconditionally, same shape real react-virtual returns.
+vi.mock("@tanstack/react-virtual", () => ({
+  useVirtualizer: ({ count, estimateSize }: { count: number; estimateSize: () => number }) => ({
+    getVirtualItems: () =>
+      Array.from({ length: count }, (_, index) => ({
+        key: index,
+        index,
+        start: index * estimateSize(),
+      })),
+    getTotalSize: () => count * estimateSize(),
+    measureElement: () => {},
+  }),
+}));
 
 /**
  * Regression coverage for the KNOWN_BUGS.md "Unmemoized POS product grid"
@@ -47,6 +67,7 @@ describe("POSProductList memoization", () => {
         filteredProducts={products}
         addToCart={vi.fn()}
         productTerm="products"
+        scrollElementRef={createRef<HTMLDivElement>()}
         searchTerm="pan"
         cart={[{ ...product({ id: "p1" }), quantity: 3, subtotal: 300, original_unit_price: 100 }]}
       />,
@@ -63,6 +84,7 @@ describe("POSProductList memoization", () => {
         filteredProducts={products}
         addToCart={vi.fn()}
         productTerm="products"
+        scrollElementRef={createRef<HTMLDivElement>()}
         searchTerm="pan"
         cart={[{ ...product({ id: "p1" }), quantity: 5, subtotal: 500, original_unit_price: 100 }]}
       />,
@@ -82,6 +104,7 @@ describe("POSProductList memoization", () => {
         filteredProducts={products}
         addToCart={addToCart}
         productTerm="products"
+        scrollElementRef={createRef<HTMLDivElement>()}
         searchTerm="pan"
       />,
     );
@@ -103,6 +126,7 @@ describe("POSProductList memoization", () => {
         filteredProducts={products}
         addToCart={vi.fn()}
         productTerm="products"
+        scrollElementRef={createRef<HTMLDivElement>()}
         searchTerm=""
         canUseSmartSuggestions
       />,
@@ -118,6 +142,7 @@ describe("POSProductList memoization", () => {
         filteredProducts={products}
         addToCart={vi.fn()}
         productTerm="products"
+        scrollElementRef={createRef<HTMLDivElement>()}
         searchTerm=""
         canUseSmartSuggestions
         suggestions={[product({ id: "p2", name: "Amoxil" })]}

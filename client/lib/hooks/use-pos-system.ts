@@ -215,9 +215,20 @@ export function usePOSSystem() {
   const handleEditPrescription = isPrescriptionLocked
     ? () => router.push(`/prescriptions?action=add&edit_rx=${dispensedRxId}`)
     : undefined;
+  // Clears the search after a search-driven add so the next scan/search
+  // starts clean, instead of leaving the previous query (and its now-stale
+  // narrowed results) sitting there until staff notice and clear it
+  // themselves. Only when a search was actually active: adding straight
+  // from Suggestions/Recently Sold/All Products (searchTerm already empty)
+  // has nothing to clear and shouldn't reset scroll position for no reason.
   const handleAddToCart = isPrescriptionLocked
     ? () => toast.info("Cart is locked to this prescription. Edit the prescription to change medications.")
-    : addToCart;
+    : (product: Parameters<typeof addToCart>[0]) => {
+        addToCart(product);
+        if (searchTerm.trim().length > 0) {
+          setSearchTerm("");
+        }
+      };
 
   return {
     t,

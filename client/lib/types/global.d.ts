@@ -1,4 +1,5 @@
 import type { ApiLogEntry } from "@/lib/api/logger";
+import type { SyncResult } from "@/lib/db/sync-engine/types";
 
 export {};
 
@@ -32,6 +33,17 @@ declare global {
     }>;
     /** Dev utility exposed by lib/db/local-database.ts for console access. */
     forceSyncAllData?: () => Promise<string>;
+    /** Recovery tool for a device whose pull cursor has drifted ahead of
+     * content it never actually received (e.g. after a mid-round crash) —
+     * clears `_sync_state` so the next pull re-fetches every table from
+     * scratch instead of resuming from a stuck delta cursor. Never touches
+     * local data or the outbound `_sync_queue`. Exposed unconditionally,
+     * including production, for a support session to run from DevTools on
+     * the affected device — deliberately not wired to any in-app UI, since a
+     * full re-pull of a large catalog isn't free on a slow connection and
+     * shouldn't be one accidental tap away for a store owner. See
+     * lib/db/sync-engine/index.ts. */
+    __forceFullResync?: () => Promise<SyncResult>;
     /** Legacy IE/Edge-on-iOS marker, used only to help detect real iOS Safari. */
     MSStream?: unknown;
   }

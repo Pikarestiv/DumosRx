@@ -20,6 +20,38 @@ export function isSyncing(): boolean {
 }
 
 /**
+ * Escape hatch for a device whose pull cursor has drifted ahead of rows it
+ * never actually received (e.g. a mid-round crash left `_sync_state`
+ * stamped past content a subsequent page never got to apply) — every
+ * future delta pull (`updated_at > cursor`) silently skips that content
+ * forever, with no error, since as far as the cursor is concerned it's
+ * already-seen history. Clearing `_sync_state` doesn't touch local data or
+ * the outbound `_sync_queue`; pull.ts already treats a table missing from
+ * `last_synced` as "return everything" (see its own comment on
+ * `lastSyncedMap`), so this just forces the next pull to re-fetch every
+ * table in full instead of resuming from wherever the cursor was stuck.
+ *
+ * Deliberately not wired to any UI — see the window-exposure note below.
+ */
+export async function forceFullResync(): Promise<SyncResult> {
+  if (isSyncInProgress) {
+    return { success: false, pushed: 0, pulled: 0, error: "Sync already in progress" };
+  }
+  await execute("DELETE FROM _sync_state");
+  return sync(true);
+}
+
+if (typeof window !== "undefined") {
+  // Unconditionally exposed (not dev-gated), same as core.ts's
+  // diagnoseLegacySchema: a real, if rare, production recovery tool for a
+  // support session to run from DevTools on the affected device, not
+  // something to surface as an in-app button a store owner could trigger
+  // by accident (a full re-pull of a large catalog isn't free on a slow
+  // connection).
+  window.__forceFullResync = forceFullResync;
+}
+
+/**
  * Main Sync Function
  */
 export async function sync(

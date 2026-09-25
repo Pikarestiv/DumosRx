@@ -472,7 +472,15 @@ export async function query<T = Record<string, unknown>>(
   // a transaction() block would be waiting on its own enclosing
   // transaction, so this only applies to reads that began outside one.
   const startedOutsideTransaction = !inTransaction;
-  let closedRetryUsed = false;
+  // Capped at 2 (not unbounded) so a genuinely different, non-transient
+  // failure still surfaces instead of retrying forever — bumped from 1
+  // after production showed occasional back-to-back collisions (two
+  // unrelated DB operations landing on the same tick twice in a row)
+  // beating a single retry, surfacing as an uncaught SQLITE_MISUSE/
+  // "Statement closed" error for what a second attempt would have
+  // resolved cleanly.
+  const MAX_MISUSE_RETRIES = 2;
+  let closedRetryCount = 0;
   for (let attempt = 0; attempt < QUERY_TORN_READ_ATTEMPTS; attempt++) {
     const epochAtStart = writeEpoch;
     let yielded = false;
@@ -546,8 +554,8 @@ export async function query<T = Record<string, unknown>>(
       // buffer bookkeeping. Both are connection-state corruption from this
       // exact race, not genuine SQL/data errors, so they get the same
       // discard-and-retry treatment.
-      if (!closedRetryUsed && /closed|finalized|bad parameter|api misuse|allocation failed/i.test(message)) {
-        closedRetryUsed = true;
+      if (closedRetryCount < MAX_MISUSE_RETRIES && /closed|finalized|bad parameter|api misuse|allocation failed/i.test(message)) {
+        closedRetryCount++;
         if (startedOutsideTransaction) await awaitSettledTransactions();
         continue;
       }

@@ -31,6 +31,19 @@ class PaystackSubaccountService
      */
     private const BANK_LIST_COUNTRIES = ['nigeria', 'ghana', 'kenya', 'south africa'];
 
+    /**
+     * Countries Paystack's GET /bank/resolve actually covers. Everywhere else
+     * resolveAccount() returns null because there is no resolver at all, which
+     * is a normal outcome; inside this list a null means the account details
+     * are wrong. StorePaymentAccountController relies on that distinction.
+     */
+    private const RESOLVE_COUNTRIES = ['nigeria', 'ghana'];
+
+    public static function supportsAccountResolution(string $countryCode): bool
+    {
+        return in_array($countryCode, self::RESOLVE_COUNTRIES, true);
+    }
+
     public function __construct()
     {
         $this->secretKey = (string) config('payment.paystack.secret_key');
@@ -59,6 +72,10 @@ class PaystackSubaccountService
 
     public function resolveAccount(string $accountNumber, string $bankCode, string $countryCode): ?array
     {
+        if (!self::supportsAccountResolution($countryCode)) {
+            return null;
+        }
+
         try {
             $response = Http::withToken($this->secretKey)
                 ->get('https://api.paystack.co/bank/resolve', [

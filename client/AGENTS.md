@@ -649,6 +649,23 @@ checkout option (`web/`) becomes available — country select, bank select
 the Payment Methods settings panel alongside the existing
 `PaymentAccountsCard`.
 
+Two states, one component: a store whose pulled `storeProfile` already has a
+`paystack_subaccount_code` gets the read-only **connected** view (bank code +
+`****last4`, "contact support to change your bank details"), never the
+onboarding form again — changing banks is deliberately a support path, and the
+server 409s a second `POST /store/payment-account` anyway. The last-4 and bank
+code are synced down for exactly this display.
+
+**"We can't verify this" is not the same as "this account number is wrong."**
+`POST /store/payment-account/resolve` returns `verifiable` alongside
+`account_name`: `false` means Paystack has no resolver for that country at all
+(Kenya/South Africa/Rwanda/Côte d'Ivoire) and is the **only** case where the
+"I have double-checked these details" override may be offered — the server
+refuses `confirmed_unverifiable` for a verifiable country (Nigeria/Ghana),
+where a null `account_name` means the details are simply wrong. Never infer
+either from a hardcoded country list in this app; the server reports it per
+request.
+
 **Never write `paystack_subaccount_code`/`paystack_subaccount_country`/
 `paystack_bank_code`/`paystack_account_number_last4`/`paystack_fee_dirty_at`
 locally as if this client owns them.** These five `stores` columns exist in

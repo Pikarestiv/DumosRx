@@ -26,14 +26,9 @@ import {
 } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
 
-/** Paystack's own six supported countries for this store's storefront
- * payments (see StoreController::paymentBanks's OA enum). Only
- * nigeria/ghana/kenya/south africa get a real bank list back from
- * PaystackSubaccountService::listBanks - the other two degrade to a
- * free-text bank-name field, and resolveAccount() there similarly returns
- * null (not an error) rather than pretending it verified something it
- * can't, which is why this component treats "no name back" as an
- * unverified-but-allowed path rather than a failure. */
+/** Paystack's six supported countries (see StorePaymentAccountController's
+ * OA enum); which of them get a bank list or account resolution is the
+ * server's call, reported per request. See client/AGENTS.md. */
 const SUPPORTED_COUNTRIES = [
   { value: "nigeria", label: "Nigeria" },
   { value: "ghana", label: "Ghana" },
@@ -46,15 +41,24 @@ const SUPPORTED_COUNTRIES = [
 interface OnlinePaymentsSectionProps {
   storeId: string;
   storeName: string;
+  connectedSubaccountCode?: string | null;
+  connectedBankCode?: string | null;
+  connectedAccountLast4?: string | null;
 }
 
-export function OnlinePaymentsSection({ storeId }: OnlinePaymentsSectionProps) {
+export function OnlinePaymentsSection({
+  storeId,
+  connectedSubaccountCode,
+  connectedBankCode,
+  connectedAccountLast4,
+}: OnlinePaymentsSectionProps) {
   const [country, setCountry] = useState("");
   const [bankCode, setBankCode] = useState("");
   const [manualBankName, setManualBankName] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
   const [resolvedName, setResolvedName] = useState<string | null>(null);
   const [resolveAttempted, setResolveAttempted] = useState(false);
+  const [countryVerifiable, setCountryVerifiable] = useState(true);
   const [confirmedUnverifiable, setConfirmedUnverifiable] = useState(false);
 
   const { data: banksData } = useQuery({
@@ -68,6 +72,7 @@ export function OnlinePaymentsSection({ storeId }: OnlinePaymentsSectionProps) {
   const resetVerification = () => {
     setResolveAttempted(false);
     setResolvedName(null);
+    setCountryVerifiable(true);
     setConfirmedUnverifiable(false);
   };
 
@@ -80,6 +85,7 @@ export function OnlinePaymentsSection({ storeId }: OnlinePaymentsSectionProps) {
       }),
     onSuccess: (data) => {
       setResolvedName(data.account_name);
+      setCountryVerifiable(data.verifiable);
       setResolveAttempted(true);
     },
     onError: () => {
@@ -97,9 +103,8 @@ export function OnlinePaymentsSection({ storeId }: OnlinePaymentsSectionProps) {
       }),
     onSuccess: async () => {
       toast.success("Payment account connected.");
-      // Server-authoritative fields (paystack_subaccount_code etc.) are
-      // never written to local SQLite from here - pull them down through
-      // the normal sync cycle instead, same as every other server write.
+      // Server-authoritative paystack_* fields arrive by pull sync only,
+      // never written locally from here (see client/AGENTS.md).
       await sync(true);
     },
     onError: (error: unknown) => {
@@ -107,9 +112,33 @@ export function OnlinePaymentsSection({ storeId }: OnlinePaymentsSectionProps) {
     },
   });
 
-  const isUnverifiable = resolveAttempted && !resolvedName;
-  const canConnect = resolveAttempted && (resolvedName !== null || confirmedUnverifiable);
+  const isUnverifiable = resolveAttempted && !resolvedName && !countryVerifiable;
+  const isWrongAccount = resolveAttempted && !resolvedName && countryVerifiable;
+  const canConnect =
+    resolveAttempted && (resolvedName !== null || (confirmedUnverifiable && !countryVerifiable));
   const canVerify = !!country && !!accountNumber && !!effectiveBankCode && !resolveMutation.isPending;
+
+  if (connectedSubaccountCode) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Online Payments</CardTitle>
+          <CardDescription>
+            Customers can pay online at your storefront - the money goes straight to this account.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <p className="text-sm font-medium text-emerald-600">Connected</p>
+          <p className="text-sm text-muted-foreground">
+            Bank {connectedBankCode ?? "-"} - account ending ****{connectedAccountLast4 ?? "----"}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Contact support to change your bank details.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>
@@ -204,6 +233,13 @@ export function OnlinePaymentsSection({ storeId }: OnlinePaymentsSectionProps) {
 
         {resolveAttempted && resolvedName && (
           <p className="text-sm text-emerald-600">Pay to: {resolvedName}</p>
+        )}
+
+        {isWrongAccount && (
+          <p className="text-sm text-destructive">
+            We couldn&apos;t find that account. Please check the account number and bank - accounts
+            in this country are verified automatically, so these details look wrong.
+          </p>
         )}
 
         {isUnverifiable && (

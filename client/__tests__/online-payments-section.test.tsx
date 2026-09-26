@@ -23,7 +23,7 @@ beforeAll(() => {
 vi.mock("@/lib/api/client", () => ({
   apiClient: {
     getPaymentBanks: vi.fn(async () => ({ banks: [{ name: "GTBank", code: "058" }] })),
-    resolvePaymentAccount: vi.fn(async () => ({ account_name: "JANE M DOE" })),
+    resolvePaymentAccount: vi.fn(async () => ({ account_name: "JANE M DOE", verifiable: true })),
     createPaymentAccount: vi.fn(async () => ({ message: "Payment account connected." })),
   },
 }));
@@ -76,7 +76,10 @@ describe("OnlinePaymentsSection", () => {
   it("shows an unverified notice and requires an extra confirmation when resolution returns no name", async () => {
     const { apiClient } = await import("@/lib/api/client");
     vi.mocked(apiClient.getPaymentBanks).mockResolvedValueOnce({ banks: [] });
-    vi.mocked(apiClient.resolvePaymentAccount).mockResolvedValueOnce({ account_name: null });
+    vi.mocked(apiClient.resolvePaymentAccount).mockResolvedValueOnce({
+      account_name: null,
+      verifiable: false,
+    });
 
     render(<OnlinePaymentsSection storeId="store-1" storeName="Jane's Pharmacy" />, { wrapper });
 
@@ -103,5 +106,45 @@ describe("OnlinePaymentsSection", () => {
         confirmed_unverifiable: true,
       }),
     );
+  });
+
+  it("offers no manual override when the country can be verified and resolution fails", async () => {
+    const { apiClient } = await import("@/lib/api/client");
+    vi.mocked(apiClient.resolvePaymentAccount).mockResolvedValueOnce({
+      account_name: null,
+      verifiable: true,
+    });
+
+    render(<OnlinePaymentsSection storeId="store-1" storeName="Jane's Pharmacy" />, { wrapper });
+
+    await pickOption(/country/i, /nigeria/i);
+    await pickOption(/bank/i, /gtbank/i);
+    fireEvent.change(screen.getByLabelText(/account number/i), { target: { value: "0000000000" } });
+    fireEvent.click(screen.getByRole("button", { name: /verify/i }));
+
+    expect(await screen.findByText(/couldn.t find that account/i)).toBeTruthy();
+    expect(screen.queryByRole("checkbox", { name: /double.checked/i })).toBeNull();
+
+    const connectButton = screen.getByRole("button", { name: /connect/i }) as HTMLButtonElement;
+    expect(connectButton.disabled).toBe(true);
+  });
+
+  it("shows the connected account instead of the onboarding form once a subaccount exists", () => {
+    render(
+      <OnlinePaymentsSection
+        storeId="store-1"
+        storeName="Jane's Pharmacy"
+        connectedSubaccountCode="ACCT_live123"
+        connectedBankCode="058"
+        connectedAccountLast4="6789"
+      />,
+      { wrapper },
+    );
+
+    expect(screen.getByText(/connected/i)).toBeTruthy();
+    expect(screen.getByText(/\*\*\*\*6789/)).toBeTruthy();
+    expect(screen.getByText(/contact support/i)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /verify/i })).toBeNull();
+    expect(screen.queryByLabelText(/account number/i)).toBeNull();
   });
 });

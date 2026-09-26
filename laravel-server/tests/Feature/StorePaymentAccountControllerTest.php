@@ -164,6 +164,53 @@ class StorePaymentAccountControllerTest extends TestCase
         $this->assertSame('ACCT_rwanda123', $this->store->paystack_subaccount_code);
     }
 
+    public function test_resolve_reports_whether_the_country_can_be_verified_at_all()
+    {
+        Http::fake([
+            'api.paystack.co/bank/resolve*' => Http::response([
+                'status' => true,
+                'data' => ['account_name' => 'JANE M DOE'],
+            ], 200),
+        ]);
+
+        $this->actingAs($this->owner)
+            ->postJson("/api/v1/stores/{$this->store->id}/payment-account/resolve", [
+                'account_number' => '0123456789', 'bank_code' => '058', 'country' => 'nigeria',
+            ])
+            ->assertStatus(200)
+            ->assertJson(['verifiable' => true]);
+
+        $this->actingAs($this->owner)
+            ->postJson("/api/v1/stores/{$this->store->id}/payment-account/resolve", [
+                'account_number' => '1234567', 'bank_code' => '007', 'country' => 'rwanda',
+            ])
+            ->assertStatus(200)
+            ->assertJson(['verifiable' => false, 'account_name' => null]);
+    }
+
+    public function test_confirmed_unverifiable_is_refused_for_a_country_paystack_can_verify()
+    {
+        // A typo'd Nigerian account number must not be waved through the
+        // escape hatch meant for countries with no resolver at all.
+        Http::fake([
+            'api.paystack.co/bank/resolve*' => Http::response(['status' => false], 422),
+            'api.paystack.co/subaccount' => Http::response(['status' => true, 'data' => ['subaccount_code' => 'ACCT_should_not_be_called']], 200),
+        ]);
+
+        $response = $this->actingAs($this->owner)
+            ->postJson("/api/v1/stores/{$this->store->id}/payment-account", [
+                'account_number' => '0000000000',
+                'bank_code' => '058',
+                'country' => 'nigeria',
+                'confirmed_unverifiable' => true,
+            ]);
+
+        $response->assertStatus(422);
+        Http::assertNothingSent();
+        $this->store->refresh();
+        $this->assertNull($this->store->paystack_subaccount_code);
+    }
+
     public function test_creating_a_payment_account_is_idempotent_once_already_connected()
     {
         Http::fake(['api.paystack.co/subaccount' => Http::response([

@@ -38,7 +38,7 @@ export class FleetBillingApiClient extends BaseApiClient {
     storeId: string,
     payload: { account_number: string; bank_code: string; country: string },
   ) {
-    return this.request<{ account_name: string | null }>(
+    return this.request<{ account_name: string | null; verifiable: boolean }>(
       `/stores/${storeId}/payment-account/resolve`,
       {
         method: "POST",
@@ -47,10 +47,8 @@ export class FleetBillingApiClient extends BaseApiClient {
     );
   }
 
-  // confirmed_unverifiable is required by the server (422 otherwise) when
-  // resolveAccount() can't verify this country/bank combination - see
-  // StoreController::createPaymentAccount, which re-resolves server-side
-  // and only accepts this flag as a substitute for a real resolved name.
+  // confirmed_unverifiable is only accepted for a country the resolve
+  // endpoint reports as verifiable: false (see client/AGENTS.md).
   async createPaymentAccount(
     storeId: string,
     payload: { account_number: string; bank_code: string; country: string; confirmed_unverifiable?: boolean },

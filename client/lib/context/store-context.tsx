@@ -61,6 +61,13 @@ export interface StoreProfile {
   loyalty_points_per_currency?: number;
   uppercase_display_enabled?: number;
   store_slug?: string;
+  /** Server-set by the online-payment onboarding endpoint and pulled down by
+   * sync; read-only here (nothing in this app may write them, see
+   * client/AGENTS.md). The bank code and last 4 exist purely so the settings
+   * panel can show which account a connected store settles to. */
+  paystack_subaccount_code?: string | null;
+  paystack_bank_code?: string | null;
+  paystack_account_number_last4?: string | null;
   /** Server-set the last time store_slug actually changed (not on the
    * first-ever set) - drives the Settings UI's "you can change this again
    * on [date]" cooldown message. Read-only: nothing in this app writes it. */

@@ -259,32 +259,65 @@ covered by `client/__tests__/read-only-tab-skips-migration-persistence.test.ts`.
 
 ### 2.3 Reads
 
-`query()` — `core.ts:362-497`. Single shared sql.js connection, no reader isolation. Two
-concurrency defences already live here and are worth understanding before proposing any change:
-- a yield every `QUERY_YIELD_INTERVAL = 200` rows (`core.ts:323`, `core.ts:440-443`) so a large
-  result set doesn't block paint, since sql.js runs on the main thread (`core.ts:425-427`);
-- a `writeEpoch` torn-read detector (`core.ts:349-360`, checked at `core.ts:454-461`) that
-  re-runs a read if a write landed while it was suspended at a yield, plus a
-  `closed|finalized|bad parameter|api misuse|allocation failed` retry (`core.ts:485-489`).
+`query()` — `core.ts:434-577`. Single shared sql.js connection, no reader isolation.
 
-These exist *because* sql.js has one connection shared by everything in the tab. Any
-architecture that moves the engine off the main thread (§3b/§3c/§3e) makes most of this
-machinery unnecessary, which is a real simplification argument.
+**Fixed 2026-09-26** (see `docs/FIXED_BUGS.md`): `query()` (when called outside an open
+`transaction()`) now reserves the same connection-wide lock as `transaction()`/`execute()` —
+`reserveDbSlot()`, `core.ts:744` — for its *entire* duration, including every yield below, not
+just around the yields. This makes the interleaving this section used to describe structurally
+impossible for any caller going through `query()`/`execute()`/`transaction()`: a write can never
+land while a read is mid-statement, and vice versa, because only one operation ever holds the
+lock at a time. A read issued from inside an already-open `transaction()` skips reserving its own
+slot — the enclosing transaction already holds it, and reserving again would deadlock waiting on
+itself.
+
+The defences that existed *before* that fix are kept as defense-in-depth (harmless now that the
+lock rules the race out, but cheap insurance against anything else that produces the same
+symptom):
+- a yield every `QUERY_YIELD_INTERVAL = 200` rows (`core.ts:387`) so a large result set doesn't
+  block paint, since sql.js runs on the main thread;
+- a `writeEpoch` torn-read detector (`core.ts:413-432`) that re-runs a read if a write landed
+  while it was suspended at a yield, plus a `closed|finalized|bad parameter|api misuse|allocation
+  failed` retry (`core.ts:490`, capped at `MAX_MISUSE_RETRIES = 2`).
+
+This was a real, reproduced-in-production bug before the lock: `insert()`/`update()`/
+`softDelete()`/`remove()` each opening their own `transaction()` (2026-09-24) made a write's
+`BEGIN` land mid-yield of an unrelated `query()` far more often, surfacing as an uncaught
+"Statement closed" or sql.js's own SQLITE_MISUSE string ("bad parameter or other API misuse") —
+seen both from the sync engine (`sync-engine/index.ts`'s crash-logger `area: "sync-run"`) and,
+separately, from a fast login racing `DatabaseProvider`'s unawaited boot-time background jobs
+(`requeueOrphanedRows()`'s per-table scan in particular). See `client/__tests__/
+query-torn-read-retry.test.ts` and `client/__tests__/query-retries-on-statement-closed.test.ts`
+for the regression coverage.
+
+These concerns (and the lock) exist *because* sql.js has one connection shared by everything in
+the tab. Any architecture that moves the engine off the main thread (§3b/§3c/§3e) makes most of
+this machinery unnecessary, which is a real simplification argument.
 
 ### 2.4 Writes and persistence — where data loss is still possible
 
-`execute()` — `core.ts:562-592`:
+`execute()` — `core.ts:653-680`. When called from inside an open `transaction()`, it runs inline
+against that transaction's already-held lock (no separate reservation — would deadlock):
 ```
-assertWritable()            core.ts:582   (throws on a read-only tab; Tauri bypasses)
-db.run(sql, params)         core.ts:584
-bumpWriteEpoch()            core.ts:588
-if (!inTransaction) void saveDatabase()   core.ts:589-591
+assertWritable()
+db.run(sql, params)
+bumpWriteEpoch()
+```
+When called outside a transaction, it now reserves the same connection-wide lock as `query()`/
+`transaction()` first (`reserveDbSlot()`, `core.ts:744`):
+```
+reserveDbSlot() -> await previous
+assertWritable()            (throws on a read-only tab; Tauri bypasses)
+db.run(sql, params)
+bumpWriteEpoch()
+void saveDatabase()         (fire-and-forget; see the unpersisted-state windows below)
+release()
 ```
 
-`transaction()` — `core.ts:676-758`: serialized through `transactionQueue` (`core.ts:623`,
-reserved synchronously at `core.ts:680-687`), `assertWritable()` at `core.ts:703`,
-`BEGIN`/`COMMIT`/`ROLLBACK` at `core.ts:707-741`, and exactly **one** `await saveDatabase()` in
-the `finally` (`core.ts:744-747`) instead of one per statement.
+`transaction()` — `core.ts:804+`: serialized through `transactionQueue` via the shared
+`reserveDbSlot()` helper (`core.ts:732`, `core.ts:744-751`, reserved synchronously at the top of
+`transaction()`), `assertWritable()`, `BEGIN`/`COMMIT`/`ROLLBACK`, and exactly **one**
+`await saveDatabase()` in the `finally` instead of one per statement.
 
 `saveDatabase()` — `core.ts:281-304`: `db.export()` (a full re-serialization of the entire
 database, `core.ts:283`) then `set("dumosrx_db", data)`. On failure it console.errors and

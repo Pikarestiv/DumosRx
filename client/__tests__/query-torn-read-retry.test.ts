@@ -82,7 +82,7 @@ describe("query() vs. a write interleaved into its row-fetch yield", () => {
     }
   };
 
-  it("re-runs the read when a write lands mid-statement", async () => {
+  it("queues a write behind an in-flight read instead of letting it land mid-statement", async () => {
     seedProducts();
 
     const { prepares, result } = await countPreparesDuring(async () => {
@@ -90,20 +90,33 @@ describe("query() vs. a write interleaved into its row-fetch yield", () => {
         "SELECT id FROM products WHERE _deleted = 0 ORDER BY id",
       );
 
-      // Land a write while the read above is suspended at a yield point.
+      // Attempt to land a write while the read above would have been
+      // suspended at a yield point under the old, un-serialized behavior.
       // This is the shape of a sync apply draining its backlog underneath
       // an open catalog query.
       await new Promise((r) => setTimeout(r, 0));
-      await core.execute("UPDATE products SET _deleted = 1 WHERE id = ?", ["p0"]);
+      const writing = core.execute(
+        "UPDATE products SET _deleted = 1 WHERE id = ?",
+        ["p0"],
+      );
 
-      return reading;
+      const [rows] = await Promise.all([reading, writing]);
+      return rows;
     });
 
-    expect(prepares).toBeGreaterThan(1);
+    // The read never got torn, so it needed exactly one prepare — no retry.
+    expect(prepares).toBe(1);
 
     const rows = result as { id: string }[];
-    expect(rows).toHaveLength(ROW_COUNT - 1);
-    expect(rows.some((r) => r.id === "p0")).toBe(false);
+    expect(rows).toHaveLength(ROW_COUNT);
+    expect(rows.some((r) => r.id === "p0")).toBe(true);
+
+    // The write still lands — just only after the read released the
+    // connection, never interleaved into it.
+    const after = await core.query<{ id: string }>(
+      "SELECT id FROM products WHERE _deleted = 0",
+    );
+    expect(after).toHaveLength(ROW_COUNT - 1);
   });
 
   it("never reports an open transaction's uncommitted intermediate state", async () => {

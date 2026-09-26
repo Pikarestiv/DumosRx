@@ -168,6 +168,18 @@ migration here **and** the corresponding update on the `client/` side
   respect it, and a column that's `forceFill`-writable but not
   `$fillable` is a silent trap for the next person who writes a normal
   Eloquent update against the same model.
+- **Server-authoritative columns need an explicit push-side strip, not just
+  a `$fillable` exclusion** (same reason as the `forceFill` note above).
+  `normalizePushPayload()` holds the per-table strip lists:
+  `USER_SYNC_FORBIDDEN_FIELDS`/`sanitizeUserSyncPayload()` for `users`,
+  `STORE_SYNC_FORBIDDEN_FIELDS` for `stores` (every `paystack_*` column —
+  settlement destination and the fee-dirty flag), and `stock_batches.quantity`
+  inline in `push()`. `authorizeChangeTarget()` admits **any** caller whose
+  allowed stores include the row — staff, not just the owner — so a money-
+  routing column riding the generic push is a settlement-redirect hole, not a
+  theoretical one. Anything only a dedicated endpoint or a console command may
+  set belongs in one of those lists in the same change that adds it.
+  Coverage: `tests/Feature/SyncStoresPaystackFieldGuardTest.php`.
 - **A MySQL `ENUM` column for a client-controlled string field is a
   recurring footgun, not a one-off bug:** `stock_movements.movement_type`
   was created as an `ENUM` back in 2024 that never actually matched every

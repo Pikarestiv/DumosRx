@@ -26,6 +26,7 @@ export function CheckoutForm({ storeSlug }: CheckoutFormProps) {
   // agrees to is the total they're actually charged.
   const [pricesLoading, setPricesLoading] = useState(true);
   const [pricesStale, setPricesStale] = useState(false);
+  const [onlinePaymentAvailable, setOnlinePaymentAvailable] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -39,10 +40,12 @@ export function CheckoutForm({ storeSlug }: CheckoutFormProps) {
       }
 
       try {
-        const { data } = await apiClient.get<{ products: StorefrontProduct[] }>(
+        const { data } = await apiClient.get<{ products: StorefrontProduct[]; online_payment_available?: boolean }>(
           `/storefront/${storeSlug}`
         );
         if (cancelled) return;
+
+        setOnlinePaymentAvailable(!!data.online_payment_available);
 
         const prices: Record<string, number> = {};
         for (const product of data.products ?? []) {
@@ -77,7 +80,8 @@ export function CheckoutForm({ storeSlug }: CheckoutFormProps) {
     customer_name: "",
     customer_phone: "",
     customer_address: "",
-    payment_method: "in_store", // transfer, in_store
+    customer_email: "",
+    payment_method: "in_store", // transfer, in_store, paystack
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -102,17 +106,29 @@ export function CheckoutForm({ storeSlug }: CheckoutFormProps) {
       return;
     }
 
+    if (formData.payment_method === 'paystack' && !formData.customer_email) {
+      toast.error("Email is required to pay online");
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const payload = {
-        ...formData,
-        items: cart.items.map(item => ({
-          product_id: item.id,
-          quantity: item.quantity
-        }))
-      };
+      const items = cart.items.map(item => ({
+        product_id: item.id,
+        quantity: item.quantity
+      }));
 
+      if (formData.payment_method === 'paystack') {
+        const { data } = await apiClient.post<{ payment_url: string }>(
+          `/storefront/${storeSlug}/checkout/initialize`,
+          { customer_email: formData.customer_email, items },
+        );
+        window.location.href = data.payment_url;
+        return;
+      }
+
+      const payload = { ...formData, items };
       await apiClient.post(`/storefront/${storeSlug}/checkout`, payload);
 
       toast.success("Order placed successfully!");
@@ -201,7 +217,30 @@ export function CheckoutForm({ storeSlug }: CheckoutFormProps) {
                     <input type="radio" id="transfer" name="payment_method" value="transfer" className="sr-only" checked={formData.payment_method === 'transfer'} onChange={() => handleMethodChange('transfer')} />
                     Bank Transfer
                   </Label>
+                  {onlinePaymentAvailable && (
+                    <Label
+                      htmlFor="paystack"
+                      className={`flex flex-col items-center justify-between rounded-md border-2 p-4 cursor-pointer hover:bg-accent hover:text-accent-foreground ${formData.payment_method === 'paystack' ? 'border-primary' : 'border-muted bg-popover'}`}
+                      onClick={() => handleMethodChange('paystack')}
+                    >
+                      <input type="radio" id="paystack" name="payment_method" value="paystack" className="sr-only" checked={formData.payment_method === 'paystack'} onChange={() => handleMethodChange('paystack')} />
+                      Pay Online
+                    </Label>
+                  )}
                 </div>
+                {formData.payment_method === 'paystack' && (
+                  <div className="space-y-2">
+                    <Label htmlFor="customer_email">Email *</Label>
+                    <Input
+                      id="customer_email"
+                      name="customer_email"
+                      type="email"
+                      required
+                      value={formData.customer_email}
+                      onChange={handleInputChange}
+                    />
+                  </div>
+                )}
               </div>
             </CardContent>
             <CardFooter className="flex-col items-stretch gap-2">

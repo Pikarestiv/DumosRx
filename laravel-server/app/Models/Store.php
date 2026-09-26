@@ -67,6 +67,10 @@ class Store extends Model
         'staff_can_request_transfers',
         'markup_sales_enabled',
         'timezone',
+        'paystack_subaccount_code',
+        'paystack_subaccount_country',
+        'paystack_bank_code',
+        'paystack_account_number_last4',
     ];
 
     protected $casts = [
@@ -85,6 +89,7 @@ class Store extends Model
         'loyalty_defaults_seeded_at' => 'datetime',
         'store_slug_changed_at' => 'datetime',
         'storefront_dirty_at' => 'datetime',
+        'paystack_fee_dirty_at' => 'datetime',
     ];
 
     /**

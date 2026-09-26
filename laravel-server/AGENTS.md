@@ -282,16 +282,22 @@ the point of payment by Paystack itself, so the store's share settles
 straight to their own bank account.
 
 - **Onboarding flow** (`PaystackSubaccountService`, store-owner endpoints on
-  `StoreController`): `GET /store/payment-banks?country=` wraps Paystack's
+  `Api/Web/StorePaymentAccountController`): `GET /store/payment-banks?country=` wraps Paystack's
   bank-list endpoint — **note this isn't universally available across
   Paystack's six supported countries**; it's documented for Nigeria, Ghana,
   Kenya and South Africa, not confirmed for Rwanda or Côte d'Ivoire, and
   returns `[]` rather than throwing when Paystack has nothing, which the
   client is expected to render as a plain bank-name text field rather than a
   dropdown. `POST /store/payment-account/resolve` wraps Paystack's
-  resolve-account endpoint, which is Nigeria/Ghana-only; it returns `null`
-  (not a fabricated guess) everywhere else, and that's a normal outcome, not
-  an error — never logged as a failure. `POST /store/payment-account` calls
+  resolve-account endpoint, which is Nigeria/Ghana-only (`RESOLVE_COUNTRIES`);
+  it returns `null` (not a fabricated guess) everywhere else, and that's a
+  normal outcome, not an error — never logged as a failure. It also reports
+  `verifiable`, and that distinction is load-bearing: **`confirmed_unverifiable`
+  is accepted only for a country outside `RESOLVE_COUNTRIES`.** Inside it, a
+  null resolution means the account details are wrong, so the override is
+  refused with a 422 rather than letting a typo'd Nigerian account through the
+  escape hatch built for Rwanda/Côte d'Ivoire/Kenya/South Africa.
+  `POST /store/payment-account` calls
   `createSubaccount()` and persists only the subaccount code, country, bank
   code, and the **masked last 4 digits** of the account number — the full
   number is never stored beyond what the create call needs in flight. This

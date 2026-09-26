@@ -36,6 +36,70 @@ class StorefrontController extends Controller
         return $subscriptionService->hasFeature($owner, 'store_url');
     }
 
+    /**
+     * Upper bound on how many products one storefront response returns.
+     * Well above any real catalog's online selection, so no existing store is
+     * truncated; it exists so an unauthenticated GET can never be asked to
+     * serialise an unbounded result set. True pagination is a separate,
+     * client-visible change (see docs/STOREFRONT_REVIEW.md, SF-P3-3).
+     */
+    private const MAX_STOREFRONT_PRODUCTS = 300;
+
+    /**
+     * Products this store publishes. Scoped by store_id, not just the owner's
+     * user_id: a multi-store owner's storefronts are separate shops and must
+     * not list each other's catalogue. Rows predating the store_id backfill
+     * (2026_08_14_164310_add_store_id_to_domain_tables) are tolerated via the
+     * NULL branch; drop it once a backfill is confirmed.
+     */
+    private function storeProducts(Store $store): \Illuminate\Database\Eloquent\Builder
+    {
+        return Product::where('user_id', $store->user_id)
+            ->where(fn ($q) => $q->where('store_id', $store->id)->orWhereNull('store_id'))
+            ->where('is_active', true)
+            ->where('show_online', true);
+    }
+
+    /**
+     * Stock this store can still promise: its own batches, minus everything
+     * already committed to orders that are placed but not yet fulfilled.
+     * Online orders don't deduct stock at placement (staff deduct on
+     * fulfilment), so without the pending subtraction the last unit sells to
+     * every customer who asks for it.
+     */
+    private function availableQuantity(Store $store, string $productId): float
+    {
+        $inStock = (float) StockBatch::where('product_id', $productId)
+            ->where(fn ($q) => $q->where('store_id', $store->id)->orWhereNull('store_id'))
+            ->sum('quantity');
+
+        $committed = (float) \App\Models\OnlineOrderItem::where('product_id', $productId)
+            ->whereHas('order', fn ($q) => $q
+                ->where('store_id', $store->id)
+                ->where('order_status', 'pending'))
+            ->sum('quantity');
+
+        return $inStock - $committed;
+    }
+
+    /**
+     * @return ?\Illuminate\Http\JsonResponse 422 naming the first short line
+     */
+    private function checkAvailability(Store $store, array $orderItems, array $productNames): ?\Illuminate\Http\JsonResponse
+    {
+        foreach ($orderItems as $item) {
+            if ($this->availableQuantity($store, $item['product_id']) < $item['quantity']) {
+                $name = $productNames[$item['product_id']] ?? 'this item';
+
+                return response()->json([
+                    'message' => "Insufficient stock for {$name}.",
+                ], 422);
+            }
+        }
+
+        return null;
+    }
+
     #[OA\Get(
         path: '/storefront-slugs',
         summary: 'List every store slug with an active online store',
@@ -115,11 +179,10 @@ class StorefrontController extends Controller
             return response()->json(['error' => 'Store unavailable'], 404);
         }
 
-        // We fetch products that are active and marked to show online
-        $products = Product::with('category')
-            ->where('user_id', $store->user_id)
-            ->where('is_active', true)
-            ->where('show_online', true)
+        $products = $this->storeProducts($store)
+            ->with('category')
+            ->orderBy('name')
+            ->limit(self::MAX_STOREFRONT_PRODUCTS)
             ->get();
 
         // Whitelisted through a resource - the raw Product model is unguarded
@@ -149,15 +212,13 @@ class StorefrontController extends Controller
      * payment reference is minted for can never be derived differently from
      * the amount the resulting order is created for.
      *
-     * @return array{0: float, 1: array, 2: ?\Illuminate\Http\JsonResponse}
-     *         [$totalAmount, $orderItems, $errorResponse]
+     * @return array{0: float, 1: array, 2: ?\Illuminate\Http\JsonResponse, 3: array<string,string>}
+     *         [$totalAmount, $orderItems, $errorResponse, $productNamesById]
      */
     private function priceCart(Store $store, array $items): array
     {
         $productIds = collect($items)->pluck('product_id')->unique();
-        $products = Product::where('user_id', $store->user_id)
-            ->where('is_active', true)
-            ->where('show_online', true)
+        $products = $this->storeProducts($store)
             ->whereIn('id', $productIds)
             ->get()
             ->keyBy('id');
@@ -168,24 +229,11 @@ class StorefrontController extends Controller
 
         $totalAmount = 0;
         $orderItems = [];
+        $productNames = $products->pluck('name', 'id')->all();
 
         foreach ($items as $item) {
             $product = $products[$item['product_id']];
             $requestedQty = $item['quantity'];
-
-            // Available stock is the sum of the product's stock batches
-            // (products carry no stock field of their own - see
-            // 2026_06_27_230048_migrate_stock_and_drop_stock_quantity_from_products).
-            // This only checks availability; unlike POS/SaleController it
-            // does not deduct anything yet - online orders start "pending"
-            // and stock is deducted when staff fulfil them (see the client's
-            // useFulfillOnlineOrderMutation), same as before this fix.
-            $availableQty = StockBatch::where('product_id', $product->id)->sum('quantity');
-            if ($availableQty < $requestedQty) {
-                return [0.0, [], response()->json([
-                    'message' => "Insufficient stock for {$product->name}.",
-                ], 422)];
-            }
 
             $subtotal = $product->selling_price * $requestedQty;
             $totalAmount += $subtotal;
@@ -198,7 +246,16 @@ class StorefrontController extends Controller
             ];
         }
 
-        return [(float) $totalAmount, $orderItems, null];
+        // Availability only - nothing is deducted here. Stock leaves the
+        // ledger when staff fulfil the order in the POS client (see
+        // useFulfillOnlineOrderMutation), which is why availableQuantity()
+        // has to net off the orders already waiting to be fulfilled.
+        $stockError = $this->checkAvailability($store, $orderItems, $productNames);
+        if ($stockError) {
+            return [0.0, [], $stockError, $productNames];
+        }
+
+        return [(float) $totalAmount, $orderItems, null, $productNames];
     }
 
     #[OA\Post(
@@ -381,7 +438,7 @@ class StorefrontController extends Controller
         // response stays purchasable forever even after being deactivated
         // or hidden from the online store - fetched in one batch rather
         // than one query per item.
-        [$totalAmount, $orderItems, $error] = $this->priceCart($store, $validated['items']);
+        [$totalAmount, $orderItems, $error, $productNames] = $this->priceCart($store, $validated['items']);
         if ($error) {
             return $error;
         }
@@ -490,7 +547,20 @@ class StorefrontController extends Controller
             // part-way through would otherwise leave a paid order with zero
             // items while having permanently burned the payment reference
             // (the unique index means it can never be retried).
-            $order = \Illuminate\Support\Facades\DB::transaction(function () use ($store, $validated, $totalAmount, $paymentStatus, $orderItems, $intent) {
+            $order = \Illuminate\Support\Facades\DB::transaction(function () use ($store, $validated, $totalAmount, $paymentStatus, $orderItems, $productNames, $intent) {
+                // Serialises order creation for this one store so the
+                // availability re-check below actually holds: two concurrent
+                // carts for the last unit would otherwise each read the
+                // other's pending order as not-yet-existing (REPEATABLE READ)
+                // and both be accepted. Storefront order volume per store is
+                // low enough that a per-store lock costs nothing.
+                Store::where('id', $store->id)->lockForUpdate()->first();
+
+                $stockError = $this->checkAvailability($store, $orderItems, $productNames);
+                if ($stockError) {
+                    throw new \App\Exceptions\StorefrontStockUnavailableException($stockError);
+                }
+
                 // Consume the reservation under a row lock in the same
                 // transaction that creates the order, so two concurrent
                 // confirmations of one reference can't both mint an order:
@@ -530,6 +600,8 @@ class StorefrontController extends Controller
 
                 return $order;
             });
+        } catch (\App\Exceptions\StorefrontStockUnavailableException $e) {
+            return $e->getResponse();
         } catch (\App\Exceptions\PaymentReferenceAlreadyUsedException $e) {
             return response()->json([
                 'message' => 'This payment reference has already been used for another order.',

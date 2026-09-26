@@ -104,6 +104,19 @@ bespoke multi-row writes (and even then, wrap them in
 inserts/updates across `stock_audits`, `stock_batches`, `stock_movements`,
 and `products` in one atomic transaction).
 
+**`insert()`'s store auto-scope treats `null` like `undefined`.** It fills in
+`store_id` from `getActiveStoreId()` when the caller passed `data.store_id ==
+null` — a loose `==` on purpose, not a typo. A store **owner**'s own
+`users.store_id` is deliberately always NULL (they "have" a store via
+`stores.user_id`), so any caller forwarding `user.store_id` hands this an
+explicit `null`; the old strict `=== undefined` let that through and wrote a
+NULL-scoped row, which every store-scoped read (`... ${storeId ? " AND
+store_id = ?" : ""}`, dozens of sites) then filtered out. The online-order
+fulfilment path did exactly this and lost the money from every report — see
+`docs/FIXED_BUGS.md` (SF-P2-6). Passing an explicit *other* store id still
+wins, as before. Prefer `user?.store_id ?? storeProfile?.id` at call sites
+anyway; don't rely on the helper alone.
+
 **`options.correlationId`** (added 2026-09-23, all four helpers +
 `logAction()` in `core.ts`) ties every `audit_logs` row one multi-step
 operation writes together — e.g. a single sale's ~10-15 rows across
@@ -566,6 +579,66 @@ npm run tauri dev        # (if configured) desktop app against the dev server
 npm run build             # production Next build
 npm run release           # scripts/release.ts: version bump + release flow
 ```
+
+## Online storefront orders (`components/pos/online-orders-modal.tsx`)
+
+Orders placed on the public storefront (`web/app/store/[store_slug]/`) are
+fetched from the API, never synced into local SQLite — there is no
+`online_orders` table in `lib/db/schema.ts`. Fulfilling one is what turns it
+into local data.
+
+**`useFulfillOnlineOrderMutation` writes locally FIRST, in one
+`transaction()`, and only then calls the server. Don't re-invert that.** The
+original order (server first, local writes after) meant any failure in the
+local leg — a SQLite write error, the writer-tab lock, the app being killed
+mid-loop, one item of several throwing — left the order server-side
+`fulfilled` and therefore hidden from this modal's `pending`-only actionable
+list, with no sale recorded and stock never deducted: revenue missing from
+every report, inventory permanently overstated, silent and unrecoverable
+through the UI. Now a server failure is a retryable error with correct local
+books already queued in `_sync_queue`, and a local failure rolls back whole.
+The retry is only safe because the server rejects a non-`pending` transition
+with a 409. Full writeup: `docs/FIXED_BUGS.md` (SF-P2-5/SF-P3-6).
+
+`apiClient.fulfillOnlineOrder()` sends `payment_confirmed: true` explicitly —
+the server no longer infers payment from fulfilment, and "Fulfill & Deduct
+Stock" is pressed at the counter as the goods are handed over and the money
+is taken. `GET /app/online-orders` is now bounded to 50 newest-first with a
+`has_more` flag; the modal renders whatever it's given, so a deeper history
+needs a real paginated view.
+
+## Publishing products to the online storefront
+
+`products.show_online` defaults off. Three ways to change it, in increasing
+bulk:
+
+1. The per-product switch in `add-product-dialog.tsx`.
+2. The **CSV/XLSX importer** (`lib/utils/product-import-export.ts`), which
+   handles a `show_online` column with the header spellings owners actually
+   type and `parseBooleanValue()`'s accepted values. An unrecognised or blank
+   cell returns `undefined` and the product keeps whatever it has — never
+   guess, or an ambiguous spreadsheet silently publishes a catalog to a public
+   page. The exporter emits `Yes`/`No` under "Show in Online Store", the same
+   spelling the importer reads, so export → edit → re-import is itself a bulk
+   path.
+3. The **"Online" dropdown** on the catalog toolbar
+   (`components/products/bulk-show-online-action.tsx`), which follows that
+   toolbar's existing convention of acting on the **currently-filtered set**
+   ("what's on screen", same as Export) and falls back to the whole store when
+   no filter is active. Hidden unless `storeProfile.online_store_enabled`.
+   `setProductsShowOnline()` skips rows already in the target state so it
+   doesn't queue a no-op sync push per product.
+
+There is no row-checkbox bulk-selection pattern in the products table and
+none was invented for this; the filtered-set convention already existed. The
+spreadsheet reader/writer plumbing lives in `lib/utils/spreadsheet-io.ts` and
+is re-exported from `product-import-export.ts` (that file was over the
+350-line limit); import either path, they're the same symbols.
+
+Changing `show_online`, `selling_price`, `name` or `is_active` server-side
+dirties the owning store's storefront and schedules a full static rebuild
+(~15 minutes at best) — see `laravel-server/AGENTS.md`. The UI copy says as
+much, so don't promise instant updates anywhere.
 
 ## Current focus / recent work (update this section as work continues)
 

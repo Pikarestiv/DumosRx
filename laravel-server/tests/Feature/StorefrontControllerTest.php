@@ -775,4 +775,182 @@ class StorefrontControllerTest extends TestCase
         $response->assertStatus(422);
         $this->assertDatabaseCount('online_orders', 0);
     }
+
+    /**
+     * The sibling of test_storefront_only_shows_its_own_stores_products, which
+     * builds two different OWNERS and therefore only ever exercised
+     * cross-tenant isolation. Multi-store is a supported, plan-gated state, and
+     * one owner's two storefronts are separate shops: products were scoped by
+     * user_id alone, so each storefront listed both stores' catalogues.
+     */
+    private function secondStoreForOwnerA(): Store
+    {
+        return Store::create([
+            'user_id' => $this->ownerA->id, 'name' => 'Store A2',
+            'store_slug' => 'store-a2', 'device_id' => 'WEB-A2',
+            'online_store_enabled' => true,
+        ]);
+    }
+
+    public function test_storefront_excludes_products_belonging_to_another_store_of_the_same_owner()
+    {
+        $storeA2 = $this->secondStoreForOwnerA();
+
+        Product::create([
+            'name' => 'Store A Only', 'selling_price' => 100, 'is_active' => true,
+            'show_online' => true, 'user_id' => $this->ownerA->id, 'store_id' => $this->storeA->id,
+        ]);
+        Product::create([
+            'name' => 'Store A2 Only', 'selling_price' => 100, 'is_active' => true,
+            'show_online' => true, 'user_id' => $this->ownerA->id, 'store_id' => $storeA2->id,
+        ]);
+
+        $response = $this->getJson('/api/v1/storefront/store-a');
+
+        $response->assertStatus(200);
+        $response->assertJsonCount(1, 'products');
+        $response->assertJsonMissing(['name' => 'Store A2 Only']);
+    }
+
+    public function test_checkout_rejects_a_product_belonging_to_another_store_of_the_same_owner()
+    {
+        $storeA2 = $this->secondStoreForOwnerA();
+        $product = $this->purchasableProduct([
+            'name' => 'Store A2 Panadol', 'selling_price' => 100,
+            'user_id' => $this->ownerA->id, 'store_id' => $storeA2->id,
+        ]);
+
+        $response = $this->postJson('/api/v1/storefront/store-a/checkout', [
+            'customer_name' => 'Jane Doe',
+            'customer_phone' => '08000000000',
+            'payment_method' => 'in_store',
+            'items' => [['product_id' => $product->id, 'quantity' => 1]],
+        ]);
+
+        $response->assertStatus(404);
+        $this->assertDatabaseCount('online_orders', 0);
+    }
+
+    public function test_availability_does_not_count_another_stores_stock_batches()
+    {
+        $storeA2 = $this->secondStoreForOwnerA();
+        $product = Product::create([
+            'name' => 'Shared Name', 'selling_price' => 100, 'is_active' => true,
+            'show_online' => true, 'user_id' => $this->ownerA->id, 'store_id' => $this->storeA->id,
+        ]);
+
+        StockBatch::create([
+            'product_id' => $product->id, 'user_id' => $this->ownerA->id,
+            'store_id' => $this->storeA->id, 'batch_number' => 'B-A1',
+            'quantity' => 1, 'cost_price' => 10, 'expiry_date' => now()->addYear(),
+        ]);
+        StockBatch::create([
+            'product_id' => $product->id, 'user_id' => $this->ownerA->id,
+            'store_id' => $storeA2->id, 'batch_number' => 'B-A2',
+            'quantity' => 50, 'cost_price' => 10, 'expiry_date' => now()->addYear(),
+        ]);
+
+        $response = $this->postJson('/api/v1/storefront/store-a/checkout', [
+            'customer_name' => 'Jane Doe',
+            'customer_phone' => '08000000000',
+            'payment_method' => 'in_store',
+            'items' => [['product_id' => $product->id, 'quantity' => 5]],
+        ]);
+
+        $response->assertStatus(422);
+        $this->assertDatabaseCount('online_orders', 0);
+    }
+
+    /**
+     * Online orders don't deduct stock at placement (staff deduct when they
+     * fulfil), so raw batch quantity sold the last unit to every customer who
+     * asked for it. Availability now nets off everything already committed to
+     * pending orders.
+     */
+    public function test_checkout_rejects_an_order_for_stock_already_committed_to_a_pending_order()
+    {
+        $product = Product::create([
+            'name' => 'Last Unit', 'selling_price' => 100, 'is_active' => true,
+            'show_online' => true, 'user_id' => $this->ownerA->id, 'store_id' => $this->storeA->id,
+        ]);
+        StockBatch::create([
+            'product_id' => $product->id, 'user_id' => $this->ownerA->id,
+            'store_id' => $this->storeA->id, 'batch_number' => 'B-ONE',
+            'quantity' => 1, 'cost_price' => 10, 'expiry_date' => now()->addYear(),
+        ]);
+
+        $order = [
+            'customer_name' => 'Jane Doe',
+            'customer_phone' => '08000000000',
+            'payment_method' => 'in_store',
+            'items' => [['product_id' => $product->id, 'quantity' => 1]],
+        ];
+
+        $this->postJson('/api/v1/storefront/store-a/checkout', $order)->assertStatus(201);
+        $this->postJson('/api/v1/storefront/store-a/checkout', $order)->assertStatus(422);
+
+        $this->assertDatabaseCount('online_orders', 1);
+    }
+
+    public function test_a_fulfilled_order_stops_holding_stock_against_availability()
+    {
+        $product = Product::create([
+            'name' => 'Restockable', 'selling_price' => 100, 'is_active' => true,
+            'show_online' => true, 'user_id' => $this->ownerA->id, 'store_id' => $this->storeA->id,
+        ]);
+        StockBatch::create([
+            'product_id' => $product->id, 'user_id' => $this->ownerA->id,
+            'store_id' => $this->storeA->id, 'batch_number' => 'B-TWO',
+            'quantity' => 2, 'cost_price' => 10, 'expiry_date' => now()->addYear(),
+        ]);
+
+        $order = [
+            'customer_name' => 'Jane Doe',
+            'customer_phone' => '08000000000',
+            'payment_method' => 'in_store',
+            'items' => [['product_id' => $product->id, 'quantity' => 2]],
+        ];
+
+        $first = $this->postJson('/api/v1/storefront/store-a/checkout', $order);
+        $first->assertStatus(201);
+
+        \App\Models\OnlineOrder::find($first->json('order.id'))->update(['order_status' => 'fulfilled']);
+
+        // The fulfilled order's stock has left the ledger in the POS client, so
+        // its quantity must not ALSO be held back here - otherwise a store that
+        // restocks can never sell the product online again.
+        $this->postJson('/api/v1/storefront/store-a/checkout', $order)->assertStatus(201);
+    }
+
+    public function test_show_caps_how_many_products_one_storefront_response_returns()
+    {
+        $reflection = new \ReflectionClass(\App\Http\Controllers\Api\Public\StorefrontController::class);
+        $cap = $reflection->getConstant('MAX_STOREFRONT_PRODUCTS');
+
+        $this->assertIsInt($cap);
+        $this->assertLessThanOrEqual(500, $cap);
+
+        $rows = [];
+        for ($i = 0; $i < $cap + 3; $i++) {
+            $rows[] = [
+                'id' => (string) \Illuminate\Support\Str::uuid(),
+                'name' => 'Bulk '.str_pad((string) $i, 5, '0', STR_PAD_LEFT),
+                'selling_price' => 100,
+                'is_active' => 1,
+                'show_online' => 1,
+                'user_id' => $this->ownerA->id,
+                'store_id' => $this->storeA->id,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ];
+        }
+        foreach (array_chunk($rows, 200) as $chunk) {
+            \Illuminate\Support\Facades\DB::table('products')->insert($chunk);
+        }
+
+        $response = $this->getJson('/api/v1/storefront/store-a');
+
+        $response->assertStatus(200);
+        $response->assertJsonCount($cap, 'products');
+    }
 }

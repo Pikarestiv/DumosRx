@@ -118,10 +118,13 @@ export class FleetBillingApiClient extends BaseApiClient {
     return this.request<{ orders?: OnlineOrder[] }>("/app/online-orders");
   }
 
+  // payment_confirmed is explicit because the server no longer infers payment
+  // from fulfilment alone: "Fulfill & Deduct Stock" is pressed at the counter,
+  // as the goods are handed over and the money is taken.
   async fulfillOnlineOrder(id: string) {
     return this.request<unknown>(`/app/online-orders/${id}/fulfill`, {
       method: "POST",
-      body: JSON.stringify({ status: "fulfilled" }),
+      body: JSON.stringify({ status: "fulfilled", payment_confirmed: true }),
     });
   }
 

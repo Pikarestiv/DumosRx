@@ -104,26 +104,40 @@ together). The current design:
 
 ```
 npm run dev      # Next dev server
-npm run build    # static export build — /store/demo will fail to prerender
-                  # in sandboxed/offline environments (unreachable
-                  # dumosrx.test dev domain); this is pre-existing and
-                  # unrelated to most changes, confirmed via git stash
+npm run build    # static export build — fails outright in a sandboxed/offline
+                  # environment, by design since 2026-09-26 (see below)
 npx tsc --noEmit # typecheck
+npm run verify:storefront-output   # post-build storefront guard (see below)
 ```
 
-The `/store/demo` prerender note above was re-confirmed on 2026-09-20 and is
-accurate as written: the failure is a `ConnectTimeoutError` reaching
+**`npm run build` now fails hard when the API is unreachable, on purpose.**
+`getStorefrontSlugs()` used to swallow every failure and return the single
+`demo` placeholder, which exited 0 and let the deploy's FTP *sync* delete
+every live `/store/<slug>/` directory from production (`SF-P0-1`). Two
+deliberate escape routes exist, and nothing else:
+
+```
+STOREFRONT_ALLOW_EMPTY=1 npm run build           # build the demo placeholder only
+NEXT_PUBLIC_API_URL=http://127.0.0.1:8899/api/v1 npm run build   # build against a stub
+```
+
+`STOREFRONT_ALLOW_EMPTY=1` is for offline/sandbox work and also skips
+`verify:storefront-output`. Use it when you genuinely don't care about the
+storefront routes; use the stub (below) when you're changing them.
+
+Historical note, since it comes up: the old "`/store/demo` fails to
+prerender offline" behaviour was a `ConnectTimeoutError` reaching
 `dumosrx.test:443`, nothing more. A pre-launch review speculated it was
 really the `params`-as-Promise bug in the two `[store_slug]` routes; it was
 not. That bug was real and is now fixed, but it failed *silently* — the
 build still exited 0 and emitted `/store/demo/index.html` as a rendered 404
 page, because `params.store_slug` was `undefined`, the page fetched
 `/storefront/undefined`, and `getStorefrontData` turned the miss into
-`notFound()`. Two independent problems at the same URL.
+`notFound()`. Two independent problems at the same URL. Neither now exits 0.
 
 To actually exercise these routes offline, point the build at a local stub
-instead of reaching for the dev domain — `generateStaticParams` and the page
-fetch both honor `NEXT_PUBLIC_API_URL`:
+instead of reaching for the dev domain — `generateStaticParams`,
+`generateMetadata` and the page fetch all honor `NEXT_PUBLIC_API_URL`:
 
 ```
 NEXT_PUBLIC_API_URL=http://127.0.0.1:8899/api/v1 npm run build
@@ -135,9 +149,51 @@ any change to `app/store/[store_slug]/`: a typecheck cannot catch a params
 regression here, since both routes declare their own local `params`
 interface rather than Next's generated `PageProps`.
 
+**Before changing anything under `app/store/[store_slug]/`, read
+`docs/STOREFRONT_REVIEW.md`** (2026-09-26 audit of the whole storefront
+surface; 15 of its 16 findings were fixed the same day, and it carries a
+per-finding status). The storefront contract as it now stands:
+
+- **The page is frozen at build time, full stop.** There is no `revalidate`
+  anywhere in these routes and there must not be: under `output: "export"`
+  there is no server, so `next: { revalidate: 60 }` was inert and its
+  `// Cache for 60 seconds` comment actively misleading (`SF-P3-1`). A
+  storefront is stale until the next **full site rebuild**, which the API
+  triggers via `storefront_dirty_at` → `RebuildStorefrontIfDirty` →
+  `repository_dispatch` → `deploy-web.yml` (~15 minutes at best). What does
+  and doesn't dirty a storefront is documented in
+  `laravel-server/AGENTS.md`.
+- **Build-time fetch failures are fatal, not degraded.** `getStorefrontSlugs()`
+  throws; `getStorefrontData()` (`lib/api/storefront-data.ts`, shared by both
+  routes) returns `null` **only** for a 404/403 — a store genuinely not
+  published — and throws `StorefrontFetchError` for a 5xx, a network failure
+  or a non-JSON body, so the last good deploy stays live instead of being
+  overwritten with a rendered 404. **Don't "helpfully" catch either of these.**
+- **`verify:storefront-output` runs between the build and the FTP sync** in
+  `deploy-web.yml`. It re-asks the API for the slug list and asserts each one
+  has an `out/store/<slug>/index.html`. Keep it before the sync step: the
+  whole point is to abort *before* anything is uploaded or deleted.
+- **Both routes have `generateMetadata`** (`lib/storefront-metadata.ts`), so a
+  store's link previews as the store and not as DumosRx. It reuses the same
+  `getStorefrontData()` call the page makes — Next memoizes the fetch per
+  render, so don't add a second one. `app/sitemap.ts` / `app/robots.ts` emit
+  real files under `output: "export"` + `trailingSlash: true`; both were
+  verified in a real build, and both take their base URL from
+  `lib/constants.ts`'s `WEB_APP_URL`, never a hardcoded domain.
+- **Next's `.next/cache` fetch cache can mask a storefront fetch failure**
+  across successive local builds — a previously-successful response is
+  replayed and the build passes. `rm -rf .next` before trying to reproduce
+  one. CI checks out fresh, so the real pipeline is unaffected.
+- **`checkout-form.tsx` deliberately offers only `in_store` and `transfer`.**
+  The whole Paystack two-step flow is built, hardened and tested server-side
+  but intentionally unreachable (`SF-P1-2`) — enabling real online payment
+  collection is a pending business decision. Don't add a `paystack` radio or
+  call `/checkout/initialize` as a drive-by; it needs a refund path first.
+
 Backend verification for anything touching `laravel-server/`:
 ```
 cd ../laravel-server && ./vendor/bin/phpunit --testsuite=Feature
 ```
-(89 tests passing as of the auth redesign above — treat any drop from that
-as a regression.)
+(**399 tests passing as of 2026-09-26's storefront remediation** — treat any
+drop from that as a regression. The "89 tests" this line used to quote was
+the count at the 2026-08-26 auth redesign and had been stale for a month.)

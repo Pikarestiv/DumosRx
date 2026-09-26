@@ -1,10 +1,13 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { FooterSection } from "@/components/landing/footer-section";
 import { Badge } from "@/components/ui/badge";
 import { ProductCard } from "@/components/storefront/product-card";
 import { StorefrontCart } from "@/components/storefront/storefront-cart";
+import { getStorefrontData } from "@/lib/api/storefront-data";
 import { getStorefrontSlugs } from "@/lib/api/storefront-slugs";
+import { buildStorefrontMetadata } from "@/lib/storefront-metadata";
 import type { StorefrontProduct } from "@/lib/types/storefront";
 
 interface StorefrontProps {
@@ -16,25 +19,16 @@ interface StorefrontProps {
   }>;
 }
 
-async function getStorefrontData(store_slug: string) {
-  const apiUrl =
-    process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api/v1";
-  const res = await fetch(`${apiUrl}/storefront/${store_slug}`, {
-    next: { revalidate: 60 }, // Cache for 60 seconds
-  });
-
-  // A misbehaving/misconfigured API (wrong URL, an outage, a proxy's error
-  // page) can return an HTML error page with a 200/OK status. res.json()
-  // would throw on that, and at build time that throw takes down the
-  // entire production build, not just this one page.
-  if (!res.ok || !res.headers.get("content-type")?.includes("application/json")) {
-    return null;
-  }
-  return res.json();
-}
-
 export async function generateStaticParams() {
   return getStorefrontSlugs();
+}
+
+export async function generateMetadata({
+  params,
+}: StorefrontProps): Promise<Metadata> {
+  const { store_slug } = await params;
+  const data = await getStorefrontData(store_slug);
+  return buildStorefrontMetadata(store_slug, data?.store);
 }
 
 export default async function StorefrontPage({ params }: StorefrontProps) {

@@ -54,6 +54,14 @@ jobs:
           NEXT_PUBLIC_API_URL: https://api.dumosrx.com/api/v1
           NEXT_PUBLIC_APP_ENV: "production"
 
+      # Runs BEFORE the sync, because the sync deletes anything missing from
+      # web/out/ — a build that lost storefront pages would otherwise take
+      # every live storefront down. See docs/STOREFRONT_REVIEW.md (SF-P0-1).
+      - name: Verify storefront pages were generated
+        run: npm run verify:storefront-output
+        env:
+          NEXT_PUBLIC_API_URL: https://api.dumosrx.com/api/v1
+
       - name: Sync files to FTP
         uses: SamKirkland/FTP-Deploy-Action@8e83cea8672e3fbcbb9fdafff34debf6ae4c5f65 # v4.3.5
         with:
@@ -68,3 +76,20 @@ jobs:
             **/.git*
             **/.git*/**
             **/node_modules/**
+
+      # Tells the API the rebuild it asked for actually shipped, so
+      # RebuildStorefrontIfDirty can clear storefront_dirty_at on SUCCESS
+      # rather than on GitHub merely accepting the dispatch (SF-P2-3). The
+      # server keeps the flags dirty and retries if this never arrives, so a
+      # failed callback costs a duplicate rebuild, not a lost one — hence
+      # continue-on-error. Until STOREFRONT_REBUILD_TOKEN is set both here and
+      # as STOREFRONT_REBUILD_TOKEN in the API's .env, the server stays on its
+      # old clear-on-dispatch behaviour and this step is a no-op.
+      - name: Confirm storefront rebuild to the API
+        if: success()
+        continue-on-error: true
+        run: |
+          curl --fail --silent --show-error --max-time 30 \
+            -X POST "https://api.dumosrx.com/api/v1/internal/storefront/rebuild-complete" \
+            -H "Accept: application/json" \
+            -H "X-Storefront-Rebuild-Token: ${{ secrets.STOREFRONT_REBUILD_TOKEN }}"

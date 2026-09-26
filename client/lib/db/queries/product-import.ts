@@ -185,6 +185,7 @@ export async function importProductRows(
             ...(row.sellingPrice !== undefined ? { selling_price: row.sellingPrice } : {}),
             ...(row.reorderLevel !== undefined ? { reorder_level: row.reorderLevel } : {}),
             ...(row.barcode ? { barcode: row.barcode } : {}),
+            ...(row.showOnline !== undefined ? { show_online: row.showOnline ? 1 : 0 } : {}),
           });
           if (options?.updateStockForMatched && row.quantity !== undefined) {
             matchedStockUpdates.set(existingId, { productId: existingId, quantity: row.quantity });
@@ -214,6 +215,9 @@ export async function importProductRows(
           selling_price: row.sellingPrice ?? 0,
           reorder_level: row.reorderLevel ?? 10,
           barcode: row.barcode ?? null,
+          // Defaults off, matching the schema: a bulk import must not publish
+          // a whole catalog to a public storefront unless the file says to.
+          show_online: row.showOnline ? 1 : 0,
         });
 
         if (row.quantity !== undefined && row.quantity !== 0) {

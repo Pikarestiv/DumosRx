@@ -1,8 +1,11 @@
+import type { Metadata } from "next";
 
 import { FooterSection } from "@/components/landing/footer-section";
 import { StorefrontCart } from "@/components/storefront/storefront-cart";
 import { CheckoutForm } from "@/components/storefront/checkout-form";
+import { getStorefrontData } from "@/lib/api/storefront-data";
 import { getStorefrontSlugs } from "@/lib/api/storefront-slugs";
+import { buildStorefrontCheckoutMetadata } from "@/lib/storefront-metadata";
 
 interface CheckoutPageProps {
   // Next 16 passes `params` as a Promise (see app/store/[store_slug]/page.tsx)
@@ -15,6 +18,14 @@ interface CheckoutPageProps {
 
 export async function generateStaticParams() {
   return getStorefrontSlugs();
+}
+
+export async function generateMetadata({
+  params,
+}: CheckoutPageProps): Promise<Metadata> {
+  const { store_slug } = await params;
+  const data = await getStorefrontData(store_slug);
+  return buildStorefrontCheckoutMetadata(store_slug, data?.store);
 }
 
 export default async function CheckoutPage({ params }: CheckoutPageProps) {

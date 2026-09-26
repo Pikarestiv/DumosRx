@@ -103,4 +103,69 @@ class StoreSlugCooldownTest extends TestCase
 
         $this->assertNotNull($store->fresh()->storefront_dirty_at);
     }
+
+    public function test_slug_is_slugified_on_write_regardless_of_the_path_it_arrives_through()
+    {
+        $store = $this->makeStore();
+
+        $store->store_slug = '  My Corner ../ Shop!  ';
+        $store->save();
+
+        $this->assertSame('my-corner-shop', $store->fresh()->store_slug);
+    }
+
+    public function test_a_slug_with_no_usable_characters_is_reverted()
+    {
+        $store = $this->makeStore(['store_slug' => 'good-slug']);
+
+        $store->store_slug = '///';
+        $store->save();
+
+        $this->assertSame('good-slug', $store->fresh()->store_slug);
+    }
+
+    public function test_a_public_profile_change_dirties_the_storefront()
+    {
+        $store = $this->makeStore([
+            'online_store_enabled' => true,
+            'store_slug' => 'profile-store',
+        ]);
+        \Illuminate\Support\Facades\DB::table('stores')->where('id', $store->id)
+            ->update(['storefront_dirty_at' => null]);
+
+        $store->name = 'Renamed Store';
+        $store->save();
+
+        $this->assertNotNull($store->fresh()->storefront_dirty_at);
+    }
+
+    public function test_an_internal_only_change_does_not_dirty_the_storefront()
+    {
+        $store = $this->makeStore([
+            'online_store_enabled' => true,
+            'store_slug' => 'internal-store',
+        ]);
+        \Illuminate\Support\Facades\DB::table('stores')->where('id', $store->id)
+            ->update(['storefront_dirty_at' => null]);
+
+        $store->receipt_footer = 'Thanks for shopping';
+        $store->save();
+
+        $this->assertNull($store->fresh()->storefront_dirty_at);
+    }
+
+    public function test_suspending_a_store_dirties_the_storefront()
+    {
+        $store = $this->makeStore([
+            'online_store_enabled' => true,
+            'store_slug' => 'suspend-store',
+        ]);
+        \Illuminate\Support\Facades\DB::table('stores')->where('id', $store->id)
+            ->update(['storefront_dirty_at' => null]);
+
+        $store->status = 'suspended';
+        $store->save();
+
+        $this->assertNotNull($store->fresh()->storefront_dirty_at);
+    }
 }

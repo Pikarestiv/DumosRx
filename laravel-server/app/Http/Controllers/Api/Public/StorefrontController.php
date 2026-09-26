@@ -200,6 +200,7 @@ class StorefrontController extends Controller
                 'logo_url' => $store->logo_url,
             ],
             'products' => StorefrontProductResource::collection($products),
+            'online_payment_available' => (bool) $store->paystack_subaccount_code,
         ]);
     }
 
@@ -324,6 +325,13 @@ class StorefrontController extends Controller
             ], 422);
         }
 
+        if (!$store->paystack_subaccount_code) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This store cannot accept online payments yet.',
+            ], 422);
+        }
+
         try {
             $payment = $paymentService->initializeTransaction(
                 $totalAmount,
@@ -340,7 +348,9 @@ class StorefrontController extends Controller
                 // succeeding. The storefront frontend's checkout page reads
                 // Paystack's own appended ?reference=/&trxref= query params
                 // from this URL to drive the confirm call.
-                config('app.frontend_url') . "/store/{$store->store_slug}/checkout"
+                config('app.frontend_url') . "/store/{$store->store_slug}/checkout",
+                $store->paystack_subaccount_code,
+                $store->paystack_subaccount_code ? strtoupper((string) $store->currency) : null,
             );
 
             // Written BEFORE the checkout URL is handed back, so there is

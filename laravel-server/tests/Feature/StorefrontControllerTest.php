@@ -63,6 +63,11 @@ class StorefrontControllerTest extends TestCase
      */
     private function initializePaystackCheckout(array $items, string $reference = 'DRX-SF-REF', string $slug = 'store-a'): \Illuminate\Testing\TestResponse
     {
+        // These flows exercise the confirm step (checkout()), not the
+        // subaccount gate itself — give the target store a subaccount so
+        // initializeCheckout()'s new gate doesn't 422 before reaching it.
+        Store::where('store_slug', $slug)->update(['paystack_subaccount_code' => 'ACCT_test']);
+
         $this->mock(PaymentService::class, function ($mock) use ($reference) {
             $mock->shouldReceive('initializeTransaction')
                 ->once()
@@ -952,5 +957,50 @@ class StorefrontControllerTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertJsonCount($cap, 'products');
+    }
+
+    public function test_show_reports_online_payment_unavailable_when_the_store_has_no_subaccount()
+    {
+        $response = $this->getJson('/api/v1/storefront/store-a');
+
+        $response->assertStatus(200);
+        $response->assertJson(['online_payment_available' => false]);
+    }
+
+    public function test_show_reports_online_payment_available_when_the_store_has_a_subaccount()
+    {
+        $this->storeA->update(['paystack_subaccount_code' => 'ACCT_available']);
+
+        $response = $this->getJson('/api/v1/storefront/store-a');
+
+        $response->assertStatus(200);
+        $response->assertJson(['online_payment_available' => true]);
+    }
+
+    public function test_initialize_checkout_uses_the_stores_own_currency_and_subaccount()
+    {
+        $this->storeA->update([
+            'paystack_subaccount_code' => 'ACCT_kenya',
+            'currency' => 'KES',
+        ]);
+        $product = $this->purchasableProduct(['name' => 'Panadol', 'selling_price' => 500, 'user_id' => $this->ownerA->id]);
+
+        \Illuminate\Support\Facades\Http::fake([
+            'api.paystack.co/transaction/initialize' => \Illuminate\Support\Facades\Http::response([
+                'status' => true,
+                'data' => ['reference' => 'ref_kenya', 'authorization_url' => 'https://paystack.com/pay/ref_kenya'],
+            ], 200),
+        ]);
+
+        $response = $this->postJson('/api/v1/storefront/store-a/checkout/initialize', [
+            'customer_email' => 'kenyan-customer@example.com',
+            'items' => [['product_id' => $product->id, 'quantity' => 1]],
+        ]);
+
+        $response->assertStatus(200);
+        \Illuminate\Support\Facades\Http::assertSent(function ($request) {
+            return ($request['subaccount'] ?? null) === 'ACCT_kenya'
+                && ($request['currency'] ?? null) === 'KES';
+        });
     }
 }

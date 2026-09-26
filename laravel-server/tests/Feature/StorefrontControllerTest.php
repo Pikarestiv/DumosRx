@@ -459,6 +459,40 @@ class StorefrontControllerTest extends TestCase
         ]);
     }
 
+    public function test_a_non_ngn_store_completes_the_initialize_to_verify_round_trip()
+    {
+        $this->storeA->update(['currency' => 'KES']);
+        $product = $this->purchasableProduct(['name' => 'Panadol', 'selling_price' => 100, 'user_id' => $this->ownerA->id]);
+        $items = [['product_id' => $product->id, 'quantity' => 1]];
+
+        $this->initializePaystackCheckout($items, 'KES-REF-1')->assertStatus(200);
+
+        $this->assertDatabaseHas('storefront_payment_intents', [
+            'reference' => 'KES-REF-1',
+            'currency' => 'KES',
+        ]);
+
+        $this->mock(PaymentService::class, function ($mock) {
+            $mock->shouldReceive('verifyTransaction')
+                ->once()
+                ->andReturn(['success' => true, 'amount' => 100, 'currency' => 'KES']);
+        });
+
+        $response = $this->postJson('/api/v1/storefront/store-a/checkout', [
+            'customer_name' => 'Jane Doe',
+            'customer_phone' => '08000000000',
+            'payment_method' => 'paystack',
+            'paystack_reference' => 'KES-REF-1',
+            'items' => $items,
+        ]);
+
+        $response->assertStatus(201);
+        $this->assertDatabaseHas('online_orders', [
+            'payment_status' => 'paid',
+            'paystack_reference' => 'KES-REF-1',
+        ]);
+    }
+
     public function test_checkout_rejects_orders_for_a_suspended_store()
     {
         $this->storeA->update(['status' => 'suspended']);

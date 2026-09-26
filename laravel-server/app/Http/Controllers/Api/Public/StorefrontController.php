@@ -61,6 +61,17 @@ class StorefrontController extends Controller
     }
 
     /**
+     * The currency a storefront charge is minted, stamped and verified in.
+     * Always the store's own (a Ghana/Kenya store prices and settles in its
+     * own currency); the platform default is only a fallback for a row with
+     * no currency set at all. See laravel-server/AGENTS.md.
+     */
+    private function storeCurrency(Store $store): string
+    {
+        return strtoupper((string) ($store->currency ?: config('payment.currency', 'NGN')));
+    }
+
+    /**
      * Stock this store can still promise: its own batches, minus everything
      * already committed to orders that are placed but not yet fulfilled.
      * Online orders don't deduct stock at placement (staff deduct on
@@ -350,7 +361,7 @@ class StorefrontController extends Controller
                 // from this URL to drive the confirm call.
                 config('app.frontend_url') . "/store/{$store->store_slug}/checkout",
                 $store->paystack_subaccount_code,
-                $store->paystack_subaccount_code ? strtoupper((string) $store->currency) : null,
+                $this->storeCurrency($store),
             );
 
             // Written BEFORE the checkout URL is handed back, so there is
@@ -361,7 +372,7 @@ class StorefrontController extends Controller
                 'reference' => $payment['reference'],
                 'provider' => $payment['provider'],
                 'amount' => $totalAmount,
-                'currency' => strtoupper((string) config('payment.currency', 'NGN')),
+                'currency' => $this->storeCurrency($store),
                 'status' => 'pending',
                 'items' => $orderItems,
                 'customer_email' => $validated['customer_email'],
@@ -537,9 +548,9 @@ class StorefrontController extends Controller
             $verification = $paymentService->verifyTransaction($validated['paystack_reference'], 'paystack');
 
             // The amount is only comparable to the order total if it settled
-            // in the same currency the catalogue is priced in.
+            // in the same currency the charge was minted in.
             $verifiedCurrency = strtoupper((string) ($verification['currency'] ?? ''));
-            $expectedCurrency = strtoupper((string) config('payment.currency', 'NGN'));
+            $expectedCurrency = strtoupper((string) ($intent->currency ?: $this->storeCurrency($store)));
 
             if (!($verification['success'] ?? false)
                 || $verifiedCurrency !== $expectedCurrency

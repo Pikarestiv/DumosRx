@@ -301,6 +301,18 @@ straight to their own bank account.
   next run) on failure — escalating to `AdminAlertService::send()` after
   repeated consecutive failures for the same store, the same escalation path
   the sync engine already uses, not a second alerting mechanism.
+- **Currency is per-store, never the global `payment.currency`.** A
+  storefront charge is minted, stamped on the `StorefrontPaymentIntent`, and
+  verified against **`stores.currency`** (`StorefrontController::
+  storeCurrency()`, the single source for all three). `config('payment.
+  currency')` is only a fallback for a store row with no currency at all —
+  using it as the expected value at verify time (as the first cut did) makes
+  every non-NGN store charge successfully and then fail verification, taking
+  the customer's money with no order to refund against. Same per-record shape
+  as `PaymentController::processSuccessfulPayment()`'s subscription webhook,
+  which compares against `payment_transactions.currency`. Covered by
+  `test_a_non_ngn_store_completes_the_initialize_to_verify_round_trip` and
+  `StorefrontPaystackLifecycleTest` (a KES store, end to end).
 - **Refunds are real, but not clawed back from the store.**
   `OnlineOrderController`'s cancel-a-paid-order path now calls
   `PaymentService::refundTransaction()` (which delegates to

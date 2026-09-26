@@ -4,6 +4,14 @@ A changelog of bugs that were tracked in `docs/KNOWN_BUGS.md` and have since bee
 
 ## 2026-09-26
 
+### fix: writer-promotion db-swap race, and N one-at-a-time saves in the boot-time orphan-row requeue
+- **Commit:** `3b6edc15`
+- Follow-up to the connection-lock fix below: after that fix shipped, the same "bad parameter or other API misuse" error still surfaced from `requeueOrphanedRows()` (via `DatabaseProvider`'s boot-time call), and the login PIN page started feeling noticeably slower on first load.
+- **Root cause 1 (the error):** `rehydrateFromIndexedDb()` — run when a read-only tab is promoted to writer — closed the old `db` handle and swapped in a freshly-read one with zero coordination with the new connection-wide lock. A promotion landing during boot could still invalidate an in-flight `query()`/`execute()`, exactly the race the lock was meant to close everywhere else. It now reserves `reserveDbSlot()` before swapping.
+- **Root cause 2 (the hang):** `requeueOrphanedRows()` issued one `execute()` — one lock-acquire-plus-full-`saveDatabase()`-export round trip — per orphaned row, run unconditionally on every app boot. Once every DB operation shares one FIFO lock, that meant the login screen's own user-lookup query had to wait behind however many of those individual round trips were still in flight. Now batches a table's requeue inserts into a single `transaction()` (skipped when already nested inside a caller's own transaction, e.g. `remapForeignKey()`, since nesting `transaction()` deadlocks) — one lock/export cycle per table instead of one per row.
+- Regression coverage: `client/__tests__/reconcile-identity.test.ts` (new test asserting one `idb-keyval.set()` call for three orphaned rows in one table, not three). Full suite (900 tests / 166 files) and `tsc --noEmit` clean.
+- **Not covered by a new automated test:** the writer-promotion race itself (`rehydrateFromIndexedDb()` vs. an in-flight query) — reproducing a real multi-tab Web Lock promotion mid-boot in the test environment wasn't attempted; the fix reuses the already-tested `reserveDbSlot()` lock, but this specific interleaving is unverified beyond that.
+
 ### fix: query()/execute()/transaction() now serialize onto one connection-wide lock ("Statement closed" / "bad parameter or other API misuse")
 - **Commit:** `7f6663db`
 - sql.js has a single shared connection with no reader isolation. `query()`'s row-fetch loop yields a tick every 200 rows so a large result set doesn't block paint; a write landing in that window (a `transaction()`'s `BEGIN`, or a bare `execute()`) could invalidate the in-flight prepared statement, throwing "Statement closed" or sql.js's own SQLITE_MISUSE string. A retry-on-error mitigation already existed (`MAX_MISUSE_RETRIES = 2`) but could exhaust under real collision load.

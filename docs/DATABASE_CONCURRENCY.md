@@ -428,9 +428,14 @@ before any write. If no ack arrives within a timeout, the new window re-requests
   drive the UI in both directions: `DatabaseProvider.tsx:119-126` flips the banner and toasts
   "This tab can now save changes." on promotion. **A demoted holder's UI already updates for
   free** — `setWriterTab(false)` fires the same listeners.
-- `rehydrateFromIndexedDb()` (`core.ts:247-272`) already does the fresh-read-before-write step,
-  already closes the stale instance (`core.ts:261`), and already returns a boolean the caller
-  fails-closed on (`tab-lock.ts:121-127`).
+- `rehydrateFromIndexedDb()` (`core.ts:311+`) already does the fresh-read-before-write step,
+  already closes the stale instance, and already returns a boolean the caller fails-closed on
+  (`tab-lock.ts:121-127`). **Fixed 2026-09-26** (see `docs/FIXED_BUGS.md`, same fix as §2.3's
+  connection-wide lock): the close-and-swap of `db` now also reserves `reserveDbSlot()` before
+  running, so a promotion landing mid-boot can no longer swap `db` out from under an in-flight
+  `query()`/`execute()`/`transaction()` — closing the one remaining place that mutated `db`
+  outside the lock, previously reproducible as "bad parameter or other API misuse" from a fast
+  login racing `DatabaseProvider`'s boot-time `requeueOrphanedRows()` during a writer promotion.
 - `onPromotionFailed` (`tab-lock.ts:53-56`) + its toast (`DatabaseProvider.tsx:136-143`) is the
   existing pattern for "tell the user to reload".
 - The project already uses `window` CustomEvents for cross-layer signalling

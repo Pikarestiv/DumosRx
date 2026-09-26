@@ -318,7 +318,16 @@ async function rehydrateFromIndexedDb(): Promise<boolean> {
     return false;
   }
   if (!savedData) return true;
+  // Reserves the same connection-wide lock query()/execute()/transaction()
+  // use (see reserveDbSlot()) before swapping `db` out from under them.
+  // Without this, a query() suspended mid-yield (or any other in-flight
+  // operation) could resume against a `db` this function has already
+  // `close()`d, throwing sql.js's generic "bad parameter or other API
+  // misuse" - reproduced via a fast login racing DatabaseProvider's
+  // boot-time requeueOrphanedRows() while this tab was mid-promotion.
+  const { previous, release } = reserveDbSlot();
   try {
+    await previous;
     const fresh = new SQL.Database(savedData);
     fresh.run(SCHEMA_SQL);
     try {
@@ -332,6 +341,8 @@ async function rehydrateFromIndexedDb(): Promise<boolean> {
   } catch (err) {
     console.error("[DB] Failed to rehydrate database after writer-lock promotion", err);
     return false;
+  } finally {
+    release();
   }
 }
 

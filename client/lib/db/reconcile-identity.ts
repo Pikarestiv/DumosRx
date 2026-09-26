@@ -1,4 +1,4 @@
-import { execute, query, transaction, STORE_SCOPED_TABLES } from "./core";
+import { execute, query, transaction, isInTransaction, STORE_SCOPED_TABLES } from "./core";
 
 /**
  * One-time recovery tool for devices that hit the pre-fix local-first setup
@@ -76,14 +76,16 @@ export interface ReconcileIdentityResult {
  * push, using the row's current column values as the payload (matching the
  * shape `insert()` in base-helpers.ts already produces).
  *
- * Deliberately does NOT open its own transaction(): its only caller,
- * remapForeignKey(), is itself always invoked from inside pull.ts's or
- * push.ts's own transaction() block. transaction() has no reliable way to
- * tell a genuinely-nested call (safe to run inline) apart from two merely
- * concurrent, unrelated top-level calls (which must never share one
- * BEGIN/COMMIT — see transaction()'s own comment for the bug that caused),
- * so keeping this the one and only nested call site lets transaction()
- * queue every top-level call unconditionally instead of guessing.
+ * Also called directly at plain app-boot now (DatabaseProvider), not just
+ * nested inside remapForeignKey()'s callers (pull.ts/push.ts's own open
+ * transaction()). transaction() has no reliable way to tell a genuinely
+ * nested call (safe to run inline) apart from two merely concurrent,
+ * unrelated top-level calls (which must never share one BEGIN/COMMIT — see
+ * transaction()'s own comment for the bug that caused) and deadlocks on
+ * nesting, so each table's requeue-insert batch below checks
+ * isInTransaction() itself: runs inline when already nested, opens its own
+ * transaction() when called at the top level (batching a table's N inserts
+ * into one lock+saveDatabase() cycle instead of N).
  */
 export async function requeueOrphanedRows(
   tables: string[],
@@ -99,21 +101,35 @@ export async function requeueOrphanedRows(
       [table],
     );
 
-    for (const row of rows) {
-      await execute(
-        `INSERT INTO _sync_queue (table_name, record_id, operation, payload, created_at)
-         VALUES (?, ?, ?, ?, ?)`,
-        [
-          table,
-          row.id as string,
-          "INSERT",
-          JSON.stringify(row),
-          (row.created_at as string) || new Date().toISOString(),
-        ],
-      );
-    }
-
     if (rows.length > 0) {
+      const insertQueueEntries = async () => {
+        for (const row of rows) {
+          await execute(
+            `INSERT INTO _sync_queue (table_name, record_id, operation, payload, created_at)
+             VALUES (?, ?, ?, ?, ?)`,
+            [
+              table,
+              row.id as string,
+              "INSERT",
+              JSON.stringify(row),
+              (row.created_at as string) || new Date().toISOString(),
+            ],
+          );
+        }
+      };
+
+      // remapForeignKey() calls this from inside its own already-open
+      // transaction() - must not open another one (transaction() deadlocks
+      // on nesting, see its own doc comment). Called directly at plain
+      // app-boot, though, there's no enclosing transaction, so batching this
+      // table's inserts into one saves N separate lock+saveDatabase() round
+      // trips down to one.
+      if (isInTransaction()) {
+        await insertQueueEntries();
+      } else {
+        await transaction(insertQueueEntries);
+      }
+
       requeued[table] = rows.length;
     }
   }

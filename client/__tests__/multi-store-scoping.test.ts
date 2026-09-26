@@ -189,4 +189,25 @@ describe("multi-store query scoping", () => {
     const rows = db.exec(`SELECT store_id FROM categories WHERE id = '${id}'`);
     expect(rows[0].values[0][0]).toBe("store-a");
   });
+
+  it("auto-scopes a row whose caller passed an explicit null store_id", async () => {
+    // A store OWNER's own users.store_id is deliberately always null, so
+    // callers forwarding `user.store_id` handed insert() a null rather than
+    // undefined. The guard was a strict `=== undefined`, so the row was written
+    // NULL-scoped and every store-scoped report filtered it out — the online
+    // order fulfilment path did exactly this (SF-P2-6).
+    core.setActiveStoreId("store-a");
+    const id = await insert("categories", { name: "Owner Category", store_id: null });
+
+    const rows = db.exec(`SELECT store_id FROM categories WHERE id = '${id}'`);
+    expect(rows[0].values[0][0]).toBe("store-a");
+  });
+
+  it("still honours an explicitly chosen other store", async () => {
+    core.setActiveStoreId("store-a");
+    const id = await insert("categories", { name: "Elsewhere", store_id: "store-b" });
+
+    const rows = db.exec(`SELECT store_id FROM categories WHERE id = '${id}'`);
+    expect(rows[0].values[0][0]).toBe("store-b");
+  });
 });

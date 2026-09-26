@@ -40,6 +40,7 @@ describe("createAndReceivePurchaseOrder", () => {
       );
       CREATE TABLE purchase_order_items (
         id TEXT PRIMARY KEY, po_id TEXT, product_id TEXT, bulk_quantity INTEGER,
+        quantity_received INTEGER DEFAULT 0,
         units_per_bulk INTEGER, unit_cost REAL, subtotal REAL,
         selling_price REAL, cost_price_override REAL, lot_number TEXT, expiry_date TEXT,
         created_at TEXT, updated_at TEXT,

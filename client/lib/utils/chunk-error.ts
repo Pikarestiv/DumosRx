@@ -28,6 +28,20 @@ export const CHUNK_ERROR_PATTERN =
   /Loading (chunk|CSS chunk) [\w.-]+ failed|Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module|Unexpected token '<'/i;
 export const CHUNK_RELOAD_GUARD_KEY = "chunk-error-reload-attempted";
 
+// "Unexpected token '<'" isn't unique to a script tag being handed HTML -
+// V8's JSON.parse() throws the exact same wording ("Unexpected token '<',
+// \"<!DOCTYPE \"... is not valid JSON") whenever an API response body is
+// HTML instead of JSON, e.g. base-client.ts's unguarded response.json()
+// hitting a proxy/gateway error page. That's a real backend problem, not a
+// stale chunk, and must NOT trigger the auto-reload here: the reload guard
+// (CHUNK_RELOAD_GUARD_KEY) is cleared on every successful boot (see
+// global-error-listener.tsx), so misclassifying a persistent backend
+// outage as a stale chunk would reload, boot, guard clears, same JSON
+// error on the next request, reload again - forever, not once.
+const JSON_PARSE_ERROR_PATTERN = /is not valid JSON/i;
+
 export function isChunkLoadError(error: Error | null | undefined): boolean {
-  return !!error && CHUNK_ERROR_PATTERN.test(error.message);
+  if (!error) return false;
+  if (JSON_PARSE_ERROR_PATTERN.test(error.message)) return false;
+  return CHUNK_ERROR_PATTERN.test(error.message);
 }

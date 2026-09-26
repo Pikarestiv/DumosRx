@@ -3,7 +3,9 @@ import { SearchInput } from "@/components/ui/search-input";
 import { FilterPill, formatFilterLabel } from "@/components/ui/filter-pill";
 import { Button } from "@/components/ui/button";
 import { ImportExportToolbar } from "@/components/stock-batch/import-export-toolbar";
+import { BulkShowOnlineAction } from "./bulk-show-online-action";
 import { useAuth } from "@/lib/context/auth-context";
+import { useStore } from "@/lib/context/store-context";
 
 interface ProductDatabaseFiltersProps {
   searchTerm: string;
@@ -15,10 +17,10 @@ interface ProductDatabaseFiltersProps {
   categories: string[];
   statuses: string[];
   onManageCategories: () => void;
-  onProductsImported: () => void;
-  /** Currently-filtered product ids, so Export defaults to what's on screen
-   * — undefined when no filter is active (search/category/status all at
-   * their defaults). */
+  onProductsChanged: () => void;
+  /** Currently-filtered product ids, so Export and the bulk online-visibility
+   * action both default to what's on screen — undefined when no filter is
+   * active (search/category/status all at their defaults). */
   filteredProductIds?: string[];
 }
 
@@ -32,10 +34,14 @@ export function ProductDatabaseFilters({
   categories,
   statuses,
   onManageCategories,
-  onProductsImported,
+  onProductsChanged,
   filteredProductIds,
 }: ProductDatabaseFiltersProps) {
   const { canManageStockBatch } = useAuth();
+  const { storeProfile } = useStore();
+  // Only meaningful once the store actually has a public storefront - hidden
+  // otherwise rather than offering an action with nowhere to publish to.
+  const hasOnlineStore = storeProfile?.online_store_enabled === 1;
   // Search bar + filter pills render standalone above the card on mobile (see ProductDatabase).
   // This whole panel is desktop-only to avoid leaving an empty padded/bordered row on mobile.
   return (
@@ -49,7 +55,13 @@ export function ProductDatabaseFilters({
         />
         {canManageStockBatch && (
           <>
-            <ImportExportToolbar onImported={onProductsImported} filteredProductIds={filteredProductIds} />
+            <ImportExportToolbar onImported={onProductsChanged} filteredProductIds={filteredProductIds} />
+            {hasOnlineStore && (
+              <BulkShowOnlineAction
+                onUpdated={onProductsChanged}
+                filteredProductIds={filteredProductIds}
+              />
+            )}
             <Button
               type="button"
               variant="outline"

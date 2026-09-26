@@ -25,7 +25,7 @@ class AdminAlertService
         foreach ($emails as $email) {
             $email = trim($email);
             if (filter_var($email, FILTER_VALIDATE_EMAIL)) {
-                Mail::to($email)->queue(new SuperAdminAlertMail($title, $messageLines));
+                Mail::to($email)->send(new SuperAdminAlertMail($title, $messageLines));
             }
         }
     }

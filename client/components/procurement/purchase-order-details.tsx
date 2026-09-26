@@ -1,6 +1,6 @@
 import React from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Clock, CheckCircle2, Edit2, Download } from "lucide-react";
+import { ArrowLeft, Clock, CheckCircle2, Edit2, Download, PackageOpen } from "lucide-react";
 import { pdf } from "@react-pdf/renderer";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -96,6 +96,12 @@ export function PurchaseOrderDetails({
     );
   }
 
+  const isPartiallyReceived = selectedPO.status === "partially_received";
+  const isSentOrLater =
+    selectedPO.status === "sent" ||
+    selectedPO.status === "received" ||
+    isPartiallyReceived;
+
   return (
     <Card className="flex flex-col h-full bg-card overflow-hidden p-0 gap-0 border-none rounded-none shadow-none">
       <div className="flex flex-col h-full overflow-hidden">
@@ -155,6 +161,11 @@ export function PurchaseOrderDetails({
                             <span className="text-muted-foreground ml-1">
                               × {item.bulk_quantity}
                             </span>
+                            {isPartiallyReceived && (
+                              <span className="text-amber-600 ml-1 text-[12px] font-semibold">
+                                ({Number(item.quantity_received) || 0} received)
+                              </span>
+                            )}
                           </span>
                           <span className="font-bold shrink-0 ml-4">
                             {formatCurrency(item.subtotal || 0)}
@@ -194,15 +205,12 @@ export function PurchaseOrderDetails({
                     {selectedPO.type !== "immediate" && (
                       <div className="flex items-center gap-3 z-10">
                         <div
-                          className={`w-5 h-5 rounded-full flex items-center justify-center border-2 border-background ${selectedPO.status === "sent" || selectedPO.status === "received" ? "bg-primary text-primary-foreground" : "bg-muted border border-border"}`}
+                          className={`w-5 h-5 rounded-full flex items-center justify-center border-2 border-background ${isSentOrLater ? "bg-primary text-primary-foreground" : "bg-muted border border-border"}`}
                         >
-                          {(selectedPO.status === "sent" ||
-                            selectedPO.status === "received") && (
-                            <CheckCircle2 className="w-3 h-3" />
-                          )}
+                          {isSentOrLater && <CheckCircle2 className="w-3 h-3" />}
                         </div>
                         <span
-                          className={`text-[13.5px] font-semibold ${selectedPO.status === "sent" || selectedPO.status === "received" ? "text-foreground" : "text-muted-foreground"}`}
+                          className={`text-[13.5px] font-semibold ${isSentOrLater ? "text-foreground" : "text-muted-foreground"}`}
                         >
                           Sent
                         </span>
@@ -212,16 +220,17 @@ export function PurchaseOrderDetails({
                     {/* Received Step */}
                     <div className="flex items-center gap-3 z-10">
                       <div
-                        className={`w-5 h-5 rounded-full flex items-center justify-center border-2 border-background ${selectedPO.status === "received" ? "bg-primary text-primary-foreground" : "bg-muted border border-border"}`}
+                        className={`w-5 h-5 rounded-full flex items-center justify-center border-2 border-background ${selectedPO.status === "received" ? "bg-primary text-primary-foreground" : isPartiallyReceived ? "bg-amber-500 text-white" : "bg-muted border border-border"}`}
                       >
                         {selectedPO.status === "received" && (
                           <CheckCircle2 className="w-3 h-3" />
                         )}
+                        {isPartiallyReceived && <PackageOpen className="w-3 h-3" />}
                       </div>
                       <span
-                        className={`text-[13.5px] font-semibold ${selectedPO.status === "received" ? "text-foreground" : "text-muted-foreground"}`}
+                        className={`text-[13.5px] font-semibold ${selectedPO.status === "received" || isPartiallyReceived ? "text-foreground" : "text-muted-foreground"}`}
                       >
-                        Received
+                        {isPartiallyReceived ? "Partially Received" : "Received"}
                       </span>
                     </div>
                   </div>
@@ -305,12 +314,12 @@ export function PurchaseOrderDetails({
                 </Button>
               )}
 
-              {selectedPO.status === "sent" && (
+              {(selectedPO.status === "sent" || isPartiallyReceived) && (
                 <Button
                   className="flex-1 h-10 text-[13.5px] font-bold"
                   onClick={onReceiveGoods}
                 >
-                  Receive Goods
+                  {isPartiallyReceived ? "Receive Balance" : "Receive Goods"}
                 </Button>
               )}
 

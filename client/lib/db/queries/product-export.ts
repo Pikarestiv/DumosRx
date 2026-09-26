@@ -10,6 +10,9 @@ export interface ExportableProduct {
   sellingPrice: number;
   quantity: number;
   reorderLevel: number;
+  /** "Yes"/"No" rather than a boolean, so the exported cell reads naturally in
+   * a spreadsheet and maps straight back through parseBooleanValue on import. */
+  showOnline: string;
 }
 
 /**
@@ -51,8 +54,9 @@ export async function getProductsForExport(
     selling_price: number | null;
     stock_quantity: number | null;
     reorder_level: number | null;
+    show_online: number | null;
   }>(
-    `SELECT p.name, c.name as category_name, s.name as supplier_name, p.barcode,
+    `SELECT p.name, c.name as category_name, s.name as supplier_name, p.barcode, p.show_online,
        (SELECT AVG(sb.cost_price) FROM stock_batches sb WHERE sb.product_id = p.id AND sb._deleted = 0 AND sb.is_active = 1) as cost_price,
        p.selling_price,
        (SELECT SUM(sb.quantity) FROM stock_batches sb WHERE sb.product_id = p.id AND sb._deleted = 0 AND sb.is_active = 1) as stock_quantity,
@@ -78,5 +82,6 @@ export async function getProductsForExport(
     sellingPrice: r.selling_price || 0,
     quantity: r.stock_quantity || 0,
     reorderLevel: r.reorder_level || 0,
+    showOnline: r.show_online ? "Yes" : "No",
   }));
 }

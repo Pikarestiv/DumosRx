@@ -63,6 +63,24 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(15)->by($request->ip());
         });
 
+        // Order placement. Tighter than the initialize step above: an
+        // `in_store` order needs only a name, a phone string and a product id
+        // to create an online_orders row plus a notification per store user,
+        // and Laravel 11 no longer applies any default `throttle:api` floor.
+        // Still above what a real shopper does (one order, maybe a retry after
+        // a reprice), so a NATed household ordering separately stays fine.
+        RateLimiter::for('storefront-order', function (Request $request) {
+            return Limit::perMinute(5)->by($request->ip());
+        });
+
+        // The public reads. Deliberately generous, because the static-export
+        // build pulls the slug list plus every storefront from one runner IP
+        // in a single pass — see laravel-server/AGENTS.md for the headroom
+        // this leaves and when it needs raising.
+        RateLimiter::for('storefront-read', function (Request $request) {
+            return Limit::perMinute(120)->by($request->ip());
+        });
+
         Gate::define('manage-staff', function (User $user) {
             $role = $user->getAttribute('role');
             return \in_array($role, ['super_admin', 'manager', 'admin'], true);

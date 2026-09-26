@@ -238,7 +238,7 @@ export function ProductDatabase() {
             categories={categories}
             statuses={statuses}
             onManageCategories={() => setShowManageCategories(true)}
-            onProductsImported={() => void refetch()}
+            onProductsChanged={() => void refetch()}
             filteredProductIds={isFiltering ? filteredProducts.map((p) => p.id) : undefined}
           />
           <CatalogList

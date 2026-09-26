@@ -25,69 +25,39 @@
 }
 
 :root {
-  --background: #f5f5f5; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --background: oklch(0.97 0 0); /* #f1f5f9 - light gray background */
-  --foreground: #171717; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --foreground: oklch(0.205 0 0); /* #1f2937 - professional dark gray text */
-  --card: #ffffff; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --card: oklch(1 0 0); /* #ffffff - clean white card background */
-  --card-foreground: #171717; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --card-foreground: oklch(0.205 0 0); /* #1f2937 - card text */
-  --popover: #ffffff; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --popover: oklch(1 0 0); /* #ffffff - popover background */
-  --popover-foreground: #171717; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --popover-foreground: oklch(0.205 0 0); /* #1f2937 - popover text */
-  --primary: #0072d5; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --primary: oklch(0.55 0.18 250); /* Dumos Blue */
-  --primary-foreground: #ffffff; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --primary-foreground: oklch(1 0 0); /* #ffffff - primary button text */
-  --secondary: #606060; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --secondary: oklch(0.49 0 0); /* #606060 - secondary elements (darkened from 0.556/#737373: text consumers are Badge's text-xs label and Button's text-sm secondary-variant label, both normal text needing AA 4.5:1 against white --secondary-foreground. 0.556 gave 4.73:1 solid but only 3.89:1 at a /90 hover state; 0.49 gives 6.26:1 solid and 4.94:1 at /90 - both Badge and Button hover at /90, not /80, to land inside that verified ratio. Non-text consumers - slider/progress-bar track fills - just read visibly darker, no AA requirement applies to them.) */
-  --secondary-foreground: #ffffff; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --secondary-foreground: oklch(1 0 0); /* #ffffff - secondary button text */
-  --muted: #f5f5f5; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --muted: oklch(0.97 0 0); /* #f1f5f9 - muted backgrounds */
-  --muted-foreground: #6c6c6c; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --muted-foreground: oklch(0.53 0 0); /* #6c6c6c - muted text (darkened from 0.556 to clear WCAG AA 4.5:1 against both --background 4.84:1 and --card 5.28:1) */
-  --accent: #0072d5; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --accent: oklch(0.55 0.18 250); /* blue accent */
-  --accent-foreground: #ffffff; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --accent-foreground: oklch(1 0 0); /* #ffffff - accent text */
-  --destructive: #e7000b; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --destructive: oklch(0.577 0.245 27.325); /* #ea580c - error/alert color */
-  --destructive-foreground: #ffffff; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --destructive-foreground: oklch(1 0 0); /* #ffffff - error text */
-  --border: #e5e5e5; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --border: oklch(0.922 0 0); /* #e5e7eb - borders */
-  --input: #e5e5e5; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --input: oklch(0.922 0 0); /* #e5e7eb - input borders (was white, making borders invisible against white/light cards and leaving only the bottom-side shadow visible) */
-  --ring: #4781ff; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --ring: oklch(0.646 0.222 264.376); /* focus ring - full alpha so the rendered 3px ring clears WCAG 1.4.11 (3.28:1 on --background, 3.58:1 on --card) */
-  --chart-1: #4781ff; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --chart-1: oklch(0.646 0.222 264.376); /* #8b5cf6 - chart color 1 */
-  --chart-2: #e7000b; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --chart-2: oklch(0.577 0.245 27.325); /* #ea580c - chart color 2 */
-  --chart-3: #594413; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --chart-3: oklch(0.398 0.07 84.429); /* #a16207 - chart color 3 */
-  --chart-4: #171717; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --chart-4: oklch(0.205 0 0); /* #1f2937 - chart color 4 */
-  --chart-5: #ffffff; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --chart-5: oklch(1 0 0); /* #ffffff - chart color 5 */
+  --background: #f5f5f5;
+  --foreground: #171717;
+  --card: #ffffff;
+  --card-foreground: #171717;
+  --popover: #ffffff;
+  --popover-foreground: #171717;
+  --primary: #0072d5;
+  --primary-foreground: #ffffff;
+  --secondary: #606060;
+  --secondary-foreground: #ffffff;
+  --muted: #f5f5f5;
+  --muted-foreground: #6c6c6c;
+  --accent: #0072d5;
+  --accent-foreground: #ffffff;
+  --destructive: #e7000b;
+  --destructive-foreground: #ffffff;
+  --border: #e5e5e5;
+  --input: #e5e5e5;
+  --ring: #4781ff;
+  --chart-1: #4781ff;
+  --chart-2: #e7000b;
+  --chart-3: #594413;
+  --chart-4: #171717;
+  --chart-5: #ffffff;
   --radius: 0.5rem; /* 8px corner rounding */
-  --sidebar: #ffffff; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --sidebar: oklch(1 0 0); /* #ffffff - sidebar background */
-  --sidebar-foreground: #171717; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --sidebar-foreground: oklch(0.205 0 0); /* #1f2937 - sidebar text */
+  --sidebar: #ffffff;
+  --sidebar-foreground: #171717;
   --sidebar-primary: var(--primary);
-  --sidebar-primary-foreground: #ffffff; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: var(--primary);
-  --sidebar-accent-foreground: #ffffff; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --sidebar-accent-foreground: oklch(1 0 0);
-  --sidebar-border: #e5e5e5; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --sidebar-border: oklch(0.922 0 0); /* #e5e7eb - sidebar borders */
-  --sidebar-ring: #171717; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --sidebar-ring: oklch(0.205 0 0); /* sidebar focus ring - full alpha for a visible ring */
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #e5e5e5;
+  --sidebar-ring: #171717;
   --logo-filter: brightness(0) saturate(100%) invert(31%) sepia(94%)
     saturate(2584%) hue-rotate(214deg) brightness(96%) contrast(94%);
   --font-open-sans: "Open Sans", sans-serif;
@@ -95,139 +65,197 @@
 }
 
 .dark {
-  --background: #0a0a0a; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --background: oklch(0.145 0 0);
-  --foreground: #fafafa; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --foreground: oklch(0.985 0 0);
-  --card: #0a0a0a; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --card: oklch(0.145 0 0);
-  --card-foreground: #fafafa; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --card-foreground: oklch(0.985 0 0);
-  --popover: #0a0a0a; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --popover: oklch(0.145 0 0);
-  --popover-foreground: #fafafa; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: #0072d5; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --primary: oklch(0.55 0.18 250);
-  --primary-foreground: #ffffff; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --primary-foreground: oklch(1 0 0);
-  --secondary: #262626; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: #fafafa; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: #262626; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: #a1a1a1; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: #262626; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: #fafafa; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: #82181a; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --destructive: oklch(0.396 0.141 25.723);
-  --destructive-foreground: #ffffff; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --destructive-foreground: oklch(1 0 0); /* white on --destructive = 10.06:1 (was a bright red at 2.63:1) */
-  --border: #262626; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --border: oklch(0.269 0 0);
-  --input: #262626; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --input: oklch(0.269 0 0);
-  --ring: #4781ff; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --ring: oklch(0.646 0.222 264.376); /* 5.53:1 on --background */
-  --chart-1: #1447e6; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: #00bc7d; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: #fe9a00; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: #ad46ff; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: #ff2056; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: #171717; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: #fafafa; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: #1447e6; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: #fafafa; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --background: #0a0a0a;
+  --foreground: #fafafa;
+  --card: #0a0a0a;
+  --card-foreground: #fafafa;
+  --popover: #0a0a0a;
+  --popover-foreground: #fafafa;
+  --primary: #0072d5;
+  --primary-foreground: #ffffff;
+  --secondary: #262626;
+  --secondary-foreground: #fafafa;
+  --muted: #262626;
+  --muted-foreground: #a1a1a1;
+  --accent: #262626;
+  --accent-foreground: #fafafa;
+  --destructive: #82181a;
+  --destructive-foreground: #ffffff;
+  --border: #262626;
+  --input: #262626;
+  --ring: #4781ff;
+  --chart-1: #1447e6;
+  --chart-2: #00bc7d;
+  --chart-3: #fe9a00;
+  --chart-4: #ad46ff;
+  --chart-5: #ff2056;
+  --sidebar: #171717;
+  --sidebar-foreground: #fafafa;
+  --sidebar-primary: #1447e6;
+  --sidebar-primary-foreground: #fafafa;
   --sidebar-accent: var(--primary);
-  --sidebar-accent-foreground: #ffffff; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --sidebar-accent-foreground: oklch(1 0 0);
-  --sidebar-border: #262626; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --sidebar-border: oklch(0.269 0 0);
-  --sidebar-ring: #4781ff; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --sidebar-ring: oklch(0.646 0.222 264.376); /* 5.01:1 on --sidebar */
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #262626;
+  --sidebar-ring: #4781ff;
 }
 
 .theme-emerald {
   /* Darkened from L 0.627 to 0.50 so white foreground text clears WCAG AA: 5.25:1 (was 3.22:1) */
-  --primary: #007e0e; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --primary: oklch(0.5 0.194 149.214);
-  --accent: #007e0e; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --accent: oklch(0.5 0.194 149.214);
-  --sidebar-accent-foreground: #ffffff; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --sidebar-accent-foreground: oklch(1 0 0);
-  --ring: #007e0e; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --ring: oklch(0.5 0.194 149.214);
+  --primary: #007e0e;
+  --accent: #007e0e;
+  --sidebar-accent-foreground: #ffffff;
+  --ring: #007e0e;
   --logo-filter: brightness(0) saturate(100%) invert(61%) sepia(91%)
     saturate(442%) hue-rotate(108deg) brightness(93%) contrast(90%);
 }
 
 .theme-midnight {
-  --primary: #d08e00; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --primary: oklch(0.696 0.151 77.212);
-  --primary-foreground: #0a0a0a; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --primary-foreground: oklch(0.145 0 0);
-  --accent: #0a0a0a; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --accent: oklch(0.145 0 0);
-  --sidebar-accent-foreground: #0a0a0a; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --sidebar-accent-foreground: oklch(0.145 0 0);
-  --ring: #b17100; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --ring: oklch(0.6 0.151 77.212); /* darker than --primary so the ring is visible on light backgrounds (3.68:1) */
+  --primary: #d08e00;
+  --primary-foreground: #0a0a0a;
+  --accent: #0a0a0a;
+  --sidebar-accent-foreground: #0a0a0a;
+  --ring: #b17100;
   --logo-filter: brightness(0) saturate(100%) invert(67%) sepia(97%)
     saturate(2271%) hue-rotate(1deg) brightness(103%) contrast(104%);
 }
 
 .theme-ruby {
-  --primary: #e7000b; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --primary: oklch(0.577 0.245 27.325);
-  --accent: #e7000b; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --accent: oklch(0.577 0.245 27.325);
-  --sidebar-accent-foreground: #ffffff; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --sidebar-accent-foreground: oklch(1 0 0);
-  --ring: #e7000b; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --ring: oklch(0.577 0.245 27.325);
+  --primary: #e7000b;
+  --accent: #e7000b;
+  --sidebar-accent-foreground: #ffffff;
+  --ring: #e7000b;
   --logo-filter: brightness(0) saturate(100%) invert(17%) sepia(94%)
     saturate(4649%) hue-rotate(344deg) brightness(89%) contrast(93%);
 }
 
 .theme-slate {
-  --primary: #525252; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --primary: oklch(0.439 0 0);
-  --accent: #525252; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --accent: oklch(0.439 0 0);
-  --sidebar-accent: #525252; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --sidebar-accent: oklch(0.439 0 0);
-  --sidebar-accent-foreground: #ffffff; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --sidebar-accent-foreground: oklch(1 0 0);
-  --ring: #717171; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --ring: oklch(0.55 0 0); /* lightened so the ring also clears 3:1 in dark mode (4.08:1) */
+  --primary: #525252;
+  --accent: #525252;
+  --sidebar-accent: #525252;
+  --sidebar-accent-foreground: #ffffff;
+  --ring: #717171;
   --logo-filter: grayscale(1) brightness(0.8);
 }
 
 .theme-ocean {
   /* Darkened from L 0.588 to 0.50 so white foreground text clears WCAG AA: 5.71:1 (was 4.02:1) */
-  --primary: #0069b4; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --primary: oklch(0.5 0.158 241.966);
-  --accent: #0069b4; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --accent: oklch(0.5 0.158 241.966);
-  --sidebar-accent-foreground: #ffffff; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --sidebar-accent-foreground: oklch(1 0 0);
-  --ring: #0069b4; /* fallback for browsers without oklch() (e.g. Chrome <111 / Windows 7) */
-  --ring: oklch(0.5 0.158 241.966);
+  --primary: #0069b4;
+  --accent: #0069b4;
+  --sidebar-accent-foreground: #ffffff;
+  --ring: #0069b4;
   --logo-filter: brightness(0) saturate(100%) invert(53%) sepia(92%)
     saturate(420%) hue-rotate(148deg) brightness(91%) contrast(94%);
+}
+
+
+/* Chrome <111 (e.g. Windows 7) can't parse oklch(). Custom properties accept
+   any token stream regardless of browser support - "--primary: oklch(...)"
+   is a VALID declaration there too, so the plain-hex-then-oklch fallback
+   pattern that works for a real property (e.g. background-color) does
+   nothing here: the oklch() value still wins the cascade unconditionally,
+   and only fails later, silently, when something actually consumes it via
+   var() - at which point the CONSUMING property goes to its initial/
+   inherited value, not back to an earlier custom-property declaration.
+   Gating the oklch re-declaration behind a real capability check is the
+   only thing that actually works for a custom property. */
+@supports (color: oklch(0% 0 0)) {
+  :root {
+    --background: oklch(0.97 0 0); /* #f1f5f9 - light gray background */
+    --foreground: oklch(0.205 0 0); /* #1f2937 - professional dark gray text */
+    --card: oklch(1 0 0); /* #ffffff - clean white card background */
+    --card-foreground: oklch(0.205 0 0); /* #1f2937 - card text */
+    --popover: oklch(1 0 0); /* #ffffff - popover background */
+    --popover-foreground: oklch(0.205 0 0); /* #1f2937 - popover text */
+    --primary: oklch(0.55 0.18 250); /* Dumos Blue */
+    --primary-foreground: oklch(1 0 0); /* #ffffff - primary button text */
+    --secondary: oklch(0.49 0 0); /* #606060 - secondary elements (darkened from 0.556/#737373: text consumers are Badge's text-xs label and Button's text-sm secondary-variant label, both normal text needing AA 4.5:1 against white --secondary-foreground. 0.556 gave 4.73:1 solid but only 3.89:1 at a /90 hover state; 0.49 gives 6.26:1 solid and 4.94:1 at /90 - both Badge and Button hover at /90, not /80, to land inside that verified ratio. Non-text consumers - slider/progress-bar track fills - just read visibly darker, no AA requirement applies to them.) */
+    --secondary-foreground: oklch(1 0 0); /* #ffffff - secondary button text */
+    --muted: oklch(0.97 0 0); /* #f1f5f9 - muted backgrounds */
+    --muted-foreground: oklch(0.53 0 0); /* #6c6c6c - muted text (darkened from 0.556 to clear WCAG AA 4.5:1 against both --background 4.84:1 and --card 5.28:1) */
+    --accent: oklch(0.55 0.18 250); /* blue accent */
+    --accent-foreground: oklch(1 0 0); /* #ffffff - accent text */
+    --destructive: oklch(0.577 0.245 27.325); /* #ea580c - error/alert color */
+    --destructive-foreground: oklch(1 0 0); /* #ffffff - error text */
+    --border: oklch(0.922 0 0); /* #e5e7eb - borders */
+    --input: oklch(0.922 0 0); /* #e5e7eb - input borders (was white, making borders invisible against white/light cards and leaving only the bottom-side shadow visible) */
+    --ring: oklch(0.646 0.222 264.376); /* focus ring - full alpha so the rendered 3px ring clears WCAG 1.4.11 (3.28:1 on --background, 3.58:1 on --card) */
+    --chart-1: oklch(0.646 0.222 264.376); /* #8b5cf6 - chart color 1 */
+    --chart-2: oklch(0.577 0.245 27.325); /* #ea580c - chart color 2 */
+    --chart-3: oklch(0.398 0.07 84.429); /* #a16207 - chart color 3 */
+    --chart-4: oklch(0.205 0 0); /* #1f2937 - chart color 4 */
+    --chart-5: oklch(1 0 0); /* #ffffff - chart color 5 */
+    --sidebar: oklch(1 0 0); /* #ffffff - sidebar background */
+    --sidebar-foreground: oklch(0.205 0 0); /* #1f2937 - sidebar text */
+    --sidebar-primary-foreground: oklch(1 0 0);
+    --sidebar-accent-foreground: oklch(1 0 0);
+    --sidebar-border: oklch(0.922 0 0); /* #e5e7eb - sidebar borders */
+    --sidebar-ring: oklch(0.205 0 0); /* sidebar focus ring - full alpha for a visible ring */
+  }
+  .dark {
+    --background: oklch(0.145 0 0);
+    --foreground: oklch(0.985 0 0);
+    --card: oklch(0.145 0 0);
+    --card-foreground: oklch(0.985 0 0);
+    --popover: oklch(0.145 0 0);
+    --popover-foreground: oklch(0.985 0 0);
+    --primary: oklch(0.55 0.18 250);
+    --primary-foreground: oklch(1 0 0);
+    --secondary: oklch(0.269 0 0);
+    --secondary-foreground: oklch(0.985 0 0);
+    --muted: oklch(0.269 0 0);
+    --muted-foreground: oklch(0.708 0 0);
+    --accent: oklch(0.269 0 0);
+    --accent-foreground: oklch(0.985 0 0);
+    --destructive: oklch(0.396 0.141 25.723);
+    --destructive-foreground: oklch(1 0 0); /* white on --destructive = 10.06:1 (was a bright red at 2.63:1) */
+    --border: oklch(0.269 0 0);
+    --input: oklch(0.269 0 0);
+    --ring: oklch(0.646 0.222 264.376); /* 5.53:1 on --background */
+    --chart-1: oklch(0.488 0.243 264.376);
+    --chart-2: oklch(0.696 0.17 162.48);
+    --chart-3: oklch(0.769 0.188 70.08);
+    --chart-4: oklch(0.627 0.265 303.9);
+    --chart-5: oklch(0.645 0.246 16.439);
+    --sidebar: oklch(0.205 0 0);
+    --sidebar-foreground: oklch(0.985 0 0);
+    --sidebar-primary: oklch(0.488 0.243 264.376);
+    --sidebar-primary-foreground: oklch(0.985 0 0);
+    --sidebar-accent-foreground: oklch(1 0 0);
+    --sidebar-border: oklch(0.269 0 0);
+    --sidebar-ring: oklch(0.646 0.222 264.376); /* 5.01:1 on --sidebar */
+  }
+  .theme-emerald {
+    --primary: oklch(0.5 0.194 149.214);
+    --accent: oklch(0.5 0.194 149.214);
+    --sidebar-accent-foreground: oklch(1 0 0);
+    --ring: oklch(0.5 0.194 149.214);
+  }
+  .theme-midnight {
+    --primary: oklch(0.696 0.151 77.212);
+    --primary-foreground: oklch(0.145 0 0);
+    --accent: oklch(0.145 0 0);
+    --sidebar-accent-foreground: oklch(0.145 0 0);
+    --ring: oklch(0.6 0.151 77.212); /* darker than --primary so the ring is visible on light backgrounds (3.68:1) */
+  }
+  .theme-ruby {
+    --primary: oklch(0.577 0.245 27.325);
+    --accent: oklch(0.577 0.245 27.325);
+    --sidebar-accent-foreground: oklch(1 0 0);
+    --ring: oklch(0.577 0.245 27.325);
+  }
+  .theme-slate {
+    --primary: oklch(0.439 0 0);
+    --accent: oklch(0.439 0 0);
+    --sidebar-accent: oklch(0.439 0 0);
+    --sidebar-accent-foreground: oklch(1 0 0);
+    --ring: oklch(0.55 0 0); /* lightened so the ring also clears 3:1 in dark mode (4.08:1) */
+  }
+  .theme-ocean {
+    --primary: oklch(0.5 0.158 241.966);
+    --accent: oklch(0.5 0.158 241.966);
+    --sidebar-accent-foreground: oklch(1 0 0);
+    --ring: oklch(0.5 0.158 241.966);
+  }
 }
 
 @theme inline {

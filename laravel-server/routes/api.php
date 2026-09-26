@@ -73,9 +73,15 @@ Route::prefix('v1')->group(function () {
     // Tracking Routes
     Route::post('/track/download', [\App\Http\Controllers\Api\TrackController::class, 'download']);
 
-    // Public Storefront
-    Route::get('/storefront-slugs', [\App\Http\Controllers\Api\Public\StorefrontController::class, 'slugs']);
-    Route::get('/storefront/{store_slug}', [\App\Http\Controllers\Api\Public\StorefrontController::class, 'show']);
+    // Public Storefront. Every route here is unauthenticated and Laravel 11
+    // applies no default `throttle:api` floor, so each one carries its own
+    // named limiter (defined in AppServiceProvider): generous on the reads,
+    // tight on order placement, separate again for the step that spends the
+    // platform's Paystack quota.
+    Route::middleware('throttle:storefront-read')->group(function () {
+        Route::get('/storefront-slugs', [\App\Http\Controllers\Api\Public\StorefrontController::class, 'slugs']);
+        Route::get('/storefront/{store_slug}', [\App\Http\Controllers\Api\Public\StorefrontController::class, 'show']);
+    });
     // Step 1 of the online-payment flow: mints the payment reference
     // server-side and reserves it for this cart/store. Throttled on its own
     // (unlike the rest of the storefront): it's an unauthenticated endpoint
@@ -84,7 +90,16 @@ Route::prefix('v1')->group(function () {
     Route::middleware('throttle:storefront-checkout')->group(function () {
         Route::post('/storefront/{store_slug}/checkout/initialize', [\App\Http\Controllers\Api\Public\StorefrontController::class, 'initializeCheckout']);
     });
-    Route::post('/storefront/{store_slug}/checkout', [\App\Http\Controllers\Api\Public\StorefrontController::class, 'checkout']);
+    Route::middleware('throttle:storefront-order')->group(function () {
+        Route::post('/storefront/{store_slug}/checkout', [\App\Http\Controllers\Api\Public\StorefrontController::class, 'checkout']);
+    });
+
+    // Called by .github/workflows/deploy-web.yml once a storefront rebuild has
+    // actually shipped; authenticated by a shared secret header, not Sanctum
+    // (the workflow has no user). See RebuildStorefrontIfDirty.
+    Route::middleware('throttle:storefront-read')->group(function () {
+        Route::post('/internal/storefront/rebuild-complete', [\App\Http\Controllers\Api\Internal\StorefrontRebuildController::class, 'complete']);
+    });
 
     // Webhooks (Public)
     Route::post('/webhooks/paystack', [\App\Http\Controllers\Api\Web\PaymentController::class, 'handlePaystack']);

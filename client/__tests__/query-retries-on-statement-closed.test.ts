@@ -65,20 +65,58 @@ describe("query() retries once on a Statement-closed error", () => {
     expect(failingStmt.free).toHaveBeenCalled();
   });
 
-  it("still throws if the retry also fails (doesn't loop forever)", async () => {
+  it("retries a second time after two consecutive failures, instead of giving up after just one", async () => {
     const failingStmt1 = makeStatement([], true);
     const failingStmt2 = makeStatement([], true);
+    const workingStmt = makeStatement([{ id: "row-1" }], false);
     const prepare = vi
       .fn()
       .mockReturnValueOnce(failingStmt1)
-      .mockReturnValueOnce(failingStmt2);
+      .mockReturnValueOnce(failingStmt2)
+      .mockReturnValueOnce(workingStmt);
+
+    core.__setDatabaseForTesting({ prepare });
+
+    const rows = await core.query("SELECT * FROM products");
+
+    expect(rows).toEqual([{ id: "row-1" }]);
+    expect(prepare).toHaveBeenCalledTimes(3);
+  });
+
+  it("still throws if both retries also fail (doesn't loop forever)", async () => {
+    const failingStmt1 = makeStatement([], true);
+    const failingStmt2 = makeStatement([], true);
+    const failingStmt3 = makeStatement([], true);
+    const prepare = vi
+      .fn()
+      .mockReturnValueOnce(failingStmt1)
+      .mockReturnValueOnce(failingStmt2)
+      .mockReturnValueOnce(failingStmt3);
 
     core.__setDatabaseForTesting({ prepare });
 
     await expect(core.query("SELECT * FROM products")).rejects.toThrow(
       "Statement closed",
     );
-    expect(prepare).toHaveBeenCalledTimes(2);
+    expect(prepare).toHaveBeenCalledTimes(3);
+  });
+
+  it("retries sql.js's own SQLITE_MISUSE wording the same way, not just 'closed'/'finalized'", async () => {
+    const failingStmt = makeStatement([], true);
+    failingStmt.step = vi.fn(() => {
+      throw new Error("bad parameter or other API misuse");
+    });
+    const workingStmt = makeStatement([{ id: "row-1" }], false);
+    const prepare = vi
+      .fn()
+      .mockReturnValueOnce(failingStmt)
+      .mockReturnValueOnce(workingStmt);
+
+    core.__setDatabaseForTesting({ prepare });
+
+    const rows = await core.query("SELECT * FROM products");
+
+    expect(rows).toEqual([{ id: "row-1" }]);
   });
 
   it("does not retry a genuinely different error", async () => {

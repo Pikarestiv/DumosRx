@@ -87,6 +87,23 @@ class Store extends Model
         'storefront_dirty_at' => 'datetime',
     ];
 
+    /**
+     * Store columns the public storefront page actually renders (see
+     * web/app/store/[store_slug]/page.tsx). Changing any of them makes the
+     * published static page wrong until the next rebuild, so each one dirties
+     * the storefront.
+     */
+    private const STOREFRONT_PUBLISHED_FIELDS = [
+        'online_store_enabled',
+        'store_slug',
+        'name',
+        'logo_url',
+        'phone',
+        'email',
+        'address',
+        'location',
+    ];
+
     protected static function boot()
     {
         parent::boot();
@@ -110,6 +127,27 @@ class Store extends Model
             }
 
             $previousSlug = $model->getOriginal('store_slug');
+
+            // Format backstop for the same reason the cooldown below is one:
+            // the client slugifies via checkSlug() before writing, but the
+            // real write arrives through the sync engine's `stores` push,
+            // which has no store_slug rule at all. An unslugified value here
+            // becomes a static-export output path in web/out/store/.
+            if (!empty($model->store_slug)) {
+                $normalized = Str::limit(Str::slug((string) $model->store_slug), 100, '');
+
+                if ($normalized === '') {
+                    $model->store_slug = $previousSlug;
+                    return;
+                }
+
+                $model->store_slug = $normalized;
+
+                if ($normalized === $previousSlug) {
+                    return;
+                }
+            }
+
             $isFirstTimeSet = empty($previousSlug);
             $lastChanged = $model->getOriginal('store_slug_changed_at');
 
@@ -142,7 +180,9 @@ class Store extends Model
         // three. A raw DB write (not another ->save()) avoids re-firing
         // these same boot events.
         static::saved(function ($model) {
-            if ($model->wasChanged(['online_store_enabled', 'store_slug'])) {
+            $becameSuspended = $model->wasChanged('status') && $model->status === 'suspended';
+
+            if ($model->wasChanged(self::STOREFRONT_PUBLISHED_FIELDS) || $becameSuspended) {
                 DB::table('stores')->where('id', $model->id)->update([
                     'storefront_dirty_at' => now(),
                 ]);

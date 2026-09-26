@@ -200,6 +200,38 @@ class SyncValidationTest extends TestCase
     }
 
     /**
+     * Regression test for a real gap caught in review: unlike push's
+     * `setup` flag (corroborated against store.last_sync_at, see push()'s
+     * own isSetup computation), pull's isSetup used to be inferred purely
+     * from "last_synced is empty" with no equivalent check — wrongly
+     * assumed un-spoofable on the theory that only a device's genuine
+     * first-ever sync would ever send one. Any device can trivially
+     * reproduce an empty last_synced by clearing its own local sync-cursor
+     * state (a real, shipped recovery feature - forceFullResync() - and
+     * just as easy without it), which would have been a repeatable,
+     * unlimited bypass of both the cloud_sync gate and the interval
+     * throttle for any store, on any plan, at any time.
+     */
+    public function test_pull_with_empty_last_synced_is_still_gated_once_the_store_has_already_synced_before()
+    {
+        \App\Models\SystemConfig::setVal('subscription_plans', [
+            'tiers' => [
+                'free' => ['features' => ['cloud_sync' => false], 'limits' => ['stores' => -1]],
+            ],
+        ]);
+        $this->store->update(['last_sync_at' => now()->subDay()]);
+
+        // Empty last_synced - exactly what a device sends right after
+        // clearing its local sync cursor (e.g. forceFullResync()) - must
+        // NOT be honored as a genuine first-ever sync once the STORE
+        // itself has already synced before.
+        $response = $this->pull(['last_synced' => []]);
+
+        $response->assertStatus(403);
+        $response->assertJson(['success' => false, 'code' => 'SYNC_DISABLED']);
+    }
+
+    /**
      * Regression test for the subscription-status pull bug: the client's
      * privileged syncSubscriptionStatus() call sends `?setup=1` with a
      * `last_synced: { stores: "" }` body specifically to bypass the

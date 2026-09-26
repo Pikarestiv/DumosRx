@@ -533,11 +533,23 @@ class DashboardService
     }
 
     /**
+     * Resolve the tenant-owning user's id for a caller, mirroring
+     * App\Http\Controllers\Concerns\ScopesToTenant::tenantOwnerId(): tenant
+     * data lives under the owner's user_id, never a staff member's own id.
+     */
+    private function tenantOwnerId($user): ?string
+    {
+        return $user->store_id
+            ? Store::where('id', $user->store_id)->value('user_id')
+            : $user->id;
+    }
+
+    /**
      * Reset account data.
      */
     public function resetData($user, $type = 'all')
     {
-        $userId = $user->id;
+        $userId = $this->tenantOwnerId($user);
         DB::beginTransaction();
 
         try {

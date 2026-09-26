@@ -35,6 +35,32 @@ export function clampMoneyInput(raw: string): string {
   return parseFloat(raw) < 0 ? "0" : raw;
 }
 
+/**
+ * The quantity still expected on a purchase-order line: what was ordered,
+ * less whatever has already been received against it on an earlier, partial
+ * receipt. Receiving was all-or-nothing before `quantity_received` existed,
+ * so a row written by an older build reads back null/undefined and its
+ * whole ordered quantity is still outstanding.
+ */
+export function outstandingBulkQuantity(item: {
+  bulk_quantity: number;
+  quantity_received?: number | null;
+}): number {
+  const received = Math.max(0, Number(item.quantity_received) || 0);
+  return Math.max(0, Number(item.bulk_quantity) - received);
+}
+
+/**
+ * Guard for the receiving tables' "Qty Received" inputs. Their min/max are
+ * only HTML hints: a negative would corrupt on-hand stock at the moment of
+ * receipt, and a value above the outstanding balance would book more stock
+ * than was ever ordered.
+ */
+export function clampReceivedQuantity(raw: string, outstanding: number): number {
+  const parsed = parseInt(raw) || 0;
+  return Math.min(Math.max(0, parsed), Math.max(0, outstanding));
+}
+
 export function getLineTotal(item: POLineItemDraft, poType: "standard" | "immediate"): number {
   if (poType !== "immediate") return item.bulk_quantity * item.unit_cost;
   const unitsPerBulk = item.units_per_bulk || 1;

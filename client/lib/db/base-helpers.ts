@@ -170,8 +170,12 @@ export async function insert(
     _synced: 0,
     // Auto-scope to the active store unless the caller already set one
     // explicitly (e.g. an owner creating a user/product for a store other
-    // than the one they're currently viewing).
-    ...(storeId && STORE_SCOPED_TABLES.includes(table) && data.store_id === undefined
+    // than the one they're currently viewing). `== null` deliberately covers
+    // an explicit null too: a store owner's own users.store_id is always null
+    // by design, so callers forwarding `user.store_id` were writing NULL-scoped
+    // rows that every store-scoped report then filtered out (see
+    // docs/FIXED_BUGS.md, SF-P2-6).
+    ...(storeId && STORE_SCOPED_TABLES.includes(table) && data.store_id == null
       ? { store_id: storeId }
       : {}),
   });

@@ -375,6 +375,11 @@ const SYNC_COLUMN_MIGRATIONS: { table: string; columns: string[] }[] = [
       "cost_price_override REAL",
       "lot_number TEXT",
       "expiry_date TEXT",
+      // Cumulative quantity actually received against this line, in the same
+      // unit as bulk_quantity. Receiving used to be all-or-nothing: any
+      // submitted quantity flipped the whole PO to "received", permanently
+      // forfeiting the undelivered balance.
+      "quantity_received INTEGER DEFAULT 0",
     ],
   },
   {

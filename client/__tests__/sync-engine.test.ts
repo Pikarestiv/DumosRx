@@ -386,6 +386,16 @@ describe('Sync Engine & Local Database', () => {
 
       await expect(pullChanges()).resolves.toBeDefined();
     });
+
+    it('still fires (via finally) when the pull throws, so a caller awaiting it is never left hanging', async () => {
+      vi.mocked(apiClient.pullChanges).mockRejectedValueOnce(new Error('Network error'));
+      vi.mocked(query).mockResolvedValue([]);
+
+      const onCriticalTablesReady = vi.fn();
+      await expect(pullChanges(false, true, onCriticalTablesReady)).rejects.toThrow('Network error');
+
+      expect(onCriticalTablesReady).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('sync() cache invalidation', () => {

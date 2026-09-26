@@ -30,6 +30,20 @@ describe("isChunkLoadError", () => {
     expect(isChunkLoadError(new TypeError("Cannot read properties of undefined (reading 'foo')"))).toBe(false);
   });
 
+  it("does not misclassify a JSON.parse() failure on an HTML API response as a stale chunk", () => {
+    // V8's own wording when response.json() (base-client.ts) hits a proxy/
+    // gateway HTML error page instead of JSON - same leading text as the
+    // real chunk-load SyntaxError, but a genuine backend problem, not a
+    // stale build. Must not trigger the auto-reload: the reload guard
+    // clears on every successful boot, so misclassifying this would reload
+    // forever instead of once.
+    expect(
+      isChunkLoadError(
+        new SyntaxError(`Unexpected token '<', "<!DOCTYPE "... is not valid JSON`),
+      ),
+    ).toBe(false);
+  });
+
   it("returns false for null/undefined", () => {
     expect(isChunkLoadError(null)).toBe(false);
     expect(isChunkLoadError(undefined)).toBe(false);

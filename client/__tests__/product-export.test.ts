@@ -13,6 +13,7 @@ describe("buildExportBlob", () => {
       sellingPrice: 1000,
       quantity: 5,
       reorderLevel: 2,
+      showOnline: "No",
     },
   ];
 

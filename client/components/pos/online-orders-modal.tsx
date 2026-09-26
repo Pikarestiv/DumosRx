@@ -49,7 +49,11 @@ export function OnlineOrdersModal() {
   const handleFulfill = (order: OnlineOrder) => {
     if (fulfillOrderMutation.isPending) return;
     fulfillOrderMutation.mutate(
-      { order, storeId: user?.store_id, cashierId: user?.id },
+      // A store OWNER's own users.store_id is always null by design (they
+      // "have" a store via stores.user_id), so passing it straight through
+      // wrote sales.store_id = NULL and hid the revenue from every
+      // store-scoped report. storeProfile.id is the active store either way.
+      { order, storeId: user?.store_id ?? storeProfile?.id, cashierId: user?.id },
       {
         onSuccess: () => {
           toast.success("Order fulfilled and recorded locally");

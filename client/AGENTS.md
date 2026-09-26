@@ -5,6 +5,12 @@ oriented quickly and work consistently with existing conventions. Keep it
 updated when architecture, conventions, or the current focus of work change:
 it decays fast otherwise, and a stale doc is worse than no doc.
 
+The standing rule for this — docs ship in the same change as the code that
+makes them true, including moving a fixed finding from `docs/KNOWN_BUGS.md`
+into `docs/FIXED_BUGS.md` — lives in `.agents/AGENTS.md` §2 and is not
+repeated here (duplicating a shared rule per package is how the two copies
+drift).
+
 ## What this is
 
 **DumosRx** ("NextGen Retail & Store OS") is an offline-first point-of-sale
@@ -97,6 +103,19 @@ bespoke multi-row writes (and even then, wrap them in
 `lib/db/queries/inventory.ts` for the reference pattern: multiple
 inserts/updates across `stock_audits`, `stock_batches`, `stock_movements`,
 and `products` in one atomic transaction).
+
+**`insert()`'s store auto-scope treats `null` like `undefined`.** It fills in
+`store_id` from `getActiveStoreId()` when the caller passed `data.store_id ==
+null` — a loose `==` on purpose, not a typo. A store **owner**'s own
+`users.store_id` is deliberately always NULL (they "have" a store via
+`stores.user_id`), so any caller forwarding `user.store_id` hands this an
+explicit `null`; the old strict `=== undefined` let that through and wrote a
+NULL-scoped row, which every store-scoped read (`... ${storeId ? " AND
+store_id = ?" : ""}`, dozens of sites) then filtered out. The online-order
+fulfilment path did exactly this and lost the money from every report — see
+`docs/FIXED_BUGS.md` (SF-P2-6). Passing an explicit *other* store id still
+wins, as before. Prefer `user?.store_id ?? storeProfile?.id` at call sites
+anyway; don't rely on the helper alone.
 
 **`options.correlationId`** (added 2026-09-23, all four helpers +
 `logAction()` in `core.ts`) ties every `audit_logs` row one multi-step
@@ -258,7 +277,9 @@ e2e/                       Playwright end-to-end specs
 
 - **Purchase Orders: Standard vs Immediate** (`lib/db/procurement.ts`,
   `components/procurement/`). `purchase_orders.type` (`'standard' |
-  'immediate'`) is separate from `status` (`'pending' | 'received'`) and is
+  'immediate'`) is separate from `status` (`PURCHASE_ORDER_STATUSES` in
+  `lib/db/procurement.ts`: `'pending' | 'sent' | 'partially_received' |
+  'received'`) and is
   set once at creation, never changed: a **Standard** PO is created
   `pending` via `createPurchaseOrder()` and received later through the
   existing `ReceivePOPanel`; an **Immediate Purchase** is created *and*
@@ -296,6 +317,41 @@ e2e/                       Playwright end-to-end specs
   `"standard"`) to decide which columns to show — it used to assume only
   Standard POs are ever resumed via "Edit Order," which was wrong (any
   `pending`/`sent` PO gets that button, including an Immediate draft).
+
+- **Partial PO receipts** (added 2026-09-26, `lib/db/procurement-receiving.ts`).
+  Receiving used to be all-or-nothing: any submitted quantity flipped the
+  whole PO to `received` and a guard (`status === "received"`) then blocked
+  it forever, so a short delivery — routine in real procurement — silently
+  forfeited the undelivered balance with no path back into the system.
+  `purchase_order_items.quantity_received` now tracks the cumulative
+  received quantity per line, **in the same unit as `bulk_quantity`**, and
+  `receivePurchaseOrder()` only flips to `received` once every line reaches
+  its ordered quantity; otherwise the PO becomes `partially_received` and
+  stays receivable against its outstanding balance. Rules worth knowing
+  before touching this:
+  - `outstandingBulkQuantity()`/`clampReceivedQuantity()`
+    (`components/procurement/po-line-item-math.ts`) are the single source of
+    truth for "what's still expected" and for clamping the qty input. Both
+    receiving surfaces (`ReceiveLedgerTable` on tablet+, `ReceiveItemCard` on
+    phones) prefill and clamp to the **outstanding** balance, not the ordered
+    quantity — a row written by an older build reads back null and is treated
+    as fully outstanding.
+  - A submit with every line at 0 against a PO with nothing received yet is a
+    deliberate no-op (status untouched), not a partial receipt.
+  - "Edit Order" is still gated to `pending`/`sent` only, and that matters:
+    `updatePurchaseOrder()` soft-deletes and re-inserts every line, which
+    would discard `quantity_received`. Don't widen that gate to
+    `partially_received` without reworking that function first.
+  - **Sync**: the client sends `quantity_received` in bulk units, but the
+    server stores it in base units, because `SyncController::push()` scales
+    `quantity_received` by `units_per_bulk` exactly as it already does for
+    `quantity_ordered` — and it only does so when `bulk_quantity` and
+    `units_per_bulk` are both in the payload. A sync-queue `UPDATE` payload
+    carries changed fields only, so `receivePurchaseOrder()` deliberately
+    re-sends those two columns unchanged alongside `quantity_received`. Drop
+    that and the column syncs at the wrong scale. Server counterpart:
+    `2026_09_26_000001_add_quantity_received_to_purchase_order_items.php`
+    plus the mirrored branch in `Services/Web/SyncPayloadMapper.php`.
 
 ## Cashier (`sales_staff`) visibility gating — a recurring pattern, not a one-off
 
@@ -361,6 +417,19 @@ trustworthiness, not its status code. (An earlier version of this fix
 did gate on `response.ok` too and was caught by code review: it made a
 real current error page get treated identically to being offline,
 serving stale cached content instead.)
+
+The **catch-all stale-while-revalidate branch** (every other same-origin
+GET: JS/CSS chunks, the sql.js WASM binary, manifest, icons, Next's `.txt`
+RSC payloads) got the mirror-image guard on 2026-09-26, with `CACHE_VERSION`
+bumped to `v4` so `activate()`'s prune also drops any already-poisoned
+entry. It used to cache anything on a bare `response.ok`, so a captive
+portal or misconfigured proxy answering a chunk/WASM request with its own
+login page (still `200 OK`) would poison that entry under the real asset's
+cache key and keep being served long after the network recovered. The check
+is inverted relative to the navigation path: `expectsNonHtml` tests the
+request pathname's extension, and HTML is refused only for those requests —
+so a legitimately-HTML response on some other same-origin GET still caches
+as before.
 
 ## Stale-chunk auto-recovery
 
@@ -510,6 +579,66 @@ npm run tauri dev        # (if configured) desktop app against the dev server
 npm run build             # production Next build
 npm run release           # scripts/release.ts: version bump + release flow
 ```
+
+## Online storefront orders (`components/pos/online-orders-modal.tsx`)
+
+Orders placed on the public storefront (`web/app/store/[store_slug]/`) are
+fetched from the API, never synced into local SQLite — there is no
+`online_orders` table in `lib/db/schema.ts`. Fulfilling one is what turns it
+into local data.
+
+**`useFulfillOnlineOrderMutation` writes locally FIRST, in one
+`transaction()`, and only then calls the server. Don't re-invert that.** The
+original order (server first, local writes after) meant any failure in the
+local leg — a SQLite write error, the writer-tab lock, the app being killed
+mid-loop, one item of several throwing — left the order server-side
+`fulfilled` and therefore hidden from this modal's `pending`-only actionable
+list, with no sale recorded and stock never deducted: revenue missing from
+every report, inventory permanently overstated, silent and unrecoverable
+through the UI. Now a server failure is a retryable error with correct local
+books already queued in `_sync_queue`, and a local failure rolls back whole.
+The retry is only safe because the server rejects a non-`pending` transition
+with a 409. Full writeup: `docs/FIXED_BUGS.md` (SF-P2-5/SF-P3-6).
+
+`apiClient.fulfillOnlineOrder()` sends `payment_confirmed: true` explicitly —
+the server no longer infers payment from fulfilment, and "Fulfill & Deduct
+Stock" is pressed at the counter as the goods are handed over and the money
+is taken. `GET /app/online-orders` is now bounded to 50 newest-first with a
+`has_more` flag; the modal renders whatever it's given, so a deeper history
+needs a real paginated view.
+
+## Publishing products to the online storefront
+
+`products.show_online` defaults off. Three ways to change it, in increasing
+bulk:
+
+1. The per-product switch in `add-product-dialog.tsx`.
+2. The **CSV/XLSX importer** (`lib/utils/product-import-export.ts`), which
+   handles a `show_online` column with the header spellings owners actually
+   type and `parseBooleanValue()`'s accepted values. An unrecognised or blank
+   cell returns `undefined` and the product keeps whatever it has — never
+   guess, or an ambiguous spreadsheet silently publishes a catalog to a public
+   page. The exporter emits `Yes`/`No` under "Show in Online Store", the same
+   spelling the importer reads, so export → edit → re-import is itself a bulk
+   path.
+3. The **"Online" dropdown** on the catalog toolbar
+   (`components/products/bulk-show-online-action.tsx`), which follows that
+   toolbar's existing convention of acting on the **currently-filtered set**
+   ("what's on screen", same as Export) and falls back to the whole store when
+   no filter is active. Hidden unless `storeProfile.online_store_enabled`.
+   `setProductsShowOnline()` skips rows already in the target state so it
+   doesn't queue a no-op sync push per product.
+
+There is no row-checkbox bulk-selection pattern in the products table and
+none was invented for this; the filtered-set convention already existed. The
+spreadsheet reader/writer plumbing lives in `lib/utils/spreadsheet-io.ts` and
+is re-exported from `product-import-export.ts` (that file was over the
+350-line limit); import either path, they're the same symbols.
+
+Changing `show_online`, `selling_price`, `name` or `is_active` server-side
+dirties the owning store's storefront and schedules a full static rebuild
+(~15 minutes at best) — see `laravel-server/AGENTS.md`. The UI copy says as
+much, so don't promise instant updates anywhere.
 
 ## Current focus / recent work (update this section as work continues)
 
@@ -742,14 +871,6 @@ Before that, work focused on the **Inventory** area:
   else that reads it undated and a single user/store can exceed 100 rows
   in the relevant window; not fixed elsewhere because no other caller was
   reported as actually hitting it.
-- `sw.js`'s catch-all stale-while-revalidate branch (same-origin GETs
-  that aren't a `mode: "navigate"` request — includes Next `<Link>`
-  prefetch fetches) still caches whatever comes back with only a
-  `response.ok` check, no `isHtmlResponse` guard. Judged acceptable for
-  now because the navigate handler's own offline-fallback path already
-  re-validates content-type on whatever it pulls from cache (so a
-  poisoned entry from this branch still can't reach a real navigation,
-  which is the actual user-facing bug this session fixed) — but the
-  catch-all branch itself doesn't prevent a wrong-content-type response
-  from being written to cache at all. Revisit if `sw.js` grows real test
-  coverage; currently has none.
+- `sw.js`'s catch-all stale-while-revalidate branch was fixed on
+  2026-09-26 — see the PWA section above. `sw.js` still has **no test
+  coverage** of any kind, which remains the real open item here.

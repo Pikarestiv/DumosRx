@@ -132,4 +132,94 @@ describe("useFulfillOnlineOrderMutation", () => {
     const numbers = rows[0].values.map((v) => v[0]);
     expect(new Set(numbers).size).toBe(2);
   });
+
+  it("writes the local sale BEFORE calling the server, so a server failure can be retried", async () => {
+    seedProductWithBatch("p1", 500, 10);
+    const { apiClient } = await import("@/lib/api/client");
+    vi.mocked(apiClient.fulfillOnlineOrder).mockRejectedValueOnce(new Error("offline"));
+
+    const { useFulfillOnlineOrderMutation } = await import(
+      "@/lib/hooks/use-fulfill-online-order-mutation"
+    );
+    const { result } = renderHook(() => useFulfillOnlineOrderMutation(), { wrapper });
+
+    await act(async () => {
+      await result.current
+        .mutateAsync({ order, storeId: "store1", cashierId: "cashier1" })
+        .catch(() => undefined);
+    });
+
+    expect(result.current.isError).toBe(true);
+    // The local books are correct and already queued for sync; the previous
+    // order (server first) left the order server-side fulfilled with no local
+    // sale and no stock deduction at all.
+    expect(db.exec(`SELECT COUNT(*) FROM sales`)[0].values[0][0]).toBe(1);
+    expect(db.exec(`SELECT quantity FROM stock_batches WHERE product_id = 'p1'`)[0].values[0][0]).toBe(8);
+  });
+
+  it("leaves no partial local write when the stock leg fails", async () => {
+    seedProductWithBatch("p1", 500, 10);
+    const { useFulfillOnlineOrderMutation } = await import(
+      "@/lib/hooks/use-fulfill-online-order-mutation"
+    );
+    const { result } = renderHook(() => useFulfillOnlineOrderMutation(), { wrapper });
+
+    const twoItemOrder: OnlineOrder = {
+      ...order,
+      items: [
+        { id: "oi1", product_id: "p1", quantity: 2, unit_price: 2500, subtotal: 5000 },
+        // sale_items.total_price is NOT NULL, so this line throws part-way
+        // through the loop - which previously left items 1..n-1 deducted for
+        // good, with the order already marked fulfilled server-side.
+        {
+          id: "oi2",
+          product_id: "p1",
+          quantity: 1,
+          unit_price: 100,
+          subtotal: null as unknown as number,
+        },
+      ],
+    };
+
+    await act(async () => {
+      await result.current
+        .mutateAsync({ order: twoItemOrder, storeId: "store1", cashierId: "cashier1" })
+        .catch(() => undefined);
+    });
+
+    expect(db.exec(`SELECT COUNT(*) FROM sales`)[0].values[0][0]).toBe(0);
+    expect(db.exec(`SELECT quantity FROM stock_batches WHERE product_id = 'p1'`)[0].values[0][0]).toBe(10);
+  });
+
+  it("retrying after a server failure does not record a second local sale or deduct stock twice", async () => {
+    seedProductWithBatch("p1", 500, 10);
+    const { apiClient } = await import("@/lib/api/client");
+    vi.mocked(apiClient.fulfillOnlineOrder).mockRejectedValueOnce(new Error("offline"));
+
+    const { useFulfillOnlineOrderMutation } = await import(
+      "@/lib/hooks/use-fulfill-online-order-mutation"
+    );
+    const { result } = renderHook(() => useFulfillOnlineOrderMutation(), { wrapper });
+
+    // First attempt: local leg succeeds, server leg fails - the order stays
+    // "pending" server-side, so the modal still offers "Fulfill" on it.
+    await act(async () => {
+      await result.current
+        .mutateAsync({ order, storeId: "store1", cashierId: "cashier1" })
+        .catch(() => undefined);
+    });
+    expect(result.current.isError).toBe(true);
+
+    // Second attempt (the user pressing Fulfill again): the server call now
+    // succeeds. Without recognizing the first attempt's local write, this
+    // would insert a second sales row and deduct stock a second time.
+    await act(async () => {
+      await result.current.mutateAsync({ order, storeId: "store1", cashierId: "cashier1" });
+    });
+    expect(result.current.isError).toBe(false);
+
+    expect(db.exec(`SELECT COUNT(*) FROM sales`)[0].values[0][0]).toBe(1);
+    expect(db.exec(`SELECT quantity FROM stock_batches WHERE product_id = 'p1'`)[0].values[0][0]).toBe(8);
+    expect(vi.mocked(apiClient.fulfillOnlineOrder)).toHaveBeenCalledTimes(2);
+  });
 });

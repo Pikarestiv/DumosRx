@@ -48,8 +48,12 @@ export function usePurchaseOrders() {
     if (isReceivingPO) return;
     setIsReceivingPO(true);
     try {
-      await receivePurchaseOrder(id, receivedItems);
-      toast.success("Order received and stock updated!");
+      const status = await receivePurchaseOrder(id, receivedItems);
+      toast.success(
+        status === "partially_received"
+          ? "Partial receipt recorded, the outstanding balance is still open."
+          : "Order received and stock updated!",
+      );
       void fetchPurchaseOrders();
     } catch (error) {
       console.error("Failed to receive PO:", error);
@@ -83,7 +87,12 @@ export function usePurchaseOrders() {
 
   const preFilteredOrders = purchaseOrders.filter((po) => {
     if (poTab === "all") return true;
-    if (poTab === "missing-expiry") return po.status === "received" && po.has_missing_expiry;
+    if (poTab === "missing-expiry") {
+      return (
+        (po.status === "received" || po.status === "partially_received") &&
+        po.has_missing_expiry
+      );
+    }
     return po.status === poTab;
   });
 

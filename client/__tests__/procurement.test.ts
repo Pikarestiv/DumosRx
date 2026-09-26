@@ -25,6 +25,7 @@ describe("procurement.ts", () => {
   let createPurchaseOrder: typeof import("@/lib/db/procurement").createPurchaseOrder;
   let updatePurchaseOrder: typeof import("@/lib/db/procurement").updatePurchaseOrder;
   let createAndReceivePurchaseOrder: typeof import("@/lib/db/procurement-receiving").createAndReceivePurchaseOrder;
+  let receivePurchaseOrder: typeof import("@/lib/db/procurement-receiving").receivePurchaseOrder;
 
   beforeAll(async () => {
     core = await import("@/lib/db/core");
@@ -36,6 +37,7 @@ describe("procurement.ts", () => {
     createPurchaseOrder = procurement.createPurchaseOrder;
     updatePurchaseOrder = procurement.updatePurchaseOrder;
     createAndReceivePurchaseOrder = procurementReceiving.createAndReceivePurchaseOrder;
+    receivePurchaseOrder = procurementReceiving.receivePurchaseOrder;
 
     const SQL = await initSqlJs({
       locateFile: () => require.resolve("sql.js/dist/sql-wasm.wasm"),
@@ -57,6 +59,7 @@ describe("procurement.ts", () => {
       );
       CREATE TABLE purchase_order_items (
         id TEXT PRIMARY KEY, po_id TEXT, product_id TEXT, bulk_quantity INTEGER,
+        quantity_received INTEGER DEFAULT 0,
         units_per_bulk INTEGER, unit_cost REAL, subtotal REAL,
         selling_price REAL, cost_price_override REAL, lot_number TEXT, expiry_date TEXT,
         created_at TEXT, updated_at TEXT,
@@ -405,6 +408,122 @@ describe("procurement.ts", () => {
 
       const itemRows = db.exec(`SELECT subtotal FROM purchase_order_items WHERE po_id = '${poId}'`);
       expect(itemRows[0].values[0][0]).toBe(78000);
+    });
+  });
+
+  describe("receivePurchaseOrder partial receipts", () => {
+    const seedStandardPO = async () => {
+      db.run(
+        `INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk) VALUES ('prod1', 'Zyrtec', 'Tablet', 'Carton', 10)`,
+      );
+      return createPurchaseOrder(null, "", [
+        {
+          product_id: "prod1",
+          product_name: "Zyrtec",
+          bulk_unit: "Carton",
+          bulk_quantity: 100,
+          units_per_bulk: 10,
+          unit_cost: 1000,
+          subtotal: 100000,
+        },
+      ]);
+    };
+
+    const lineItem = async (poId: string) => {
+      const { getPurchaseOrderById } = await import("@/lib/db/procurement");
+      const po = await getPurchaseOrderById(poId);
+      return po!.items[0];
+    };
+
+    it("leaves a short receipt as partially_received, with only the delivered quantity in stock", async () => {
+      const poId = await seedStandardPO();
+      const item = await lineItem(poId);
+
+      await receivePurchaseOrder(poId, [{ po_item_id: item.id, quantity: 60 }]);
+
+      const poRows = db.exec(`SELECT status, received_at FROM purchase_orders WHERE id = '${poId}'`);
+      expect(poRows[0].values[0][0]).toBe("partially_received");
+      expect(poRows[0].values[0][1]).toBeNull();
+
+      const itemRows = db.exec(`SELECT quantity_received FROM purchase_order_items WHERE po_id = '${poId}'`);
+      expect(itemRows[0].values[0][0]).toBe(60);
+
+      const batchRows = db.exec(`SELECT quantity FROM stock_batches WHERE product_id = 'prod1'`);
+      expect(batchRows[0].values[0][0]).toBe(600);
+    });
+
+    it("receives the outstanding balance on a follow-up receipt and only then flips to received", async () => {
+      const poId = await seedStandardPO();
+      const item = await lineItem(poId);
+
+      await receivePurchaseOrder(poId, [{ po_item_id: item.id, quantity: 60 }]);
+      await receivePurchaseOrder(poId, [{ po_item_id: item.id, quantity: 40 }]);
+
+      const poRows = db.exec(`SELECT status FROM purchase_orders WHERE id = '${poId}'`);
+      expect(poRows[0].values[0][0]).toBe("received");
+
+      const itemRows = db.exec(`SELECT quantity_received FROM purchase_order_items WHERE po_id = '${poId}'`);
+      expect(itemRows[0].values[0][0]).toBe(100);
+
+      const batchRows = db.exec(
+        `SELECT SUM(quantity) FROM stock_batches WHERE product_id = 'prod1'`,
+      );
+      expect(batchRows[0].values[0][0]).toBe(1000);
+    });
+
+    it("caps a submitted quantity at the outstanding balance instead of overbooking stock", async () => {
+      const poId = await seedStandardPO();
+      const item = await lineItem(poId);
+
+      await receivePurchaseOrder(poId, [{ po_item_id: item.id, quantity: 60 }]);
+      await receivePurchaseOrder(poId, [{ po_item_id: item.id, quantity: 999 }]);
+
+      const itemRows = db.exec(`SELECT quantity_received FROM purchase_order_items WHERE po_id = '${poId}'`);
+      expect(itemRows[0].values[0][0]).toBe(100);
+
+      const batchRows = db.exec(
+        `SELECT SUM(quantity) FROM stock_batches WHERE product_id = 'prod1'`,
+      );
+      expect(batchRows[0].values[0][0]).toBe(1000);
+    });
+
+    it("defaults an omitted line to its outstanding balance, not the full ordered quantity", async () => {
+      const poId = await seedStandardPO();
+      const item = await lineItem(poId);
+
+      await receivePurchaseOrder(poId, [{ po_item_id: item.id, quantity: 60 }]);
+      await receivePurchaseOrder(poId);
+
+      const batchRows = db.exec(
+        `SELECT SUM(quantity) FROM stock_batches WHERE product_id = 'prod1'`,
+      );
+      expect(batchRows[0].values[0][0]).toBe(1000);
+    });
+
+    it("is a no-op on an already-received order", async () => {
+      const poId = await seedStandardPO();
+      const item = await lineItem(poId);
+
+      await receivePurchaseOrder(poId, [{ po_item_id: item.id, quantity: 100 }]);
+      await receivePurchaseOrder(poId, [{ po_item_id: item.id, quantity: 100 }]);
+
+      const batchRows = db.exec(
+        `SELECT SUM(quantity) FROM stock_batches WHERE product_id = 'prod1'`,
+      );
+      expect(batchRows[0].values[0][0]).toBe(1000);
+    });
+
+    it("leaves the order untouched when every line is submitted as zero", async () => {
+      const poId = await seedStandardPO();
+      const item = await lineItem(poId);
+
+      await receivePurchaseOrder(poId, [{ po_item_id: item.id, quantity: 0 }]);
+
+      const poRows = db.exec(`SELECT status FROM purchase_orders WHERE id = '${poId}'`);
+      expect(poRows[0].values[0][0]).toBe("pending");
+
+      const batchRows = db.exec(`SELECT COUNT(*) FROM stock_batches WHERE product_id = 'prod1'`);
+      expect(batchRows[0].values[0][0]).toBe(0);
     });
   });
 

@@ -5,7 +5,9 @@ oriented quickly. Keep it updated when architecture, conventions, or the
 current focus of work change — see `client/AGENTS.md` and `web/AGENTS.md`
 for the sibling packages' versions of this same file and the same
 maintenance expectation. A stale doc here is worse than no doc: fix it in
-the same change that makes it wrong, don't defer it.
+the same change that makes it wrong, don't defer it. The standing rule for
+that — including moving a fixed finding from `docs/KNOWN_BUGS.md` into
+`docs/FIXED_BUGS.md` in the same change — lives in `.agents/AGENTS.md` §2.
 
 ## What this is
 
@@ -47,6 +49,23 @@ without updating that.
   (any authenticated user could see every store's data) or scoped by the
   wrong id for staff accounts; see `tests/Feature/TenantIsolationTest.php`
   for the regression coverage and exact failure shape.
+  **Service classes are the trait's blind spot.** `ScopesToTenant` takes a
+  `Request`, so classes under `app/Services/` can't use it and hand-roll the
+  same lookup instead — `Web/DashboardService` and `Api/App/SaleController`
+  both repeat it across several methods, which is exactly how one copy drifts.
+  `DashboardService::resetData()` (the destructive `POST /dashboard/reset`)
+  scoped every delete by `$user->id` directly until 2026-09-26: harmless for a
+  `store_owner` (their own id *is* the tenant owner id) but a silent zero-row
+  no-op returning `{"status":"success"}` for the real, assignable non-owner
+  `admin` staff role the controller's gate also admits. It now goes through a
+  private `tenantOwnerId($user)` mirroring the trait; regression coverage in
+  `tests/Feature/DashboardResetScopingTest.php`. Note the other three methods
+  in that file (`getSummary`/`getStats`/`getWidgetSnapshot`) still resolve by
+  `$user->id` — read-only and lower-stakes, so deliberately not changed in
+  that pass, but they are the same latent shape. `TenantScopingArchitectureTest`
+  only scans controllers, so nothing catches this class of drift in a service
+  mechanically: extract the resolution into one shared helper rather than
+  adding a fourth inline copy.
 - **Roles & permissions (`User::hasRole()`/`hasPermission()`, `app/Models/User.php`):**
   `hasRole($role)` checks three things, any of which can match: the flat
   `role` string column, the `userRole` relation's `slug` (a `Role` model,
@@ -187,6 +206,62 @@ by these hooks, never accepted from a client sync payload (client mirrors
 them in its own schema only so pull sync's dynamic column list doesn't
 break on an unknown column — see `client/AGENTS.md`).
 
+**The pipeline as it stands after 2026-09-26's storefront remediation**
+(`docs/STOREFRONT_REVIEW.md`, SF-P2-2/SF-P2-3 — read that file before
+extending or relying on any of this):
+
+- **What dirties a storefront.** `Store::boot()`'s `saved()` hook fires on
+  `Store::STOREFRONT_PUBLISHED_FIELDS` (`online_store_enabled`, `store_slug`,
+  `name`, `logo_url`, `phone`, `email`, `address`, `location` — i.e. exactly
+  what the public page renders) and on a `status` → `suspended` transition.
+  `Product::booted()` mirrors it for the other half of what a customer sees:
+  `created` when `show_online`, `updated` on
+  `name`/`selling_price`/`show_online`/`is_active`, and `deleted` when
+  `show_online`. Keep those two field lists in step with
+  `web/app/store/[store_slug]/page.tsx` and `StorefrontProductResource` — a
+  column the page renders but neither list names is a silently-stale page.
+  Both write via raw `DB::table()->update()`, never `->save()`, and
+  `Product`'s is narrowed to stores with `online_store_enabled` so a bulk
+  product sync writes nothing for the accounts that publish no storefront.
+- **The stamp is always refreshed, not only set when null.** That is
+  load-bearing, not sloppiness: the confirmation callback below clears flags
+  stamped at or before the dispatch moment, so a change landing mid-build has
+  to move the timestamp past that cutoff or it would be cleared without ever
+  shipping.
+- **Flags are cleared on deploy *success*, not on dispatch acceptance.**
+  `repository_dispatch` returns 204 as soon as GitHub queues the event, so the
+  old clear-on-204 lost the pending rebuild permanently whenever a build
+  failed. `deploy-web.yml` now calls back
+  `POST /internal/storefront/rebuild-complete`
+  (`Api/Internal/StorefrontRebuildController`) after a successful FTP sync,
+  authenticated by an `X-Storefront-Rebuild-Token` header matched with
+  `hash_equals` against `config('dumos.storefront.rebuild_token')` — the
+  inbound counterpart to `config/dumos.php`'s outbound GitHub token, and a
+  dedicated endpoint with an explicit header check rather than anything
+  ambient (see the admin-auth section above on why this app never promotes an
+  ambient credential). The dispatch timestamp lives in `SystemConfig` under
+  `storefront_rebuild_requested_at` specifically to avoid adding a synced
+  column to a table `client/` mirrors.
+- **`STOREFRONT_REBUILD_TOKEN` unset ⇒ the old clear-on-dispatch behaviour.**
+  Deliberate, so the API `.env` and the GitHub Actions secret can be set in
+  either order without a window where every scheduled run fires another full
+  rebuild. **Both sides need setting for the confirmation loop to engage at
+  all.** While a rebuild is outstanding and unconfirmed the command refuses to
+  dispatch another until
+  `dumos.storefront.rebuild_confirmation_timeout` (default 45 min) has passed.
+- **Coverage:** `tests/Feature/StorefrontRebuildPipelineTest.php` (15 tests,
+  `Http::fake()`) is the file to extend for anything in this area.
+
+Note also that the storefront's online-payment flow (`initializeCheckout`/
+`StorefrontPaymentIntent`) is complete and tested here but **deliberately not
+wired into any client** (SF-P1-2) — the OpenAPI descriptions on those routes
+read as though it is live. That is a pending business decision, not an
+oversight, and it needs a real refund path first: `PaymentService` has
+`initializeTransaction`/`verifyTransaction` and **no refund method**, so
+`OnlineOrderController::flagRefundRequired()` currently only logs a warning
+and notifies the store when an already-paid order is cancelled. Don't make
+Paystack reachable from a client without closing that.
+
 **Carbon 3 gotcha:** `diffInMonths()` (and the other `diffIn*` methods)
 return a **signed** value (`$other - $this`) in Carbon 3, unlike Carbon 2's
 absolute-value default. `now()->diffInMonths($pastDate) < N` is always
@@ -194,6 +269,47 @@ true (permanently negative) — this exact bug shipped and was caught before
 merge in the slug-cooldown check above. Prefer `now()->lt($date->addMonths(N))`
 style comparisons over `diffIn*() < N` to sidestep the sign question
 entirely.
+
+## Public storefront endpoints
+
+`Api/Public/StorefrontController` is the only unauthenticated tenant-data
+surface in the app. Three things about it are easy to undo by accident:
+
+- **Every route carries its own named limiter.** Laravel 11 dropped
+  `throttle:api` from the default `api` group and `bootstrap/app.php`
+  deliberately does not call `throttleApi()` (a platform-wide floor would
+  change every other route as a side effect), so a new public storefront route
+  with no `throttle:` group is completely unmetered. Current groups:
+  `storefront-read` (120/min/IP, both GETs), `storefront-order` (5/min/IP,
+  order placement), `storefront-checkout` (15/min/IP, the Paystack initialize
+  step). `tests/Feature/StorefrontThrottleTest.php` asserts all four routes and
+  deliberately does **not** disable `ThrottleRequests` — `StorefrontControllerTest`
+  does, which is exactly why this gap was invisible for so long, so add
+  limiter coverage there, not here.
+- **`storefront-read` is generous on purpose.** The static-export build pulls
+  the slug list plus every storefront from one GitHub runner IP in a single
+  pass, about two requests per store. 120/min leaves headroom for roughly 50
+  live storefronts; past that, raise it or give the build pipeline a token
+  before deploys start 429ing.
+- **Catalog and stock are scoped by `store_id`, not just the owner's
+  `user_id`.** Multi-store is a supported, plan-gated state and one owner's two
+  storefronts are separate shops. `storeProducts(Store)` is the single helper
+  both `show()` and `priceCart()` use; it tolerates legacy `store_id IS NULL`
+  rows from before the 2026-08-14 backfill. `availableQuantity()` scopes the
+  `StockBatch` sum the same way **and** subtracts everything already committed
+  to `pending` online orders — online orders don't deduct stock at placement
+  (POS staff do, on fulfilment), so without that subtraction the last unit
+  sells to everyone who asks. `checkout()` re-runs the check inside its
+  transaction after a per-store `lockForUpdate()`, which is what makes it hold
+  under REPEATABLE READ.
+
+`OnlineOrderController::markFulfilled` is the other half of that lifecycle:
+only a `pending` order can transition (409 otherwise, so the client's retry is
+safe), and `payment_status` is only promoted to `paid` when the caller passes
+`payment_confirmed: true`. The POS client writes its local sale and stock
+deductions **inside one transaction, before** calling this endpoint — don't
+re-invert that ordering; see `docs/FIXED_BUGS.md` (SF-P2-5) for what the old
+order cost.
 
 ## Outbound third-party API calls
 
@@ -212,17 +328,33 @@ actually run — do it synchronously (fast, timeout-guarded) or via
 `routes/console.php`'s `Schedule::command(...)`, which the OS cron does
 reliably run.
 
+**Mail is always `Mail::to(...)->send(...)`, never `->queue(...)`** — a
+direct consequence of the constraint above, stated as its own rule because a
+`->queue()` call fails *silently*: nothing checks a return value, nothing
+inspects the `jobs` table, and the caller still reports success. The last two
+`->queue()` call sites were converted on 2026-09-26:
+`AdminAlertService::send()` (the sync engine's own superadmin
+failure-escalation path — the mechanism meant to surface *other* silent
+failures) and `Api/Admin/MailController::send()` (the admin broadcast-email
+feature, which additionally returned "Emails have been queued for sending"
+unconditionally). The mailables still `implement ShouldQueue` — harmless, and
+left in place for a future real worker — so that interface's presence is
+**not** a signal that queueing is safe here. Copy the `->send()` pattern from
+`RegistersAccounts`/`RecoversPasswords`/`SendEndOfDaySummaries` for any new
+mail path.
+
 ## Testing
 
 ```
-php artisan test                            # 278 tests as of 2026-09-23 — treat any drop as a regression
+php artisan test                            # 399 tests as of 2026-09-26 — treat any drop as a regression
 php -l path/to/File.php                     # quick syntax check for a single file
 ```
 
 `tests/Feature/` covers: tenant isolation (`TenantIsolationTest`), admin
 account-security regressions (`AccountSecurityTest`), the handoff/
 impersonation flow (`AuthHandoffTest`), sync push/pull (`SyncEndpointTest`),
-storefront (`StorefrontControllerTest`), backups (`BackupControllerTest`),
+storefront (`StorefrontControllerTest`, plus `StorefrontThrottleTest` and
+`StorefrontRebuildPipelineTest`), backups (`BackupControllerTest`),
 dashboard stats, and core-tables-exist smoke checks (`ArchitectureTest`).
 There is no `tests/Unit` suite currently — everything meaningful here
 touches the DB, so it's covered as a Feature test instead.

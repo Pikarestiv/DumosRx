@@ -1305,6 +1305,14 @@ class SyncController extends Controller
                 unset($payload['subtotal']);
             }
             if (isset($payload['bulk_quantity']) && isset($payload['units_per_bulk'])) {
+                // quantity_received is scaled by the same factor as
+                // quantity_ordered so the "received <= ordered" invariant
+                // holds server-side too; a partial-receipt update carries it
+                // without bulk_quantity, in which case it's already comparable
+                // to whatever quantity_ordered this row was stored with.
+                if (isset($payload['quantity_received'])) {
+                    $payload['quantity_received'] = intval($payload['quantity_received']) * intval($payload['units_per_bulk']);
+                }
                 $payload['quantity_ordered'] = intval($payload['bulk_quantity']) * intval($payload['units_per_bulk']);
                 unset($payload['bulk_quantity']);
                 unset($payload['units_per_bulk']);
@@ -1780,9 +1788,24 @@ class SyncController extends Controller
         // Scoped to the tables actually implicated in the known stuck-
         // cursor failure mode (inventory + sales) rather than every synced
         // table - a targeted, cheap check, not a second sync engine.
+        // stock_batches must be scoped EXACTLY the way pull() scopes it
+        // (line ~845: whereIn('product_id', Product::whereIn('store_id', ...)
+        // ->pluck('id'))), not by stock_batches.store_id directly. Product
+        // uses SoftDeletes, so that pull-side subquery silently excludes
+        // batches belonging to a deleted product — completely routine
+        // (discontinuing/removing a product) for a store like this one.
+        // Counting by store_id alone here would count those orphaned-
+        // product batches too, permanently disagreeing with what pull()
+        // can ever actually deliver: a device would look "behind" by
+        // exactly that many rows forever, since forceFullResync() re-runs
+        // the very same pull scoping and can never close a gap that isn't
+        // real. Matching this exactly is what keeps the health check
+        // comparing apples to apples.
+        $nonDeletedProductIds = Product::where('store_id', $currentStoreId)->pluck('id');
+
         $counts = [
             'products' => DB::table('products')->where('store_id', $currentStoreId)->whereNull('deleted_at')->count(),
-            'stock_batches' => DB::table('stock_batches')->where('store_id', $currentStoreId)->whereNull('deleted_at')->count(),
+            'stock_batches' => DB::table('stock_batches')->whereIn('product_id', $nonDeletedProductIds)->whereNull('deleted_at')->count(),
             'sales' => DB::table('sales')->where('store_id', $currentStoreId)->whereNull('deleted_at')->count(),
             'customers' => DB::table('customers')->where('store_id', $currentStoreId)->whereNull('deleted_at')->count(),
             'categories' => DB::table('categories')->where('store_id', $currentStoreId)->whereNull('deleted_at')->count(),
@@ -1901,25 +1924,40 @@ class SyncController extends Controller
             // the store to actually have never synced before (last_sync_at
             // null) to honor it; once a real sync has landed, the escape
             // hatch closes for good, same as if it never existed for that
-            // store from then on. Pull's own isSetup (no last_synced
-            // supplied at all) doesn't have an equivalent spoofable flag —
-            // left as-is.
+            // store from then on.
+            //
+            // Pull's own isSetup used to be considered un-spoofable ("no
+            // last_synced supplied at all" was assumed to only ever happen
+            // on a device's genuine first-ever sync) — wrong: any device can
+            // trivially reproduce an empty last_synced just by clearing its
+            // own local sync-cursor state (a real, shipped recovery feature
+            // - see forceFullResync() - and just as easy without it, by
+            // clearing local app storage). Left ungated, that's a repeatable,
+            // unlimited bypass of both the cloud_sync gate and the interval
+            // throttle for any store, on any plan, at any time. Gated with
+            // the exact same store.last_sync_at corroboration as the push
+            // side: an empty last_synced only counts as a genuine first sync
+            // when the STORE (not just this device) has never synced before.
             $isSetup = $isPush
                 ? ($request->boolean('setup') && !($store && $store->last_sync_at))
                 // The pull-side `setup` flag has two distinct honored shapes:
-                // a genuinely empty `last_synced` (a real first-ever full
-                // sync, unaffected by the change below), or the narrow
-                // `stores`-only shape isStoresOnlySetupOverridePull() checks
-                // for — see that method's doc comment for why `setup=1`
-                // isn't simply honored outright the way it now half-is (this
-                // used to ignore the query param entirely, computing isSetup
-                // from `last_synced` alone, which meant the client's
+                // a genuinely empty `last_synced` corroborated by the store
+                // never having synced before (a real first-ever full sync),
+                // or the narrow `stores`-only shape
+                // isStoresOnlySetupOverridePull() checks for — see that
+                // method's doc comment for why `setup=1` isn't simply
+                // honored outright the way it now half-is (this used to
+                // ignore the query param entirely, computing isSetup from
+                // `last_synced` alone, which meant the client's
                 // subscription-status pull — which always sends a non-empty
                 // `last_synced: { stores: "" }` specifically so it can bypass
                 // this gate — never actually got the bypass it asked for,
                 // and was rejected with SYNC_DISABLED for exactly the
                 // free/lapsed/suspended tiers that call exists to correct).
-                : (!$isPush && (empty($request->input('last_synced', [])) || $this->isStoresOnlySetupOverridePull($request, $request->input('last_synced', []))));
+                : (!$isPush && (
+                    (empty($request->input('last_synced', [])) && !($store && $store->last_sync_at))
+                    || $this->isStoresOnlySetupOverridePull($request, $request->input('last_synced', []))
+                ));
 
             if (!$isSetup) {
                 if (!$canSync) {

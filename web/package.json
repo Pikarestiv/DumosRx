@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "verify:storefront-output": "node scripts/verify-storefront-output.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

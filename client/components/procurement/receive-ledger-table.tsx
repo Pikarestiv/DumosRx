@@ -5,7 +5,11 @@ import { ResponsiveTabLabel } from "@/components/ui/responsive-tab-label";
 import { EmptyState } from "@/components/ui/empty-state";
 import type { PurchaseOrderItem } from "@/lib/db/local-database";
 import type { ReceivedItemPayload } from "./receive-po-panel";
-import { clampMoneyInput } from "./po-line-item-math";
+import {
+  clampMoneyInput,
+  clampReceivedQuantity,
+  outstandingBulkQuantity,
+} from "./po-line-item-math";
 import { formatCurrency } from "@/lib/utils";
 
 interface ReceiveLedgerTableProps {
@@ -71,6 +75,8 @@ export function ReceiveLedgerTable({
         <div role="rowgroup" className="divide-y divide-border">
           {items.map((item) => {
             const state = receivedItems[item.id] || ({} as ReceivedItemPayload);
+            const outstanding = outstandingBulkQuantity(item);
+            const alreadyReceived = Number(item.quantity_received) || 0;
             return (
               <div key={item.id} role="row" className={`grid ${GRID_COLS}`}>
                 <div role="cell" className="px-3 py-2 sticky left-0 bg-card">
@@ -86,6 +92,11 @@ export function ReceiveLedgerTable({
                   className="px-3 py-2 text-right text-muted-foreground flex items-center justify-end"
                 >
                   {item.bulk_quantity}
+                  {alreadyReceived > 0 && (
+                    <span className="ml-1 text-[11px] text-amber-600 font-semibold">
+                      (-{alreadyReceived})
+                    </span>
+                  )}
                 </div>
                 <div
                   role="cell"
@@ -94,15 +105,14 @@ export function ReceiveLedgerTable({
                   <Input
                     type="number"
                     min="0"
+                    max={outstanding}
                     className="w-full min-w-16 text-right"
-                    value={state.quantity ?? item.bulk_quantity}
+                    value={state.quantity ?? outstanding}
                     onChange={(e) =>
                       onFieldChange(
                         item.id,
                         "quantity",
-                        // min="0" is only an HTML hint — parseInt("-5") is
-                        // truthy, so clamp here (same as ReceiveItemCard).
-                        Math.max(0, parseInt(e.target.value) || 0),
+                        clampReceivedQuantity(e.target.value, outstanding),
                       )
                     }
                   />

@@ -574,17 +574,21 @@ export async function pullChanges(
       ).catch(() => {});
     }
 
-    // Fallback for the rare case the per-page check above never saw
-    // criticalTablesPending empty (e.g. this round had zero stores/users
-    // changes at all, so the loop broke on an empty `changes` before ever
-    // reaching that check) - still guarantees a caller waiting on this
-    // isn't stuck forever just because there was nothing new to report.
-    fireCriticalReadyOnce();
-
     return { pulled: pulledCount, updatedTables };
   } catch (error) {
     console.error("Pull sync failed:", error);
     logCrash(error, false, { area: "sync-pull" }).catch(() => {});
     throw error; // Throw so sync() can catch it properly
+  } finally {
+    // Fallback for the rare case the per-page check inside the loop never
+    // saw criticalTablesPending empty (e.g. this round had zero stores/
+    // users changes at all, so the loop broke on an empty `changes` before
+    // ever reaching that check) - and, via `finally` rather than only the
+    // success path, for a THROWN pull too. onboarding's own caller already
+    // handles a failed sync() correctly regardless (identityReady stays
+    // false, so it falls back to the "cloud" step), but any future caller
+    // awaiting this callback specifically must not be left hanging forever
+    // just because the pull that was supposed to signal it blew up first.
+    fireCriticalReadyOnce();
   }
 }

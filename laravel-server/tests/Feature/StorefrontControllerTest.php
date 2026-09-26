@@ -493,6 +493,102 @@ class StorefrontControllerTest extends TestCase
         ]);
     }
 
+    public function test_a_paid_checkout_that_sold_out_during_the_paystack_detour_is_refunded()
+    {
+        $product = $this->purchasableProduct(['name' => 'Panadol', 'selling_price' => 100, 'user_id' => $this->ownerA->id]);
+        $items = [['product_id' => $product->id, 'quantity' => 2]];
+
+        $this->initializePaystackCheckout($items, 'SOLD-OUT-WHILE-PAYING')->assertStatus(200);
+
+        // Everything the cart needed is gone by the time the customer returns
+        // from Paystack's hosted page - but they have already been charged.
+        StockBatch::where('product_id', $product->id)->update(['quantity' => 0]);
+
+        $this->mock(PaymentService::class, function ($mock) {
+            $mock->shouldReceive('verifyTransaction')
+                ->andReturn(['success' => true, 'amount' => 200, 'currency' => 'NGN']);
+            $mock->shouldReceive('refundTransaction')
+                ->once()
+                ->with('SOLD-OUT-WHILE-PAYING', 'paystack')
+                ->andReturn(['success' => true, 'message' => 'Refunded']);
+        });
+
+        $response = $this->postJson('/api/v1/storefront/store-a/checkout', [
+            'customer_name' => 'Jane Doe',
+            'customer_phone' => '08000000000',
+            'payment_method' => 'paystack',
+            'paystack_reference' => 'SOLD-OUT-WHILE-PAYING',
+            'items' => $items,
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonFragment(['refunded' => true]);
+        $this->assertDatabaseCount('online_orders', 0);
+        $this->assertDatabaseHas('storefront_payment_intents', [
+            'reference' => 'SOLD-OUT-WHILE-PAYING',
+            'status' => 'refunded',
+        ]);
+    }
+
+    public function test_a_paid_checkout_whose_product_was_deactivated_is_refunded()
+    {
+        $product = $this->purchasableProduct(['name' => 'Panadol', 'selling_price' => 100, 'user_id' => $this->ownerA->id]);
+        $items = [['product_id' => $product->id, 'quantity' => 1]];
+
+        $this->initializePaystackCheckout($items, 'DEACTIVATED-WHILE-PAYING')->assertStatus(200);
+
+        $product->update(['is_active' => false]);
+
+        $this->mock(PaymentService::class, function ($mock) {
+            $mock->shouldReceive('verifyTransaction')
+                ->andReturn(['success' => true, 'amount' => 100, 'currency' => 'NGN']);
+            $mock->shouldReceive('refundTransaction')
+                ->once()
+                ->andReturn(['success' => true, 'message' => 'Refunded']);
+        });
+
+        $response = $this->postJson('/api/v1/storefront/store-a/checkout', [
+            'customer_name' => 'Jane Doe',
+            'customer_phone' => '08000000000',
+            'payment_method' => 'paystack',
+            'paystack_reference' => 'DEACTIVATED-WHILE-PAYING',
+            'items' => $items,
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonFragment(['refunded' => true]);
+        $this->assertDatabaseCount('online_orders', 0);
+    }
+
+    public function test_an_unpaid_failed_checkout_is_never_refunded()
+    {
+        $product = $this->purchasableProduct(['name' => 'Panadol', 'selling_price' => 100, 'user_id' => $this->ownerA->id]);
+        $items = [['product_id' => $product->id, 'quantity' => 2]];
+
+        $this->initializePaystackCheckout($items, 'NEVER-PAID')->assertStatus(200);
+        StockBatch::where('product_id', $product->id)->update(['quantity' => 0]);
+
+        $this->mock(PaymentService::class, function ($mock) {
+            $mock->shouldReceive('verifyTransaction')
+                ->andReturn(['success' => false, 'message' => 'Payment not completed']);
+            $mock->shouldNotReceive('refundTransaction');
+        });
+
+        $response = $this->postJson('/api/v1/storefront/store-a/checkout', [
+            'customer_name' => 'Jane Doe',
+            'customer_phone' => '08000000000',
+            'payment_method' => 'paystack',
+            'paystack_reference' => 'NEVER-PAID',
+            'items' => $items,
+        ]);
+
+        $response->assertStatus(422);
+        $this->assertDatabaseHas('storefront_payment_intents', [
+            'reference' => 'NEVER-PAID',
+            'status' => 'pending',
+        ]);
+    }
+
     public function test_checkout_rejects_orders_for_a_suspended_store()
     {
         $this->storeA->update(['status' => 'suspended']);

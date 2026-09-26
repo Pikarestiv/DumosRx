@@ -325,6 +325,17 @@ straight to their own bank account.
   which compares against `payment_transactions.currency`. Covered by
   `test_a_non_ngn_store_completes_the_initialize_to_verify_round_trip` and
   `StorefrontPaystackLifecycleTest` (a KES store, end to end).
+- **A paid-but-unfulfillable confirm refunds itself.** `checkout()` prices the
+  cart and re-checks availability *after* the customer has already paid at
+  Paystack (nothing is reserved at initialize time — availability is only
+  netted against pending orders). If stock has gone or a product was
+  deactivated during that detour, `refundUnfulfillableCheckout()` verifies the
+  payment really succeeded, refunds it, marks the intent `refunded`, and
+  returns a 422 carrying `refunded` so the storefront can say so — never a
+  bare stock error on a charged customer. It returns null (caller falls
+  through to its own error) when there is nothing paid to refund, so an
+  unpaid/failed reference is never refunded and its intent stays `pending`
+  for a retry.
 - **Refunds are real, but not clawed back from the store.**
   `OnlineOrderController`'s cancel-a-paid-order path now calls
   `PaymentService::refundTransaction()` (which delegates to

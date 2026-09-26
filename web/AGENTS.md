@@ -204,7 +204,14 @@ per-finding status). The storefront contract as it now stands:
   confirm shows a toast naming the payment reference so the customer has
   something to quote the store — don't let that detail regress (a past fix,
   `ef2e0512`, exists specifically because `AxiosError instanceof Error` made
-  an earlier version show a generic HTTP status instead). This was the SF-P1-2
+  an earlier version show a generic HTTP status instead). **A reference with
+  no pending entry is never a silent no-op:** a customer returning in a new
+  tab/session (or with storage cleared) gets a dedicated panel quoting the
+  reference and telling them to contact the store, never the ordinary
+  empty-cart view — they have paid, and the reference in the URL is the only
+  thing that can find their money. A 422 from the confirm call may also carry
+  `refunded: true`, meaning the order became unfulfillable after payment and
+  the server has already refunded it (see `laravel-server/AGENTS.md`). This was the SF-P1-2
   gap; the money-flow design it needed first is
   `docs/superpowers/specs/2026-09-26-storefront-paystack-subaccounts-design.md`.
   The `in_store`/`transfer` flows are unchanged.

@@ -28,6 +28,7 @@ export function CheckoutForm({ storeSlug }: CheckoutFormProps) {
   const [pricesLoading, setPricesLoading] = useState(true);
   const [pricesStale, setPricesStale] = useState(false);
   const [onlinePaymentAvailable, setOnlinePaymentAvailable] = useState(false);
+  const [orphanReference, setOrphanReference] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -90,12 +91,16 @@ export function CheckoutForm({ storeSlug }: CheckoutFormProps) {
     if (!reference) return;
 
     const pendingRaw = sessionStorage.getItem(`dumos_pending_checkout_${storeSlug}`);
-    if (!pendingRaw) return;
+    if (!pendingRaw) {
+      setOrphanReference(reference);
+      return;
+    }
 
     let pending: { formData: typeof formData; items: { product_id: string; quantity: number }[] };
     try {
       pending = JSON.parse(pendingRaw);
     } catch {
+      setOrphanReference(reference);
       return;
     }
 
@@ -183,6 +188,30 @@ export function CheckoutForm({ storeSlug }: CheckoutFormProps) {
       setLoading(false);
     }
   };
+
+  if (orphanReference) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>We couldn&apos;t match your payment to this cart</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3 text-sm text-gray-600">
+          <p>
+            Your payment may have gone through, but this browser has no record of the order it was
+            for (that happens if you came back in a new tab or window).
+          </p>
+          <p>
+            Please contact the store with your payment reference so they can find and confirm your
+            order:
+          </p>
+          <p className="font-mono text-base font-semibold text-gray-900">{orphanReference}</p>
+        </CardContent>
+        <CardFooter className="flex justify-center">
+          <Button onClick={() => router.push(`/store/${storeSlug}`)}>Return to Store</Button>
+        </CardFooter>
+      </Card>
+    );
+  }
 
   if (cart.items.length === 0) {
     return (

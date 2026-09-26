@@ -72,6 +72,57 @@ class StorefrontController extends Controller
     }
 
     /**
+     * The customer has already paid at Paystack, but the order can no longer
+     * be created (stock gone, or a product deactivated, during their detour
+     * to the hosted page). Nothing is reserved at initialize time, so this is
+     * reachable in normal traffic - refund rather than keep the money with no
+     * order to cancel. Returns null when there is nothing paid to refund, so
+     * the caller falls through to its own error response.
+     */
+    private function refundUnfulfillableCheckout(Store $store, ?string $reference, PaymentService $paymentService): ?\Illuminate\Http\JsonResponse
+    {
+        if (!$reference) {
+            return null;
+        }
+
+        $intent = \App\Models\StorefrontPaymentIntent::where('reference', $reference)
+            ->where('store_id', $store->id)
+            ->where('status', 'pending')
+            ->first();
+
+        if (!$intent) {
+            return null;
+        }
+
+        $verification = $paymentService->verifyTransaction($reference, 'paystack');
+        if (!($verification['success'] ?? false)) {
+            return null;
+        }
+
+        $refund = $paymentService->refundTransaction($reference, 'paystack');
+
+        if (!($refund['success'] ?? false)) {
+            Log::error('Storefront refund failed for an unfulfillable paid checkout', [
+                'store_id' => $store->id,
+                'reference' => $reference,
+                'message' => $refund['message'] ?? null,
+            ]);
+
+            return response()->json([
+                'message' => "Your payment went through but this order can no longer be fulfilled, and the refund could not be completed automatically. Please contact the store with reference {$reference}.",
+                'refunded' => false,
+            ], 422);
+        }
+
+        $intent->update(['status' => 'refunded']);
+
+        return response()->json([
+            'message' => "Your payment went through but this order can no longer be fulfilled - it is being refunded. Reference {$reference}.",
+            'refunded' => true,
+        ], 422);
+    }
+
+    /**
      * Stock this store can still promise: its own batches, minus everything
      * already committed to orders that are placed but not yet fulfilled.
      * Online orders don't deduct stock at placement (staff deduct on
@@ -427,7 +478,7 @@ class StorefrontController extends Controller
             ])),
             new OA\Response(response: 403, description: 'Store is suspended'),
             new OA\Response(response: 404, ref: '#/components/responses/NotFound'),
-            new OA\Response(response: 422, ref: '#/components/responses/ValidationError', description: 'Validation failure, or Paystack reference could not be verified / didn\'t cover the order total'),
+            new OA\Response(response: 422, ref: '#/components/responses/ValidationError', description: 'Validation failure, or Paystack reference could not be verified / didn\'t cover the order total. Also returned when an already-paid order can no longer be fulfilled (stock gone or product deactivated during the provider detour), in which case the payment is refunded and the body carries `refunded`.'),
         ],
     )]
     public function checkout(Request $request, $store_slug, PaymentService $paymentService, SubscriptionService $subscriptionService)
@@ -459,9 +510,22 @@ class StorefrontController extends Controller
         // response stays purchasable forever even after being deactivated
         // or hidden from the online store - fetched in one batch rather
         // than one query per item.
-        [$totalAmount, $orderItems, $error, $productNames] = $this->priceCart($store, $validated['items']);
+        $reference = $validated['payment_method'] === 'paystack'
+            ? ($validated['paystack_reference'] ?? null)
+            : null;
+
+        try {
+            [$totalAmount, $orderItems, $error, $productNames] = $this->priceCart($store, $validated['items']);
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+            $refund = $this->refundUnfulfillableCheckout($store, $reference, $paymentService);
+            if ($refund) {
+                return $refund;
+            }
+            throw $e;
+        }
+
         if ($error) {
-            return $error;
+            return $this->refundUnfulfillableCheckout($store, $reference, $paymentService) ?? $error;
         }
 
         // A verified reference stays "successful" at Paystack forever, so a
@@ -622,7 +686,8 @@ class StorefrontController extends Controller
                 return $order;
             });
         } catch (\App\Exceptions\StorefrontStockUnavailableException $e) {
-            return $e->getResponse();
+            return $this->refundUnfulfillableCheckout($store, $reference, $paymentService)
+                ?? $e->getResponse();
         } catch (\App\Exceptions\PaymentReferenceAlreadyUsedException $e) {
             return response()->json([
                 'message' => 'This payment reference has already been used for another order.',

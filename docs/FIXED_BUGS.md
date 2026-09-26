@@ -4,6 +4,12 @@ A changelog of bugs that were tracked in `docs/KNOWN_BUGS.md` and have since bee
 
 ## 2026-09-26
 
+### fix: a batch of many sync conflicts crashed the page ("Maximum update depth exceeded")
+- **Commit:** `e5be3b1c`
+- Direct follow-on to the mass-requeue-on-boot fix below: draining that backlog meant a single push batch could report up to `SYNC_BATCH_SIZE` (50) version conflicts at once. The conflict-reporting loop called `toast.warning()` once per conflicted record with no upper bound — Sonner's `Toaster` does a `flushSync`-driven state update per `toast()` call, and ~25-30 of those fired synchronously in one tick trips React's own "Maximum update depth exceeded" guard, crashing the whole page (reported live via the crash logger, `pushChanges` at the bottom of the stack).
+- Past a small threshold (5), the loop now collapses into a single summary toast ("N changes could not be saved...") instead of one per record; below the threshold, unchanged.
+- Regression coverage: `client/__tests__/push-limits-conflict-toasts.test.ts` (a batch of 30 conflicts reproduces 30 synchronous `toast.warning()` calls against the pre-fix code; asserts far fewer after). Full suite (904 tests / 169 files) and `tsc --noEmit` clean.
+
 ### fix: markSynced() never flagged the source row synced, mass-requeuing a device's entire history every boot
 - **Commit:** `b2cd256c`
 - Reported as a recurring "A change to Activity Log could not be saved because the record changed since this edit" toast, plus the sync-status indicator showing up to ~15,000 unsynced changes.

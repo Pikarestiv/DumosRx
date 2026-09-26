@@ -114,7 +114,8 @@ export function CheckoutForm({ storeSlug }: CheckoutFormProps) {
         router.push(`/store/${storeSlug}`);
       })
       .catch((error) => {
-        toast.error(error instanceof Error ? error.message : "Could not confirm your payment. Contact the store with reference " + reference + ".");
+        const detail = error instanceof Error ? ` (${error.message})` : "";
+        toast.error(`Could not confirm your payment. Contact the store with reference ${reference}.${detail}`);
       })
       .finally(() => setLoading(false));
     // Runs once on mount for a given reference - deliberately not

@@ -143,6 +143,9 @@ Route::prefix('v1')->group(function () {
 
         Route::apiResource('staff', StaffController::class)->middleware(['permission:manage_staff', 'subscription']);
         Route::get('stores/check-slug', [StoreController::class, 'checkSlug']);
+        Route::get('stores/{store}/payment-banks', [StoreController::class, 'paymentBanks']);
+        Route::post('stores/{store}/payment-account/resolve', [StoreController::class, 'resolvePaymentAccount']);
+        Route::post('stores/{store}/payment-account', [StoreController::class, 'createPaymentAccount']);
         Route::apiResource('stores', StoreController::class);
 
         Route::prefix('subscription')->group(function () {

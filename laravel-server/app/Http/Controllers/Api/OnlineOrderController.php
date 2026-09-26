@@ -192,6 +192,7 @@ class OnlineOrderController extends Controller
             $result = $paymentService->refundTransaction($order->paystack_reference, 'paystack');
 
             if ($result['success']) {
+                $order->update(['payment_status' => 'refunded']);
                 $this->notifyStore($order, $storeId, 'Refunded', "Online order #{$order->id} ({$order->total_amount}) was refunded to {$order->customer_name}.");
                 return;
             }

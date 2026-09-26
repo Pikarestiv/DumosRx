@@ -348,7 +348,13 @@ straight to their own bank account.
   with the user as an accepted v1 cost of running the platform rather than
   something to build a Transfer/Transfer-Recipient claw-back for now —
   revisit only if refund volume ever makes automating it worth the extra
-  integration surface.
+  integration surface. A **successful** refund also moves the order's own
+  `payment_status` to `'refunded'` (added to the `online_orders` enum by
+  `2026_09_26_000003`); a **failed** one deliberately leaves it `'paid'`,
+  because the money is still owed and the flag-and-notify path is what makes
+  that reconcilable. Anything summing paid online orders as revenue must
+  therefore treat `'refunded'` as not-revenue rather than assuming three
+  values.
 
 **Carbon 3 gotcha:** `diffInMonths()` (and the other `diffIn*` methods)
 return a **signed** value (`$other - $this`) in Carbon 3, unlike Carbon 2's

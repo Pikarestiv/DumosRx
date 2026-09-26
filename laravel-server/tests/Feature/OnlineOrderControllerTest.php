@@ -245,6 +245,41 @@ class OnlineOrderControllerTest extends TestCase
         Http::assertSent(fn ($request) => $request['transaction'] === 'ref_to_refund');
     }
 
+    public function test_a_successful_refund_marks_the_order_refunded_not_paid()
+    {
+        Http::fake(['api.paystack.co/refund' => Http::response(['status' => true, 'message' => 'Refunded'], 200)]);
+
+        $order = $this->paidOnlineOrder(['payment_method' => 'paystack', 'paystack_reference' => 'ref_status']);
+
+        $this->actingAs($this->owner)
+            ->postJson("/api/v1/app/online-orders/{$order->id}/fulfill", ['status' => 'cancelled'])
+            ->assertStatus(200);
+
+        $this->assertDatabaseHas('online_orders', [
+            'id' => $order->id,
+            'order_status' => 'cancelled',
+            'payment_status' => 'refunded',
+        ]);
+    }
+
+    public function test_a_failed_refund_leaves_the_order_marked_paid()
+    {
+        Http::fake(['api.paystack.co/refund' => Http::response(['status' => false, 'message' => 'Already refunded'], 400)]);
+
+        $order = $this->paidOnlineOrder(['payment_method' => 'paystack', 'paystack_reference' => 'ref_status_fail']);
+
+        $this->actingAs($this->owner)
+            ->postJson("/api/v1/app/online-orders/{$order->id}/fulfill", ['status' => 'cancelled'])
+            ->assertStatus(200);
+
+        // Still owed to the customer - the flag-and-notify path is the record
+        // of that, and 'paid' is what makes it reconcilable.
+        $this->assertDatabaseHas('online_orders', [
+            'id' => $order->id,
+            'payment_status' => 'paid',
+        ]);
+    }
+
     public function test_a_failed_refund_falls_back_to_the_log_and_notify_flag()
     {
         Http::fake(['api.paystack.co/refund' => Http::response(['status' => false, 'message' => 'Already refunded'], 400)]);

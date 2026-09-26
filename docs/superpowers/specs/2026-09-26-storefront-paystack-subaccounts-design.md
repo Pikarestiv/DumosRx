@@ -136,7 +136,14 @@ New `App\Services\Payment\PaystackSubaccountService` (same house style as
 `PaymentService` — plain `Http::withToken()`, no SDK):
 
 - `listBanks(string $countryCode): array` — wraps Paystack's bank-list
-  endpoint.
+  endpoint. Paystack's documented `country` values for this endpoint are
+  `nigeria`, `ghana`, `kenya`, `south africa`; Rwanda and Côte d'Ivoire are
+  not confirmed supported by this specific endpoint despite being supported
+  countries overall. Returns `[]` rather than throwing on an unsupported/
+  empty response, and the onboarding UI falls back to a plain bank-name text
+  field (no dropdown, no resolve) for a country this returns nothing for —
+  the same "can't verify automatically, say so" principle as
+  `resolveAccount()` below, extended to the bank list itself.
 - `resolveAccount(string $accountNumber, string $bankCode, string $countryCode): ?array`
   — returns the resolved account name where Paystack supports it for that
   country (Nigeria, Ghana today); returns `null` (not a fabricated guess)
@@ -224,6 +231,15 @@ refundTransaction($order->paystack_reference)`. On success, the notification
 becomes "Refunded" rather than "Refund required"; on failure, the existing
 log-and-notify behavior is kept as the fallback so a provider-side refund
 failure is never silent.
+
+**Cost of a refund on an already-settled order:** Paystack's own refund
+behavior on a split transaction is to draw the refund from DumosRx's main
+balance once the subaccount side has already settled (typically within a
+day or two of the sale) — it is not automatically clawed back from the
+store. Confirmed with the user this is an accepted v1 cost of running the
+platform rather than something to build a claw-back transfer for now; no
+Transfer/Transfer-Recipient integration is in scope for this pass. Revisit
+if refund volume ever makes this worth automating.
 
 ## Error handling
 

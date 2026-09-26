@@ -4,6 +4,16 @@ A changelog of bugs that were tracked in `docs/KNOWN_BUGS.md` and have since bee
 
 ## 2026-09-26
 
+### fix: markSynced() never flagged the source row synced, mass-requeuing a device's entire history every boot
+- **Commit:** `b2cd256c`
+- Reported as a recurring "A change to Activity Log could not be saved because the record changed since this edit" toast, plus the sync-status indicator showing up to ~15,000 unsynced changes.
+- Root cause: `insert()`/`update()` (`client/lib/db/base-helpers.ts`) set `_synced = 0` at write time, but `markSynced()` only ever `DELETE`d the processed `_sync_queue` row — nothing ever flipped the source row's `_synced` back to 1 (`stores`, via a separate pull-path update, was the sole exception). Every already-synced row across the other ~24 tables therefore looked permanently "unsynced with no queue entry" — exactly what `requeueOrphanedRows()` (`client/lib/db/reconcile-identity.ts`, run every app boot from `DatabaseProvider.tsx`) treats as needing a fresh queue entry, mass-requeuing a device's entire synced history on every launch.
+- `audit_logs` specifically has no `_version` field in its queued payload (`logAction()` never sets one), so a resubmitted already-accepted INSERT falls to the server's legacy `stale_timestamp` conflict fallback and gets rejected every time — hence the toast loop landing there rather than some other table.
+- Almost certainly a long-standing bug, not something the two DB-lock fixes above introduced — it was most likely masked until those fixes made boot/sync reliable enough to run this path to completion instead of crashing first on "Statement closed".
+- `markSynced()` now also takes each successfully-pushed change's `{table_name, record_id}` and sets `_synced = 1` on it. `audit_logs` version conflicts are now silenced the same way `feedback`'s already are (both are push-only telemetry the user never edits — a resubmit "conflict" is sync plumbing, not a real edit collision worth a toast).
+- Regression coverage: `client/__tests__/push-marks-source-row-synced.test.ts` (asserts `_synced = 1` after a successful push, and that `requeueOrphanedRows()` no longer re-adds the row on a simulated next boot) and `client/__tests__/push-silences-audit-log-conflicts.test.ts` (reproduces the exact toast text against the pre-fix code, then asserts it's gone). Full suite (903 tests / 168 files) and `tsc --noEmit` clean.
+- **Not addressed:** the one-time backlog of already-accumulated `_synced = 0` rows on devices that hit this bug will still get requeued and pushed once more after this fix ships (self-healing from then on, since `_synced` is now correctly maintained) — no migration was written to pre-clear that backlog, so a device with a large existing backlog will see one more (now-silent, for audit_logs) sync burst before it stabilizes.
+
 ### fix: writer-promotion db-swap race, and N one-at-a-time saves in the boot-time orphan-row requeue
 - **Commit:** `3b6edc15`
 - Follow-up to the connection-lock fix below: after that fix shipped, the same "bad parameter or other API misuse" error still surfaced from `requeueOrphanedRows()` (via `DatabaseProvider`'s boot-time call), and the login PIN page started feeling noticeably slower on first load.

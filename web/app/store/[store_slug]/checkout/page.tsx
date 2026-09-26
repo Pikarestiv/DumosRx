@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 
 import { FooterSection } from "@/components/landing/footer-section";
 import { StorefrontCart } from "@/components/storefront/storefront-cart";
@@ -48,7 +49,14 @@ export default async function CheckoutPage({ params }: CheckoutPageProps) {
         <h1 className="text-3xl font-extrabold tracking-tight text-gray-900 mb-8">
           Complete Your Order
         </h1>
-        <CheckoutForm storeSlug={store_slug} />
+        {/* CheckoutForm reads useSearchParams() (for the Paystack ?reference=
+            return) - the static export prerenders this page, and Next
+            requires a Suspense boundary around any useSearchParams() consumer
+            so it can bail that part out to client-side rendering instead of
+            failing the whole page's prerender. */}
+        <Suspense fallback={null}>
+          <CheckoutForm storeSlug={store_slug} />
+        </Suspense>
       </main>
 
       <FooterSection />

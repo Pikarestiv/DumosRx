@@ -221,6 +221,16 @@ per-finding status). The storefront contract as it now stands:
   mirrors `client/`'s vitest setup. Any new `web/` component work should get
   test coverage under `npx vitest run` the same way `client/` does; don't
   assume `web/` is typecheck-only going forward.
+- **Neither `tsc --noEmit` nor `vitest` catches a missing Suspense boundary
+  around `useSearchParams()`.** The checkout return-handling `useEffect`
+  above shipped without one and passed every check this repo normally
+  runs — `tsc`, `vitest`, the reviewed diff — until the actual `next build`
+  failed in CI (`⨯ useSearchParams() should be wrapped in a suspense
+  boundary`, only surfaces at static-export prerender time). Any page-level
+  component that calls `useSearchParams()` directly needs its own
+  `<Suspense>` wrapper in the page (see `app/store/[store_slug]/checkout/
+  page.tsx`) — run a real `npm run build` (per the local-stub instructions
+  above) whenever touching one, not just `tsc`/`vitest`.
 
 Backend verification for anything touching `laravel-server/`:
 ```

@@ -73,10 +73,8 @@ class SystemConfigController extends Controller
             $this->validatePlanPricing($request);
         }
 
-        // The one platform-wide commission rate on every storefront sale.
-        // Capped well below 100 - this is a fee on top of the store's own
-        // price, not a share of it, and a runaway value here is a config
-        // typo, not a legitimate rate.
+        // The one platform-wide commission rate on every storefront sale
+        // (semantics and cap rationale: laravel-server/AGENTS.md).
         if ($key === 'storefront_platform_fee_percentage') {
             $request->validate([
                 'value' => 'required|numeric|min:0|max:50',
@@ -85,10 +83,8 @@ class SystemConfigController extends Controller
 
         $config = SystemConfig::setVal($key, $validated['value']);
 
-        // Existing subaccounts were created with whatever rate was in effect
-        // at the time (Paystack bakes percentage_charge in at creation, not
-        // per-transaction) - dirty them so SyncSubaccountFeeRates picks the
-        // new rate up, mirroring Store::boot()'s storefront_dirty_at pattern.
+        // Paystack bakes percentage_charge in at subaccount creation, so
+        // existing ones need SyncSubaccountFeeRates to pick the new rate up.
         if ($key === 'storefront_platform_fee_percentage') {
             DB::table('stores')
                 ->whereNotNull('paystack_subaccount_code')

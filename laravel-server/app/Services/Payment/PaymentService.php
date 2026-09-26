@@ -18,7 +18,9 @@ class PaymentService
     }
 
     /**
-     * Initialize a transaction with Paystack (Primary) or Flutterwave (Fallback)
+     * Initialize a transaction with Paystack (Primary) or Flutterwave (Fallback).
+     * $callbackUrl, $subaccount and $currency are the storefront checkout's
+     * (see laravel-server/AGENTS.md); the subscription flow omits all three.
      */
     public function initializeTransaction($amount, $email, $metadata = [], ?string $callbackUrl = null, ?string $subaccount = null, ?string $currency = null)
     {
@@ -62,19 +64,9 @@ class PaymentService
             'amount' => (int) round($amount * 100), // Paystack uses kobo
             'email' => $email,
             'metadata' => $metadata,
-            // Every caller previously got the subscription-verify page
-            // regardless of what they were actually paying for - a
-            // storefront checkout redirected a paying customer into a
-            // page that 404s on their reference, so the order never got
-            // created despite the charge succeeding. Callers now pass
-            // their own return URL; the subscription flow's callers omit
-            // it and keep the original default.
             'callback_url' => $callbackUrl ?? (config('app.frontend_url') . '/dashboard/subscription/verify'),
         ];
 
-        // Only ever set by the storefront checkout path (Task 7) - the
-        // subscription flow's call sites pass neither, and must keep
-        // charging DumosRx's own main account exactly as today.
         if ($subaccount !== null) {
             $payload['subaccount'] = $subaccount;
         }

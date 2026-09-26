@@ -226,7 +226,7 @@ Backend verification for anything touching `laravel-server/`:
 ```
 cd ../laravel-server && ./vendor/bin/phpunit --testsuite=Feature
 ```
-(**435 tests passing as of 2026-09-26's Paystack subaccount plan** — treat any
+(**447 tests passing as of 2026-09-26's Paystack subaccount plan** — treat any
 drop from that as a regression. The "89 tests" this line used to quote was
 the count at the 2026-08-26 auth redesign and had been stale for a month; 399
 was the count after that day's earlier storefront remediation, before the

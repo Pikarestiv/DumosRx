@@ -21,10 +21,8 @@ export function CheckoutForm({ storeSlug }: CheckoutFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
-  // The cart's prices are whatever was cached when each item was added, but
-  // the server prices the order from product_id + quantity at submit time.
-  // Re-price against the live catalog on mount so the total the customer
-  // agrees to is the total they're actually charged.
+  // Re-priced against the live catalog on mount: the server prices the order
+  // from product_id + quantity, not from the cart's cached prices.
   const [pricesLoading, setPricesLoading] = useState(true);
   const [pricesStale, setPricesStale] = useState(false);
   const [onlinePaymentAvailable, setOnlinePaymentAvailable] = useState(false);
@@ -123,8 +121,7 @@ export function CheckoutForm({ storeSlug }: CheckoutFormProps) {
         toast.error(`Could not confirm your payment. Contact the store with reference ${reference}.${detail}`);
       })
       .finally(() => setLoading(false));
-    // Runs once on mount for a given reference - deliberately not
-    // re-running on formData/cart changes, which would resubmit.
+    // Deliberately not re-run on formData/cart changes, which would resubmit.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, storeSlug]);
 

@@ -72,9 +72,8 @@ export function SubscriptionConfigTab() {
   );
   const updateStorefrontFeeMutation = useUpdateSystemConfigMutation();
 
-  // storefrontFeeData arrives asynchronously (undefined at mount), so the
-  // useState above only captures the fallback default; sync local state once
-  // the real server value lands, same as the social_links config below.
+  // storefrontFeeData is undefined at mount, so the useState above captures
+  // only the fallback - resync once the real value lands (as social_links does).
   if (storefrontFeeData !== prevStorefrontFeeData) {
     setPrevStorefrontFeeData(storefrontFeeData);
     if (typeof storefrontFeeData === "number") {

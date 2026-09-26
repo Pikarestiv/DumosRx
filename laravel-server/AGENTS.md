@@ -440,7 +440,7 @@ mail path.
 ## Testing
 
 ```
-php artisan test                            # 435 tests as of 2026-09-26 (Paystack subaccount plan) — treat any drop as a regression
+php artisan test                            # 447 tests as of 2026-09-26 (Paystack subaccount plan, incl. its final-review fixes) — treat any drop as a regression
 php -l path/to/File.php                     # quick syntax check for a single file
 ```
 

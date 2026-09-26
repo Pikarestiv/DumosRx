@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useCart, useCartStore } from "@/lib/store/use-cart-store";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,13 +19,14 @@ interface CheckoutFormProps {
 export function CheckoutForm({ storeSlug }: CheckoutFormProps) {
   const cart = useCart(storeSlug);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
-  // The cart's prices are whatever was cached when each item was added, but
-  // the server prices the order from product_id + quantity at submit time.
-  // Re-price against the live catalog on mount so the total the customer
-  // agrees to is the total they're actually charged.
+  // Re-priced against the live catalog on mount: the server prices the order
+  // from product_id + quantity, not from the cart's cached prices.
   const [pricesLoading, setPricesLoading] = useState(true);
   const [pricesStale, setPricesStale] = useState(false);
+  const [onlinePaymentAvailable, setOnlinePaymentAvailable] = useState(false);
+  const [orphanReference, setOrphanReference] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -39,10 +40,12 @@ export function CheckoutForm({ storeSlug }: CheckoutFormProps) {
       }
 
       try {
-        const { data } = await apiClient.get<{ products: StorefrontProduct[] }>(
+        const { data } = await apiClient.get<{ products: StorefrontProduct[]; online_payment_available?: boolean }>(
           `/storefront/${storeSlug}`
         );
         if (cancelled) return;
+
+        setOnlinePaymentAvailable(!!data.online_payment_available);
 
         const prices: Record<string, number> = {};
         for (const product of data.products ?? []) {
@@ -77,8 +80,50 @@ export function CheckoutForm({ storeSlug }: CheckoutFormProps) {
     customer_name: "",
     customer_phone: "",
     customer_address: "",
-    payment_method: "in_store", // transfer, in_store
+    customer_email: "",
+    payment_method: "in_store", // transfer, in_store, paystack
   });
+
+  useEffect(() => {
+    const reference = searchParams.get('reference') ?? searchParams.get('trxref');
+    if (!reference) return;
+
+    const pendingRaw = sessionStorage.getItem(`dumos_pending_checkout_${storeSlug}`);
+    if (!pendingRaw) {
+      setOrphanReference(reference);
+      return;
+    }
+
+    let pending: { formData: typeof formData; items: { product_id: string; quantity: number }[] };
+    try {
+      pending = JSON.parse(pendingRaw);
+    } catch {
+      setOrphanReference(reference);
+      return;
+    }
+
+    setLoading(true);
+    apiClient
+      .post(`/storefront/${storeSlug}/checkout`, {
+        ...pending.formData,
+        items: pending.items,
+        payment_method: 'paystack',
+        paystack_reference: reference,
+      })
+      .then(() => {
+        sessionStorage.removeItem(`dumos_pending_checkout_${storeSlug}`);
+        toast.success("Order placed successfully!");
+        cart.clearCart();
+        router.push(`/store/${storeSlug}`);
+      })
+      .catch((error) => {
+        const detail = error instanceof Error ? ` (${error.message})` : "";
+        toast.error(`Could not confirm your payment. Contact the store with reference ${reference}.${detail}`);
+      })
+      .finally(() => setLoading(false));
+    // Deliberately not re-run on formData/cart changes, which would resubmit.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, storeSlug]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -102,17 +147,33 @@ export function CheckoutForm({ storeSlug }: CheckoutFormProps) {
       return;
     }
 
+    if (formData.payment_method === 'paystack' && !formData.customer_email) {
+      toast.error("Email is required to pay online");
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const payload = {
-        ...formData,
-        items: cart.items.map(item => ({
-          product_id: item.id,
-          quantity: item.quantity
-        }))
-      };
+      const items = cart.items.map(item => ({
+        product_id: item.id,
+        quantity: item.quantity
+      }));
 
+      if (formData.payment_method === 'paystack') {
+        sessionStorage.setItem(
+          `dumos_pending_checkout_${storeSlug}`,
+          JSON.stringify({ formData, items }),
+        );
+        const { data } = await apiClient.post<{ payment_url: string }>(
+          `/storefront/${storeSlug}/checkout/initialize`,
+          { customer_email: formData.customer_email, items },
+        );
+        window.location.href = data.payment_url;
+        return;
+      }
+
+      const payload = { ...formData, items };
       await apiClient.post(`/storefront/${storeSlug}/checkout`, payload);
 
       toast.success("Order placed successfully!");
@@ -124,6 +185,30 @@ export function CheckoutForm({ storeSlug }: CheckoutFormProps) {
       setLoading(false);
     }
   };
+
+  if (orphanReference) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>We couldn&apos;t match your payment to this cart</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3 text-sm text-gray-600">
+          <p>
+            Your payment may have gone through, but this browser has no record of the order it was
+            for (that happens if you came back in a new tab or window).
+          </p>
+          <p>
+            Please contact the store with your payment reference so they can find and confirm your
+            order:
+          </p>
+          <p className="font-mono text-base font-semibold text-gray-900">{orphanReference}</p>
+        </CardContent>
+        <CardFooter className="flex justify-center">
+          <Button onClick={() => router.push(`/store/${storeSlug}`)}>Return to Store</Button>
+        </CardFooter>
+      </Card>
+    );
+  }
 
   if (cart.items.length === 0) {
     return (
@@ -201,7 +286,30 @@ export function CheckoutForm({ storeSlug }: CheckoutFormProps) {
                     <input type="radio" id="transfer" name="payment_method" value="transfer" className="sr-only" checked={formData.payment_method === 'transfer'} onChange={() => handleMethodChange('transfer')} />
                     Bank Transfer
                   </Label>
+                  {onlinePaymentAvailable && (
+                    <Label
+                      htmlFor="paystack"
+                      className={`flex flex-col items-center justify-between rounded-md border-2 p-4 cursor-pointer hover:bg-accent hover:text-accent-foreground ${formData.payment_method === 'paystack' ? 'border-primary' : 'border-muted bg-popover'}`}
+                      onClick={() => handleMethodChange('paystack')}
+                    >
+                      <input type="radio" id="paystack" name="payment_method" value="paystack" className="sr-only" checked={formData.payment_method === 'paystack'} onChange={() => handleMethodChange('paystack')} />
+                      Pay Online
+                    </Label>
+                  )}
                 </div>
+                {formData.payment_method === 'paystack' && (
+                  <div className="space-y-2">
+                    <Label htmlFor="customer_email">Email *</Label>
+                    <Input
+                      id="customer_email"
+                      name="customer_email"
+                      type="email"
+                      required
+                      value={formData.customer_email}
+                      onChange={handleInputChange}
+                    />
+                  </div>
+                )}
               </div>
             </CardContent>
             <CardFooter className="flex-col items-stretch gap-2">

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\SystemConfig;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use OpenApi\Attributes as OA;
 
@@ -72,7 +73,23 @@ class SystemConfigController extends Controller
             $this->validatePlanPricing($request);
         }
 
+        // The one platform-wide commission rate on every storefront sale
+        // (semantics and cap rationale: laravel-server/AGENTS.md).
+        if ($key === 'storefront_platform_fee_percentage') {
+            $request->validate([
+                'value' => 'required|numeric|min:0|max:50',
+            ]);
+        }
+
         $config = SystemConfig::setVal($key, $validated['value']);
+
+        // Paystack bakes percentage_charge in at subaccount creation, so
+        // existing ones need SyncSubaccountFeeRates to pick the new rate up.
+        if ($key === 'storefront_platform_fee_percentage') {
+            DB::table('stores')
+                ->whereNotNull('paystack_subaccount_code')
+                ->update(['paystack_fee_dirty_at' => now()]);
+        }
 
         return response()->json([
             'success' => true,

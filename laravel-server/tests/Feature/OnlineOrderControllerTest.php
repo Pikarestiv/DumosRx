@@ -6,6 +6,7 @@ use App\Models\OnlineOrder;
 use App\Models\Store;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -22,6 +23,12 @@ use Tests\TestCase;
 class OnlineOrderControllerTest extends TestCase
 {
     use RefreshDatabase;
+
+    /**
+     * Set by paidOnlineOrder() so a test can act as the owner of the order
+     * it just created, matching the plan's task-8 test fixture.
+     */
+    private User $owner;
 
     protected function setUp(): void
     {
@@ -205,6 +212,106 @@ class OnlineOrderControllerTest extends TestCase
             'id' => $order->id,
             'order_status' => 'fulfilled',
             'payment_status' => 'paid',
+        ]);
+    }
+
+    /**
+     * A paid, pending online order plus its owning owner/store, reused by
+     * the refund tests below - sets $this->owner so a test can act as the
+     * store's owner without repeating the owner/store setup. Builds on the
+     * existing ownerWithStore()/makeOrder() fixtures rather than duplicating
+     * them; each call gets its own owner/store so tests don't collide on
+     * unique emails/slugs.
+     */
+    private function paidOnlineOrder(array $overrides = []): OnlineOrder
+    {
+        [$this->owner, $store] = $this->ownerWithStore('paid-'.Str::random(8));
+        $order = $this->makeOrder($store->id);
+        $order->update($overrides);
+
+        return $order;
+    }
+
+    public function test_cancelling_a_paid_paystack_order_calls_the_refund_api()
+    {
+        Http::fake(['api.paystack.co/refund' => Http::response(['status' => true, 'message' => 'Refunded'], 200)]);
+
+        $order = $this->paidOnlineOrder(['payment_method' => 'paystack', 'paystack_reference' => 'ref_to_refund']);
+
+        $response = $this->actingAs($this->owner)
+            ->postJson("/api/v1/app/online-orders/{$order->id}/fulfill", ['status' => 'cancelled']);
+
+        $response->assertStatus(200);
+        Http::assertSent(fn ($request) => $request['transaction'] === 'ref_to_refund');
+    }
+
+    public function test_a_successful_refund_marks_the_order_refunded_not_paid()
+    {
+        Http::fake(['api.paystack.co/refund' => Http::response(['status' => true, 'message' => 'Refunded'], 200)]);
+
+        $order = $this->paidOnlineOrder(['payment_method' => 'paystack', 'paystack_reference' => 'ref_status']);
+
+        $this->actingAs($this->owner)
+            ->postJson("/api/v1/app/online-orders/{$order->id}/fulfill", ['status' => 'cancelled'])
+            ->assertStatus(200);
+
+        $this->assertDatabaseHas('online_orders', [
+            'id' => $order->id,
+            'order_status' => 'cancelled',
+            'payment_status' => 'refunded',
+        ]);
+    }
+
+    public function test_a_failed_refund_leaves_the_order_marked_paid()
+    {
+        Http::fake(['api.paystack.co/refund' => Http::response(['status' => false, 'message' => 'Already refunded'], 400)]);
+
+        $order = $this->paidOnlineOrder(['payment_method' => 'paystack', 'paystack_reference' => 'ref_status_fail']);
+
+        $this->actingAs($this->owner)
+            ->postJson("/api/v1/app/online-orders/{$order->id}/fulfill", ['status' => 'cancelled'])
+            ->assertStatus(200);
+
+        // Still owed to the customer - the flag-and-notify path is the record
+        // of that, and 'paid' is what makes it reconcilable.
+        $this->assertDatabaseHas('online_orders', [
+            'id' => $order->id,
+            'payment_status' => 'paid',
+        ]);
+    }
+
+    public function test_a_failed_refund_falls_back_to_the_log_and_notify_flag()
+    {
+        Http::fake(['api.paystack.co/refund' => Http::response(['status' => false, 'message' => 'Already refunded'], 400)]);
+
+        $order = $this->paidOnlineOrder(['payment_method' => 'paystack', 'paystack_reference' => 'ref_fail']);
+
+        $response = $this->actingAs($this->owner)
+            ->postJson("/api/v1/app/online-orders/{$order->id}/fulfill", ['status' => 'cancelled']);
+
+        $response->assertStatus(200);
+        $this->assertDatabaseHas('notifications', [
+            'user_id' => $this->owner->id,
+            'title' => 'Refund required',
+        ]);
+    }
+
+    public function test_cancelling_a_paid_order_with_no_reference_falls_back_to_the_flag_without_calling_paystack()
+    {
+        Http::fake();
+
+        // An in_store/transfer order marked paid has no paystack_reference at
+        // all - must never reach the refund API with an empty one.
+        $order = $this->paidOnlineOrder(['payment_method' => 'in_store', 'paystack_reference' => null]);
+
+        $response = $this->actingAs($this->owner)
+            ->postJson("/api/v1/app/online-orders/{$order->id}/fulfill", ['status' => 'cancelled']);
+
+        $response->assertStatus(200);
+        Http::assertNothingSent();
+        $this->assertDatabaseHas('notifications', [
+            'user_id' => $this->owner->id,
+            'title' => 'Refund required',
         ]);
     }
 

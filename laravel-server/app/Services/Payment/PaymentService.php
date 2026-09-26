@@ -18,9 +18,11 @@ class PaymentService
     }
 
     /**
-     * Initialize a transaction with Paystack (Primary) or Flutterwave (Fallback)
+     * Initialize a transaction with Paystack (Primary) or Flutterwave (Fallback).
+     * $callbackUrl, $subaccount and $currency are the storefront checkout's
+     * (see laravel-server/AGENTS.md); the subscription flow omits all three.
      */
-    public function initializeTransaction($amount, $email, $metadata = [], ?string $callbackUrl = null)
+    public function initializeTransaction($amount, $email, $metadata = [], ?string $callbackUrl = null, ?string $subaccount = null, ?string $currency = null)
     {
         $systemConfig = \App\Models\SystemConfig::getVal('subscription_plans', []);
         $paystackEnabled = $systemConfig['enable_paystack'] ?? true;
@@ -32,7 +34,7 @@ class PaymentService
 
         if ($paystackEnabled && !$flutterwaveEnabled) {
             // Only Paystack is enabled
-            return $this->initializePaystack($amount, $email, $metadata, $callbackUrl);
+            return $this->initializePaystack($amount, $email, $metadata, $callbackUrl, $subaccount, $currency);
         }
 
         if (!$paystackEnabled && $flutterwaveEnabled) {
@@ -42,7 +44,7 @@ class PaymentService
 
         // Both are enabled: Try Paystack first
         try {
-            return $this->initializePaystack($amount, $email, $metadata, $callbackUrl);
+            return $this->initializePaystack($amount, $email, $metadata, $callbackUrl, $subaccount, $currency);
         } catch (\Exception $e) {
             Log::warning("Paystack initialization failed, falling back to Flutterwave: " . $e->getMessage());
 
@@ -56,22 +58,24 @@ class PaymentService
         }
     }
 
-    protected function initializePaystack($amount, $email, $metadata, ?string $callbackUrl = null)
+    protected function initializePaystack($amount, $email, $metadata, ?string $callbackUrl = null, ?string $subaccount = null, ?string $currency = null)
     {
+        $payload = [
+            'amount' => (int) round($amount * 100), // Paystack uses kobo
+            'email' => $email,
+            'metadata' => $metadata,
+            'callback_url' => $callbackUrl ?? (config('app.frontend_url') . '/dashboard/subscription/verify'),
+        ];
+
+        if ($subaccount !== null) {
+            $payload['subaccount'] = $subaccount;
+        }
+        if ($currency !== null) {
+            $payload['currency'] = $currency;
+        }
+
         $response = Http::withToken($this->paystackKey)
-            ->post('https://api.paystack.co/transaction/initialize', [
-                'amount' => (int) round($amount * 100), // Paystack uses kobo
-                'email' => $email,
-                'metadata' => $metadata,
-                // Every caller previously got the subscription-verify page
-                // regardless of what they were actually paying for - a
-                // storefront checkout redirected a paying customer into a
-                // page that 404s on their reference, so the order never got
-                // created despite the charge succeeding. Callers now pass
-                // their own return URL; the subscription flow's callers omit
-                // it and keep the original default.
-                'callback_url' => $callbackUrl ?? (config('app.frontend_url') . '/dashboard/subscription/verify'),
-            ]);
+            ->post('https://api.paystack.co/transaction/initialize', $payload);
 
         if (!$response->successful()) {
             throw new \Exception("Paystack Error: " . $response->body());
@@ -155,6 +159,22 @@ class PaymentService
             'currency' => $data['data']['currency'] ?? null,
             'data' => $data['data']
         ];
+    }
+
+    /**
+     * Provider-agnostic refund, dispatched the same way verifyTransaction()
+     * already dispatches by provider. Flutterwave refund is out of scope for
+     * this pass (no storefront checkout reaches Flutterwave today) - fails
+     * closed with success=false rather than silently no-opping.
+     */
+    public function refundTransaction(string $reference, string $provider, ?int $amountInSubunit = null): array
+    {
+        if ($provider === 'paystack') {
+            return app(\App\Services\Payment\PaystackSubaccountService::class)
+                ->refund($reference, $amountInSubunit);
+        }
+
+        return ['success' => false, 'message' => "Refunds are not supported for provider '{$provider}'."];
     }
 
     protected function verifyFlutterwave($reference)

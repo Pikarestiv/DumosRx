@@ -122,7 +122,7 @@ class OnlineOrderController extends Controller
             new OA\Response(response: 422, ref: '#/components/responses/ValidationError'),
         ],
     )]
-    public function markFulfilled(Request $request, $id)
+    public function markFulfilled(Request $request, $id, \App\Services\Payment\PaymentService $paymentService)
     {
         $user = Auth::user();
         $storeId = $this->resolveOrderStoreId($request);
@@ -161,7 +161,7 @@ class OnlineOrderController extends Controller
         $order->save();
 
         if ($validated['status'] === 'cancelled' && $order->payment_status === 'paid') {
-            $this->flagRefundRequired($order, $storeId);
+            $this->refundOrFlag($order, $storeId, $paymentService);
         }
 
         // Mark related notifications as read
@@ -177,14 +177,53 @@ class OnlineOrderController extends Controller
     }
 
     /**
-     * Cancelling an order whose money was already taken leaves an obligation
-     * behind. There is no refund call to make yet - PaymentService exposes
-     * initialize/verify only, and a refund fabricated against an unverified
-     * provider API would be worse than none - so this makes the obligation
-     * loud instead of silent: a log line for reconciliation and a notification
-     * every user of the store sees. See docs/STOREFRONT_REVIEW.md (SF-P2-4):
-     * a real provider refund is still an open follow-up and must land before
-     * online payment is reachable from a client.
+     * Cancelling an order whose money was already taken leaves an
+     * obligation behind. Refund via Paystack when there's a reference to
+     * refund; otherwise (in_store/transfer, or Paystack itself rejecting the
+     * refund) fall back to the log-and-notify flag rather than pretending
+     * it's handled. See docs/superpowers/specs/2026-09-26-storefront-
+     * paystack-subaccounts-design.md - a refund on an already-settled
+     * subaccount transaction comes out of DumosRx's own Paystack balance,
+     * accepted as a v1 cost rather than clawed back.
+     */
+    private function refundOrFlag(OnlineOrder $order, string $storeId, \App\Services\Payment\PaymentService $paymentService): void
+    {
+        if ($order->payment_method === 'paystack' && $order->paystack_reference) {
+            $result = $paymentService->refundTransaction($order->paystack_reference, 'paystack');
+
+            if ($result['success']) {
+                $order->update(['payment_status' => 'refunded']);
+                $this->notifyStore($order, $storeId, 'Refunded', "Online order #{$order->id} ({$order->total_amount}) was refunded to {$order->customer_name}.");
+                return;
+            }
+
+            Log::warning('Paystack refund failed for cancelled online order', [
+                'online_order_id' => $order->id,
+                'paystack_reference' => $order->paystack_reference,
+                'message' => $result['message'],
+            ]);
+        }
+
+        $this->flagRefundRequired($order, $storeId);
+    }
+
+    private function notifyStore(OnlineOrder $order, string $storeId, string $title, string $message): void
+    {
+        $storeUserIds = User::where('store_id', $storeId)
+            ->orWhereIn('id', Store::where('id', $storeId)->select('user_id'))
+            ->pluck('id');
+
+        Notification::bulkCreateFor($storeUserIds, [
+            'title' => $title,
+            'message' => $message,
+            'type' => 'online_order',
+        ]);
+    }
+
+    /**
+     * Fallback when a real Paystack refund wasn't possible or was rejected:
+     * makes the obligation loud instead of silent - a log line for
+     * reconciliation and a notification every user of the store sees.
      */
     private function flagRefundRequired(OnlineOrder $order, string $storeId): void
     {
@@ -196,14 +235,11 @@ class OnlineOrderController extends Controller
             'total_amount' => (string) $order->total_amount,
         ]);
 
-        $storeUserIds = User::where('store_id', $storeId)
-            ->orWhereIn('id', Store::where('id', $storeId)->select('user_id'))
-            ->pluck('id');
-
-        Notification::bulkCreateFor($storeUserIds, [
-            'title' => 'Refund required',
-            'message' => "Cancelled online order #{$order->id} was already paid ({$order->total_amount}). Refund {$order->customer_name} manually.",
-            'type' => 'online_order',
-        ]);
+        $this->notifyStore(
+            $order,
+            $storeId,
+            'Refund required',
+            "Cancelled online order #{$order->id} was already paid ({$order->total_amount}). Refund {$order->customer_name} manually.",
+        );
     }
 }

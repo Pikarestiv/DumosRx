@@ -519,6 +519,13 @@ const SYNC_COLUMN_MIGRATIONS: { table: string; columns: string[] }[] = [
       // an explicit owner opt-in, on top of the existing plan-tier check -
       // see isMarkupSalesEnabled in use-feature-gate.ts.
       "markup_sales_enabled INTEGER DEFAULT 0",
+      // Paystack subaccount integration columns (see Task 1 of the
+      // 2026-09-26-storefront-paystack-subaccounts spec).
+      "paystack_subaccount_code TEXT",
+      "paystack_subaccount_country TEXT",
+      "paystack_bank_code TEXT",
+      "paystack_account_number_last4 TEXT",
+      "paystack_fee_dirty_at TEXT",
     ],
   },
   {

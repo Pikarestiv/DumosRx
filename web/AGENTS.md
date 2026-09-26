@@ -107,6 +107,7 @@ npm run dev      # Next dev server
 npm run build    # static export build — fails outright in a sandboxed/offline
                   # environment, by design since 2026-09-26 (see below)
 npx tsc --noEmit # typecheck
+npx vitest run   # unit tests (new as of the Paystack subaccount plan — see below)
 npm run verify:storefront-output   # post-build storefront guard (see below)
 ```
 
@@ -184,16 +185,59 @@ per-finding status). The storefront contract as it now stands:
   across successive local builds — a previously-successful response is
   replayed and the build passes. `rm -rf .next` before trying to reproduce
   one. CI checks out fresh, so the real pipeline is unaffected.
-- **`checkout-form.tsx` deliberately offers only `in_store` and `transfer`.**
-  The whole Paystack two-step flow is built, hardened and tested server-side
-  but intentionally unreachable (`SF-P1-2`) — enabling real online payment
-  collection is a pending business decision. Don't add a `paystack` radio or
-  call `/checkout/initialize` as a drive-by; it needs a refund path first.
+- **`checkout-form.tsx` now offers a third `paystack` radio**, shown only
+  when `GET /storefront/{slug}`'s `online_payment_available` flag is true
+  (read off the reprice fetch already in flight — no second request; the
+  flag reflects whether the store has a connected Paystack subaccount, see
+  `laravel-server/AGENTS.md`'s subaccount section). Selecting it reveals a
+  required email field; on submit the form calls
+  `POST /storefront/{slug}/checkout/initialize`, stashes the pending
+  order's `formData`/`items` under `sessionStorage`
+  (`dumos_pending_checkout_${storeSlug}`), and redirects the whole page to
+  Paystack's returned `payment_url` — this is a full navigation away from
+  the app, not a modal/iframe. **Return handling is `sessionStorage`-based,
+  not a server round-trip:** on remount, a `useEffect` reads
+  `?reference=`/`?trxref=` off `useSearchParams()`, and if it finds a
+  matching pending-checkout entry it POSTs
+  `/storefront/{slug}/checkout` with `payment_method: 'paystack'` and the
+  reference, clearing the `sessionStorage` entry on success. A failed
+  confirm shows a toast naming the payment reference so the customer has
+  something to quote the store — don't let that detail regress (a past fix,
+  `ef2e0512`, exists specifically because `AxiosError instanceof Error` made
+  an earlier version show a generic HTTP status instead). **A reference with
+  no pending entry is never a silent no-op:** a customer returning in a new
+  tab/session (or with storage cleared) gets a dedicated panel quoting the
+  reference and telling them to contact the store, never the ordinary
+  empty-cart view — they have paid, and the reference in the URL is the only
+  thing that can find their money. A 422 from the confirm call may also carry
+  `refunded: true`, meaning the order became unfulfillable after payment and
+  the server has already refunded it (see `laravel-server/AGENTS.md`). This was the SF-P1-2
+  gap; the money-flow design it needed first is
+  `docs/superpowers/specs/2026-09-26-storefront-paystack-subaccounts-design.md`.
+  The `in_store`/`transfer` flows are unchanged.
+- **`web/` has its own vitest test infrastructure now** (`vitest.config.ts`,
+  `vitest.setup.ts`, `__tests__/`), added alongside the Paystack checkout
+  work because this package previously had no test runner at all — it
+  mirrors `client/`'s vitest setup. Any new `web/` component work should get
+  test coverage under `npx vitest run` the same way `client/` does; don't
+  assume `web/` is typecheck-only going forward.
+- **Neither `tsc --noEmit` nor `vitest` catches a missing Suspense boundary
+  around `useSearchParams()`.** The checkout return-handling `useEffect`
+  above shipped without one and passed every check this repo normally
+  runs — `tsc`, `vitest`, the reviewed diff — until the actual `next build`
+  failed in CI (`⨯ useSearchParams() should be wrapped in a suspense
+  boundary`, only surfaces at static-export prerender time). Any page-level
+  component that calls `useSearchParams()` directly needs its own
+  `<Suspense>` wrapper in the page (see `app/store/[store_slug]/checkout/
+  page.tsx`) — run a real `npm run build` (per the local-stub instructions
+  above) whenever touching one, not just `tsc`/`vitest`.
 
 Backend verification for anything touching `laravel-server/`:
 ```
 cd ../laravel-server && ./vendor/bin/phpunit --testsuite=Feature
 ```
-(**399 tests passing as of 2026-09-26's storefront remediation** — treat any
+(**447 tests passing as of 2026-09-26's Paystack subaccount plan** — treat any
 drop from that as a regression. The "89 tests" this line used to quote was
-the count at the 2026-08-26 auth redesign and had been stale for a month.)
+the count at the 2026-08-26 auth redesign and had been stale for a month; 399
+was the count after that day's earlier storefront remediation, before the
+subaccount work.)

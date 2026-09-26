@@ -13,35 +13,36 @@
 
 ## Remediation status — 2026-09-26 (same day as the audit)
 
-**15 of the 16 bug findings are closed.** Each one's fix, what it deliberately
+**All 16 of the bug findings are closed.** Each one's fix, what it deliberately
 left out, and how it was verified is written up in `docs/FIXED_BUGS.md` under
 "Storefront pass". The findings below are kept verbatim as the record of what was
 wrong and why it mattered; each now carries a **Status** line.
 
 | | Findings |
 |---|---|
-| **Fixed** | SF-P0-1, SF-P1-1, SF-P1-3, SF-P2-1, SF-P2-2, SF-P2-3, SF-P2-4, SF-P2-5, SF-P2-6, SF-P3-1, SF-P3-2, SF-P3-4, SF-P3-6 |
+| **Fixed** | SF-P0-1, SF-P1-1, SF-P1-2, SF-P1-3, SF-P2-1, SF-P2-2, SF-P2-3, SF-P2-4, SF-P2-5, SF-P2-6, SF-P3-1, SF-P3-2, SF-P3-4, SF-P3-6 |
 | **Fixed in part** | SF-P3-3 (the API-side cap; the base64 logo and product images still need a storage decision) |
 | **Accepted, not fixed** | SF-P3-5 (a product call, as this review itself framed it) |
-| **Open — deferred** | **SF-P1-2** |
 
-**SF-P1-2 is deferred, not forgotten: wiring up the Paystack UI flow is a separate
-business decision, not a routine bug fix.** Enabling real online payment collection
-was explicitly held back for its own round. Nothing in the 15 fixes makes Paystack
-reachable from a client — `checkout-form.tsx` still offers only `in_store` and
-`transfer`, and no client calls `/checkout/initialize`.
+**SF-P1-2 was deferred at first, then fixed the same day — see
+`docs/superpowers/specs/2026-09-26-storefront-paystack-subaccounts-design.md`.**
+Wiring up the Paystack UI flow was held back for its own round because enabling
+real online payment collection raised a real business question: whose money is
+it, and how does DumosRx get paid? That design answers it (direct-to-store
+Paystack subaccounts, DumosRx never holds customer money) and the resulting
+13-commit implementation wires the flow up end-to-end — `checkout-form.tsx` now
+offers a `paystack` radio, calls `/checkout/initialize`, and confirms the order
+automatically on return from Paystack.
 
-**Two things must land with it**, both flagged by this review and deliberately not
-completed here:
+**Both things this review flagged as needing to land with it did:**
 
-1. **A real provider refund call** (SF-P2-4's remaining half). `PaymentService` has
-   `initializeTransaction`/`verifyTransaction` and no refund method. Cancelling an
-   already-paid order now logs a warning and raises a "Refund required" notification
-   for the store, rather than silently leaving a paid order cancelled — but nobody is
-   calling Paystack. Harmless while only `in_store`/`transfer` are reachable; a
-   money-handling gap the moment they aren't.
-2. **A confirmation page with an order number** (feature #2). The server returns the
-   created order and the client throws it away.
+1. **A real provider refund call** (SF-P2-4's remaining half). `PaymentService`
+   now has `refundTransaction()`; cancelling an already-paid order calls it and
+   falls back to the old log-and-notify behaviour only if the provider call
+   itself fails.
+2. **A confirmation page with an order number** (feature #2) — **still not
+   built.** The server returns the created order and the client still throws
+   it away; this remains an open follow-up, not a blocker for SF-P1-2.
 
 **One ops action is outstanding** from SF-P2-3's fix: the rebuild-confirmation loop
 only engages once `STOREFRONT_REBUILD_TOKEN` is set *both* in the API's production
@@ -219,7 +220,7 @@ do share the *reference namespace* — see the cross-consumption guard at
   `laravel-server/AGENTS.md` and in the OpenAPI descriptions rather than leaving them
   reading as live.
 - **Confidence:** High (grep-exhaustive on the client side).
-- **Status:** **OPEN — deliberately deferred, not forgotten.** Wiring up the Paystack UI flow is a separate business decision, not a routine bug fix, and was explicitly held back for its own round. See the Remediation status section above for the two things that must land with it.
+- **Status:** **Fixed — see `docs/superpowers/specs/2026-09-26-storefront-paystack-subaccounts-design.md`.** Wiring up the Paystack UI flow was a separate business decision, deliberately held back for its own round; that round shipped the same day, once the design above answered the underlying "whose money is it" question with per-store Paystack subaccounts. `checkout-form.tsx` now has the third radio, calls `/checkout/initialize`, redirects to `payment_url`, and reads `?reference=`/`?trxref=` on return to confirm the order automatically. See the Remediation status section above for the two things that were flagged to land with it.
 
 #### SF-P1-3. No rate limit on the public storefront read or on order placement
 - **Severity:** P1
@@ -390,7 +391,7 @@ do share the *reference namespace* — see the cross-consumption guard at
   that `priceCart()` subtracts. Either way, pair it with a refund path on the
   `cancelled` branch before Paystack goes live.
 - **Confidence:** High on the race; High on the missing refund path.
-- **Status:** **Fixed in part 2026-09-26.** The oversell race is closed by the recommendation's cheap version: availability is stock minus everything committed to `pending` orders, re-checked inside the order-creating transaction under a per-store `lockForUpdate()`. **The refund path is flagged, not implemented** — cancelling an already-paid order logs a warning and raises a "Refund required" notification, but `PaymentService` has no refund call and one was not fabricated against an untested provider API. That half must land with SF-P1-2.
+- **Status:** **Fixed 2026-09-26.** The oversell race is closed by the recommendation's cheap version: availability is stock minus everything committed to `pending` orders, re-checked inside the order-creating transaction under a per-store `lockForUpdate()`. **The refund half, originally flagged rather than implemented, was completed the same day as SF-P1-2**: `PaymentService::refundTransaction()` now calls Paystack's refund API for an already-paid cancellation, falling back to the original log-and-notify behaviour only if that provider call itself fails.
 
 #### SF-P2-5. Fulfilling an online order is a non-atomic two-phase write — a local failure leaves the order un-refulfillable, unrecorded and stock undeducted
 - **Severity:** P2
@@ -598,7 +599,7 @@ do share the *reference namespace* — see the cross-consumption guard at
   inside the same transaction that creates the order, plus a unique-index backstop and a
   cross-check against `payment_transactions` so a subscription payment can't be replayed
   as free goods (and vice versa). The reasoning is written down at each step. 14 of the
-  29 tests cover this. It just isn't reachable yet (SF-P1-2) — wire it up, don't redesign it.
+  29 tests cover this, and it's now live traffic, not just tested code (SF-P1-2).
 - **`StorefrontProductResource`'s field whitelist** and the accompanying
   `test_show_does_not_leak_internal_product_columns` regression test. Ownership columns,
   `markup_percentage`, sync bookkeeping and clinical fields are all held back, with a
@@ -625,9 +626,11 @@ do share the *reference namespace* — see the cross-consumption guard at
 
 Ordered roughly by impact on a real store.
 
-1. **Online payment in the UI.** *The* gap — see SF-P1-2. Backend is complete and tested;
-   this is a UI-only change (one radio, one POST, one redirect, one callback-param read).
-   **Effort: small. Entirely a UI gap.**
+1. ~~**Online payment in the UI.**~~ **Shipped 2026-09-26** — see SF-P1-2's Status line
+   and `docs/superpowers/specs/2026-09-26-storefront-paystack-subaccounts-design.md`.
+   Turned out not to be UI-only: money-flow required designing per-store Paystack
+   subaccounts first, which is why this was deferred rather than done same-day with
+   the rest of the pass.
 2. **No order confirmation of any kind.** On success `checkout-form.tsx:118-120` shows a
    toast and pushes back to the store page. The customer gets **no order number** (the
    server returns `order` with its id — it's thrown away), no confirmation page, no email,
@@ -728,32 +731,40 @@ look with `/accessibility-inspect` rather than a blind change.
 
 ## Recommended Next Steps
 
-**Superseded for the bug findings — 15 of the 16 were done on 2026-09-26** (see the
-Remediation status section at the top, and `docs/FIXED_BUGS.md` for each). The
-original ordering is kept below the line as the record of how it was prioritised.
+**Superseded for the bug findings — all 16 are now done** (see the
+Remediation status section at the top, and `docs/FIXED_BUGS.md` for each,
+`SF-P1-2` last on 2026-09-26). The original ordering is kept below the line as
+the record of how it was prioritised.
 
 What is actually left, in order:
 
-1. **SF-P1-2** — wire up the Paystack UI flow. **A business decision, deliberately
-   deferred**, not an oversight. Sequence its two prerequisites with it: SF-P2-4's
-   real provider refund call (currently logged and flagged only) and feature #2's
-   confirmation page with an order number.
-2. **Ops, no code:** set `STOREFRONT_REBUILD_TOKEN` in the API's production `.env` and
+1. **Ops, no code:** set `STOREFRONT_REBUILD_TOKEN` in the API's production `.env` and
    as a GitHub Actions secret, so SF-P2-3's rebuild-confirmation loop engages instead
    of falling back to clear-on-dispatch.
-3. **SF-P2-2's remaining half** — a suspended or lapsed store's *already-published*
+2. **SF-P2-2's remaining half** — a suspended or lapsed store's *already-published*
    page stays browsable until its rebuild lands (only checkout fails). Either a
    client-side liveness check on the storefront page, or accept and document it.
    A nightly unconditional rebuild is still worth scoping as a staleness ceiling.
-4. **Raise `storefront-read`'s 120/min limiter (or give the build pipeline a token)**
+3. **Raise `storefront-read`'s 120/min limiter (or give the build pipeline a token)**
    before the platform passes roughly 50 live storefronts — the build spends about two
    requests per store from a single runner IP. After SF-P0-1's fix this fails the build
    loudly rather than deleting anything, but it would still block deploys.
+4. **Feature #2 (order confirmation page with an order number)** — flagged to land
+   with SF-P1-2 and still not built; the first thing a real paying customer will ask
+   for now that Paystack is actually reachable.
 5. **Feature #11 (currency), #5 (sold-out indication), #4 (search/filter)** — each
    small, each removes a visible rough edge. #4 also finishes SF-P3-3's client half.
 6. **SF-P3-3's remaining half and features #3/#6/#8/#9/#10** — each needs its own
    scoping conversation (image storage, schema + sync coverage, product judgement).
    Not blockers.
+
+**Manual verification still outstanding for SF-P1-2 specifically:** a real
+sandbox Paystack checkout click-through (connect a subaccount with one of
+Paystack's test bank numbers, place a real test-mode charge, confirm
+settlement) against a running local stack. Not performed as part of closing
+this finding — the repo's local `.env` only has placeholder Paystack keys.
+Automated tests cover the reference-binding, gating, and refund logic; they
+cannot substitute for exercising Paystack's own hosted checkout page.
 
 ---
 

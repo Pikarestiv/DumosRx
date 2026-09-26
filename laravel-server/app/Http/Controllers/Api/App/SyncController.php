@@ -1269,6 +1269,12 @@ class SyncController extends Controller
             $payload = $this->sanitizeUserSyncPayload($payload, $recordId, $currentUser, $allowedStoreIds);
         }
 
+        if ($change['table_name'] === 'stores') {
+            foreach (self::STORE_SYNC_FORBIDDEN_FIELDS as $field) {
+                unset($payload[$field]);
+            }
+        }
+
         // Ensure staff users get associated with the store
         if ($change['table_name'] === 'users' && $currentStoreId) {
             if (($payload['role'] ?? null) !== 'store_owner' && ($payload['role'] ?? null) !== 'admin') {
@@ -1540,6 +1546,21 @@ class SyncController extends Controller
      * another record via sync.
      */
     private const USER_SYNC_ASSIGNABLE_ROLES = ['admin', 'manager', 'specialist', 'sales_staff', 'auditor'];
+
+    /**
+     * stores columns that decide where a storefront sale's money settles, and
+     * the fee-propagation flag that drives it. Only
+     * StorePaymentAccountController::createPaymentAccount() (bank resolution,
+     * 409 idempotency, last-4-only persistence) and SyncSubaccountFeeRates may
+     * ever write them; push() applies a stores payload with forceFill(), which
+     * bypasses $fillable, so excluding them there is not enough. See
+     * laravel-server/AGENTS.md.
+     */
+    private const STORE_SYNC_FORBIDDEN_FIELDS = [
+        'paystack_subaccount_code', 'paystack_subaccount_country',
+        'paystack_bank_code', 'paystack_account_number_last4',
+        'paystack_fee_dirty_at',
+    ];
 
     /**
      * Privilege-limits a client-originated `users` sync payload for a

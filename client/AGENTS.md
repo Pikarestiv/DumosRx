@@ -640,6 +640,48 @@ dirties the owning store's storefront and schedules a full static rebuild
 (~15 minutes at best) — see `laravel-server/AGENTS.md`. The UI copy says as
 much, so don't promise instant updates anywhere.
 
+## Online Payments settings panel (`components/settings/store/online-payments-section.tsx`)
+
+Lets a store owner connect a Paystack subaccount so the storefront's `paystack`
+checkout option (`web/`) becomes available — country select, bank select
+(populated from `GET /store/payment-banks`), account number, an inline
+"resolve" confirmation step, then `POST /store/payment-account`. Wired into
+the Payment Methods settings panel alongside the existing
+`PaymentAccountsCard`.
+
+Two states, one component: a store whose pulled `storeProfile` already has a
+`paystack_subaccount_code` gets the read-only **connected** view (bank code +
+`****last4`, "contact support to change your bank details"), never the
+onboarding form again — changing banks is deliberately a support path, and the
+server 409s a second `POST /store/payment-account` anyway. The last-4 and bank
+code are synced down for exactly this display.
+
+**"We can't verify this" is not the same as "this account number is wrong."**
+`POST /store/payment-account/resolve` returns `verifiable` alongside
+`account_name`: `false` means Paystack has no resolver for that country at all
+(Kenya/South Africa/Rwanda/Côte d'Ivoire) and is the **only** case where the
+"I have double-checked these details" override may be offered — the server
+refuses `confirmed_unverifiable` for a verifiable country (Nigeria/Ghana),
+where a null `account_name` means the details are simply wrong. Never infer
+either from a hardcoded country list in this app; the server reports it per
+request.
+
+**Never write `paystack_subaccount_code`/`paystack_subaccount_country`/
+`paystack_bank_code`/`paystack_account_number_last4`/`paystack_fee_dirty_at`
+locally as if this client owns them.** These five `stores` columns exist in
+the local schema only so pull sync's dynamic column list doesn't break on an
+unknown column (the same reason `storefront_dirty_at`/`store_slug_changed_at`
+are mirrored — see `laravel-server/AGENTS.md`'s model `boot()` hooks
+section). The subaccount is created **server-side** by
+`PaystackSubaccountService::createSubaccount()`, which is the only source of
+truth for whether a store has one; this panel's job is to call the
+`/store/payment-*` endpoints and then rely on the next pull sync to bring the
+real values down, not to write a locally-guessed subaccount code/masked
+number into local SQLite and hope it matches. Treat this exactly like the
+"server-only bookkeeping column" convention documented in
+`laravel-server/AGENTS.md` — writing one of these fields via `insert()`/
+`update()` from this client is a bug, not a shortcut.
+
 ## Current focus / recent work (update this section as work continues)
 
 Most recent work (later on 2026-09-23, ~20:35-23:07 — see `git log` for

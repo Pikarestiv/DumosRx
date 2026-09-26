@@ -63,6 +63,11 @@ class StorefrontControllerTest extends TestCase
      */
     private function initializePaystackCheckout(array $items, string $reference = 'DRX-SF-REF', string $slug = 'store-a'): \Illuminate\Testing\TestResponse
     {
+        // These flows exercise the confirm step (checkout()), not the
+        // subaccount gate itself — give the target store a subaccount so
+        // initializeCheckout()'s new gate doesn't 422 before reaching it.
+        Store::where('store_slug', $slug)->update(['paystack_subaccount_code' => 'ACCT_test']);
+
         $this->mock(PaymentService::class, function ($mock) use ($reference) {
             $mock->shouldReceive('initializeTransaction')
                 ->once()
@@ -451,6 +456,178 @@ class StorefrontControllerTest extends TestCase
             'reference' => 'REAL-REF-123',
             'status' => 'consumed',
             'online_order_id' => $response->json('order.id'),
+        ]);
+    }
+
+    public function test_a_non_ngn_store_completes_the_initialize_to_verify_round_trip()
+    {
+        $this->storeA->update(['currency' => 'KES']);
+        $product = $this->purchasableProduct(['name' => 'Panadol', 'selling_price' => 100, 'user_id' => $this->ownerA->id]);
+        $items = [['product_id' => $product->id, 'quantity' => 1]];
+
+        $this->initializePaystackCheckout($items, 'KES-REF-1')->assertStatus(200);
+
+        $this->assertDatabaseHas('storefront_payment_intents', [
+            'reference' => 'KES-REF-1',
+            'currency' => 'KES',
+        ]);
+
+        $this->mock(PaymentService::class, function ($mock) {
+            $mock->shouldReceive('verifyTransaction')
+                ->once()
+                ->andReturn(['success' => true, 'amount' => 100, 'currency' => 'KES']);
+        });
+
+        $response = $this->postJson('/api/v1/storefront/store-a/checkout', [
+            'customer_name' => 'Jane Doe',
+            'customer_phone' => '08000000000',
+            'payment_method' => 'paystack',
+            'paystack_reference' => 'KES-REF-1',
+            'items' => $items,
+        ]);
+
+        $response->assertStatus(201);
+        $this->assertDatabaseHas('online_orders', [
+            'payment_status' => 'paid',
+            'paystack_reference' => 'KES-REF-1',
+        ]);
+    }
+
+    public function test_a_paid_checkout_that_sold_out_during_the_paystack_detour_is_refunded()
+    {
+        $product = $this->purchasableProduct(['name' => 'Panadol', 'selling_price' => 100, 'user_id' => $this->ownerA->id]);
+        $items = [['product_id' => $product->id, 'quantity' => 2]];
+
+        $this->initializePaystackCheckout($items, 'SOLD-OUT-WHILE-PAYING')->assertStatus(200);
+
+        // Everything the cart needed is gone by the time the customer returns
+        // from Paystack's hosted page - but they have already been charged.
+        StockBatch::where('product_id', $product->id)->update(['quantity' => 0]);
+
+        $this->mock(PaymentService::class, function ($mock) {
+            $mock->shouldReceive('verifyTransaction')
+                ->andReturn(['success' => true, 'amount' => 200, 'currency' => 'NGN']);
+            $mock->shouldReceive('refundTransaction')
+                ->once()
+                ->with('SOLD-OUT-WHILE-PAYING', 'paystack')
+                ->andReturn(['success' => true, 'message' => 'Refunded']);
+        });
+
+        $response = $this->postJson('/api/v1/storefront/store-a/checkout', [
+            'customer_name' => 'Jane Doe',
+            'customer_phone' => '08000000000',
+            'payment_method' => 'paystack',
+            'paystack_reference' => 'SOLD-OUT-WHILE-PAYING',
+            'items' => $items,
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonFragment(['refunded' => true]);
+        $this->assertDatabaseCount('online_orders', 0);
+        $this->assertDatabaseHas('storefront_payment_intents', [
+            'reference' => 'SOLD-OUT-WHILE-PAYING',
+            'status' => 'refunded',
+        ]);
+    }
+
+    public function test_a_paid_checkout_whose_product_was_deactivated_is_refunded()
+    {
+        $product = $this->purchasableProduct(['name' => 'Panadol', 'selling_price' => 100, 'user_id' => $this->ownerA->id]);
+        $items = [['product_id' => $product->id, 'quantity' => 1]];
+
+        $this->initializePaystackCheckout($items, 'DEACTIVATED-WHILE-PAYING')->assertStatus(200);
+
+        $product->update(['is_active' => false]);
+
+        $this->mock(PaymentService::class, function ($mock) {
+            $mock->shouldReceive('verifyTransaction')
+                ->andReturn(['success' => true, 'amount' => 100, 'currency' => 'NGN']);
+            $mock->shouldReceive('refundTransaction')
+                ->once()
+                ->andReturn(['success' => true, 'message' => 'Refunded']);
+        });
+
+        $response = $this->postJson('/api/v1/storefront/store-a/checkout', [
+            'customer_name' => 'Jane Doe',
+            'customer_phone' => '08000000000',
+            'payment_method' => 'paystack',
+            'paystack_reference' => 'DEACTIVATED-WHILE-PAYING',
+            'items' => $items,
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonFragment(['refunded' => true]);
+        $this->assertDatabaseCount('online_orders', 0);
+    }
+
+    public function test_a_paid_reference_replayed_with_a_different_cart_is_not_refunded()
+    {
+        // Same exploit shape as an already-used reference (line 538 above),
+        // reached through the earlier refund path instead: the customer's
+        // own already-paid reference, replayed with a DIFFERENT (inflated)
+        // cart so priceCart()'s stock check fails before the fingerprint
+        // check further down checkout() ever runs. Refunding here would
+        // trigger on a mismatched cart, not the one that was actually paid.
+        $product = $this->purchasableProduct(['name' => 'Panadol', 'selling_price' => 100, 'user_id' => $this->ownerA->id]);
+        $paidItems = [['product_id' => $product->id, 'quantity' => 1]];
+
+        $this->initializePaystackCheckout($paidItems, 'REPLAY-DIFFERENT-CART')->assertStatus(200);
+
+        $this->mock(PaymentService::class, function ($mock) {
+            $mock->shouldReceive('verifyTransaction')
+                ->andReturn(['success' => true, 'amount' => 100, 'currency' => 'NGN']);
+            $mock->shouldNotReceive('refundTransaction');
+        });
+
+        // Same reference as the paid cart, but asking for far more than the
+        // store has - fails priceCart()'s own stock check, the same
+        // exception the sold-out test above hits, before this ever reaches
+        // the fingerprint comparison further down checkout().
+        $inflatedItems = [['product_id' => $product->id, 'quantity' => 999]];
+
+        $response = $this->postJson('/api/v1/storefront/store-a/checkout', [
+            'customer_name' => 'Jane Doe',
+            'customer_phone' => '08000000000',
+            'payment_method' => 'paystack',
+            'paystack_reference' => 'REPLAY-DIFFERENT-CART',
+            'items' => $inflatedItems,
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonMissing(['refunded' => true]);
+        $this->assertDatabaseCount('online_orders', 0);
+        $this->assertDatabaseHas('storefront_payment_intents', [
+            'reference' => 'REPLAY-DIFFERENT-CART',
+            'status' => 'pending',
+        ]);
+    }
+
+    public function test_an_unpaid_failed_checkout_is_never_refunded()
+    {
+        $product = $this->purchasableProduct(['name' => 'Panadol', 'selling_price' => 100, 'user_id' => $this->ownerA->id]);
+        $items = [['product_id' => $product->id, 'quantity' => 2]];
+
+        $this->initializePaystackCheckout($items, 'NEVER-PAID')->assertStatus(200);
+        StockBatch::where('product_id', $product->id)->update(['quantity' => 0]);
+
+        $this->mock(PaymentService::class, function ($mock) {
+            $mock->shouldReceive('verifyTransaction')
+                ->andReturn(['success' => false, 'message' => 'Payment not completed']);
+            $mock->shouldNotReceive('refundTransaction');
+        });
+
+        $response = $this->postJson('/api/v1/storefront/store-a/checkout', [
+            'customer_name' => 'Jane Doe',
+            'customer_phone' => '08000000000',
+            'payment_method' => 'paystack',
+            'paystack_reference' => 'NEVER-PAID',
+            'items' => $items,
+        ]);
+
+        $response->assertStatus(422);
+        $this->assertDatabaseHas('storefront_payment_intents', [
+            'reference' => 'NEVER-PAID',
+            'status' => 'pending',
         ]);
     }
 
@@ -952,5 +1129,50 @@ class StorefrontControllerTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertJsonCount($cap, 'products');
+    }
+
+    public function test_show_reports_online_payment_unavailable_when_the_store_has_no_subaccount()
+    {
+        $response = $this->getJson('/api/v1/storefront/store-a');
+
+        $response->assertStatus(200);
+        $response->assertJson(['online_payment_available' => false]);
+    }
+
+    public function test_show_reports_online_payment_available_when_the_store_has_a_subaccount()
+    {
+        $this->storeA->update(['paystack_subaccount_code' => 'ACCT_available']);
+
+        $response = $this->getJson('/api/v1/storefront/store-a');
+
+        $response->assertStatus(200);
+        $response->assertJson(['online_payment_available' => true]);
+    }
+
+    public function test_initialize_checkout_uses_the_stores_own_currency_and_subaccount()
+    {
+        $this->storeA->update([
+            'paystack_subaccount_code' => 'ACCT_kenya',
+            'currency' => 'KES',
+        ]);
+        $product = $this->purchasableProduct(['name' => 'Panadol', 'selling_price' => 500, 'user_id' => $this->ownerA->id]);
+
+        \Illuminate\Support\Facades\Http::fake([
+            'api.paystack.co/transaction/initialize' => \Illuminate\Support\Facades\Http::response([
+                'status' => true,
+                'data' => ['reference' => 'ref_kenya', 'authorization_url' => 'https://paystack.com/pay/ref_kenya'],
+            ], 200),
+        ]);
+
+        $response = $this->postJson('/api/v1/storefront/store-a/checkout/initialize', [
+            'customer_email' => 'kenyan-customer@example.com',
+            'items' => [['product_id' => $product->id, 'quantity' => 1]],
+        ]);
+
+        $response->assertStatus(200);
+        \Illuminate\Support\Facades\Http::assertSent(function ($request) {
+            return ($request['subaccount'] ?? null) === 'ACCT_kenya'
+                && ($request['currency'] ?? null) === 'KES';
+        });
     }
 }

@@ -61,6 +61,84 @@ class StorefrontController extends Controller
     }
 
     /**
+     * The currency a storefront charge is minted, stamped and verified in.
+     * Always the store's own (a Ghana/Kenya store prices and settles in its
+     * own currency); the platform default is only a fallback for a row with
+     * no currency set at all. See laravel-server/AGENTS.md.
+     */
+    private function storeCurrency(Store $store): string
+    {
+        return strtoupper((string) ($store->currency ?: config('payment.currency', 'NGN')));
+    }
+
+    /**
+     * The customer has already paid at Paystack, but the order can no longer
+     * be created (stock gone, or a product deactivated, during their detour
+     * to the hosted page). Nothing is reserved at initialize time, so this is
+     * reachable in normal traffic - refund rather than keep the money with no
+     * order to cancel. Returns null when there is nothing paid to refund, so
+     * the caller falls through to its own error response.
+     *
+     * $submittedItems must be the raw items this exact checkout() call
+     * received (not priceCart()'s canonical output - both call sites that
+     * can reach this before the fingerprint check further down checkout()
+     * only have the raw submission). Fingerprinted against the intent's own
+     * stored items before refunding anything: without this, replaying an
+     * already-paid reference with a mismatched (e.g. inflated) cart would
+     * trigger a refund of a payment the caller never actually asked to
+     * cancel, on a cart that was never the one paid for.
+     */
+    private function refundUnfulfillableCheckout(Store $store, ?string $reference, array $submittedItems, PaymentService $paymentService): ?\Illuminate\Http\JsonResponse
+    {
+        if (!$reference) {
+            return null;
+        }
+
+        $intent = \App\Models\StorefrontPaymentIntent::where('reference', $reference)
+            ->where('store_id', $store->id)
+            ->where('status', 'pending')
+            ->first();
+
+        if (!$intent) {
+            return null;
+        }
+
+        $submittedCart = \App\Models\StorefrontPaymentIntent::cartFingerprint($submittedItems);
+        $reservedCart = \App\Models\StorefrontPaymentIntent::cartFingerprint($intent->items ?? []);
+
+        if ($submittedCart !== $reservedCart) {
+            return null;
+        }
+
+        $verification = $paymentService->verifyTransaction($reference, 'paystack');
+        if (!($verification['success'] ?? false)) {
+            return null;
+        }
+
+        $refund = $paymentService->refundTransaction($reference, 'paystack');
+
+        if (!($refund['success'] ?? false)) {
+            Log::error('Storefront refund failed for an unfulfillable paid checkout', [
+                'store_id' => $store->id,
+                'reference' => $reference,
+                'message' => $refund['message'] ?? null,
+            ]);
+
+            return response()->json([
+                'message' => "Your payment went through but this order can no longer be fulfilled, and the refund could not be completed automatically. Please contact the store with reference {$reference}.",
+                'refunded' => false,
+            ], 422);
+        }
+
+        $intent->update(['status' => 'refunded']);
+
+        return response()->json([
+            'message' => "Your payment went through but this order can no longer be fulfilled - it is being refunded. Reference {$reference}.",
+            'refunded' => true,
+        ], 422);
+    }
+
+    /**
      * Stock this store can still promise: its own batches, minus everything
      * already committed to orders that are placed but not yet fulfilled.
      * Online orders don't deduct stock at placement (staff deduct on
@@ -200,6 +278,7 @@ class StorefrontController extends Controller
                 'logo_url' => $store->logo_url,
             ],
             'products' => StorefrontProductResource::collection($products),
+            'online_payment_available' => (bool) $store->paystack_subaccount_code,
         ]);
     }
 
@@ -324,6 +403,13 @@ class StorefrontController extends Controller
             ], 422);
         }
 
+        if (!$store->paystack_subaccount_code) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This store cannot accept online payments yet.',
+            ], 422);
+        }
+
         try {
             $payment = $paymentService->initializeTransaction(
                 $totalAmount,
@@ -340,7 +426,9 @@ class StorefrontController extends Controller
                 // succeeding. The storefront frontend's checkout page reads
                 // Paystack's own appended ?reference=/&trxref= query params
                 // from this URL to drive the confirm call.
-                config('app.frontend_url') . "/store/{$store->store_slug}/checkout"
+                config('app.frontend_url') . "/store/{$store->store_slug}/checkout",
+                $store->paystack_subaccount_code,
+                $this->storeCurrency($store),
             );
 
             // Written BEFORE the checkout URL is handed back, so there is
@@ -351,7 +439,7 @@ class StorefrontController extends Controller
                 'reference' => $payment['reference'],
                 'provider' => $payment['provider'],
                 'amount' => $totalAmount,
-                'currency' => strtoupper((string) config('payment.currency', 'NGN')),
+                'currency' => $this->storeCurrency($store),
                 'status' => 'pending',
                 'items' => $orderItems,
                 'customer_email' => $validated['customer_email'],
@@ -406,7 +494,7 @@ class StorefrontController extends Controller
             ])),
             new OA\Response(response: 403, description: 'Store is suspended'),
             new OA\Response(response: 404, ref: '#/components/responses/NotFound'),
-            new OA\Response(response: 422, ref: '#/components/responses/ValidationError', description: 'Validation failure, or Paystack reference could not be verified / didn\'t cover the order total'),
+            new OA\Response(response: 422, ref: '#/components/responses/ValidationError', description: 'Validation failure, or Paystack reference could not be verified / didn\'t cover the order total. Also returned when an already-paid order can no longer be fulfilled (stock gone or product deactivated during the provider detour), in which case the payment is refunded and the body carries `refunded`.'),
         ],
     )]
     public function checkout(Request $request, $store_slug, PaymentService $paymentService, SubscriptionService $subscriptionService)
@@ -438,9 +526,22 @@ class StorefrontController extends Controller
         // response stays purchasable forever even after being deactivated
         // or hidden from the online store - fetched in one batch rather
         // than one query per item.
-        [$totalAmount, $orderItems, $error, $productNames] = $this->priceCart($store, $validated['items']);
+        $reference = $validated['payment_method'] === 'paystack'
+            ? ($validated['paystack_reference'] ?? null)
+            : null;
+
+        try {
+            [$totalAmount, $orderItems, $error, $productNames] = $this->priceCart($store, $validated['items']);
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+            $refund = $this->refundUnfulfillableCheckout($store, $reference, $validated['items'], $paymentService);
+            if ($refund) {
+                return $refund;
+            }
+            throw $e;
+        }
+
         if ($error) {
-            return $error;
+            return $this->refundUnfulfillableCheckout($store, $reference, $validated['items'], $paymentService) ?? $error;
         }
 
         // A verified reference stays "successful" at Paystack forever, so a
@@ -527,9 +628,9 @@ class StorefrontController extends Controller
             $verification = $paymentService->verifyTransaction($validated['paystack_reference'], 'paystack');
 
             // The amount is only comparable to the order total if it settled
-            // in the same currency the catalogue is priced in.
+            // in the same currency the charge was minted in.
             $verifiedCurrency = strtoupper((string) ($verification['currency'] ?? ''));
-            $expectedCurrency = strtoupper((string) config('payment.currency', 'NGN'));
+            $expectedCurrency = strtoupper((string) ($intent->currency ?: $this->storeCurrency($store)));
 
             if (!($verification['success'] ?? false)
                 || $verifiedCurrency !== $expectedCurrency
@@ -601,7 +702,8 @@ class StorefrontController extends Controller
                 return $order;
             });
         } catch (\App\Exceptions\StorefrontStockUnavailableException $e) {
-            return $e->getResponse();
+            return $this->refundUnfulfillableCheckout($store, $reference, $validated['items'], $paymentService)
+                ?? $e->getResponse();
         } catch (\App\Exceptions\PaymentReferenceAlreadyUsedException $e) {
             return response()->json([
                 'message' => 'This payment reference has already been used for another order.',

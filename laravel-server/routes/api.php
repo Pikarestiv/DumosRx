@@ -26,6 +26,7 @@ use App\Http\Controllers\Api\Web\NotificationController;
 use App\Http\Controllers\Api\Web\SessionController;
 use App\Http\Controllers\Api\Web\StaffController;
 use App\Http\Controllers\Api\Web\StoreController;
+use App\Http\Controllers\Api\Web\StorePaymentAccountController;
 use App\Http\Controllers\Api\Web\SubscriptionController;
 use Illuminate\Support\Facades\Route;
 
@@ -143,6 +144,9 @@ Route::prefix('v1')->group(function () {
 
         Route::apiResource('staff', StaffController::class)->middleware(['permission:manage_staff', 'subscription']);
         Route::get('stores/check-slug', [StoreController::class, 'checkSlug']);
+        Route::get('stores/{store}/payment-banks', [StorePaymentAccountController::class, 'paymentBanks']);
+        Route::post('stores/{store}/payment-account/resolve', [StorePaymentAccountController::class, 'resolvePaymentAccount']);
+        Route::post('stores/{store}/payment-account', [StorePaymentAccountController::class, 'createPaymentAccount']);
         Route::apiResource('stores', StoreController::class);
 
         Route::prefix('subscription')->group(function () {

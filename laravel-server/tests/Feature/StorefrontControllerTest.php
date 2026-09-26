@@ -560,6 +560,48 @@ class StorefrontControllerTest extends TestCase
         $this->assertDatabaseCount('online_orders', 0);
     }
 
+    public function test_a_paid_reference_replayed_with_a_different_cart_is_not_refunded()
+    {
+        // Same exploit shape as an already-used reference (line 538 above),
+        // reached through the earlier refund path instead: the customer's
+        // own already-paid reference, replayed with a DIFFERENT (inflated)
+        // cart so priceCart()'s stock check fails before the fingerprint
+        // check further down checkout() ever runs. Refunding here would
+        // trigger on a mismatched cart, not the one that was actually paid.
+        $product = $this->purchasableProduct(['name' => 'Panadol', 'selling_price' => 100, 'user_id' => $this->ownerA->id]);
+        $paidItems = [['product_id' => $product->id, 'quantity' => 1]];
+
+        $this->initializePaystackCheckout($paidItems, 'REPLAY-DIFFERENT-CART')->assertStatus(200);
+
+        $this->mock(PaymentService::class, function ($mock) {
+            $mock->shouldReceive('verifyTransaction')
+                ->andReturn(['success' => true, 'amount' => 100, 'currency' => 'NGN']);
+            $mock->shouldNotReceive('refundTransaction');
+        });
+
+        // Same reference as the paid cart, but asking for far more than the
+        // store has - fails priceCart()'s own stock check, the same
+        // exception the sold-out test above hits, before this ever reaches
+        // the fingerprint comparison further down checkout().
+        $inflatedItems = [['product_id' => $product->id, 'quantity' => 999]];
+
+        $response = $this->postJson('/api/v1/storefront/store-a/checkout', [
+            'customer_name' => 'Jane Doe',
+            'customer_phone' => '08000000000',
+            'payment_method' => 'paystack',
+            'paystack_reference' => 'REPLAY-DIFFERENT-CART',
+            'items' => $inflatedItems,
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonMissing(['refunded' => true]);
+        $this->assertDatabaseCount('online_orders', 0);
+        $this->assertDatabaseHas('storefront_payment_intents', [
+            'reference' => 'REPLAY-DIFFERENT-CART',
+            'status' => 'pending',
+        ]);
+    }
+
     public function test_an_unpaid_failed_checkout_is_never_refunded()
     {
         $product = $this->purchasableProduct(['name' => 'Panadol', 'selling_price' => 100, 'user_id' => $this->ownerA->id]);

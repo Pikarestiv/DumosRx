@@ -78,8 +78,17 @@ class StorefrontController extends Controller
      * reachable in normal traffic - refund rather than keep the money with no
      * order to cancel. Returns null when there is nothing paid to refund, so
      * the caller falls through to its own error response.
+     *
+     * $submittedItems must be the raw items this exact checkout() call
+     * received (not priceCart()'s canonical output - both call sites that
+     * can reach this before the fingerprint check further down checkout()
+     * only have the raw submission). Fingerprinted against the intent's own
+     * stored items before refunding anything: without this, replaying an
+     * already-paid reference with a mismatched (e.g. inflated) cart would
+     * trigger a refund of a payment the caller never actually asked to
+     * cancel, on a cart that was never the one paid for.
      */
-    private function refundUnfulfillableCheckout(Store $store, ?string $reference, PaymentService $paymentService): ?\Illuminate\Http\JsonResponse
+    private function refundUnfulfillableCheckout(Store $store, ?string $reference, array $submittedItems, PaymentService $paymentService): ?\Illuminate\Http\JsonResponse
     {
         if (!$reference) {
             return null;
@@ -91,6 +100,13 @@ class StorefrontController extends Controller
             ->first();
 
         if (!$intent) {
+            return null;
+        }
+
+        $submittedCart = \App\Models\StorefrontPaymentIntent::cartFingerprint($submittedItems);
+        $reservedCart = \App\Models\StorefrontPaymentIntent::cartFingerprint($intent->items ?? []);
+
+        if ($submittedCart !== $reservedCart) {
             return null;
         }
 
@@ -517,7 +533,7 @@ class StorefrontController extends Controller
         try {
             [$totalAmount, $orderItems, $error, $productNames] = $this->priceCart($store, $validated['items']);
         } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
-            $refund = $this->refundUnfulfillableCheckout($store, $reference, $paymentService);
+            $refund = $this->refundUnfulfillableCheckout($store, $reference, $validated['items'], $paymentService);
             if ($refund) {
                 return $refund;
             }
@@ -525,7 +541,7 @@ class StorefrontController extends Controller
         }
 
         if ($error) {
-            return $this->refundUnfulfillableCheckout($store, $reference, $paymentService) ?? $error;
+            return $this->refundUnfulfillableCheckout($store, $reference, $validated['items'], $paymentService) ?? $error;
         }
 
         // A verified reference stays "successful" at Paystack forever, so a
@@ -686,7 +702,7 @@ class StorefrontController extends Controller
                 return $order;
             });
         } catch (\App\Exceptions\StorefrontStockUnavailableException $e) {
-            return $this->refundUnfulfillableCheckout($store, $reference, $paymentService)
+            return $this->refundUnfulfillableCheckout($store, $reference, $validated['items'], $paymentService)
                 ?? $e->getResponse();
         } catch (\App\Exceptions\PaymentReferenceAlreadyUsedException $e) {
             return response()->json([

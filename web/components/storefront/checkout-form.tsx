@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useCart, useCartStore } from "@/lib/store/use-cart-store";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,6 +19,7 @@ interface CheckoutFormProps {
 export function CheckoutForm({ storeSlug }: CheckoutFormProps) {
   const cart = useCart(storeSlug);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   // The cart's prices are whatever was cached when each item was added, but
   // the server prices the order from product_id + quantity at submit time.
@@ -84,6 +85,43 @@ export function CheckoutForm({ storeSlug }: CheckoutFormProps) {
     payment_method: "in_store", // transfer, in_store, paystack
   });
 
+  useEffect(() => {
+    const reference = searchParams.get('reference') ?? searchParams.get('trxref');
+    if (!reference) return;
+
+    const pendingRaw = sessionStorage.getItem(`dumos_pending_checkout_${storeSlug}`);
+    if (!pendingRaw) return;
+
+    let pending: { formData: typeof formData; items: { product_id: string; quantity: number }[] };
+    try {
+      pending = JSON.parse(pendingRaw);
+    } catch {
+      return;
+    }
+
+    setLoading(true);
+    apiClient
+      .post(`/storefront/${storeSlug}/checkout`, {
+        ...pending.formData,
+        items: pending.items,
+        payment_method: 'paystack',
+        paystack_reference: reference,
+      })
+      .then(() => {
+        sessionStorage.removeItem(`dumos_pending_checkout_${storeSlug}`);
+        toast.success("Order placed successfully!");
+        cart.clearCart();
+        router.push(`/store/${storeSlug}`);
+      })
+      .catch((error) => {
+        toast.error(error instanceof Error ? error.message : "Could not confirm your payment. Contact the store with reference " + reference + ".");
+      })
+      .finally(() => setLoading(false));
+    // Runs once on mount for a given reference - deliberately not
+    // re-running on formData/cart changes, which would resubmit.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, storeSlug]);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -120,6 +158,10 @@ export function CheckoutForm({ storeSlug }: CheckoutFormProps) {
       }));
 
       if (formData.payment_method === 'paystack') {
+        sessionStorage.setItem(
+          `dumos_pending_checkout_${storeSlug}`,
+          JSON.stringify({ formData, items }),
+        );
         const { data } = await apiClient.post<{ payment_url: string }>(
           `/storefront/${storeSlug}/checkout/initialize`,
           { customer_email: formData.customer_email, items },

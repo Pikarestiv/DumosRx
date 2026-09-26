@@ -4,6 +4,9 @@ This file exists so any AI (or human) picking up this repo cold can get
 oriented quickly. Keep it updated when architecture, conventions, or the
 current focus of work change — see `client/AGENTS.md` for the sibling
 package's version of this same file and the same maintenance expectation.
+The standing rule for that (docs ship in the same change as the code,
+including moving a fixed finding from `docs/KNOWN_BUGS.md` into
+`docs/FIXED_BUGS.md`) lives in `.agents/AGENTS.md` §2, not here.
 
 ## What this is
 

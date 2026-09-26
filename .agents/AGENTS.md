@@ -45,6 +45,14 @@ not as a follow-up:
   true across every package → update this file.
 - **Roadmap Updates:** When a feature from `FEATURE_ROADMAP_SPEC.md` is completed, you must remove it from the roadmap and add its documentation to `SYSTEM_FEATURES_DOCUMENTATION.md`.
 - **Known Bugs:** If you spot a real bug or data gap while working on something else (e.g. during a refactor, type-safety pass, or code review) and are not fixing it as part of the current task, log it in `docs/KNOWN_BUGS.md` instead of letting it go unrecorded. Include where it is, what's wrong, and the fix if known.
+- **Standing rule — docs ship with the code, never after it.** Every code
+  change carries its own doc update in the same change, no exceptions: a
+  fixed finding moves out of `docs/KNOWN_BUGS.md` into `docs/FIXED_BUGS.md`
+  (removed from `KNOWN_BUGS.md` outright, including its executive-summary
+  counts and remediation-order entry — never marked "done" in place), a new
+  architectural decision or constraint is written into the relevant
+  `AGENTS.md`/`docs/*.md`, and any statement your change just made false is
+  corrected while you're there. A change is not finished until this is done.
 - A stale doc is worse than no doc — if you notice one of these files contradicts the current code while you're in the area, fix it as part of your change rather than leaving it for later.
 
 ## 3. 💬 Code Comments — Self-Documenting Code, Not Inline Explanations

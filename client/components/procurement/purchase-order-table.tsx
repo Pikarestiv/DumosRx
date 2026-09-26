@@ -7,6 +7,7 @@ import {
   Clock,
   ArrowRight,
   ClipboardList,
+  PackageOpen,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -59,6 +60,12 @@ function getStatusBadge(status: string) {
       return (
         <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 hover:bg-emerald-500/20">
           <CheckCircle2 className="w-3 h-3 mr-1" /> Received
+        </Badge>
+      );
+    case "partially_received":
+      return (
+        <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20 hover:bg-amber-500/20">
+          <PackageOpen className="w-3 h-3 mr-1" /> Partially Received
         </Badge>
       );
     case "sent":

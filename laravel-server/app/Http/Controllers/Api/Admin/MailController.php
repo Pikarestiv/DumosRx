@@ -15,7 +15,7 @@ class MailController extends Controller
     #[OA\Post(
         path: '/admin/mail/send',
         summary: 'Send a one-off custom email to all users or a specific set',
-        description: 'Queued (not sent synchronously); `target_type: all` chunks through every user 100 at a time.',
+        description: 'Sent synchronously (no queue worker runs in production); `target_type: all` chunks through every user 100 at a time.',
         tags: ['Admin: Mail'],
         security: [['sanctum' => []]],
         requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
@@ -28,7 +28,7 @@ class MailController extends Controller
             ],
         )),
         responses: [
-            new OA\Response(response: 200, description: 'Queued', content: new OA\JsonContent(properties: [
+            new OA\Response(response: 200, description: 'Sent', content: new OA\JsonContent(properties: [
                 new OA\Property(property: 'success', type: 'boolean'),
                 new OA\Property(property: 'message', type: 'string'),
             ])),
@@ -53,21 +53,19 @@ class MailController extends Controller
 
         try {
             if ($targetType === 'all') {
-                // Queue for all users in chunks to avoid memory/timeout issues
                 User::chunk(100, function ($users) use ($subject, $message) {
                     foreach ($users as $user) {
-                        Mail::to($user->email)->queue(new AdminCustomMail($subject, $message));
+                        Mail::to($user->email)->send(new AdminCustomMail($subject, $message));
                     }
                 });
             } else {
-                // Specific users
                 $users = User::whereIn('id', $request->input('user_ids'))->get();
                 foreach ($users as $user) {
-                    Mail::to($user->email)->queue(new AdminCustomMail($subject, $message));
+                    Mail::to($user->email)->send(new AdminCustomMail($subject, $message));
                 }
             }
 
-            return response()->json(['success' => true, 'message' => 'Emails have been queued for sending.']);
+            return response()->json(['success' => true, 'message' => 'Emails have been sent.']);
         } catch (\Exception $e) {
             Log::error('Failed to send admin emails: ' . $e->getMessage());
             return response()->json(['success' => false, 'message' => 'Failed to send emails.'], 500);

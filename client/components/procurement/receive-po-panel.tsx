@@ -26,6 +26,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import { formatCurrency } from "@/lib/utils";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import {
+  clampReceivedQuantity,
+  outstandingBulkQuantity,
+} from "./po-line-item-math";
 
 export interface ReceivedItemPayload {
   po_item_id: string;
@@ -62,6 +66,8 @@ const ReceiveItemCard = React.memo(
       value: string | number,
     ) => void;
   }) => {
+    const outstanding = outstandingBulkQuantity(item);
+    const alreadyReceived = Number(item.quantity_received) || 0;
     return (
       <div className="p-4 space-y-4">
         <div className="flex justify-between items-start">
@@ -71,6 +77,11 @@ const ReceiveItemCard = React.memo(
               Ordered: {item.bulk_quantity} {item.bulk_unit}(s) @{" "}
               {formatCurrency(item.unit_cost)}/{item.bulk_unit}
             </p>
+            {alreadyReceived > 0 && (
+              <p className="text-sm text-amber-600 font-medium">
+                Already received: {alreadyReceived} · outstanding: {outstanding}
+              </p>
+            )}
           </div>
         </div>
 
@@ -88,8 +99,7 @@ const ReceiveItemCard = React.memo(
                       Enter the number of {item.bulk_unit}s received, not base
                       units. This is automatically converted to{" "}
                       {(item.product_units_per_bulk || item.units_per_bulk) *
-                        (Number(state.quantity ?? item.bulk_quantity) ||
-                          0)}{" "}
+                        (Number(state.quantity ?? outstanding) || 0)}{" "}
                       base units in stock, using the product&apos;s current
                       packaging setting.
                     </p>
@@ -100,14 +110,16 @@ const ReceiveItemCard = React.memo(
             <Input
               type="number"
               min="0"
-              value={state.quantity ?? item.bulk_quantity}
+              max={outstanding}
+              value={state.quantity ?? outstanding}
               onChange={(e) =>
                 onFieldChange(
                   item.id,
                   "quantity",
-                  // min="0" is only an HTML hint — parseInt("-5") is truthy,
-                  // so clamp here or a negative qty reaches stock_batches.
-                  Math.max(0, parseInt(e.target.value) || 0),
+                  // min/max are only HTML hints — a typed "-5"/"500" still
+                  // reaches onChange, and an unclamped value would either
+                  // corrupt on-hand stock or book more than was ordered.
+                  clampReceivedQuantity(e.target.value, outstanding),
                 )
               }
             />
@@ -173,8 +185,10 @@ export function ReceivePOPanel({
       initial[item.id] = {
         po_item_id: item.id,
         product_id: item.product_id,
-        // Prefill with expected bulk_quantity.
-        quantity: item.bulk_quantity,
+        // Prefill with the outstanding balance, not the full ordered
+        // quantity: on a follow-up receipt against a partially-received PO
+        // the ordered figure is no longer what's still expected.
+        quantity: outstandingBulkQuantity(item),
         lot_number: "",
         // Null by default since we don't know it
         expiry_date: "",

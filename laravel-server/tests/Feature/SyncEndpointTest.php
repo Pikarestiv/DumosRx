@@ -1715,6 +1715,79 @@ class SyncEndpointTest extends TestCase
         ]);
     }
 
+    // SyncPayloadMapper::map() runs before normalizePushPayload() on the
+    // same $payload; quantity_ordered is safe from double-scaling only
+    // because normalizePushPayload() unconditionally recomputes it from the
+    // still-raw bulk_quantity, rather than building on any value the mapper
+    // set. quantity_received has no such recompute — it must be scaled by
+    // units_per_bulk exactly once across the two steps, not twice.
+    public function test_push_sync_scales_purchase_order_item_quantity_received_by_units_per_bulk_exactly_once()
+    {
+        $supplierId = (string) \Illuminate\Support\Str::uuid();
+        DB::table('suppliers')->insert([
+            'id' => $supplierId,
+            'user_id' => $this->user->id,
+            'name' => 'Partial Receipt Supplier',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $poId = (string) \Illuminate\Support\Str::uuid();
+        DB::table('purchase_orders')->insert([
+            'id' => $poId,
+            'ordered_by' => $this->user->id,
+            'supplier_id' => $supplierId,
+            'order_number' => 'PO-PARTIAL-RECEIPT',
+            'status' => 'pending',
+            'payment_status' => 'unpaid',
+            'order_date' => now()->toDateString(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $productId = 'prod_partial_receipt';
+        DB::table('products')->insert([
+            'id' => $productId,
+            'user_id' => $this->user->id,
+            'name' => 'Partially Received Product',
+            '_version' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $itemId = (string) \Illuminate\Support\Str::uuid();
+        $response = $this->actingAs($this->user)->postJson('/api/v1/app/sync/push', [
+            'setup' => true,
+            'changes' => [
+                [
+                    'table_name' => 'purchase_order_items',
+                    'operation' => 'INSERT',
+                    'record_id' => $itemId,
+                    'payload' => [
+                        'id' => $itemId,
+                        'po_id' => $poId,
+                        'product_id' => $productId,
+                        'bulk_quantity' => 10,
+                        'units_per_bulk' => 5,
+                        'quantity_received' => 6, // 6 of 10 bulk units received
+                        'unit_cost' => 100,
+                        'subtotal' => 5000,
+                        '_synced' => 0,
+                    ],
+                ],
+            ],
+        ]);
+
+        $response->assertStatus(200);
+        $response->assertJsonCount(0, 'failed');
+        $this->assertDatabaseHas('purchase_order_items', [
+            'id' => $itemId,
+            'purchase_order_id' => $poId,
+            'quantity_ordered' => 50, // 10 bulk * 5 units_per_bulk
+            'quantity_received' => 30, // 6 bulk * 5 units_per_bulk, scaled once
+        ]);
+    }
+
     // push()'s "stale_timestamp" fallback branch (compares updated_at when
     // either side has no _version) IS reachable, contrary to an earlier note
     // here that called it dead code: $modelVersion can indeed never be null

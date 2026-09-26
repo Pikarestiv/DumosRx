@@ -436,6 +436,7 @@ CREATE TABLE IF NOT EXISTS purchase_order_items (
   po_id TEXT NOT NULL,
   product_id TEXT NOT NULL,
   bulk_quantity INTEGER NOT NULL,
+  quantity_received INTEGER DEFAULT 0,
   units_per_bulk INTEGER NOT NULL,
   unit_cost REAL NOT NULL,
   subtotal REAL NOT NULL,

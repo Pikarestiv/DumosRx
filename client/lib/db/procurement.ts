@@ -25,6 +25,22 @@ export function coerceOptionalNumber(
   return Number.isFinite(num) ? num : null;
 }
 
+/** `partially_received` sits between `sent` and `received`: at least one
+ * line has some stock in, but at least one line still has an outstanding
+ * balance, so the order stays receivable. */
+export const PURCHASE_ORDER_STATUSES = [
+  "pending",
+  "sent",
+  "partially_received",
+  "received",
+] as const;
+
+export type PurchaseOrderStatus = (typeof PURCHASE_ORDER_STATUSES)[number];
+
+export function isReceivablePurchaseOrderStatus(status: string): boolean {
+  return status === "pending" || status === "sent" || status === "partially_received";
+}
+
 export interface PurchaseOrder {
   id: string;
   order_number?: string;
@@ -53,6 +69,10 @@ export interface PurchaseOrderItem {
   po_id: string;
   product_id: string;
   bulk_quantity: number;
+  /** Cumulative quantity received so far against this line, in the same
+   * unit as bulk_quantity. A line is outstanding while it's below
+   * bulk_quantity, which is what keeps a short-delivered PO receivable. */
+  quantity_received?: number;
   units_per_bulk: number;
   unit_cost: number;
   subtotal: number;
@@ -215,6 +235,7 @@ export async function createPurchaseOrder(
         po_id: poId,
         product_id: item.product_id,
         bulk_quantity: item.bulk_quantity,
+        quantity_received: 0,
         units_per_bulk: item.units_per_bulk,
         unit_cost: item.unit_cost,
         subtotal: item.bulk_quantity * item.unit_cost,
@@ -275,6 +296,7 @@ export async function updatePurchaseOrder(
         po_id: poId,
         product_id: item.product_id,
         bulk_quantity: item.bulk_quantity,
+        quantity_received: 0,
         units_per_bulk: item.units_per_bulk,
         unit_cost: item.unit_cost,
         subtotal: item.bulk_quantity * item.unit_cost,
@@ -313,17 +335,17 @@ export async function getSuppliers() {
             COALESCE(po_stats.total_value, 0) as total_value,
             po_stats.last_order_date as last_order_date
      FROM suppliers s
-     LEFT JOIN purchase_orders po ON s.id = po.supplier_id AND po._deleted = 0 AND po.payment_status != 'paid'
+     LEFT JOIN purchase_orders po ON s.id = po.supplier_id AND po._deleted = 0 AND po.payment_status != 'paid'${storeId ? " AND po.store_id = ?" : ""}
      LEFT JOIN (
        SELECT supplier_id, COUNT(*) as total_orders, SUM(total_amount) as total_value, MAX(order_date) as last_order_date
        FROM purchase_orders
-       WHERE _deleted = 0
+       WHERE _deleted = 0${storeId ? " AND store_id = ?" : ""}
        GROUP BY supplier_id
      ) po_stats ON po_stats.supplier_id = s.id
      WHERE s._deleted = 0${storeId ? " AND s.store_id = ?" : ""}
      GROUP BY s.id
      ORDER BY s.created_at DESC`,
-    storeId ? [storeId] : [],
+    storeId ? [storeId, storeId, storeId] : [],
   );
   return { data: results };
 }

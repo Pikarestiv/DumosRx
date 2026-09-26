@@ -5,6 +5,12 @@ oriented quickly and work consistently with existing conventions. Keep it
 updated when architecture, conventions, or the current focus of work change:
 it decays fast otherwise, and a stale doc is worse than no doc.
 
+The standing rule for this — docs ship in the same change as the code that
+makes them true, including moving a fixed finding from `docs/KNOWN_BUGS.md`
+into `docs/FIXED_BUGS.md` — lives in `.agents/AGENTS.md` §2 and is not
+repeated here (duplicating a shared rule per package is how the two copies
+drift).
+
 ## What this is
 
 **DumosRx** ("NextGen Retail & Store OS") is an offline-first point-of-sale
@@ -258,7 +264,9 @@ e2e/                       Playwright end-to-end specs
 
 - **Purchase Orders: Standard vs Immediate** (`lib/db/procurement.ts`,
   `components/procurement/`). `purchase_orders.type` (`'standard' |
-  'immediate'`) is separate from `status` (`'pending' | 'received'`) and is
+  'immediate'`) is separate from `status` (`PURCHASE_ORDER_STATUSES` in
+  `lib/db/procurement.ts`: `'pending' | 'sent' | 'partially_received' |
+  'received'`) and is
   set once at creation, never changed: a **Standard** PO is created
   `pending` via `createPurchaseOrder()` and received later through the
   existing `ReceivePOPanel`; an **Immediate Purchase** is created *and*
@@ -296,6 +304,41 @@ e2e/                       Playwright end-to-end specs
   `"standard"`) to decide which columns to show — it used to assume only
   Standard POs are ever resumed via "Edit Order," which was wrong (any
   `pending`/`sent` PO gets that button, including an Immediate draft).
+
+- **Partial PO receipts** (added 2026-09-26, `lib/db/procurement-receiving.ts`).
+  Receiving used to be all-or-nothing: any submitted quantity flipped the
+  whole PO to `received` and a guard (`status === "received"`) then blocked
+  it forever, so a short delivery — routine in real procurement — silently
+  forfeited the undelivered balance with no path back into the system.
+  `purchase_order_items.quantity_received` now tracks the cumulative
+  received quantity per line, **in the same unit as `bulk_quantity`**, and
+  `receivePurchaseOrder()` only flips to `received` once every line reaches
+  its ordered quantity; otherwise the PO becomes `partially_received` and
+  stays receivable against its outstanding balance. Rules worth knowing
+  before touching this:
+  - `outstandingBulkQuantity()`/`clampReceivedQuantity()`
+    (`components/procurement/po-line-item-math.ts`) are the single source of
+    truth for "what's still expected" and for clamping the qty input. Both
+    receiving surfaces (`ReceiveLedgerTable` on tablet+, `ReceiveItemCard` on
+    phones) prefill and clamp to the **outstanding** balance, not the ordered
+    quantity — a row written by an older build reads back null and is treated
+    as fully outstanding.
+  - A submit with every line at 0 against a PO with nothing received yet is a
+    deliberate no-op (status untouched), not a partial receipt.
+  - "Edit Order" is still gated to `pending`/`sent` only, and that matters:
+    `updatePurchaseOrder()` soft-deletes and re-inserts every line, which
+    would discard `quantity_received`. Don't widen that gate to
+    `partially_received` without reworking that function first.
+  - **Sync**: the client sends `quantity_received` in bulk units, but the
+    server stores it in base units, because `SyncController::push()` scales
+    `quantity_received` by `units_per_bulk` exactly as it already does for
+    `quantity_ordered` — and it only does so when `bulk_quantity` and
+    `units_per_bulk` are both in the payload. A sync-queue `UPDATE` payload
+    carries changed fields only, so `receivePurchaseOrder()` deliberately
+    re-sends those two columns unchanged alongside `quantity_received`. Drop
+    that and the column syncs at the wrong scale. Server counterpart:
+    `2026_09_26_000001_add_quantity_received_to_purchase_order_items.php`
+    plus the mirrored branch in `Services/Web/SyncPayloadMapper.php`.
 
 ## Cashier (`sales_staff`) visibility gating — a recurring pattern, not a one-off
 
@@ -361,6 +404,19 @@ trustworthiness, not its status code. (An earlier version of this fix
 did gate on `response.ok` too and was caught by code review: it made a
 real current error page get treated identically to being offline,
 serving stale cached content instead.)
+
+The **catch-all stale-while-revalidate branch** (every other same-origin
+GET: JS/CSS chunks, the sql.js WASM binary, manifest, icons, Next's `.txt`
+RSC payloads) got the mirror-image guard on 2026-09-26, with `CACHE_VERSION`
+bumped to `v4` so `activate()`'s prune also drops any already-poisoned
+entry. It used to cache anything on a bare `response.ok`, so a captive
+portal or misconfigured proxy answering a chunk/WASM request with its own
+login page (still `200 OK`) would poison that entry under the real asset's
+cache key and keep being served long after the network recovered. The check
+is inverted relative to the navigation path: `expectsNonHtml` tests the
+request pathname's extension, and HTML is refused only for those requests —
+so a legitimately-HTML response on some other same-origin GET still caches
+as before.
 
 ## Stale-chunk auto-recovery
 
@@ -742,14 +798,6 @@ Before that, work focused on the **Inventory** area:
   else that reads it undated and a single user/store can exceed 100 rows
   in the relevant window; not fixed elsewhere because no other caller was
   reported as actually hitting it.
-- `sw.js`'s catch-all stale-while-revalidate branch (same-origin GETs
-  that aren't a `mode: "navigate"` request — includes Next `<Link>`
-  prefetch fetches) still caches whatever comes back with only a
-  `response.ok` check, no `isHtmlResponse` guard. Judged acceptable for
-  now because the navigate handler's own offline-fallback path already
-  re-validates content-type on whatever it pulls from cache (so a
-  poisoned entry from this branch still can't reach a real navigation,
-  which is the actual user-facing bug this session fixed) — but the
-  catch-all branch itself doesn't prevent a wrong-content-type response
-  from being written to cache at all. Revisit if `sw.js` grows real test
-  coverage; currently has none.
+- `sw.js`'s catch-all stale-while-revalidate branch was fixed on
+  2026-09-26 — see the PWA section above. `sw.js` still has **no test
+  coverage** of any kind, which remains the real open item here.

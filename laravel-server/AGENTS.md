@@ -5,7 +5,9 @@ oriented quickly. Keep it updated when architecture, conventions, or the
 current focus of work change — see `client/AGENTS.md` and `web/AGENTS.md`
 for the sibling packages' versions of this same file and the same
 maintenance expectation. A stale doc here is worse than no doc: fix it in
-the same change that makes it wrong, don't defer it.
+the same change that makes it wrong, don't defer it. The standing rule for
+that — including moving a fixed finding from `docs/KNOWN_BUGS.md` into
+`docs/FIXED_BUGS.md` in the same change — lives in `.agents/AGENTS.md` §2.
 
 ## What this is
 
@@ -47,6 +49,23 @@ without updating that.
   (any authenticated user could see every store's data) or scoped by the
   wrong id for staff accounts; see `tests/Feature/TenantIsolationTest.php`
   for the regression coverage and exact failure shape.
+  **Service classes are the trait's blind spot.** `ScopesToTenant` takes a
+  `Request`, so classes under `app/Services/` can't use it and hand-roll the
+  same lookup instead — `Web/DashboardService` and `Api/App/SaleController`
+  both repeat it across several methods, which is exactly how one copy drifts.
+  `DashboardService::resetData()` (the destructive `POST /dashboard/reset`)
+  scoped every delete by `$user->id` directly until 2026-09-26: harmless for a
+  `store_owner` (their own id *is* the tenant owner id) but a silent zero-row
+  no-op returning `{"status":"success"}` for the real, assignable non-owner
+  `admin` staff role the controller's gate also admits. It now goes through a
+  private `tenantOwnerId($user)` mirroring the trait; regression coverage in
+  `tests/Feature/DashboardResetScopingTest.php`. Note the other three methods
+  in that file (`getSummary`/`getStats`/`getWidgetSnapshot`) still resolve by
+  `$user->id` — read-only and lower-stakes, so deliberately not changed in
+  that pass, but they are the same latent shape. `TenantScopingArchitectureTest`
+  only scans controllers, so nothing catches this class of drift in a service
+  mechanically: extract the resolution into one shared helper rather than
+  adding a fourth inline copy.
 - **Roles & permissions (`User::hasRole()`/`hasPermission()`, `app/Models/User.php`):**
   `hasRole($role)` checks three things, any of which can match: the flat
   `role` string column, the `userRole` relation's `slug` (a `Role` model,
@@ -211,6 +230,21 @@ shared host): don't dispatch a `ShouldQueue` job for something that must
 actually run — do it synchronously (fast, timeout-guarded) or via
 `routes/console.php`'s `Schedule::command(...)`, which the OS cron does
 reliably run.
+
+**Mail is always `Mail::to(...)->send(...)`, never `->queue(...)`** — a
+direct consequence of the constraint above, stated as its own rule because a
+`->queue()` call fails *silently*: nothing checks a return value, nothing
+inspects the `jobs` table, and the caller still reports success. The last two
+`->queue()` call sites were converted on 2026-09-26:
+`AdminAlertService::send()` (the sync engine's own superadmin
+failure-escalation path — the mechanism meant to surface *other* silent
+failures) and `Api/Admin/MailController::send()` (the admin broadcast-email
+feature, which additionally returned "Emails have been queued for sending"
+unconditionally). The mailables still `implement ShouldQueue` — harmless, and
+left in place for a future real worker — so that interface's presence is
+**not** a signal that queueing is safe here. Copy the `->send()` pattern from
+`RegistersAccounts`/`RecoversPasswords`/`SendEndOfDaySummaries` for any new
+mail path.
 
 ## Testing
 

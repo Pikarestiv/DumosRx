@@ -1305,6 +1305,14 @@ class SyncController extends Controller
                 unset($payload['subtotal']);
             }
             if (isset($payload['bulk_quantity']) && isset($payload['units_per_bulk'])) {
+                // quantity_received is scaled by the same factor as
+                // quantity_ordered so the "received <= ordered" invariant
+                // holds server-side too; a partial-receipt update carries it
+                // without bulk_quantity, in which case it's already comparable
+                // to whatever quantity_ordered this row was stored with.
+                if (isset($payload['quantity_received'])) {
+                    $payload['quantity_received'] = intval($payload['quantity_received']) * intval($payload['units_per_bulk']);
+                }
                 $payload['quantity_ordered'] = intval($payload['bulk_quantity']) * intval($payload['units_per_bulk']);
                 unset($payload['bulk_quantity']);
                 unset($payload['units_per_bulk']);

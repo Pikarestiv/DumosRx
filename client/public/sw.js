@@ -18,7 +18,7 @@
 // every deploy - the strategy below already updates cached assets on every
 // successful network fetch); activate() deletes any cache left behind by an
 // older version.
-const CACHE_VERSION = "dumosrx-v3";
+const CACHE_VERSION = "dumosrx-v4";
 
 // A dead connection can leave a fetch pending far longer on iOS Safari than
 // on Chrome before it rejects (the same asymmetry the navigate handler below
@@ -291,6 +291,18 @@ self.addEventListener("fetch", (event) => {
     ? new Request(requestUrl.origin + requestUrl.pathname)
     : request;
 
+  // The navigate branch's mirror image: a request whose pathname names a
+  // non-HTML asset must never have an HTML body written under its cache key.
+  // A captive portal or misconfigured proxy answering a JS chunk/wasm/
+  // manifest request with its own login page (still 200 OK) would otherwise
+  // poison that entry and keep being served from cache long after the
+  // network recovered.
+  const expectsNonHtml = /\.(js|mjs|css|wasm|json|txt|webmanifest|png|jpg|jpeg|svg|webp|ico|woff2?)$/i.test(
+    requestUrl.pathname,
+  );
+  const isCacheableResponse = (response) =>
+    response.ok && !(expectsNonHtml && isHtmlResponse(response));
+
   event.respondWith(
     (async () => {
       const cache = await caches.open(CACHE_VERSION);
@@ -299,8 +311,9 @@ self.addEventListener("fetch", (event) => {
       const networkFetch = (async () => {
         try {
           const response = await fetch(request);
-          // Only cache real, successful, non-opaque responses.
-          if (response.ok) await cache.put(cacheKey, response.clone());
+          // Only cache real, successful, non-opaque responses whose body type
+          // matches what this request asked for.
+          if (isCacheableResponse(response)) await cache.put(cacheKey, response.clone());
           return response;
         } catch {
           return undefined;

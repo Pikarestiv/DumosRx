@@ -19,6 +19,8 @@ interface ProcurementDetailsDialogProps {
 const STATUS_STYLES: Record<string, string> = {
   pending:
     "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/20 dark:text-amber-400 dark:border-amber-500/30",
+  partially_received:
+    "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/20 dark:text-amber-400 dark:border-amber-500/30",
   received:
     "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-500/30",
   cancelled:
@@ -79,7 +81,7 @@ export function ProcurementDetailsDialog({
             <span
               className={`text-[11px] font-semibold px-2 py-0.5 rounded-md capitalize inline-block border ${statusStyle}`}
             >
-              {po.status}
+              {(po.status || "").replace(/_/g, " ")}
             </span>
             <div className="text-[18px] font-semibold text-primary mt-1">
               {formatCurrency(po.total_amount, currencyCode)}

@@ -52,14 +52,29 @@ export async function receivePurchaseOrder(id: string, receivedItems?: ReceivedI
   const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
 
   return transaction(async () => {
+    let outstandingRemains = false;
+    let anyQuantityReceived = false;
+
     for (const item of poData.items) {
       const receivedItem = receivedItems?.find(ri => ri.po_item_id === item.id);
 
-      // Default to the original ordered bulk quantity if not provided in payload.
+      const alreadyReceived = Math.max(0, Number(item.quantity_received) || 0);
+      const outstanding = Math.max(0, Number(item.bulk_quantity) - alreadyReceived);
+
+      // Default to the whole outstanding balance if not provided in payload.
       // A submitted quantity is floored at 0 (the form clamps too, but a negative
-      // reaching here would silently corrupt on-hand stock at the moment of receipt);
-      // item.bulk_quantity is a legitimate ordered quantity and passes through as-is.
-      const bulkQty = receivedItem?.quantity !== undefined ? Math.max(0, Number(receivedItem.quantity)) : Number(item.bulk_quantity);
+      // reaching here would silently corrupt on-hand stock at the moment of receipt)
+      // and capped at the outstanding balance, so a typo can't book more stock
+      // than was ever ordered.
+      const bulkQty = receivedItem?.quantity !== undefined
+        ? Math.min(outstanding, Math.max(0, Number(receivedItem.quantity)))
+        : outstanding;
+
+      if (bulkQty < outstanding) outstandingRemains = true;
+      if (alreadyReceived + bulkQty > 0) anyQuantityReceived = true;
+
+      if (bulkQty === 0) continue;
+
       // Always use the product's current conversion factor, not the snapshot stored on the
       // PO line item: the product's packaging may have been corrected since the order was placed.
       const unitsPerBulk = Number(item.product_units_per_bulk) || Number(item.units_per_bulk) || 1;
@@ -117,10 +132,32 @@ export async function receivePurchaseOrder(id: string, receivedItems?: ReceivedI
           selling_price: Math.max(0, Number(receivedItem.selling_price)),
         });
       }
+
+      // bulk_quantity/units_per_bulk are re-sent unchanged so the sync
+      // push's purchase_order_items mapping (SyncController::push) can scale
+      // quantity_received into base units the same way it scales
+      // quantity_ordered — it only does so when both are present in the
+      // payload, and a sync-queue UPDATE payload carries changed fields only.
+      await update("purchase_order_items", item.id, {
+        quantity_received: alreadyReceived + bulkQty,
+        bulk_quantity: item.bulk_quantity,
+        units_per_bulk: item.units_per_bulk,
+      });
     }
 
-    await updatePurchaseOrderStatus(id, "received");
-    await logAction("RECEIVE_PO", "purchase_orders", id, { total_items: poData.items.length });
+    // A submit with every line left at 0 against a PO that has nothing
+    // received yet isn't a partial receipt, it's a no-op — the order stays
+    // exactly where it was rather than moving into the partial state.
+    if (outstandingRemains && !anyQuantityReceived) return;
+
+    const status = outstandingRemains ? "partially_received" : "received";
+    await updatePurchaseOrderStatus(id, status);
+    await logAction("RECEIVE_PO", "purchase_orders", id, {
+      total_items: poData.items.length,
+      status,
+    });
+
+    return status;
   });
 }
 
@@ -192,6 +229,7 @@ export async function createAndReceivePurchaseOrder(
         po_id: poId,
         product_id: item.product_id,
         bulk_quantity: item.bulk_quantity,
+        quantity_received: item.bulk_quantity,
         units_per_bulk: item.units_per_bulk,
         unit_cost: item.unit_cost,
         subtotal: computeImmediateLineTotal(item),

@@ -61,6 +61,27 @@ export function SubscriptionConfigTab() {
     | undefined;
   const updateMutation = useUpdateSystemConfigMutation();
 
+  const { data: storefrontFeeData } = useSystemConfig(
+    "storefront_platform_fee_percentage",
+  );
+  const [localStorefrontFee, setLocalStorefrontFee] = useState(
+    typeof storefrontFeeData === "number" ? storefrontFeeData : 2,
+  );
+  const [prevStorefrontFeeData, setPrevStorefrontFeeData] = useState(
+    storefrontFeeData,
+  );
+  const updateStorefrontFeeMutation = useUpdateSystemConfigMutation();
+
+  // storefrontFeeData arrives asynchronously (undefined at mount), so the
+  // useState above only captures the fallback default; sync local state once
+  // the real server value lands, same as the social_links config below.
+  if (storefrontFeeData !== prevStorefrontFeeData) {
+    setPrevStorefrontFeeData(storefrontFeeData);
+    if (typeof storefrontFeeData === "number") {
+      setLocalStorefrontFee(storefrontFeeData);
+    }
+  }
+
   const [config, setConfig] = useState<SubscriptionConfig>(
     DEFAULT_SUBSCRIPTION_CONFIG,
   );
@@ -362,6 +383,47 @@ export function SubscriptionConfigTab() {
               <Save className="w-4 h-4 mr-2" />
             )}
             Save Configuration
+          </Button>
+        </CardFooter>
+      </Card>
+
+      <Card className="bg-white dark:bg-slate-900 border-accent/20">
+        <CardHeader>
+          <CardTitle>Storefront Commission</CardTitle>
+          <CardDescription>
+            The percentage DumosRx keeps from every online storefront sale.
+            Changing this updates every store that already has a connected
+            payment account, not just new ones.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2 max-w-xs">
+            <Label htmlFor="storefront-commission">
+              Storefront Commission (%)
+            </Label>
+            <Input
+              id="storefront-commission"
+              type="number"
+              min={0}
+              max={50}
+              step={0.5}
+              value={localStorefrontFee}
+              onChange={(e) => setLocalStorefrontFee(Number(e.target.value))}
+            />
+          </div>
+        </CardContent>
+        <CardFooter>
+          <Button
+            onClick={async () => {
+              await updateStorefrontFeeMutation.mutateAsync({
+                key: "storefront_platform_fee_percentage",
+                value: localStorefrontFee,
+              });
+              toast.success("Storefront commission updated.");
+            }}
+            disabled={updateStorefrontFeeMutation.isPending}
+          >
+            Save Storefront Commission
           </Button>
         </CardFooter>
       </Card>

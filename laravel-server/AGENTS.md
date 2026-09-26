@@ -253,14 +253,67 @@ extending or relying on any of this):
   `Http::fake()`) is the file to extend for anything in this area.
 
 Note also that the storefront's online-payment flow (`initializeCheckout`/
-`StorefrontPaymentIntent`) is complete and tested here but **deliberately not
-wired into any client** (SF-P1-2) — the OpenAPI descriptions on those routes
-read as though it is live. That is a pending business decision, not an
-oversight, and it needs a real refund path first: `PaymentService` has
-`initializeTransaction`/`verifyTransaction` and **no refund method**, so
-`OnlineOrderController::flagRefundRequired()` currently only logs a warning
-and notifies the store when an already-paid order is cancelled. Don't make
-Paystack reachable from a client without closing that.
+`StorefrontPaymentIntent`) was wired up end-to-end 2026-09-26 (SF-P1-2) via
+per-store Paystack subaccounts — see the dedicated section below for the
+onboarding flow, fee semantics, propagation cadence, and the refund decision.
+Full design: `docs/superpowers/specs/2026-09-26-storefront-paystack-subaccounts-design.md`.
+
+## Storefront online payment: Paystack subaccounts
+
+Each store that wants to take real money on its storefront gets its own
+Paystack **subaccount**, created programmatically from the owner's own bank
+details — the owner never sees Paystack directly, and DumosRx never holds
+customer money in its own account (the alternative, platform-collects-then-
+payouts, was rejected: it needs a ledger, KYC and payout reconciliation, a
+much bigger project). A storefront checkout charge is split automatically at
+the point of payment by Paystack itself, so the store's share settles
+straight to their own bank account.
+
+- **Onboarding flow** (`PaystackSubaccountService`, store-owner endpoints on
+  `StoreController`): `GET /store/payment-banks?country=` wraps Paystack's
+  bank-list endpoint — **note this isn't universally available across
+  Paystack's six supported countries**; it's documented for Nigeria, Ghana,
+  Kenya and South Africa, not confirmed for Rwanda or Côte d'Ivoire, and
+  returns `[]` rather than throwing when Paystack has nothing, which the
+  client is expected to render as a plain bank-name text field rather than a
+  dropdown. `POST /store/payment-account/resolve` wraps Paystack's
+  resolve-account endpoint, which is Nigeria/Ghana-only; it returns `null`
+  (not a fabricated guess) everywhere else, and that's a normal outcome, not
+  an error — never logged as a failure. `POST /store/payment-account` calls
+  `createSubaccount()` and persists only the subaccount code, country, bank
+  code, and the **masked last 4 digits** of the account number — the full
+  number is never stored beyond what the create call needs in flight. This
+  endpoint is idempotent (409 once a store already has a subaccount, no
+  Paystack call made) and re-resolves the account server-side even though
+  the client already called `/resolve` — never trust a client-sent
+  confirmation of someone else's bank details alone.
+- **`percentage_charge` is the platform's cut, not the store's** — a real,
+  easy-to-get-backwards fact worth stating plainly. `createSubaccount()`
+  passes the current `storefront_platform_fee_percentage` (a `SystemConfig`
+  float, one global rate for every store) as `percentage_charge`; Paystack
+  takes that percentage for DumosRx and settles the rest to the store.
+- **Fee-rate propagation.** A superadmin edits the rate via
+  `SystemConfigController`; that same request stamps `paystack_fee_dirty_at`
+  on every store with a connected subaccount. `App\Console\Commands\
+  SyncSubaccountFeeRates`, registered in `routes/console.php` at the same
+  cadence as `RebuildStorefrontIfDirty`, calls `updateSubaccountFee()` for
+  each dirty store, clears the flag on success, and leaves it dirty (retried
+  next run) on failure — escalating to `AdminAlertService::send()` after
+  repeated consecutive failures for the same store, the same escalation path
+  the sync engine already uses, not a second alerting mechanism.
+- **Refunds are real, but not clawed back from the store.**
+  `OnlineOrderController`'s cancel-a-paid-order path now calls
+  `PaymentService::refundTransaction()` (which delegates to
+  `PaystackSubaccountService::refundTransaction()`), falling back to the
+  original log-and-notify-the-store behaviour only if that provider call
+  itself fails. **Accepted, deliberate cost:** Paystack's own refund
+  behaviour on a split transaction draws the refund from DumosRx's main
+  balance once the subaccount side has settled (typically within a day or
+  two), not automatically clawed back from the store. This was confirmed
+  with the user as an accepted v1 cost of running the platform rather than
+  something to build a Transfer/Transfer-Recipient claw-back for now —
+  revisit only if refund volume ever makes automating it worth the extra
+  integration surface.
 
 **Carbon 3 gotcha:** `diffInMonths()` (and the other `diffIn*` methods)
 return a **signed** value (`$other - $this`) in Carbon 3, unlike Carbon 2's
@@ -346,7 +399,7 @@ mail path.
 ## Testing
 
 ```
-php artisan test                            # 399 tests as of 2026-09-26 — treat any drop as a regression
+php artisan test                            # 435 tests as of 2026-09-26 (Paystack subaccount plan) — treat any drop as a regression
 php -l path/to/File.php                     # quick syntax check for a single file
 ```
 

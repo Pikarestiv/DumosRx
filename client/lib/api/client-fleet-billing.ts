@@ -28,6 +28,39 @@ export class FleetBillingApiClient extends BaseApiClient {
     return this.request<{ available: boolean; slug: string }>(url);
   }
 
+  async getPaymentBanks(storeId: string, country: string) {
+    return this.request<{ banks: { name: string; code: string }[] }>(
+      `/stores/${storeId}/payment-banks?country=${encodeURIComponent(country)}`,
+    );
+  }
+
+  async resolvePaymentAccount(
+    storeId: string,
+    payload: { account_number: string; bank_code: string; country: string },
+  ) {
+    return this.request<{ account_name: string | null }>(
+      `/stores/${storeId}/payment-account/resolve`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+    );
+  }
+
+  // confirmed_unverifiable is required by the server (422 otherwise) when
+  // resolveAccount() can't verify this country/bank combination - see
+  // StoreController::createPaymentAccount, which re-resolves server-side
+  // and only accepts this flag as a substitute for a real resolved name.
+  async createPaymentAccount(
+    storeId: string,
+    payload: { account_number: string; bank_code: string; country: string; confirmed_unverifiable?: boolean },
+  ) {
+    return this.request<{ message: string }>(`/stores/${storeId}/payment-account`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
+
   async createStore(payload: FleetStorePayload) {
     return this.request<{ message: string; store: FleetStore }>("/stores", {
       method: "POST",

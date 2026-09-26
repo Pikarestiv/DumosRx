@@ -1,5 +1,6 @@
 import { PaymentSettingsCard } from "@/components/settings/store/payment-settings-card";
 import { PaymentAccountsCard } from "@/components/settings/store/payment-accounts-card";
+import { OnlinePaymentsSection } from "@/components/settings/store/online-payments-section";
 import type { SettingsState } from "@/hooks/use-settings";
 
 export function PaymentMethodsPanel(s: SettingsState) {
@@ -12,6 +13,9 @@ export function PaymentMethodsPanel(s: SettingsState) {
         setEnabledPaymentMethods={s.setEnabledPaymentMethods}
       />
       <PaymentAccountsCard />
+      {s.storeProfile && (
+        <OnlinePaymentsSection storeId={s.storeProfile.id} storeName={s.storeProfile.name} />
+      )}
     </>
   );
 }

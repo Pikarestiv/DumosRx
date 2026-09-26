@@ -4,6 +4,14 @@ A changelog of bugs that were tracked in `docs/KNOWN_BUGS.md` and have since bee
 
 ## 2026-09-26
 
+### fix: query()/execute()/transaction() now serialize onto one connection-wide lock ("Statement closed" / "bad parameter or other API misuse")
+- **Commit:** `7f6663db`
+- sql.js has a single shared connection with no reader isolation. `query()`'s row-fetch loop yields a tick every 200 rows so a large result set doesn't block paint; a write landing in that window (a `transaction()`'s `BEGIN`, or a bare `execute()`) could invalidate the in-flight prepared statement, throwing "Statement closed" or sql.js's own SQLITE_MISUSE string. A retry-on-error mitigation already existed (`MAX_MISUSE_RETRIES = 2`) but could exhaust under real collision load.
+- Reported as two symptoms that turned out to be the same race: the sync engine crash-logging `area: "sync-run"` with an `audit_logs`/`feedback` queue breakdown, and — separately — a fast login sometimes throwing "bad parameter or other API misuse", traced to `DatabaseProvider`'s unawaited boot-time jobs (`requeueOrphanedRows()`'s per-table scan in particular) racing `login()`'s own fire-and-forget `logAction()`/`migrateLegacyPinToHash()` writes.
+- `query()` (when called outside an open `transaction()`) now reserves the same connection-wide `reserveDbSlot()` lock `transaction()` already used, for its whole duration including every yield — not just retrying after the fact. `execute()` reserves it too when called outside a transaction. A call already inside an open `transaction()` skips reserving its own slot (the enclosing transaction holds it; reserving again would deadlock). The prior retry logic is kept as defense-in-depth.
+- Regression coverage: `client/__tests__/query-torn-read-retry.test.ts` (updated — a write attempted mid-read now queues behind it instead of tearing it, `prepares === 1`) and the existing `client/__tests__/query-retries-on-statement-closed.test.ts`. Full suite (899 tests / 166 files) and `tsc --noEmit` both clean.
+- See `docs/DATABASE_CONCURRENCY.md` §2.3/§2.4 for the updated mechanism writeup.
+
 ### Storefront pass (`docs/STOREFRONT_REVIEW.md`) — 15 of its 16 findings closed
 
 All of `SF-P0-1`, `SF-P1-1`, `SF-P1-3`, `SF-P2-1`…`SF-P2-6` and `SF-P3-1`…`SF-P3-6`. **`SF-P1-2` (wiring the built-and-tested Paystack flow into the storefront UI) was deliberately left open** — enabling real online payment collection is a business decision, not a routine bug fix, and was explicitly deferred to its own round. Nothing below makes Paystack reachable from a client; `checkout-form.tsx` still offers only `in_store`/`transfer`. **It was closed the same day**, once the subaccount payment design that deferral was waiting on shipped — see the entry immediately below.

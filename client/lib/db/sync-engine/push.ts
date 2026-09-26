@@ -664,7 +664,7 @@ export async function pushChanges(
         // client can't actually verify who or what changed the record
         // server-side, only that its own edit no longer matches what it was
         // based on. State what happened, not an unverifiable cause.
-        for (const conflict of versionConflicts) {
+        const toastableConflicts = versionConflicts.filter((conflict) => {
           // feedback and audit_logs are both push-only telemetry the user
           // never edits locally — nothing for them to act on, so log rather
           // than toast. audit_logs in particular has no `_version` field at
@@ -676,11 +676,29 @@ export async function pushChanges(
             console.info(
               `[Sync] ${conflict.table_name} record ${conflict.record_id} hit a version conflict; server's version kept, no toast shown.`,
             );
-            continue;
+            return false;
           }
+          return true;
+        });
+        // A batch can report up to SYNC_BATCH_SIZE conflicts at once (e.g.
+        // draining a large backlog), and Sonner's Toaster does a
+        // flushSync-driven state update per toast() call - enough of those
+        // fired synchronously in the same tick trips React's own "Maximum
+        // update depth exceeded" guard and crashes the whole page. One toast
+        // per record only holds up under the "expected to be rare" case
+        // above; past this threshold, collapse into a single summary toast
+        // instead.
+        const CONFLICT_TOAST_THRESHOLD = 5;
+        if (toastableConflicts.length > CONFLICT_TOAST_THRESHOLD) {
           toast.warning(
-            `A change to ${describeSyncedRecord(conflict.table_name)} could not be saved because the record changed since this edit. The server's current version was kept.`,
+            `${toastableConflicts.length} changes could not be saved because the records changed since those edits. The server's current versions were kept.`,
           );
+        } else {
+          for (const conflict of toastableConflicts) {
+            toast.warning(
+              `A change to ${describeSyncedRecord(conflict.table_name)} could not be saved because the record changed since this edit. The server's current version was kept.`,
+            );
+          }
         }
         // Not surfaced to the user — see the retry_count comment above. Still
         // logged so it's visible in a support/debug session, just not as a

@@ -1,5 +1,16 @@
 import { describe, it, expect } from "vitest";
-import { Wine, Cookie } from "lucide-react";
+import {
+  Wine,
+  Cookie,
+  Smartphone,
+  Zap,
+  Lightbulb,
+  PaintBucket,
+  Droplet,
+  Bath,
+  HardHat,
+  Wrench,
+} from "lucide-react";
 import { getCategoryIcon } from "@/lib/constants/category-icons";
 
 /**
@@ -32,5 +43,32 @@ describe("getCategoryIcon() fuzzy matching", () => {
 
   it("still matches an exact keyword via substring", () => {
     expect(getCategoryIcon("Wines & Spirits")).toBe(Wine);
+  });
+
+  it("still matches a real 'electronics' category", () => {
+    expect(getCategoryIcon("Electronics")).toBe(Smartphone);
+  });
+});
+
+/**
+ * Cynthia's own construction-materials store categories, previously
+ * uncovered by the pharmacy/grocery keyword sets and landing on either an
+ * arbitrary FALLBACK_ICONS rotation or a wrong fuzzy match (see above).
+ */
+describe("getCategoryIcon() construction/hardware coverage", () => {
+  it.each([
+    // "electrical" wins over "lighting" as the earlier KEYWORD_ICONS entry
+    // when a name contains both - still a purpose-built icon, just the
+    // broader of the two matched keywords.
+    ["Electrical - Lighting", Zap],
+    ["Lighting & Bulbs", Lightbulb],
+    ["Electrical - Wiring & Sockets", Zap],
+    ["Plumbing & Pipe Fittings", Droplet],
+    ["Paints & Coatings", PaintBucket],
+    ["Sanitary Ware", Bath],
+    ["Site Safety & Accessories", HardHat],
+    ["Tools & Hardware", Wrench],
+  ])("%s gets a purpose-built icon", (name, expectedIcon) => {
+    expect(getCategoryIcon(name)).toBe(expectedIcon);
   });
 });

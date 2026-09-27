@@ -35,6 +35,7 @@ class User extends Authenticatable
         'role',
         'is_active',
         'auto_lock_duration',
+        'permission_group_id',
         'last_login_at',
         'referred_by_id',
         'referral_code',

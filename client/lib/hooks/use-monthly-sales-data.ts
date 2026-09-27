@@ -4,10 +4,24 @@ import { getAdvancedMonthlySalesData, type SalesFilters } from "@/lib/db/queries
 import { queryKeys } from "@/lib/query-keys";
 import type { MonthlySalesDataPoint } from "@/lib/types/analytics";
 
-export function useMonthlySalesData(dateFilter: string, filters?: SalesFilters) {
+const monthNames = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+
+// Hard ceiling on how many months the chart will ever render, independent
+// of how wide a range is selected (e.g. an "all time" filter) - without
+// this, a multi-year range would produce a bar per month indefinitely.
+// Falls back to trimming to the most RECENT months within the ceiling,
+// same as the previous hardcoded "last 6 months" behavior for a range
+// that's still wider than this after the fix below.
+const MAX_MONTHS = 24;
+
+export function useMonthlySalesData(dateFilter: string, toFilter?: string, filters?: SalesFilters) {
   const { data: metrics } = useQuery({
     ...queryKeys.bi.monthlySales(dateFilter, filters?.staffId, filters?.paymentMethod),
-    queryFn: () => getAdvancedMonthlySalesData(dateFilter, filters)
+    queryKey: [...queryKeys.bi.monthlySales(dateFilter, filters?.staffId, filters?.paymentMethod).queryKey, toFilter],
+    queryFn: () => getAdvancedMonthlySalesData(dateFilter, toFilter, filters)
   });
 
   const monthlySalesData: MonthlySalesDataPoint[] = useMemo(() => {
@@ -15,35 +29,32 @@ export function useMonthlySalesData(dateFilter: string, filters?: SalesFilters) 
     const rawMonthlyReturns = metrics?.rawMonthlyReturns || [];
     const rawExpenseData = metrics?.rawExpenseData || [];
 
-    const monthNames = [
-      "Jan",
-      "Feb",
-      "Mar",
-      "Apr",
-      "May",
-      "Jun",
-      "Jul",
-      "Aug",
-      "Sep",
-      "Oct",
-      "Nov",
-      "Dec",
-    ];
+    // Renders the months actually covered by the SELECTED range
+    // (dateFilter..toFilter), not a fixed "last 6 calendar months from
+    // today" - a range narrower or older than 6 months used to show
+    // months outside it entirely (including months after the selected
+    // range), while the KPI cards above the chart correctly honored it.
+    const from = new Date(dateFilter);
+    const to = toFilter ? new Date(toFilter) : new Date();
 
-    const today = new Date();
-    const currentMonth = today.getMonth();
-    const currentYear = today.getFullYear();
-    const result = [];
-
-    for (let i = 5; i >= 0; i--) {
-      let m = currentMonth - i;
-      let y = currentYear;
-      if (m < 0) {
-        m += 12;
-        y -= 1;
+    const monthKeys: { key: string; m: number; y: number }[] = [];
+    let m = from.getMonth();
+    let y = from.getFullYear();
+    const endKey = `${to.getFullYear()}-${String(to.getMonth() + 1).padStart(2, "0")}`;
+    // Guard against a malformed/reversed range looping forever.
+    for (let guard = 0; guard < 1200; guard++) {
+      const key = `${y}-${String(m + 1).padStart(2, "0")}`;
+      monthKeys.push({ key, m, y });
+      if (key >= endKey) break;
+      m += 1;
+      if (m > 11) {
+        m = 0;
+        y += 1;
       }
-      const monthKey = `${y}-${String(m + 1).padStart(2, "0")}`;
-      
+    }
+    const trimmedMonthKeys = monthKeys.slice(-MAX_MONTHS);
+
+    return trimmedMonthKeys.map(({ key: monthKey, m, y }) => {
       const salesItem = rawMonthlyData.find((d) => d.month === monthKey);
       const returnsItem = rawMonthlyReturns.find((d) => d.month === monthKey);
       const expenseItem = rawExpenseData.find((d) => d.month === monthKey);
@@ -52,6 +63,8 @@ export function useMonthlySalesData(dateFilter: string, filters?: SalesFilters) 
       const rawTax = salesItem?.tax || 0;
       const rawCogs = salesItem?.cogs || 0;
 
+      // Already ex-VAT (see getAdvancedMonthlySalesData's rawMonthlyRefunds) -
+      // do not subtract rawTax's share of it again.
       const refundAmount = returnsItem?.refunds || 0;
       const returnedCogs = returnsItem?.returned_cogs || 0;
       const expenses = expenseItem?.expenses || 0;
@@ -62,18 +75,16 @@ export function useMonthlySalesData(dateFilter: string, filters?: SalesFilters) 
       const grossProfit = netRevenue - netCogs;
       const netProfit = grossProfit - expenses;
 
-      result.push({
+      return {
         month: `${monthNames[m]} ${y.toString().slice(2)}`,
-        revenue: Math.max(0, netRevenue),
-        profit: Math.max(0, netProfit),
-        grossProfit: Math.max(0, grossProfit),
+        revenue: netRevenue,
+        profit: netProfit,
+        grossProfit: grossProfit,
         expenses: expenses,
         transactions: salesItem?.transactions || 0,
-      });
-    }
-
-    return result;
-  }, [metrics?.rawMonthlyData, metrics?.rawMonthlyReturns, metrics?.rawExpenseData]);
+      };
+    });
+  }, [dateFilter, toFilter, metrics?.rawMonthlyData, metrics?.rawMonthlyReturns, metrics?.rawExpenseData]);
 
   return monthlySalesData;
 }

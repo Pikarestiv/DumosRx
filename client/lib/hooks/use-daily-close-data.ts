@@ -55,11 +55,20 @@ export function useDailyCloseData(reportDate: string, showProfit = true) {
       card: 0,
       transfer: 0,
       credit: 0,
+      // Catches any payment_method that isn't one of the four buckets above
+      // and isn't "mobile" (folded into transfer) - a NULL/blank method, a
+      // legacy/synced value like "pos" or "wallet", or a mixed refund whose
+      // original sale has no usable splits to prorate against. Without this,
+      // such a sale/refund still moved `total`, but landed in no bucket at
+      // all, so Cash + Card + Transfer + Credit could never sum back to
+      // Total Sales - see docs/KNOWN_BUGS.md's report-audit entry.
+      other: 0,
       total: 0,
       refunds: 0,
       cardAccounts: {} as Record<string, {name: string; total: number}>,
       transferAccounts: {} as Record<string, {name: string; total: number}>,
     };
+    type TotalsKey = "cash" | "card" | "transfer" | "credit" | "other" | "total" | "refunds";
 
     const addAccountTotal = (method: "card" | "transfer", accountId: string | null, amount: number) => {
       const bucket = method === "card" ? totals.cardAccounts : totals.transferAccounts;
@@ -90,21 +99,24 @@ export function useDailyCloseData(reportDate: string, showProfit = true) {
       if (method === "mixed" && parsedDetails?.splits && Array.isArray(parsedDetails.splits)) {
         parsedDetails.splits.forEach((split) => {
           const splitMethod = split.method?.toLowerCase();
-          if (totals[splitMethod as keyof typeof totals] !== undefined) {
-            (totals as Record<"cash" | "card" | "transfer" | "credit" | "total" | "refunds", number>)[splitMethod as "cash" | "card" | "transfer" | "credit" | "total" | "refunds"] += split.amount;
-            if (splitMethod === "card" || splitMethod === "transfer") {
-              addAccountTotal(splitMethod, split.accountId || null, split.amount);
-            }
+          const key: TotalsKey = totals[splitMethod as keyof typeof totals] !== undefined
+            ? (splitMethod as TotalsKey)
+            : "other";
+          (totals as Record<TotalsKey, number>)[key] += split.amount;
+          if (key === "card" || key === "transfer") {
+            addAccountTotal(key, split.accountId || null, split.amount);
           }
         });
       } else if (totals[method as keyof typeof totals] !== undefined) {
-        (totals as Record<"cash" | "card" | "transfer" | "credit" | "total" | "refunds", number>)[method as "cash" | "card" | "transfer" | "credit" | "total" | "refunds"] += sale.total_amount;
+        (totals as Record<TotalsKey, number>)[method as TotalsKey] += sale.total_amount;
         if (method === "card" || method === "transfer") {
           addAccountTotal(method, parsedDetails?.accountId || null, sale.total_amount);
         }
       } else if (method === "mobile") {
         totals.transfer += sale.total_amount;
         addAccountTotal("transfer", parsedDetails?.accountId || null, sale.total_amount);
+      } else {
+        totals.other += sale.total_amount;
       }
     });
 
@@ -156,33 +168,42 @@ export function useDailyCloseData(reportDate: string, showProfit = true) {
           splits.forEach((split) => {
             const splitMethod = split.method?.toLowerCase();
             const share = (split.amount / splitsTotal) * ret.total_refunded;
-            if (totals[splitMethod as keyof typeof totals] !== undefined) {
-              (totals as Record<"cash" | "card" | "transfer" | "credit" | "total" | "refunds", number>)[
-                splitMethod as "cash" | "card" | "transfer" | "credit" | "total" | "refunds"
-              ] -= share;
-              // Decrement the specific sub-account line too, not just the
-              // parent card/transfer total - otherwise a card's itemized
-              // sub-lines ("Moniepoint POS", ...) stopped summing to the
-              // card total as soon as anything was refunded. Mirrors the
-              // sales loop's addAccountTotal call, with a negative amount.
-              if (splitMethod === "card" || splitMethod === "transfer") {
-                addAccountTotal(splitMethod, split.accountId || null, -share);
-              }
+            const key: TotalsKey = totals[splitMethod as keyof typeof totals] !== undefined
+              ? (splitMethod as TotalsKey)
+              : "other";
+            (totals as Record<TotalsKey, number>)[key] -= share;
+            // Decrement the specific sub-account line too, not just the
+            // parent card/transfer total - otherwise a card's itemized
+            // sub-lines ("Moniepoint POS", ...) stopped summing to the
+            // card total as soon as anything was refunded. Mirrors the
+            // sales loop's addAccountTotal call, with a negative amount.
+            if (key === "card" || key === "transfer") {
+              addAccountTotal(key, split.accountId || null, -share);
             }
           });
+        } else {
+          // The original sale has no usable splits.accountId/amount data to
+          // prorate against (legacy row, missing/corrupt payment_details) -
+          // `totals.total` above was already decremented by the refund's
+          // full amount, so this MUST land somewhere or Cash+Card+Transfer+
+          // Credit silently stops reconciling to Total Sales.
+          totals.other -= ret.total_refunded;
         }
       } else if (
         totals[method as keyof typeof totals] !== undefined &&
         method !== "total" &&
-        method !== "refunds"
+        method !== "refunds" &&
+        method !== "other"
       ) {
-        (totals as Record<"cash" | "card" | "transfer" | "credit" | "total" | "refunds", number>)[method as "cash" | "card" | "transfer" | "credit" | "total" | "refunds"] -= ret.total_refunded;
+        (totals as Record<TotalsKey, number>)[method as TotalsKey] -= ret.total_refunded;
         if (method === "card" || method === "transfer") {
           addAccountTotal(method, returnDetails?.accountId || null, -ret.total_refunded);
         }
       } else if (method === "mobile") {
         totals.transfer -= ret.total_refunded;
         addAccountTotal("transfer", returnDetails?.accountId || null, -ret.total_refunded);
+      } else {
+        totals.other -= ret.total_refunded;
       }
     });
 
@@ -288,6 +309,9 @@ export function useDailyCloseData(reportDate: string, showProfit = true) {
       ["Transfer / Mobile", aggregatedTotals.transfer.toString()],
       ...Object.values(aggregatedTotals.transferAccounts).map(a => [`  - ${a.name}`, a.total.toString()]),
       ["Credit Sales", aggregatedTotals.credit.toString()],
+      // Only emitted when non-zero: an unrecognized/legacy payment_method or
+      // a mixed refund with no split data to prorate against - see totals.other.
+      ...(aggregatedTotals.other !== 0 ? [["Other (uncategorized)", aggregatedTotals.other.toString()]] : []),
       [],
       ["Highest Selling Products"],
       ["Product", "Qty Sold", "Revenue"],

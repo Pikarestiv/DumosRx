@@ -133,7 +133,7 @@ export function useBIData(dateRange?: DateRangeValue, filters?: SalesFilters) {
     prevAvgTransaction,
   );
 
-  const monthlySalesData = useMonthlySalesData(dateFilter, filters);
+  const monthlySalesData = useMonthlySalesData(dateFilter, toFilter, filters);
 
   const topSellingProducts = useMemo(
     () => ({

@@ -848,9 +848,12 @@ Before that, work focused on the **Inventory** area:
 - Product catalog filters consolidated from a long horizontal chip row into
   `FilterPill` dropdowns (Category, Inventory, including a new "Expiring
   Soon" state distinct from "Expired").
-- Category management now also accessible from Settings → Store Profile
-  (`CategoriesCard`), in addition to its original entry point on the
-  Catalog page: same dialog, same data, two entry points by design.
+- Category management lives inline in Settings → Store Profile
+  (`CategoriesCard`) as a grid of tiles (icon, editable name, live product
+  count) instead of a separate "Manage Categories" modal — the modal
+  (`manage-categories-dialog.tsx`) is gone. The Catalog page's "Manage
+  categories" action now just navigates to Settings → Categories instead
+  of opening it.
 - Added `last_audited_at` tracking end-to-end (query → type → UI), with a
   staleness banner on the product detail panel.
 - Renamed the "Ledger" inventory tab to "Movements" (it shows stock

@@ -19,7 +19,6 @@ import { CatalogList } from "./catalog-list";
 import { CatalogDetailPanel } from "./catalog-detail-panel";
 import { SearchInput } from "@/components/ui/search-input";
 import { FilterPill, formatFilterLabel } from "@/components/ui/filter-pill";
-import { ManageCategoriesDialog } from "./manage-categories-dialog";
 import { ResponsiveDetailPanel } from "@/components/ui/responsive-detail-panel";
 import { queryKeys } from "@/lib/query-keys";
 import { useSortableData } from "@/lib/hooks/use-sortable-data";
@@ -30,7 +29,6 @@ export function ProductDatabase() {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [showAddDialog, setShowAddDialog] = useState(false);
-  const [showManageCategories, setShowManageCategories] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
   const searchParams = useSearchParams();
@@ -237,7 +235,7 @@ export function ProductDatabase() {
             setStatusFilter={setStatusFilter}
             categories={categories}
             statuses={statuses}
-            onManageCategories={() => setShowManageCategories(true)}
+            onManageCategories={() => router.push("/settings/categories")}
             onProductsChanged={() => void refetch()}
             filteredProductIds={isFiltering ? filteredProducts.map((p) => p.id) : undefined}
           />
@@ -278,10 +276,6 @@ export function ProductDatabase() {
         onAddProduct={handleAddProduct}
         editingProduct={selectedProduct}
         isSubmitting={isSaving}
-      />
-      <ManageCategoriesDialog
-        open={showManageCategories}
-        onOpenChange={setShowManageCategories}
       />
     </div>
   );

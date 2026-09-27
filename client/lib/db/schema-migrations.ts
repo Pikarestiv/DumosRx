@@ -302,6 +302,23 @@ const SYNC_COLUMN_MIGRATIONS: { table: string; columns: string[] }[] = [
       "first_name TEXT",
       "last_name TEXT",
       "auto_lock_duration INTEGER DEFAULT 5",
+      "permission_group_id TEXT",
+    ],
+  },
+  {
+    table: "permission_groups",
+    columns: [
+      "store_id TEXT",
+      "name TEXT",
+      "based_on_role TEXT",
+      "is_default INTEGER DEFAULT 0",
+      "permissions TEXT DEFAULT '[]'",
+      "created_at TEXT",
+      "updated_at TEXT",
+      "_version INTEGER DEFAULT 1",
+      "_synced INTEGER DEFAULT 0",
+      "_synced_at TEXT",
+      "_deleted INTEGER DEFAULT 0",
     ],
   },
   {
@@ -507,6 +524,9 @@ const SYNC_COLUMN_MIGRATIONS: { table: string; columns: string[] }[] = [
       // NULL on every existing row until this migration's store's first
       // post-upgrade seed decision.
       "loyalty_defaults_seeded_at TEXT",
+      // Same one-time-seed-gate pattern as loyalty_defaults_seeded_at above,
+      // for ensurePermissionGroupsSeeded() (permission-groups.ts).
+      "permission_groups_seeded_at TEXT",
       // Whether the receipt header shows the store logo above the store
       // name (default, matches every existing store's current receipt) or
       // beside it. See ReceiptView / receipt-customization-card.tsx.

@@ -30,6 +30,7 @@ describe("getUsers store scoping", () => {
         store_id TEXT,
         is_active INTEGER DEFAULT 1,
         created_at TEXT,
+        permission_group_id TEXT,
         _deleted INTEGER DEFAULT 0
       )`,
     );

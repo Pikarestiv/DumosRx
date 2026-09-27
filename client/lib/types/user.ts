@@ -12,6 +12,7 @@ export interface UserDbRow {
   store_id?: string;
   is_active?: number;
   created_at?: string;
+  permission_group_id?: string | null;
 }
 
 /** Payload built by the staff create/edit form: createUser() requires
@@ -30,6 +31,7 @@ export interface StaffCreatePayload {
   // fallback getUsers()/local-database.ts checks for, making the account
   // invisible in every staff list while still able to log in.
   store_id: string | null;
+  permission_group_id?: string;
 }
 
 export type StaffUpdatePayload = Partial<StaffCreatePayload>;

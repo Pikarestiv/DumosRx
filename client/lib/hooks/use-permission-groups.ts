@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { insert, update, softDelete, generateId } from "@/lib/db/local-database";
+import { query } from "@/lib/db/core";
 import { getStorePermissionGroups } from "@/lib/db/queries/permission-groups";
 import { DEFAULT_GROUP_PERMISSIONS } from "@/lib/constants/permissions";
 
@@ -11,6 +12,36 @@ export interface PermissionGroupRow {
   based_on_role: string;
   is_default: number;
   permissions: string[];
+}
+
+/** Blocks deleting a group with active staff still assigned (reassign
+ * first), and never deletes a default group regardless (immutable by
+ * design - see Global Constraints) - standalone/testable without a React
+ * render harness, and reused by the hook's own deleteGroup callback. */
+export async function deletePermissionGroup(groupId: string): Promise<void> {
+  const assigned = await query<{ count: number }>(
+    `SELECT COUNT(*) as count FROM users WHERE permission_group_id = ? AND (is_active = 1)`,
+    [groupId],
+  );
+  if ((assigned[0]?.count ?? 0) > 0) {
+    throw new Error("Cannot delete a group with staff assigned - reassign them first.");
+  }
+  const groups = await getStorePermissionGroups();
+  const group = groups.find((g) => g.id === groupId);
+  if (!group || group.is_default) return; // defaults are never deletable
+  await softDelete("permission_groups", groupId);
+}
+
+/** Restores a default group's original seeded permission set - standalone/
+ * testable without a React render harness, and reused by the hook's own
+ * revertToDefault callback. No-op for a custom (non-default) group. */
+export async function revertGroupToDefault(groupId: string): Promise<void> {
+  const groups = await getStorePermissionGroups();
+  const group = groups.find((g) => g.id === groupId);
+  if (!group || !group.is_default) return;
+  const defaults = DEFAULT_GROUP_PERMISSIONS[group.based_on_role as keyof typeof DEFAULT_GROUP_PERMISSIONS];
+  if (!defaults) return;
+  await update("permission_groups", groupId, { permissions: JSON.stringify(defaults) });
 }
 
 export function usePermissionGroups() {
@@ -70,14 +101,10 @@ export function usePermissionGroups() {
 
   const revertToDefault = useCallback(
     async (groupId: string) => {
-      const group = groups.find((g) => g.id === groupId);
-      if (!group || !group.is_default) return;
-      const defaults = DEFAULT_GROUP_PERMISSIONS[group.based_on_role as keyof typeof DEFAULT_GROUP_PERMISSIONS];
-      if (!defaults) return;
-      await update("permission_groups", groupId, { permissions: JSON.stringify(defaults) });
+      await revertGroupToDefault(groupId);
       await reload();
     },
-    [groups, reload],
+    [reload],
   );
 
   const renameGroup = useCallback(
@@ -92,12 +119,10 @@ export function usePermissionGroups() {
 
   const deleteGroup = useCallback(
     async (groupId: string) => {
-      const group = groups.find((g) => g.id === groupId);
-      if (!group || group.is_default) return;
-      await softDelete("permission_groups", groupId);
+      await deletePermissionGroup(groupId);
       await reload();
     },
-    [groups, reload],
+    [reload],
   );
 
   return { groups, toggle, createGroup, copyGroup, revertToDefault, renameGroup, deleteGroup };

@@ -221,7 +221,7 @@ export async function createPrescription(
 /**
  * Staff & Users
  */
-const STAFF_LIST_COLUMNS = "id, first_name, last_name, username, email, role, store_id, is_active, created_at";
+const STAFF_LIST_COLUMNS = "id, first_name, last_name, username, email, role, store_id, is_active, created_at, permission_group_id";
 
 export async function getUsers(storeId?: string | null) {
   // Only fall back to the module-scope resolver when the caller omits the

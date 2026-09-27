@@ -175,10 +175,18 @@ function hashString(value: string): number {
 // Catches misspellings/import noise that share no substring with a canonical
 // keyword (e.g. "BUSICUIT" for "biscuit") by allowing a few edits, scaled to
 // keyword length so short keywords like "tea" don't match everything.
+//
+// Keywords under 5 letters are excluded entirely (not just given a tighter
+// threshold): a 4-letter keyword like "wine" is short enough that ordinary,
+// unrelated English words routinely land within 2 edits of it by pure
+// coincidence - "site", "ware" (from "sanitary WARE"), and "pipe" (from
+// "PIPE fittings") all did, each wrongly picking up the Wine icon. Exact
+// substring matches for short keywords still work via KEYWORD_ICONS above;
+// only the fuzzy/misspelling path needs the longer floor.
 function fuzzyKeywordMatch(word: string): LucideIcon | null {
   let best: { icon: LucideIcon; distance: number } | null = null;
   for (const [keyword, icon] of KEYWORD_ICONS) {
-    if (keyword.length < 4) continue;
+    if (keyword.length < 5) continue;
     if (Math.abs(word.length - keyword.length) > 3) continue;
     const distance = calculateLevenshteinDistance(word, keyword);
     const threshold = Math.ceil(keyword.length / 3);

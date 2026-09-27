@@ -14,10 +14,14 @@
 // (online) load of any asset not in the manifest (or a later deploy's
 // changed assets) populates the cache the same way it always did.
 //
-// Bump CACHE_VERSION on any change to the caching strategy itself (not on
-// every deploy - the strategy below already updates cached assets on every
-// successful network fetch); activate() deletes any cache left behind by an
-// older version.
+// This literal only matters for `next dev`/an export that predates the
+// postbuild step below; every real deploy's `out/sw.js` has this line
+// rewritten to "dumosrx-<build-fingerprint-hash>" by
+// scripts/generate-precache-manifest.ts's stampCacheVersion(), so the
+// browser sees this file's bytes actually change whenever the build output
+// changes - which is what makes install()/activate() (and therefore
+// activate()'s cache prune, see below) run on an ordinary deploy instead of
+// only when someone hand-edits the caching strategy itself.
 const CACHE_VERSION = "dumosrx-v4";
 
 // A dead connection can leave a fetch pending far longer on iOS Safari than

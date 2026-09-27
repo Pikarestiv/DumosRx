@@ -29,6 +29,15 @@ export function PwaRegistrar() {
     if (isDevelopment) return;
     if (!("serviceWorker" in navigator)) return;
 
+    // On a brand-new install (no prior service worker for this origin at
+    // all) there is no controller yet at page load; clients.claim() in
+    // sw.js's activate() sets one for the first time, firing this exact
+    // same controllerchange event on every fresh device/cleared-storage
+    // tablet/incognito-ish first run - not just on a genuine redeploy. Only
+    // reload when a controller already existed (i.e. this really is an
+    // update replacing a previous version), never on a first-ever install.
+    const hadControllerAtLoad = !!navigator.serviceWorker.controller;
+
     const register = () => {
       navigator.serviceWorker
         .register("/sw.js")
@@ -68,6 +77,7 @@ export function PwaRegistrar() {
     }
 
     const handleControllerChange = () => {
+      if (!hadControllerAtLoad) return;
       if (hasReloadedForUpdate) return;
       hasReloadedForUpdate = true;
       // Reloads immediately rather than after a delay to let the toast be

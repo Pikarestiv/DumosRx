@@ -1,7 +1,8 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useFeatureGate } from "./use-feature-gate";
+import { getUserAutoLockDuration } from "@/lib/db/queries/auth";
 
 interface AutoLockState {
   duration: number; // in minutes. 0 = off
@@ -128,6 +129,47 @@ export function useAutoLockTimer() {
       clearInterval(interval);
     };
   }, [duration, canAutoLock, updateActivity, lock]);
+}
+
+/**
+ * Makes the auto-lock duration follow the ACCOUNT rather than just this
+ * browser/device: whenever the authenticated user changes (fresh device,
+ * or a shared terminal switching between staff), pulls that user's stored
+ * `users.auto_lock_duration` and overwrites the local zustand/localStorage
+ * value with it. Without this, a device that's never seen this account
+ * before would silently keep whatever duration the PREVIOUS account (or the
+ * store's own default of 5) left behind, rather than what this staff
+ * member actually chose in Settings.
+ *
+ * One-way (DB -> local) on account change; the other direction (local edit
+ * -> DB) is handled by security-settings.tsx calling
+ * updateUserAutoLockDuration() directly when the user changes the Select.
+ */
+export function useSyncAutoLockDurationWithAccount(userId: string | undefined) {
+  const setDuration = useAutoLockStore((s) => s.setDuration);
+  const syncedForUserId = useRef<string | undefined>(undefined);
+
+  useEffect(() => {
+    if (!userId || syncedForUserId.current === userId) return;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const stored = await getUserAutoLockDuration(userId);
+        if (!cancelled && stored !== null && stored !== undefined) {
+          setDuration(stored);
+        }
+      } catch (e) {
+        console.error("Failed to load account auto-lock duration", e);
+      } finally {
+        if (!cancelled) syncedForUserId.current = userId;
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, setDuration]);
 }
 
 /**

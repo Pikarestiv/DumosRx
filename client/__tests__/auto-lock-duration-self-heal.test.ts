@@ -43,6 +43,14 @@ vi.mock("@/lib/hooks/use-feature-gate", () => ({
   }),
 }));
 
+vi.mock("@/lib/context/auth-context", () => ({
+  useAuth: () => ({ user: { id: "test-user" } }),
+}));
+
+vi.mock("@/lib/db/queries/auth", () => ({
+  updateUserAutoLockDuration: vi.fn().mockResolvedValue(undefined),
+}));
+
 describe("Auto-Lock Screen duration self-heal", () => {
   let container: HTMLDivElement;
   let root: Root;

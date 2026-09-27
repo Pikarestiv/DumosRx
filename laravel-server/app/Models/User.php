@@ -34,6 +34,7 @@ class User extends Authenticatable
         'pin',
         'role',
         'is_active',
+        'auto_lock_duration',
         'last_login_at',
         'referred_by_id',
         'referral_code',
@@ -79,6 +80,7 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'last_login_at' => 'datetime',
         'is_active' => 'boolean',
+        'auto_lock_duration' => 'integer',
         'password' => 'hashed',
     ];
 

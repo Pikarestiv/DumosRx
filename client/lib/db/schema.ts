@@ -387,6 +387,7 @@ CREATE TABLE IF NOT EXISTS users (
   role TEXT DEFAULT 'staff',
   store_id TEXT,
   is_active INTEGER DEFAULT 1,
+  auto_lock_duration INTEGER DEFAULT 5,
   created_at TEXT,
   updated_at TEXT,
   _version INTEGER DEFAULT 1,

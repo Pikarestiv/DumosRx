@@ -21,6 +21,7 @@ import {
   useAutoLockTimer,
   useLockOnFreshLoad,
   useLockShortcut,
+  useSyncAutoLockDurationWithAccount,
 } from "@/lib/hooks/use-auto-lock";
 import { useSwipeNavigation } from "@/lib/hooks/use-swipe-navigation";
 import { useSidebarPeekPreference } from "@/lib/hooks/use-sidebar-peek-preference";
@@ -118,6 +119,7 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
   useAutoLockTimer();
   useLockOnFreshLoad();
   useLockShortcut();
+  useSyncAutoLockDurationWithAccount(user?.id);
 
   // Known bug #10, Part B: the in-app Settings > Data > "Restore Backup"
   // path reloads straight back into this layout. Fires once, only if that

@@ -14,21 +14,30 @@ export interface PermissionGroupRow {
   permissions: string[];
 }
 
-/** Blocks deleting a group with active staff still assigned (reassign
- * first), and never deletes a default group regardless (immutable by
- * design - see Global Constraints) - standalone/testable without a React
- * render harness, and reused by the hook's own deleteGroup callback. */
+/** Never deletes a default group (immutable by design - see Global
+ * Constraints), and blocks deleting a custom group with staff still
+ * assigned (reassign first). Both refusals throw, so a caller can always
+ * tell a refusal from a success, and the default-group check runs first so
+ * the reported reason is the fundamental one rather than a reassignment
+ * instruction that would never unblock the delete. A staff row with a NULL
+ * is_active counts as assigned, matching the NULL-tolerant boolean handling
+ * used for _deleted throughout the query layer. Standalone/testable without
+ * a React render harness, and reused by the hook's own deleteGroup
+ * callback. */
 export async function deletePermissionGroup(groupId: string): Promise<void> {
+  const groups = await getStorePermissionGroups();
+  const group = groups.find((g) => g.id === groupId);
+  if (!group) throw new Error("That group no longer exists.");
+  if (group.is_default) {
+    throw new Error("Cannot delete a default group - default groups are permanent.");
+  }
   const assigned = await query<{ count: number }>(
-    `SELECT COUNT(*) as count FROM users WHERE permission_group_id = ? AND (is_active = 1)`,
+    `SELECT COUNT(*) as count FROM users WHERE permission_group_id = ? AND (is_active = 1 OR is_active IS NULL)`,
     [groupId],
   );
   if ((assigned[0]?.count ?? 0) > 0) {
     throw new Error("Cannot delete a group with staff assigned - reassign them first.");
   }
-  const groups = await getStorePermissionGroups();
-  const group = groups.find((g) => g.id === groupId);
-  if (!group || group.is_default) return; // defaults are never deletable
   await softDelete("permission_groups", groupId);
 }
 

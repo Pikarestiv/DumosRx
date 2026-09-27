@@ -51,6 +51,34 @@ describe("permission group guards", () => {
     expect(rows).toHaveLength(1);
   });
 
+  it("deleting a default group reports the default-group reason, not the staff-assigned one", async () => {
+    db.run(`INSERT INTO users (id, role, permission_group_id) VALUES ('staff1', 'manager', 'default1')`);
+
+    const { deletePermissionGroup } = usePermissionGroupsModule as any;
+    await expect(deletePermissionGroup("default1")).rejects.toThrow(/default group/i);
+
+    const rows = await core.query(`SELECT id FROM permission_groups WHERE id = 'default1' AND (_deleted = 0 OR _deleted IS NULL)`);
+    expect(rows).toHaveLength(1);
+  });
+
+  it("deleting a default group with nobody assigned still refuses, with a signal the caller can see", async () => {
+    const { deletePermissionGroup } = usePermissionGroupsModule as any;
+    await expect(deletePermissionGroup("default1")).rejects.toThrow(/default group/i);
+
+    const rows = await core.query(`SELECT id FROM permission_groups WHERE id = 'default1' AND (_deleted = 0 OR _deleted IS NULL)`);
+    expect(rows).toHaveLength(1);
+  });
+
+  it("counts a staff row with a NULL is_active as still assigned", async () => {
+    db.run(`INSERT INTO users (id, role, permission_group_id, is_active) VALUES ('staff1', 'manager', 'custom1', NULL)`);
+
+    const { deletePermissionGroup } = usePermissionGroupsModule as any;
+    await expect(deletePermissionGroup("custom1")).rejects.toThrow(/staff.*assigned/i);
+
+    const rows = await core.query(`SELECT id FROM permission_groups WHERE id = 'custom1' AND (_deleted = 0 OR _deleted IS NULL)`);
+    expect(rows).toHaveLength(1);
+  });
+
   it("deleting a custom group with no assigned staff succeeds", async () => {
     const { deletePermissionGroup } = usePermissionGroupsModule as any;
     await deletePermissionGroup("custom1");

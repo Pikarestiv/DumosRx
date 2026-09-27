@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { RotateCcw, Pencil, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -81,7 +82,11 @@ export function GroupColumnActions({ group, onRevertToDefault, onRenameGroup, on
         description={`"${group.name}" will be removed. Staff assigned to it must be reassigned first.`}
         confirmLabel="Delete"
         onConfirm={async () => {
-          await onDeleteGroup(group.id);
+          try {
+            await onDeleteGroup(group.id);
+          } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Failed to delete group");
+          }
         }}
       />
 

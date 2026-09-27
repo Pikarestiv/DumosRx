@@ -43,7 +43,7 @@ describe("POReviewPricePopover prefill via POItemLedgerTable", () => {
     document.body.innerHTML = "";
   });
 
-  function renderTable(items: POLineItemDraft[]) {
+  function renderTable(items: POLineItemDraft[], productOverride: POProduct = product) {
     const container = document.createElement("div");
     document.body.appendChild(container);
     const root: Root = createRoot(container);
@@ -52,7 +52,7 @@ describe("POReviewPricePopover prefill via POItemLedgerTable", () => {
         React.createElement(POItemLedgerTable, {
           poType: "immediate",
           items,
-          products: [product],
+          products: [productOverride],
           onUpdateItem: vi.fn(),
           onRemoveItem: vi.fn(),
         }),
@@ -61,34 +61,55 @@ describe("POReviewPricePopover prefill via POItemLedgerTable", () => {
     return { container, root };
   }
 
+  function findSellPriceInput(): HTMLInputElement {
+    const input = document.querySelector('input[placeholder="0.00"]');
+    expect(input).not.toBeNull();
+    return input as HTMLInputElement;
+  }
+
   it("prefills the Sell Price input with the product's current selling price when the draft item has no override yet", () => {
     const { container, root } = renderTable([baseItem]);
+    try {
+      const trigger = Array.from(container.querySelectorAll("button")).find((b) => b.textContent?.includes("Review price"));
+      act(() => {
+        trigger!.click();
+      });
 
-    const trigger = Array.from(container.querySelectorAll("button")).find((b) => b.textContent?.includes("Review price"));
-    act(() => {
-      trigger!.click();
-    });
-
-    const input = document.querySelector('input[placeholder="0.00"]') as HTMLInputElement;
-    expect(input.value).toBe("12.5");
-
-    act(() => root.unmount());
-    container.remove();
+      expect(findSellPriceInput().value).toBe("12.5");
+    } finally {
+      act(() => root.unmount());
+      container.remove();
+    }
   });
 
   it("shows the user's own already-entered override instead of the product's current price", () => {
     const { container, root } = renderTable([{ ...baseItem, selling_price: 20 }]);
+    try {
+      const trigger = Array.from(container.querySelectorAll("button")).find((b) => b.textContent?.includes("Review price"));
+      act(() => {
+        trigger!.click();
+      });
 
-    const trigger = Array.from(container.querySelectorAll("button")).find((b) => b.textContent?.includes("Review price"));
-    act(() => {
-      trigger!.click();
-    });
+      expect(findSellPriceInput().value).toBe("20");
+    } finally {
+      act(() => root.unmount());
+      container.remove();
+    }
+  });
 
-    const input = document.querySelector('input[placeholder="0.00"]') as HTMLInputElement;
-    expect(input.value).toBe("20");
+  it("shows blank, not a literal 0, when the product has no selling price on file yet", () => {
+    const { container, root } = renderTable([baseItem], { ...product, selling_price: 0 });
+    try {
+      const trigger = Array.from(container.querySelectorAll("button")).find((b) => b.textContent?.includes("Review price"));
+      act(() => {
+        trigger!.click();
+      });
 
-    act(() => root.unmount());
-    container.remove();
+      expect(findSellPriceInput().value).toBe("");
+    } finally {
+      act(() => root.unmount());
+      container.remove();
+    }
   });
 
   it("does not call onUpdateItem just from the prefill being displayed", () => {
@@ -96,26 +117,28 @@ describe("POReviewPricePopover prefill via POItemLedgerTable", () => {
     const container = document.createElement("div");
     document.body.appendChild(container);
     const root: Root = createRoot(container);
-    act(() => {
-      root.render(
-        React.createElement(POItemLedgerTable, {
-          poType: "immediate",
-          items: [baseItem],
-          products: [product],
-          onUpdateItem,
-          onRemoveItem: vi.fn(),
-        }),
-      );
-    });
+    try {
+      act(() => {
+        root.render(
+          React.createElement(POItemLedgerTable, {
+            poType: "immediate",
+            items: [baseItem],
+            products: [product],
+            onUpdateItem,
+            onRemoveItem: vi.fn(),
+          }),
+        );
+      });
 
-    const trigger = Array.from(container.querySelectorAll("button")).find((b) => b.textContent?.includes("Review price"));
-    act(() => {
-      trigger!.click();
-    });
+      const trigger = Array.from(container.querySelectorAll("button")).find((b) => b.textContent?.includes("Review price"));
+      act(() => {
+        trigger!.click();
+      });
 
-    expect(onUpdateItem).not.toHaveBeenCalled();
-
-    act(() => root.unmount());
-    container.remove();
+      expect(onUpdateItem).not.toHaveBeenCalled();
+    } finally {
+      act(() => root.unmount());
+      container.remove();
+    }
   });
 });

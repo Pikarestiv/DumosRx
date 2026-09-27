@@ -38,10 +38,17 @@ export function POItemBuilder({
   const isTabletUp = useMediaQuery("(min-width: 640px)");
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // Staff's first instinct on this screen is to start typing an item name
-  // right away, not to click into the search bar first.
+  // Staff's first instinct on a brand-new order is to start typing an item
+  // name right away, not to click into the search bar first - but this same
+  // component also mounts on the edit page resuming an existing draft,
+  // where the order already has items and grabbing focus (popping the
+  // mobile keyboard) would cover the very rows the user came to edit.
+  // Only mount-focus when there's nothing in the order yet.
   useEffect(() => {
-    searchInputRef.current?.focus();
+    if (items.length === 0) {
+      searchInputRef.current?.focus();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const focusSearch = () => searchInputRef.current?.focus();

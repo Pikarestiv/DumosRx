@@ -81,15 +81,26 @@ export function getValidatedAmountPaid(rawAmountPaid: string, orderTotal: number
 }
 
 /**
- * How many lines carry a real Sell Price override (blank/undefined means
- * "not overridden" - see coerceOptionalNumber in lib/db/procurement.ts).
- * Only meaningful for a submit that writes products.selling_price
- * synchronously in the same action - createAndReceivePurchaseOrder does;
+ * How many lines carry a real Sell Price override that actually differs
+ * from the product's current price - blank/null/undefined all mean "not
+ * overridden" (a PO reloaded via getPurchaseOrderById() hands back SQL
+ * NULL, not undefined, for an unset override - see coerceOptionalNumber in
+ * lib/db/procurement.ts), and retyping the same number the field was
+ * prefilled with is not a real change either. Only meaningful for a submit
+ * that writes products.selling_price synchronously in the same action -
+ * createAndReceivePurchaseOrder does, and so does receivePurchaseOrder;
  * createPurchaseOrder (a Standard order, or an Immediate order saved as a
  * draft) never touches the live product row at all, so a caller must not
  * report a price change from that path even though the same field was
  * filled in - nothing has actually changed yet.
  */
-export function countSellingPriceOverrides(items: POLineItemDraft[]): number {
-  return items.filter((item) => item.selling_price !== undefined && item.selling_price !== "").length;
+export function countSellingPriceOverrides(
+  items: { product_id: string; selling_price?: number | string }[],
+  products: { id: string; selling_price?: number | null }[],
+): number {
+  return items.filter((item) => {
+    if (item.selling_price == null || item.selling_price === "") return false;
+    const product = products.find((p) => p.id === item.product_id);
+    return Number(item.selling_price) !== (product?.selling_price ?? null);
+  }).length;
 }

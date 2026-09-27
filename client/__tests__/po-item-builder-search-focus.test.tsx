@@ -86,4 +86,29 @@ describe("POItemBuilder search entry point", () => {
 
     expect(document.activeElement).toBe(input);
   });
+
+  it("does not steal focus on mount when the order already has items (e.g. resuming an existing draft on the edit page)", () => {
+    render(
+      <POItemBuilder
+        poType="immediate"
+        products={[product]}
+        items={[
+          {
+            product_id: "p1",
+            product_name: "Panadol",
+            bulk_unit: "Carton",
+            bulk_quantity: 1,
+            units_per_bulk: 100,
+            unit_cost: 400,
+            subtotal: 400,
+          },
+        ]}
+        onItemsChange={vi.fn()}
+        onOpenAddProduct={vi.fn()}
+      />,
+    );
+
+    const input = screen.getByPlaceholderText("Search item by name, SKU or barcode");
+    expect(document.activeElement).not.toBe(input);
+  });
 });

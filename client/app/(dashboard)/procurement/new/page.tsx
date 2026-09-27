@@ -159,11 +159,7 @@ function CreateOrderContent() {
             toast.success("Purchase received", {
               description: "Stock has been added to inventory.",
             });
-            // Only this path (create-and-receive) writes products.selling_price
-            // synchronously - a Standard order, or an Immediate order saved as
-            // a draft, doesn't touch the live price until it's actually
-            // received later, so neither of those toasts this.
-            const priceOverrideCount = countSellingPriceOverrides(items);
+            const priceOverrideCount = countSellingPriceOverrides(items, products);
             if (priceOverrideCount > 0) {
               toast.success(
                 priceOverrideCount === 1

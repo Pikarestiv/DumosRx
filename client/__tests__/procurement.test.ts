@@ -66,7 +66,8 @@ describe("procurement.ts", () => {
         _version INTEGER DEFAULT 1, _synced INTEGER DEFAULT 0, _deleted INTEGER DEFAULT 0
       );
       CREATE TABLE products (
-        id TEXT PRIMARY KEY, name TEXT, base_unit TEXT, bulk_unit TEXT, units_per_bulk INTEGER
+        id TEXT PRIMARY KEY, name TEXT, base_unit TEXT, bulk_unit TEXT, units_per_bulk INTEGER,
+        selling_price REAL
       );
       CREATE TABLE users (
         id TEXT PRIMARY KEY, first_name TEXT, last_name TEXT
@@ -436,6 +437,18 @@ describe("procurement.ts", () => {
       const po = await getPurchaseOrderById(poId);
       return po!.items[0];
     };
+
+    it("includes the product's current live selling price on each line item, for comparing against a receive-time override", async () => {
+      db.run(`INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk, selling_price) VALUES ('prod2', 'Panadol', 'Tablet', 'Carton', 100, 15.5)`);
+      const poId = await createPurchaseOrder(null, "", [
+        { product_id: "prod2", product_name: "Panadol", bulk_unit: "Carton", bulk_quantity: 5, units_per_bulk: 100, unit_cost: 400, subtotal: 2000 },
+      ]);
+
+      const { getPurchaseOrderById } = await import("@/lib/db/procurement");
+      const po = await getPurchaseOrderById(poId);
+
+      expect(po!.items[0].current_selling_price).toBe(15.5);
+    });
 
     it("leaves a short receipt as partially_received, with only the delivered quantity in stock", async () => {
       const poId = await seedStandardPO();

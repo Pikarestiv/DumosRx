@@ -32,6 +32,11 @@ export interface ReceivedItem {
    * change discovered while receiving stock be applied immediately instead
    * of requiring a separate trip to the product's edit screen. */
   selling_price?: number | string;
+  /** The product's live selling_price when the receive panel was opened -
+   * not written anywhere, just carried through so a caller can tell
+   * whether `selling_price` above is a real change. */
+  current_selling_price?: number | null;
+  product_id?: string;
 }
 
 export interface ImmediateLineItemDraft extends DraftPOLineItem {

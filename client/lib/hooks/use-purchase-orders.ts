@@ -10,6 +10,7 @@ import {
   type ReceivedItem,
 } from "@/lib/db/local-database";
 import { genericFuzzySearch } from "@/lib/utils/search";
+import { countSellingPriceOverrides } from "@/components/procurement/po-line-item-math";
 import { queryKeys } from "@/lib/query-keys";
 import { useAuth } from "@/lib/context/auth-context";
 import { useHasPermission } from "@/lib/hooks/use-permissions";
@@ -55,6 +56,21 @@ export function usePurchaseOrders() {
           ? "Partial receipt recorded, the outstanding balance is still open."
           : "Order received and stock updated!",
       );
+      // receivePurchaseOrder() writes products.selling_price synchronously
+      // for any line with a real override, same as createAndReceivePurchaseOrder -
+      // this is the other of the two paths that actually change the live
+      // price immediately, so it gets the same confirmation toast.
+      const priceOverrideCount = countSellingPriceOverrides(
+        receivedItems.map((item) => ({ product_id: item.product_id ?? "", selling_price: item.selling_price })),
+        receivedItems.map((item) => ({ id: item.product_id ?? "", selling_price: item.current_selling_price ?? null })),
+      );
+      if (priceOverrideCount > 0) {
+        toast.success(
+          priceOverrideCount === 1
+            ? "Selling price updated for 1 item"
+            : `Selling price updated for ${priceOverrideCount} items`,
+        );
+      }
       void fetchPurchaseOrders();
     } catch (error) {
       console.error("Failed to receive PO:", error);

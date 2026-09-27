@@ -210,7 +210,7 @@ export function POItemLedgerTable({
                   <div role="cell" className="px-3 py-2 flex justify-end">
                     <POReviewPricePopover
                       costPrice={effectiveUnitCost}
-                      sellingPrice={item.selling_price ?? product?.selling_price ?? ""}
+                      sellingPrice={item.selling_price ?? (product?.selling_price || "")}
                       onSellingPriceChange={(val) => onUpdateItem(index, { selling_price: val })}
                     />
                   </div>

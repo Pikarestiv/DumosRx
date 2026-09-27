@@ -82,6 +82,11 @@ export interface PurchaseOrderItem {
   /** Live conversion factor from the product record; always used for receiving math, since units_per_bulk above is a point-in-time snapshot that can go stale if the product's packaging is edited later. */
   product_units_per_bulk: number;
   selling_price?: number | string;
+  /** The product's live selling_price at read time (not the value stored on
+   * this line item, which is whatever was submitted with the PO) - lets a
+   * receive-time override be compared against what's actually on file
+   * right now, rather than assuming any override differs from it. */
+  current_selling_price?: number | null;
   cost_price_override?: number | string;
   lot_number?: string;
   expiry_date?: string;
@@ -185,7 +190,8 @@ export async function getPurchaseOrderById(id: string) {
   if (!po[0]) return null;
 
   const items = await query<PurchaseOrderItem>(
-    `SELECT poi.*, m.name as product_name, m.base_unit, m.bulk_unit, m.units_per_bulk as product_units_per_bulk
+    `SELECT poi.*, m.name as product_name, m.base_unit, m.bulk_unit, m.units_per_bulk as product_units_per_bulk,
+       m.selling_price as current_selling_price
      FROM purchase_order_items poi
      JOIN products m ON poi.product_id = m.id
      WHERE poi.po_id = ? AND poi._deleted = 0`,

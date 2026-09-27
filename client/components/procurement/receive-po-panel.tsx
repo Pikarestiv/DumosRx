@@ -39,6 +39,10 @@ export interface ReceivedItemPayload {
   expiry_date?: string;
   cost_price?: string | number;
   selling_price?: string | number;
+  /** The product's live selling_price when this panel was opened - carried
+   * through unedited so the caller can tell whether a selling_price above
+   * is a real change or a no-op re-submission of the current price. */
+  current_selling_price?: number | null;
 }
 
 interface ReceivePOPanelProps {
@@ -192,6 +196,7 @@ export function ReceivePOPanel({
         lot_number: "",
         // Null by default since we don't know it
         expiry_date: "",
+        current_selling_price: item.current_selling_price ?? null,
       };
     });
     setReceivedItems(initial);

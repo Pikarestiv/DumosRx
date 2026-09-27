@@ -161,7 +161,7 @@ export function POItemCardList({
             {poType === "immediate" && (
               <POReviewPricePopover
                 costPrice={effectiveUnitCost}
-                sellingPrice={item.selling_price ?? product?.selling_price ?? ""}
+                sellingPrice={item.selling_price ?? (product?.selling_price || "")}
                 onSellingPriceChange={(val) => onUpdateItem(index, { selling_price: val })}
               />
             )}

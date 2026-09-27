@@ -14,7 +14,7 @@ export interface POProduct {
   units_per_bulk: number;
   cost_price: number;
   stock_quantity: number;
-  selling_price: number;
+  selling_price: number | null;
 }
 
 export interface FullVendor {

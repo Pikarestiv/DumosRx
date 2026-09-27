@@ -87,13 +87,28 @@ describe("po-line-item-math", () => {
   });
 
   describe("countSellingPriceOverrides", () => {
-    it("counts only lines with a real, non-blank selling_price override", () => {
-      const items = [item({ selling_price: 12.5 }), item({ selling_price: "" }), item({ selling_price: undefined }), item({ selling_price: 0 })];
-      expect(countSellingPriceOverrides(items)).toBe(2);
+    const products = [{ id: "p1", selling_price: 20 }];
+
+    it("counts only lines with a real, non-blank selling_price override that actually differs from the product's current price", () => {
+      const items = [
+        item({ selling_price: 12.5 }), // differs - counts
+        item({ selling_price: "" }), // blank - doesn't count
+        item({ selling_price: undefined }), // unset - doesn't count
+        item({ selling_price: null as unknown as undefined }), // a PO reloaded from the DB hands back SQL NULL, not undefined
+      ];
+      expect(countSellingPriceOverrides(items, products)).toBe(1);
     });
 
     it("returns 0 when no line has an override", () => {
-      expect(countSellingPriceOverrides([item(), item()])).toBe(0);
+      expect(countSellingPriceOverrides([item(), item()], products)).toBe(0);
+    });
+
+    it("does not count a line whose override equals the product's current price (no real change)", () => {
+      expect(countSellingPriceOverrides([item({ selling_price: 20 })], products)).toBe(0);
+    });
+
+    it("counts a line whose override is a real, explicit zero, different from the current price", () => {
+      expect(countSellingPriceOverrides([item({ selling_price: 0 })], products)).toBe(1);
     });
   });
 });

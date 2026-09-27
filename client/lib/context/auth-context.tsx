@@ -13,6 +13,7 @@ import {
 } from "@/lib/db/queries/auth";
 import { pinMatches, needsPinRehash } from "@/lib/utils/pin-hash";
 import { getTotalUserCount } from "@/lib/db/queries/setup";
+import { ensurePermissionGroupsSeeded } from "@/lib/db/queries/permission-groups";
 import {
   checkLoginLockout,
   recordLoginFailure,
@@ -764,6 +765,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { success: false, message: e instanceof Error ? e.message : "Failed to connect to cloud" };
     }
   };
+
+  // Seeds the active store's 5 default permission groups (idempotent, see
+  // ensurePermissionGroupsSeeded) the moment a session is established -
+  // covers login, a restored session, and a cross-origin handoff
+  // uniformly, since all three end in setUser(...).
+  useEffect(() => {
+    if (!user) return;
+    void ensurePermissionGroupsSeeded();
+  }, [user?.id]);
 
   const isAdmin = user ? checkIsAdmin(user.role) : false;
   const canManageStockBatch = user ? checkCanManageStockBatch(user.role) : false;

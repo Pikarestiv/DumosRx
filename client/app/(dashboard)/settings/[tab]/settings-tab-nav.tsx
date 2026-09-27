@@ -70,8 +70,6 @@ const NAV_GROUPS: NavGroup[] = [
         label: "Roles & Permissions",
         icon: KeyRound,
         adminOnly: true,
-        disabled: true,
-        badge: "Soon",
       },
     ],
   },

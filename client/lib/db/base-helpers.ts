@@ -296,7 +296,15 @@ export async function update(
     await execute(`UPDATE ${table} SET ${setClause} WHERE id = ?`, values);
 
     await addToSyncQueue(table, id, "UPDATE", record);
-    await logAction(options?.action || "UPDATE", table, id, record, options?.storeId, options?.correlationId);
+    // See insert()'s matching exclusion above - "feedback" is background
+    // crash/error telemetry, not a user action. Previously unguarded here
+    // (only insert() excluded it), latent until error-logger.ts's dedup
+    // path started calling update() on an existing feedback row to bump
+    // its occurrence_count - without this, every coalesced crash repeat
+    // would surface as an "Updated feedback" Activity Log entry.
+    if (table !== "feedback") {
+      await logAction(options?.action || "UPDATE", table, id, record, options?.storeId, options?.correlationId);
+    }
   };
 
   if (isInTransaction()) {
@@ -433,10 +441,27 @@ export async function getPendingSyncItems(ignoreBackoff = false) {
   );
 }
 
-export async function markSynced(queueIds: number[]): Promise<void> {
+export async function markSynced(
+  queueIds: number[],
+  syncedRecords: { table_name: string; record_id: string }[] = [],
+): Promise<void> {
   if (queueIds.length === 0) return;
   const placeholders = queueIds.map(() => "?").join(", ");
   await execute(`DELETE FROM _sync_queue WHERE id IN (${placeholders})`, queueIds);
+
+  // insert()/update() always set _synced = 0 at write time; nothing else
+  // ever flipped it back once the queue row above is deleted. Left unfixed,
+  // every successfully-synced row still reads as "unsynced with no queue
+  // entry" forever - exactly what requeueOrphanedRows() (reconcile-
+  // identity.ts, run every app boot) treats as needing a fresh queue entry,
+  // mass-requeuing a device's entire already-synced history on every boot.
+  for (const { table_name, record_id } of syncedRecords) {
+    try {
+      await execute(`UPDATE ${table_name} SET _synced = 1 WHERE id = ?`, [record_id]);
+    } catch (err) {
+      console.warn(`[Sync] Failed to flag ${table_name}/${record_id} as synced:`, err);
+    }
+  }
 }
 
 const SYNC_FAILURE_REPORT_THRESHOLD = 5;

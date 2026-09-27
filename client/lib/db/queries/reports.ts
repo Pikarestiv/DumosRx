@@ -64,13 +64,19 @@ async function getSmoothedExpensesByMonth(
   const storeId = getActiveStoreId();
   const params: string[] = [];
   // date() on both sides: expenses.date is a date-only "YYYY-MM-DD" column,
-  // but dateFrom/dateTo (toQueryRange()) are full ISO timestamps like
-  // "2026-09-21T00:00:00.000Z" - a plain string compare made
-  // '2026-09-21' >= '2026-09-21T00:00:00.000Z' false, silently dropping
-  // every expense dated exactly on the range's first day.
+  // but dateFrom/dateTo (toQueryRange()) are full UTC ISO timestamps like
+  // "2026-09-21T00:00:00.000Z" representing LOCAL midnight/end-of-day - a
+  // plain string compare made '2026-09-21' >= '2026-09-21T00:00:00.000Z'
+  // false, silently dropping every expense dated exactly on the range's
+  // first day. Bare `date(?)` fixes that but truncates the instant in UTC,
+  // which shifts the boundary by the store's own UTC offset (e.g. a UTC+1
+  // store's local midnight Sep 1 is "...T23:00:00Z", read by bare date() as
+  // Aug 31) relative to the sales side, which buckets with 'localtime'
+  // everywhere else in this file - `'localtime'` here cancels that shift
+  // back out.
   let where = "_deleted = 0 AND (covers_months IS NULL OR covers_months <= 0)";
-  if (dateFrom) { where += " AND date(date) >= date(?)"; params.push(dateFrom); }
-  if (dateTo) { where += " AND date(date) <= date(?)"; params.push(dateTo); }
+  if (dateFrom) { where += " AND date(date) >= date(?, 'localtime')"; params.push(dateFrom); }
+  if (dateTo) { where += " AND date(date) <= date(?, 'localtime')"; params.push(dateTo); }
   if (storeId) { where += " AND store_id = ?"; params.push(storeId); }
 
   const plainRows = await query<{ month: string; expenses?: number }>(
@@ -595,9 +601,15 @@ export async function getBIMetrics(
   };
 }
 
-export async function getAdvancedMonthlySalesData(dateFilter: string, filters?: SalesFilters) {
+export async function getAdvancedMonthlySalesData(dateFilter: string, toFilter?: string, filters?: SalesFilters) {
   const storeId = getActiveStoreId();
-  const p1 = storeId ? [dateFilter, storeId] : [dateFilter];
+  // Upper bound of the range, capped at "now" like every other report query
+  // (getBIMetrics's `to`) - without this the chart ignored the selected
+  // range's end entirely and always rendered every month since dateFilter,
+  // including months after a range the user deliberately narrowed to.
+  const now = new Date().toISOString();
+  const to = toFilter && toFilter < now ? toFilter : now;
+  const p1 = storeId ? [dateFilter, to, storeId] : [dateFilter, to];
   const joined = salesFilterClause(filters, "s.");
   const p1Joined = [...p1, ...joined.params];
 
@@ -607,10 +619,10 @@ export async function getAdvancedMonthlySalesData(dateFilter: string, filters?: 
   // avoid that, matching the non-monthly getBIMetrics queries above which
   // already keep sales-level and sale_items-level aggregates separate.
   const rawMonthlySales = await query<{ month: string; revenue: number; tax: number; transactions: number; }>(
-    `SELECT strftime('%Y-%m', s.transaction_date, 'localtime') as month, SUM(s.total_amount) as revenue, SUM(s.tax_amount) as tax, COUNT(*) as transactions FROM sales s WHERE s.transaction_date >= ? AND (s._deleted = 0 OR s._deleted IS NULL)${storeId ? " AND s.store_id = ?" : ""}${joined.clause} GROUP BY strftime('%Y-%m', s.transaction_date, 'localtime') ORDER BY strftime('%Y-%m', s.transaction_date, 'localtime') ASC`, p1Joined
+    `SELECT strftime('%Y-%m', s.transaction_date, 'localtime') as month, SUM(s.total_amount) as revenue, SUM(s.tax_amount) as tax, COUNT(*) as transactions FROM sales s WHERE s.transaction_date >= ? AND s.transaction_date <= ? AND (s._deleted = 0 OR s._deleted IS NULL)${storeId ? " AND s.store_id = ?" : ""}${joined.clause} GROUP BY strftime('%Y-%m', s.transaction_date, 'localtime') ORDER BY strftime('%Y-%m', s.transaction_date, 'localtime') ASC`, p1Joined
   );
   const rawMonthlyCogs = await query<{ month: string; cogs: number; }>(
-    `SELECT strftime('%Y-%m', s.transaction_date, 'localtime') as month, SUM(si.cost_price * si.quantity) as cogs FROM sale_items si JOIN sales s ON s.id = si.sale_id WHERE s.transaction_date >= ? AND (s._deleted = 0 OR s._deleted IS NULL)${storeId ? " AND s.store_id = ?" : ""}${joined.clause} GROUP BY strftime('%Y-%m', s.transaction_date, 'localtime')`, p1Joined
+    `SELECT strftime('%Y-%m', s.transaction_date, 'localtime') as month, SUM(si.cost_price * si.quantity) as cogs FROM sale_items si JOIN sales s ON s.id = si.sale_id WHERE s.transaction_date >= ? AND s.transaction_date <= ? AND (s._deleted = 0 OR s._deleted IS NULL)${storeId ? " AND s.store_id = ?" : ""}${joined.clause} GROUP BY strftime('%Y-%m', s.transaction_date, 'localtime')`, p1Joined
   );
   const rawMonthlyData = rawMonthlySales.map((s) => ({
     ...s,
@@ -622,15 +634,21 @@ export async function getAdvancedMonthlySalesData(dateFilter: string, filters?: 
   // a LEFT JOIN to return_items fans each return out once per returned line
   // item, multiplying its refund total by its item count. A one-line return
   // hid the bug entirely; a two-line return doubled the month's refunds.
+  //
+  // EX-VAT, same as totalRefundsData in getBIMetrics above: r.total_refunded
+  // is VAT-inclusive, but netRevenue downstream (use-monthly-sales-data.ts)
+  // already subtracts the month's tax separately, so netting out the raw
+  // (VAT-inclusive) refund here double-subtracted the refunded VAT. Net out
+  // only the refund's ex-VAT share.
   const rawMonthlyRefunds = await query<{ month: string; refunds: number; }>(
-    `SELECT strftime('%Y-%m', r.created_at, 'localtime') as month, SUM(r.total_refunded) as refunds FROM returns r LEFT JOIN sales s ON s.id = r.sale_id WHERE r.created_at >= ? AND (r._deleted = 0 OR r._deleted IS NULL)${storeId ? " AND r.store_id = ?" : ""}${joined.clause} GROUP BY strftime('%Y-%m', r.created_at, 'localtime') ORDER BY strftime('%Y-%m', r.created_at, 'localtime') ASC`, p1Joined
+    `SELECT strftime('%Y-%m', r.created_at, 'localtime') as month, SUM(CASE WHEN s.total_amount IS NOT NULL AND s.total_amount != 0 THEN r.total_refunded * (s.total_amount - IFNULL(s.tax_amount, 0)) / s.total_amount ELSE r.total_refunded END) as refunds FROM returns r LEFT JOIN sales s ON s.id = r.sale_id WHERE r.created_at >= ? AND r.created_at <= ? AND (r._deleted = 0 OR r._deleted IS NULL)${storeId ? " AND r.store_id = ?" : ""}${joined.clause} GROUP BY strftime('%Y-%m', r.created_at, 'localtime') ORDER BY strftime('%Y-%m', r.created_at, 'localtime') ASC`, p1Joined
   );
   // See the matching comment on returnedCogsData in getBIMetrics above: uses
   // the sale-time cost_price (pre-aggregated per (sale_id, product_id) to
   // stay correct when a sale has >1 sale_items row for the same product),
   // not a recomputed current-stock average.
   const rawMonthlyReturnedCogs = await query<{ month: string; returned_cogs: number; }>(
-    `SELECT strftime('%Y-%m', r.created_at, 'localtime') as month, SUM(ri.quantity * IFNULL(si.avg_cost_price, 0)) as returned_cogs FROM return_items ri JOIN returns r ON ri.return_id = r.id LEFT JOIN sales s ON s.id = r.sale_id LEFT JOIN (SELECT sale_id, product_id, SUM(cost_price * quantity) * 1.0 / NULLIF(SUM(quantity), 0) as avg_cost_price FROM sale_items GROUP BY sale_id, product_id) si ON si.sale_id = r.sale_id AND si.product_id = ri.product_id WHERE r.created_at >= ? AND (r._deleted = 0 OR r._deleted IS NULL)${storeId ? " AND r.store_id = ?" : ""}${joined.clause} GROUP BY strftime('%Y-%m', r.created_at, 'localtime')`, p1Joined
+    `SELECT strftime('%Y-%m', r.created_at, 'localtime') as month, SUM(ri.quantity * IFNULL(si.avg_cost_price, 0)) as returned_cogs FROM return_items ri JOIN returns r ON ri.return_id = r.id LEFT JOIN sales s ON s.id = r.sale_id LEFT JOIN (SELECT sale_id, product_id, SUM(cost_price * quantity) * 1.0 / NULLIF(SUM(quantity), 0) as avg_cost_price FROM sale_items GROUP BY sale_id, product_id) si ON si.sale_id = r.sale_id AND si.product_id = ri.product_id WHERE r.created_at >= ? AND r.created_at <= ? AND (r._deleted = 0 OR r._deleted IS NULL)${storeId ? " AND r.store_id = ?" : ""}${joined.clause} GROUP BY strftime('%Y-%m', r.created_at, 'localtime')`, p1Joined
   );
   // Merged by month in JS, the same way rawMonthlyData merges its two halves.
   // Months are unioned: a month with a refund but no returned line items (or
@@ -653,12 +671,13 @@ export async function getAdvancedMonthlySalesData(dateFilter: string, filters?: 
   // that means the same thing as a sales filter, so charging one cashier's
   // revenue with the whole store's overhead would be worse than showing none.
   const monthlyExpensesFilterable = !filters?.staffId && !filters?.paymentMethod;
-  // Capped at "now": with no dateTo, a prepaid expense's amortized
-  // installments were emitted all the way out to its final covers_months
-  // bucket regardless of whether that month has happened yet, so the chart
-  // showed future months with an expense and zero revenue.
+  // Capped at the same `to` as every sales/refund query above (the
+  // selected range's end, never later than "now"): a prepaid expense's
+  // amortized installments would otherwise be emitted all the way out to
+  // its final covers_months bucket regardless of whether that month is
+  // within the selected range (or has even happened yet).
   const expensesByMonth = monthlyExpensesFilterable
-    ? await getSmoothedExpensesByMonth(dateFilter, new Date().toISOString())
+    ? await getSmoothedExpensesByMonth(dateFilter, to)
     : new Map<string, number>();
   const rawExpenseData = Array.from(expensesByMonth.entries())
     .map(([month, expenses]) => ({ month, expenses }))
@@ -885,9 +904,11 @@ export async function fetchCustomerReportData() {
 export async function fetchExpensesReportData(dateFrom?: string, dateTo?: string) {
   const params: string[] = [];
   let where = "_deleted = 0";
-  // See the matching comment in fetchProfitLossReportData above.
-  if (dateFrom) { where += " AND date(date) >= date(?)"; params.push(dateFrom); }
-  if (dateTo) { where += " AND date(date) <= date(?)"; params.push(dateTo); }
+  // See getSmoothedExpensesByMonth's comment above for why 'localtime' is
+  // needed here, not just bare date(?): dateFrom/dateTo are UTC instants
+  // representing local calendar boundaries.
+  if (dateFrom) { where += " AND date(date) >= date(?, 'localtime')"; params.push(dateFrom); }
+  if (dateTo) { where += " AND date(date) <= date(?, 'localtime')"; params.push(dateTo); }
   const storeId = getActiveStoreId();
   if (storeId) { where += " AND store_id = ?"; params.push(storeId); }
 

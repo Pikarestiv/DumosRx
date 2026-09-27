@@ -8,6 +8,10 @@ interface PaymentBreakdownCardProps {
     card: number;
     transfer: number;
     credit: number;
+    /** Unrecognized/legacy payment_method, or a mixed refund with no split
+     * data to prorate - only shown when non-zero, so Cash + Card + Transfer
+     * + Credit (+ Other) always reconciles to Total Sales. */
+    other?: number;
     cardAccounts?: Record<string, {name: string; total: number}>;
     transferAccounts?: Record<string, {name: string; total: number}>;
   };
@@ -78,6 +82,15 @@ export function PaymentBreakdownCard({
               {formatCurrency(aggregatedTotals.credit, currencyCode)}
             </span>
           </div>
+
+          {!!aggregatedTotals.other && (
+            <div className="flex justify-between items-center pb-2">
+              <span className="font-medium text-muted-foreground">Other (uncategorized)</span>
+              <span className="font-bold">
+                {formatCurrency(aggregatedTotals.other, currencyCode)}
+              </span>
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>

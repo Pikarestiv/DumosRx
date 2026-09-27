@@ -5,6 +5,7 @@ import { getActiveStoreId } from "@/lib/db/core";
 export interface CategoryRow {
   id: string;
   name: string;
+  productCount: number;
 }
 
 /** All active categories, flat: matches how her current tool (Moniebook)
@@ -22,9 +23,16 @@ export interface CategoryRow {
  * pre-fix history, not from an ongoing gap. */
 export async function getCategoryList(): Promise<CategoryRow[]> {
   const storeId = getActiveStoreId();
+  // Correlated subquery (not a LEFT JOIN + GROUP BY) so a category with zero
+  // products still returns exactly one row, and every other selected column
+  // stays a plain scalar instead of needing MAX()/ANY_VALUE() workarounds.
   return query<CategoryRow>(
-    `SELECT id, name FROM categories WHERE _deleted = 0 AND (is_active IS NULL OR is_active = 1)${storeId ? " AND (store_id = ? OR store_id IS NULL)" : ""} ORDER BY name ASC`,
-    storeId ? [storeId] : [],
+    `SELECT id, name,
+       (SELECT COUNT(*) FROM products p WHERE p.category_id = categories.id AND p._deleted = 0${storeId ? " AND p.store_id = ?" : ""}) as productCount
+     FROM categories
+     WHERE _deleted = 0 AND (is_active IS NULL OR is_active = 1)${storeId ? " AND (store_id = ? OR store_id IS NULL)" : ""}
+     ORDER BY name ASC`,
+    storeId ? [storeId, storeId] : [],
   );
 }
 
@@ -44,52 +52,6 @@ export async function renameCategory(id: string, name: string) {
   await update("categories", id, { name: name.trim() });
 }
 
-/** Count of active products still pointing at this category_id — surfaced
- * before delete so removing a category doesn't silently orphan every
- * product referencing it (deleteCategory never touches products.category_id,
- * so an in-use category left undeleted-with-warning shows up later as a
- * raw category_id where its name used to be). */
-export async function countProductsInCategory(categoryId: string): Promise<number> {
-  const storeId = getActiveStoreId();
-  const rows = await query<{ count: number }>(
-    `SELECT COUNT(*) as count FROM products WHERE category_id = ? AND _deleted = 0${storeId ? " AND store_id = ?" : ""}`,
-    storeId ? [categoryId, storeId] : [categoryId],
-  );
-  return rows[0]?.count ?? 0;
-}
-
 export async function deleteCategory(id: string) {
   await softDelete("categories", id);
-}
-
-/** A pharmacy/general-store starter set matching the broad groupings
- * Cynthia's own Moniebook data uses (refs/MB-inventory-*.csv); inserted
- * only when she explicitly asks for it via the management screen, never
- * automatically, so nothing appears or changes without her choosing it. */
-export const DEFAULT_CATEGORIES = [
-  "Drugs",
-  "Beverages",
-  "Toiletries",
-  "Cosmetics",
-  "Perfumes",
-  "Wines & Spirits",
-  "Provisions",
-  "Biscuits",
-  "Tea",
-  "Groceries",
-  "Baby Care",
-];
-
-export async function seedDefaultCategories() {
-  const existing = await query<{ name: string }>(
-    "SELECT name FROM categories WHERE _deleted = 0",
-  );
-  const existingNames = new Set(existing.map((c) => c.name.toLowerCase()));
-  const toCreate = DEFAULT_CATEGORIES.filter(
-    (name) => !existingNames.has(name.toLowerCase()),
-  );
-  for (const name of toCreate) {
-    await createCategory(name);
-  }
-  return toCreate.length;
 }

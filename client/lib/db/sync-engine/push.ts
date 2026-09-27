@@ -502,9 +502,9 @@ export async function pushChanges(
         // EVERY underlying queue row it folded together, not just itself —
         // see coalescePendingUpdates()'s doc comment for why leaving any of
         // them behind would silently orphan a real, still-pending edit.
-        const succeededIds = changes
+        const succeededChanges = changes.filter((c) => !failedIds.has(c.id));
+        const succeededIds = succeededChanges
           .map((c) => c.id)
-          .filter((id) => !failedIds.has(id))
           .flatMap((id) => idsFor(id));
 
         // Collected inside the transaction below, reported (toast) after it
@@ -543,7 +543,10 @@ export async function pushChanges(
         // transaction (see the rejected-items comment above for why that
         // matters at scale).
         await transaction(async () => {
-          await markSynced(succeededIds);
+          await markSynced(
+            succeededIds,
+            succeededChanges.map((c) => ({ table_name: c.table_name, record_id: c.record_id })),
+          );
           pushedCount += succeededIds.length;
 
           for (const f of response.failed ?? []) {
@@ -661,18 +664,41 @@ export async function pushChanges(
         // client can't actually verify who or what changed the record
         // server-side, only that its own edit no longer matches what it was
         // based on. State what happened, not an unverifiable cause.
-        for (const conflict of versionConflicts) {
-          // feedback is push-only telemetry the user never edits locally —
-          // nothing for them to act on, so log rather than toast.
-          if (conflict.table_name === "feedback") {
+        const toastableConflicts = versionConflicts.filter((conflict) => {
+          // feedback and audit_logs are both push-only telemetry the user
+          // never edits locally — nothing for them to act on, so log rather
+          // than toast. audit_logs in particular has no `_version` field at
+          // all (logAction() never sets one), so the server's duplicate-
+          // INSERT handling falls to the legacy stale_timestamp fallback and
+          // rejects it as a "conflict" on every resubmit — a sync plumbing
+          // detail, not a real edit collision.
+          if (conflict.table_name === "feedback" || conflict.table_name === "audit_logs") {
             console.info(
-              `[Sync] Feedback record ${conflict.record_id} hit a version conflict; server's version kept, no toast shown.`,
+              `[Sync] ${conflict.table_name} record ${conflict.record_id} hit a version conflict; server's version kept, no toast shown.`,
             );
-            continue;
+            return false;
           }
+          return true;
+        });
+        // A batch can report up to SYNC_BATCH_SIZE conflicts at once (e.g.
+        // draining a large backlog), and Sonner's Toaster does a
+        // flushSync-driven state update per toast() call - enough of those
+        // fired synchronously in the same tick trips React's own "Maximum
+        // update depth exceeded" guard and crashes the whole page. One toast
+        // per record only holds up under the "expected to be rare" case
+        // above; past this threshold, collapse into a single summary toast
+        // instead.
+        const CONFLICT_TOAST_THRESHOLD = 5;
+        if (toastableConflicts.length > CONFLICT_TOAST_THRESHOLD) {
           toast.warning(
-            `A change to ${describeSyncedRecord(conflict.table_name)} could not be saved because the record changed since this edit. The server's current version was kept.`,
+            `${toastableConflicts.length} changes could not be saved because the records changed since those edits. The server's current versions were kept.`,
           );
+        } else {
+          for (const conflict of toastableConflicts) {
+            toast.warning(
+              `A change to ${describeSyncedRecord(conflict.table_name)} could not be saved because the record changed since this edit. The server's current version was kept.`,
+            );
+          }
         }
         // Not surfaced to the user — see the retry_count comment above. Still
         // logged so it's visible in a support/debug session, just not as a

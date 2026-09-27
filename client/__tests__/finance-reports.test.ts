@@ -70,6 +70,20 @@ describe("finance.ts / reports.ts financial aggregates", () => {
     const to = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString();
     return { from, to };
   };
+  // The window's `from`/`to` are UTC instants representing LOCAL midnight/
+  // month-start (see currentMonthWindow above) - slicing the ISO string's
+  // first 10 characters gives the UTC calendar date of that instant, which
+  // in a positive-UTC-offset timezone (this suite runs under Africa/Lagos,
+  // UTC+1) is the PREVIOUS day, not the local date the window actually
+  // starts on. expenses.date is compared against these bounds via
+  // date(?, 'localtime') (see finance.ts), so a fixture inserting an
+  // expense must use the real local calendar date, not this UTC slice.
+  const firstDayOfMonthLocal = () => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, "0");
+    return `${y}-${m}-01`;
+  };
 
   describe("getCurrentMonthRevenue / getCurrentMonthCOGS", () => {
     it("sums only this month's non-deleted sales for revenue, and their line items' cost for COGS", async () => {
@@ -112,7 +126,7 @@ describe("finance.ts / reports.ts financial aggregates", () => {
       // '2026-01-01' >= '2026-01-01T00:00:00.000Z' false, silently
       // excluding this expense.
       const window = currentMonthWindow();
-      const firstDayOfMonth = window.from.slice(0, 10); // "YYYY-MM-DD"
+      const firstDayOfMonth = firstDayOfMonthLocal();
       db.run(
         `INSERT INTO expenses (id, category, amount, date, _deleted) VALUES ('e1', 'Rent', 15000, ?, 0)`,
         [firstDayOfMonth],
@@ -123,7 +137,7 @@ describe("finance.ts / reports.ts financial aggregates", () => {
 
     it("getCurrentMonthExpensesByCategory includes an expense dated exactly on the window's first day", async () => {
       const window = currentMonthWindow();
-      const firstDayOfMonth = window.from.slice(0, 10);
+      const firstDayOfMonth = firstDayOfMonthLocal();
       db.run(
         `INSERT INTO expenses (id, category, amount, date, _deleted) VALUES ('e1', 'Rent', 15000, ?, 0)`,
         [firstDayOfMonth],

@@ -7,6 +7,7 @@ import { APP_NAME } from "@/lib/constants";
 import { get, set } from "idb-keyval";
 /* eslint-disable max-lines */
 import { SCHEMA_SQL } from "./schema";
+import { isDedupableAuditAction } from "./audit-actions";
 import {
   STORE_SCOPED_TABLES,
   makeTauriAdapter,
@@ -318,7 +319,16 @@ async function rehydrateFromIndexedDb(): Promise<boolean> {
     return false;
   }
   if (!savedData) return true;
+  // Reserves the same connection-wide lock query()/execute()/transaction()
+  // use (see reserveDbSlot()) before swapping `db` out from under them.
+  // Without this, a query() suspended mid-yield (or any other in-flight
+  // operation) could resume against a `db` this function has already
+  // `close()`d, throwing sql.js's generic "bad parameter or other API
+  // misuse" - reproduced via a fast login racing DatabaseProvider's
+  // boot-time requeueOrphanedRows() while this tab was mid-promotion.
+  const { previous, release } = reserveDbSlot();
   try {
+    await previous;
     const fresh = new SQL.Database(savedData);
     fresh.run(SCHEMA_SQL);
     try {
@@ -332,6 +342,8 @@ async function rehydrateFromIndexedDb(): Promise<boolean> {
   } catch (err) {
     console.error("[DB] Failed to rehydrate database after writer-lock promotion", err);
     return false;
+  } finally {
+    release();
   }
 }
 
@@ -479,101 +491,104 @@ export async function query<T = Record<string, unknown>>(
   // reports committed state. Safe from deadlock: a read issued from inside
   // a transaction() block would be waiting on its own enclosing
   // transaction, so this only applies to reads that began outside one.
+  // Holds the same connection-wide lock transaction()/execute() reserve
+  // (see reserveDbSlot()) for this call's entire duration, including every
+  // yield below, so no write can ever land mid-statement in the first
+  // place. A read issued from inside an open transaction() doesn't reserve
+  // its own slot - the enclosing transaction already holds it, and
+  // reserving again here would deadlock waiting on ourselves.
   const startedOutsideTransaction = !inTransaction;
-  // Capped at 2 (not unbounded) so a genuinely different, non-transient
-  // failure still surfaces instead of retrying forever — bumped from 1
-  // after production showed occasional back-to-back collisions (two
-  // unrelated DB operations landing on the same tick twice in a row)
-  // beating a single retry, surfacing as an uncaught SQLITE_MISUSE/
-  // "Statement closed" error for what a second attempt would have
-  // resolved cleanly.
-  const MAX_MISUSE_RETRIES = 2;
-  let closedRetryCount = 0;
-  for (let attempt = 0; attempt < QUERY_TORN_READ_ATTEMPTS; attempt++) {
-    const epochAtStart = writeEpoch;
-    let yielded = false;
-    const stmt = db.prepare(sql);
-    try {
-      stmt.bind(params);
+  const slot = startedOutsideTransaction ? reserveDbSlot() : null;
+  if (slot) await slot.previous;
 
-      const results: T[] = [];
-      let rowCount = 0;
-      while (stmt.step()) {
-        const row = stmt.getAsObject() as T;
-        results.push(row);
-        rowCount++;
-        // sql.js runs entirely on the main thread with no Web Worker, so a
-        // large result set's row-fetch loop blocks painting for however
-        // long it takes — nothing else, including React committing an
-        // already-rendered loading skeleton, can run until this returns.
-        // This is the same characteristic product-import.ts's
-        // YIELD_INTERVAL comment describes for bulk inserts, just on the
-        // read side, and it compounds right after app launch when several
-        // heavy stat/overview queries (Inventory, Settings) land close
-        // together with sync's own DB work.
-        // Only outside an open transaction: execute() doesn't queue behind
-        // an in-progress transaction() the way nested transaction() calls
-        // do (sql.js has one shared connection, no per-caller isolation),
-        // so yielding here while `inTransaction` is true would let an
-        // unrelated write interleave into this transaction's uncommitted
-        // state.
-        if (!inTransaction && rowCount % QUERY_YIELD_INTERVAL === 0) {
-          yielded = true;
-          await new Promise((resolve) => setTimeout(resolve, 0));
-        }
-      }
-      stmt.free();
-
-      // A write landed while this statement was suspended at one of the
-      // yields above, so these rows may be a torn snapshot of a table that
-      // changed underneath the cursor — including, in the worst case, an
-      // empty one from a statement SQLite quietly reset. Re-run rather than
-      // hand a caller a result that looks authoritative but isn't. Safe to
-      // repeat: query() only ever runs SELECTs (writes go through
-      // execute()), so a re-run has no side effects.
-      if (
-        yielded &&
-        writeEpoch !== epochAtStart &&
-        attempt < QUERY_TORN_READ_ATTEMPTS - 1
-      ) {
-        if (startedOutsideTransaction) await awaitSettledTransactions();
-        continue;
-      }
-
-      return results;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
+  try {
+    // Capped at 2 (not unbounded) so a genuinely different, non-transient
+    // failure still surfaces instead of retrying forever. Kept as
+    // defense-in-depth: the lock above should make this race structurally
+    // impossible for calls that go through query()/execute()/transaction(),
+    // but this retry stays cheap insurance against any sql.js quirk that
+    // isn't actually this race.
+    const MAX_MISUSE_RETRIES = 2;
+    let closedRetryCount = 0;
+    for (let attempt = 0; attempt < QUERY_TORN_READ_ATTEMPTS; attempt++) {
+      const epochAtStart = writeEpoch;
+      let yielded = false;
+      const stmt = db.prepare(sql);
       try {
-        stmt.free();
-      } catch {
-        // Already invalid — this is exactly the case being retried.
-      }
-      // "closed"/"finalized" was the only observed wording when this retry
-      // was written, but the same live-statement-vs-concurrent-write race
-      // surfaces under other spellings too, now that insert()/update()/
-      // softDelete()/remove() each open their own transaction() (2026-09-24)
-      // instead of running as bare statements - a transaction()'s BEGIN can
-      // land while an unrelated large query() is mid-yield far more often
-      // now than before. Seen in production: sql.js's own SQLITE_MISUSE
-      // string ("bad parameter or other API misuse") when a step() runs
-      // against a statement invalidated by that interleaved BEGIN, and a
-      // RangeError ("Array buffer allocation failed") from the WASM heap
-      // when the same interleaving corrupts the statement's internal
-      // buffer bookkeeping. Both are connection-state corruption from this
-      // exact race, not genuine SQL/data errors, so they get the same
-      // discard-and-retry treatment.
-      if (closedRetryCount < MAX_MISUSE_RETRIES && /closed|finalized|bad parameter|api misuse|allocation failed/i.test(message)) {
-        closedRetryCount++;
-        if (startedOutsideTransaction) await awaitSettledTransactions();
-        continue;
-      }
-      throw err;
-    }
-  }
+        stmt.bind(params);
 
-  // Unreachable (the loop above always either returns or throws), but
-  // TypeScript can't see that from a for-loop with a fixed bound.
-  return [];
+        const results: T[] = [];
+        let rowCount = 0;
+        while (stmt.step()) {
+          const row = stmt.getAsObject() as T;
+          results.push(row);
+          rowCount++;
+          // sql.js runs entirely on the main thread with no Web Worker, so a
+          // large result set's row-fetch loop blocks painting for however
+          // long it takes — nothing else, including React committing an
+          // already-rendered loading skeleton, can run until this returns.
+          // This is the same characteristic product-import.ts's
+          // YIELD_INTERVAL comment describes for bulk inserts, just on the
+          // read side, and it compounds right after app launch when several
+          // heavy stat/overview queries (Inventory, Settings) land close
+          // together with sync's own DB work.
+          // Only outside an open transaction: execute() doesn't queue behind
+          // an in-progress transaction() the way nested transaction() calls
+          // do (sql.js has one shared connection, no per-caller isolation),
+          // so yielding here while `inTransaction` is true would let an
+          // unrelated write interleave into this transaction's uncommitted
+          // state.
+          if (!inTransaction && rowCount % QUERY_YIELD_INTERVAL === 0) {
+            yielded = true;
+            await new Promise((resolve) => setTimeout(resolve, 0));
+          }
+        }
+        stmt.free();
+
+        // Historically a write could land while this statement was
+        // suspended at one of the yields above, tearing the read. The lock
+        // above now rules that out for real callers, but keep the check
+        // (harmless — writeEpoch simply never changes under the lock) in
+        // case a future caller ever bypasses it.
+        if (
+          yielded &&
+          writeEpoch !== epochAtStart &&
+          attempt < QUERY_TORN_READ_ATTEMPTS - 1
+        ) {
+          continue;
+        }
+
+        return results;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        try {
+          stmt.free();
+        } catch {
+          // Already invalid — this is exactly the case being retried.
+        }
+        // "closed"/"finalized" was the only observed wording when this retry
+        // was written, but the same live-statement-vs-concurrent-write race
+        // surfaces under other spellings too. Seen in production: sql.js's
+        // own SQLITE_MISUSE string ("bad parameter or other API misuse")
+        // when a step() runs against a statement invalidated by an
+        // interleaved BEGIN, and a RangeError ("Array buffer allocation
+        // failed") from the WASM heap when the same interleaving corrupts
+        // the statement's internal buffer bookkeeping. Kept as
+        // defense-in-depth alongside the lock above.
+        if (closedRetryCount < MAX_MISUSE_RETRIES && /closed|finalized|bad parameter|api misuse|allocation failed/i.test(message)) {
+          closedRetryCount++;
+          continue;
+        }
+        throw err;
+      }
+    }
+
+    // Unreachable (the loop above always either returns or throws), but
+    // TypeScript can't see that from a for-loop with a fixed bound.
+    return [];
+  } finally {
+    slot?.release();
+  }
 }
 
 // Registered by base-helpers.ts (which already imports from this module, so
@@ -667,15 +682,33 @@ export async function execute(
     return;
   }
 
-  assertWritable();
+  if (inTransaction) {
+    // Already running inside an open transaction(), which holds the shared
+    // connection lock for its whole duration — reserving another slot here
+    // would deadlock waiting on ourselves. saveDatabase() happens once, in
+    // transaction()'s finally block, not per statement.
+    assertWritable();
+    db.run(sql, params);
+    bumpWriteEpoch();
+    return;
+  }
 
-  db.run(sql, params);
-  // Marks the shared sql.js connection as having been written to, so any
-  // query() currently suspended at a yield point knows its in-progress read
-  // may have been torn and re-runs instead of returning it (see writeEpoch).
-  bumpWriteEpoch();
-  if (!inTransaction) {
+  // Reserves the same connection-wide lock query()/transaction() use (see
+  // reserveDbSlot()) so this write can never land while some other query()
+  // is mid-yield or another transaction() is open.
+  const { previous, release } = reserveDbSlot();
+  try {
+    await previous;
+    assertWritable();
+    db.run(sql, params);
+    // Marks the shared sql.js connection as having been written to, so any
+    // query() currently suspended at a yield point knows its in-progress
+    // read may have been torn and re-runs instead of returning it (see
+    // writeEpoch). Kept as defense-in-depth alongside the lock above.
+    bumpWriteEpoch();
     void saveDatabase();
+  } finally {
+    release();
   }
 }
 
@@ -709,6 +742,25 @@ export async function execute(
  * cross-transaction data loss above.
  */
 let transactionQueue: Promise<void> = Promise.resolve();
+
+/**
+ * Reserves the next slot in the shared connection-wide queue and hands the
+ * caller its own `previous`/`release` pair. Shared by transaction(),
+ * execute() and query() (for calls that start outside an open transaction)
+ * so every operation that touches the single sql.js/Tauri connection —
+ * reads included — serializes onto one FIFO queue: a write can never land
+ * while a query() is mid-yield, and vice versa. Reserves synchronously
+ * (before the caller awaits anything) so two calls issued back-to-back with
+ * no `await` between them still queue in call order.
+ */
+function reserveDbSlot(): { previous: Promise<void>; release: () => void } {
+  const previous = transactionQueue;
+  let release!: () => void;
+  transactionQueue = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  return { previous, release };
+}
 
 /**
  * Waits for every transaction() call reserved so far to finish (commit or
@@ -764,15 +816,9 @@ export async function awaitSettledTransactions(): Promise<void> {
 export async function transaction<T>(fn: () => Promise<T>): Promise<T> {
   // Reserve our place in line before awaiting anything, so two calls
   // arriving back-to-back (no `await` between them) can't both read the
-  // same "previous" link — queue reassignment here is synchronous.
-  const previous = transactionQueue;
-  // Definite assignment: the executor above runs synchronously (per the
-  // Promise spec) before this line returns, so releaseNext is always set
-  // by the time it's called below — TS just can't see through the closure.
-  let releaseNext!: () => void;
-  transactionQueue = new Promise<void>((resolve) => {
-    releaseNext = resolve;
-  });
+  // same "previous" link — reserveDbSlot()'s queue reassignment is
+  // synchronous.
+  const { previous, release: releaseNext } = reserveDbSlot();
 
   try {
     // Wait for whatever was queued ahead of us, regardless of whether it
@@ -1366,13 +1412,73 @@ export async function logAction(
   correlationId?: string,
 ) {
   if (!db) return;
-  const id = generateId();
   const now = new Date().toISOString();
   const storeId = overrideStoreId ?? getActiveStoreId();
+  const detailsJson = details ? JSON.stringify(details) : null;
+
+  // Dedup path: a repeating failure (e.g. LOGIN_FAILED) folds into the
+  // most recent still-unsynced row for the same (action, table, record_id,
+  // store) instead of inserting a fresh row every time - the server side
+  // of audit_logs is genuinely append-only (matched by properties->
+  // client_id, never looked up by id for an UPDATE - see SyncController),
+  // so this coalesces repeats into what eventually reaches the server as
+  // ONE row, rather than teaching the sync engine an UPDATE path that
+  // table was never designed to support. Once the row has actually synced
+  // (_synced = 1), a further repeat starts a fresh row/group, same as the
+  // very first occurrence ever - by then the count already reached the
+  // server, so there's nothing stale to keep folding into.
+  if (isDedupableAuditAction(action)) {
+    const existing = await query<{ id: string; occurrence_count: number | null }>(
+      `SELECT id, occurrence_count FROM audit_logs
+       WHERE action = ? AND table_name = ? AND record_id = ? AND store_id IS ?
+         AND _synced = 0 AND (_deleted = 0 OR _deleted IS NULL)
+       ORDER BY created_at DESC LIMIT 1`,
+      [action, table, recordId, storeId],
+    );
+
+    if (existing.length > 0) {
+      const row = existing[0];
+      const newCount = (row.occurrence_count || 1) + 1;
+
+      await execute(
+        `UPDATE audit_logs SET occurrence_count = ?, last_occurred_at = ?, details = ?, updated_at = ? WHERE id = ?`,
+        [newCount, now, detailsJson, now, row.id],
+      );
+
+      // Rewrite the row's own still-pending INSERT payload in place, rather
+      // than adding a second queue entry - see the append-only note above.
+      // If it's already been picked up and cleared by a push in flight
+      // (a narrow race with the sync engine), this just no-ops here: the
+      // local row is still correctly updated above, and the next repeat
+      // will see _synced = 1 (once that push confirms) and start fresh.
+      const queued = await query<{ id: number; payload: string }>(
+        `SELECT id, payload FROM _sync_queue WHERE table_name = 'audit_logs' AND record_id = ? AND operation = 'INSERT' ORDER BY id DESC LIMIT 1`,
+        [row.id],
+      );
+      if (queued.length > 0) {
+        try {
+          const payload = JSON.parse(queued[0].payload);
+          payload.occurrence_count = newCount;
+          payload.last_occurred_at = now;
+          payload.details = detailsJson;
+          payload.updated_at = now;
+          await execute(`UPDATE _sync_queue SET payload = ? WHERE id = ?`, [
+            JSON.stringify(payload),
+            queued[0].id,
+          ]);
+        } catch (e) {
+          console.error("Failed to update queued audit-log payload for dedup", e);
+        }
+      }
+      return;
+    }
+  }
+
+  const id = generateId();
 
   await execute(
-    `INSERT INTO audit_logs (id, user_id, store_id, action, table_name, record_id, details, correlation_id, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO audit_logs (id, user_id, store_id, action, table_name, record_id, details, correlation_id, occurrence_count, last_occurred_at, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       currentUser?.id || null,
@@ -1380,8 +1486,10 @@ export async function logAction(
       action,
       table,
       recordId,
-      details ? JSON.stringify(details) : null,
+      detailsJson,
       correlationId || null,
+      1,
+      now,
       now,
     ],
   );
@@ -1394,8 +1502,10 @@ export async function logAction(
     action,
     table_name: table,
     record_id: recordId,
-    details: details ? JSON.stringify(details) : null,
+    details: detailsJson,
     correlation_id: correlationId || null,
+    occurrence_count: 1,
+    last_occurred_at: now,
     created_at: now,
     updated_at: now,
   };

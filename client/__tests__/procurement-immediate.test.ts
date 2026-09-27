@@ -67,7 +67,9 @@ describe("createAndReceivePurchaseOrder", () => {
       );
       CREATE TABLE audit_logs (
         id TEXT PRIMARY KEY, user_id TEXT, store_id TEXT, action TEXT, table_name TEXT,
-        record_id TEXT, details TEXT, correlation_id TEXT, created_at TEXT
+        record_id TEXT, details TEXT, correlation_id TEXT, occurrence_count INTEGER DEFAULT 1,
+        last_occurred_at TEXT, created_at TEXT, updated_at TEXT, _synced INTEGER DEFAULT 0,
+        _deleted INTEGER DEFAULT 0
       );
     `);
     core.__setDatabaseForTesting(db);

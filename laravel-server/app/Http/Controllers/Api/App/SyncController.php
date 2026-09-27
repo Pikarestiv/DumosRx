@@ -1532,7 +1532,7 @@ class SyncController extends Controller
      */
     private const USER_SYNC_SELF_ALLOWED_FIELDS = [
         'id', 'first_name', 'last_name', 'phone', 'email', 'username',
-        'password', 'pin', 'last_login_at', 'updated_at',
+        'password', 'pin', 'auto_lock_duration', 'last_login_at', 'updated_at',
         '_version', '_synced_at',
     ];
 

@@ -116,6 +116,23 @@ export async function migrateLegacyPinToHash(userId: string, verifiedPin: string
   }
 }
 
+/** Null means "no row" or "column not yet backfilled on this device" -
+ * callers should treat that the same as "use the local default", not as
+ * an explicit 0 (off). */
+export async function getUserAutoLockDuration(userId: string) {
+  const rows = await query<{ auto_lock_duration: number | null }>(
+    "SELECT auto_lock_duration FROM users WHERE id = ?",
+    [userId],
+  );
+  return rows.length > 0 ? rows[0].auto_lock_duration : null;
+}
+
+/** Goes through update() so the account's auto-lock preference follows it
+ * to every device via sync, same as updateUserPin() above. */
+export async function updateUserAutoLockDuration(userId: string, duration: number) {
+  return update("users", userId, { auto_lock_duration: duration });
+}
+
 export async function getStaffCount() {
   // Excludes the store owner's own row (role = 'store_owner') so a plan's
   // advertised staff limit means "N employees you can add," not "you +

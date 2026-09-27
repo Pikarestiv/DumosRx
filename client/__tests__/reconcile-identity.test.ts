@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
 import initSqlJs, { type Database } from "sql.js";
+import { set as idbSet } from "idb-keyval";
 
 vi.mock("idb-keyval", () => ({
   get: vi.fn(async () => undefined),
@@ -146,5 +147,36 @@ describe("reconcile-identity.ts", () => {
     expect(result.products).toBeUndefined();
     const queueCount = db.exec(`SELECT COUNT(*) as cnt FROM _sync_queue WHERE record_id = 'p-with-queue'`);
     expect(queueCount[0].values[0][0]).toBe(1);
+  });
+
+  /**
+   * Regression test: called at plain app-boot (DatabaseProvider, not nested
+   * inside any transaction()), this used to INSERT each orphaned row's queue
+   * entry as its own top-level execute() call — each one now reserving the
+   * shared connection lock (core.ts's reserveDbSlot()) and triggering its own
+   * full saveDatabase()/db.export() round trip. On a device with many
+   * orphaned rows across many tables, that serialized N separate lock+export
+   * cycles back-to-back, holding up anything else waiting on the same lock
+   * (e.g. a fast login's own user-lookup query) for far longer than the work
+   * itself needed. Batching a table's requeue INSERTs into one transaction()
+   * (when not already nested in a caller's own transaction) cuts that to one
+   * lock+export cycle per table regardless of row count.
+   */
+  it("batches a table's requeue inserts into a single save instead of one per row", async () => {
+    db.run(`INSERT INTO stores (id, name, _deleted) VALUES (?, 'Real Cloud Store', 0)`, [NEW_STORE]);
+    for (const id of ["orphan-1", "orphan-2", "orphan-3"]) {
+      db.run(
+        `INSERT INTO products (id, name, store_id, _deleted, _synced, created_at) VALUES (?, ?, ?, 0, 0, '2026-07-20T00:00:00Z')`,
+        [id, id, NEW_STORE],
+      );
+    }
+    vi.mocked(idbSet).mockClear();
+
+    const result = await requeueOrphanedRows(["products"]);
+
+    expect(result.products).toBe(3);
+    expect(idbSet).toHaveBeenCalledTimes(1);
+    const queueCount = db.exec(`SELECT COUNT(*) as cnt FROM _sync_queue WHERE table_name = 'products'`);
+    expect(queueCount[0].values[0][0]).toBe(3);
   });
 });

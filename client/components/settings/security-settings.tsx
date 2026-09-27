@@ -23,6 +23,8 @@ import {
 } from "@/components/ui/select";
 import { useAutoLockStore } from "@/lib/hooks/use-auto-lock";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
+import { useAuth } from "@/lib/context/auth-context";
+import { updateUserAutoLockDuration } from "@/lib/db/queries/auth";
 
 // Single source of truth for both the dropdown's options and the
 // self-heal check below, so they can't drift out of sync with each other.
@@ -57,6 +59,21 @@ export function SecuritySettings({
   const duration = useAutoLockStore((s) => s.duration);
   const setDuration = useAutoLockStore((s) => s.setDuration);
   const { canAutoLock, withRestriction, getUpgradeMessage } = useFeatureGate();
+  const { user } = useAuth();
+
+  // Local zustand state drives the UI/timer immediately; the DB write is
+  // what makes the choice follow this staff member's ACCOUNT to their next
+  // device instead of staying stuck on this one browser (see
+  // useSyncAutoLockDurationWithAccount, which reads this column back on
+  // login elsewhere/next time).
+  const setAccountDuration = (val: number) => {
+    setDuration(val);
+    if (user?.id) {
+      void updateUserAutoLockDuration(user.id, val).catch((e) => {
+        console.error("Failed to save auto-lock duration to account", e);
+      });
+    }
+  };
 
   // Self-heals a persisted duration that doesn't match any current option
   // (an older app version's value, manual/corrupted localStorage, a future
@@ -66,9 +83,10 @@ export function SecuritySettings({
   // new value. Falls back to the store's own documented default (5).
   useEffect(() => {
     if (!AUTO_LOCK_OPTIONS.some((opt) => opt.value === duration)) {
-      setDuration(5);
+      setAccountDuration(5);
     }
-  }, [duration, setDuration]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [duration]);
 
   const onSubmit = async () => {
     const success = await handleUpdateSecurity();
@@ -168,7 +186,7 @@ export function SecuritySettings({
           <Select
             value={duration.toString()}
             onValueChange={withRestriction(
-              (val: string) => setDuration(Number(val)),
+              (val: string) => setAccountDuration(Number(val)),
               { featureAllowed: canAutoLock, featureKey: "auto_lock" },
             )}
           >

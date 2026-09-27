@@ -108,12 +108,113 @@ A confirmation page / order number for the storefront customer (feature #2 in `d
 
 ---
 
+### Payment gateway pass (2026-09-27, separate)
+
+A dedicated audit of the Paystack/Flutterwave integration (subscriptions + storefront checkout + payout/subaccount routing). Logged here for tracking; **not yet fixed**.
+
+#### PG-1. `laravel-server/` — storefront checkout silently falls back to Flutterwave, which drops the store's payout subaccount, forces NGN, and can never be verified or refunded
+- **Category:** Payments / Money-losing — confirmed
+- **Location:** `app/Services/Payment/PaymentService.php:45-58` (silent fallback), `:93-129` (`initializeFlutterwave` takes no `$subaccount`/`$currency`, hardcodes `'currency' => 'NGN'`); `app/Http/Controllers/Api/Public/StorefrontController.php:414-446` (initialize), `:628` (`verifyTransaction($ref, 'paystack')` — provider hardcoded regardless of which gateway actually processed the charge), `:113`/`:118` (refund path, same hardcoding)
+- **Problem:** `initializeTransaction()` is shared between subscriptions and storefront checkout. Both gateways default enabled (`PaymentService.php:28-29`; `SystemConfigSeeder.php:18` only seeds the Paystack flag). Any non-2xx from Paystack's initialize call throws and silently retries on Flutterwave. For a storefront cart this (1) drops `$subaccount`, so the charge settles to the platform's account instead of the store's, (2) forces NGN even though the `StorefrontPaymentIntent` is priced in the store's own currency (e.g. GHS/KES), and (3) writes `provider = 'flutterwave'` on the intent, but `checkout()`'s verify call and the refund path both hardcode the string `'paystack'`, so a Flutterwave-settled intent can never be confirmed or refunded.
+- **Failure scenario:** A transient Paystack 5xx (or an admin toggling `enable_paystack` off) during storefront checkout → customer pays in full via Flutterwave → sees "Could not confirm your payment" (422, since verify checks the wrong provider) → gets no goods and no refund, while the money sits in the platform's Flutterwave balance rather than the store's.
+- **Recommended fix:** Pin the storefront call site to Paystack only (no silent fallback), and make `checkout()`/refund read `$intent->provider` instead of hardcoding it.
+- **Confidence:** High (code path traced end to end).
+- **Status:** Open, logged 2026-09-27.
+
+#### PG-2. `laravel-server`/`web` — storefront payments have no webhook handler and no reconciliation sweep; confirmation depends entirely on the customer's browser session surviving the redirect
+- **Category:** Payments / Money-losing — confirmed
+- **Location:** `web/components/storefront/checkout-form.tsx:87-126` (confirm only fires if `sessionStorage['dumos_pending_checkout_<slug>']` survived the redirect, else an "orphaned reference, contact the store" screen at `:189-211`); `app/Http/Controllers/Api/Web/PaymentController.php:95-101` (`processSuccessfulPayment` only ever looks up `PaymentTransaction`, never `StorefrontPaymentIntent`); no command under `app/Console/Commands/` sweeps stale/expired storefront intents.
+- **Problem:** A genuine Paystack `charge.success` webhook for a storefront payment is silently discarded, because the webhook handler only knows about subscription `PaymentTransaction` rows. The *only* confirmation path is the customer's own browser returning to the storefront with matching `sessionStorage` state.
+- **Failure scenario (no attacker needed):** customer pays, then returns in a new tab, on a different device, via a bank app's in-app browser, after clearing site data, or just closes the tab. The `StorefrontPaymentIntent` stays `pending` forever — no order is ever created, no refund is issued, and the store has settled money with zero record of it. This is the single most likely real-world money-loss path in the integration.
+- **Recommended fix:** Add a storefront branch to the Paystack webhook handler (mirroring the existing intent-confirm logic in `checkout()`), plus a scheduled sweep command for stale `pending` intents (auto-refund or auto-flag after N hours).
+- **Confidence:** High.
+- **Status:** Open, logged 2026-09-27.
+
+#### PG-3. `laravel-server/` — an under-paying or wrong-currency subscription webhook keeps the money with no refund and no operator alert
+- **Category:** Payments — confirmed
+- **Location:** `app/Http/Controllers/Api/Web/PaymentController.php:128-163`; same shape in `app/Http/Controllers/Api/Web/SubscriptionController.php:525-537`
+- **Problem:** The amount/currency mismatch check itself is correct, but on mismatch the only outcome is `Log::warning` + `status = 'failed'` with a `suspicious_webhook` metadata blob. No refund is attempted and `AdminAlertService` (used for successful-payment alerts) is never invoked for this case.
+- **Failure scenario:** A customer pays a partial/wrong-currency amount (or a wrong amount is probed against a valid reference). The platform keeps the funds already taken by the provider, the customer gets nothing activated, and nobody is alerted — it surfaces only if someone greps logs.
+- **Recommended fix:** On mismatch, either attempt an automatic refund or fire an admin alert (or both) instead of a silent log line.
+- **Confidence:** High.
+- **Status:** Open, logged 2026-09-27.
+
+#### PG-4. `web/` — storefront checkout always displays ₦ regardless of the store's actual currency
+- **Category:** Correctness / customer-facing — confirmed
+- **Location:** `web/components/storefront/checkout-form.tsx:327,350,355`; `app/Http/Controllers/Api/Public/StorefrontController.php:270-282` (`show()`'s store payload omits `currency`, though `Store::$currency` exists), vs. `:69-72`/`:442` where the charge/intent are correctly minted in `$store->currency`.
+- **Problem:** The checkout price is hardcoded with the naira symbol, but a Ghana/Kenya store's customer is actually charged in GHS/KES on the Paystack page — the displayed price and the charged price disagree.
+- **Recommended fix:** Add `currency` to the `show()` payload and format the displayed price from it.
+- **Confidence:** High.
+- **Status:** Open, logged 2026-09-27.
+
+#### PG-5. `laravel-server/` — bank-account resolve endpoint is an unbounded name-lookup oracle
+- **Category:** Privacy / abuse surface — confirmed
+- **Location:** `app/Http/Controllers/Api/Web/StorePaymentAccountController.php:70-86`; route `routes/api.php:148` (`throttle:60,1`)
+- **Problem:** Ownership is checked on the *store*, but `account_number`/`bank_code` are free-form and unrelated to the caller — any authenticated store owner can resolve arbitrary account numbers to full holder names, 60/min, using the platform's Paystack credentials.
+- **Recommended fix:** Tighter per-user rate limit and/or an attempt counter; this is a known name-harvesting primitive class.
+- **Confidence:** Medium-High.
+- **Status:** Open, logged 2026-09-27.
+
+#### PG-6. `laravel-server/` — `checkout()` accepts and permanently burns a `paystack_reference` on a non-Paystack order
+- **Category:** Edge case — confirmed, low practical exploitability
+- **Location:** `app/Http/Controllers/Api/Public/StorefrontController.php:517` (field is `nullable` rather than rejected for non-Paystack methods), `:554-577` (already-used check runs regardless of method), `:688` (written to the unique `paystack_reference` column)
+- **Problem:** An anonymous caller can attach a reference to a free `transfer`/`in_store` order, consuming it forever; the genuine confirm for that reference then 422s as "already used" with no refund path, since the intent it belongs to is untouched.
+- **Recommended fix:** Reject `paystack_reference` unless `payment_method === 'paystack'`.
+- **Confidence:** Medium (references are provider-generated and only visible to the payer, so hard to weaponize in practice).
+- **Status:** Open, logged 2026-09-27.
+
+#### PG-7. `laravel-server/` — a Paystack subaccount can be created and then orphaned from its store row
+- **Category:** Reliability — confirmed
+- **Location:** `app/Http/Controllers/Api/Web/StorePaymentAccountController.php:150-168`
+- **Problem:** `createSubaccount()` hits Paystack first, then persists the returned code to the store row. If that DB write fails, a live Paystack subaccount exists with no store pointing at it, and the `:118` idempotency guard (keyed on the local column) won't prevent a retry from creating a second, duplicate subaccount. No money moves incorrectly (the newest code always wins), but it leaves untracked payout destinations on the platform's Paystack account.
+- **Recommended fix:** Wrap the Paystack call + DB persist in a pattern that can detect/clean up an orphaned remote subaccount, or make the idempotency check query Paystack directly rather than only the local column.
+- **Confidence:** Medium.
+- **Status:** Open, logged 2026-09-27.
+
+#### PG-8. `laravel-server/` — payment webhook routes have no rate limit
+- **Category:** Reliability / abuse surface — confirmed
+- **Location:** `routes/api.php:106-107` (`/webhooks/paystack`, `/webhooks/flutterwave`)
+- **Problem:** Neither webhook route sits behind a `throttle:*` group (Laravel 11 applies no default floor). Not a bypass — HMAC verification is fail-closed and constant-time — but each hit still does an HMAC over an arbitrary-size body plus a DB lookup, so an anonymous caller can spend unbounded server work.
+- **Recommended fix:** Add a generous named rate limit (these are legitimate high-volume endpoints, so the ceiling should be high, not tight).
+- **Confidence:** High.
+- **Status:** Open, logged 2026-09-27.
+
+#### PG-9. `laravel-server/` — only `charge.success`/`status: successful` webhook events are handled
+- **Category:** Reliability — confirmed
+- **Location:** `app/Http/Controllers/Api/Web/PaymentController.php:48,88`
+- **Problem:** `refund.processed`, `charge.dispute*`, and Flutterwave's failure events are all ignored. A subscription refunded or charged back at the provider stays `active` indefinitely with no signal to the platform.
+- **Recommended fix:** Handle at minimum `refund.processed`/dispute events to flip the subscription/order state, or log+alert so it's caught manually.
+- **Confidence:** Medium.
+- **Status:** Open, logged 2026-09-27.
+
+#### PG-10. `laravel-server/` — full bank account numbers stored in plaintext on the merchant-owned `payment_accounts` table
+- **Category:** Data handling — confirmed, likely intentional
+- **Location:** `app/Models/PaymentAccount.php:26`; also synced to client SQLite, `client/lib/db/schema.ts:610`; table is in `SyncController.php:669`'s syncable list
+- **Problem:** Unlike the Paystack payout path (which correctly stores only `paystack_account_number_last4`), this table stores the merchant's own deposit account numbers in full, both server-side and on every synced client device. This is the store's own transfer-instructions account, not cardholder data, so it reads as an intentional design choice rather than a defect — flagged for completeness/confirmation only.
+- **Recommended fix:** None unless product direction changes; confirm with the user whether this is intended.
+- **Confidence:** Medium (intent unconfirmed).
+- **Status:** Open, logged 2026-09-27 — needs a product decision, not necessarily a code fix.
+
+**Suggested order:** PG-2 first (closes the largest real-world money-loss surface and would also catch PG-1's symptom), then PG-1, then PG-3/PG-4 as cheap follow-ups, then PG-5 through PG-9 as hardening, with PG-10 needing a product answer rather than code.
+
+---
+
 ## Security Findings (index)
 
 | Finding | Severity | Status |
 |---|---|---|
+| PG-2 — storefront payments have no webhook/reconciliation, confirmation depends on client session | High | Open (2026-09-27) |
+| PG-1 — storefront checkout can silently settle via Flutterwave with no payout routing and no way to verify/refund | High | Open (2026-09-27) |
 | P2-1 — `FLUTTERWAVE_SECRET_HASH` production `.env` status unverified | Medium | Open (needs prod confirmation) |
+| PG-3 — mismatched-amount webhook keeps funds with no refund/alert | Medium | Open (2026-09-27) |
+| PG-4 — storefront always displays ₦ regardless of store currency | Medium | Open (2026-09-27) |
+| PG-5 — bank-account resolve endpoint is an unbounded name-lookup oracle | Low-Medium | Open (2026-09-27) |
 | P3-1 — auth token in `localStorage`, not HttpOnly cookie | Low | Open (accepted tradeoff) |
+| PG-6 — non-Paystack order can burn a `paystack_reference` | Low | Open (2026-09-27) |
+| PG-7 — orphaned Paystack subaccount on DB-write failure | Low | Open (2026-09-27) |
+| PG-8 — payment webhook routes have no rate limit | Low | Open (2026-09-27) |
+| PG-9 — only success webhook events handled, refund/dispute events ignored | Low | Open (2026-09-27) |
+| PG-10 — full bank account numbers stored in plaintext on `payment_accounts` | Low | Open (2026-09-27, likely intentional — needs product confirmation) |
 | SF-P3-5 — `/storefront-slugs` enumerates every customer with an online store | Low | Accepted 2026-09-26 (product call, not a defect; a build token would make a rotated secret break every `web/` deploy — see `docs/FIXED_BUGS.md`) |
 
 (`SF-P1-3` — no rate limit on the public storefront reads or on order placement — and `SF-P2-1` — storefront products/stock scoped by owner rather than store — were both fixed 2026-09-26; see `docs/FIXED_BUGS.md`.)

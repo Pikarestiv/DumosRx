@@ -154,17 +154,19 @@ export function StaffFormFields({
       </div>
       <div className="grid gap-2">
         <div className="flex items-center gap-2">
-          <Label htmlFor="role">Group</Label>
+          <Label htmlFor="role">Group *</Label>
           <TooltipProvider delayDuration={0}>
             <Tooltip>
               <TooltipTrigger asChild>
                 <HelpCircle className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
               </TooltipTrigger>
-              <TooltipContent>
+              <TooltipContent className="max-w-xs">
                 <p>
-                  Determines what the staff member can access. Cashiers can only
-                  make sales, Managers can view stock batches, and Admins have
-                  full access.
+                  The Group decides exactly what this staff member can do. The
+                  built-in groups (Admin, Manager, Specialist, Sales Staff,
+                  Auditor) match how those roles have always worked. To change
+                  what a group can do, or to build your own, go to Settings →
+                  Staff → Roles &amp; Permissions.
                 </p>
               </TooltipContent>
             </Tooltip>

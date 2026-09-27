@@ -25,6 +25,33 @@ export function resolveStaffStoreId(
   return formStoreId || activeStoreId || null;
 }
 
+/**
+ * Every submit-blocking rule for the staff form, as a pure function so each
+ * one is testable without a rendered dialog (same reason resolveStaffStoreId
+ * above is extracted). Returns the message to show, or null when the form is
+ * good to submit. A Group is required: without it a staff member is saved
+ * with no permission_group_id at all and silently falls back to role-string
+ * permissions, which is never what the person filling the form intended.
+ */
+export function validateStaffForm(
+  formData: StaffFormData,
+  isEditing: boolean,
+): string | null {
+  if (!formData.first_name || !formData.last_name || !formData.username) {
+    return "Please fill in all required fields";
+  }
+  if (!formData.permission_group_id) {
+    return "Please select a Group for this staff member";
+  }
+  if (!isEditing && (!formData.pin || formData.pin.length < 4)) {
+    return "PIN must be at least 4 digits";
+  }
+  if (isEditing && formData.pin && formData.pin.length < 4) {
+    return "PIN must be at least 4 digits";
+  }
+  return null;
+}
+
 interface StaffFormDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
@@ -87,18 +114,9 @@ export function StaffFormDialog({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.first_name || !formData.last_name || !formData.username) {
-      toast.error("Please fill in all required fields");
-      return;
-    }
-
-    if (!isEditing && (!formData.pin || formData.pin.length < 4)) {
-      toast.error("PIN must be at least 4 digits");
-      return;
-    }
-
-    if (isEditing && formData.pin && formData.pin.length < 4) {
-      toast.error("PIN must be at least 4 digits");
+    const validationError = validateStaffForm(formData, isEditing);
+    if (validationError) {
+      toast.error(validationError);
       return;
     }
 

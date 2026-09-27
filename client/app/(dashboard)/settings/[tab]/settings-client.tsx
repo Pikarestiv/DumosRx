@@ -4,7 +4,7 @@ import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { CloudLinkDialog } from "@/components/settings/cloud-link-dialog";
 import { StaffManagement } from "@/components/settings/staff-management";
 import { SettingsMobileMenu } from "@/components/settings/settings-mobile-menu";
-import { RolesPermissionsPlaceholder } from "@/components/settings/roles-permissions-placeholder";
+import { PermissionMatrix } from "@/components/settings/roles-permissions/permission-matrix";
 import { SettingsTabNav } from "./settings-tab-nav";
 import { SettingsHeader } from "./settings-header";
 
@@ -139,7 +139,7 @@ export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
 
           {s.isAdmin && (
             <TabsContent value="roles">
-              <RolesPermissionsPlaceholder />
+              <PermissionMatrix />
             </TabsContent>
           )}
 

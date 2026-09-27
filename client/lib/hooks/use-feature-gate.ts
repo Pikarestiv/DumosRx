@@ -235,6 +235,7 @@ export function useFeatureGate() {
     // report filtering) plus the BI/analytics dashboard and their CSV/PDF
     // exports.
     canUseAdvancedReports: getFeature('advanced_reports', 'advanced_reports', isPro || isEnterprise),
+    canCreateCustomPermissionGroups: getFeature('custom_permission_groups', 'custom_permission_groups', isPro || isEnterprise),
     // Plan-tier entitlement only, independent of the store's own toggle -
     // same reasoning as canAccessLoyaltyProgramPlan above. The Register
     // Configs settings switch uses this (not canUseMarkupSales) so it stays

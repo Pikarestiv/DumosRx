@@ -1,0 +1,104 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { insert, update, softDelete, generateId } from "@/lib/db/local-database";
+import { getStorePermissionGroups } from "@/lib/db/queries/permission-groups";
+import { DEFAULT_GROUP_PERMISSIONS } from "@/lib/constants/permissions";
+
+export interface PermissionGroupRow {
+  id: string;
+  name: string;
+  based_on_role: string;
+  is_default: number;
+  permissions: string[];
+}
+
+export function usePermissionGroups() {
+  const [groups, setGroups] = useState<PermissionGroupRow[]>([]);
+
+  const reload = useCallback(async () => {
+    const rows = await getStorePermissionGroups();
+    setGroups(rows as PermissionGroupRow[]);
+  }, []);
+
+  useEffect(() => {
+    void reload();
+  }, [reload]);
+
+  const toggle = useCallback(
+    async (groupId: string, key: string, granted: boolean) => {
+      const group = groups.find((g) => g.id === groupId);
+      if (!group) return;
+      const next = granted
+        ? Array.from(new Set([...group.permissions, key]))
+        : group.permissions.filter((k) => k !== key);
+      await update("permission_groups", groupId, { permissions: JSON.stringify(next) });
+      await reload();
+    },
+    [groups, reload],
+  );
+
+  const createGroup = useCallback(
+    async (name: string, basedOnRole: string) => {
+      await insert("permission_groups", {
+        id: generateId(),
+        name,
+        based_on_role: basedOnRole,
+        is_default: 0,
+        permissions: "[]",
+      });
+      await reload();
+    },
+    [reload],
+  );
+
+  const copyGroup = useCallback(
+    async (sourceId: string, name: string) => {
+      const source = groups.find((g) => g.id === sourceId);
+      if (!source) return;
+      await insert("permission_groups", {
+        id: generateId(),
+        name,
+        based_on_role: source.based_on_role,
+        is_default: 0,
+        permissions: JSON.stringify(source.permissions),
+      });
+      await reload();
+    },
+    [groups, reload],
+  );
+
+  const revertToDefault = useCallback(
+    async (groupId: string) => {
+      const group = groups.find((g) => g.id === groupId);
+      if (!group || !group.is_default) return;
+      const defaults = DEFAULT_GROUP_PERMISSIONS[group.based_on_role as keyof typeof DEFAULT_GROUP_PERMISSIONS];
+      if (!defaults) return;
+      await update("permission_groups", groupId, { permissions: JSON.stringify(defaults) });
+      await reload();
+    },
+    [groups, reload],
+  );
+
+  const renameGroup = useCallback(
+    async (groupId: string, name: string) => {
+      const group = groups.find((g) => g.id === groupId);
+      if (!group || group.is_default) return; // defaults are immutable by name - Global Constraints
+      await update("permission_groups", groupId, { name });
+      await reload();
+    },
+    [groups, reload],
+  );
+
+  const deleteGroup = useCallback(
+    async (groupId: string) => {
+      const group = groups.find((g) => g.id === groupId);
+      if (!group || group.is_default) return;
+      await softDelete("permission_groups", groupId);
+      await reload();
+    },
+    [groups, reload],
+  );
+
+  return { groups, toggle, createGroup, copyGroup, revertToDefault, renameGroup, deleteGroup };
+}

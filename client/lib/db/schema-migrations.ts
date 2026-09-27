@@ -43,6 +43,7 @@ export const STORE_SCOPED_TABLES = [
   "audit_logs",
   "loyalty_tiers",
   "loyalty_redemption_options",
+  "permission_groups",
 ];
 
 // Thin adapter over the two incompatible database handles so the migration

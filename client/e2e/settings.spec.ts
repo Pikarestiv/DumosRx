@@ -153,22 +153,21 @@ test.describe('Settings', () => {
     await expect(page.getByRole('combobox')).toContainText('Every 1 Hour');
   });
 
-  test('roles: placeholder renders (feature not yet implemented, nothing to persist)', async ({ page }) => {
+  test('roles: permission matrix renders with the 5 seeded default groups', async ({ page }) => {
     await login(page);
     // No elevateToPaidTier needed - this tab is admin-gated, not tier-gated,
     // and the seeded fixture user is the store owner/admin.
     await page.goto('/settings/roles');
 
-    // Deliberately NOT a "change setting, reload, assert" test like the
-    // three above: RolesPermissionsPlaceholder (components/settings/
-    // roles-permissions-placeholder.tsx) is a static "coming soon" card with
-    // no fields, toggles, or forms - there is no real setting on this page
-    // to change. This assertion documents that fact in the test suite
-    // itself, rather than silently omitting roles coverage or faking a
-    // persistence check against a page that has nothing to persist.
-    await expect(page.getByRole('heading', { name: 'Roles & Permissions' })).toBeVisible();
-    await expect(
-      page.getByText(/Custom staff roles with fine-grained permissions are coming soon/i),
-    ).toBeVisible();
+    // Replaces the old RolesPermissionsPlaceholder ("coming soon" static
+    // card, since removed) now that the real matrix (components/settings/
+    // roles-permissions/permission-matrix.tsx) exists: a checkbox grid of
+    // permissions x groups, seeded with the 5 default groups the first
+    // time this page (or any permission check) touches the store - see
+    // ensurePermissionGroupsSeeded (lib/db/queries/permission-groups.ts).
+    await expect(page.getByRole('columnheader', { name: 'Manager' })).toBeVisible();
+    await expect(page.getByRole('columnheader', { name: 'Auditor' })).toBeVisible();
+    await expect(page.getByText('Process Sales')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'New Group' })).toBeVisible();
   });
 });

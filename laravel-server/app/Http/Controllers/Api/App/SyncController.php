@@ -1275,6 +1275,10 @@ class SyncController extends Controller
             $payload = $this->sanitizeUserSyncPayload($payload, $recordId, $currentUser, $allowedStoreIds);
         }
 
+        if ($change['table_name'] === 'permission_groups' && $currentUser && !$isSuperAdmin) {
+            $payload = $this->sanitizePermissionGroupSyncPayload($payload, $currentUser);
+        }
+
         if ($change['table_name'] === 'stores') {
             foreach (self::STORE_SYNC_FORBIDDEN_FIELDS as $field) {
                 unset($payload[$field]);
@@ -1625,6 +1629,44 @@ class SyncController extends Controller
             if (!in_array($payload['store_id'], $allowedStoreIds, true)) {
                 throw new \RuntimeException('Sync push: users payload attempted to set store_id outside caller\'s allowed stores');
             }
+        }
+
+        return $payload;
+    }
+
+    /**
+     * Privilege-limits a client-originated `permission_groups` sync payload:
+     * every permission key in the payload must already be one the ACTING
+     * user's own effective permission set includes, or the whole push for
+     * this change is rejected. Without this, editing a group's checkboxes
+     * (the Roles & Permissions matrix UI, or a raw sync push bypassing it)
+     * could grant that group - and therefore anyone assigned to it - a
+     * permission the editor never had themselves. store_owner/admin/
+     * super_admin bypass, same as every other ownership check in this
+     * controller.
+     */
+    private function sanitizePermissionGroupSyncPayload(array $payload, $currentUser): array
+    {
+        if (!isset($payload['permissions']) || !is_array($payload['permissions'])) {
+            return $payload;
+        }
+
+        $role = strtolower(preg_replace('/[^a-z_]/i', '', $currentUser->role ?? ''));
+        if (in_array($role, ['store_owner', 'admin', 'super_admin'], true)) {
+            return $payload;
+        }
+
+        $ownGroup = $currentUser->permission_group_id
+            ? \App\Models\PermissionGroup::find($currentUser->permission_group_id)
+            : null;
+        $ownPermissions = $ownGroup->permissions ?? [];
+
+        $disallowed = array_diff($payload['permissions'], $ownPermissions);
+        if (!empty($disallowed)) {
+            throw new \RuntimeException(
+                'Sync push: permission_groups payload attempted to grant a permission the caller does not hold: '
+                . implode(', ', $disallowed),
+            );
         }
 
         return $payload;

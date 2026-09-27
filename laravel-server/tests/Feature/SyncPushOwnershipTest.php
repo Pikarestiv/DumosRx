@@ -487,4 +487,88 @@ class SyncPushOwnershipTest extends TestCase
             'content' => 'filed before being let go',
         ]);
     }
+
+    /**
+     * permission_groups (added by the roles-and-permissions feature) was
+     * wired into the syncable $tables/getModelForTable()/pull-scoping
+     * lists but NOT into resolveChangeStoreId()'s $directStoreTables nor
+     * normalizePushPayload()'s $tablesWithStoreId - so
+     * authorizeChangeTarget() resolved a null store id for it, found no
+     * user_id column either, and fell through to its permissive default
+     * (`return true`), the same class of bug this whole test file exists
+     * to guard against on every other syncable table.
+     */
+    public function test_update_against_another_stores_permission_group_is_rejected_not_applied()
+    {
+        $groupId = 'victim-permission-group-1';
+        DB::table('permission_groups')->insert([
+            'id' => $groupId,
+            'store_id' => $this->victimStore->id,
+            'name' => 'Manager',
+            'based_on_role' => 'manager',
+            'is_default' => 1,
+            'permissions' => json_encode(['process_sales']),
+            '_version' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $response = $this->actingAs($this->attackerOwner)->postJson('/api/v1/app/sync/push', [
+            'setup' => true,
+            'changes' => [
+                [
+                    'table_name' => 'permission_groups',
+                    'operation' => 'UPDATE',
+                    'record_id' => $groupId,
+                    'payload' => [
+                        'id' => $groupId,
+                        'name' => 'PWNED',
+                        'permissions' => json_encode([]),
+                        '_version' => 1,
+                    ],
+                ],
+            ],
+        ]);
+
+        $response->assertStatus(200);
+        $response->assertJsonCount(1, 'failed');
+        $response->assertJsonPath('failed.0.reason', 'forbidden');
+
+        $this->assertDatabaseHas('permission_groups', [
+            'id' => $groupId,
+            'name' => 'Manager',
+        ]);
+    }
+
+    public function test_delete_against_another_stores_permission_group_is_rejected_not_applied()
+    {
+        $groupId = 'victim-permission-group-2';
+        DB::table('permission_groups')->insert([
+            'id' => $groupId,
+            'store_id' => $this->victimStore->id,
+            'name' => 'Manager',
+            'based_on_role' => 'manager',
+            'is_default' => 1,
+            'permissions' => json_encode(['process_sales']),
+            '_version' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $response = $this->actingAs($this->attackerOwner)->postJson('/api/v1/app/sync/push', [
+            'setup' => true,
+            'changes' => [
+                [
+                    'table_name' => 'permission_groups',
+                    'operation' => 'DELETE',
+                    'record_id' => $groupId,
+                    'payload' => ['id' => $groupId, '_version' => 1],
+                ],
+            ],
+        ]);
+
+        $response->assertStatus(200);
+        $response->assertJsonPath('failed.0.reason', 'forbidden');
+        $this->assertDatabaseHas('permission_groups', ['id' => $groupId]);
+    }
 }

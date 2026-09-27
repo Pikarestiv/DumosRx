@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { PERMISSION_CATALOG, DEFAULT_GROUP_PERMISSIONS } from "@/lib/constants/permissions";
+import { PERMISSION_CATALOG, DEFAULT_GROUP_PERMISSIONS, ENFORCED_PERMISSION_KEYS } from "@/lib/constants/permissions";
 
 describe("permission catalog", () => {
   it("every default role has a defined permission set", () => {
@@ -27,5 +27,12 @@ describe("permission catalog", () => {
   it("auditor cannot process sales but can view reports", () => {
     expect(DEFAULT_GROUP_PERMISSIONS.auditor).not.toContain("process_sales");
     expect(DEFAULT_GROUP_PERMISSIONS.auditor).toContain("view_reports");
+  });
+
+  it("every key in ENFORCED_PERMISSION_KEYS exists in the catalog", () => {
+    const catalogKeys = new Set(PERMISSION_CATALOG.map((p) => p.key));
+    for (const key of ENFORCED_PERMISSION_KEYS) {
+      expect(catalogKeys.has(key)).toBe(true);
+    }
   });
 });

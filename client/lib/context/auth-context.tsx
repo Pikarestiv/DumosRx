@@ -758,11 +758,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setPermissionGroup(null);
       return;
     }
-    getUserPermissionGroup(user.id).then((g) => {
-      if (!cancelled) setPermissionGroup(g);
-    });
+    const load = () => {
+      getUserPermissionGroup(user.id).then((g) => {
+        if (!cancelled) setPermissionGroup(g);
+      }).catch(() => {});
+    };
+    load();
+    // A pull can bring down a permission_groups edit made from another
+    // device (or another admin) affecting this user's own group - without
+    // this, the change wouldn't be reflected until the user logs out and
+    // back in, since the effect otherwise only re-runs on user id change.
+    window.addEventListener("dumos_sync_completed", load);
     return () => {
       cancelled = true;
+      window.removeEventListener("dumos_sync_completed", load);
     };
   }, [user?.id]);
 

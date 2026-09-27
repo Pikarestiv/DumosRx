@@ -104,3 +104,25 @@ export const DEFAULT_GROUP_PERMISSIONS: Record<
     // auditor is read-only today: no process_sales, no manage_* grants
   ],
 };
+
+/**
+ * Permission keys with a real useHasPermission()/hasPermission() call site
+ * gating something in the app today - every OTHER key in PERMISSION_CATALOG
+ * is a real, toggleable checkbox in the Roles & Permissions matrix that
+ * currently does nothing anywhere else in the app (final review, Important
+ * I5: toggling one of those looks like it changes behavior but doesn't,
+ * which is worse than not having the checkbox at all). The matrix UI reads
+ * this set to mark unenforced rows honestly instead of implying parity with
+ * the 7 keys actually wired up. Update this set in the SAME commit as any
+ * new useHasPermission(key)/hasPermission(user, group, key) call site -
+ * it is not derived automatically from the codebase.
+ */
+export const ENFORCED_PERMISSION_KEYS: ReadonlySet<string> = new Set([
+  "process_sales", // pos-layout-header.tsx, auth-context.tsx (canProcessSales)
+  "void_refund_sales", // pos-transaction-history.tsx
+  "manage_products", // transfer-stock-dialog.tsx, auth-context.tsx (canManageStockBatch)
+  "view_activity_log", // activity-log-page.tsx, product-history.tsx, pos-transaction-history.tsx, use-finance-data.ts, use-purchase-orders.ts, use-dashboard-overview.ts, use-pos-data.ts, auth-context.tsx (canViewAllActivity)
+  "manage_staff", // pos-layout-header.tsx, auth-context.tsx (isAdmin)
+  "manage_roles_permissions", // permission-matrix.tsx
+  "factory_reset", // device-danger-zone.tsx
+]);

@@ -38,7 +38,7 @@ class TenantScopingArchitectureTest extends TestCase
         'Prescription', 'PrescriptionItem',
         'Expense', 'RequestedProduct', 'HeldTransaction',
         'LoyaltyTier', 'LoyaltyRedemptionOption', 'LoyaltyTransaction',
-        'ActivityLog', 'OnlineOrder', 'OnlineOrderItem',
+        'ActivityLog', 'OnlineOrder', 'OnlineOrderItem', 'PermissionGroup',
     ];
 
     /**

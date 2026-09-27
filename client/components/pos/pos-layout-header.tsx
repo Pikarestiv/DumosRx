@@ -54,9 +54,22 @@ export function POSLayoutHeader({
   // admin-tier (manage_staff - proven equivalent to checkIsAdmin's role
   // list for every default group, see auth-context-permission-booleans.
   // test.ts) or the store's own opt-in toggle.
+  //
+  // Both useHasPermission() calls are hoisted to unconditional consts,
+  // never inlined into the `&&` chain below: useHasPermission's result can
+  // change between renders as its permission-group lookup resolves
+  // asynchronously (starts from a role fallback, then updates once the
+  // real group loads), and short-circuiting the second call inside `&&`
+  // made its hook count differ between renders for exactly the case this
+  // feature exists for - a custom group more permissive than its base
+  // role tier - triggering React's real "Rendered more/fewer hooks than
+  // during the previous render" crash (see
+  // __tests__/pos-layout-header-rules-of-hooks.test.tsx).
+  const canProcessSalesPermission = useHasPermission("process_sales");
+  const isAdminTierPermission = useHasPermission("manage_staff");
   const canRequestTransfer =
-    useHasPermission("process_sales") &&
-    (useHasPermission("manage_staff") || storeProfile?.staff_can_request_transfers === 1) &&
+    canProcessSalesPermission &&
+    (isAdminTierPermission || storeProfile?.staff_can_request_transfers === 1) &&
     canManageMultiStore &&
     availableStores.length > 1;
   const [isScannerOpen, setIsScannerOpen] = useState(false);

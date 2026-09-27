@@ -1276,7 +1276,8 @@ class SyncController extends Controller
         }
 
         if ($change['table_name'] === 'permission_groups' && $currentUser && !$isSuperAdmin) {
-            $payload = $this->sanitizePermissionGroupSyncPayload($payload, $currentUser);
+            $pgRecordId = $change['record_id'] ?? ($payload['id'] ?? null);
+            $payload = $this->sanitizePermissionGroupSyncPayload($payload, $pgRecordId, $change['operation'], $currentUser, $allowedStoreIds);
         }
 
         if ($change['table_name'] === 'stores') {
@@ -1405,6 +1406,7 @@ class SyncController extends Controller
             'products', 'sales', 'customers', 'categories', 'suppliers',
             'expenses', 'purchase_orders', 'prescriptions', 'returns',
             'stock_movements', 'supplier_payments', 'audit_logs',
+            'permission_groups',
         ];
         if (in_array($change['table_name'], $tablesWithStoreId) && $currentStoreId) {
             if (empty($payload['store_id'])) {
@@ -1635,20 +1637,73 @@ class SyncController extends Controller
     }
 
     /**
-     * Privilege-limits a client-originated `permission_groups` sync payload:
-     * every permission key in the payload must already be one the ACTING
-     * user's own effective permission set includes, or the whole push for
-     * this change is rejected. Without this, editing a group's checkboxes
-     * (the Roles & Permissions matrix UI, or a raw sync push bypassing it)
-     * could grant that group - and therefore anyone assigned to it - a
-     * permission the editor never had themselves. store_owner/admin/
-     * super_admin bypass, same as every other ownership check in this
-     * controller.
+     * Privilege-limits a client-originated `permission_groups` sync change
+     * end to end - not just the escalation check the name used to
+     * describe alone.
+     *
+     * Two rules apply to EVERYONE, including store_owner/admin/
+     * super_admin - these are structural invariants (spec's Global
+     * Constraints: default groups "can never be renamed or deleted, in
+     * the UI or at the data/sync layer"), not a privilege the owner can
+     * override:
+     *  - DELETE against a default group is rejected outright.
+     *  - DELETE against a group with an active staff member still
+     *    assigned is rejected (reassign first).
+     *  - UPDATE against an existing DEFAULT group strips `name`/
+     *    `is_default`/`based_on_role` from the payload - only its
+     *    checkbox set may change.
+     *
+     * The remaining rules bypass for store_owner/admin/super_admin, same
+     * as every other ownership check in this controller:
+     *  - INSERT/UPDATE granting a `permissions` key the caller doesn't
+     *    themselves hold is rejected (the escalation guard).
+     *  - Any mutation at all additionally requires the caller to hold
+     *    manage_roles_permissions - matching the client matrix UI's own
+     *    useHasPermission("manage_roles_permissions") gate. Without this,
+     *    a caller holding every permission they're trying to grant (so
+     *    the escalation check alone doesn't catch them) could still edit
+     *    a group they have no business touching.
+     *
+     * One deliberate exception to the escalation/manage_roles_permissions
+     * pair, checked before them: a genuinely new default group
+     * (`is_default: true`, `based_on_role` set, and no row already
+     * exists for that (store, role) pair) skips both. This is first-time
+     * seeding (ensurePermissionGroupsSeeded, client core.ts), which fires
+     * from ANY authenticated user's login on a fresh device - not just an
+     * owner's - and legitimately needs to create even the Admin default
+     * group despite the seeding user usually holding none of its
+     * permissions themselves. The `permissions` this bootstrap inserts
+     * come from a hardcoded client constant the UI gives the user no way
+     * to alter, and the (store, role) uniqueness check means this bypass
+     * only ever fires once per role per store; a repeat attempt is an
+     * ordinary UPDATE and goes through every rule above.
      */
-    private function sanitizePermissionGroupSyncPayload(array $payload, $currentUser): array
+    private function sanitizePermissionGroupSyncPayload(array $payload, ?string $recordId, string $operation, $currentUser, array $allowedStoreIds = []): array
     {
-        if (!isset($payload['permissions']) || !is_array($payload['permissions'])) {
+        $existing = $recordId ? \App\Models\PermissionGroup::find($recordId) : null;
+
+        // Ownership is authorized later (authorizeChangeTarget), but that
+        // check runs AFTER this method for the DELETE/UPDATE paths - so a
+        // cross-tenant request targeting another store's row must bail out
+        // here before any business-rule check fires, otherwise the specific
+        // rejection reason (e.g. "default groups cannot be deleted") leaks
+        // whether the victim's row is a default group, and masks the
+        // 'forbidden' reason the later ownership check is supposed to give.
+        if ($existing && !in_array($existing->store_id, $allowedStoreIds, true)) {
             return $payload;
+        }
+
+        if ($operation === 'DELETE') {
+            if ($existing && $existing->is_default) {
+                throw new \RuntimeException('Sync push: default permission groups cannot be deleted');
+            }
+            if ($existing && \App\Models\User::where('permission_group_id', $existing->id)->where('is_active', true)->exists()) {
+                throw new \RuntimeException('Sync push: cannot delete a permission group with staff assigned - reassign them first');
+            }
+        }
+
+        if ($existing && $existing->is_default) {
+            unset($payload['name'], $payload['is_default'], $payload['based_on_role']);
         }
 
         $role = strtolower(preg_replace('/[^a-z_]/i', '', $currentUser->role ?? ''));
@@ -1656,17 +1711,41 @@ class SyncController extends Controller
             return $payload;
         }
 
+        if ($operation === 'INSERT') {
+            $isFirstTimeDefaultSeed = !empty($payload['is_default'])
+                && !empty($payload['based_on_role'])
+                && $currentUser->store_id
+                && !\App\Models\PermissionGroup::where('store_id', $currentUser->store_id)
+                    ->where('based_on_role', $payload['based_on_role'])
+                    ->exists();
+            if ($isFirstTimeDefaultSeed) {
+                return $payload;
+            }
+        }
+
+        // The caller's OWN granted permissions, per the NEW store-scoped
+        // permission_groups system (a hardcoded catalog key like
+        // "manage_roles_permissions" here, not a row in the platform-level
+        // roles/permissions tables User::hasPermission() checks - those
+        // are a deliberately separate system per the feature's spec, see
+        // docs/superpowers/specs/2026-09-27-roles-and-permissions-design.md).
         $ownGroup = $currentUser->permission_group_id
             ? \App\Models\PermissionGroup::find($currentUser->permission_group_id)
             : null;
         $ownPermissions = $ownGroup->permissions ?? [];
 
-        $disallowed = array_diff($payload['permissions'], $ownPermissions);
-        if (!empty($disallowed)) {
-            throw new \RuntimeException(
-                'Sync push: permission_groups payload attempted to grant a permission the caller does not hold: '
-                . implode(', ', $disallowed),
-            );
+        if (isset($payload['permissions']) && is_array($payload['permissions'])) {
+            $disallowed = array_diff($payload['permissions'], $ownPermissions);
+            if (!empty($disallowed)) {
+                throw new \RuntimeException(
+                    'Sync push: permission_groups payload attempted to grant a permission the caller does not hold: '
+                    . implode(', ', $disallowed),
+                );
+            }
+        }
+
+        if (!in_array('manage_roles_permissions', $ownPermissions, true)) {
+            throw new \RuntimeException('Sync push: caller lacks manage_roles_permissions');
         }
 
         return $payload;
@@ -1793,7 +1872,7 @@ class SyncController extends Controller
             'stock_movements', 'supplier_payments', 'requested_products',
             'payment_accounts', 'loyalty_tiers', 'loyalty_redemption_options',
             'stock_audits', 'held_transactions', 'loyalty_transactions',
-            'customer_payments', 'audit_logs',
+            'customer_payments', 'audit_logs', 'permission_groups',
         ];
 
         if (in_array($tableName, $directStoreTables, true)) {
@@ -2067,6 +2146,17 @@ class SyncController extends Controller
             
             // Enforce staff limits
             $subscriptionService->enforceStaffLimits($owner);
+
+            // Lazily seed this store's 5 default permission groups server-side
+            // (spec: "server: equivalent lazy check on relevant API entry
+            // points") - covers stores whose staff are only ever managed via
+            // the web dashboard, and closes the gap where a second device
+            // pulling before the first device's own client-side seed has
+            // pushed up would otherwise see no groups at all. Idempotent,
+            // gated the same way the client is (stores.permission_groups_seeded_at).
+            if ($store) {
+                \App\Services\PermissionGroupSeeder::ensureSeeded($store);
+            }
 
             // Enforce store limits for syncing
             $storeLimit = \App\Models\SystemConfig::getVal('subscription_plans')['tiers'][$plan]['limits']['stores'] ?? 0;

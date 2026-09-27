@@ -60,11 +60,20 @@ export function useHasPermission(key: string | string[], mode: "any" | "all" = "
       setGroup(null);
       return;
     }
-    getUserPermissionGroup(user.id).then((g) => {
-      if (!cancelled) setGroup(g);
-    });
+    const load = () => {
+      getUserPermissionGroup(user.id).then((g) => {
+        if (!cancelled) setGroup(g);
+      }).catch(() => {});
+    };
+    load();
+    // A pull can bring another device's edit to this user's own group down
+    // locally - without this, it wouldn't be reflected until the user logs
+    // out and back in, since the effect otherwise only re-runs on user id
+    // change.
+    window.addEventListener("dumos_sync_completed", load);
     return () => {
       cancelled = true;
+      window.removeEventListener("dumos_sync_completed", load);
     };
   }, [user?.id]);
 

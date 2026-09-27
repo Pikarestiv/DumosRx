@@ -1,10 +1,11 @@
 "use client";
 
 import { useMemo } from "react";
-import { PERMISSION_CATALOG } from "@/lib/constants/permissions";
+import { PERMISSION_CATALOG, ENFORCED_PERMISSION_KEYS } from "@/lib/constants/permissions";
 import { usePermissionGroups } from "@/lib/hooks/use-permission-groups";
 import { useHasPermission } from "@/lib/hooks/use-permissions";
 import { GroupToolbar } from "./group-toolbar";
+import { GroupColumnActions } from "./group-column-actions";
 
 export function PermissionMatrix() {
   const canManage = useHasPermission("manage_roles_permissions");
@@ -40,7 +41,15 @@ export function PermissionMatrix() {
               <th className="text-left p-2">Permission</th>
               {groups.map((g) => (
                 <th key={g.id} className="p-2 text-center whitespace-nowrap">
-                  {g.name}
+                  <div className="flex items-center justify-center gap-1">
+                    <span>{g.name}</span>
+                    <GroupColumnActions
+                      group={g}
+                      onRevertToDefault={revertToDefault}
+                      onRenameGroup={renameGroup}
+                      onDeleteGroup={deleteGroup}
+                    />
+                  </div>
                 </th>
               ))}
             </tr>
@@ -55,7 +64,18 @@ export function PermissionMatrix() {
                 </tr>
                 {entries.map((entry) => (
                   <tr key={entry.key} className="border-t">
-                    <td className="p-2">{entry.label}</td>
+                    <td className="p-2">
+                      {entry.label}
+                      {!ENFORCED_PERMISSION_KEYS.has(entry.key) && (
+                        <span
+                          data-testid="not-yet-enforced"
+                          title="This permission isn't wired up to any feature yet - toggling it has no effect."
+                          className="ml-2 text-xs text-muted-foreground italic"
+                        >
+                          (not yet enforced)
+                        </span>
+                      )}
+                    </td>
                     {groups.map((g) => (
                       <td key={g.id} className="p-2 text-center">
                         <input

@@ -252,6 +252,18 @@ export async function pullChanges(
               if (typeof val === "boolean") {
                 return val ? 1 : 0;
               }
+              // A JSON-cast server attribute (e.g. permission_groups.
+              // permissions, an array) arrives here as a real JS array/
+              // object, not a pre-stringified value - binding it straight
+              // into the statement silently mis-serializes it (sql.js
+              // turns an array into an object of numeric keys), producing
+              // a value no later JSON.parse() of this column can read back.
+              // Matches how every local write of a JSON-shaped column
+              // already stores it (see insert()/update() call sites that
+              // pass JSON.stringify(...) themselves).
+              if (val !== null && typeof val === "object") {
+                return JSON.stringify(val);
+              }
               return val;
             });
 

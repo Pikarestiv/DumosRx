@@ -46,9 +46,17 @@ export function POSLayoutHeader({
   const router = useRouter();
   const { storeProfile, availableStores } = useStore();
   const { canManageMultiStore } = useFeatureGate();
+  // Reproduces checkCanRequestStockTransfer's exact old composition: base
+  // eligibility is "process_sales" (what checkCanProcessSales checked, not
+  // the separate "request_stock_transfers" catalog entry - specialist/
+  // sales_staff both process sales but neither is admin-tier, so they must
+  // still depend on the toggle below, exactly as before), narrowed to
+  // admin-tier (manage_staff - proven equivalent to checkIsAdmin's role
+  // list for every default group, see auth-context-permission-booleans.
+  // test.ts) or the store's own opt-in toggle.
   const canRequestTransfer =
-    useHasPermission("request_stock_transfers") &&
-    (useHasPermission("manage_products") || storeProfile?.staff_can_request_transfers === 1) &&
+    useHasPermission("process_sales") &&
+    (useHasPermission("manage_staff") || storeProfile?.staff_can_request_transfers === 1) &&
     canManageMultiStore &&
     availableStores.length > 1;
   const [isScannerOpen, setIsScannerOpen] = useState(false);

@@ -138,6 +138,13 @@ interface AuthContextType {
   isImpersonating: boolean;
 }
 
+/** Plain role-tier utility, NOT a permission gate - kept only for the two
+ * call sites that inspect a role belonging to someone OTHER than the
+ * acting user (staff-list.tsx's per-row admin badge, stock-transfers.ts's
+ * original initiator), where "which permission group is this OTHER
+ * record's role" doesn't apply. Every current-actor permission check uses
+ * useHasPermission()/hasPermission() (lib/hooks/use-permissions.ts)
+ * instead - do not call this from new gating code. */
 export const checkIsAdmin = (role?: string) => {
   if (!role) return false;
   const normalizedRole = role.toLowerCase().replace(/[^a-z_]/g, "");
@@ -150,46 +157,14 @@ export const checkIsAdmin = (role?: string) => {
   return ["admin", "manager", "store_owner", "super_admin"].includes(normalizedRole);
 };
 
-export const checkCanManageStockBatch = (role?: string) => {
-  if (!role) return false;
-  const normalizedRole = role.toLowerCase().replace(/[^a-z_]/g, "");
-  return ["admin", "manager", "specialist", "store_owner"].includes(normalizedRole);
-};
-
-export const checkCanProcessSales = (role?: string) => {
-  if (!role) return false;
-  const normalizedRole = role.toLowerCase().replace(/[^a-z_]/g, "");
-  return ["admin", "manager", "specialist", "sales_staff", "store_owner"].includes(normalizedRole);
-};
-
-/** Whether this user can open the POS header's "Request stock from another
- * store" dialog. Admin-tier roles always can; everyone else needs the
- * store's staff_can_request_transfers setting turned on (off by default -
- * see multi-store-card.tsx). Doesn't check plan tier or store count -
- * callers (pos-layout-header.tsx) combine this with canManageMultiStore and
- * availableStores.length. */
-export const checkCanRequestStockTransfer = (
-  role: string | undefined,
-  staffCanRequestTransfers: number | undefined,
-) => {
-  if (!checkCanProcessSales(role)) return false;
-  return checkIsAdmin(role) || staffCanRequestTransfers === 1;
-};
-
-/** Activity/history views (audit logs, stock movements, sales, expenses,
- * purchase orders, stock audits, prescriptions, returns) are scoped to the
- * viewer's own actions unless they're a store owner or admin; everyone
- * else (manager, specialist, sales_staff, auditor) only sees what they
- * themselves performed. */
-export const checkCanViewAllActivity = (role?: string) => {
-  if (!role) return false;
-  const normalizedRole = role.toLowerCase().replace(/[^a-z_]/g, "");
-  return ["admin", "store_owner"].includes(normalizedRole);
-};
-
-// Gates Factory Reset (Settings > Data): narrower than checkIsAdmin (which
-// also passes "manager") - wiping local data and disconnecting cloud sync
-// shouldn't be unilateral for anyone but the owner/main admin account.
+/** Plain role-tier utility, NOT a permission gate - kept only for
+ * cloud-danger-zone.tsx, whose `role` comes from the cloud-authenticated
+ * dashboard account (useCurrentUser()), not the local PIN-authenticated
+ * POS session useHasPermission()/hasPermission() resolve against. Gates
+ * Factory Reset (Settings > Data): narrower than checkIsAdmin (which also
+ * passes "manager") - wiping local data and disconnecting cloud sync
+ * shouldn't be unilateral for anyone but the owner/main admin account. Do
+ * not call this from new gating code on the local session's own user. */
 export const checkCanFactoryReset = (role?: string) =>
   !!role && ["admin", "store_owner", "super_admin"].includes(role.toLowerCase().replace(/[^a-z_]/g, ""));
 

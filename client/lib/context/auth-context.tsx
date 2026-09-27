@@ -13,7 +13,8 @@ import {
 } from "@/lib/db/queries/auth";
 import { pinMatches, needsPinRehash } from "@/lib/utils/pin-hash";
 import { getTotalUserCount } from "@/lib/db/queries/setup";
-import { ensurePermissionGroupsSeeded } from "@/lib/db/queries/permission-groups";
+import { ensurePermissionGroupsSeeded, getUserPermissionGroup } from "@/lib/db/queries/permission-groups";
+import { hasPermission } from "@/lib/hooks/use-permissions";
 import {
   checkLoginLockout,
   recordLoginFailure,
@@ -772,13 +773,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // uniformly, since all three end in setUser(...).
   useEffect(() => {
     if (!user) return;
-    void ensurePermissionGroupsSeeded();
+    void ensurePermissionGroupsSeeded().catch(() => {});
   }, [user?.id]);
 
-  const isAdmin = user ? checkIsAdmin(user.role) : false;
-  const canManageStockBatch = user ? checkCanManageStockBatch(user.role) : false;
-  const canProcessSales = user ? checkCanProcessSales(user.role) : false;
-  const canViewAllActivity = user ? checkCanViewAllActivity(user.role) : false;
+  const [permissionGroup, setPermissionGroup] = useState<{ permissions: string[] } | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    if (!user) {
+      setPermissionGroup(null);
+      return;
+    }
+    getUserPermissionGroup(user.id).then((g) => {
+      if (!cancelled) setPermissionGroup(g);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
+
+  const isAdmin = hasPermission(user, permissionGroup, "manage_staff");
+  const canManageStockBatch = hasPermission(user, permissionGroup, "manage_products");
+  const canProcessSales = hasPermission(user, permissionGroup, "process_sales");
+  const canViewAllActivity = hasPermission(user, permissionGroup, "view_activity_log");
 
   return (
     <AuthContext.Provider

@@ -30,4 +30,10 @@ describe("hasPermission", () => {
     expect(hasPermission({ role: "manager" }, null, "factory_reset")).toBe(false);
     expect(hasPermission({ role: "admin" }, null, "factory_reset")).toBe(true);
   });
+
+  it("does not throw when a user object has no role yet (a transitional/partial session)", async () => {
+    const { hasPermission } = await import("@/lib/hooks/use-permissions");
+    expect(hasPermission({ role: undefined as unknown as string }, null, "process_sales")).toBe(false);
+    expect(hasPermission({ role: "" }, null, "process_sales")).toBe(false);
+  });
 });

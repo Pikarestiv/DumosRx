@@ -37,7 +37,7 @@ export function hasPermission(
   key: string | string[],
   mode: "any" | "all" = "any",
 ): boolean {
-  if (!user) return false;
+  if (!user || !user.role) return false;
   const normalized = user.role.toLowerCase().replace(/[^a-z_]/g, "");
   if (normalized === "store_owner" || normalized === "super_admin") return true;
 

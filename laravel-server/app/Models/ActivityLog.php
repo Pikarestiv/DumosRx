@@ -24,6 +24,8 @@ class ActivityLog extends Model
         'record_id',
         'details',
         'correlation_id',
+        'occurrence_count',
+        'last_occurred_at',
         '_version',
     ];
 

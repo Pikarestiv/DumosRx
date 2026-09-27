@@ -145,6 +145,14 @@ export function ActivityLogDesktopTable({
                       +{group.length - 1} more
                     </span>
                   )}
+                  {!!row.occurrence_count && row.occurrence_count > 1 && (
+                    <span
+                      className="text-[10px] font-semibold text-muted-foreground bg-muted rounded-full px-1.5 py-0.5"
+                      title={`Repeated ${row.occurrence_count} times`}
+                    >
+                      ×{row.occurrence_count}
+                    </span>
+                  )}
                 </div>
                 {row.table_name && (
                   <div className="text-[11px] text-muted-foreground/70">
@@ -203,6 +211,14 @@ export function ActivityLogMobileList({
               {group.length > 1 && (
                 <span className="text-[10px] font-semibold text-muted-foreground bg-muted rounded-full px-1.5 py-0.5">
                   +{group.length - 1} more
+                </span>
+              )}
+              {!!row.occurrence_count && row.occurrence_count > 1 && (
+                <span
+                  className="text-[10px] font-semibold text-muted-foreground bg-muted rounded-full px-1.5 py-0.5"
+                  title={`Repeated ${row.occurrence_count} times`}
+                >
+                  ×{row.occurrence_count}
                 </span>
               )}
             </div>

@@ -7,6 +7,7 @@ import { APP_NAME } from "@/lib/constants";
 import { get, set } from "idb-keyval";
 /* eslint-disable max-lines */
 import { SCHEMA_SQL } from "./schema";
+import { isDedupableAuditAction } from "./audit-actions";
 import {
   STORE_SCOPED_TABLES,
   makeTauriAdapter,
@@ -1411,13 +1412,73 @@ export async function logAction(
   correlationId?: string,
 ) {
   if (!db) return;
-  const id = generateId();
   const now = new Date().toISOString();
   const storeId = overrideStoreId ?? getActiveStoreId();
+  const detailsJson = details ? JSON.stringify(details) : null;
+
+  // Dedup path: a repeating failure (e.g. LOGIN_FAILED) folds into the
+  // most recent still-unsynced row for the same (action, table, record_id,
+  // store) instead of inserting a fresh row every time - the server side
+  // of audit_logs is genuinely append-only (matched by properties->
+  // client_id, never looked up by id for an UPDATE - see SyncController),
+  // so this coalesces repeats into what eventually reaches the server as
+  // ONE row, rather than teaching the sync engine an UPDATE path that
+  // table was never designed to support. Once the row has actually synced
+  // (_synced = 1), a further repeat starts a fresh row/group, same as the
+  // very first occurrence ever - by then the count already reached the
+  // server, so there's nothing stale to keep folding into.
+  if (isDedupableAuditAction(action)) {
+    const existing = await query<{ id: string; occurrence_count: number | null }>(
+      `SELECT id, occurrence_count FROM audit_logs
+       WHERE action = ? AND table_name = ? AND record_id = ? AND store_id IS ?
+         AND _synced = 0 AND (_deleted = 0 OR _deleted IS NULL)
+       ORDER BY created_at DESC LIMIT 1`,
+      [action, table, recordId, storeId],
+    );
+
+    if (existing.length > 0) {
+      const row = existing[0];
+      const newCount = (row.occurrence_count || 1) + 1;
+
+      await execute(
+        `UPDATE audit_logs SET occurrence_count = ?, last_occurred_at = ?, details = ?, updated_at = ? WHERE id = ?`,
+        [newCount, now, detailsJson, now, row.id],
+      );
+
+      // Rewrite the row's own still-pending INSERT payload in place, rather
+      // than adding a second queue entry - see the append-only note above.
+      // If it's already been picked up and cleared by a push in flight
+      // (a narrow race with the sync engine), this just no-ops here: the
+      // local row is still correctly updated above, and the next repeat
+      // will see _synced = 1 (once that push confirms) and start fresh.
+      const queued = await query<{ id: number; payload: string }>(
+        `SELECT id, payload FROM _sync_queue WHERE table_name = 'audit_logs' AND record_id = ? AND operation = 'INSERT' ORDER BY id DESC LIMIT 1`,
+        [row.id],
+      );
+      if (queued.length > 0) {
+        try {
+          const payload = JSON.parse(queued[0].payload);
+          payload.occurrence_count = newCount;
+          payload.last_occurred_at = now;
+          payload.details = detailsJson;
+          payload.updated_at = now;
+          await execute(`UPDATE _sync_queue SET payload = ? WHERE id = ?`, [
+            JSON.stringify(payload),
+            queued[0].id,
+          ]);
+        } catch (e) {
+          console.error("Failed to update queued audit-log payload for dedup", e);
+        }
+      }
+      return;
+    }
+  }
+
+  const id = generateId();
 
   await execute(
-    `INSERT INTO audit_logs (id, user_id, store_id, action, table_name, record_id, details, correlation_id, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO audit_logs (id, user_id, store_id, action, table_name, record_id, details, correlation_id, occurrence_count, last_occurred_at, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       currentUser?.id || null,
@@ -1425,8 +1486,10 @@ export async function logAction(
       action,
       table,
       recordId,
-      details ? JSON.stringify(details) : null,
+      detailsJson,
       correlationId || null,
+      1,
+      now,
       now,
     ],
   );
@@ -1439,8 +1502,10 @@ export async function logAction(
     action,
     table_name: table,
     record_id: recordId,
-    details: details ? JSON.stringify(details) : null,
+    details: detailsJson,
     correlation_id: correlationId || null,
+    occurrence_count: 1,
+    last_occurred_at: now,
     created_at: now,
     updated_at: now,
   };

@@ -318,6 +318,12 @@ const SYNC_COLUMN_MIGRATIONS: { table: string; columns: string[] }[] = [
       // loyalty_transactions) together, so the Activity Log can collapse
       // them into one entry instead of showing each as a separate action.
       "correlation_id TEXT",
+      // Coalesces a repeated dedupable action (see audit-actions.ts's
+      // DEDUPABLE_AUDIT_ACTIONS) into one row instead of a fresh row per
+      // occurrence - logAction() bumps this in place on a repeat rather
+      // than inserting again.
+      "occurrence_count INTEGER DEFAULT 1",
+      "last_occurred_at TEXT",
     ],
   },
   {
@@ -537,6 +543,11 @@ const SYNC_COLUMN_MIGRATIONS: { table: string; columns: string[] }[] = [
       "_deleted INTEGER DEFAULT 0",
       "_synced INTEGER DEFAULT 0",
       "_synced_at TEXT",
+      // Coalesces a repeating crash report into one row instead of a fresh
+      // row per occurrence - see error-logger.ts's captureError().
+      "fingerprint TEXT",
+      "occurrence_count INTEGER DEFAULT 1",
+      "last_occurred_at TEXT",
     ],
   },
   {

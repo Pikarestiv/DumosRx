@@ -296,7 +296,15 @@ export async function update(
     await execute(`UPDATE ${table} SET ${setClause} WHERE id = ?`, values);
 
     await addToSyncQueue(table, id, "UPDATE", record);
-    await logAction(options?.action || "UPDATE", table, id, record, options?.storeId, options?.correlationId);
+    // See insert()'s matching exclusion above - "feedback" is background
+    // crash/error telemetry, not a user action. Previously unguarded here
+    // (only insert() excluded it), latent until error-logger.ts's dedup
+    // path started calling update() on an existing feedback row to bump
+    // its occurrence_count - without this, every coalesced crash repeat
+    // would surface as an "Updated feedback" Activity Log entry.
+    if (table !== "feedback") {
+      await logAction(options?.action || "UPDATE", table, id, record, options?.storeId, options?.correlationId);
+    }
   };
 
   if (isInTransaction()) {

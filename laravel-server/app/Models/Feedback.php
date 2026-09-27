@@ -23,6 +23,9 @@ class Feedback extends Model
         'content',
         'contact_email',
         'status',
+        'fingerprint',
+        'occurrence_count',
+        'last_occurred_at',
         '_deleted',
         'created_at',
         'updated_at'

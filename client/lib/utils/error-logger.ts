@@ -27,6 +27,29 @@ export interface CrashContext {
 
 const STORAGE_KEY = "dumosrx_pending_crashes";
 
+/**
+ * Groups repeat occurrences of "the same" crash for both dedup paths below.
+ * Deliberately excludes the timestamp/device/URL noise `content` embeds -
+ * those differ on every call even when it's genuinely the same recurring
+ * bug, which is exactly the case this needs to recognize.
+ */
+function buildCrashFingerprint(message: string, stack: string, area?: string): string {
+  const firstStackLine =
+    stack.split("\n").find((line) => line.trim().length > 0 && !line.trim().startsWith("Error")) ||
+    "";
+  return `${area || ""}|${message}|${firstStackLine.trim()}`.slice(0, 500);
+}
+
+// In-memory only, not persisted: bounds how often the SAME recurring crash
+// fires the direct-to-server reportClientError call below (a separate,
+// immediate-HTTP path from the local `feedback` row, which has its own
+// dedup against the database). A page reload naturally resets this map,
+// which is fine - a crash loop that survives a reload just gets one fresh
+// report per reload instead of one per throw, still nowhere near "15,000
+// uploads" for a loop that fires within a single session.
+const REPORT_THROTTLE_MS = 5 * 60 * 1000;
+const lastReportedAt = new Map<string, number>();
+
 // Server-enforced plan restrictions (see SyncController::validateSync) that
 // the sync engine surfaces by throwing, same as any other failed request -
 // but they're an expected "not on this plan"/"try again later" outcome, not
@@ -118,8 +141,12 @@ export async function logCrash(error: unknown, isFatal = false, context: CrashCo
 
   console.error(`[CRASH LOGGER] Capturing error: ${message}`, info, context);
 
+  const fingerprint = buildCrashFingerprint(message, stack, context.area);
+
   // Forward to Sentry; never let it break local crash logging, which must
-  // keep working offline regardless of network/DSN availability.
+  // keep working offline regardless of network/DSN availability. Sentry
+  // already groups/rate-limits repeats of the same exception on its own
+  // side, so it isn't throttled here the way the two paths below are.
   try {
     Sentry.captureException(error instanceof Error ? error : new Error(message), {
       tags: {
@@ -136,19 +163,28 @@ export async function logCrash(error: unknown, isFatal = false, context: CrashCo
   // sync queue below: when the crash IS a sync failure, waiting on that same
   // broken sync path to eventually deliver this report would mean it never
   // arrives. keepalive fetch survives the tab closing right after a crash.
-  try {
-    const { apiClient } = await import("@/lib/api/client");
-    const { reportClientError } = await import("@/lib/api/logger");
-    reportClientError(
-      "CRASH",
-      context.area ? `client-crash/${context.area}` : "client-crash",
-      isFatal ? 500 : 200,
-      message,
-      { stack, deviceId, isFatal, ...context },
-      apiClient.getBaseURL(),
-      localStorage.getItem("auth_token"),
-    );
-  } catch (_) {}
+  //
+  // Throttled per fingerprint (see lastReportedAt above): a bug that keeps
+  // re-throwing in a loop otherwise fires this immediate HTTP call once per
+  // occurrence, completely independent of how often (or whether) the local
+  // sync queue below ever flushes.
+  const lastReported = lastReportedAt.get(fingerprint) || 0;
+  if (Date.now() - lastReported > REPORT_THROTTLE_MS) {
+    lastReportedAt.set(fingerprint, Date.now());
+    try {
+      const { apiClient } = await import("@/lib/api/client");
+      const { reportClientError } = await import("@/lib/api/logger");
+      reportClientError(
+        "CRASH",
+        context.area ? `client-crash/${context.area}` : "client-crash",
+        isFatal ? 500 : 200,
+        message,
+        { stack, deviceId, isFatal, ...context },
+        apiClient.getBaseURL(),
+        localStorage.getItem("auth_token"),
+      );
+    } catch (_) {}
+  }
 
   // Try to find user_id
   let userId = "anonymous";
@@ -162,21 +198,48 @@ export async function logCrash(error: unknown, isFatal = false, context: CrashCo
     }
   } catch (_) {}
 
-  // Attempt to write to feedback table in SQLite
+  // Attempt to write to feedback table in SQLite. Coalesces a repeat of
+  // the SAME crash (matched by fingerprint) into the most recent
+  // still-unsynced row instead of a fresh row per occurrence - a loop that
+  // re-throws hundreds/thousands of times otherwise queues one "bug"
+  // feedback row (and one sync-queue push) per throw. Once that row has
+  // actually synced (_synced = 1), the next occurrence starts a fresh
+  // row/group, same reasoning as logAction()'s audit_logs dedup (core.ts).
+  const content = `[CRASH] [${info.platform?.toUpperCase()}] ${isFatal ? 'FATAL: ' : ''}${message}\n\nDevice: ${deviceId}${Object.keys(context).length ? `\nContext: ${JSON.stringify(context)}` : ''}\n\nStack:\n${stack}\n\nUA: ${info.userAgent}\nURL: ${info.url}`;
   try {
-    const { insert: dbInsert } = await import("@/lib/db/local-database");
-    
-    await dbInsert("feedback", {
-      id: crypto.randomUUID(),
-      user_id: userId,
-      type: "bug",
-      content: `[CRASH] [${info.platform?.toUpperCase()}] ${isFatal ? 'FATAL: ' : ''}${message}\n\nDevice: ${deviceId}${Object.keys(context).length ? `\nContext: ${JSON.stringify(context)}` : ''}\n\nStack:\n${stack}\n\nUA: ${info.userAgent}\nURL: ${info.url}`,
-      contact_email: SYSTEM_EMAIL,
-      status: "pending",
-      created_at: timestamp,
-      _synced: 0
-    });
-    console.log("[Logger] Crash log written to local database");
+    const { insert: dbInsert, update: dbUpdate, query: dbQuery } = await import("@/lib/db/local-database");
+
+    const existing = await dbQuery<{ id: string; occurrence_count: number | null }>(
+      `SELECT id, occurrence_count FROM feedback
+       WHERE type = 'bug' AND fingerprint = ? AND _synced = 0 AND (_deleted = 0 OR _deleted IS NULL)
+       ORDER BY created_at DESC LIMIT 1`,
+      [fingerprint],
+    );
+
+    if (existing.length > 0) {
+      const newCount = (existing[0].occurrence_count || 1) + 1;
+      await dbUpdate("feedback", existing[0].id, {
+        content: `${content}\n\n(Repeated ${newCount} times, most recently ${timestamp})`,
+        occurrence_count: newCount,
+        last_occurred_at: timestamp,
+      });
+      console.log(`[Logger] Crash log coalesced into existing feedback row (×${newCount})`);
+    } else {
+      await dbInsert("feedback", {
+        id: crypto.randomUUID(),
+        user_id: userId,
+        type: "bug",
+        content,
+        contact_email: SYSTEM_EMAIL,
+        status: "pending",
+        fingerprint,
+        occurrence_count: 1,
+        last_occurred_at: timestamp,
+        created_at: timestamp,
+        _synced: 0
+      });
+      console.log("[Logger] Crash log written to local database");
+    }
   } catch (dbErr) {
     console.warn("[Logger] SQLite not available, queueing crash to localStorage:", dbErr);
     queueToLocalStorage(info);

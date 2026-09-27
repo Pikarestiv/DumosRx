@@ -31,6 +31,7 @@ interface POItemLedgerTableProps {
   products: POProduct[];
   onUpdateItem: (index: number, patch: Partial<POLineItemDraft>) => void;
   onRemoveItem: (index: number) => void;
+  onFocusSearch?: () => void;
 }
 
 const STANDARD_GRID_COLS = "grid-cols-[1fr_110px_130px_130px_36px]";
@@ -48,6 +49,7 @@ export function POItemLedgerTable({
   products,
   onUpdateItem,
   onRemoveItem,
+  onFocusSearch,
 }: POItemLedgerTableProps) {
   const gridCols = poType === "immediate" ? IMMEDIATE_GRID_COLS : STANDARD_GRID_COLS;
 
@@ -208,7 +210,7 @@ export function POItemLedgerTable({
                   <div role="cell" className="px-3 py-2 flex justify-end">
                     <POReviewPricePopover
                       costPrice={effectiveUnitCost}
-                      sellingPrice={item.selling_price ?? ""}
+                      sellingPrice={item.selling_price ?? product?.selling_price ?? ""}
                       onSellingPriceChange={(val) => onUpdateItem(index, { selling_price: val })}
                     />
                   </div>
@@ -231,7 +233,12 @@ export function POItemLedgerTable({
           {items.length === 0 && (
             <div role="row" className={`grid ${gridCols}`}>
               <div role="cell" className="col-span-full">
-                <EmptyState icon={Search} title="Search above to add items to this order" className="py-8" />
+                <EmptyState
+                  icon={Search}
+                  title="Search above to add items to this order"
+                  className="py-8"
+                  action={onFocusSearch ? { label: "Search for an item", icon: Search, onClick: onFocusSearch } : undefined}
+                />
               </div>
             </div>
           )}

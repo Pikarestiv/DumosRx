@@ -60,6 +60,10 @@ interface ProductComboboxProps {
    * (e.g. the Add/Edit Product dialog's name field, which isn't a search
    * bar). */
   showSearchIcon?: boolean;
+  /** Forwarded straight to the underlying input - lets a caller (e.g. the
+   * PO item search bar) focus it programmatically, on mount or from an
+   * empty-state action button. */
+  inputRef?: React.Ref<HTMLInputElement>;
 }
 
 function SourceBadge({
@@ -195,6 +199,7 @@ export function ProductCombobox({
   onCreateNew,
   showCreateNewOption = true,
   showSearchIcon = false,
+  inputRef,
 }: ProductComboboxProps) {
   const [open, setOpen] = React.useState(false);
   const containerRef = React.useRef<HTMLDivElement>(null);
@@ -324,6 +329,7 @@ export function ProductCombobox({
           <Search className="hidden sm:block absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
         )}
         <Input
+          ref={inputRef}
           role="combobox"
           aria-expanded={open}
           aria-controls={open ? listboxId : undefined}

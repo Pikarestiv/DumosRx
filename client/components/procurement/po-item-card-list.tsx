@@ -1,9 +1,10 @@
 "use client";
 
-import { Trash2 } from "lucide-react";
+import { Trash2, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { DatePickerInput } from "@/components/ui/date-picker-input";
 import { EditableNumberCell } from "@/components/ui/editable-number-cell";
 import { POReviewPricePopover } from "./po-review-price-popover";
@@ -18,6 +19,7 @@ interface POItemCardListProps {
   products: POProduct[];
   onUpdateItem: (index: number, patch: Partial<POLineItemDraft>) => void;
   onRemoveItem: (index: number) => void;
+  onFocusSearch?: () => void;
 }
 
 /** Phone-width equivalent of POItemLedgerTable: same fields, one card per
@@ -30,11 +32,17 @@ export function POItemCardList({
   products,
   onUpdateItem,
   onRemoveItem,
+  onFocusSearch,
 }: POItemCardListProps) {
   if (items.length === 0) {
     return (
-      <div className="border border-border rounded-xl px-4 py-8 text-center text-muted-foreground text-[13px]">
-        Search above to add items to this order.
+      <div className="border border-border rounded-xl">
+        <EmptyState
+          icon={Search}
+          title="Search above to add items to this order"
+          className="py-8"
+          action={onFocusSearch ? { label: "Search for an item", icon: Search, onClick: onFocusSearch } : undefined}
+        />
       </div>
     );
   }
@@ -153,7 +161,7 @@ export function POItemCardList({
             {poType === "immediate" && (
               <POReviewPricePopover
                 costPrice={effectiveUnitCost}
-                sellingPrice={item.selling_price ?? ""}
+                sellingPrice={item.selling_price ?? product?.selling_price ?? ""}
                 onSellingPriceChange={(val) => onUpdateItem(index, { selling_price: val })}
               />
             )}

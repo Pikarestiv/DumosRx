@@ -79,3 +79,17 @@ export function getValidatedAmountPaid(rawAmountPaid: string, orderTotal: number
   if (!Number.isFinite(parsed) || parsed <= 0) return 0;
   return Math.min(parsed, orderTotal);
 }
+
+/**
+ * How many lines carry a real Sell Price override (blank/undefined means
+ * "not overridden" - see coerceOptionalNumber in lib/db/procurement.ts).
+ * Only meaningful for a submit that writes products.selling_price
+ * synchronously in the same action - createAndReceivePurchaseOrder does;
+ * createPurchaseOrder (a Standard order, or an Immediate order saved as a
+ * draft) never touches the live product row at all, so a caller must not
+ * report a price change from that path even though the same field was
+ * filled in - nothing has actually changed yet.
+ */
+export function countSellingPriceOverrides(items: POLineItemDraft[]): number {
+  return items.filter((item) => item.selling_price !== undefined && item.selling_price !== "").length;
+}

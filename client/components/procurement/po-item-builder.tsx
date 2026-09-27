@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ProductCombobox, SelectedProduct } from "@/components/ui/product-combobox";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { POItemLedgerTable, type POLineItemDraft } from "./po-item-ledger-table";
@@ -36,6 +36,15 @@ export function POItemBuilder({
 }: POItemBuilderProps) {
   const [searchValue, setSearchValue] = useState("");
   const isTabletUp = useMediaQuery("(min-width: 640px)");
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Staff's first instinct on this screen is to start typing an item name
+  // right away, not to click into the search bar first.
+  useEffect(() => {
+    searchInputRef.current?.focus();
+  }, []);
+
+  const focusSearch = () => searchInputRef.current?.focus();
 
   const addRowForProduct = (product: POProduct) => {
     const newItem: POLineItemDraft = {
@@ -96,6 +105,7 @@ export function POItemBuilder({
         placeholder="Search item by name, SKU or barcode"
         className="bg-muted border-border h-10 px-3 text-[13px] rounded-[10px]"
         onClear={() => setSearchValue("")}
+        inputRef={searchInputRef}
       />
 
       {isTabletUp ? (
@@ -105,6 +115,7 @@ export function POItemBuilder({
           products={products}
           onUpdateItem={handleUpdateItem}
           onRemoveItem={handleRemoveItem}
+          onFocusSearch={focusSearch}
         />
       ) : (
         <POItemCardList
@@ -113,6 +124,7 @@ export function POItemBuilder({
           products={products}
           onUpdateItem={handleUpdateItem}
           onRemoveItem={handleRemoveItem}
+          onFocusSearch={focusSearch}
         />
       )}
     </div>

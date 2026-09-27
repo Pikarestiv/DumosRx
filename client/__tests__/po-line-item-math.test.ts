@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getImmediateUnitCost, getLineTotal, getValidatedAmountPaid } from "@/components/procurement/po-line-item-math";
+import { getImmediateUnitCost, getLineTotal, getValidatedAmountPaid, countSellingPriceOverrides } from "@/components/procurement/po-line-item-math";
 import type { POLineItemDraft } from "@/components/procurement/po-item-ledger-table";
 
 function item(overrides: Partial<POLineItemDraft> = {}): POLineItemDraft {
@@ -83,6 +83,17 @@ describe("po-line-item-math", () => {
 
     it("accepts an amount exactly equal to the order total", () => {
       expect(getValidatedAmountPaid("10000", 10000)).toBe(10000);
+    });
+  });
+
+  describe("countSellingPriceOverrides", () => {
+    it("counts only lines with a real, non-blank selling_price override", () => {
+      const items = [item({ selling_price: 12.5 }), item({ selling_price: "" }), item({ selling_price: undefined }), item({ selling_price: 0 })];
+      expect(countSellingPriceOverrides(items)).toBe(2);
+    });
+
+    it("returns 0 when no line has an override", () => {
+      expect(countSellingPriceOverrides([item(), item()])).toBe(0);
     });
   });
 });

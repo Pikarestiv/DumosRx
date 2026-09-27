@@ -8,7 +8,7 @@ import { SELF_PURCHASE_VENDOR_ID } from "@/components/procurement/po-details-fie
 import { PODetailsDialog } from "@/components/procurement/po-details-dialog";
 import { POMobileCreateView } from "@/components/procurement/po-mobile-create-view";
 import { PODesktopCreateView } from "@/components/procurement/po-desktop-create-view";
-import { getLineTotal, getValidatedAmountPaid } from "@/components/procurement/po-line-item-math";
+import { getLineTotal, getValidatedAmountPaid, countSellingPriceOverrides } from "@/components/procurement/po-line-item-math";
 import { RequireRole } from "@/components/auth/require-role";
 import { toast } from "sonner";
 
@@ -159,6 +159,18 @@ function CreateOrderContent() {
             toast.success("Purchase received", {
               description: "Stock has been added to inventory.",
             });
+            // Only this path (create-and-receive) writes products.selling_price
+            // synchronously - a Standard order, or an Immediate order saved as
+            // a draft, doesn't touch the live price until it's actually
+            // received later, so neither of those toasts this.
+            const priceOverrideCount = countSellingPriceOverrides(items);
+            if (priceOverrideCount > 0) {
+              toast.success(
+                priceOverrideCount === 1
+                  ? "Selling price updated for 1 item"
+                  : `Selling price updated for ${priceOverrideCount} items`,
+              );
+            }
             router.push(`/procurement?selected=${poId}`);
           },
           onError: (error) => {

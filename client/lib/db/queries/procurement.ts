@@ -14,6 +14,7 @@ export interface POProduct {
   units_per_bulk: number;
   cost_price: number;
   stock_quantity: number;
+  selling_price: number;
 }
 
 export interface FullVendor {
@@ -65,7 +66,7 @@ export async function promoteDraftPurchaseOrdersToPending() {
 export async function getActiveProductsForPO() {
   const storeId = getActiveStoreId();
   return query<POProduct>(
-    `SELECT p.id, p.name, p.bulk_unit, p.base_unit, p.units_per_bulk,
+    `SELECT p.id, p.name, p.bulk_unit, p.base_unit, p.units_per_bulk, p.selling_price,
        (SELECT SUM(cost_price * quantity) * 1.0 / NULLIF(SUM(quantity), 0) FROM stock_batches WHERE product_id = p.id AND _deleted = 0 AND is_active = 1 AND quantity > 0) as cost_price,
        COALESCE((SELECT SUM(quantity) FROM stock_batches WHERE product_id = p.id AND _deleted = 0 AND is_active = 1), 0) as stock_quantity
      FROM products p WHERE p._deleted = 0${storeId ? " AND p.store_id = ?" : ""}`,

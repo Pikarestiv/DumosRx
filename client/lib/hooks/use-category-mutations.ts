@@ -3,7 +3,6 @@ import {
   createCategory,
   renameCategory,
   deleteCategory,
-  seedDefaultCategories,
 } from "@/lib/db/queries/categories";
 import { queryKeys } from "@/lib/query-keys";
 
@@ -40,14 +39,6 @@ export function useDeleteCategoryMutation() {
   const invalidate = useInvalidateCategories();
   return useMutation({
     mutationFn: (id: string) => deleteCategory(id),
-    onSuccess: invalidate,
-  });
-}
-
-export function useSeedDefaultCategoriesMutation() {
-  const invalidate = useInvalidateCategories();
-  return useMutation({
-    mutationFn: () => seedDefaultCategories(),
     onSuccess: invalidate,
   });
 }

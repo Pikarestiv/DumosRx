@@ -55,35 +55,3 @@ export async function renameCategory(id: string, name: string) {
 export async function deleteCategory(id: string) {
   await softDelete("categories", id);
 }
-
-/** A pharmacy/general-store starter set matching the broad groupings
- * Cynthia's own Moniebook data uses (refs/MB-inventory-*.csv); inserted
- * only when she explicitly asks for it via the management screen, never
- * automatically, so nothing appears or changes without her choosing it. */
-export const DEFAULT_CATEGORIES = [
-  "Drugs",
-  "Beverages",
-  "Toiletries",
-  "Cosmetics",
-  "Perfumes",
-  "Wines & Spirits",
-  "Provisions",
-  "Biscuits",
-  "Tea",
-  "Groceries",
-  "Baby Care",
-];
-
-export async function seedDefaultCategories() {
-  const existing = await query<{ name: string }>(
-    "SELECT name FROM categories WHERE _deleted = 0",
-  );
-  const existingNames = new Set(existing.map((c) => c.name.toLowerCase()));
-  const toCreate = DEFAULT_CATEGORIES.filter(
-    (name) => !existingNames.has(name.toLowerCase()),
-  );
-  for (const name of toCreate) {
-    await createCategory(name);
-  }
-  return toCreate.length;
-}

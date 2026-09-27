@@ -2,35 +2,34 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Plus, Trash2, Sparkles, Loader2, Tag } from "lucide-react";
+import { Plus, Pencil, Trash2, Tag } from "lucide-react";
 import { toast } from "sonner";
 import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { SearchInput } from "@/components/ui/search-input";
 import { EmptyState } from "@/components/ui/empty-state";
 import { getCategoryList, type CategoryRow } from "@/lib/db/queries/categories";
-import {
-  useCreateCategoryMutation,
-  useRenameCategoryMutation,
-  useDeleteCategoryMutation,
-  useSeedDefaultCategoriesMutation,
-} from "@/lib/hooks/use-category-mutations";
+import { useDeleteCategoryMutation } from "@/lib/hooks/use-category-mutations";
 import { queryKeys } from "@/lib/query-keys";
-import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { pluralize } from "@/lib/utils";
 import { getCategoryIcon } from "@/lib/constants/category-icons";
+import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
+import { CategoryFormDialog } from "./category-form-dialog";
 
 export function CategoriesCard() {
-  const [newName, setNewName] = useState("");
   const capsClass = useUppercaseDisplayClass();
+  const [search, setSearch] = useState("");
+  const [formState, setFormState] = useState<{
+    open: boolean;
+    editingCategory: CategoryRow | null;
+  }>({ open: false, editingCategory: null });
   const [pendingDelete, setPendingDelete] = useState<{
     id: string;
     name: string;
@@ -42,22 +41,11 @@ export function CategoriesCard() {
     queryFn: () => getCategoryList(),
   });
 
-  const createMutation = useCreateCategoryMutation();
-  const renameMutation = useRenameCategoryMutation();
   const deleteMutation = useDeleteCategoryMutation();
-  const seedDefaultsMutation = useSeedDefaultCategoriesMutation();
 
-  const handleAdd = () => {
-    const name = newName.trim();
-    if (!name || createMutation.isPending) return;
-    createMutation.mutate(name, {
-      onSuccess: () => setNewName(""),
-      onError: (error) => {
-        console.error("Failed to add category:", error);
-        toast.error("Failed to add category");
-      },
-    });
-  };
+  const filteredCategories = categories.filter((cat) =>
+    cat.name.toLowerCase().includes(search.trim().toLowerCase()),
+  );
 
   const handleDelete = (id: string, name: string, productCount: number) => {
     if (productCount > 0) {
@@ -82,36 +70,6 @@ export function CategoriesCard() {
     });
   };
 
-  const handleRename = (id: string, name: string) => {
-    if (!name.trim()) return;
-    renameMutation.mutate(
-      { id, name },
-      {
-        onError: (error) => {
-          console.error("Failed to rename category:", error);
-          toast.error("Failed to rename category");
-        },
-      },
-    );
-  };
-
-  const handleSeedDefaults = () => {
-    if (seedDefaultsMutation.isPending) return;
-    seedDefaultsMutation.mutate(undefined, {
-      onSuccess: (added) => {
-        toast.success(
-          added > 0
-            ? `Added ${added} starter categories`
-            : "Starter categories already exist",
-        );
-      },
-      onError: (error) => {
-        console.error("Failed to seed default categories:", error);
-        toast.error("Failed to add starter categories");
-      },
-    });
-  };
-
   return (
     <Card>
       <CardHeader>
@@ -123,23 +81,18 @@ export function CategoriesCard() {
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex gap-2">
-          <Input
-            placeholder="New category, e.g. Drugs"
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+          <SearchInput
+            value={search}
+            onChange={setSearch}
+            placeholder="Search categories..."
+            aria-label="Search categories"
           />
           <Button
             type="button"
             size="icon"
-            onClick={handleAdd}
-            disabled={!newName.trim() || createMutation.isPending}
+            onClick={() => setFormState({ open: true, editingCategory: null })}
           >
-            {createMutation.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Plus className="h-4 w-4" />
-            )}
+            <Plus className="h-4 w-4" />
           </Button>
         </div>
 
@@ -151,13 +104,19 @@ export function CategoriesCard() {
           <EmptyState
             icon={Tag}
             title="No categories yet"
-            description="Add one above, or use the starter set below."
+            description="Add your first one above."
           />
         )}
 
-        {!isLoading && categories.length > 0 && (
+        {!isLoading && categories.length > 0 && filteredCategories.length === 0 && (
+          <p className="text-sm text-muted-foreground text-center py-6">
+            No categories match &quot;{search}&quot;.
+          </p>
+        )}
+
+        {filteredCategories.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {categories.map((cat: CategoryRow) => {
+            {filteredCategories.map((cat: CategoryRow) => {
               const CategoryIcon = getCategoryIcon(cat.name);
               return (
                 <div
@@ -168,51 +127,49 @@ export function CategoriesCard() {
                     <CategoryIcon className="h-5 w-5 text-muted-foreground" />
                   </div>
                   <div className="flex-1 min-w-0 space-y-1">
-                    <Input
-                      defaultValue={cat.name}
+                    <p
+                      className={`text-[13px] font-medium truncate ${capsClass}`}
                       title={cat.name}
-                      className={`h-8 text-[13px] truncate bg-transparent border-transparent hover:border-border focus:border-primary px-1.5 -mx-1.5 ${capsClass}`}
-                      onBlur={(e) =>
-                        e.target.value !== cat.name &&
-                        handleRename(cat.id, e.target.value)
-                      }
-                    />
-                    <p className="text-xs text-muted-foreground px-1.5">
+                    >
+                      {cat.name}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
                       {cat.productCount} {pluralize(cat.productCount, "product")}
                     </p>
                   </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
-                    onClick={() => handleDelete(cat.id, cat.name, cat.productCount)}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
+                  <div className="flex shrink-0 items-center">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                      onClick={() => setFormState({ open: true, editingCategory: cat })}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                      onClick={() => handleDelete(cat.id, cat.name, cat.productCount)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                 </div>
               );
             })}
           </div>
         )}
       </CardContent>
-      <CardFooter>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={handleSeedDefaults}
-          disabled={seedDefaultsMutation.isPending}
-          className="gap-1.5"
-        >
-          {seedDefaultsMutation.isPending ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <Sparkles className="h-3.5 w-3.5" />
-          )}
-          Add starter categories
-        </Button>
-      </CardFooter>
+
+      <CategoryFormDialog
+        open={formState.open}
+        onOpenChange={(open) => setFormState((prev) => ({ ...prev, open }))}
+        editingCategory={formState.editingCategory}
+        existingNames={categories.map((c) => c.name)}
+      />
 
       <ConfirmDialog
         open={!!pendingDelete}

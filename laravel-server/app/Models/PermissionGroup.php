@@ -16,11 +16,13 @@ class PermissionGroup extends Model
         'is_default',
         'permissions',
         '_version',
+        '_synced_at',
     ];
 
     protected $casts = [
         'is_default' => 'boolean',
         'permissions' => 'array',
+        '_synced_at' => 'datetime',
     ];
 
     public function store()

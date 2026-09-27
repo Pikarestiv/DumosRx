@@ -39,10 +39,14 @@ export function POSMobileSearch({
       />
       <div className="flex gap-2">
         <div className="relative flex-1">
-          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+          <label
+            htmlFor="pos-mobile-search-input"
+            className="absolute inset-y-0 left-0 pl-3.5 flex items-center cursor-text"
+          >
             <Search className="h-4 w-4 text-muted-foreground" />
-          </div>
+          </label>
           <Input
+            id="pos-mobile-search-input"
             type="text"
             placeholder="Search products or SKU"
             value={searchTerm}

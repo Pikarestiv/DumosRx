@@ -1,3 +1,4 @@
+import { useId } from "react";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
@@ -24,10 +25,17 @@ export function SearchInput({
   inputClassName = "bg-muted border-transparent",
   "aria-label": ariaLabel,
 }: SearchInputProps) {
+  const inputId = useId();
   return (
     <div className="relative flex-1">
-      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+      <label
+        htmlFor={inputId}
+        className="absolute left-3 top-1/2 -translate-y-1/2 cursor-text"
+      >
+        <Search className="h-4 w-4 text-muted-foreground" />
+      </label>
       <Input
+        id={inputId}
         aria-label={ariaLabel || placeholder}
         placeholder={placeholder}
         value={value}

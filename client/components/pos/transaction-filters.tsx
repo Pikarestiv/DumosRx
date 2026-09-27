@@ -39,8 +39,14 @@ export function TransactionFilters({
   return (
     <div className="flex flex-col gap-4">
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <label
+          htmlFor="transaction-search-input"
+          className="absolute left-3 top-1/2 -translate-y-1/2 cursor-text"
+        >
+          <Search className="h-4 w-4 text-muted-foreground" />
+        </label>
         <Input
+          id="transaction-search-input"
           aria-label="Search transactions by receipt, customer, or item"
           placeholder="Search receipt, customer, or item"
           className="pl-9 h-12 rounded-xl bg-card border-border/50"

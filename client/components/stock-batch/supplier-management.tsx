@@ -178,8 +178,11 @@ export function SupplierManagement() {
             </div>
             <div className="flex items-center mb-3">
               <div className="flex-1 flex items-center gap-2 bg-card md:bg-muted border border-border rounded-[10px] px-3.5 py-2.5">
-                <Search className="w-4 h-4 text-muted-foreground shrink-0" />
+                <label htmlFor="supplier-search-input" className="cursor-text shrink-0">
+                  <Search className="w-4 h-4 text-muted-foreground" />
+                </label>
                 <Input
+                  id="supplier-search-input"
                   placeholder="Search suppliers, contacts, locations"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}

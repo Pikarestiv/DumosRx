@@ -11,7 +11,13 @@ vi.mock("@/lib/hooks/use-permission-groups", () => ({
     groups: [
       { id: "g1", name: "Manager", based_on_role: "manager", is_default: true, permissions: ["process_sales"] },
       { id: "g2", name: "Auditor", based_on_role: "auditor", is_default: true, permissions: ["view_reports"] },
-      { id: "g3", name: "Supervisor", based_on_role: "manager", is_default: false, permissions: ["process_sales"] },
+      {
+        id: "g3",
+        name: "Supervisor",
+        based_on_role: "manager",
+        is_default: false,
+        permissions: ["process_sales", "manage_roles_permissions"],
+      },
     ],
     toggle: vi.fn(),
     createGroup: vi.fn(),
@@ -21,7 +27,12 @@ vi.mock("@/lib/hooks/use-permission-groups", () => ({
     deleteGroup,
   }),
 }));
-vi.mock("@/lib/hooks/use-permissions", () => ({ useHasPermission: () => true }));
+// "g3" (Supervisor) is the group the acting user themselves belongs to in
+// these tests - the self-lockout guard below hangs off exactly that.
+vi.mock("@/lib/hooks/use-permissions", () => ({
+  useHasPermission: () => true,
+  useOwnPermissionGroupId: () => "g3",
+}));
 vi.mock("@/lib/hooks/use-feature-gate", () => ({
   useFeatureGate: () => ({
     canCreateCustomPermissionGroups: true,
@@ -139,6 +150,33 @@ describe("PermissionMatrix", () => {
       submitButton.click();
     });
     expect(renameGroup).toHaveBeenCalledWith("g3", "Shift Lead");
+
+    act(() => root.unmount());
+    container.remove();
+  });
+
+  it("stops the acting user from unticking manage_roles_permissions on their own group", async () => {
+    const { PermissionMatrix } = await import("@/components/settings/roles-permissions/permission-matrix");
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root: Root = createRoot(container);
+    await act(async () => {
+      root.render(React.createElement(PermissionMatrix));
+    });
+
+    // Matched by iterating rather than via an attribute selector: the
+    // aria-label contains "&", which jsdom's selector engine mishandles.
+    const cellFor = (groupName: string) =>
+      Array.from(container.querySelectorAll("input")).find(
+        (i) => i.getAttribute("aria-label") === `Manage Roles & Permission Groups - ${groupName}`,
+      ) as HTMLInputElement;
+
+    const ownCell = cellFor("Supervisor");
+    expect(ownCell).toBeTruthy();
+    expect(ownCell.checked).toBe(true);
+    expect(ownCell.disabled).toBe(true);
+
+    expect(cellFor("Manager").disabled).toBe(false);
 
     act(() => root.unmount());
     container.remove();

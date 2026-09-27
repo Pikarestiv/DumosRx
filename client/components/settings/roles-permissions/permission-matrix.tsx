@@ -1,14 +1,23 @@
 "use client";
 
-import { useMemo } from "react";
+import { Fragment, useMemo } from "react";
 import { PERMISSION_CATALOG, ENFORCED_PERMISSION_KEYS } from "@/lib/constants/permissions";
 import { usePermissionGroups } from "@/lib/hooks/use-permission-groups";
-import { useHasPermission } from "@/lib/hooks/use-permissions";
+import { useHasPermission, useOwnPermissionGroupId } from "@/lib/hooks/use-permissions";
 import { GroupToolbar } from "./group-toolbar";
 import { GroupColumnActions } from "./group-column-actions";
 
+/** A user who isn't store_owner/super_admin has no unconditional bypass in
+ * hasPermission(), so unticking manage_roles_permissions on their own
+ * group would lock them out of this very panel with no way back in from
+ * their own device. The cell stays visible (and ticked) but is not
+ * editable, mirroring the self-edit protection the sync layer already
+ * applies to a user's own role/permission_group_id. */
+const SELF_LOCKOUT_KEY = "manage_roles_permissions";
+
 export function PermissionMatrix() {
   const canManage = useHasPermission("manage_roles_permissions");
+  const ownGroupId = useOwnPermissionGroupId();
   const { groups, toggle, createGroup, copyGroup, revertToDefault, renameGroup, deleteGroup } = usePermissionGroups();
 
   const categories = useMemo(() => {
@@ -34,13 +43,13 @@ export function PermissionMatrix() {
         onRenameGroup={renameGroup}
         onDeleteGroup={deleteGroup}
       />
-      <div className="overflow-x-auto">
+      <div className="max-h-[70vh] overflow-auto">
         <table className="w-full text-sm">
           <thead>
             <tr>
-              <th className="text-left p-2">Permission</th>
+              <th className="text-left p-2 sticky left-0 top-0 z-20 bg-muted">Permission</th>
               {groups.map((g) => (
-                <th key={g.id} className="p-2 text-center whitespace-nowrap">
+                <th key={g.id} className="p-2 text-center whitespace-nowrap sticky top-0 z-10 bg-muted">
                   <div className="flex items-center justify-center gap-1">
                     <span>{g.name}</span>
                     <GroupColumnActions
@@ -56,15 +65,15 @@ export function PermissionMatrix() {
           </thead>
           <tbody>
             {categories.map(([category, entries]) => (
-              <>
-                <tr key={category}>
-                  <td colSpan={groups.length + 1} className="pt-4 pb-1 font-semibold text-muted-foreground">
+              <Fragment key={category}>
+                <tr>
+                  <td colSpan={groups.length + 1} className="pt-4 pb-1 font-semibold text-muted-foreground bg-background">
                     {category}
                   </td>
                 </tr>
                 {entries.map((entry) => (
                   <tr key={entry.key} className="border-t">
-                    <td className="p-2">
+                    <td className="p-2 sticky left-0 z-10 bg-background">
                       {entry.label}
                       {!ENFORCED_PERMISSION_KEYS.has(entry.key) && (
                         <span
@@ -76,19 +85,29 @@ export function PermissionMatrix() {
                         </span>
                       )}
                     </td>
-                    {groups.map((g) => (
-                      <td key={g.id} className="p-2 text-center">
-                        <input
-                          type="checkbox"
-                          checked={g.permissions.includes(entry.key)}
-                          onChange={(e) => toggle(g.id, entry.key, e.target.checked)}
-                          aria-label={`${entry.label} - ${g.name}`}
-                        />
-                      </td>
-                    ))}
+                    {groups.map((g) => {
+                      const granted = g.permissions.includes(entry.key);
+                      const locked = entry.key === SELF_LOCKOUT_KEY && g.id === ownGroupId && granted;
+                      return (
+                        <td key={g.id} className="p-2 text-center">
+                          <input
+                            type="checkbox"
+                            checked={granted}
+                            disabled={locked}
+                            title={
+                              locked
+                                ? "You can't remove your own access to Roles & Permissions - ask the store owner or another admin to change this."
+                                : undefined
+                            }
+                            onChange={(e) => toggle(g.id, entry.key, e.target.checked)}
+                            aria-label={`${entry.label} - ${g.name}`}
+                          />
+                        </td>
+                      );
+                    })}
                   </tr>
                 ))}
-              </>
+              </Fragment>
             ))}
           </tbody>
         </table>

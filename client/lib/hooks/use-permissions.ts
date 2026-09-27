@@ -46,6 +46,37 @@ export function hasPermission(
   return mode === "all" ? keys.every((k) => granted.includes(k)) : keys.some((k) => granted.includes(k));
 }
 
+/** The acting session's own permission group id, or null when they have
+ * none (store_owner/super_admin are never group-assigned, and so is a user
+ * whose store's groups haven't synced down yet). Lets the Roles &
+ * Permissions matrix single out the column the acting user themselves
+ * belongs to - see its self-lockout guard. */
+export function useOwnPermissionGroupId(): string | null {
+  const { user } = useAuth();
+  const [groupId, setGroupId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!user) {
+      setGroupId(null);
+      return;
+    }
+    const load = () => {
+      getUserPermissionGroup(user.id).then((g) => {
+        if (!cancelled) setGroupId(g?.id ?? null);
+      }).catch(() => {});
+    };
+    load();
+    window.addEventListener("dumos_sync_completed", load);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("dumos_sync_completed", load);
+    };
+  }, [user?.id]);
+
+  return groupId;
+}
+
 /** React hook: resolves the current session's permission group (loaded
  * once per user id) and checks it via hasPermission(). Returns false while
  * loading/logged out, matching how the old precomputed booleans defaulted

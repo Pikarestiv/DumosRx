@@ -52,7 +52,12 @@ describe("useAuth's permission booleans after the group-based migration", () => 
   let core: typeof import("@/lib/db/core");
   let container: HTMLDivElement;
   let root: Root;
-  let capturedFlags: { isAdmin?: boolean; canProcessSales?: boolean } = {};
+  let capturedFlags: {
+    isAdmin?: boolean;
+    canProcessSales?: boolean;
+    canManageStockBatch?: boolean;
+    canViewAllActivity?: boolean;
+  } = {};
 
   beforeAll(async () => {
     (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
@@ -103,8 +108,8 @@ describe("useAuth's permission booleans after the group-based migration", () => 
     sessionStorage.setItem("dumos_session_authenticated", "1");
 
     function Probe() {
-      const { isAdmin, canProcessSales } = useAuth();
-      capturedFlags = { isAdmin, canProcessSales };
+      const { isAdmin, canProcessSales, canManageStockBatch, canViewAllActivity } = useAuth();
+      capturedFlags = { isAdmin, canProcessSales, canManageStockBatch, canViewAllActivity };
       return null;
     }
 
@@ -133,6 +138,27 @@ describe("useAuth's permission booleans after the group-based migration", () => 
   // role string. This case uses a role checkCanProcessSales would have
   // denied (auditor), but grants it via the group instead - only
   // group-driven logic can pass this.
+  /**
+   * Pins a DELIBERATE, spec-sanctioned behavior change: the old hardcoded
+   * helpers (checkIsAdmin/checkCanManageStockBatch/checkCanViewAllActivity)
+   * never listed super_admin in their role arrays, so they returned false
+   * for that role. hasPermission() now short-circuits to "everything
+   * granted" for store_owner/super_admin ("can never lock themselves out",
+   * per the design spec), so a super_admin - i.e. an impersonation session -
+   * now sees admin-tier UI in these three places. Intentional, not a
+   * regression: if this test starts failing, the bypass rule was changed,
+   * not "fixed".
+   */
+  it("grants a super_admin every admin-tier boolean via the bypass rule, unlike the old helpers", async () => {
+    // An EMPTY group, not no group at all: with no group the role-string
+    // fallback would grant these anyway, so only an assigned group that
+    // grants nothing can prove the store_owner/super_admin bypass itself.
+    await renderWithUser("super_admin", []);
+    expect(capturedFlags.isAdmin).toBe(true);
+    expect(capturedFlags.canManageStockBatch).toBe(true);
+    expect(capturedFlags.canViewAllActivity).toBe(true);
+  });
+
   it("actually reads the assigned group's grant, not just the role string", async () => {
     await renderWithUser("auditor", ["process_sales"]);
     expect(capturedFlags.canProcessSales).toBe(true);

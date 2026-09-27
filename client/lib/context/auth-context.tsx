@@ -775,6 +775,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [user?.id]);
 
+  // Deliberate, spec-sanctioned change from the deleted checkIsAdmin/
+  // checkCanManageStockBatch/checkCanViewAllActivity helpers, which never
+  // listed super_admin and so returned false for it: hasPermission()
+  // short-circuits to "everything granted" for store_owner/super_admin, so
+  // a super_admin (i.e. an impersonation session) now gets isAdmin,
+  // canManageStockBatch and canViewAllActivity too. Not a regression -
+  // pinned by auth-context-permission-booleans.test.ts.
   const isAdmin = hasPermission(user, permissionGroup, "manage_staff");
   const canManageStockBatch = hasPermission(user, permissionGroup, "manage_products");
   const canProcessSales = hasPermission(user, permissionGroup, "process_sales");

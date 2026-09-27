@@ -8,7 +8,8 @@ import {
   getAllExpenses,
   Expense
 } from '../db/queries/finance';
-import { useAuth, checkCanViewAllActivity } from '../context/auth-context';
+import { useAuth } from '../context/auth-context';
+import { useHasPermission } from './use-permissions';
 
 export interface PnLReportData {
   period: string;
@@ -65,7 +66,7 @@ export function useExpenseList() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const { user } = useAuth();
-  const viewerId = checkCanViewAllActivity(user?.role) ? undefined : user?.id;
+  const viewerId = useHasPermission("view_activity_log") ? undefined : user?.id;
 
   const fetchExpenses = async () => {
     setIsLoading(true);

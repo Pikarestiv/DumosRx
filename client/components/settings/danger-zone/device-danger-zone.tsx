@@ -10,7 +10,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { useAuth, checkCanFactoryReset } from "@/lib/context/auth-context";
+import { useAuth } from "@/lib/context/auth-context";
+import { useHasPermission } from "@/lib/hooks/use-permissions";
 import { AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 
@@ -26,8 +27,8 @@ export function DeviceDangerZone({
   isCloudLinked,
   handleResetDatabase,
 }: DeviceDangerZoneProps) {
-  const { verifyPin, user } = useAuth();
-  const canFactoryReset = checkCanFactoryReset(user?.role);
+  const { verifyPin } = useAuth();
+  const canFactoryReset = useHasPermission("factory_reset");
   const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   return (

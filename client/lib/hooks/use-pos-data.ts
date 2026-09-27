@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { useAuth, checkCanViewAllActivity } from "@/lib/context/auth-context";
+import { useAuth } from "@/lib/context/auth-context";
+import { useHasPermission } from "@/lib/hooks/use-permissions";
 import { getProductsWithStock } from "@/lib/db/queries/products";
 import { getRecentSales, getRecentlySoldProductIds, getCommonlySoldProductIds } from "@/lib/db/queries/sales";
 import { getAllCustomers } from "@/lib/db/queries/customers";
@@ -11,7 +12,7 @@ export type { PaymentAccount } from "@/lib/types/payment-account";
 
 export function usePOSData() {
   const { user } = useAuth();
-  const canViewAllActivity = checkCanViewAllActivity(user?.role);
+  const canViewAllActivity = useHasPermission("view_activity_log");
 
   const {
     data: products,

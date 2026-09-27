@@ -4,7 +4,8 @@ import { getDashboardOverviewData } from "@/lib/db/queries/reports";
 import { getOversoldAlerts } from "@/lib/db/queries/inventory";
 import { useStockBatchStats } from "@/lib/hooks/use-stock-batch-stats";
 import { useStore } from "@/lib/context/store-context";
-import { useAuth, checkCanViewAllActivity } from "@/lib/context/auth-context";
+import { useAuth } from "@/lib/context/auth-context";
+import { useHasPermission } from "@/lib/hooks/use-permissions";
 import { formatCurrency } from "@/lib/utils";
 import { queryKeys } from "@/lib/query-keys";
 import type { DashboardActivity, ActivityFeedItem } from "@/lib/types/dashboard-activity";
@@ -25,7 +26,7 @@ export function useDashboardOverview() {
   // Single source of truth for all stock-batch-related stat cards
   const stock_batchStats = useStockBatchStats();
 
-  const viewerId = checkCanViewAllActivity(user?.role) ? undefined : user?.id;
+  const viewerId = useHasPermission("view_activity_log") ? undefined : user?.id;
   const { data: dashboardData } = useQuery({
     ...queryKeys.dashboard.overview(viewerId),
     queryFn: () => getDashboardOverviewData(viewerId),

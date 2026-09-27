@@ -7,7 +7,8 @@ import React, { useState, useMemo } from "react";
 import { isToday, isYesterday, parseISO } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
 
-import { useAuth, checkIsAdmin, checkCanViewAllActivity } from "@/lib/context/auth-context";
+import { useAuth } from "@/lib/context/auth-context";
+import { useHasPermission } from "@/lib/hooks/use-permissions";
 import { TransactionDetailsDialog } from "./transaction-details-dialog";
 import { calculateNetSaleAmount, calculateAvgBasket } from "@/lib/utils/pos-calculations";
 import { genericFuzzySearch } from "@/lib/utils/search";
@@ -45,12 +46,8 @@ export function POSTransactionHistory({
   const [saleTypeFilter, setSaleTypeFilter] = useState<string>("All");
 
   const { user } = useAuth();
-  // Was only checking the literal strings "store_owner"/"admin"/"manager".
-  // Silently excluded super_admin (a real bug: the platform's own top role
-  // couldn't process a return) and every other seeded role, since exact-
-  // string checks don't recognize role variants the way checkIsAdmin does.
-  const canReturn = checkIsAdmin(user?.role);
-  const canViewAllActivity = checkCanViewAllActivity(user?.role);
+  const canReturn = useHasPermission("void_refund_sales");
+  const canViewAllActivity = useHasPermission("view_activity_log");
 
   // Surfaced only while filtering to reseller sales, replacing the summary
   // card the old standalone Reseller Commission tab used to show.

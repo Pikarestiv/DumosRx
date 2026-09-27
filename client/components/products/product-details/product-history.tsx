@@ -11,7 +11,8 @@ import {
   RefreshCcw,
 } from "lucide-react";
 import { getProductHistory } from "@/lib/db/queries/products";
-import { useAuth, checkCanViewAllActivity } from "@/lib/context/auth-context";
+import { useAuth } from "@/lib/context/auth-context";
+import { useHasPermission } from "@/lib/hooks/use-permissions";
 
 interface HistoryItem {
   id: string;
@@ -62,7 +63,7 @@ async function loadProductHistory(productId: string, viewerId?: string): Promise
 
 export function ProductHistory({ productId }: { productId: string }) {
   const { user } = useAuth();
-  const canViewAllActivity = checkCanViewAllActivity(user?.role);
+  const canViewAllActivity = useHasPermission("view_activity_log");
   const viewerId = canViewAllActivity ? undefined : user?.id;
 
   const { data: history = [], isLoading: loading } = useQuery({

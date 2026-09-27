@@ -12,7 +12,8 @@ import {
   getDistinctActivityActions,
   getDistinctActivityUsers,
 } from "@/lib/db/queries/activity-log";
-import { useAuth, checkCanViewAllActivity } from "@/lib/context/auth-context";
+import { useAuth } from "@/lib/context/auth-context";
+import { useHasPermission } from "@/lib/hooks/use-permissions";
 import { queryKeys } from "@/lib/query-keys";
 import { genericFuzzySearch } from "@/lib/utils/search";
 import { ResponsiveDetailPanel } from "@/components/ui/responsive-detail-panel";
@@ -33,7 +34,7 @@ const SEARCH_FETCH_CAP = 2000;
 
 export function ActivityLogPage() {
   const { user } = useAuth();
-  const canViewAll = checkCanViewAllActivity(user?.role);
+  const canViewAll = useHasPermission("view_activity_log");
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);

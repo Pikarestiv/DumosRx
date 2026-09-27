@@ -1,8 +1,39 @@
-import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from "vitest";
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import initSqlJs, { type Database } from "sql.js";
 
+// Same mock set as auth-impersonation-storage-leak.test.tsx: mounting the
+// real AuthProvider otherwise pulls in Sentry/apiClient/sync-engine/the
+// shared queryClient singleton/native widget bridge, none of which this
+// file needs to exercise - and, without mocking the queryClient singleton
+// specifically, a still-running effect from a prior test in this file
+// (see the afterEach cleanup below for why that shouldn't happen either,
+// belt-and-braces) could call the real invalidateQueries during another
+// test file's run.
+vi.mock("@sentry/nextjs", () => ({
+  setUser: vi.fn(),
+  setTag: vi.fn(),
+}));
+vi.mock("@/lib/api/client", () => ({
+  apiClient: { login: vi.fn(), setToken: vi.fn() },
+}));
+vi.mock("@/lib/db/sync-engine", () => ({
+  sync: vi.fn(async () => ({ success: true })),
+  isSyncing: vi.fn(() => false),
+}));
+vi.mock("@/lib/query-client", () => ({
+  queryClient: { cancelQueries: vi.fn(async () => {}), clear: vi.fn(), invalidateQueries: vi.fn(async () => {}) },
+}));
+vi.mock("@/lib/db", () => ({
+  isTauri: vi.fn(() => false),
+}));
+vi.mock("@/lib/api/token-manager", () => ({
+  getToken: vi.fn(() => null),
+}));
+vi.mock("@/lib/native/widget-bridge", () => ({
+  mirrorAuthToken: vi.fn(),
+}));
 vi.mock("idb-keyval", () => ({
   get: vi.fn(async () => undefined),
   set: vi.fn(async () => undefined),
@@ -40,6 +71,21 @@ describe("useAuth's permission booleans after the group-based migration", () => 
     container = document.createElement("div");
     document.body.appendChild(container);
     capturedFlags = {};
+  });
+
+  // Without this, each test's AuthProvider (and its live useEffects, e.g.
+  // the async getUserPermissionGroup() lookup) stays mounted after the
+  // test's own assertions run, free to fire a state update - or a real DB
+  // query against whatever `db` a LATER test file has since installed via
+  // core.__setDatabaseForTesting() - well outside this test's own act()
+  // boundary. Confirmed to cause exactly that: an unrelated test file
+  // failed only when run in the same suite as this one, never in
+  // isolation, until this cleanup was added.
+  afterEach(() => {
+    act(() => root?.unmount());
+    container.remove();
+    localStorage.clear();
+    sessionStorage.clear();
   });
 
   async function renderWithUser(role: string, groupPermissions: string[] | null) {

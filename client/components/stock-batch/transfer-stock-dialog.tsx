@@ -14,7 +14,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useStore } from "@/lib/context/store-context";
-import { useAuth, checkIsAdmin } from "@/lib/context/auth-context";
+import { useAuth } from "@/lib/context/auth-context";
+import { useHasPermission } from "@/lib/hooks/use-permissions";
 import { TransferProductPicker } from "./transfer-product-picker";
 import {
   getTransferableProducts,
@@ -35,7 +36,7 @@ export function TransferStockDialog({
 }: TransferStockDialogProps) {
   const { availableStores, activeStoreId } = useStore();
   const { user } = useAuth();
-  const isAdmin = checkIsAdmin(user?.role);
+  const isAdmin = useHasPermission("manage_products");
 
   const [sourceStoreId, setSourceStoreId] = useState("");
   const [manualDestStoreId, setManualDestStoreId] = useState("");

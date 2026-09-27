@@ -11,7 +11,8 @@ import {
 } from "@/lib/db/local-database";
 import { genericFuzzySearch } from "@/lib/utils/search";
 import { queryKeys } from "@/lib/query-keys";
-import { useAuth, checkCanViewAllActivity } from "@/lib/context/auth-context";
+import { useAuth } from "@/lib/context/auth-context";
+import { useHasPermission } from "@/lib/hooks/use-permissions";
 
 /** All business logic for the Orders tab of Procurement Management. */
 export function usePurchaseOrders() {
@@ -22,7 +23,7 @@ export function usePurchaseOrders() {
   // stock batch and its movement); also drives the button's loading state.
   const [isReceivingPO, setIsReceivingPO] = useState(false);
   const { user } = useAuth();
-  const viewerId = checkCanViewAllActivity(user?.role) ? undefined : user?.id;
+  const viewerId = useHasPermission("view_activity_log") ? undefined : user?.id;
 
   const {
     data: purchaseOrders = [],

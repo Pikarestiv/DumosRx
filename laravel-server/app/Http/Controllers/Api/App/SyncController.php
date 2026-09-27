@@ -666,7 +666,7 @@ class SyncController extends Controller
         // getModelForTable/schema fixes landed) but never pulled back down
         // to any other device, so a second device or a fresh restore would
         // never see them even after the push-side bug was fixed.
-        $tables = ['products', 'stock_batches', 'categories', 'customers', 'suppliers', 'sales', 'sale_items', 'sale_item_batches', 'stores', 'users', 'stock_movements', 'purchase_orders', 'purchase_order_items', 'expenses', 'payment_accounts', 'requested_products', 'supplier_payments', 'returns', 'return_items', 'prescriptions', 'prescription_items', 'loyalty_tiers', 'loyalty_redemption_options', 'stock_audits', 'held_transactions', 'loyalty_transactions', 'customer_payments', 'audit_logs'];
+        $tables = ['products', 'stock_batches', 'categories', 'customers', 'suppliers', 'sales', 'sale_items', 'sale_item_batches', 'stores', 'users', 'stock_movements', 'purchase_orders', 'purchase_order_items', 'expenses', 'payment_accounts', 'requested_products', 'supplier_payments', 'returns', 'return_items', 'prescriptions', 'prescription_items', 'loyalty_tiers', 'loyalty_redemption_options', 'stock_audits', 'held_transactions', 'loyalty_transactions', 'customer_payments', 'audit_logs', 'permission_groups'];
 
         // The privileged subscription-status pull (client's
         // syncSubscriptionStatus()) sends `?setup=1` specifically to bypass
@@ -867,6 +867,12 @@ class SyncController extends Controller
             'loyalty_transactions' => $query->whereIn('store_id', $storeIds),
             'customer_payments' => $query->whereIn('store_id', $storeIds),
             'audit_logs' => $query->whereIn('store_id', $storeIds),
+            // Has a store_id column but no user_id column at all (see
+            // PermissionGroup migration) - falling through to `default`
+            // below would throw "Unknown column 'user_id'", exactly the
+            // class of bug the comment above already fixed for
+            // held_transactions/loyalty_transactions/customer_payments.
+            'permission_groups' => $query->whereIn('store_id', $storeIds),
             default => $query->where('user_id', $ownerId),
         };
     }
@@ -1851,6 +1857,7 @@ class SyncController extends Controller
             'stock_batches' => StockBatch::class,
             'activity_logs' => ActivityLog::class,
             'audit_logs' => ActivityLog::class,
+            'permission_groups' => \App\Models\PermissionGroup::class,
             'categories' => \App\Models\Category::class,
             'expenses' => Expense::class,
             'feedback' => \App\Models\Feedback::class,

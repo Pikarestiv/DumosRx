@@ -19,6 +19,7 @@ import { useSortableData } from "@/lib/hooks/use-sortable-data";
 import { useQuickEditExpenseMutation } from "@/lib/hooks/use-expense-mutations";
 import { ExpenseDesktopRow, CATEGORY_META, type ExpenseDraft } from "./expense-desktop-row";
 import { EmptyState as SharedEmptyState } from "@/components/ui/empty-state";
+import { useMediaQuery } from "@/hooks/use-media-query";
 
 type ExpenseSortKey = "date" | "category" | "description" | "method" | "amount";
 
@@ -58,6 +59,7 @@ export function ExpenseList() {
       amount: (e) => e.amount,
     });
 
+  const isDesktop = useMediaQuery("(min-width: 768px)");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<ExpenseDraft | null>(null);
   const quickEditMutation = useQuickEditExpenseMutation();
@@ -141,7 +143,7 @@ export function ExpenseList() {
       />
 
       {/* Mobile: search bar stands alone above the category chips */}
-      <div className="md:hidden mb-4">{SearchInput}</div>
+      {!isDesktop && <div className="mb-4">{SearchInput}</div>}
 
       <ExpenseCategoryFilter
         categories={CATEGORIES}
@@ -149,8 +151,11 @@ export function ExpenseList() {
         onChange={setSelectedCategory}
       />
 
-      {/* Mobile: flat card list, no wrapping table card */}
-      <div className="md:hidden flex flex-col gap-2">
+      {/* Mobile: flat card list, no wrapping table card. Conditionally
+          rendered, not CSS-hidden: the desktop branch is virtualized and this
+          one isn't. */}
+      {!isDesktop && (
+      <div className="flex flex-col gap-2">
         {filteredExpenses.length === 0 && EmptyState}
         {filteredExpenses.map((expense: Expense) => {
           const meta =
@@ -199,9 +204,11 @@ export function ExpenseList() {
           );
         })}
       </div>
+      )}
 
       {/* Desktop: table card, own search bar in its header */}
-      <Card className="hidden md:flex flex-col gap-0 py-0 border border-border rounded-2xl flex-1 overflow-hidden">
+      {isDesktop && (
+      <Card className="flex flex-col gap-0 py-0 border border-border rounded-2xl flex-1 overflow-hidden">
         <div className="p-4 pb-3 border-b border-border">{SearchInput}</div>
 
         <div className="grid grid-cols-[110px_150px_1fr_130px_120px_28px] gap-2 px-5 py-3 text-[11px] font-bold text-muted-foreground/80 uppercase tracking-wide border-b border-border bg-muted/20">
@@ -275,6 +282,7 @@ export function ExpenseList() {
           )}
         </div>
       </Card>
+      )}
 
       <ExpenseDetailDialog
         expense={selectedExpense}

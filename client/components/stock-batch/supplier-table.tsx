@@ -9,6 +9,7 @@ import { EditableNumberCell } from "@/components/ui/editable-number-cell";
 import { useUpdateSupplierRatingMutation } from "@/lib/hooks/use-supplier-mutations";
 import { EmptyState as SharedEmptyState } from "@/components/ui/empty-state";
 import { useAuth } from "@/lib/context/auth-context";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import type { SortDirection } from "@/lib/hooks/use-sortable-data";
 
 type SupplierSortKey = "name" | "contact" | "totalOrders" | "rating" | "totalValue";
@@ -63,6 +64,7 @@ export function SupplierTable({
   onAddSupplier,
 }: SupplierTableProps) {
   const { isAdmin } = useAuth();
+  const isDesktop = useMediaQuery("(min-width: 768px)");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftRating, setDraftRating] = useState(0);
   const updateRatingMutation = useUpdateSupplierRatingMutation();
@@ -99,8 +101,10 @@ export function SupplierTable({
         </div>
       )}
 
-      {/* Mobile: card list */}
-      <div className="md:hidden flex flex-col gap-2 px-0 py-3">
+      {/* Mobile: card list. Conditionally rendered, not CSS-hidden — no
+          reason for desktop to build every supplier row twice. */}
+      {!isDesktop && (
+      <div className="flex flex-col gap-2 px-0 py-3">
         {suppliers.length === 0 && (
           <EmptyState isAdmin={isAdmin} onAddSupplier={onAddSupplier} />
         )}
@@ -152,12 +156,14 @@ export function SupplierTable({
           );
         })}
       </div>
+      )}
 
       {/* Desktop: div-based table, with ARIA table roles standing in for real <table> semantics */}
+      {isDesktop && (
       <div
         role="table"
         aria-label="Suppliers"
-        className="hidden md:block overflow-x-auto"
+        className="block overflow-x-auto"
       >
         <div role="rowgroup">
           <div
@@ -329,6 +335,7 @@ export function SupplierTable({
           })}
         </div>
       </div>
+      )}
     </div>
   );
 }

@@ -80,7 +80,7 @@ export function ActivityLogDesktopTable({
     <div
       role="table"
       aria-label="Activity log"
-      className="hidden sm:block overflow-x-auto flex-1"
+      className="block overflow-x-auto flex-1"
     >
       <div
         role="rowgroup"
@@ -182,7 +182,7 @@ export function ActivityLogMobileList({
 }: Pick<ActivityLogRowsProps, "rows" | "isLoading" | "onSelect">) {
   const groupedRows = useMemo(() => groupByCorrelation(rows), [rows]);
   return (
-    <div className="sm:hidden flex-1 overflow-y-auto divide-y divide-border">
+    <div className="flex-1 overflow-y-auto divide-y divide-border">
       {isLoading && (
         <div className="h-24 flex items-center justify-center text-muted-foreground">
           Loading...

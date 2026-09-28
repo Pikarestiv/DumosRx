@@ -29,6 +29,7 @@ import { toQueryRange } from "@/lib/utils/date-range";
 import { queryKeys } from "@/lib/query-keys";
 import { STAFF_ROLES } from "@/lib/constants/roles";
 import type { AuditLogRow } from "@/lib/types/audit-log";
+import { useMediaQuery } from "@/hooks/use-media-query";
 
 const TABLE_NAME = "users";
 
@@ -38,6 +39,7 @@ const TABLE_NAME = "users";
 const SEARCH_FETCH_CAP = 2000;
 
 export function StaffActivitiesTab() {
+  const isDesktop = useMediaQuery("(min-width: 640px)");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [search, setSearch] = useState("");
@@ -177,7 +179,8 @@ export function StaffActivitiesTab() {
 
       {/* Desktop: real table, horizontally scrollable if content ever
           demands more than the column widths naturally settle at. */}
-      <div className="hidden sm:block overflow-x-auto">
+      {isDesktop && (
+      <div className="overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
@@ -223,10 +226,12 @@ export function StaffActivitiesTab() {
           </TableBody>
         </Table>
       </div>
+      )}
 
       {/* Mobile: rows become stacked cards instead of a cramped table,
           matching the pattern used by the product catalog list. */}
-      <div className="sm:hidden divide-y divide-border">
+      {!isDesktop && (
+      <div className="divide-y divide-border">
         {isLoading && (
           <div className="h-24 flex items-center justify-center">
             <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
@@ -257,6 +262,7 @@ export function StaffActivitiesTab() {
             </div>
           ))}
       </div>
+      )}
 
       <TablePagination
         page={page}

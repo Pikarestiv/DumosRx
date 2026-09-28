@@ -9,7 +9,9 @@ import {
   clampMoneyInput,
   clampReceivedQuantity,
   outstandingBulkQuantity,
+  resolveBaseUnitCost,
 } from "./po-line-item-math";
+import { ReceiveItemCategoryEditor } from "./receive-item-category-editor";
 import { formatCurrency } from "@/lib/utils";
 
 interface ReceiveLedgerTableProps {
@@ -58,7 +60,7 @@ export function ReceiveLedgerTable({
               <ResponsiveTabLabel short="Recv." long="Received Qty" />
             </div>
             <div role="columnheader" className="text-right px-3 py-2">
-              <ResponsiveTabLabel short="Cost" long="Cost Price" />
+              <ResponsiveTabLabel short="Cost" long="Cost / Base Unit" />
             </div>
             <div role="columnheader" className="text-right px-3 py-2">
               <ResponsiveTabLabel short="Sell Price" long="New Selling Price" />
@@ -77,11 +79,24 @@ export function ReceiveLedgerTable({
             const state = receivedItems[item.id] || ({} as ReceivedItemPayload);
             const outstanding = outstandingBulkQuantity(item);
             const alreadyReceived = Number(item.quantity_received) || 0;
+            const unitsPerBulk =
+              item.product_units_per_bulk || item.units_per_bulk || 1;
+            const orderedBaseUnitCost = resolveBaseUnitCost({
+              unitCost: item.unit_cost,
+              unitsPerBulk,
+            });
             return (
               <div key={item.id} role="row" className={`grid ${GRID_COLS}`}>
                 <div role="cell" className="px-3 py-2 sticky left-0 bg-card">
-                  <div className="font-semibold text-foreground truncate max-w-[200px]">
-                    {item.product_name}
+                  <div className="flex items-center gap-1.5">
+                    <div className="font-semibold text-foreground truncate max-w-[180px]">
+                      {item.product_name}
+                    </div>
+                    <ReceiveItemCategoryEditor
+                      productId={item.product_id}
+                      productName={item.product_name}
+                      categoryName={item.category_name}
+                    />
                   </div>
                   <div className="text-[11px] text-muted-foreground/70">
                     {item.bulk_unit}(s)
@@ -120,15 +135,15 @@ export function ReceiveLedgerTable({
                 </div>
                 <div
                   role="cell"
-                  className="px-3 py-2 text-right flex items-center"
+                  className="px-3 py-2 text-right flex flex-col justify-center gap-0.5"
                 >
                   <Input
                     type="number"
                     min="0"
                     step="0.01"
                     className="w-full min-w-20 text-right"
-                    aria-label={`Cost Price for ${item.product_name}`}
-                    placeholder={formatCurrency(item.unit_cost)}
+                    aria-label={`Cost Price per ${item.base_unit} for ${item.product_name}`}
+                    placeholder={formatCurrency(orderedBaseUnitCost)}
                     value={state.cost_price ?? ""}
                     onChange={(e) =>
                       onFieldChange(
@@ -138,6 +153,12 @@ export function ReceiveLedgerTable({
                       )
                     }
                   />
+                  <span className="text-[10px] text-muted-foreground/80 leading-none">
+                    per {item.base_unit}
+                    {item.last_bought_price
+                      ? ` · last ${formatCurrency(item.last_bought_price)}`
+                      : ""}
+                  </span>
                 </div>
                 <div
                   role="cell"

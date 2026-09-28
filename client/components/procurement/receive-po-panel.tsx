@@ -31,7 +31,9 @@ import {
   clampMoneyInput,
   clampReceivedQuantity,
   outstandingBulkQuantity,
+  resolveBaseUnitCost,
 } from "./po-line-item-math";
+import { ReceiveItemCategoryEditor } from "./receive-item-category-editor";
 
 export interface ReceivedItemPayload {
   po_item_id: string;
@@ -74,11 +76,23 @@ const ReceiveItemCard = React.memo(
   }) => {
     const outstanding = outstandingBulkQuantity(item);
     const alreadyReceived = Number(item.quantity_received) || 0;
+    const unitsPerBulk = item.product_units_per_bulk || item.units_per_bulk || 1;
+    const orderedBaseUnitCost = resolveBaseUnitCost({
+      unitCost: item.unit_cost,
+      unitsPerBulk,
+    });
     return (
       <div className="p-4 space-y-4">
         <div className="flex justify-between items-start">
           <div>
-            <h4 className="font-semibold text-[15px]">{item.product_name}</h4>
+            <div className="flex items-center gap-1.5">
+              <h4 className="font-semibold text-[15px]">{item.product_name}</h4>
+              <ReceiveItemCategoryEditor
+                productId={item.product_id}
+                productName={item.product_name}
+                categoryName={item.category_name}
+              />
+            </div>
             <p className="text-sm text-muted-foreground">
               Ordered: {item.bulk_quantity} {item.bulk_unit}(s) @{" "}
               {formatCurrency(item.unit_cost)}/{item.bulk_unit}
@@ -133,13 +147,15 @@ const ReceiveItemCard = React.memo(
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <Label className="text-xs">Cost Price (Optional)</Label>
+              <Label className="text-xs">
+                Cost Price per {item.base_unit} (Optional)
+              </Label>
               <Input
                 type="number"
                 min="0"
                 step="0.01"
-                aria-label={`Cost Price for ${item.product_name}`}
-                placeholder={formatCurrency(item.unit_cost)}
+                aria-label={`Cost Price per ${item.base_unit} for ${item.product_name}`}
+                placeholder={formatCurrency(orderedBaseUnitCost)}
                 value={state.cost_price ?? ""}
                 onChange={(e) =>
                   onFieldChange(
@@ -149,6 +165,12 @@ const ReceiveItemCard = React.memo(
                   )
                 }
               />
+              {!!item.last_bought_price && (
+                <p className="text-[10.5px] text-muted-foreground">
+                  Last bought at {formatCurrency(item.last_bought_price)} per{" "}
+                  {item.base_unit}
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <Label className="text-xs">New Selling Price (Optional)</Label>

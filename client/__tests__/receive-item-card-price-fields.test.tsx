@@ -1,8 +1,23 @@
 import { describe, it, expect, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { act } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { ReactNode } from "react";
 import { ReceivePOPanel } from "@/components/procurement/receive-po-panel";
 import type { PurchaseOrder } from "@/lib/db/local-database";
+
+vi.mock("@/lib/hooks/use-permissions", () => ({
+  useHasPermission: () => true,
+}));
+vi.mock("@/lib/db/queries/categories", () => ({
+  getCategoryList: vi.fn(async () => []),
+}));
+
+function withQueryClient(ui: ReactNode) {
+  return (
+    <QueryClientProvider client={new QueryClient()}>{ui}</QueryClientProvider>
+  );
+}
 
 if (!window.HTMLElement.prototype.scrollIntoView) {
   window.HTMLElement.prototype.scrollIntoView = () => {};
@@ -38,6 +53,7 @@ describe("ReceiveItemCard price fields", () => {
         id: "item-1",
         product_id: "p1",
         product_name: "Panadol",
+        base_unit: "Tablet",
         bulk_unit: "Carton",
         bulk_quantity: 3,
         units_per_bulk: 100,
@@ -52,17 +68,19 @@ describe("ReceiveItemCard price fields", () => {
 
   function renderPanel() {
     return render(
-      <ReceivePOPanel po={po} onBack={vi.fn()} onConfirm={vi.fn()} />,
+      withQueryClient(
+        <ReceivePOPanel po={po} onBack={vi.fn()} onConfirm={vi.fn()} />,
+      ),
     );
   }
 
-  it("offers a Cost Price input on the card, prefilled placeholder from the ordered unit cost", () => {
+  it("shows the Cost Price placeholder at the per-base-unit scale it is actually stored at", () => {
     renderPanel();
     const input = screen.getByLabelText(
-      "Cost Price for Panadol",
+      "Cost Price per Tablet for Panadol",
     ) as HTMLInputElement;
     expect(input.getAttribute("type")).toBe("number");
-    expect(input.getAttribute("placeholder")).toBe("₦400");
+    expect(input.getAttribute("placeholder")).toBe("₦4");
   });
 
   it("offers a New Selling Price input on the card", () => {
@@ -76,9 +94,13 @@ describe("ReceiveItemCard price fields", () => {
 
   it("carries what is typed into the new price fields through to the receive payload, clamping a negative to zero", () => {
     const onConfirm = vi.fn();
-    render(<ReceivePOPanel po={po} onBack={vi.fn()} onConfirm={onConfirm} />);
+    render(
+      withQueryClient(
+        <ReceivePOPanel po={po} onBack={vi.fn()} onConfirm={onConfirm} />,
+      ),
+    );
 
-    fireEvent.change(screen.getByLabelText("Cost Price for Panadol"), {
+    fireEvent.change(screen.getByLabelText("Cost Price per Tablet for Panadol"), {
       target: { value: "450" },
     });
     fireEvent.change(screen.getByLabelText("New Selling Price for Panadol"), {

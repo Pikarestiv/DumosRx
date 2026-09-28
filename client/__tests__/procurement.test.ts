@@ -67,7 +67,10 @@ describe("procurement.ts", () => {
       );
       CREATE TABLE products (
         id TEXT PRIMARY KEY, name TEXT, base_unit TEXT, bulk_unit TEXT, units_per_bulk INTEGER,
-        selling_price REAL
+        selling_price REAL, category_id TEXT
+      );
+      CREATE TABLE categories (
+        id TEXT PRIMARY KEY, name TEXT
       );
       CREATE TABLE users (
         id TEXT PRIMARY KEY, first_name TEXT, last_name TEXT

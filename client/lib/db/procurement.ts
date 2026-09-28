@@ -90,6 +90,17 @@ export interface PurchaseOrderItem {
   cost_price_override?: number | string;
   lot_number?: string;
   expiry_date?: string;
+  /** The product's current category name, for the receive flow's inline
+   * category fix-up. Null when the product has no category yet. */
+  category_name?: string | null;
+  /** Weighted-average cost across the product's active batches right now -
+   * the same figure the catalog shows, and the scale ("per base unit") the
+   * receive panel's Cost Price input is read at. */
+  current_cost_price?: number | null;
+  /** The cost of the most recent real (non-adjustment) batch, so the
+   * receive panel can show what was actually last paid rather than only the
+   * blended average. */
+  last_bought_price?: number | null;
 }
 
 /** A line item as it exists in the create/edit PO form before submission:
@@ -191,9 +202,13 @@ export async function getPurchaseOrderById(id: string) {
 
   const items = await query<PurchaseOrderItem>(
     `SELECT poi.*, m.name as product_name, m.base_unit, m.bulk_unit, m.units_per_bulk as product_units_per_bulk,
-       m.selling_price as current_selling_price
+       m.selling_price as current_selling_price,
+       cat.name as category_name,
+       (SELECT SUM(cost_price * quantity) * 1.0 / NULLIF(SUM(quantity), 0) FROM stock_batches WHERE product_id = m.id AND _deleted = 0 AND is_active = 1 AND quantity > 0) as current_cost_price,
+       (SELECT cost_price FROM stock_batches WHERE product_id = m.id AND _deleted = 0 AND cost_price > 0 AND batch_number NOT LIKE 'ADJ-%' ORDER BY created_at DESC LIMIT 1) as last_bought_price
      FROM purchase_order_items poi
      JOIN products m ON poi.product_id = m.id
+     LEFT JOIN categories cat ON m.category_id = cat.id
      WHERE poi.po_id = ? AND poi._deleted = 0`,
     [id]
   );

@@ -32,8 +32,8 @@ const REPORT_CONFIG = {
     label: "Sales Report",
     filenamePrefix: "Sales_Report",
     fetch: fetchSalesReportData,
-    headers: ["Transaction #", "Date", "Customer", "Payment Method", "Subtotal", "Tax", "Discount", "Total", "Refunded", "Net Total", "Status"],
-    columnFlex: [1.8, 1.3, 1.3, 1, 1, 0.8, 1, 1, 1, 1, 1],
+    headers: ["Transaction #", "Date", "Customer", "Cashier", "Payment Method", "Subtotal", "Tax", "Discount", "Total", "Refunded", "Net Total", "Status"],
+    columnFlex: [1.8, 1.3, 1.3, 1.2, 1, 1, 0.8, 1, 1, 1, 1, 1],
     dateColumns: ["Date"],
     takesDateRange: true,
     takesSalesFilters: true,
@@ -86,6 +86,12 @@ const REPORT_CONFIG = {
 } as const;
 
 export type ReportId = keyof typeof REPORT_CONFIG;
+
+/** The column order a report's rows are presented in - shared by the CSV,
+ * the PDF and the on-screen view so all three read the same. */
+export function getReportHeaders(reportId: ReportId): string[] {
+  return REPORT_CONFIG[reportId].headers as unknown as string[];
+}
 
 // Only these two report types carry a product or category name column, and
 // both alias their SQL output to the exact header name (see
@@ -284,6 +290,7 @@ export function useReportExport() {
   }, []);
 
   return {
+    getRows,
     exportReportCsv,
     downloadReportPdf,
     printReport,

@@ -361,6 +361,7 @@ export async function fetchSalesReportData(dateFrom?: string, dateTo?: string, f
       s.transaction_number as "Transaction #",
       date(s.transaction_date, 'localtime') as "Date",
       COALESCE(c.first_name || ' ' || COALESCE(c.last_name, ''), 'Walk-in') as "Customer",
+      TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')) as "Cashier",
       s.payment_method as "Payment Method",
       s.subtotal as "Subtotal",
       s.tax_amount as "Tax",
@@ -371,6 +372,7 @@ export async function fetchSalesReportData(dateFrom?: string, dateTo?: string, f
       s.payment_status as "Status"
      FROM sales s
      LEFT JOIN customers c ON s.customer_id = c.id
+     LEFT JOIN users u ON s.user_id = u.id
      LEFT JOIN (
        SELECT sale_id, SUM(total_refunded) as refunded
        FROM returns

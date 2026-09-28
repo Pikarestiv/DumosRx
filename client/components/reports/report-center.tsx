@@ -14,9 +14,9 @@ import {
   Wallet,
   Users,
   Loader2,
-  CheckCircle2,
   TrendingUp,
   Info,
+  Eye,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -29,12 +29,19 @@ import { ReportFiltersBar, type ReportFiltersValue } from "@/components/reports/
 import {
   useReportExport,
   getReportNote,
+  getReportHeaders,
   RecentDownload,
   ReportId,
 } from "@/lib/hooks/use-report-export";
+import { ReportViewDialog } from "@/components/reports/report-view-dialog";
+import type { ReportRow } from "@/components/reports/report-table-view";
+import { ScrollFade } from "@/components/ui/scroll-fade";
+import {
+  RecentDownloadsEmptyState,
+  RecentDownloadsList,
+} from "@/components/reports/recent-downloads-list";
 import { toQueryRange } from "@/lib/utils/date-range";
 import { toast } from "sonner";
-import { EmptyState } from "@/components/ui/empty-state";
 
 export function ReportCenter() {
   const [filters, setFilters] = useState<ReportFiltersValue>({
@@ -45,8 +52,14 @@ export function ReportCenter() {
   });
   const [loadingReport, setLoadingReport] = useState<string | null>(null);
   const [recentDownloads, setRecentDownloads] = useState<RecentDownload[]>([]);
+  const [viewing, setViewing] = useState<{
+    id: ReportId;
+    title: string;
+  } | null>(null);
+  const [viewRows, setViewRows] = useState<ReportRow[]>([]);
+  const [isViewLoading, setIsViewLoading] = useState(false);
 
-  const { exportReportCsv, downloadReportPdf, printReport, getRecentDownloads } =
+  const { getRows, exportReportCsv, downloadReportPdf, printReport, getRecentDownloads } =
     useReportExport();
 
   const refreshRecent = useCallback(() => {
@@ -82,6 +95,27 @@ export function ReportCenter() {
       });
     } finally {
       setLoadingReport(null);
+    }
+  };
+
+  const openView = async (reportId: ReportId, title: string) => {
+    const { from, to } = toQueryRange(filters.dateRange);
+    setViewing({ id: reportId, title });
+    setViewRows([]);
+    setIsViewLoading(true);
+    try {
+      const rows = await getRows(reportId, from, to, {
+        staffId: filters.staffId,
+        paymentMethod: filters.paymentMethod,
+      });
+      setViewRows(rows);
+    } catch (err) {
+      console.error(err);
+      toast.error("Couldn't load this report", {
+        description: "Something went wrong reading the data.",
+      });
+    } finally {
+      setIsViewLoading(false);
     }
   };
 
@@ -222,6 +256,16 @@ export function ReportCenter() {
                         size="sm"
                         variant="outline"
                         className="h-7 text-[11px] gap-1.5 flex-1 md:flex-none border-border"
+                        onClick={() => void openView(report.id, report.title)}
+                        disabled={isLoading}
+                      >
+                        <Eye className="h-3 w-3" />
+                        View
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-[11px] gap-1.5 flex-1 md:flex-none border-border"
                         onClick={() => void runAction(report.id, "print")}
                         disabled={isLoading}
                       >
@@ -245,56 +289,34 @@ export function ReportCenter() {
             <div className="text-[14.5px] font-semibold mb-0.5">Recent Downloads</div>
             <div className="text-[12px] text-muted-foreground">Reports generated in this browser session</div>
           </div>
-          <div className="flex-1 min-h-0 overflow-y-auto">
+          <ScrollFade containerClassName="flex-1">
             {recentDownloads.length === 0 ? (
               <RecentDownloadsEmptyState />
             ) : (
               <RecentDownloadsList downloads={recentDownloads} />
             )}
-          </div>
+          </ScrollFade>
         </Card>
       </div>
-    </div>
-  );
-}
 
-function RecentDownloadsEmptyState() {
-  return (
-    <EmptyState
-      icon={CheckCircle2}
-      title="No reports generated yet"
-      description="Export a report to see it here."
-    />
-  );
-}
-
-function RecentDownloadsList({ downloads }: { downloads: RecentDownload[] }) {
-  return (
-    <div className="space-y-3">
-      {downloads.map((dl) => (
-        <div
-          key={dl.id}
-          className="flex items-start gap-3 p-3 rounded-xl border bg-primary/5"
-        >
-          <FileText className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-          <div className="min-w-0 space-y-1 w-full">
-            <div className="flex items-center gap-2">
-              <p className="text-[13px] font-semibold truncate">{dl.name}</p>
-            </div>
-            <p className="text-[11.5px] text-muted-foreground">
-              {dl.type}
-            </p>
-            <div className="flex flex-col gap-0.5 mt-1">
-              <p className="text-[11px] text-muted-foreground">
-                {format(new Date(dl.generatedAt), "MMM d, yyyy 'at' h:mm a")}
-              </p>
-              <p className="text-[11px] text-muted-foreground">
-                {dl.sizeLabel}
-              </p>
-            </div>
-          </div>
-        </div>
-      ))}
+      {viewing && (
+        <ReportViewDialog
+          open={!!viewing}
+          onOpenChange={(open) => {
+            if (!open) setViewing(null);
+          }}
+          title={viewing.title}
+          note={getReportNote(viewing.id, {
+            staffId: filters.staffId,
+            paymentMethod: filters.paymentMethod,
+          })}
+          rows={viewRows}
+          headers={getReportHeaders(viewing.id)}
+          isLoading={isViewLoading}
+          isExporting={loadingReport === viewing.id}
+          onExport={(action) => void runAction(viewing.id, action)}
+        />
+      )}
     </div>
   );
 }

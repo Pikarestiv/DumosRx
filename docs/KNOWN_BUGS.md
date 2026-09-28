@@ -16,7 +16,7 @@ This file holds **open** items only. Fixed entries move to `docs/FIXED_BUGS.md` 
 
 **Overall health.** The codebase is unusually well-defended for its size: the sync engine's conflict model, the single-writer tab lock, tenant scoping on the server and the money math have all been through several review-and-fix cycles, and both test suites pass cleanly. The new findings in this pass are therefore not the "obvious" classes (cross-tenant leaks, double-charging, silent rollbacks) but the next layer down: **scale limits that were never exercised** (all three found so far have since been fixed — a local database with essentially no indexes, plus the pull engine's own un-resumable page cap and the server tenant-scope that loaded every sale id into PHP memory per request; see `docs/FIXED_BUGS.md`) and **attribution/consistency gaps** on the newest flows (the online-order fulfilment one, `A-4`, has since been fixed too).
 
-**Findings this pass, by severity:** 0 **P0**, 0 **P1**, 0 **P2**, 5 **P3** — 5 open findings from this pass (IDs `A-1`…`A-24`, less the fixed `A-1`, `A-2`, `A-3`, `A-4`, `A-5`, `A-6`, `A-7`, `A-8`, `A-9`, `A-10`, `A-11`, `A-12`, `A-13`, `A-14`, `A-16`, `A-17`, `A-18`, `A-21` and `A-24`), plus 14 still-open items carried from the two earlier passes (`P2-1`, `P3-1`, `P3-2`, `P3-5`, `PG-1`…`PG-10`), all preserved verbatim below.
+**Findings this pass, by severity:** 0 **P0**, 0 **P1**, 0 **P2**, 4 **P3** — 4 open findings from this pass (IDs `A-1`…`A-24`, less the fixed `A-1`, `A-2`, `A-3`, `A-4`, `A-5`, `A-6`, `A-7`, `A-8`, `A-9`, `A-10`, `A-11`, `A-12`, `A-13`, `A-14`, `A-15`, `A-16`, `A-17`, `A-18`, `A-21` and `A-24`), plus 14 still-open items carried from the two earlier passes (`P2-1`, `P3-1`, `P3-2`, `P3-5`, `PG-1`…`PG-10`), all preserved verbatim below.
 
 **Most important risks, in order:**
 
@@ -46,13 +46,6 @@ None open. `A-9` (receiving the same purchase order from two devices booked the 
 
 ## 4. Low-priority findings (P3)
 
-#### [P3] A-15. Production builds ignore TypeScript errors
-**Category:** Maintainability — **Confirmed**
-**Location:** `client/next.config.mjs` (`typescript: { ignoreBuildErrors: true }`); `deploy-client.yml` runs `rm package-lock.json && npm install --legacy-peer-deps` before `npm run build`.
-**Problem:** `tsc` is clean today, but nothing in CI enforces it: a type error reaches production if the developer skips the manual `npx tsc --noEmit` that `client/AGENTS.md` asks for. Deleting the lockfile on every deploy also makes production builds non-reproducible (dependency versions can drift between two deploys of the same commit, and `overrides` in `package.json` are the only pin).
-**Recommended fix:** Run `tsc --noEmit` and `vitest` as CI steps before the build; use `npm ci` with the committed lockfile.
-**Confidence:** High.
-
 #### [P3] A-19. Legacy cloud CRUD endpoints (`/app/sales` POST etc.) are live but unused, and `SaleController::store` writes stock outside the movement-delta model
 **Category:** Architecture / Attack surface — **Confirmed (dead-from-the-client code)**
 **Location:** `client/lib/api/client.ts:122-256` (comment: "no callers left in the app"), `laravel-server/routes/api.php:264-288`, `laravel-server/app/Http/Controllers/Api/App/SaleController.php:81-279` (`$batch->quantity -= $deduct; $batch->save()` directly), `:32-50, 293-309` (`index`/`show` scoped by cashier ids, not `store_id` — a multi-store owner sees every store's sales).
@@ -79,6 +72,13 @@ None open. `A-9` (receiving the same purchase order from two devices booked the 
 **Problem:** There is no single place that lists these names or their payloads; several are read in different places with different fallbacks (e.g. the active store id is read from `localStorage` in `client.ts` for the `X-Store-Id` header and from the module resolver in `core.ts` for queries — `auth-context.tsx:394-420` documents a real bug that came from exactly that split). Each new subsystem adds another listener.
 **Recommended fix:** A typed `events.ts`/`storage-keys.ts` module (constants + typed dispatch/subscribe helpers) so the names cannot drift and the payloads are visible.
 **Confidence:** High.
+
+#### [P3] A-25. `npm run test:schema` is broken, so the cross-repo schema-parity check has not run in some time
+**Category:** Maintainability / Tooling — **Confirmed**
+**Location:** `client/scripts/verify-schema-sync.ts`, `client/package.json` (`"test:schema"`).
+**Problem:** `.agents/AGENTS.md` §5 tells every schema change to run `npm run test:schema`. Against today's tree the script exits 1 with `Could not find syncColumns in core.ts` — it parses `core.ts` for a `syncColumns` symbol that the sync engine no longer exposes under that name. The check is therefore a no-op that reports failure for the wrong reason, and could not be added to the new CI gate (A-15).
+**Recommended fix:** Re-point the extraction at whatever the sync engine's column source of truth is now, then add the script to `checks.yml`'s client job.
+**Confidence:** High. **Status:** Open — logged 2026-09-28 while fixing A-15, per `.agents/AGENTS.md` §2's "log it rather than let it go unrecorded" rule. Not part of the 2026-09-28 pass's own A-1…A-24 counts above.
 
 ---
 
@@ -209,7 +209,7 @@ Synthetic dataset built from the app's own `SCHEMA_SQL` plus the migration-added
 - **Two tenant-resolution copies on the server remain** (carried): `SaleController` and `DashboardService` hand-roll the staff→owner lookup instead of a shared `Request`-free helper, and `TenantScopingArchitectureTest` still scans controllers only.
 - **`core.ts` is 1,558 lines and `SyncController.php` 2,264 lines** against the project's own 350-line guideline; `getProductsWithDetails`-style "load everything, filter in React" is the norm for catalog/customers/PO lists (documented as intentional; the cutoff at which it stops being fine is not written down anywhere).
 - **Two client-side sale-recording paths exist** (`recordSaleItemStock` for POS/online orders; `local-database.ts::createSale` for demo seeding only) — the comment on the second is clear, but it still writes `stock_batches.quantity` directly with a raw `UPDATE` rather than through `update()`, so a demo-seeded batch is the one batch the version model never saw.
-- **`typescript.ignoreBuildErrors`** (A-15) and the deploy's lockfile deletion mean the repo's own quality gates (`tsc`, `vitest`, `php artisan test`) are advisory, not enforced. `composer audit`/`npm audit` are still not run in CI (carried from the previous pass).
+- **Quality gates are now enforced** (A-15 fixed): `.github/workflows/checks.yml` runs `tsc --noEmit` + `vitest` + `php artisan test` and every deploy/release workflow `needs:` it. `composer audit`/`npm audit` are still not run in CI (carried from the previous pass).
 - **`sw.js` still has no automated coverage** (carried) despite two cache-poisoning fixes.
 
 ---
@@ -240,5 +240,5 @@ Synthetic dataset built from the app's own `SCHEMA_SQL` plus the migration-added
 Ordered by technical impact and by which fixes unblock or de-risk others — not by ease.
 
 1. **PG-2 then PG-1** (carried) — the storefront webhook/reconciliation path and the gateway pinning; still the largest real-world money-loss surface.
-2. **A-15, A-19, A-20, A-22, A-23** — hygiene and architecture debt; A-15 (enforce `tsc`/tests in CI, `npm ci`) is the one worth doing early because it protects everything else.
+2. **A-19, A-20, A-22, A-23** — hygiene and architecture debt; A-15 (enforce `tsc`/tests in CI, `npm ci`) is the one worth doing early because it protects everything else.
 3. **P2-1** (ops confirmation) and the accepted **P3-1/P3-2/P3-5**, **PG-3…PG-10** as previously scheduled.

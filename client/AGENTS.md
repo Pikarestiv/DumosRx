@@ -650,6 +650,13 @@ same tab session still gets its own fresh one-time retry.
   restart rather than debugging it as a real bug.
 - `npm run lint` (ESLint) and `tsc --noEmit` (no dedicated script currently,
   run `npx tsc --noEmit -p .`) before considering non-trivial changes done.
+- These are no longer advisory. `.github/workflows/checks.yml` runs
+  `npm ci --legacy-peer-deps`, `npx tsc --noEmit` and `npx vitest run` for
+  `client/` and `php artisan test` for `laravel-server/`, and every deploy
+  and release workflow calls it as a `needs:` gate — a red check stops the
+  deploy, it does not just annotate it. `next.config.mjs` no longer sets
+  `typescript.ignoreBuildErrors`, so `next build` type-checks too. Running
+  both locally first is still the fast path; CI is the backstop.
 
 ## Running things
 

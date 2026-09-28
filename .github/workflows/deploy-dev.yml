@@ -7,6 +7,9 @@ on:
   workflow_dispatch:
 
 jobs:
+  checks:
+    uses: ./.github/workflows/checks.yml
+
   # Each job below gets its own concurrency group (not one workflow-wide
   # group) since they deploy independent targets (dev.dumosrx.com,
   # app.dev.dumosrx.com, api.dev.dumosrx.com) and shouldn't needlessly
@@ -15,6 +18,7 @@ jobs:
   # run) would otherwise race that job's own FTP-Deploy-Action state file.
   deploy-web:
     name: Build & Deploy Frontend (Dev)
+    needs: checks
     runs-on: ubuntu-latest
     concurrency:
       group: deploy-dev-web-${{ github.ref }}
@@ -69,6 +73,7 @@ jobs:
 
   deploy-client:
     name: Build & Deploy Client App (Dev)
+    needs: checks
     runs-on: ubuntu-latest
     concurrency:
       group: deploy-dev-client-${{ github.ref }}
@@ -89,8 +94,7 @@ jobs:
       - name: 📦 Install Dependencies
         run: |
           cd client
-          rm package-lock.json
-          npm install --legacy-peer-deps
+          npm ci --legacy-peer-deps
 
       - name: 🏗️ Build Application
         run: |
@@ -117,6 +121,7 @@ jobs:
 
   deploy-backend:
     name: Build & Deploy Backend (Dev)
+    needs: checks
     runs-on: ubuntu-latest
     concurrency:
       group: deploy-dev-backend-${{ github.ref }}

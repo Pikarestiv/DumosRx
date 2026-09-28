@@ -18,8 +18,12 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  checks:
+    uses: ./.github/workflows/checks.yml
+
   client-deploy:
     name: 🎉 Deploy Client
+    needs: checks
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -37,8 +41,7 @@ jobs:
       - name: 📦 Install Dependencies
         run: |
           cd client
-          rm package-lock.json
-          npm install --legacy-peer-deps
+          npm ci --legacy-peer-deps
 
       - name: 🏗️ Build Application
         run: |

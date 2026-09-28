@@ -9,6 +9,18 @@ export default defineConfig({
     globals: true,
     setupFiles: [],
     exclude: ['**/node_modules/**', 'e2e/**'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text-summary', 'json-summary', 'json'],
+      reportsDirectory: './coverage',
+      include: ['lib/**', 'hooks/**', 'components/**', 'app/**'],
+      exclude: [
+        '**/__tests__/**',
+        '**/*.d.ts',
+        '**/node_modules/**',
+        'components/ui/**',
+      ],
+    },
     alias: {
       '@': path.resolve(__dirname, './'),
     },

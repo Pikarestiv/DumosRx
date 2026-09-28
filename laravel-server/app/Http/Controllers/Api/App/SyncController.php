@@ -556,6 +556,32 @@ class SyncController extends Controller
                         }
                     }
                 } elseif ($change['operation'] === 'DELETE') {
+                    // audit_logs is append-only on both sides: the client only
+                    // ever queues INSERT for it (see logAction() in
+                    // client/lib/db/core.ts - even the repeat-dedup path
+                    // rewrites the pending INSERT rather than queueing an
+                    // UPDATE or DELETE), and ActivityLog has no SoftDeletes,
+                    // so $target->delete() here is a HARD delete of a
+                    // tamper-evidence record. Because activity_logs.id is the
+                    // server's own bigint while the client's id lives in
+                    // properties->client_id, a client id passed to find() gets
+                    // coerced to its leading numeric run and can match a
+                    // COMPLETELY UNRELATED row in the same store, which
+                    // authorizeChangeTarget() (store-ownership only) then
+                    // happily waves through. There is no correct row for this
+                    // lookup to find, so reject rather than guess.
+                    if ($change['table_name'] === 'audit_logs') {
+                        DB::commit();
+                        Log::warning('Sync push: rejected DELETE against append-only audit_logs for record ' . ($change['record_id'] ?? '?'));
+                        $failed[] = [
+                            'id' => $change['id'] ?? null,
+                            'table_name' => $change['table_name'],
+                            'record_id' => $change['record_id'] ?? null,
+                            'reason' => 'unsupported_operation',
+                        ];
+                        continue;
+                    }
+
                     $target = \method_exists($modelClass, 'trashed')
                         ? $modelClass::withTrashed()->find($change['record_id'])
                         : $modelClass::find($change['record_id']);
@@ -1142,6 +1168,17 @@ class SyncController extends Controller
      */
     private function findAuditLogByClientId(string $modelClass, $recordId, $currentStoreId, bool $lock = false)
     {
+        // A null store id (super-admin push, or no active store) has no store
+        // to scope to, and `where('store_id', null)` would silently become
+        // `whereNull('store_id')` — matching legacy store-less rows that share
+        // this client id rather than nothing. Since a client id is only unique
+        // per device, there is no safe unscoped match: report "not found" so
+        // an INSERT stays an INSERT and an UPDATE no-ops, instead of writing
+        // to a row we cannot prove is the right one.
+        if ($currentStoreId === null || $currentStoreId === '') {
+            return null;
+        }
+
         $query = $modelClass::where('properties->client_id', $recordId)
             ->where('store_id', $currentStoreId);
 

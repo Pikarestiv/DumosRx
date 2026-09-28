@@ -511,6 +511,50 @@ class SyncPushOwnershipTest extends TestCase
         $this->assertSame('SECOND_PUSH', DB::table('activity_logs')->where('id', $ownRowId)->value('action'));
     }
 
+    public function test_audit_log_delete_does_not_hard_delete_an_unrelated_row_with_a_matching_numeric_id()
+    {
+        $collidingClientId = '87';
+
+        DB::table('activity_logs')->insert([
+            'id' => 87,
+            'user_id' => $this->attackerOwner->id,
+            'store_id' => $this->attackerStore->id,
+            'action' => 'UNRELATED_ACTION',
+            'description' => 'an unrelated audit entry',
+            'properties' => json_encode(['client_id' => 'a-totally-different-client-id']),
+            '_version' => 1,
+            'created_at' => now()->subDays(2),
+            'updated_at' => now()->subDays(2),
+        ]);
+
+        $response = $this->actingAs($this->attackerOwner)
+            ->postJson('/api/v1/app/sync/push', [
+                'setup' => true,
+                'changes' => [
+                    [
+                        'table_name' => 'audit_logs',
+                        'operation' => 'DELETE',
+                        'record_id' => $collidingClientId,
+                        'payload' => ['id' => $collidingClientId],
+                    ],
+                ],
+            ]);
+
+        $response->assertOk();
+
+        $unrelated = DB::table('activity_logs')->where('id', 87)->first();
+        $this->assertNotNull($unrelated, 'an unrelated audit_logs row was hard-deleted by a coerced-id DELETE');
+        $this->assertSame('UNRELATED_ACTION', $unrelated->action);
+        $this->assertStringContainsString('a-totally-different-client-id', $unrelated->properties);
+        $this->assertSame($this->attackerStore->id, $unrelated->store_id);
+
+        $this->assertSame(
+            'unsupported_operation',
+            $response->json('failed.0.reason'),
+            'audit_logs is append-only; a DELETE should be rejected with a clear reason',
+        );
+    }
+
     public function test_update_of_a_feedback_row_owned_by_a_soft_deleted_user_is_still_forbidden()
     {
         $deletedStaff = User::create([

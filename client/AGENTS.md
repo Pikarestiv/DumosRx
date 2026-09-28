@@ -498,6 +498,73 @@ customer-earned entitlement, not a staff price concession. The desktop cart
 and the mobile drawer both render the same `POSCart`, so there is one gate,
 not two.
 
+Four more Sales & POS keys joined it on 2026-09-28, all following the same
+pattern (unconditional top-level `useHasPermission()` const, existing state
+still rendered read-only, only the trigger gated):
+
+- `override_price` — `components/pos/pos-cart-item.tsx`. The reseller /
+  store-markup unit-price input is the app's **only** "type a different
+  price for this line" surface; without the permission the line falls back
+  to the read-only `{price} each` label, so a markup already on a resumed
+  cart still shows. It is floored at the product's own price (it can raise a
+  line, never discount it), which is why `sales_staff` was **granted** this
+  key in `DEFAULT_GROUP_PERMISSIONS` when enforcement landed — the cashier
+  is who rings reseller sales, and withholding it would have made the
+  Reseller toggle inert at the till. `specialist` deliberately still lacks
+  it (stock role, matching its existing `apply_discounts` exclusion).
+- `hold_sales` — `components/pos/pos-cart.tsx` (the "Hold Sale" button, plus
+  `SECONDARY_ACTION_GRID_COLS`, a literal-class lookup that keeps the
+  secondary-action grid honest now that its column count varies) and
+  `components/pos/held-transactions-dialog.tsx` (the "Recall" button).
+  Creating a hold and resuming one are both gated; the amber "N on hold"
+  banner and the held list itself are not, so a cashier without the right
+  can still see a colleague's sale is parked on this till. The dialog's
+  "Discard" button is deliberately **left ungated** — discarding is neither
+  holding nor resuming, and `void_refund_sales` is the nearest destructive
+  key; revisit if that reads wrong in practice.
+- `view_sales_history` — `components/pos/pos-main-tab-nav.tsx` (the "Recent
+  Sales" trigger) and `components/pos/pos-system.tsx` (the panel itself and
+  the `resolvedTab` fallback, because `?tab=history` is reachable by URL, so
+  hiding the trigger alone is not a gate). This is **"does the tab exist at
+  all"** and is cleanly separable from `view_activity_log`, which answers
+  **"whose sales appear in it"** (`pos-transaction-history.tsx` scopes
+  `getRecentSales` to the acting user without it). The two compose: no
+  history key, no tab; tab but no activity-log key, own sales only.
+- `reprint_receipt` — `components/pos/transaction-details-dialog.tsx`
+  ("Print Receipt" and the "Print Tax Invoice" dropdown beside it). The
+  receipt shown straight after checkout (`pos-receipt-dialog.tsx`) is part
+  of `process_sales` and stays ungated; this is only the after-the-fact copy
+  pulled out of transaction history. `proforma-preview-dialog.tsx` prints a
+  quote, not a receipt, and is likewise untouched.
+
+The other five Sales & POS keys were investigated in the same pass and
+**stay catalog-only because no discrete action exists in the app to gate** —
+recorded here so nobody re-derives it:
+
+- `open_cash_drawer` — there is no cash-drawer integration anywhere in the
+  client or in `src-tauri/`: no ESC/POS drawer-kick, no "no sale" button, no
+  hardware settings for one. Nothing to trigger, so nothing to gate.
+- `edit_completed_sale` — the only writes to a `sales` row after checkout
+  are the return/refund path (`use-process-return-mutation.ts`, already
+  `void_refund_sales`), the reseller-commission redeem, and a customer
+  payment against an outstanding balance. There is no amend-a-finished-sale
+  surface (no re-assign customer, edit note, or change payment method), so
+  this key has nothing of its own to front.
+- `run_daily_close` — Daily Close is a **read-only report**. Its only
+  actions are Print and Export (`daily-close/daily-close-actions.tsx`),
+  which are `export_reports` territory; there is no "close the day" write
+  that locks in end-of-day figures. Do **not** gate the report *view* under
+  this key — every role including `sales_staff` can already reach it by
+  design (see the cashier-visibility section below).
+- `view_drawer_counts` — no drawer-count / cash-count feature exists: there
+  is nothing anywhere that records a counted float against expected cash or
+  derives a variance.
+- `override_credit_limit` — `customers.credit_limit` exists as a column and
+  is surfaced in one report, but **nothing reads it as a limit**:
+  `use-pos-payment.ts` adds a credit sale straight onto
+  `outstanding_balance` with no ceiling check. There is no block, therefore
+  no override to gate. Wiring this key means first building the check.
+
 `export_reports` joined it on 2026-09-28 too: `components/reports/report-center.tsx`
 hoists `useHasPermission("export_reports")` and hides the per-report Export
 dropdown and Print button, and passes the same boolean into
@@ -523,6 +590,9 @@ enforcement and add the key in the same commit**, and add the key to
   amending a finished sale vs. voiding it, and the end-of-day/drawer
   surfaces (`daily-close-report.tsx`) which today are role-gated by a
   direct `user?.role === "sales_staff"` check rather than by a key.
+  `hold_sales`, `view_sales_history` and `reprint_receipt` were wired up
+  later the same day (along with `override_price`); the rest are covered by
+  the no-action-to-wire list above — read that before re-investigating.
 - **Inventory & Stock** — `view_cost_fields`, `edit_product_cost`,
   `edit_product_price`, `delete_products`, `perform_stock_audit`,
   `view_stock_adjustment_history`, `print_product_labels`,

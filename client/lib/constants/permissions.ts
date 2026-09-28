@@ -143,6 +143,15 @@ export const DEFAULT_GROUP_PERMISSIONS: Record<
     // their own till - never cost/margin figures (see AGENTS.md's cashier
     // visibility-gating section).
     "hold_sales", "view_sales_history", "reprint_receipt", "view_dashboard",
+    // 2026-09-28 enforcement pass: added once override_price gained a real
+    // gate. The app's only price-override surface is the reseller /
+    // store-markup unit price (pos-cart-item.tsx), which is floored at the
+    // product's own price - it can raise a line, never discount it - and the
+    // cashier is who rings reseller sales. Withholding it here would have
+    // made the Reseller toggle inert at the till the moment enforcement
+    // landed. An owner who wants markup pricing to be a supervisor decision
+    // unticks it; that now actually does something.
+    "override_price",
   ],
   auditor: [
     "view_reports", "export_reports", "view_all_expenses",
@@ -170,6 +179,10 @@ export const ENFORCED_PERMISSION_KEYS: ReadonlySet<string> = new Set([
   "process_sales", // pos-layout-header.tsx, auth-context.tsx (canProcessSales)
   "apply_discounts", // pos-cart.tsx
   "void_refund_sales", // pos-transaction-history.tsx
+  "override_price", // pos-cart-item.tsx
+  "hold_sales", // pos-cart.tsx, held-transactions-dialog.tsx
+  "view_sales_history", // pos-main-tab-nav.tsx, pos-system.tsx
+  "reprint_receipt", // transaction-details-dialog.tsx
   "manage_products", // transfer-stock-dialog.tsx, auth-context.tsx (canManageStockBatch)
   "export_reports", // report-center.tsx, report-view-dialog.tsx (canExport)
   "view_activity_log", // activity-log-page.tsx, product-history.tsx, pos-transaction-history.tsx, use-finance-data.ts, use-purchase-orders.ts, use-dashboard-overview.ts, use-pos-data.ts, auth-context.tsx (canViewAllActivity)

@@ -7,6 +7,7 @@ import { formatCurrency } from "@/lib/utils";
 import { getCategoryIcon } from "@/lib/constants/category-icons";
 import type { CartItem } from "@/lib/hooks/use-pos-cart";
 import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
+import { useHasPermission } from "@/lib/hooks/use-permissions";
 
 const SWIPE_DELETE_THRESHOLD = -70;
 const SWIPE_DELETE_VELOCITY = -500;
@@ -26,6 +27,9 @@ interface Props {
 export function POSCartItem({ item, currencyCode, isLast, updateQuantity, removeFromCart, isLocked = false, isResellerSale = false, updateUnitPrice }: Props) {
   const CategoryIcon = getCategoryIcon(item.category_name);
   const capsClass = useUppercaseDisplayClass();
+  // Unconditional top-level const, never inlined into the JSX branch below -
+  // see pos-cart.tsx's canApplyDiscounts for the hook-ordering reason.
+  const canOverridePrice = useHasPermission("override_price");
 
   // The price input is uncontrolled-while-typing: it holds its own local
   // string state so keystrokes aren't clamped one-at-a-time against
@@ -104,10 +108,11 @@ export function POSCartItem({ item, currencyCode, isLast, updateQuantity, remove
           <div className={`text-[12.5px] font-semibold mb-0.5 truncate leading-tight ${capsClass}`}>
             {item.name}
           </div>
-          {isResellerSale ? (
+          {isResellerSale && canOverridePrice ? (
             <div className="flex items-center gap-1 text-[11.5px]">
               <input
                 type="number"
+                aria-label="Override unit price"
                 inputMode="decimal"
                 min={item.original_unit_price}
                 step="1"

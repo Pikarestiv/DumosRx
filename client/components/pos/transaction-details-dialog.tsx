@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/lib/context/auth-context";
+import { useHasPermission } from "@/lib/hooks/use-permissions";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { ScrollFade } from "@/components/ui/scroll-fade";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -44,6 +45,10 @@ export function TransactionDetailsDialog({
 }: TransactionDetailsDialogProps) {
   const { isAdmin, user } = useAuth();
   const showProfit = user?.role !== "sales_staff";
+  // Unconditional top-level const (see pos-cart.tsx's canApplyDiscounts).
+  // Gates taking another copy of a finished sale's receipt off the device;
+  // the receipt shown straight after checkout belongs to process_sales.
+  const canReprintReceipt = useHasPermission("reprint_receipt");
   const { print, portal } = usePrintReceipt();
   const queryClient = useQueryClient();
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -201,29 +206,31 @@ export function TransactionDetailsDialog({
           Recall / Return
         </Button>
       )}
-      <DropdownMenu>
-        <div className="flex w-full sm:w-auto">
-          <Button
-            onClick={() => print(saleToReceiptTransaction(sale, items), "receipt")}
-            className="flex-1 sm:w-auto rounded-r-none"
-          >
-            <Printer className="w-4 h-4 mr-2" />
-            Print Receipt
-          </Button>
-          <DropdownMenuTrigger asChild>
-            <Button className="rounded-l-none border-l border-primary-foreground/20 px-2">
-              <ChevronDown className="w-4 h-4" />
+      {canReprintReceipt && (
+        <DropdownMenu>
+          <div className="flex w-full sm:w-auto">
+            <Button
+              onClick={() => print(saleToReceiptTransaction(sale, items), "receipt")}
+              className="flex-1 sm:w-auto rounded-r-none"
+            >
+              <Printer className="w-4 h-4 mr-2" />
+              Print Receipt
             </Button>
-          </DropdownMenuTrigger>
-        </div>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem
-            onClick={() => print(saleToReceiptTransaction(sale, items), "tax")}
-          >
-            Print Tax Invoice
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button className="rounded-l-none border-l border-primary-foreground/20 px-2">
+                <ChevronDown className="w-4 h-4" />
+              </Button>
+            </DropdownMenuTrigger>
+          </div>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem
+              onClick={() => print(saleToReceiptTransaction(sale, items), "tax")}
+            >
+              Print Tax Invoice
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
     </div>
   );
 

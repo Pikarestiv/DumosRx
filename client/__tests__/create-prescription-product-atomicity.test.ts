@@ -58,7 +58,7 @@ describe("createPrescription/createProduct are atomic", () => {
   it("writes a prescription and all of its items, or neither", async () => {
     await expect(
       createPrescription({ patient_name: "Ada Obi", status: "pending" }, [
-        { product_name: "Panadol", dosage: "1 tab", quantity: 10 },
+        { id: "pi-1", product_name: "Panadol", dosage: "1 tab", quantity: 10 },
         // Second item can't be written (no such column) — the header and the
         // first item must not survive on their own.
         { product_name: "Flagyl", not_a_real_column: "boom" } as never,
@@ -86,8 +86,8 @@ describe("createPrescription/createProduct are atomic", () => {
     const id = await createPrescription(
       { patient_name: "Ada Obi", status: "pending" },
       [
-        { product_name: "Panadol", dosage: "1 tab", quantity: 10 },
-        { product_name: "Flagyl", dosage: "2 tabs", quantity: 5 },
+        { id: "pi-1", product_name: "Panadol", dosage: "1 tab", quantity: 10 },
+        { id: "pi-2", product_name: "Flagyl", dosage: "2 tabs", quantity: 5 },
       ],
     );
 

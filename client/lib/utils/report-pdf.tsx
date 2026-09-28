@@ -1,6 +1,4 @@
-import { pdf } from "@react-pdf/renderer";
 import { format } from "date-fns";
-import { ReportPdfDocument } from "@/components/reports/pdf/report-pdf-document";
 
 export interface ReportPdfInput {
   storeName: string;
@@ -46,6 +44,12 @@ export async function generateReportPdfBlob(
       "PDF worker unavailable, falling back to main-thread render:",
       error,
     );
+    // Loaded on demand: a static import put @react-pdf/renderer in the
+    // Reports route's own bundle even though the worker path never uses it.
+    const [{ pdf }, { ReportPdfDocument }] = await Promise.all([
+      import("@react-pdf/renderer"),
+      import("@/components/reports/pdf/report-pdf-document"),
+    ]);
     const doc = <ReportPdfDocument {...input} generatedAt={generatedAt} />;
     return pdf(doc).toBlob();
   }

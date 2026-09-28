@@ -20,7 +20,7 @@ This file holds **open** items only. Fixed entries move to `docs/FIXED_BUGS.md` 
 
 **Most important risks, in order:**
 
-1. **PG-2 / PG-1 (carried)** — storefront online payments still have no webhook/reconciliation path and can settle via the wrong gateway. This is now the only open finding above P3: the data-integrity batch (A-9's double-booked PO receipt, A-12's disarmed clock guard, A-16's non-transactional writes, A-17's stale cart prices, A-21's sentinel user ids) and the startup/idle performance batch (A-6, A-7, A-8, A-18) are both fixed — see `docs/FIXED_BUGS.md` and `docs/LOCAL_DB_INDEXES.md`.
+1. **PG-2 / PG-1 (carried)** — storefront online payments still have no webhook/reconciliation path and can settle via the wrong gateway. **This is now the only open finding above P3, and the only remediation work this pass has left.** Every one of this pass's own 24 findings (`A-1`…`A-24`) is fixed and moved to `docs/FIXED_BUGS.md`, across nine batches committed on `dev` on 2026-09-28; the payment-gateway findings were explicitly deferred out of that series by the user and are unchanged. What remains open in this document is therefore: the deferred `PG-*` work, the four carried findings that are deliberate non-actions (`P2-1` is ops-only; `P3-1`, `P3-2`, `P3-5` are accepted tradeoffs), and `A-25`, logged during batch 9.
 
 **The major performance concern** that remains is the whole-blob `db.export()` persistence model already analysed in `docs/DATABASE_CONCURRENCY.md`; the rest of §5's list (boot-time scans, the license-guard sync gate on launch, the 5-second sync-queue poll) is fixed.
 
@@ -162,7 +162,7 @@ Synthetic dataset built from the app's own `SCHEMA_SQL` plus the migration-added
 - **Whole-catalog in-memory search:** `getProductsWithDetails()` returns the entire catalog with six correlated subqueries per row (fast now that `stock_batches(product_id)` and the rest of the read-path indexes exist — see `docs/LOCAL_DB_INDEXES.md`), and `product-database.tsx` fuzzy-searches it in memory (now debounced). Acceptable to ~10k products; beyond that the transform+filter+sort chain on every filter change is O(catalog) on the main thread.
 - **The per-request `validateSync()` chain** (`SubscriptionService`, `SystemConfig::getVal`, `PermissionGroupSeeder::ensureSeeded`, `enforceStaffLimits`) adds ~10 queries to every push and pull request before any data is touched.
 - **`getStockMovements()` with no window** loads the whole `stock_movements` table (by design, only when searching/filtering) — at ~125k rows this is a large result set held in React state regardless of indexing, since no predicate narrows it.
-- **`db.export()` per write** (`docs/DATABASE_CONCURRENCY.md` §2.4) — the export size in the table above is what every single `execute()` outside a transaction re-serialises and writes to IndexedDB on the web build. This is the dominant long-term scaling problem for the PWA and is unchanged since that document was written.
+- **`db.export()` per write** (`docs/DATABASE_CONCURRENCY.md` §2.4) — every `execute()` outside a transaction still re-serialises the whole database and writes it to IndexedDB on the web build, and that remains the dominant long-term scaling problem for the PWA. Two of its inputs are now bounded rather than unbounded: A-20 caps `audit_logs` at a 730-day local window (it was the largest single contributor to blob growth), and A-22 makes a burst of saves cost one write of the newest image instead of N writes of N images. The per-write export itself is unchanged and would need a different persistence model (incremental/OPFS) to fix properly.
 
 ---
 
@@ -177,7 +177,7 @@ Synthetic dataset built from the app's own `SCHEMA_SQL` plus the migration-added
 ## 7. Architecture and technical debt
 
 - **One hand-rolled tenant-resolution copy remains** (carried, narrowed): `DashboardService` still hand-rolls the staff→owner lookup instead of using a shared `Request`-free helper, and `TenantScopingArchitectureTest` still scans controllers only. The second copy, in `SaleController`, went with A-19.
-- **`core.ts` is 1,558 lines and `SyncController.php` 2,264 lines** against the project's own 350-line guideline; `getProductsWithDetails`-style "load everything, filter in React" is the norm for catalog/customers/PO lists (documented as intentional; the cutoff at which it stops being fine is not written down anywhere).
+- **`core.ts` is ~1,640 lines and `SyncController.php` ~2,450 lines** against the project's own 350-line guideline; `getProductsWithDetails`-style "load everything, filter in React" is the norm for catalog/customers/PO lists (documented as intentional; the cutoff at which it stops being fine is not written down anywhere).
 - **Two client-side sale-recording paths exist** (`recordSaleItemStock` for POS/online orders; `local-database.ts::createSale` for demo seeding only) — the comment on the second is clear, but it still writes `stock_batches.quantity` directly with a raw `UPDATE` rather than through `update()`, so a demo-seeded batch is the one batch the version model never saw.
 - **Quality gates are now enforced** (A-15 fixed): `.github/workflows/checks.yml` runs `tsc --noEmit` + `vitest` + `php artisan test` and every deploy/release workflow `needs:` it. `composer audit`/`npm audit` are still not run in CI (carried from the previous pass).
 - **`sw.js` still has no automated coverage** (carried) despite two cache-poisoning fixes.
@@ -199,16 +199,16 @@ Synthetic dataset built from the app's own `SCHEMA_SQL` plus the migration-added
 - **Service worker**: precache is all-or-nothing on the shell, per-URL otherwise; both the navigation and asset branches refuse HTML under a non-HTML key; RSC `.txt` keys normalised; `controllerchange` reload.
 - **Tauri**: vendored SQL plugin pinned to one pooled connection so `BEGIN/COMMIT` are real; WAL + busy_timeout; restore checkpoints the WAL and refuses to overwrite past a failed `close()`; updater artifacts are signed and CI fails if the signing secrets are missing.
 - **Money/tax math** (`pos-calculations.ts`, `finance.ts`, `reports.ts`): consistent cent rounding, ex-VAT refunds netted correctly, prepaid expense smoothing shared by every consumer, sales-level and item-level aggregates split to avoid join fan-out (each of these was a fixed bug in `FIXED_BUGS.md` and is still correct).
-- **CI/CD**: pinned action SHAs, `contents: read` where possible, queued (not cancelled) deploy concurrency, storefront output verification before FTP sync, updater-signing preflight.
-- **Test suites**: both green at the time of this pass (client 1303 tests, server 469 tests, `tsc` clean).
+- **CI/CD**: pinned action SHAs, `contents: read` where possible, queued (not cancelled) deploy concurrency, storefront output verification before FTP sync, updater-signing preflight, and (since A-15) a reusable `checks.yml` running `tsc`/`vitest`/`phpunit` that every deploy and release workflow gates on.
+- **Test suites**: both green. At the time of this pass: client 1303 tests, server 469 tests. After the nine remediation batches: client 255 files / 1392 tests, server 480 tests / 1541 assertions, `tsc --noEmit` clean. (The server count is lower than mid-series because A-19 deleted the endpoints ~46 of those tests covered.)
 - **Secrets hygiene (verified):** the Android release keystore, its base64 copy, the local dev SQLite file and the server's local DB file all sit in the working tree but are git-ignored and untracked (`git ls-files`/`git check-ignore` confirmed); no secrets were found in `.env.example` files or committed source. The Sentry DSN in the workflows is a public ingest key by design.
 
 ---
 
-## Recommended remediation order
+## What is left, and why
 
-Ordered by technical impact and by which fixes unblock or de-risk others — not by ease.
+This pass's own remediation is complete — nothing from `A-1`…`A-24` is still open, so this is no longer an ordered work queue. What remains in this document is one piece of real deferred work, one small new item, and a set of deliberate non-actions:
 
-1. **PG-2 then PG-1** (carried) — the storefront webhook/reconciliation path and the gateway pinning; still the largest real-world money-loss surface.
-2. **A-23** — hygiene and architecture debt; A-15 (enforce `tsc`/tests in CI, `npm ci`) is the one worth doing early because it protects everything else.
-3. **P2-1** (ops confirmation) and the accepted **P3-1/P3-2/P3-5**, **PG-3…PG-10** as previously scheduled.
+1. **Deferred by user direction: PG-2 then PG-1**, then **PG-3…PG-10** — the storefront webhook/reconciliation path and the gateway pinning first; still the largest real-world money-loss surface, and the only substantial engineering work this document still describes. Explicitly excluded from the 2026-09-28 remediation series rather than overlooked.
+2. **New, small: A-25** — repair `npm run test:schema` and add it to `checks.yml`'s client job. Found while fixing A-15; a contained tooling fix, not a product risk.
+3. **Deliberate non-actions, listed here so they are not re-filed as findings next pass:** **P2-1** is a one-line production `.env` confirmation with zero code change; **P3-1** (bearer token in `localStorage`) needs a dual-path auth design project and has a compensating control in the shipped Tauri CSP; **P3-2** (stale lazy chunk after a deploy) needs deploy-asset retention to close fully; **P3-5** (manifest `theme_color`) is a Web App Manifest spec limitation with no action recommended. **PG-10** needs a product decision, not a fix.

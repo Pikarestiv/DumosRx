@@ -441,6 +441,76 @@ class SyncPushOwnershipTest extends TestCase
         $this->assertContains($this->attackerStore->id, $rowsByStore);
     }
 
+    /**
+     * A resubmitted audit_logs INSERT (the client re-queues one on every boot
+     * while its source row is still flagged unsynced) is rewritten to an
+     * UPDATE by the existence probe above, which matches on
+     * properties->client_id. The UPDATE branch then re-looked the row up with
+     * a raw find($recordId) — a client-generated id string against
+     * activity_logs' auto-increment bigint primary key. MySQL coerces that
+     * string to its leading numeric run ("87fe24ac-…" → 87), so the lookup
+     * could land on a COMPLETELY UNRELATED activity_logs row that merely
+     * happens to hold that small id, and forceFill() then overwrote its
+     * action/description/properties/user_id with another device's audit data.
+     *
+     * The client id here is fully numeric so the same coercion reproduces on
+     * the sqlite test connection; under MySQL any id with a leading digit run
+     * hits it.
+     */
+    public function test_resubmitted_audit_log_update_does_not_overwrite_an_unrelated_row_with_a_matching_numeric_id()
+    {
+        $collidingClientId = '87';
+
+        DB::table('activity_logs')->insert([
+            'id' => 87,
+            'user_id' => $this->attackerOwner->id,
+            'store_id' => $this->attackerStore->id,
+            'action' => 'UNRELATED_ACTION',
+            'description' => 'an unrelated audit entry',
+            'properties' => json_encode(['client_id' => 'a-totally-different-client-id']),
+            '_version' => 1,
+            'created_at' => now()->subDays(2),
+            'updated_at' => now()->subDays(2),
+        ]);
+
+        $pushAction = fn (string $action) => $this->actingAs($this->attackerOwner)
+            ->postJson('/api/v1/app/sync/push', [
+                'setup' => true,
+                'changes' => [
+                    [
+                        'table_name' => 'audit_logs',
+                        'operation' => 'INSERT',
+                        'record_id' => $collidingClientId,
+                        'payload' => [
+                            'id' => $collidingClientId,
+                            'user_id' => $this->attackerOwner->id,
+                            'action' => $action,
+                            'table_name' => 'users',
+                            'record_id' => 'irrelevant',
+                            'updated_at' => now()->toIso8601String(),
+                        ],
+                    ],
+                ],
+            ]);
+
+        $pushAction('FIRST_PUSH')->assertJsonCount(0, 'failed');
+
+        $ownRowId = DB::table('activity_logs')
+            ->where('id', '!=', 87)
+            ->where('properties', 'like', '%"client_id":"'.$collidingClientId.'"%')
+            ->value('id');
+        $this->assertNotNull($ownRowId);
+
+        $pushAction('SECOND_PUSH')->assertJsonCount(0, 'failed');
+
+        $unrelated = DB::table('activity_logs')->where('id', 87)->first();
+        $this->assertSame('UNRELATED_ACTION', $unrelated->action);
+        $this->assertStringContainsString('a-totally-different-client-id', $unrelated->properties);
+        $this->assertSame($this->attackerStore->id, $unrelated->store_id);
+
+        $this->assertSame('SECOND_PUSH', DB::table('activity_logs')->where('id', $ownRowId)->value('action'));
+    }
+
     public function test_update_of_a_feedback_row_owned_by_a_soft_deleted_user_is_still_forbidden()
     {
         $deletedStaff = User::create([

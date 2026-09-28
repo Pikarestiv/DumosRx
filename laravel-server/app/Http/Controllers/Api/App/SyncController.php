@@ -230,9 +230,7 @@ class SyncController extends Controller
                         // correctly (but permanently, since audit_logs are
                         // append-only and nothing ever re-queues it) rejected
                         // as 'forbidden', losing that log entry for good.
-                        $exists = $modelClass::where('properties->client_id', $recordId)
-                            ->where('store_id', $currentStoreId)
-                            ->exists();
+                        $exists = $this->findAuditLogByClientId($modelClass, $recordId, $currentStoreId) !== null;
                     } else {
                         // Use withTrashed to catch soft-deleted items so we don't get Duplicate Entry crashes
                         $exists = \method_exists($modelClass, 'trashed') 
@@ -393,7 +391,18 @@ class SyncController extends Controller
                     // locked at all. That's an acceptable, bounded tradeoff for correctness here,
                     // not a deadlock risk beyond what already exists from save() locking rows in
                     // whatever order the batch happens to process them.
-                    $model = \method_exists($modelClass, 'trashed') ? $modelClass::withTrashed()->lockForUpdate()->find($recordId) : $modelClass::lockForUpdate()->find($recordId);
+                    // audit_logs never carries the client's id as its primary
+                    // key (the INSERT path deliberately keeps the server's own
+                    // auto-increment and stores the client id in
+                    // properties->client_id), so it must be matched the same
+                    // way the INSERT existence probe above matches it — a raw
+                    // find() here coerces the id string to a leading numeric
+                    // run under MySQL and can hit an unrelated row.
+                    if ($change['table_name'] === 'audit_logs') {
+                        $model = $this->findAuditLogByClientId($modelClass, $recordId, $currentStoreId, true);
+                    } else {
+                        $model = \method_exists($modelClass, 'trashed') ? $modelClass::withTrashed()->lockForUpdate()->find($recordId) : $modelClass::lockForUpdate()->find($recordId);
+                    }
 
                     if ($model && $currentUser && !$isSuperAdmin && !$this->authorizeChangeTarget($change['table_name'], $model, $allowedStoreIds, $allowedUserIds)) {
                         // Reject before even looking at version info: the
@@ -1123,6 +1132,26 @@ class SyncController extends Controller
      * with _deleted=1 and no _version). Confirm none of those still rely on
      * it before deleting the branch.
      */
+    /**
+     * The only correct way to find the activity_logs row a client-generated
+     * audit_logs id refers to: activity_logs.id is the server's own
+     * auto-increment bigint, and the client's id lives in
+     * properties->client_id. Scoped to the pushing store because a client id
+     * is only unique on the device that generated it (see the INSERT
+     * existence probe in push() for the cross-store case that proved it).
+     */
+    private function findAuditLogByClientId(string $modelClass, $recordId, $currentStoreId, bool $lock = false)
+    {
+        $query = $modelClass::where('properties->client_id', $recordId)
+            ->where('store_id', $currentStoreId);
+
+        if ($lock) {
+            $query->lockForUpdate();
+        }
+
+        return $query->orderBy('id')->first();
+    }
+
     private function resolveUpdateConflict(string $tableName, $model, array $payload, bool $isCommutativeTable, $recordId): array
     {
         $payloadVersion = isset($payload['_version']) ? (int)$payload['_version'] : null;

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
 import * as Sentry from "@sentry/nextjs";
 import { setCurrentUser as setDbUser, logAction } from "@/lib/db/local-database";
 import { apiClient } from "@/lib/api/client";
@@ -256,7 +256,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const login = async (identifier: string, pin?: string) => {
+  const login = useCallback(async (identifier: string, pin?: string) => {
     // For local-first, we check both username and email
     const cleanIdentifier = identifier.trim();
     // Captured before any state changes below: distinguishes the ordinary
@@ -587,7 +587,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     if (pin) recordLoginFailure(cleanIdentifier);
     return false;
-  };
+  }, [user]);
 
   /** Bootstraps a local session for a user who authenticated on the cloud side
    * and arrived here via the one-time handoff code (/auth/callback); most
@@ -601,7 +601,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
    * account tiles with foreign-store staff), and does NOT logAction() (would
    * write into the wrong store's local audit trail (the impersonation itself
    * is already audited server-side by AdminService::impersonateStore). */
-  const loginFromHandoff = (apiUser: HandoffApiUser) => {
+  const loginFromHandoff = useCallback((apiUser: HandoffApiUser) => {
     const userProfile: User = {
       id: apiUser.id,
       first_name: apiUser.first_name || "",
@@ -627,9 +627,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsImpersonating(true);
     sessionStorage.setItem("dumos_session_authenticated", "1");
     useAutoLockStore.getState().unlock();
-  };
+  }, []);
 
-  const logout = () => {
+  const logout = useCallback(() => {
     // Captured before clearing: logAction attributes to the current
     // session's user, which is about to be cleared.
     if (user) {
@@ -660,9 +660,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // repopulate a store/user-unscoped query key.
     void queryClient.cancelQueries();
     queryClient.clear();
-  };
+  }, [user]);
 
-  const changePin = async (currentPin: string, newPin: string) => {
+  const changePin = useCallback(async (currentPin: string, newPin: string) => {
     if (!user) return { success: false, message: "Not authenticated" };
 
     const currentStoredPin = await getUserPin(user.id);
@@ -682,9 +682,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error("Failed to update PIN", e);
       return { success: false, message: "Database error" };
     }
-  };
+  }, [user]);
 
-  const verifyPin = async (pin: string) => {
+  const verifyPin = useCallback(async (pin: string) => {
     if (!user) return false;
     const storedPin = await getUserPin(user.id);
     if (!storedPin) return false;
@@ -697,9 +697,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       void migrateLegacyPinToHash(user.id, pin);
     }
     return true;
-  };
+  }, [user]);
 
-  const linkCloudAccount = async (email: string, password: string) => {
+  const linkCloudAccount = useCallback(async (email: string, password: string) => {
     try {
       // Prevent linking to a different account if already linked before
       if (user?.email && user.email.toLowerCase() !== email.toLowerCase()) {
@@ -740,7 +740,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (e) {
       return { success: false, message: e instanceof Error ? e.message : "Failed to connect to cloud" };
     }
-  };
+  }, [user]);
 
   // Seeds the active store's 5 default permission groups (idempotent, see
   // ensurePermissionGroupsSeeded) the moment a session is established -
@@ -787,29 +787,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const canProcessSales = hasPermission(user, permissionGroup, "process_sales");
   const canViewAllActivity = hasPermission(user, permissionGroup, "view_activity_log");
 
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        isHydrated,
-        login,
-        loginFromHandoff,
-        logout,
-        isAuthenticated: !!user,
-        isAdmin,
-        canManageStockBatch,
-        canProcessSales,
-        canViewAllActivity,
-        changePin,
-        verifyPin,
-        linkCloudAccount,
-        isCloudLinked,
-        isImpersonating,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
+  const value = useMemo<AuthContextType>(
+    () => ({
+      user,
+      isHydrated,
+      login,
+      loginFromHandoff,
+      logout,
+      isAuthenticated: !!user,
+      isAdmin,
+      canManageStockBatch,
+      canProcessSales,
+      canViewAllActivity,
+      changePin,
+      verifyPin,
+      linkCloudAccount,
+      isCloudLinked,
+      isImpersonating,
+    }),
+    [
+      user,
+      isHydrated,
+      login,
+      loginFromHandoff,
+      logout,
+      isAdmin,
+      canManageStockBatch,
+      canProcessSales,
+      canViewAllActivity,
+      changePin,
+      verifyPin,
+      linkCloudAccount,
+      isCloudLinked,
+      isImpersonating,
+    ],
   );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export const useAuth = () => {

@@ -23,11 +23,20 @@ import { ResponsiveDetailPanel } from "@/components/ui/responsive-detail-panel";
 import { queryKeys } from "@/lib/query-keys";
 import { useSortableData } from "@/lib/hooks/use-sortable-data";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
+
+/** Matches pos-transaction-history, the other fuzzy-search surface. */
+const SEARCH_DEBOUNCE_MS = 200;
 
 export function ProductDatabase() {
   const { storeType, storeProfile } = useStore();
   const isDesktop = useMediaQuery("(min-width: 1024px)");
   const [searchTerm, setSearchTerm] = useState("");
+  // The inputs below stay bound to searchTerm so typing is instant; the
+  // expensive work (genericFuzzySearch over the WHOLE catalog, whose Tier-4
+  // Levenshtein fallback fires exactly while a user is mid-word, on the same
+  // main thread as synchronous sql.js) runs off the settled value instead.
+  const debouncedSearchTerm = useDebouncedValue(searchTerm, SEARCH_DEBOUNCE_MS);
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -181,14 +190,14 @@ export function ProductDatabase() {
 
   const { results: searchedProducts, isFuzzyFallback } = useMemo(
     () =>
-      genericFuzzySearch(searchTerm, preFilteredProducts, [
+      genericFuzzySearch(debouncedSearchTerm, preFilteredProducts, [
         "name",
         "genericName",
         "nafdacNumber",
         "barcode",
         "id",
       ]),
-    [searchTerm, preFilteredProducts],
+    [debouncedSearchTerm, preFilteredProducts],
   );
 
   const { sortKey, direction, toggleSort, sortedData: filteredProducts } =
@@ -201,8 +210,13 @@ export function ProductDatabase() {
       reorderLevel: (p: Product) => p.reorderLevel,
     });
 
+  // Debounced, not raw: this gates filteredProductIds, which is derived from
+  // the debounced search, so the raw term would claim "filtering" for a frame
+  // while filteredProducts still held the unfiltered list.
   const isFiltering =
-    searchTerm.trim() !== "" || categoryFilter !== "all" || statusFilter !== "all";
+    debouncedSearchTerm.trim() !== "" ||
+    categoryFilter !== "all" ||
+    statusFilter !== "all";
 
   const formatCurrency = (amount: number) =>
     formatCurrencyWithCode(amount, storeProfile?.currency);

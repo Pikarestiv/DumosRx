@@ -16,6 +16,11 @@ import ReactBarcode from "react-barcode";
 import { printNode } from "@/lib/utils/print-node";
 import { toast } from "sonner";
 import { useStore } from "@/lib/context/store-context";
+import {
+  buildLabelSheetHtml,
+  clampLabelQuantity,
+  MAX_LABEL_QUANTITY,
+} from "./barcode-label-sheet";
 import type { POSProduct } from "@/lib/types/product";
 
 // printNode() ships this as a page <style> in the popped-out print window, so
@@ -74,16 +79,20 @@ export function BarcodePrintDialog({
     if (!product) return;
 
     try {
-      requestAnimationFrame(() => {
-        if (printRef.current) {
-          printNode(
-            printRef.current,
-            getLabelPageStyle(storeProfile?.uppercase_display_enabled !== 0),
-          ).catch((err) => {
-            console.error("[print] Failed to print labels:", err);
-            toast.error("Couldn't open the print dialog. Please try again.");
-          });
-        }
+      const template = printRef.current;
+      if (!template) return;
+
+      // One label is mounted off-screen; the print job is that label's markup
+      // repeated, rather than `quantity` live React components.
+      const sheet = document.createElement("div");
+      sheet.innerHTML = buildLabelSheetHtml(template.innerHTML, quantity);
+
+      printNode(
+        sheet,
+        getLabelPageStyle(storeProfile?.uppercase_display_enabled !== 0),
+      ).catch((err) => {
+        console.error("[print] Failed to print labels:", err);
+        toast.error("Couldn't open the print dialog. Please try again.");
       });
 
       toast.success(`Printing ${quantity} labels for ${product.name}`);
@@ -131,7 +140,8 @@ export function BarcodePrintDialog({
                   variant="outline"
                   size="icon"
                   className="h-12 w-12 rounded-xl"
-                  onClick={() => setQuantity((prev) => Math.max(1, prev - 1))}
+                  onClick={() => setQuantity((prev) => clampLabelQuantity(prev - 1))}
+                  disabled={quantity <= 1}
                 >
                   <Minus className="w-5 h-5" />
                 </Button>
@@ -142,7 +152,8 @@ export function BarcodePrintDialog({
                   variant="outline"
                   size="icon"
                   className="h-12 w-12 rounded-xl"
-                  onClick={() => setQuantity((prev) => prev + 1)}
+                  onClick={() => setQuantity((prev) => clampLabelQuantity(prev + 1))}
+                  disabled={quantity >= MAX_LABEL_QUANTITY}
                 >
                   <Plus className="w-5 h-5" />
                 </Button>
@@ -166,30 +177,29 @@ export function BarcodePrintDialog({
           </div>
         )}
 
-        {/* Off-screen, printed via printNode, not display:none (that would
-            carry over into the printed clone and hide it there too). */}
+        {/* One off-screen label, used as the template handlePrint repeats -
+            not display:none (that would carry over into the printed clone and
+            hide it there too). */}
         {product && (
           <div
             aria-hidden="true"
             style={{ position: "fixed", left: -9999, top: -9999 }}
           >
             <div ref={printRef}>
-              {Array.from({ length: quantity }).map((_, i) => (
-                <div className="label" key={i}>
-                  <div className="name">{product.name}</div>
-                  <ReactBarcode
-                    value={product.barcode || product.id}
-                    width={1}
-                    height={26}
-                    fontSize={8}
-                    margin={0}
-                  />
-                  <div className="price">
-                    {storeProfile?.currency || "NGN"}{" "}
-                    {product.unit_price.toLocaleString()}
-                  </div>
+              <div className="label">
+                <div className="name">{product.name}</div>
+                <ReactBarcode
+                  value={product.barcode || product.id}
+                  width={1}
+                  height={26}
+                  fontSize={8}
+                  margin={0}
+                />
+                <div className="price">
+                  {storeProfile?.currency || "NGN"}{" "}
+                  {product.unit_price.toLocaleString()}
                 </div>
-              ))}
+              </div>
             </div>
           </div>
         )}

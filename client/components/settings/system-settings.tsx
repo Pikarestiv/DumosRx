@@ -17,30 +17,39 @@ import Link from "next/link";
 import { IosInstallCard } from "./ios-install-card";
 import { AndroidInstallCard } from "./android-install-card";
 import { DownloadAppsCard } from "./download-apps-card";
+import { useHasPermission } from "@/lib/hooks/use-permissions";
 
 export function SystemSettings() {
+  // The System tab itself is manage_device_settings; this card is only a
+  // shortcut into the Billing tab, so it carries that tab's own key rather
+  // than offering a link into a screen the group cannot open.
+  const canManageBilling = useHasPermission("manage_billing");
+
   return (
     <div className="space-y-6">
       <IosInstallCard />
       <AndroidInstallCard />
       {!isTauri() && <DownloadAppsCard />}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Subscription & Billing</CardTitle>
-          <CardDescription>
-            Manage your subscription plan, payment methods, and billing history
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button asChild variant="outline">
-            <Link href="/settings/billing">
-              Manage Billing
-              <ArrowRight className="w-4 h-4 ml-2" />
-            </Link>
-          </Button>
-        </CardContent>
-      </Card>
+      {canManageBilling && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Subscription & Billing</CardTitle>
+            <CardDescription>
+              Manage your subscription plan, payment methods, and billing
+              history
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild variant="outline">
+              <Link href="/settings/billing">
+                Manage Billing
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
@@ -51,14 +60,18 @@ export function SystemSettings() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
-            <Label className="text-muted-foreground font-normal">Application Version</Label>
+            <Label className="text-muted-foreground font-normal">
+              Application Version
+            </Label>
             <p className="text-sm font-medium">{APP_VERSION}</p>
           </div>
 
           <Separator />
 
           <div className="flex items-center justify-between">
-            <Label className="text-muted-foreground font-normal">Environment</Label>
+            <Label className="text-muted-foreground font-normal">
+              Environment
+            </Label>
             <p className="text-sm font-medium">
               {isTauri() ? "Desktop (Tauri)" : "Web Browser"}
             </p>
@@ -67,7 +80,9 @@ export function SystemSettings() {
           <Separator />
 
           <div className="flex items-center justify-between">
-            <Label className="text-muted-foreground font-normal">Platform</Label>
+            <Label className="text-muted-foreground font-normal">
+              Platform
+            </Label>
             <p className="text-sm font-medium">
               {typeof window !== "undefined"
                 ? navigator.userAgent.includes("Mac")

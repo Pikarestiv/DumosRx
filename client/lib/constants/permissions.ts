@@ -242,5 +242,12 @@ export const ENFORCED_PERMISSION_KEYS: ReadonlySet<string> = new Set([
   "view_all_expenses", // use-finance-data.ts (useExpenseList, useExpenseTotals)
   "manage_staff", // pos-layout-header.tsx, auth-context.tsx (isAdmin)
   "manage_roles_permissions", // permission-matrix.tsx
+  "manage_store_settings", // settings-tabs.ts (Business Info, Branches, Receipt Settings, Register Configs), appearance-settings.tsx
+  "manage_payment_accounts", // settings-tabs.ts (Payment Methods tab)
+  "manage_online_store", // store-profile-section.tsx, payment-methods-panel.tsx
+  "manage_billing", // settings-tabs.ts (Billing tab), system-settings.tsx
+  "backup_restore_data", // settings-tabs.ts (Data & Sync tab)
+  "manage_device_settings", // settings-tabs.ts (System tab)
+  "install_app_updates", // tauri/auto-updater.tsx
   "factory_reset", // device-danger-zone.tsx
 ]);

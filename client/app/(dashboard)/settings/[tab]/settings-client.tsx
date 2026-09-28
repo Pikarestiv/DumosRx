@@ -93,7 +93,7 @@ export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
           onBack={() => router.push("/dashboard")}
         />
         <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4">
-          <SettingsMobileMenu isAdmin={s.isAdmin} />
+          <SettingsMobileMenu isAdmin={s.isAdmin} canAccessTab={s.canAccessTab} />
         </div>
       </div>
     );
@@ -119,7 +119,7 @@ export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
       style={{ height: "calc(100dvh - var(--tauri-top, 0px))" }}
     >
       <aside className="hidden md:flex md:flex-col w-full md:w-56 flex-shrink-0 h-full min-h-0 overflow-y-auto border-border/50 p-3 pr-0">
-        <SettingsTabNav isAdmin={s.isAdmin} />
+        <SettingsTabNav isAdmin={s.isAdmin} canAccessTab={s.canAccessTab} />
       </aside>
 
       <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
@@ -140,13 +140,13 @@ export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
             </TabsContent>
           )}
 
-          {s.isAdmin && (
+          {s.canAccessTab("business-info") && (
             <TabsContent value="business-info" className="space-y-6">
               <BusinessInfoPanel {...s} />
             </TabsContent>
           )}
 
-          {s.isAdmin && (
+          {s.canAccessTab("branches") && (
             <TabsContent value="branches" className="space-y-6">
               <FleetOverview />
               <MultiStoreCard />
@@ -157,7 +157,7 @@ export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
             <AlertsPanel {...s} />
           </TabsContent>
 
-          {s.isAdmin && (
+          {s.canAccessTab("data") && (
             <TabsContent value="data">
               <DataPanel {...s} />
             </TabsContent>
@@ -179,19 +179,19 @@ export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
             </TabsContent>
           )}
 
-          {s.isAdmin && (
+          {s.canAccessTab("payment-methods") && (
             <TabsContent value="payment-methods" className="space-y-6">
               <PaymentMethodsPanel {...s} />
             </TabsContent>
           )}
 
-          {s.isAdmin && (
+          {s.canAccessTab("receipt-settings") && (
             <TabsContent value="receipt-settings" className="space-y-6">
               <ReceiptSettingsPanel {...s} />
             </TabsContent>
           )}
 
-          {s.isAdmin && (
+          {s.canAccessTab("register-configs") && (
             <TabsContent value="register-configs">
               <RegisterConfigsPanel {...s} />
             </TabsContent>
@@ -209,13 +209,13 @@ export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
             </TabsContent>
           )}
 
-          {s.isAdmin && (
+          {s.canAccessTab("system") && (
             <TabsContent value="system">
               <SystemSettings />
             </TabsContent>
           )}
 
-          {s.isAdmin && (
+          {s.canAccessTab("billing") && (
             <TabsContent value="billing">
               <BillingSettings />
             </TabsContent>

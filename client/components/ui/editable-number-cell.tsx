@@ -21,6 +21,7 @@ export function EditableNumberCell({
   autoFocus,
   onBlur,
   onCancel,
+  ariaLabel,
 }: {
   value: number;
   onCommit: (val: number) => void;
@@ -38,6 +39,11 @@ export function EditableNumberCell({
    * without treating it as a commit (blurring would run the normal
    * onBlur/save path, which Escape should explicitly bypass). */
   onCancel?: () => void;
+  /** Accessible name for the input. These cells live in dense ledger tables
+   * where the only label is a column header that is not programmatically
+   * associated with each row, leaving the input unnamed for screen readers
+   * and for any test that wants to address one row's field. */
+  ariaLabel?: string;
 }) {
   const [text, setText] = useState(String(value));
   const [isFocused, setIsFocused] = useState(false);
@@ -61,6 +67,7 @@ export function EditableNumberCell({
       min={min}
       step={step}
       autoFocus={autoFocus}
+      aria-label={ariaLabel}
       className={`${widthClassName} text-right border rounded-md px-2 py-1 outline-none focus:border-primary bg-background ${
         hasError
           ? "border-destructive text-destructive font-semibold"

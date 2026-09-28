@@ -64,6 +64,12 @@ interface ProductComboboxProps {
    * PO item search bar) focus it programmatically, on mount or from an
    * empty-state action button. */
   inputRef?: React.Ref<HTMLInputElement>;
+  /** Catalog to search, when the caller already holds one. Every instance
+   * otherwise runs its own useProductList query for the same full catalog,
+   * which the PO builder pays for twice over (once here, once through
+   * useProcurementData). Omitted, the internal query is used exactly as
+   * before, so no other caller changes. */
+  products?: { id: string; name: string; generic_name?: string | null; category_name?: string | null; manufacturer?: string | null; strength?: string | null; dosage_form?: string | null }[];
 }
 
 function SourceBadge({
@@ -200,6 +206,7 @@ export function ProductCombobox({
   showCreateNewOption = true,
   showSearchIcon = false,
   inputRef,
+  products,
 }: ProductComboboxProps) {
   const [open, setOpen] = React.useState(false);
   const containerRef = React.useRef<HTMLDivElement>(null);
@@ -224,8 +231,10 @@ export function ProductCombobox({
   const { storeProfile } = useStore();
   const isPharmacy = storeProfile?.store_type === "pharmacy";
 
-  // Fetch local products
-  const { data: localProducts = [] } = useProductList();
+  const { data: queriedProducts = [] } = useProductList({
+    enabled: !products,
+  });
+  const localProducts = products ?? queriedProducts;
 
   // Compile global suggestions
   const globalSuggestions = React.useMemo(() => {
@@ -262,11 +271,11 @@ export function ProductCombobox({
       name: p.name,
       source: "local" as ProductSource,
       localId: p.id,
-      generic_name: p.generic_name,
-      category: p.category_name,
-      manufacturer: p.manufacturer,
-      strength: p.strength,
-      dosageForm: p.dosage_form,
+      generic_name: p.generic_name ?? undefined,
+      category: p.category_name ?? undefined,
+      manufacturer: p.manufacturer ?? undefined,
+      strength: p.strength ?? undefined,
+      dosageForm: p.dosage_form ?? undefined,
     }));
   }, [localProducts]);
 

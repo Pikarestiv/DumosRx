@@ -1,4 +1,47 @@
+import type { POProduct } from "@/lib/db/queries/procurement";
 import type { POLineItemDraft } from "./po-item-ledger-table";
+
+/**
+ * Adding a product to the order being built. Picking the same product twice
+ * used to append a second row for it, leaving two lines for one product to
+ * be reconciled by hand (and two competing sets of lot/expiry/price
+ * overrides); the second pick is almost always "one more of these", so it
+ * increments the row that already exists. `merged` lets the caller say which
+ * of the two happened.
+ */
+export function addOrMergeLineItem(
+  items: POLineItemDraft[],
+  product: POProduct,
+): { items: POLineItemDraft[]; merged: boolean } {
+  const existingIndex = items.findIndex((i) => i.product_id === product.id);
+  if (existingIndex >= 0) {
+    const next = [...items];
+    const existing = next[existingIndex];
+    next[existingIndex] = {
+      ...existing,
+      bulk_quantity: existing.bulk_quantity + 1,
+    };
+    return { items: next, merged: true };
+  }
+
+  const unitsPerBulk = product.units_per_bulk || 1;
+  const unitCost = product.cost_price ? product.cost_price * unitsPerBulk : 0;
+  return {
+    items: [
+      ...items,
+      {
+        product_id: product.id,
+        product_name: product.name,
+        bulk_unit: product.bulk_unit || "Carton",
+        bulk_quantity: 1,
+        units_per_bulk: unitsPerBulk,
+        unit_cost: unitCost,
+        subtotal: unitCost,
+      },
+    ],
+    merged: false,
+  };
+}
 
 /**
  * Single source of truth for Immediate Purchase cost math. unit_cost is

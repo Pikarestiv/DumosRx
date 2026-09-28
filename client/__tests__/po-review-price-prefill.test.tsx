@@ -51,7 +51,7 @@ describe("POReviewPricePopover prefill via POItemLedgerTable", () => {
       root.render(
         React.createElement(POItemLedgerTable, {
           poType: "immediate",
-          items,
+          rows: items.map((item, index) => ({ item, index })),
           products: [productOverride],
           onUpdateItem: vi.fn(),
           onRemoveItem: vi.fn(),
@@ -133,7 +133,7 @@ describe("POReviewPricePopover prefill via POItemLedgerTable", () => {
         root.render(
           React.createElement(POItemLedgerTable, {
             poType: "immediate",
-            items: [baseItem],
+            rows: [{ item: baseItem, index: 0 }],
             products: [product],
             onUpdateItem,
             onRemoveItem: vi.fn(),

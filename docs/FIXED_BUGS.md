@@ -2,6 +2,26 @@
 
 A changelog of bugs that were tracked in `docs/KNOWN_BUGS.md` and have since been fixed. `KNOWN_BUGS.md` only ever holds *open* items — an entry is removed from it outright the moment it's fixed, not marked done in place — so this file is where the record of "what it was and when it got fixed" lives instead. Git history has the exact diffs; this is a scannable index into that history, one entry per fix, newest first.
 
+## 2026-09-28
+
+### Whole-client UX + performance pass (U1–U14, P1–P10)
+- **Branch:** `feature/whole-app-ux-perf-fixes` (commits `45c0bef9`…, POS / sync indicator / cycle count / catalog / staff / reports / responsive-branch groups).
+- Scope was a fresh-context UX + performance audit of `client/` outside procurement (a concurrent branch owned that area). Every finding is either fixed with a test, fixed with a ruling recorded below, or deferred below.
+
+**Design decisions worth knowing before touching these areas again:**
+- **A failed read is never an empty list.** `usePOSData`, `useCustomerData` and `product-database` all expose their query's `isError` rather than coercing with `|| []`, and the POS grid, product catalog and customer directory each render a distinct, retryable "couldn't load … on this device" state. When adding a new list surface, thread `isError` through the same way — `|| []` alone silently turns a dead local database into "no results, try a different search term".
+- **`useSortableData` reads `accessors` through a ref**, deliberately not through its memo's dependency array, because every call site builds that object inline. The trade-off: changing an accessor alone does not re-sort. Accessors must stay pure projections of a row.
+- **An in-progress cycle count is persisted** (`lib/hooks/use-stock-audit-draft.ts`, zustand `persist`, same pattern as the POS cart) and is cleared at exactly the points that clear the POS cart: submit, logout, a different user signing in, and a store switch. Backing out of an edited count confirms first and *keeps* the draft; it is not discarded.
+- **The stock-quantity quick-edit in the catalog commits only on an explicit confirm** (`commitOnBlur={false}`), unlike its sibling cells, because its save posts a real inventory adjustment and an immutable `stock_movements` row. Any future cell with consequences beyond itself should opt out of blur-commit too.
+- **`sync()`'s "Sync already in progress" is a no-op, not an error** — it is exported as `SYNC_IN_PROGRESS_ERROR` so callers can't drift from the literal. The sync indicator's pending state is driven by the queue count alone; the 30-minute staleness check only escalates the badge's colour.
+- **Responsive list branches are conditionally rendered, not CSS-hidden**, wherever one branch is virtualized and the other isn't (POS-adjacent lists, stock movements, customer directory/activity, expenses, activity log, staff activity, suppliers). `hooks/use-media-query.ts` starts at `false` by design (static export), so the mobile branch renders for one frame on desktop — acceptable here, but don't build anything with side effects on that first frame.
+- **Only one `SyncIndicator` is mounted at a time.** The mobile header row is gated on a media query rather than `sm:hidden` because each indicator installs its own auto-sync daemon, and two racing daemons made a successful sync report the loser's refusal as a red "Sync Error".
+
+**Deferred, with reasoning:**
+- **Virtualizing the *mobile* branches** of the five lists converted in P2. Now that only one branch renders, mobile no longer pays for a hidden desktop render, and each of those card lists needs its own scroll-container/measurement work. Worth doing per-screen, not as one sweep.
+- **`React.memo` on `POSCart` is currently inert.** It is applied, and the cart mutators from `usePOSCart` are now stable (`useCallback`), but five handlers it receives (`onCheckout`, `onHoldSale`, `onRequestClearCart`, `onOpenHeldSales`, `onEditPrescription`) are still per-render closures built in `pos-system.tsx`, and `onCheckout` in particular wraps `useFeatureGate`'s `withRestriction`, which is itself recreated every render. Making the memo actually bail out means stabilising `withRestriction` first. The concrete win that *was* taken here is `handleAddToCart` (`useCallback`, with `searchTerm` read through a ref): it is `POSProductCard`'s only per-card prop, so the existing `memo` on hundreds of product tiles now holds across keystrokes.
+- **The remaining ~24 `useQuery` call sites with no `isError` branch.** The three highest-traffic list surfaces were done properly; a shallow pass over the rest would add noise without changing what staff actually hit.
+
 ## 2026-09-26
 
 ### fix: a batch of many sync conflicts crashed the page ("Maximum update depth exceeded")

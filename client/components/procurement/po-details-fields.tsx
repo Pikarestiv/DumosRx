@@ -78,23 +78,8 @@ export function PODetailsFields({
     <div className="flex flex-col gap-4">
       {!hideTypeToggle && (
         <div className="space-y-1.5">
-          <Label className="text-[12.5px] font-semibold text-foreground flex items-center gap-1">
+          <Label className="text-[12.5px] font-semibold text-foreground">
             Order Type
-            <TooltipProvider delayDuration={0}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <HelpCircle className="w-3 h-3 opacity-50 cursor-pointer" />
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>
-                    Immediate Purchase receives stock and updates prices
-                    right away in one pass. Purchase Order just records the
-                    order - stock and pricing are entered later when you
-                    receive it.
-                  </p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
           </Label>
           <Tabs
             value={poType}
@@ -122,6 +107,11 @@ export function PODetailsFields({
               </TabsTrigger>
             </TabsList>
           </Tabs>
+          <p className="text-[11.5px] text-muted-foreground leading-snug">
+            {poType === "immediate"
+              ? "Adds stock and updates selling prices store-wide as soon as you save."
+              : "Records the order only. Stock and pricing are entered later, when you receive it."}
+          </p>
         </div>
       )}
 

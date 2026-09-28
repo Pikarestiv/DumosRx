@@ -1,11 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PODetailsFields } from "./po-details-fields";
 import { PODetailsSummaryBar } from "./po-details-summary-bar";
 import { POItemBuilder } from "./po-item-builder";
+import { POImmediateConfirmDialog } from "./po-immediate-confirm-dialog";
 import { formatCurrency } from "@/lib/utils";
 import type { ProductViewModel } from "@/lib/types/product";
 import type { POProduct } from "@/lib/db/queries/procurement";
@@ -90,6 +92,7 @@ export function PODesktopCreateView(props: PODesktopCreateViewProps) {
     setIsEditDetailsOpen,
   } = props;
   const router = useRouter();
+  const [isConfirmReceiveOpen, setIsConfirmReceiveOpen] = useState(false);
 
   const detailsFieldsProps = {
     poType,
@@ -155,13 +158,17 @@ export function PODesktopCreateView(props: PODesktopCreateViewProps) {
             )}
             <Button
               className="h-10 px-5 rounded-[10px] text-[13px] font-bold"
-              onClick={handleSubmit}
+              onClick={
+                poType === "immediate"
+                  ? () => setIsConfirmReceiveOpen(true)
+                  : handleSubmit
+              }
               disabled={isSubmitting || items.length === 0}
             >
               {isSubmitting
                 ? "Saving..."
                 : poType === "immediate"
-                  ? "Save Purchase Order"
+                  ? "Receive & Save"
                   : "Save as Draft"}
             </Button>
           </div>
@@ -202,6 +209,15 @@ export function PODesktopCreateView(props: PODesktopCreateViewProps) {
           </div>
         </div>
       )}
+
+      <POImmediateConfirmDialog
+        open={isConfirmReceiveOpen}
+        onOpenChange={setIsConfirmReceiveOpen}
+        items={items}
+        products={products}
+        totalAmount={totalAmount}
+        onConfirm={handleSubmit}
+      />
     </div>
   );
 }

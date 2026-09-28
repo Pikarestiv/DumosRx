@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { POImmediateConfirmDialog } from "./po-immediate-confirm-dialog";
 import { PODetailsFields } from "./po-details-fields";
 import { PODetailsSummaryBar } from "./po-details-summary-bar";
 import { POItemBuilder } from "./po-item-builder";
@@ -92,6 +94,7 @@ export function POMobileCreateView(props: POMobileCreateViewProps) {
   } = props;
 
   const router = useRouter();
+  const [isConfirmReceiveOpen, setIsConfirmReceiveOpen] = useState(false);
 
   const detailsFieldsProps = {
     poType,
@@ -158,10 +161,14 @@ export function POMobileCreateView(props: POMobileCreateViewProps) {
             <Button
               size="sm"
               className="h-9 px-4 rounded-[10px] text-[12.5px] font-semibold"
-              onClick={handleSubmit}
+              onClick={
+                poType === "immediate"
+                  ? () => setIsConfirmReceiveOpen(true)
+                  : handleSubmit
+              }
               disabled={isSubmitting || items.length === 0}
             >
-              {isSubmitting ? "Saving..." : poType === "immediate" ? "Save" : "Save Draft"}
+              {isSubmitting ? "Saving..." : poType === "immediate" ? "Receive" : "Save Draft"}
             </Button>
           </div>
         )}
@@ -219,6 +226,15 @@ export function POMobileCreateView(props: POMobileCreateViewProps) {
           </div>
         </div>
       )}
+
+      <POImmediateConfirmDialog
+        open={isConfirmReceiveOpen}
+        onOpenChange={setIsConfirmReceiveOpen}
+        items={items}
+        products={products}
+        totalAmount={totalAmount}
+        onConfirm={handleSubmit}
+      />
     </div>
   );
 }

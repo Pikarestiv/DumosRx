@@ -27,6 +27,10 @@ interface POSTransactionHistoryProps {
   recentSales: SaleWithDetails[];
   onReturnClick: (sale: SaleWithDetails) => void;
   currencyCode?: string;
+  /** The History tab's own scrolling container, threaded down so the
+   * transaction list can virtualize against it - the list has no scroll
+   * container of its own. */
+  scrollElementRef: React.RefObject<HTMLDivElement | null>;
 }
 
 // Long enough to skip the intermediate states of a typed word, short enough
@@ -41,6 +45,7 @@ export function POSTransactionHistory({
   recentSales,
   onReturnClick,
   currencyCode,
+  scrollElementRef,
 }: POSTransactionHistoryProps) {
   const [selectedSale, setSelectedSale] = useState<SaleWithDetails | null>(
     null,
@@ -254,6 +259,7 @@ export function POSTransactionHistory({
         onSelectSale={setSelectedSale}
         onReturnClick={onReturnClick}
         hasFilters={filteredSales.length === 0}
+        scrollElementRef={scrollElementRef}
       />
 
       <TransactionDetailsDialog

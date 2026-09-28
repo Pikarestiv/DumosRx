@@ -1,4 +1,6 @@
 "use client";
+import { useCallback } from "react";
+import type { SaleWithDetails } from "@/lib/types/sale";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { usePOSSystem } from "@/lib/hooks/use-pos-system";
 import { POSLayoutHeader } from "./pos-layout-header";
@@ -101,6 +103,16 @@ export function POSSystem() {
     handleEditPrescription,
     handleAddToCart,
   } = usePOSSystem();
+
+  // Stable: this is a prop of every virtualized transaction row, and a fresh
+  // arrow here would re-render all of them on any POS state change.
+  const handleReturnClick = useCallback(
+    (sale: SaleWithDetails) => {
+      setSaleToReturn(sale);
+      setShowReturnDialog(true);
+    },
+    [setSaleToReturn, setShowReturnDialog],
+  );
 
   const posDialogProps = {
     isMobileScannerOpen,
@@ -233,11 +245,9 @@ export function POSSystem() {
                 />
                 <POSTransactionHistory
                   recentSales={recentSales}
-                  onReturnClick={(sale) => {
-                    setSaleToReturn(sale);
-                    setShowReturnDialog(true);
-                  }}
+                  onReturnClick={handleReturnClick}
                   currencyCode={storeProfile?.currency}
+                  scrollElementRef={historyPullToRefresh.scrollRef}
                 />
               </TabsContent>
             </div>

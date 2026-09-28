@@ -12,3 +12,5 @@ A tour of everything DumosRx can do for your store.
 8. [Reports](reports.md) — Daily Close, Operational Reports, and full Analytics & Insights.
 9. [Activity Log](activity-log.md) — a complete, trustworthy audit trail of everything that happens in your store.
 10. [Settings](settings.md) — full control over your store's setup, staff, security, and billing.
+
+See also: [Tutorial Video Plan](tutorial-video-plan.md) for the walkthrough video series.

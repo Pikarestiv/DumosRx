@@ -1,9 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { POBackButton } from "./po-back-button";
 import { POImmediateConfirmDialog } from "./po-immediate-confirm-dialog";
 import { PODetailsFields } from "./po-details-fields";
 import { PODetailsSummaryBar } from "./po-details-summary-bar";
@@ -93,7 +92,6 @@ export function POMobileCreateView(props: POMobileCreateViewProps) {
     setIsEditDetailsOpen,
   } = props;
 
-  const router = useRouter();
   const [isConfirmReceiveOpen, setIsConfirmReceiveOpen] = useState(false);
 
   const detailsFieldsProps = {
@@ -127,14 +125,7 @@ export function POMobileCreateView(props: POMobileCreateViewProps) {
           paddingBottom: "0.75rem",
         }}
       >
-        <button
-          type="button"
-          aria-label="Back"
-          className="w-[38px] h-[38px] rounded-[10px] bg-muted flex items-center justify-center cursor-pointer text-muted-foreground shrink-0 hover:bg-muted/80 transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring"
-          onClick={() => router.push("/procurement")}
-        >
-          <ArrowLeft className="w-[17px] h-[17px]" />
-        </button>
+        <POBackButton itemCount={items.length} />
         <div className="min-w-0">
           <div className="text-[15px] font-serif font-bold leading-tight">
             Create Purchase Order

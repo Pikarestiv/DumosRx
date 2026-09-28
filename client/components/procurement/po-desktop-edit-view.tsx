@@ -1,8 +1,7 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { POBackButton } from "./po-back-button";
 import { PODetailsSummaryBar } from "./po-details-summary-bar";
 import { POItemBuilder } from "./po-item-builder";
 import { getOrderTotal } from "./po-line-item-math";
@@ -50,7 +49,6 @@ export function PODesktopEditView({
   dueDate,
   amountPaid,
 }: PODesktopEditViewProps) {
-  const router = useRouter();
   const totalAmount = getOrderTotal(items, poType);
 
   return (
@@ -59,14 +57,7 @@ export function PODesktopEditView({
         className="flex items-center gap-3 px-6 pb-5 border-b border-border bg-card shrink-0"
         style={{ paddingTop: "calc(var(--tauri-top, 0px) + 1.25rem)" }}
       >
-        <button
-          type="button"
-          aria-label="Back"
-          className="w-[38px] h-[38px] rounded-[10px] bg-muted flex items-center justify-center cursor-pointer text-muted-foreground shrink-0 hover:bg-muted/80 transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring"
-          onClick={() => router.push("/procurement")}
-        >
-          <ArrowLeft className="w-[17px] h-[17px]" />
-        </button>
+        <POBackButton itemCount={items.length} />
         <div>
           <div className="text-[17px] font-serif font-bold leading-tight">
             Edit Purchase Order

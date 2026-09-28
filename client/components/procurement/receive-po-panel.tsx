@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { ArrowLeft, HelpCircle, Info, Loader2 } from "lucide-react";
+import { ArrowLeft, HelpCircle, Info, Loader2, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -27,6 +28,7 @@ import {
 import { formatCurrency } from "@/lib/utils";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import {
+  clampMoneyInput,
   clampReceivedQuantity,
   outstandingBulkQuantity,
 } from "./po-line-item-math";
@@ -115,6 +117,7 @@ const ReceiveItemCard = React.memo(
               type="number"
               min="0"
               max={outstanding}
+              aria-label={`Quantity received for ${item.product_name}`}
               value={state.quantity ?? outstanding}
               onChange={(e) =>
                 onFieldChange(
@@ -128,9 +131,48 @@ const ReceiveItemCard = React.memo(
               }
             />
           </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label className="text-xs">Cost Price (Optional)</Label>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                aria-label={`Cost Price for ${item.product_name}`}
+                placeholder={formatCurrency(item.unit_cost)}
+                value={state.cost_price ?? ""}
+                onChange={(e) =>
+                  onFieldChange(
+                    item.id,
+                    "cost_price",
+                    clampMoneyInput(e.target.value),
+                  )
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs">New Selling Price (Optional)</Label>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                aria-label={`New Selling Price for ${item.product_name}`}
+                placeholder="Unchanged"
+                value={state.selling_price ?? ""}
+                onChange={(e) =>
+                  onFieldChange(
+                    item.id,
+                    "selling_price",
+                    clampMoneyInput(e.target.value),
+                  )
+                }
+              />
+            </div>
+          </div>
           <div className="space-y-2">
             <Label className="text-xs">Lot / Batch No. (Optional)</Label>
             <Input
+              aria-label={`Lot or batch number for ${item.product_name}`}
               placeholder="e.g. BATCH-123"
               value={state.lot_number || ""}
               onChange={(e) =>
@@ -143,6 +185,7 @@ const ReceiveItemCard = React.memo(
             <DatePickerInput
               value={state.expiry_date}
               onChange={(val) => onFieldChange(item.id, "expiry_date", val)}
+              ariaLabel={`Expiry date for ${item.product_name}`}
               placeholder="Select expiry date"
               disablePast
               fromYear={new Date().getFullYear()}
@@ -271,6 +314,13 @@ export function ReceivePOPanel({
 
         {mode === "standard" && (
           <div className="border rounded-lg divide-y">
+            {(po.items?.length ?? 0) === 0 && (
+              <EmptyState
+                icon={Package}
+                title="No items on this order"
+                className="py-8"
+              />
+            )}
             {po.items?.map((item: PurchaseOrderItem) => {
               const state = receivedItems[item.id] || {};
               return (

@@ -107,6 +107,7 @@ export function ReceiveLedgerTable({
                     min="0"
                     max={outstanding}
                     className="w-full min-w-16 text-right"
+                    aria-label={`Quantity received for ${item.product_name}`}
                     value={state.quantity ?? outstanding}
                     onChange={(e) =>
                       onFieldChange(
@@ -126,6 +127,7 @@ export function ReceiveLedgerTable({
                     min="0"
                     step="0.01"
                     className="w-full min-w-20 text-right"
+                    aria-label={`Cost Price for ${item.product_name}`}
                     placeholder={formatCurrency(item.unit_cost)}
                     value={state.cost_price ?? ""}
                     onChange={(e) =>
@@ -146,6 +148,7 @@ export function ReceiveLedgerTable({
                     min="0"
                     step="0.01"
                     className="w-full min-w-20 text-right"
+                    aria-label={`New Selling Price for ${item.product_name}`}
                     placeholder="Unchanged"
                     value={state.selling_price ?? ""}
                     onChange={(e) =>
@@ -160,6 +163,7 @@ export function ReceiveLedgerTable({
                 <div role="cell" className="px-3 py-2 flex items-center">
                   <Input
                     className="w-full min-w-24"
+                    aria-label={`Lot or batch number for ${item.product_name}`}
                     placeholder="e.g. BATCH-123"
                     value={state.lot_number || ""}
                     onChange={(e) =>
@@ -173,6 +177,7 @@ export function ReceiveLedgerTable({
                     onChange={(val) =>
                       onFieldChange(item.id, "expiry_date", val)
                     }
+                    ariaLabel={`Expiry date for ${item.product_name}`}
                     placeholder="Select"
                     disablePast
                     fromYear={new Date().getFullYear()}

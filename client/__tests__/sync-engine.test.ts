@@ -258,6 +258,10 @@ describe('Sync Engine & Local Database', () => {
       vi.mocked(query).mockImplementation(async (sql: string) => {
         if (sql.includes('_sync_state')) return [];
         if (sql.includes('PRAGMA table_info')) return [{ name: 'id' }, { name: 'name' }, { name: '_version' }];
+        // The prune's candidate lookup: the live local stores the server's
+        // snapshot didn't list. The expensive per-table prune only runs when
+        // this is non-empty (A-8).
+        if (sql.includes('SELECT id FROM stores WHERE _deleted = 0')) return [{ id: 'stale-store' }];
         if (sql.includes('SELECT 1 FROM')) return []; // both records are new inserts
         return [];
       });
@@ -270,8 +274,9 @@ describe('Sync Engine & Local Database', () => {
       );
 
       expect(pruneCall).toBeDefined();
-      // Every id the server actually returned must be excluded from the prune.
-      expect(pruneCall?.[1]).toEqual(['store-a', 'store-b']);
+      // The prune is now aimed at the resolved candidates rather than
+      // re-deriving them with a NOT IN over every id the server returned.
+      expect(pruneCall?.[1]).toEqual(['stale-store']);
     });
 
     it('does not touch stores at all when the pull response has no stores key', async () => {

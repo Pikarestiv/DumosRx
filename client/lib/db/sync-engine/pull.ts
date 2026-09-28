@@ -512,41 +512,49 @@ export async function pullChanges(
           if (table === "stores" && records.length > 0) {
             const serverStoreIds = records.map((r) => r.id as string);
             const placeholders = serverStoreIds.map(() => "?").join(", ");
-            // Never silently prune a store that has real accumulated business
-            // data attached; a store the server doesn't currently recognize
-            // is still not "safe to hide" if it's the one everything on this
-            // device's local history is actually attributed to (e.g. the
-            // original pre-cloud-link store on a device, before it was ever
-            // reconciled with a server-side account). Losing visibility into
-            // real data is a far worse outcome than a stale entry lingering
-            // in the switcher, so this only prunes stores that are genuinely
-            // empty locally — checked against every store-scoped table, not
-            // just products/sales: a store whose only local data is, say,
-            // expenses or customers deserves the exact same protection.
-            // Most STORE_SCOPED_TABLES only gain their store_id column via
-            // initDatabase()'s runtime ALTER TABLE migration, not the base
-            // schema (see core.ts) — a device that hasn't run that migration
-            // yet (or a test harness that bypasses it) would make this query
-            // throw "no such column: store_id", rolling back the whole pull
-            // transaction rather than just skipping the prune check for that
-            // one table.
-            const scopedTablesWithStoreId: string[] = [];
-            for (const t of STORE_SCOPED_TABLES) {
-              if (await columnExists(t, "store_id")) {
-                scopedTablesWithStoreId.push(t);
-              }
-            }
-            const noDataClauses = scopedTablesWithStoreId.map(
-              (t) => `AND id NOT IN (SELECT DISTINCT store_id FROM ${t} WHERE store_id IS NOT NULL)`,
-            ).join("\n              ");
-            const pruneSql = `
-              UPDATE stores SET _deleted = 1
-              WHERE _deleted = 0
-                AND id NOT IN (${placeholders})
-                ${noDataClauses}
-            `;
+            const pruneCandidates = await query<{ id: string }>(
+              `SELECT id FROM stores WHERE _deleted = 0 AND id NOT IN (${placeholders})`,
+              serverStoreIds,
+            );
 
-            await execute(pruneSql, serverStoreIds);
+            if (pruneCandidates.length > 0) {
+              // Never silently prune a store that has real accumulated
+              // business data attached; a store the server doesn't currently
+              // recognize is still not "safe to hide" if it's the one
+              // everything on this device's local history is actually
+              // attributed to (e.g. the original pre-cloud-link store on a
+              // device, before it was ever reconciled with a server-side
+              // account). Losing visibility into real data is a far worse
+              // outcome than a stale entry lingering in the switcher, so this
+              // only prunes stores that are genuinely empty locally — checked
+              // against every store-scoped table, not just products/sales: a
+              // store whose only local data is, say, expenses or customers
+              // deserves the exact same protection.
+              // Most STORE_SCOPED_TABLES only gain their store_id column via
+              // initDatabase()'s runtime ALTER TABLE migration, not the base
+              // schema (see core.ts) — a device that hasn't run that migration
+              // yet (or a test harness that bypasses it) would make this query
+              // throw "no such column: store_id", rolling back the whole pull
+              // transaction rather than just skipping the prune check for that
+              // one table.
+              const scopedTablesWithStoreId: string[] = [];
+              for (const t of STORE_SCOPED_TABLES) {
+                if (await columnExists(t, "store_id")) {
+                  scopedTablesWithStoreId.push(t);
+                }
+              }
+              const noDataClauses = scopedTablesWithStoreId.map(
+                (t) => `AND id NOT IN (SELECT DISTINCT store_id FROM ${t} WHERE store_id IS NOT NULL)`,
+              ).join("\n                ");
+              const candidatePlaceholders = pruneCandidates.map(() => "?").join(", ");
+              const pruneSql = `
+                UPDATE stores SET _deleted = 1
+                WHERE id IN (${candidatePlaceholders})
+                  ${noDataClauses}
+              `;
+
+              await execute(pruneSql, pruneCandidates.map((r) => r.id));
+            }
           }
 
           if (DUPLICATE_NAME_TABLES[table] && records.length > 0) {

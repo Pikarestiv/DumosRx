@@ -137,6 +137,37 @@ export async function requeueOrphanedRows(
   return requeued;
 }
 
+const ORPHAN_REQUEUE_MARKER = "dumos_orphan_requeue_v1";
+
+/**
+ * Runs requeueOrphanedRows() once per install, or when `force` says this
+ * launch followed a crash. Returns null when skipped. See A-8 in
+ * docs/FIXED_BUGS.md.
+ */
+export async function requeueOrphanedRowsOnce(
+  tables: string[],
+  options: { force?: boolean } = {},
+): Promise<Record<string, number> | null> {
+  let alreadyRun = false;
+  try {
+    alreadyRun = localStorage.getItem(ORPHAN_REQUEUE_MARKER) !== null;
+  } catch {
+    alreadyRun = false;
+  }
+
+  if (alreadyRun && !options.force) return null;
+
+  const requeued = await requeueOrphanedRows(tables);
+
+  try {
+    localStorage.setItem(ORPHAN_REQUEUE_MARKER, new Date().toISOString());
+  } catch {
+    // A storage failure costs one repeated scan on the next boot, nothing more.
+  }
+
+  return requeued;
+}
+
 export async function tableExists(table: string): Promise<boolean> {
   const rows = await query<{ name: string }>(
     "SELECT name FROM sqlite_master WHERE type='table' AND name=?",

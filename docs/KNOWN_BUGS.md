@@ -16,14 +16,14 @@ This file holds **open** items only. Fixed entries move to `docs/FIXED_BUGS.md` 
 
 **Overall health.** The codebase is unusually well-defended for its size: the sync engine's conflict model, the single-writer tab lock, tenant scoping on the server and the money math have all been through several review-and-fix cycles, and both test suites pass cleanly. The new findings in this pass are therefore not the "obvious" classes (cross-tenant leaks, double-charging, silent rollbacks) but the next layer down: **scale limits that were never exercised** (all three found so far have since been fixed — a local database with essentially no indexes, plus the pull engine's own un-resumable page cap and the server tenant-scope that loaded every sale id into PHP memory per request; see `docs/FIXED_BUGS.md`) and **attribution/consistency gaps** on the newest flows (the online-order fulfilment one, `A-4`, has since been fixed too).
 
-**Findings this pass, by severity:** 0 **P0**, 0 **P1**, 5 **P2**, 13 **P3** — 18 open findings from this pass (IDs `A-1`…`A-24`, less the fixed `A-1`, `A-2`, `A-3`, `A-4`, `A-5` and `A-6`), plus 14 still-open items carried from the two earlier passes (`P2-1`, `P3-1`, `P3-2`, `P3-5`, `PG-1`…`PG-10`), all preserved verbatim below.
+**Findings this pass, by severity:** 0 **P0**, 0 **P1**, 3 **P2**, 12 **P3** — 15 open findings from this pass (IDs `A-1`…`A-24`, less the fixed `A-1`, `A-2`, `A-3`, `A-4`, `A-5`, `A-6`, `A-7`, `A-8` and `A-18`), plus 14 still-open items carried from the two earlier passes (`P2-1`, `P3-1`, `P3-2`, `P3-5`, `PG-1`…`PG-10`), all preserved verbatim below.
 
 **Most important risks, in order:**
 
 1. **PG-2 / PG-1 (carried)** — storefront online payments still have no webhook/reconciliation path and can settle via the wrong gateway.
-2. **A-10 (performance)** — the boot-time `requeueOrphanedRows` scan plus the per-pull `stores` prune add full-table scans to every launch and every sync. (A-6, the missing local indexes behind the sale-history, customer-directory, activity-log and import costs, is fixed — see `docs/FIXED_BUGS.md` and `docs/LOCAL_DB_INDEXES.md`.)
+2. **A-9 (data)** — receiving the same purchase order from two devices books the delivery twice. (The startup/idle performance batch — A-6's missing local indexes, A-7's launch sync gate, A-8's per-pull `stores` prune and boot-time orphan scan, A-18's 5-second queue poll — is fixed; see `docs/FIXED_BUGS.md` and `docs/LOCAL_DB_INDEXES.md`.)
 
-**Major performance concerns** are §5 (boot-time scans, the license-guard sync gate on launch, the 5-second sync-queue poll) and the still-open whole-blob `db.export()` persistence model already analysed in `docs/DATABASE_CONCURRENCY.md`.
+**The major performance concern** that remains is the whole-blob `db.export()` persistence model already analysed in `docs/DATABASE_CONCURRENCY.md`; the rest of §5's list (boot-time scans, the license-guard sync gate on launch, the 5-second sync-queue poll) is fixed.
 
 ---
 
@@ -40,22 +40,6 @@ None open. `A-1` (the pull page cap that made a >100,000-row table un-syncable) 
 ---
 
 ## 3. Medium-priority findings (P2)
-
-#### [P2] A-7. App launch is gated behind a full network sync (up to 5 s of splash) on every online start, and the gate re-fires as the store profile settles
-**Category:** Performance / Startup — **Likely performance problem**
-**Location:** `client/components/auth/license-guard.tsx:236-302` (`performCheck` awaits `Promise.race([sync(true), 5 s timeout])` while rendering `<SplashScreen/>`; effect deps `storeProfile?.status/suspension_reason/subscription_tier`), `client/lib/context/store-context.tsx:411-452` (a second mount-time `sync()`), `:457-493` (`syncSubscriptionStatus()` on mount and every 30 min).
-**Problem:** Every online launch runs a full push+pull round (plus the `global_suggestions` config fetch) before the app is allowed to render, bounded only by a 5-second race. `storeProfile` is `undefined` on the first render, so once the profile query resolves the three dependencies change and `performCheck` runs again (a second `sync(true)`, which usually returns `SYNC_IN_PROGRESS` immediately, but on a fast first sync starts a *second* real round). `StoreProvider` fires a third `sync()` and a `syncSubscriptionStatus()` on mount. A device with a large queue or a slow link pays the full 5 s on every launch and every store switch.
-**Why it matters:** The product's stated value is "every screen works fully offline"; on a slow or captive-portal network (`navigator.onLine` true), launch is consistently ~5 s slower than offline launch. On a low-end tablet the sync's own sql.js work competes with first paint.
-**Recommended fix:** Render immediately from local state and run the license-refresh sync in the background (the guard already treats a null result as "keep the previous license"); de-duplicate the mount-time sync triggers into one owner (the `SyncIndicator` daemon or `StoreProvider`).
-**Confidence:** High on the mechanism; Medium on user-visible magnitude (depends on network).
-
-#### [P2] A-8. Every pull runs a `stores` prune with one `NOT IN (SELECT DISTINCT store_id …)` subquery per store-scoped table, and every boot scans all 26 tables for orphaned rows
-**Category:** Performance / Startup / Sync — **Likely performance problem (measured)**
-**Location:** `client/lib/db/sync-engine/pull.ts:444-482` (`stores` is always a full snapshot, so this runs on every pull round), `client/lib/db/reconcile-identity.ts:90-138` + `client/lib/db/DatabaseProvider.tsx:120-125` (`requeueOrphanedRows(STORE_SCOPED_TABLES)` on every boot).
-**Problem:** The prune builds a query with 26 `NOT IN (SELECT DISTINCT store_id FROM <table> WHERE store_id IS NOT NULL)` clauses — each a full scan of `sales`, `sale_items`, `stock_movements`, `audit_logs`, … — to decide whether a store row can be soft-deleted, on every pull even when the `stores` list is unchanged. The orphan scan does `SELECT * … WHERE (_synced = 0 …) AND id NOT IN (SELECT record_id FROM _sync_queue WHERE table_name = ?)` per table; the queue side is now indexed (A-6 added `_sync_queue(table_name, record_id)`), but `_synced` is not, so this is still a full scan of all 26 tables on every boot.
-**Evidence:** Not individually benchmarked — see the note in §5.
-**Recommended fix:** Only run the prune when the set of server store ids actually changed (compare to the local set first); for the orphan scan, either index `_synced` or run the scan once per install/after a crash flag rather than every boot (the `_sync_queue(table_name, record_id)` half of the original recommendation shipped with A-6).
-**Confidence:** High.
 
 #### [P2] A-9. Receiving the same purchase order from two devices books the delivery twice
 **Category:** Data / Concurrency (multi-device) — **Potential issue requiring verification**
@@ -123,13 +107,6 @@ None open. `A-1` (the pull page cap that made a >100,000-row table un-syncable) 
 **Location:** `client/lib/hooks/use-pos-cart.ts:51-74` (zustand `persist`), `:252-260` (`unit_price`/`cost_price` copied from the product when added), `client/lib/hooks/use-pos-payment.ts:268-279` (checkout uses `item.unit_price`/`item.cost_price` from the cart).
 **Problem:** A cart held overnight, or across a price change synced from the owner's device, is charged at yesterday's selling price and books COGS at the average cost as of add time. Stock is validated only at add/increment time against the catalog snapshot in memory; the sale then deducts whatever is there (oversell handling covers the ledger, not the price).
 **Recommended fix:** Re-price cart lines from the current catalog at checkout (or at cart hydration), and warn when a line's price changed.
-**Confidence:** High.
-
-#### [P3] A-18. A `COUNT(*)` of the sync queue is polled every 5 seconds on the main thread from the action-centre hook
-**Category:** Performance / Low-end device — **Confirmed**
-**Location:** `client/lib/hooks/use-action-center-alerts.ts:57-61` (`refetchInterval: 5000`), duplicated by `client/components/dashboard/sync-indicator.tsx:57-64` (30 s) on the same query key; `notification-bell.tsx:102` (60 s network poll), `use-action-center-alerts.ts:63-67` (`checkLicenseStatus()` every 5 min, which also performs a write).
-**Problem:** The 5-second poll is the exact "poll against main-thread sql.js" the sync indicator's comment says was removed there; because both hooks share `queryKeys.sync.queueCount()`, the shorter interval wins for the whole app while the dashboard is mounted. Each tick takes the connection-wide lock (`reserveDbSlot`), so it also queues behind any in-flight import/sync transaction.
-**Recommended fix:** Drop the 5 s interval and rely on the existing `addSyncQueueChangeListener` event path.
 **Confidence:** High.
 
 #### [P3] A-19. Legacy cloud CRUD endpoints (`/app/sales` POST etc.) are live but unused, and `SaleController::store` writes stock outside the movement-delta model
@@ -271,13 +248,12 @@ None open. `A-1` (the pull page cap that made a >100,000-row table un-syncable) 
 
 ### Measured: local SQLite query cost on a one-year-old store (sql.js, desktop Node)
 
-Synthetic dataset built from the app's own `SCHEMA_SQL` plus the migration-added `store_id`/`cashier_id` columns: 5,000 products, 8,000 batches, 2,000 customers, 50,000 sales, ~125,000 sale items and ~125,000 stock movements, 3,000 returns, 200,000 audit rows, 15,000 queued sync rows. Each row is the SQL the app actually issues (see the file references in A-8). **These are desktop numbers; the same WASM engine on an entry-level Android phone is typically 5–20× slower, and on the web build every one of these blocks the main thread.**
+Synthetic dataset built from the app's own `SCHEMA_SQL` plus the migration-added `store_id`/`cashier_id` columns: 5,000 products, 8,000 batches, 2,000 customers, 50,000 sales, ~125,000 sale items and ~125,000 stock movements, 3,000 returns, 200,000 audit rows, 15,000 queued sync rows. Each row is the SQL the app actually issues. **These are desktop numbers; the same WASM engine on an entry-level Android phone is typically 5–20× slower, and on the web build every one of these blocks the main thread.**
 
-**This pass shipped without its benchmark table** — the section was left holding a literal `BENCHMARK_TABLE_PLACEHOLDER` and the numbers were never substituted in. The indexing work (A-6) re-measured the queries it touched and those numbers are in `docs/LOCAL_DB_INDEXES.md`; the queries specific to the still-open A-8 (the per-pull `stores` prune, the boot-time orphan scan across all 26 tables) have **not** been re-measured and should be benchmarked as part of fixing it, rather than treated as already quantified.
+**This pass shipped without its benchmark table** — the section was left holding a literal `BENCHMARK_TABLE_PLACEHOLDER` and the numbers were never substituted in. The indexing work (A-6) re-measured the queries it touched and those numbers are in `docs/LOCAL_DB_INDEXES.md`. The two queries A-8 covered (the per-pull `stores` prune, the boot-time orphan scan across all 26 tables) were never re-measured either; both are now skipped in their steady state rather than optimised (see `docs/FIXED_BUGS.md`), so the remaining value in benchmarking them is confirming the skip on a real low-end device.
 
 ### Other performance risks (not individually benchmarked)
 
-- **A-7** (launch gated on a network sync) and **A-18** (5-second queue poll) are the two startup/idle costs most likely to be felt on a low-end tablet.
 - **First install download (PWA):** `precache-manifest.json` lists every file in the export — 399 URLs, ~15 MB including both 650 KB sql.js WASM binaries and every route's HTML + RSC payload — on first install (`client/AGENTS.md` already lists this as an open thread). On a metered connection this is the single largest network cost the app incurs.
 - **Whole-catalog in-memory search:** `getProductsWithDetails()` returns the entire catalog with six correlated subqueries per row (fast now that `stock_batches(product_id)` and the rest of the read-path indexes exist — see `docs/LOCAL_DB_INDEXES.md`), and `product-database.tsx` fuzzy-searches it in memory (now debounced). Acceptable to ~10k products; beyond that the transform+filter+sort chain on every filter change is O(catalog) on the main thread.
 - **The per-request `validateSync()` chain** (`SubscriptionService`, `SystemConfig::getVal`, `PermissionGroupSeeder::ensureSeeded`, `enforceStaffLimits`) adds ~10 queries to every push and pull request before any data is touched.
@@ -288,7 +264,6 @@ Synthetic dataset built from the app's own `SCHEMA_SQL` plus the migration-added
 
 ## 6. Offline / sync / database risks
 
-- **A-8** — every pull round pays the `stores` prune; every boot pays the orphan scan.
 - **A-9** — multi-device PO receipt has no server-side idempotency beyond the version check on one of its rows.
 - **A-12** — pull overwrites a device-local column.
 - **A-21** — sentinel user ids can produce permanently-stuck queue items.
@@ -337,8 +312,7 @@ Synthetic dataset built from the app's own `SCHEMA_SQL` plus the migration-added
 Ordered by technical impact and by which fixes unblock or de-risk others — not by ease.
 
 1. **PG-2 then PG-1** (carried) — the storefront webhook/reconciliation path and the gateway pinning; still the largest real-world money-loss surface.
-2. **A-8 + A-7 + A-18** — startup/idle cost: gate the `stores` prune on a changed id set, run the orphan scan once per install, move the launch sync off the splash, delete the 5 s poll. Re-benchmark on a real low-end device afterwards.
-3. **A-10, A-11, A-13** — server public-surface hardening (config allow-list, throttles, no PIN-derived passwords) and the Tauri CSP. Independent; group into one security batch.
-4. **A-9, A-12, A-21, A-16, A-17** — sync/data-integrity edge cases; each is small and self-contained now that the index/pagination work is in.
-5. **A-14, A-15, A-19, A-20, A-22, A-23, A-24** — hygiene and architecture debt; A-15 (enforce `tsc`/tests in CI, `npm ci`) is the one worth doing early because it protects everything else.
-6. **P2-1** (ops confirmation) and the accepted **P3-1/P3-2/P3-5**, **PG-3…PG-10** as previously scheduled.
+2. **A-10, A-11, A-13** — server public-surface hardening (config allow-list, throttles, no PIN-derived passwords) and the Tauri CSP. Independent; group into one security batch.
+3. **A-9, A-12, A-21, A-16, A-17** — sync/data-integrity edge cases; each is small and self-contained now that the index/pagination work is in.
+4. **A-14, A-15, A-19, A-20, A-22, A-23, A-24** — hygiene and architecture debt; A-15 (enforce `tsc`/tests in CI, `npm ci`) is the one worth doing early because it protects everything else.
+5. **P2-1** (ops confirmation) and the accepted **P3-1/P3-2/P3-5**, **PG-3…PG-10** as previously scheduled.

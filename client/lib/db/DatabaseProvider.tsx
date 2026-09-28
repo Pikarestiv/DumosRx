@@ -91,6 +91,13 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
 
   // Initialize database
   useEffect(() => {
+    let hadPendingCrashes = false;
+    try {
+      hadPendingCrashes = !!localStorage.getItem("dumosrx_pending_crashes");
+    } catch {
+      hadPendingCrashes = false;
+    }
+
     initDatabase()
       .then(() => {
         setIsReady(true);
@@ -109,19 +116,15 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
         import("@/lib/db/queries/procurement").then(({ promoteDraftPurchaseOrdersToPending }) => {
           promoteDraftPurchaseOrdersToPending().catch(console.error);
         }).catch(console.error);
-        // One-time-per-boot repair for rows left with no _sync_queue entry
-        // by a write that was interrupted between its row INSERT and its
-        // queue INSERT (e.g. iOS killing a backgrounded PWA tab mid-write) -
-        // insert()/update()/etc. in base-helpers.ts now do those atomically
-        // going forward, but this backfills anything already stranded from
-        // before that fix, or from any write path that still bypasses those
-        // helpers. Previously requeueOrphanedRows() only ran from inside
-        // remapForeignKey()'s identity-reconcile path, never at plain launch.
+        // Repairs rows left with no _sync_queue entry by an interrupted
+        // write; once per install, not per boot (see A-8 in docs/FIXED_BUGS.md).
         Promise.all([
           import("@/lib/db/reconcile-identity"),
           import("@/lib/db/schema-migrations"),
-        ]).then(([{ requeueOrphanedRows }, { STORE_SCOPED_TABLES }]) => {
-          requeueOrphanedRows(STORE_SCOPED_TABLES).catch(console.error);
+        ]).then(([{ requeueOrphanedRowsOnce }, { STORE_SCOPED_TABLES }]) => {
+          requeueOrphanedRowsOnce(STORE_SCOPED_TABLES, {
+            force: hadPendingCrashes,
+          }).catch(console.error);
         }).catch(console.error);
       })
       .catch((err) => {

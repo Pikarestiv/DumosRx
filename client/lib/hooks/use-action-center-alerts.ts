@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getStaffCount } from "@/lib/db/queries/auth";
 import { getSyncQueueCount } from "@/lib/db/queries/setup";
 import { checkLicenseStatus } from "@/lib/licensing/licensing-manager";
-import { isTauri } from "@/lib/db/core";
+import { addSyncQueueChangeListener, isTauri } from "@/lib/db/core";
 import { isStandalonePwa } from "@/lib/utils/platform";
 import { useWidgetPinPrompt } from "@/lib/hooks/use-widget-pin-prompt";
 import {
@@ -54,11 +54,22 @@ export function useActionCenterAlerts(
     queryFn: () => getStaffCount(),
   });
 
-  const { data: pendingCountData } = useQuery({
+  const { data: pendingCountData, refetch: refetchPendingCount } = useQuery({
     ...queryKeys.sync.queueCount(),
     queryFn: () => getSyncQueueCount(),
-    refetchInterval: 5000,
+    // Must match SyncIndicator's interval on this shared key: the shortest
+    // one registered wins app-wide (see A-18 in docs/FIXED_BUGS.md).
+    refetchInterval: 30000,
   });
+
+  const refetchPendingCountRef = React.useRef(refetchPendingCount);
+  refetchPendingCountRef.current = refetchPendingCount;
+
+  React.useEffect(() => {
+    return addSyncQueueChangeListener(() => {
+      void refetchPendingCountRef.current?.();
+    });
+  }, []);
 
   const { data: licenseStatus } = useQuery({
     ...queryKeys.licensing.status(),

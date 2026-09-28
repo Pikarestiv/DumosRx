@@ -233,23 +233,16 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
   // state with its own now-outdated result.
   const checkGeneration = useRef(0);
 
-  const performCheck = useCallback(async () => {
+  // Reads local state only: the launch sync is StoreProvider's and must
+  // never gate first paint (see A-7 in docs/FIXED_BUGS.md).
+  const performCheck = useCallback(async (
+    options: { refreshFromCloud?: boolean } = {},
+  ) => {
     const generation = ++checkGeneration.current;
-    setLoading(true);
 
-    if (typeof window !== "undefined" && navigator.onLine) {
+    if (options.refreshFromCloud && typeof window !== "undefined" && navigator.onLine) {
+      setLoading(true);
       try {
-        // Force a full cloud sync so any recent subscription renewals are
-        // pulled down and written to the local stores table before we
-        // re-evaluate the license locally.
-        //
-        // Raced against a timeout: `navigator.onLine` is unreliable on iOS
-        // Safari (it commonly reports `true` on a joined-but-dead network -
-        // a captive portal, disabled cellular with an associated Wi-Fi
-        // radio, etc.), and the underlying fetch has no timeout of its own,
-        // so a doomed sync could otherwise hang for iOS's own multi-second
-        // to multi-minute network-stack timeout with this component's
-        // SplashScreen blocking the entire app the whole time.
         const { sync } = await import("@/lib/db/sync-engine");
         await Promise.race([
           sync(true),
@@ -262,7 +255,7 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
       }
     }
 
-    // Re-read the (now refreshed) local DB. Guarded: checkLicenseStatus()
+    // Re-read the local DB. Guarded: checkLicenseStatus()
     // does a local write of its own (updateStoreMonotonicTime), which
     // throws on a read-only tab (see tab-lock.ts / C1 in docs/KNOWN_BUGS.md)
     // - previously uncaught here, so the whole async function rejected
@@ -283,6 +276,19 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
     if (status) setLicense(status);
     setLoading(false);
   }, []);
+
+  // Catches a renewal that only moved the expiry date; the storeProfile
+  // effect below catches a status/tier change.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handleSyncCompleted = () => {
+      void performCheck();
+    };
+    window.addEventListener("dumos_sync_completed", handleSyncCompleted);
+    return () => {
+      window.removeEventListener("dumos_sync_completed", handleSyncCompleted);
+    };
+  }, [performCheck]);
 
   // Generate or load device ID on mount
   useEffect(() => {
@@ -378,7 +384,7 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
             <>
               <Button
                 className="w-full bg-accent hover:bg-accent/90 font-bold"
-                onClick={() => void performCheck()}
+                onClick={() => void performCheck({ refreshFromCloud: true })}
               >
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Check Again
@@ -398,7 +404,7 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
           {isSuspended && (
             <Button
               className="w-full bg-accent hover:bg-accent/90 font-bold"
-              onClick={() => void performCheck()}
+              onClick={() => void performCheck({ refreshFromCloud: true })}
             >
               <RefreshCw className="h-4 w-4 mr-2" />
               Refresh Account Status

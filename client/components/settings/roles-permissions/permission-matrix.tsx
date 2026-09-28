@@ -45,7 +45,7 @@ export function PermissionMatrix() {
   // One template string, built once and spread onto the header row and every
   // body row, so header and body columns can't drift out of alignment.
   const gridStyle = {
-    gridTemplateColumns: `minmax(220px,1.5fr) repeat(${groups.length},minmax(120px,1fr))`,
+    gridTemplateColumns: `minmax(min(45vw,220px),1.5fr) repeat(${groups.length},minmax(110px,1fr))`,
   };
 
   return (
@@ -105,11 +105,12 @@ export function PermissionMatrix() {
                       const lockedKeys =
                         g.id === ownGroupId && g.permissions.includes(SELF_LOCKOUT_KEY) ? [SELF_LOCKOUT_KEY] : [];
                       return (
-                        <div key={g.id} role="cell" className="px-2 pt-3 pb-2 text-center">
+                        <div key={g.id} role="cell" className="flex items-center justify-center px-2 pt-3 pb-2">
                           <input
                             type="checkbox"
                             data-testid="category-checkbox"
                             data-state={state}
+                            className="h-4 w-4 shrink-0 rounded border-gray-300 text-primary focus:ring-primary accent-primary cursor-pointer"
                             checked={state === "checked"}
                             ref={(el) => {
                               if (el) el.indeterminate = state === "indeterminate";
@@ -130,14 +131,14 @@ export function PermissionMatrix() {
                   {!isCollapsed &&
                     entries.map((entry) => (
                       <div key={entry.key} role="row" className="grid border-t" style={gridStyle}>
-                        <div role="cell" className="sticky left-0 z-10 bg-background p-2 pl-7">
+                        <div role="cell" className="sticky left-0 z-10 flex items-center bg-background p-2 pl-7">
                           {entry.label}
                           {!ENFORCED_PERMISSION_KEYS.has(entry.key) && (
                             <Badge
                               variant="outline"
                               data-testid="not-yet-enforced"
                               title="This permission is coming in a future update. Your choice is saved now, and will start granting or restricting access as soon as it's available."
-                              className="ml-2 h-5 px-1.5 text-[10px] font-normal text-muted-foreground"
+                              className="ml-2 h-5 shrink-0 px-1.5 text-[10px] font-normal text-muted-foreground"
                             >
                               Coming soon
                             </Badge>
@@ -147,9 +148,10 @@ export function PermissionMatrix() {
                           const granted = g.permissions.includes(entry.key);
                           const locked = entry.key === SELF_LOCKOUT_KEY && g.id === ownGroupId && granted;
                           return (
-                            <div key={g.id} role="cell" className="p-2 text-center">
+                            <div key={g.id} role="cell" className="flex items-center justify-center p-2">
                               <input
                                 type="checkbox"
+                                className="h-4 w-4 shrink-0 rounded border-gray-300 text-primary focus:ring-primary accent-primary cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
                                 checked={granted}
                                 disabled={locked}
                                 title={

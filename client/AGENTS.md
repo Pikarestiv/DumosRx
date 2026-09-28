@@ -508,6 +508,16 @@ first cell `sticky left-0`; the scroll box is a `ScrollFade` that takes its
 height from the Settings panel (`h-full` on the roles `TabsContent` plus
 `flex-1 min-h-0` here), so don't reintroduce a fixed pixel height.
 
+On phones it stays **one matrix, horizontally scrolled**, the dense-ledger
+treatment (`overflow-x-auto` + pinned name column), not the card-list swap
+`supplier-table.tsx`/`activity-log-page.tsx` do: a permission is only
+meaningful next to the groups it is compared against, and a card per
+permission with one line per group is longer and harder to scan than the
+grid. The name column is `minmax(min(45vw,220px),1.5fr)` so it gives back
+width on a narrow screen instead of eating it; group columns floor at
+110px. If the group count ever makes this genuinely unusable, the next step
+is a group filter above the matrix, not a per-permission card list.
+
 Four more Sales & POS keys joined it on 2026-09-28, all following the same
 pattern (unconditional top-level `useHasPermission()` const, existing state
 still rendered read-only, only the trigger gated):

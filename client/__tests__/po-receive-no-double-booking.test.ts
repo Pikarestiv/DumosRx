@@ -157,4 +157,16 @@ describe("receivePurchaseOrder cannot book one delivery twice", () => {
     // Separator-injection: ("ab","c") and ("a","bc") must not collide.
     expect(deterministicId("ab", "c")).not.toBe(deterministicId("a", "bc"));
   });
+
+  it("pins the exact ids a fixed PO line and balance derive, across every version of this app", async () => {
+    const { deterministicId } = await import("@/lib/db/deterministic-id");
+    const PO_ITEM_ID = "3f8a1c2d-5b6e-4f70-9a21-0c4d8e7b1a35";
+
+    expect(receiptBatchId(PO_ITEM_ID, 0)).toBe("5a07acc3-5806-5160-8893-80f9894c2516");
+    expect(receiptBatchId(PO_ITEM_ID, 12)).toBe("29123426-e659-55d3-8131-713c50e0c601");
+    expect(receiptMovementId(PO_ITEM_ID, 12)).toBe("a0e1898b-ac66-5268-833c-4a393780d6e6");
+    expect(deterministicId("po_receipt_batch", PO_ITEM_ID, 12)).toBe(
+      "29123426-e659-55d3-8131-713c50e0c601",
+    );
+  });
 });

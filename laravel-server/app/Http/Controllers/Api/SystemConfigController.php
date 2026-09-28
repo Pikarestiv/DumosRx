@@ -11,10 +11,20 @@ use OpenApi\Attributes as OA;
 
 class SystemConfigController extends Controller
 {
+    /** The only keys show() serves without a super_admin token.
+     * Adding one: see "The other unauthenticated surface" in AGENTS.md. */
+    private const PUBLIC_KEYS = [
+        'subscription_plans',
+        'global_suggestions',
+        'require_email_verification',
+        'smartsupp_key',
+        'social_links',
+    ];
+
     #[OA\Get(
         path: '/system-configs/{key}',
         summary: 'Get a platform configuration value by key',
-        description: 'Public, no auth required. Used by clients to fetch things like subscription plan definitions before login.',
+        description: 'Public, no auth required, but only for the keys on the public allow-list (subscription_plans, global_suggestions, require_email_verification, smartsupp_key, social_links). Any other key is 404 for everyone except a super_admin bearer token.',
         tags: ['System Config'],
         parameters: [new OA\Parameter(name: 'key', in: 'path', required: true, schema: new OA\Schema(type: 'string'))],
         responses: [
@@ -22,10 +32,26 @@ class SystemConfigController extends Controller
                 new OA\Property(property: 'success', type: 'boolean'),
                 new OA\Property(property: 'data', description: 'Arbitrary JSON value'),
             ])),
+            new OA\Response(response: 404, description: 'The key is not publicly readable, or does not exist', content: new OA\JsonContent(properties: [
+                new OA\Property(property: 'success', type: 'boolean'),
+                new OA\Property(property: 'message', type: 'string'),
+            ])),
         ],
     )]
-    public function show($key)
+    public function show(Request $request, $key)
     {
+        // Route is outside auth:sanctum (it answers before login), so the
+        // token is resolved explicitly rather than by middleware.
+        $caller = $request->user('sanctum');
+        $isPrivileged = $caller && $caller->hasRole('super_admin');
+
+        if (!$isPrivileged && !in_array($key, self::PUBLIC_KEYS, true)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Configuration not found',
+            ], 404);
+        }
+
         $value = SystemConfig::getVal($key, null);
 
         return response()->json([

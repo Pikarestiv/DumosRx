@@ -85,6 +85,27 @@ without updating that.
   ...); `-1` means unlimited. `SubscriptionService` enforces these
   (`enforceStaffLimits`, `getSubscriptionOwner`).
 
+## Staff credentials: the PIN and the web password are unrelated
+
+`users.pin` (bcrypt, `User::hashPin()`) and `users.password` are two separate
+credentials for two separate surfaces, and **neither is ever derived from the
+other**. The PIN unlocks the POS and is verified entirely client-side against
+the hash the sync pull ships down — `/login` is never involved in staff POS
+auth (the client's only `/login` call is `linkCloudAccount()`, the store
+owner's cloud-account link). The password is only for `web/`'s dashboard.
+
+`users.password` is therefore **nullable**, and that is the default state of a
+staff account: `StaffController::store()` and the sync-push `users` INSERT both
+leave it NULL unless a real password was supplied, and
+`AuthenticatesSessions::login()` rejects a null/empty-password account before
+it ever reaches `Hash::check()`. Both paths used to fall back to
+`Hash::make($pin)` (or `Hash::make('1234')`), which handed every PIN-only staff
+account a live `/login` credential with a 10,000-value keyspace on the
+predictable `<username>@local.dumosrx.com` address the same method generates.
+Do not reintroduce a fallback: if a staff member needs the web dashboard, an
+owner sets a real password on create or via `PUT /staff/{id}`. Covered by
+`tests/Feature/StaffPinDerivedPasswordTest.php`.
+
 ## Admin auth architecture (redesigned 2026-08-26)
 
 `web/`'s platform admin panel keeps its access token in JS memory only
@@ -386,6 +407,37 @@ true (permanently negative) — this exact bug shipped and was caught before
 merge in the slug-cooldown check above. Prefer `now()->lt($date->addMonths(N))`
 style comparisons over `diffIn*() < N` to sidestep the sign question
 entirely.
+
+## The other unauthenticated surface (not the storefront)
+
+Three routes sit at the top of `routes/api.php` outside every auth group, and
+each now carries its own named limiter for the same Laravel-11 reason the
+storefront ones do (see the next section):
+
+- **`GET /system-configs/{key}`** (`throttle:public-read`, 120/min/IP) returns
+  a value **only for the keys in `SystemConfigController::PUBLIC_KEYS`** —
+  `subscription_plans`, `global_suggestions`, `require_email_verification`,
+  `smartsupp_key`, `social_links`. Anything else is a **404** for everyone
+  except a `super_admin` bearer token (resolved explicitly with
+  `$request->user('sanctum')`, since the route is outside `auth:sanctum`). This
+  matters because the sibling `PUT /admin/system-configs/{key}` stores
+  arbitrary JSON under arbitrary keys: before the allow-list, every one of them
+  — `referral_program`, `default_account_manager_id`,
+  `storefront_rebuild_requested_at` — was world-readable. **Adding a config key
+  that a logged-out client needs means adding it to `PUBLIC_KEYS` with a
+  comment naming the reader**; the admin panel needs no change, because its
+  requests carry a super_admin token.
+- **`POST /support`** (`throttle:public-write`, 5/min/IP) — persists a
+  `Feedback` row and emails every platform admin.
+- **`POST /logs/client-error`** (`throttle:client-error-log`, 30/min/IP) —
+  writes to `laravel.log` on shared hosting, plus an `activity_logs` row when a
+  token happens to be present. Every field is length-capped
+  (`ActivityLogController::MAX_*`), and `details` is capped in **bytes** by
+  `App\Rules\EncodedSizeAtMost` — Laravel's `max:` on an array counts elements,
+  which is no defence against one key holding a megabyte.
+
+`tests/Feature/PublicSurfaceHardeningTest.php` covers all of this and, like
+`StorefrontThrottleTest`, deliberately does not disable `ThrottleRequests`.
 
 ## Public storefront endpoints
 

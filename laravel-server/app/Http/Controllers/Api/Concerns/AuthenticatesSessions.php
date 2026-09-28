@@ -66,7 +66,9 @@ trait AuthenticatesSessions
 
         $user = User::where('email', $request->email)->first();
 
-        if (!$user || !Hash::check($request->password, $user->password)) {
+        // PIN-only staff have no web credential at all, and password_verify()
+        // against null is a PHP deprecation. "Staff credentials" in AGENTS.md.
+        if (!$user || $user->password === null || $user->password === '' || !Hash::check($request->password, $user->password)) {
             throw ValidationException::withMessages([
                 'email' => ['Invalid credentials.'],
             ]);

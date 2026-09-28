@@ -16,7 +16,7 @@ This file holds **open** items only. Fixed entries move to `docs/FIXED_BUGS.md` 
 
 **Overall health.** The codebase is unusually well-defended for its size: the sync engine's conflict model, the single-writer tab lock, tenant scoping on the server and the money math have all been through several review-and-fix cycles, and both test suites pass cleanly. The new findings in this pass are therefore not the "obvious" classes (cross-tenant leaks, double-charging, silent rollbacks) but the next layer down: **scale limits that were never exercised** (all three found so far have since been fixed — a local database with essentially no indexes, plus the pull engine's own un-resumable page cap and the server tenant-scope that loaded every sale id into PHP memory per request; see `docs/FIXED_BUGS.md`) and **attribution/consistency gaps** on the newest flows (the online-order fulfilment one, `A-4`, has since been fixed too).
 
-**Findings this pass, by severity:** 0 **P0**, 0 **P1**, 3 **P2**, 12 **P3** — 15 open findings from this pass (IDs `A-1`…`A-24`, less the fixed `A-1`, `A-2`, `A-3`, `A-4`, `A-5`, `A-6`, `A-7`, `A-8` and `A-18`), plus 14 still-open items carried from the two earlier passes (`P2-1`, `P3-1`, `P3-2`, `P3-5`, `PG-1`…`PG-10`), all preserved verbatim below.
+**Findings this pass, by severity:** 0 **P0**, 0 **P1**, 1 **P2**, 11 **P3** — 12 open findings from this pass (IDs `A-1`…`A-24`, less the fixed `A-1`, `A-2`, `A-3`, `A-4`, `A-5`, `A-6`, `A-7`, `A-8`, `A-10`, `A-11`, `A-13` and `A-18`), plus 14 still-open items carried from the two earlier passes (`P2-1`, `P3-1`, `P3-2`, `P3-5`, `PG-1`…`PG-10`), all preserved verbatim below.
 
 **Most important risks, in order:**
 
@@ -49,20 +49,6 @@ None open. `A-1` (the pull page cap that made a >100,000-row table un-syncable) 
 **Recommended fix:** Re-read `quantity_received` inside the transaction (the pattern `submitStockAudit` already uses for system quantity) and, on the server, treat a `purchase_order_items` `quantity_received` UPDATE that would exceed `quantity_ordered` as a conflict that also rejects the accompanying batch/movement (or key the receipt batch on a deterministic id per PO line + receipt sequence so the second one collides).
 **Confidence:** Medium (multi-device path traced; not reproduced).
 
-#### [P2] A-10. `SystemConfig` is publicly readable for any key, and two unauthenticated write endpoints have no rate limit
-**Category:** Security / Abuse surface — **Confirmed**
-**Location:** `laravel-server/routes/api.php:35-36, 72` (`GET /system-configs/{key}`, `POST /support`, `POST /logs/client-error` outside every `throttle:*` group), `laravel-server/app/Http/Controllers/Api/SystemConfigController.php:27-35` (returns `SystemConfig::getVal($key)` for any key with no allow-list), `laravel-server/app/Http/Controllers/Api/Web/ActivityLogController.php:75-118` (writes attacker-controlled `message`/`details` into `laravel.log`; also an `activity_logs` row per call when a token is present).
-**Problem:** The client legitimately needs `global_suggestions`, `subscription_plans` and `require_email_verification`; but the endpoint hands back any stored key, including `referral_program` (reward amounts), `storefront_rebuild_requested_at`, `default_account_manager_id` (a user id), and anything a future admin adds via the "arbitrary JSON for arbitrary keys" update endpoint. Laravel 11+ applies no default API throttle (documented in `laravel-server/AGENTS.md`), so the two public POSTs can be used to fill the shared host's disk via `laravel.log` or to spam support tickets, and `/logs/client-error` accepts an unbounded `details` array.
-**Recommended fix:** Add an explicit allow-list of public config keys to `show()`; put `/support` and `/logs/client-error` behind their own named limiters (the storefront limiters are the pattern); cap `details` size.
-**Confidence:** High.
-
-#### [P2] A-11. Staff accounts created without a password get a 4-digit web-dashboard password (their PIN, or the literal `1234`)
-**Category:** Security — **Confirmed (documented as "not secure", but the exposure is real)**
-**Location:** `laravel-server/app/Http/Controllers/Api/Web/StaffController.php:197-198` (`$pin = $request->pin ?: '1234'; $password = … Hash::make($pin)`), `laravel-server/app/Http/Controllers/Api/App/SyncController.php:297-300` (same fallback on the sync-push INSERT path), `AuthenticatesSessions::login` (any active user, staff included, can mint a Sanctum token with that password and reach every `/app/*` and `/dashboard/*` route their role allows).
-**Problem:** The staff form's password field is optional and the API docs say to "treat staff accounts as PIN-first" — but the derived password is also a valid credential for `/login` with a 10,000-value keyspace, and the auto-generated email `username@local.dumosrx.com` is predictable. `throttle:auth` is 5/min per IP, which slows but does not prevent a distributed guess; the `NewDeviceLoginEmail` goes to the fake `@local.dumosrx.com` address, so nobody is warned.
-**Recommended fix:** Never derive a login password from the PIN; either require a real password for web login or mark PIN-only staff as `password = null` and reject `/login` for them (the POS never uses `/login` for staff).
-**Confidence:** High.
-
 ---
 
 ## 4. Low-priority findings (P3)
@@ -73,13 +59,6 @@ None open. `A-1` (the pull page cap that made a >100,000-row table un-syncable) 
 **Problem:** The monotonic timestamp is written locally only and never pushed, so the server's copy stays NULL; the next pull writes that NULL back over the local value, and `checkLicenseStatus()` then skips the "clock went backwards" check and re-arms from the current (possibly rolled-back) time. The anti-backdating rule that `.agents/AGENTS.md` §8 says must not be weakened is therefore only effective between two syncs. Conversely, if any path ever *does* push it (`window.forceSyncAllData` queues full `stores` rows), a device whose clock runs ahead would propagate a future timestamp to every other device of the store and lock them out with "Clock Discrepancy".
 **Recommended fix:** Exclude `last_monotonic_time` (and other device-local columns) from the pull's column set, the same way `stock_batches.quantity` is already excluded.
 **Confidence:** Medium (read from code; not executed against a live server).
-
-#### [P3] A-13. The Tauri webview runs with `csp: null`
-**Category:** Security hardening (desktop/Android) — **Confirmed configuration**
-**Location:** `client/src-tauri/tauri.conf.json` (`"security": { "csp": null }`, `"withGlobalTauri": true`), capabilities grant `fs:allow-read-file`, `fs:allow-copy-file`, `sql:allow-*`, `dialog:*`, `shell:default`.
-**Problem:** No content-security policy means any script injection in the webview (a future `dangerouslySetInnerHTML`, a compromised CDN font/script, an XSS in synced data rendered unsafely) would execute with `window.__TAURI__` in scope and the granted capabilities: read the SQLite file, copy it, open the shell. Today the only `dangerouslySetInnerHTML` (`components/ui/chart.tsx:97`) renders config-driven CSS, so this is defence-in-depth, not an active hole.
-**Recommended fix:** Set a CSP (Tauri injects nonces for its own IPC) and drop `withGlobalTauri` unless something needs the global.
-**Confidence:** High.
 
 #### [P3] A-14. `DatabaseProvider`'s "Reset App Data" button does not reset the database, and uses `window.confirm`
 **Category:** Bug / UX — **Confirmed**
@@ -165,7 +144,7 @@ None open. `A-1` (the pull page cap that made a >100,000-row table un-syncable) 
 - **Category:** Security — confirmed, deliberately accepted
 - **Location:** `client/lib/api/token-manager.ts:17-50`
 - **Problem:** `auth_token` (the Sanctum bearer token) is read/written via `localStorage`. Any XSS in the client app could read it and exfiltrate a long-lived session token (Sanctum expiry is 30 days, `config/sanctum.php:49`; the client rotates after 7 days).
-- **Why not fixed already:** `setToken`/`clearToken` mirror the token to native Tauri code (`lib/native/widget-bridge.ts` → Android `TokenStore`, which does use `EncryptedSharedPreferences`) so the home-screen widget can make its own authenticated requests. A real fix needs a dual-path auth design. See also A-13 (a CSP would be the compensating control on the desktop/Android side).
+- **Why not fixed already:** `setToken`/`clearToken` mirror the token to native Tauri code (`lib/native/widget-bridge.ts` → Android `TokenStore`, which does use `EncryptedSharedPreferences`) so the home-screen widget can make its own authenticated requests. A real fix needs a dual-path auth design. The compensating control on the desktop/Android side is now in place: A-13's Tauri CSP shipped on 2026-09-28 (`script-src 'self' 'wasm-unsafe-eval'`, no remote or inline script, `object-src`/`frame-src 'none'` — see `docs/FIXED_BUGS.md` and `client/AGENTS.md`), so a script injection in the bundled webview can no longer load remote code to read and exfiltrate the token. It does **not** close this finding: the CSP does not cover the web/PWA build at `app.dumosrx.com`, and even in the bundled app an injected script that satisfies the policy still has same-origin `localStorage` access.
 - **Status:** Open, intentionally skipped 2026-09-26 per user direction — accepted tradeoff, needs a real design project.
 
 #### P3-2. `client/` — a long-open tab can 404 on a lazy chunk after a deploy that edits `sw.js`
@@ -312,7 +291,6 @@ Synthetic dataset built from the app's own `SCHEMA_SQL` plus the migration-added
 Ordered by technical impact and by which fixes unblock or de-risk others — not by ease.
 
 1. **PG-2 then PG-1** (carried) — the storefront webhook/reconciliation path and the gateway pinning; still the largest real-world money-loss surface.
-2. **A-10, A-11, A-13** — server public-surface hardening (config allow-list, throttles, no PIN-derived passwords) and the Tauri CSP. Independent; group into one security batch.
-3. **A-9, A-12, A-21, A-16, A-17** — sync/data-integrity edge cases; each is small and self-contained now that the index/pagination work is in.
-4. **A-14, A-15, A-19, A-20, A-22, A-23, A-24** — hygiene and architecture debt; A-15 (enforce `tsc`/tests in CI, `npm ci`) is the one worth doing early because it protects everything else.
-5. **P2-1** (ops confirmation) and the accepted **P3-1/P3-2/P3-5**, **PG-3…PG-10** as previously scheduled.
+2. **A-9, A-12, A-21, A-16, A-17** — sync/data-integrity edge cases; each is small and self-contained now that the index/pagination work is in.
+3. **A-14, A-15, A-19, A-20, A-22, A-23, A-24** — hygiene and architecture debt; A-15 (enforce `tsc`/tests in CI, `npm ci`) is the one worth doing early because it protects everything else.
+4. **P2-1** (ops confirmation) and the accepted **P3-1/P3-2/P3-5**, **PG-3…PG-10** as previously scheduled.

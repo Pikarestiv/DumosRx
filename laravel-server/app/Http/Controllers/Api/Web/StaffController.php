@@ -118,7 +118,7 @@ class StaffController extends Controller
     #[OA\Post(
         path: '/staff',
         summary: 'Create a staff account',
-        description: 'Blocked (422) if the store\'s plan staff limit is already reached. If no password is given, one is derived from the PIN (or "1234" if no PIN either); not secure, treat staff accounts as PIN-first.',
+        description: 'Blocked (422) if the store\'s plan staff limit is already reached. If no password is given the account gets none at all and cannot use `/login`; it is PIN-only, which the POS verifies client-side. Set a password here (or later via the update endpoint) to grant web-dashboard access.',
         tags: ['Staff'],
         security: [['sanctum' => []]],
         requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
@@ -195,7 +195,9 @@ class StaffController extends Controller
         $roleObj = \App\Models\Role::where('slug', $request->role)->first();
 
         $pin = $request->pin ?: '1234';
-        $password = $request->password ? Hash::make($request->password) : Hash::make($pin);
+
+        // Never derive this from the PIN: "Staff credentials" in AGENTS.md.
+        $password = $request->password ? Hash::make($request->password) : null;
 
         $user = User::create([
             'store_id' => $request->store_id,
@@ -206,9 +208,6 @@ class StaffController extends Controller
             'role' => $request->role,
             'role_id' => $roleObj ? $roleObj->id : null,
             'password' => $password,
-            // Hashed, never stored raw - see User::hashPin(). $password
-            // above is still derived from the RAW pin, since that's the
-            // separate (server-side) session credential.
             'pin' => User::hashPin($pin),
             'is_active' => true,
         ]);

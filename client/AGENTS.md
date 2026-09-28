@@ -466,6 +466,51 @@ request pathname's extension, and HTML is refused only for those requests —
 so a legitimately-HTML response on some other same-origin GET still caches
 as before.
 
+## Tauri webview content-security policy
+
+`src-tauri/tauri.conf.json`'s `app.security.csp` is a real policy, not `null`,
+and `withGlobalTauri` is gone. It only governs the **bundled** desktop/Android
+build: Tauri applies the CSP to assets it serves over its own protocol, so
+`npm run tauri dev` (which loads `devUrl` from the Next dev server) is
+unaffected and Next's HMR `eval` keeps working. The web/PWA build at
+`app.dumosrx.com` is served by a plain host and is not covered by this at all.
+
+The policy and why each source is in it:
+
+- `script-src 'self' 'wasm-unsafe-eval'` — no `'unsafe-inline'` and no
+  `'unsafe-eval'`. It does **not** need them: `tauri-codegen` sha256-hashes
+  every non-empty inline `<script>` in each exported HTML file at build time
+  and appends those hashes to this directive, which covers Next's static
+  `self.__next_f.push(...)` payload scripts (94 of them across the 47 pages in
+  `out/`). `'wasm-unsafe-eval'` is for sql.js instantiating
+  `public/sql-wasm.wasm`; the desktop/Android build uses native SQLite rather
+  than sql.js, so it is belt-and-braces, but it costs nothing and the fallback
+  path exists in `lib/db/core.ts`.
+- `style-src 'self' 'unsafe-inline'` — load-bearing. `components/ui/chart.tsx`
+  writes a `<style>` via `dangerouslySetInnerHTML`, React 19 hoists
+  `<style precedence>` tags, and Radix's scroll-lock injects its own. Note the
+  CSP-3 rule that a nonce or hash in a directive makes `'unsafe-inline'`
+  ignored: this works **because** the exported HTML contains zero build-time
+  `<style>` tags, so Tauri adds no style nonce. **Adding an inline `<style>` to
+  the exported HTML would silently disable `'unsafe-inline'` and break every
+  runtime-injected stylesheet.**
+- `worker-src 'self' blob:` — `lib/utils/report-pdf.tsx` spawns the PDF worker.
+- `img-src`/`media-src` with `data:` and `blob:` — receipts, barcodes and the
+  generated PDFs.
+- `connect-src` includes `ipc:` and `http://ipc.localhost` (Tauri v2's IPC
+  channel is `ipc://localhost` on macOS/Linux, `http://ipc.localhost` on
+  Windows/Android) plus `https:` and the localhost/`10.0.2.2` entries, because
+  `components/ui/server-selector.tsx` lets the API host be repointed at
+  runtime.
+- `object-src 'none'`, `frame-src 'none'`, `base-uri 'self'`,
+  `form-action 'self'` — the app embeds nothing and posts nowhere.
+
+`withGlobalTauri` was dropped because nothing depends on it: the only two
+readers of `window.__TAURI__` (`lib/db/core.ts`'s `isTauri()` and
+`lib/utils/error-logger.ts`) already fall through to `window.__TAURI_INTERNALS__`,
+which Tauri v2 injects regardless. `__tests__/tauri-csp-config.test.ts` pins
+all of the above.
+
 ## Stale-chunk auto-recovery
 
 A tab left open across an auto-deploy (the storefront rebuild pipeline,

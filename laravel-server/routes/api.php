@@ -31,9 +31,14 @@ use App\Http\Controllers\Api\Web\SubscriptionController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
-    // Public Routes
-    Route::get('/system-configs/{key}', [SystemConfigController::class, 'show']);
-    Route::post('/support', [\App\Http\Controllers\Api\Web\FeedbackController::class, 'store']);
+    // Public Routes. Laravel 11+ has no default `throttle:api` floor, so each
+    // one carries its own named limiter. See AGENTS.md for this whole block.
+    Route::middleware('throttle:public-read')->group(function () {
+        Route::get('/system-configs/{key}', [SystemConfigController::class, 'show']);
+    });
+    Route::middleware('throttle:public-write')->group(function () {
+        Route::post('/support', [\App\Http\Controllers\Api\Web\FeedbackController::class, 'store']);
+    });
     Route::middleware('throttle:auth')->group(function () {
         Route::post('/login', [AuthController::class, 'login']);
         Route::post('/register', [AuthController::class, 'register']);
@@ -69,7 +74,9 @@ Route::prefix('v1')->group(function () {
 
     // Client-side error telemetry - must stay public since it needs to report
     // failures that happen before login (e.g. the system-config fetch on app boot).
-    Route::post('/logs/client-error', [ActivityLogController::class, 'logClientError']);
+    Route::middleware('throttle:client-error-log')->group(function () {
+        Route::post('/logs/client-error', [ActivityLogController::class, 'logClientError']);
+    });
 
     // Tracking Routes
     Route::post('/track/download', [\App\Http\Controllers\Api\TrackController::class, 'download']);

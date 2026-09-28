@@ -15,6 +15,12 @@ class ActivityLogController extends Controller
 {
     use ScopesToTenant;
 
+    /** Caps on the unauthenticated /logs/client-error payload, every field of
+     * which reaches laravel.log. Rationale: AGENTS.md. */
+    private const MAX_URL_LENGTH = 2048;
+    private const MAX_MESSAGE_LENGTH = 2000;
+    private const MAX_DETAILS_BYTES = 8192;
+
     #[OA\Get(
         path: '/logs',
         summary: "List the caller's store activity log (owner + all staff)",
@@ -74,13 +80,15 @@ class ActivityLogController extends Controller
     )]
     public function logClientError(Request $request)
     {
+        // `max:` on an array counts elements, not bytes - hence the
+        // byte-size rule on `details`, which is the unbounded one.
         $request->validate([
-            'method' => 'required|string',
-            'url' => 'required|string',
+            'method' => 'required|string|max:16',
+            'url' => 'required|string|max:' . self::MAX_URL_LENGTH,
             'status' => 'nullable',
-            'message' => 'required|string',
-            'details' => 'nullable|array',
-            'deviceId' => 'nullable|string',
+            'message' => 'required|string|max:' . self::MAX_MESSAGE_LENGTH,
+            'details' => ['nullable', 'array', new \App\Rules\EncodedSizeAtMost(self::MAX_DETAILS_BYTES)],
+            'deviceId' => 'nullable|string|max:128',
         ]);
 
         // No auth middleware guards this route (it needs to capture failures

@@ -274,30 +274,9 @@ class SyncController extends Controller
                         // Force missing required fields for users
                         if ($change['table_name'] === 'users') {
                             if (empty($model->password)) {
-                                // $payload['pin'] used to be the raw 4-digit
-                                // PIN a device pushed for a user it created
-                                // offline, so hashing it here gave that
-                                // account a working web-dashboard password
-                                // equal to their PIN (StaffController::store
-                                // does the same thing intentionally for the
-                                // online creation path). The client now
-                                // hashes `pin` before it's ever written
-                                // locally, so this fallback would otherwise
-                                // hash an already-hashed value - not a
-                                // lockout (the row still gets SOME password),
-                                // but it silently drops the "log into the
-                                // dashboard with your PIN" convenience for
-                                // every offline-created user. Detect that
-                                // case and fall back to the same generic
-                                // placeholder StaffController::store already
-                                // uses when no PIN was supplied at all,
-                                // rather than deriving a password from a
-                                // value that no longer represents a secret
-                                // the user actually knows.
-                                $rawPin = (isset($payload['pin']) && preg_match('/^\$2[aby]\$\d{2}\$/', $payload['pin']) !== 1)
-                                    ? $payload['pin']
-                                    : '1234';
-                                $model->password = \Illuminate\Support\Facades\Hash::make($rawPin);
+                                // Offline-created users are PIN-only; never
+                                // derive one. "Staff credentials" in AGENTS.md.
+                                $model->password = null;
                             }
                             if (empty($model->first_name)) {
                                 $model->first_name = $payload['first_name'] ?? 'User';

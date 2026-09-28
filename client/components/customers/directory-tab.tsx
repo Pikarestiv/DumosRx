@@ -8,11 +8,15 @@ import { Card } from "@/components/ui/card";
 import { ResponsiveDetailPanel } from "@/components/ui/responsive-detail-panel";
 import { formatCurrency } from "@/lib/utils";
 import { CustomerDetailPanel } from "./customer-detail-panel";
-import { CustomerMobileRow, CustomerDesktopRow } from "./customer-list-rows";
+import {
+  CustomerMobileRow,
+  CustomerDesktopRow,
+  CUSTOMER_GRID_COLS,
+} from "./customer-list-rows";
 import { SortableHeaderCell } from "@/components/ui/sortable-header-cell";
 import { useSortableData } from "@/lib/hooks/use-sortable-data";
 import { EmptyState } from "@/components/ui/empty-state";
-import { useAuth } from "@/lib/context/auth-context";
+import { useHasPermission } from "@/lib/hooks/use-permissions";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { ScrollToTopButton } from "@/components/ui/scroll-to-top-button";
 
@@ -52,10 +56,10 @@ function CustomersLoadFailed({ onRetry }: { onRetry?: () => void }) {
 }
 
 function NoCustomersFound({
-  isAuditor,
+  canAddCustomer,
   onAddCustomer,
 }: {
-  isAuditor: boolean;
+  canAddCustomer: boolean;
   onAddCustomer?: () => void;
 }) {
   return (
@@ -64,7 +68,7 @@ function NoCustomersFound({
       title="No customers found"
       className="p-8"
       action={
-        isAuditor || !onAddCustomer
+        !canAddCustomer || !onAddCustomer
           ? undefined
           : { label: "Add Customer", onClick: onAddCustomer }
       }
@@ -90,9 +94,9 @@ export function DirectoryTab({
 }: DirectoryTabProps) {
   const isDesktop = useMediaQuery("(min-width: 1024px)");
   const [filter, setFilter] = useState<CustFilter>("all");
-  const { user } = useAuth();
-  const isAuditor = user?.role === "auditor";
-  const canDeleteCustomer = !isAuditor && user?.role !== "sales_staff";
+  const canManageCustomers = useHasPermission("manage_customers");
+  const canDeleteCustomers = useHasPermission("delete_customers");
+  const canViewBalances = useHasPermission("view_customer_balances");
 
   const desktopScrollRef = useRef<HTMLDivElement>(null);
 
@@ -127,7 +131,7 @@ export function DirectoryTab({
 
   const filterChips: { key: CustFilter; label: string }[] = [
     { key: "all", label: "All" },
-    { key: "debt", label: "Has debt" },
+    ...(canViewBalances ? [{ key: "debt" as const, label: "Has debt" }] : []),
     { key: "loyalty", label: "Loyalty members" },
   ];
 
@@ -149,7 +153,7 @@ export function DirectoryTab({
     </div>
   );
 
-  const DebtSummary = debtSummary.count > 0 && (
+  const DebtSummary = canViewBalances && debtSummary.count > 0 && (
     <div className="text-[11.5px] text-destructive font-medium whitespace-nowrap">
       {formatCurrency(debtSummary.total, currencyCode)} outstanding across{" "}
       {debtSummary.count} customer{debtSummary.count === 1 ? "" : "s"}
@@ -180,7 +184,9 @@ export function DirectoryTab({
       onEditProfile={onEditProfile}
       onRecordPayment={onRecordPayment}
       onDelete={onDeleteCustomer}
-      canDelete={canDeleteCustomer}
+      canDelete={canDeleteCustomers}
+      canEdit={canManageCustomers}
+      canViewBalance={canViewBalances}
     />
   );
 
@@ -210,7 +216,7 @@ export function DirectoryTab({
           ))}
           {loadFailed && <CustomersLoadFailed onRetry={onRetryLoad} />}
           {!loadFailed && filteredCustomers.length === 0 && (
-            <NoCustomersFound isAuditor={isAuditor} onAddCustomer={onAddCustomer} />
+            <NoCustomersFound canAddCustomer={canManageCustomers} onAddCustomer={onAddCustomer} />
           )}
         </div>
       </div>
@@ -228,7 +234,7 @@ export function DirectoryTab({
         </div>
 
         {/* Desktop table header */}
-        <div className="hidden lg:grid grid-cols-[1.6fr_1.1fr_80px_70px_100px_110px] gap-2 px-4 py-2 text-[10.5px] font-bold text-muted-foreground uppercase tracking-wide border-b">
+        <div className={`hidden lg:grid ${canViewBalances ? CUSTOMER_GRID_COLS.withBalance : CUSTOMER_GRID_COLS.withoutBalance} gap-2 px-4 py-2 text-[10.5px] font-bold text-muted-foreground uppercase tracking-wide border-b`}>
           <SortableHeaderCell
             label="Customer"
             active={sortKey === "name"}
@@ -254,13 +260,15 @@ export function DirectoryTab({
             onClick={() => toggleSort("points")}
             className="justify-end"
           />
-          <SortableHeaderCell
-            label="Balance"
-            active={sortKey === "balance"}
-            direction={direction}
-            onClick={() => toggleSort("balance")}
-            className="justify-end"
-          />
+          {canViewBalances && (
+            <SortableHeaderCell
+              label="Balance"
+              active={sortKey === "balance"}
+              direction={direction}
+              onClick={() => toggleSort("balance")}
+              className="justify-end"
+            />
+          )}
           <SortableHeaderCell
             label="Last Visit"
             active={sortKey === "lastVisit"}
@@ -286,6 +294,7 @@ export function DirectoryTab({
                     onSelect={setSelectedCustomer}
                     getTierColor={getTierColor}
                     currencyCode={currencyCode}
+                    showBalance={canViewBalances}
                     style={{
                       height: virtualRow.size,
                       transform: `translateY(${virtualRow.start}px)`,
@@ -297,7 +306,7 @@ export function DirectoryTab({
           )}
           {loadFailed && <CustomersLoadFailed onRetry={onRetryLoad} />}
           {!loadFailed && filteredCustomers.length === 0 && (
-            <NoCustomersFound isAuditor={isAuditor} onAddCustomer={onAddCustomer} />
+            <NoCustomersFound canAddCustomer={canManageCustomers} onAddCustomer={onAddCustomer} />
           )}
         </div>
         <ScrollToTopButton scrollRef={desktopScrollRef} />

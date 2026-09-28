@@ -9,6 +9,7 @@ import { insert } from "@/lib/db/local-database";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { queryKeys } from "@/lib/query-keys";
+import { useHasPermission } from "@/lib/hooks/use-permissions";
 import type { Customer } from "@/lib/types/customer";
 
 interface POSCustomerSelectorProps {
@@ -32,6 +33,8 @@ export const POSCustomerSelector = memo(function POSCustomerSelector({
   const [newFirstName, setNewFirstName] = useState("");
   const [newLastName, setNewLastName] = useState("");
   const [newPhone, setNewPhone] = useState("");
+
+  const canManageCustomers = useHasPermission("manage_customers");
 
   const queryClient = useQueryClient();
 
@@ -162,21 +165,23 @@ export const POSCustomerSelector = memo(function POSCustomerSelector({
             />
           </div>
 
-          <button
-            type="button"
-            aria-expanded={showAddForm}
-            className="w-full flex items-center gap-2.5 px-3 py-[11px] border border-dashed border-border rounded-xl cursor-pointer text-primary hover:bg-primary/5 transition-colors mt-0.5 outline-none focus-visible:ring-[3px] focus-visible:ring-ring"
-            onClick={() => setShowAddForm(!showAddForm)}
-          >
-            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-              <UserPlus className="w-[15px] h-[15px]" />
-            </div>
-            <span className="text-[12.5px] font-semibold">
-              Add new customer
-            </span>
-          </button>
+          {canManageCustomers && (
+            <button
+              type="button"
+              aria-expanded={showAddForm}
+              className="w-full flex items-center gap-2.5 px-3 py-[11px] border border-dashed border-border rounded-xl cursor-pointer text-primary hover:bg-primary/5 transition-colors mt-0.5 outline-none focus-visible:ring-[3px] focus-visible:ring-ring"
+              onClick={() => setShowAddForm(!showAddForm)}
+            >
+              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                <UserPlus className="w-[15px] h-[15px]" />
+              </div>
+              <span className="text-[12.5px] font-semibold">
+                Add new customer
+              </span>
+            </button>
+          )}
 
-          {showAddForm && (
+          {canManageCustomers && showAddForm && (
             <div className="flex flex-col gap-3 p-3 bg-muted/50 border border-border rounded-xl">
               <div className="flex gap-2.5">
                 <Input

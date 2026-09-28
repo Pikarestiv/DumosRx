@@ -755,6 +755,104 @@ from the day the catalog was written. A single-till pharmacy that really
 does have its cashier hand medicine over ticks either key onto the cashier
 group in one click, which previously did nothing.
 
+Four of the five **Customers & Loyalty** keys followed on 2026-09-28, in
+the same pass. Like Prescriptions, the category was **almost entirely
+ungated** — the only role checks anywhere in `components/customers/` were
+two direct ones in `directory-tab.tsx` (`user?.role === "auditor"` on the
+empty state's "Add Customer", and
+`!isAuditor && user?.role !== "sales_staff"` on the delete control), plus
+the coarse `canManageStockBatch` on the Loyalty tab's "Edit Settings".
+Everything else — add, edit, and every customer's outstanding balance —
+was open to every role, including cashiers, on a page a cashier reaches.
+
+- `manage_customers` ("Manage Customers") — creating and editing a
+  customer record. `lib/hooks/use-customer-management.ts` gates the
+  `?action=add` opener, which is the **real** gate: that URL is typeable
+  and is also exactly what the dashboard header's "Add Customer"
+  navigates to, so hiding the header action alone would not be one.
+  `PAGE_ROUTES`' `/customers` entry gained
+  `actionPermission: "manage_customers"` for that header action (no
+  `actionAdminOnly` underneath it, same reasoning as `/prescriptions`),
+  `directory-tab.tsx` gates the empty state's "Add Customer" and the
+  detail panel's "Edit Profile", and `components/pos/pos-customer-selector.tsx`
+  gates the till's inline "Add new customer" form. That last one matters:
+  it writes a `customers` row through `insert()` just like the Customers
+  page does, so it is the same right, not an at-the-till concession. The
+  record stays fully readable without the key — only the triggers go, and
+  the detail footer collapses to "View History" alone.
+- `manage_loyalty` ("Manage Loyalty Program") — configuring the
+  **program**: tiers, earn rate and redemption options.
+  `components/customers/loyalty-tab.tsx` gates the "Edit Settings" button
+  and `loyalty-settings-dialog.tsx` adds the key to its existing
+  defense-in-depth close-on-open effect. Both **compose** with the coarse
+  `canManageStockBatch` rather than replacing it, so nothing widens. This
+  is deliberately **not** the same thing as a cashier spending a
+  customer's earned points at checkout (`pos-redeem-reward.tsx`), which
+  stays independent of every staff-side key for the same reason it is
+  independent of `apply_discounts`: a redemption is a customer-earned
+  entitlement, not a staff concession, and the cashier who rings the sale
+  is who applies it.
+- `delete_customers` ("Delete Customers") — the trash control in
+  `customer-detail-panel.tsx`, fed from `directory-tab.tsx`, which is the
+  only way to reach `customer-delete-dialog.tsx` at all. The direct role
+  check it replaces allowed `specialist` through; the key does not, which
+  is the intended split (the defaults comment has excluded `delete_*` from
+  `specialist` since the catalog was written). The dialog's own
+  "outstanding balance, settle it first" guard is untouched — that is a
+  data rule, not a permission.
+- `view_customer_balances` ("View Customer Account Balances") — a pure
+  **read** right over customer debt, and the one place this category
+  closes a leak rather than adding a restriction. Before it, the
+  directory's Balance column, the "Has debt" filter chip, the
+  "₦X outstanding across N customers" summary and the detail panel's
+  outstanding-balance block were all shown to every role. All four are now
+  gated in `directory-tab.tsx`; the desktop row drops its balance **cell
+  with its header**, via `CUSTOMER_GRID_COLS` in `customer-list-rows.tsx`
+  (a literal-class lookup, same mechanism as `CATALOG_GRID_COLS`), rather
+  than being left blank. Note that hiding the block takes the
+  **"Record Payment" button with it**, which is deliberate — you cannot
+  record a payment against a balance you are not allowed to see — and is
+  why the defaults changed, below. The per-sale outstanding balance in
+  `components/pos/transaction-details-dialog.tsx` is a **different
+  figure** (one sale's remainder, not the customer's account) and stays
+  ungated, so the till's own debt-payment flow is untouched either way.
+
+`manage_customer_credit_terms` stays **catalog-only because no action
+exists to gate**: `credit_limit` is a real column in `lib/db/schema.ts`
+and a real column in the customer report export
+(`lib/db/queries/reports.ts`), but **nothing in the app ever sets or edits
+it** — there is no credit-limit field in `add-customer-modal.tsx` or
+`edit-customer-modal.tsx`, no terms UI anywhere, and no code path reads it
+as a limit. This is the same finding as `override_credit_limit` in the
+Sales & POS list above, from the opposite side: one key would front the
+override, the other the limit itself, and neither has anything to front
+yet. `record-payment-modal.tsx` is **not** it — recording a payment
+against an existing balance is `view_customer_balances` territory (it is
+rendered inside that block), not a change to the customer's terms. Wire
+this key in the same change as whatever first ships a credit-limit field.
+
+`DEFAULT_GROUP_PERMISSIONS` changed in exactly one way for this category:
+`view_customer_balances` was **granted to `specialist` and `sales_staff`**,
+which are the two roles that lacked it. That is behaviour-preserving, not a
+widening — every role could already see these figures, so reproducing that
+is the rule this pass has followed throughout (`view_cost_fields`,
+`request_stock_transfers`, `override_price`). It matters most for
+`sales_staff`: "Record Payment" lives inside the block, so withholding the
+key would have silently removed over-the-counter debt collection from the
+cashier, who is exactly who does it. The owner who wants balances kept from
+cashiers unticks one box, which previously did nothing.
+
+The other three keys keep their existing defaults, which means two
+**deliberate narrowings** landed with enforcement: `specialist` loses
+customer deletion (it was reachable through the old role check) and the
+Loyalty Settings dialog (it was reachable through `canManageStockBatch`).
+Both are what those keys are for — `delete_customers` and `manage_loyalty`
+were scoped to admin/manager from the day the catalog was written — and
+both are one tick away for a store that disagrees. `manage_customers` is
+already in `sales_staff`, `specialist` and `manager`, so wiring it is a
+**no-op for every role except `auditor`**, which correctly loses the
+"Edit Profile" button it should never have had.
+
 `export_reports` joined it on 2026-09-28 too: `components/reports/report-center.tsx`
 hoists `useHasPermission("export_reports")` and hides the per-report Export
 dropdown and Print button, and passes the same boolean into
@@ -801,7 +899,11 @@ enforcement and add the key in the same commit**, and add the key to
   `transaction-metrics.tsx`, `transaction-details-dialog.tsx`) are the
   next ones to move.
 - **Customers & Loyalty** — `delete_customers`, `view_customer_balances`,
-  `manage_customer_credit_terms`.
+  `manage_customer_credit_terms`. The first two were wired up later the
+  same day, along with `manage_customers` and `manage_loyalty` — see the
+  Customers & Loyalty block above, including why
+  `manage_customer_credit_terms` has nothing to front, before
+  re-investigating any of them.
 - **Reports & Activity** — `view_dashboard`, `view_financial_reports`.
   `view_reports` stays the broad "can open Report Center" right;
   `view_financial_reports` is the P&L/margin tier on top of it (QuickBooks'

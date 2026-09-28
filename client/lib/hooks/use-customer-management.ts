@@ -7,6 +7,7 @@ import type { CustomerFormPayload } from "@/lib/types/customer";
 import { genericFuzzySearch } from "@/lib/utils/search";
 import { getLoyaltyTiers } from "@/lib/db/queries/loyalty";
 import { usePullToRefreshHandler } from "@/lib/context/pull-to-refresh-context";
+import { useHasPermission } from "@/lib/hooks/use-permissions";
 import { queryKeys } from "@/lib/query-keys";
 import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
 
@@ -124,10 +125,15 @@ export function buildFallbackRedemptionOptions(
  * All business logic for the Customer Management page: data fetching, tab/URL
  * sync, search/filter derivation, and modal/selection state, so the component
  * itself only has to render what this hook returns.
+ *
+ * The ?action=add opener is where "manage_customers" is enforced: that URL is
+ * typeable and is also what the dashboard header's "Add Customer" navigates
+ * to, so gating the header action alone would not be a gate.
  */
 export function useCustomerManagement() {
   const { storeType, storeProfile } = useStore();
   const isStore = storeType === "pharmacy";
+  const canManageCustomers = useHasPermission("manage_customers");
 
   const {
     customers,
@@ -188,14 +194,14 @@ export function useCustomerManagement() {
 
   useEffect(() => {
     if (searchParams.get("action") === "add") {
-      setIsAddCustomerOpen(true);
+      if (canManageCustomers) setIsAddCustomerOpen(true);
       const newParams = new URLSearchParams(searchParams.toString());
       newParams.delete("action");
       const newUrl =
         pathname + (newParams.toString() ? `?${newParams.toString()}` : "");
       router.replace(newUrl);
     }
-  }, [searchParams, router, pathname]);
+  }, [searchParams, router, pathname, canManageCustomers]);
 
   const handleTabChange = (value: string) => {
     setActiveTab(value);

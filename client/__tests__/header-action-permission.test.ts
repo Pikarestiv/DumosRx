@@ -56,6 +56,16 @@ describe("header action permission gating", () => {
     expect(resolve("/prescriptions", [])).toBeNull();
   });
 
+  it("shows Add Customer with manage_customers", () => {
+    expect(resolve("/customers", ["manage_customers"])?.label).toBe(
+      "Add Customer",
+    );
+  });
+
+  it("withholds Add Customer without manage_customers", () => {
+    expect(resolve("/customers", [])).toBeNull();
+  });
+
   it("leaves routes with no actionPermission alone", () => {
     expect(resolve("/inventory/catalog", [])?.label).toBe("Add Product");
   });

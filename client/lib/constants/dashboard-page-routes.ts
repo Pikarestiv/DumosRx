@@ -116,6 +116,7 @@ export const PAGE_ROUTES: PageRoute[] = [
     title: "Customer Management",
     desc: "View and manage customer profiles, credit, and history.",
     action: { label: "Add Customer", path: "/customers?action=add" },
+    actionPermission: "manage_customers",
   },
   {
     path: "/sales",

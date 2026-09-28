@@ -131,6 +131,13 @@ export const DEFAULT_GROUP_PERMISSIONS: Record<
     "perform_stock_audit", "view_stock_adjustment_history", "print_product_labels",
     "export_product_list", "view_suppliers",
     "view_dashboard", "manage_device_settings",
+    // 2026-09-28 enforcement pass (Customers & Loyalty): the customer
+    // balance column, debt summary and the detail panel's outstanding
+    // block were shown to every role before the key existed, so the grant
+    // here is behaviour-preserving rather than a widening. An owner who
+    // wants debt figures kept from the stock role unticks it, which
+    // previously did nothing.
+    "view_customer_balances",
     // NOT: void_refund_sales/apply_discounts/open_cash_drawer/override_price (checkIsAdmin-only today),
     // NOT: view_reports/export_reports/view_activity_log/manage_staff/manage_* settings
   ],
@@ -161,6 +168,13 @@ export const DEFAULT_GROUP_PERMISSIONS: Record<
     // landed. An owner who wants markup pricing to be a supervisor decision
     // unticks it; that now actually does something.
     "override_price",
+    // 2026-09-28 enforcement pass (Customers & Loyalty): same reasoning as
+    // specialist above, and more sharply - "Record Payment" lives INSIDE
+    // the outstanding-balance block, so withholding this key would have
+    // taken over-the-counter debt collection away from the cashier, who is
+    // exactly who does it. Behaviour-preserving; the owner unticks it to
+    // actually restrict.
+    "view_customer_balances",
   ],
   auditor: [
     "view_reports", "export_reports", "view_all_expenses",
@@ -213,6 +227,10 @@ export const ENFORCED_PERMISSION_KEYS: ReadonlySet<string> = new Set([
   "view_suppliers", // procurement-tab-nav.tsx, procurement/vendors route
   "dispense_prescriptions", // prescription-detail-panel.tsx, use-pos-prescription.ts
   "manage_prescriptions", // prescription-detail-panel.tsx, use-prescription-management.ts, dashboard-page-routes.ts
+  "manage_customers", // use-customer-management.ts, directory-tab.tsx, customer-detail-panel.tsx, pos-customer-selector.tsx, dashboard-page-routes.ts
+  "manage_loyalty", // loyalty-tab.tsx, loyalty-settings-dialog.tsx
+  "delete_customers", // directory-tab.tsx, customer-detail-panel.tsx
+  "view_customer_balances", // directory-tab.tsx, customer-list-rows.tsx, customer-detail-panel.tsx
   "export_reports", // report-center.tsx, report-view-dialog.tsx (canExport)
   "view_activity_log", // activity-log-page.tsx, product-history.tsx, pos-transaction-history.tsx, use-finance-data.ts, use-purchase-orders.ts, use-dashboard-overview.ts, use-pos-data.ts, auth-context.tsx (canViewAllActivity)
   "manage_staff", // pos-layout-header.tsx, auth-context.tsx (isAdmin)

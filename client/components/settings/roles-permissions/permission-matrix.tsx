@@ -3,6 +3,7 @@
 import { Fragment, useMemo, useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { PERMISSION_CATALOG, ENFORCED_PERMISSION_KEYS } from "@/lib/constants/permissions";
+import { Badge } from "@/components/ui/badge";
 import { usePermissionGroups } from "@/lib/hooks/use-permission-groups";
 import { useHasPermission, useOwnPermissionGroupId } from "@/lib/hooks/use-permissions";
 import { GroupToolbar } from "./group-toolbar";
@@ -123,13 +124,14 @@ export function PermissionMatrix() {
                         <td className="p-2 pl-7 sticky left-0 z-10 bg-background">
                           {entry.label}
                           {!ENFORCED_PERMISSION_KEYS.has(entry.key) && (
-                            <span
+                            <Badge
+                              variant="outline"
                               data-testid="not-yet-enforced"
-                              title="This permission isn't wired up to any feature yet - toggling it has no effect."
-                              className="ml-2 text-xs text-muted-foreground italic"
+                              title="This permission is coming in a future update. Your choice is saved now, and will start granting or restricting access as soon as it's available."
+                              className="ml-2 h-5 px-1.5 text-[10px] font-normal text-muted-foreground"
                             >
-                              (not yet enforced)
-                            </span>
+                              Coming soon
+                            </Badge>
                           )}
                         </td>
                         {groups.map((g) => {

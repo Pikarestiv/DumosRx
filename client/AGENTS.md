@@ -477,7 +477,15 @@ balance. New POs already prefill from a real `AVG(cost_price)` via
 
 `ENFORCED_PERMISSION_KEYS` (`lib/constants/permissions.ts`) lists the keys
 with a real call site; the Roles & Permissions matrix reads it to mark the
-rest as not-yet-wired. `apply_discounts` joined it on 2026-09-28:
+rest as not-yet-wired. That mark is **customer-facing copy on a screen real
+store owners use**, so it reads as a product roadmap note, not a dev TODO:
+an outline `Badge` saying "Coming soon" (matching `data-settings-auto-sync.tsx`'s
+"Pro Feature" badge), with the tooltip "This permission is coming in a future
+update. Your choice is saved now, and will start granting or restricting
+access as soon as it's available." Keep the honest meaning — an owner who
+thinks they have restricted an employee and has not is worse off than one
+told "not yet" — and keep the checkbox toggleable so they can pre-set it;
+only the wording is product-voiced. `apply_discounts` joined it on 2026-09-28:
 `components/pos/pos-cart.tsx` hoists `useHasPermission("apply_discounts")`
 to an unconditional top-level const (never inside a `&&`, see the
 hook-count crash documented in `pos-layout-header.tsx`) and gates the

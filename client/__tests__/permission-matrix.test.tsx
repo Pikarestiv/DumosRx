@@ -224,7 +224,11 @@ describe("PermissionMatrix", () => {
 
     // "manage_suppliers" has no real call site - must be marked.
     const suppliersRow = Array.from(container.querySelectorAll("tr")).find((tr) => tr.textContent?.includes("Manage Suppliers"));
-    expect(suppliersRow?.querySelector('[data-testid="not-yet-enforced"]')).toBeTruthy();
+    const marker = suppliersRow?.querySelector('[data-testid="not-yet-enforced"]');
+    expect(marker).toBeTruthy();
+    // Customer-facing copy: a roadmap note, not an engineering TODO.
+    expect(marker?.textContent).toBe("Coming soon");
+    expect(marker?.getAttribute("title")).toMatch(/future update/i);
 
     act(() => root.unmount());
     container.remove();

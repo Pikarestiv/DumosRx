@@ -1,4 +1,9 @@
-import { getPendingSyncItems, markSynced, recordSyncFailure } from "../local-database";
+import {
+  getPendingSyncItems,
+  markConflictSettled,
+  markSynced,
+  recordSyncFailure,
+} from "../local-database";
 import { apiClient } from "@/lib/api/client";
 import { PushResponse } from "./types";
 import type { SyncChange, SyncQueueItem } from "@/lib/types/sync";
@@ -14,6 +19,11 @@ import { toast } from "sonner";
 // silently loop forever — the base version this edit was computed from
 // doesn't change no matter how many times it's resent.
 const NON_RETRYABLE_CONFLICT_REASONS = new Set(["version_conflict", "stale_timestamp"]);
+
+// Tables whose server row does NOT carry the id the client pushed, so no
+// future pull can ever match it and settle a terminally-conflicted local row.
+// See docs/FIXED_BUGS.md "audit_logs conflict resurrection loop".
+const TERMINAL_CONFLICT_SETTLES_SOURCE_ROW = new Set(["audit_logs"]);
 
 const SYNC_BATCH_SIZE = 50;
 
@@ -572,6 +582,10 @@ export async function pushChanges(
               const wasRetried = priorAttempts.some((row) => (row.retry_count ?? 0) > 0);
 
               await execute(`DELETE FROM _sync_queue WHERE id IN (${placeholders})`, underlyingIds);
+
+              if (TERMINAL_CONFLICT_SETTLES_SOURCE_ROW.has(f.table_name)) {
+                await markConflictSettled(f.table_name, f.record_id);
+              }
 
               if (wasRetried) {
                 silencedConflicts.push({ table_name: f.table_name, record_id: f.record_id });

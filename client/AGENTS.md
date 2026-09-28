@@ -1007,6 +1007,139 @@ cleanly along the write/read line:
   scoping them per-viewer would silently produce a wrong P&L rather than a
   restricted one.
 
+
+All seven remaining **Store & Settings** keys were wired on 2026-09-28,
+closing the pass. This category is almost entirely a **conversion**: one
+coarse `isAdmin` check (which is `manage_staff`, and so includes `manager`)
+covered nearly every Settings tab, and the catalog had already named the
+specific keys those tabs should carry.
+
+The tab-level half lives in one map, `SETTINGS_TAB_PERMISSIONS`
+(`lib/constants/settings-tabs.ts`), read by all three places that decide tab
+visibility — `settings-tab-nav.tsx` (desktop rail), `settings-mobile-menu.tsx`
+(the only settings nav below `md`) and `hooks/use-settings.ts`' URL-resolution
+effect, which is **the real gate**: `/settings/<tab>` is typeable and is in
+`generateStaticParams`, so hiding the two triggers is not one. `settings-client.tsx`
+gates the matching `<TabsContent>` from the same resolver. Both nav components
+take an optional `canAccessTab` prop and fall back to their old `adminOnly`
+behaviour without it, so no caller had to change at once.
+
+- `manage_store_settings` — **Business Info, Branches, Receipt Settings and
+  Register Configs**, i.e. store-wide configuration that is not payments,
+  data or billing. Business Info and Branches are not split further: the
+  business identity form and the fleet list are one "who this store is"
+  surface. It also gates **Regional Settings** (currency, VAT, reseller
+  commission) in `appearance-settings.tsx` — store-wide config that happens
+  to sit on the everyone-can-open General tab and was `isAdmin`-gated inline;
+  the theme and sidebar-preference cards above it stay open to every role.
+  Exact no-op: `manager` holds the key and cleared `isAdmin`.
+- `manage_payment_accounts` — the **Payment Methods** tab (accepted methods,
+  the payment-accounts list, and the require-an-account rule). Receipt
+  Settings and Register Configs deliberately sit under
+  `manage_store_settings` instead: they are till and print configuration, not
+  where money lands, which is what "Payment Accounts" names. No-op.
+- `backup_restore_data` — the **Data & Sync** tab, whole. Backup, restore,
+  undo-restore, force-full-resync and the auto-sync schedule are one surface
+  (`data-settings.tsx`, `data-settings-auto-sync.tsx`) and splitting sync
+  configuration away from the restore buttons it feeds would gate the halves
+  of a single decision separately. No-op.
+- `manage_device_settings` — the **System** tab: install cards, app version,
+  environment, platform and About. That is "this workstation", which is what
+  the key's label says, and it is the one tab in the group that holds nothing
+  store-wide. This **widens to `specialist`**, which holds the key by default
+  and could not clear `isAdmin`. Low blast radius by construction — the tab's
+  one actionable control was the "Manage Billing" shortcut card, which now
+  carries `manage_billing` itself rather than linking a specialist into a tab
+  that would bounce them straight back out.
+- `manage_billing` — the **Billing** tab (subscription plans, payment
+  history, coupons, referrals) and the System tab's shortcut into it.
+  ⚠️ **The consequential call in this category**: this **narrows `manager`**,
+  which could open every billing screen because it cleared `isAdmin`. The
+  defaults comment has excluded `manage_billing` from `manager` since the
+  catalog was written — subscription and payment-method changes are the
+  owner's, not a shift manager's — so this is the key doing what it has
+  always said, but it *is* a visible change for an existing store on upgrade,
+  and it is the only tab a manager outright loses. One tick restores it, and
+  that tick previously did nothing.
+- `manage_online_store` — the storefront slice, and the one key here that
+  **cuts across tabs rather than owning one**: the Store Profile block inside
+  Business Info (`store-profile-section.tsx` — the public URL slug and the
+  Enable Online Store switch) and the Paystack payout onboarding inside
+  Payment Methods (`online-payments-section.tsx`, gated from
+  `panels/payment-methods-panel.tsx`). Both exist only to make the public
+  storefront work, so the key sits **on top of** each tab's own rather than
+  replacing it. The Store Profile block returns `null` when nothing is left
+  to show (a retail store whose group lacks the key and whose plan has no
+  loyalty program) instead of an empty bordered box with a heading in it.
+  `products.show_online` is deliberately **left under `manage_products`**: it
+  is a per-product catalog attribute set in three places — the Add Product
+  form, the CSV/XLSX importer and the catalog toolbar's "Online" dropdown
+  (`bulk-show-online-action.tsx`) — and gating one of the three would be
+  theatre while the other two stay open. Wire it here only if all three move
+  together. No-op otherwise: admin and manager hold all three keys.
+- `install_app_updates` — `components/tauri/auto-updater.tsx`, and the only
+  key in the category with no Settings tab at all. It gates the **user-facing
+  half**: the floating "Check for updates" pill and the consent /
+  restart-to-apply prompts it opens. The startup check and the silent patch
+  download behind it are deliberately **left running for every session** —
+  they are not a user action, and stopping them would strand a till on an old
+  build rather than restrict anyone. A session with **no signed-in user**
+  (login screen, first run) is ungated: there is no group to check and the
+  updater is the device's own. `AutoUpdater` moved inside `AuthProvider` in
+  `app/layout.tsx` so it can read the acting session at all; it is
+  `position: fixed`, so where it sits in the tree is not a layout decision.
+  This is a **real narrowing** — the pill was reachable by anyone signed in —
+  and `sales_staff` and `auditor` are the two default groups without the key,
+  so on a cashier-only till a major update now waits for someone who holds
+  it. That is what the key is for.
+
+`DEFAULT_GROUP_PERMISSIONS` is **unchanged** for this whole category. Every
+conversion above either reproduces the old `isAdmin` population exactly or
+moves in the direction the defaults already stated, which is the point of
+converting rather than inventing a gate.
+
+Tabs deliberately **left on the `isAdmin` fallback**, so nobody re-derives it:
+**Personal Info** (no key in the catalog names it), **Product Units** and
+**Categories** (Inventory & Stock's `manage_products`, out of this
+category's scope — convert them in whatever change next touches that
+category), **Staff** and **Roles & Permissions** (Staff & Groups; the
+permission matrix already enforces `manage_roles_permissions` *inside* the
+panel, and moving the tab itself would take the read-only view away from a
+manager), and **Danger Zone** (already enforces `factory_reset` inside
+`device-danger-zone.tsx`). The **Alerts** tab is likewise untouched: low-stock
+and expiry thresholds are store-wide but the tab has been open to every role
+since it shipped, and putting it under `manage_store_settings` would be a
+narrowing this pass has no evidence anyone wants.
+
+### The category-by-category pass is complete
+
+All eight categories have now been walked: Sales & POS, Inventory & Stock,
+Prescriptions, Customers & Loyalty, Reports & Activity, Expenses, Staff &
+Groups and Store & Settings. **42 of the catalog's 54 keys are enforced**;
+the remaining **12 are catalog-only**, every one of them for a reason
+recorded above rather than for want of attention:
+
+| Category | Enforced | Catalog-only |
+| --- | --- | --- |
+| Sales & POS | 7 / 12 | `open_cash_drawer`, `edit_completed_sale`, `run_daily_close`, `view_drawer_counts`, `override_credit_limit` |
+| Inventory & Stock | 13 / 18 | `manage_stock_batches`, `approve_stock_transfers`, `delete_products`, `print_product_labels`, `delete_suppliers` |
+| Prescriptions | 2 / 2 | — |
+| Customers & Loyalty | 4 / 5 | `manage_customer_credit_terms` |
+| Reports & Activity | 4 / 5 | `view_dashboard` |
+| Expenses | 2 / 2 | — |
+| Staff & Groups | 2 / 2 | — |
+| Store & Settings | 8 / 8 | — |
+
+Eleven of the twelve are **"the feature does not exist yet"** findings: there
+is no cash drawer, no amend-a-finished-sale, no end-of-day write, no drawer
+count, no credit-limit field or check, no batch CRUD screen, no transfer
+approval step, no product or supplier delete, and no reachable label-print
+trigger. Each should be wired **in the same change that first ships its
+action**, which is this repo's standing rule. The twelfth, `view_dashboard`,
+is the odd one out: it has a surface and the gate would simply be wrong (see
+its entry above). Before re-investigating any of the twelve, read its entry —
+the evidence is already here.
+
 ### The 2026-09-28 granularity pass
 
 The catalog was compared against QuickBooks Point of Sale's own
@@ -1056,7 +1189,12 @@ enforcement and add the key in the same commit**, and add the key to
   level-3/4 report split).
 - **Store & Settings** — `manage_device_settings` (this workstation's own
   preferences, as distinct from store-wide `manage_store_settings`),
-  `install_app_updates` (`components/tauri/auto-updater.tsx`).
+  `install_app_updates` (`components/tauri/auto-updater.tsx`). Both were
+  wired up later the same day, along with the rest of the category —
+  `manage_store_settings`, `manage_payment_accounts`, `manage_online_store`,
+  `manage_billing` and `backup_restore_data` — see the Store & Settings block
+  above, and the completion note after it, before re-investigating any of
+  them.
 
 Deliberately **not** imported from QuickBooks: anything about
 QuickBooks-desktop mechanics (company-file open/close/create/rename/clean-up,
@@ -1529,6 +1667,14 @@ number into local SQLite and hope it matches. Treat this exactly like the
 `update()` from this client is a bug, not a shortcut.
 
 ## Current focus / recent work (update this section as work continues)
+
+Most recent work (2026-09-28, latest) finished the **category-by-category
+permission-enforcement pass** with Store & Settings, the eighth and last
+category. 42 of the catalog's 54 keys now have a real call site; the other
+12 are catalog-only with the reason recorded per key. Read the Enforced
+permissions section — especially "The category-by-category pass is
+complete" — before touching a permission key or re-investigating one of
+the twelve.
 
 Most recent work (2026-09-28, later) worked through a live client's
 ("Cynthia", construction-materials store) feedback list — see the

@@ -41,9 +41,11 @@ import {
   RecentDownloadsList,
 } from "@/components/reports/recent-downloads-list";
 import { toQueryRange } from "@/lib/utils/date-range";
+import { useHasPermission } from "@/lib/hooks/use-permissions";
 import { toast } from "sonner";
 
 export function ReportCenter() {
+  const canExportReports = useHasPermission("export_reports");
   const [filters, setFilters] = useState<ReportFiltersValue>({
     dateRange: {
       from: format(subDays(new Date(), 30), "yyyy-MM-dd"),
@@ -225,33 +227,35 @@ export function ReportCenter() {
                       </div>
                     )}
                     <div className="flex flex-wrap items-center gap-2 mt-3">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 text-[11px] gap-1.5 flex-1 md:flex-none border-border"
-                            disabled={isLoading}
-                          >
-                            {isLoading ? (
-                              <Loader2 className="h-3 w-3 animate-spin" />
-                            ) : (
-                              <Download className="h-3 w-3" />
-                            )}
-                            Export
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => void runAction(report.id, "pdf")} className="cursor-pointer text-[12px] gap-2">
-                            <FileDown className="h-3.5 w-3.5 text-inherit" />
-                            Download PDF
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => void runAction(report.id, "csv")} className="cursor-pointer text-[12px] gap-2">
-                            <FileText className="h-3.5 w-3.5 text-inherit" />
-                            Download CSV
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      {canExportReports && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 text-[11px] gap-1.5 flex-1 md:flex-none border-border"
+                              disabled={isLoading}
+                            >
+                              {isLoading ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <Download className="h-3 w-3" />
+                              )}
+                              Export
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => void runAction(report.id, "pdf")} className="cursor-pointer text-[12px] gap-2">
+                              <FileDown className="h-3.5 w-3.5 text-inherit" />
+                              Download PDF
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => void runAction(report.id, "csv")} className="cursor-pointer text-[12px] gap-2">
+                              <FileText className="h-3.5 w-3.5 text-inherit" />
+                              Download CSV
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
                       <Button
                         size="sm"
                         variant="outline"
@@ -262,16 +266,18 @@ export function ReportCenter() {
                         <Eye className="h-3 w-3" />
                         View
                       </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-7 text-[11px] gap-1.5 flex-1 md:flex-none border-border"
-                        onClick={() => void runAction(report.id, "print")}
-                        disabled={isLoading}
-                      >
-                        <Printer className="h-3 w-3" />
-                        Print
-                      </Button>
+                      {canExportReports && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-[11px] gap-1.5 flex-1 md:flex-none border-border"
+                          onClick={() => void runAction(report.id, "print")}
+                          disabled={isLoading}
+                        >
+                          <Printer className="h-3 w-3" />
+                          Print
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -314,6 +320,7 @@ export function ReportCenter() {
           headers={getReportHeaders(viewing.id)}
           isLoading={isViewLoading}
           isExporting={loadingReport === viewing.id}
+          canExport={canExportReports}
           onExport={(action) => void runAction(viewing.id, action)}
         />
       )}

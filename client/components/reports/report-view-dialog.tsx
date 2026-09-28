@@ -22,6 +22,9 @@ interface ReportViewDialogProps {
   headers: string[];
   isLoading: boolean;
   isExporting: boolean;
+  /** Mirrors the Report Center card's own `export_reports` gate so the
+   * in-dialog Export/Print buttons can't be the way round it. */
+  canExport?: boolean;
   onExport: (action: "csv" | "pdf" | "print") => void;
 }
 
@@ -39,6 +42,7 @@ export function ReportViewDialog({
   headers,
   isLoading,
   isExporting,
+  canExport = true,
   onExport,
 }: ReportViewDialogProps) {
   return (
@@ -51,7 +55,7 @@ export function ReportViewDialog({
         `${rows.length} row${rows.length === 1 ? "" : "s"} for the selected filters. Click a column header to sort.`
       }
       className="sm:max-w-5xl h-[95vh] sm:h-auto sm:max-h-[90vh] flex flex-col overflow-hidden"
-      footer={
+      footer={!canExport ? undefined : (
         <div className="flex flex-wrap items-center justify-end gap-2 pt-4 border-t border-border">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -92,7 +96,7 @@ export function ReportViewDialog({
             Print
           </Button>
         </div>
-      }
+      )}
     >
       <div className="flex-1 min-h-0 overflow-auto space-y-3 pb-2">
         {note && (

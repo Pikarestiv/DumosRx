@@ -16,7 +16,7 @@ This file holds **open** items only. Fixed entries move to `docs/FIXED_BUGS.md` 
 
 **Overall health.** The codebase is unusually well-defended for its size: the sync engine's conflict model, the single-writer tab lock, tenant scoping on the server and the money math have all been through several review-and-fix cycles, and both test suites pass cleanly. The new findings in this pass are therefore not the "obvious" classes (cross-tenant leaks, double-charging, silent rollbacks) but the next layer down: **scale limits that were never exercised** (all three found so far have since been fixed — a local database with essentially no indexes, plus the pull engine's own un-resumable page cap and the server tenant-scope that loaded every sale id into PHP memory per request; see `docs/FIXED_BUGS.md`) and **attribution/consistency gaps** on the newest flows (the online-order fulfilment one, `A-4`, has since been fixed too).
 
-**Findings this pass, by severity:** 0 **P0**, 0 **P1**, 1 **P2**, 10 **P3** — 11 open findings from this pass (IDs `A-1`…`A-24`, less the fixed `A-1`, `A-2`, `A-3`, `A-4`, `A-5`, `A-6`, `A-7`, `A-8`, `A-10`, `A-11`, `A-12`, `A-13` and `A-18`), plus 14 still-open items carried from the two earlier passes (`P2-1`, `P3-1`, `P3-2`, `P3-5`, `PG-1`…`PG-10`), all preserved verbatim below.
+**Findings this pass, by severity:** 0 **P0**, 0 **P1**, 1 **P2**, 9 **P3** — 10 open findings from this pass (IDs `A-1`…`A-24`, less the fixed `A-1`, `A-2`, `A-3`, `A-4`, `A-5`, `A-6`, `A-7`, `A-8`, `A-10`, `A-11`, `A-12`, `A-13`, `A-16` and `A-18`), plus 14 still-open items carried from the two earlier passes (`P2-1`, `P3-1`, `P3-2`, `P3-5`, `PG-1`…`PG-10`), all preserved verbatim below.
 
 **Most important risks, in order:**
 
@@ -65,13 +65,6 @@ None open. `A-1` (the pull page cap that made a >100,000-row table un-syncable) 
 **Location:** `client/next.config.mjs` (`typescript: { ignoreBuildErrors: true }`); `deploy-client.yml` runs `rm package-lock.json && npm install --legacy-peer-deps` before `npm run build`.
 **Problem:** `tsc` is clean today, but nothing in CI enforces it: a type error reaches production if the developer skips the manual `npx tsc --noEmit` that `client/AGENTS.md` asks for. Deleting the lockfile on every deploy also makes production builds non-reproducible (dependency versions can drift between two deploys of the same commit, and `overrides` in `package.json` are the only pin).
 **Recommended fix:** Run `tsc --noEmit` and `vitest` as CI steps before the build; use `npm ci` with the committed lockfile.
-**Confidence:** High.
-
-#### [P3] A-16. `createPrescription` and `createProduct` are not transactional
-**Category:** Data integrity — **Confirmed**
-**Location:** `client/lib/db/local-database.ts:197-219` (header insert, then a loop of item inserts, no `transaction()`), `:99-120` (category insert then product insert).
-**Problem:** Each `insert()` opens and commits its own transaction, so an interruption between the prescription header and its items (iOS backgrounding a PWA is called out elsewhere in this codebase as aggressive about this) leaves a prescription with no medications, already queued for sync. Same shape for a product whose freshly created category never gets a product.
-**Recommended fix:** Wrap in `transaction()` like `createSale`/`receivePurchaseOrder`.
 **Confidence:** High.
 
 #### [P3] A-17. POS cart snapshots price and average cost at add time and persists them indefinitely
@@ -283,6 +276,6 @@ Synthetic dataset built from the app's own `SCHEMA_SQL` plus the migration-added
 Ordered by technical impact and by which fixes unblock or de-risk others — not by ease.
 
 1. **PG-2 then PG-1** (carried) — the storefront webhook/reconciliation path and the gateway pinning; still the largest real-world money-loss surface.
-2. **A-9, A-21, A-16, A-17** — sync/data-integrity edge cases; each is small and self-contained now that the index/pagination work is in.
+2. **A-9, A-21, A-17** — sync/data-integrity edge cases; each is small and self-contained now that the index/pagination work is in.
 3. **A-14, A-15, A-19, A-20, A-22, A-23, A-24** — hygiene and architecture debt; A-15 (enforce `tsc`/tests in CI, `npm ci`) is the one worth doing early because it protects everything else.
 4. **P2-1** (ops confirmation) and the accepted **P3-1/P3-2/P3-5**, **PG-3…PG-10** as previously scheduled.

@@ -96,27 +96,33 @@ export async function getProductById(id: string) {
   return results[0] || null;
 }
 
+/** The category a product names is created on demand when it doesn't exist
+ * yet, so this is a two-row write and belongs in one transaction() (same
+ * reason as createPrescription below): committing the category and then
+ * dying before the product leaves an empty category behind, already queued
+ * for sync, that nothing will ever fill. */
 export async function createProduct(data: NewProductPayload) {
   // Ensure we have a valid UUID for category, else wait for sync
   const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-  
-  if (data.category_id && !UUID_REGEX.test(data.category_id)) {
-    const storeId = getActiveStoreId();
-    const categories = await query<{ id: string }>(
-      `SELECT id FROM categories WHERE name = ? COLLATE NOCASE${storeId ? " AND store_id = ?" : ""}`,
-      storeId ? [data.category_id, storeId] : [data.category_id],
-    );
-    if (categories.length > 0) {
-      data.category_id = categories[0].id;
-    } else {
-      const newCatId = crypto.randomUUID();
-      await insert("categories", { id: newCatId, name: data.category_id });
-      data.category_id = newCatId;
+
+  return transaction(async () => {
+    if (data.category_id && !UUID_REGEX.test(data.category_id)) {
+      const storeId = getActiveStoreId();
+      const categories = await query<{ id: string }>(
+        `SELECT id FROM categories WHERE name = ? COLLATE NOCASE${storeId ? " AND store_id = ?" : ""}`,
+        storeId ? [data.category_id, storeId] : [data.category_id],
+      );
+      if (categories.length > 0) {
+        data.category_id = categories[0].id;
+      } else {
+        const newCatId = crypto.randomUUID();
+        await insert("categories", { id: newCatId, name: data.category_id });
+        data.category_id = newCatId;
+      }
     }
-  }
 
-
-  return await insert("products", data);
+    return await insert("products", data);
+  });
 }
 
 /**
@@ -198,14 +204,22 @@ export async function createPrescription(
   data: Record<string, unknown>,
   items: Omit<PrescriptionItemInsertPayload, "prescription_id">[],
 ) {
-  const prescriptionId = await insert("prescriptions", data);
+  // One transaction, like createSale/receivePurchaseOrder: a prescription
+  // header committed without its medications is a clinically empty record
+  // that is nonetheless already in _sync_queue, so the gap propagates to
+  // every other device and can never be reconstructed from what survived.
+  const prescriptionId = await transaction(async () => {
+    const id = await insert("prescriptions", data);
 
-  for (const item of items) {
-    await insert("prescription_items", {
-      ...item,
-      prescription_id: prescriptionId,
-    });
-  }
+    for (const item of items) {
+      await insert("prescription_items", {
+        ...item,
+        prescription_id: id,
+      });
+    }
+
+    return id;
+  });
 
   // insert("prescriptions", ...) above already invalidated the prescriptions
   // query and refetched, but that refetch can race the prescription_items

@@ -148,8 +148,8 @@ class SystemConfigSeeder extends Seeder
             ]
         ];
 
-        SystemConfig::setVal('subscription_plans', $subscriptionPlans, 'Configuration for the 3-tier DumosRx pricing model including features and limits');
-        SystemConfig::setVal('global_suggestions', [], 'Global autocomplete suggestions configuration');
+        $this->seedIfMissing('subscription_plans', $subscriptionPlans, 'Configuration for the 3-tier DumosRx pricing model including features and limits');
+        $this->seedIfMissing('global_suggestions', [], 'Global autocomplete suggestions configuration');
 
         $referralConfig = [
             'enabled' => true,
@@ -157,9 +157,18 @@ class SystemConfigSeeder extends Seeder
             'reward_trigger' => 'recurring', // 'first' or 'recurring'
             'allow_full_credit_payment' => true
         ];
-        SystemConfig::setVal('referral_program', $referralConfig, 'Configuration for the subscription referral program and credit rewards');
+        $this->seedIfMissing('referral_program', $referralConfig, 'Configuration for the subscription referral program and credit rewards');
 
         // Live Chat
-        SystemConfig::setVal('smartsupp_key', '', 'Smartsupp Live Chat widget key. Leave empty to disable the chat widget.');
+        $this->seedIfMissing('smartsupp_key', '', 'Smartsupp Live Chat widget key. Leave empty to disable the chat widget.');
+    }
+
+    private function seedIfMissing(string $key, $value, ?string $description = null): void
+    {
+        if (SystemConfig::where('key', $key)->exists()) {
+            return;
+        }
+
+        SystemConfig::setVal($key, $value, $description);
     }
 }

@@ -151,7 +151,7 @@ HTML
         ];
 
         foreach ($templates as $t) {
-            EmailTemplate::updateOrCreate(
+            EmailTemplate::firstOrCreate(
                 ['key' => $t['key']],
                 [
                     'name' => $t['name'],

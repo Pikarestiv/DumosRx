@@ -144,6 +144,16 @@ pattern. Grouping is purely presentational (`groupByCorrelation` in
 SQL/pagination change), so it's safe to add to a new multi-step write
 without touching the Activity Log's query/sort/search paths at all.
 
+**Local `audit_logs` retention** (`lib/db/retention.ts`, added 2026-09-28
+for A-20). `pruneSyncedAuditLogs()` runs from `sync()` on the writer tab,
+at most once a day, and deletes `audit_logs` rows that are already
+`_synced = 1`, have no pending `_sync_queue` entry, and are older than
+`AUDIT_LOG_LOCAL_RETENTION_DAYS` (730). It uses raw `execute()`, never
+`softDelete()` — these rows must not enter `_sync_queue`, because the
+server keeps the full trail and a synced delete would destroy it for every
+device. If you add another append-only local table with the same growth
+shape, prune it here rather than inventing a second mechanism.
+
 ### Sync engine (`lib/db/sync-engine/`)
 
 `sync(isManual, isSetup)` in `index.ts` does one push-then-pull cycle:

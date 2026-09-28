@@ -6,6 +6,7 @@ import { queryClient } from "@/lib/query-client";
 import { query, execute, isTauri, isWriterTab } from "../core";
 import { getValidColumns } from "./schema";
 import { getSyncQueueBreakdown } from "@/lib/db/queries/setup";
+import { pruneSyncedAuditLogs } from "../retention";
 import { devLog } from "@/lib/utils/dev-log";
 import { logCrash } from "@/lib/utils/error-logger";
 import {
@@ -183,6 +184,12 @@ export async function sync(
     }
 
     localStorage.setItem("last_sync_time", new Date().toISOString());
+
+    if (isWriterTab()) {
+      await pruneSyncedAuditLogs().catch((err) =>
+        console.error("Failed to prune local audit logs", err),
+      );
+    }
 
     if (typeof window !== "undefined") {
       // Invalidate exactly the queries tagged (via meta.tables, see

@@ -7,7 +7,6 @@ import { formatCurrency } from "@/lib/utils";
 import { errorDescription } from "@/lib/utils/error-description";
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import { downloadBlob } from "@/lib/utils/download-blob";
-import { PurchaseOrderPdf } from "./purchase-order-pdf";
 import { useStore } from "@/lib/context/store-context";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -58,10 +57,14 @@ export function PurchaseOrderDetails({
     if (!selectedPO || isGeneratingPdf) return;
     setIsGeneratingPdf(true);
     try {
-      // Imported here rather than at module scope: @react-pdf/renderer is a
-      // heavy dependency that every visitor to the Orders tab was paying
-      // for, whether or not they ever downloaded anything.
-      const { pdf } = await import("@react-pdf/renderer");
+      // Both imported here rather than at module scope: @react-pdf/renderer is
+      // a heavy dependency that every visitor to the Orders tab was paying for,
+      // whether or not they ever downloaded anything. purchase-order-pdf has to
+      // be deferred alongside it, since that module statically imports it.
+      const [{ pdf }, { PurchaseOrderPdf }] = await Promise.all([
+        import("@react-pdf/renderer"),
+        import("./purchase-order-pdf"),
+      ]);
       const blob = await pdf(
         <PurchaseOrderPdf
           storeName={storeProfile?.name || "Store"}

@@ -54,6 +54,18 @@ describe("heavy dependencies stay out of route chunks", () => {
     expect(code).toContain('import("@react-pdf/renderer")');
   });
 
+  it("purchase-order-details loads @react-pdf/renderer only on demand", () => {
+    const code = source("components/procurement/purchase-order-details.tsx");
+    expect(hasStaticValueImport(code, "@react-pdf/renderer")).toBe(false);
+    expect(code).toContain('import("@react-pdf/renderer")');
+    // The transitive route matters as much as the direct one: purchase-order-pdf
+    // statically imports @react-pdf/renderer, so a static value import of the
+    // wrapper puts the heavy dependency back in the Orders chunk and makes the
+    // `await import("@react-pdf/renderer")` above buy nothing.
+    expect(hasStaticValueImport(code, "\\./purchase-order-pdf")).toBe(false);
+    expect(code).toContain('import("./purchase-order-pdf")');
+  });
+
   it("downloadBlob lives in its own dependency-free module", () => {
     const code = source("lib/utils/download-blob.ts");
     expect(code).toContain("export function downloadBlob");

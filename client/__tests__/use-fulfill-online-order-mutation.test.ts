@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
-import { renderHook, act } from "@testing-library/react";
+import { renderHook, act, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import initSqlJs, { type Database } from "sql.js";
 import type { ReactNode } from "react";
@@ -208,7 +208,7 @@ describe("useFulfillOnlineOrderMutation", () => {
         .mutateAsync({ order, storeId: "store1", cashierId: "cashier1" })
         .catch(() => undefined);
     });
-    expect(result.current.isError).toBe(true);
+    await waitFor(() => expect(result.current.isError).toBe(true));
 
     // Second attempt (the user pressing Fulfill again): the server call now
     // succeeds. Without recognizing the first attempt's local write, this
@@ -216,7 +216,7 @@ describe("useFulfillOnlineOrderMutation", () => {
     await act(async () => {
       await result.current.mutateAsync({ order, storeId: "store1", cashierId: "cashier1" });
     });
-    expect(result.current.isError).toBe(false);
+    await waitFor(() => expect(result.current.isError).toBe(false));
 
     expect(db.exec(`SELECT COUNT(*) FROM sales`)[0].values[0][0]).toBe(1);
     expect(db.exec(`SELECT quantity FROM stock_batches WHERE product_id = 'p1'`)[0].values[0][0]).toBe(8);

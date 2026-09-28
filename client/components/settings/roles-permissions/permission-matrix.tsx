@@ -51,7 +51,7 @@ export function PermissionMatrix() {
         onRenameGroup={renameGroup}
         onDeleteGroup={deleteGroup}
       />
-      <div className="max-h-[70vh] overflow-auto">
+      <div className="max-h-[70vh] overflow-auto  border-1 border-red-500">
         <table className="w-full text-sm">
           <thead>
             <tr>

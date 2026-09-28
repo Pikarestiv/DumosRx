@@ -99,6 +99,11 @@ export default function RootLayout({
                           <QuickSetupWizard />
                           <LicenseGuard>{children}</LicenseGuard>
                           <Toaster />
+                          {/* Inside AuthProvider since install_app_updates
+                              gates its user-facing half; it is position:fixed,
+                              so where it sits in the tree is not a layout
+                              decision. */}
+                          <AutoUpdater />
                         </StoreProvider>
                       </AuthProvider>
                     </DatabaseProvider>
@@ -108,7 +113,6 @@ export default function RootLayout({
             </GlobalErrorListener>
           </ErrorBoundary>
         </div>
-        <AutoUpdater />
         <PwaRegistrar />
       </body>
     </html>

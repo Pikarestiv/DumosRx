@@ -5,6 +5,8 @@ import { DownloadCloud, RefreshCw, CheckCircle2, AlertCircle, X, Sparkles, Exter
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { isTauri } from "@/lib/db/core";
+import { useAuth } from "@/lib/context/auth-context";
+import { useHasPermission } from "@/lib/hooks/use-permissions";
 import { DOWNLOAD_URL, UPDATER_JSON_URL } from "@/lib/constants";
 import { logCrash } from "@/lib/utils/error-logger";
 import type { Update, DownloadEvent } from "@tauri-apps/plugin-updater";
@@ -19,6 +21,10 @@ interface MobileUpdateInfo {
 }
 
 export function AutoUpdater() {
+  // Hoisted unconditionally, never inside a && chain - see the hook-count
+  // crash documented in pos-layout-header.tsx.
+  const { user } = useAuth();
+  const canInstallUpdates = useHasPermission("install_app_updates");
   const [status, setStatus] = useState<UpdateStatus>("idle");
   const [updateInfo, setUpdateInfo] = useState<Update | MobileUpdateInfo | null>(null);
   const [progress, setProgress] = useState(0);
@@ -172,6 +178,13 @@ export function AutoUpdater() {
 
 
   if (!isApp) return null;
+
+  // Only the user-facing half is gated. The startup check and the silent
+  // patch download it kicks off above keep running for every session: they
+  // are not a user action, and stopping them would strand a till on an old
+  // build rather than restrict anyone. With no signed-in user (login screen,
+  // first run) there is no group to check and the updater is the device's own.
+  if (user && !canInstallUpdates) return null;
 
   if (status === "idle" || status === "up-to-date" || status === "error" || status === "downloading-silent") {
     // Only show the manual check button if we are not on mobile

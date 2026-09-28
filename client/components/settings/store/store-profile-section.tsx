@@ -8,7 +8,13 @@ import { Switch } from "@/components/ui/switch";
 import { StoreType } from "@/lib/context/store-context";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useHasPermission } from "@/lib/hooks/use-permissions";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface StoreProfileSectionProps {
   storeType: StoreType;
@@ -50,11 +56,14 @@ export function StoreProfileSection({
   canAccessLoyaltyProgramPlan = false,
   getUpgradeMessage,
 }: StoreProfileSectionProps) {
+  const canManageOnlineStore = useHasPermission("manage_online_store");
   const [isEditingSlug, setIsEditingSlug] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {
-    void navigator.clipboard.writeText(`${STOREFRONT_BASE_URL}/${localStoreSlug}`);
+    void navigator.clipboard.writeText(
+      `${STOREFRONT_BASE_URL}/${localStoreSlug}`,
+    );
     setCopied(true);
     toast.success("Store link copied!");
     setTimeout(() => setCopied(false), 2000);
@@ -72,7 +81,12 @@ export function StoreProfileSection({
 
   const handleEditClick = () => {
     if (!canUseEcommerce) {
-      toast.error(getUpgradeMessage('store_url', "Upgrade to a premium plan to customize your storefront URL."));
+      toast.error(
+        getUpgradeMessage(
+          "store_url",
+          "Upgrade to a premium plan to customize your storefront URL.",
+        ),
+      );
       return;
     }
     if (slugChangeLocked && nextEligibleSlugChange) {
@@ -84,6 +98,18 @@ export function StoreProfileSection({
     setIsEditingSlug(true);
   };
 
+  const showPharmacyFields = storeType === "pharmacy";
+  // Nothing left to show is a real state for a retail store whose group
+  // lacks the storefront key and whose plan has no loyalty program - render
+  // nothing rather than an empty bordered box with only a heading in it.
+  if (
+    !canManageOnlineStore &&
+    !setLoyaltyProgramEnabled &&
+    !showPharmacyFields
+  ) {
+    return null;
+  }
+
   return (
     <div className="rounded-lg border p-4 space-y-4">
       <div className="space-y-1">
@@ -93,97 +119,147 @@ export function StoreProfileSection({
         </p>
       </div>
 
-      <div className="grid gap-2">
-        <div className="flex items-center gap-2">
-          <Label htmlFor="store-slug">Store URL Slug</Label>
-          <TooltipProvider delayDuration={0}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <HelpCircle className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Your unique web address where customers can browse your products online.</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </div>
-        {isEditingProfile ? (
-          <>
-            {isEditingSlug ? (
-              <div className="flex rounded-md shadow-sm">
-                <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-input bg-muted text-muted-foreground text-sm">
-                  {STOREFRONT_BASE_URL}/
-                </span>
-                <Input
-                  id="store-slug"
-                  className="rounded-l-none"
-                  placeholder="my-store"
-                  value={localStoreSlug || ""}
-                  onChange={(e) => setLocalStoreSlug?.(e.target.value)}
-                />
-              </div>
-            ) : (
-              <div className="flex items-center justify-between border rounded-md px-3 py-2 bg-muted/30">
-                <span className="text-sm font-medium">{STOREFRONT_BASE_URL}/{localStoreSlug}</span>
-                <div className="flex items-center gap-2">
-                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleCopy} type="button">
-                    {copied ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
-                  </Button>
-                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleEditClick} type="button">
-                    <Edit2 className="h-3 w-3" />
-                  </Button>
-                </div>
-              </div>
-            )}
-            <p className="text-[0.8rem] text-muted-foreground">
-              This will be your unique public storefront link.
-            </p>
-          </>
-        ) : (
+      {canManageOnlineStore && (
+        <div className="grid gap-2">
           <div className="flex items-center gap-2">
-            <p className="text-sm font-medium py-2">{STOREFRONT_BASE_URL}/{localStoreSlug}</p>
-            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleCopy} type="button">
-              {copied ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
-            </Button>
-          </div>
-        )}
-      </div>
-
-      <div className="flex items-center justify-between rounded-lg border p-4 bg-background">
-        <div className="space-y-0.5">
-          <div className="flex items-center gap-2">
-            <Label className="text-base">Enable Online Store</Label>
+            <Label htmlFor="store-slug">Store URL Slug</Label>
             <TooltipProvider delayDuration={0}>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <HelpCircle className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>When off, your storefront link above is unreachable: customers see a 404 even with the correct URL. Products also need &quot;Show Online&quot; turned on individually in each product&apos;s Additional Details.</p>
+                  <p>
+                    Your unique web address where customers can browse your
+                    products online.
+                  </p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
           </div>
-          <p className="text-sm text-muted-foreground">
-            Let customers browse and order from {STOREFRONT_BASE_URL}/{localStoreSlug || "your-store"}
-          </p>
+          {isEditingProfile ? (
+            <>
+              {isEditingSlug ? (
+                <div className="flex rounded-md shadow-sm">
+                  <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-input bg-muted text-muted-foreground text-sm">
+                    {STOREFRONT_BASE_URL}/
+                  </span>
+                  <Input
+                    id="store-slug"
+                    className="rounded-l-none"
+                    placeholder="my-store"
+                    value={localStoreSlug || ""}
+                    onChange={(e) => setLocalStoreSlug?.(e.target.value)}
+                  />
+                </div>
+              ) : (
+                <div className="flex items-center justify-between border rounded-md px-3 py-2 bg-muted/30">
+                  <span className="text-sm font-medium">
+                    {STOREFRONT_BASE_URL}/{localStoreSlug}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      onClick={handleCopy}
+                      type="button"
+                    >
+                      {copied ? (
+                        <Check className="h-3 w-3 text-green-500" />
+                      ) : (
+                        <Copy className="h-3 w-3" />
+                      )}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      onClick={handleEditClick}
+                      type="button"
+                    >
+                      <Edit2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+              <p className="text-[0.8rem] text-muted-foreground">
+                This will be your unique public storefront link.
+              </p>
+            </>
+          ) : (
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-medium py-2">
+                {STOREFRONT_BASE_URL}/{localStoreSlug}
+              </p>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
+                onClick={handleCopy}
+                type="button"
+              >
+                {copied ? (
+                  <Check className="h-3 w-3 text-green-500" />
+                ) : (
+                  <Copy className="h-3 w-3" />
+                )}
+              </Button>
+            </div>
+          )}
         </div>
-        {isEditingProfile ? (
-          <Switch
-            id="online-store-enabled"
-            checked={onlineStoreEnabled}
-            onCheckedChange={(val) => {
-              if (!canUseEcommerce) {
-                toast.error(getUpgradeMessage('ecommerce', "Upgrade to a premium plan to enable your online store."));
-                return;
-              }
-              setOnlineStoreEnabled?.(val);
-            }}
-          />
-        ) : (
-          <p className="text-sm font-medium py-2">{onlineStoreEnabled ? "Enabled" : "Disabled"}</p>
-        )}
-      </div>
+      )}
+
+      {canManageOnlineStore && (
+        <div className="flex items-center justify-between rounded-lg border p-4 bg-background">
+          <div className="space-y-0.5">
+            <div className="flex items-center gap-2">
+              <Label className="text-base">Enable Online Store</Label>
+              <TooltipProvider delayDuration={0}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <HelpCircle className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>
+                      When off, your storefront link above is unreachable:
+                      customers see a 404 even with the correct URL. Products
+                      also need &quot;Show Online&quot; turned on individually
+                      in each product&apos;s Additional Details.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Let customers browse and order from {STOREFRONT_BASE_URL}/
+              {localStoreSlug || "your-store"}
+            </p>
+          </div>
+          {isEditingProfile ? (
+            <Switch
+              id="online-store-enabled"
+              checked={onlineStoreEnabled}
+              onCheckedChange={(val) => {
+                if (!canUseEcommerce) {
+                  toast.error(
+                    getUpgradeMessage(
+                      "ecommerce",
+                      "Upgrade to a premium plan to enable your online store.",
+                    ),
+                  );
+                  return;
+                }
+                setOnlineStoreEnabled?.(val);
+              }}
+            />
+          ) : (
+            <p className="text-sm font-medium py-2">
+              {onlineStoreEnabled ? "Enabled" : "Disabled"}
+            </p>
+          )}
+        </div>
+      )}
 
       {setLoyaltyProgramEnabled && (
         <div className="flex items-center justify-between rounded-lg border p-4 bg-background">
@@ -196,7 +272,11 @@ export function StoreProfileSection({
                     <HelpCircle className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>When off, points stop earning and the Redeem Reward option disappears from POS checkout. Tiers and rewards stay configured for whenever you turn it back on.</p>
+                    <p>
+                      When off, points stop earning and the Redeem Reward option
+                      disappears from POS checkout. Tiers and rewards stay
+                      configured for whenever you turn it back on.
+                    </p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
@@ -211,19 +291,26 @@ export function StoreProfileSection({
               checked={loyaltyProgramEnabled}
               onCheckedChange={(val) => {
                 if (!canAccessLoyaltyProgramPlan) {
-                  toast.error(getUpgradeMessage('loyalty_program', "Upgrade to a premium plan to use the Loyalty Program."));
+                  toast.error(
+                    getUpgradeMessage(
+                      "loyalty_program",
+                      "Upgrade to a premium plan to use the Loyalty Program.",
+                    ),
+                  );
                   return;
                 }
                 setLoyaltyProgramEnabled?.(val);
               }}
             />
           ) : (
-            <p className="text-sm font-medium py-2">{loyaltyProgramEnabled ? "Enabled" : "Disabled"}</p>
+            <p className="text-sm font-medium py-2">
+              {loyaltyProgramEnabled ? "Enabled" : "Disabled"}
+            </p>
           )}
         </div>
       )}
 
-      {storeType === "pharmacy" && (
+      {showPharmacyFields && (
         <>
           <div className="grid gap-2">
             <Label htmlFor="pcn">PCN License Number</Label>
@@ -235,27 +322,36 @@ export function StoreProfileSection({
                 onChange={(e) => setLocalPcn(e.target.value)}
               />
             ) : (
-              <p className="text-sm font-medium py-2">{localPcn || "Not set"}</p>
+              <p className="text-sm font-medium py-2">
+                {localPcn || "Not set"}
+              </p>
             )}
           </div>
           {setShowRetailSuggestions && (
             <div className="flex items-center justify-between rounded-lg border p-4 bg-background">
               <div className="space-y-0.5">
                 <div className="flex items-center gap-2">
-                  <Label className="text-base">Include Retail Items in Suggestions</Label>
+                  <Label className="text-base">
+                    Include Retail Items in Suggestions
+                  </Label>
                   <TooltipProvider delayDuration={0}>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <HelpCircle className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p>When enabled, general retail products (like provisions) will appear alongside products in search suggestions during sales.</p>
+                        <p>
+                          When enabled, general retail products (like
+                          provisions) will appear alongside products in search
+                          suggestions during sales.
+                        </p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  Show retail items (provisions, cosmetics, etc.) in product suggestions
+                  Show retail items (provisions, cosmetics, etc.) in product
+                  suggestions
                 </p>
               </div>
               {isEditingProfile ? (
@@ -265,7 +361,9 @@ export function StoreProfileSection({
                   onCheckedChange={setShowRetailSuggestions}
                 />
               ) : (
-                <p className="text-sm font-medium py-2">{showRetailSuggestions ? "Enabled" : "Disabled"}</p>
+                <p className="text-sm font-medium py-2">
+                  {showRetailSuggestions ? "Enabled" : "Disabled"}
+                </p>
               )}
             </div>
           )}

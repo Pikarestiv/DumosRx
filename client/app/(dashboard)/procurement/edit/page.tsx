@@ -12,6 +12,7 @@ import { PODesktopEditView } from "@/components/procurement/po-desktop-edit-view
 import { useResolvedMediaQuery } from "@/hooks/use-media-query";
 import { getPurchaseOrderById } from "@/lib/db/local-database";
 import { toast } from "sonner";
+import { errorDescription } from "@/lib/utils/error-description";
 
 import { useProcurementData } from "@/lib/hooks/use-procurement-data";
 import { useCreateSupplierMutation } from "@/lib/hooks/use-supplier-mutations";
@@ -74,7 +75,9 @@ function EditOrderContent() {
     if (!id) return;
     if (poQuery.isError) {
       console.error("Failed to load PO", poQuery.error);
-      toast.error("Failed to load PO");
+      toast.error("Couldn't load this purchase order", {
+        description: errorDescription(poQuery.error),
+      });
       return;
     }
     if (poQuery.data === undefined) return;
@@ -117,7 +120,9 @@ function EditOrderContent() {
       },
       onError: (error) => {
         console.error("Failed to add supplier:", error);
-        toast.error("Failed to add supplier");
+        toast.error("Couldn't add the vendor", {
+          description: errorDescription(error),
+        });
       },
     });
   };
@@ -140,7 +145,9 @@ function EditOrderContent() {
       },
       onError: (error) => {
         console.error("Failed to add product:", error);
-        toast.error("Failed to add product");
+        toast.error("Couldn't add the product", {
+          description: errorDescription(error),
+        });
       },
     });
   };
@@ -187,8 +194,10 @@ function EditOrderContent() {
           router.push(`/procurement?selected=${id}`);
         },
         onError: (error) => {
-          console.error("Failed to create PO:", error);
-          toast.error("Error creating purchase order");
+          console.error("Failed to update PO:", error);
+          toast.error("Couldn't save the changes to this order", {
+            description: errorDescription(error),
+          });
         },
       },
     );
@@ -256,6 +265,7 @@ function EditOrderContent() {
         setDueDate={setDueDate}
         amountPaid={amountPaid}
         setAmountPaid={setAmountPaid}
+        totalAmount={totalAmount}
         onOpenAddSupplier={() => setIsAddSupplierOpen(true)}
       />
 

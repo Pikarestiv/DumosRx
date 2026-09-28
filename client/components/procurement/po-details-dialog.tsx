@@ -25,6 +25,7 @@ interface PODetailsDialogProps {
   setDueDate: (date: string) => void;
   amountPaid: string;
   setAmountPaid: (amount: string) => void;
+  totalAmount?: number;
   onOpenAddSupplier: () => void;
   hideTypeToggle?: boolean;
 }
@@ -50,6 +51,7 @@ export function PODetailsDialog({
   setDueDate,
   amountPaid,
   setAmountPaid,
+  totalAmount,
   onOpenAddSupplier,
   hideTypeToggle,
 }: PODetailsDialogProps) {
@@ -80,6 +82,7 @@ export function PODetailsDialog({
         setDueDate={setDueDate}
         amountPaid={amountPaid}
         setAmountPaid={setAmountPaid}
+        totalAmount={totalAmount}
         onOpenAddSupplier={onOpenAddSupplier}
         hideTypeToggle={hideTypeToggle}
       />

@@ -10,9 +10,10 @@ import { POMobileCreateView } from "@/components/procurement/po-mobile-create-vi
 import { PODesktopCreateView } from "@/components/procurement/po-desktop-create-view";
 import { POFormSkeleton } from "@/components/procurement/po-form-skeleton";
 import { useResolvedMediaQuery } from "@/hooks/use-media-query";
-import { getLineTotal, getValidatedAmountPaid, countSellingPriceOverrides } from "@/components/procurement/po-line-item-math";
+import { getOrderTotal, getValidatedAmountPaid, countSellingPriceOverrides } from "@/components/procurement/po-line-item-math";
 import { RequireRole } from "@/components/auth/require-role";
 import { toast } from "sonner";
+import { errorDescription } from "@/lib/utils/error-description";
 
 import { useProcurementData } from "@/lib/hooks/use-procurement-data";
 import { useCreateSupplierMutation } from "@/lib/hooks/use-supplier-mutations";
@@ -96,7 +97,9 @@ function CreateOrderContent() {
       },
       onError: (error) => {
         console.error("Failed to add product:", error);
-        toast.error("Failed to add product");
+        toast.error("Couldn't add the product", {
+          description: errorDescription(error),
+        });
       },
     });
   };
@@ -115,15 +118,14 @@ function CreateOrderContent() {
       },
       onError: (error) => {
         console.error("Failed to add supplier:", error);
-        toast.error("Failed to add supplier");
+        toast.error("Couldn't add the vendor", {
+          description: errorDescription(error),
+        });
       },
     });
   };
 
-  const totalAmount = items.reduce(
-    (sum, item) => sum + getLineTotal(item, poType),
-    0,
-  );
+  const totalAmount = getOrderTotal(items, poType);
 
   const createPurchaseOrderMutation = useCreatePurchaseOrderMutation();
   const createAndReceivePurchaseOrderMutation =
@@ -171,7 +173,9 @@ function CreateOrderContent() {
           },
           onError: (error) => {
             console.error("Failed to create PO:", error);
-            toast.error("Error creating purchase order");
+            toast.error("Couldn't save this purchase", {
+              description: errorDescription(error),
+            });
           },
         },
       );
@@ -195,7 +199,9 @@ function CreateOrderContent() {
           },
           onError: (error) => {
             console.error("Failed to create PO:", error);
-            toast.error("Error creating purchase order");
+            toast.error("Couldn't save this purchase", {
+              description: errorDescription(error),
+            });
           },
         },
       );
@@ -241,7 +247,9 @@ function CreateOrderContent() {
         },
         onError: (error) => {
           console.error("Failed to save PO draft:", error);
-          toast.error("Error saving purchase order draft");
+          toast.error("Couldn't save the draft", {
+            description: errorDescription(error),
+          });
         },
       },
     );

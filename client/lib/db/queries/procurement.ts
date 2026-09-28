@@ -15,6 +15,14 @@ export interface POProduct {
   cost_price: number;
   stock_quantity: number;
   selling_price: number | null;
+  /** Catalog fields the PO item search needs. They are here so the builder
+   * can hand this one list to its ProductCombobox instead of every combobox
+   * querying the whole catalog again under its own key - without them, the
+   * combobox would silently lose generic-name matching. */
+  generic_name?: string | null;
+  manufacturer?: string | null;
+  strength?: string | null;
+  dosage_form?: string | null;
 }
 
 export interface FullVendor {
@@ -67,9 +75,12 @@ export async function getActiveProductsForPO() {
   const storeId = getActiveStoreId();
   return query<POProduct>(
     `SELECT p.id, p.name, p.bulk_unit, p.base_unit, p.units_per_bulk, p.selling_price,
+       p.generic_name, p.manufacturer, p.strength, p.dosage_form,
        (SELECT SUM(cost_price * quantity) * 1.0 / NULLIF(SUM(quantity), 0) FROM stock_batches WHERE product_id = p.id AND _deleted = 0 AND is_active = 1 AND quantity > 0) as cost_price,
        COALESCE((SELECT SUM(quantity) FROM stock_batches WHERE product_id = p.id AND _deleted = 0 AND is_active = 1), 0) as stock_quantity
-     FROM products p WHERE p._deleted = 0${storeId ? " AND p.store_id = ?" : ""}`,
+     FROM products p
+     WHERE p._deleted = 0${storeId ? " AND p.store_id = ?" : ""}
+     ORDER BY p.name ASC`,
     storeId ? [storeId] : [],
   );
 }

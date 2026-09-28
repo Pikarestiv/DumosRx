@@ -31,7 +31,8 @@ describe("getActiveProductsForPO", () => {
     db.run(`
       CREATE TABLE products (
         id TEXT PRIMARY KEY, name TEXT, base_unit TEXT, bulk_unit TEXT, units_per_bulk INTEGER,
-        selling_price REAL, _deleted INTEGER DEFAULT 0
+        selling_price REAL, generic_name TEXT, manufacturer TEXT, strength TEXT,
+        dosage_form TEXT, _deleted INTEGER DEFAULT 0
       );
       CREATE TABLE stock_batches (
         id TEXT PRIMARY KEY, product_id TEXT, quantity INTEGER, cost_price REAL,
@@ -43,6 +44,16 @@ describe("getActiveProductsForPO", () => {
 
   beforeEach(() => {
     db.run(`DELETE FROM products; DELETE FROM stock_batches;`);
+  });
+
+  it("returns the catalog fields the PO item search matches on, so the builder's one product list can feed its combobox", async () => {
+    db.run(`INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk, generic_name) VALUES ('prod1', 'Panadol Extra', 'Tablet', 'Carton', 100, 'Paracetamol')`);
+
+    const products = await getActiveProductsForPO();
+
+    expect(products.find((p) => p.id === "prod1")!.generic_name).toBe(
+      "Paracetamol",
+    );
   });
 
   it("returns the quantity-weighted average cost across active batches and total stock quantity", async () => {

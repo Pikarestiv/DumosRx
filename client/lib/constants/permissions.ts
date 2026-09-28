@@ -143,6 +143,15 @@ export const DEFAULT_GROUP_PERMISSIONS: Record<
     // their own till - never cost/margin figures (see AGENTS.md's cashier
     // visibility-gating section).
     "hold_sales", "view_sales_history", "reprint_receipt", "view_dashboard",
+    // 2026-09-28 enforcement pass (Inventory & Stock): the POS header's
+    // "Request stock from another store" button is a cashier feature - it
+    // was reachable by sales_staff whenever the store's own
+    // staff_can_request_transfers toggle was on, and that toggle is still
+    // the store-wide switch. Granting the key here keeps that exact
+    // behavior now that the button also requires it; an owner who wants
+    // to withhold it from one cashier group unticks it, which previously
+    // did nothing.
+    "request_stock_transfers",
     // 2026-09-28 enforcement pass: added once override_price gained a real
     // gate. The app's only price-override surface is the reseller /
     // store-markup unit price (pos-cart-item.tsx), which is floored at the
@@ -160,6 +169,12 @@ export const DEFAULT_GROUP_PERMISSIONS: Record<
     "view_sales_history", "view_drawer_counts",
     "view_cost_fields", "view_stock_adjustment_history", "view_suppliers",
     "view_customer_balances", "view_dashboard", "view_financial_reports",
+    // 2026-09-28 enforcement pass (Inventory & Stock): the catalog's
+    // Export dropdown is reachable by every role today, and an auditor
+    // already holds export_reports - taking a read-only copy of the
+    // product list off the device is the same right, so withholding it
+    // here would have been a narrowing the moment enforcement landed.
+    "export_product_list",
   ],
 };
 
@@ -184,6 +199,18 @@ export const ENFORCED_PERMISSION_KEYS: ReadonlySet<string> = new Set([
   "view_sales_history", // pos-main-tab-nav.tsx, pos-system.tsx
   "reprint_receipt", // transaction-details-dialog.tsx
   "manage_products", // transfer-stock-dialog.tsx, auth-context.tsx (canManageStockBatch)
+  "adjust_stock_counts", // catalog-row.tsx, catalog-list.tsx
+  "manage_purchase_orders", // purchase-order-details.tsx, procurement/new + /edit routes, dashboard-page-routes.ts
+  "receive_purchase_orders", // purchase-order-details.tsx
+  "manage_suppliers", // supplier-table.tsx, supplier-detail-pane.tsx, supplier-management.tsx, dashboard-page-routes.ts
+  "request_stock_transfers", // pos-layout-header.tsx
+  "view_cost_fields", // catalog-list.tsx, catalog-row.tsx, product-pricing-info.tsx
+  "edit_product_cost", // audit-ledger-step.tsx
+  "edit_product_price", // catalog-row.tsx, audit-ledger-step.tsx
+  "perform_stock_audit", // dashboard-header.tsx, stock-batch-management.tsx, use-stock-batch-management.ts
+  "view_stock_adjustment_history", // stock-batch-tab-nav.tsx, stock-batch-management.tsx, use-stock-batch-management.ts
+  "export_product_list", // import-export-toolbar.tsx
+  "view_suppliers", // procurement-tab-nav.tsx, procurement/vendors route
   "export_reports", // report-center.tsx, report-view-dialog.tsx (canExport)
   "view_activity_log", // activity-log-page.tsx, product-history.tsx, pos-transaction-history.tsx, use-finance-data.ts, use-purchase-orders.ts, use-dashboard-overview.ts, use-pos-data.ts, auth-context.tsx (canViewAllActivity)
   "manage_staff", // pos-layout-header.tsx, auth-context.tsx (isAdmin)

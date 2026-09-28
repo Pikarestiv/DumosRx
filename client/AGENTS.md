@@ -565,6 +565,139 @@ recorded here so nobody re-derives it:
   `outstanding_balance` with no ceiling check. There is no block, therefore
   no override to gate. Wiring this key means first building the check.
 
+Twelve **Inventory & Stock** keys followed on 2026-09-28, in the same
+category-by-category pass. This category is where the migration **from
+coarse role gates to per-permission gates** actually starts paying off, so
+several of these are conversions rather than brand-new gates — each one is
+noted below with what it widens or narrows:
+
+- `view_cost_fields` — `components/products/catalog-list.tsx` +
+  `catalog-row.tsx` (the Avg Cost column, header and cell, removed
+  together via `CATALOG_GRID_COLS` so the grid doesn't leave a blank
+  column) and `components/products/product-details/product-pricing-info.tsx`
+  (Avg Cost Price, Last Bought Price and the whole profit block). This
+  **closes a real leak**: only the profit block was gated before (by a
+  direct `user?.role !== "sales_staff"` check); the cost figures above it
+  were shown to every role, cashiers included, on two screens a cashier can
+  reach. The key's defaults (admin/manager/specialist/auditor, never
+  `sales_staff`) reproduce that old role check exactly, so the profit block
+  is behaviour-neutral and only the cost figures change.
+- `edit_product_price` — `catalog-row.tsx` (the selling-price quick edit)
+  and `components/stock-batch/audit-ledger-step.tsx` (the Counted Selling
+  cell). `edit_product_cost` — `audit-ledger-step.tsx`'s Counted Cost cell,
+  the app's only master-data cost-correction surface (cost is otherwise a
+  per-batch acquisition figure set by receiving). Both compose with the
+  existing coarse `canManageStockBatch` check rather than replacing it, and
+  a withheld key leaves the figure on screen read-only. The Add Product
+  form's Selling Price input is deliberately **not** gated: it is part of
+  creating the product at all, which is `manage_products`.
+- `adjust_stock_counts` — `catalog-row.tsx`'s stock-quantity quick edit.
+  This is a real, discrete feature and not a duplicate of
+  `perform_stock_audit`: the quick edit is a single-product correction
+  that goes through `submitStockAudit()` as a one-item reconciliation,
+  whereas the audit is the whole cycle-count flow.
+- `perform_stock_audit` — `components/dashboard/dashboard-header.tsx`
+  (Start Audit, desktop), `components/stock-batch/stock-batch-management.tsx`
+  (the mobile button) and `lib/hooks/use-stock-batch-management.ts` (the
+  `/inventory/audits` route effect, which is the real gate — the route is
+  typeable). **Converted from `isAdmin`**, which widens it to `specialist`,
+  the stock-owning role that already held the key by default.
+- `view_stock_adjustment_history` — `stock-batch-tab-nav.tsx` (the
+  Movements tab), `stock-batch-management.tsx` (its panel) and
+  `use-stock-batch-management.ts` (the `/inventory/ledger` redirect and
+  prefetch). **Converted from `canManageStockBatch`**, which widens it to
+  `auditor` — a read-only role gaining a read right, and nothing else.
+- `manage_purchase_orders` — `components/procurement/purchase-order-details.tsx`
+  (Edit Order, Delete, Mark as Sent), the `/procurement/new` and
+  `/procurement/edit` routes via `RequireRole`'s new `permission` prop, and
+  the Procurement header's "Create Order" via `PAGE_ROUTES.actionPermission`.
+  `receive_purchase_orders` — the same panel's Receive Goods / Receive
+  Balance. Splitting these two is the point: booking a delivery in is a
+  different job from raising or amending the order it arrived against, and
+  a stockroom account can now be allowed one without the other. Both keys'
+  defaults match `canManageStockBatch`'s population exactly
+  (admin/manager/specialist), so the conversion is behaviour-neutral on day
+  one. Download PDF and the order itself stay ungated.
+- `manage_suppliers` / `view_suppliers` — the add/edit and read thirds of
+  the supplier split. `manage_suppliers` gates
+  `components/stock-batch/supplier-detail-pane.tsx`'s "Edit Details" (the
+  action row falls back to "New Order" across the full width),
+  `supplier-table.tsx`'s inline rating quick-edit and empty-state "Add
+  Supplier", `supplier-management.tsx`'s `?action=add` handler, and the
+  Vendors header action. `view_suppliers` gates
+  `components/procurement/procurement-tab-nav.tsx`'s Vendors tab and the
+  `/procurement/vendors` route via `RequireRole`.
+- `request_stock_transfers` — `components/pos/pos-layout-header.tsx`. Note
+  the **two mechanisms that already existed** and how they reconcile: the
+  store-wide `store_profile.staff_can_request_transfers` toggle is *not*
+  an older version of this key, it is a different axis, and both still
+  apply. The composition is now
+  `process_sales && request_stock_transfers && (manage_staff || staff_can_request_transfers)`
+  — the key is the acting group's own right, the toggle is the store's
+  opt-in for non-admin-tier accounts. `sales_staff` was **granted** the key
+  in `DEFAULT_GROUP_PERMISSIONS` at the same time: the toggle exists
+  precisely so cashiers can pull stock in, and ANDing it with a key they
+  lacked would have silently killed that feature in every store using it.
+  Unticking the key now actually withholds the button, which it previously
+  did not.
+- `export_product_list` — `components/stock-batch/import-export-toolbar.tsx`'s
+  Export dropdown (CSV / XLSX / PDF). Import is a different right and stays
+  under `manage_products`, so the toolbar keeps a working control. `auditor`
+  was **granted** this key in `DEFAULT_GROUP_PERMISSIONS` — the dropdown is
+  reachable by every role today and an auditor already holds
+  `export_reports`, so withholding it would have been a narrowing. It *is*
+  a deliberate narrowing for `sales_staff`, who could previously export the
+  whole catalog including its cost columns.
+
+Two pieces of shared plumbing came out of this and are reusable for the
+remaining categories:
+
+- `RequireRole`'s `permission` prop (`components/auth/require-role.tsx`) —
+  a specific key required **on top of** the coarse
+  `isAdmin || canManageStockBatch` baseline, never instead of it, so
+  converting a route never widens it by accident. `RequireRole` is the only
+  enforcement point for these routes in a local-first app with no server
+  guard, so a typeable URL must redirect, not just hide a link.
+- `PAGE_ROUTES.actionPermission` + `resolveHeaderAction`'s trailing
+  `hasActionPermission` callback (`lib/constants/dashboard-page-routes.ts`).
+  The callback defaults to granting everything, so unannotated routes and
+  existing callers are untouched.
+
+The other six Inventory & Stock keys were investigated in the same pass and
+**stay catalog-only because no discrete action exists in the app to gate** —
+recorded here so nobody re-derives it:
+
+- `manage_stock_batches` — there is **no batch CRUD UI**. The "Add Batch"
+  header action on `/inventory/batches` points at a tab that
+  `stock-batch-management.tsx` does not render (`batches` is in
+  `generateStaticParams`' allow-list but has no `<TabsContent>`), and
+  `createStockBatch()` in `lib/db/queries/inventory.ts` has exactly one
+  caller — `getOrCreateTargetBatchForProduct()`, used by receiving and by
+  audit restock. Batches are an implementation detail of those flows, not a
+  thing a user creates or edits directly. Wiring this key means first
+  building the screen.
+- `approve_stock_transfers` — **there is no approval step**. `transferStock()`
+  (`lib/db/queries/stock-transfers.ts`) applies both legs immediately and,
+  for a non-admin initiator, flags the two movement rows
+  `status: "needs_review"` for after-the-fact inspection. There is no
+  pending queue, no accept/reject action, and nothing that waits on one.
+  Wiring this key means first building the approval workflow.
+- `delete_products` — **no delete-a-product action exists** anywhere:
+  no `deleteProduct` query, no `softDelete("products", …)` call site, no
+  row-menu or detail-screen delete. Products are deactivated via their
+  status, not deleted.
+- `delete_suppliers` — likewise **no delete-a-supplier action exists**:
+  no `deleteSupplier` query and no `softDelete("suppliers", …)` call site.
+  The supplier three-way split is therefore a two-way split in practice for
+  now; the key stays in the catalog for when the action lands.
+- `print_product_labels` — `components/stock-batch/barcode-print-dialog.tsx`
+  and `barcode-label-sheet.ts` are real and tested, but the dialog is
+  **unreachable**: its only mount is in `stock-overview.tsx`, keyed off a
+  `selectedProduct` state whose setter is never called from anywhere. There
+  is no "Print Labels" trigger in the catalog, the row menu, or product
+  detail. Gating an unreachable dialog would be theatre; the real fix is a
+  trigger, and this key should be wired in the same change as that trigger.
+
 `export_reports` joined it on 2026-09-28 too: `components/reports/report-center.tsx`
 hoists `useHasPermission("export_reports")` and hides the per-report Export
 dropdown and Print button, and passes the same boolean into
@@ -598,10 +731,18 @@ enforcement and add the key in the same commit**, and add the key to
   `view_stock_adjustment_history`, `print_product_labels`,
   `export_product_list`, `view_suppliers`, `delete_suppliers`. `manage_products`
   today grants cost, price, quantity, deletion and supplier writes all at
-  once; these are the pieces. `view_cost_fields` is the key form of the
-  cashier cost/margin gating described below — converting those
-  `role === "sales_staff"` checks to it is a deliberate follow-up, not a
-  drive-by, because it changes behavior for `auditor`/`specialist` too.
+  once; these are the pieces. All of these except `delete_products`,
+  `delete_suppliers` and `print_product_labels` were wired up later the
+  same day, along with `adjust_stock_counts`, `manage_purchase_orders`,
+  `receive_purchase_orders`, `manage_suppliers` and
+  `request_stock_transfers` — see the Inventory & Stock block above,
+  including the no-action-to-wire list, before re-investigating any of
+  them. `view_cost_fields` is the key form of the cashier cost/margin
+  gating described below; that conversion has now happened for
+  `product-pricing-info.tsx`, and the remaining
+  `role === "sales_staff"` sites (`daily-close-report.tsx`,
+  `transaction-metrics.tsx`, `transaction-details-dialog.tsx`) are the
+  next ones to move.
 - **Customers & Loyalty** — `delete_customers`, `view_customer_balances`,
   `manage_customer_credit_terms`.
 - **Reports & Activity** — `view_dashboard`, `view_financial_reports`.
@@ -665,7 +806,12 @@ manage stock/settings beyond their own sales. The established check is a
 direct `user?.role === "sales_staff"` (or `!== "sales_staff"` to show
 something to everyone else), matching the pattern already used in
 `daily-close-report.tsx`, `transaction-metrics.tsx`,
-`product-pricing-info.tsx`, and `transaction-details-dialog.tsx` — **not**
+and `transaction-details-dialog.tsx`. It is being **migrated to the
+`view_cost_fields` permission key**, whose default grants
+(admin/manager/specialist/auditor, never `sales_staff`) reproduce it
+exactly; `product-pricing-info.tsx` moved on 2026-09-28 and the three
+sites above are next. Until then, a new profit/margin display uses
+whichever of the two matches its neighbours — **not**
 `checkIsAdmin()`/`isAdmin`, which also excludes `auditor` and `specialist`
 (read-only/stock-managing roles that have no reason to be denied a
 profit figure they can already derive from data they can see elsewhere).

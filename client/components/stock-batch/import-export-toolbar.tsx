@@ -22,6 +22,7 @@ import {
   type ExportableProduct,
 } from "@/lib/db/queries/product-export";
 import { useStore } from "@/lib/context/store-context";
+import { useHasPermission } from "@/lib/hooks/use-permissions";
 import { ImportMappingDialog } from "./import-mapping-dialog";
 import { ExportColumnsDialog } from "./export-columns-dialog";
 
@@ -46,14 +47,14 @@ export function ImportExportToolbar({
   filteredProductIds,
 }: ImportExportToolbarProps) {
   const { storeProfile } = useStore();
+  const canExportProductList = useHasPermission("export_product_list");
   const [showImport, setShowImport] = useState(false);
   const [showColumnPicker, setShowColumnPicker] = useState(false);
-  const [pendingFormat, setPendingFormat] = useState<ExportFormat | null>(
-    null,
-  );
-  const [stage, setStage] = useState<{ message: string; progress: number } | null>(
-    null,
-  );
+  const [pendingFormat, setPendingFormat] = useState<ExportFormat | null>(null);
+  const [stage, setStage] = useState<{
+    message: string;
+    progress: number;
+  } | null>(null);
   const isFiltered = filteredProductIds !== undefined;
 
   /** Updates the overlay and yields a frame so it actually paints before the
@@ -120,7 +121,9 @@ export function ImportExportToolbar({
 
   return (
     <>
-      {stage && <LoadingOverlay message={stage.message} progress={stage.progress} />}
+      {stage && (
+        <LoadingOverlay message={stage.message} progress={stage.progress} />
+      )}
 
       <Button
         type="button"
@@ -133,36 +136,38 @@ export function ImportExportToolbar({
         Import
       </Button>
 
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="gap-1.5 text-[12px]"
-          >
-            <Download className="h-3.5 w-3.5" />
-            Export
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          {isFiltered && (
-            <div className="px-2 py-1.5 text-[11px] text-muted-foreground">
-              Filter active: exports {filteredProductIds.length} shown product
-              {filteredProductIds.length === 1 ? "" : "s"}
-            </div>
-          )}
-          <DropdownMenuItem onClick={() => handleExportClick("csv")}>
-            Export as CSV
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => handleExportClick("xlsx")}>
-            Export as XLSX
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => handleExportClick("pdf")}>
-            Export as PDF
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      {canExportProductList && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-1.5 text-[12px]"
+            >
+              <Download className="h-3.5 w-3.5" />
+              Export
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {isFiltered && (
+              <div className="px-2 py-1.5 text-[11px] text-muted-foreground">
+                Filter active: exports {filteredProductIds.length} shown product
+                {filteredProductIds.length === 1 ? "" : "s"}
+              </div>
+            )}
+            <DropdownMenuItem onClick={() => handleExportClick("csv")}>
+              Export as CSV
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleExportClick("xlsx")}>
+              Export as XLSX
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleExportClick("pdf")}>
+              Export as PDF
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
 
       <ImportMappingDialog
         open={showImport}

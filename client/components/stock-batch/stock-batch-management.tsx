@@ -16,8 +16,8 @@ export function StockBatchManagement({
   currentTab?: string;
 }) {
   const {
-    isAdmin,
-    canManageStockBatch,
+    canPerformStockAudit,
+    canViewAdjustmentHistory,
     setIsAuditing,
     stats,
     handleTabChange,
@@ -32,13 +32,13 @@ export function StockBatchManagement({
         className="flex flex-col flex-1 min-h-0 gap-6"
       >
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <StockBatchTabNav canManageStockBatch={canManageStockBatch} />
+          <StockBatchTabNav canViewAdjustmentHistory={canViewAdjustmentHistory} />
 
           {/* Desktop: shown as the header's secondary action (see
            * dashboard-page-routes.ts's inventory routes). Mobile keeps its
            * own button here since the header's secondary action is
            * desktop-only. */}
-          {isAdmin && (
+          {canPerformStockAudit && (
             <Button
               className="md:hidden"
               onClick={() => setIsAuditing(true)}
@@ -64,7 +64,7 @@ export function StockBatchManagement({
           <StockOverview />
         </TabsContent>
 
-        {canManageStockBatch && (
+        {canViewAdjustmentHistory && (
           <TabsContent value="ledger" className="flex flex-col flex-1 min-h-0 mt-0">
             <StockMovements />
           </TabsContent>

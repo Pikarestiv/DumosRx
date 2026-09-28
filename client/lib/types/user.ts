@@ -37,8 +37,10 @@ export interface StaffCreatePayload {
 export type StaffUpdatePayload = Partial<StaffCreatePayload>;
 
 /** Staff directory row: UserDbRow without the PIN hash, since the staff
- * list/edit-form never needs it (edits always start with a blank PIN field). */
-export type StaffListItem = Omit<UserDbRow, "pin">;
+ * list/edit-form never needs it (edits always start with a blank PIN field) —
+ * only `has_pin`, derived query-side, so the list can show whether an account
+ * actually has a PIN rather than assuming every account does. */
+export type StaffListItem = Omit<UserDbRow, "pin"> & { has_pin?: number };
 
 /** The cloud Sanctum-authenticated account (store owner/admin), distinct
  * from the auth-context `User`, which represents the local, PIN-authenticated

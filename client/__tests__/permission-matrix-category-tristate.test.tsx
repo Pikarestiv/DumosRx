@@ -144,7 +144,7 @@ describe("PermissionMatrix category rows", () => {
   it("collapses and re-expands a category without touching any grant", async () => {
     const { container, root } = await renderMatrix();
     const rowFor = (label: string) =>
-      Array.from(container.querySelectorAll("tr")).find((tr) => tr.textContent?.includes(label));
+      Array.from(container.querySelectorAll('[role="row"]')).find((row) => row.textContent?.includes(label));
 
     expect(rowFor("Process Sales")).toBeTruthy();
     const header = Array.from(container.querySelectorAll("button")).find(

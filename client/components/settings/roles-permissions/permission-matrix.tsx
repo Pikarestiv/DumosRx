@@ -4,6 +4,7 @@ import { Fragment, useMemo, useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { PERMISSION_CATALOG, ENFORCED_PERMISSION_KEYS } from "@/lib/constants/permissions";
 import { Badge } from "@/components/ui/badge";
+import { ScrollFade } from "@/components/ui/scroll-fade";
 import { usePermissionGroups } from "@/lib/hooks/use-permission-groups";
 import { useHasPermission, useOwnPermissionGroupId } from "@/lib/hooks/use-permissions";
 import { GroupToolbar } from "./group-toolbar";
@@ -41,8 +42,14 @@ export function PermissionMatrix() {
     return <p className="text-sm text-muted-foreground">You don't have permission to manage roles & permissions.</p>;
   }
 
+  // One template string, built once and spread onto the header row and every
+  // body row, so header and body columns can't drift out of alignment.
+  const gridStyle = {
+    gridTemplateColumns: `minmax(220px,1.5fr) repeat(${groups.length},minmax(120px,1fr))`,
+  };
+
   return (
-    <div className="space-y-4">
+    <div className="flex h-full min-h-0 flex-col gap-4">
       <GroupToolbar
         groups={groups}
         onCreateGroup={createGroup}
@@ -51,13 +58,15 @@ export function PermissionMatrix() {
         onRenameGroup={renameGroup}
         onDeleteGroup={deleteGroup}
       />
-      <div className="h-[102px] overflow-auto  border-1 border-red-500">
-        <table className="w-full text-sm">
-          <thead>
-            <tr>
-              <th className="text-left p-2 sticky left-0 top-0 z-20 bg-muted">Permission</th>
+      <ScrollFade containerClassName="flex-1 min-h-0" className="overflow-x-auto">
+        <div role="table" aria-label="Role permissions" className="min-w-max text-sm">
+          <div role="rowgroup" className="sticky top-0 z-20 bg-muted">
+            <div role="row" className="grid" style={gridStyle}>
+              <div role="columnheader" className="sticky left-0 z-10 bg-muted p-2 text-left font-medium">
+                Permission
+              </div>
               {groups.map((g) => (
-                <th key={g.id} className="p-2 text-center whitespace-nowrap sticky top-0 z-10 bg-muted">
+                <div key={g.id} role="columnheader" className="p-2 text-center font-medium whitespace-nowrap">
                   <div className="flex items-center justify-center gap-1">
                     <span>{g.name}</span>
                     <GroupColumnActions
@@ -67,18 +76,18 @@ export function PermissionMatrix() {
                       onDeleteGroup={deleteGroup}
                     />
                   </div>
-                </th>
+                </div>
               ))}
-            </tr>
-          </thead>
-          <tbody>
+            </div>
+          </div>
+          <div role="rowgroup">
             {categories.map(([category, entries]) => {
               const isCollapsed = collapsed[category] === true;
               const categoryKeys = entries.map((e) => e.key);
               return (
                 <Fragment key={category}>
-                  <tr className="border-t bg-muted/40">
-                    <td className="pt-3 pb-2 px-2 sticky left-0 z-10 bg-muted/40">
+                  <div role="row" className="grid border-t bg-muted" style={gridStyle}>
+                    <div role="cell" className="sticky left-0 z-10 bg-muted px-2 pt-3 pb-2">
                       <button
                         type="button"
                         onClick={() => setCollapsed((prev) => ({ ...prev, [category]: !isCollapsed }))}
@@ -90,13 +99,13 @@ export function PermissionMatrix() {
                         {category}
                         <span className="text-xs font-normal">({entries.length})</span>
                       </button>
-                    </td>
+                    </div>
                     {groups.map((g) => {
                       const state = getCategoryCheckState(categoryKeys, g.permissions);
                       const lockedKeys =
                         g.id === ownGroupId && g.permissions.includes(SELF_LOCKOUT_KEY) ? [SELF_LOCKOUT_KEY] : [];
                       return (
-                        <td key={g.id} className="pt-3 pb-2 px-2 text-center">
+                        <div key={g.id} role="cell" className="px-2 pt-3 pb-2 text-center">
                           <input
                             type="checkbox"
                             data-testid="category-checkbox"
@@ -114,14 +123,14 @@ export function PermissionMatrix() {
                             }
                             aria-label={`${category} - all permissions - ${g.name}`}
                           />
-                        </td>
+                        </div>
                       );
                     })}
-                  </tr>
+                  </div>
                   {!isCollapsed &&
                     entries.map((entry) => (
-                      <tr key={entry.key} className="border-t">
-                        <td className="p-2 pl-7 sticky left-0 z-10 bg-background">
+                      <div key={entry.key} role="row" className="grid border-t" style={gridStyle}>
+                        <div role="cell" className="sticky left-0 z-10 bg-background p-2 pl-7">
                           {entry.label}
                           {!ENFORCED_PERMISSION_KEYS.has(entry.key) && (
                             <Badge
@@ -133,12 +142,12 @@ export function PermissionMatrix() {
                               Coming soon
                             </Badge>
                           )}
-                        </td>
+                        </div>
                         {groups.map((g) => {
                           const granted = g.permissions.includes(entry.key);
                           const locked = entry.key === SELF_LOCKOUT_KEY && g.id === ownGroupId && granted;
                           return (
-                            <td key={g.id} className="p-2 text-center">
+                            <div key={g.id} role="cell" className="p-2 text-center">
                               <input
                                 type="checkbox"
                                 checked={granted}
@@ -151,17 +160,17 @@ export function PermissionMatrix() {
                                 onChange={(e) => toggle(g.id, entry.key, e.target.checked)}
                                 aria-label={`${entry.label} - ${g.name}`}
                               />
-                            </td>
+                            </div>
                           );
                         })}
-                      </tr>
+                      </div>
                     ))}
                 </Fragment>
               );
             })}
-          </tbody>
-        </table>
-      </div>
+          </div>
+        </div>
+      </ScrollFade>
     </div>
   );
 }

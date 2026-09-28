@@ -498,6 +498,16 @@ customer-earned entitlement, not a staff price concession. The desktop cart
 and the mobile drawer both render the same `POSCart`, so there is one gate,
 not two.
 
+The matrix's own markup changed shape on 2026-09-28: it is now div/grid/ARIA
+(`role="table"` / `"rowgroup"` / `"row"` / `"columnheader"` / `"cell"`) like
+every other table in the app, not a raw `<table>`. A future
+permission-category pass adds rows by rendering another `role="row"` grid
+with the shared `gridStyle`, and queries them in tests by `[role="row"]`
+rather than `tr`. The header rowgroup carries `sticky top-0` and each row's
+first cell `sticky left-0`; the scroll box is a `ScrollFade` that takes its
+height from the Settings panel (`h-full` on the roles `TabsContent` plus
+`flex-1 min-h-0` here), so don't reintroduce a fixed pixel height.
+
 Four more Sales & POS keys joined it on 2026-09-28, all following the same
 pattern (unconditional top-level `useHasPermission()` const, existing state
 still rendered read-only, only the trigger gated):
@@ -1485,6 +1495,14 @@ same tab session still gets its own fresh one-time retry.
   for one with a sticky first column and row click/keyboard handling.
   `components/ui/table.tsx` (the shadcn `<table>`-based primitive) exists
   but is intentionally unused, don't reach for it.
+  `components/settings/roles-permissions/permission-matrix.tsx` was migrated
+  to this pattern on 2026-09-28 (it had been missed by the earlier sweep);
+  because its column count is the group count and so isn't knowable at build
+  time, its shared template lives in one `gridStyle` object spread onto the
+  header row and every body row instead of a Tailwind `grid-cols-[...]`
+  class — the rule is "one template, one place", not "must be a class".
+  **Still outstanding:** `components/stock-batch/stock-audits.tsx` is the
+  last raw `<table>` in the app; migrate it when that file is next touched.
 - **Dense "ledger" tables** (receive-goods, stock audit): same div/grid/ARIA
   pattern, with a `sticky left-0` item-name column and `overflow-x-auto` on
   the wrapper: the agreed pattern for "QuickBooks/Moniebook-style" dense

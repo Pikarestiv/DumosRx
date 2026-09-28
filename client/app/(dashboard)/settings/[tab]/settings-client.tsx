@@ -174,7 +174,7 @@ export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
           )}
 
           {s.isAdmin && (
-            <TabsContent value="roles">
+            <TabsContent value="roles" className="h-full">
               <PermissionMatrix />
             </TabsContent>
           )}

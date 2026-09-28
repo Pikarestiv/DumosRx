@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import { checkIsAdmin, useAuth } from "@/lib/context/auth-context";
 import { EmptyState } from "@/components/ui/empty-state";
 import type { StaffListItem } from "@/lib/types/user";
+import { useMediaQuery } from "@/hooks/use-media-query";
 
 interface StaffListProps {
   users: StaffListItem[];
@@ -91,11 +92,17 @@ export function StaffList({
   });
 
   const isEmpty = !isLoading && users.length === 0;
+  // Conditional, not just CSS-hidden: both the table and the stacked-card
+  // list used to be mounted for every staff member. The sm:/hidden classes
+  // stay as the first-frame guard, since useMediaQuery starts at false and
+  // corrects itself after mount.
+  const isDesktop = useMediaQuery("(min-width: 640px)");
 
   return (
     <>
       {/* Desktop: real table, horizontally scrollable if content ever
           demands more than the column widths naturally settle at. */}
+      {isDesktop && (
       <div className="hidden sm:block overflow-x-auto">
         <Table>
           <TableHeader>
@@ -226,9 +233,11 @@ export function StaffList({
           </TableBody>
         </Table>
       </div>
+      )}
 
       {/* Mobile: rows become stacked cards instead of a cramped table,
           matching the pattern used by the product catalog list. */}
+      {!isDesktop && (
       <div className="sm:hidden divide-y divide-border">
         {!!isLoading && (
           <div className="h-24 flex items-center justify-center">
@@ -346,6 +355,7 @@ export function StaffList({
             );
           })}
       </div>
+      )}
     </>
   );
 }

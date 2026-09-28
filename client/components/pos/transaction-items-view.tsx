@@ -12,6 +12,7 @@ import { formatCurrency } from "@/lib/utils";
 import { RotateCcw } from "lucide-react";
 import type { SaleItemDetail } from "@/lib/types/sale";
 import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
+import { useMediaQuery } from "@/hooks/use-media-query";
 
 export function TransactionItemsView({
   items,
@@ -21,9 +22,14 @@ export function TransactionItemsView({
   currencyCode?: string;
 }) {
   const capsClass = useUppercaseDisplayClass();
+  // Conditional, not just CSS-hidden: both branches used to be mounted for
+  // every line item. The sm:/hidden classes stay as the first-frame guard,
+  // since useMediaQuery starts at false and corrects itself after mount.
+  const isDesktop = useMediaQuery("(min-width: 640px)");
   return (
     <>
       {/* Desktop Table View */}
+      {isDesktop && (
       <div className="hidden sm:block mt-6 border border-border rounded-md overflow-hidden">
         <Table>
           <TableHeader className="bg-muted/50">
@@ -59,8 +65,10 @@ export function TransactionItemsView({
           </TableBody>
         </Table>
       </div>
+      )}
 
       {/* Mobile Cards View */}
+      {!isDesktop && (
       <div className="sm:hidden mt-5 space-y-3">
         <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
           Items
@@ -104,6 +112,7 @@ export function TransactionItemsView({
           </div>
         ))}
       </div>
+      )}
     </>
   );
 }

@@ -44,6 +44,9 @@ export function ExpenseList() {
     topCategoryStr,
     selectedExpense,
     expenses,
+    totalCount,
+    hasMore,
+    loadMore,
   } = useExpensesPage();
   const { user, canManageStockBatch } = useAuth();
   const canAddExpense =
@@ -116,6 +119,16 @@ export function ExpenseList() {
     />
   );
 
+  const LoadOlderButton = hasMore ? (
+    <button
+      type="button"
+      onClick={loadMore}
+      className="w-full py-3 text-[13px] font-semibold text-primary hover:bg-primary/5 transition-colors cursor-pointer"
+    >
+      Load older expenses ({expenses.length} of {totalCount})
+    </button>
+  ) : null;
+
   const SearchInput = (
     <div className="flex items-center gap-2 bg-card border border-border md:bg-muted md:border-none rounded-[10px] px-3.5 py-2.5">
       <Search className="w-4 h-4 text-muted-foreground shrink-0" />
@@ -136,7 +149,7 @@ export function ExpenseList() {
         totalExpenses={totalExpenses}
         thisMonthExpenses={thisMonthExpenses}
         topCategoryStr={topCategoryStr}
-        transactionCount={expenses.length}
+        transactionCount={totalCount}
         currencyCode={storeProfile?.currency}
       />
 
@@ -198,6 +211,7 @@ export function ExpenseList() {
             </div>
           );
         })}
+        {LoadOlderButton}
       </div>
 
       {/* Desktop: table card, own search bar in its header */}
@@ -273,6 +287,7 @@ export function ExpenseList() {
               })}
             </div>
           )}
+          {LoadOlderButton}
         </div>
       </Card>
 

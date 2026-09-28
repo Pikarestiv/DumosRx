@@ -16,7 +16,7 @@ This file holds **open** items only. Fixed entries move to `docs/FIXED_BUGS.md` 
 
 **Overall health.** The codebase is unusually well-defended for its size: the sync engine's conflict model, the single-writer tab lock, tenant scoping on the server and the money math have all been through several review-and-fix cycles, and both test suites pass cleanly. The new findings in this pass are therefore not the "obvious" classes (cross-tenant leaks, double-charging, silent rollbacks) but the next layer down: **scale limits that were never exercised** (all three found so far have since been fixed — a local database with essentially no indexes, plus the pull engine's own un-resumable page cap and the server tenant-scope that loaded every sale id into PHP memory per request; see `docs/FIXED_BUGS.md`) and **attribution/consistency gaps** on the newest flows (the online-order fulfilment one, `A-4`, has since been fixed too).
 
-**Findings this pass, by severity:** 0 **P0**, 0 **P1**, 0 **P2**, 3 **P3** — 3 open findings from this pass (IDs `A-1`…`A-24`, less the fixed `A-1`, `A-2`, `A-3`, `A-4`, `A-5`, `A-6`, `A-7`, `A-8`, `A-9`, `A-10`, `A-11`, `A-12`, `A-13`, `A-14`, `A-15`, `A-16`, `A-17`, `A-18`, `A-19`, `A-21` and `A-24`), plus 14 still-open items carried from the two earlier passes (`P2-1`, `P3-1`, `P3-2`, `P3-5`, `PG-1`…`PG-10`), all preserved verbatim below.
+**Findings this pass, by severity:** 0 **P0**, 0 **P1**, 0 **P2**, 2 **P3** — 2 open findings from this pass (IDs `A-1`…`A-24`, less the fixed `A-1`, `A-2`, `A-3`, `A-4`, `A-5`, `A-6`, `A-7`, `A-8`, `A-9`, `A-10`, `A-11`, `A-12`, `A-13`, `A-14`, `A-15`, `A-16`, `A-17`, `A-18`, `A-19`, `A-21`, `A-22` and `A-24`), plus 14 still-open items carried from the two earlier passes (`P2-1`, `P3-1`, `P3-2`, `P3-5`, `PG-1`…`PG-10`), all preserved verbatim below.
 
 **Most important risks, in order:**
 
@@ -52,12 +52,6 @@ None open. `A-9` (receiving the same purchase order from two devices booked the 
 **Problem:** On the web/PWA build every write re-serialises the entire database (`saveDatabase()` → `db.export()`, see `docs/DATABASE_CONCURRENCY.md` §2.4). `audit_logs` grows by 10–15 rows per sale forever and is pulled to every device, so the export cost, the IndexedDB blob size and the memory footprint grow without bound. The benchmark's synthetic year-old store exports at the size shown in §5 on every write.
 **Recommended fix:** Local retention for `audit_logs` (keep N days locally once `_synced = 1`; the server keeps the full trail), and stop pulling `audit_logs` to devices that never render it.
 **Confidence:** High.
-
-#### [P3] A-22. `saveDatabase()` calls are not serialised and there is no flush on `pagehide` (carried from `docs/DATABASE_CONCURRENCY.md` §2.4, still open)
-**Category:** Data / Persistence (web/PWA) — **Confirmed by reading; not observed**
-**Location:** `client/lib/db/core.ts:357-380, 709` (`void saveDatabase()`), no `pagehide`/`visibilitychange` handler in `lib/db/`.
-**Problem:** Two back-to-back `execute()` calls each fire-and-forget an IndexedDB `set()`; the exports are taken in order, but the writes can in principle complete out of order, leaving an older image persisted (silent; no version stamp). The recommendation in that document ("chain saves on a module-level promise; add a `pagehide` save") has not been implemented, while its other three short-term items (the three lock bypasses, the mis-promotion `.catch`, the takeover UI) have been.
-**Confidence:** Medium (IndexedDB readwrite transactions on one store are ordered in practice, which is why this has probably never fired).
 
 #### [P3] A-23. `CustomEvent`/`localStorage`-driven cross-module state has grown into an undocumented event bus
 **Category:** Architecture / Maintainability — **Maintainability problem**
@@ -188,8 +182,7 @@ Synthetic dataset built from the app's own `SCHEMA_SQL` plus the migration-added
 
 ## 6. Offline / sync / database risks
 
-- **A-22** — unserialised `saveDatabase()`; no `pagehide` flush.
-- **`docs/DATABASE_CONCURRENCY.md` status check:** its three short-term items are done — `restoreDatabase()`/`resetDatabase()`/`clearDatabaseForNewStore()` now call `assertWritable()` (`core.ts:933, 1340, 1372`), the queued-promotion rejection is scoped away from the outer `.catch` (`tab-lock.ts:314-329`), and the graceful handoff + `steal` fallback with UI exists (`tab-lock.ts:177-246`, `DatabaseProvider.tsx:67-90`). Two of its "cheap" items remain (A-22). Two residual notes on the new handoff code: `resetDatabase()`/`clearDatabaseForNewStore()` still call `db.run()` directly rather than through `reserveDbSlot()`, so they can interleave with an in-flight yielding `query()`; and a stolen-from tab only learns it lost the lock via the `steal-notice` broadcast, which a frozen tab receives only on thaw — its `holdUntilTakeover()` promise is rejected by the browser first, and `writerTab` stays `true` until the notice arrives (the doc's "frozen holder that later thaws" caveat still applies).
+- **`docs/DATABASE_CONCURRENCY.md` status check:** all of its short-term items are now done — `restoreDatabase()`/`resetDatabase()`/`clearDatabaseForNewStore()` call `assertWritable()`, the queued-promotion rejection is scoped away from the outer `.catch` (`tab-lock.ts:314-329`), the graceful handoff + `steal` fallback with UI exists (`tab-lock.ts:177-246`), and A-22 closed the last two (serialised, coalescing `saveDatabase()`; `pagehide`/`visibilitychange` flush gated on the writer lock). Two residual notes on the new handoff code: `resetDatabase()`/`clearDatabaseForNewStore()` still call `db.run()` directly rather than through `reserveDbSlot()`, so they can interleave with an in-flight yielding `query()`; and a stolen-from tab only learns it lost the lock via the `steal-notice` broadcast, which a frozen tab receives only on thaw — its `holdUntilTakeover()` promise is rejected by the browser first, and `writerTab` stays `true` until the notice arrives (the doc's "frozen holder that later thaws" caveat still applies).
 - **Server-side row-lock duration:** `SyncController::push()` holds `lockForUpdate()` row locks for the whole outer transaction (documented at `:383-393`); with 50-change batches from several devices this is bounded but is the first place to look if "Lock wait timeout" appears in server logs.
 - **Healthy (re-verified):** version-equality conflict resolution and the `versions`/`id_map` echo; the quantity-only `stock_batches` exemption; delta application floored at 0 on both sides; `markSynced` flipping `_synced`; `audit_logs` terminal-conflict settling; deferred movement deltas committed atomically with the `stock_movements` cursor; the `stores` snapshot prune only touching stores with no local data; `awaitSettledTransactions()` before reading the queue; `pull.ts` skipping rows with pending local edits and holding the cursor; `UNIQUE`-collision give-up after 5 retries; the boot-order rule (writer election before migrations).
 
@@ -232,5 +225,5 @@ Synthetic dataset built from the app's own `SCHEMA_SQL` plus the migration-added
 Ordered by technical impact and by which fixes unblock or de-risk others — not by ease.
 
 1. **PG-2 then PG-1** (carried) — the storefront webhook/reconciliation path and the gateway pinning; still the largest real-world money-loss surface.
-2. **A-20, A-22, A-23** — hygiene and architecture debt; A-15 (enforce `tsc`/tests in CI, `npm ci`) is the one worth doing early because it protects everything else.
+2. **A-20, A-23** — hygiene and architecture debt; A-15 (enforce `tsc`/tests in CI, `npm ci`) is the one worth doing early because it protects everything else.
 3. **P2-1** (ops confirmation) and the accepted **P3-1/P3-2/P3-5**, **PG-3…PG-10** as previously scheduled.

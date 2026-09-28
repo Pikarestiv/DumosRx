@@ -331,21 +331,26 @@ dispatches `dumos_db_save_failed`, rate-limited to once per 5 minutes
    tab/process dies in that window (iOS killing a backgrounded PWA is called out explicitly at
    `base-helpers.ts:187-189`), the write is gone. `execute()`'s caller has already resolved
    successfully by then.
-2. **Overlapping saves can regress.** Nothing serializes `saveDatabase()` calls. Two
-   `void saveDatabase()` invocations from back-to-back `execute()`s each snapshot at a different
-   moment; the IndexedDB `set()`s can complete in either order, so an **older** export can land
-   on top of a newer one. The blob is not versioned, so this is silent. (Bounded in practice,
-   because the next write saves again — but a crash right after an out-of-order save leaves the
-   older state persisted.)
+2. ~~**Overlapping saves can regress.**~~ **Fixed (A-22).** `saveDatabase()` now takes its
+   `db.export()` synchronously at call time and appends the IndexedDB `set()` to a module-level
+   promise chain, so two back-to-back `execute()`s can no longer land their writes out of order.
+   Queued snapshots also coalesce: while one `set()` is in flight, further saves replace the
+   pending snapshot rather than queueing behind each other, so a burst of writes costs one write
+   of the newest image instead of N writes of N images. The returned promise still resolves only
+   once that call's data (or something newer) is persisted.
 3. **The whole transaction body.** Everything written inside a `transaction()` block is
    unpersisted until the `finally` at `core.ts:746`. For a bulk import
    (`client/lib/db/queries/product-import.ts`) or a multi-batch sync push that can be a long
    window. This is a deliberate trade (`core.ts:745`) — one export instead of thousands — but it
    widens the loss window proportionally.
-4. **No flush on exit.** There is no `pagehide`/`beforeunload`/`visibilitychange` handler that
-   forces a save anywhere in the codebase (grep confirms: the only `visibilitychange` listeners
-   are `pwa-registrar.tsx:46` and `subscription-plans.tsx:59`). Nothing tries to shorten
-   windows 1–3 when the document is about to go away.
+4. ~~**No flush on exit.**~~ **Fixed (A-22).** `installExitFlush()` (called from
+   `initDatabase()`'s web branch) registers a `pagehide` listener and a `visibilitychange`
+   listener that fires on `hidden`, each of which saves if — and only if — this tab holds the
+   writer lock and `hasUnpersistedWrites()` says the in-memory `writeEpoch` has moved past the
+   last persisted one. The writer-lock check matters: a read-only tab flushing on exit would
+   write its stale rehydrated image over the real writer's blob, which is the C1 clobber. This
+   shortens windows 1 and 3; it cannot close them, because the browser is free to kill the
+   document before an async IndexedDB write completes.
 5. **Corrupt-blob fallback discards data.** `core.ts:188-192` replaces an unparseable blob with
    an empty database and then the first write persists that empty database over the corrupt one.
    The corrupt bytes — potentially recoverable — are not snapshotted anywhere first.

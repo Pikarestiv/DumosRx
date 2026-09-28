@@ -282,6 +282,8 @@ async function initDatabaseInternal(): Promise<any> {
 
     await runSchemaMigrations(webAdapter, isWriterTab() ? saveDatabase : undefined);
 
+    installExitFlush();
+
     return db;
   } catch (err) {
     console.error("[DB] Failed to initialize database:", err);
@@ -354,9 +356,27 @@ async function rehydrateFromIndexedDb(): Promise<boolean> {
 const SAVE_FAILURE_NOTICE_INTERVAL_MS = 5 * 60 * 1000;
 let lastSaveFailureNoticeAt = 0;
 
-export async function saveDatabase(): Promise<void> {
-  if (!db) return;
-  const data = db.export();
+let saveChain: Promise<void> = Promise.resolve();
+let queuedExport: { data: Uint8Array; epoch: number } | null = null;
+let savedWriteEpoch = 0;
+
+export function saveDatabase(): Promise<void> {
+  if (!db) return Promise.resolve();
+
+  queuedExport = { data: db.export(), epoch: writeEpoch };
+
+  saveChain = saveChain.then(async () => {
+    const pending = queuedExport;
+    queuedExport = null;
+    if (!pending) return;
+    await persistDatabaseExport(pending.data);
+    savedWriteEpoch = pending.epoch;
+  });
+
+  return saveChain;
+}
+
+async function persistDatabaseExport(data: Uint8Array): Promise<void> {
   await set(`${APP_NAME.toLowerCase()}_db`, data).catch(err => {
     // Previously logged to console.error only: the app kept looking
     // completely healthy while writes silently stopped persisting (most
@@ -377,6 +397,43 @@ export async function saveDatabase(): Promise<void> {
       }
     }
   });
+}
+
+export function hasUnpersistedWrites(): boolean {
+  return queuedExport !== null || savedWriteEpoch !== writeEpoch;
+}
+
+let exitFlushInstalled = false;
+
+export function installExitFlush(): void {
+  if (exitFlushInstalled || typeof window === "undefined" || isTauri()) return;
+  exitFlushInstalled = true;
+
+  const flush = () => {
+    if (!db || !isWriterTab() || !hasUnpersistedWrites()) return;
+    void saveDatabase();
+  };
+
+  window.addEventListener("pagehide", flush);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") flush();
+  });
+}
+
+/** Test-only: resets the module-level save chain and exit-flush registration
+ * so each test starts from a clean persistence state. */
+export function __resetExitFlushForTesting(): void {
+  exitFlushInstalled = false;
+  saveChain = Promise.resolve();
+  queuedExport = null;
+  savedWriteEpoch = 0;
+  writeEpoch = 0;
+}
+
+/** Test-only: marks the in-memory database as having unpersisted writes,
+ * without going through execute()'s own save. */
+export function __bumpWriteEpochForTesting(): void {
+  bumpWriteEpoch();
 }
 
 // Set while a transaction() block is running — declared here (rather than

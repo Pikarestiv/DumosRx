@@ -60,6 +60,26 @@ function recordUniqueSkipAndCheckGiveUp(table: string, recordId: string): boolea
 // only decides when `onCriticalTablesReady` fires, not what's fetched.
 const SETUP_CRITICAL_TABLES = ["stores", "users"];
 
+/**
+ * Columns each device owns privately: written locally, never pushed, so the
+ * server's copy of them is meaningless and must never be written back.
+ * Applied exactly like the stock_batches.quantity exclusion further down —
+ * the rest of the pulled row still applies, only these columns are dropped.
+ *
+ * stores.last_monotonic_time is the anchor for the offline clock-tamper
+ * guard (lib/licensing/licensing-manager.ts refuses a local time earlier
+ * than the last recorded action). Only updateStoreMonotonicTime()
+ * (lib/db/queries/setup.ts) writes it, as a raw local `execute` that never
+ * reaches _sync_queue, so the server's column is permanently NULL. Writing
+ * that NULL back disarmed the guard after every sync round; and were the
+ * column ever pushed (window.forceSyncAllData queues whole `stores` rows),
+ * a device with a fast clock would propagate a future timestamp to every
+ * other device of the store and lock them all out.
+ */
+const DEVICE_LOCAL_PULL_COLUMNS: Record<string, readonly string[]> = {
+  stores: ["last_monotonic_time"],
+};
+
 interface PullPageCursor {
   updated_at: string;
   id: string;
@@ -312,6 +332,10 @@ export async function pullChanges(
             // exactly like the server's own `increment('quantity', delta)`.
             if (table === "stock_batches") {
               delete data.quantity;
+            }
+
+            for (const deviceLocalColumn of DEVICE_LOCAL_PULL_COLUMNS[table] ?? []) {
+              delete data[deviceLocalColumn];
             }
 
             const columns = Object.keys(data);

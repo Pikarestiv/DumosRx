@@ -16,7 +16,7 @@ This file holds **open** items only. Fixed entries move to `docs/FIXED_BUGS.md` 
 
 **Overall health.** The codebase is unusually well-defended for its size: the sync engine's conflict model, the single-writer tab lock, tenant scoping on the server and the money math have all been through several review-and-fix cycles, and both test suites pass cleanly. The new findings in this pass are therefore not the "obvious" classes (cross-tenant leaks, double-charging, silent rollbacks) but the next layer down: **scale limits that were never exercised** (all three found so far have since been fixed — a local database with essentially no indexes, plus the pull engine's own un-resumable page cap and the server tenant-scope that loaded every sale id into PHP memory per request; see `docs/FIXED_BUGS.md`) and **attribution/consistency gaps** on the newest flows (the online-order fulfilment one, `A-4`, has since been fixed too).
 
-**Findings this pass, by severity:** 0 **P0**, 0 **P1**, 1 **P2**, 11 **P3** — 12 open findings from this pass (IDs `A-1`…`A-24`, less the fixed `A-1`, `A-2`, `A-3`, `A-4`, `A-5`, `A-6`, `A-7`, `A-8`, `A-10`, `A-11`, `A-13` and `A-18`), plus 14 still-open items carried from the two earlier passes (`P2-1`, `P3-1`, `P3-2`, `P3-5`, `PG-1`…`PG-10`), all preserved verbatim below.
+**Findings this pass, by severity:** 0 **P0**, 0 **P1**, 1 **P2**, 10 **P3** — 11 open findings from this pass (IDs `A-1`…`A-24`, less the fixed `A-1`, `A-2`, `A-3`, `A-4`, `A-5`, `A-6`, `A-7`, `A-8`, `A-10`, `A-11`, `A-12`, `A-13` and `A-18`), plus 14 still-open items carried from the two earlier passes (`P2-1`, `P3-1`, `P3-2`, `P3-5`, `PG-1`…`PG-10`), all preserved verbatim below.
 
 **Most important risks, in order:**
 
@@ -52,13 +52,6 @@ None open. `A-1` (the pull page cap that made a >100,000-row table un-syncable) 
 ---
 
 ## 4. Low-priority findings (P3)
-
-#### [P3] A-12. Every pull resets `stores.last_monotonic_time` to the server's value (NULL), silently disarming the offline clock-tamper guard after each sync
-**Category:** Security (licensing) — **Potential issue requiring verification**
-**Location:** `client/lib/db/sync-engine/pull.ts:295-309` (UPDATE sets every column the server returns, and the local `stores` table has `last_monotonic_time`), `laravel-server/.../SyncController.php:921-923` (`$item->toArray()` includes it), `client/lib/db/queries/setup.ts:93-95` (`updateStoreMonotonicTime` is a raw `execute`, never pushed), `client/lib/licensing/licensing-manager.ts:59-71`.
-**Problem:** The monotonic timestamp is written locally only and never pushed, so the server's copy stays NULL; the next pull writes that NULL back over the local value, and `checkLicenseStatus()` then skips the "clock went backwards" check and re-arms from the current (possibly rolled-back) time. The anti-backdating rule that `.agents/AGENTS.md` §8 says must not be weakened is therefore only effective between two syncs. Conversely, if any path ever *does* push it (`window.forceSyncAllData` queues full `stores` rows), a device whose clock runs ahead would propagate a future timestamp to every other device of the store and lock them out with "Clock Discrepancy".
-**Recommended fix:** Exclude `last_monotonic_time` (and other device-local columns) from the pull's column set, the same way `stock_batches.quantity` is already excluded.
-**Confidence:** Medium (read from code; not executed against a live server).
 
 #### [P3] A-14. `DatabaseProvider`'s "Reset App Data" button does not reset the database, and uses `window.confirm`
 **Category:** Bug / UX — **Confirmed**
@@ -244,7 +237,6 @@ Synthetic dataset built from the app's own `SCHEMA_SQL` plus the migration-added
 ## 6. Offline / sync / database risks
 
 - **A-9** — multi-device PO receipt has no server-side idempotency beyond the version check on one of its rows.
-- **A-12** — pull overwrites a device-local column.
 - **A-21** — sentinel user ids can produce permanently-stuck queue items.
 - **A-22** — unserialised `saveDatabase()`; no `pagehide` flush.
 - **`docs/DATABASE_CONCURRENCY.md` status check:** its three short-term items are done — `restoreDatabase()`/`resetDatabase()`/`clearDatabaseForNewStore()` now call `assertWritable()` (`core.ts:933, 1340, 1372`), the queued-promotion rejection is scoped away from the outer `.catch` (`tab-lock.ts:314-329`), and the graceful handoff + `steal` fallback with UI exists (`tab-lock.ts:177-246`, `DatabaseProvider.tsx:67-90`). Two of its "cheap" items remain (A-22). Two residual notes on the new handoff code: `resetDatabase()`/`clearDatabaseForNewStore()` still call `db.run()` directly rather than through `reserveDbSlot()`, so they can interleave with an in-flight yielding `query()`; and a stolen-from tab only learns it lost the lock via the `steal-notice` broadcast, which a frozen tab receives only on thaw — its `holdUntilTakeover()` promise is rejected by the browser first, and `writerTab` stays `true` until the notice arrives (the doc's "frozen holder that later thaws" caveat still applies).
@@ -291,6 +283,6 @@ Synthetic dataset built from the app's own `SCHEMA_SQL` plus the migration-added
 Ordered by technical impact and by which fixes unblock or de-risk others — not by ease.
 
 1. **PG-2 then PG-1** (carried) — the storefront webhook/reconciliation path and the gateway pinning; still the largest real-world money-loss surface.
-2. **A-9, A-12, A-21, A-16, A-17** — sync/data-integrity edge cases; each is small and self-contained now that the index/pagination work is in.
+2. **A-9, A-21, A-16, A-17** — sync/data-integrity edge cases; each is small and self-contained now that the index/pagination work is in.
 3. **A-14, A-15, A-19, A-20, A-22, A-23, A-24** — hygiene and architecture debt; A-15 (enforce `tsc`/tests in CI, `npm ci`) is the one worth doing early because it protects everything else.
 4. **P2-1** (ops confirmation) and the accepted **P3-1/P3-2/P3-5**, **PG-3…PG-10** as previously scheduled.

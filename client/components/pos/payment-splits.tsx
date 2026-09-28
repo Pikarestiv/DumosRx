@@ -115,6 +115,7 @@ export function PaymentSplits({
             <div className="flex-1 space-y-1">
               <Input
                 type="number"
+                inputMode="decimal"
                 min={0}
                 placeholder="0.00"
                 value={split.amount || ""}

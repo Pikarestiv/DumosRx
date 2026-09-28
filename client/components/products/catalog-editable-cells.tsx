@@ -182,6 +182,7 @@ export function EditableQuickNumberCell({
   hasTouchCapability,
   onSave,
   ariaLabel,
+  commitOnBlur = true,
 }: {
   displayValue: string;
   displayClassName?: string;
@@ -193,6 +194,11 @@ export function EditableQuickNumberCell({
   hasTouchCapability: boolean;
   onSave: (value: number) => void;
   ariaLabel?: string;
+  /** Pass false for a cell whose save has consequences beyond the cell
+   * itself (the stock-quantity cell posts a real inventory adjustment and a
+   * permanent movement-ledger row): blur then discards the edit, and only
+   * Enter or the checkmark commits. */
+  commitOnBlur?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
@@ -219,12 +225,13 @@ export function EditableQuickNumberCell({
           widthClassName={widthClassName}
           autoFocus
           onCancel={() => finish(false, draft)}
+          onSubmit={commitOnBlur ? undefined : () => finish(true, draft)}
           onBlur={() => {
             if (skipNextBlur.current) {
               skipNextBlur.current = false;
               return;
             }
-            finish(true, draft);
+            finish(commitOnBlur, draft);
           }}
         />
         <CellEditActions

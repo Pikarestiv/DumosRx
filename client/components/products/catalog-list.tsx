@@ -310,6 +310,7 @@ export function CatalogList({
                         widthClassName="w-20"
                         canEdit={canManageStockBatch}
                         hasTouchCapability={hasTouchCapability}
+                        ariaLabel={`Edit selling price for ${product.name} (${formatCurrency(product.sellingPrice)})`}
                         onSave={(val) => void saveSellingPrice(product, val)}
                       />
                       <EditableQuickNumberCell
@@ -319,6 +320,8 @@ export function CatalogList({
                         parse={(raw) => parseInt(raw, 10)}
                         canEdit={canManageStockBatch}
                         hasTouchCapability={hasTouchCapability}
+                        ariaLabel={`Edit stock quantity for ${product.name} (${product.stockQuantity})`}
+                        commitOnBlur={false}
                         onSave={(val) => void saveStockQuantity(product, val)}
                       />
                       <EditableQuickNumberCell
@@ -328,6 +331,7 @@ export function CatalogList({
                         parse={(raw) => parseInt(raw, 10)}
                         canEdit={canManageStockBatch}
                         hasTouchCapability={hasTouchCapability}
+                        ariaLabel={`Edit reorder level for ${product.name} (${product.reorderLevel})`}
                         onSave={(val) => void saveReorderLevel(product, val)}
                       />
                     </div>

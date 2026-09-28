@@ -177,6 +177,7 @@ export function RequestItemDialog({
                 <Input
                   id="quantity"
                   type="number"
+                  inputMode="decimal"
                   min="1"
                   placeholder="1"
                   value={quantity}

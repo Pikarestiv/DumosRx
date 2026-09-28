@@ -108,6 +108,7 @@ export function POSCartItem({ item, currencyCode, isLast, updateQuantity, remove
             <div className="flex items-center gap-1 text-[11.5px]">
               <input
                 type="number"
+                inputMode="decimal"
                 min={item.original_unit_price}
                 step="1"
                 value={priceInput}
@@ -145,6 +146,7 @@ export function POSCartItem({ item, currencyCode, isLast, updateQuantity, remove
             </button>
             <input
               type="number"
+              inputMode="numeric"
               min={1}
               value={qtyInput}
               onChange={(e) => setQtyInput(e.target.value)}

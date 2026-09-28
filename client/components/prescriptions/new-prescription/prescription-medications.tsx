@@ -133,6 +133,7 @@ export function PrescriptionMedications({
               <Label>Quantity *</Label>
               <Input
                 type="number"
+                inputMode="decimal"
                 value={newMedication.quantity}
                 onChange={(e) => {
                   const val = e.target.value;
@@ -164,6 +165,7 @@ export function PrescriptionMedications({
               <Label>Unit Cost ({currencySymbol})</Label>
               <Input
                 type="number"
+                inputMode="decimal"
                 value={newMedication.unitCost}
                 onChange={(e) => {
                   const val = e.target.value;
@@ -181,6 +183,7 @@ export function PrescriptionMedications({
               <Label>Total Cost ({currencySymbol})</Label>
               <Input
                 type="number"
+                inputMode="decimal"
                 value={
                   newMedication.unitCost !== "" && newMedication.quantity !== ""
                     ? calculatePrescriptionItemCost(
@@ -198,6 +201,7 @@ export function PrescriptionMedications({
               <Label>Refills Authorized</Label>
               <Input
                 type="number"
+                inputMode="decimal"
                 value={newMedication.refillsAuthorized}
                 onChange={(e) => {
                   const val = e.target.value;
@@ -216,6 +220,7 @@ export function PrescriptionMedications({
               <Label>Refill Interval (Days)</Label>
               <Input
                 type="number"
+                inputMode="decimal"
                 value={newMedication.refillIntervalDays}
                 onChange={(e) => {
                   const val = e.target.value;

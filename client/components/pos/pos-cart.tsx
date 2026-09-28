@@ -221,6 +221,7 @@ export const POSCart = memo(function POSCart({
               <div className="flex gap-1 items-center flex-1 max-w-[160px] justify-end">
                 <input
                   type="number"
+                  inputMode="decimal"
                   min={0}
                   max={discountType === "percentage" ? 100 : undefined}
                   className="flex h-7 w-16 rounded-md border border-input bg-background px-2 py-1 text-xs text-right focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"

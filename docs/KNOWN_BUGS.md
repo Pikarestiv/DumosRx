@@ -16,7 +16,7 @@ This file holds **open** items only. Fixed entries move to `docs/FIXED_BUGS.md` 
 
 **Overall health.** The codebase is unusually well-defended for its size: the sync engine's conflict model, the single-writer tab lock, tenant scoping on the server and the money math have all been through several review-and-fix cycles, and both test suites pass cleanly. The new findings in this pass are therefore not the "obvious" classes (cross-tenant leaks, double-charging, silent rollbacks) but the next layer down: **scale limits that were never exercised** (all three found so far have since been fixed — a local database with essentially no indexes, plus the pull engine's own un-resumable page cap and the server tenant-scope that loaded every sale id into PHP memory per request; see `docs/FIXED_BUGS.md`) and **attribution/consistency gaps** on the newest flows (the online-order fulfilment one, `A-4`, has since been fixed too).
 
-**Findings this pass, by severity:** 0 **P0**, 0 **P1**, 0 **P2**, 7 **P3** — 7 open findings from this pass (IDs `A-1`…`A-24`, less the fixed `A-1`, `A-2`, `A-3`, `A-4`, `A-5`, `A-6`, `A-7`, `A-8`, `A-9`, `A-10`, `A-11`, `A-12`, `A-13`, `A-16`, `A-17`, `A-18` and `A-21`), plus 14 still-open items carried from the two earlier passes (`P2-1`, `P3-1`, `P3-2`, `P3-5`, `PG-1`…`PG-10`), all preserved verbatim below.
+**Findings this pass, by severity:** 0 **P0**, 0 **P1**, 0 **P2**, 6 **P3** — 6 open findings from this pass (IDs `A-1`…`A-24`, less the fixed `A-1`, `A-2`, `A-3`, `A-4`, `A-5`, `A-6`, `A-7`, `A-8`, `A-9`, `A-10`, `A-11`, `A-12`, `A-13`, `A-16`, `A-17`, `A-18`, `A-21` and `A-24`), plus 14 still-open items carried from the two earlier passes (`P2-1`, `P3-1`, `P3-2`, `P3-5`, `PG-1`…`PG-10`), all preserved verbatim below.
 
 **Most important risks, in order:**
 
@@ -85,12 +85,6 @@ None open. `A-9` (receiving the same purchase order from two devices booked the 
 **Location:** `dumos_sync_completed`, `dumos_subscription_updated`, `dumos_db_save_failed`, `dumos_db_read_only_write_blocked`, `auth_token_set`, `auth_token_cleared` (dispatched from `core.ts`, `sync-engine/index.ts`, `token-manager.ts`; consumed by `auth-context.tsx`, `store-context.tsx`, `sync-indicator.tsx`, `DatabaseProvider.tsx`, `license-guard.tsx`…), plus a dozen `localStorage` keys read directly (`auth_token`, `dumos_user`, `dumos_active_store_id`, `last_sync_time`, `dumos_suggestions`, `dumos_recent_users`, …) by both React and non-React modules.
 **Problem:** There is no single place that lists these names or their payloads; several are read in different places with different fallbacks (e.g. the active store id is read from `localStorage` in `client.ts` for the `X-Store-Id` header and from the module resolver in `core.ts` for queries — `auth-context.tsx:394-420` documents a real bug that came from exactly that split). Each new subsystem adds another listener.
 **Recommended fix:** A typed `events.ts`/`storage-keys.ts` module (constants + typed dispatch/subscribe helpers) so the names cannot drift and the payloads are visible.
-**Confidence:** High.
-
-#### [P3] A-24. Stray backup file in the server test suite
-**Category:** Maintainability — **Confirmed**
-**Location:** `laravel-server/tests/Feature/SyncPushRowLockTest.php.bak2`.
-**Problem:** A `.bak2` copy of a test lives alongside the real one; PHPUnit ignores it, but it will confuse the next person diffing the two.
 **Confidence:** High.
 
 ---
@@ -253,5 +247,5 @@ Synthetic dataset built from the app's own `SCHEMA_SQL` plus the migration-added
 Ordered by technical impact and by which fixes unblock or de-risk others — not by ease.
 
 1. **PG-2 then PG-1** (carried) — the storefront webhook/reconciliation path and the gateway pinning; still the largest real-world money-loss surface.
-2. **A-14, A-15, A-19, A-20, A-22, A-23, A-24** — hygiene and architecture debt; A-15 (enforce `tsc`/tests in CI, `npm ci`) is the one worth doing early because it protects everything else.
+2. **A-14, A-15, A-19, A-20, A-22, A-23** — hygiene and architecture debt; A-15 (enforce `tsc`/tests in CI, `npm ci`) is the one worth doing early because it protects everything else.
 3. **P2-1** (ops confirmation) and the accepted **P3-1/P3-2/P3-5**, **PG-3…PG-10** as previously scheduled.

@@ -4,6 +4,11 @@ A changelog of bugs that were tracked in `docs/KNOWN_BUGS.md` and have since bee
 
 ## 2026-09-28
 
+### A-24 — stray `.bak2` copy of a test file in the server test suite
+- **Branch:** none — committed directly on `dev` as batch 9 of the 2026-09-28 audit remediation series (the final batch: A-14, A-15, A-19, A-20, A-22, A-23, A-24, one commit each).
+- Confirmed and deleted. `laravel-server/tests/Feature/SyncPushRowLockTest.php.bak2` was byte-for-byte identical to the committed `SyncPushRowLockTest.php` it sat next to, so there was nothing in it to recover. PHPUnit never ran it: `phpunit.xml` points its Feature suite at `tests/Feature` and PHPUnit's directory scan only matches the default `*Test.php` suffix, which `.bak2` does not. Nothing in `app/`, `routes/`, `tests/`, `composer.json` or the workflows referenced the path.
+- No test added — the fix is a deletion of a file that was never executed, and the server suite's count is unchanged by it (507 before and after).
+
 ### A-9 — receiving the same purchase order from two devices booked the delivery twice
 - **Branch:** none — committed directly on `dev` as batch 8 of the 2026-09-28 audit remediation series. The last P2 open against the 2026-09-28 pass.
 - Confirmed exactly as described, on both sides. `receivePurchaseOrder()` read the PO — including each line's `quantity_received` — *outside* its `transaction()`, so two receipts racing each other both computed the full outstanding balance from the same snapshot. Each then created a `stock_batches` row and a `stock_movements` row with fresh random ids, which the server has no way to recognise as the same delivery: both INSERTs were accepted and both movement deltas applied (on-hand stock doubled), while one of the two `quantity_received` UPDATEs lost the version check and was dropped, so the PO showed a single receipt. Nothing looks wrong until a cycle count.

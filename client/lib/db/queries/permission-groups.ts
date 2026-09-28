@@ -129,7 +129,14 @@ export async function getUserPermissionGroup(
   try {
     return { id: rows[0].id, permissions: JSON.parse(rows[0].permissions) };
   } catch {
-    return null;
+    // A present-but-corrupt row denies, rather than returning null and letting
+    // hasPermission's `?? fallbackPermissions(role)` silently restore the whole
+    // role tier. That fallback is for the offline/pre-sync gap, where no row
+    // exists yet; a malformed row is the opposite case and is distinguishable,
+    // so the two must not be conflated. Matches getStorePermissionGroups below.
+    // A store_owner/super_admin is still never locked out - hasPermission
+    // short-circuits for those roles before any group is consulted.
+    return { id: rows[0].id, permissions: [] };
   }
 }
 

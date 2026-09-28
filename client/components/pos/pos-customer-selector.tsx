@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { memo, useMemo, useState } from "react";
 import { Search, UserPlus, X, ChevronDown, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,7 +19,7 @@ interface POSCustomerSelectorProps {
   cartLength?: number;
 }
 
-export function POSCustomerSelector({
+export const POSCustomerSelector = memo(function POSCustomerSelector({
   selectedCustomer,
   customers,
   loadingCustomers,
@@ -77,11 +77,16 @@ export function POSCustomerSelector({
     });
   };
 
-  const filteredCustomers = customers.filter((c) => {
+  // Not recomputed while the modal is closed: this list is only ever read
+  // inside it, and POS re-renders on every search keystroke.
+  const filteredCustomers = useMemo(() => {
+    if (!open) return [];
     const term = search.toLowerCase();
-    const fullName = `${c.first_name} ${c.last_name}`.toLowerCase();
-    return fullName.includes(term) || (c.phone && c.phone.includes(term));
-  });
+    return customers.filter((c) => {
+      const fullName = `${c.first_name} ${c.last_name}`.toLowerCase();
+      return fullName.includes(term) || (c.phone && c.phone.includes(term));
+    });
+  }, [open, customers, search]);
 
   // get initials
   const initials = selectedCustomer
@@ -101,39 +106,39 @@ export function POSCustomerSelector({
         <div className="text-xs text-muted-foreground">{cartLength} items</div>
       </div>
 
-      {/* Trigger */}
-      <div
-        role="button"
-        tabIndex={0}
-        className="flex items-center gap-2.5 px-3 py-2.5 bg-primary/5 border border-primary/20 rounded-[10px] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring hover:bg-primary/10 transition-colors"
-        onClick={() => setOpen(true)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            setOpen(true);
-          }
-        }}
-      >
-        <div className="w-[30px] h-[30px] rounded-full bg-primary/10 text-primary flex items-center justify-center text-[11.5px] font-bold shrink-0">
-          {initials}
-        </div>
-        <div className="flex-1 text-left">
-          <div className="text-[12.5px] font-semibold text-foreground">
-            {selectedCustomer
-              ? `${selectedCustomer.first_name} ${selectedCustomer.last_name || ""}`
-              : "Walk-in customer"}
+      {/* Trigger. The clear control is a sibling button, not nested inside the
+          trigger: nested interactive content is unreachable by keyboard. */}
+      <div className="flex items-center gap-2.5 px-3 py-2.5 bg-primary/5 border border-primary/20 rounded-[10px] hover:bg-primary/10 transition-colors">
+        <button
+          type="button"
+          className="flex flex-1 min-w-0 items-center gap-2.5 text-left cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+          onClick={() => setOpen(true)}
+        >
+          <div className="w-[30px] h-[30px] rounded-full bg-primary/10 text-primary flex items-center justify-center text-[11.5px] font-bold shrink-0">
+            {initials}
           </div>
-          <div className="text-[11px] text-muted-foreground">
-            {selectedCustomer
-              ? `${selectedCustomer.phone || "No phone"} • ${selectedCustomer.loyalty_points || 0} pts`
-              : "Tap to search or add"}
+          <div className="flex-1 min-w-0">
+            <div className="text-[12.5px] font-semibold text-foreground truncate">
+              {selectedCustomer
+                ? `${selectedCustomer.first_name} ${selectedCustomer.last_name || ""}`
+                : "Walk-in customer"}
+            </div>
+            <div className="text-[11px] text-muted-foreground truncate">
+              {selectedCustomer
+                ? `${selectedCustomer.phone || "No phone"} • ${selectedCustomer.loyalty_points || 0} pts`
+                : "Tap to search or add"}
+            </div>
           </div>
-        </div>
+        </button>
         {selectedCustomer && (
-          <X
-            className="w-4 h-4 text-muted-foreground hover:text-foreground shrink-0"
+          <button
+            type="button"
+            aria-label={`Clear selected customer ${selectedCustomer.first_name} ${selectedCustomer.last_name || ""}`.trim()}
+            className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring"
             onClick={handleClear}
-          />
+          >
+            <X className="w-4 h-4" />
+          </button>
         )}
         {!selectedCustomer && (
           <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
@@ -209,7 +214,7 @@ export function POSCustomerSelector({
           )}
 
           <div className="text-[11.5px] font-bold text-muted-foreground uppercase tracking-wide mt-2">
-            Frequent customers
+            {search.trim().length > 0 ? "Matching customers" : "All customers"}
           </div>
 
           <div className="overflow-y-auto max-h-[300px] -mx-1 px-1 pb-4">
@@ -301,4 +306,4 @@ export function POSCustomerSelector({
       </ResponsiveModal>
     </div>
   );
-}
+});

@@ -211,6 +211,8 @@ export function POItemLedgerTable({
                     <POReviewPricePopover
                       costPrice={effectiveUnitCost}
                       sellingPrice={item.selling_price ?? (product?.selling_price || "")}
+                      currentSellingPrice={product?.selling_price ?? null}
+                      productName={item.product_name}
                       onSellingPriceChange={(val) => onUpdateItem(index, { selling_price: val })}
                     />
                   </div>

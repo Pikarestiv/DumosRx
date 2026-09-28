@@ -16,7 +16,14 @@ import { formatCurrency } from "@/lib/utils";
 interface POReviewPricePopoverProps {
   costPrice: number;
   sellingPrice: number | string;
+  /** The product's live selling price, so the trigger can tell a real
+   * repricing apart from the prefill of the price that is already on file.
+   * Without it a prefilled row is indistinguishable from an edited one. */
+  currentSellingPrice?: number | null;
   onSellingPriceChange: (value: string) => void;
+  /** Names the row this popover belongs to, for the dense ledger table where
+   * the product name is only visible in another column. */
+  productName?: string;
 }
 
 /** Per-row "review sell price" action for the Immediate Purchase item
@@ -28,7 +35,9 @@ interface POReviewPricePopoverProps {
 export function POReviewPricePopover({
   costPrice,
   sellingPrice,
+  currentSellingPrice,
   onSellingPriceChange,
+  productName,
 }: POReviewPricePopoverProps) {
   const margin = useMemo(() => {
     const sell = Number(sellingPrice);
@@ -36,12 +45,27 @@ export function POReviewPricePopover({
     return ((sell - costPrice) / sell) * 100;
   }, [sellingPrice, costPrice]);
 
+  const isRepriced =
+    sellingPrice !== "" &&
+    sellingPrice != null &&
+    Number(sellingPrice) !== (currentSellingPrice ?? null);
+  const isBelowCost = margin !== null && margin <= 0;
+
+  const label = isRepriced ? "Edit price" : "Review price";
+
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button type="button" variant="outline" size="sm" className="h-8 px-2 text-[12px]">
+        <Button
+          type="button"
+          variant={isRepriced ? "secondary" : "outline"}
+          size="sm"
+          className="h-8 px-2 text-[12px]"
+          aria-label={productName ? `${label} for ${productName}` : label}
+          title={label}
+        >
           <TrendingUp className="w-3.5 h-3.5 mr-1" />
-          Review price
+          {isRepriced ? formatCurrency(Number(sellingPrice)) : "Review price"}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-64 space-y-3" align="end">
@@ -63,8 +87,19 @@ export function POReviewPricePopover({
           />
         </div>
         {margin !== null && (
-          <div className="text-[12px] text-muted-foreground">
-            Margin: <span className="font-semibold text-foreground">{margin.toFixed(2)}%</span>
+          <div
+            data-testid="po-margin"
+            className={
+              isBelowCost
+                ? "text-[12px] text-destructive font-medium"
+                : "text-[12px] text-muted-foreground"
+            }
+          >
+            Margin:{" "}
+            <span className={isBelowCost ? "font-semibold" : "font-semibold text-foreground"}>
+              {margin.toFixed(2)}%
+            </span>
+            {isBelowCost && " — below cost"}
           </div>
         )}
       </PopoverContent>

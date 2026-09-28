@@ -61,6 +61,17 @@ describe("POReviewPricePopover prefill via POItemLedgerTable", () => {
     return { container, root };
   }
 
+  /** The trigger reads "Review price" until the line is repriced, and shows
+   * the new price itself afterwards - match on its accessible name, which
+   * stays stable either way. */
+  function findReviewPriceTrigger(container: HTMLElement): HTMLButtonElement {
+    const trigger = Array.from(container.querySelectorAll("button")).find((b) =>
+      /price/i.test(b.getAttribute("aria-label") || ""),
+    );
+    expect(trigger).toBeTruthy();
+    return trigger as HTMLButtonElement;
+  }
+
   function findSellPriceInput(): HTMLInputElement {
     const input = document.querySelector('input[placeholder="0.00"]');
     expect(input).not.toBeNull();
@@ -70,7 +81,7 @@ describe("POReviewPricePopover prefill via POItemLedgerTable", () => {
   it("prefills the Sell Price input with the product's current selling price when the draft item has no override yet", () => {
     const { container, root } = renderTable([baseItem]);
     try {
-      const trigger = Array.from(container.querySelectorAll("button")).find((b) => b.textContent?.includes("Review price"));
+      const trigger = findReviewPriceTrigger(container);
       act(() => {
         trigger!.click();
       });
@@ -85,7 +96,7 @@ describe("POReviewPricePopover prefill via POItemLedgerTable", () => {
   it("shows the user's own already-entered override instead of the product's current price", () => {
     const { container, root } = renderTable([{ ...baseItem, selling_price: 20 }]);
     try {
-      const trigger = Array.from(container.querySelectorAll("button")).find((b) => b.textContent?.includes("Review price"));
+      const trigger = findReviewPriceTrigger(container);
       act(() => {
         trigger!.click();
       });
@@ -100,7 +111,7 @@ describe("POReviewPricePopover prefill via POItemLedgerTable", () => {
   it("shows blank, not a literal 0, when the product has no selling price on file yet", () => {
     const { container, root } = renderTable([baseItem], { ...product, selling_price: 0 });
     try {
-      const trigger = Array.from(container.querySelectorAll("button")).find((b) => b.textContent?.includes("Review price"));
+      const trigger = findReviewPriceTrigger(container);
       act(() => {
         trigger!.click();
       });
@@ -130,7 +141,7 @@ describe("POReviewPricePopover prefill via POItemLedgerTable", () => {
         );
       });
 
-      const trigger = Array.from(container.querySelectorAll("button")).find((b) => b.textContent?.includes("Review price"));
+      const trigger = findReviewPriceTrigger(container);
       act(() => {
         trigger!.click();
       });

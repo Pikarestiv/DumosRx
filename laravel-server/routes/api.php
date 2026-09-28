@@ -6,12 +6,6 @@ use App\Http\Controllers\Api\Admin\AdminUserController;
 // Namespaced Controllers
 use App\Http\Controllers\Api\Admin\MailController;
 // Web Controllers
-use App\Http\Controllers\Api\App\CategoryController;
-use App\Http\Controllers\Api\App\CustomerController;
-use App\Http\Controllers\Api\App\ProductController;
-use App\Http\Controllers\Api\App\SaleController;
-use App\Http\Controllers\Api\App\StockBatchController;
-use App\Http\Controllers\Api\App\SupplierController;
 use App\Http\Controllers\Api\App\SyncController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\AuthHandoffController;
@@ -269,30 +263,6 @@ Route::prefix('v1')->group(function () {
         });
         // --- APP / TERMINAL ROUTES ---
         Route::prefix('app')->middleware('subscription')->group(function () {
-            // Medicine Database
-            Route::get('/products/search', [ProductController::class, 'search']);
-            Route::apiResource('products', ProductController::class);
-
-            // Inventory
-            Route::prefix('stock-batches')->group(function () {
-                Route::get('/low-stock', [StockBatchController::class, 'lowStock']);
-                Route::get('/expiring', [StockBatchController::class, 'expiring']);
-                Route::get('/value', [StockBatchController::class, 'value']);
-                Route::get('/', [StockBatchController::class, 'index']);
-            });
-
-            // Sales & POS
-            // /daily and /top-products must stay registered before the {sale}
-            // wildcard from apiResource, or they'd be swallowed by it.
-            Route::get('sales/daily', [SaleController::class, 'dailySales']);
-            Route::get('sales/top-products', [SaleController::class, 'topProducts']);
-            Route::apiResource('sales', SaleController::class)->only(['index', 'store', 'show']);
-
-            // CRM & Supply Chain
-            Route::apiResource('customers', CustomerController::class);
-            Route::apiResource('suppliers', SupplierController::class);
-            Route::apiResource('categories', CategoryController::class);
-
             // Online Orders
             Route::get('/online-orders', [\App\Http\Controllers\Api\OnlineOrderController::class, 'index']);
             Route::post('/online-orders/{id}/fulfill', [\App\Http\Controllers\Api\OnlineOrderController::class, 'markFulfilled']);

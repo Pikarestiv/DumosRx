@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, ReactNode } from "react";
+import React, { createContext, useContext, useCallback, useMemo, ReactNode } from "react";
 import * as Sentry from "@sentry/nextjs";
 import { toast } from "sonner";
 import { update } from "@/lib/db/local-database";
@@ -133,6 +133,10 @@ const StoreContext = createContext<StoreContextType | undefined>(undefined);
 // Purely a stuck-state guard, not a tuned delay - the local-first query
 // layer normally settles far inside it.
 const SWITCH_STORE_MAX_WAIT_MS = 5000;
+
+// Hoisted so an unresolved store list hands every useStore() consumer the same
+// array identity instead of a fresh [] on every provider render.
+const NO_STORES: StoreProfile[] = [];
 
 const terminology: Record<StoreType, Record<string, string>> = {
   pharmacy: {
@@ -299,7 +303,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const [isSwitchingStore, setIsSwitchingStore] = React.useState(false);
 
-  const switchStore = (storeId: string) => {
+  const switchStore = useCallback((storeId: string) => {
     setActiveStoreId(storeId);
     if (typeof window !== "undefined") {
       localStorage.setItem("dumos_active_store_id", storeId);
@@ -381,7 +385,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (typeof window !== "undefined" && navigator.onLine) {
       import("@/lib/db/sync-engine").then(({ sync }) => sync()).catch(() => {});
     }
-  };
+  }, []);
   const storeType = storeProfile?.store_type || "pharmacy";
   const theme = storeProfile?.theme || "default";
   const isInitialized = storeProfile?.is_initialized === 1;
@@ -486,7 +490,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     };
   }, [refetch]);
 
-  const updateStoreProfile = async (data: Partial<StoreProfile>) => {
+  const updateStoreProfile = useCallback(async (data: Partial<StoreProfile>) => {
     // Every real caller of this is a settings write against an ALREADY
     // onboarded store (theme toggle, loyalty settings, payment config, ...)
     // - onboarding creates the very first store through its own explicit
@@ -506,9 +510,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
     await update("stores", storeProfile.id, data);
     await refetch();
-  };
+  }, [storeProfile, refetch]);
 
-  const setTheme = (newTheme: string) => {
+  const setTheme = useCallback((newTheme: string) => {
     // Fire-and-forget by design (the UI applies the theme immediately,
     // optimistically) — but a failed write must not fail silently, or the
     // displayed theme and the persisted/synced one quietly diverge with no
@@ -517,38 +521,58 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       console.error("[StoreContext] Failed to persist theme change:", err);
       toast.error("Couldn't save your theme choice — it may not stick after reload.");
     });
-  };
+  }, [updateStoreProfile]);
 
-  const t = (key: string): string => {
-    const type = storeType as StoreType;
-    return terminology[type]?.[key] || terminology["retail"][key] || key;
-  };
+  const t = useCallback(
+    (key: string): string => {
+      const type = storeType as StoreType;
+      return terminology[type]?.[key] || terminology["retail"][key] || key;
+    },
+    [storeType],
+  );
 
   useWidgetSnapshotSync();
   useWidgetDeeplink();
 
-  return (
-    <StoreContext.Provider
-      value={{
-        storeProfile: storeProfile ?? null,
-        loading,
-        storeType,
-        theme,
-        isInitialized,
-        vatPercentage,
-        updateStoreProfile,
-        setTheme,
-        t,
-        activeStoreId: user?.store_id || activeStoreId,
-        availableStores: allStores || [],
-        switchStore,
-        isSwitchingStore,
-        refetch,
-      }}
-    >
-      {children}
-    </StoreContext.Provider>
+  const resolvedActiveStoreId = user?.store_id || activeStoreId;
+  const availableStores = allStores || NO_STORES;
+
+  const value = useMemo<StoreContextType>(
+    () => ({
+      storeProfile: storeProfile ?? null,
+      loading,
+      storeType,
+      theme,
+      isInitialized,
+      vatPercentage,
+      updateStoreProfile,
+      setTheme,
+      t,
+      activeStoreId: resolvedActiveStoreId,
+      availableStores,
+      switchStore,
+      isSwitchingStore,
+      refetch,
+    }),
+    [
+      storeProfile,
+      loading,
+      storeType,
+      theme,
+      isInitialized,
+      vatPercentage,
+      updateStoreProfile,
+      setTheme,
+      t,
+      resolvedActiveStoreId,
+      availableStores,
+      switchStore,
+      isSwitchingStore,
+      refetch,
+    ],
   );
+
+  return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
 }
 
 export function useStore() {

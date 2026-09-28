@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import React from "react";
 import { CatalogRow } from "@/components/products/catalog-row";
 import type { Product } from "@/components/products/types";
@@ -32,7 +32,10 @@ function product(overrides: Partial<Product> = {}): Product {
   } as Product;
 }
 
-function renderRow(isDesktop: boolean) {
+function renderRow(
+  isDesktop: boolean,
+  overrides: Partial<React.ComponentProps<typeof CatalogRow>> = {},
+) {
   return render(
     <CatalogRow
       product={product()}
@@ -49,6 +52,7 @@ function renderRow(isDesktop: boolean) {
       onSaveSellingPrice={() => {}}
       onSaveStockQuantity={() => {}}
       onSaveReorderLevel={() => {}}
+      {...overrides}
     />,
   );
 }
@@ -89,5 +93,33 @@ describe("CatalogRow", () => {
   it("shows the product on both branches", () => {
     renderRow(true);
     expect(screen.getByText("Panadol")).toBeTruthy();
+  });
+
+  // The commitOnBlur={false} / ariaLabel wiring was merge-ported into this
+  // component and only ever guarded at the underlying cell level, so nothing
+  // caught CatalogRow dropping the props on the way through. A stock-quantity
+  // commit writes a real inventory adjustment plus a permanent movement-ledger
+  // row, so a stray blur on a half-typed number must not save (U5).
+  it("labels each editable cell and never commits stock quantity on blur", () => {
+    const onSaveStockQuantity = vi.fn();
+    renderRow(true, { onSaveStockQuantity });
+
+    const stockCell = screen.getByLabelText("Edit stock quantity for Panadol (12)");
+    expect(screen.getByLabelText("Edit selling price for Panadol (N100)")).toBeTruthy();
+    expect(screen.getByLabelText("Edit reorder level for Panadol (5)")).toBeTruthy();
+
+    fireEvent.click(stockCell);
+    fireEvent.change(screen.getByRole("spinbutton"), { target: { value: "999" } });
+    fireEvent.blur(screen.getByRole("spinbutton"));
+
+    expect(onSaveStockQuantity).not.toHaveBeenCalled();
+
+    // Blur abandons the edit and collapses the cell, so reopen it to prove an
+    // explicit confirm still commits (the cell isn't simply read-only).
+    fireEvent.click(screen.getByLabelText("Edit stock quantity for Panadol (12)"));
+    fireEvent.change(screen.getByRole("spinbutton"), { target: { value: "20" } });
+    fireEvent.keyDown(screen.getByRole("spinbutton"), { key: "Enter" });
+
+    expect(onSaveStockQuantity).toHaveBeenCalledWith(expect.objectContaining({ id: "p1" }), 20);
   });
 });

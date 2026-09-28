@@ -87,49 +87,53 @@ export function CatalogList({
     [categoryRows],
   );
 
-  const quickEditMutation = useQuickEditProductMutation();
-  const stockAuditMutation = useSubmitStockAuditMutation();
+  // Destructured to the stable member on purpose: react-query rebuilds its
+  // useMutation result as a new object literal on every render, so depending on
+  // the whole result below made every row handler fresh and defeated
+  // React.memo(CatalogRow). mutateAsync is bound once per observer.
+  const { mutateAsync: quickEditProduct } = useQuickEditProductMutation();
+  const { mutateAsync: submitStockAudit } = useSubmitStockAuditMutation();
 
   const saveCategory = useCallback(
     async (product: Product, category: string) => {
       try {
-        await quickEditMutation.mutateAsync({ id: product.id, category });
+        await quickEditProduct({ id: product.id, category });
         onProductUpdated();
       } catch {
         toast.error("Failed to update category. Please try again.");
       }
     },
-    [quickEditMutation, onProductUpdated],
+    [quickEditProduct, onProductUpdated],
   );
 
   const saveSellingPrice = useCallback(
     async (product: Product, sellingPrice: number) => {
       try {
-        await quickEditMutation.mutateAsync({ id: product.id, sellingPrice });
+        await quickEditProduct({ id: product.id, sellingPrice });
         onProductUpdated();
       } catch {
         toast.error("Failed to update selling price. Please try again.");
       }
     },
-    [quickEditMutation, onProductUpdated],
+    [quickEditProduct, onProductUpdated],
   );
 
   const saveReorderLevel = useCallback(
     async (product: Product, reorderLevel: number) => {
       try {
-        await quickEditMutation.mutateAsync({ id: product.id, reorderLevel });
+        await quickEditProduct({ id: product.id, reorderLevel });
         onProductUpdated();
       } catch {
         toast.error("Failed to update reorder level. Please try again.");
       }
     },
-    [quickEditMutation, onProductUpdated],
+    [quickEditProduct, onProductUpdated],
   );
 
   const saveStockQuantity = useCallback(
     async (product: Product, stockQuantity: number) => {
       try {
-        await stockAuditMutation.mutateAsync({
+        await submitStockAudit({
           items: [
             {
               productId: product.id,
@@ -145,7 +149,7 @@ export function CatalogList({
         toast.error("Failed to update stock. Please try again.");
       }
     },
-    [stockAuditMutation, user?.id, onProductUpdated],
+    [submitStockAudit, user?.id, onProductUpdated],
   );
 
   const scrollRef = useRef<HTMLDivElement>(null);

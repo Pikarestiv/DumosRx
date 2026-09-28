@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { ProductDatabaseFilters } from "./product-database-filters";
 import { AddProductDialog } from "./add-product-dialog";
@@ -65,6 +65,11 @@ export function ProductDatabase() {
     ...queryKeys.products.withDetails(),
     queryFn: () => getProductsWithDetails(),
   });
+
+  // Stable identity: this is a prop of CatalogList, which hands it down to the
+  // memoized CatalogRow. An inline arrow here made every row's save handler
+  // fresh on each render and defeated that memo.
+  const refetchProducts = useCallback(() => void refetch(), [refetch]);
 
   // Transform -> pre-filter -> fuzzy search all used to re-run on every
   // render, i.e. on every keystroke in the product search, over the whole
@@ -273,7 +278,7 @@ export function ProductDatabase() {
           <CatalogList
             isLoading={productsLoading}
             loadFailed={productsLoadFailed}
-            onRetryLoad={() => void refetch()}
+            onRetryLoad={refetchProducts}
             filteredProducts={filteredProducts}
             totalCount={products.length}
             isFuzzyFallback={isFuzzyFallback}
@@ -283,7 +288,7 @@ export function ProductDatabase() {
             sortKey={sortKey}
             sortDirection={direction}
             onToggleSort={toggleSort}
-            onProductUpdated={() => void refetch()}
+            onProductUpdated={refetchProducts}
           />
         </div>
       </div>

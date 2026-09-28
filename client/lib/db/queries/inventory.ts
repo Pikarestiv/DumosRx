@@ -607,6 +607,16 @@ export async function submitStockAudit(
   items: StockAuditSubmission[],
   performedBy: string | null,
 ) {
+  // stock_audits.user_id is a constrained foreign key server-side. Writing a
+  // "system" sentinel here saved fine locally and then failed every push on
+  // the FK, retried through backoff, and surfaced as a permanently stuck
+  // sync item. Every caller — the cycle-count screen, the catalog quick
+  // edit, the CSV import dialog — reads it from useAuth().user?.id on a
+  // route-guarded screen, so there is no legitimate performer-less audit.
+  if (!performedBy) {
+    throw new Error("Cannot record a stock audit without a performing user");
+  }
+
   return transaction(async () => {
     for (const item of items) {
       // Re-read the product's ACTUAL current system quantity inside the
@@ -650,7 +660,7 @@ export async function submitStockAudit(
         actual_selling_price: item.countedSellingPrice ?? null,
         selling_price_difference: sellingDiff || null,
         notes: item.reason || null,
-        user_id: performedBy || "system",
+        user_id: performedBy,
         status: "reconciled",
         reconciled_at: new Date().toISOString(),
       });

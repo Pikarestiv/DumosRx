@@ -190,9 +190,26 @@ describe("importProductRows", () => {
     const noopRun = await importProductRows(
       [{ name: "CYPRI GOLD SMALL SYRUP", quantity: 25, barcode: "114" }],
       undefined,
-      { updateStockForMatched: true },
+      { updateStockForMatched: true, performedBy: "u1" },
     );
     expect(noopRun.stockAdjusted).toBe(0);
+  });
+
+  // A-21: the matched-stock branch reconciles through submitStockAudit(),
+  // whose stock_audits.user_id is a constrained FK server-side. The check
+  // has to happen before the main transaction, or an import commits its
+  // products and only then discovers it can't record the stock audit.
+  it("refuses an updateStockForMatched import with no performing user, before writing anything", async () => {
+    await expect(
+      importProductRows(
+        [{ name: "CYPRI GOLD SMALL SYRUP", quantity: 25, barcode: "114" }],
+        undefined,
+        { updateStockForMatched: true, performedBy: null },
+      ),
+    ).rejects.toThrow(/performing user/i);
+
+    const products = db.exec(`SELECT COUNT(*) FROM products`);
+    expect(products[0].values[0][0]).toBe(0);
   });
 
   it("reports progress after every row and finishes at completed === total", async () => {

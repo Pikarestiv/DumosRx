@@ -149,6 +149,20 @@ export async function importProductRows(
   onProgress?: (completed: number, total: number) => void,
   options?: { updateStockForMatched?: boolean; performedBy?: string | null },
 ): Promise<ImportResult> {
+  // The matched-stock branch below reconciles through submitStockAudit(),
+  // whose stock_audits.user_id is a constrained foreign key server-side —
+  // it now refuses a performer-less audit rather than writing a sentinel
+  // that can only fail on push. Checked here, before a single row is
+  // written, so an import can't commit its products and then abort on the
+  // stock phase. Not a legitimate state: the only caller
+  // (import-mapping-dialog.tsx) is a route-guarded screen that passes
+  // useAuth().user.id.
+  if (options?.updateStockForMatched && !options.performedBy) {
+    throw new Error(
+      "Importing stock for matched products requires a performing user",
+    );
+  }
+
   const result: ImportResult = { created: 0, updated: 0, skipped: [], stockAdjusted: 0 };
   // Collected during the main transaction, applied after it commits: submitStockAudit()
   // opens its own transaction, and this codebase's transaction() serializes
@@ -286,7 +300,7 @@ export async function importProductRows(
         countedQty: u.quantity,
         reason: "Bulk import stock update",
       })),
-      options?.performedBy ?? null,
+      options?.performedBy as string,
     );
   }
 

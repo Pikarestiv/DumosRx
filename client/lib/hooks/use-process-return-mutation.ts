@@ -35,13 +35,23 @@ export function useProcessReturnMutation() {
       itemsToReturn,
       saleItems,
     }: ProcessReturnParams) => {
+      // returns.user_id is a constrained foreign key server-side, so a
+      // sentinel written here only fails much later and somewhere else: the
+      // row saves locally, pushes, is rejected on the FK, retried through
+      // backoff and finally reported as a permanently stuck sync item. The
+      // return dialog is reachable for a frame while useAuth().user is still
+      // null, which is a caller bug worth surfacing here and now.
+      if (!userId) {
+        throw new Error("Cannot process a return without a signed-in user");
+      }
+
       await transaction(async () => {
         // 1. Create return record
         const returnId = await insert(
           "returns",
           {
             sale_id: sale.id,
-            user_id: userId || "system",
+            user_id: userId,
             reason: reason,
             total_refunded: totalRefund,
             created_at: new Date().toISOString(),

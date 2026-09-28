@@ -16,7 +16,7 @@ This file holds **open** items only. Fixed entries move to `docs/FIXED_BUGS.md` 
 
 **Overall health.** The codebase is unusually well-defended for its size: the sync engine's conflict model, the single-writer tab lock, tenant scoping on the server and the money math have all been through several review-and-fix cycles, and both test suites pass cleanly. The new findings in this pass are therefore not the "obvious" classes (cross-tenant leaks, double-charging, silent rollbacks) but the next layer down: **scale limits that were never exercised** (all three found so far have since been fixed — a local database with essentially no indexes, plus the pull engine's own un-resumable page cap and the server tenant-scope that loaded every sale id into PHP memory per request; see `docs/FIXED_BUGS.md`) and **attribution/consistency gaps** on the newest flows (the online-order fulfilment one, `A-4`, has since been fixed too).
 
-**Findings this pass, by severity:** 0 **P0**, 0 **P1**, 1 **P2**, 9 **P3** — 10 open findings from this pass (IDs `A-1`…`A-24`, less the fixed `A-1`, `A-2`, `A-3`, `A-4`, `A-5`, `A-6`, `A-7`, `A-8`, `A-10`, `A-11`, `A-12`, `A-13`, `A-16` and `A-18`), plus 14 still-open items carried from the two earlier passes (`P2-1`, `P3-1`, `P3-2`, `P3-5`, `PG-1`…`PG-10`), all preserved verbatim below.
+**Findings this pass, by severity:** 0 **P0**, 0 **P1**, 1 **P2**, 8 **P3** — 9 open findings from this pass (IDs `A-1`…`A-24`, less the fixed `A-1`, `A-2`, `A-3`, `A-4`, `A-5`, `A-6`, `A-7`, `A-8`, `A-10`, `A-11`, `A-12`, `A-13`, `A-16`, `A-18` and `A-21`), plus 14 still-open items carried from the two earlier passes (`P2-1`, `P3-1`, `P3-2`, `P3-5`, `PG-1`…`PG-10`), all preserved verbatim below.
 
 **Most important risks, in order:**
 
@@ -87,13 +87,6 @@ None open. `A-1` (the pull page cap that made a >100,000-row table un-syncable) 
 **Problem:** On the web/PWA build every write re-serialises the entire database (`saveDatabase()` → `db.export()`, see `docs/DATABASE_CONCURRENCY.md` §2.4). `audit_logs` grows by 10–15 rows per sale forever and is pulled to every device, so the export cost, the IndexedDB blob size and the memory footprint grow without bound. The benchmark's synthetic year-old store exports at the size shown in §5 on every write.
 **Recommended fix:** Local retention for `audit_logs` (keep N days locally once `_synced = 1`; the server keeps the full trail), and stop pulling `audit_logs` to devices that never render it.
 **Confidence:** High.
-
-#### [P3] A-21. `returns.user_id`/`stock_audits.user_id` fall back to the literal string `"system"`, which violates the server's foreign key
-**Category:** Sync / Data — **Potential issue requiring verification**
-**Location:** `client/lib/hooks/use-process-return-mutation.ts:44` (`user_id: userId || "system"`), `client/lib/db/queries/inventory.ts:653` (`user_id: performedBy || "system"`), `laravel-server/database/migrations/2026_06_22_190000_create_returns_system_tables.php:17` (`foreignUuid('user_id')->constrained('users')`).
-**Problem:** If the caller ever passes an undefined user (the return dialog is reachable while `useAuth().user` is null for a frame; the audit path is also reached from CSV import with `performedBy` from the caller), the row is written locally but every push fails with an FK error, is retried through backoff and reported as a stuck sync item after 5 attempts — the exact "feedback anonymous user" failure shape already fixed for another table.
-**Recommended fix:** Require a real user id (throw early) rather than a sentinel.
-**Confidence:** Medium.
 
 #### [P3] A-22. `saveDatabase()` calls are not serialised and there is no flush on `pagehide` (carried from `docs/DATABASE_CONCURRENCY.md` §2.4, still open)
 **Category:** Data / Persistence (web/PWA) — **Confirmed by reading; not observed**
@@ -230,7 +223,6 @@ Synthetic dataset built from the app's own `SCHEMA_SQL` plus the migration-added
 ## 6. Offline / sync / database risks
 
 - **A-9** — multi-device PO receipt has no server-side idempotency beyond the version check on one of its rows.
-- **A-21** — sentinel user ids can produce permanently-stuck queue items.
 - **A-22** — unserialised `saveDatabase()`; no `pagehide` flush.
 - **`docs/DATABASE_CONCURRENCY.md` status check:** its three short-term items are done — `restoreDatabase()`/`resetDatabase()`/`clearDatabaseForNewStore()` now call `assertWritable()` (`core.ts:933, 1340, 1372`), the queued-promotion rejection is scoped away from the outer `.catch` (`tab-lock.ts:314-329`), and the graceful handoff + `steal` fallback with UI exists (`tab-lock.ts:177-246`, `DatabaseProvider.tsx:67-90`). Two of its "cheap" items remain (A-22). Two residual notes on the new handoff code: `resetDatabase()`/`clearDatabaseForNewStore()` still call `db.run()` directly rather than through `reserveDbSlot()`, so they can interleave with an in-flight yielding `query()`; and a stolen-from tab only learns it lost the lock via the `steal-notice` broadcast, which a frozen tab receives only on thaw — its `holdUntilTakeover()` promise is rejected by the browser first, and `writerTab` stays `true` until the notice arrives (the doc's "frozen holder that later thaws" caveat still applies).
 - **Server-side row-lock duration:** `SyncController::push()` holds `lockForUpdate()` row locks for the whole outer transaction (documented at `:383-393`); with 50-change batches from several devices this is bounded but is the first place to look if "Lock wait timeout" appears in server logs.
@@ -276,6 +268,6 @@ Synthetic dataset built from the app's own `SCHEMA_SQL` plus the migration-added
 Ordered by technical impact and by which fixes unblock or de-risk others — not by ease.
 
 1. **PG-2 then PG-1** (carried) — the storefront webhook/reconciliation path and the gateway pinning; still the largest real-world money-loss surface.
-2. **A-9, A-21, A-17** — sync/data-integrity edge cases; each is small and self-contained now that the index/pagination work is in.
+2. **A-9, A-17** — sync/data-integrity edge cases; each is small and self-contained now that the index/pagination work is in.
 3. **A-14, A-15, A-19, A-20, A-22, A-23, A-24** — hygiene and architecture debt; A-15 (enforce `tsc`/tests in CI, `npm ci`) is the one worth doing early because it protects everything else.
 4. **P2-1** (ops confirmation) and the accepted **P3-1/P3-2/P3-5**, **PG-3…PG-10** as previously scheduled.

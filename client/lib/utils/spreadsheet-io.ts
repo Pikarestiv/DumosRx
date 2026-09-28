@@ -1,4 +1,8 @@
-import ExcelJS from "exceljs";
+// Type-only: exceljs is ~1MB and every module that touches a product import
+// or export pulls this file in, so the library itself is loaded lazily inside
+// the two functions that actually run it (see below). A value import here put
+// it in the Inventory > Catalog route chunk for everyone.
+import type ExcelJS from "exceljs";
 
 /**
  * CSV/XLSX plumbing, split out of product-import-export.ts (which had grown
@@ -212,7 +216,8 @@ export async function readWorkbookFile(file: File): Promise<ParsedWorkbook> {
   // .xlsx (or an unrecognized extension - let exceljs's own parser reject
   // it with its own error rather than guessing).
   const buffer = await file.arrayBuffer();
-  const workbook = new ExcelJS.Workbook();
+  const { default: ExcelJSRuntime } = await import("exceljs");
+  const workbook = new ExcelJSRuntime.Workbook();
   await workbook.xlsx.load(buffer);
   const sheetNames = workbook.worksheets.map((ws) => ws.name);
   return {
@@ -254,7 +259,8 @@ export async function buildBlobFromRows(
     return new Blob([csv], { type: "text/csv;charset=utf-8;" });
   }
 
-  const workbook = new ExcelJS.Workbook();
+  const { default: ExcelJSRuntime } = await import("exceljs");
+  const workbook = new ExcelJSRuntime.Workbook();
   const worksheet = workbook.addWorksheet(sheetName);
   worksheet.addRow(headers);
   for (const row of data) {

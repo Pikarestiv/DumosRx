@@ -13,11 +13,8 @@ import {
 import { useStore } from "@/lib/context/store-context";
 import { capitalizeWords } from "@/lib/hooks/use-uppercase-display";
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
-import {
-  generateReportPdfBlob,
-  downloadBlob,
-  openBlobForPrint,
-} from "@/lib/utils/report-pdf";
+import { generateReportPdfBlob } from "@/lib/utils/report-pdf";
+import { downloadBlob, openBlobForPrint } from "@/lib/utils/download-blob";
 
 export interface RecentDownload {
   id: string;

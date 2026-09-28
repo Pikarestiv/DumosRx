@@ -1501,8 +1501,15 @@ same tab session still gets its own fresh one-time retry.
   time, its shared template lives in one `gridStyle` object spread onto the
   header row and every body row instead of a Tailwind `grid-cols-[...]`
   class — the rule is "one template, one place", not "must be a class".
-  **Still outstanding:** `components/stock-batch/stock-audits.tsx` is the
-  last raw `<table>` in the app; migrate it when that file is next touched.
+  `components/stock-batch/stock-audits.tsx`'s off-screen printable sheet
+  followed on the same day, and is the one documented **layout** exception:
+  it is div-based with the same ARIA roles, but laid out with `display:
+  table*` utilities (`table` / `table-header-group` / `table-row` /
+  `table-cell`) instead of CSS Grid, because a browser only repeats a header
+  across printed pages when that header box is a `table-header-group`, and
+  that sheet routinely runs to several pages. Any other **print-only** sheet
+  should copy that shape; on-screen tables stay on grid. No raw `<table>`
+  elements remain in the app outside the unused `components/ui/table.tsx`.
 - **Dense "ledger" tables** (receive-goods, stock audit): same div/grid/ARIA
   pattern, with a `sticky left-0` item-name column and `overflow-x-auto` on
   the wrapper: the agreed pattern for "QuickBooks/Moniebook-style" dense

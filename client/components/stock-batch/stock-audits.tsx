@@ -338,31 +338,44 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
           <p className="text-sm text-muted-foreground mb-4">
             {items.length} product(s)
           </p>
-          <table className="w-full text-sm border-collapse">
-            <thead>
-              <tr>
+          {/* Div-based with ARIA roles per the no-raw-<table> rule, but laid
+             out with `display: table*` rather than grid: printed page-break
+             header repetition keys off `table-header-group`, and this sheet
+             routinely runs to several pages. */}
+          <div
+            role="table"
+            aria-label="Stock audit sheet"
+            className="table w-full border-collapse text-sm"
+          >
+            <div role="rowgroup" className="table-header-group">
+              <div role="row" className="table-row">
                 {auditHeaders.map((h) => (
-                  <th
+                  <div
                     key={h}
-                    className="border border-border px-2 py-1 text-left"
+                    role="columnheader"
+                    className="table-cell border border-border px-2 py-1 text-left font-bold"
                   >
                     {h}
-                  </th>
+                  </div>
                 ))}
-              </tr>
-            </thead>
-            <tbody>
+              </div>
+            </div>
+            <div role="rowgroup" className="table-row-group">
               {auditRowData.map((row, i) => (
-                <tr key={i}>
+                <div key={i} role="row" className="table-row">
                   {auditHeaders.map((h) => (
-                    <td key={h} className="border border-border px-2 py-1">
+                    <div
+                      key={h}
+                      role="cell"
+                      className="table-cell border border-border px-2 py-1"
+                    >
                       {String(row[h] ?? "")}
-                    </td>
+                    </div>
                   ))}
-                </tr>
+                </div>
               ))}
-            </tbody>
-          </table>
+            </div>
+          </div>
         </div>
       </div>
       )}

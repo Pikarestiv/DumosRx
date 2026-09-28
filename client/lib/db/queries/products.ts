@@ -66,9 +66,11 @@ export async function getProductBasicInfo(productId: string) {
 }
 
 /** The weighted-average cost across a product's active batches - the same
- * figure getProductsWithDetails() derives for the catalog. Read on its own
- * right after a receipt so the confirmation can state what the catalog will
- * now show, which is never the single cost that was just typed. */
+ * DISPLAY figure getProductsWithDetails() derives for the catalog. Nothing
+ * computes on it (margin/COGS and FEFO deduction read each batch's own
+ * cost_price); it is read here only so the post-receive confirmation can
+ * state what the catalog will now show alongside the singular batch cost
+ * that was actually typed. */
 export async function getAverageCostPrice(productId: string): Promise<number | null> {
   const rows = await query<{ cost_price: number | null }>(
     `SELECT SUM(cost_price * quantity) * 1.0 / NULLIF(SUM(quantity), 0) as cost_price

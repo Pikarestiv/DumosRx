@@ -183,18 +183,18 @@ export function countSellingPriceOverrides(
 }
 
 /**
- * The product ids on a receipt that carried a real cost override. Product
- * cost is always a weighted average across active batches (see
- * getProductsWithDetails in lib/db/queries/products.ts), never a single
- * stored value, so receiving a small batch barely moves a large existing
- * average and reads as "the cost didn't save". This drives the
- * post-receive confirmation that says otherwise.
+ * The lines on a receipt that carried a real cost override, with the cost
+ * that was typed. Each batch keeps its own singular cost_price, and that is
+ * what margin/COGS and FEFO deduction use; the catalog's averaged cost is a
+ * display figure only. This drives the post-receive confirmation that says
+ * so, because a small new batch barely moves a large displayed average and
+ * therefore reads as "the cost didn't save".
  */
-export function costOverriddenProductIds(
+export function costOverriddenLines(
   items: { product_id?: string; cost_price?: number | string }[],
-): string[] {
+): { productId: string; cost: number }[] {
   return items
     .filter((item) => item.cost_price != null && item.cost_price !== "")
-    .map((item) => item.product_id)
-    .filter((id): id is string => !!id);
+    .filter((item): item is { product_id: string; cost_price: number | string } => !!item.product_id)
+    .map((item) => ({ productId: item.product_id, cost: Number(item.cost_price) }));
 }

@@ -74,7 +74,7 @@ describe("usePurchaseOrders handleReceivePO selling-price toast", () => {
     expect(toast.success).not.toHaveBeenCalledWith(expect.stringContaining("Selling price updated"));
   });
 
-  it("toasts what the blended Avg. Cost is now, when a cost override was typed", async () => {
+  it("confirms the singular batch cost that was typed, and names Avg. Cost as the display figure", async () => {
     const { usePurchaseOrders } = await import("@/lib/hooks/use-purchase-orders");
     const { result } = renderHook(() => usePurchaseOrders(), { wrapper });
 
@@ -85,9 +85,9 @@ describe("usePurchaseOrders handleReceivePO selling-price toast", () => {
     });
 
     expect(toast.success).toHaveBeenCalledWith(
-      "Cost recorded for 1 item",
+      expect.stringContaining("Cost recorded at"),
       expect.objectContaining({
-        description: expect.stringContaining("Avg. Cost is now"),
+        description: expect.stringContaining("display figure"),
       }),
     );
   });

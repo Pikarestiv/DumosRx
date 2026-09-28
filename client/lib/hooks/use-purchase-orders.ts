@@ -12,7 +12,7 @@ import {
 import { genericFuzzySearch } from "@/lib/utils/search";
 import { errorDescription } from "@/lib/utils/error-description";
 import {
-  costOverriddenProductIds,
+  costOverriddenLines,
   countSellingPriceOverrides,
 } from "@/components/procurement/po-line-item-math";
 import { getAverageCostPrice } from "@/lib/db/queries/products";
@@ -22,29 +22,36 @@ import { queryKeys } from "@/lib/query-keys";
 import { useAuth } from "@/lib/context/auth-context";
 import { useHasPermission } from "@/lib/hooks/use-permissions";
 
-/** Product cost is a weighted average across every active batch, so a new
- * batch blends into it rather than replacing it - which reads as "the cost
- * I typed didn't save". This says what actually happened, mirroring the
- * selling-price-override confirmation right above its call site. */
+/** Each stock batch keeps the singular cost it was received at, and that is
+ * the figure margin/COGS and FEFO deduction use - the catalog's Avg. Cost is
+ * a display/reporting summary across batches, which a small new batch barely
+ * moves, so a correctly-saved cost still reads as "nothing happened". This
+ * confirmation states both, mirroring the selling-price-override toast right
+ * above its call site. */
 async function notifyCostRecorded(
   receivedItems: ReceivedItem[],
   currencyCode?: string,
 ) {
-  const productIds = costOverriddenProductIds(receivedItems);
-  if (productIds.length === 0) return;
+  const lines = costOverriddenLines(receivedItems);
+  if (lines.length === 0) return;
 
-  const blendedAverage =
-    productIds.length === 1 ? await getAverageCostPrice(productIds[0]) : null;
+  if (lines.length > 1) {
+    toast.success(`Cost recorded for ${lines.length} items`, {
+      description:
+        "Each new batch keeps the cost you typed. The catalog's Avg. Cost is a display figure across all batches, so it won't match any single one.",
+    });
+    return;
+  }
 
+  const [line] = lines;
+  const blendedAverage = await getAverageCostPrice(line.productId);
   toast.success(
-    productIds.length === 1
-      ? "Cost recorded for 1 item"
-      : `Cost recorded for ${productIds.length} items`,
+    `Cost recorded at ${formatCurrency(line.cost, currencyCode)} for 1 item`,
     {
       description:
         blendedAverage != null
-          ? `Avg. Cost is now ${formatCurrency(blendedAverage, currencyCode)} - the new batch blends with the stock you already had, so it won't match what you typed.`
-          : "Avg. Cost blends each new batch with the stock you already had, so the catalog figure won't match what you typed.",
+          ? `This batch's cost is what margin on this stock uses. The catalog's Avg. Cost, a display figure across all batches, is now ${formatCurrency(blendedAverage, currencyCode)}.`
+          : "This batch's cost is what margin on this stock uses; the catalog's Avg. Cost is a display figure across all batches.",
     },
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { Search, Users } from "lucide-react";
+import { AlertCircle, Search, Users } from "lucide-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Customer } from "@/lib/hooks/use-customer-data";
 import { Card } from "@/components/ui/card";
@@ -20,6 +20,9 @@ const DESKTOP_ROW_HEIGHT = 56;
 
 interface DirectoryTabProps {
   customers: Customer[];
+  /** The customer read itself failed, as opposed to returning zero rows. */
+  loadFailed?: boolean;
+  onRetryLoad?: () => void;
   searchTerm: string;
   onSearchChange: (val: string) => void;
   selectedCustomer: Customer | null;
@@ -34,6 +37,18 @@ interface DirectoryTabProps {
 }
 
 type CustFilter = "all" | "debt" | "loyalty";
+
+function CustomersLoadFailed({ onRetry }: { onRetry?: () => void }) {
+  return (
+    <EmptyState
+      icon={AlertCircle}
+      title="Couldn't load customers on this device"
+      description="The customer list couldn't be read from this device's local database. Nothing is lost — try again."
+      className="p-8"
+      action={onRetry ? { label: "Retry", onClick: onRetry } : undefined}
+    />
+  );
+}
 
 function NoCustomersFound({
   isAuditor,
@@ -58,6 +73,8 @@ function NoCustomersFound({
 
 export function DirectoryTab({
   customers,
+  loadFailed = false,
+  onRetryLoad,
   searchTerm,
   onSearchChange,
   selectedCustomer,
@@ -190,7 +207,8 @@ export function DirectoryTab({
               getTierColor={getTierColor}
             />
           ))}
-          {filteredCustomers.length === 0 && (
+          {loadFailed && <CustomersLoadFailed onRetry={onRetryLoad} />}
+          {!loadFailed && filteredCustomers.length === 0 && (
             <NoCustomersFound isAuditor={isAuditor} onAddCustomer={onAddCustomer} />
           )}
         </div>
@@ -276,7 +294,8 @@ export function DirectoryTab({
               })}
             </div>
           )}
-          {filteredCustomers.length === 0 && (
+          {loadFailed && <CustomersLoadFailed onRetry={onRetryLoad} />}
+          {!loadFailed && filteredCustomers.length === 0 && (
             <NoCustomersFound isAuditor={isAuditor} onAddCustomer={onAddCustomer} />
           )}
         </div>

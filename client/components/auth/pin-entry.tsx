@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/input-otp";
 import { PinPad } from "@/components/ui/pin-pad";
 import { useIsTouchDevice } from "@/lib/hooks/use-is-touch-device";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 interface PinEntryProps {
   selectedUser: RecentUser;
@@ -47,6 +48,7 @@ export function PinEntry({
   // on-screen PinPad (which never depends on the OS actually deciding to show
   // a keyboard); everything else gets the native keyboard via inputMode.
   const isTouchDevice = useIsTouchDevice();
+  const [showForgotPin, setShowForgotPin] = React.useState(false);
 
   return (
     <motion.div
@@ -143,6 +145,16 @@ export function PinEntry({
               Incorrect PIN. Please try again.
             </div>
           ) : null}
+
+          <div className="mt-3 text-center">
+            <button
+              type="button"
+              className="text-[12px] font-semibold text-muted-foreground underline underline-offset-2 hover:text-foreground cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+              onClick={() => setShowForgotPin(true)}
+            >
+              Forgot PIN?
+            </button>
+          </div>
         </div>
 
         {isTouchDevice && !isLockedOut && (
@@ -168,6 +180,29 @@ export function PinEntry({
           </Button>
         </div>
       </form>
+
+      <ConfirmDialog
+        open={showForgotPin}
+        onOpenChange={setShowForgotPin}
+        title="Forgot your PIN?"
+        variant="default"
+        confirmLabel="Got it"
+        hideCancel
+        description={
+          <div className="space-y-2 text-left">
+            <p>
+              A PIN can only be reset by an admin on this store — it is stored
+              hashed on the device and can&apos;t be recovered or emailed.
+            </p>
+            <p>
+              Ask an admin to open <strong>Settings &rarr; Staff</strong>, edit
+              your account and set a new PIN. They can do it on this device,
+              offline.
+            </p>
+          </div>
+        }
+        onConfirm={() => setShowForgotPin(false)}
+      />
     </motion.div>
   );
 }

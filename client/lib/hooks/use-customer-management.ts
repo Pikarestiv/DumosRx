@@ -128,8 +128,15 @@ export function useCustomerManagement() {
   const { storeType, storeProfile } = useStore();
   const isStore = storeType === "pharmacy";
 
-  const { customers, metrics, fetchCustomers, addCustomer, updateCustomer, recordPayment } =
-    useCustomerData();
+  const {
+    customers,
+    metrics,
+    loadFailed,
+    fetchCustomers,
+    addCustomer,
+    updateCustomer,
+    recordPayment,
+  } = useCustomerData();
 
   usePullToRefreshHandler(fetchCustomers);
 
@@ -260,6 +267,8 @@ export function useCustomerManagement() {
     metrics,
     loyaltyTiers,
     filteredCustomers,
+    customersLoadFailed: loadFailed,
+    onRetryLoadCustomers: fetchCustomers,
     getTierColor,
 
     activeTab,

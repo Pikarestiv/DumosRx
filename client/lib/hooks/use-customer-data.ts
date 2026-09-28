@@ -129,6 +129,7 @@ export function useCustomerData() {
   const {
     data,
     isLoading: loading,
+    isError: loadFailed,
     refetch,
   } = useQuery({
     ...queryKeys.customers.all(),
@@ -217,6 +218,7 @@ export function useCustomerData() {
     customers,
     metrics,
     loading,
+    loadFailed,
     fetchCustomers,
     addCustomer,
     updateCustomer,

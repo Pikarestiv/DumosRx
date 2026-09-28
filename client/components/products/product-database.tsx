@@ -54,7 +54,12 @@ export function ProductDatabase() {
 
   const isStore = storeType === "pharmacy";
 
-  const { data: rawProducts, isLoading: productsLoading, refetch } = useQuery({
+  const {
+    data: rawProducts,
+    isLoading: productsLoading,
+    isError: productsLoadFailed,
+    refetch,
+  } = useQuery({
     ...queryKeys.products.withDetails(),
     queryFn: () => getProductsWithDetails(),
   });
@@ -256,6 +261,8 @@ export function ProductDatabase() {
           />
           <CatalogList
             isLoading={productsLoading}
+            loadFailed={productsLoadFailed}
+            onRetryLoad={() => void refetch()}
             filteredProducts={filteredProducts}
             totalCount={products.length}
             isFuzzyFallback={isFuzzyFallback}

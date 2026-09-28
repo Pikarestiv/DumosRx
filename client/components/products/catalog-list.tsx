@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { ChevronRight } from "lucide-react";
+import { AlertCircle, ChevronRight } from "lucide-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -13,6 +13,7 @@ import {
   EditableQuickNumberCell,
 } from "./catalog-editable-cells";
 import { CatalogListSkeleton, EmptyCatalogList } from "./catalog-list-states";
+import { EmptyState } from "@/components/ui/empty-state";
 import { useQuickEditProductMutation } from "@/lib/hooks/use-product-quick-edit-mutation";
 import { useSubmitStockAuditMutation } from "@/lib/hooks/use-stock-audit-mutation";
 import { useHasTouchCapability } from "@/lib/hooks/use-has-touch-capability";
@@ -31,6 +32,9 @@ type ProductSortKey =
 
 interface CatalogListProps {
   isLoading?: boolean;
+  /** The catalog read itself failed, as opposed to returning zero rows. */
+  loadFailed?: boolean;
+  onRetryLoad?: () => void;
   filteredProducts: Product[];
   totalCount: number;
   isFuzzyFallback: boolean;
@@ -45,6 +49,8 @@ interface CatalogListProps {
 
 export function CatalogList({
   isLoading = false,
+  loadFailed = false,
+  onRetryLoad,
   filteredProducts,
   totalCount,
   isFuzzyFallback,
@@ -187,7 +193,15 @@ export function CatalogList({
         className="flex-1 overflow-y-auto py-3 sm:py-0 mb-4"
       >
         {isLoading && filteredProducts.length === 0 && <CatalogListSkeleton />}
-        {!isLoading && filteredProducts.length === 0 && (
+        {!isLoading && loadFailed && (
+          <EmptyState
+            icon={AlertCircle}
+            title="Couldn't load the catalog on this device"
+            description="The product list couldn't be read from this device's local database. Nothing is lost — try again."
+            action={onRetryLoad ? { label: "Retry", onClick: onRetryLoad } : undefined}
+          />
+        )}
+        {!isLoading && !loadFailed && filteredProducts.length === 0 && (
           <EmptyCatalogList
             totalCount={totalCount}
             isAdmin={isAdmin}

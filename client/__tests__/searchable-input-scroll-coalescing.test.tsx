@@ -74,7 +74,7 @@ describe("SearchableInput scroll handling", () => {
     const { container } = render(
       <SearchableInput
         value=""
-        onChange={() => {}}
+        onValueChange={() => {}}
         options={["Painkillers", "Antibiotics"]}
       />,
     );

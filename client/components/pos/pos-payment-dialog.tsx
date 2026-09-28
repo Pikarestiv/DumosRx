@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
+import { calculateCashShortfall } from "@/lib/utils/pos-calculations";
 
 import { useDefaultPaymentAccounts } from "@/lib/hooks/use-default-payment-accounts";
 import { useStore } from "@/lib/context/store-context";
@@ -180,6 +181,7 @@ export function POSPaymentDialog({
             <label className="text-sm font-medium">Amount Paid (Cash)</label>
             <Input
               type="number"
+              inputMode="decimal"
               placeholder="0.00"
               value={amountPaid}
               onChange={(e) => setAmountPaid(e.target.value)}
@@ -193,6 +195,15 @@ export function POSPaymentDialog({
                   Number.parseFloat(amountPaid) - total,
                   currencyCode,
                 )}
+              </p>
+            )}
+            {calculateCashShortfall(Number.parseFloat(amountPaid), total) > 0 && (
+              <p className="text-sm text-destructive font-medium mt-1">
+                {formatCurrency(
+                  calculateCashShortfall(Number.parseFloat(amountPaid), total),
+                  currencyCode,
+                )}{" "}
+                short
               </p>
             )}
           </div>

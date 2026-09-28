@@ -59,6 +59,14 @@ export function calculateChangeDue(amountPaid: number, total: number): number {
   return Math.max(0, amountPaid - total);
 }
 
+/** How much is still owed on a cash tender, 0 once it covers the total.
+ * Mirrors calculateChangeDue for the other direction so the payment dialog
+ * can report a shortfall inline while typing instead of only after submit. */
+export function calculateCashShortfall(amountPaid: number, total: number): number {
+  if (!Number.isFinite(amountPaid) || total < 0) return 0;
+  return roundMoney(Math.max(0, total - Math.max(0, amountPaid)));
+}
+
 export function calculateTaxPercentage(
   taxAmount: number,
   subtotal: number

@@ -37,6 +37,7 @@ export function POSSystem() {
     setShowClearCartDialog,
     heldSalesCount,
     loadingProducts,
+    productsLoadFailed,
     refetchProducts,
     recentSales,
     refetchSales,
@@ -202,6 +203,8 @@ export function POSSystem() {
 
                 <POSProductList
                   loadingProducts={loadingProducts}
+                  productsLoadFailed={productsLoadFailed}
+                  onRetryLoadProducts={() => void refetchProducts()}
                   filteredProducts={filteredProducts}
                   isFuzzyFallback={isFuzzyFallback}
                   addToCart={handleAddToCart}
@@ -263,7 +266,7 @@ export function POSSystem() {
         currencyCode={storeProfile?.currency}
         updateQuantity={updateQuantity}
         removeFromCart={removeFromCart}
-        clearCart={clearCart}
+        onRequestClearCart={() => setShowClearCartDialog(true)}
         onCheckout={withRestriction(() => setShowPaymentDialog(true))}
         onHoldSale={() => void handleHoldTransaction()}
         heldSalesCount={heldSalesCount}

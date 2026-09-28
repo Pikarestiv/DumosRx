@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { toast } from "sonner";
@@ -94,6 +94,10 @@ export function clearPOSCartStorage() {
   });
 }
 
+export function formatInsufficientStock(availableStock: number) {
+  return `Insufficient stock — only ${availableStock} unit${availableStock === 1 ? "" : "s"} available`;
+}
+
 export function usePOSCart(products: Product[]) {
   const { vatPercentage } = useStore();
   const { canUseLoyaltyProgram } = useFeatureGate();
@@ -115,30 +119,39 @@ export function usePOSCart(products: Product[]) {
   // slot (by design, to keep a single source of truth for "the" discount) —
   // editing the discount by hand while a reward is redeemed detaches it from
   // that reward, since the point cost no longer corresponds to what's typed.
-  const setDiscount = (value: number) => {
-    setStoreDiscount(value);
-    setRedeemedOption(null);
-  };
-  const setDiscountType = (type: "fixed" | "percentage") => {
-    setStoreDiscountType(type);
-    setRedeemedOption(null);
-  };
+  const setDiscount = useCallback(
+    (value: number) => {
+      setStoreDiscount(value);
+      setRedeemedOption(null);
+    },
+    [setStoreDiscount, setRedeemedOption],
+  );
+  const setDiscountType = useCallback(
+    (type: "fixed" | "percentage") => {
+      setStoreDiscountType(type);
+      setRedeemedOption(null);
+    },
+    [setStoreDiscountType, setRedeemedOption],
+  );
 
-  const redeemReward = (option: { id: string; label: string; points_cost: number; discount_value: number }) => {
-    setStoreDiscount(option.discount_value);
-    setStoreDiscountType("fixed");
-    setRedeemedOption({
-      id: option.id,
-      label: option.label,
-      pointsCost: option.points_cost,
-      discountValue: option.discount_value,
-    });
-  };
+  const redeemReward = useCallback(
+    (option: { id: string; label: string; points_cost: number; discount_value: number }) => {
+      setStoreDiscount(option.discount_value);
+      setStoreDiscountType("fixed");
+      setRedeemedOption({
+        id: option.id,
+        label: option.label,
+        pointsCost: option.points_cost,
+        discountValue: option.discount_value,
+      });
+    },
+    [setStoreDiscount, setStoreDiscountType, setRedeemedOption],
+  );
 
-  const clearRedemption = () => {
+  const clearRedemption = useCallback(() => {
     setStoreDiscount(0);
     setRedeemedOption(null);
-  };
+  }, [setStoreDiscount, setRedeemedOption]);
 
   useEffect(() => {
     setIsHydrated(true);
@@ -175,16 +188,67 @@ export function usePOSCart(products: Product[]) {
     [subtotal, tax, calculatedDiscount]
   );
 
-  const addToCart = (product: Product) => {
-    const existingItem = cart.find((item) => item.id === product.id);
+  const removeFromCart = useCallback(
+    (id: string) => {
+      const removed = cart.find((item) => item.id === id);
+      setCart((prev) => prev.filter((item) => item.id !== id));
+      if (!removed) return;
+      // A swipe-to-remove is easy to trigger by accident while scrolling the
+      // cart on a phone, so every removal is reversible rather than silent.
+      toast(`${removed.name} removed from cart`, {
+        action: {
+          label: "Undo",
+          onClick: () =>
+            setCart((prev) =>
+              prev.some((item) => item.id === removed.id) ? prev : [...prev, removed],
+            ),
+        },
+      });
+    },
+    [cart, setCart],
+  );
 
-    if (existingItem) {
-      if (existingItem.quantity < product.stock) {
-        updateQuantity(product.id, existingItem.quantity + 1);
-      } else {
-        toast.warning("Insufficient stock available");
+  const updateQuantity = useCallback(
+    (id: string, newQuantity: number) => {
+      if (newQuantity <= 0) {
+        removeFromCart(id);
+        return;
       }
-    } else {
+
+      const product = products.find((m) => m.id === id);
+      if (product && newQuantity > product.stock) {
+        toast.warning(formatInsufficientStock(product.stock));
+        return;
+      }
+
+      setCart((prev) =>
+        prev.map((item) =>
+          item.id === id
+            ? {
+                ...item,
+                quantity: newQuantity,
+                subtotal: item.unit_price * newQuantity,
+              }
+            : item,
+        ),
+      );
+    },
+    [products, setCart, removeFromCart],
+  );
+
+  const addToCart = useCallback(
+    (product: Product) => {
+      const existingItem = cart.find((item) => item.id === product.id);
+
+      if (existingItem) {
+        if (existingItem.quantity < product.stock) {
+          updateQuantity(product.id, existingItem.quantity + 1);
+        } else {
+          toast.warning(formatInsufficientStock(product.stock));
+        }
+        return;
+      }
+
       if (product.stock > 0) {
         const cartItem: CartItem = {
           ...product,
@@ -197,88 +261,69 @@ export function usePOSCart(products: Product[]) {
       } else {
         toast.error("This item is out of stock");
       }
-    }
-  };
+    },
+    [cart, setCart, updateQuantity],
+  );
 
-  const updateQuantity = (id: string, newQuantity: number) => {
-    if (newQuantity <= 0) {
-      removeFromCart(id);
-      return;
-    }
-
-    const product = products.find((m) => m.id === id);
-    if (product && newQuantity > product.stock) {
-      toast.warning("Insufficient stock available");
-      return;
-    }
-
-    setCart((prev) =>
-      prev.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              quantity: newQuantity,
-              subtotal: item.unit_price * newQuantity,
-            }
-          : item,
-      ),
-    );
-  };
-
-  const removeFromCart = (id: string) => {
-    setCart((prev) => prev.filter((item) => item.id !== id));
-  };
-
-  const updateUnitPrice = (id: string, newPrice: number) => {
-    setCart((prev) =>
-      prev.map((item) => {
-        if (item.id !== id) return item;
-        // A reseller sale can only mark price up, never down - clamped here
-        // too, not just in the input's `min`, so a pasted/typed value below
-        // the floor can't get through either.
-        const clamped = Math.max(newPrice, item.original_unit_price);
-        return { ...item, unit_price: clamped, subtotal: clamped * item.quantity };
-      }),
-    );
-  };
-
-  const setIsResellerSale = (value: boolean) => {
-    setStoreIsResellerSale(value);
-    if (!value) {
-      // Turning reseller mode off with marked-up prices still in the cart
-      // would silently keep charging the marked-up amount with no
-      // commission tracked for it - revert every line back to normal.
+  const updateUnitPrice = useCallback(
+    (id: string, newPrice: number) => {
       setCart((prev) =>
-        prev.map((item) => ({
-          ...item,
-          unit_price: item.original_unit_price,
-          subtotal: item.original_unit_price * item.quantity,
-        })),
+        prev.map((item) => {
+          if (item.id !== id) return item;
+          // A reseller sale can only mark price up, never down - clamped here
+          // too, not just in the input's `min`, so a pasted/typed value below
+          // the floor can't get through either.
+          const clamped = Math.max(newPrice, item.original_unit_price);
+          return { ...item, unit_price: clamped, subtotal: clamped * item.quantity };
+        }),
       );
-      setMarkupType(null);
-    }
-  };
+    },
+    [setCart],
+  );
 
-  const clearCart = () => {
+  const setIsResellerSale = useCallback(
+    (value: boolean) => {
+      setStoreIsResellerSale(value);
+      if (!value) {
+        // Turning reseller mode off with marked-up prices still in the cart
+        // would silently keep charging the marked-up amount with no
+        // commission tracked for it - revert every line back to normal.
+        setCart((prev) =>
+          prev.map((item) => ({
+            ...item,
+            unit_price: item.original_unit_price,
+            subtotal: item.original_unit_price * item.quantity,
+          })),
+        );
+        setMarkupType(null);
+      }
+    },
+    [setStoreIsResellerSale, setCart, setMarkupType],
+  );
+
+  const clearCart = useCallback(() => {
     setCart([]);
     setDiscount(0);
     setStoreIsResellerSale(false);
     setMarkupType(null);
-  };
+  }, [setCart, setDiscount, setStoreIsResellerSale, setMarkupType]);
 
-  const restoreCart = (
-    items: CartItem[],
-    restoredDiscount?: number,
-    restoredDiscountType?: "fixed" | "percentage",
-  ) => {
-    setCart(items);
-    // A held transaction never persisted a redemption (only its resulting
-    // discount amount), so any redemption tag from before this restore is
-    // now stale and must not carry over.
-    setRedeemedOption(null);
-    if (restoredDiscount !== undefined) setStoreDiscount(restoredDiscount);
-    if (restoredDiscountType !== undefined) setStoreDiscountType(restoredDiscountType);
-  };
+  const restoreCart = useCallback(
+    (
+      items: CartItem[],
+      restoredDiscount?: number,
+      restoredDiscountType?: "fixed" | "percentage",
+    ) => {
+      setCart(items);
+      // A held transaction never persisted a redemption (only its resulting
+      // discount amount), so any redemption tag from before this restore is
+      // now stale and must not carry over.
+      setRedeemedOption(null);
+      if (restoredDiscount !== undefined) setStoreDiscount(restoredDiscount);
+      if (restoredDiscountType !== undefined) setStoreDiscountType(restoredDiscountType);
+    },
+    [setCart, setRedeemedOption, setStoreDiscount, setStoreDiscountType],
+  );
 
   return {
     cart: isHydrated ? cart : [],

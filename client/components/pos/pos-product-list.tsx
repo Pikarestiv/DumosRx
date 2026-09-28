@@ -38,6 +38,10 @@ interface POSProductListProps {
   canUseSmartSuggestions?: boolean;
   onUpgradeClick?: () => void;
   displayStockLevels?: boolean;
+  /** True when the catalog read itself failed, as opposed to succeeding with
+   * zero rows — the two render different states (see docs/UX-PERF-FIXES.md). */
+  productsLoadFailed?: boolean;
+  onRetryLoadProducts?: () => void;
   /** Shared scroll container this list renders inside of — see
    * VirtualizedProductGrid's own doc comment for why it can't create its
    * own. */
@@ -160,6 +164,8 @@ export function POSProductList({
   canUseSmartSuggestions = false,
   onUpgradeClick,
   displayStockLevels = true,
+  productsLoadFailed = false,
+  onRetryLoadProducts,
   scrollElementRef,
 }: POSProductListProps) {
   const [showRequestDialog, setShowRequestDialog] = useState(false);
@@ -247,7 +253,22 @@ export function POSProductList({
         </div>
       )}
 
-      {!loadingProducts && filteredProducts.length === 0 && (
+      {!loadingProducts && productsLoadFailed && (
+        <div className="border border-dashed rounded-2xl border-destructive/40 bg-destructive/5">
+          <EmptyState
+            icon={AlertCircle}
+            title={`Couldn't load ${productTerm.toLowerCase()} on this device`}
+            description="The catalog couldn't be read from this device's local database. Nothing is lost — try again."
+            action={
+              onRetryLoadProducts
+                ? { label: "Retry", onClick: onRetryLoadProducts }
+                : undefined
+            }
+          />
+        </div>
+      )}
+
+      {!loadingProducts && !productsLoadFailed && filteredProducts.length === 0 && (
         <div className="border border-dashed rounded-2xl border-border bg-card/50">
           <EmptyState
             icon={PackageX}

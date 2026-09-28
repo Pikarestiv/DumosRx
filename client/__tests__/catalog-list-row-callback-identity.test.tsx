@@ -25,7 +25,8 @@ import type { CatalogRowProps } from "@/components/products/catalog-row";
 
 const capturedProps: CatalogRowProps[] = [];
 
-vi.mock("@/components/products/catalog-row", () => ({
+vi.mock("@/components/products/catalog-row", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/components/products/catalog-row")>()),
   CatalogRow: (props: CatalogRowProps) => {
     capturedProps.push(props);
     return <div data-testid="catalog-row">{props.product.name}</div>;

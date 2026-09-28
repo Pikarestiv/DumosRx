@@ -24,6 +24,12 @@ vi.mock("@/lib/context/store-context", () => ({
   useStore: () => ({ storeProfile: { uppercase_display_enabled: 0 } }),
 }));
 
+// The counted cost/selling cells are gated on edit_product_cost/
+// edit_product_price - see audit-ledger-step-price-permissions.test.tsx.
+vi.mock("@/lib/hooks/use-permissions", () => ({
+  useHasPermission: () => true,
+}));
+
 import { AuditLedgerStep } from "@/components/stock-batch/audit-ledger-step";
 
 function item(overrides: Partial<AuditItem> = {}): AuditItem {

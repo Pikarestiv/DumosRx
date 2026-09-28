@@ -6,6 +6,14 @@ import {
   EditableQuickNumberCell,
 } from "./catalog-editable-cells";
 
+/** Literal class strings, not a template: Tailwind's scanner only sees
+ * classes that appear whole in the source. Indexed by whether the Avg Cost
+ * column is rendered, which now varies with "view_cost_fields". */
+export const CATALOG_GRID_COLS = {
+  withCost: "grid-cols-[1fr_150px_90px_90px_100px_90px]",
+  withoutCost: "grid-cols-[1fr_150px_90px_100px_90px]",
+} as const;
+
 export interface CatalogRowProps {
   product: Product;
   isSelected: boolean;
@@ -18,6 +26,9 @@ export interface CatalogRowProps {
   capsClass: string;
   categoryOptions: string[];
   canEdit: boolean;
+  showCostColumn: boolean;
+  canEditSellingPrice: boolean;
+  canAdjustStockQuantity: boolean;
   hasTouchCapability: boolean;
   formatCurrency: (amount: number) => string;
   onSelect: (product: Product) => void;
@@ -35,6 +46,9 @@ function CatalogRowInner({
   capsClass,
   categoryOptions,
   canEdit,
+  showCostColumn,
+  canEditSellingPrice,
+  canAdjustStockQuantity,
   hasTouchCapability,
   formatCurrency,
   onSelect,
@@ -104,7 +118,7 @@ function CatalogRowInner({
       {isDesktop && (
         <div
           data-catalog-row-desktop
-          className="grid grid-cols-[1fr_150px_90px_90px_100px_90px] gap-2 items-center"
+          className={`grid gap-2 items-center ${showCostColumn ? CATALOG_GRID_COLS.withCost : CATALOG_GRID_COLS.withoutCost}`}
         >
           <div className="min-w-0 pr-2">
             <div className="text-[13px] font-semibold truncate flex items-center gap-2">
@@ -129,24 +143,26 @@ function CatalogRowInner({
             hasTouchCapability={hasTouchCapability}
             onSave={onSaveCategory}
           />
-          <div className="text-[13px] font-medium text-muted-foreground">
-            {product.costPrice > 0 ? formatCurrency(product.costPrice) : "-"}
-            {product.lastBoughtPrice != null && (
-              <div
-                className="text-[10px] font-normal text-muted-foreground/60"
-                title="Cost of the most recently received stock batch"
-              >
-                Last: {formatCurrency(product.lastBoughtPrice)}
-              </div>
-            )}
-          </div>
+          {showCostColumn && (
+            <div className="text-[13px] font-medium text-muted-foreground">
+              {product.costPrice > 0 ? formatCurrency(product.costPrice) : "-"}
+              {product.lastBoughtPrice != null && (
+                <div
+                  className="text-[10px] font-normal text-muted-foreground/60"
+                  title="Cost of the most recently received stock batch"
+                >
+                  Last: {formatCurrency(product.lastBoughtPrice)}
+                </div>
+              )}
+            </div>
+          )}
           <EditableQuickNumberCell
             displayValue={formatCurrency(product.sellingPrice)}
             value={product.sellingPrice}
             parse={parseFloat}
             step="0.01"
             widthClassName="w-20"
-            canEdit={canEdit}
+            canEdit={canEdit && canEditSellingPrice}
             hasTouchCapability={hasTouchCapability}
             ariaLabel={`Edit selling price for ${product.name} (${formatCurrency(product.sellingPrice)})`}
             onSave={(val) => onSaveSellingPrice(product, val)}
@@ -156,7 +172,7 @@ function CatalogRowInner({
             displayClassName={`text-[13px] font-semibold ${product.stockQuantity <= product.reorderLevel ? "text-destructive" : "text-primary"}`}
             value={product.stockQuantity}
             parse={(raw) => parseInt(raw, 10)}
-            canEdit={canEdit}
+            canEdit={canEdit && canAdjustStockQuantity}
             hasTouchCapability={hasTouchCapability}
             ariaLabel={`Edit stock quantity for ${product.name} (${product.stockQuantity})`}
             commitOnBlur={false}

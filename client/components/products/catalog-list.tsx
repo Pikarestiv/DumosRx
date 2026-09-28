@@ -6,9 +6,10 @@ import { toast } from "sonner";
 import { Product } from "./types";
 import { useStore } from "@/lib/context/store-context";
 import { useAuth } from "@/lib/context/auth-context";
+import { useHasPermission } from "@/lib/hooks/use-permissions";
 import { SortableHeaderCell } from "@/components/ui/sortable-header-cell";
 import { RequestItemDialog } from "@/components/pos/request-item-dialog";
-import { CatalogRow } from "./catalog-row";
+import { CATALOG_GRID_COLS, CatalogRow } from "./catalog-row";
 import { CatalogListSkeleton, EmptyCatalogList } from "./catalog-list-states";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useQuickEditProductMutation } from "@/lib/hooks/use-product-quick-edit-mutation";
@@ -64,6 +65,9 @@ export function CatalogList({
   const { storeType } = useStore();
   const isPharmacy = storeType === "pharmacy";
   const { canManageStockBatch, isAdmin, user } = useAuth();
+  const showCostColumn = useHasPermission("view_cost_fields");
+  const canEditSellingPrice = useHasPermission("edit_product_price");
+  const canAdjustStockQuantity = useHasPermission("adjust_stock_counts");
   const [showRequestDialog, setShowRequestDialog] = useState(false);
   // A 2-in-1 laptop's trackpad still lets it hover, but a user tapping its
   // touchscreen directly never fires :hover — so the edit pencil must stay
@@ -173,7 +177,7 @@ export function CatalogList({
       )}
 
       {/* Header */}
-      <div className="hidden sm:grid grid-cols-[1fr_150px_90px_90px_100px_90px] gap-2 px-4 py-2.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wide border-b border-border shrink-0">
+      <div className={`hidden sm:grid gap-2 ${showCostColumn ? CATALOG_GRID_COLS.withCost : CATALOG_GRID_COLS.withoutCost} px-4 py-2.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wide border-b border-border shrink-0`}>
         <SortableHeaderCell
           label="Product"
           active={sortKey === "name"}
@@ -186,12 +190,14 @@ export function CatalogList({
           direction={sortDirection}
           onClick={() => onToggleSort("category")}
         />
-        <SortableHeaderCell
-          label="Avg Cost"
-          active={sortKey === "costPrice"}
-          direction={sortDirection}
-          onClick={() => onToggleSort("costPrice")}
-        />
+        {showCostColumn && (
+          <SortableHeaderCell
+            label="Avg Cost"
+            active={sortKey === "costPrice"}
+            direction={sortDirection}
+            onClick={() => onToggleSort("costPrice")}
+          />
+        )}
         <SortableHeaderCell
           label="S. Price"
           active={sortKey === "sellingPrice"}
@@ -257,6 +263,9 @@ export function CatalogList({
                     capsClass={capsClass}
                     categoryOptions={categoryOptions}
                     canEdit={canManageStockBatch}
+                    showCostColumn={showCostColumn}
+                    canEditSellingPrice={canEditSellingPrice}
+                    canAdjustStockQuantity={canAdjustStockQuantity}
                     hasTouchCapability={hasTouchCapability}
                     formatCurrency={formatCurrency}
                     onSelect={onSelectProduct}

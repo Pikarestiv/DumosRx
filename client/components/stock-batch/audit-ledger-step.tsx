@@ -4,6 +4,7 @@ import { Search, SearchX } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { FilterPill } from "@/components/ui/filter-pill";
 import { EditableNumberCell } from "@/components/ui/editable-number-cell";
+import { useHasPermission } from "@/lib/hooks/use-permissions";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SortableHeaderCell } from "@/components/ui/sortable-header-cell";
 import type { AuditItem } from "./stock-audits";
@@ -68,6 +69,8 @@ export function AuditLedgerStep({
   scrollElementRef,
 }: AuditLedgerStepProps) {
   const capsClass = useUppercaseDisplayClass();
+  const canEditProductCost = useHasPermission("edit_product_cost");
+  const canEditProductPrice = useHasPermission("edit_product_price");
   // Totals reflect the rows currently shown (respects the category filter
   // and search), so switching categories gives a live subtotal for that
   // slice as well as the whole-audit total when nothing's filtered.
@@ -376,16 +379,24 @@ export function AuditLedgerStep({
                       role="cell"
                       className="px-2 py-1.5 text-right flex items-center"
                     >
-                      <EditableNumberCell
-                        value={item.countedCostPrice ?? item.costPrice ?? 0}
-                        onCommit={(val) =>
-                          onUpdateItem(item.id, { countedCostPrice: val })
-                        }
-                        parse={parseFloat}
-                        step="0.01"
-                        hasError={costChanged}
-                        widthClassName="w-24"
-                      />
+                      {canEditProductCost ? (
+                        <EditableNumberCell
+                          value={item.countedCostPrice ?? item.costPrice ?? 0}
+                          onCommit={(val) =>
+                            onUpdateItem(item.id, { countedCostPrice: val })
+                          }
+                          parse={parseFloat}
+                          step="0.01"
+                          hasError={costChanged}
+                          widthClassName="w-24"
+                        />
+                      ) : (
+                        <span className="w-24 text-right text-muted-foreground">
+                          {formatCurrency(
+                            item.countedCostPrice ?? item.costPrice ?? 0,
+                          )}
+                        </span>
+                      )}
                     </div>
                     <div
                       role="cell"
@@ -407,18 +418,26 @@ export function AuditLedgerStep({
                       role="cell"
                       className="px-2 py-1.5 text-right flex items-center"
                     >
-                      <EditableNumberCell
-                        value={
-                          item.countedSellingPrice ?? item.sellingPrice ?? 0
-                        }
-                        onCommit={(val) =>
-                          onUpdateItem(item.id, { countedSellingPrice: val })
-                        }
-                        parse={parseFloat}
-                        step="0.01"
-                        hasError={sellingChanged}
-                        widthClassName="w-24"
-                      />
+                      {canEditProductPrice ? (
+                        <EditableNumberCell
+                          value={
+                            item.countedSellingPrice ?? item.sellingPrice ?? 0
+                          }
+                          onCommit={(val) =>
+                            onUpdateItem(item.id, { countedSellingPrice: val })
+                          }
+                          parse={parseFloat}
+                          step="0.01"
+                          hasError={sellingChanged}
+                          widthClassName="w-24"
+                        />
+                      ) : (
+                        <span className="w-24 text-right text-muted-foreground">
+                          {formatCurrency(
+                            item.countedSellingPrice ?? item.sellingPrice ?? 0,
+                          )}
+                        </span>
+                      )}
                     </div>
                     <div
                       role="cell"

@@ -45,6 +45,9 @@ function renderRow(
       capsClass="capitalize"
       categoryOptions={["Painkillers"]}
       canEdit
+      showCostColumn
+      canEditSellingPrice
+      canAdjustStockQuantity
       hasTouchCapability={false}
       formatCurrency={(n) => `N${n}`}
       onSelect={() => {}}

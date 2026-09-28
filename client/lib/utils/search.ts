@@ -37,6 +37,23 @@ export function calculateLevenshteinDistance(a: string, b: string): number {
   return matrix[bLen][aLen];
 }
 
+/**
+ * Levenshtein distance, skipped entirely when the two lengths are already
+ * further apart than the caller can accept. Distance is never less than the
+ * difference in lengths, so the answer in that case is only ever "too far" -
+ * and the matrix that would prove it is the expensive part. Returns Infinity
+ * for a candidate rejected on length, which compares correctly against any
+ * maximum the caller is filtering on.
+ */
+export function boundedLevenshteinDistance(
+  a: string,
+  b: string,
+  maxDistance: number,
+): number {
+  if (Math.abs(a.length - b.length) > maxDistance) return Infinity;
+  return calculateLevenshteinDistance(a, b);
+}
+
 export interface SearchProductResult<T> {
   results: T[];
   isFuzzyFallback: boolean;
@@ -142,18 +159,20 @@ export function searchProducts<
       const name = med.name.toLowerCase();
 
       // 1. Compare against the full name prefix
-      let minDistance = calculateLevenshteinDistance(
+      let minDistance = boundedLevenshteinDistance(
         term,
         name.substring(0, term.length + 2),
+        maxDistance,
       );
 
       // 2. Compare against individual words in the name
       for (const word of name.split(/\s+/)) {
         minDistance = Math.min(
           minDistance,
-          calculateLevenshteinDistance(
+          boundedLevenshteinDistance(
             term,
             word.substring(0, term.length + 2),
+            maxDistance,
           ),
         );
       }
@@ -162,17 +181,19 @@ export function searchProducts<
         const generic = med.generic_name.toLowerCase();
         minDistance = Math.min(
           minDistance,
-          calculateLevenshteinDistance(
+          boundedLevenshteinDistance(
             term,
             generic.substring(0, term.length + 2),
+            maxDistance,
           ),
         );
         for (const word of generic.split(/\s+/)) {
           minDistance = Math.min(
             minDistance,
-            calculateLevenshteinDistance(
+            boundedLevenshteinDistance(
               term,
               word.substring(0, term.length + 2),
+              maxDistance,
             ),
           );
         }
@@ -186,9 +207,10 @@ export function searchProducts<
         const barcode = med.barcode.toLowerCase();
         minDistance = Math.min(
           minDistance,
-          calculateLevenshteinDistance(
+          boundedLevenshteinDistance(
             term,
             barcode.substring(0, term.length + 2),
+            maxDistance,
           ),
         );
       }
@@ -285,9 +307,10 @@ export function genericFuzzySearch<T>(
         if (val) {
           const strVal = String(val).toLowerCase();
           // 1. Compare with substring of similar length to term
-          const dist = calculateLevenshteinDistance(
+          const dist = boundedLevenshteinDistance(
             term,
             strVal.substring(0, term.length + 2),
+            maxDistance,
           );
           if (dist < minDistance) {
             minDistance = dist;
@@ -295,9 +318,10 @@ export function genericFuzzySearch<T>(
 
           // 2. Compare against individual words
           for (const word of strVal.split(/\s+/)) {
-            const wordDist = calculateLevenshteinDistance(
+            const wordDist = boundedLevenshteinDistance(
               term,
               word.substring(0, term.length + 2),
+              maxDistance,
             );
             if (wordDist < minDistance) {
               minDistance = wordDist;

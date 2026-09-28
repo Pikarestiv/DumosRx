@@ -442,6 +442,66 @@ e2e/                       Playwright end-to-end specs
     `2026_09_26_000001_add_quantity_received_to_purchase_order_items.php`
     plus the mirrored branch in `Services/Web/SyncPayloadMapper.php`.
 
+## Receiving cost scale, and what "cost" means where
+
+`unit_cost` on a `purchase_order_items` row is **per bulk unit** (per
+carton/pallet); every cost *override* a user types — the Immediate Purchase
+flow's "New Cost" and the Receive panel's "Cost Price" — is **per base
+unit** (per tablet/bag). `resolveBaseUnitCost()`
+(`components/procurement/po-line-item-math.ts`) is the single place that
+conversion happens; `getImmediateUnitCost()` delegates to it and
+`receivePurchaseOrder()` (`lib/db/procurement-receiving.ts`) calls it
+directly instead of re-deriving the division inline, which is how the two
+flows drifted before. Both receiving surfaces label the input "per
+{base_unit}" and placeholder it with the per-base-unit figure, because the
+quantity field right above them is in *bulk* units and the old
+`item.unit_cost` placeholder read as per-carton.
+
+**Each `stock_batches` row keeps the singular cost it was received at, and
+that is the figure margin/COGS and FEFO deduction use.** The averaged
+`cost_price` that `getProductsWithDetails()` and friends derive is a
+**display/reporting** figure only — nothing computes on it. A small new
+batch barely moves a large displayed average, which reads as "the cost I
+typed didn't save"; `notifyCostRecorded()` in `lib/hooks/use-purchase-orders.ts`
+is the confirmation that says otherwise, and the receive inputs show the
+product's Last Bought Price (the last real, non-`ADJ-%` batch cost)
+alongside. Keep that distinction in any copy you write here.
+
+`purchase_order_items.unit_cost` is deliberately **not** rewritten on
+receipt: it is what was ordered, the PO's own total and `amount_paid`
+reconcile against it, and a partial receipt would revalue the outstanding
+balance. New POs already prefill from a real `AVG(cost_price)` via
+`getActiveProductsForPO()`, so nothing needed it.
+
+## Enforced permissions
+
+`ENFORCED_PERMISSION_KEYS` (`lib/constants/permissions.ts`) lists the keys
+with a real call site; the Roles & Permissions matrix reads it to mark the
+rest as not-yet-wired. `apply_discounts` joined it on 2026-09-28:
+`components/pos/pos-cart.tsx` hoists `useHasPermission("apply_discounts")`
+to an unconditional top-level const (never inside a `&&`, see the
+hook-count crash documented in `pos-layout-header.tsx`) and gates the
+"+ Add discount" button and the discount editor on it. A discount **already
+on the cart** — a resumed held sale, or one that came from a loyalty
+redemption — still renders read-only for a cashier without the permission:
+only creating or editing one is gated. Loyalty redemption
+(`pos-redeem-reward.tsx`) is intentionally independent of this key; it is a
+customer-earned entitlement, not a staff price concession. The desktop cart
+and the mobile drawer both render the same `POSCart`, so there is one gate,
+not two.
+
+## Reports: on-screen view
+
+Every Report Center report returns the same pre-labelled
+`Record<string, unknown>[]` from `useReportExport`'s `getRows()`, so one
+generic `components/reports/report-table-view.tsx` (column-driven, wired to
+`useSortableData` + `SortableHeaderCell`) renders all six on screen behind
+the card's "View" action, with Export/Print repeated inside the view.
+Column order comes from `getReportHeaders(reportId)` so the view, the CSV
+and the PDF can't drift. `fetchSalesReportData` now also selects a
+"Cashier" column (`LEFT JOIN users`), which the export formats already
+carried a *filter* for but never showed.
+
 ## Cashier (`sales_staff`) visibility gating — a recurring pattern, not a one-off
 
 A cashier account should never see store-wide profit/margin figures or
@@ -621,6 +681,44 @@ same tab session still gets its own fresh one-time retry.
   `showSearchIcon` (leading `Search` icon, hidden below `sm`, for contexts
   that are genuinely a search bar rather than a name field).
 
+- **Category pickers read the `categories` table, never `suggestions.ts`.**
+  `components/ui/category-combobox.tsx` is the one picker for *choosing* a
+  category (Add/Edit Product, and the receive flow's inline fix-up). It
+  queries `getCategoryList()` (`lib/db/queries/categories.ts` — the canonical
+  one; the near-duplicate `getCategoriesList()` in `queries/products.ts` was
+  deleted, along with `queryKeys.categories.all`, so there is only
+  `queryKeys.categories.list()` now) and shows a pinned `Create "{typed}"`
+  row, which is what keeps it open-ended: both save paths
+  (`use-save-product-mutation.ts`, `use-product-quick-edit-mutation.ts`)
+  create a missing category by name. `FORM_SUGGESTIONS.categories`
+  (`lib/constants/suggestions.ts`) is only ever allowed in a category
+  *creation* field (`settings/store/category-form-dialog.tsx`), never as
+  options in a picker — a fresh install shows an empty list plus the create
+  row rather than pharmacy reference data a construction-materials store
+  will never use.
+  It is deliberately an **in-DOM absolutely positioned** dropdown, not a
+  `createPortal` one like `components/ui/searchable-input.tsx`: every caller
+  sits inside a Radix dialog, and that dialog's `react-remove-scroll` lock
+  blocks wheel/touch scrolling over a portaled sibling of the dialog
+  content, so a portaled option list could not be scrolled at all. Don't
+  "simplify" it back to `SearchableInput` inside a dialog.
+- **Scroll affordances** (`components/ui/scroll-fade.tsx`,
+  `components/ui/scroll-to-top-button.tsx`). `ScrollFade` (top/bottom) and
+  `HorizontalScrollFade` (left/right) are the house cue for a clipped
+  scroll region; the horizontal one exists specifically for the
+  `.hide-scrollbar` metric/card strips, which by design have no scrollbar
+  to give the game away. `ScrollToTopButton` takes the *same* ref the list's
+  `useVirtualizer` holds and portals a fixed button measured off that
+  element's bounding rect (the lists sit inside cards with their own
+  overflow/transform contexts, which would clip or re-anchor an absolute
+  child). All three no-op safely where `ResizeObserver` is missing (jsdom).
+  Tab rails (`components/ui/tabs.tsx` and the `TabsList`-based status
+  filters) deliberately get no fade — the active-tab indicator is already
+  their orientation cue.
+  The always-visible scrollbar block in `app/globals.css` now colours the
+  thumb with `color-mix(in srgb, var(--primary) …%, transparent)` rather
+  than a neutral grey, so every theme variant and both light/dark modes
+  follow from the one token; don't hardcode a per-theme hex there.
 - **`FilterPill`** (`components/ui/filter-pill.tsx`): a "Label: value"
   dropdown that replaces a long row of one-per-value quick-filter chips.
   Used for Category/Inventory filters on the product catalog and the audit
@@ -824,6 +922,21 @@ number into local SQLite and hope it matches. Treat this exactly like the
 `update()` from this client is a bug, not a shortcut.
 
 ## Current focus / recent work (update this section as work continues)
+
+Most recent work (2026-09-28, later) worked through a live client's
+("Cynthia", construction-materials store) feedback list — see the
+Category-picker, Receiving-cost-scale, Enforced-permissions and
+Reports-on-screen-view sections above for the durable rules each item
+produced. Deliberately skipped, with reasons: the `TabsList` status-filter
+rails got no horizontal fade (their active-tab indicator is the cue, same
+call as `components/ui/tabs.tsx`); three virtualized lists
+(`pos-virtualized-product-grid.tsx`, `transaction-list.tsx`,
+`audit-ledger-step.tsx`) got no scroll-to-top button because their scroll
+element is owned by a parent/prop rather than the list itself; POS
+Transaction History got no cashier filter (scope creep, Report Center now
+covers the need); and `purchase_order_items.unit_cost` is still not
+rewritten on receipt (see the receiving section for why).
+
 
 Most recent work (later on 2026-09-23, ~20:35-23:07 — see `git log` for
 full detail) was a second, evening bug-fix/small-feature batch working

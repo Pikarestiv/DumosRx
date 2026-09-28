@@ -20,7 +20,7 @@ This file holds **open** items only. Fixed entries move to `docs/FIXED_BUGS.md` 
 
 **Most important risks, in order:**
 
-1. **PG-2 / PG-1 (carried)** — storefront online payments still have no webhook/reconciliation path and can settle via the wrong gateway. **This is now the only open finding above P3, and the only remediation work this pass has left.** Every one of this pass's own 24 findings (`A-1`…`A-24`) is fixed and moved to `docs/FIXED_BUGS.md`, across nine batches committed on `dev` on 2026-09-28; the payment-gateway findings were explicitly deferred out of that series by the user and are unchanged. What remains open in this document is therefore: the deferred `PG-*` work, the four carried findings that are deliberate non-actions (`P2-1` is ops-only; `P3-1`, `P3-2`, `P3-5` are accepted tradeoffs), and `A-25`, logged during batch 9.
+1. **PG-2 / PG-1 (carried)** — storefront online payments still have no webhook/reconciliation path and can settle via the wrong gateway. **This is now the only open finding in the document.** Every one of this pass's own 25 findings (`A-1`…`A-25`, the last logged and fixed during batch 9) is fixed and moved to `docs/FIXED_BUGS.md`, across nine remediation batches plus one follow-up commit on `dev` on 2026-09-28; the payment-gateway findings were explicitly deferred out of that series by the user and are unchanged. What remains open in this document is therefore: the deferred `PG-*` work, and the four carried findings that are deliberate non-actions (`P2-1` is ops-only; `P3-1`, `P3-2`, `P3-5` are accepted tradeoffs).
 
 **The major performance concern** that remains is the whole-blob `db.export()` persistence model already analysed in `docs/DATABASE_CONCURRENCY.md`; the rest of §5's list (boot-time scans, the license-guard sync gate on launch, the 5-second sync-queue poll) is fixed.
 
@@ -46,12 +46,7 @@ None open. `A-9` (receiving the same purchase order from two devices booked the 
 
 ## 4. Low-priority findings (P3)
 
-#### [P3] A-25. `npm run test:schema` is broken, so the cross-repo schema-parity check has not run in some time
-**Category:** Maintainability / Tooling — **Confirmed**
-**Location:** `client/scripts/verify-schema-sync.ts`, `client/package.json` (`"test:schema"`).
-**Problem:** `.agents/AGENTS.md` §5 tells every schema change to run `npm run test:schema`. Against today's tree the script exits 1 with `Could not find syncColumns in core.ts` — it parses `core.ts` for a `syncColumns` symbol that the sync engine no longer exposes under that name. The check is therefore a no-op that reports failure for the wrong reason, and could not be added to the new CI gate (A-15).
-**Recommended fix:** Re-point the extraction at whatever the sync engine's column source of truth is now, then add the script to `checks.yml`'s client job.
-**Confidence:** High. **Status:** Open — logged 2026-09-28 while fixing A-15, per `.agents/AGENTS.md` §2's "log it rather than let it go unrecorded" rule. Not part of the 2026-09-28 pass's own A-1…A-24 counts above.
+None open. `A-25` (`npm run test:schema` was broken) is fixed — see `docs/FIXED_BUGS.md`. Its "add to CI" half is intentionally not done; see that entry's Ruling.
 
 ---
 
@@ -207,8 +202,7 @@ Synthetic dataset built from the app's own `SCHEMA_SQL` plus the migration-added
 
 ## What is left, and why
 
-This pass's own remediation is complete — nothing from `A-1`…`A-24` is still open, so this is no longer an ordered work queue. What remains in this document is one piece of real deferred work, one small new item, and a set of deliberate non-actions:
+This pass's own remediation is complete — nothing from `A-1`…`A-25` is still open, so this is no longer an ordered work queue. What remains in this document is one piece of real deferred work and a set of deliberate non-actions:
 
 1. **Deferred by user direction: PG-2 then PG-1**, then **PG-3…PG-10** — the storefront webhook/reconciliation path and the gateway pinning first; still the largest real-world money-loss surface, and the only substantial engineering work this document still describes. Explicitly excluded from the 2026-09-28 remediation series rather than overlooked.
-2. **New, small: A-25** — repair `npm run test:schema` and add it to `checks.yml`'s client job. Found while fixing A-15; a contained tooling fix, not a product risk.
-3. **Deliberate non-actions, listed here so they are not re-filed as findings next pass:** **P2-1** is a one-line production `.env` confirmation with zero code change; **P3-1** (bearer token in `localStorage`) needs a dual-path auth design project and has a compensating control in the shipped Tauri CSP; **P3-2** (stale lazy chunk after a deploy) needs deploy-asset retention to close fully; **P3-5** (manifest `theme_color`) is a Web App Manifest spec limitation with no action recommended. **PG-10** needs a product decision, not a fix.
+2. **Deliberate non-actions, listed here so they are not re-filed as findings next pass:** **P2-1** is a one-line production `.env` confirmation with zero code change; **P3-1** (bearer token in `localStorage`) needs a dual-path auth design project and has a compensating control in the shipped Tauri CSP; **P3-2** (stale lazy chunk after a deploy) needs deploy-asset retention to close fully; **P3-5** (manifest `theme_color`) is a Web App Manifest spec limitation with no action recommended. **PG-10** needs a product decision, not a fix.

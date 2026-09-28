@@ -8,7 +8,7 @@ const __dirname = path.dirname(__filename);
 
 const LARAVEL_DIR = path.resolve(__dirname, '../../laravel-server');
 const SCHEMA_FILE = path.resolve(__dirname, '../lib/db/schema.ts');
-const CORE_FILE = path.resolve(__dirname, '../lib/db/core.ts');
+const SCHEMA_MIGRATIONS_FILE = path.resolve(__dirname, '../lib/db/schema-migrations.ts');
 
 interface Column {
   TABLE_NAME: string;
@@ -60,24 +60,22 @@ function getSQLiteSchema(): Record<string, string[]> {
 }
 
 function getSyncConfig(): string[] {
-  console.log('Extracting syncColumns from core.ts...');
-  const content = fs.readFileSync(CORE_FILE, 'utf-8');
-  
-  // Find the syncColumns block
-  const configMatch = content.match(/const syncColumns\s*=\s*\[([\s\S]*?)\];/);
+  console.log('Extracting STORE_SCOPED_TABLES from schema-migrations.ts...');
+  const content = fs.readFileSync(SCHEMA_MIGRATIONS_FILE, 'utf-8');
+
+  // Find the STORE_SCOPED_TABLES block (the canonical list of synced,
+  // store-scoped tables - moved here from core.ts's old inline syncColumns
+  // array during the sync-engine extraction).
+  const configMatch = content.match(/export const STORE_SCOPED_TABLES\s*=\s*\[([\s\S]*?)\];/);
   if (!configMatch) {
-    console.error('Could not find syncColumns in core.ts');
+    console.error('Could not find STORE_SCOPED_TABLES in schema-migrations.ts');
     process.exit(1);
   }
-  
-  // Very rudimentary parsing to extract table names
-  const tableMatches = configMatch[1].match(/table:\s*['"]([^'"]+)['"]/g);
-  if (!tableMatches) return [];
-  
-  return tableMatches.map(m => {
-    const execMatch = /table:\s*['"]([^'"]+)['"]/.exec(m);
-    return execMatch ? execMatch[1] : '';
-  }).filter(Boolean);
+
+  return configMatch[1]
+    .split(',')
+    .map(line => line.trim().replace(/^['"]|['"]$/g, ''))
+    .filter(Boolean);
 }
 
 function runVerification() {

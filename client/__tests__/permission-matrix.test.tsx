@@ -5,6 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 const revertToDefault = vi.fn();
 const renameGroup = vi.fn();
 const deleteGroup = vi.fn();
+const toggleMany = vi.fn();
 
 vi.mock("@/lib/hooks/use-permission-groups", () => ({
   usePermissionGroups: () => ({
@@ -20,6 +21,7 @@ vi.mock("@/lib/hooks/use-permission-groups", () => ({
       },
     ],
     toggle: vi.fn(),
+    toggleMany,
     createGroup: vi.fn(),
     copyGroup: vi.fn(),
     revertToDefault,
@@ -177,6 +179,31 @@ describe("PermissionMatrix", () => {
     expect(ownCell.disabled).toBe(true);
 
     expect(cellFor("Manager").disabled).toBe(false);
+
+    act(() => root.unmount());
+    container.remove();
+  });
+
+  it("leaves the acting user's own manage_roles_permissions out of a category-level bulk write", async () => {
+    toggleMany.mockClear();
+    const { PermissionMatrix } = await import("@/components/settings/roles-permissions/permission-matrix");
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root: Root = createRoot(container);
+    await act(async () => {
+      root.render(React.createElement(PermissionMatrix));
+    });
+
+    const box = Array.from(container.querySelectorAll('input[data-testid="category-checkbox"]')).find(
+      (i) => i.getAttribute("aria-label") === "Staff & Groups - all permissions - Supervisor",
+    ) as HTMLInputElement;
+    expect(box).toBeTruthy();
+    await act(async () => {
+      box.click();
+    });
+    const [, keys] = toggleMany.mock.calls[0];
+    expect(keys).not.toContain("manage_roles_permissions");
+    expect(keys).toContain("manage_staff");
 
     act(() => root.unmount());
     container.remove();

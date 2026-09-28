@@ -8,6 +8,7 @@ vi.mock("@/lib/hooks/use-permission-groups", () => ({
       { id: "g1", name: "Manager", based_on_role: "manager", is_default: true, permissions: ["process_sales"] },
     ],
     toggle: vi.fn(),
+    toggleMany: vi.fn(),
     createGroup: vi.fn(),
     copyGroup: vi.fn(),
     revertToDefault: vi.fn(),

@@ -78,6 +78,23 @@ export function usePermissionGroups() {
     [groups, reload],
   );
 
+  /** One write for a whole category's worth of keys. Calling toggle() in a
+   * loop would not work: each call reads the `groups` state captured by
+   * this render, so every write after the first would overwrite the one
+   * before it with a set that predates it. */
+  const toggleMany = useCallback(
+    async (groupId: string, keys: string[], granted: boolean) => {
+      const group = groups.find((g) => g.id === groupId);
+      if (!group || keys.length === 0) return;
+      const next = granted
+        ? Array.from(new Set([...group.permissions, ...keys]))
+        : group.permissions.filter((k) => !keys.includes(k));
+      await update("permission_groups", groupId, { permissions: JSON.stringify(next) });
+      await reload();
+    },
+    [groups, reload],
+  );
+
   const createGroup = useCallback(
     async (name: string, basedOnRole: string) => {
       await insert("permission_groups", {
@@ -134,5 +151,5 @@ export function usePermissionGroups() {
     [reload],
   );
 
-  return { groups, toggle, createGroup, copyGroup, revertToDefault, renameGroup, deleteGroup };
+  return { groups, toggle, toggleMany, createGroup, copyGroup, revertToDefault, renameGroup, deleteGroup };
 }

@@ -490,6 +490,84 @@ customer-earned entitlement, not a staff price concession. The desktop cart
 and the mobile drawer both render the same `POSCart`, so there is one gate,
 not two.
 
+`export_reports` joined it on 2026-09-28 too: `components/reports/report-center.tsx`
+hoists `useHasPermission("export_reports")` and hides the per-report Export
+dropdown and Print button, and passes the same boolean into
+`report-view-dialog.tsx` as `canExport` so the in-dialog copies of those
+actions can't be the way round it. The "View" action is deliberately *not*
+gated on it — reading a report on screen is `view_reports`, taking a copy
+off the device is `export_reports`.
+
+### The 2026-09-28 granularity pass
+
+The catalog was compared against QuickBooks Point of Sale's own
+security-rights matrix and 24 keys were added, all **catalog-only** (no
+call site yet) except where noted — they are visible and settable in the
+matrix but the repo's incremental-rollout rule still holds: **wire
+enforcement and add the key in the same commit**, and add the key to
+`ENFORCED_PERMISSION_KEYS` in that same commit.
+
+- **Sales & POS** — `hold_sales`, `view_sales_history`,
+  `edit_completed_sale`, `reprint_receipt`, `run_daily_close`,
+  `view_drawer_counts`, `override_credit_limit`. These split apart what
+  `process_sales` and `void_refund_sales` currently cover as one lump:
+  reading history vs. making a sale, parking a sale vs. completing one,
+  amending a finished sale vs. voiding it, and the end-of-day/drawer
+  surfaces (`daily-close-report.tsx`) which today are role-gated by a
+  direct `user?.role === "sales_staff"` check rather than by a key.
+- **Inventory & Stock** — `view_cost_fields`, `edit_product_cost`,
+  `edit_product_price`, `delete_products`, `perform_stock_audit`,
+  `view_stock_adjustment_history`, `print_product_labels`,
+  `export_product_list`, `view_suppliers`, `delete_suppliers`. `manage_products`
+  today grants cost, price, quantity, deletion and supplier writes all at
+  once; these are the pieces. `view_cost_fields` is the key form of the
+  cashier cost/margin gating described below — converting those
+  `role === "sales_staff"` checks to it is a deliberate follow-up, not a
+  drive-by, because it changes behavior for `auditor`/`specialist` too.
+- **Customers & Loyalty** — `delete_customers`, `view_customer_balances`,
+  `manage_customer_credit_terms`.
+- **Reports & Activity** — `view_dashboard`, `view_financial_reports`.
+  `view_reports` stays the broad "can open Report Center" right;
+  `view_financial_reports` is the P&L/margin tier on top of it (QuickBooks'
+  level-3/4 report split).
+- **Store & Settings** — `manage_device_settings` (this workstation's own
+  preferences, as distinct from store-wide `manage_store_settings`),
+  `install_app_updates` (`components/tauri/auto-updater.tsx`).
+
+Deliberately **not** imported from QuickBooks: anything about
+QuickBooks-desktop mechanics (company-file open/close/create/rename/clean-up,
+convert-from-previous-version, license management, setup interview,
+integrated-application login, linked QuickBooks transactions,
+update/recover QuickBooks), its hardware wizards and troubleshooter, its
+Dashboard-webpage rights, "Exit Point of Sale"/"Customize program
+interface", and its Departments concept (DumosRx has product categories,
+not departments — `manage_products` covers them).
+
+## Roles & Permissions matrix: hierarchical categories
+
+`permission-matrix.tsx` renders each `PermissionCatalogEntry.category` as a
+collapsible section header row with a **tri-state checkbox per group
+column** (`data-testid="category-checkbox"`). The maths lives in
+`category-selection.ts` (pure, unit-tested): all children granted =
+checked, none = unchecked, some = indeterminate (set on the native input
+via a ref, since `<input type="checkbox">` exposes `indeterminate` as a DOM
+property, not an attribute). Clicking a checked category clears its
+children; clicking an unchecked *or* indeterminate one grants them all.
+
+Two things a new category-level control must keep:
+
+1. It writes through `usePermissionGroups().toggleMany(groupId, keys, granted)`,
+   **not** a loop over `toggle()` — each `toggle()` reads the `groups` state
+   captured by the current render, so the second write in a loop would
+   overwrite the first with a set that predates it.
+2. `getCategoryToggleKeys()` filters out locked keys. Today that is the
+   acting user's own `manage_roles_permissions`, which the per-cell UI
+   renders disabled; without the filter the category checkbox would be a
+   way round that self-lockout guard.
+
+Sections default to expanded — the matrix's job is being scannable at a
+glance — and collapse state is local component state, not persisted.
+
 ## Reports: on-screen view
 
 Every Report Center report returns the same pre-labelled

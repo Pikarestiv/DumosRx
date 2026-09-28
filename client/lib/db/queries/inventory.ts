@@ -361,8 +361,8 @@ export async function getLowStockAlerts() {
        AND (inv.expiry_date IS NULL OR inv.expiry_date = '' OR date(inv.expiry_date) > date('now'))
      WHERE (m._deleted = 0 OR m._deleted IS NULL)${storeId ? " AND m.store_id = ?" : ""}
      GROUP BY m.id
-     HAVING quantity <= m.reorder_level AND m.reorder_level > 0
-     ORDER BY quantity ASC
+     HAVING COALESCE(SUM(inv.quantity), 0) <= m.reorder_level AND m.reorder_level > 0
+     ORDER BY COALESCE(SUM(inv.quantity), 0) ASC
      LIMIT 5`,
     storeId ? [storeId] : [],
   );

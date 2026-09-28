@@ -805,28 +805,104 @@ async function clearLegacyTransactionsOnce(
   }
 }
 
-// stock_batches.product_id has no index, so every correlated subquery
-// against it in getProductsWithDetails() (five of them, plus a sixth for
-// last_bought_price) does a full table scan per product row - the query
-// core.ts documents as the app's largest/slowest, already the one known to
-// yield mid-iteration under concurrent sync writes. CREATE INDEX IF NOT
-// EXISTS is naturally idempotent, so this doesn't strictly need tryRun's
-// swallow-on-rerun behavior, but it's used for consistency with the rest of
-// this file.
-async function ensureStockBatchesProductIndex(adapter: DbAdapter): Promise<void> {
-  await tryRun(
-    adapter,
-    `CREATE INDEX IF NOT EXISTS idx_stock_batches_product_id ON stock_batches(product_id)`,
-  );
+// Every index the local read paths depend on (see docs/LOCAL_DB_INDEXES.md
+// for which query each one serves). SCHEMA_SQL carries the subset whose
+// columns exist in its own CREATE TABLE bodies; the store_id-scoped ones can
+// only be created here, because store_id is itself a migration-added column
+// and is absent from SCHEMA_SQL. Listing all of them here regardless keeps
+// one authoritative set for both populations - fresh installs run this pass
+// immediately after SCHEMA_SQL, so they converge on the same indexes as a
+// device upgrading from a pre-index database. CREATE INDEX IF NOT EXISTS is
+// idempotent on both backends; tryRun is kept for consistency with the rest
+// of this file. None of these are UNIQUE: duplicate barcodes and duplicate
+// product names both exist in real catalogs today (every lookup is LIMIT 1
+// and dedupe is app-level), so a unique index would fail to build on exactly
+// the mature databases this is meant to speed up. store_id is never indexed
+// on its own either: a single-store device has one value for every row, and
+// a standalone index on it got picked over the selective one (measured: the
+// import's barcode lookup chose idx_products_store_id and still visited the
+// whole catalog), so it only ever appears as a composite's leading column.
+const READ_PATH_INDEXES = [
+  `CREATE INDEX IF NOT EXISTS idx_stock_batches_product_id ON stock_batches(product_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_sale_items_sale_id ON sale_items(sale_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_returns_sale_id ON returns(sale_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_return_items_product_id ON return_items(product_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_sales_customer_id ON sales(customer_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_sales_created_at ON sales(created_at)`,
+  `CREATE INDEX IF NOT EXISTS idx_sales_store_id_created_at ON sales(store_id, created_at)`,
+  `CREATE INDEX IF NOT EXISTS idx_stock_movements_product_id ON stock_movements(product_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_stock_movements_reference_id ON stock_movements(reference_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_stock_movements_store_id_created_at ON stock_movements(store_id, created_at)`,
+  `CREATE INDEX IF NOT EXISTS idx_audit_logs_record_id ON audit_logs(record_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_audit_logs_store_id_created_at ON audit_logs(store_id, created_at)`,
+  `CREATE INDEX IF NOT EXISTS idx_products_barcode ON products(barcode)`,
+  `CREATE INDEX IF NOT EXISTS idx_products_name ON products(name)`,
+  `CREATE INDEX IF NOT EXISTS idx_products_store_id_barcode ON products(store_id, barcode)`,
+  `CREATE INDEX IF NOT EXISTS idx_sync_queue_table_name_record_id ON _sync_queue(table_name, record_id)`,
+];
+
+// How far `sales` may outgrow the row count the last ANALYZE recorded before
+// the stats are rebuilt. Generous on purpose: a full ANALYZE is ~94 ms on the
+// one-year synthetic store, so it should run a handful of times over a
+// device's life, not on every launch.
+const ANALYZE_STALENESS_FACTOR = 4;
+const ANALYZE_STALENESS_FLOOR = 1000;
+
+// The indexes alone are not enough, and shipping them without this step is
+// worse than shipping nothing: with no sqlite_stat1 the planner falls back to
+// its built-in row-count guesses, and on the synthetic one-year store it then
+// drove getCustomers' 2,000-customer join off idx_sales_store_id_created_at
+// (which matches every sale on a single-store device) instead of
+// idx_sales_customer_id - 10.2 s unindexed became 30.5 s indexed. A full
+// ANALYZE turns the same query into 55 ms. Sampling it (PRAGMA
+// analysis_limit) is 14x cheaper but leaves the activity log's COUNT(*)
+// preferring a 200k-row index scan over the table scan that actually wins, so
+// the stats are built in full and instead rebuilt rarely: `sales` is the
+// proxy for how much the store has grown since the last pass, which also
+// covers the fresh install that ANALYZEd an empty database.
+async function ensureReadPathIndexes(
+  adapter: DbAdapter,
+  persist?: () => Promise<void>,
+): Promise<void> {
+  for (const statement of READ_PATH_INDEXES) {
+    await tryRun(adapter, statement);
+  }
+
+  if (!(await areTableStatsStale(adapter))) return;
+
+  await tryRun(adapter, `ANALYZE`);
+  if (persist) await persist();
+}
+
+async function areTableStatsStale(adapter: DbAdapter): Promise<boolean> {
+  try {
+    const present = await adapter.all(
+      `SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'sqlite_stat1'`,
+    );
+    if (present.length === 0) return true;
+
+    const recordedRows = await adapter.all(
+      `SELECT stat FROM sqlite_stat1 WHERE tbl = 'sales' LIMIT 1`,
+    );
+    const recorded = Number(String(recordedRows[0]?.stat ?? "").split(" ")[0]);
+    if (!Number.isFinite(recorded)) return true;
+
+    const actualRows = await adapter.all(`SELECT COUNT(*) AS c FROM sales`);
+    const actual = Number(actualRows[0]?.c ?? 0);
+    return actual > recorded * ANALYZE_STALENESS_FACTOR + ANALYZE_STALENESS_FLOOR;
+  } catch (_e) {
+    return true;
+  }
 }
 
 // The full, ordered migration sequence initDatabase() applies to an existing
-// local database, identical on both backends. `onLegacyCleared` is only
-// supplied on the web/sql.js path, where an in-memory delete still has to be
-// persisted back to IndexedDB; Tauri's SQL plugin writes land on disk directly.
+// local database, identical on both backends. `persist` is only supplied on
+// the web/sql.js path, where an in-memory write (the legacy-transaction
+// delete, the one-off ANALYZE) still has to be written back to IndexedDB;
+// Tauri's SQL plugin writes land on disk directly.
 export async function runSchemaMigrations(
   adapter: DbAdapter,
-  onLegacyCleared?: () => Promise<void>,
+  persist?: () => Promise<void>,
 ): Promise<void> {
   await runSyncColumnMigrations(adapter, SYNC_COLUMN_MIGRATIONS);
   await backfillStoreIdOnLegacyRows(adapter);
@@ -834,6 +910,6 @@ export async function runSchemaMigrations(
   await lowercaseExistingProductAndCategoryNames(adapter);
   await clearOrphanedProductCategoryIds(adapter);
   await relaxPurchaseOrdersSupplierIdNullable(adapter);
-  await clearLegacyTransactionsOnce(adapter, onLegacyCleared);
-  await ensureStockBatchesProductIndex(adapter);
+  await clearLegacyTransactionsOnce(adapter, persist);
+  await ensureReadPathIndexes(adapter, persist);
 }

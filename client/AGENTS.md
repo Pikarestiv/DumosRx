@@ -72,9 +72,19 @@ NOT EXISTS` string): this is the source of truth for the local DB shape.
 `initDatabase()` in `core.ts` also runs an ad-hoc column-migration pass on
 every boot (checking `PRAGMA table_info` and `ALTER TABLE ... ADD COLUMN`
 for anything missing), so schema changes should go in *both* places: add
-the column to the `CREATE TABLE` in `schema.ts` **and** to the migration
-list in `core.ts` if existing local databases need to pick it up without a
-full reinstall.
+the column to the `CREATE TABLE` in `schema.ts` **and** to
+`SYNC_COLUMN_MIGRATIONS` in `lib/db/schema-migrations.ts` if existing local
+databases need to pick it up without a full reinstall.
+
+**Indexes are the one exception to "both places".** They live only in
+`READ_PATH_INDEXES` in `lib/db/schema-migrations.ts`, not in `SCHEMA_SQL`:
+sql.js executes `SCHEMA_SQL` as a single blob, so a `CREATE INDEX` naming a
+column that an old local table has not been migrated to yet aborts the
+statements after it. The migration pass runs on fresh installs too, and runs
+*after* the column migrations, so both populations converge on the same set.
+Adding an index there also means updating the stats gate in the same
+function — see `docs/LOCAL_DB_INDEXES.md` for which query each index serves
+and why the `ANALYZE` step is not optional.
 
 ### Every table follows the same sync-tracking convention
 

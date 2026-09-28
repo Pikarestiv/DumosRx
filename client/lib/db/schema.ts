@@ -59,6 +59,11 @@ CREATE TABLE IF NOT EXISTS stock_batches (
   _deleted INTEGER DEFAULT 0
 );
 
+-- The rest of the read-path indexes live in schema-migrations.ts'
+-- READ_PATH_INDEXES, not here: sql.js runs this whole string as one blob, so a
+-- CREATE INDEX naming a column an old local table hasn't been migrated to yet
+-- aborts the remaining CREATE TABLEs. Fresh installs pick them up from the
+-- migration pass that runs immediately after this.
 CREATE INDEX IF NOT EXISTS idx_stock_batches_product_id ON stock_batches(product_id);
 
 CREATE TABLE IF NOT EXISTS categories (

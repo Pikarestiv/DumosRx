@@ -16,7 +16,7 @@ This file holds **open** items only. Fixed entries move to `docs/FIXED_BUGS.md` 
 
 **Overall health.** The codebase is unusually well-defended for its size: the sync engine's conflict model, the single-writer tab lock, tenant scoping on the server and the money math have all been through several review-and-fix cycles, and both test suites pass cleanly. The new findings in this pass are therefore not the "obvious" classes (cross-tenant leaks, double-charging, silent rollbacks) but the next layer down: **scale limits that were never exercised** (all three found so far have since been fixed — a local database with essentially no indexes, plus the pull engine's own un-resumable page cap and the server tenant-scope that loaded every sale id into PHP memory per request; see `docs/FIXED_BUGS.md`) and **attribution/consistency gaps** on the newest flows (the online-order fulfilment one, `A-4`, has since been fixed too).
 
-**Findings this pass, by severity:** 0 **P0**, 0 **P1**, 0 **P2**, 6 **P3** — 6 open findings from this pass (IDs `A-1`…`A-24`, less the fixed `A-1`, `A-2`, `A-3`, `A-4`, `A-5`, `A-6`, `A-7`, `A-8`, `A-9`, `A-10`, `A-11`, `A-12`, `A-13`, `A-16`, `A-17`, `A-18`, `A-21` and `A-24`), plus 14 still-open items carried from the two earlier passes (`P2-1`, `P3-1`, `P3-2`, `P3-5`, `PG-1`…`PG-10`), all preserved verbatim below.
+**Findings this pass, by severity:** 0 **P0**, 0 **P1**, 0 **P2**, 5 **P3** — 5 open findings from this pass (IDs `A-1`…`A-24`, less the fixed `A-1`, `A-2`, `A-3`, `A-4`, `A-5`, `A-6`, `A-7`, `A-8`, `A-9`, `A-10`, `A-11`, `A-12`, `A-13`, `A-14`, `A-16`, `A-17`, `A-18`, `A-21` and `A-24`), plus 14 still-open items carried from the two earlier passes (`P2-1`, `P3-1`, `P3-2`, `P3-5`, `PG-1`…`PG-10`), all preserved verbatim below.
 
 **Most important risks, in order:**
 
@@ -45,13 +45,6 @@ None open. `A-9` (receiving the same purchase order from two devices booked the 
 ---
 
 ## 4. Low-priority findings (P3)
-
-#### [P3] A-14. `DatabaseProvider`'s "Reset App Data" button does not reset the database, and uses `window.confirm`
-**Category:** Bug / UX — **Confirmed**
-**Location:** `client/lib/db/DatabaseProvider.tsx:255-265`.
-**Problem:** On a fatal init error the recovery button calls `localStorage.clear()` and reloads; the database lives in IndexedDB (`dumosrx_db`), so a corrupt or un-openable blob survives the "reset" and the same error screen returns, while the user has just lost their auth token, recent-users list, cart and lock state. It also uses the native `window.confirm`, which `.agents/AGENTS.md` §9 forbids.
-**Recommended fix:** Snapshot the blob to `dumosrx_db_pre_reset_backup`, delete the IndexedDB key, then reload; use the app's `AlertDialog`.
-**Confidence:** High.
 
 #### [P3] A-15. Production builds ignore TypeScript errors
 **Category:** Maintainability — **Confirmed**
@@ -247,5 +240,5 @@ Synthetic dataset built from the app's own `SCHEMA_SQL` plus the migration-added
 Ordered by technical impact and by which fixes unblock or de-risk others — not by ease.
 
 1. **PG-2 then PG-1** (carried) — the storefront webhook/reconciliation path and the gateway pinning; still the largest real-world money-loss surface.
-2. **A-14, A-15, A-19, A-20, A-22, A-23** — hygiene and architecture debt; A-15 (enforce `tsc`/tests in CI, `npm ci`) is the one worth doing early because it protects everything else.
+2. **A-15, A-19, A-20, A-22, A-23** — hygiene and architecture debt; A-15 (enforce `tsc`/tests in CI, `npm ci`) is the one worth doing early because it protects everything else.
 3. **P2-1** (ops confirmation) and the accepted **P3-1/P3-2/P3-5**, **PG-3…PG-10** as previously scheduled.

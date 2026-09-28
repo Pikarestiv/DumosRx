@@ -19,7 +19,18 @@ import {
   onPromotionFailed,
   requestWriterHandoff,
   forceWriterTakeover,
+  discardLocalDatabaseBlob,
 } from "./local-database";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { devLog } from "@/lib/utils/dev-log";
 import { toast } from "sonner";
 
@@ -63,6 +74,23 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
   const [handoffState, setHandoffState] = useState<
     "idle" | "requesting" | "offer-force" | "forcing"
   >("idle");
+
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
+
+  const handleResetAppData = async () => {
+    try {
+      await discardLocalDatabaseBlob();
+    } catch (err) {
+      console.error("[DB] Failed to discard the local database during reset", err);
+      toast.error(
+        "Could not clear the local database, so nothing was reset. Close any other DumosRx tabs and try again.",
+        { duration: 10000 },
+      );
+      return;
+    }
+    localStorage.clear();
+    window.location.reload();
+  };
 
   const handleUseThisWindow = async () => {
     setHandoffState("requesting");
@@ -256,18 +284,34 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
               Retry Connection
             </button>
             <button
-              onClick={() => {
-                if (window.confirm("Warning: This will clear all local data. Are you sure you want to proceed?")) {
-                  localStorage.clear();
-                  window.location.reload();
-                }
-              }}
+              onClick={() => setResetDialogOpen(true)}
               className="px-5 py-2.5 bg-background border hover:bg-muted text-foreground font-semibold rounded-lg transition-all text-sm cursor-pointer"
             >
               Reset App Data
             </button>
           </div>
         </div>
+
+        <AlertDialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Reset all local data?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This deletes this device&apos;s local database and signs you out.
+                A copy of the unreadable database is kept on this device so
+                support can recover it, and anything already synced will come
+                back from the cloud after you sign in again. Anything that never
+                synced will be lost.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={() => void handleResetAppData()}>
+                Reset App Data
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     );
   }

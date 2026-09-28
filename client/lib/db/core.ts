@@ -4,7 +4,7 @@
 
 import initSqlJs, { Database, SqlJsStatic } from "sql.js";
 import { APP_NAME } from "@/lib/constants";
-import { get, set } from "idb-keyval";
+import { del, get, set } from "idb-keyval";
 /* eslint-disable max-lines */
 import { SCHEMA_SQL } from "./schema";
 import { isDedupableAuditAction } from "./audit-actions";
@@ -987,6 +987,33 @@ export async function restorePreRestoreSnapshot(): Promise<boolean> {
   if (!snapshot) return false;
   await restoreDatabase(snapshot);
   return true;
+}
+
+/**
+ * Last-resort recovery for a local database that cannot be opened at all
+ * (web/PWA only) — snapshots the stored blob to
+ * `dumosrx_db_pre_reset_backup` and then deletes the live IndexedDB key, so
+ * the next boot starts from a fresh database and re-pulls from the cloud.
+ * Deliberately does not touch `db`: this runs on the init-failure screen,
+ * where there may be no usable connection to close.
+ */
+export async function discardLocalDatabaseBlob(): Promise<{ backedUp: boolean }> {
+  if (isTauri()) return { backedUp: false };
+
+  const key = `${APP_NAME.toLowerCase()}_db`;
+  let backedUp = false;
+  try {
+    const existing = await get<Uint8Array>(key);
+    if (existing) {
+      await set(`${key}_pre_reset_backup`, existing);
+      backedUp = true;
+    }
+  } catch (err) {
+    console.error("[DB] Failed to snapshot the local database before reset", err);
+  }
+
+  await del(key);
+  return { backedUp };
 }
 
 /**

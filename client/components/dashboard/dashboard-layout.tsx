@@ -13,7 +13,7 @@ import { ImpersonationBanner } from "./impersonation-banner";
 import { DashboardHeader } from "./dashboard-header";
 import { DashboardSidebar } from "./dashboard-sidebar";
 import { MobileBottomNav } from "./mobile-bottom-nav";
-import { DashboardTour } from "./dashboard-tour";
+import dynamic from "next/dynamic";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
@@ -38,6 +38,12 @@ import { queryClient } from "@/lib/query-client";
 import { LockScreen } from "@/components/auth/lock-screen";
 import { AuthCardShell } from "@/components/auth/auth-card-shell";
 import { usePostRestoreCloudLinkNotice } from "@/lib/hooks/use-post-restore-cloud-link-notice";
+import { isTourEligible } from "@/lib/utils/tour-eligibility";
+
+const DashboardTour = dynamic(
+  () => import("./dashboard-tour").then((m) => m.DashboardTour),
+  { ssr: false },
+);
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -136,6 +142,11 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
       const stored = localStorage.getItem("dumos_recent_users");
       if (stored) setRecentUsers(JSON.parse(stored));
     } catch {}
+  }, []);
+
+  const [tourEligible, setTourEligible] = useState(false);
+  useEffect(() => {
+    setTourEligible(isTourEligible());
   }, []);
 
   const [moreDrawerOpen, setMoreDrawerOpen] = useState(false);
@@ -427,7 +438,7 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
           </main>
         </div>
       </div>
-      <DashboardTour />
+      {tourEligible && <DashboardTour />}
     </div>
   );
 }

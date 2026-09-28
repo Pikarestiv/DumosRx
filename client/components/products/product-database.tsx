@@ -8,8 +8,8 @@ import { useAddProduct } from "./use-add-product";
 import { useQuery } from "@tanstack/react-query";
 import {
   getProductsWithDetails,
-  getCategoriesList,
 } from "@/lib/db/queries/products";
+import { getCategoryList } from "@/lib/db/queries/categories";
 import { useStore } from "@/lib/context/store-context";
 import { formatCurrency as formatCurrencyWithCode } from "@/lib/utils";
 import { genericFuzzySearch } from "@/lib/utils/search";
@@ -111,8 +111,8 @@ export function ProductDatabase() {
   }, [searchParams, rawProducts, router]);
 
   const { data: rawCategories } = useQuery({
-    ...queryKeys.categories.all(),
-    queryFn: () => getCategoriesList(),
+    ...queryKeys.categories.list(),
+    queryFn: () => getCategoryList(),
   });
 
   const defaultCategories = isStore

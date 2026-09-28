@@ -57,7 +57,6 @@ export const queryKeys = {
     creator: (id?: string) => resource(["productCreator", id] as const, ["audit_logs"]),
   },
   categories: {
-    all: () => resource(["categoriesList"] as const, ["categories"]),
     list: () => resource(["categoryList"] as const, ["categories"]),
   },
   stockBatches: {

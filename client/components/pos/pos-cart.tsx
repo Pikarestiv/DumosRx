@@ -18,6 +18,7 @@ import { POSRedeemReward } from "./pos-redeem-reward";
 import type { CartItem, RedeemedOption, MarkupType } from "@/lib/hooks/use-pos-cart";
 import type { Customer } from "@/lib/types/customer";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
+import { useHasPermission } from "@/lib/hooks/use-permissions";
 
 interface POSCartProps {
   cart: CartItem[];
@@ -86,6 +87,12 @@ export const POSCart = memo(function POSCart({
   const [showRequestDialog, setShowRequestDialog] = useState(false);
   const [showProformaDialog, setShowProformaDialog] = useState(false);
   const { withRestriction, canUseResellerCommission, canUseMarkupSales, canUseProformaQuotes } = useFeatureGate();
+  // Unconditional top-level const, never inlined into the JSX conditions
+  // below: useHasPermission's answer changes between renders while the
+  // permission group resolves, and calling it inside a short-circuit is how
+  // the "Rendered more hooks than during the previous render" crash got in
+  // before - see pos-layout-header.tsx.
+  const canApplyDiscounts = useHasPermission("apply_discounts");
 
   // canUseMarkupSales can flip false mid-session (an admin disables the
   // markup_sales_enabled toggle on another device, or downgrades plan) -
@@ -215,7 +222,18 @@ export const POSCart = memo(function POSCart({
             />
           )}
 
-          {!redeemedOption && (showDiscount || discount > 0) && (
+          {!redeemedOption && !canApplyDiscounts && discount > 0 && (
+            <div className="flex justify-between text-[12.5px] text-muted-foreground">
+              <span>Discount</span>
+              <span>
+                {discountType === "percentage"
+                  ? `${discount}%`
+                  : formatCurrency(discount, currencyCode)}
+              </span>
+            </div>
+          )}
+
+          {!redeemedOption && canApplyDiscounts && (showDiscount || discount > 0) && (
             <div className="flex justify-between text-[12.5px] items-center gap-2">
               <span className="text-muted-foreground">Discount</span>
               <div className="flex gap-1 items-center flex-1 max-w-[160px] justify-end">
@@ -265,7 +283,7 @@ export const POSCart = memo(function POSCart({
               </div>
             </div>
           )}
-          {!redeemedOption && !(showDiscount || discount > 0) && (
+          {!redeemedOption && canApplyDiscounts && !(showDiscount || discount > 0) && (
             <div className="flex justify-between text-[12.5px] text-muted-foreground">
               <button
                 type="button"

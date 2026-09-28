@@ -119,6 +119,7 @@ export const DEFAULT_GROUP_PERMISSIONS: Record<
  */
 export const ENFORCED_PERMISSION_KEYS: ReadonlySet<string> = new Set([
   "process_sales", // pos-layout-header.tsx, auth-context.tsx (canProcessSales)
+  "apply_discounts", // pos-cart.tsx
   "void_refund_sales", // pos-transaction-history.tsx
   "manage_products", // transfer-stock-dialog.tsx, auth-context.tsx (canManageStockBatch)
   "view_activity_log", // activity-log-page.tsx, product-history.tsx, pos-transaction-history.tsx, use-finance-data.ts, use-purchase-orders.ts, use-dashboard-overview.ts, use-pos-data.ts, auth-context.tsx (canViewAllActivity)

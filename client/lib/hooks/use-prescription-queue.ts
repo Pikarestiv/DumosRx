@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getActivePrescriptions, getAllPrescriptionItems } from "@/lib/db/queries/prescriptions";
+import { getActivePrescriptions, getPrescriptionItemsFor } from "@/lib/db/queries/prescriptions";
 import { genericFuzzySearch } from "@/lib/utils/search";
 import { queryKeys } from "@/lib/query-keys";
 import type { PrescriptionRow, PrescriptionStatus, PrescriptionPriority } from "@/lib/types/prescription";
@@ -44,9 +44,10 @@ export interface Prescription {
 }
 
 async function fetchPrescriptions(): Promise<Prescription[]> {
-  // 1. Fetch prescriptions
+  // 1. Fetch prescriptions, then only the items belonging to them (rather
+  // than every prescription_items row ever written).
   const pData = await getActivePrescriptions();
-  const itemsData = await getAllPrescriptionItems();
+  const itemsData = await getPrescriptionItemsFor(pData.map((p) => p.id));
 
   // 2. Group items by prescription_id
   const itemsMap = new Map<string, PrescriptionMedication[]>();
@@ -187,21 +188,27 @@ export function usePrescriptionQueue() {
     
     let filledToday = 0;
     let filledYesterday = 0;
+    let pending = 0;
+    let inProgress = 0;
+    let ready = 0;
+    let urgent = 0;
 
-    const pending = prescriptions.filter((p) => p.status === "pending").length;
-    const inProgress = prescriptions.filter((p) => p.status === "in_progress").length;
-    const ready = prescriptions.filter((p) => p.status === "ready").length;
-    const urgent = prescriptions.filter((p) => p.priority === "urgent" || p.priority === "stat").length;
+    // One pass rather than five over the same array.
+    for (const p of prescriptions) {
+      if (p.status === "pending") pending++;
+      else if (p.status === "in_progress") inProgress++;
+      else if (p.status === "ready") ready++;
 
-    prescriptions.forEach((p) => {
+      if (p.priority === "urgent" || p.priority === "stat") urgent++;
+
       const isFilled = p.status === "dispensed" || p.status === "completed";
-      if (!isFilled) return;
+      if (!isFilled) continue;
       const dateStr = p.dateDispensed || p.dateIssued;
-      if (!dateStr) return;
-      
+      if (!dateStr) continue;
+
       if (dateStr.startsWith(todayStr)) filledToday++;
       else if (dateStr.startsWith(yesterdayStr)) filledYesterday++;
-    });
+    }
 
     return {
       pending,

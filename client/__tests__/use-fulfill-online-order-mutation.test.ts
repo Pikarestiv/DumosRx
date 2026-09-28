@@ -37,8 +37,8 @@ describe("useFulfillOnlineOrderMutation", () => {
     });
     db = new SQL.Database();
     db.run(SCHEMA_SQL);
-    // store_id/cashier_id etc. are added via the sync-column migrations,
-    // not the base SCHEMA_SQL - the hook under test writes both.
+    // store_id etc. are added via the sync-column migrations, not the base
+    // SCHEMA_SQL - the hook under test writes them.
     const { runSchemaMigrations, makeSqlJsAdapter } = await import("@/lib/db/schema-migrations");
     await runSchemaMigrations(makeSqlJsAdapter(db));
     core.__setDatabaseForTesting(db);
@@ -92,7 +92,7 @@ describe("useFulfillOnlineOrderMutation", () => {
     expect((transactionNumber as string).length).toBeGreaterThan(0);
     expect(subtotal).toBe(5000);
     expect(totalAmount).toBe(5000);
-    expect(paymentStatus).toBe("paid");
+    expect(paymentStatus).toBe("completed");
     expect(notes).toBe("Online order - Jane Doe");
   });
 
@@ -221,5 +221,39 @@ describe("useFulfillOnlineOrderMutation", () => {
     expect(db.exec(`SELECT COUNT(*) FROM sales`)[0].values[0][0]).toBe(1);
     expect(db.exec(`SELECT quantity FROM stock_batches WHERE product_id = 'p1'`)[0].values[0][0]).toBe(8);
     expect(vi.mocked(apiClient.fulfillOnlineOrder)).toHaveBeenCalledTimes(2);
+  });
+
+  it("attributes the sale to the cashier via sales.user_id, the column every report reads", async () => {
+    seedProductWithBatch("p1", 500, 10);
+    const { useFulfillOnlineOrderMutation } = await import(
+      "@/lib/hooks/use-fulfill-online-order-mutation"
+    );
+    const { result } = renderHook(() => useFulfillOnlineOrderMutation(), { wrapper });
+
+    await act(async () => {
+      await result.current.mutateAsync({ order, storeId: "store1", cashierId: "cashier1" });
+    });
+
+    expect(result.current.isError).toBe(false);
+
+    const rows = db.exec(`SELECT user_id FROM sales`);
+    expect(rows[0].values[0][0]).toBe("cashier1");
+  });
+
+  it("shows the fulfilled order in the fulfilling device's own cashier-scoped sales query", async () => {
+    seedProductWithBatch("p1", 500, 10);
+    const { useFulfillOnlineOrderMutation } = await import(
+      "@/lib/hooks/use-fulfill-online-order-mutation"
+    );
+    const { getRecentSales } = await import("@/lib/db/queries/sales");
+    const { result } = renderHook(() => useFulfillOnlineOrderMutation(), { wrapper });
+
+    await act(async () => {
+      await result.current.mutateAsync({ order, storeId: "store1", cashierId: "cashier1" });
+    });
+
+    const mine = await getRecentSales("cashier1");
+    expect(mine).toHaveLength(1);
+    expect(mine[0].transaction_number).toBe("ONL-order-1");
   });
 });

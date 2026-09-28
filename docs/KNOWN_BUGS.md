@@ -14,9 +14,9 @@ This file holds **open** items only. Fixed entries move to `docs/FIXED_BUGS.md` 
 
 ## Executive Summary
 
-**Overall health.** The codebase is unusually well-defended for its size: the sync engine's conflict model, the single-writer tab lock, tenant scoping on the server and the money math have all been through several review-and-fix cycles, and both test suites pass cleanly. The new findings in this pass are therefore not the "obvious" classes (cross-tenant leaks, double-charging, silent rollbacks) but the next layer down: **scale limits that were never exercised** (all three found so far have since been fixed — a local database with essentially no indexes, plus the pull engine's own un-resumable page cap and the server tenant-scope that loaded every sale id into PHP memory per request; see `docs/FIXED_BUGS.md`) and **attribution/consistency gaps** on the newest flows (online-order fulfilment).
+**Overall health.** The codebase is unusually well-defended for its size: the sync engine's conflict model, the single-writer tab lock, tenant scoping on the server and the money math have all been through several review-and-fix cycles, and both test suites pass cleanly. The new findings in this pass are therefore not the "obvious" classes (cross-tenant leaks, double-charging, silent rollbacks) but the next layer down: **scale limits that were never exercised** (all three found so far have since been fixed — a local database with essentially no indexes, plus the pull engine's own un-resumable page cap and the server tenant-scope that loaded every sale id into PHP memory per request; see `docs/FIXED_BUGS.md`) and **attribution/consistency gaps** on the newest flows (the online-order fulfilment one, `A-4`, has since been fixed too).
 
-**Findings this pass, by severity:** 0 **P0**, 0 **P1**, 7 **P2**, 13 **P3** — 20 open findings from this pass (IDs `A-1`…`A-24`, less the fixed `A-1`, `A-2`, `A-3` and `A-6`), plus 14 still-open items carried from the two earlier passes (`P2-1`, `P3-1`, `P3-2`, `P3-5`, `PG-1`…`PG-10`), all preserved verbatim below.
+**Findings this pass, by severity:** 0 **P0**, 0 **P1**, 6 **P2**, 13 **P3** — 19 open findings from this pass (IDs `A-1`…`A-24`, less the fixed `A-1`, `A-2`, `A-3`, `A-4` and `A-6`), plus 14 still-open items carried from the two earlier passes (`P2-1`, `P3-1`, `P3-2`, `P3-5`, `PG-1`…`PG-10`), all preserved verbatim below.
 
 **Most important risks, in order:**
 
@@ -40,15 +40,6 @@ None open. `A-1` (the pull page cap that made a >100,000-row table un-syncable) 
 ---
 
 ## 3. Medium-priority findings (P2)
-
-#### [P2] A-4. Fulfilled online orders are recorded under `sales.cashier_id`, not `user_id`, so they vanish from every cashier-attributed view on the fulfilling device
-**Category:** Bug / Reporting — **Confirmed bug**
-**Location:** `client/lib/hooks/use-fulfill-online-order-mutation.ts:92` (`cashier_id: cashierId`), `:91` (`payment_status: "paid"`); readers: `client/lib/db/queries/sales.ts:243-290` (`getRecentSales` filters/joins on `s.user_id`), `:155-171` (`getTopStaffByDate` joins `users` on `s.user_id`), `client/lib/db/queries/reports.ts:202-209, 647-661` (dashboard feed and `cashierPerformance` on `s.user_id`), `client/lib/hooks/use-my-today-sales.ts`.
-**Problem:** The local `sales` table has both `user_id` (the column every query reads) and a migration-added `cashier_id` (`schema-migrations.ts:209`, present only so pulled rows don't fail on an unknown column). The online-order fulfilment path writes the cashier into `cashier_id` and leaves `user_id` NULL. On the fulfilling device the sale therefore has no cashier for any report; after it round-trips through the server, `mapPullRowForClient` maps `cashier_id → user_id`, so *other* devices see the correct cashier — the same sale is attributed differently per device. `payment_status: "paid"` is also outside the client's own vocabulary (`completed | pending | partial | refunded | partially_refunded`), so any status filter or `applyCreditPaymentFIFO`-style logic keyed on those values treats it as unknown.
-**Why it matters:** A cashier who fulfils online orders sees them missing from "My Sales Today"/"My Transactions Today" and the Recent Sales history; the owner's staff-performance report undercounts that cashier on that device but not on another; end-of-day reconciliation by staff disagrees between terminals.
-**Failure scenario:** Store fulfils 12 online orders on the counter tablet; the owner's laptop (after sync) shows them under the cashier, the tablet shows them under nobody; the cashier's shift total on the tablet is short by 12 sales.
-**Recommended fix:** Write `user_id` (matching `use-pos-payment.ts`) and use `completed` for `payment_status`; add a test asserting the local row's `user_id` is set.
-**Confidence:** High.
 
 #### [P2] A-5. The plan-tier sync-interval throttle is enforced only against a client-controlled flag, and the client's own background daemon always sets it
 **Category:** Architecture / Business rule / Performance — **Confirmed (design gap)**
@@ -356,10 +347,9 @@ Synthetic dataset built from the app's own `SCHEMA_SQL` plus the migration-added
 Ordered by technical impact and by which fixes unblock or de-risk others — not by ease.
 
 1. **PG-2 then PG-1** (carried) — the storefront webhook/reconciliation path and the gateway pinning; still the largest real-world money-loss surface.
-2. **A-4** — online-order sale attribution (`user_id`, `payment_status`); small, and it should land before anyone builds reporting on online orders.
-3. **A-5** — decide the sync-interval rule, fix the server throttle's batch handling, and have the daemon call `sync(false)`. Do this *after* the now-fixed A-1/A-3 pull rework so backlogs drain correctly once backoff is respected again.
-4. **A-8 + A-7 + A-18** — startup/idle cost: gate the `stores` prune on a changed id set, run the orphan scan once per install, move the launch sync off the splash, delete the 5 s poll. Re-benchmark on a real low-end device afterwards.
-5. **A-10, A-11, A-13** — server public-surface hardening (config allow-list, throttles, no PIN-derived passwords) and the Tauri CSP. Independent; group into one security batch.
-6. **A-9, A-12, A-21, A-16, A-17** — sync/data-integrity edge cases; each is small and self-contained now that the index/pagination work is in.
-7. **A-14, A-15, A-19, A-20, A-22, A-23, A-24** — hygiene and architecture debt; A-15 (enforce `tsc`/tests in CI, `npm ci`) is the one worth doing early because it protects everything else.
-8. **P2-1** (ops confirmation) and the accepted **P3-1/P3-2/P3-5**, **PG-3…PG-10** as previously scheduled.
+2. **A-5** — decide the sync-interval rule, fix the server throttle's batch handling, and have the daemon call `sync(false)`. Do this *after* the now-fixed A-1/A-3 pull rework so backlogs drain correctly once backoff is respected again.
+3. **A-8 + A-7 + A-18** — startup/idle cost: gate the `stores` prune on a changed id set, run the orphan scan once per install, move the launch sync off the splash, delete the 5 s poll. Re-benchmark on a real low-end device afterwards.
+4. **A-10, A-11, A-13** — server public-surface hardening (config allow-list, throttles, no PIN-derived passwords) and the Tauri CSP. Independent; group into one security batch.
+5. **A-9, A-12, A-21, A-16, A-17** — sync/data-integrity edge cases; each is small and self-contained now that the index/pagination work is in.
+6. **A-14, A-15, A-19, A-20, A-22, A-23, A-24** — hygiene and architecture debt; A-15 (enforce `tsc`/tests in CI, `npm ci`) is the one worth doing early because it protects everything else.
+7. **P2-1** (ops confirmation) and the accepted **P3-1/P3-2/P3-5**, **PG-3…PG-10** as previously scheduled.

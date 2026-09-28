@@ -125,6 +125,14 @@ migration here **and** the corresponding update on the `client/` side
 (`client/lib/db/schema.ts` + sync engine coverage) — see `.agents/AGENTS.md`
 §4 and `client/AGENTS.md` for the client-side half of this.
 
+- **Pull paging and tenant scoping:** `pull()` pages by a keyset cursor on
+  `(updated_at, id)` (`page_cursor`), falling back to the legacy
+  `page_offset` for older clients, and the six parent-scoped child tables
+  scope through a **Builder** subquery — never `->pluck('id')`, which
+  inlines every id the tenant owns as bound literals on every page. The
+  tenant scope is resolved once per request by `resolvePullTenantScope()`.
+  Read `docs/SYNC_PULL_PAGINATION.md` before changing any of it;
+  `tests/Feature/SyncPullPaginationTest.php` is what guards it.
 - **Table-name mismatches:** the client's sync table name doesn't always
   match the real MySQL table — check `getModelForTable()` in
   `SyncController.php` first. E.g. client `audit_logs` → server model

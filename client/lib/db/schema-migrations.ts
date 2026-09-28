@@ -611,6 +611,7 @@ const SYNC_COLUMN_MIGRATIONS: { table: string; columns: string[] }[] = [
     ],
   },
   { table: "_sync_queue", columns: ["next_retry_at TEXT"] },
+  { table: "_sync_state", columns: ["server_cursor TEXT"] },
 ];
 
 async function runSyncColumnMigrations(

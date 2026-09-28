@@ -150,6 +150,20 @@ without touching the Activity Log's query/sort/search paths at all.
   version comparison on the server. This means a pulled update can be
   briefly "invisible" locally if you have an unsynced edit in flight; that
   is intentional, not a bug.
+- **Pull paging is resumable, and carries two cursors per table.**
+  `_sync_state.last_synced_at` is the *delta window* and only advances when
+  the server reports `has_more: false` for that table with no skipped
+  record; `_sync_state.server_cursor` is the `(updated_at, id)` keyset
+  *position* inside a still-undrained window and is written after every
+  committed page, then cleared when the window is stamped. So an
+  interrupted round (network failure, `MAX_PULL_PAGES`, app close) resumes
+  instead of restarting, and nothing is ever declared synced that isn't.
+  The request sends `page_cursor` and the legacy `page_offset` together so
+  client and server can deploy independently. Do not collapse the two
+  cursors into one — the server's window filter is `_synced_at OR
+  updated_at`, and a row-ordered position cannot express it. Full design,
+  including the `id` tie-break and the cursor's date format, is in
+  `docs/SYNC_PULL_PAGINATION.md`.
 - Sync failures use exponential backoff per queue item
   (`recordSyncFailure` in `base-helpers.ts`), with a one-time report to
   superadmins after `SYNC_FAILURE_REPORT_THRESHOLD` (5) consecutive

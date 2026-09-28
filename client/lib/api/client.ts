@@ -303,6 +303,7 @@ class ApiClient extends FleetBillingApiClient {
     payload: {
       last_synced: Record<string, string>;
       page_offset?: Record<string, number>;
+      page_cursor?: Record<string, { updated_at: string; id: string }>;
     },
     isManual: boolean = false,
     isSetup: boolean = false,

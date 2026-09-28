@@ -692,6 +692,13 @@ class SyncController extends Controller
         // drained — offsets exist so a table with >500 changed rows can be
         // paged within a single round without prematurely marking it synced.
         $pageOffsets = $request->input('page_offset', []);
+        // Keyset position within the current in-progress walk, per table:
+        // { table: { updated_at, id } }, echoed back from the last row of the
+        // page the client most recently committed. Supersedes $pageOffsets
+        // for any table that supplies one; $pageOffsets stays honored so a
+        // client older than this cursor keeps paging exactly as before.
+        $pageCursors = $request->input('page_cursor', []);
+        $this->hasSyncedAtColumnCache = [];
         $changes = [];
         $hasMore = [];
         $serverTimestamp = now()->toIso8601String();
@@ -719,6 +726,11 @@ class SyncController extends Controller
             $tables = ['stores'];
         }
 
+        $user = $request->user();
+        $tenantScope = $user->hasRole('super_admin')
+            ? null
+            : $this->resolvePullTenantScope($user, $request);
+
         foreach ($tables as $table) {
             $modelClass = $this->getModelForTable($table);
 
@@ -739,14 +751,18 @@ class SyncController extends Controller
                 : $modelClass::query();
 
             // Multi-tenant filtering
-            $user = $request->user();
-            if (!$user->hasRole('super_admin')) {
-                $this->applyPullTenantScope($query, $table, $user, $request);
+            if ($tenantScope) {
+                $this->applyPullTenantScope($query, $table, $tenantScope);
             }
 
             $this->applyPullCursor($query, $table, $lastSyncedMap[$table] ?? null);
 
-            [$records, $hasMore[$table]] = $this->fetchPullPage($query, $table, (int) ($pageOffsets[$table] ?? 0));
+            [$records, $hasMore[$table]] = $this->fetchPullPage(
+                $query,
+                $table,
+                (int) ($pageOffsets[$table] ?? 0),
+                $this->normalizePageCursor($pageCursors[$table] ?? null),
+            );
 
             $changes[$table] = $records->map(fn ($item) => $this->mapPullRowForClient($item, $table));
         }
@@ -760,6 +776,14 @@ class SyncController extends Controller
     }
 
     /**
+     * Memoizes applyPullCursor()'s _synced_at column probe for the lifetime
+     * of one request. Schema::hasColumn() is a real INFORMATION_SCHEMA round
+     * trip that Laravel does not cache, and the probe runs once per table per
+     * page — same reasoning as stampSyncedAt()'s own per-push cache.
+     */
+    private array $hasSyncedAtColumnCache = [];
+
+    /**
      * Applies the client's per-table last_synced cursor, preferring
      * _synced_at OR updated_at where the table has a _synced_at column.
      * 'stores' is deliberately exempt (see fetchPullPage()).
@@ -768,7 +792,11 @@ class SyncController extends Controller
     {
         if ($lastSynced && $table !== 'stores') {
             $parsedLastSynced = \Carbon\Carbon::parse($lastSynced)->setTimezone('UTC')->format('Y-m-d H:i:s');
-            if (\Illuminate\Support\Facades\Schema::hasColumn($table, '_synced_at')) {
+            if (!isset($this->hasSyncedAtColumnCache[$table])) {
+                $this->hasSyncedAtColumnCache[$table] =
+                    \Illuminate\Support\Facades\Schema::hasColumn($table, '_synced_at');
+            }
+            if ($this->hasSyncedAtColumnCache[$table]) {
                 $query->where(function ($q) use ($parsedLastSynced) {
                     $q->where('_synced_at', '>', $parsedLastSynced)
                       ->orWhere('updated_at', '>', $parsedLastSynced);
@@ -792,21 +820,68 @@ class SyncController extends Controller
      *
      * Every other table gets deterministic ordering (previously unordered,
      * so the 500 that made it into any given page were an arbitrary subset
-     * of the matching rows, not even the oldest) plus offset-based paging
-     * within this pull round: fetching 501 and slicing tells us whether more
-     * rows remain beyond this page without a second COUNT query.
+     * of the matching rows, not even the oldest) and is walked by a keyset
+     * cursor on that same (updated_at, id) ordering: fetching 501 and slicing
+     * tells us whether more rows remain beyond this page without a second
+     * COUNT query, and seeking by the previous page's last row keeps every
+     * page the same cost instead of degrading as OFFSET grows.
+     *
+     * $offset is the pre-keyset fallback, still honored for clients that send
+     * page_offset without page_cursor. See docs/SYNC_PULL_PAGINATION.md.
      */
-    private function fetchPullPage($query, string $table, int $offset): array
+    private function fetchPullPage($query, string $table, int $offset, ?array $cursor = null): array
     {
         if ($table === 'stores') {
             return [$query->get(), false];
         }
 
-        $page = $query->orderBy('updated_at')->orderBy('id')
-            ->skip($offset)->limit(501)->get();
+        if ($cursor) {
+            // The column format, not ISO8601 - SQLite compares datetimes as
+            // text (docs/SYNC_PULL_PAGINATION.md, "Why keyset, not OFFSET").
+            $at = \Carbon\Carbon::parse($cursor['updated_at'])
+                ->setTimezone('UTC')
+                ->format($query->getModel()->getDateFormat());
+            $id = $cursor['id'];
+
+            $query->where(function ($q) use ($at, $id) {
+                $q->where('updated_at', '>', $at)
+                  ->orWhere(function ($q2) use ($at, $id) {
+                      $q2->where('updated_at', '=', $at)->where('id', '>', $id);
+                  });
+            });
+            $page = $query->orderBy('updated_at')->orderBy('id')->limit(501)->get();
+        } else {
+            $page = $query->orderBy('updated_at')->orderBy('id')
+                ->skip($offset)->limit(501)->get();
+        }
+
         $hasMore = $page->count() > 500;
 
         return [$hasMore ? $page->slice(0, 500) : $page, $hasMore];
+    }
+
+    /**
+     * Validates one table's client-supplied keyset position, returning null
+     * for anything that isn't a complete, parseable (updated_at, id) pair so
+     * the page falls back to offset paging rather than throwing.
+     */
+    private function normalizePageCursor($cursor): ?array
+    {
+        if (!is_array($cursor) || !isset($cursor['updated_at'], $cursor['id'])) {
+            return null;
+        }
+
+        if (!is_scalar($cursor['updated_at']) || !is_scalar($cursor['id'])) {
+            return null;
+        }
+
+        try {
+            \Carbon\Carbon::parse($cursor['updated_at']);
+        } catch (\Exception $e) {
+            return null;
+        }
+
+        return ['updated_at' => $cursor['updated_at'], 'id' => $cursor['id']];
     }
 
     /**
@@ -817,28 +892,18 @@ class SyncController extends Controller
      * store-scoped, which derive scope through a parent, and which are
      * legacy user_id-owned. Mutates the query in place, exactly as the
      * inline match() it replaces did.
+     *
+     * Takes an already-resolved scope (resolvePullTenantScope()) rather than
+     * re-deriving it: this is called once per table per page, and the owner
+     * lookup + owned-store list + staff-id list never change within a
+     * request.
      */
-    private function applyPullTenantScope($query, string $table, $user, Request $request): void
+    private function applyPullTenantScope($query, string $table, array $scope): void
     {
-        $ownerId = $user->store_id
-            ? Store::where('id', $user->store_id)->value('user_id') 
-            : $user->id;
-        
-        $requestedStoreId = $request->header('X-Store-Id') ?? $request->input('store_id');
-        if ($requestedStoreId) {
-            $ownsStore = Store::where('id', $requestedStoreId)->where('user_id', $ownerId)->exists();
-            if ($ownsStore) {
-                $storeIds = [$requestedStoreId];
-            } else {
-                $storeIds = [];
-            }
-        } else {
-            $storeIds = $user->store_id 
-                ? [$user->store_id] 
-                : Store::where('user_id', $ownerId)->pluck('id')->toArray();
-        }
-            
-        $userIds = User::whereIn('store_id', $storeIds)->pluck('id')->push($ownerId)->toArray();
+        $ownerId = $scope['ownerId'];
+        $storeIds = $scope['storeIds'];
+        $userIds = $scope['userIds'];
+        $ownedStoreIds = $scope['ownedStoreIds'];
 
         match ($table) {
             'users' => $query->whereIn('id', $userIds),
@@ -851,10 +916,7 @@ class SyncController extends Controller
             // granted by an admin) could never be pulled down at all.
             // Staff (fixed store_id) still only ever see their own
             // store, same as before.
-            'stores' => $query->whereIn(
-                'id',
-                $user->store_id ? $storeIds : Store::where('user_id', $ownerId)->pluck('id')->toArray()
-            )->with(['user.subscriptions']),
+            'stores' => $query->whereIn('id', $ownedStoreIds)->with(['user.subscriptions']),
             // These 11 tables now carry a real store_id column (see
             // add_store_id_to_domain_tables migration); scope directly
             // by store rather than by an owner/cashier user-id chain, so
@@ -873,12 +935,22 @@ class SyncController extends Controller
             'supplier_payments' => $query->whereIn('store_id', $storeIds),
             // Child tables still derive scoping through their now
             // correctly store-scoped parent, no store_id of their own.
-            'sale_items' => $query->whereIn('sale_id', Sale::whereIn('store_id', $storeIds)->pluck('id')),
-            'return_items' => $query->whereIn('return_id', \App\Models\SaleReturn::whereIn('store_id', $storeIds)->pluck('id')),
-            'prescription_items' => $query->whereIn('prescription_id', \App\Models\Prescription::whereIn('store_id', $storeIds)->pluck('id')),
-            'purchase_order_items' => $query->whereIn('purchase_order_id', PurchaseOrder::whereIn('store_id', $storeIds)->pluck('id')),
-            'stock_batches' => $query->whereIn('product_id', Product::whereIn('store_id', $storeIds)->pluck('id')),
-            'sale_item_batches' => $query->whereIn('sale_item_id', SaleItem::whereIn('sale_id', Sale::whereIn('store_id', $storeIds)->pluck('id'))->pluck('id')),
+            // Each passes a Builder, never a Collection: Laravel compiles a
+            // Builder into a real SQL subquery, while ->pluck('id') executed
+            // the parent query and inlined every id the tenant owns as bound
+            // literals, once per table per page (see
+            // docs/SYNC_PULL_PAGINATION.md). The soft-delete global scope
+            // still applies to each subquery exactly as it did to the pluck,
+            // which counts()'s stock_batches mirror depends on.
+            'sale_items' => $query->whereIn('sale_id', $this->tenantSaleIds($storeIds)),
+            'return_items' => $query->whereIn('return_id', \App\Models\SaleReturn::query()->select('id')->whereIn('store_id', $storeIds)),
+            'prescription_items' => $query->whereIn('prescription_id', \App\Models\Prescription::query()->select('id')->whereIn('store_id', $storeIds)),
+            'purchase_order_items' => $query->whereIn('purchase_order_id', PurchaseOrder::query()->select('id')->whereIn('store_id', $storeIds)),
+            'stock_batches' => $query->whereIn('product_id', Product::query()->select('id')->whereIn('store_id', $storeIds)),
+            'sale_item_batches' => $query->whereIn(
+                'sale_item_id',
+                SaleItem::query()->select('id')->whereIn('sale_id', $this->tenantSaleIds($storeIds)),
+            ),
             'requested_products' => $query->whereIn('store_id', $storeIds),
             // Upgraded from the legacy `where('user_id', $ownerId)`
             // now that these carry a real store_id (see
@@ -910,6 +982,50 @@ class SyncController extends Controller
             'permission_groups' => $query->whereIn('store_id', $storeIds),
             default => $query->where('user_id', $ownerId),
         };
+    }
+
+    /**
+     * The tenant's sale-id subquery, used by both sale_items and (nested one
+     * level deeper) sale_item_batches.
+     */
+    private function tenantSaleIds(array $storeIds)
+    {
+        return Sale::query()->select('id')->whereIn('store_id', $storeIds);
+    }
+
+    /**
+     * Resolves, once per request, everything applyPullTenantScope() needs:
+     * the subscription owner, the store list this pull is narrowed to, the
+     * full owned-store list ('stores' is deliberately never narrowed by
+     * X-Store-Id — it IS the store-switcher's discovery list), and the staff
+     * ids that go with them.
+     */
+    private function resolvePullTenantScope($user, Request $request): array
+    {
+        $ownerId = $user->store_id
+            ? Store::where('id', $user->store_id)->value('user_id')
+            : $user->id;
+
+        $ownedStoreIds = $user->store_id
+            ? [$user->store_id]
+            : Store::where('user_id', $ownerId)->pluck('id')->toArray();
+
+        $requestedStoreId = $request->header('X-Store-Id') ?? $request->input('store_id');
+        if ($requestedStoreId) {
+            $ownsStore = Store::where('id', $requestedStoreId)->where('user_id', $ownerId)->exists();
+            $storeIds = $ownsStore ? [$requestedStoreId] : [];
+        } else {
+            $storeIds = $ownedStoreIds;
+        }
+
+        $userIds = User::whereIn('store_id', $storeIds)->pluck('id')->push($ownerId)->toArray();
+
+        return [
+            'ownerId' => $ownerId,
+            'storeIds' => $storeIds,
+            'ownedStoreIds' => $ownedStoreIds,
+            'userIds' => $userIds,
+        ];
     }
 
     /**
@@ -2003,8 +2119,9 @@ class SyncController extends Controller
         // cursor failure mode (inventory + sales) rather than every synced
         // table - a targeted, cheap check, not a second sync engine.
         // stock_batches must be scoped EXACTLY the way pull() scopes it
-        // (line ~845: whereIn('product_id', Product::whereIn('store_id', ...)
-        // ->pluck('id'))), not by stock_batches.store_id directly. Product
+        // (applyPullTenantScope(): whereIn('product_id', Product::query()
+        // ->select('id')->whereIn('store_id', ...))), not by
+        // stock_batches.store_id directly. Product
         // uses SoftDeletes, so that pull-side subquery silently excludes
         // batches belonging to a deleted product — completely routine
         // (discontinuing/removing a product) for a store like this one.
@@ -2015,7 +2132,7 @@ class SyncController extends Controller
         // the very same pull scoping and can never close a gap that isn't
         // real. Matching this exactly is what keeps the health check
         // comparing apples to apples.
-        $nonDeletedProductIds = Product::where('store_id', $currentStoreId)->pluck('id');
+        $nonDeletedProductIds = Product::query()->select('id')->where('store_id', $currentStoreId);
 
         $counts = [
             'products' => DB::table('products')->where('store_id', $currentStoreId)->whereNull('deleted_at')->count(),

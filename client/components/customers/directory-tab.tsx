@@ -14,6 +14,7 @@ import { useSortableData } from "@/lib/hooks/use-sortable-data";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useAuth } from "@/lib/context/auth-context";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { ScrollToTopButton } from "@/components/ui/scroll-to-top-button";
 
 // Matches the row's px-4 py-2.5 padding + single line of 13.5px/12px text.
 const DESKTOP_ROW_HEIGHT = 56;
@@ -299,6 +300,7 @@ export function DirectoryTab({
             <NoCustomersFound isAuditor={isAuditor} onAddCustomer={onAddCustomer} />
           )}
         </div>
+        <ScrollToTopButton scrollRef={desktopScrollRef} />
       </Card>
       )}
 

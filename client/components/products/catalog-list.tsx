@@ -19,6 +19,7 @@ import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
 import { getCategoryList } from "@/lib/db/queries/categories";
 import { queryKeys } from "@/lib/query-keys";
 import type { SortDirection } from "@/lib/hooks/use-sortable-data";
+import { ScrollToTopButton } from "@/components/ui/scroll-to-top-button";
 
 type ProductSortKey =
   | "name"
@@ -270,6 +271,7 @@ export function CatalogList({
           </div>
         )}
       </div>
+      <ScrollToTopButton scrollRef={scrollRef} />
       <RequestItemDialog
         open={showRequestDialog}
         onOpenChange={setShowRequestDialog}

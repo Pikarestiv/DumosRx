@@ -15,6 +15,7 @@ import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { EmptyState as SharedEmptyState } from "@/components/ui/empty-state";
 import { useAuth } from "@/lib/context/auth-context";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { ScrollToTopButton } from "@/components/ui/scroll-to-top-button";
 
 const MAX_ITEMS_SHOWN = 2;
 const DESKTOP_ROW_HEIGHT = 44;
@@ -259,6 +260,7 @@ export function ActivityTab({
         {loading || filtered.length === 0 ? (
           EmptyState
         ) : (
+          <>
           <div
             ref={desktopScrollRef}
             role="table"
@@ -342,6 +344,8 @@ export function ActivityTab({
               })}
             </div>
           </div>
+          <ScrollToTopButton scrollRef={desktopScrollRef} />
+          </>
         )}
       </Card>
       )}

@@ -5,8 +5,8 @@ import { ArrowLeft, Loader2, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 
-
 import { ReceiveLedgerTable } from "./receive-ledger-table";
+import { ScrollFade } from "@/components/ui/scroll-fade";
 import { ReceiveItemCard } from "./receive-item-card";
 import type { PurchaseOrder, PurchaseOrderItem } from "@/lib/db/local-database";
 import {
@@ -20,9 +20,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useMediaQuery } from "@/hooks/use-media-query";
-import {
-  outstandingBulkQuantity,
-} from "./po-line-item-math";
+import { outstandingBulkQuantity } from "./po-line-item-math";
 
 export interface ReceivedItemPayload {
   po_item_id: string;
@@ -46,7 +44,6 @@ interface ReceivePOPanelProps {
    * Receive" so a double-tap can't receive the same order twice. */
   isReceiving?: boolean;
 }
-
 
 /** Embedded, full-height replacement for the old Receive Goods modal. It
  * takes over the same side panel used for PO details so the ledger table
@@ -91,7 +88,11 @@ export function ReceivePOPanel({
   }, [po?.id]);
 
   const handleFieldChange = React.useCallback(
-    (itemId: string, field: keyof ReceivedItemPayload, value: string | number) => {
+    (
+      itemId: string,
+      field: keyof ReceivedItemPayload,
+      value: string | number,
+    ) => {
       setReceivedItems((prev) => ({
         ...prev,
         [itemId]: {
@@ -148,43 +149,45 @@ export function ReceivePOPanel({
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto p-5 space-y-4">
-        <p className="text-[13px] text-muted-foreground">
-          Confirm the quantities received and provide the batch/lot numbers
-          and expiry dates for each item.
-        </p>
+      <ScrollFade containerClassName="flex-1" className="p-5">
+        <div className="space-y-4">
+          <p className="text-[13px] text-muted-foreground">
+            Confirm the quantities received and provide the batch/lot numbers
+            and expiry dates for each item.
+          </p>
 
-        {mode === "standard" && (
-          <div className="border rounded-lg divide-y">
-            {(po.items?.length ?? 0) === 0 && (
-              <EmptyState
-                icon={Package}
-                title="No items on this order"
-                className="py-8"
-              />
-            )}
-            {po.items?.map((item: PurchaseOrderItem) => {
-              const state = receivedItems[item.id] || {};
-              return (
-                <ReceiveItemCard
-                  key={item.id}
-                  item={item}
-                  state={state}
-                  onFieldChange={handleFieldChange}
+          {mode === "standard" && (
+            <div className="border rounded-lg divide-y">
+              {(po.items?.length ?? 0) === 0 && (
+                <EmptyState
+                  icon={Package}
+                  title="No items on this order"
+                  className="py-8"
                 />
-              );
-            })}
-          </div>
-        )}
+              )}
+              {po.items?.map((item: PurchaseOrderItem) => {
+                const state = receivedItems[item.id] || {};
+                return (
+                  <ReceiveItemCard
+                    key={item.id}
+                    item={item}
+                    state={state}
+                    onFieldChange={handleFieldChange}
+                  />
+                );
+              })}
+            </div>
+          )}
 
-        {mode === "ledger" && (
-          <ReceiveLedgerTable
-            items={po.items || []}
-            receivedItems={receivedItems}
-            onFieldChange={handleFieldChange}
-          />
-        )}
-      </div>
+          {mode === "ledger" && (
+            <ReceiveLedgerTable
+              items={po.items || []}
+              receivedItems={receivedItems}
+              onFieldChange={handleFieldChange}
+            />
+          )}
+        </div>
+      </ScrollFade>
 
       <div className="p-5 border-t border-border bg-card mt-auto flex justify-end gap-3">
         <Button variant="outline" onClick={onBack} disabled={isReceiving}>
@@ -201,8 +204,8 @@ export function ReceivePOPanel({
           <AlertDialogHeader>
             <AlertDialogTitle>Missing Expiry Date</AlertDialogTitle>
             <AlertDialogDescription>
-              Some items are missing an expiry date. They will be marked with
-              a warning badge. Are you sure you want to proceed?
+              Some items are missing an expiry date. They will be marked with a
+              warning badge. Are you sure you want to proceed?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

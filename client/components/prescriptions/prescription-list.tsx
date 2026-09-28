@@ -14,6 +14,7 @@ import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useAuth } from "@/lib/context/auth-context";
 import { FileText } from "lucide-react";
+import { ScrollToTopButton } from "@/components/ui/scroll-to-top-button";
 
 interface PrescriptionListProps {
   prescriptions: Prescription[];
@@ -151,6 +152,7 @@ export function PrescriptionList({
           </div>
         )}
       </div>
+      <ScrollToTopButton scrollRef={scrollRef} />
     </Card>
   );
 }

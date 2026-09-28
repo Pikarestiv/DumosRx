@@ -2,6 +2,7 @@ import React from "react";
 import { formatMetricCurrency } from "@/lib/utils";
 import { MetricCard } from "@/components/ui/metric-card";
 import { useAuth } from "@/lib/context/auth-context";
+import { HorizontalScrollFade } from "@/components/ui/scroll-fade";
 
 interface TransactionMetricsData {
   totalSales: number;
@@ -21,7 +22,7 @@ export function TransactionMetrics({
   const isCashier = user?.role === "sales_staff";
 
   return (
-    <div
+    <HorizontalScrollFade
       className={`flex overflow-x-auto gap-2.5 md:gap-4 md:grid hide-scrollbar snap-x snap-mandatory ${isCashier ? "md:grid-cols-3" : "md:grid-cols-4"}`}
     >
       <MetricCard
@@ -50,6 +51,6 @@ export function TransactionMetrics({
           valueClassName="font-serif"
         />
       )}
-    </div>
+    </HorizontalScrollFade>
   );
 }

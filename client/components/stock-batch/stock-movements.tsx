@@ -27,6 +27,7 @@ import { useStore } from "@/lib/context/store-context";
 import { useAuth } from "@/lib/context/auth-context";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { ScrollToTopButton } from "@/components/ui/scroll-to-top-button";
 
 type MovementSortKey = "date" | "product" | "type" | "quantity" | "reference" | "user";
 
@@ -367,6 +368,7 @@ export function StockMovements() {
             </div>
           )}
         </div>
+        <ScrollToTopButton scrollRef={desktopScrollRef} />
       </div>
       )}
 

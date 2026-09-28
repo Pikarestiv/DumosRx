@@ -20,6 +20,7 @@ import { useQuickEditExpenseMutation } from "@/lib/hooks/use-expense-mutations";
 import { ExpenseDesktopRow, CATEGORY_META, type ExpenseDraft } from "./expense-desktop-row";
 import { EmptyState as SharedEmptyState } from "@/components/ui/empty-state";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { ScrollToTopButton } from "@/components/ui/scroll-to-top-button";
 
 type ExpenseSortKey = "date" | "category" | "description" | "method" | "amount";
 
@@ -296,6 +297,7 @@ export function ExpenseList() {
           )}
           {LoadOlderButton}
         </div>
+        <ScrollToTopButton scrollRef={desktopScrollRef} />
       </Card>
       )}
 

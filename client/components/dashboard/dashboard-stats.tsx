@@ -3,6 +3,7 @@
 import { MetricCard } from "@/components/ui/metric-card";
 import { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
+import { HorizontalScrollFade } from "@/components/ui/scroll-fade";
 
 export interface StatCard {
   title: string;
@@ -64,7 +65,7 @@ export function DashboardStats({ statsCards }: DashboardStatsProps) {
 
   return (
     <div className="-mx-4 sm:mx-0 px-4 sm:px-0">
-      <div className="flex overflow-x-auto sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-[10px] sm:gap-4 pb-4 sm:pb-0 hide-scrollbar snap-x snap-mandatory">
+      <HorizontalScrollFade className="flex overflow-x-auto sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-[10px] sm:gap-4 pb-4 sm:pb-0 hide-scrollbar snap-x snap-mandatory">
         {statsCards.map((stat) => {
           const colors = getColorStyles(stat.colorScheme);
           return (
@@ -80,7 +81,7 @@ export function DashboardStats({ statsCards }: DashboardStatsProps) {
             />
           );
         })}
-      </div>
+      </HorizontalScrollFade>
     </div>
   );
 }

@@ -12,6 +12,7 @@ import {
 import { useStore } from "@/lib/context/store-context";
 import { useStockMoM } from "@/lib/hooks/use-analytics";
 import { useMyTodaySales } from "@/lib/hooks/use-my-today-sales";
+import { HorizontalScrollFade } from "@/components/ui/scroll-fade";
 
 interface StockBatchMetricsProps {
   stock_batchValue: number;
@@ -37,7 +38,7 @@ export function StockBatchMetrics({
 
   return (
     <div className="-mx-4 sm:mx-0 px-4 sm:px-0">
-      <div className="flex overflow-x-auto sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 pb-4 sm:pb-0 hide-scrollbar snap-x snap-mandatory">
+      <HorizontalScrollFade className="flex overflow-x-auto sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 pb-4 sm:pb-0 hide-scrollbar snap-x snap-mandatory">
 
         {/* Total Stock Value — cashiers don't manage inventory, so this is
          * swapped for a metric that's actually theirs: today's own sales. */}
@@ -103,7 +104,7 @@ export function StockBatchMetrics({
           descriptionClassName="text-red-700/70"
         />
         
-      </div>
+      </HorizontalScrollFade>
     </div>
   );
 }

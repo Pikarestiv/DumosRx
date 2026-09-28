@@ -9,6 +9,7 @@ import { SortableHeaderCell } from "@/components/ui/sortable-header-cell";
 import { useSortableData } from "@/lib/hooks/use-sortable-data";
 import { useStore } from "@/lib/context/store-context";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ScrollToTopButton } from "@/components/ui/scroll-to-top-button";
 
 export interface ProductPerformanceRow {
   id: string;
@@ -156,6 +157,7 @@ export function ProductPerformanceTable({ products }: ProductPerformanceTablePro
               })}
               </div>
             </div>
+            <ScrollToTopButton scrollRef={scrollRef} />
           </div>
         </div>
       )}

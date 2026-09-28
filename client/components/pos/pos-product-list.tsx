@@ -19,6 +19,7 @@ import { VirtualizedProductGrid } from "@/components/pos/pos-virtualized-product
 import type { POSProduct } from "@/lib/types/product";
 import type { CartItem } from "@/lib/hooks/use-pos-cart";
 import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
+import { HorizontalScrollFade } from "@/components/ui/scroll-fade";
 
 type PosGroup = "suggestion" | "recent" | "common" | "standard";
 export type GroupedProduct = POSProduct & { posGroup: PosGroup };
@@ -329,7 +330,7 @@ export function POSProductList({
                 </button>
               )}
               {canUseSmartSuggestions && suggestionsList.length > 0 && (
-                <div className="flex gap-3 overflow-x-auto pb-2 px-4 mx-0 sm:px-0 hide-scrollbar snap-x snap-mandatory">
+                <HorizontalScrollFade className="flex gap-3 overflow-x-auto pb-2 px-4 mx-0 sm:px-0 hide-scrollbar snap-x snap-mandatory">
                   {suggestionsList.map((product) => (
                     <div
                       key={product.id}
@@ -344,7 +345,7 @@ export function POSProductList({
                       />
                     </div>
                   ))}
-                </div>
+                </HorizontalScrollFade>
               )}
               {canUseSmartSuggestions && suggestionsList.length === 0 && (
                 <div className="text-xs text-muted-foreground py-3 italic px-4 bg-muted/30 rounded-xl border border-dashed text-center">
@@ -360,7 +361,7 @@ export function POSProductList({
                   <Clock className="h-3.5 w-3.5 text-blue-500" />
                   Recently sold
                 </div>
-                <div className="flex gap-3 overflow-x-auto pb-2 px-4 mx-0 sm:px-0 hide-scrollbar snap-x snap-mandatory">
+                <HorizontalScrollFade className="flex gap-3 overflow-x-auto pb-2 px-4 mx-0 sm:px-0 hide-scrollbar snap-x snap-mandatory">
                   {recentlySoldList.map((product) => (
                     <div
                       key={product.id}
@@ -375,7 +376,7 @@ export function POSProductList({
                       />
                     </div>
                   ))}
-                </div>
+                </HorizontalScrollFade>
               </div>
             )}
 

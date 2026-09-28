@@ -44,7 +44,8 @@ export function addOrMergeLineItem(
 }
 
 /**
- * Single source of truth for Immediate Purchase cost math. unit_cost is
+ * Single source of truth for cost math on BOTH the Immediate Purchase and
+ * the Receive-goods flows. unit_cost is
  * always per bulk unit (e.g. per carton); cost_price_override, when typed
  * into "New Cost", is per single base unit (e.g. per tablet) — the same
  * scale as the catalog's current cost and the sell price entered in
@@ -53,15 +54,33 @@ export function addOrMergeLineItem(
  * inline: that duplication is exactly how "New Cost", "Total", and
  * "Review price" drifted out of sync with each other before.
  */
-export function getImmediateUnitCost(item: POLineItemDraft): number {
-  const unitsPerBulk = item.units_per_bulk || 1;
+export function resolveBaseUnitCost({
+  costOverride,
+  unitCost,
+  unitsPerBulk,
+}: {
+  costOverride?: number | string | null;
+  unitCost: number;
+  unitsPerBulk?: number | null;
+}): number {
+  const safeUnitsPerBulk = Number(unitsPerBulk) || 1;
   // Loose `!=` (not `!==`) deliberately also catches `null`: a PO reloaded
   // from the DB hands back SQL NULL for an unset override, not
   // `undefined` - `Number(null)` is `0`, which would silently read back
   // as "override to zero cost" instead of "no override".
-  return item.cost_price_override != null && item.cost_price_override !== ""
-    ? Number(item.cost_price_override)
-    : item.unit_cost / unitsPerBulk;
+  const resolved =
+    costOverride != null && costOverride !== ""
+      ? Number(costOverride)
+      : Number(unitCost) / safeUnitsPerBulk;
+  return Number.isFinite(resolved) ? Math.max(0, resolved) : 0;
+}
+
+export function getImmediateUnitCost(item: POLineItemDraft): number {
+  return resolveBaseUnitCost({
+    costOverride: item.cost_price_override,
+    unitCost: item.unit_cost,
+    unitsPerBulk: item.units_per_bulk,
+  });
 }
 
 /**
@@ -161,4 +180,21 @@ export function countSellingPriceOverrides(
     const product = products.find((p) => p.id === item.product_id);
     return Number(item.selling_price) !== (product?.selling_price ?? null);
   }).length;
+}
+
+/**
+ * The product ids on a receipt that carried a real cost override. Product
+ * cost is always a weighted average across active batches (see
+ * getProductsWithDetails in lib/db/queries/products.ts), never a single
+ * stored value, so receiving a small batch barely moves a large existing
+ * average and reads as "the cost didn't save". This drives the
+ * post-receive confirmation that says otherwise.
+ */
+export function costOverriddenProductIds(
+  items: { product_id?: string; cost_price?: number | string }[],
+): string[] {
+  return items
+    .filter((item) => item.cost_price != null && item.cost_price !== "")
+    .map((item) => item.product_id)
+    .filter((id): id is string => !!id);
 }

@@ -11,10 +11,43 @@ import {
 } from "@/lib/db/local-database";
 import { genericFuzzySearch } from "@/lib/utils/search";
 import { errorDescription } from "@/lib/utils/error-description";
-import { countSellingPriceOverrides } from "@/components/procurement/po-line-item-math";
+import {
+  costOverriddenProductIds,
+  countSellingPriceOverrides,
+} from "@/components/procurement/po-line-item-math";
+import { getAverageCostPrice } from "@/lib/db/queries/products";
+import { formatCurrency } from "@/lib/utils";
+import { useStore } from "@/lib/context/store-context";
 import { queryKeys } from "@/lib/query-keys";
 import { useAuth } from "@/lib/context/auth-context";
 import { useHasPermission } from "@/lib/hooks/use-permissions";
+
+/** Product cost is a weighted average across every active batch, so a new
+ * batch blends into it rather than replacing it - which reads as "the cost
+ * I typed didn't save". This says what actually happened, mirroring the
+ * selling-price-override confirmation right above its call site. */
+async function notifyCostRecorded(
+  receivedItems: ReceivedItem[],
+  currencyCode?: string,
+) {
+  const productIds = costOverriddenProductIds(receivedItems);
+  if (productIds.length === 0) return;
+
+  const blendedAverage =
+    productIds.length === 1 ? await getAverageCostPrice(productIds[0]) : null;
+
+  toast.success(
+    productIds.length === 1
+      ? "Cost recorded for 1 item"
+      : `Cost recorded for ${productIds.length} items`,
+    {
+      description:
+        blendedAverage != null
+          ? `Avg. Cost is now ${formatCurrency(blendedAverage, currencyCode)} - the new batch blends with the stock you already had, so it won't match what you typed.`
+          : "Avg. Cost blends each new batch with the stock you already had, so the catalog figure won't match what you typed.",
+    },
+  );
+}
 
 /** All business logic for the Orders tab of Procurement Management. */
 export function usePurchaseOrders() {
@@ -28,6 +61,7 @@ export function usePurchaseOrders() {
   // double-tap on a laggy tablet fired "Mark as Sent"/"Delete" twice.
   const [isMutatingPO, setIsMutatingPO] = useState(false);
   const { user } = useAuth();
+  const { storeProfile } = useStore();
   const viewerId = useHasPermission("view_activity_log") ? undefined : user?.id;
 
   const {
@@ -83,6 +117,7 @@ export function usePurchaseOrders() {
             : `Selling price updated for ${priceOverrideCount} items`,
         );
       }
+      await notifyCostRecorded(receivedItems, storeProfile?.currency);
       void fetchPurchaseOrders();
       return true;
     } catch (error) {

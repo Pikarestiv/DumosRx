@@ -23,6 +23,12 @@ vi.mock("@/lib/hooks/use-permissions", () => ({
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },
 }));
+vi.mock("@/lib/context/store-context", () => ({
+  useStore: () => ({ storeProfile: { currency: "NGN" } }),
+}));
+vi.mock("@/lib/db/queries/products", () => ({
+  getAverageCostPrice: vi.fn(async () => 5200),
+}));
 
 /**
  * Regression coverage (final review of the procurement UX branch): receiving
@@ -66,6 +72,40 @@ describe("usePurchaseOrders handleReceivePO selling-price toast", () => {
     });
 
     expect(toast.success).not.toHaveBeenCalledWith(expect.stringContaining("Selling price updated"));
+  });
+
+  it("toasts what the blended Avg. Cost is now, when a cost override was typed", async () => {
+    const { usePurchaseOrders } = await import("@/lib/hooks/use-purchase-orders");
+    const { result } = renderHook(() => usePurchaseOrders(), { wrapper });
+
+    await act(async () => {
+      await result.current.handleReceivePO("po1", [
+        { po_item_id: "i1", product_id: "prod1", quantity: 10, cost_price: 5000 },
+      ]);
+    });
+
+    expect(toast.success).toHaveBeenCalledWith(
+      "Cost recorded for 1 item",
+      expect.objectContaining({
+        description: expect.stringContaining("Avg. Cost is now"),
+      }),
+    );
+  });
+
+  it("does not toast a cost confirmation when no cost override was typed", async () => {
+    const { usePurchaseOrders } = await import("@/lib/hooks/use-purchase-orders");
+    const { result } = renderHook(() => usePurchaseOrders(), { wrapper });
+
+    await act(async () => {
+      await result.current.handleReceivePO("po1", [
+        { po_item_id: "i1", product_id: "prod1", quantity: 10 },
+      ]);
+    });
+
+    expect(toast.success).not.toHaveBeenCalledWith(
+      expect.stringContaining("Cost recorded"),
+      expect.anything(),
+    );
   });
 
   it("does not toast when the submitted selling_price equals the product's current price (no real change)", async () => {

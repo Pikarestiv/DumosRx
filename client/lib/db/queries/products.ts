@@ -65,6 +65,21 @@ export async function getProductBasicInfo(productId: string) {
   return rows[0] || null;
 }
 
+/** The weighted-average cost across a product's active batches - the same
+ * figure getProductsWithDetails() derives for the catalog. Read on its own
+ * right after a receipt so the confirmation can state what the catalog will
+ * now show, which is never the single cost that was just typed. */
+export async function getAverageCostPrice(productId: string): Promise<number | null> {
+  const rows = await query<{ cost_price: number | null }>(
+    `SELECT SUM(cost_price * quantity) * 1.0 / NULLIF(SUM(quantity), 0) as cost_price
+     FROM stock_batches
+     WHERE product_id = ? AND _deleted = 0 AND is_active = 1 AND quantity > 0`,
+    [productId],
+  );
+  const value = rows[0]?.cost_price;
+  return value == null ? null : Number(value);
+}
+
 export async function getProductByName(name: string) {
   const storeId = getActiveStoreId();
   const med = await query<{ id: string }>(

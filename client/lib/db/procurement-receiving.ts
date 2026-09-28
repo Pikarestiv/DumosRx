@@ -19,6 +19,7 @@ import {
   type DraftPOLineItem,
 } from "./procurement";
 import { getStoredUser } from "@/lib/storage-keys";
+import { resolveBaseUnitCost } from "@/components/procurement/po-line-item-math";
 
 /** Per-line-item receiving overrides submitted from the "Receive Order" form:
  * only po_item_id is required, the rest default to the ordered quantity/PO id. */
@@ -27,8 +28,10 @@ export interface ReceivedItem {
   quantity?: number | string;
   lot_number?: string;
   expiry_date?: string;
-  /** Overrides the PO line's unit cost for this receipt, if the actual
-   * invoiced cost differs from what was ordered. */
+  /** Overrides the PO line's cost for this receipt, if the actual invoiced
+   * cost differs from what was ordered. Per BASE unit (per tablet/bag), not
+   * per bulk unit - the same scale as products' catalog cost and as the
+   * Immediate Purchase flow's "New Cost". */
   cost_price?: number | string;
   /** When set, updates the product's global selling price; lets a price
    * change discovered while receiving stock be applied immediately instead
@@ -104,13 +107,14 @@ export async function receivePurchaseOrder(id: string, receivedItems?: ReceivedI
       const batchNumber = receivedItem?.lot_number?.trim() || poData.id.split('-')[0].toUpperCase();
       const expiryDate = receivedItem?.expiry_date ? new Date(receivedItem.expiry_date).toISOString().slice(0, 10) : null;
 
-      const safeUnitsPerBulk = unitsPerBulk || 1;
-      // Overrides are floored at 0 for the same reason as bulkQty: a negative
-      // cost would corrupt margin math everywhere stock_batches.cost_price is read.
-      const baseUnitCost =
-        receivedItem?.cost_price !== undefined && receivedItem.cost_price !== ""
-          ? Math.max(0, Number(receivedItem.cost_price))
-          : Number(item.unit_cost) / safeUnitsPerBulk;
+      // Same helper the Immediate Purchase flow uses, so the two paths can't
+      // drift on what "cost" means: a typed override is per base unit, an
+      // absent one falls back to the line's per-bulk unit_cost divided down.
+      const baseUnitCost = resolveBaseUnitCost({
+        costOverride: receivedItem?.cost_price,
+        unitCost: Number(item.unit_cost),
+        unitsPerBulk,
+      });
 
       // Deterministic, not random: two devices booking the same delivery
       // derive the same pair of ids (this PO line, this already-received

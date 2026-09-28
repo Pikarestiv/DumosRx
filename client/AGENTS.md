@@ -853,13 +853,90 @@ already in `sales_staff`, `specialist` and `manager`, so wiring it is a
 **no-op for every role except `auditor`**, which correctly loses the
 "Edit Profile" button it should never have had.
 
-`export_reports` joined it on 2026-09-28 too: `components/reports/report-center.tsx`
-hoists `useHasPermission("export_reports")` and hides the per-report Export
-dropdown and Print button, and passes the same boolean into
-`report-view-dialog.tsx` as `canExport` so the in-dialog copies of those
-actions can't be the way round it. The "View" action is deliberately *not*
-gated on it — reading a report on screen is `view_reports`, taking a copy
-off the device is `export_reports`.
+Four of the five **Reports & Activity** keys are wired, across two changes
+on 2026-09-28. The whole category is described here so it reads as one
+picture rather than two halves:
+
+- `view_reports` ("View Reports & Analytics") — **does the Report Center /
+  Analytics half of the Reports page exist for this role at all**.
+  `app/(dashboard)/reports/reports-tab-nav.tsx` gates the "Operational
+  Reports" and "Analytics & Insights" triggers and
+  `app/(dashboard)/reports/page.tsx` gates both `<TabsContent>` panels
+  **and** the `?tab=` resolution, which is the real gate — `/reports?tab=reports`
+  is typeable, so hiding the trigger alone is not one. Without the key the
+  page falls back to Daily Close, exactly as it did for a non-admin before.
+  **Converted from `isAdmin`** (i.e. from `manage_staff`), which widens it
+  to `auditor`: the reports-focused read-only role has held `view_reports`
+  and `export_reports` by default since the catalog was written and could
+  not reach a single report, which was the bug. admin and manager both hold
+  the key, so nothing narrows.
+  **Daily Close is deliberately not under this key** — every role,
+  `sales_staff` included, reaches it by design (see the cashier-visibility
+  section below, and `run_daily_close` in the no-action-to-wire list above).
+  The sidebar's own Reports-vs-Daily-Close split
+  (`dashboard-sidebar.tsx`) is still `isAdmin || canManageStockBatch` and
+  was **left alone**: it is a link, not a gate, and an auditor reaches the
+  page through its Daily Close link. Convert it in whatever change next
+  touches that nav.
+- `export_reports` ("Export / Print Reports") — `components/reports/report-center.tsx`
+  hoists `useHasPermission("export_reports")` and hides the per-report Export
+  dropdown and Print button, and passes the same boolean into
+  `report-view-dialog.tsx` as `canExport` so the in-dialog copies of those
+  actions can't be the way round it. The "View" action is deliberately *not*
+  gated on it — reading a report on screen is `view_reports`, taking a copy
+  off the device is `export_reports`. **Known gap**: the Analytics
+  dashboard's own "Export Reports" button
+  (`business-intelligence-dashboard.tsx`) downloads the profit-loss CSV and
+  has never been under `export_reports`; it is now under
+  `view_financial_reports`, which is the narrower of the two for that
+  button, but a role with the P&L right and no export right can still take
+  that one CSV. Add `export_reports` to it in whatever change next touches
+  that toolbar.
+- `view_financial_reports` ("View Financial Reports (P&L, Margins)") — the
+  **margin-revealing slice** of everything `view_reports` opens, and the
+  reports-side extension of `view_cost_fields`: a role that may not see a
+  product's cost may not pull the store's P&L either. Four surfaces, one
+  hoisted const each: `report-center.tsx` drops the "Profit & Loss Summary"
+  card from the report list (the other five reports, including the two also
+  tagged "Financial", are operational and stay);
+  `components/analytics/analytics-tab-nav.tsx` drops the "Profit & Loss"
+  sub-tab; `business-intelligence-dashboard.tsx` drops its `<TabsContent>`
+  and the "Export Reports" button; and `components/analytics/bi-key-metrics.tsx`
+  drops the "Net Profit" card, which is the same figure condensed, taking
+  its column with it via `METRIC_GRID_COLS` (a literal-class lookup, same
+  mechanism as `CATALOG_GRID_COLS`) rather than leaving a gap. No `?tab=`
+  fallback is needed here: the Analytics dashboard's `activeTab` is local
+  state defaulting to `sales` and is not URL-driven, so hiding the trigger
+  really is the gate. Defaults are **unchanged** and the key is
+  behaviour-neutral on day one — admin, manager and auditor hold it and are
+  exactly who could see these surfaces before; `specialist` and
+  `sales_staff` lack it, and both already lack `view_reports`, so they never
+  reach them either way.
+- `view_activity_log` ("View Activity Log") — the oldest wired key in the
+  category and a **different axis** from the three above: it answers "whose
+  records does a list show", not "which screen exists". See
+  `pos-transaction-history.tsx`, `use-dashboard-overview.ts` and
+  `auth-context.tsx`'s `canViewAllActivity`.
+
+`view_dashboard` ("View Dashboard Overview") stays **catalog-only, and
+deliberately so — this one is not a "no surface exists" finding but a "the
+gate would be wrong" one**. `/dashboard` is the post-login landing route for
+every role (`app/login/use-login-page.tsx`, `hooks/use-login.ts`,
+`app/page.tsx`, `app/auth/callback/page.tsx`, `app/setup/use-onboarding.ts`)
+**and** the redirect target `RequireRole` sends every denied user to
+(`components/auth/require-role.tsx`). Gating the page on this key would
+give a denied user nowhere to land and would make `RequireRole` bounce them
+into a page that bounces them back. It is also the only key in the whole
+catalog that **every one of the five default groups holds**, which is the
+same finding from the data side: no role is meant to be denied it. Gating
+one widget under it instead was considered and rejected as inventing a
+meaning the label ("View Dashboard Overview") does not carry — and the
+widgets that would be candidates are already covered: the store-wide
+figures on `dashboard-overview.tsx` swap to the cashier's own
+"My Sales Today"/"My Transactions Today" via `useMyTodaySales`'s
+`isCashier`, and the activity feed is already under `view_activity_log`.
+Wire this key only if a genuinely optional dashboard ever exists — a second
+landing route, or an overview that some roles are meant to start without.
 
 ### The 2026-09-28 granularity pass
 

@@ -231,7 +231,9 @@ export const ENFORCED_PERMISSION_KEYS: ReadonlySet<string> = new Set([
   "manage_loyalty", // loyalty-tab.tsx, loyalty-settings-dialog.tsx
   "delete_customers", // directory-tab.tsx, customer-detail-panel.tsx
   "view_customer_balances", // directory-tab.tsx, customer-list-rows.tsx, customer-detail-panel.tsx
+  "view_reports", // reports/page.tsx, reports/reports-tab-nav.tsx
   "export_reports", // report-center.tsx, report-view-dialog.tsx (canExport)
+  "view_financial_reports", // report-center.tsx, business-intelligence-dashboard.tsx, analytics-tab-nav.tsx, bi-key-metrics.tsx
   "view_activity_log", // activity-log-page.tsx, product-history.tsx, pos-transaction-history.tsx, use-finance-data.ts, use-purchase-orders.ts, use-dashboard-overview.ts, use-pos-data.ts, auth-context.tsx (canViewAllActivity)
   "manage_staff", // pos-layout-header.tsx, auth-context.tsx (isAdmin)
   "manage_roles_permissions", // permission-matrix.tsx

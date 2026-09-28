@@ -7,7 +7,7 @@ import { ReportCenter } from "@/components/reports/report-center";
 import dynamic from "next/dynamic";
 import { useStore } from "@/lib/context/store-context";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
-import { useAuth } from "@/lib/context/auth-context";
+import { useHasPermission } from "@/lib/hooks/use-permissions";
 import { DatePickerInput } from "@/components/ui/date-picker-input";
 import { getLocalTodayDate } from "@/lib/utils";
 
@@ -26,17 +26,17 @@ const BusinessIntelligenceDashboard = dynamic(
 
 export default function ReportsPage() {
   const { t: _t, storeType: _storeType } = useStore();
-  const { isAdmin } = useAuth();
+  const canViewReports = useHasPermission("view_reports");
   const searchParams = useSearchParams();
   const router = useRouter();
 
   const tabParam = searchParams.get("tab");
-  const defaultTab = isAdmin ? "reports" : "daily_close";
+  const defaultTab = canViewReports ? "reports" : "daily_close";
 
   const [activeTab, setActiveTab] = useState(() => {
     if (tabParam === "daily_close") return "daily_close";
-    if (isAdmin && tabParam === "analytics") return "analytics";
-    if (isAdmin && tabParam === "reports") return "reports";
+    if (canViewReports && tabParam === "analytics") return "analytics";
+    if (canViewReports && tabParam === "reports") return "reports";
     return defaultTab;
   });
 
@@ -45,11 +45,11 @@ export default function ReportsPage() {
   useEffect(() => {
     if (tabParam) {
       if (tabParam === "daily_close") setActiveTab("daily_close");
-      else if (isAdmin && tabParam === "analytics") setActiveTab("analytics");
-      else if (isAdmin && tabParam === "reports") setActiveTab("reports");
+      else if (canViewReports && tabParam === "analytics") setActiveTab("analytics");
+      else if (canViewReports && tabParam === "reports") setActiveTab("reports");
       else setActiveTab(defaultTab);
     }
-  }, [tabParam, isAdmin, defaultTab]);
+  }, [tabParam, canViewReports, defaultTab]);
 
   const handleTabChange = (value: string) => {
     setActiveTab(value);
@@ -62,7 +62,7 @@ export default function ReportsPage() {
           required for screen-reader/landmark navigation (WCAG 1.3.1/2.4.6). */}
       <h1 className="sr-only">Reports</h1>
       <div className="flex flex-col md:flex-row md:items-center gap-2.5">
-        <ReportsTabNav isAdmin={isAdmin} />
+        <ReportsTabNav />
 
         {activeTab === "daily_close" && (
           <div className="h-10 flex items-center gap-2 shrink-0 bg-background border rounded-md px-3 shadow-sm">
@@ -83,7 +83,7 @@ export default function ReportsPage() {
         )}
       </div>
 
-      {isAdmin && (
+      {canViewReports && (
         <TabsContent value="reports" className="mt-0 border-none p-0">
           <div className="relative w-full h-full min-h-[500px]">
             <LockedModuleOverlay featureName="Advanced Reports" featureKey="advanced_reports" />
@@ -99,7 +99,7 @@ export default function ReportsPage() {
         </div>
       </TabsContent>
 
-      {isAdmin && (
+      {canViewReports && (
         <TabsContent value="analytics" className="mt-0 border-none p-0">
           <div className="relative w-full h-full min-h-[500px]">
             <LockedModuleOverlay featureName="Advanced Reports" featureKey="advanced_reports" />

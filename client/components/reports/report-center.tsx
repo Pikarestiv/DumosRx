@@ -46,6 +46,7 @@ import { toast } from "sonner";
 
 export function ReportCenter() {
   const canExportReports = useHasPermission("export_reports");
+  const canViewFinancialReports = useHasPermission("view_financial_reports");
   const [filters, setFilters] = useState<ReportFiltersValue>({
     dateRange: {
       from: format(subDays(new Date(), 30), "yyyy-MM-dd"),
@@ -172,6 +173,10 @@ export function ReportCenter() {
     },
   ];
 
+  const visibleReports = canViewFinancialReports
+    ? reports
+    : reports.filter((report) => report.id !== "profit-loss");
+
   return (
     <div className="space-y-5">
       {/* Filters */}
@@ -190,7 +195,7 @@ export function ReportCenter() {
             <div className="text-[12px] text-muted-foreground">Generate and download structured data exports</div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {reports.map((report) => {
+            {visibleReports.map((report) => {
               const isLoading = loadingReport === report.id;
               // Only set for a report whose figures the active filters change
               // the meaning of - today, a staff/payment-method-filtered

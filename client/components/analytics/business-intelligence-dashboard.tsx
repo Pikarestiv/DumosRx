@@ -3,6 +3,7 @@
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Download } from "lucide-react";
 import { useBusinessIntelligenceDashboard } from "@/lib/hooks/use-business-intelligence-dashboard";
+import { useHasPermission } from "@/lib/hooks/use-permissions";
 import { ReportFiltersBar } from "@/components/reports/report-filters-bar";
 import { BIKeyMetrics } from "./bi-key-metrics";
 import { SalesAnalyticsTab } from "./sales-analytics-tab";
@@ -13,6 +14,7 @@ import { StaffPerformanceTab } from "./staff-performance-tab";
 import { AnalyticsTabNav } from "./analytics-tab-nav";
 
 export function BusinessIntelligenceDashboard() {
+  const canViewFinancialReports = useHasPermission("view_financial_reports");
   const {
     filters,
     setFilters,
@@ -44,14 +46,16 @@ export function BusinessIntelligenceDashboard() {
     <div className="space-y-5 p-1">
       <div className="flex flex-col md:flex-row md:items-center gap-2.5">
         <ReportFiltersBar value={filters} onChange={setFilters} />
-        <button
-          onClick={() => void handleExportReports()}
-          disabled={exporting}
-          className="flex items-center gap-1.5 border bg-background text-foreground text-[13px] font-semibold px-4 py-2.5 rounded-[10px] cursor-pointer hover:bg-primary/10 hover:text-primary transition-colors disabled:opacity-50"
-        >
-          <Download className="w-4 h-4" />
-          {exporting ? "Exporting..." : "Export Reports"}
-        </button>
+        {canViewFinancialReports && (
+          <button
+            onClick={() => void handleExportReports()}
+            disabled={exporting}
+            className="flex items-center gap-1.5 border bg-background text-foreground text-[13px] font-semibold px-4 py-2.5 rounded-[10px] cursor-pointer hover:bg-primary/10 hover:text-primary transition-colors disabled:opacity-50"
+          >
+            <Download className="w-4 h-4" />
+            {exporting ? "Exporting..." : "Export Reports"}
+          </button>
+        )}
       </div>
 
       <BIKeyMetrics
@@ -60,11 +64,12 @@ export function BusinessIntelligenceDashboard() {
         stock_batchValue={stock_batchValue}
         activeCustomers={activeCustomers}
         netProfit={netProfit}
+        canViewFinancialReports={canViewFinancialReports}
       />
 
       {/* Main Analytics Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-5">
-        <AnalyticsTabNav />
+        <AnalyticsTabNav canViewFinancialReports={canViewFinancialReports} />
 
         <TabsContent value="sales" className="space-y-6 mt-0">
           <SalesAnalyticsTab
@@ -74,17 +79,19 @@ export function BusinessIntelligenceDashboard() {
           />
         </TabsContent>
 
-        <TabsContent value="profit-loss" className="space-y-6 mt-0">
-          <ProfitLossTab
-            grossSales={grossSales}
-            netSales={netSales}
-            totalCogs={totalCogs}
-            totalExpenses={totalExpenses}
-            grossProfit={grossProfit}
-            netProfit={netProfit}
-            monthlySalesData={monthlySalesData}
-          />
-        </TabsContent>
+        {canViewFinancialReports && (
+          <TabsContent value="profit-loss" className="space-y-6 mt-0">
+            <ProfitLossTab
+              grossSales={grossSales}
+              netSales={netSales}
+              totalCogs={totalCogs}
+              totalExpenses={totalExpenses}
+              grossProfit={grossProfit}
+              netProfit={netProfit}
+              monthlySalesData={monthlySalesData}
+            />
+          </TabsContent>
+        )}
 
         <TabsContent value="stock_batches" className="space-y-6 mt-0">
           <StockBatchInsightsTab

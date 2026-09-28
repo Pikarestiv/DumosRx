@@ -27,9 +27,9 @@ class PermissionGroupSeeder
 {
     private const DEFAULT_GROUP_PERMISSIONS = [
         'admin' => [
-            'process_sales', 'apply_discounts', 'void_refund_sales', 'open_cash_drawer', 'override_price',
-            'manage_products', 'manage_stock_batches', 'adjust_stock_counts', 'manage_purchase_orders',
-            'receive_purchase_orders', 'manage_suppliers', 'request_stock_transfers', 'approve_stock_transfers',
+            'process_sales', 'apply_discounts', 'void_refund_sales', 'override_price',
+            'manage_products', 'adjust_stock_counts', 'manage_purchase_orders',
+            'receive_purchase_orders', 'manage_suppliers', 'request_stock_transfers',
             'dispense_prescriptions', 'manage_prescriptions',
             'manage_customers', 'manage_loyalty',
             'view_reports', 'export_reports', 'view_activity_log',
@@ -39,9 +39,9 @@ class PermissionGroupSeeder
             'backup_restore_data', 'factory_reset',
         ],
         'manager' => [
-            'process_sales', 'apply_discounts', 'void_refund_sales', 'open_cash_drawer', 'override_price',
-            'manage_products', 'manage_stock_batches', 'adjust_stock_counts', 'manage_purchase_orders',
-            'receive_purchase_orders', 'manage_suppliers', 'request_stock_transfers', 'approve_stock_transfers',
+            'process_sales', 'apply_discounts', 'void_refund_sales', 'override_price',
+            'manage_products', 'adjust_stock_counts', 'manage_purchase_orders',
+            'receive_purchase_orders', 'manage_suppliers', 'request_stock_transfers',
             'dispense_prescriptions', 'manage_prescriptions',
             'manage_customers', 'manage_loyalty',
             'view_reports', 'export_reports',
@@ -51,7 +51,7 @@ class PermissionGroupSeeder
         ],
         'specialist' => [
             'process_sales',
-            'manage_products', 'manage_stock_batches', 'adjust_stock_counts', 'manage_purchase_orders',
+            'manage_products', 'adjust_stock_counts', 'manage_purchase_orders',
             'receive_purchase_orders', 'manage_suppliers', 'request_stock_transfers',
             'dispense_prescriptions', 'manage_prescriptions',
             'manage_customers',

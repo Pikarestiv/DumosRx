@@ -557,33 +557,48 @@ still rendered read-only, only the trigger gated):
   pulled out of transaction history. `proforma-preview-dialog.tsx` prints a
   quote, not a receipt, and is likewise untouched.
 
-The other five Sales & POS keys were investigated in the same pass and
-**stay catalog-only because no discrete action exists in the app to gate** —
-recorded here so nobody re-derives it:
+`run_daily_close` joined them on 2026-09-29, and the finding that got it
+there **overturns the previous pass's conclusion**, which had looked only at
+`daily-close-actions.tsx` (Print / Export CSV / Export PDF) and called Daily
+Close a read-only report with nothing to run. The action row is not the only
+thing on that screen. `daily-close/daily-close-header.tsx` — the
+"Daily Close Ready … use this for end of day reconciliation" banner — carries
+**two buttons that were missed**, and they are the only controls on the whole
+Daily Close surface that write anything:
 
-- `open_cash_drawer` — there is no cash-drawer integration anywhere in the
-  client or in `src-tauri/`: no ESC/POS drawer-kick, no "no sale" button, no
-  hardware settings for one. Nothing to trigger, so nothing to gate.
-- `edit_completed_sale` — the only writes to a `sales` row after checkout
-  are the return/refund path (`use-process-return-mutation.ts`, already
-  `void_refund_sales`), the reseller-commission redeem, and a customer
-  payment against an outstanding balance. There is no amend-a-finished-sale
-  surface (no re-assign customer, edit note, or change payment method), so
-  this key has nothing of its own to front.
-- `run_daily_close` — Daily Close is a **read-only report**. Its only
-  actions are Print and Export (`daily-close/daily-close-actions.tsx`),
-  which are `export_reports` territory; there is no "close the day" write
-  that locks in end-of-day figures. Do **not** gate the report *view* under
-  this key — every role including `sales_staff` can already reach it by
-  design (see the cashier-visibility section below).
-- `view_drawer_counts` — no drawer-count / cash-count feature exists: there
-  is nothing anywhere that records a counted float against expected cash or
-  derives a variance.
-- `override_credit_limit` — `customers.credit_limit` exists as a column and
-  is surfaced in one report, but **nothing reads it as a limit**:
-  `use-pos-payment.ts` adds a credit sale straight onto
-  `outstanding_balance` with no ceiling check. There is no block, therefore
-  no override to gate. Wiring this key means first building the check.
+- **Download Local Backup** → `useSettings()`'s `handleDownloadBackup`, which
+  serialises **the entire SQLite database** to a `.drx` file (via
+  `backupDatabaseToFile()` under Tauri, a `Blob` download on web).
+- **Cloud Sync Now** → `handleSync(true)`, a forced full push/pull round.
+
+Those are the same two operations `data-settings.tsx` offers on the Data &
+Sync tab, which sits behind `backup_restore_data` — so the Daily Close banner
+was a **real leak**: every role, `sales_staff` included, could take a
+complete copy of the store's database off the device from the Reports page,
+by a route the Settings gate never covered. That is the strongest argument
+for the key: there is no ledger-locking "close the day" write in this app
+because the close **is** securing the day's data, and this banner is where it
+happens.
+
+So `run_daily_close` gates the banner's action group (one hoisted
+`useHasPermission()` const, hide-the-trigger-preserve-the-state as usual);
+the alert text, and the whole report below it, stay readable by every role.
+The previous pass's other conclusion still stands and is **deliberately kept**:
+the report *view* is **not** gated — a cashier plausibly needs to see their
+own day's numbers, Daily Close is the `/reports` fallback panel for a role
+without `view_reports`, and gating the view would leave such a role on a page
+with no panel at all. Reading the day is open; running the close is not.
+
+This is a **deliberate narrowing with no compensating grant** —
+`specialist`, `sales_staff` and `auditor` lose both buttons — and the usual
+"reproduce today's behaviour" rule is *not* applied here, because the
+behaviour being reproduced is the leak. `run_daily_close`'s default holders
+(admin, manager) are exactly `backup_restore_data`'s, so the two gates agree
+on day one; if a store ever diverges them, AND the backup button with
+`backup_restore_data` too rather than re-opening it.
+
+The other four Sales & POS keys were **removed from the catalog** on
+2026-09-29 — see "Removed from the catalog" below.
 
 Twelve **Inventory & Stock** keys followed on 2026-09-28, in the same
 category-by-category pass. This category is where the migration **from
@@ -683,40 +698,42 @@ remaining categories:
   The callback defaults to granting everything, so unannotated routes and
   existing callers are untouched.
 
-The other six Inventory & Stock keys were investigated in the same pass and
-**stay catalog-only because no discrete action exists in the app to gate** —
-recorded here so nobody re-derives it:
+`print_product_labels` joined the enforced list on 2026-09-29, and this too
+**overturns the previous pass** — not its evidence, which was right, but what
+it concluded from it. `barcode-print-dialog.tsx` and `barcode-label-sheet.ts`
+are real, complete and tested; the dialog's only mount was in
+`stock-overview.tsx`, keyed off a `selectedProduct` state whose setter was
+never called from anywhere. That is not "no feature exists" — it is a
+finished feature with no door. The previous pass left both the feature and
+the key dormant; the right answer was to hang the door, which is a
+four-line change:
 
-- `manage_stock_batches` — there is **no batch CRUD UI**. The "Add Batch"
-  header action on `/inventory/batches` points at a tab that
-  `stock-batch-management.tsx` does not render (`batches` is in
-  `generateStaticParams`' allow-list but has no `<TabsContent>`), and
-  `createStockBatch()` in `lib/db/queries/inventory.ts` has exactly one
-  caller — `getOrCreateTargetBatchForProduct()`, used by receiving and by
-  audit restock. Batches are an implementation detail of those flows, not a
-  thing a user creates or edits directly. Wiring this key means first
-  building the screen.
-- `approve_stock_transfers` — **there is no approval step**. `transferStock()`
-  (`lib/db/queries/stock-transfers.ts`) applies both legs immediately and,
-  for a non-admin initiator, flags the two movement rows
-  `status: "needs_review"` for after-the-fact inspection. There is no
-  pending queue, no accept/reject action, and nothing that waits on one.
-  Wiring this key means first building the approval workflow.
-- `delete_products` — **no delete-a-product action exists** anywhere:
-  no `deleteProduct` query, no `softDelete("products", …)` call site, no
-  row-menu or detail-screen delete. Products are deactivated via their
-  status, not deleted.
-- `delete_suppliers` — likewise **no delete-a-supplier action exists**:
-  no `deleteSupplier` query and no `softDelete("suppliers", …)` call site.
-  The supplier three-way split is therefore a two-way split in practice for
-  now; the key stays in the catalog for when the action lands.
-- `print_product_labels` — `components/stock-batch/barcode-print-dialog.tsx`
-  and `barcode-label-sheet.ts` are real and tested, but the dialog is
-  **unreachable**: its only mount is in `stock-overview.tsx`, keyed off a
-  `selectedProduct` state whose setter is never called from anywhere. There
-  is no "Print Labels" trigger in the catalog, the row menu, or product
-  detail. Gating an unreachable dialog would be theatre; the real fix is a
-  trigger, and this key should be wired in the same change as that trigger.
+- `components/products/catalog-detail-panel.tsx` — the overflow menu on the
+  catalog detail panel already existed and held exactly one item ("Edit
+  Product"). A "Print Labels" item joins it, gated on a hoisted
+  `useHasPermission("print_product_labels")` const, and the panel owns the
+  dialog's open state locally. The **menu button itself** is now
+  `canManageStockBatch || canPrintLabels` rather than `canManageStockBatch`
+  alone, with "Edit Product" gated individually underneath, so a group with
+  the print right and no edit right still gets a menu instead of nothing.
+  It gained an `aria-label="Product actions"`; it was an unlabelled icon
+  button before.
+- `components/stock-batch/barcode-print-dialog.tsx` — its prop type narrows
+  from `POSProduct` to a new exported `BarcodeLabelProduct`
+  (`id`/`name`/`barcode?`/`unit_price`), which is exactly the four fields a
+  label carries. `POSProduct` satisfies it structurally, and the catalog's
+  camelCase `ProductViewModel` maps onto it at the call site
+  (`sellingPrice` → `unit_price`), so no product shape had to change.
+- `components/stock-batch/stock-overview.tsx` — the dead mount, its dead
+  `selectedProduct` state and the now-unused imports are gone.
+
+Defaults are **unchanged and behaviour-neutral**: the key's holders (admin,
+manager, specialist) are exactly `canManageStockBatch`'s population, which is
+who could open that menu before, and the item it sits beside is new — nobody
+loses anything they had.
+
+The other five Inventory & Stock keys were **removed from the catalog** on
+2026-09-29 — see "Removed from the catalog" below.
 
 Both **Prescriptions** keys followed on 2026-09-28, in the same pass. The
 category is small and was **completely ungated before this** — the
@@ -837,19 +854,8 @@ was open to every role, including cashiers, on a page a cashier reaches.
   figure** (one sale's remainder, not the customer's account) and stays
   ungated, so the till's own debt-payment flow is untouched either way.
 
-`manage_customer_credit_terms` stays **catalog-only because no action
-exists to gate**: `credit_limit` is a real column in `lib/db/schema.ts`
-and a real column in the customer report export
-(`lib/db/queries/reports.ts`), but **nothing in the app ever sets or edits
-it** — there is no credit-limit field in `add-customer-modal.tsx` or
-`edit-customer-modal.tsx`, no terms UI anywhere, and no code path reads it
-as a limit. This is the same finding as `override_credit_limit` in the
-Sales & POS list above, from the opposite side: one key would front the
-override, the other the limit itself, and neither has anything to front
-yet. `record-payment-modal.tsx` is **not** it — recording a payment
-against an existing balance is `view_customer_balances` territory (it is
-rendered inside that block), not a change to the customer's terms. Wire
-this key in the same change as whatever first ships a credit-limit field.
+`manage_customer_credit_terms` was **removed from the catalog** on
+2026-09-29 — see "Removed from the catalog" below.
 
 `DEFAULT_GROUP_PERMISSIONS` changed in exactly one way for this category:
 `view_customer_balances` was **granted to `specialist` and `sales_staff`**,
@@ -892,7 +898,8 @@ picture rather than two halves:
   the key, so nothing narrows.
   **Daily Close is deliberately not under this key** — every role,
   `sales_staff` included, reaches it by design (see the cashier-visibility
-  section below, and `run_daily_close` in the no-action-to-wire list above).
+  section below; `run_daily_close` gates the *running* of the close, not
+  the reading of it — see its entry above).
   The sidebar's own Reports-vs-Daily-Close split
   (`dashboard-sidebar.tsx`) is still `isAdmin || canManageStockBatch` and
   was **left alone**: it is a link, not a gate, and an auditor reaches the
@@ -1135,30 +1142,69 @@ narrowing this pass has no evidence anyone wants.
 
 All eight categories have now been walked: Sales & POS, Inventory & Stock,
 Prescriptions, Customers & Loyalty, Reports & Activity, Expenses, Staff &
-Groups and Store & Settings. **42 of the catalog's 54 keys are enforced**;
-the remaining **12 are catalog-only**, every one of them for a reason
-recorded above rather than for want of attention:
+Groups and Store & Settings. After the 2026-09-29 re-investigation below,
+**44 of the catalog's 45 keys are enforced** and exactly **one is
+catalog-only**:
 
 | Category | Enforced | Catalog-only |
 | --- | --- | --- |
-| Sales & POS | 7 / 12 | `open_cash_drawer`, `edit_completed_sale`, `run_daily_close`, `view_drawer_counts`, `override_credit_limit` |
-| Inventory & Stock | 13 / 18 | `manage_stock_batches`, `approve_stock_transfers`, `delete_products`, `print_product_labels`, `delete_suppliers` |
+| Sales & POS | 8 / 8 | — |
+| Inventory & Stock | 14 / 14 | — |
 | Prescriptions | 2 / 2 | — |
-| Customers & Loyalty | 4 / 5 | `manage_customer_credit_terms` |
+| Customers & Loyalty | 4 / 4 | — |
 | Reports & Activity | 4 / 5 | `view_dashboard` |
 | Expenses | 2 / 2 | — |
 | Staff & Groups | 2 / 2 | — |
 | Store & Settings | 8 / 8 | — |
 
-Eleven of the twelve are **"the feature does not exist yet"** findings: there
-is no cash drawer, no amend-a-finished-sale, no end-of-day write, no drawer
-count, no credit-limit field or check, no batch CRUD screen, no transfer
-approval step, no product or supplier delete, and no reachable label-print
-trigger. Each should be wired **in the same change that first ships its
-action**, which is this repo's standing rule. The twelfth, `view_dashboard`,
-is the odd one out: it has a surface and the gate would simply be wrong (see
-its entry above). Before re-investigating any of the twelve, read its entry —
-the evidence is already here.
+`view_dashboard` is the only one left, and it is **not** a "the feature does
+not exist" finding: it has a real surface and the gate would simply be wrong
+(see its entry above). Every key that *was* a "does not exist yet" finding
+has now been resolved one way or the other — two were wired, nine were
+removed.
+
+### Removed from the catalog (2026-09-29)
+
+The twelve catalog-only keys were re-investigated from scratch on
+2026-09-29, on the explicit premise that the first pass may have dismissed
+some too quickly. It had: **two were wrong**, and both are now enforced —
+`run_daily_close` (the Daily Close banner's backup/sync buttons, a real
+leak the first pass never opened the file to see) and `print_product_labels`
+(a finished dialog whose trigger was simply never wired). Their entries are
+in the Sales & POS and Inventory & Stock blocks above.
+
+The other nine were re-traced file by file and confirmed dead — **no
+feature, and no small safe fix available** — so they were **deleted** from
+`PERMISSION_CATALOG`, `DEFAULT_GROUP_PERMISSIONS` and
+`PermissionGroupSeeder.php`'s server-side copy, rather than left wearing a
+"Coming soon" badge for something that is not coming. A checkbox that can
+never do anything is worse than no checkbox: it tells an owner they have
+restricted an employee when they have not.
+
+| Removed key | What the re-check actually looked at |
+| --- | --- |
+| `open_cash_drawer` | No drawer integration in any layer: no ESC/POS kick sequence, no serial/USB/HID crate in `src-tauri` (`lib.rs`, `main.rs`, `Cargo.toml`, `capabilities/`), no "no sale" control, no till concept. |
+| `view_drawer_counts` | Searched far wider than "drawer" — cash count, till count, reconcile, variance, expected cash, opening/closing balance, float. Nothing records a counted float against expected cash anywhere. |
+| `edit_completed_sale` | Every `update("sales", …)` call site: the refund path (`use-process-return-mutation.ts`, already `void_refund_sales`), the reseller-commission redeem, and a debt payment (`customers.ts`). No re-assign customer, no note/reference edit, no payment-method correction; `transaction-details-dialog.tsx`'s only buttons are payment, return, reprint and commission. |
+| `override_credit_limit` | `customers.credit_limit` appears in exactly two places repo-wide: `schema.ts`'s column and one report-export column in `reports.ts`. `use-pos-payment.ts` adds a credit sale straight onto `outstanding_balance` with no ceiling check — not even a soft warning. There is no block, so there is nothing to override. |
+| `manage_customer_credit_terms` | The same two places, from the other side: nothing in the app ever **sets** `credit_limit` either — no field in the add/edit customer modals, no terms UI. Both keys would front a feature that is one unused column. |
+| `manage_stock_batches` | No batch CRUD screen. `/inventory/batches` is in `generateStaticParams` but `stock-batch-management.tsx` renders no `<TabsContent>` for it, and its "Add Batch" header action points at a `?action=add` nothing handles. `createStockBatch()`'s only caller is `getOrCreateTargetBatchForProduct()`; every other `stock_batches` write is receiving, audit restock or CSV import. Batch expiry is only ever set during receiving (`receive_purchase_orders`). |
+| `approve_stock_transfers` | `transferStock()` applies both legs immediately. The `needs_review` status it sets for a non-admin initiator is a **passive amber badge** in the movements ledger (`stock-movement-desktop-row.tsx`, `stock-movement-mobile-group.tsx`) and nothing anywhere clears it. No pending queue, no incoming view, no accept/reject, not even partial. |
+| `delete_products` | No `deleteProduct` query, no `softDelete("products", …)`, no row or detail menu delete, no bulk deactivate or archive, no import-driven removal. The generic `useDelete()` hook in `useLocalMutation.ts` has **zero callers**. Products are deactivated by status. |
+| `delete_suppliers` | Identical: no `deleteSupplier`, no `softDelete("suppliers", …)`, nothing delete-adjacent in the supplier table or detail pane. The supplier split is a genuine two-way split. |
+
+**`open_cash_drawer`, `manage_stock_batches` and `approve_stock_transfers`
+predate the QuickBooks pass** (the other six were all added in `91c3dfd3`
+on 2026-09-28, so no real store could hold them), which means an
+already-synced `permission_groups.permissions` array may still carry those
+three as strings. That is harmless — an unrecognised key grants nothing and
+is never read — so no migration backfills them out. The client catalog and
+the Laravel seeder were changed together so the two stay in step.
+
+Do **not** re-add any of the nine from a fresh QuickBooks comparison without
+re-litigating this: the standing rule is that a key and its enforcement ship
+in the **same commit**, and that rule now runs in both directions — a key
+with no action does not get to sit in the catalog waiting for one.
 
 ### The 2026-09-28 granularity pass
 
@@ -1171,15 +1217,17 @@ enforcement and add the key in the same commit**, and add the key to
 
 - **Sales & POS** — `hold_sales`, `view_sales_history`,
   `edit_completed_sale`, `reprint_receipt`, `run_daily_close`,
-  `view_drawer_counts`, `override_credit_limit`. These split apart what
+  `view_drawer_counts`, `override_credit_limit`. (`edit_completed_sale`,
+  `view_drawer_counts` and `override_credit_limit` were removed again on
+  2026-09-29 — see "Removed from the catalog" above.) These split apart what
   `process_sales` and `void_refund_sales` currently cover as one lump:
   reading history vs. making a sale, parking a sale vs. completing one,
   amending a finished sale vs. voiding it, and the end-of-day/drawer
   surfaces (`daily-close-report.tsx`) which today are role-gated by a
   direct `user?.role === "sales_staff"` check rather than by a key.
   `hold_sales`, `view_sales_history` and `reprint_receipt` were wired up
-  later the same day (along with `override_price`); the rest are covered by
-  the no-action-to-wire list above — read that before re-investigating.
+  later the same day (along with `override_price`), and `run_daily_close` on
+  2026-09-29 — read its entry above before re-investigating.
 - **Inventory & Stock** — `view_cost_fields`, `edit_product_cost`,
   `edit_product_price`, `delete_products`, `perform_stock_audit`,
   `view_stock_adjustment_history`, `print_product_labels`,
@@ -1189,9 +1237,9 @@ enforcement and add the key in the same commit**, and add the key to
   `delete_suppliers` and `print_product_labels` were wired up later the
   same day, along with `adjust_stock_counts`, `manage_purchase_orders`,
   `receive_purchase_orders`, `manage_suppliers` and
-  `request_stock_transfers` — see the Inventory & Stock block above,
-  including the no-action-to-wire list, before re-investigating any of
-  them. `view_cost_fields` is the key form of the cashier cost/margin
+  `request_stock_transfers`; `print_product_labels` followed on 2026-09-29,
+  and `delete_products`/`delete_suppliers` were removed that day — see the
+  Inventory & Stock block above before re-investigating any of them. `view_cost_fields` is the key form of the cashier cost/margin
   gating described below; that conversion has now happened for
   `product-pricing-info.tsx`, and the remaining
   `role === "sales_staff"` sites (`daily-close-report.tsx`,
@@ -1199,9 +1247,9 @@ enforcement and add the key in the same commit**, and add the key to
   next ones to move.
 - **Customers & Loyalty** — `delete_customers`, `view_customer_balances`,
   `manage_customer_credit_terms`. The first two were wired up later the
-  same day, along with `manage_customers` and `manage_loyalty` — see the
-  Customers & Loyalty block above, including why
-  `manage_customer_credit_terms` has nothing to front, before
+  same day, along with `manage_customers` and `manage_loyalty`;
+  `manage_customer_credit_terms` was removed on 2026-09-29 — see the
+  Customers & Loyalty block and "Removed from the catalog" above before
   re-investigating any of them.
 - **Reports & Activity** — `view_dashboard`, `view_financial_reports`.
   `view_reports` stays the broad "can open Report Center" right;
@@ -1703,13 +1751,18 @@ number into local SQLite and hope it matches. Treat this exactly like the
 
 ## Current focus / recent work (update this section as work continues)
 
-Most recent work (2026-09-28, latest) finished the **category-by-category
-permission-enforcement pass** with Store & Settings, the eighth and last
-category. 42 of the catalog's 54 keys now have a real call site; the other
-12 are catalog-only with the reason recorded per key. Read the Enforced
-permissions section — especially "The category-by-category pass is
-complete" — before touching a permission key or re-investigating one of
-the twelve.
+Most recent work (2026-09-29, latest) **re-investigated all twelve
+catalog-only keys** left by the 2026-09-28 category-by-category pass, on the
+premise that some had been dismissed too quickly. Two had: `run_daily_close`
+is now wired to the Daily Close banner's backup/sync buttons (which were a
+real data-export leak open to cashiers), and `print_product_labels` to a new
+"Print Labels" item in the catalog detail panel's overflow menu, which
+finally makes the long-finished barcode dialog reachable. The other nine were
+confirmed dead and **removed from the catalog** outright. 44 of the catalog's
+45 keys now have a real call site; only `view_dashboard` is catalog-only, and
+deliberately so. Read the Enforced permissions section — especially "The
+category-by-category pass is complete" and "Removed from the catalog
+(2026-09-29)" — before touching a permission key or re-adding a removed one.
 
 Most recent work (2026-09-28, later) worked through a live client's
 ("Cynthia", construction-materials store) feedback list — see the

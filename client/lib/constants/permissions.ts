@@ -16,38 +16,64 @@ export interface PermissionCatalogEntry {
     | "Store & Settings";
 }
 
+/**
+ * Removed from the catalog on 2026-09-29, after a second, line-by-line
+ * re-investigation of every catalog-only key confirmed the feature each one
+ * would front does not exist anywhere in the app. A checkbox that can never
+ * do anything is worse than no checkbox: it tells an owner they have
+ * restricted an employee when they have not. Do NOT re-add one from the
+ * QuickBooks comparison without shipping its action in the same commit.
+ *
+ *   open_cash_drawer            no drawer hardware integration at all - no
+ *                               ESC/POS kick, no serial/USB code in
+ *                               src-tauri (lib.rs/main.rs), no "no sale"
+ *   view_drawer_counts          no cash-count, expected-vs-actual or
+ *                               variance concept exists in any form
+ *   edit_completed_sale         the only post-checkout writes to `sales` are
+ *                               refunds, the reseller-commission redeem and
+ *                               a debt payment - all already keyed
+ *   override_credit_limit       customers.credit_limit is a column and one
+ *   manage_customer_credit_terms report export column; nothing sets it and
+ *                               nothing reads it as a limit
+ *   manage_stock_batches        no batch CRUD screen; /inventory/batches has
+ *                               no TabsContent and createStockBatch()'s only
+ *                               caller is receiving/audit restock
+ *   approve_stock_transfers     transferStock() applies both legs at once;
+ *                               "needs_review" is a passive badge nothing
+ *                               clears - there is no approval step
+ *   delete_products             no deleteProduct query, no softDelete on
+ *   delete_suppliers            products/suppliers, no row-menu delete; the
+ *                               generic useDelete() hook has zero callers
+ *
+ * open_cash_drawer, manage_stock_batches and approve_stock_transfers predate
+ * the QuickBooks pass and may linger as inert strings in an already-synced
+ * permission_groups.permissions array. That is harmless - an unrecognised
+ * key grants nothing - so no migration backfills them out.
+ */
 export const PERMISSION_CATALOG: PermissionCatalogEntry[] = [
   { key: "process_sales", label: "Process Sales", category: "Sales & POS" },
   { key: "apply_discounts", label: "Apply Discounts", category: "Sales & POS" },
   { key: "void_refund_sales", label: "Void / Refund Sales", category: "Sales & POS" },
-  { key: "open_cash_drawer", label: "Open Cash Drawer (no sale)", category: "Sales & POS" },
   { key: "override_price", label: "Override Price at Checkout", category: "Sales & POS" },
   { key: "hold_sales", label: "Hold / Resume a Sale", category: "Sales & POS" },
   { key: "view_sales_history", label: "View Sales History", category: "Sales & POS" },
-  { key: "edit_completed_sale", label: "Edit a Completed Sale", category: "Sales & POS" },
   { key: "reprint_receipt", label: "Reprint / Re-send a Receipt", category: "Sales & POS" },
   { key: "run_daily_close", label: "Run Daily Close (End of Day)", category: "Sales & POS" },
-  { key: "view_drawer_counts", label: "View Drawer Counts & Variances", category: "Sales & POS" },
-  { key: "override_credit_limit", label: "Override Customer Credit Limit", category: "Sales & POS" },
 
   { key: "manage_products", label: "Manage Products & Categories", category: "Inventory & Stock" },
-  { key: "manage_stock_batches", label: "Manage Stock Batches", category: "Inventory & Stock" },
   { key: "adjust_stock_counts", label: "Adjust Stock Counts", category: "Inventory & Stock" },
   { key: "manage_purchase_orders", label: "Manage Purchase Orders", category: "Inventory & Stock" },
   { key: "receive_purchase_orders", label: "Receive Purchase Orders", category: "Inventory & Stock" },
   { key: "manage_suppliers", label: "Manage Suppliers", category: "Inventory & Stock" },
   { key: "request_stock_transfers", label: "Request Stock Transfers", category: "Inventory & Stock" },
-  { key: "approve_stock_transfers", label: "Approve Incoming Stock Transfers", category: "Inventory & Stock" },
   { key: "view_cost_fields", label: "View Cost & Margin Fields", category: "Inventory & Stock" },
   { key: "edit_product_cost", label: "Edit Product Cost Price", category: "Inventory & Stock" },
   { key: "edit_product_price", label: "Edit Product Selling Price", category: "Inventory & Stock" },
-  { key: "delete_products", label: "Delete Products", category: "Inventory & Stock" },
   { key: "perform_stock_audit", label: "Perform Stock Audit (Physical Count)", category: "Inventory & Stock" },
   { key: "view_stock_adjustment_history", label: "View Stock Adjustment History", category: "Inventory & Stock" },
   { key: "print_product_labels", label: "Print Product Labels & Tags", category: "Inventory & Stock" },
   { key: "export_product_list", label: "Export Product List", category: "Inventory & Stock" },
   { key: "view_suppliers", label: "View Supplier Details", category: "Inventory & Stock" },
-  { key: "delete_suppliers", label: "Delete Suppliers", category: "Inventory & Stock" },
 
   { key: "dispense_prescriptions", label: "Dispense Prescriptions", category: "Prescriptions" },
   { key: "manage_prescriptions", label: "Manage Prescription Records", category: "Prescriptions" },
@@ -56,7 +82,6 @@ export const PERMISSION_CATALOG: PermissionCatalogEntry[] = [
   { key: "manage_loyalty", label: "Manage Loyalty Program", category: "Customers & Loyalty" },
   { key: "delete_customers", label: "Delete Customers", category: "Customers & Loyalty" },
   { key: "view_customer_balances", label: "View Customer Account Balances", category: "Customers & Loyalty" },
-  { key: "manage_customer_credit_terms", label: "Manage Customer Credit Terms", category: "Customers & Loyalty" },
 
   { key: "view_reports", label: "View Reports & Analytics", category: "Reports & Activity" },
   { key: "export_reports", label: "Export / Print Reports", category: "Reports & Activity" },
@@ -95,9 +120,9 @@ export const DEFAULT_GROUP_PERMISSIONS: Record<
 > = {
   admin: PERMISSION_CATALOG.map((p) => p.key), // admin/store_owner-tier: everything
   manager: [
-    "process_sales", "apply_discounts", "void_refund_sales", "open_cash_drawer", "override_price",
-    "manage_products", "manage_stock_batches", "adjust_stock_counts", "manage_purchase_orders",
-    "receive_purchase_orders", "manage_suppliers", "request_stock_transfers", "approve_stock_transfers",
+    "process_sales", "apply_discounts", "void_refund_sales", "override_price",
+    "manage_products", "adjust_stock_counts", "manage_purchase_orders",
+    "receive_purchase_orders", "manage_suppliers", "request_stock_transfers",
     "dispense_prescriptions", "manage_prescriptions",
     "manage_customers", "manage_loyalty",
     "view_reports", "export_reports",
@@ -108,12 +133,11 @@ export const DEFAULT_GROUP_PERMISSIONS: Record<
     "manage_staff",
     "manage_store_settings", "manage_payment_accounts", "manage_online_store", "backup_restore_data",
     // 2026-09-28 granularity pass (QuickBooks POS security-rights comparison):
-    "hold_sales", "view_sales_history", "edit_completed_sale", "reprint_receipt", "run_daily_close",
-    "view_drawer_counts", "override_credit_limit",
-    "view_cost_fields", "edit_product_cost", "edit_product_price", "delete_products",
+    "hold_sales", "view_sales_history", "reprint_receipt", "run_daily_close",
+    "view_cost_fields", "edit_product_cost", "edit_product_price",
     "perform_stock_audit", "view_stock_adjustment_history", "print_product_labels",
-    "export_product_list", "view_suppliers", "delete_suppliers",
-    "delete_customers", "view_customer_balances", "manage_customer_credit_terms",
+    "export_product_list", "view_suppliers",
+    "delete_customers", "view_customer_balances",
     "view_dashboard", "view_financial_reports",
     "manage_device_settings", "install_app_updates",
     // NOT: view_activity_log, manage_roles_permissions, manage_billing, factory_reset
@@ -121,14 +145,14 @@ export const DEFAULT_GROUP_PERMISSIONS: Record<
   ],
   specialist: [
     "process_sales",
-    "manage_products", "manage_stock_batches", "adjust_stock_counts", "manage_purchase_orders",
+    "manage_products", "adjust_stock_counts", "manage_purchase_orders",
     "receive_purchase_orders", "manage_suppliers", "request_stock_transfers",
     "dispense_prescriptions", "manage_prescriptions",
     "manage_customers",
     "record_expenses",
     // 2026-09-28 granularity pass: a specialist is the stock-owning role, so
     // it gets the cost/price/audit rights but none of the destructive
-    // (delete_*) or money-side (daily close, drawer, credit limit) ones.
+    // (delete_*) or money-side (daily close) ones.
     "hold_sales", "view_sales_history",
     "view_cost_fields", "edit_product_cost", "edit_product_price",
     "perform_stock_audit", "view_stock_adjustment_history", "print_product_labels",
@@ -141,7 +165,7 @@ export const DEFAULT_GROUP_PERMISSIONS: Record<
     // wants debt figures kept from the stock role unticks it, which
     // previously did nothing.
     "view_customer_balances",
-    // NOT: void_refund_sales/apply_discounts/open_cash_drawer/override_price (checkIsAdmin-only today),
+    // NOT: void_refund_sales/apply_discounts/override_price (checkIsAdmin-only today),
     // NOT: view_reports/export_reports/view_activity_log/manage_staff/manage_* settings
   ],
   sales_staff: [
@@ -183,7 +207,7 @@ export const DEFAULT_GROUP_PERMISSIONS: Record<
     "view_reports", "export_reports", "view_all_expenses",
     // auditor is read-only today: no process_sales, no manage_* grants.
     // 2026-09-28 granularity pass: every new key that is purely a read right.
-    "view_sales_history", "view_drawer_counts",
+    "view_sales_history",
     "view_cost_fields", "view_stock_adjustment_history", "view_suppliers",
     "view_customer_balances", "view_dashboard", "view_financial_reports",
     // 2026-09-28 enforcement pass (Inventory & Stock): the catalog's

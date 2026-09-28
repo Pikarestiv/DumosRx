@@ -222,10 +222,11 @@ describe("PermissionMatrix", () => {
     const processSalesRow = Array.from(container.querySelectorAll('[role="row"]')).find((row) => row.textContent?.includes("Process Sales"));
     expect(processSalesRow?.querySelector('[data-testid="not-yet-enforced"]')).toBeNull();
 
-    // "manage_stock_batches" has no real call site - must be marked (there
-    // is no batch CRUD UI at all; see AGENTS.md's Inventory & Stock block).
-    const suppliersRow = Array.from(container.querySelectorAll('[role="row"]')).find((row) => row.textContent?.includes("Manage Stock Batches"));
-    const marker = suppliersRow?.querySelector('[data-testid="not-yet-enforced"]');
+    // "view_dashboard" is the only catalog-only key left after the
+    // 2026-09-29 removal pass - it has a surface, but gating /dashboard
+    // would strand every denied user (see AGENTS.md's entry for it).
+    const dashboardRow = Array.from(container.querySelectorAll('[role="row"]')).find((row) => row.textContent?.includes("View Dashboard Overview"));
+    const marker = dashboardRow?.querySelector('[data-testid="not-yet-enforced"]');
     expect(marker).toBeTruthy();
     // Customer-facing copy: a roadmap note, not an engineering TODO.
     expect(marker?.textContent).toBe("Coming soon");

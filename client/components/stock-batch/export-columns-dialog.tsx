@@ -7,8 +7,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { EXPORT_COLUMNS } from "@/lib/utils/product-import-export";
 import type { ExportableProduct } from "@/lib/db/queries/product-export";
+import { STORAGE_KEYS } from "@/lib/storage-keys";
 
-const STORAGE_KEY = "drx_export_columns";
+const STORAGE_KEY = STORAGE_KEYS.exportColumns;
 
 export function getStoredExportColumns(): (keyof ExportableProduct)[] | null {
   try {

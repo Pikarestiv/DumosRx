@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import { useEffect, useRef } from "react";
 import { useFeatureGate } from "./use-feature-gate";
 import { getUserAutoLockDuration } from "@/lib/db/queries/auth";
+import { getRecentUsers, getStoredUser } from "@/lib/storage-keys";
 
 interface AutoLockState {
   duration: number; // in minutes. 0 = off
@@ -222,11 +223,10 @@ export function useLockOnFreshLoad() {
   useEffect(() => {
     try {
       if (
-        localStorage.getItem("dumos_user") &&
+        getStoredUser() &&
         !sessionStorage.getItem("dumos_session_authenticated")
       ) {
-        const recentUsersStr = localStorage.getItem("dumos_recent_users");
-        const recentUsers = recentUsersStr ? JSON.parse(recentUsersStr) : [];
+        const recentUsers = getRecentUsers();
         if (recentUsers.length > 1) {
           lockForSwitch();
         } else {

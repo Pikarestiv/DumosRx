@@ -39,6 +39,7 @@ import { LockScreen } from "@/components/auth/lock-screen";
 import { AuthCardShell } from "@/components/auth/auth-card-shell";
 import { usePostRestoreCloudLinkNotice } from "@/lib/hooks/use-post-restore-cloud-link-notice";
 import { isTourEligible } from "@/lib/utils/tour-eligibility";
+import { STORAGE_KEYS, getRecentUsers } from "@/lib/storage-keys";
 
 const DashboardTour = dynamic(
   () => import("./dashboard-tour").then((m) => m.DashboardTour),
@@ -49,7 +50,7 @@ interface DashboardLayoutProps {
   children: React.ReactNode;
 }
 
-const COLLAPSED_KEY = "sidebar_collapsed";
+const COLLAPSED_KEY = STORAGE_KEYS.sidebarCollapsed;
 
 const DIRECTION_ANIMATION: Record<string, string> = {
   left: "slide-in-from-right-8",
@@ -139,8 +140,7 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
 
   useEffect(() => {
     try {
-      const stored = localStorage.getItem("dumos_recent_users");
-      if (stored) setRecentUsers(JSON.parse(stored));
+      setRecentUsers(getRecentUsers());
     } catch {}
   }, []);
 

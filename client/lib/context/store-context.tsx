@@ -16,6 +16,12 @@ import { devLog } from "@/lib/utils/dev-log";
 import { getDeviceId } from "@/lib/utils/device-id";
 import { useWidgetSnapshotSync } from "@/lib/hooks/use-widget-snapshot-sync";
 import { useWidgetDeeplink } from "@/lib/hooks/use-widget-deeplink";
+import { APP_EVENTS, onAppEvent } from "@/lib/events";
+import {
+  getStoredActiveStoreId,
+  setStoredActiveStoreId,
+  getAuthToken,
+} from "@/lib/storage-keys";
 
 export type StoreType = "pharmacy" | "grocery" | "supermarket" | "retail";
 
@@ -183,7 +189,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   // picker) with whatever SQLite happened to return first. Reading
   // synchronously here closes that window instead of racing it.
   const [activeStoreId, setActiveStoreId] = React.useState<string | null>(() =>
-    typeof window !== "undefined" ? localStorage.getItem("dumos_active_store_id") : null,
+    typeof window !== "undefined" ? getStoredActiveStoreId() : null,
   );
 
   // If user has a specific store_id (like a cashier), fetch that store.
@@ -297,7 +303,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     ) {
       setActiveStoreId(storeProfile.id);
       if (typeof window !== "undefined") {
-        localStorage.setItem("dumos_active_store_id", storeProfile.id);
+        setStoredActiveStoreId(storeProfile.id);
       }
     }
   }, [storeProfile, targetId, user]);
@@ -307,7 +313,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const switchStore = useCallback((storeId: string) => {
     setActiveStoreId(storeId);
     if (typeof window !== "undefined") {
-      localStorage.setItem("dumos_active_store_id", storeId);
+      setStoredActiveStoreId(storeId);
     }
 
     // Every store-scoped query reads the active store from lib/db/core.ts's
@@ -412,7 +418,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (typeof window === "undefined") return;
 
     const triggerSync = async () => {
-      const token = localStorage.getItem("auth_token");
+      const token = getAuthToken();
       if (navigator.onLine && token) {
         devLog("[StoreContext] Network online or app mounted: triggering sync");
         try {
@@ -444,10 +450,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     };
 
     window.addEventListener("online", handleOnline);
-    window.addEventListener("dumos_sync_completed", handleSyncCompleted);
+    const unsubscribeSyncCompleted = onAppEvent(
+      APP_EVENTS.syncCompleted,
+      handleSyncCompleted,
+    );
     return () => {
       window.removeEventListener("online", handleOnline);
-      window.removeEventListener("dumos_sync_completed", handleSyncCompleted);
+      unsubscribeSyncCompleted();
     };
   }, [refetch]);
 
@@ -458,7 +467,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (typeof window === "undefined") return;
 
     const runSubscriptionSync = async () => {
-      const token = localStorage.getItem("auth_token");
+      const token = getAuthToken();
       if (!navigator.onLine || !token) return;
       try {
         const { syncSubscriptionStatus } = await import("@/lib/db/sync-engine");

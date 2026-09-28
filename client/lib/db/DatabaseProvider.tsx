@@ -33,6 +33,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { devLog } from "@/lib/utils/dev-log";
 import { toast } from "sonner";
+import { APP_EVENTS, onAppEvent } from "@/lib/events";
+import { STORAGE_KEYS } from "@/lib/storage-keys";
 
 interface DatabaseContextType {
   isReady: boolean;
@@ -121,7 +123,7 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
   useEffect(() => {
     let hadPendingCrashes = false;
     try {
-      hadPendingCrashes = !!localStorage.getItem("dumosrx_pending_crashes");
+      hadPendingCrashes = !!localStorage.getItem(STORAGE_KEYS.pendingCrashes);
     } catch {
       hadPendingCrashes = false;
     }
@@ -237,9 +239,7 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
         { duration: 8000 },
       );
     };
-    window.addEventListener("dumos_db_read_only_write_blocked", handleBlocked);
-    return () =>
-      window.removeEventListener("dumos_db_read_only_write_blocked", handleBlocked);
+    return onAppEvent(APP_EVENTS.dbReadOnlyWriteBlocked, handleBlocked);
   }, []);
 
   // core.ts's saveDatabase() previously only console.error'd a failed local
@@ -256,8 +256,7 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
         duration: 10000,
       });
     };
-    window.addEventListener("dumos_db_save_failed", handleSaveFailed);
-    return () => window.removeEventListener("dumos_db_save_failed", handleSaveFailed);
+    return onAppEvent(APP_EVENTS.dbSaveFailed, handleSaveFailed);
   }, []);
 
   if (error) {

@@ -4,6 +4,7 @@
 
 import initSqlJs, { Database, SqlJsStatic } from "sql.js";
 import { APP_NAME } from "@/lib/constants";
+import { APP_EVENTS, emitAppEvent } from "@/lib/events";
 import { del, get, set } from "idb-keyval";
 /* eslint-disable max-lines */
 import { SCHEMA_SQL } from "./schema";
@@ -22,6 +23,7 @@ import {
   requestWriterTakeover,
   stealWriterLock,
 } from "./tab-lock";
+import { clearLastSyncTime } from "@/lib/storage-keys";
 
 export { isWriterTab, onWriterTabChange, onPromotionFailed };
 
@@ -391,9 +393,7 @@ async function persistDatabaseExport(data: Uint8Array): Promise<void> {
       const now = Date.now();
       if (now - lastSaveFailureNoticeAt > SAVE_FAILURE_NOTICE_INTERVAL_MS) {
         lastSaveFailureNoticeAt = now;
-        window.dispatchEvent(
-          new CustomEvent("dumos_db_save_failed", { detail: { error: err } }),
-        );
+        emitAppEvent(APP_EVENTS.dbSaveFailed, { error: err });
       }
     }
   });
@@ -712,7 +712,7 @@ export function queueTableInvalidation(table: string): void {
 function assertWritable(): void {
   if (isTauri() || isWriterTab()) return;
   if (typeof window !== "undefined") {
-    window.dispatchEvent(new CustomEvent("dumos_db_read_only_write_blocked"));
+    emitAppEvent(APP_EVENTS.dbReadOnlyWriteBlocked);
   }
   throw new Error(
     "This tab is read-only because DumosRx is already open in another tab or window. Switch to that tab, or close it, to make changes here.",
@@ -1442,7 +1442,7 @@ export async function resetDatabase(): Promise<void> {
   }
 
   if (typeof window !== "undefined") {
-    localStorage.removeItem("last_sync_time");
+    clearLastSyncTime();
     window.location.reload();
   }
 }
@@ -1474,7 +1474,7 @@ export async function clearDatabaseForNewStore(): Promise<void> {
   }
 
   if (typeof window !== "undefined") {
-    localStorage.removeItem("last_sync_time");
+    clearLastSyncTime();
   }
 }
 

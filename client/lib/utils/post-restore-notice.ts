@@ -1,3 +1,4 @@
+import { STORAGE_KEYS } from "@/lib/storage-keys";
 /**
  * Known bug #10, Part B (docs/features/_known-bugs.md): restoreDatabase()
  * only swaps the sql.js database - it never touches localStorage/auth_token,
@@ -15,7 +16,7 @@
  * state - this is not meant to duplicate that as a persistent nag).
  */
 
-const RESTORE_FLAG_KEY = "dumos_just_restored";
+const RESTORE_FLAG_KEY = STORAGE_KEYS.justRestored;
 
 /** Call immediately before the post-restore reload/navigation (both the
  * pre-login setup flow in app/setup/use-onboarding.ts and the in-app

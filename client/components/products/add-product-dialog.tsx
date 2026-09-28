@@ -16,6 +16,7 @@ import { ProductFormFields, type ProductSuggestions } from "./product-form-field
 import { getSupplierNames } from "@/lib/db/queries/products";
 import type { NewProductPayload } from "@/lib/types/product";
 import { capitalizeWords } from "@/lib/hooks/use-uppercase-display";
+import { STORAGE_KEYS } from "@/lib/storage-keys";
 
 interface AddProductDialogProps {
   open: boolean;
@@ -145,7 +146,7 @@ export function AddProductDialog({
   useEffect(() => {
     let baseSuggestions = FORM_SUGGESTIONS;
     try {
-      const cached = localStorage.getItem("dumos_suggestions");
+      const cached = localStorage.getItem(STORAGE_KEYS.suggestions);
       if (cached) {
         baseSuggestions = JSON.parse(cached);
       }

@@ -1,4 +1,5 @@
 import { execute, query, transaction, isInTransaction, STORE_SCOPED_TABLES } from "./core";
+import { STORAGE_KEYS } from "@/lib/storage-keys";
 
 /**
  * One-time recovery tool for devices that hit the pre-fix local-first setup
@@ -137,7 +138,7 @@ export async function requeueOrphanedRows(
   return requeued;
 }
 
-const ORPHAN_REQUEUE_MARKER = "dumos_orphan_requeue_v1";
+const ORPHAN_REQUEUE_MARKER = STORAGE_KEYS.orphanRequeueMarker;
 
 /**
  * Runs requeueOrphanedRows() once per install, or when `force` says this

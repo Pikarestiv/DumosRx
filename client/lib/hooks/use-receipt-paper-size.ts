@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
+import { STORAGE_KEYS } from "@/lib/storage-keys";
 
-const PAPER_SIZE_KEY = "receipt_paper_size";
+const PAPER_SIZE_KEY = STORAGE_KEYS.receiptPaperSize;
 
 export type ReceiptPaperSize = "thermal" | "a4";
 

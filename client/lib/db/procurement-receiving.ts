@@ -18,6 +18,7 @@ import {
   coerceOptionalNumber,
   type DraftPOLineItem,
 } from "./procurement";
+import { getStoredUser } from "@/lib/storage-keys";
 
 /** Per-line-item receiving overrides submitted from the "Receive Order" form:
  * only po_item_id is required, the rest default to the ordered quantity/PO id. */
@@ -138,7 +139,7 @@ export async function receivePurchaseOrder(id: string, receivedItems?: ReceivedI
       });
 
       // Log local stock movement
-      const dumosUser = JSON.parse(localStorage.getItem("dumos_user") || "{}");
+      const dumosUser = getStoredUser() ?? {};
       await insert("stock_movements", {
         id: receiptMovementId(item.id, alreadyReceived),
         product_id: item.product_id,
@@ -253,7 +254,7 @@ export async function createAndReceivePurchaseOrder(
       received_at: now,
     });
 
-    const dumosUser = JSON.parse(localStorage.getItem("dumos_user") || "{}");
+    const dumosUser = getStoredUser() ?? {};
 
     for (const item of items) {
       const poItemId = generateId();

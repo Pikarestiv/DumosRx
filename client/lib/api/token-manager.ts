@@ -1,4 +1,12 @@
 import { mirrorAuthToken, clearMirroredAuthToken } from "@/lib/native/widget-bridge";
+import { APP_EVENTS, emitAppEvent } from "@/lib/events";
+import {
+  getAuthToken as readAuthToken,
+  setAuthToken as writeAuthToken,
+  clearAuthToken as removeAuthToken,
+  setAuthTokenIssuedAt as writeAuthTokenIssuedAt,
+  clearAuthTokenIssuedAt as removeAuthTokenIssuedAt,
+} from "@/lib/storage-keys";
 
 /**
  * "refreshed": got a new token, safe to retry the original request.
@@ -19,12 +27,12 @@ let refreshPromise: Promise<RefreshOutcome> | null = null;
 const REFRESH_THRESHOLD_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 if (typeof window !== "undefined") {
-  token = localStorage.getItem("auth_token");
+  token = readAuthToken();
 }
 
 export const getToken = (): string | null => {
   if (typeof window !== "undefined" && !token) {
-    token = localStorage.getItem("auth_token");
+    token = readAuthToken();
   }
   return token;
 };
@@ -32,9 +40,9 @@ export const getToken = (): string | null => {
 export const setToken = (newToken: string) => {
   token = newToken;
   if (typeof window !== "undefined") {
-    localStorage.setItem("auth_token", newToken);
-    localStorage.setItem("auth_token_issued_at", Date.now().toString());
-    window.dispatchEvent(new Event("auth_token_set"));
+    writeAuthToken(newToken);
+    writeAuthTokenIssuedAt(Date.now());
+    emitAppEvent(APP_EVENTS.authTokenSet);
     void mirrorAuthToken(newToken);
   }
 };
@@ -42,9 +50,9 @@ export const setToken = (newToken: string) => {
 export const clearToken = () => {
   token = null;
   if (typeof window !== "undefined") {
-    localStorage.removeItem("auth_token");
-    localStorage.removeItem("auth_token_issued_at");
-    window.dispatchEvent(new Event("auth_token_cleared"));
+    removeAuthToken();
+    removeAuthTokenIssuedAt();
+    emitAppEvent(APP_EVENTS.authTokenCleared);
     void clearMirroredAuthToken();
   }
 };

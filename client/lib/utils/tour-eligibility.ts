@@ -1,5 +1,6 @@
-const COMPLETED_KEY = "dumos_client_tour_completed";
-const SNOOZED_UNTIL_KEY = "dumos_client_tour_snoozed_until";
+import { STORAGE_KEYS } from "@/lib/storage-keys";
+const COMPLETED_KEY = STORAGE_KEYS.tourCompleted;
+const SNOOZED_UNTIL_KEY = STORAGE_KEYS.tourSnoozedUntil;
 
 export const TOUR_COMPLETED_KEY = COMPLETED_KEY;
 export const TOUR_SNOOZED_UNTIL_KEY = SNOOZED_UNTIL_KEY;

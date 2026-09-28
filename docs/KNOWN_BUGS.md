@@ -16,7 +16,7 @@ This file holds **open** items only. Fixed entries move to `docs/FIXED_BUGS.md` 
 
 **Overall health.** The codebase is unusually well-defended for its size: the sync engine's conflict model, the single-writer tab lock, tenant scoping on the server and the money math have all been through several review-and-fix cycles, and both test suites pass cleanly. The new findings in this pass are therefore not the "obvious" classes (cross-tenant leaks, double-charging, silent rollbacks) but the next layer down: **scale limits that were never exercised** (all three found so far have since been fixed — a local database with essentially no indexes, plus the pull engine's own un-resumable page cap and the server tenant-scope that loaded every sale id into PHP memory per request; see `docs/FIXED_BUGS.md`) and **attribution/consistency gaps** on the newest flows (the online-order fulfilment one, `A-4`, has since been fixed too).
 
-**Findings this pass, by severity:** 0 **P0**, 0 **P1**, 0 **P2**, 1 **P3** — 1 open finding from this pass (IDs `A-1`…`A-24`, less the fixed `A-1`, `A-2`, `A-3`, `A-4`, `A-5`, `A-6`, `A-7`, `A-8`, `A-9`, `A-10`, `A-11`, `A-12`, `A-13`, `A-14`, `A-15`, `A-16`, `A-17`, `A-18`, `A-19`, `A-20`, `A-21`, `A-22` and `A-24`), plus 14 still-open items carried from the two earlier passes (`P2-1`, `P3-1`, `P3-2`, `P3-5`, `PG-1`…`PG-10`), all preserved verbatim below.
+**Findings this pass, by severity:** 0 **P0**, 0 **P1**, 0 **P2**, 0 **P3** — 0 open findings from this pass (IDs `A-1`…`A-24`, less the fixed `A-1`, `A-2`, `A-3`, `A-4`, `A-5`, `A-6`, `A-7`, `A-8`, `A-9`, `A-10`, `A-11`, `A-12`, `A-13`, `A-14`, `A-15`, `A-16`, `A-17`, `A-18`, `A-19`, `A-20`, `A-21`, `A-22`, `A-23` and `A-24`), plus 14 still-open items carried from the two earlier passes (`P2-1`, `P3-1`, `P3-2`, `P3-5`, `PG-1`…`PG-10`), all preserved verbatim below.
 
 **Most important risks, in order:**
 
@@ -45,13 +45,6 @@ None open. `A-9` (receiving the same purchase order from two devices booked the 
 ---
 
 ## 4. Low-priority findings (P3)
-
-#### [P3] A-23. `CustomEvent`/`localStorage`-driven cross-module state has grown into an undocumented event bus
-**Category:** Architecture / Maintainability — **Maintainability problem**
-**Location:** `dumos_sync_completed`, `dumos_subscription_updated`, `dumos_db_save_failed`, `dumos_db_read_only_write_blocked`, `auth_token_set`, `auth_token_cleared` (dispatched from `core.ts`, `sync-engine/index.ts`, `token-manager.ts`; consumed by `auth-context.tsx`, `store-context.tsx`, `sync-indicator.tsx`, `DatabaseProvider.tsx`, `license-guard.tsx`…), plus a dozen `localStorage` keys read directly (`auth_token`, `dumos_user`, `dumos_active_store_id`, `last_sync_time`, `dumos_suggestions`, `dumos_recent_users`, …) by both React and non-React modules.
-**Problem:** There is no single place that lists these names or their payloads; several are read in different places with different fallbacks (e.g. the active store id is read from `localStorage` in `client.ts` for the `X-Store-Id` header and from the module resolver in `core.ts` for queries — `auth-context.tsx:394-420` documents a real bug that came from exactly that split). Each new subsystem adds another listener.
-**Recommended fix:** A typed `events.ts`/`storage-keys.ts` module (constants + typed dispatch/subscribe helpers) so the names cannot drift and the payloads are visible.
-**Confidence:** High.
 
 #### [P3] A-25. `npm run test:schema` is broken, so the cross-repo schema-parity check has not run in some time
 **Category:** Maintainability / Tooling — **Confirmed**
@@ -183,7 +176,6 @@ Synthetic dataset built from the app's own `SCHEMA_SQL` plus the migration-added
 
 ## 7. Architecture and technical debt
 
-- **A-23**: the cross-module event/`localStorage` bus is undocumented and duplicated (the active store id has two sources of truth: `localStorage["dumos_active_store_id"]` for headers, the `core.ts` resolver for queries).
 - **One hand-rolled tenant-resolution copy remains** (carried, narrowed): `DashboardService` still hand-rolls the staff→owner lookup instead of using a shared `Request`-free helper, and `TenantScopingArchitectureTest` still scans controllers only. The second copy, in `SaleController`, went with A-19.
 - **`core.ts` is 1,558 lines and `SyncController.php` 2,264 lines** against the project's own 350-line guideline; `getProductsWithDetails`-style "load everything, filter in React" is the norm for catalog/customers/PO lists (documented as intentional; the cutoff at which it stops being fine is not written down anywhere).
 - **Two client-side sale-recording paths exist** (`recordSaleItemStock` for POS/online orders; `local-database.ts::createSale` for demo seeding only) — the comment on the second is clear, but it still writes `stock_batches.quantity` directly with a raw `UPDATE` rather than through `update()`, so a demo-seeded batch is the one batch the version model never saw.

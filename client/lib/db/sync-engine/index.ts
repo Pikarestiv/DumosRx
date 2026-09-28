@@ -8,11 +8,17 @@ import { getValidColumns } from "./schema";
 import { getSyncQueueBreakdown } from "@/lib/db/queries/setup";
 import { pruneSyncedAuditLogs } from "../retention";
 import { devLog } from "@/lib/utils/dev-log";
+import { APP_EVENTS, emitAppEvent } from "@/lib/events";
 import { logCrash } from "@/lib/utils/error-logger";
 import {
   isImpersonatedSession,
   SYNC_DISABLED_IMPERSONATION_MESSAGE,
 } from "@/lib/utils/impersonation";
+import {
+  STORAGE_KEYS,
+  setLastSyncTime,
+  getAuthToken,
+} from "@/lib/storage-keys";
 
 let isSyncInProgress = false;
 
@@ -120,7 +126,7 @@ export async function sync(
   }
 
   const token =
-    typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
+    typeof window !== "undefined" ? getAuthToken() : null;
   if (!token) {
     return {
       success: false,
@@ -175,15 +181,15 @@ export async function sync(
         .catch(() => null);
       if (typeof value === "string") {
         JSON.parse(value); // Validate JSON
-        localStorage.setItem("dumos_suggestions", value);
+        localStorage.setItem(STORAGE_KEYS.suggestions, value);
       } else if (value && typeof value === "object") {
-        localStorage.setItem("dumos_suggestions", JSON.stringify(value));
+        localStorage.setItem(STORAGE_KEYS.suggestions, JSON.stringify(value));
       }
     } catch (err) {
       console.error("Failed to sync autocomplete suggestions:", err);
     }
 
-    localStorage.setItem("last_sync_time", new Date().toISOString());
+    setLastSyncTime(new Date().toISOString());
 
     if (isWriterTab()) {
       await pruneSyncedAuditLogs().catch((err) =>
@@ -207,15 +213,13 @@ export async function sync(
           },
         });
         if (pullResult.updatedTables.includes("stores")) {
-          window.dispatchEvent(new CustomEvent("dumos_subscription_updated"));
+          emitAppEvent(APP_EVENTS.subscriptionUpdated);
         }
       }
 
-      window.dispatchEvent(
-        new CustomEvent("dumos_sync_completed", {
-          detail: { updatedTables: pullResult.updatedTables || [] },
-        })
-      );
+      emitAppEvent(APP_EVENTS.syncCompleted, {
+        updatedTables: pullResult.updatedTables || [],
+      });
     }
 
     // A batch landing in pushChanges()'s catch block (network error,
@@ -280,7 +284,7 @@ export async function syncSubscriptionStatus(): Promise<{
   updated: boolean;
 }> {
   const token =
-    typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
+    typeof window !== "undefined" ? getAuthToken() : null;
 
   if (!token || !navigator.onLine) {
     return { success: false, updated: false };
@@ -355,7 +359,7 @@ export async function syncSubscriptionStatus(): Promise<{
     if (typeof window !== "undefined") {
       void queryClient.invalidateQueries({ queryKey: ["storeProfile"] });
       void queryClient.invalidateQueries({ queryKey: ["allStores"] });
-      window.dispatchEvent(new CustomEvent("dumos_subscription_updated"));
+      emitAppEvent(APP_EVENTS.subscriptionUpdated);
     }
 
     devLog("[SyncEngine] Subscription status synced from server.");

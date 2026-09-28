@@ -23,6 +23,7 @@ import type { StaffCreatePayload, StaffUpdatePayload, StaffListItem } from "@/li
 import type { Product } from "@/lib/types/product";
 import type { CustomerDbRow } from "@/lib/types/customer";
 import { hashPin } from "@/lib/utils/pin-hash";
+import { getStoredUser } from "@/lib/storage-keys";
 
 const STOCK_MOVEMENT_AUDIT_ACTIONS: Record<string, string> = {
   adjustment: AUDIT_ACTIONS.STOCK_ADJUSTMENT,
@@ -147,7 +148,7 @@ export async function createSale(saleData: Record<string, unknown>, items: Creat
     // DB (no default); reading it here the same way receivePurchaseOrder()
     // does, since it was never set on this insert before and every sale's
     // movement row was silently failing to sync as a result.
-    const dumosUser = JSON.parse(localStorage.getItem("dumos_user") || "{}");
+    const dumosUser = getStoredUser() ?? {};
 
     for (const item of items) {
       await insert("sale_items", {

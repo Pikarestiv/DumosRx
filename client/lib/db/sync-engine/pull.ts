@@ -4,6 +4,7 @@ import { PullResponse } from "./types";
 import { getValidColumns } from "./schema";
 import { remapForeignKey, DUPLICATE_NAME_TABLES, columnExists } from "../reconcile-identity";
 import { logCrash } from "@/lib/utils/error-logger";
+import { STORAGE_KEYS } from "@/lib/storage-keys";
 
 // Safety bound on the page loop below: it stops one sync() call running
 // forever if a server bug ever reports has_more=true indefinitely. It is no
@@ -22,7 +23,7 @@ const MAX_PULL_PAGES = 1000;
 // advance past it anyway (the record stays in skippedRecords/logCrash either
 // way, so the loss is visible, not silent).
 const MAX_UNIQUE_SKIP_RETRIES = 5;
-const UNIQUE_SKIP_COUNTS_KEY = "dumos_sync_unique_skip_counts";
+const UNIQUE_SKIP_COUNTS_KEY = STORAGE_KEYS.syncUniqueSkipCounts;
 
 function readSkipCounts(): Record<string, number> {
   if (typeof window === "undefined") return {};

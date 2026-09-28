@@ -26,6 +26,11 @@ import { formatDistanceToNow } from "date-fns";
 import { isExpectedSyncRestriction } from "@/lib/utils/error-logger";
 import { toast } from "sonner";
 import { queryKeys } from "@/lib/query-keys";
+import { APP_EVENTS, onAppEvent } from "@/lib/events";
+import {
+  getAuthToken,
+  getLastSyncTime,
+} from "@/lib/storage-keys";
 
 // Bursts of local writes (e.g. checking out a multi-item sale, a bulk
 // stock receive) should collapse into one sync call, not one per row —
@@ -87,30 +92,33 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
     updateOnlineStatus();
     window.addEventListener("online", updateOnlineStatus);
     window.addEventListener("offline", updateOnlineStatus);
-    window.addEventListener("auth_token_set", updateOnlineStatus);
-    window.addEventListener("auth_token_cleared", updateOnlineStatus);
+    const unsubscribeTokenSet = onAppEvent(APP_EVENTS.authTokenSet, updateOnlineStatus);
+    const unsubscribeTokenCleared = onAppEvent(
+      APP_EVENTS.authTokenCleared,
+      updateOnlineStatus,
+    );
 
     const interval = setInterval(() => {
-      const stored = localStorage.getItem("last_sync_time");
+      const stored = getLastSyncTime();
       if (stored) setLastSync(stored);
       setIsSyncInProgress(checkIsSyncing());
     }, 2000);
 
-    const stored = localStorage.getItem("last_sync_time");
+    const stored = getLastSyncTime();
     if (stored) setLastSync(stored);
 
     return () => {
       window.removeEventListener("online", updateOnlineStatus);
       window.removeEventListener("offline", updateOnlineStatus);
-      window.removeEventListener("auth_token_set", updateOnlineStatus);
-      window.removeEventListener("auth_token_cleared", updateOnlineStatus);
+      unsubscribeTokenSet();
+      unsubscribeTokenCleared();
       clearInterval(interval);
     };
   }, []);
 
   const updateOnlineStatus = () => {
     setStatus(navigator.onLine ? "online" : "offline");
-    const token = localStorage.getItem("auth_token");
+    const token = getAuthToken();
     setIsLinked(!!token);
   };
 

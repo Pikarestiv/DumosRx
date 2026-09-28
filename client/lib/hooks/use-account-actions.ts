@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/context/auth-context";
 import { useAutoLockStore } from "@/lib/hooks/use-auto-lock";
 import { getSyncQueueCount } from "@/lib/db/queries/setup";
 import { queryKeys } from "@/lib/query-keys";
+import { clearRecentUsers } from "@/lib/storage-keys";
 
 export interface NavAction {
   key: string;
@@ -44,7 +45,7 @@ export function useAccountActions({
   const pendingCount = pendingCountData || 0;
 
   const performFullLogout = () => {
-    localStorage.removeItem("dumos_recent_users"); // Clear lock screen history
+    clearRecentUsers();
     logout();
     router.push("/login");
   };

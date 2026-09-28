@@ -28,6 +28,7 @@ import { ThemeCustomizer } from "@/components/ui/theme-customizer";
 import { getUserInitials } from "@/lib/utils";
 import { useIsTouchDevice } from "@/lib/hooks/use-is-touch-device";
 import { cn } from "@/lib/utils";
+import { clearStoredUser, clearRecentUsers } from "@/lib/storage-keys";
 
 // {...props} is spread onto the Button so Radix's `asChild` trigger props
 // (aria-haspopup, aria-expanded, keyboard handlers, ref) land on the real
@@ -162,8 +163,8 @@ export function UserNav({
             : "h-8 w-8 rounded-full p-0",
         )}
         onClick={() => {
-          localStorage.removeItem("dumos_user");
-          localStorage.removeItem("dumos_recent_users");
+          clearStoredUser();
+          clearRecentUsers();
           router.push("/login");
         }}
       >

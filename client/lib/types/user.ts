@@ -1,3 +1,14 @@
+/** A device's "recently signed in" list, rendered on the lock screen and the
+ * device picker. Persisted under STORAGE_KEYS.recentUsers. */
+export interface RecentUser {
+  id: string;
+  first_name: string;
+  last_name: string;
+  username: string;
+  role: string;
+  last_login: string;
+}
+
 /** Raw `users` table row, including the PIN hash. Never pass this around
  * app state directly (use the auth context's `User` for that); only the
  * login flow that verifies the PIN should see this shape. */

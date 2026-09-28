@@ -12,6 +12,7 @@ import type { Database } from "sql.js";
 // safe: this is only ever read inside a migration step at call time, long
 // after both modules have finished evaluating.
 import { getActiveStoreId } from "./core";
+import { STORAGE_KEYS } from "@/lib/storage-keys";
 
 // Tables that just gained a `store_id` column (see SYNC_COLUMN_MIGRATIONS
 // below) and need every pre-existing local row backfilled to the device's one
@@ -775,7 +776,7 @@ async function clearLegacyTransactionsOnce(
 ): Promise<void> {
   try {
     const hasClearedLegacy = typeof window !== "undefined" && window.localStorage
-      ? window.localStorage.getItem("dumosrx_cleared_legacy_v2")
+      ? window.localStorage.getItem(STORAGE_KEYS.clearedLegacyV2)
       : "true";
     if (!hasClearedLegacy) {
       const tablesToClear = [
@@ -796,7 +797,7 @@ async function clearLegacyTransactionsOnce(
         await tryRun(adapter, `DELETE FROM ${table}`);
       }
       if (typeof window !== "undefined" && window.localStorage) {
-        window.localStorage.setItem("dumosrx_cleared_legacy_v2", "true");
+        window.localStorage.setItem(STORAGE_KEYS.clearedLegacyV2, "true");
       }
       if (onCleared) await onCleared();
     }

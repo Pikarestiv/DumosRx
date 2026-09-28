@@ -32,6 +32,7 @@ import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { useAutoLockStore } from "@/lib/hooks/use-auto-lock";
 import { isNativeMobileApp } from "@/lib/utils";
 import { toast } from "sonner";
+import { APP_EVENTS, onAppEvent } from "@/lib/events";
 
 function ThemeRestrictor() {
   const { currentTier } = useFeatureGate();
@@ -281,13 +282,9 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
   // effect below catches a status/tier change.
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const handleSyncCompleted = () => {
+    return onAppEvent(APP_EVENTS.syncCompleted, () => {
       void performCheck();
-    };
-    window.addEventListener("dumos_sync_completed", handleSyncCompleted);
-    return () => {
-      window.removeEventListener("dumos_sync_completed", handleSyncCompleted);
-    };
+    });
   }, [performCheck]);
 
   // Generate or load device ID on mount

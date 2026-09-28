@@ -1,5 +1,7 @@
 "use client";
 
+import type { RecentUser } from "@/lib/types/user";
+
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
 import * as Sentry from "@sentry/nextjs";
 import { setCurrentUser as setDbUser, logAction } from "@/lib/db/local-database";
@@ -36,6 +38,17 @@ import {
   clearImpersonatedSession,
   isImpersonatedSession,
 } from "@/lib/utils/impersonation";
+import { APP_EVENTS, onAppEvent } from "@/lib/events";
+import {
+  STORAGE_KEYS,
+  getAuthToken,
+  getStoredUser,
+  setStoredUser,
+  clearStoredUser,
+  getRecentUsers,
+  setRecentUsers,
+  setStoredActiveStoreId,
+} from "@/lib/storage-keys";
 
 // Polls until any in-flight sync finishes, so a caller that just triggered
 // (or piggybacked on) a sync can safely read fresh local data afterward.
@@ -87,14 +100,7 @@ export interface User {
   store_id?: string;
 }
 
-export interface RecentUser {
-  id: string;
-  first_name: string;
-  last_name: string;
-  username: string;
-  role: string;
-  last_login: string;
-}
+export type { RecentUser };
 
 /** The user payload the cloud handoff endpoint returns (a raw App\Models\User
  * row plus its appended `name` accessor); only the fields we map are listed. */
@@ -196,8 +202,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // Check for saved user in session
-    const savedUser = localStorage.getItem("dumos_user");
-    const token = localStorage.getItem("auth_token");
+    const savedUser = getStoredUser();
+    const token = getAuthToken();
     
     setIsCloudLinked(!!token);
 
@@ -228,20 +234,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.removeItem(IMPERSONATED_USER_STORAGE_KEY);
       }
     } else if (savedUser) {
-      try {
-        const parsedUser = JSON.parse(savedUser);
-        setUser(parsedUser);
-        setDbUser(parsedUser);
-      } catch (err) {
-        // Corrupted/partial write (e.g. interrupted by a connection drop
-        // mid-save). Without this, the throw aborts the rest of this
-        // effect silently, leaving `user` stuck null forever and the
-        // token-event listeners below never attached. Clear the bad value
-        // so the next reload doesn't repeat the same failure, and let the
-        // caller's own !user handling (redirect to /login) take it from here.
-        console.error("Failed to parse saved user, clearing corrupted session", err);
-        localStorage.removeItem("dumos_user");
-      }
+      const parsedUser = savedUser as unknown as User;
+      setUser(parsedUser);
+      setDbUser(parsedUser);
+    } else if (localStorage.getItem(STORAGE_KEYS.user)) {
+      // Corrupted/partial write (e.g. interrupted by a connection drop
+      // mid-save) - getStoredUser() returned null for a key that is set.
+      // Clear it so the next reload doesn't repeat the same failure.
+      console.error("Clearing a corrupted saved user session");
+      clearStoredUser();
     }
 
     // Evaluated after the branch above (not inside it) so a session that
@@ -255,12 +256,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const handleTokenSet = () => setIsCloudLinked(true);
     const handleTokenCleared = () => setIsCloudLinked(false);
 
-    window.addEventListener("auth_token_set", handleTokenSet);
-    window.addEventListener("auth_token_cleared", handleTokenCleared);
+    const unsubscribeTokenSet = onAppEvent(APP_EVENTS.authTokenSet, handleTokenSet);
+    const unsubscribeTokenCleared = onAppEvent(
+      APP_EVENTS.authTokenCleared,
+      handleTokenCleared,
+    );
 
     return () => {
-      window.removeEventListener("auth_token_set", handleTokenSet);
-      window.removeEventListener("auth_token_cleared", handleTokenCleared);
+      unsubscribeTokenSet();
+      unsubscribeTokenCleared();
     };
   }, []);
 
@@ -312,7 +316,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // before actually failing the login.
         const now = Date.now();
         const hasCloudLink =
-          typeof window !== "undefined" && !!localStorage.getItem("auth_token");
+          typeof window !== "undefined" && !!getAuthToken();
         if (
           hasCloudLink &&
           navigator.onLine &&
@@ -416,7 +420,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // persists on their behalf.
       if (dbUser.store_id) {
         setResolvedStoreId(dbUser.store_id);
-        localStorage.setItem("dumos_active_store_id", dbUser.store_id);
+        setStoredActiveStoreId(dbUser.store_id);
       }
 
       // Covers the "switch user" lock-screen flow (selecting a different
@@ -453,7 +457,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(userProfile);
       setDbUser(userProfile);
       Sentry.setUser({ id: userProfile.id, username: userProfile.username, role: userProfile.role });
-      localStorage.setItem("dumos_user", JSON.stringify(userProfile));
+      setStoredUser(userProfile);
       // Marks this tab as already having gone through a real auth/unlock this
       // session. DashboardLayout's fresh-load lock check reads this so it
       // doesn't immediately re-lock right after a login/unlock that just
@@ -485,8 +489,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsImpersonating(false);
 
       // Update recent users list
-      const recentUsersStr = localStorage.getItem("dumos_recent_users");
-      let recentUsers: RecentUser[] = recentUsersStr ? JSON.parse(recentUsersStr) : [];
+      let recentUsers: RecentUser[] = getRecentUsers();
       
       const recentUser: RecentUser = {
         id: userProfile.id,
@@ -509,7 +512,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       recentUsers.unshift(recentUser);
       if (recentUsers.length > 5) recentUsers = recentUsers.slice(0, 5); // Keep last 5
 
-      localStorage.setItem("dumos_recent_users", JSON.stringify(recentUsers));
+      setRecentUsers(recentUsers);
 
       logAction(AUDIT_ACTIONS.LOGIN, "users", userProfile.id, {
         username: userProfile.username,
@@ -559,15 +562,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       setUser(defaultAdmin);
       setDbUser(defaultAdmin);
-      localStorage.setItem("dumos_user", JSON.stringify(defaultAdmin));
+      setStoredUser(defaultAdmin);
       sessionStorage.setItem("dumos_session_authenticated", "1");
       useAutoLockStore.getState().unlock();
       clearImpersonatedSession();
       setIsImpersonating(false);
 
       // Update recent users list for default admin
-      const recentUsersStr = localStorage.getItem("dumos_recent_users");
-      let recentUsers: RecentUser[] = recentUsersStr ? JSON.parse(recentUsersStr) : [];
+      let recentUsers: RecentUser[] = getRecentUsers();
       
       const recentUser: RecentUser = {
         id: defaultAdmin.id,
@@ -584,7 +586,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       recentUsers.unshift(recentUser);
       if (recentUsers.length > 5) recentUsers = recentUsers.slice(0, 5); // Keep last 5
 
-      localStorage.setItem("dumos_recent_users", JSON.stringify(recentUsers));
+      setRecentUsers(recentUsers);
 
       logAction(AUDIT_ACTIONS.LOGIN, "users", defaultAdmin.id, {
         username: defaultAdmin.username,
@@ -649,7 +651,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     setDbUser(null);
     Sentry.setUser(null);
-    localStorage.removeItem("dumos_user");
+    clearStoredUser();
     sessionStorage.removeItem("dumos_session_authenticated");
     // Without this, a shared terminal's POS cart (items, discount, redeemed
     // reward, reseller flag — all persisted under this one global key by
@@ -741,7 +743,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (user) {
           const updatedUser = { ...user, email };
           setUser(updatedUser);
-          localStorage.setItem("dumos_user", JSON.stringify(updatedUser));
+          setStoredUser(updatedUser);
         }
 
         return { success: true, message: "Cloud account linked successfully!" };
@@ -778,10 +780,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // device (or another admin) affecting this user's own group - without
     // this, the change wouldn't be reflected until the user logs out and
     // back in, since the effect otherwise only re-runs on user id change.
-    window.addEventListener("dumos_sync_completed", load);
+    const unsubscribeSyncCompleted = onAppEvent(APP_EVENTS.syncCompleted, load);
     return () => {
       cancelled = true;
-      window.removeEventListener("dumos_sync_completed", load);
+      unsubscribeSyncCompleted();
     };
   }, [user?.id]);
 

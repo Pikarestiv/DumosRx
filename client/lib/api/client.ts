@@ -3,6 +3,7 @@ import type { Broadcast } from "@/lib/types/broadcast";
 import type { SyncChange } from "@/lib/types/sync";
 import type { CurrentUser, Session } from "@/lib/types/user";
 import { getDeviceId } from "@/lib/utils/device-id";
+import { getStoredActiveStoreId } from "@/lib/storage-keys";
 
 class ApiClient extends FleetBillingApiClient {
   // Auth endpoints
@@ -127,7 +128,7 @@ class ApiClient extends FleetBillingApiClient {
     const headers: Record<string, string> = {};
     if (runId) headers["X-Sync-Run-Id"] = runId;
     if (typeof window !== "undefined") {
-      const activeStoreId = localStorage.getItem("dumos_active_store_id");
+      const activeStoreId = getStoredActiveStoreId();
       if (activeStoreId) {
         headers["X-Store-Id"] = activeStoreId;
       }
@@ -147,7 +148,7 @@ class ApiClient extends FleetBillingApiClient {
   async getSyncCounts(): Promise<{ success: boolean; counts: Record<string, number> }> {
     const headers: Record<string, string> = {};
     if (typeof window !== "undefined") {
-      const activeStoreId = localStorage.getItem("dumos_active_store_id");
+      const activeStoreId = getStoredActiveStoreId();
       if (activeStoreId) {
         headers["X-Store-Id"] = activeStoreId;
       }
@@ -177,7 +178,7 @@ class ApiClient extends FleetBillingApiClient {
     const headers: Record<string, string> = {};
     if (runId) headers["X-Sync-Run-Id"] = runId;
     if (typeof window !== "undefined") {
-      const activeStoreId = localStorage.getItem("dumos_active_store_id");
+      const activeStoreId = getStoredActiveStoreId();
       if (activeStoreId) {
         headers["X-Store-Id"] = activeStoreId;
       }

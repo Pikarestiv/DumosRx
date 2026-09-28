@@ -1,3 +1,4 @@
+import { STORAGE_KEYS } from "@/lib/storage-keys";
 /**
  * Exponential-backoff lockout for PIN-based login attempts (client-side
  * only, matching this app's entirely-offline PIN check — see
@@ -13,7 +14,7 @@
  *    other staff member sharing the same device.
  */
 
-const STORAGE_KEY = "dumos_login_lockout";
+const STORAGE_KEY = STORAGE_KEYS.loginLockout;
 const LOCKOUT_THRESHOLD = 5; // failed attempts allowed before any lockout
 const BASE_LOCKOUT_MS = 30_000; // 30s for the first lockout
 const MAX_LOCKOUT_MS = 30 * 60_000; // capped at 30 minutes

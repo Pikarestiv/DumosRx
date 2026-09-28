@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
+import { STORAGE_KEYS } from "@/lib/storage-keys";
 
-const PEEK_KEY = "sidebar_peek_enabled";
+const PEEK_KEY = STORAGE_KEYS.sidebarPeekEnabled;
 
 /**
  * Whether the collapsed sidebar expands on hover ("peek"), or stays fully

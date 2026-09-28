@@ -9,6 +9,7 @@ import { getCustomerBalance, getCustomerLoyaltyPoints } from "@/lib/db/queries/c
 import { updatePrescriptionStatus } from "@/lib/db/queries/prescriptions";
 import { calculateLoyaltyPointsAfterSale, calculateReturnPointsAdjustment } from "@/lib/utils/loyalty-calculator";
 import type { SaleWithDetails, SaleItemDetail } from "@/lib/types/sale";
+import { getStoredUser } from "@/lib/storage-keys";
 
 type ReturnableItem = SaleItemDetail & {
   returnQuantity: number;
@@ -60,7 +61,7 @@ export function useProcessReturnMutation() {
         );
 
         // 2. Create return items and restore stock
-        const dumosUser = JSON.parse(localStorage.getItem("dumos_user") || "{}");
+        const dumosUser = getStoredUser() ?? {};
         for (const item of itemsToReturn) {
           await insert("return_items", {
             return_id: returnId,

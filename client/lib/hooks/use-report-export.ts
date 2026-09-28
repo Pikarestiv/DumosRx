@@ -15,6 +15,7 @@ import { capitalizeWords } from "@/lib/hooks/use-uppercase-display";
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import { generateReportPdfBlob } from "@/lib/utils/report-pdf";
 import { downloadBlob, openBlobForPrint } from "@/lib/utils/download-blob";
+import { STORAGE_KEYS } from "@/lib/storage-keys";
 
 export interface RecentDownload {
   id: string;
@@ -24,7 +25,7 @@ export interface RecentDownload {
   sizeLabel: string;
 }
 
-const STORAGE_KEY = "drx_recent_downloads";
+const STORAGE_KEY = STORAGE_KEYS.recentDownloads;
 
 const REPORT_CONFIG = {
   sales: {

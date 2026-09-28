@@ -207,6 +207,50 @@ Call `sync(true)` before any workflow where stale local data would be
 actively misleading (e.g. `StockAudits` syncs on mount before showing
 counts, see `components/stock-batch/stock-audits.tsx`).
 
+## Cross-module events and `localStorage`: `lib/events.ts` and `lib/storage-keys.ts`
+
+Required, not optional — this is the fix for A-23 (`docs/FIXED_BUGS.md`), and
+the pattern that keeps it from coming back.
+
+**`lib/events.ts` owns every cross-module `CustomEvent` this app dispatches.**
+`APP_EVENTS` holds the names, `AppEventDetails` holds each one's payload type,
+and `emitAppEvent(name, detail)` / `onAppEvent(name, handler)` are the only
+supported way to fire and subscribe. `onAppEvent` returns an unsubscribe
+function, so a React effect can `return onAppEvent(...)` directly.
+
+```ts
+emitAppEvent(APP_EVENTS.syncCompleted, { updatedTables });
+useEffect(() => onAppEvent(APP_EVENTS.syncCompleted, handleSync), [handleSync]);
+```
+
+Do **not** write `window.dispatchEvent(new CustomEvent("dumos_…"))` or
+`window.addEventListener("dumos_…")` by hand. A new cross-module signal means a
+new entry in `APP_EVENTS` plus its detail type in `AppEventDetails` — that is
+what makes the payload shape visible in one place and the name impossible to
+typo apart. (Genuine DOM events — `online`, `offline`, `pagehide`,
+`visibilitychange` — stay on `window.addEventListener`; this module is only for
+the app's own events.)
+
+**`lib/storage-keys.ts` owns every `localStorage` key.** `STORAGE_KEYS` is the
+registry; the shared, multi-module values also have typed accessors
+(`getAuthToken`/`setAuthToken`/`clearAuthToken`, `getStoredUser`/`setStoredUser`,
+`getRecentUsers`/`setRecentUsers`, `getStoredActiveStoreId`/
+`setStoredActiveStoreId`, `getLastSyncTime`/…) plus `readJsonItem`/
+`writeJsonItem` for the rest. The accessors never throw: a missing or corrupt
+value comes back as the fallback.
+
+No new bare string key, anywhere. A module-private key still goes in
+`STORAGE_KEYS` and the module aliases it (`const PEEK_KEY =
+STORAGE_KEYS.sidebarPeekEnabled`), so the registry stays the one place that
+lists what this app puts in a user's browser storage.
+
+Note the deliberate naming split: `storage-keys.ts`'s
+`getStoredActiveStoreId()` reads the id the API client stamps on `X-Store-Id`,
+while `core.ts`'s `getActiveStoreId()` resolves the id local queries scope to.
+They are two different things and must not be conflated — them silently
+disagreeing is the bug `auth-context.tsx` already carries a comment about, and
+the reason A-23 was filed.
+
 ## React Query conventions: read this before adding a new `useQuery`
 
 **`lib/query-keys.ts` is a query-key *and* cache-dependency factory.**

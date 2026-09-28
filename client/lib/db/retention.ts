@@ -1,9 +1,10 @@
 import { execute, query } from "./core";
+import { STORAGE_KEYS } from "@/lib/storage-keys";
 
 export const AUDIT_LOG_LOCAL_RETENTION_DAYS = 730;
 
 const PRUNE_INTERVAL_MS = 24 * 60 * 60 * 1000;
-const LAST_PRUNE_KEY = "dumos_last_audit_log_prune";
+const LAST_PRUNE_KEY = STORAGE_KEYS.lastAuditLogPrune;
 
 export interface AuditLogPruneOptions {
   retentionDays?: number;

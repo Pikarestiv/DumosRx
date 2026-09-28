@@ -14,6 +14,7 @@ import {
 } from "@/lib/utils/pos-calculations";
 export type { POSProduct as Product } from "@/lib/types/product";
 import type { POSProduct as Product } from "@/lib/types/product";
+import { STORAGE_KEYS } from "@/lib/storage-keys";
 
 export interface CartItem extends Product {
   quantity: number;
@@ -68,7 +69,7 @@ const usePOSCartStore = create<POSCartState>()(
       setMarkupType: (markupType) => set({ markupType }),
     }),
     {
-      name: "pos-cart-storage",
+      name: STORAGE_KEYS.posCart,
     }
   )
 );

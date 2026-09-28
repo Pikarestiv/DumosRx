@@ -290,7 +290,7 @@ function EditOrderContent() {
 
 export default function EditOrderPage() {
   return (
-    <RequireRole>
+    <RequireRole permission="manage_purchase_orders">
       <Suspense
         fallback={
           <div className="p-10 flex items-center justify-center">

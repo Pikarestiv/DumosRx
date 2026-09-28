@@ -21,6 +21,7 @@ import { useSortableData } from "@/lib/hooks/use-sortable-data";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { toast } from "sonner";
 import { usePullToRefreshHandler } from "@/lib/context/pull-to-refresh-context";
+import { useHasPermission } from "@/lib/hooks/use-permissions";
 import type { SupplierViewModel, SupplierDbRow, SupplierPayload } from "@/lib/types/supplier";
 
 const transformSupplier = (apiData: SupplierDbRow): SupplierViewModel => ({
@@ -59,15 +60,16 @@ export function SupplierManagement() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
+  const canManageSuppliers = useHasPermission("manage_suppliers");
 
   useEffect(() => {
     if (searchParams.get("action") === "add") {
-      setShowAddDialog(true);
+      if (canManageSuppliers) setShowAddDialog(true);
       const params = new URLSearchParams(searchParams.toString());
       params.delete("action");
       router.replace(`${pathname}?${params.toString()}`);
     }
-  }, [searchParams, router, pathname]);
+  }, [searchParams, router, pathname, canManageSuppliers]);
 
   const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(
     null,

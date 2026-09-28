@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/context/auth-context";
+import { useHasPermission } from "@/lib/hooks/use-permissions";
 import { useStore } from "@/lib/context/store-context";
 import { useInventoryAudit } from "@/lib/context/inventory-audit-context";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
@@ -38,6 +39,9 @@ export function DashboardHeader({ onOpenFeedback }: DashboardHeaderProps) {
   const { storeProfile, availableStores, activeStoreId, switchStore } = useStore();
   const { setIsAuditing } = useInventoryAudit();
   const { canManageMultiStore } = useFeatureGate();
+  const canPerformStockAudit = useHasPermission("perform_stock_audit");
+  const canManageSuppliers = useHasPermission("manage_suppliers");
+  const canManagePurchaseOrders = useHasPermission("manage_purchase_orders");
   // Plan entitlement AND this device actually having synced 2+ stores —
   // same combination stock-movements.tsx's canTransferStock uses. Only
   // actionRequiresMultiStore routes (Transfer Stock) read this.
@@ -51,11 +55,18 @@ export function DashboardHeader({ onOpenFeedback }: DashboardHeaderProps) {
     isAdmin,
     hasMultiStoreAccess,
     user?.role === "sales_staff",
+    (key) =>
+      key === "manage_suppliers"
+        ? canManageSuppliers
+        : key === "manage_purchase_orders"
+          ? canManagePurchaseOrders
+          : true,
   );
-  // Start Audit was gated on isAdmin (not canManageStockBatch, which also
-  // covers the "specialist" role) before it moved into the shared header —
-  // passing isAdmin here keeps that exact gate rather than widening it.
-  const secondaryAction = resolveSecondaryHeaderAction(pathname, pageInfo, isAdmin);
+  const secondaryAction = resolveSecondaryHeaderAction(
+    pathname,
+    pageInfo,
+    canPerformStockAudit,
+  );
   const isSettingsRoute = pathname.startsWith("/settings");
   const isDesktopWidth = useMediaQuery("(min-width: 640px)");
 

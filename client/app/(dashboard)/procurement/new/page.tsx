@@ -336,7 +336,7 @@ function CreateOrderContent() {
 
 export default function CreateOrderPage() {
   return (
-    <RequireRole>
+    <RequireRole permission="manage_purchase_orders">
       <CreateOrderContent />
     </RequireRole>
   );

@@ -35,6 +35,11 @@ interface PageRoute {
    * Transfer Stock (ledger) falls back to Add Product for an admin-capable
    * account that isn't multi-store-qualified, rather than showing nothing. */
   fallbackAction?: PageAction;
+  /** A specific permission key `action` additionally requires, on top of
+   * actionAdminOnly's coarse canManageStockBatch baseline — the per-key
+   * replacement for that baseline as categories are migrated off role
+   * gates (see client/AGENTS.md's "Enforced permissions"). */
+  actionPermission?: string;
   /** An outline button shown before the primary action, desktop only (see
    * DashboardHeader) — for a page's other common action that isn't worth a
    * full second row of its own (e.g. Inventory's "Start Audit" next to "Add
@@ -129,6 +134,7 @@ export const PAGE_ROUTES: PageRoute[] = [
     desc: "Manage supplier directory and view debt.",
     action: { label: "Add Supplier", path: "/procurement/vendors?action=add" },
     actionAdminOnly: true,
+    actionPermission: "manage_suppliers",
   },
   {
     path: "/procurement/requests",
@@ -154,6 +160,7 @@ export const PAGE_ROUTES: PageRoute[] = [
     desc: "Manage suppliers, create purchase orders, and track deliveries.",
     action: { label: "Create Order", path: "/procurement/new" },
     actionAdminOnly: true,
+    actionPermission: "manage_purchase_orders",
   },
   {
     path: "/expenses",
@@ -204,9 +211,15 @@ export function resolveHeaderAction(
   isAdmin: boolean,
   hasMultiStoreAccess: boolean,
   isSalesStaff = false,
+  hasActionPermission: (key: string) => boolean = () => true,
 ): PageAction | null {
   const matchedRoute = pageInfo?.action ? pageInfo : getPageRoute(pathname);
   if (!matchedRoute?.action) return null;
+  if (
+    matchedRoute.actionPermission &&
+    !hasActionPermission(matchedRoute.actionPermission)
+  )
+    return null;
   if (
     matchedRoute.actionAdminOnly &&
     !canManageStockBatch &&
@@ -225,7 +238,8 @@ export function resolveHeaderAction(
 /** Same resolution as resolveHeaderAction, for the outline button shown
  * before it (desktop only — see DashboardHeader). `hasAccess` is whatever
  * role check the specific secondaryAction actually needs (not necessarily
- * canManageStockBatch — Start Audit, for instance, gates on isAdmin). */
+ * canManageStockBatch — Start Audit, for instance, gates on the
+ * "perform_stock_audit" permission). */
 export function resolveSecondaryHeaderAction(
   pathname: string,
   pageInfo: PageRoute | null,

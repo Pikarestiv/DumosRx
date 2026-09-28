@@ -2,6 +2,7 @@ import React from "react";
 import { ChevronLeft, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useHasPermission } from "@/lib/hooks/use-permissions";
 import { useRouter } from "next/navigation";
 import type { SupplierViewModel } from "@/lib/types/supplier";
 
@@ -23,6 +24,7 @@ export function SupplierDetailPane({
   onBack,
 }: SupplierDetailPaneProps) {
   const router = useRouter();
+  const canManageSuppliers = useHasPermission("manage_suppliers");
 
   if (!selectedSupplier) {
     return (
@@ -156,14 +158,18 @@ export function SupplierDetailPane({
         </div>
       </div>
 
-      <div className="p-6 border-t border-border mt-auto grid grid-cols-2 gap-3 shrink-0">
-        <Button
-          variant="outline"
-          className="w-full font-semibold border-border"
-          onClick={() => setIsEditDialogOpen(true)}
-        >
-          Edit Details
-        </Button>
+      <div
+        className={`p-6 border-t border-border mt-auto grid gap-3 shrink-0 ${canManageSuppliers ? "grid-cols-2" : "grid-cols-1"}`}
+      >
+        {canManageSuppliers && (
+          <Button
+            variant="outline"
+            className="w-full font-semibold border-border"
+            onClick={() => setIsEditDialogOpen(true)}
+          >
+            Edit Details
+          </Button>
+        )}
         <Button
           className="w-full font-semibold"
           onClick={() =>

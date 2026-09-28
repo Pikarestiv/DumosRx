@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/context/auth-context";
+import { useHasPermission } from "@/lib/hooks/use-permissions";
 import { toast } from "sonner";
 
 /** Route-level guard for pages that are only linked from the sidebar/quick
@@ -15,19 +16,26 @@ import { toast } from "sonner";
 export function RequireRole({
   children,
   allowSalesStaff = false,
+  permission,
 }: {
   children: React.ReactNode;
   /** Expenses is the one page in this set cashiers are also meant to reach
    * (e.g. logging a till expense) - everything else here (Procurement)
    * stays admin/stock-manager only. */
   allowSalesStaff?: boolean;
+  /** A specific permission key required on TOP of the coarse role baseline,
+   * for routes whose category has been migrated off role gates - see
+   * client/AGENTS.md's "Enforced permissions". */
+  permission?: string;
 }) {
   const { isAdmin, canManageStockBatch, user, isAuthenticated } = useAuth();
   const router = useRouter();
+  const hasRequiredPermission = useHasPermission(permission ?? "");
   const allowed =
-    isAdmin ||
-    canManageStockBatch ||
-    (allowSalesStaff && user?.role === "sales_staff");
+    (isAdmin ||
+      canManageStockBatch ||
+      (allowSalesStaff && user?.role === "sales_staff")) &&
+    (!permission || hasRequiredPermission);
 
   useEffect(() => {
     if (isAuthenticated && !allowed) {

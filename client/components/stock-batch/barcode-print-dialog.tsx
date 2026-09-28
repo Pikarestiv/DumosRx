@@ -21,7 +21,15 @@ import {
   clampLabelQuantity,
   MAX_LABEL_QUANTITY,
 } from "./barcode-label-sheet";
-import type { POSProduct } from "@/lib/types/product";
+/** Only the four fields a label actually carries, so any product shape can
+ * be printed — POSProduct satisfies it structurally, and the catalog's
+ * camelCase ProductViewModel maps onto it at the call site. */
+export interface BarcodeLabelProduct {
+  id: string;
+  name: string;
+  barcode?: string;
+  unit_price: number;
+}
 
 // printNode() ships this as a page <style> in the popped-out print window, so
 // it's a plain string, not a Tailwind class — the uppercase-display toggle
@@ -63,7 +71,7 @@ function getLabelPageStyle(uppercaseNames: boolean) {
 interface BarcodePrintDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  product: POSProduct | null;
+  product: BarcodeLabelProduct | null;
 }
 
 export function BarcodePrintDialog({

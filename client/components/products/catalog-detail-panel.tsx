@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import {
   DropdownMenu,
@@ -6,9 +6,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Edit } from "lucide-react";
+import { Edit, Barcode } from "lucide-react";
 import { useStore } from "@/lib/context/store-context";
 import { useAuth } from "@/lib/context/auth-context";
+import { useHasPermission } from "@/lib/hooks/use-permissions";
+import { BarcodePrintDialog } from "@/components/stock-batch/barcode-print-dialog";
 import { cn } from "@/lib/utils";
 import {
   useProductDetails,
@@ -38,6 +40,8 @@ export function CatalogDetailPanel({
 }: CatalogDetailPanelProps) {
   const { storeProfile } = useStore();
   const { canManageStockBatch } = useAuth();
+  const canPrintLabels = useHasPermission("print_product_labels");
+  const [isLabelDialogOpen, setIsLabelDialogOpen] = useState(false);
   const capsClass = useUppercaseDisplayClass();
   const {
     batches,
@@ -132,10 +136,13 @@ export function CatalogDetailPanel({
             </div>
           </div>
 
-          {canManageStockBatch && (
+          {(canManageStockBatch || canPrintLabels) && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="w-8 h-8 rounded-2xl bg-muted/50 flex items-center justify-center hover:bg-muted/80 transition-colors">
+                <button
+                  aria-label="Product actions"
+                  className="w-8 h-8 rounded-2xl bg-muted/50 flex items-center justify-center hover:bg-muted/80 transition-colors"
+                >
                   <svg
                     width="16"
                     height="16"
@@ -154,13 +161,24 @@ export function CatalogDetailPanel({
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem
-                  onClick={() => onEditProduct(product)}
-                  className="cursor-pointer"
-                >
-                  <Edit className="w-4 h-4 mr-2" />
-                  Edit Product
-                </DropdownMenuItem>
+                {canManageStockBatch && (
+                  <DropdownMenuItem
+                    onClick={() => onEditProduct(product)}
+                    className="cursor-pointer"
+                  >
+                    <Edit className="w-4 h-4 mr-2" />
+                    Edit Product
+                  </DropdownMenuItem>
+                )}
+                {canPrintLabels && (
+                  <DropdownMenuItem
+                    onClick={() => setIsLabelDialogOpen(true)}
+                    className="cursor-pointer"
+                  >
+                    <Barcode className="w-4 h-4 mr-2" />
+                    Print Labels
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           )}
@@ -205,6 +223,17 @@ export function CatalogDetailPanel({
           </TabsContent>
         </div>
       </Tabs>
+
+      <BarcodePrintDialog
+        isOpen={isLabelDialogOpen}
+        onClose={() => setIsLabelDialogOpen(false)}
+        product={{
+          id: product.id,
+          name: product.name,
+          barcode: product.barcode,
+          unit_price: product.sellingPrice,
+        }}
+      />
     </div>
   );
 }

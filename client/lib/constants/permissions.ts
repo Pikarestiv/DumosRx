@@ -215,6 +215,7 @@ export const ENFORCED_PERMISSION_KEYS: ReadonlySet<string> = new Set([
   "hold_sales", // pos-cart.tsx, held-transactions-dialog.tsx
   "view_sales_history", // pos-main-tab-nav.tsx, pos-system.tsx
   "reprint_receipt", // transaction-details-dialog.tsx
+  "run_daily_close", // reports/daily-close/daily-close-header.tsx
   "manage_products", // transfer-stock-dialog.tsx, auth-context.tsx (canManageStockBatch)
   "adjust_stock_counts", // catalog-row.tsx, catalog-list.tsx
   "manage_purchase_orders", // purchase-order-details.tsx, procurement/new + /edit routes, dashboard-page-routes.ts

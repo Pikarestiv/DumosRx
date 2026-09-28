@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import { useAuth } from "@/lib/context/auth-context";
-import { getUserPermissionGroup } from "@/lib/db/queries/permission-groups";
 import { DEFAULT_GROUP_PERMISSIONS } from "@/lib/constants/permissions";
 
 type MinimalUser = { role: string } | null | undefined;
@@ -52,61 +51,41 @@ export function hasPermission(
  * Permissions matrix single out the column the acting user themselves
  * belongs to - see its self-lockout guard. */
 export function useOwnPermissionGroupId(): string | null {
-  const { user } = useAuth();
-  const [groupId, setGroupId] = useState<string | null>(null);
+  const { permissionGroup } = useAuth();
 
-  useEffect(() => {
-    let cancelled = false;
-    if (!user) {
-      setGroupId(null);
-      return;
-    }
-    const load = () => {
-      getUserPermissionGroup(user.id).then((g) => {
-        if (!cancelled) setGroupId(g?.id ?? null);
-      }).catch(() => {});
-    };
-    load();
-    window.addEventListener("dumos_sync_completed", load);
-    return () => {
-      cancelled = true;
-      window.removeEventListener("dumos_sync_completed", load);
-    };
-  }, [user?.id]);
-
-  return groupId;
+  // useMemo, not a bare `return permissionGroup?.id ?? null`, for the same
+  // rules-of-hooks reason spelled out on useHasPermission below.
+  return useMemo(() => permissionGroup?.id ?? null, [permissionGroup]);
 }
 
-/** React hook: resolves the current session's permission group (loaded
- * once per user id) and checks it via hasPermission(). Returns false while
- * loading/logged out, matching how the old precomputed booleans defaulted
- * to false with no user. */
+/**
+ * React hook: checks the acting session's permission group via
+ * hasPermission(). Returns false while loading/logged out, matching how the
+ * old precomputed booleans defaulted to false with no user.
+ *
+ * Reads the group from AuthContext, which owns the single copy of that state
+ * (its query, its `dumos_sync_completed` listener). This hook used to keep its
+ * own useState/useEffect/query/listener, so all 26+ call sites re-ran the
+ * synchronous sql.js read independently on every sync cycle and could
+ * transiently disagree with each other and with AuthContext's own booleans.
+ *
+ * The useMemo is load-bearing beyond memoization, and must NOT be collapsed
+ * into a plain `return hasPermission(...)`: useContext does not occupy a slot
+ * in React's hook list, so a useHasPermission that only read context would make
+ * a CONDITIONAL call (e.g. the short-circuited `&&` chain that
+ * pos-layout-header.tsx once had) fail silently instead of throwing
+ * "Rendered more hooks than during the previous render". useMemo keeps that
+ * tripwire armed. See __tests__/pos-layout-header-rules-of-hooks.test.tsx,
+ * which asserts the crash still happens.
+ */
 export function useHasPermission(key: string | string[], mode: "any" | "all" = "any"): boolean {
-  const { user } = useAuth();
-  const [group, setGroup] = useState<{ permissions: string[] } | null>(null);
+  const { user, permissionGroup } = useAuth();
 
-  useEffect(() => {
-    let cancelled = false;
-    if (!user) {
-      setGroup(null);
-      return;
-    }
-    const load = () => {
-      getUserPermissionGroup(user.id).then((g) => {
-        if (!cancelled) setGroup(g);
-      }).catch(() => {});
-    };
-    load();
-    // A pull can bring another device's edit to this user's own group down
-    // locally - without this, it wouldn't be reflected until the user logs
-    // out and back in, since the effect otherwise only re-runs on user id
-    // change.
-    window.addEventListener("dumos_sync_completed", load);
-    return () => {
-      cancelled = true;
-      window.removeEventListener("dumos_sync_completed", load);
-    };
-  }, [user?.id]);
+  const serializedKey = Array.isArray(key) ? key.join("|") : key;
 
-  return hasPermission(user, group, key, mode);
+  return useMemo(
+    () => hasPermission(user, permissionGroup, key, mode),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [user, permissionGroup, serializedKey, mode],
+  );
 }

@@ -126,6 +126,13 @@ interface AuthContextType {
   canManageStockBatch: boolean;
   canProcessSales: boolean;
   canViewAllActivity: boolean;
+  /** The acting session's resolved permission group, or null when they have
+   * none yet (pre-sync gap, or a store_owner/super_admin, who are never
+   * group-assigned). THE single copy of this state: useHasPermission and
+   * useOwnPermissionGroupId read it from here rather than each running their
+   * own query and sync listener, so all 26+ call sites can never transiently
+   * disagree with each other or with the booleans computed just below. */
+  permissionGroup: { id: string; permissions: string[] } | null;
   changePin: (currentPin: string, newPin: string) => Promise<{ success: boolean; message: string }>;
   verifyPin: (pin: string) => Promise<boolean>;
   linkCloudAccount: (email: string, password: string) => Promise<{ success: boolean; message: string }>;
@@ -754,7 +761,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     void ensurePermissionGroupsSeeded().catch(() => {});
   }, [user?.id]);
 
-  const [permissionGroup, setPermissionGroup] = useState<{ permissions: string[] } | null>(null);
+  const [permissionGroup, setPermissionGroup] = useState<{ id: string; permissions: string[] } | null>(null);
   useEffect(() => {
     let cancelled = false;
     if (!user) {
@@ -802,6 +809,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       canManageStockBatch,
       canProcessSales,
       canViewAllActivity,
+      permissionGroup,
       changePin,
       verifyPin,
       linkCloudAccount,
@@ -818,6 +826,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       canManageStockBatch,
       canProcessSales,
       canViewAllActivity,
+      permissionGroup,
       changePin,
       verifyPin,
       linkCloudAccount,

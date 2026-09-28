@@ -16,12 +16,11 @@ This file holds **open** items only. Fixed entries move to `docs/FIXED_BUGS.md` 
 
 **Overall health.** The codebase is unusually well-defended for its size: the sync engine's conflict model, the single-writer tab lock, tenant scoping on the server and the money math have all been through several review-and-fix cycles, and both test suites pass cleanly. The new findings in this pass are therefore not the "obvious" classes (cross-tenant leaks, double-charging, silent rollbacks) but the next layer down: **scale limits that were never exercised** (all three found so far have since been fixed — a local database with essentially no indexes, plus the pull engine's own un-resumable page cap and the server tenant-scope that loaded every sale id into PHP memory per request; see `docs/FIXED_BUGS.md`) and **attribution/consistency gaps** on the newest flows (the online-order fulfilment one, `A-4`, has since been fixed too).
 
-**Findings this pass, by severity:** 0 **P0**, 0 **P1**, 1 **P2**, 7 **P3** — 8 open findings from this pass (IDs `A-1`…`A-24`, less the fixed `A-1`, `A-2`, `A-3`, `A-4`, `A-5`, `A-6`, `A-7`, `A-8`, `A-10`, `A-11`, `A-12`, `A-13`, `A-16`, `A-17`, `A-18` and `A-21`), plus 14 still-open items carried from the two earlier passes (`P2-1`, `P3-1`, `P3-2`, `P3-5`, `PG-1`…`PG-10`), all preserved verbatim below.
+**Findings this pass, by severity:** 0 **P0**, 0 **P1**, 0 **P2**, 7 **P3** — 7 open findings from this pass (IDs `A-1`…`A-24`, less the fixed `A-1`, `A-2`, `A-3`, `A-4`, `A-5`, `A-6`, `A-7`, `A-8`, `A-9`, `A-10`, `A-11`, `A-12`, `A-13`, `A-16`, `A-17`, `A-18` and `A-21`), plus 14 still-open items carried from the two earlier passes (`P2-1`, `P3-1`, `P3-2`, `P3-5`, `PG-1`…`PG-10`), all preserved verbatim below.
 
 **Most important risks, in order:**
 
-1. **PG-2 / PG-1 (carried)** — storefront online payments still have no webhook/reconciliation path and can settle via the wrong gateway.
-2. **A-9 (data)** — receiving the same purchase order from two devices books the delivery twice. (The startup/idle performance batch — A-6's missing local indexes, A-7's launch sync gate, A-8's per-pull `stores` prune and boot-time orphan scan, A-18's 5-second queue poll — is fixed; see `docs/FIXED_BUGS.md` and `docs/LOCAL_DB_INDEXES.md`.)
+1. **PG-2 / PG-1 (carried)** — storefront online payments still have no webhook/reconciliation path and can settle via the wrong gateway. This is now the only open finding above P3: the data-integrity batch (A-9's double-booked PO receipt, A-12's disarmed clock guard, A-16's non-transactional writes, A-17's stale cart prices, A-21's sentinel user ids) and the startup/idle performance batch (A-6, A-7, A-8, A-18) are both fixed — see `docs/FIXED_BUGS.md` and `docs/LOCAL_DB_INDEXES.md`.
 
 **The major performance concern** that remains is the whole-blob `db.export()` persistence model already analysed in `docs/DATABASE_CONCURRENCY.md`; the rest of §5's list (boot-time scans, the license-guard sync gate on launch, the 5-second sync-queue poll) is fixed.
 
@@ -41,13 +40,7 @@ None open. `A-1` (the pull page cap that made a >100,000-row table un-syncable) 
 
 ## 3. Medium-priority findings (P2)
 
-#### [P2] A-9. Receiving the same purchase order from two devices books the delivery twice
-**Category:** Data / Concurrency (multi-device) — **Potential issue requiring verification**
-**Location:** `client/lib/db/procurement-receiving.ts:53-57` (`poData` read *outside* the transaction; `alreadyReceived`/`outstanding` computed from that snapshot at `:66-67`), `laravel-server/.../SyncController.php:472-497` (only the `purchase_order_items` UPDATE is version-checked; the `stock_batches` INSERT + `stock_movements` INSERT from both devices are independent rows and are both accepted).
-**Problem:** The single-device double-click is guarded by the UI (`receive-po-panel.tsx:348-351` disables the button while `isReceiving`), but two devices receiving the same PO concurrently (or one device receiving while the other's receipt has not yet synced) both compute the full outstanding balance, both create a batch and a purchase movement, and both push. The server accepts both batch inserts and both movement deltas (stock is now double), and rejects one of the two `quantity_received` updates as a `version_conflict` (dropped silently per `push.ts:566-594`), leaving the PO showing a single receipt while on-hand stock reflects two.
-**Failure scenario:** Delivery arrives; the owner receives it on the laptop while the stock clerk receives it on the tablet before the laptop's push lands. Stock is doubled, and the PO shows "received" once, so nothing looks wrong until a cycle count.
-**Recommended fix:** Re-read `quantity_received` inside the transaction (the pattern `submitStockAudit` already uses for system quantity) and, on the server, treat a `purchase_order_items` `quantity_received` UPDATE that would exceed `quantity_ordered` as a conflict that also rejects the accompanying batch/movement (or key the receipt batch on a deterministic id per PO line + receipt sequence so the second one collides).
-**Confidence:** Medium (multi-device path traced; not reproduced).
+None open. `A-9` (receiving the same purchase order from two devices booked the delivery twice) is fixed — see `docs/FIXED_BUGS.md`.
 
 ---
 
@@ -215,7 +208,6 @@ Synthetic dataset built from the app's own `SCHEMA_SQL` plus the migration-added
 
 ## 6. Offline / sync / database risks
 
-- **A-9** — multi-device PO receipt has no server-side idempotency beyond the version check on one of its rows.
 - **A-22** — unserialised `saveDatabase()`; no `pagehide` flush.
 - **`docs/DATABASE_CONCURRENCY.md` status check:** its three short-term items are done — `restoreDatabase()`/`resetDatabase()`/`clearDatabaseForNewStore()` now call `assertWritable()` (`core.ts:933, 1340, 1372`), the queued-promotion rejection is scoped away from the outer `.catch` (`tab-lock.ts:314-329`), and the graceful handoff + `steal` fallback with UI exists (`tab-lock.ts:177-246`, `DatabaseProvider.tsx:67-90`). Two of its "cheap" items remain (A-22). Two residual notes on the new handoff code: `resetDatabase()`/`clearDatabaseForNewStore()` still call `db.run()` directly rather than through `reserveDbSlot()`, so they can interleave with an in-flight yielding `query()`; and a stolen-from tab only learns it lost the lock via the `steal-notice` broadcast, which a frozen tab receives only on thaw — its `holdUntilTakeover()` promise is rejected by the browser first, and `writerTab` stays `true` until the notice arrives (the doc's "frozen holder that later thaws" caveat still applies).
 - **Server-side row-lock duration:** `SyncController::push()` holds `lockForUpdate()` row locks for the whole outer transaction (documented at `:383-393`); with 50-change batches from several devices this is bounded but is the first place to look if "Lock wait timeout" appears in server logs.
@@ -261,6 +253,5 @@ Synthetic dataset built from the app's own `SCHEMA_SQL` plus the migration-added
 Ordered by technical impact and by which fixes unblock or de-risk others — not by ease.
 
 1. **PG-2 then PG-1** (carried) — the storefront webhook/reconciliation path and the gateway pinning; still the largest real-world money-loss surface.
-2. **A-9** — sync/data-integrity edge cases; each is small and self-contained now that the index/pagination work is in.
-3. **A-14, A-15, A-19, A-20, A-22, A-23, A-24** — hygiene and architecture debt; A-15 (enforce `tsc`/tests in CI, `npm ci`) is the one worth doing early because it protects everything else.
-4. **P2-1** (ops confirmation) and the accepted **P3-1/P3-2/P3-5**, **PG-3…PG-10** as previously scheduled.
+2. **A-14, A-15, A-19, A-20, A-22, A-23, A-24** — hygiene and architecture debt; A-15 (enforce `tsc`/tests in CI, `npm ci`) is the one worth doing early because it protects everything else.
+3. **P2-1** (ops confirmation) and the accepted **P3-1/P3-2/P3-5**, **PG-3…PG-10** as previously scheduled.

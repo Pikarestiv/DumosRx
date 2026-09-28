@@ -398,6 +398,41 @@ class SyncController extends Controller
                         continue;
                     }
 
+                    // A receipt can never book more than was ordered. The client
+                    // clamps to the outstanding balance already, but that clamp is
+                    // computed against whatever that device knew — so two devices
+                    // booking the same delivery both compute the full outstanding
+                    // balance and both push a receipt for it. The version check
+                    // rejects the second UPDATE on this row only when both were
+                    // based on the same version; a receipt staged against a
+                    // stale-but-different version, or any other producer of an
+                    // over-receipt, would otherwise be applied. quantity_received
+                    // and quantity_ordered are both in base units by this point
+                    // (SyncPayloadMapper scales them together), so they are
+                    // directly comparable. See docs/FIXED_BUGS.md, A-9.
+                    if (
+                        $model
+                        && $change['table_name'] === 'purchase_order_items'
+                        && isset($payload['quantity_received'])
+                    ) {
+                        $ordered = $payload['quantity_ordered'] ?? $model->quantity_ordered;
+                        if ($ordered !== null && (float) $payload['quantity_received'] > (float) $ordered) {
+                            DB::commit();
+                            Log::warning(
+                                'Sync push: rejected purchase_order_items ' . $recordId
+                                . ' receipt of ' . $payload['quantity_received']
+                                . ' against ' . $ordered . ' ordered',
+                            );
+                            $failed[] = [
+                                'id' => $change['id'] ?? null,
+                                'table_name' => $change['table_name'],
+                                'record_id' => $recordId,
+                                'reason' => 'quantity_received_exceeds_ordered',
+                            ];
+                            continue;
+                        }
+                    }
+
                     if ($model) {
                         // Conflict Resolution: strict-equality optimistic concurrency,
                         // not a `<` / "older" check — see docs/features/_known-bugs.md

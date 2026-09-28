@@ -19,7 +19,16 @@ import { toast } from "sonner";
 // these through recordSyncFailure's exponential-backoff retry path would
 // silently loop forever — the base version this edit was computed from
 // doesn't change no matter how many times it's resent.
-const NON_RETRYABLE_CONFLICT_REASONS = new Set(["version_conflict", "stale_timestamp"]);
+// quantity_received_exceeds_ordered belongs here for the same reason: the
+// payload is frozen, so a receipt the server has judged impossible against
+// the ordered quantity stays impossible on every resend. Dropping it lets
+// the next pull bring down the server's real balance instead of burning
+// five retries and reporting a permanently stuck queue item.
+const NON_RETRYABLE_CONFLICT_REASONS = new Set([
+  "version_conflict",
+  "stale_timestamp",
+  "quantity_received_exceeds_ordered",
+]);
 
 // Tables whose server row does NOT carry the id the client pushed, so no
 // future pull can ever match it and settle a terminally-conflicted local row.

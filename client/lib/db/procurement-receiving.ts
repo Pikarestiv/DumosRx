@@ -9,7 +9,8 @@
  * one atomic step).
  */
 
-import { generateId, logAction, transaction } from "./core";
+import { generateId, logAction, query, transaction } from "./core";
+import { receiptBatchId, receiptMovementId } from "./deterministic-id";
 import { insert, update } from "./base-helpers";
 import {
   getPurchaseOrderById,
@@ -63,7 +64,21 @@ export async function receivePurchaseOrder(id: string, receivedItems?: ReceivedI
     for (const item of poData.items) {
       const receivedItem = receivedItems?.find(ri => ri.po_item_id === item.id);
 
-      const alreadyReceived = Math.max(0, Number(item.quantity_received) || 0);
+      // Re-read the line's received balance INSIDE the transaction rather
+      // than trusting the poData snapshot taken before it: that snapshot was
+      // read before this transaction's turn in the queue, so a receipt
+      // racing this one (two tabs, or the same delivery submitted twice)
+      // computes the full outstanding balance from a balance that is no
+      // longer true and books the delivery again. Same fix shape as
+      // submitStockAudit's system-quantity re-read.
+      const receivedRows = await query<{ quantity_received: number | null }>(
+        "SELECT quantity_received FROM purchase_order_items WHERE id = ?",
+        [item.id],
+      );
+      const alreadyReceived = Math.max(
+        0,
+        Number(receivedRows[0]?.quantity_received ?? item.quantity_received) || 0,
+      );
       const outstanding = Math.max(0, Number(item.bulk_quantity) - alreadyReceived);
 
       // Default to the whole outstanding balance if not provided in payload.
@@ -96,7 +111,20 @@ export async function receivePurchaseOrder(id: string, receivedItems?: ReceivedI
           ? Math.max(0, Number(receivedItem.cost_price))
           : Number(item.unit_cost) / safeUnitsPerBulk;
 
+      // Deterministic, not random: two devices booking the same delivery
+      // derive the same pair of ids (this PO line, this already-received
+      // balance), so the second device's push collapses onto the first's
+      // rows server-side — SyncController::push turns an INSERT whose id
+      // already exists into an UPDATE, which for stock_batches drops the
+      // quantity outright and for stock_movements contributes no delta.
+      // Without this, both receipts are independent rows the server has no
+      // way to recognise as one delivery, and on-hand stock doubles while
+      // the PO still shows a single receipt (one of the two
+      // quantity_received updates loses the version check). A genuine later
+      // partial receipt starts from a different balance and so keeps its own
+      // ids. See lib/db/deterministic-id.ts.
       const invId = await insert("stock_batches", {
+        id: receiptBatchId(item.id, alreadyReceived),
         product_id: item.product_id,
         quantity: totalBaseUnits,
         cost_price: baseUnitCost,
@@ -112,7 +140,7 @@ export async function receivePurchaseOrder(id: string, receivedItems?: ReceivedI
       // Log local stock movement
       const dumosUser = JSON.parse(localStorage.getItem("dumos_user") || "{}");
       await insert("stock_movements", {
-        id: crypto.randomUUID(),
+        id: receiptMovementId(item.id, alreadyReceived),
         product_id: item.product_id,
         stock_batch_id: invId,
         movement_type: "purchase",

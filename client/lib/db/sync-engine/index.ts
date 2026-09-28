@@ -33,9 +33,13 @@ export function isSyncing(): boolean {
  *
  * Deliberately not wired to any UI — see the window-exposure note below.
  */
+/** Returned instead of a real failure when another sync already holds the
+ * mutex. Callers must treat it as a no-op, not an error (see SyncIndicator). */
+export const SYNC_IN_PROGRESS_ERROR = "Sync already in progress";
+
 export async function forceFullResync(): Promise<SyncResult> {
   if (isSyncInProgress) {
-    return { success: false, pushed: 0, pulled: 0, error: "Sync already in progress" };
+    return { success: false, pushed: 0, pulled: 0, error: SYNC_IN_PROGRESS_ERROR };
   }
   await execute("DELETE FROM _sync_state");
   return sync(true);
@@ -68,7 +72,7 @@ export async function sync(
       success: false,
       pushed: 0,
       pulled: 0,
-      error: "Sync already in progress",
+      error: SYNC_IN_PROGRESS_ERROR,
     };
   }
 

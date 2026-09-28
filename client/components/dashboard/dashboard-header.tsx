@@ -16,6 +16,7 @@ import { HeaderStoreSwitcher } from "./header-store-switcher";
 import { HeaderPageHeading } from "./header-page-heading";
 import { HeaderActionButton } from "./header-action-button";
 import { Button } from "@/components/ui/button";
+import { useMediaQuery } from "@/hooks/use-media-query";
 
 /** Start Audit's `path` is a signal route (see dashboard-page-routes.ts), not
  * a real page - it exists purely so useStockBatchManagement's effect can
@@ -56,6 +57,7 @@ export function DashboardHeader({ onOpenFeedback }: DashboardHeaderProps) {
   // passing isAdmin here keeps that exact gate rather than widening it.
   const secondaryAction = resolveSecondaryHeaderAction(pathname, pageInfo, isAdmin);
   const isSettingsRoute = pathname.startsWith("/settings");
+  const isDesktopWidth = useMediaQuery("(min-width: 640px)");
 
   return (
     <header className="h-auto min-h-16 py-4 bg-card sm:bg-background border-b border-border sm:border-b-0 flex flex-col justify-center px-4 sm:px-6 shrink-0">
@@ -114,8 +116,12 @@ export function DashboardHeader({ onOpenFeedback }: DashboardHeaderProps) {
         </div>
       </div>
 
-      {/* Mobile Bottom Row */}
-      <div className="sm:hidden mt-3 flex items-center justify-between w-full gap-2">
+      {/* Mobile Bottom Row. Genuinely not rendered above `sm` rather than
+          CSS-hidden: its SyncIndicator installs an auto-sync daemon of its
+          own, and two of those racing made one sync report the other's
+          "already in progress" refusal as a red Sync Error. */}
+      {!isDesktopWidth && (
+      <div className="mt-3 flex items-center justify-between w-full gap-2">
         {isSettingsRoute ? (
           <>
             <div className="flex-1 overflow-x-auto overflow-y-hidden no-scrollbar">
@@ -138,6 +144,7 @@ export function DashboardHeader({ onOpenFeedback }: DashboardHeaderProps) {
           </>
         )}
       </div>
+      )}
     </header>
   );
 }

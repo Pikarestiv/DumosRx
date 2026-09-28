@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Cloud, CloudOff, RefreshCw, AlertCircle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { getSyncQueueCount } from "@/lib/db/queries/setup";
@@ -11,7 +11,11 @@ import {
   TooltipTrigger,
 } from "../ui/tooltip";
 
-import { sync, isSyncing as checkIsSyncing } from "@/lib/db/sync-engine";
+import {
+  sync,
+  isSyncing as checkIsSyncing,
+  SYNC_IN_PROGRESS_ERROR,
+} from "@/lib/db/sync-engine";
 import { addSyncQueueChangeListener } from "@/lib/db/core";
 import { useStore } from "@/lib/context/store-context";
 import { useAuth } from "@/lib/context/auth-context";
@@ -50,18 +54,33 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
   // Same reasoning as isImpersonating above, for a read-only tab.
   const { isReadOnlyTab } = useDatabase();
 
-  const { data: pendingCountData } = useQuery({
+  const { data: pendingCountData, refetch: refetchPendingCount } = useQuery({
     ...queryKeys.sync.queueCount(),
     queryFn: () => getSyncQueueCount(),
-    refetchInterval: 5000 // Refetch every 5 seconds for indicator
+    // Primarily event-driven (see the sync-queue listener below); this is a
+    // slow safety net for a queue drain that doesn't emit a change event,
+    // not the 5s poll against main-thread sql.js it used to be.
+    refetchInterval: 30000,
   });
   const pendingCount = pendingCountData || 0;
+
+  const refetchPendingCountRef = useRef(refetchPendingCount);
+  refetchPendingCountRef.current = refetchPendingCount;
+
+  useEffect(() => {
+    return addSyncQueueChangeListener(() => {
+      void refetchPendingCountRef.current?.();
+    });
+  }, []);
 
   const isSyncOverdue = lastSync
     ? Date.now() - new Date(lastSync).getTime() > 30 * 60 * 1000
     : false;
 
-  const needsSync = pendingCount > 0 && isSyncOverdue;
+  // Visibility is driven by the backlog alone; isSyncOverdue only escalates
+  // the visual urgency. Gating visibility on it let a real backlog of
+  // unsynced sales sit behind a green "Cloud Active".
+  const needsSync = pendingCount > 0;
 
   useEffect(() => {
     updateOnlineStatus();
@@ -118,8 +137,12 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
         setErrorMessage(null);
         toast.success("Sync completed successfully");
       } else {
-        setStatus("error");
         const errorMsg = typeof result.error === 'string' ? result.error : "Sync failed";
+        // Another caller (the other mounted indicator, or a sync fired from
+        // elsewhere) already holds sync()'s mutex: that sync is running and
+        // will report its own outcome, so this one is a no-op, not a failure.
+        if (errorMsg === SYNC_IN_PROGRESS_ERROR) return;
+        setStatus("error");
         setErrorMessage(errorMsg);
         if (errorMsg.includes("Unauthenticated") || errorMsg.includes("401")) {
           setShowAuthModal(true);
@@ -248,10 +271,20 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
     },
     pending: {
       label: "Pending Sync",
-      icon: <Cloud className={cn(iconClass, "text-amber-500 animate-pulse")} {...fillProp} />,
-      border: "border-amber-500/50",
-      desktopBg: "bg-amber-500/10 hover:bg-amber-500/20",
-      mobileBg: "bg-amber-500/10",
+      icon: (
+        <Cloud
+          className={cn(
+            iconClass,
+            isSyncOverdue ? "text-destructive animate-pulse" : "text-amber-500",
+          )}
+          {...fillProp}
+        />
+      ),
+      border: isSyncOverdue ? "border-destructive/50" : "border-amber-500/50",
+      desktopBg: isSyncOverdue
+        ? "bg-destructive/10 hover:bg-destructive/20"
+        : "bg-amber-500/10 hover:bg-amber-500/20",
+      mobileBg: isSyncOverdue ? "bg-destructive/10" : "bg-amber-500/10",
       tooltip: `${pendingCount} local change${pendingCount > 1 ? "s" : ""} pending sync since ${lastSync ? formatDistanceToNow(new Date(lastSync)) + " ago" : "a while"}.`,
     },
     active: {

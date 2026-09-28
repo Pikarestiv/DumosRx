@@ -698,6 +698,63 @@ recorded here so nobody re-derives it:
   detail. Gating an unreachable dialog would be theatre; the real fix is a
   trigger, and this key should be wired in the same change as that trigger.
 
+Both **Prescriptions** keys followed on 2026-09-28, in the same pass. The
+category is small and was **completely ungated before this** — the
+`storeType === "pharmacy"` nav check (`dashboard-sidebar.tsx`,
+`mobile-more-drawer.tsx`) and the plan's `LockedModuleOverlay` decide
+whether the *module* exists for the store, and nothing decided what a given
+role could do inside it. That store-type gate is a different axis and still
+applies; these keys sit on top of it, they do not replace it.
+
+The split between the two keys is **the record's data vs. the fulfilment
+pipeline**, which is the distinction their labels already draw:
+
+- `manage_prescriptions` ("Manage Prescription Records") — what the doctor
+  wrote. `lib/hooks/use-prescription-management.ts` gates
+  `showNewPrescription`, which is the **real** gate: `?action=add` and
+  `?edit_rx=<id>` are typeable, so the full-screen create/edit overlay has
+  to require the key itself. `components/prescriptions/prescription-detail-panel.tsx`
+  gates the "Edit" button, and `PAGE_ROUTES`' `/prescriptions` entry gained
+  `actionPermission: "manage_prescriptions"` for the header's "New
+  Prescription" (wired through `dashboard-header.tsx`'s
+  `hasActionPermission` callback, same as Vendors and Procurement). Note it
+  takes `actionPermission` **without** `actionAdminOnly` — the action was
+  never role-gated, and adding the coarse `canManageStockBatch` baseline
+  underneath would have narrowed it for reasons unrelated to this key.
+- `dispense_prescriptions` ("Dispense Prescriptions") — medicine leaving
+  the shelf, and the **whole pipeline** that ends in it, not just the last
+  click: `prescription-detail-panel.tsx`'s "Process" (pending →
+  in_progress), "Mark Ready" (in_progress → ready), "Dispense" and
+  "Dispense Refill". Those status transitions are dispensing work, not
+  record data — a pharmacy assistant can be allowed to walk the queue and
+  hand medicine over without being allowed to alter what the prescriber
+  wrote, and vice versa. `lib/hooks/use-pos-prescription.ts` gates the
+  `/pos?dispense_rx=<id>` loader, which is the real gate for the same
+  reason as the overlay: that URL *is* the dispense action (it pulls the
+  prescription's items onto the till, and `use-pos-payment.ts` marks the rx
+  completed from there), and it is typeable.
+
+The record itself is never hidden — a role with neither key still opens a
+prescription and reads the patient, prescriber, medication and cost detail;
+only the action row goes away, and it collapses to nothing rather than
+leaving an empty bar. "Process Return" is deliberately **left ungated**: it
+is neither dispensing nor a record edit but a reversal of the linked sale,
+and it hands straight off to the existing Return flow
+(`/pos?tab=history&return_sale=…`), which carries its own
+`void_refund_sales` / `view_sales_history` gates. Revisit only if that
+reads wrong in practice.
+
+`DEFAULT_GROUP_PERMISSIONS` is **unchanged** for this category
+(admin/manager/specialist hold both; `sales_staff` and `auditor` hold
+neither), which makes this the pass's first deliberate **narrowing without
+a compensating grant**: a cashier on a pharmacy store could previously see
+the Prescriptions nav item and create, edit and dispense freely, and now
+cannot. That is the point of the key — dispensing is the regulated act the
+`specialist` role exists for, and it was in `sales_staff`'s exclusion list
+from the day the catalog was written. A single-till pharmacy that really
+does have its cashier hand medicine over ticks either key onto the cashier
+group in one click, which previously did nothing.
+
 `export_reports` joined it on 2026-09-28 too: `components/reports/report-center.tsx`
 hoists `useHasPermission("export_reports")` and hides the per-report Export
 dropdown and Print button, and passes the same boolean into

@@ -6,6 +6,7 @@ import {
   Prescription,
 } from "@/lib/hooks/use-prescription-queue";
 import { getSaleForPrescription } from "@/lib/db/queries/sales";
+import { useHasPermission } from "@/lib/hooks/use-permissions";
 import { formatDateTime } from "@/lib/utils";
 
 /**
@@ -14,12 +15,18 @@ import { formatDateTime } from "@/lib/utils";
  * overlay's URL-driven visibility, and navigation into POS/Returns for
  * dispense/refill/return actions, so the component only has to render what
  * this hook returns.
+ *
+ * The overlay's visibility is where "manage_prescriptions" is enforced:
+ * ?action=add and ?edit_rx=<id> are typeable, so gating the header action
+ * and the detail panel's Edit button alone would not be a gate.
  */
 export function usePrescriptionManagement() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const canManagePrescriptions = useHasPermission("manage_prescriptions");
   const showNewPrescription =
-    searchParams.get("action") === "add" || !!searchParams.get("edit_rx");
+    canManagePrescriptions &&
+    (searchParams.get("action") === "add" || !!searchParams.get("edit_rx"));
 
   const closeNewPrescription = () => {
     router.push("/prescriptions");

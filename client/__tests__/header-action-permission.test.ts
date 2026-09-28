@@ -46,6 +46,16 @@ describe("header action permission gating", () => {
     expect(resolve("/procurement/vendors", [])).toBeNull();
   });
 
+  it("shows New Prescription with manage_prescriptions", () => {
+    expect(resolve("/prescriptions", ["manage_prescriptions"])?.label).toBe(
+      "New Prescription",
+    );
+  });
+
+  it("withholds New Prescription without manage_prescriptions", () => {
+    expect(resolve("/prescriptions", [])).toBeNull();
+  });
+
   it("leaves routes with no actionPermission alone", () => {
     expect(resolve("/inventory/catalog", [])?.label).toBe("Add Product");
   });

@@ -42,6 +42,7 @@ export function DashboardHeader({ onOpenFeedback }: DashboardHeaderProps) {
   const canPerformStockAudit = useHasPermission("perform_stock_audit");
   const canManageSuppliers = useHasPermission("manage_suppliers");
   const canManagePurchaseOrders = useHasPermission("manage_purchase_orders");
+  const canManagePrescriptions = useHasPermission("manage_prescriptions");
   // Plan entitlement AND this device actually having synced 2+ stores —
   // same combination stock-movements.tsx's canTransferStock uses. Only
   // actionRequiresMultiStore routes (Transfer Stock) read this.
@@ -60,7 +61,9 @@ export function DashboardHeader({ onOpenFeedback }: DashboardHeaderProps) {
         ? canManageSuppliers
         : key === "manage_purchase_orders"
           ? canManagePurchaseOrders
-          : true,
+          : key === "manage_prescriptions"
+            ? canManagePrescriptions
+            : true,
   );
   const secondaryAction = resolveSecondaryHeaderAction(
     pathname,

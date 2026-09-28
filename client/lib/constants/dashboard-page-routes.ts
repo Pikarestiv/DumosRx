@@ -127,6 +127,7 @@ export const PAGE_ROUTES: PageRoute[] = [
     title: "Prescription Management",
     desc: "Track and fulfill patient prescriptions securely.",
     action: { label: "New Prescription", path: "/prescriptions?action=add" },
+    actionPermission: "manage_prescriptions",
   },
   {
     path: "/procurement/vendors",

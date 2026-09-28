@@ -16,6 +16,7 @@ import {
 import { Prescription } from "@/lib/hooks/use-prescription-queue";
 import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { useHasPermission } from "@/lib/hooks/use-permissions";
 import {
   PRESCRIPTION_STATUS_META,
   getInitials,
@@ -48,6 +49,9 @@ export function PrescriptionDetailPanel({
   updateStatus,
   isUpdatingStatus = false,
 }: PrescriptionDetailPanelProps) {
+  const canDispense = useHasPermission("dispense_prescriptions");
+  const canManageRecords = useHasPermission("manage_prescriptions");
+
   if (!prescription) {
     return (
       <Card className="hidden lg:flex flex-col h-full items-center justify-center bg-card rounded-2xl border border-border text-muted-foreground p-6 shadow-sm">
@@ -69,31 +73,37 @@ export function PrescriptionDetailPanel({
   const renderActions = () => {
     switch (prescription.status) {
       case "pending":
+        if (!canDispense && !canManageRecords) return null;
         return (
           <div className="flex w-full justify-between gap-2">
-            <Button
-              size="sm"
-              disabled={isUpdatingStatus}
-              onClick={() => updateStatus(prescription.id, "in_progress")}
-            >
-              {isUpdatingStatus ? (
-                <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-              ) : (
-                <CheckCircle className="w-4 h-4 mr-1" />
-              )}
-              Process
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => onEdit(prescription)}
-            >
-              <Edit className="w-4 h-4 mr-1" />
-              Edit
-            </Button>
+            {!!canDispense && (
+              <Button
+                size="sm"
+                disabled={isUpdatingStatus}
+                onClick={() => updateStatus(prescription.id, "in_progress")}
+              >
+                {isUpdatingStatus ? (
+                  <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                ) : (
+                  <CheckCircle className="w-4 h-4 mr-1" />
+                )}
+                Process
+              </Button>
+            )}
+            {!!canManageRecords && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => onEdit(prescription)}
+              >
+                <Edit className="w-4 h-4 mr-1" />
+                Edit
+              </Button>
+            )}
           </div>
         );
       case "in_progress":
+        if (!canDispense) return null;
         return (
           <div className="flex gap-2">
             <Button
@@ -111,6 +121,7 @@ export function PrescriptionDetailPanel({
           </div>
         );
       case "ready":
+        if (!canDispense) return null;
         return (
           <div className="flex gap-2">
             <Button size="sm" onClick={() => onDispense(prescription)}>
@@ -123,7 +134,7 @@ export function PrescriptionDetailPanel({
       case "completed":
         return (
           <div className="flex w-full justify-between gap-2">
-            {!!prescription.hasRefillDue && (
+            {!!prescription.hasRefillDue && !!canDispense && (
               <Button size="sm" onClick={() => onDispenseRefill(prescription)}>
                 <PillIcon className="w-4 h-4 mr-1" />
                 Dispense Refill

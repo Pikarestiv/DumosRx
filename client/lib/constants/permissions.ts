@@ -211,6 +211,8 @@ export const ENFORCED_PERMISSION_KEYS: ReadonlySet<string> = new Set([
   "view_stock_adjustment_history", // stock-batch-tab-nav.tsx, stock-batch-management.tsx, use-stock-batch-management.ts
   "export_product_list", // import-export-toolbar.tsx
   "view_suppliers", // procurement-tab-nav.tsx, procurement/vendors route
+  "dispense_prescriptions", // prescription-detail-panel.tsx, use-pos-prescription.ts
+  "manage_prescriptions", // prescription-detail-panel.tsx, use-prescription-management.ts, dashboard-page-routes.ts
   "export_reports", // report-center.tsx, report-view-dialog.tsx (canExport)
   "view_activity_log", // activity-log-page.tsx, product-history.tsx, pos-transaction-history.tsx, use-finance-data.ts, use-purchase-orders.ts, use-dashboard-overview.ts, use-pos-data.ts, auth-context.tsx (canViewAllActivity)
   "manage_staff", // pos-layout-header.tsx, auth-context.tsx (isAdmin)

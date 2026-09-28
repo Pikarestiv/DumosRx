@@ -66,6 +66,16 @@ describe("header action permission gating", () => {
     expect(resolve("/customers", [])).toBeNull();
   });
 
+  it("shows Add Expense with record_expenses", () => {
+    expect(resolve("/expenses", ["record_expenses"])?.label).toBe(
+      "Add Expense",
+    );
+  });
+
+  it("withholds Add Expense without record_expenses", () => {
+    expect(resolve("/expenses", [])).toBeNull();
+  });
+
   it("leaves routes with no actionPermission alone", () => {
     expect(resolve("/inventory/catalog", [])?.label).toBe("Add Product");
   });

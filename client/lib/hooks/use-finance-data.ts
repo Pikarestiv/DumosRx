@@ -86,7 +86,7 @@ export function useExpenseList({
   category?: string;
 } = {}) {
   const { user } = useAuth();
-  const viewerId = useHasPermission("view_activity_log") ? undefined : user?.id;
+  const viewerId = useHasPermission("view_all_expenses") ? undefined : user?.id;
 
   const { data, isLoading, error, refetch } = useQuery({
     ...queryKeys.expenses.page(viewerId, limit, search, category),
@@ -111,7 +111,7 @@ export function useExpenseList({
  * in SQL over every expense rather than over whatever the list has loaded. */
 export function useExpenseTotals() {
   const { user } = useAuth();
-  const viewerId = useHasPermission("view_activity_log") ? undefined : user?.id;
+  const viewerId = useHasPermission("view_all_expenses") ? undefined : user?.id;
 
   const { from, to } = useMemo(() => {
     const now = new Date();

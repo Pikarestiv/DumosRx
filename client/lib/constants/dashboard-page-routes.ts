@@ -171,6 +171,7 @@ export const PAGE_ROUTES: PageRoute[] = [
     action: { label: "Add Expense", path: "/expenses?action=add" },
     actionAdminOnly: true,
     actionAllowSalesStaff: true,
+    actionPermission: "record_expenses",
   },
   {
     path: "/reports",

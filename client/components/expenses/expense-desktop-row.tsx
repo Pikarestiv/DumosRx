@@ -27,6 +27,9 @@ interface ExpenseDesktopRowProps {
   expense: Expense;
   currencyCode?: string;
   style: React.CSSProperties;
+  /** false hides the quick-edit pencil (record_expenses withheld); the row
+   * itself stays clickable, so the expense is still readable. */
+  canEdit: boolean;
   isEditing: boolean;
   draft: ExpenseDraft | null;
   onDraftChange: (draft: ExpenseDraft) => void;
@@ -40,6 +43,7 @@ export function ExpenseDesktopRow({
   expense,
   currencyCode,
   style,
+  canEdit,
   isEditing,
   draft,
   onDraftChange,
@@ -136,7 +140,7 @@ export function ExpenseDesktopRow({
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
-      ) : (
+      ) : canEdit ? (
         <button
           type="button"
           onClick={(e) => {
@@ -148,7 +152,7 @@ export function ExpenseDesktopRow({
         >
           <Pencil className="w-3.5 h-3.5" />
         </button>
-      )}
+      ) : null}
     </div>
   );
 }

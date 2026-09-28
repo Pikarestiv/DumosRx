@@ -938,6 +938,75 @@ figures on `dashboard-overview.tsx` swap to the cashier's own
 Wire this key only if a genuinely optional dashboard ever exists — a second
 landing route, or an overview that some roles are meant to start without.
 
+Both **Expenses** keys were wired on 2026-09-28. This is the one small
+category where every key had a real surface waiting, and the two split
+cleanly along the write/read line:
+
+- `record_expenses` ("Record Expenses") — **write access to the expense
+  ledger**, i.e. every control on `/expenses` that changes a row, gated in
+  four places because the create path has three entrances and the amend path
+  two: `lib/constants/dashboard-page-routes.ts` gives the route
+  `actionPermission: "record_expenses"` (the header's "Add Expense");
+  `app/(dashboard)/expenses/page.tsx` hoists the const and gates the
+  `?action=add` effect, which is the **real** gate since
+  `/expenses?action=add` is typeable and is exactly where that header action
+  navigates; `components/expenses/expense-list.tsx` ANDs the key into its
+  existing `canAddExpense` (the empty state's "Add Expense" CTA) and passes
+  it down as `ExpenseDesktopRow`'s new `canEdit` prop, which drops the
+  row-hover quick-edit pencil; and
+  `components/expenses/expense-detail-dialog.tsx` hoists its own const and
+  drops the whole Edit/Delete footer. Everything else on the page — the
+  list, the search and category filters, the insights strip, the detail
+  dialog's body — is read and stays open, which is the usual
+  hide-the-trigger-preserve-the-state shape. Edit and Delete are under this
+  key rather than left ungated on purpose: there is no `edit_expenses` or
+  `delete_expenses` in the catalog, and "can log a spend but can also wipe
+  one they can't log" is not a coherent state to ship. It is a **no-op for
+  every role that can reach the page today** — `admin`, `manager`,
+  `specialist` and `sales_staff` all hold the key by default, and `auditor`
+  never clears `RequireRole`'s `isAdmin || canManageStockBatch ||
+  allowSalesStaff` baseline for `/expenses` at all. `RequireRole` itself was
+  **not** given `permission="record_expenses"`: reading the ledger is not
+  recording, and the route must stay reachable for a group that has had the
+  write right taken away.
+- `view_all_expenses` ("View All Expenses") — **whose expenses the ledger
+  shows**, the same own-vs-all axis `view_activity_log` runs on the sales
+  side, and a **conversion, not a new restriction**. `lib/hooks/use-finance-data.ts`
+  has had the scope since the ledger was paginated — `useExpenseList` and
+  `useExpenseTotals` both compute
+  `const viewerId = <key> ? undefined : user?.id` and pass it into
+  `getExpensesPage`, `getExpensesLifetimeTotal`, `getSmoothedExpensesTotal`
+  and `getCurrentMonthExpensesByCategory` (all four already take an optional
+  `viewerId`, in `lib/db/queries/finance.ts`) — but it hung off
+  **`view_activity_log`**, the sales-side key, which is the bug: only
+  `admin` holds that key, so a manager saw a ledger scoped to their own
+  receipts while the catalog had said since day one that managers
+  "View All Expenses". Switching the two hooks to `view_all_expenses` is a
+  one-word change in two places and puts the scope on the key that names it.
+  Note the figures beside the list are scoped too, not just the rows — the
+  lifetime total and the month's per-category breakdown all take the same
+  `viewerId`, so a scoped viewer gets a self-consistent page rather than
+  their own rows under everyone's total.
+
+  ⚠️ **The one consequential call in this pass**: this **widens `manager`**
+  from own-only to the whole store's expense ledger. That is the key's
+  stated meaning and `manager` has held it by default since the catalog was
+  written, so the fix is restoring intent rather than granting something
+  new — but it *is* a visible change for an existing store on upgrade, and
+  it is the reconciliation figure at the bottom of the page that moves, not
+  just a list. `specialist` and `sales_staff` are **deliberately left
+  without** the key: both keep seeing only what they logged, which is
+  exactly what they see today, so a cashier's own running expense total for
+  their own till is unaffected. `auditor` holds the key and is unaffected
+  either way — it cannot reach `/expenses`; if that route is ever opened to
+  the read-only role, the key is already right for it.
+
+  The P&L / BI expense figures (`lib/db/queries/reports.ts`,
+  `usePnLReport`) pass **no** `viewerId` and are left alone: they are a
+  store-wide financial report already gated by `view_financial_reports`, and
+  scoping them per-viewer would silently produce a wrong P&L rather than a
+  restricted one.
+
 ### The 2026-09-28 granularity pass
 
 The catalog was compared against QuickBooks Point of Sale's own

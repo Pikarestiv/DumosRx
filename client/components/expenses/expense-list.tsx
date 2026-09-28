@@ -14,6 +14,7 @@ import { Card } from "@/components/ui/card";
 import { Expense } from "@/lib/db/queries/finance";
 import { ExpenseInsightsStrip } from "./expense-insights-strip";
 import { useAuth } from "@/lib/context/auth-context";
+import { useHasPermission } from "@/lib/hooks/use-permissions";
 import { SortableHeaderCell } from "@/components/ui/sortable-header-cell";
 import { useSortableData } from "@/lib/hooks/use-sortable-data";
 import { useQuickEditExpenseMutation } from "@/lib/hooks/use-expense-mutations";
@@ -51,8 +52,9 @@ export function ExpenseList() {
     loadMore,
   } = useExpensesPage();
   const { user, canManageStockBatch } = useAuth();
+  const canRecordExpenses = useHasPermission("record_expenses");
   const canAddExpense =
-    canManageStockBatch || user?.role === "sales_staff";
+    (canManageStockBatch || user?.role === "sales_staff") && canRecordExpenses;
 
   const { sortKey, direction, toggleSort, sortedData: sortedExpenses } =
     useSortableData<Expense, ExpenseSortKey>(filteredExpenses, {
@@ -280,6 +282,7 @@ export function ExpenseList() {
                       height: virtualRow.size,
                       transform: `translateY(${virtualRow.start}px)`,
                     }}
+                    canEdit={canRecordExpenses}
                     isEditing={isEditingRow}
                     draft={isEditingRow ? draft : null}
                     onDraftChange={setDraft}

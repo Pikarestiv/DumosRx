@@ -101,6 +101,9 @@ export const DEFAULT_GROUP_PERMISSIONS: Record<
     "dispense_prescriptions", "manage_prescriptions",
     "manage_customers", "manage_loyalty",
     "view_reports", "export_reports",
+    // view_all_expenses is what un-scopes the Expenses ledger from "mine" to
+    // "everyone's" (use-finance-data.ts); specialist and sales_staff are
+    // deliberately left without it, so they still see only what they logged.
     "record_expenses", "view_all_expenses",
     "manage_staff",
     "manage_store_settings", "manage_payment_accounts", "manage_online_store", "backup_restore_data",
@@ -235,6 +238,8 @@ export const ENFORCED_PERMISSION_KEYS: ReadonlySet<string> = new Set([
   "export_reports", // report-center.tsx, report-view-dialog.tsx (canExport)
   "view_financial_reports", // report-center.tsx, business-intelligence-dashboard.tsx, analytics-tab-nav.tsx, bi-key-metrics.tsx
   "view_activity_log", // activity-log-page.tsx, product-history.tsx, pos-transaction-history.tsx, use-finance-data.ts, use-purchase-orders.ts, use-dashboard-overview.ts, use-pos-data.ts, auth-context.tsx (canViewAllActivity)
+  "record_expenses", // expenses/page.tsx, expense-list.tsx, expense-desktop-row.tsx, expense-detail-dialog.tsx, dashboard-page-routes.ts
+  "view_all_expenses", // use-finance-data.ts (useExpenseList, useExpenseTotals)
   "manage_staff", // pos-layout-header.tsx, auth-context.tsx (isAdmin)
   "manage_roles_permissions", // permission-matrix.tsx
   "factory_reset", // device-danger-zone.tsx

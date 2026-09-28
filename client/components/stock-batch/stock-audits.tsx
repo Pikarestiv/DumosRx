@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { AuditLedgerStep } from "./audit-ledger-step";
 import { AuditReviewStep } from "./audit-review-step";
 import { ChevronLeft, CheckCircle2, Loader2, Printer, ChevronDown } from "lucide-react";
@@ -31,9 +31,19 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import {
+  ALL_AUDIT_CATEGORIES,
+  buildAuditCategoryOptions,
+  hasUnsavedAuditEdits,
+  selectAdjustedAuditItems,
+  selectAuditCategoryItems,
+  selectCountedAuditItems,
+} from "./audit-derivations";
+import { useStockAuditDraftStore } from "@/lib/hooks/use-stock-audit-draft";
 
 type AuditStep = "ledger" | "review" | "done";
-const ALL_CATEGORIES = "__all__";
+const ALL_CATEGORIES = ALL_AUDIT_CATEGORIES;
 
 export interface AuditItem {
   id: string;
@@ -58,6 +68,7 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
     useState<string>(ALL_CATEGORIES);
   const [search, setSearch] = useState("");
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isPreparingOutput, setIsPreparingOutput] = useState(false);
   const [printStage, setPrintStage] = useState<
     { message: string; progress: number } | null
   >(null);
@@ -72,7 +83,10 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
     queryFn: () => getProductsWithDetails(),
   });
 
-  const [items, setItems] = useState<AuditItem[]>([]);
+  const items = useStockAuditDraftStore((state) => state.items);
+  const setItems = useStockAuditDraftStore((state) => state.setItems);
+  const clearDraft = useStockAuditDraftStore((state) => state.clearDraft);
+  const [showDiscardDialog, setShowDiscardDialog] = useState(false);
 
   // Reconcile against the latest server state as soon as the count screen
   // opens, otherwise a stale local snapshot could make an already-corrected
@@ -125,37 +139,32 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rawProducts]);
 
-  const categories = Array.from(new Set(items.map((i) => i.category)))
-    .map((cat) => ({
-      id: cat,
-      label: cat,
-      count: items.filter((i) => i.category === cat).length,
-    }))
-    .sort((a, b) => b.count - a.count);
+  // Every derivation below is memoized on its real inputs: each of them used
+  // to re-run on every keystroke in any of the ledger's hundreds of inputs.
+  const categories = useMemo(() => buildAuditCategoryOptions(items), [items]);
 
-  const categoryItems =
-    selectedCategory === ALL_CATEGORIES
-      ? items
-      : items.filter((i) => i.category === selectedCategory);
-
-  const { results: filteredList } = genericFuzzySearch(search, categoryItems, [
-    "name",
-    "sku",
-  ]);
-
-  const countedItems = items.filter((i) => i.countedQty !== undefined);
-  const adjustedItems = countedItems.filter(
-    (i) =>
-      i.countedQty !== i.systemQty ||
-      (i.countedCostPrice !== undefined &&
-        i.countedCostPrice !== i.costPrice) ||
-      (i.countedSellingPrice !== undefined &&
-        i.countedSellingPrice !== i.sellingPrice),
+  const categoryItems = useMemo(
+    () => selectAuditCategoryItems(items, selectedCategory),
+    [items, selectedCategory],
   );
 
-  const updateLedgerItem = (id: string, patch: Partial<AuditItem>) => {
-    setItems((prev) => prev.map((i) => (i.id === id ? { ...i, ...patch } : i)));
-  };
+  const filteredList = useMemo(
+    () => genericFuzzySearch(search, categoryItems, ["name", "sku"]).results,
+    [search, categoryItems],
+  );
+
+  const countedItems = useMemo(() => selectCountedAuditItems(items), [items]);
+  const adjustedItems = useMemo(
+    () => selectAdjustedAuditItems(countedItems),
+    [countedItems],
+  );
+
+  const updateLedgerItem = useCallback(
+    (id: string, patch: Partial<AuditItem>) => {
+      setItems((prev) => prev.map((i) => (i.id === id ? { ...i, ...patch } : i)));
+    },
+    [setItems],
+  );
 
   /** Updates the overlay and yields a frame so it actually paints before the
    * next step runs. PDF generation runs off the main thread (see
@@ -168,6 +177,7 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
   };
 
   const printableRef = useRef<HTMLDivElement>(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
   const pdfAbortRef = useRef<AbortController | null>(null);
 
   // Was called fresh (3x per render, rebuilding the full items array each
@@ -193,12 +203,19 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
   /** Prints the sheet directly (no PDF render step) via the hidden table
    * below - a real browser print dialog, not a PDF opened in a new tab. */
   const handlePrint = async () => {
-    if (!printableRef.current) return;
+    setIsPreparingOutput(true);
     try {
+      // Two frames: one for React to commit the printable table, one for the
+      // browser to lay it out before printNode clones it.
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      if (!printableRef.current) return;
       await printNode(printableRef.current);
     } catch (error) {
       console.error("Failed to print stock audit sheet:", error);
       toast.error("Couldn't open the print dialog. Please try again.");
+    } finally {
+      setIsPreparingOutput(false);
     }
   };
 
@@ -270,6 +287,7 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
             counted: countedItems.length,
             adjusted: adjustedItems.length,
           });
+          clearDraft();
           setStep("done");
         },
         onError: (error) => {
@@ -282,6 +300,20 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-background w-full h-full">
+      <ConfirmDialog
+        open={showDiscardDialog}
+        onOpenChange={setShowDiscardDialog}
+        title="Leave this cycle count?"
+        description={`${adjustedItems.length} row(s) have been edited but not submitted yet. They stay saved on this device, so reopening Cycle Count picks up exactly where you left off — nothing has been posted to stock.`}
+        confirmLabel="Leave count"
+        cancelLabel="Keep counting"
+        variant="default"
+        onConfirm={() => {
+          setShowDiscardDialog(false);
+          onClose();
+        }}
+      />
+
       {printStage && (
         <LoadingOverlay
           message={printStage.message}
@@ -291,8 +323,10 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
       )}
 
       {/* Off-screen (not display:none, so it still lays out for printNode's
-         clone) printable sheet - kept in sync with `items` on every render,
-         separate from the editable ledger table shown on screen. */}
+         clone) printable sheet, mounted only while a print/export is actually
+         running - it used to reconcile every product x every column on every
+         `items` change, i.e. on every keystroke in the ledger. */}
+      {isPreparingOutput && (
       <div
         style={{ position: "fixed", top: 0, left: "-9999px" }}
         aria-hidden="true"
@@ -331,6 +365,7 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
           </table>
         </div>
       </div>
+      )}
 
       {/* Header, top padding clears the status bar / Tauri title bar */}
       <div
@@ -343,6 +378,8 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
           className="w-8 h-8 md:w-[38px] md:h-[38px] rounded-[10px] bg-muted/30 flex items-center justify-center cursor-pointer text-muted-foreground shrink-0 hover:bg-muted hover:border hover:border-border transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring"
           onClick={() => {
             if (step === "review") setStep("ledger");
+            else if (step === "ledger" && hasUnsavedAuditEdits(items))
+              setShowDiscardDialog(true);
             else onClose();
           }}
         >
@@ -402,6 +439,7 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
       </div>
 
       <div
+        ref={scrollAreaRef}
         className="flex-1 overflow-y-auto p-4 md:p-8 md:pt-4 flex justify-center"
         style={{
           paddingBottom:
@@ -426,6 +464,7 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
               setSelectedCategory={setSelectedCategory}
               search={search}
               setSearch={setSearch}
+              scrollElementRef={scrollAreaRef}
             />
           )}
 

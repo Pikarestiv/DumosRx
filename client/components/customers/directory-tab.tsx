@@ -13,6 +13,7 @@ import { SortableHeaderCell } from "@/components/ui/sortable-header-cell";
 import { useSortableData } from "@/lib/hooks/use-sortable-data";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useAuth } from "@/lib/context/auth-context";
+import { useMediaQuery } from "@/hooks/use-media-query";
 
 // Matches the row's px-4 py-2.5 padding + single line of 13.5px/12px text.
 const DESKTOP_ROW_HEIGHT = 56;
@@ -69,6 +70,7 @@ export function DirectoryTab({
   onAddCustomer,
   onDeleteCustomer,
 }: DirectoryTabProps) {
+  const isDesktop = useMediaQuery("(min-width: 1024px)");
   const [filter, setFilter] = useState<CustFilter>("all");
   const { user } = useAuth();
   const isAuditor = user?.role === "auditor";
@@ -166,8 +168,12 @@ export function DirectoryTab({
 
   return (
     <div className="flex flex-col h-full gap-4 relative">
-      {/* Mobile List: flat, no wrapping card */}
-      <div className="flex lg:hidden flex-col w-full gap-4">
+      {/* Mobile List: flat, no wrapping card. Conditionally rendered rather
+          than `lg:hidden`, since the desktop branch is virtualized and this
+          one isn't — CSS-hiding made desktop render every customer row twice
+          over, once only to hide it. */}
+      {!isDesktop && (
+      <div className="flex flex-col w-full gap-4">
         {SearchInput}
         <div className="flex items-center justify-between gap-2 flex-wrap">
           {FilterChips}
@@ -189,9 +195,11 @@ export function DirectoryTab({
           )}
         </div>
       </div>
+      )}
 
       {/* Desktop List Panel */}
-      <Card className="hidden lg:flex flex-col gap-0 py-0 border rounded-[14px] shadow-sm w-full flex-1 min-h-0 h-full overflow-hidden">
+      {isDesktop && (
+      <Card className="flex flex-col gap-0 py-0 border rounded-[14px] shadow-sm w-full flex-1 min-h-0 h-full overflow-hidden">
         <div className="p-4 border-b space-y-3">
           {SearchInput}
           <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -273,6 +281,7 @@ export function DirectoryTab({
           )}
         </div>
       </Card>
+      )}
 
       <ResponsiveDetailPanel
         open={!!selectedCustomer}

@@ -8,6 +8,8 @@ import { SELF_PURCHASE_VENDOR_ID } from "@/components/procurement/po-details-fie
 import { PODetailsDialog } from "@/components/procurement/po-details-dialog";
 import { POMobileCreateView } from "@/components/procurement/po-mobile-create-view";
 import { PODesktopCreateView } from "@/components/procurement/po-desktop-create-view";
+import { POFormSkeleton } from "@/components/procurement/po-form-skeleton";
+import { useResolvedMediaQuery } from "@/hooks/use-media-query";
 import { getLineTotal, getValidatedAmountPaid, countSellingPriceOverrides } from "@/components/procurement/po-line-item-math";
 import { RequireRole } from "@/components/auth/require-role";
 import { toast } from "sonner";
@@ -55,10 +57,8 @@ function CreateOrderContent() {
   const [isAddSupplierOpen, setIsAddSupplierOpen] = useState(false);
 
   const { suppliers, products, refetch: fetchData } = useProcurementData();
-
-  useEffect(() => {
-    void fetchData();
-  }, [fetchData]);
+  const { matches: isDesktop, resolved: layoutResolved } =
+    useResolvedMediaQuery("(min-width: 1024px)");
 
   useEffect(() => {
     const defaultSupplierId = searchParams.get("supplierId");
@@ -274,42 +274,32 @@ function CreateOrderContent() {
     onOpenAddSupplier: () => setIsAddSupplierOpen(true),
   };
 
+  const createViewProps = {
+    ...detailsFieldsProps,
+    products,
+    items,
+    onItemsChange: setItems,
+    onOpenAddProduct: handleOpenAddProduct,
+    newlyCreatedProductId,
+    onNewlyCreatedProductConsumed: () => setNewlyCreatedProductId(null),
+    selectedSupplierName,
+    isSubmitting,
+    handleSubmit,
+    handleSaveDraft,
+    detailsConfirmed,
+    onContinue: () => setDetailsConfirmed(true),
+    setIsEditDetailsOpen,
+  };
+
+  if (!layoutResolved) return <POFormSkeleton />;
+
   return (
     <>
-      {/* Mobile: full-screen takeover, just like POS */}
-      <POMobileCreateView
-        {...detailsFieldsProps}
-        products={products}
-        items={items}
-        onItemsChange={setItems}
-        onOpenAddProduct={handleOpenAddProduct}
-        newlyCreatedProductId={newlyCreatedProductId}
-        onNewlyCreatedProductConsumed={() => setNewlyCreatedProductId(null)}
-        selectedSupplierName={selectedSupplierName}
-        isSubmitting={isSubmitting}
-        handleSubmit={handleSubmit}
-        handleSaveDraft={handleSaveDraft}
-        detailsConfirmed={detailsConfirmed}
-        onContinue={() => setDetailsConfirmed(true)}
-        setIsEditDetailsOpen={setIsEditDetailsOpen}
-      />
-
-      <PODesktopCreateView
-        {...detailsFieldsProps}
-        products={products}
-        items={items}
-        onItemsChange={setItems}
-        onOpenAddProduct={handleOpenAddProduct}
-        newlyCreatedProductId={newlyCreatedProductId}
-        onNewlyCreatedProductConsumed={() => setNewlyCreatedProductId(null)}
-        selectedSupplierName={selectedSupplierName}
-        isSubmitting={isSubmitting}
-        handleSubmit={handleSubmit}
-        handleSaveDraft={handleSaveDraft}
-        detailsConfirmed={detailsConfirmed}
-        onContinue={() => setDetailsConfirmed(true)}
-        setIsEditDetailsOpen={setIsEditDetailsOpen}
-      />
+      {isDesktop ? (
+        <PODesktopCreateView {...createViewProps} />
+      ) : (
+        <POMobileCreateView {...createViewProps} />
+      )}
 
       <PODetailsDialog
         open={isEditDetailsOpen}

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -10,6 +10,7 @@ import {
   type ReceivedItem,
 } from "@/lib/db/local-database";
 import { genericFuzzySearch } from "@/lib/utils/search";
+import { errorDescription } from "@/lib/utils/error-description";
 import { countSellingPriceOverrides } from "@/components/procurement/po-line-item-math";
 import { queryKeys } from "@/lib/query-keys";
 import { useAuth } from "@/lib/context/auth-context";
@@ -23,12 +24,16 @@ export function usePurchaseOrders() {
   // receivePurchaseOrder twice for the same order (which would duplicate the
   // stock batch and its movement); also drives the button's loading state.
   const [isReceivingPO, setIsReceivingPO] = useState(false);
+  // Same guard as isReceivingPO, for the status writes that had none: a
+  // double-tap on a laggy tablet fired "Mark as Sent"/"Delete" twice.
+  const [isMutatingPO, setIsMutatingPO] = useState(false);
   const { user } = useAuth();
   const viewerId = useHasPermission("view_activity_log") ? undefined : user?.id;
 
   const {
     data: purchaseOrders = [],
     isLoading: loading,
+    isError: hasLoadError,
     refetch,
   } = useQuery({
     // poTab isn't a query param: getPurchaseOrders() always fetches
@@ -46,8 +51,15 @@ export function usePurchaseOrders() {
     await refetch();
   };
 
-  const handleReceivePO = async (id: string, receivedItems: ReceivedItem[]) => {
-    if (isReceivingPO) return;
+  /** Resolves true only when the write actually landed, so the caller can
+   * keep the receiving panel (and its spinner) on screen until then and
+   * leave it open on failure instead of navigating away from an order that
+   * was never received. */
+  const handleReceivePO = async (
+    id: string,
+    receivedItems: ReceivedItem[],
+  ): Promise<boolean> => {
+    if (isReceivingPO) return false;
     setIsReceivingPO(true);
     try {
       const status = await receivePurchaseOrder(id, receivedItems);
@@ -72,56 +84,74 @@ export function usePurchaseOrders() {
         );
       }
       void fetchPurchaseOrders();
+      return true;
     } catch (error) {
       console.error("Failed to receive PO:", error);
-      toast.error("Error receiving order");
+      toast.error("Couldn't receive this order", {
+        description: errorDescription(error),
+      });
+      return false;
     } finally {
       setIsReceivingPO(false);
     }
   };
 
   const handleSendPO = async (id: string) => {
+    if (isMutatingPO) return;
+    setIsMutatingPO(true);
     try {
       await updatePurchaseOrderStatus(id, "sent");
       toast.success("Order marked as sent!");
       void fetchPurchaseOrders();
     } catch (error) {
       console.error("Failed to mark PO as sent:", error);
-      toast.error("Error updating order status");
+      toast.error("Couldn't mark the order as sent", {
+        description: errorDescription(error),
+      });
+    } finally {
+      setIsMutatingPO(false);
     }
   };
 
   const handleDeletePO = async (id: string) => {
+    if (isMutatingPO) return;
+    setIsMutatingPO(true);
     try {
       await deletePurchaseOrder(id);
       toast.success("Purchase order deleted successfully");
       void fetchPurchaseOrders();
     } catch (error) {
       console.error("Failed to delete PO:", error);
-      toast.error("Error deleting purchase order");
+      toast.error("Couldn't delete the purchase order", {
+        description: errorDescription(error),
+      });
+    } finally {
+      setIsMutatingPO(false);
     }
   };
 
-  const preFilteredOrders = purchaseOrders.filter((po) => {
-    if (poTab === "all") return true;
-    if (poTab === "missing-expiry") {
-      return (
-        (po.status === "received" || po.status === "partially_received") &&
-        po.has_missing_expiry
-      );
-    }
-    return po.status === poTab;
-  });
+  const { results: filteredOrders, isFuzzyFallback } = useMemo(() => {
+    const preFilteredOrders = purchaseOrders.filter((po) => {
+      if (poTab === "all") return true;
+      if (poTab === "missing-expiry") {
+        return (
+          (po.status === "received" || po.status === "partially_received") &&
+          po.has_missing_expiry
+        );
+      }
+      return po.status === poTab;
+    });
 
-  const { results: filteredOrders, isFuzzyFallback } = genericFuzzySearch(
-    searchQuery,
-    preFilteredOrders,
-    ["vendor_name", "id"],
-  );
+    return genericFuzzySearch(searchQuery, preFilteredOrders, [
+      "vendor_name",
+      "id",
+    ]);
+  }, [purchaseOrders, poTab, searchQuery]);
 
   return {
     purchaseOrders,
     loading,
+    hasLoadError,
     searchQuery,
     setSearchQuery,
     poTab,
@@ -133,5 +163,6 @@ export function usePurchaseOrders() {
     isReceivingPO,
     handleSendPO,
     handleDeletePO,
+    isMutatingPO,
   };
 }

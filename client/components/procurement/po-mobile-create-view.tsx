@@ -116,7 +116,7 @@ export function POMobileCreateView(props: POMobileCreateViewProps) {
 
   return (
     <div
-      className="lg:hidden fixed inset-0 z-40 bg-background flex flex-col"
+      className="fixed inset-0 z-40 bg-background flex flex-col"
       style={{ height: "100dvh" }}
     >
       <div

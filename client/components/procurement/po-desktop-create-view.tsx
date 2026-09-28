@@ -113,7 +113,7 @@ export function PODesktopCreateView(props: PODesktopCreateViewProps) {
   };
 
   return (
-    <div className="hidden lg:flex fixed inset-0 z-50 flex-col bg-background">
+    <div className="flex fixed inset-0 z-50 flex-col bg-background">
       <div
         className="flex items-center gap-3 px-6 pb-5 border-b border-border bg-card shrink-0"
         style={{ paddingTop: "calc(var(--tauri-top, 0px) + 1.25rem)" }}

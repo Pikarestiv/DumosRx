@@ -1,3 +1,4 @@
+import React from "react";
 import { ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { UserProfileBadge } from "@/components/dashboard/user-profile-badge";
@@ -11,7 +12,7 @@ interface SettingsHeaderProps {
 /** Shared by the mobile menu-list route and every inner tab — with the app
  * sidebar/header hidden on all settings routes, this back button is the
  * only way out. */
-export function SettingsHeader({
+function SettingsHeaderInner({
   title,
   onBack,
   showBadge,
@@ -39,3 +40,7 @@ export function SettingsHeader({
     </div>
   );
 }
+
+/** Memoized for the same reason as SettingsTabNav: its props don't depend on
+ * the settings form state its parent re-renders for. */
+export const SettingsHeader = React.memo(SettingsHeaderInner);

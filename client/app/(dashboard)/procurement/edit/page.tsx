@@ -2,18 +2,16 @@
 
 import { useState, useEffect, useMemo, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, Clock } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Clock } from "lucide-react";
 import { AddProductDialog } from "@/components/products/add-product-dialog";
 import { AddSupplierDialog } from "@/components/suppliers/add-supplier-dialog";
 import { SELF_PURCHASE_VENDOR_ID } from "@/components/procurement/po-details-fields";
-import { PODetailsSummaryBar } from "@/components/procurement/po-details-summary-bar";
 import { PODetailsDialog } from "@/components/procurement/po-details-dialog";
-import { POItemBuilder } from "@/components/procurement/po-item-builder";
 import { POMobileEditView } from "@/components/procurement/po-mobile-edit-view";
+import { PODesktopEditView } from "@/components/procurement/po-desktop-edit-view";
+import { useResolvedMediaQuery } from "@/hooks/use-media-query";
 import { getPurchaseOrderById } from "@/lib/db/local-database";
 import { toast } from "sonner";
-import { formatCurrency } from "@/lib/utils";
 
 import { useProcurementData } from "@/lib/hooks/use-procurement-data";
 import { useCreateSupplierMutation } from "@/lib/hooks/use-supplier-mutations";
@@ -23,7 +21,7 @@ import { RequireRole } from "@/components/auth/require-role";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import type { POLineItemDraft } from "@/components/procurement/po-item-ledger-table";
-import { getLineTotal, getValidatedAmountPaid } from "@/components/procurement/po-line-item-math";
+import { getOrderTotal, getValidatedAmountPaid } from "@/components/procurement/po-line-item-math";
 import type { NewProductPayload, ProductViewModel } from "@/lib/types/product";
 import type { SupplierPayload } from "@/lib/types/supplier";
 
@@ -60,10 +58,8 @@ function EditOrderContent() {
   const [poType, setPoType] = useState<"standard" | "immediate">("standard");
 
   const { suppliers, products, refetch: fetchData } = useProcurementData();
-
-  useEffect(() => {
-    void fetchData();
-  }, [fetchData]);
+  const { matches: isDesktop, resolved: layoutResolved } =
+    useResolvedMediaQuery("(min-width: 1024px)");
 
   const poQuery = useQuery({
     ...queryKeys.purchaseOrders.detail(id),
@@ -153,10 +149,7 @@ function EditOrderContent() {
   // when unit cost changes (po-item-ledger-table.tsx), so editing just the
   // quantity leaves it stale - same reason lib/db/procurement.ts recomputes
   // total_amount itself at save time rather than trusting this field.
-  const totalAmount = items.reduce(
-    (sum, item) => sum + getLineTotal(item, "standard"),
-    0,
-  );
+  const totalAmount = getOrderTotal(items, poType);
 
   const updatePurchaseOrderMutation = useUpdatePurchaseOrderMutation();
   const isSubmitting = updatePurchaseOrderMutation.isPending;
@@ -209,7 +202,25 @@ function EditOrderContent() {
     );
   }, [suppliers, selectedSupplierId]);
 
-  if (isLoading) {
+  const editViewProps = {
+    poId: id,
+    selectedSupplierName,
+    poType,
+    products,
+    items,
+    onItemsChange: setItems,
+    onOpenAddProduct: handleOpenAddProduct,
+    newlyCreatedProductId,
+    onNewlyCreatedProductConsumed: () => setNewlyCreatedProductId(null),
+    isSubmitting,
+    handleSubmit,
+    onOpenEditDetails: () => setIsEditDetailsOpen(true),
+    paymentStatus,
+    dueDate,
+    amountPaid,
+  };
+
+  if (isLoading || !layoutResolved) {
     return (
       <div className="flex flex-col items-center justify-center h-[calc(100vh-148px)] bg-card border border-border rounded-2xl">
         <Clock className="w-8 h-8 animate-spin text-muted-foreground mb-4" />
@@ -222,82 +233,11 @@ function EditOrderContent() {
 
   return (
     <>
-      <POMobileEditView
-        poId={id}
-        selectedSupplierName={selectedSupplierName}
-        totalAmount={totalAmount}
-        poType={poType}
-        products={products}
-        items={items}
-        onItemsChange={setItems}
-        onOpenAddProduct={handleOpenAddProduct}
-        newlyCreatedProductId={newlyCreatedProductId}
-        onNewlyCreatedProductConsumed={() => setNewlyCreatedProductId(null)}
-        isSubmitting={isSubmitting}
-        handleSubmit={handleSubmit}
-        onOpenEditDetails={() => setIsEditDetailsOpen(true)}
-      />
-
-      {/* Desktop: full-screen takeover, same as the Cycle Count session in
-          stock-batch/stock-audits.tsx, so the ledger table gets the whole
-          viewport instead of being cramped inside the dashboard shell. */}
-      <div className="hidden lg:flex fixed inset-0 z-50 flex-col bg-background">
-      <div
-        className="flex items-center gap-3 px-6 pb-5 border-b border-border bg-card shrink-0"
-        style={{ paddingTop: "calc(var(--tauri-top, 0px) + 1.25rem)" }}
-      >
-        <div
-          className="w-[38px] h-[38px] rounded-[10px] bg-muted flex items-center justify-center cursor-pointer text-muted-foreground shrink-0 hover:bg-muted/80 transition-colors"
-          onClick={() => router.push("/procurement")}
-        >
-          <ArrowLeft className="w-[17px] h-[17px]" />
-        </div>
-        <div>
-          <div className="text-[17px] font-serif font-bold leading-tight">
-            Edit Purchase Order
-          </div>
-          <div className="text-[12px] text-muted-foreground mt-0.5">
-            Modify draft or sent purchase order
-          </div>
-        </div>
-        <div className="ml-auto flex items-center gap-4">
-          <div className="text-[12.5px] text-muted-foreground font-medium">
-            PO-{id ? id.split("-")[0]?.toUpperCase() : ""} · {items.length} items
-          </div>
-          <div className="text-right">
-            <div className="text-[10.5px] font-semibold text-muted-foreground uppercase tracking-wide">
-              Estimated total
-            </div>
-            <div className="text-[15px] font-bold font-serif text-primary leading-tight">
-              {formatCurrency(totalAmount)}
-            </div>
-          </div>
-          <Button
-            className="h-10 px-5 rounded-[10px] text-[13px] font-bold"
-            onClick={handleSubmit}
-            disabled={isSubmitting || items.length === 0}
-          >
-            {isSubmitting ? "Saving..." : "Save Purchase Order"}
-          </Button>
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-4 bg-background/50">
-        <PODetailsSummaryBar
-          vendorName={selectedSupplierName}
-          onEdit={() => setIsEditDetailsOpen(true)}
-        />
-        <POItemBuilder
-          poType={poType}
-          products={products}
-          items={items}
-          onItemsChange={setItems}
-          onOpenAddProduct={handleOpenAddProduct}
-          newlyCreatedProductId={newlyCreatedProductId}
-          onNewlyCreatedProductConsumed={() => setNewlyCreatedProductId(null)}
-        />
-      </div>
-      </div>
+      {isDesktop ? (
+        <PODesktopEditView {...editViewProps} />
+      ) : (
+        <POMobileEditView {...editViewProps} />
+      )}
 
       <PODetailsDialog
         open={isEditDetailsOpen}

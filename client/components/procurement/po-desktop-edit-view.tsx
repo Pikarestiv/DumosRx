@@ -5,13 +5,13 @@ import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PODetailsSummaryBar } from "./po-details-summary-bar";
 import { POItemBuilder } from "./po-item-builder";
-import { POMobileSummaryDrawer } from "./po-mobile-summary-drawer";
-import { getLineTotal, getOrderTotal } from "./po-line-item-math";
+import { getOrderTotal } from "./po-line-item-math";
+import { formatCurrency } from "@/lib/utils";
 import type { POProduct } from "@/lib/db/queries/procurement";
 import type { POLineItemDraft } from "./po-item-ledger-table";
 import type { ProductViewModel } from "@/lib/types/product";
 
-interface POMobileEditViewProps {
+interface PODesktopEditViewProps {
   poId: string | null;
   selectedSupplierName: string;
   poType: "standard" | "immediate";
@@ -29,11 +29,11 @@ interface POMobileEditViewProps {
   amountPaid?: string;
 }
 
-/** Mobile full-screen takeover for editing an existing purchase order.
- * Mirrors POMobileCreateView's layout, minus the two-phase details flow
- * (an existing PO's details are always already set), so the item builder
- * is the dominant content from the start. */
-export function POMobileEditView({
+/** Desktop full-screen takeover for editing an existing purchase order, the
+ * counterpart to POMobileEditView. Extracted out of edit/page.tsx so both
+ * views derive their "Estimated total" from the same getOrderTotal call the
+ * rows below them use, and so the page can render only the active one. */
+export function PODesktopEditView({
   poId,
   selectedSupplierName,
   poType,
@@ -49,22 +49,15 @@ export function POMobileEditView({
   paymentStatus,
   dueDate,
   amountPaid,
-}: POMobileEditViewProps) {
+}: PODesktopEditViewProps) {
   const router = useRouter();
   const totalAmount = getOrderTotal(items, poType);
 
   return (
-    <div
-      className="fixed inset-0 z-50 bg-background flex flex-col"
-      style={{ height: "100dvh" }}
-    >
+    <div className="flex fixed inset-0 z-50 flex-col bg-background">
       <div
-        className="flex items-center gap-3 px-4 border-b border-border bg-card shrink-0"
-        style={{
-          paddingTop:
-            "calc(var(--tauri-top, env(safe-area-inset-top, 0px)) + 1.25rem)",
-          paddingBottom: "0.75rem",
-        }}
+        className="flex items-center gap-3 px-6 pb-5 border-b border-border bg-card shrink-0"
+        style={{ paddingTop: "calc(var(--tauri-top, 0px) + 1.25rem)" }}
       >
         <button
           type="button"
@@ -74,32 +67,37 @@ export function POMobileEditView({
         >
           <ArrowLeft className="w-[17px] h-[17px]" />
         </button>
-        <div className="min-w-0">
-          <div className="text-[15px] font-serif font-bold leading-tight">
+        <div>
+          <div className="text-[17px] font-serif font-bold leading-tight">
             Edit Purchase Order
           </div>
-          <div className="text-[11px] text-muted-foreground mt-0.5 truncate">
-            PO-{poId ? poId.split("-")[0]?.toUpperCase() : ""} ·{" "}
-            {items.length} {items.length === 1 ? "item" : "items"}
+          <div className="text-[12px] text-muted-foreground mt-0.5">
+            Modify draft or sent purchase order
           </div>
         </div>
-        <Button
-          size="sm"
-          className="ml-auto h-9 px-4 rounded-[10px] text-[12.5px] font-semibold shrink-0"
-          onClick={handleSubmit}
-          disabled={isSubmitting || items.length === 0}
-        >
-          {isSubmitting ? "Saving..." : "Save"}
-        </Button>
+        <div className="ml-auto flex items-center gap-4">
+          <div className="text-[12.5px] text-muted-foreground font-medium">
+            PO-{poId ? poId.split("-")[0]?.toUpperCase() : ""} · {items.length} items
+          </div>
+          <div className="text-right">
+            <div className="text-[10.5px] font-semibold text-muted-foreground uppercase tracking-wide">
+              Estimated total
+            </div>
+            <div className="text-[15px] font-bold font-serif text-primary leading-tight">
+              {formatCurrency(totalAmount)}
+            </div>
+          </div>
+          <Button
+            className="h-10 px-5 rounded-[10px] text-[13px] font-bold"
+            onClick={handleSubmit}
+            disabled={isSubmitting || items.length === 0}
+          >
+            {isSubmitting ? "Saving..." : "Save Purchase Order"}
+          </Button>
+        </div>
       </div>
 
-      <div
-        className="flex-1 overflow-y-auto px-4 pt-4 flex flex-col gap-3.5"
-        style={{
-          paddingBottom:
-            "calc(7rem + var(--tauri-bottom, env(safe-area-inset-bottom, 0px)))",
-        }}
-      >
+      <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-4 bg-background/50">
         <PODetailsSummaryBar
           vendorName={selectedSupplierName}
           paymentStatus={paymentStatus}
@@ -117,18 +115,6 @@ export function POMobileEditView({
           onNewlyCreatedProductConsumed={onNewlyCreatedProductConsumed}
         />
       </div>
-
-      <POMobileSummaryDrawer
-        itemCount={items.length}
-        totalAmount={totalAmount}
-        selectedSupplierName={selectedSupplierName}
-        lineItems={items.map((item) => ({
-          productName: item.product_name,
-          quantity: item.bulk_quantity,
-          bulkUnit: item.bulk_unit,
-          lineTotal: getLineTotal(item, poType),
-        }))}
-      />
     </div>
   );
 }

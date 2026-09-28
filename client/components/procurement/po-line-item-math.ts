@@ -68,6 +68,21 @@ export function getLineTotal(item: POLineItemDraft, poType: "standard" | "immedi
 }
 
 /**
+ * The order's total: every screen that shows an "Estimated total" must go
+ * through this rather than reducing over its own formula. The edit page's
+ * header used getLineTotal(item, "standard") while its rows rendered as
+ * "immediate", and the mobile edit view's drawer used a raw
+ * bulk_quantity * unit_cost — three different numbers for the same order
+ * once a "New Cost" override was typed.
+ */
+export function getOrderTotal(
+  items: POLineItemDraft[],
+  poType: "standard" | "immediate",
+): number {
+  return items.reduce((sum, item) => sum + getLineTotal(item, poType), 0);
+}
+
+/**
  * Validates the free-text "Amount Paid" field before it's ever written to
  * the PO: `Number(amountPaid) || 0` alone silently records ₦0 paid for a
  * blank/non-numeric input, and accepted any value above the order total

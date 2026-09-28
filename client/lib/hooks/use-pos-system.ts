@@ -84,7 +84,7 @@ export function usePOSSystem() {
     customers,
     loadingCustomers,
     paymentAccounts,
-  } = usePOSData();
+  } = usePOSData({ historyActive: activeTab === "history" });
 
   // POS doesn't use the shared DashboardLayout scroll container (its routes opt out
   // of that entirely), so each tab wires pull-to-refresh directly onto its own

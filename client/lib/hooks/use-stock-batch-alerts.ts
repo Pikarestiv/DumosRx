@@ -7,20 +7,26 @@ import {
 } from "@/lib/db/queries/inventory";
 import { queryKeys } from "@/lib/query-keys";
 
-export function useStockBatchAlerts() {
+/** @param enabled - these three reads feed only the Analytics dashboard's
+ * Stock Batches tab, so its caller gates them on that tab being the active
+ * one. Returns an empty list (render-safe) while gated off. */
+export function useStockBatchAlerts(enabled = true) {
   const { data: lowStockAlerts } = useQuery({
     ...queryKeys.stockBatches.lowStockAlerts(),
     queryFn: () => getLowStockAlerts(),
+    enabled,
   });
 
   const { data: expiryAlerts } = useQuery({
     ...queryKeys.stockBatches.expiryAlerts(),
     queryFn: () => getExpiryAlerts(),
+    enabled,
   });
 
   const { data: oversoldAlerts } = useQuery({
     ...queryKeys.stockBatches.oversoldAlerts(),
     queryFn: () => getOversoldAlerts(),
+    enabled,
   });
 
   const stock_batchAlerts = useMemo(() => {

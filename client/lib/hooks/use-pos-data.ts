@@ -10,7 +10,16 @@ export type { POSProduct as Product } from "@/lib/types/product";
 export type { Customer } from "@/lib/types/customer";
 export type { PaymentAccount } from "@/lib/types/payment-account";
 
-export function usePOSData() {
+export interface POSDataOptions {
+  /** Whether the History tab is the active one. getRecentSales() reads 100
+   * sales with three correlated subqueries per row and nothing outside that
+   * tab consumes it, so leave this false while it isn't showing. Defaults to
+   * true, so a caller with no tab context keeps the old behaviour. */
+  historyActive?: boolean;
+}
+
+export function usePOSData(options?: POSDataOptions) {
+  const historyActive = options?.historyActive ?? true;
   const { user } = useAuth();
   const canViewAllActivity = useHasPermission("view_activity_log");
 
@@ -25,7 +34,8 @@ export function usePOSData() {
 
   const { data: recentSales, refetch: refetchSales } = useQuery({
     ...queryKeys.sales.recent(user?.id),
-    queryFn: () => getRecentSales(canViewAllActivity ? undefined : user?.id)
+    queryFn: () => getRecentSales(canViewAllActivity ? undefined : user?.id),
+    enabled: historyActive,
   });
 
   const { data: recentlySoldIdsData } = useQuery({

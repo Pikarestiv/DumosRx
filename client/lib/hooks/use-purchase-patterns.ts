@@ -3,10 +3,17 @@ import { useQuery } from "@tanstack/react-query";
 import { getPurchasePatterns, type SalesFilters } from "@/lib/db/queries/reports";
 import { queryKeys } from "@/lib/query-keys";
 
-export function usePurchasePatterns(dateFilter: string, filters?: SalesFilters) {
+/** @param enabled - this feeds only the Analytics dashboard's Customers tab,
+ * so its caller gates it on that tab being the active one. */
+export function usePurchasePatterns(
+  dateFilter: string,
+  filters?: SalesFilters,
+  enabled = true,
+) {
   const { data: metrics } = useQuery({
     ...queryKeys.bi.purchasePatterns(dateFilter, filters?.staffId, filters?.paymentMethod),
-    queryFn: () => getPurchasePatterns(dateFilter, filters)
+    queryFn: () => getPurchasePatterns(dateFilter, filters),
+    enabled,
   });
 
   const purchasePatterns = useMemo(() => {

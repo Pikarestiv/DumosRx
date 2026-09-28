@@ -1,3 +1,4 @@
+import React from "react";
 import { TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Bell,
@@ -131,7 +132,7 @@ const NAV_GROUPS: NavGroup[] = [
 ];
 
 /** Tab nav only. Pairs with sibling <TabsContent> panels owned by the parent, which switches page content on selection. */
-export function SettingsTabNav({ isAdmin }: SettingsTabNavProps) {
+function SettingsTabNavInner({ isAdmin }: SettingsTabNavProps) {
   return (
     <TabsList className="hidden md:flex flex-col h-auto bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 p-0 gap-1 justify-start md:w-full relative">
       {NAV_GROUPS.map((group) => {
@@ -172,3 +173,8 @@ export function SettingsTabNav({ isAdmin }: SettingsTabNavProps) {
     </TabsList>
   );
 }
+
+/** Memoized: its only prop is a boolean, but it renders ~18 triggers and sits
+ * inside a component that re-renders on every keystroke in any settings form
+ * (see use-settings.ts's deliberate prop-bag design). */
+export const SettingsTabNav = React.memo(SettingsTabNavInner);

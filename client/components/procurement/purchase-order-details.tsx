@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { formatCurrency } from "@/lib/utils";
 import { errorDescription } from "@/lib/utils/error-description";
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
-import { downloadBlob } from "@/lib/utils/report-pdf";
+import { downloadBlob } from "@/lib/utils/download-blob";
 import { PurchaseOrderPdf } from "./purchase-order-pdf";
 import { useStore } from "@/lib/context/store-context";
 import { Card } from "@/components/ui/card";

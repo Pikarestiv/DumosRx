@@ -20,6 +20,8 @@ const generateReportPdfBlobMock = vi.fn(
 );
 vi.mock("@/lib/utils/report-pdf", () => ({
   generateReportPdfBlob: generateReportPdfBlobMock,
+}));
+vi.mock("@/lib/utils/download-blob", () => ({
   downloadBlob: vi.fn(() => 100),
   openBlobForPrint: vi.fn(),
 }));

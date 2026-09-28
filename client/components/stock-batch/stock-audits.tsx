@@ -17,9 +17,9 @@ import type { ProductWithDetails } from "@/lib/types/product";
 import { LoadingOverlay } from "@/components/ui/loading-overlay";
 import {
   generateReportPdfBlob,
-  downloadBlob,
   PdfGenerationCancelledError,
 } from "@/lib/utils/report-pdf";
+import { downloadBlob } from "@/lib/utils/download-blob";
 import { printNode } from "@/lib/utils/print-node";
 import {
   buildStockAuditRows,

@@ -12,6 +12,7 @@ import { useHasPermission } from "@/lib/hooks/use-permissions";
 import { TransactionDetailsDialog } from "./transaction-details-dialog";
 import { calculateNetSaleAmount, calculateAvgBasket } from "@/lib/utils/pos-calculations";
 import { genericFuzzySearch } from "@/lib/utils/search";
+import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
 import { getRecentSales, getPendingResellerCommissionTotal } from "@/lib/db/queries/sales";
 import { queryKeys } from "@/lib/query-keys";
 import { formatCurrency, getLocalTodayDate } from "@/lib/utils";
@@ -26,7 +27,15 @@ interface POSTransactionHistoryProps {
   recentSales: SaleWithDetails[];
   onReturnClick: (sale: SaleWithDetails) => void;
   currencyCode?: string;
+  /** The History tab's own scrolling container, threaded down so the
+   * transaction list can virtualize against it - the list has no scroll
+   * container of its own. */
+  scrollElementRef: React.RefObject<HTMLDivElement | null>;
 }
+
+// Long enough to skip the intermediate states of a typed word, short enough
+// that the list still feels like it's reacting to the keystroke.
+const SEARCH_DEBOUNCE_MS = 200;
 
 // ============================================================================
 // Main Component
@@ -36,11 +45,19 @@ export function POSTransactionHistory({
   recentSales,
   onReturnClick,
   currencyCode,
+  scrollElementRef,
 }: POSTransactionHistoryProps) {
   const [selectedSale, setSelectedSale] = useState<SaleWithDetails | null>(
     null,
   );
   const [searchQuery, setSearchQuery] = useState("");
+  // The input stays bound to searchQuery so typing is instant; the expensive
+  // work downstream (a fuzzy search over up to 500 sales, then a re-group of
+  // the matches into date buckets) runs off the settled value instead.
+  const debouncedSearchQuery = useDebouncedValue(
+    searchQuery,
+    SEARCH_DEBOUNCE_MS,
+  );
   const [dateRange, setDateRange] = useState<DateRangeValue>({});
   const [paymentFilter, setPaymentFilter] = useState<string>("All");
   const [saleTypeFilter, setSaleTypeFilter] = useState<string>("All");
@@ -118,25 +135,32 @@ export function POSTransactionHistory({
   // Filtered sales. Date range filtering happens at the query level (see
   // salesSource above) - not here - since a picked range can reach past the
   // `recentSales` prop's fixed 100-row snapshot.
-  const filteredSales = useMemo(() => {
-    const base = salesSource || [];
-    let searched = base;
-
-    if (searchQuery.trim()) {
-      // genericFuzzySearch needs plain object keys, not a computed value, so
-      // build small search-only records rather than passing salesSource
-      // itself - the "||" join separator (see getRecentSales) is replaced
-      // with a space first: it isn't whitespace, so leaving it in would glue
-      // the item on one side of it onto the next token during tokenization
-      // (Tier 3/4 both split on /\s+/), corrupting matches right at that
-      // boundary.
-      const searchable = base.map((sale) => ({
+  // genericFuzzySearch needs plain object keys, not a computed value, so
+  // build small search-only records rather than passing salesSource itself -
+  // the "||" join separator (see getRecentSales) is replaced with a space
+  // first: it isn't whitespace, so leaving it in would glue the item on one
+  // side of it onto the next token during tokenization (Tier 3/4 both split
+  // on /\s+/), corrupting matches right at that boundary.
+  //
+  // Keyed on the base data alone, deliberately separate from the search term,
+  // so a keystroke doesn't rebuild all 500 records.
+  const searchable = useMemo(
+    () =>
+      (salesSource || []).map((sale) => ({
         id: sale.id,
         customer_name: sale.customer_name || "Walk-in",
         transaction_number: sale.transaction_number || "",
         item_names: sale.item_names?.replace(/\|\|/g, " ") || "",
-      }));
-      const { results } = genericFuzzySearch(searchQuery, searchable, [
+      })),
+    [salesSource],
+  );
+
+  const filteredSales = useMemo(() => {
+    const base = salesSource || [];
+    let searched = base;
+
+    if (debouncedSearchQuery.trim()) {
+      const { results } = genericFuzzySearch(debouncedSearchQuery, searchable, [
         "customer_name",
         "transaction_number",
         "item_names",
@@ -162,7 +186,13 @@ export function POSTransactionHistory({
       }
       return true;
     });
-  }, [salesSource, searchQuery, paymentFilter, saleTypeFilter]);
+  }, [
+    salesSource,
+    searchable,
+    debouncedSearchQuery,
+    paymentFilter,
+    saleTypeFilter,
+  ]);
 
   // Group by relative date
   const groupedSales = useMemo(() => {
@@ -229,6 +259,7 @@ export function POSTransactionHistory({
         onSelectSale={setSelectedSale}
         onReturnClick={onReturnClick}
         hasFilters={filteredSales.length === 0}
+        scrollElementRef={scrollElementRef}
       />
 
       <TransactionDetailsDialog

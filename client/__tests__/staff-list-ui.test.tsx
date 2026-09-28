@@ -2,6 +2,19 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import type { StaffListItem } from "@/lib/types/user";
 
+if (!window.matchMedia) {
+  window.matchMedia = ((query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: () => {},
+    removeListener: () => {},
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    dispatchEvent: () => false,
+  })) as unknown as typeof window.matchMedia;
+}
+
 vi.mock("@/lib/context/auth-context", () => ({
   useAuth: () => ({ isAdmin: true }),
   checkIsAdmin: (role?: string) => role === "admin" || role === "store_owner",

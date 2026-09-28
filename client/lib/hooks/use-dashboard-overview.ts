@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getDashboardOverviewData } from "@/lib/db/queries/reports";
 import { getOversoldAlerts } from "@/lib/db/queries/inventory";
@@ -11,6 +11,8 @@ import { queryKeys } from "@/lib/query-keys";
 import type { DashboardActivity, ActivityFeedItem } from "@/lib/types/dashboard-activity";
 import { capitalizeWords } from "@/lib/hooks/use-uppercase-display";
 import { getTypeLabel } from "@/components/stock-batch/stock-movement-utils";
+
+const NO_ACTIVITIES: DashboardActivity[] = [];
 
 export type SalesComparison =
   | { state: "none" }
@@ -46,7 +48,7 @@ export function useDashboardOverview() {
   const refundsToday = dashboardData?.refundsToday
     ? [dashboardData.refundsToday]
     : [];
-  const recentActivities = dashboardData?.recentActivities || [];
+  const recentActivities = dashboardData?.recentActivities ?? NO_ACTIVITIES;
   // Both sides of the "vs yesterday" comparison are net of refunds: the
   // numerator (today) always was, and the denominator now is too - comparing
   // net-today against gross-yesterday made any refund look like a sales drop.
@@ -76,7 +78,10 @@ export function useDashboardOverview() {
     oversoldCount: oversoldAlerts?.length || 0,
   };
 
-  const activities = recentActivities.slice(0, 5).map((activity: DashboardActivity) => {
+  // Memoized, like getActivityColor below, because both are handed to the
+  // activity feed's rows. The feed is capped at 5 items so the compute itself is
+  // small; a fresh array/closure per render is what invalidates them.
+  const activities = useMemo(() => recentActivities.slice(0, 5).map((activity: DashboardActivity) => {
     let message = "";
     let amount = "";
 
@@ -143,9 +148,9 @@ export function useDashboardOverview() {
       rawSale: activity.activity_type === "sale" ? activity : undefined,
       rawActivity: activity,
     };
-  });
+  }), [recentActivities, t, storeProfile]);
 
-  const getActivityColor = (type: string) => {
+  const getActivityColor = useCallback((type: string) => {
     switch (type) {
       case "sale":
         return "bg-green-500/10 text-green-600";
@@ -168,7 +173,7 @@ export function useDashboardOverview() {
       default:
         return "bg-gray-500/10 text-gray-600";
     }
-  };
+  }, []);
 
   return {
     t,

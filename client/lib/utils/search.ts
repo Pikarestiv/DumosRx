@@ -76,6 +76,52 @@ function maxFuzzyDistanceFor(termLength: number): number {
   return 3;
 }
 
+interface LowercasedProduct {
+  name: string;
+  generic: string;
+  barcode: string;
+  nameWords: string[];
+  genericWords: string[];
+}
+
+/**
+ * Per-array cache of the lowercased searchable fields.
+ *
+ * Without it every call re-lowercased name + generic_name + barcode for every
+ * product (and the fuzzy tier did it again, plus a split per field), i.e. a few
+ * thousand throwaway strings per keystroke at a realistic catalog size. Keyed on
+ * the array reference, which is exactly the right granularity here: React Query
+ * hands out a new array whenever the catalog changes, so a stale index is not
+ * reachable. WeakMap so an array that goes out of scope takes its index with it.
+ */
+const lowercaseIndexCache = new WeakMap<object, LowercasedProduct[]>();
+
+function lowercaseIndexFor<
+  T extends {
+    name: string;
+    generic_name?: string | null;
+    barcode?: string | null;
+  },
+>(products: T[]): LowercasedProduct[] {
+  const cached = lowercaseIndexCache.get(products);
+  if (cached) return cached;
+
+  const index = products.map((med) => {
+    const name = med.name.toLowerCase();
+    const generic = (med.generic_name || "").toLowerCase();
+    return {
+      name,
+      generic,
+      barcode: (med.barcode || "").toLowerCase(),
+      nameWords: name.split(/\s+/),
+      genericWords: generic ? generic.split(/\s+/) : [],
+    };
+  });
+
+  lowercaseIndexCache.set(products, index);
+  return index;
+}
+
 export function searchProducts<
   T extends {
     name: string;
@@ -92,11 +138,11 @@ export function searchProducts<
   const tokens = term.split(/\s+/).filter(Boolean);
 
   // 1. Initial Strict Search (Tiers 1-3)
+  const index = lowercaseIndexFor(products);
+
   const scoredResults = products
-    .map((med) => {
-      const name = med.name.toLowerCase();
-      const generic = (med.generic_name || "").toLowerCase();
-      const barcode = (med.barcode || "").toLowerCase();
+    .map((med, i) => {
+      const { name, generic, barcode } = index[i];
 
       let score = 0;
 
@@ -155,8 +201,9 @@ export function searchProducts<
   const maxDistance = maxFuzzyDistanceFor(term.length);
 
   const fuzzyResults = products
-    .map((med) => {
-      const name = med.name.toLowerCase();
+    .map((med, i) => {
+      const entry = index[i];
+      const name = entry.name;
 
       // 1. Compare against the full name prefix
       let minDistance = boundedLevenshteinDistance(
@@ -166,7 +213,7 @@ export function searchProducts<
       );
 
       // 2. Compare against individual words in the name
-      for (const word of name.split(/\s+/)) {
+      for (const word of entry.nameWords) {
         minDistance = Math.min(
           minDistance,
           boundedLevenshteinDistance(
@@ -177,8 +224,8 @@ export function searchProducts<
         );
       }
 
-      if (med.generic_name) {
-        const generic = med.generic_name.toLowerCase();
+      if (entry.generic) {
+        const generic = entry.generic;
         minDistance = Math.min(
           minDistance,
           boundedLevenshteinDistance(
@@ -187,7 +234,7 @@ export function searchProducts<
             maxDistance,
           ),
         );
-        for (const word of generic.split(/\s+/)) {
+        for (const word of entry.genericWords) {
           minDistance = Math.min(
             minDistance,
             boundedLevenshteinDistance(
@@ -203,8 +250,8 @@ export function searchProducts<
       // through to fuzzy-matching against product NAMES, with barcode never
       // scored at all — a near-miss scan (one misread digit) should match
       // on the barcode itself instead of surfacing unrelated products.
-      if (med.barcode) {
-        const barcode = med.barcode.toLowerCase();
+      if (entry.barcode) {
+        const barcode = entry.barcode;
         minDistance = Math.min(
           minDistance,
           boundedLevenshteinDistance(

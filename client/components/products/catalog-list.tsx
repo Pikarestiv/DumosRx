@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import { AlertCircle, ChevronRight } from "lucide-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useQuery } from "@tanstack/react-query";
@@ -8,15 +8,13 @@ import { useStore } from "@/lib/context/store-context";
 import { useAuth } from "@/lib/context/auth-context";
 import { SortableHeaderCell } from "@/components/ui/sortable-header-cell";
 import { RequestItemDialog } from "@/components/pos/request-item-dialog";
-import {
-  EditableCategoryCell,
-  EditableQuickNumberCell,
-} from "./catalog-editable-cells";
+import { CatalogRow } from "./catalog-row";
 import { CatalogListSkeleton, EmptyCatalogList } from "./catalog-list-states";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useQuickEditProductMutation } from "@/lib/hooks/use-product-quick-edit-mutation";
 import { useSubmitStockAuditMutation } from "@/lib/hooks/use-stock-audit-mutation";
 import { useHasTouchCapability } from "@/lib/hooks/use-has-touch-capability";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
 import { getCategoryList } from "@/lib/db/queries/categories";
 import { queryKeys } from "@/lib/query-keys";
@@ -72,61 +70,83 @@ export function CatalogList({
   // devices (see useHasTouchCapability's doc comment for the distinction).
   const hasTouchCapability = useHasTouchCapability();
   const capsClass = useUppercaseDisplayClass();
+  // Matches the sm: breakpoint the two row layouts used to be gated on in
+  // CSS. useMediaQuery starts at `false` and corrects itself right after
+  // mount, which is harmless here: the catalog's rows come from the local
+  // database after mount, so there are none to render on that first pass.
+  const isDesktop = useMediaQuery("(min-width: 640px)");
 
   const { data: categoryRows } = useQuery({
     ...queryKeys.categories.list(),
     queryFn: () => getCategoryList(),
   });
-  const categoryOptions = categoryRows?.map((c) => c.name) ?? [];
+  // Memoized: this array is a prop of every visible row's category cell, so a
+  // fresh one per render defeated the row memoization below.
+  const categoryOptions = useMemo(
+    () => categoryRows?.map((c) => c.name) ?? [],
+    [categoryRows],
+  );
 
   const quickEditMutation = useQuickEditProductMutation();
   const stockAuditMutation = useSubmitStockAuditMutation();
 
-  const saveCategory = async (product: Product, category: string) => {
-    try {
-      await quickEditMutation.mutateAsync({ id: product.id, category });
-      onProductUpdated();
-    } catch {
-      toast.error("Failed to update category. Please try again.");
-    }
-  };
+  const saveCategory = useCallback(
+    async (product: Product, category: string) => {
+      try {
+        await quickEditMutation.mutateAsync({ id: product.id, category });
+        onProductUpdated();
+      } catch {
+        toast.error("Failed to update category. Please try again.");
+      }
+    },
+    [quickEditMutation, onProductUpdated],
+  );
 
-  const saveSellingPrice = async (product: Product, sellingPrice: number) => {
-    try {
-      await quickEditMutation.mutateAsync({ id: product.id, sellingPrice });
-      onProductUpdated();
-    } catch {
-      toast.error("Failed to update selling price. Please try again.");
-    }
-  };
+  const saveSellingPrice = useCallback(
+    async (product: Product, sellingPrice: number) => {
+      try {
+        await quickEditMutation.mutateAsync({ id: product.id, sellingPrice });
+        onProductUpdated();
+      } catch {
+        toast.error("Failed to update selling price. Please try again.");
+      }
+    },
+    [quickEditMutation, onProductUpdated],
+  );
 
-  const saveReorderLevel = async (product: Product, reorderLevel: number) => {
-    try {
-      await quickEditMutation.mutateAsync({ id: product.id, reorderLevel });
-      onProductUpdated();
-    } catch {
-      toast.error("Failed to update reorder level. Please try again.");
-    }
-  };
+  const saveReorderLevel = useCallback(
+    async (product: Product, reorderLevel: number) => {
+      try {
+        await quickEditMutation.mutateAsync({ id: product.id, reorderLevel });
+        onProductUpdated();
+      } catch {
+        toast.error("Failed to update reorder level. Please try again.");
+      }
+    },
+    [quickEditMutation, onProductUpdated],
+  );
 
-  const saveStockQuantity = async (product: Product, stockQuantity: number) => {
-    try {
-      await stockAuditMutation.mutateAsync({
-        items: [
-          {
-            productId: product.id,
-            systemQty: product.stockQuantity,
-            countedQty: stockQuantity,
-            reason: "Quick edit from catalog",
-          },
-        ],
-        performedBy: user?.id || null,
-      });
-      onProductUpdated();
-    } catch {
-      toast.error("Failed to update stock. Please try again.");
-    }
-  };
+  const saveStockQuantity = useCallback(
+    async (product: Product, stockQuantity: number) => {
+      try {
+        await stockAuditMutation.mutateAsync({
+          items: [
+            {
+              productId: product.id,
+              systemQty: product.stockQuantity,
+              countedQty: stockQuantity,
+              reason: "Quick edit from catalog",
+            },
+          ],
+          performedBy: user?.id || null,
+        });
+        onProductUpdated();
+      } catch {
+        toast.error("Failed to update stock. Please try again.");
+      }
+    },
+    [stockAuditMutation, user?.id, onProductUpdated],
+  );
 
   const scrollRef = useRef<HTMLDivElement>(null);
   // Row height differs between the stacked mobile layout and the desktop grid
@@ -216,7 +236,6 @@ export function CatalogList({
           >
             {rowVirtualizer.getVirtualItems().map((virtualRow) => {
               const product = filteredProducts[virtualRow.index];
-              const isSelected = selectedProductId === product.id;
               return (
                 <div
                   key={product.id}
@@ -225,131 +244,22 @@ export function CatalogList({
                   className="absolute top-0 left-0 w-full pb-2 sm:pb-0"
                   style={{ transform: `translateY(${virtualRow.start}px)` }}
                 >
-                  <div
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => onSelectProduct(product)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        onSelectProduct(product);
-                      }
-                    }}
-                    className={`group px-4 py-3 sm:py-2 rounded-xl sm:rounded-none border sm:border-t-0 sm:border-r-0 sm:border-b border-border cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset transition-colors ${
-                      isSelected
-                        ? "bg-primary/5 border-l-2 border-l-primary"
-                        : "bg-card sm:bg-transparent hover:bg-muted/50 border-l-2 border-l-transparent"
-                    }`}
-                  >
-                    {/* Mobile View */}
-                    <div className="flex sm:hidden items-center justify-between">
-                      <div className="min-w-0 pr-2 flex-1">
-                        <div className="text-[15px] font-bold text-foreground truncate flex items-center gap-2">
-                          <span className={capsClass}>{product.name}</span>
-                          {isPharmacy && !product.genericName && (
-                            <span
-                              className="text-[10px] font-medium bg-amber-500/10 text-amber-600 px-1.5 py-0.5 rounded border border-amber-500/20"
-                              title="Missing Generic Name"
-                            >
-                              No Generic
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-[13px] text-muted-foreground mt-0.5 truncate flex">
-                          {product.barcode || product.id.slice(0, 8)} ·{" "}
-                          <span className={capsClass}>
-                            {product.category || "Uncategorized"}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3 shrink-0">
-                        <div className="flex flex-col items-end">
-                          <div className="text-[15px] font-bold text-foreground">
-                            {formatCurrency(product.sellingPrice)}
-                          </div>
-                          <div
-                            className={`text-[13px] font-semibold mt-0.5 ${product.stockQuantity <= product.reorderLevel ? "text-orange-600" : "text-emerald-600"}`}
-                          >
-                            {product.stockQuantity} {product.baseUnit || "unit"}
-                            {product.stockQuantity === 1 ? "" : "s"}
-                          </div>
-                        </div>
-                        <ChevronRight className="w-4 h-4 text-muted-foreground/30" />
-                      </div>
-                    </div>
-
-                    {/* Desktop View */}
-                    <div className="hidden sm:grid grid-cols-[1fr_150px_90px_90px_100px_90px] gap-2 items-center">
-                      <div className="min-w-0 pr-2">
-                        <div className="text-[13px] font-semibold truncate flex items-center gap-2">
-                          <span className={capsClass}>{product.name}</span>
-                          {isPharmacy && !product.genericName && (
-                            <span
-                              className="text-[9px] font-medium bg-amber-500/10 text-amber-600 px-1.5 py-0.5 rounded border border-amber-500/20"
-                              title="Missing Generic Name"
-                            >
-                              No Generic
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-[11px] text-muted-foreground truncate">
-                          {product.barcode || product.id.slice(0, 8)}
-                        </div>
-                      </div>
-                      <EditableCategoryCell
-                        product={product}
-                        categoryOptions={categoryOptions}
-                        canEdit={canManageStockBatch}
-                        hasTouchCapability={hasTouchCapability}
-                        onSave={(prod, category) => void saveCategory(prod, category)}
-                      />
-                      <div className="text-[13px] font-medium text-muted-foreground">
-                        {product.costPrice > 0
-                          ? formatCurrency(product.costPrice)
-                          : "-"}
-                        {product.lastBoughtPrice != null && (
-                          <div
-                            className="text-[10px] font-normal text-muted-foreground/60"
-                            title="Cost of the most recently received stock batch"
-                          >
-                            Last: {formatCurrency(product.lastBoughtPrice)}
-                          </div>
-                        )}
-                      </div>
-                      <EditableQuickNumberCell
-                        displayValue={formatCurrency(product.sellingPrice)}
-                        value={product.sellingPrice}
-                        parse={parseFloat}
-                        step="0.01"
-                        widthClassName="w-20"
-                        canEdit={canManageStockBatch}
-                        hasTouchCapability={hasTouchCapability}
-                        ariaLabel={`Edit selling price for ${product.name} (${formatCurrency(product.sellingPrice)})`}
-                        onSave={(val) => void saveSellingPrice(product, val)}
-                      />
-                      <EditableQuickNumberCell
-                        displayValue={`${product.stockQuantity} ${product.baseUnit || "unit"}${product.stockQuantity === 1 ? "" : "s"}`}
-                        displayClassName={`text-[13px] font-semibold ${product.stockQuantity <= product.reorderLevel ? "text-destructive" : "text-primary"}`}
-                        value={product.stockQuantity}
-                        parse={(raw) => parseInt(raw, 10)}
-                        canEdit={canManageStockBatch}
-                        hasTouchCapability={hasTouchCapability}
-                        ariaLabel={`Edit stock quantity for ${product.name} (${product.stockQuantity})`}
-                        commitOnBlur={false}
-                        onSave={(val) => void saveStockQuantity(product, val)}
-                      />
-                      <EditableQuickNumberCell
-                        displayValue={String(product.reorderLevel)}
-                        displayClassName="text-[13px] text-muted-foreground"
-                        value={product.reorderLevel}
-                        parse={(raw) => parseInt(raw, 10)}
-                        canEdit={canManageStockBatch}
-                        hasTouchCapability={hasTouchCapability}
-                        ariaLabel={`Edit reorder level for ${product.name} (${product.reorderLevel})`}
-                        onSave={(val) => void saveReorderLevel(product, val)}
-                      />
-                    </div>
-                  </div>
+                  <CatalogRow
+                    product={product}
+                    isSelected={selectedProductId === product.id}
+                    isDesktop={isDesktop}
+                    isPharmacy={isPharmacy}
+                    capsClass={capsClass}
+                    categoryOptions={categoryOptions}
+                    canEdit={canManageStockBatch}
+                    hasTouchCapability={hasTouchCapability}
+                    formatCurrency={formatCurrency}
+                    onSelect={onSelectProduct}
+                    onSaveCategory={saveCategory}
+                    onSaveSellingPrice={saveSellingPrice}
+                    onSaveStockQuantity={saveStockQuantity}
+                    onSaveReorderLevel={saveReorderLevel}
+                  />
                 </div>
               );
             })}

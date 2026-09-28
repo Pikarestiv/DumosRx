@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useStore } from "@/lib/context/store-context";
@@ -8,6 +8,7 @@ import { genericFuzzySearch } from "@/lib/utils/search";
 import { getLoyaltyTiers } from "@/lib/db/queries/loyalty";
 import { usePullToRefreshHandler } from "@/lib/context/pull-to-refresh-context";
 import { queryKeys } from "@/lib/query-keys";
+import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
 
 interface LoyaltyTier {
   name: string;
@@ -145,20 +146,27 @@ export function useCustomerManagement() {
     queryFn: getLoyaltyTiers,
   });
 
-  const loyaltyTiers: LoyaltyTier[] =
-    dbTiers && dbTiers.length > 0
-      ? dbTiers
-          .map((t) => ({
-            name: t.name,
-            minSpent: t.min_spend,
-            pointsMultiplier: t.points_multiplier,
-            benefits: JSON.parse(t.benefits || "[]") as string[],
-            color: t.color,
-          }))
-          .sort((a, b) => a.minSpent - b.minSpent)
-      : buildFallbackTiers(isStore);
+  // Memoized: this parses a JSON column per tier and sorts the result, and
+  // both the array and the getTierColor closure below it are handed to every
+  // customer row.
+  const loyaltyTiers: LoyaltyTier[] = useMemo(
+    () =>
+      dbTiers && dbTiers.length > 0
+        ? dbTiers
+            .map((t) => ({
+              name: t.name,
+              minSpent: t.min_spend,
+              pointsMultiplier: t.points_multiplier,
+              benefits: JSON.parse(t.benefits || "[]") as string[],
+              color: t.color,
+            }))
+            .sort((a, b) => a.minSpent - b.minSpent)
+        : buildFallbackTiers(isStore),
+    [dbTiers, isStore],
+  );
 
   const [searchTerm, setSearchTerm] = useState("");
+  const debouncedSearchTerm = useDebouncedValue(searchTerm, 200);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
     null,
   );
@@ -251,16 +259,26 @@ export function useCustomerManagement() {
     setPayingCustomer(null);
   };
 
-  const { results: filteredCustomers } = genericFuzzySearch(
-    searchTerm,
-    customers,
-    ["name", "email", "phone"],
+  // Debounced and memoized: unmemoized this re-ran the whole fuzzy search
+  // (including its Levenshtein fallback tier) on every render of
+  // CustomerManagement, not just when the search term actually changed.
+  const filteredCustomers = useMemo(
+    () =>
+      genericFuzzySearch(debouncedSearchTerm, customers, [
+        "name",
+        "email",
+        "phone",
+      ]).results,
+    [debouncedSearchTerm, customers],
   );
 
-  const getTierColor = (tier: string) => {
-    const tierInfo = loyaltyTiers.find((t) => t.name === tier);
-    return tierInfo?.color || "bg-gray-400";
-  };
+  const getTierColor = useCallback(
+    (tier: string) => {
+      const tierInfo = loyaltyTiers.find((t) => t.name === tier);
+      return tierInfo?.color || "bg-gray-400";
+    },
+    [loyaltyTiers],
+  );
 
   return {
     storeProfile,

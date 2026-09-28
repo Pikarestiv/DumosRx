@@ -236,18 +236,99 @@ export async function getCurrentMonthExpensesByCategory({
   return Array.from(totalsByCategory.entries()).map(([category, total]) => ({ category, total }));
 }
 
-/** @param viewerId - when provided, restricts results to expenses recorded by this
- * user (pass undefined for viewers allowed to see everyone's activity, i.e.
- * checkCanViewAllActivity(role) === true). */
-export async function getAllExpenses(viewerId?: string) {
+export interface ExpensesPage {
+  rows: Expense[];
+  /** Every row matching the scope, not just the ones in this page - so a caller
+   * can tell whether there is anything older left to load. */
+  total: number;
+}
+
+export const EXPENSES_PAGE_SIZE = 100;
+
+/**
+ * One page of the expense ledger, newest first. Follows the rows/total shape
+ * getActivityLog() uses.
+ *
+ * Reads a table that grows every day for the life of the store, so the Expenses page walks it a page at a time instead. The figures shown
+ * alongside the list deliberately do NOT come from the loaded page - see
+ * getExpensesLifetimeTotal, getSmoothedExpensesTotal and
+ * getCurrentMonthExpensesByCategory, which all aggregate over everything.
+ */
+export async function getExpensesPage({
+  viewerId,
+  search,
+  category,
+  limit = EXPENSES_PAGE_SIZE,
+  offset = 0,
+}: {
+  viewerId?: string;
+  /** Matched against the description, the same field the Expenses page's search
+   * box has always filtered on - in SQL rather than client-side, so searching
+   * reaches the whole ledger and not just the loaded page. */
+  search?: string;
+  /** Omitted or "All" means every category. */
+  category?: string;
+  limit?: number;
+  offset?: number;
+} = {}): Promise<ExpensesPage> {
   const storeId = getActiveStoreId();
-  const params = [...(viewerId ? [viewerId] : []), ...(storeId ? [storeId] : [])];
-  return query<Expense>(
-    `SELECT e.*, TRIM(u.first_name || ' ' || u.last_name) as recorded_by_name
-     FROM expenses e
-     LEFT JOIN users u ON u.id = e.user_id
-     WHERE e._deleted = 0${viewerId ? " AND e.user_id = ?" : ""}${storeId ? " AND e.store_id = ?" : ""}
-     ORDER BY e.date DESC`,
+  const trimmedSearch = search?.trim();
+  const categoryFilter = category && category !== "All" ? category : undefined;
+
+  const scopeParams: (string | number)[] = [
+    ...(viewerId ? [viewerId] : []),
+    ...(storeId ? [storeId] : []),
+    ...(trimmedSearch ? [`%${trimmedSearch}%`] : []),
+    ...(categoryFilter ? [categoryFilter] : []),
+  ];
+  const scopeClause =
+    `${viewerId ? " AND e.user_id = ?" : ""}` +
+    `${storeId ? " AND e.store_id = ?" : ""}` +
+    // LIKE is case-insensitive for ASCII in SQLite by default, matching the
+    // toLowerCase()-based comparison this replaces.
+    `${trimmedSearch ? " AND e.description LIKE ?" : ""}` +
+    `${categoryFilter ? " AND e.category = ?" : ""}`;
+
+  const [rows, countRows] = await Promise.all([
+    query<Expense>(
+      `SELECT e.*, TRIM(u.first_name || ' ' || u.last_name) as recorded_by_name
+       FROM expenses e
+       LEFT JOIN users u ON u.id = e.user_id
+       WHERE e._deleted = 0${scopeClause}
+       ORDER BY e.date DESC
+       LIMIT ? OFFSET ?`,
+      [...scopeParams, limit, offset],
+    ),
+    query<{ total: number }>(
+      `SELECT COUNT(*) as total FROM expenses e WHERE e._deleted = 0${scopeClause}`,
+      scopeParams,
+    ),
+  ]);
+
+  return { rows, total: countRows[0]?.total || 0 };
+}
+
+/**
+ * The lifetime expense figure, summed in SQL.
+ *
+ * Deliberately NOT smoothed, matching what the Expenses page has always shown:
+ * this is a real ledger figure (how much has actually been recorded as spent,
+ * ever), and smoothing only makes sense when attributing an expense to a
+ * period. In SQL rather than reduced over the loaded list, so paginating the
+ * list can't change the number on screen.
+ */
+export async function getExpensesLifetimeTotal(
+  viewerId?: string,
+): Promise<number> {
+  const storeId = getActiveStoreId();
+  const params = [
+    ...(viewerId ? [viewerId] : []),
+    ...(storeId ? [storeId] : []),
+  ];
+  const rows = await query<{ total: number | null }>(
+    `SELECT SUM(amount) as total FROM expenses
+     WHERE _deleted = 0${viewerId ? " AND user_id = ?" : ""}${storeId ? " AND store_id = ?" : ""}`,
     params,
   );
+  return rows[0]?.total || 0;
 }

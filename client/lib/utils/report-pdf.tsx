@@ -44,8 +44,10 @@ export async function generateReportPdfBlob(
       "PDF worker unavailable, falling back to main-thread render:",
       error,
     );
-    // Loaded on demand: a static import put @react-pdf/renderer in the
-    // Reports route's own bundle even though the worker path never uses it.
+    // Imported here rather than at the top of the file: @react-pdf/renderer
+    // is the heaviest dependency in the app and this fallback almost never
+    // runs (the worker path above handles it), but a static import put the
+    // whole library in every chunk that touches a report.
     const [{ pdf }, { ReportPdfDocument }] = await Promise.all([
       import("@react-pdf/renderer"),
       import("@/components/reports/pdf/report-pdf-document"),
@@ -86,28 +88,4 @@ function generateReportPdfBlobInWorker(
     };
     worker.postMessage(input);
   });
-}
-
-export function downloadBlob(blob: Blob, filename: string): number {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-  return blob.size;
-}
-
-/**
- * Opens the PDF in a new tab so the user can print from the browser's native
- * PDF viewer: same document as the download, so "Print" and "Download PDF"
- * can never produce different-looking output for the same report.
- */
-export function openBlobForPrint(blob: Blob): void {
-  const url = URL.createObjectURL(blob);
-  window.open(url, "_blank");
-  // Revoke well after the new tab has had time to load the blob URL.
-  setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }

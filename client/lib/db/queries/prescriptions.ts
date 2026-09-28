@@ -164,12 +164,39 @@ export async function getHistoryPrescriptions() {
   );
 }
 
-export async function getAllPrescriptionItems() {
+/** SQLite's default SQLITE_MAX_VARIABLE_NUMBER is 999 on older builds, so the
+ * id list is read in chunks rather than as one giant IN (...). */
+const ID_CHUNK_SIZE = 400;
+
+/**
+ * Items for a known set of prescriptions.
+ *
+ * Replaces a whole-table read: prescription_items grows by a row per dispensed
+ * medication line for the life of the store, and the queue only ever needs the
+ * lines belonging to the prescriptions it actually loaded.
+ */
+export async function getPrescriptionItemsFor(
+  prescriptionIds: string[],
+): Promise<PrescriptionItem[]> {
+  if (prescriptionIds.length === 0) return [];
   const storeId = getActiveStoreId();
-  return await query<PrescriptionItem>(
-    `SELECT * FROM prescription_items WHERE _deleted = 0${storeId ? " AND store_id = ?" : ""}`,
-    storeId ? [storeId] : [],
+
+  const chunks: string[][] = [];
+  for (let i = 0; i < prescriptionIds.length; i += ID_CHUNK_SIZE) {
+    chunks.push(prescriptionIds.slice(i, i + ID_CHUNK_SIZE));
+  }
+
+  const results = await Promise.all(
+    chunks.map((chunk) =>
+      query<PrescriptionItem>(
+        `SELECT * FROM prescription_items
+         WHERE _deleted = 0 AND prescription_id IN (${chunk.map(() => "?").join(", ")})${storeId ? " AND store_id = ?" : ""}`,
+        storeId ? [...chunk, storeId] : chunk,
+      ),
+    ),
   );
+
+  return results.flat();
 }
 
 export async function updatePrescriptionStatus(id: string, status: string) {

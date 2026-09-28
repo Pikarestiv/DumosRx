@@ -10,15 +10,18 @@ interface TransactionItemProps {
   sale: SaleWithDetails;
   currencyCode?: string;
   canReturn?: boolean;
-  onClick: () => void;
+  /** Takes the sale rather than a pre-bound closure, so the parent can pass
+   * one stable handler for every row instead of a fresh arrow per row (which
+   * would defeat the memoization below). */
+  onSelect: (sale: SaleWithDetails) => void;
   onReturnClick: (sale: SaleWithDetails) => void;
 }
 
-export function TransactionItem({
+function TransactionItemInner({
   sale,
   currencyCode,
   canReturn,
-  onClick,
+  onSelect,
   onReturnClick,
 }: TransactionItemProps) {
   const time = sale.created_at
@@ -126,11 +129,11 @@ export function TransactionItem({
       role="button"
       tabIndex={0}
       className="bg-card text-card-foreground p-3 rounded-2xl shadow-sm border border-border/50 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring hover:border-primary/30 transition-colors flex flex-col sm:flex-row sm:items-center justify-between group gap-3 sm:gap-0"
-      onClick={onClick}
+      onClick={() => onSelect(sale)}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
-          onClick();
+          onSelect(sale);
         }
       }}
     >
@@ -210,3 +213,7 @@ export function TransactionItem({
     </div>
   );
 }
+
+/** Memoized: this list runs up to 500 rows, and each one does a parseISO +
+ * format and builds up to three badges. */
+export const TransactionItem = React.memo(TransactionItemInner);

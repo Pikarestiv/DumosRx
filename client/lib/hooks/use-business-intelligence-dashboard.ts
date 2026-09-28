@@ -17,6 +17,9 @@ export function useBusinessIntelligenceDashboard() {
       to: format(new Date(), "yyyy-MM-dd"),
     },
   });
+  // Owned here rather than left to Tabs' own defaultValue, so the data layer
+  // can gate the reads that only feed one tab - see useBIData.
+  const [activeTab, setActiveTab] = useState("sales");
   const [exporting, setExporting] = useState(false);
   const { exportReportCsv } = useReportExport();
 
@@ -48,15 +51,21 @@ export function useBusinessIntelligenceDashboard() {
     }
   };
 
-  const biData = useBIData(filters.dateRange, {
-    staffId: filters.staffId,
-    paymentMethod: filters.paymentMethod,
-  });
+  const biData = useBIData(
+    filters.dateRange,
+    {
+      staffId: filters.staffId,
+      paymentMethod: filters.paymentMethod,
+    },
+    activeTab,
+  );
 
   return {
     ...biData,
     filters,
     setFilters,
+    activeTab,
+    setActiveTab,
     exporting,
     handleExportReports,
   };

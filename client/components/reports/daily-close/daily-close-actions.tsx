@@ -10,7 +10,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { printNode } from "@/lib/utils/print-node";
-import { downloadBlob } from "@/lib/utils/report-pdf";
+import { downloadBlob } from "@/lib/utils/download-blob";
+// Type-only: the component itself is loaded lazily in the handler below,
+// since daily-close-pdf.tsx statically imports @react-pdf/renderer.
 import type { DailyClosePdf } from "./daily-close-pdf";
 
 interface DailyCloseActionsProps {

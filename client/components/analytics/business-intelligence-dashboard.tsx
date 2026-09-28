@@ -16,6 +16,8 @@ export function BusinessIntelligenceDashboard() {
   const {
     filters,
     setFilters,
+    activeTab,
+    setActiveTab,
     exporting,
     handleExportReports,
     grossSales,
@@ -61,7 +63,7 @@ export function BusinessIntelligenceDashboard() {
       />
 
       {/* Main Analytics Tabs */}
-      <Tabs defaultValue="sales" className="space-y-5">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-5">
         <AnalyticsTabNav />
 
         <TabsContent value="sales" className="space-y-6 mt-0">

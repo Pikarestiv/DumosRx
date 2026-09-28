@@ -11,7 +11,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { LoadingOverlay } from "@/components/ui/loading-overlay";
-import { downloadBlob, generateReportPdfBlob } from "@/lib/utils/report-pdf";
+import { generateReportPdfBlob } from "@/lib/utils/report-pdf";
+import { downloadBlob } from "@/lib/utils/download-blob";
 import {
   buildExportBlob,
   buildExportRows,

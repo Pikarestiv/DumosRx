@@ -4,13 +4,10 @@ import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { CloudLinkDialog } from "@/components/settings/cloud-link-dialog";
 import { StaffManagement } from "@/components/settings/staff-management";
 import { SettingsMobileMenu } from "@/components/settings/settings-mobile-menu";
-import { PermissionMatrix } from "@/components/settings/roles-permissions/permission-matrix";
 import { SettingsTabNav } from "./settings-tab-nav";
 import { SettingsHeader } from "./settings-header";
 
-import { BillingSettings } from "@/components/settings/billing/billing-settings";
 import { AccountSettings } from "@/components/settings/account/account-settings";
-import { FleetOverview } from "@/components/settings/store/fleet-overview";
 import { MultiStoreCard } from "@/components/settings/store/multi-store-card";
 import { CategoriesCard } from "@/components/settings/store/categories-card";
 import { ProductUnitsCard } from "@/components/settings/store/product-units-card";
@@ -19,7 +16,6 @@ import { SystemSettings } from "@/components/settings/system-settings";
 import { AppearancePanel } from "./panels/appearance-panel";
 import { BusinessInfoPanel } from "./panels/business-info-panel";
 import { AlertsPanel } from "./panels/alerts-panel";
-import { DataPanel } from "./panels/data-panel";
 import { DangerZonePanel } from "./panels/danger-zone-panel";
 import { SecurityPanel } from "./panels/security-panel";
 import { PaymentMethodsPanel } from "./panels/payment-methods-panel";
@@ -28,6 +24,46 @@ import { RegisterConfigsPanel } from "./panels/register-configs-panel";
 
 import { useSettings } from "@/hooks/use-settings";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
+
+// Only one settings tab renders at a time, and these four are the heaviest and
+// least-visited of the eighteen: the billing screen, the full permission
+// matrix, the multi-store fleet overview and the backup/restore panel. Loaded
+// on demand so the other fourteen tabs don't ship them.
+const PanelFallback = () => (
+  <div className="py-10 text-center text-sm text-muted-foreground">
+    Loading...
+  </div>
+);
+
+const BillingSettings = dynamic(
+  () =>
+    import("@/components/settings/billing/billing-settings").then(
+      (m) => m.BillingSettings,
+    ),
+  { loading: PanelFallback },
+);
+
+const PermissionMatrix = dynamic(
+  () =>
+    import("@/components/settings/roles-permissions/permission-matrix").then(
+      (m) => m.PermissionMatrix,
+    ),
+  { loading: PanelFallback },
+);
+
+const FleetOverview = dynamic(
+  () =>
+    import("@/components/settings/store/fleet-overview").then(
+      (m) => m.FleetOverview,
+    ),
+  { loading: PanelFallback },
+);
+
+const DataPanel = dynamic(
+  () => import("./panels/data-panel").then((m) => m.DataPanel),
+  { loading: PanelFallback },
+);
 
 const TAB_LABELS: Record<string, string> = {
   appearance: "General",

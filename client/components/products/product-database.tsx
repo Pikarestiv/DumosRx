@@ -22,9 +22,11 @@ import { FilterPill, formatFilterLabel } from "@/components/ui/filter-pill";
 import { ResponsiveDetailPanel } from "@/components/ui/responsive-detail-panel";
 import { queryKeys } from "@/lib/query-keys";
 import { useSortableData } from "@/lib/hooks/use-sortable-data";
+import { useMediaQuery } from "@/hooks/use-media-query";
 
 export function ProductDatabase() {
   const { storeType, storeProfile } = useStore();
+  const isDesktop = useMediaQuery("(min-width: 1024px)");
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -203,7 +205,13 @@ export function ProductDatabase() {
   return (
     <div className="flex flex-col flex-1 min-h-0 h-full gap-4">
       <div className="flex flex-col min-h-0 gap-3 lg:gap-0 h-full flex-1">
-        {/* Mobile: search bar + filter pills stand alone above the card, contrasting with the page background */}
+        {/* Mobile: search bar + filter pills stand alone above the card,
+            contrasting with the page background. Conditionally rendered, not
+            just CSS-hidden: this and ProductDatabaseFilters below are bound to
+            the same searchTerm state, so leaving both mounted re-rendered two
+            full filter bars on every keystroke. The lg:hidden class stays as
+            the first-frame guard, since useMediaQuery starts at false. */}
+        {!isDesktop && (
         <div className="lg:hidden space-y-3">
           <SearchInput
             value={searchTerm}
@@ -235,6 +243,7 @@ export function ProductDatabase() {
             />
           </div>
         </div>
+        )}
 
         {/* flex-1 already fills exactly the space left after the tabs/header
             above (verified live) — min-h-[360px] is the only bound that
@@ -246,6 +255,7 @@ export function ProductDatabase() {
             binding on every normal screen and undoing the fill instead of
             only guarding the extreme case. */}
         <div className="border-0 sm:border sm:border-border bg-transparent sm:bg-card rounded-none sm:rounded-2xl flex flex-col flex-1 min-h-[360px] lg:max-h-[900px]">
+          {isDesktop && (
           <ProductDatabaseFilters
             searchTerm={searchTerm}
             setSearchTerm={setSearchTerm}
@@ -259,6 +269,7 @@ export function ProductDatabase() {
             onProductsChanged={() => void refetch()}
             filteredProductIds={isFiltering ? filteredProducts.map((p) => p.id) : undefined}
           />
+          )}
           <CatalogList
             isLoading={productsLoading}
             loadFailed={productsLoadFailed}

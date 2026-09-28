@@ -23,7 +23,7 @@ interface POSCartPanelsProps {
   currencyCode?: string;
   updateQuantity: (id: string, quantity: number) => void;
   removeFromCart: (id: string) => void;
-  clearCart: () => void;
+  onRequestClearCart: () => void;
   onCheckout: () => void;
   onHoldSale?: () => void;
   heldSalesCount?: number;
@@ -60,7 +60,7 @@ export function POSCartPanels(props: POSCartPanelsProps) {
     currencyCode,
     updateQuantity,
     removeFromCart,
-    clearCart,
+    onRequestClearCart,
     onCheckout,
     onHoldSale,
     heldSalesCount,
@@ -96,7 +96,7 @@ export function POSCartPanels(props: POSCartPanelsProps) {
     currencyCode,
     updateQuantity,
     removeFromCart,
-    clearCart,
+    onRequestClearCart,
     onCheckout,
     onHoldSale,
     heldSalesCount,

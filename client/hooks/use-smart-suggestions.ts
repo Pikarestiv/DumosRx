@@ -61,6 +61,12 @@ export function useSmartSuggestions(cart: CartItem[], products: Product[]) {
       }
     }
 
+    // Materialized once: these used to be re-created by Array.from() inside
+    // the filter predicates, i.e. once per product, on every cart mutation.
+    const targetCategoryList = Array.from(targetCategories);
+    const targetNameList = Array.from(targetNames);
+    const cartCategoryList = Array.from(cartCategories);
+
     const cartIds = new Set(cart.map(item => item.id));
     const inStockAndNotInCart = (product: Product) =>
       !cartIds.has(product.id) && product.stock > 0;
@@ -72,10 +78,10 @@ export function useSmartSuggestions(cart: CartItem[], products: Product[]) {
       const medNameLower = product.name.toLowerCase();
       const medCatLower = product.category_name ? product.category_name.toLowerCase() : "";
 
-      if (medCatLower && Array.from(targetCategories).some(cat => categoriesMatch(medCatLower, cat))) {
+      if (medCatLower && targetCategoryList.some(cat => categoriesMatch(medCatLower, cat))) {
         return true;
       }
-      return Array.from(targetNames).some(target => medNameLower.includes(target));
+      return targetNameList.some(target => medNameLower.includes(target));
     });
 
     if (ruleMatches.length > 0) return ruleMatches.slice(0, 4);
@@ -87,7 +93,7 @@ export function useSmartSuggestions(cart: CartItem[], products: Product[]) {
       const fallbackMatches = products.filter((product) => {
         if (!inStockAndNotInCart(product)) return false;
         const medCatLower = product.category_name ? product.category_name.toLowerCase() : "";
-        return medCatLower && Array.from(cartCategories).some(cat => categoriesMatch(medCatLower, cat));
+        return medCatLower && cartCategoryList.some(cat => categoriesMatch(medCatLower, cat));
       });
       return fallbackMatches.slice(0, 4);
     }

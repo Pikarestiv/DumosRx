@@ -128,6 +128,7 @@ export function RecordPaymentModal({
             <Input
               id="amount"
               type="number"
+              inputMode="decimal"
               min={0}
               max={customer.outstanding_balance}
               step="0.01"

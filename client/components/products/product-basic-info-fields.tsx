@@ -130,6 +130,7 @@ export function ProductBasicInfoFields({
           <Input
             id="sellingPrice"
             type="number"
+            inputMode="decimal"
             min="0"
             step="0.01"
             value={formData.sellingPrice || ""}
@@ -166,6 +167,7 @@ export function ProductBasicInfoFields({
           <Input
             id="reorderLevel"
             type="number"
+            inputMode="decimal"
             min="0"
             value={formData.reorderLevel || ""}
             onChange={(e) =>

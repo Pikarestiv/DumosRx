@@ -71,6 +71,7 @@ export function ProductPackagingFields({ formData, onInputChange }: Props) {
             <Input
               id="unitsPerBulk"
               type="number"
+              inputMode="numeric"
               min="1"
               value={formData.unitsPerBulk}
               onChange={(e) => onInputChange("unitsPerBulk", parseInt(e.target.value) || 1)}

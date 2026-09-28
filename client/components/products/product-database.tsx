@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { ProductDatabaseFilters } from "./product-database-filters";
 import { AddProductDialog } from "./add-product-dialog";
@@ -54,12 +54,23 @@ export function ProductDatabase() {
 
   const isStore = storeType === "pharmacy";
 
-  const { data: rawProducts, isLoading: productsLoading, refetch } = useQuery({
+  const {
+    data: rawProducts,
+    isLoading: productsLoading,
+    isError: productsLoadFailed,
+    refetch,
+  } = useQuery({
     ...queryKeys.products.withDetails(),
     queryFn: () => getProductsWithDetails(),
   });
 
-  const products = rawProducts ? rawProducts.map(transformProduct) : [];
+  // Transform -> pre-filter -> fuzzy search all used to re-run on every
+  // render, i.e. on every keystroke in the product search, over the whole
+  // catalog. Each stage is now keyed on its real inputs.
+  const products = useMemo(
+    () => (rawProducts ? rawProducts.map(transformProduct) : []),
+    [rawProducts],
+  );
 
   // Deep-link from Dashboard's "Product added" activity rows
   // (dashboard-overview.tsx): opens that product's detail panel once its
@@ -126,42 +137,51 @@ export function ProductDatabase() {
     setShowAddDialog(true);
   };
 
-  const preFilteredProducts = products.filter((product) => {
-    const matchesCategory =
-      categoryFilter === "all" || product.category === categoryFilter;
+  const preFilteredProducts = useMemo(() => {
+    const now = new Date();
+    return products.filter((product) => {
+      const matchesCategory =
+        categoryFilter === "all" || product.category === categoryFilter;
 
-    let matchesStatus =
-      statusFilter === "all" || product.status === statusFilter;
+      let matchesStatus =
+        statusFilter === "all" || product.status === statusFilter;
 
-    // Explicit overrides for inclusive filtering
-    if (
-      statusFilter === "low_stock" &&
-      product.stockQuantity <= product.reorderLevel
-    ) {
-      matchesStatus = true;
-    }
-    if (
-      statusFilter === "expired" &&
-      product.expiryDate &&
-      new Date(product.expiryDate) < new Date()
-    ) {
-      matchesStatus = true;
-    }
-    if (
-      statusFilter === "expiring_soon" &&
-      product.expiryDate &&
-      getExpiryStatus(product.expiryDate) === "expiring_soon"
-    ) {
-      matchesStatus = true;
-    }
+      // Explicit overrides for inclusive filtering
+      if (
+        statusFilter === "low_stock" &&
+        product.stockQuantity <= product.reorderLevel
+      ) {
+        matchesStatus = true;
+      }
+      if (
+        statusFilter === "expired" &&
+        product.expiryDate &&
+        new Date(product.expiryDate) < now
+      ) {
+        matchesStatus = true;
+      }
+      if (
+        statusFilter === "expiring_soon" &&
+        product.expiryDate &&
+        getExpiryStatus(product.expiryDate) === "expiring_soon"
+      ) {
+        matchesStatus = true;
+      }
 
-    return matchesCategory && matchesStatus;
-  });
+      return matchesCategory && matchesStatus;
+    });
+  }, [products, categoryFilter, statusFilter]);
 
-  const { results: searchedProducts, isFuzzyFallback } = genericFuzzySearch(
-    searchTerm,
-    preFilteredProducts,
-    ["name", "genericName", "nafdacNumber", "barcode", "id"],
+  const { results: searchedProducts, isFuzzyFallback } = useMemo(
+    () =>
+      genericFuzzySearch(searchTerm, preFilteredProducts, [
+        "name",
+        "genericName",
+        "nafdacNumber",
+        "barcode",
+        "id",
+      ]),
+    [searchTerm, preFilteredProducts],
   );
 
   const { sortKey, direction, toggleSort, sortedData: filteredProducts } =
@@ -241,6 +261,8 @@ export function ProductDatabase() {
           />
           <CatalogList
             isLoading={productsLoading}
+            loadFailed={productsLoadFailed}
+            onRetryLoad={() => void refetch()}
             filteredProducts={filteredProducts}
             totalCount={products.length}
             isFuzzyFallback={isFuzzyFallback}

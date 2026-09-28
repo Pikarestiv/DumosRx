@@ -8,6 +8,7 @@ import { setActiveStoreId as setResolvedStoreId } from "@/lib/db/core";
 import { useQuery } from "@tanstack/react-query";
 import { queryClient } from "@/lib/query-client";
 import { clearPOSCartStorage } from "@/lib/hooks/use-pos-cart";
+import { clearStockAuditDraft } from "@/lib/hooks/use-stock-audit-draft";
 import { getStoreById, getFirstStore, getAllStores } from "@/lib/db/queries/setup";
 import { useAuth } from "@/lib/context/auth-context";
 import { queryKeys } from "@/lib/query-keys";
@@ -363,6 +364,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         // store, and checking it out against the new store would sell
         // product ids/prices that belong to a different store entirely.
         clearPOSCartStorage();
+        clearStockAuditDraft();
       } finally {
         setIsSwitchingStore(false);
       }

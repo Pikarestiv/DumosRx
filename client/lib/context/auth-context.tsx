@@ -26,6 +26,7 @@ import { AUDIT_ACTIONS } from "@/lib/db/audit-actions";
 import { sync, isSyncing } from "@/lib/db/sync-engine";
 import { queryClient } from "@/lib/query-client";
 import { clearPOSCartStorage } from "@/lib/hooks/use-pos-cart";
+import { clearStockAuditDraft } from "@/lib/hooks/use-stock-audit-draft";
 import { isTauri } from "@/lib/db";
 import { setActiveStoreId as setResolvedStoreId } from "@/lib/db/core";
 import { getToken } from "@/lib/api/token-manager";
@@ -439,6 +440,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // whoever was previously logged in.
       if (previousUserId && previousUserId !== dbUser.id) {
         clearPOSCartStorage();
+        clearStockAuditDraft();
       }
 
       setUser(userProfile);
@@ -647,6 +649,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // use-pos-cart.ts's zustand store) survives logout and is inherited by
     // whichever cashier signs in next.
     clearPOSCartStorage();
+    clearStockAuditDraft();
     // See the matching comment in login(): an impersonated session that
     // ends via the ordinary "Sign Out" button instead of the banner's "End
     // Session" button would otherwise leave these flags behind forever.

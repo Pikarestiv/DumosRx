@@ -221,7 +221,12 @@ export async function createPrescription(
 /**
  * Staff & Users
  */
-const STAFF_LIST_COLUMNS = "id, first_name, last_name, username, email, role, store_id, is_active, created_at, permission_group_id";
+// `has_pin` is derived, never the hash itself: the staff list needs to know
+// whether a PIN exists (a newly created account may have none) and nothing
+// more. See lib/types/user.ts's StaffListItem.
+const STAFF_LIST_COLUMNS =
+  "id, first_name, last_name, username, email, role, store_id, is_active, created_at, permission_group_id, " +
+  "CASE WHEN pin IS NOT NULL AND pin != '' THEN 1 ELSE 0 END AS has_pin";
 
 export async function getUsers(storeId?: string | null) {
   // Only fall back to the module-scope resolver when the caller omits the

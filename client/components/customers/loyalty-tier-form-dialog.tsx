@@ -94,6 +94,7 @@ export function LoyaltyTierFormDialog({ open, onOpenChange, tier, userId, nextSo
               <Label>Minimum Spend</Label>
               <Input
                 type="number"
+                inputMode="decimal"
                 min={0}
                 value={form.min_spend}
                 onChange={(e) => setForm({ ...form, min_spend: e.target.value })}
@@ -103,6 +104,7 @@ export function LoyaltyTierFormDialog({ open, onOpenChange, tier, userId, nextSo
               <Label>Points Multiplier</Label>
               <Input
                 type="number"
+                inputMode="decimal"
                 min={0}
                 step="0.1"
                 value={form.points_multiplier}

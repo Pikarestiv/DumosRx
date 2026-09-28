@@ -26,6 +26,7 @@ describe("getUsers store scoping", () => {
         last_name TEXT,
         username TEXT,
         email TEXT,
+        pin TEXT,
         role TEXT,
         store_id TEXT,
         is_active INTEGER DEFAULT 1,

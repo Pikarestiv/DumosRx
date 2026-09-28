@@ -25,6 +25,7 @@ import {
 } from "./activity-log-rows";
 import type { AuditLogRow } from "@/lib/types/audit-log";
 import type { ActivityLogSortKey } from "@/lib/db/queries/activity-log";
+import { useMediaQuery } from "@/hooks/use-media-query";
 
 // When searching, fetch a large unpaginated batch matching the other filters
 // so fuzzy search has the full set to search across, not just the current
@@ -35,6 +36,7 @@ const SEARCH_FETCH_CAP = 2000;
 export function ActivityLogPage() {
   const { user } = useAuth();
   const canViewAll = useHasPermission("view_activity_log");
+  const isDesktop = useMediaQuery("(min-width: 640px)");
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
@@ -169,29 +171,33 @@ export function ActivityLogPage() {
         {/* Desktop: div-based table (ARIA roles stand in for real <table>
             semantics), horizontally scrollable if content ever demands more
             than the column widths naturally settle at. */}
-        <ActivityLogDesktopTable
-          rows={rows}
-          isLoading={isLoading}
-          sortKey={sortKey}
-          sortDirection={sortDirection}
-          onToggleSort={toggleSort}
-          onSelect={(row, related) => {
-            setSelectedEntry(row);
-            setRelatedEntries(related.filter((r) => r.id !== row.id));
-          }}
-        />
+        {isDesktop && (
+          <ActivityLogDesktopTable
+            rows={rows}
+            isLoading={isLoading}
+            sortKey={sortKey}
+            sortDirection={sortDirection}
+            onToggleSort={toggleSort}
+            onSelect={(row, related) => {
+              setSelectedEntry(row);
+              setRelatedEntries(related.filter((r) => r.id !== row.id));
+            }}
+          />
+        )}
 
         {/* Mobile: rows become stacked, tappable cards instead of a
             cramped table, matching the pattern used by the product
             catalog list. */}
-        <ActivityLogMobileList
-          rows={rows}
-          isLoading={isLoading}
-          onSelect={(row, related) => {
-            setSelectedEntry(row);
-            setRelatedEntries(related.filter((r) => r.id !== row.id));
-          }}
-        />
+        {!isDesktop && (
+          <ActivityLogMobileList
+            rows={rows}
+            isLoading={isLoading}
+            onSelect={(row, related) => {
+              setSelectedEntry(row);
+              setRelatedEntries(related.filter((r) => r.id !== row.id));
+            }}
+          />
+        )}
 
         <TablePagination
           page={page}

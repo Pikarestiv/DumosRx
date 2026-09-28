@@ -22,6 +22,8 @@ export function EditableNumberCell({
   onBlur,
   onCancel,
   ariaLabel,
+  onSubmit,
+  inputMode,
 }: {
   value: number;
   onCommit: (val: number) => void;
@@ -31,6 +33,12 @@ export function EditableNumberCell({
   hasError?: boolean;
   widthClassName?: string;
   autoFocus?: boolean;
+  /** Fired on Enter INSTEAD of blurring, when provided: lets a caller treat
+   * Enter as the only explicit commit without blur also counting as one. */
+  onSubmit?: () => void;
+  /** Which on-screen keyboard mobile/Android WebView should offer. Defaults
+   * to "decimal" for a stepped (fractional) field, "numeric" otherwise. */
+  inputMode?: "numeric" | "decimal";
   /** Fired after the built-in revert-if-invalid blur logic, and also on
    * Enter (which just blurs the input) — lets a caller treat blur as
    * "finalize this edit" without duplicating the invalid-value handling. */
@@ -64,6 +72,7 @@ export function EditableNumberCell({
   return (
     <input
       type="number"
+      inputMode={inputMode ?? (step ? "decimal" : "numeric")}
       min={min}
       step={step}
       autoFocus={autoFocus}
@@ -87,7 +96,12 @@ export function EditableNumberCell({
         onBlur?.();
       }}
       onKeyDown={(e) => {
-        if (e.key === "Enter") e.currentTarget.blur();
+        if (e.key === "Enter") {
+          if (onSubmit) {
+            e.preventDefault();
+            onSubmit();
+          } else e.currentTarget.blur();
+        }
         else if (e.key === "Escape") {
           // Chrome's native <input type="number"> has its own Escape
           // behavior (revert + blur) that fires as the key's default action.

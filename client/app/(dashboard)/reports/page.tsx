@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { CalendarIcon } from "lucide-react";
 import { ReportCenter } from "@/components/reports/report-center";
-import { BusinessIntelligenceDashboard } from "@/components/analytics";
+import dynamic from "next/dynamic";
 import { useStore } from "@/lib/context/store-context";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { useAuth } from "@/lib/context/auth-context";
@@ -14,6 +14,15 @@ import { getLocalTodayDate } from "@/lib/utils";
 import { DailyCloseReport } from "@/components/reports/daily-close-report";
 import { ReportsTabNav } from "./reports-tab-nav";
 import { LockedModuleOverlay } from "@/components/dashboard/locked-module-overlay";
+
+// All of recharts rides along with this dashboard, and only one Radix tab's
+// content renders at a time — so the Analytics tab pays for it when it's
+// actually opened, not on every visit to Reports.
+const BusinessIntelligenceDashboard = dynamic(
+  () =>
+    import("@/components/analytics").then((m) => m.BusinessIntelligenceDashboard),
+  { ssr: false },
+);
 
 export default function ReportsPage() {
   const { t: _t, storeType: _storeType } = useStore();

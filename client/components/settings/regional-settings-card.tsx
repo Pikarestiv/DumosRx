@@ -162,6 +162,7 @@ export function RegionalSettingsCard({
             <Input
               id="vat"
               type="number"
+              inputMode="decimal"
               step="0.1"
               value={localVat}
               onChange={(e) => setLocalVat(e.target.value)}
@@ -195,6 +196,7 @@ export function RegionalSettingsCard({
             <Input
               id="reseller-commission"
               type="number"
+              inputMode="decimal"
               step="0.1"
               min="0"
               max="100"

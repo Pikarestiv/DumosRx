@@ -21,7 +21,7 @@ interface POSMobileCartWrapperProps {
   currencyCode?: string;
   updateQuantity: (id: string, qty: number) => void;
   removeFromCart: (id: string) => void;
-  clearCart: () => void;
+  onRequestClearCart: () => void;
   onCheckout: () => void;
   onHoldSale?: () => void;
   heldSalesCount?: number;
@@ -53,7 +53,7 @@ export function POSMobileCartWrapper({
   currencyCode,
   updateQuantity,
   removeFromCart,
-  clearCart,
+  onRequestClearCart,
   onCheckout,
   onHoldSale,
   heldSalesCount,
@@ -89,7 +89,7 @@ export function POSMobileCartWrapper({
           currencyCode={currencyCode}
           updateQuantity={updateQuantity}
           removeFromCart={removeFromCart}
-          clearCart={clearCart}
+          onRequestClearCart={onRequestClearCart}
           onCheckout={onCheckout}
           onHoldSale={onHoldSale}
           heldSalesCount={heldSalesCount}

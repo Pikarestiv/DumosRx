@@ -14,6 +14,7 @@ import { usePullToRefreshHandler } from "@/lib/context/pull-to-refresh-context";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { EmptyState as SharedEmptyState } from "@/components/ui/empty-state";
 import { useAuth } from "@/lib/context/auth-context";
+import { useMediaQuery } from "@/hooks/use-media-query";
 
 const MAX_ITEMS_SHOWN = 2;
 const DESKTOP_ROW_HEIGHT = 44;
@@ -88,6 +89,7 @@ export function ActivityTab({
   filterCustomerName,
   onClearFilter,
 }: ActivityTabProps) {
+  const isDesktop = useMediaQuery("(min-width: 768px)");
   const {
     transactions,
     loading,
@@ -119,10 +121,13 @@ export function ActivityTab({
     return transactions.filter((t) => t.customerId === filterCustomerId);
   }, [transactions, filterCustomerId]);
 
-  const { results: filtered } = genericFuzzySearch(
-    searchTerm,
-    scopedTransactions,
-    ["customerName", "transactionNumber"],
+  const { results: filtered } = useMemo(
+    () =>
+      genericFuzzySearch(searchTerm, scopedTransactions, [
+        "customerName",
+        "transactionNumber",
+      ]),
+    [searchTerm, scopedTransactions],
   );
 
   const desktopScrollRef = useRef<HTMLDivElement>(null);
@@ -191,8 +196,10 @@ export function ActivityTab({
 
   return (
     <div className="flex flex-col md:flex-1 md:min-h-0 gap-4">
-      {/* Mobile: flat, no wrapping card */}
-      <div className="flex md:hidden flex-col gap-3">
+      {/* Mobile: flat, no wrapping card. Conditionally rendered, not
+          CSS-hidden: the desktop branch is virtualized and this one isn't. */}
+      {!isDesktop && (
+      <div className="flex flex-col gap-3">
         {SearchInput}
         {FilterChip}
         {RecentWindowNote}
@@ -238,9 +245,11 @@ export function ActivityTab({
           </div>
         )}
       </div>
+      )}
 
       {/* Desktop: div-based table (ARIA roles stand in for real <table> semantics, div-based so it can be virtualized) */}
-      <Card className="hidden md:flex flex-col gap-0 py-0 border rounded-[14px] shadow-sm flex-1 min-h-0 overflow-hidden">
+      {isDesktop && (
+      <Card className="flex flex-col gap-0 py-0 border rounded-[14px] shadow-sm flex-1 min-h-0 overflow-hidden">
         <div className="p-4 border-b space-y-3">
           {SearchInput}
           {FilterChip}
@@ -335,6 +344,7 @@ export function ActivityTab({
           </div>
         )}
       </Card>
+      )}
     </div>
   );
 }

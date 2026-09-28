@@ -377,7 +377,9 @@ export function usePOSPayment({
         onInsufficientLoyaltyPoints?.();
         toast.error(`${error.message}. The reward has been removed - please try the sale again.`);
       } else {
-        toast.error("An error occurred while processing payment");
+        toast.error(
+          "Payment failed — nothing was saved and your cart is intact. Please try again.",
+        );
       }
     } finally {
       processingPaymentRef.current = false;

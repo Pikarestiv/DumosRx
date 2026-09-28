@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { memo, useState, useEffect } from "react";
 import {
   ShoppingCart,
   Trash2,
@@ -37,7 +37,7 @@ interface POSCartProps {
   currencyCode?: string;
   updateQuantity: (id: string, quantity: number) => void;
   removeFromCart: (id: string) => void;
-  clearCart: () => void;
+  onRequestClearCart: () => void;
   onCheckout: () => void;
   onHoldSale?: () => void;
   heldSalesCount?: number;
@@ -51,7 +51,7 @@ interface POSCartProps {
   updateUnitPrice?: (id: string, price: number) => void;
 }
 
-export function POSCart({
+export const POSCart = memo(function POSCart({
   cart,
   subtotal,
   tax,
@@ -69,7 +69,7 @@ export function POSCart({
   currencyCode,
   updateQuantity,
   removeFromCart,
-  clearCart,
+  onRequestClearCart,
   onCheckout,
   onHoldSale,
   heldSalesCount = 0,
@@ -221,6 +221,7 @@ export function POSCart({
               <div className="flex gap-1 items-center flex-1 max-w-[160px] justify-end">
                 <input
                   type="number"
+                  inputMode="decimal"
                   min={0}
                   max={discountType === "percentage" ? 100 : undefined}
                   className="flex h-7 w-16 rounded-md border border-input bg-background px-2 py-1 text-xs text-right focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
@@ -251,6 +252,8 @@ export function POSCart({
                   <option value="percentage">%</option>
                 </select>
                 <button
+                  type="button"
+                  aria-label="Remove discount"
                   className="w-7 h-7 flex items-center justify-center text-muted-foreground hover:text-destructive transition-colors"
                   onClick={() => {
                     setShowDiscount(false);
@@ -320,7 +323,7 @@ export function POSCart({
 
           {cart.length > 0 && !isPrescriptionLocked && (
             <button
-              onClick={clearCart}
+              onClick={onRequestClearCart}
               className="w-full flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg border border-destructive/20 bg-destructive/5 text-[11.5px] font-semibold text-destructive cursor-pointer hover:bg-destructive/10 transition-colors"
             >
               <Trash2 className="w-3.5 h-3.5" />
@@ -373,7 +376,7 @@ export function POSCart({
       </div>
     </div>
   );
-}
+});
 
 function EmptyCart() {
   return (

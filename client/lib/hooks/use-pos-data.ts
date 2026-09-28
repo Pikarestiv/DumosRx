@@ -17,6 +17,8 @@ export function usePOSData() {
   const {
     data: products,
     isLoading: loadingProducts,
+    isError: productsLoadFailed,
+    error: productsError,
     refetch: refetchProducts,
   } = useQuery({
     ...queryKeys.pos.products(),
@@ -41,7 +43,11 @@ export function usePOSData() {
   const recentlySoldIds = recentlySoldIdsData || [];
   const commonlySoldIds = commonlySoldIdsData || [];
 
-  const { data: customers, isLoading: loadingCustomers } = useQuery({
+  const {
+    data: customers,
+    isLoading: loadingCustomers,
+    isError: customersLoadFailed,
+  } = useQuery({
     ...queryKeys.customers.posList(),
     queryFn: () => getAllCustomers()
   });
@@ -54,6 +60,8 @@ export function usePOSData() {
   return {
     products: products || [],
     loadingProducts,
+    productsLoadFailed,
+    productsError,
     refetchProducts,
     recentSales: recentSales || [],
     refetchSales,
@@ -61,6 +69,7 @@ export function usePOSData() {
     commonlySoldIds,
     customers: customers || [],
     loadingCustomers,
+    customersLoadFailed,
     paymentAccounts: paymentAccounts || [],
   };
 }

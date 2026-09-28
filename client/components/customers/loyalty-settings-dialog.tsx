@@ -224,6 +224,7 @@ export function LoyaltySettingsDialog({ open, onOpenChange }: Props) {
               <Input
                 id="loyalty-earn-rate"
                 type="number"
+                inputMode="decimal"
                 min="0"
                 step="0.1"
                 className="w-20"

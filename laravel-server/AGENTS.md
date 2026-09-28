@@ -133,6 +133,15 @@ migration here **and** the corresponding update on the `client/` side
   tenant scope is resolved once per request by `resolvePullTenantScope()`.
   Read `docs/SYNC_PULL_PAGINATION.md` before changing any of it;
   `tests/Feature/SyncPullPaginationTest.php` is what guards it.
+- **Plan-tier sync interval is per RUN, not per request:** `validateSync()`
+  throttles on `stores.last_sync_at` against the tier's `sync_interval`, but
+  one client `sync()` call is many requests (50-change push batches, paged
+  pulls). The client sends one `X-Sync-Run-Id` per `sync()` call; the run's
+  first request is checked and the rest are exempt, recorded on
+  `stores.last_sync_run_id`/`last_sync_run_started_at` and honoured for at
+  most `SYNC_RUN_MAX_MINUTES`. `?manual=1` (a real "Sync Now" click only —
+  the background daemon does **not** send it) still bypasses the interval.
+  `tests/Feature/SyncRunThrottleTest.php` guards all of this.
 - **Table-name mismatches:** the client's sync table name doesn't always
   match the real MySQL table — check `getModelForTable()` in
   `SyncController.php` first. E.g. client `audit_logs` → server model

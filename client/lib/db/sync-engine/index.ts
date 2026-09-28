@@ -19,6 +19,17 @@ export function isSyncing(): boolean {
   return isSyncInProgress;
 }
 
+/** Opaque per-sync-run token (see its use in sync()). crypto.randomUUID is
+ * unavailable on an insecure origin and in some older webviews, so it falls
+ * back to a timestamp+random string; the server only ever compares it for
+ * equality within one short run window, so uniqueness per device is enough. */
+function newSyncRunId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+}
+
 /**
  * Escape hatch for a device whose pull cursor has drifted ahead of rows it
  * never actually received (e.g. a mid-round crash left `_sync_state`
@@ -139,8 +150,14 @@ export async function sync(
 
   try {
     isSyncInProgress = true;
-    const pushResult = await pushChanges(isManual, isSetup);
-    const pullResult = await pullChanges(isManual, isSetup, onCriticalTablesReady);
+    // One token for this whole run — every push batch and every pull page
+    // below carries it. The server measures the plan tier's sync-interval
+    // throttle per run rather than per request, so a backlog that needs
+    // many batches isn't rejected by the last_sync_at its own first batch
+    // just stamped (see SyncController::validateSync).
+    const runId = newSyncRunId();
+    const pushResult = await pushChanges(isManual, isSetup, runId);
+    const pullResult = await pullChanges(isManual, isSetup, onCriticalTablesReady, runId);
 
     if (pushResult.pushed > 0 || pullResult.pulled > 0) {
       devLog(

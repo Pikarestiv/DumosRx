@@ -77,6 +77,7 @@ describe("pullChanges always full-fetches categories and suppliers", () => {
       },
       false,
       false,
+      undefined,
     );
   });
 

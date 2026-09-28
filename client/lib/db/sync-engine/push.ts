@@ -9,6 +9,7 @@ import { PushResponse } from "./types";
 import type { SyncChange, SyncQueueItem } from "@/lib/types/sync";
 import { remapForeignKey, DUPLICATE_NAME_TABLES } from "../reconcile-identity";
 import { execute, query, transaction } from "../core";
+import { isExpectedSyncRestriction } from "@/lib/utils/error-logger";
 import { toast } from "sonner";
 
 // Reasons the server can report in `response.failed` that mean "this exact
@@ -235,7 +236,12 @@ async function withheldRecordsWithBackedOffSiblingsRemoved(
  */
 export async function pushChanges(
   isManual: boolean = false,
-  isSetup: boolean = false
+  isSetup: boolean = false,
+  // Identifies every batch below as part of ONE sync run, so the server's
+  // plan-tier sync-interval throttle measures the interval per run instead
+  // of per request (see SyncController::validateSync). Without it, batch 2
+  // of a backlog is rejected by the last_sync_at that batch 1 just stamped.
+  runId?: string,
 ): Promise<{ pushed: number; failedBatches: number }> {
   let pending = await getPendingSyncItems(isManual);
 
@@ -496,7 +502,8 @@ export async function pushChanges(
           changes,
         },
         isManual,
-        isSetup
+        isSetup,
+        runId,
       )) as PushResponse;
 
       // The server isolates each change to its own savepoint (see
@@ -747,6 +754,19 @@ export async function pushChanges(
         });
       }
     } catch (error) {
+      // A plan restriction (SYNC_THROTTLED, SYNC_DISABLED, STORE_LIMIT_
+      // EXCEEDED) isn't this batch's fault and isn't fixed by retrying an
+      // individual item: the server is telling the whole device to wait or
+      // upgrade. Routing it through recordSyncFailure would burn every
+      // queued item's 5-attempt backoff budget and then report a perfectly
+      // healthy queue as "stuck". Stop the run and leave the queue exactly
+      // as it was — the next run (after the interval elapses) sends it
+      // untouched. Reachable for background syncs only since they stopped
+      // claiming `manual` (see docs/FIXED_BUGS.md, A-5).
+      if (isExpectedSyncRestriction(error)) {
+        console.warn("[Sync] Push stopped by a plan restriction:", error);
+        throw error;
+      }
       // Don't abort the whole push run over one bad batch; record backoff
       // for this batch's items and continue with the remaining batches.
       console.error("Push sync failed for batch:", error);

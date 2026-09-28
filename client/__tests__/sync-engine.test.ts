@@ -132,7 +132,8 @@ describe('Sync Engine & Local Database', () => {
           ]
         },
         false,
-        false
+        false,
+        undefined,
       );
 
       // Verify markSynced was called via execute() which does a DELETE

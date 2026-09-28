@@ -114,6 +114,10 @@ export async function pullChanges(
   isManual: boolean = false,
   isSetup: boolean = false,
   onCriticalTablesReady?: () => void,
+  // Marks every page below as part of the same sync run as the push that
+  // preceded it, so the server's plan-tier sync-interval throttle doesn't
+  // reject this run's own later requests (see push.ts's own runId note).
+  runId?: string,
 ): Promise<{
   pulled: number;
   updatedTables?: string[];
@@ -234,7 +238,8 @@ export async function pullChanges(
           page_cursor: { ...pageCursors },
         },
         isManual,
-        isSetup
+        isSetup,
+        runId,
       )) as PullResponse;
       const { changes, server_timestamp, has_more } = response;
 

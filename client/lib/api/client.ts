@@ -260,6 +260,11 @@ class ApiClient extends FleetBillingApiClient {
     payload: { changes: SyncChange[] },
     isManual: boolean = false,
     isSetup: boolean = false,
+    // One token per sync() call, repeated on every batch of that run. The
+    // server measures the plan's sync-interval throttle per RUN rather than
+    // per request, so a backlog spanning many batches isn't rejected by its
+    // own first batch — see SyncController::validateSync.
+    runId?: string,
   ) {
     let url = `/app/sync/push`;
     const params = new URLSearchParams();
@@ -268,6 +273,7 @@ class ApiClient extends FleetBillingApiClient {
     if (params.toString()) url += `?${params.toString()}`;
 
     const headers: Record<string, string> = {};
+    if (runId) headers["X-Sync-Run-Id"] = runId;
     if (typeof window !== "undefined") {
       const activeStoreId = localStorage.getItem("dumos_active_store_id");
       if (activeStoreId) {
@@ -307,6 +313,8 @@ class ApiClient extends FleetBillingApiClient {
     },
     isManual: boolean = false,
     isSetup: boolean = false,
+    // See pushChanges' own runId note.
+    runId?: string,
   ) {
     let url = `/app/sync/pull`;
     const params = new URLSearchParams();
@@ -315,6 +323,7 @@ class ApiClient extends FleetBillingApiClient {
     if (params.toString()) url += `?${params.toString()}`;
 
     const headers: Record<string, string> = {};
+    if (runId) headers["X-Sync-Run-Id"] = runId;
     if (typeof window !== "undefined") {
       const activeStoreId = localStorage.getItem("dumos_active_store_id");
       if (activeStoreId) {

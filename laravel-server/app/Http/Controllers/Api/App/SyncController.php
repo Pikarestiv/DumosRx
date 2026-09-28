@@ -1754,6 +1754,7 @@ class SyncController extends Controller
         'paystack_subaccount_code', 'paystack_subaccount_country',
         'paystack_bank_code', 'paystack_account_number_last4',
         'paystack_fee_dirty_at',
+        'last_sync_run_id', 'last_sync_run_started_at',
     ];
 
     /**
@@ -2221,6 +2222,30 @@ class SyncController extends Controller
             && array_keys($lastSyncedMap) === ['stores'];
     }
 
+    /**
+     * How long one client sync run may keep exempting its own follow-up
+     * batches from the plan's sync-interval throttle. Generously above what
+     * a real run costs (50-change batches paced ~1.1s apart, plus paged
+     * pulls) and far below the smallest configured interval (30 min on the
+     * mid tier), so it can never swallow a whole interval.
+     */
+    private const SYNC_RUN_MAX_MINUTES = 10;
+
+    /**
+     * The client's per-sync()-call run token, or null when the request
+     * carries none (an older client build, or any other caller). Length- and
+     * charset-capped because it is persisted on the store row.
+     */
+    private function syncRunId(Request $request): ?string
+    {
+        $runId = trim((string)$request->header('X-Sync-Run-Id', ''));
+        if ($runId === '' || strlen($runId) > 64 || !preg_match('/^[A-Za-z0-9._:-]+$/', $runId)) {
+            return null;
+        }
+
+        return $runId;
+    }
+
     private function validateSync(Request $request, $isPush = true)
     {
         $user = $request->user();
@@ -2302,19 +2327,37 @@ class SyncController extends Controller
                 }
 
                 $syncIntervalMinutes = $systemConfig['tiers'][$plan]['limits']['sync_interval'] ?? 0;
-                
-                if ($syncIntervalMinutes > 0 && !$isManual) {
-                    if ($store && $store->last_sync_at) {
+
+                if ($syncIntervalMinutes > 0) {
+                    // One sync() call on the client is many requests: the
+                    // push is split into 50-change batches and the pull into
+                    // pages, all seconds apart. Throttling per REQUEST would
+                    // therefore reject every batch after the first of a
+                    // multi-batch backlog (batch 1 stamps last_sync_at, batch
+                    // 2 arrives with minutesSinceLastSync === 0) — which only
+                    // stayed invisible while the client labelled every
+                    // background sync `manual=1` and skipped this whole
+                    // block. The client now sends one X-Sync-Run-Id per
+                    // sync() call, so the interval is measured per RUN: the
+                    // run's first request is checked, the rest are not.
+                    $runId = $this->syncRunId($request);
+                    $isSameRun = $runId !== null
+                        && $store
+                        && $store->last_sync_run_id === $runId
+                        && $store->last_sync_run_started_at
+                        && abs((int)$store->last_sync_run_started_at->diffInMinutes(now())) < self::SYNC_RUN_MAX_MINUTES;
+
+                    if (!$isManual && !$isSameRun && $store && $store->last_sync_at) {
                         $minutesSinceLastSync = abs((int)$store->last_sync_at->diffInMinutes(now()));
                         if ($minutesSinceLastSync < $syncIntervalMinutes) {
                             // Allow pull requests that happen immediately after a push (in the same minute)
                             if (!$isPush && $minutesSinceLastSync === 0) {
                                 // Skip throttling for this immediate paired pull
                             } else {
-                                $intervalText = $syncIntervalMinutes >= 60 
-                                    ? floor($syncIntervalMinutes / 60) . ' hours' 
+                                $intervalText = $syncIntervalMinutes >= 60
+                                    ? floor($syncIntervalMinutes / 60) . ' hours'
                                     : $syncIntervalMinutes . ' minutes';
-                                    
+
                                 return [
                                     'valid' => false,
                                     'message' => "Sync limit reached. Your current plan synchronizes once every {$intervalText}. Last sync: " . $store->last_sync_at->diffForHumans() . '. Please upgrade your plan for faster sync.',
@@ -2323,6 +2366,19 @@ class SyncController extends Controller
                                 ];
                             }
                         }
+                    }
+
+                    // This request opened a new run and was allowed through:
+                    // remember which run it was, so its own later batches are
+                    // recognized. Stamped with a start time, and only honored
+                    // for SYNC_RUN_MAX_MINUTES, so a client that pinned one
+                    // run id forever gets one run's worth of exemption, not a
+                    // standing bypass of its plan's interval.
+                    if ($runId !== null && !$isSameRun && $store) {
+                        $store->forceFill([
+                            'last_sync_run_id' => $runId,
+                            'last_sync_run_started_at' => now(),
+                        ])->save();
                     }
                 }
             }

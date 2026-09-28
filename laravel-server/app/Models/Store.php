@@ -86,6 +86,7 @@ class Store extends Model
         'staff_can_request_transfers' => 'boolean',
         'markup_sales_enabled' => 'boolean',
         'last_sync_at' => 'datetime',
+        'last_sync_run_started_at' => 'datetime',
         '_synced_at' => 'datetime',
         'loyalty_defaults_seeded_at' => 'datetime',
         'permission_groups_seeded_at' => 'datetime',

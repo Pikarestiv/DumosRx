@@ -178,6 +178,17 @@ without touching the Activity Log's query/sort/search paths at all.
   (`recordSyncFailure` in `base-helpers.ts`), with a one-time report to
   superadmins after `SYNC_FAILURE_REPORT_THRESHOLD` (5) consecutive
   failures on the same item.
+- **`isManual` means "a human clicked Sync Now", and nothing else.** It
+  bypasses per-item backoff (`getPendingSyncItems`) *and* the server's
+  plan-tier sync-interval throttle (`?manual=1`), so passing it from an
+  automatic caller turns both off for everyone — which is exactly what the
+  `SyncIndicator` daemon used to do (see `docs/FIXED_BUGS.md`, A-5). Every
+  background caller passes `false`.
+- **Every request of one `sync()` call carries the same `X-Sync-Run-Id`**
+  (minted once in `index.ts`, threaded through `pushChanges`/`pullChanges`),
+  because the server measures its interval throttle per run rather than per
+  request. A new sync path must thread it through too, or a multi-batch
+  backlog will be throttled by its own first batch.
 - `syncSubscriptionStatus()` is a separate, lighter-weight pull of just the
   `stores` table (tier/status/suspension), run even for free-tier stores
   that don't get full sync, so plan changes/suspensions still land.

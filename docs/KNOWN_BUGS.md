@@ -16,7 +16,7 @@ This file holds **open** items only. Fixed entries move to `docs/FIXED_BUGS.md` 
 
 **Overall health.** The codebase is unusually well-defended for its size: the sync engine's conflict model, the single-writer tab lock, tenant scoping on the server and the money math have all been through several review-and-fix cycles, and both test suites pass cleanly. The new findings in this pass are therefore not the "obvious" classes (cross-tenant leaks, double-charging, silent rollbacks) but the next layer down: **scale limits that were never exercised** (all three found so far have since been fixed — a local database with essentially no indexes, plus the pull engine's own un-resumable page cap and the server tenant-scope that loaded every sale id into PHP memory per request; see `docs/FIXED_BUGS.md`) and **attribution/consistency gaps** on the newest flows (the online-order fulfilment one, `A-4`, has since been fixed too).
 
-**Findings this pass, by severity:** 0 **P0**, 0 **P1**, 6 **P2**, 13 **P3** — 19 open findings from this pass (IDs `A-1`…`A-24`, less the fixed `A-1`, `A-2`, `A-3`, `A-4` and `A-6`), plus 14 still-open items carried from the two earlier passes (`P2-1`, `P3-1`, `P3-2`, `P3-5`, `PG-1`…`PG-10`), all preserved verbatim below.
+**Findings this pass, by severity:** 0 **P0**, 0 **P1**, 5 **P2**, 13 **P3** — 18 open findings from this pass (IDs `A-1`…`A-24`, less the fixed `A-1`, `A-2`, `A-3`, `A-4`, `A-5` and `A-6`), plus 14 still-open items carried from the two earlier passes (`P2-1`, `P3-1`, `P3-2`, `P3-5`, `PG-1`…`PG-10`), all preserved verbatim below.
 
 **Most important risks, in order:**
 
@@ -40,14 +40,6 @@ None open. `A-1` (the pull page cap that made a >100,000-row table un-syncable) 
 ---
 
 ## 3. Medium-priority findings (P2)
-
-#### [P2] A-5. The plan-tier sync-interval throttle is enforced only against a client-controlled flag, and the client's own background daemon always sets it
-**Category:** Architecture / Business rule / Performance — **Confirmed (design gap)**
-**Location:** `client/components/dashboard/sync-indicator.tsx:201, 210` (auto-sync calls `handleManualSync()` → `sync(true)`), `client/lib/db/sync-engine/push.ts:240` (`getPendingSyncItems(isManual)` → backoff ignored), `laravel-server/app/Http/Controllers/Api/App/SyncController.php:2130, 2189` (`$isManual = $request->boolean('manual')`, throttle skipped when manual).
-**Problem:** The server-side `sync_interval` limit per tier (180 min / 30 min / 0 in `SystemConfigSeeder`) is bypassed whenever the request carries `?manual=1`, and both the interval daemon and the instant-sync listener in `SyncIndicator` send `manual=1` for every background sync. Two consequences: (1) the plan restriction is decorative — the only thing rate-limiting a Local-tier store is its own `stores.auto_sync_interval` row, which the same client writes; (2) because `isManual` also means "ignore per-item backoff", a permanently failing queue item (unknown column, FK violation) is re-sent on every background cycle — every 2 s of activity in instant mode — instead of backing off, burning the shared 60 req/min API budget and repeatedly hitting the server's per-change savepoint path.
-**Note (latent):** if the daemon ever stops sending `manual=1`, the server throttle as written would reject every push batch after the first in a multi-batch backlog (batch 1 stamps `last_sync_at`, batch 2 arrives 1.1 s later with `minutesSinceLastSync === 0` and no pull-style same-minute exemption on the push side) — so the throttle logic itself needs fixing before the flag is ever honoured.
-**Recommended fix:** Decide whether the interval is a product rule; if so enforce it server-side from `last_sync_at` regardless of the flag (and exempt consecutive batches of one push run, e.g. by a per-run token), and have the client daemon call `sync(false)` so backoff is respected; keep `manual=1` for the button only.
-**Confidence:** High.
 
 #### [P2] A-7. App launch is gated behind a full network sync (up to 5 s of splash) on every online start, and the gate re-fires as the store profile settles
 **Category:** Performance / Startup — **Likely performance problem**
@@ -296,7 +288,6 @@ Synthetic dataset built from the app's own `SCHEMA_SQL` plus the migration-added
 
 ## 6. Offline / sync / database risks
 
-- **A-5** — background sync is indistinguishable from manual sync to the server, so backoff and plan throttling are effectively off.
 - **A-8** — every pull round pays the `stores` prune; every boot pays the orphan scan.
 - **A-9** — multi-device PO receipt has no server-side idempotency beyond the version check on one of its rows.
 - **A-12** — pull overwrites a device-local column.
@@ -310,7 +301,6 @@ Synthetic dataset built from the app's own `SCHEMA_SQL` plus the migration-added
 
 ## 7. Architecture and technical debt
 
-- **A-5**: the server trusts a client flag for a billing-relevant limit; the "manual" concept needs to mean one thing.
 - **A-19**: a second, unused write API coexists with the sync engine and does not share its invariants (delta-derived quantities, audit trail, `_version`).
 - **A-23**: the cross-module event/`localStorage` bus is undocumented and duplicated (the active store id has two sources of truth: `localStorage["dumos_active_store_id"]` for headers, the `core.ts` resolver for queries).
 - **Two tenant-resolution copies on the server remain** (carried): `SaleController` and `DashboardService` hand-roll the staff→owner lookup instead of a shared `Request`-free helper, and `TenantScopingArchitectureTest` still scans controllers only.
@@ -347,9 +337,8 @@ Synthetic dataset built from the app's own `SCHEMA_SQL` plus the migration-added
 Ordered by technical impact and by which fixes unblock or de-risk others — not by ease.
 
 1. **PG-2 then PG-1** (carried) — the storefront webhook/reconciliation path and the gateway pinning; still the largest real-world money-loss surface.
-2. **A-5** — decide the sync-interval rule, fix the server throttle's batch handling, and have the daemon call `sync(false)`. Do this *after* the now-fixed A-1/A-3 pull rework so backlogs drain correctly once backoff is respected again.
-3. **A-8 + A-7 + A-18** — startup/idle cost: gate the `stores` prune on a changed id set, run the orphan scan once per install, move the launch sync off the splash, delete the 5 s poll. Re-benchmark on a real low-end device afterwards.
-4. **A-10, A-11, A-13** — server public-surface hardening (config allow-list, throttles, no PIN-derived passwords) and the Tauri CSP. Independent; group into one security batch.
-5. **A-9, A-12, A-21, A-16, A-17** — sync/data-integrity edge cases; each is small and self-contained now that the index/pagination work is in.
-6. **A-14, A-15, A-19, A-20, A-22, A-23, A-24** — hygiene and architecture debt; A-15 (enforce `tsc`/tests in CI, `npm ci`) is the one worth doing early because it protects everything else.
-7. **P2-1** (ops confirmation) and the accepted **P3-1/P3-2/P3-5**, **PG-3…PG-10** as previously scheduled.
+2. **A-8 + A-7 + A-18** — startup/idle cost: gate the `stores` prune on a changed id set, run the orphan scan once per install, move the launch sync off the splash, delete the 5 s poll. Re-benchmark on a real low-end device afterwards.
+3. **A-10, A-11, A-13** — server public-surface hardening (config allow-list, throttles, no PIN-derived passwords) and the Tauri CSP. Independent; group into one security batch.
+4. **A-9, A-12, A-21, A-16, A-17** — sync/data-integrity edge cases; each is small and self-contained now that the index/pagination work is in.
+5. **A-14, A-15, A-19, A-20, A-22, A-23, A-24** — hygiene and architecture debt; A-15 (enforce `tsc`/tests in CI, `npm ci`) is the one worth doing early because it protects everything else.
+6. **P2-1** (ops confirmation) and the accepted **P3-1/P3-2/P3-5**, **PG-3…PG-10** as previously scheduled.

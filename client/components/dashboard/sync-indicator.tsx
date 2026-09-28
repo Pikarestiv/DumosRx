@@ -23,6 +23,7 @@ import { useDatabase } from "@/lib/db/DatabaseProvider";
 import { AuthModal } from "./auth-modal";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
+import { isExpectedSyncRestriction } from "@/lib/utils/error-logger";
 import { toast } from "sonner";
 import { queryKeys } from "@/lib/query-keys";
 
@@ -113,35 +114,51 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
     setIsLinked(!!token);
   };
 
-  const handleManualSync = useCallback(async () => {
+  // `isUserInitiated` is the ONE thing that makes a sync "manual", and it
+  // travels all the way down: to getPendingSyncItems (bypass each queue
+  // item's exponential backoff) and to the server (bypass the plan tier's
+  // sync-interval throttle). The background daemon below therefore runs
+  // this with false — it used to call the button's handler outright, which
+  // made every automatic sync claim to be a user click, silently turning
+  // both of those protections off for everyone (see docs/FIXED_BUGS.md,
+  // A-5). It also stays quiet: no success toast for a sync nobody asked
+  // for, and a plan-tier throttle rejection is the expected steady state on
+  // a throttled tier, not a "Sync Error" to show the user.
+  const runSync = useCallback(async (isUserInitiated: boolean) => {
     // Impersonation is read-only support access: sync is disabled for the
     // whole session (sync() itself refuses too). Toasting rather than
     // silently returning so a superadmin isn't left wondering why the
     // indicator looks frozen.
     if (isImpersonating) {
-      toast.info("Sync is disabled during an impersonated session.");
+      if (isUserInitiated) toast.info("Sync is disabled during an impersonated session.");
       return;
     }
     if (isReadOnlyTab) {
-      toast.info("This tab is read-only. Switch to the tab where DumosRx is active to sync.");
+      if (isUserInitiated) {
+        toast.info("This tab is read-only. Switch to the tab where DumosRx is active to sync.");
+      }
       return;
     }
     if (isSyncInProgress) return;
     setIsSyncInProgress(true);
     setStatus("syncing");
     try {
-      const result = await sync(true);
+      const result = await sync(isUserInitiated);
       if (result.success) {
         setStatus("online");
         setLastSync(new Date().toISOString());
         setErrorMessage(null);
-        toast.success("Sync completed successfully");
+        if (isUserInitiated) toast.success("Sync completed successfully");
       } else {
         const errorMsg = typeof result.error === 'string' ? result.error : "Sync failed";
         // Another caller (the other mounted indicator, or a sync fired from
         // elsewhere) already holds sync()'s mutex: that sync is running and
         // will report its own outcome, so this one is a no-op, not a failure.
         if (errorMsg === SYNC_IN_PROGRESS_ERROR) return;
+        if (!isUserInitiated && isExpectedSyncRestriction(errorMsg)) {
+          setStatus("online");
+          return;
+        }
         setStatus("error");
         setErrorMessage(errorMsg);
         if (errorMsg.includes("Unauthenticated") || errorMsg.includes("401")) {
@@ -149,7 +166,11 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
         }
       }
     } catch (err) {
-      console.error("Manual sync failed:", err);
+      console.error("Sync failed:", err);
+      if (!isUserInitiated && isExpectedSyncRestriction(err)) {
+        setStatus("online");
+        return;
+      }
       setStatus("error");
       const message = err instanceof Error ? err.message : "";
       setErrorMessage(message.includes("Unauthenticated")
@@ -163,6 +184,8 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
       setIsSyncInProgress(false);
     }
   }, [isSyncInProgress, isImpersonating, isReadOnlyTab]);
+
+  const handleManualSync = useCallback(() => runSync(true), [runSync]);
 
   // Background Auto-Sync Daemon. Two modes, switched purely by
   // auto_sync_interval's value: 0 means "sync instantly after any local
@@ -198,7 +221,7 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
           debounceTimer = setTimeout(() => {
             if (navigator.onLine && !checkIsSyncing()) {
               console.log("Auto-sync triggered (instant, on change)");
-              void handleManualSync();
+              void runSync(false);
             }
           }, INSTANT_SYNC_DEBOUNCE_MS);
         });
@@ -207,7 +230,7 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
         autoSyncIntervalTimer = setInterval(() => {
           if (navigator.onLine && !checkIsSyncing()) {
             console.log(`Auto-sync triggered (${intervalMinutes} min interval)`);
-            void handleManualSync();
+            void runSync(false);
           }
         }, intervalMs);
       }
@@ -218,7 +241,7 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
       if (debounceTimer) clearTimeout(debounceTimer);
       unsubscribe?.();
     };
-  }, [storeProfile?.auto_sync_enabled, storeProfile?.auto_sync_interval, isLinked, isImpersonating, isReadOnlyTab, handleManualSync]);
+  }, [storeProfile?.auto_sync_enabled, storeProfile?.auto_sync_interval, isLinked, isImpersonating, isReadOnlyTab, runSync]);
 
   // Wins over every other state: while impersonating there is nothing the
   // indicator could usefully report about syncing, because no sync will run.

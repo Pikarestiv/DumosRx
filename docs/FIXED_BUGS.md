@@ -4,6 +4,24 @@ A changelog of bugs that were tracked in `docs/KNOWN_BUGS.md` and have since bee
 
 ## 2026-09-28
 
+### fix: audit_logs conflict resurrection loop, and the cross-record overwrite behind it
+- **Branch:** `fix/audit-log-sync-conflict-loop`.
+- Reported as a permanently non-zero "N unsynced changes" indicator: the same small set of `audit_logs` rows was re-pushed and re-rejected on every app launch, forever.
+
+**1. Client — a terminal conflict never settled the source row.**
+- `pushChanges()` treats `version_conflict`/`stale_timestamp` as terminal: it deletes the `_sync_queue` row and relies on "a later pull will bring down the winning server row". `markSynced()` only runs for changes the server ACCEPTED, so the source row kept `_synced = 0` with no queue entry — exactly what `requeueOrphanedRows()` (every boot, over `STORE_SCOPED_TABLES`, which includes `audit_logs`) re-queues.
+- For every other table that self-heals, because the pull matches the server's row by the SAME id. `audit_logs` can never self-heal: the server keeps its own auto-increment `activity_logs.id` and stores the client's UUID only in `properties->client_id`, so no pull will ever match. Conflict → dequeue → re-queue on boot → conflict, indefinitely.
+- Fix: `markConflictSettled()` (`client/lib/db/base-helpers.ts`) sets `_synced = 1` on the source row at the same point the queue row is dropped, gated on `TERMINAL_CONFLICT_SETTLES_SOURCE_ROW` (`client/lib/db/sync-engine/push.ts`) — currently `audit_logs` only. Other tables keep the existing "leave it for a future pull" semantics deliberately; settling them would discard a real pending edit.
+- **`feedback` does NOT need this.** Its server rows are inserted with the client's own id as the primary key (only `audit_logs` skips `$model->id = $recordId` in `SyncController::push`), so a pull reconciles it by id like any other table. It is also absent from `STORE_SCOPED_TABLES`, so boot never re-queues it either way. Left unchanged.
+
+**2. Server — the UPDATE path looked `audit_logs` up by a coerced numeric id.**
+- A resubmitted `audit_logs` INSERT is rewritten to an UPDATE by an existence probe that correctly matches on `properties->client_id` scoped to the store — but the UPDATE branch then re-looked the row up with a raw `find($recordId)`, i.e. a client id string against a `bigint` primary key. MySQL coerces it to its leading numeric run (`"87fe24ac-…"` → `87`), so the lookup could land on a completely unrelated `activity_logs` row, and `forceFill()` then overwrote its action/description/properties/user_id with another device's audit data. (`audit_logs` payloads carry no `_version`, so `resolveUpdateConflict()` falls to the timestamp fallback and lets an older decoy row through.) Reproduced end-to-end, not theoretical.
+- Fix: `findAuditLogByClientId()` is now the single lookup for this table, used by both the existence probe and the UPDATE branch (with `lockForUpdate()` on the latter, preserving the row-lock semantics of the path it replaces). Every other table keeps its `find()`/`withTrashed()` lookup untouched.
+
+**3. Ruling — `getSyncQueueCount()` keeps counting `audit_logs`.** With (1) a conflicted row settles inside the same sync cycle and boot no longer re-queues it, so there is no lingering window left to paper over. The only remaining ways an `audit_logs` row stays queued are a transient network failure or a `forbidden` rejection — both genuine "not yet synced" states shared with every other table, and the `forbidden` case is precisely how the 2026-09-05 audit-log sync bug was noticed at all. Excluding the table from the count would have hidden it.
+
+- Regression coverage: `client/__tests__/push-settles-conflicted-audit-logs.test.ts` (conflicted `audit_logs` row is settled and a simulated next boot no longer re-queues it; a conflicted `feedback` row is still deliberately left unsynced) and `laravel-server/tests/Feature/SyncPushOwnershipTest.php::test_resubmitted_audit_log_update_does_not_overwrite_an_unrelated_row_with_a_matching_numeric_id` (the unrelated row is untouched and the right row is updated). Both RED against the pre-fix code.
+
 ### Whole-client UX + performance pass (U1–U14, P1–P10)
 - **Branch:** `feature/whole-app-ux-perf-fixes` (commits `45c0bef9`…, POS / sync indicator / cycle count / catalog / staff / reports / responsive-branch groups).
 - Scope was a fresh-context UX + performance audit of `client/` outside procurement (a concurrent branch owned that area). Every finding is either fixed with a test, fixed with a ruling recorded below, or deferred below.

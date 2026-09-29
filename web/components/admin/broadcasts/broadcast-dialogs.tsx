@@ -154,8 +154,8 @@ export function CreateBroadcastDialog({
 }: BroadcastDialogProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xl rounded-[2rem] p-0 overflow-hidden border-none shadow-2xl">
-        <div className="bg-indigo-600 p-8 text-white relative">
+      <DialogContent className="sm:max-w-4xl rounded-[2rem] p-0 overflow-hidden border-none shadow-2xl max-h-[85vh] flex flex-col">
+        <div className="bg-indigo-600 p-8 text-white relative shrink-0">
           <div className="absolute top-0 right-0 p-8 opacity-10">
             <Megaphone className="h-24 w-24" />
           </div>
@@ -163,8 +163,8 @@ export function CreateBroadcastDialog({
           <DialogDescription className="text-indigo-100 font-medium">Create a system-wide alert for all users</DialogDescription>
         </div>
 
-        <form onSubmit={onSubmit}>
-          <div className="p-8 space-y-6 bg-white dark:bg-slate-900">
+        <form onSubmit={onSubmit} className="flex flex-col flex-1 min-h-0">
+          <div className="p-8 space-y-6 bg-white dark:bg-slate-900 overflow-y-auto flex-1 min-h-0">
             <BroadcastFormFields
               formData={formData}
               setFormData={setFormData}
@@ -172,7 +172,7 @@ export function CreateBroadcastDialog({
               onSelectedUsersChange={onSelectedUsersChange}
             />
           </div>
-          <DialogFooter className="p-8 pt-0 bg-white dark:bg-slate-900">
+          <DialogFooter className="p-8 pt-0 bg-white dark:bg-slate-900 shrink-0">
             <Button type="button" variant="ghost" className="font-bold rounded-xl" onClick={() => onOpenChange(false)} disabled={isSubmitting}>Cancel</Button>
             <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700 font-bold rounded-xl h-12 px-8 text-white" disabled={isSubmitting}>
               {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
@@ -197,8 +197,8 @@ export function EditBroadcastDialog({
 }: BroadcastDialogProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xl rounded-[2rem] p-0 overflow-hidden border-none shadow-2xl">
-        <div className="bg-slate-900 p-8 text-white relative">
+      <DialogContent className="sm:max-w-4xl rounded-[2rem] p-0 overflow-hidden border-none shadow-2xl max-h-[85vh] flex flex-col">
+        <div className="bg-slate-900 p-8 text-white relative shrink-0">
           <div className="absolute top-0 right-0 p-8 opacity-10">
             <Edit className="h-24 w-24" />
           </div>
@@ -206,8 +206,8 @@ export function EditBroadcastDialog({
           <DialogDescription className="text-slate-400 font-medium">Modify existing broadcast content</DialogDescription>
         </div>
 
-        <form onSubmit={onSubmit}>
-          <div className="p-8 space-y-6 bg-white dark:bg-slate-900">
+        <form onSubmit={onSubmit} className="flex flex-col flex-1 min-h-0">
+          <div className="p-8 space-y-6 bg-white dark:bg-slate-900 overflow-y-auto flex-1 min-h-0">
             <BroadcastFormFields
               formData={formData}
               setFormData={setFormData}
@@ -216,7 +216,7 @@ export function EditBroadcastDialog({
               isEdit
             />
           </div>
-          <DialogFooter className="p-8 pt-0 bg-white dark:bg-slate-900">
+          <DialogFooter className="p-8 pt-0 bg-white dark:bg-slate-900 shrink-0">
             <Button type="button" variant="ghost" className="font-bold rounded-xl" onClick={() => onOpenChange(false)} disabled={isSubmitting}>Cancel</Button>
             <Button type="submit" className="bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl h-12 px-8" disabled={isSubmitting}>
               {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}

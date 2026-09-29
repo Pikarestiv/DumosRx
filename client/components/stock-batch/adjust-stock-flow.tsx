@@ -115,7 +115,7 @@ export function AdjustStockFlow({ onClose, onSubmitted }: AdjustStockFlowProps) 
             "calc(var(--tauri-bottom, env(safe-area-inset-bottom, 0px)) + 1rem)",
         }}
       >
-        <div className={`w-full ${step === "preferences" ? "max-w-[560px]" : "max-w-[1280px]"}`}>
+        <div className={`w-full ${step === "preferences" ? "max-w-2xl" : "max-w-[1280px]"}`}>
           {step === "preferences" ? (
             <AdjustmentPreferencesStep
               reason={reason}

@@ -47,9 +47,10 @@ export function ArchiveStoreDialog({
             Archive this store?
           </DialogTitle>
           <DialogDescription className="text-slate-500 dark:text-slate-400 font-medium pt-2">
-            <span className="font-bold text-slate-900 dark:text-white">{store?.name}</span> drops
-            out of the fleet list and every other listing, but nothing is deleted. You can restore
-            it at any time from the archived view.
+            <span className="font-bold text-slate-900 dark:text-white">{store?.name}</span>
+            drops out of the fleet list and every other listing, and its owner and staff are
+            signed out so it stops syncing. No data is deleted &mdash; you can restore it at any
+            time from the archived view, and they simply log in again.
           </DialogDescription>
         </DialogHeader>
 

@@ -66,11 +66,27 @@ describe("Store Fleet row navigation", () => {
     expect(push).toHaveBeenCalledWith(adminStoreDetailPath(store.id));
   });
 
-  it("opens the store detail page from the keyboard", () => {
+  it("keeps native table row semantics instead of turning the row into a link", () => {
     renderTable();
 
-    fireEvent.keyDown(screen.getByRole("link", { name: /view details for/i }), { key: "Enter" });
+    const row = screen.getByRole("row", { name: /Pikarestiv Stores/ });
 
+    expect(row.tagName).toBe("TR");
+    expect(row).not.toHaveAttribute("role", "link");
+    expect(row).not.toHaveAttribute("tabindex");
+  });
+
+  it("puts the link affordance on the store name cell", () => {
+    renderTable();
+
+    const link = screen.getByRole("link", { name: "Pikarestiv Stores" });
+
+    expect(link.tagName).toBe("A");
+    expect(link).toHaveAttribute("href", adminStoreDetailPath(store.id));
+
+    fireEvent.click(link);
+
+    expect(push).toHaveBeenCalledTimes(1);
     expect(push).toHaveBeenCalledWith(adminStoreDetailPath(store.id));
   });
 

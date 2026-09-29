@@ -68,17 +68,8 @@ export function StoreTable({
         {storeList.map((store) => (
           <TableRow
             key={store.id}
-            role="link"
-            tabIndex={0}
-            aria-label={`View details for ${store.name}`}
             className="border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 group transition-colors cursor-pointer"
             onClick={() => openStore(store)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                openStore(store);
-              }
-            }}
           >
             <TableCell className="pl-6 py-5">
               <div className="flex items-center gap-4">
@@ -87,9 +78,17 @@ export function StoreTable({
                 </div>
                 <div className="flex flex-col">
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-slate-900 dark:text-slate-100 group-hover:text-indigo-600 transition-colors">
+                    <a
+                      href={adminStoreDetailPath(store.id)}
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        openStore(store);
+                      }}
+                      className="font-bold text-slate-900 dark:text-slate-100 group-hover:text-indigo-600 transition-colors rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                    >
                       {store.name}
-                    </span>
+                    </a>
                     {store.is_demo && (
                       <Badge
                         variant="outline"
@@ -166,8 +165,8 @@ export function StoreTable({
                 {store.status}
               </Badge>
             </TableCell>
-            {/* The kebab lives inside a row that navigates on click, so its
-                whole cell swallows the event before the row handler sees it. */}
+            {/* The row navigates on click as a mouse convenience, so the
+                kebab's whole cell swallows the event before it gets there. */}
             <TableCell
               className="pr-6"
               onClick={(event) => event.stopPropagation()}

@@ -30,7 +30,7 @@ export function useStoreDeletionActions(onChanged: () => void) {
       {
         onSuccess: () => {
           toast.success("Store Archived", {
-            description: `${archiveTarget.name} is archived. Nothing was deleted.`,
+            description: `${archiveTarget.name} is archived and signed out. Nothing was deleted.`,
           });
           setArchiveTarget(null);
           onChanged();

@@ -118,9 +118,44 @@ class AdminUserService
         return $target->platform_referral_code;
     }
 
-    public function getGlobalUsers($page = 1, $search = null, $role = null)
+    public const ACCOUNT_TYPE_OWNERS = 'owners';
+
+    public const ACCOUNT_TYPE_STAFF = 'staff';
+
+    public const ACCOUNT_TYPE_PLATFORM = 'platform';
+
+    public const ACCOUNT_TYPES = [
+        self::ACCOUNT_TYPE_OWNERS,
+        self::ACCOUNT_TYPE_STAFF,
+        self::ACCOUNT_TYPE_PLATFORM,
+    ];
+
+    private function constrainToAccountType($query, $accountType)
+    {
+        switch ($accountType) {
+            case self::ACCOUNT_TYPE_OWNERS:
+                return $query->whereHas('stores');
+            case self::ACCOUNT_TYPE_STAFF:
+                return $query->whereNotNull('store_id')->whereDoesntHave('stores');
+            case self::ACCOUNT_TYPE_PLATFORM:
+                return $query->whereNull('store_id')->whereDoesntHave('stores');
+            default:
+                return $query;
+        }
+    }
+
+    public function getGlobalUsers($page = 1, $search = null, $role = null, $accountType = null, $storeId = null)
     {
         $query = User::query();
+
+        $this->constrainToAccountType($query, $accountType);
+
+        if ($storeId) {
+            $query->where(function ($q) use ($storeId) {
+                $q->where('users.store_id', $storeId)
+                    ->orWhereHas('stores', fn ($sq) => $sq->where('stores.id', $storeId));
+            });
+        }
 
         if ($search) {
             $query->where(function ($q) use ($search) {
@@ -152,6 +187,8 @@ class AdminUserService
                     // admin-role user. Logic should key off this, not text.
                     'role_slug' => $user->role,
                     'store' => $user->displayStore ? $user->displayStore->name : 'Platform Admin',
+                    'store_id' => $user->displayStore?->id,
+                    'is_store_owner' => $user->store !== null,
                     'lastActive' => $user->last_login_at ? $user->last_login_at->diffForHumans() : 'Never',
                     'status' => $user->is_active ? 'Active' : 'Inactive',
                     'joinedAt' => $user->created_at->format('M d, Y'),
@@ -439,6 +476,10 @@ class AdminUserService
     public function bulkNotify($filters, $message, $title)
     {
         $query = User::query();
+
+        if (! empty($filters['account_type'])) {
+            $this->constrainToAccountType($query, $filters['account_type']);
+        }
 
         if (! empty($filters['role']) && $filters['role'] !== 'all') {
             $query->where('role', $filters['role']);

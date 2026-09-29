@@ -14,7 +14,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { StoreTable } from "@/components/admin/stores/store-table";
 import { StoreToolbar } from "@/components/admin/stores/store-toolbar";
 import { StorePagination } from "@/components/admin/stores/store-pagination";
-import { SuspendStoreDialog, ViewStoreDialog, BillingHistoryDialog } from "@/components/admin/stores/store-dialogs";
+import { SuspendStoreDialog, BillingHistoryDialog } from "@/components/admin/stores/store-dialogs";
 import { SharedGrantTrialDialog } from "@/components/admin/shared-grant-trial-dialog";
 import { SharedActivatePlanDialog } from "@/components/admin/shared-activate-plan-dialog";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -42,7 +42,6 @@ export default function StoresManagement() {
   const [isSuspendDialogOpen, setIsSuspendDialogOpen] = useState(false);
   const [isTrialDialogOpen, setIsTrialDialogOpen] = useState(false);
   const [isActivatePlanDialogOpen, setIsActivatePlanDialogOpen] = useState(false);
-  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isBillingDialogOpen, setIsBillingDialogOpen] = useState(false);
   const [impersonateTarget, setImpersonateTarget] = useState<AdminStoreSummary | null>(null);
 
@@ -385,7 +384,6 @@ export default function StoresManagement() {
               setIsSuspendDialogOpen={setIsSuspendDialogOpen}
               setIsTrialDialogOpen={setIsTrialDialogOpen}
               setIsActivatePlanDialogOpen={setIsActivatePlanDialogOpen}
-              setIsViewDialogOpen={setIsViewDialogOpen}
               handleUnsuspend={handleUnsuspend}
               handleToggleDemo={handleToggleDemo}
               pendingStoreId={pendingStoreId}
@@ -425,12 +423,6 @@ export default function StoresManagement() {
         targetName={selectedStore?.name}
         onConfirm={handleActivatePlan}
         isPending={activatePlanMutation.isPending}
-      />
-
-      <ViewStoreDialog
-        isOpen={isViewDialogOpen}
-        onOpenChange={setIsViewDialogOpen}
-        selectedStore={selectedStore}
       />
 
       <BillingHistoryDialog

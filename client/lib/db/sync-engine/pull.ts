@@ -4,7 +4,7 @@ import { PullResponse } from "./types";
 import { getValidColumns } from "./schema";
 import { remapForeignKey, DUPLICATE_NAME_TABLES, columnExists } from "../reconcile-identity";
 import { logCrash } from "@/lib/utils/error-logger";
-import { STORAGE_KEYS } from "@/lib/storage-keys";
+import { STORAGE_KEYS, getStoredUser } from "@/lib/storage-keys";
 
 // Safety bound on the page loop below: it stops one sync() call running
 // forever if a server bug ever reports has_more=true indefinitely. It is no
@@ -46,6 +46,20 @@ function writeSkipCounts(counts: Record<string, number>): void {
 
 // Returns true once this record has exceeded the retry cap and the table
 // cursor should be allowed to advance past it despite the collision.
+/**
+ * Whether this pull's `stores` response can be read as a snapshot of every
+ * store the ACCOUNT owns, which is the whole premise the prune below rests
+ * on. It cannot when the signed-in identity is a staff account:
+ * `SyncController::resolvePullTenantScope()` resolves `$ownedStoreIds` to
+ * `[$user->store_id]` for any user carrying one, so the response is a
+ * one-store list by design, not a statement that the account's other stores
+ * are gone. See client/AGENTS.md, "The `stores` prune and how a store
+ * disappears".
+ */
+function storesSnapshotIsAccountWide(): boolean {
+  return !getStoredUser()?.store_id;
+}
+
 function recordUniqueSkipAndCheckGiveUp(table: string, recordId: string): boolean {
   const key = `${table}:${recordId}`;
   const counts = readSkipCounts();
@@ -534,11 +548,19 @@ export async function pullChanges(
           // additive inserts/updates from pull with no equivalent reconcile
           // step, since a partial/delta response there can't be safely
           // treated as authoritative the way this always-full snapshot can.
-          if (table === "stores" && records.length > 0) {
+          if (table === "stores" && records.length > 0 && storesSnapshotIsAccountWide()) {
             const serverStoreIds = records.map((r) => r.id as string);
             const placeholders = serverStoreIds.map(() => "?").join(", ");
+            // A store with an unpushed local edit is never a prune candidate,
+            // for the same reason the row-apply branch above refuses to
+            // overwrite one: this device holds state the server has not seen
+            // yet. It is also the one case the prune could not be recovered
+            // from — that same pending queue row makes every later pull skip
+            // the store's row, so the `_deleted = 1` written here would never
+            // be cleared again even once a correctly-scoped snapshot lists it.
             const pruneCandidates = await query<{ id: string }>(
-              `SELECT id FROM stores WHERE _deleted = 0 AND id NOT IN (${placeholders})`,
+              `SELECT id FROM stores WHERE _deleted = 0 AND id NOT IN (${placeholders})
+                 AND id NOT IN (SELECT record_id FROM _sync_queue WHERE table_name = 'stores')`,
               serverStoreIds,
             );
 

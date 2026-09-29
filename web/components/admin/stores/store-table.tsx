@@ -43,7 +43,6 @@ interface StoreTableProps {
   setIsSuspendDialogOpen: (open: boolean) => void;
   setIsTrialDialogOpen: (open: boolean) => void;
   setIsActivatePlanDialogOpen: (open: boolean) => void;
-  setIsViewDialogOpen: (open: boolean) => void;
   handleUnsuspend: (store: AdminStoreSummary) => void;
   handleToggleDemo: (store: AdminStoreSummary) => void;
   /** Id of the store whose unsuspend/demo mutation is currently in flight,
@@ -63,7 +62,6 @@ export function StoreTable({
   setIsSuspendDialogOpen,
   setIsTrialDialogOpen,
   setIsActivatePlanDialogOpen,
-  setIsViewDialogOpen,
   handleUnsuspend,
   handleToggleDemo,
   pendingStoreId,
@@ -196,10 +194,9 @@ export function StoreTable({
                   <DropdownMenuLabel className="text-[10px] uppercase tracking-widest text-slate-400 px-3 py-2">Actions</DropdownMenuLabel>
                   <DropdownMenuItem 
                     className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold"
-                    onClick={() => {
-                      setSelectedStore(store);
-                      setIsViewDialogOpen(true);
-                    }}
+                    onClick={() =>
+                      router.push(`/admin/stores/details/?id=${encodeURIComponent(store.id)}`)
+                    }
                   >
                     <StoreIcon className="h-4 w-4 text-slate-500" />
                     View Store Details

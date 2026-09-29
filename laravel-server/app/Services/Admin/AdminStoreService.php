@@ -74,6 +74,29 @@ class AdminStoreService
         ];
     }
 
+    /** Shared by the fleet list and AdminStoreDetailService so both quote the
+     * same revenue figure. See getStores() for why it is a correlated
+     * subquery with a legacy cashier fallback rather than withSum('sales'). */
+    public static function revenueSubquery()
+    {
+        return DB::table('sales')
+            ->selectRaw('COALESCE(SUM(sales.total_amount), 0)')
+            ->where(function ($q) {
+                $q->whereColumn('sales.store_id', 'stores.id')
+                    ->orWhere(function ($fallback) {
+                        $fallback->whereNull('sales.store_id')
+                            ->where(function ($cashierMatch) {
+                                $cashierMatch->whereColumn('sales.cashier_id', 'stores.user_id')
+                                    ->orWhereIn('sales.cashier_id', function ($staffIds) {
+                                        $staffIds->select('id')
+                                            ->from('users')
+                                            ->whereColumn('users.store_id', 'stores.id');
+                                    });
+                            });
+                    });
+            });
+    }
+
     public function getStores($page = 1, $search = null, $status = null, $plan = null)
     {
         // Correlated subquery instead of a plain withSum('sales', ...), for
@@ -95,23 +118,7 @@ class AdminStoreService
         //    whether Sale::sales() alone is used, which used to miss
         //    every owner-rung-up sale outright.
         $query = Store::with(['user.subscriptions', 'user.accountManager', 'user.registeredBy'])
-            ->addSelect(['total_revenue' => DB::table('sales')
-                ->selectRaw('COALESCE(SUM(sales.total_amount), 0)')
-                ->where(function ($q) {
-                    $q->whereColumn('sales.store_id', 'stores.id')
-                        ->orWhere(function ($fallback) {
-                            $fallback->whereNull('sales.store_id')
-                                ->where(function ($cashierMatch) {
-                                    $cashierMatch->whereColumn('sales.cashier_id', 'stores.user_id')
-                                        ->orWhereIn('sales.cashier_id', function ($staffIds) {
-                                            $staffIds->select('id')
-                                                ->from('users')
-                                                ->whereColumn('users.store_id', 'stores.id');
-                                        });
-                                });
-                        });
-                }),
-            ]);
+            ->addSelect(['total_revenue' => self::revenueSubquery()]);
 
         if ($search) {
             $query->where(function ($q) use ($search) {

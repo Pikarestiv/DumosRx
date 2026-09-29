@@ -25,20 +25,34 @@ class AdminUserController extends AdminBaseController
             new OA\Parameter(name: 'page', in: 'query', schema: new OA\Schema(type: 'integer', default: 1)),
             new OA\Parameter(name: 'search', in: 'query', schema: new OA\Schema(type: 'string')),
             new OA\Parameter(name: 'role', in: 'query', description: 'Filter by exact role slug (e.g. super_admin, store_owner, specialist, sales_staff)', schema: new OA\Schema(type: 'string')),
+            new OA\Parameter(name: 'account_type', in: 'query', description: 'owners = accounts owning a store (stores.user_id), staff = accounts working at one (users.store_id), platform = neither. Omit for every account.', schema: new OA\Schema(type: 'string', enum: ['owners', 'staff', 'platform'])),
+            new OA\Parameter(name: 'store_id', in: 'query', description: "Restrict to accounts affiliated with this store, as its owner or its staff. Combine with account_type=staff for a store's team.", schema: new OA\Schema(type: 'string')),
         ],
         responses: [
             new OA\Response(response: 200, description: 'Users', content: new OA\JsonContent(type: 'object')),
             new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Non-super_admin'),
+            new OA\Response(response: 422, description: 'Unrecognized account_type'),
             new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
         ],
     )]
     public function users(Request $request)
     {
-        return $this->withErrorResponse('Users', 'Failed to fetch users', function () use ($request) {
+        $validated = $request->validate([
+            'account_type' => ['nullable', 'string', 'in:'.implode(',', AdminUserService::ACCOUNT_TYPES)],
+            'store_id' => ['nullable', 'string'],
+        ]);
+
+        return $this->withErrorResponse('Users', 'Failed to fetch users', function () use ($request, $validated) {
             $page = $request->query('page', 1);
             $search = $request->query('search');
             $role = $request->query('role');
-            return response()->json($this->adminUserService->getGlobalUsers($page, $search, $role));
+            return response()->json($this->adminUserService->getGlobalUsers(
+                $page,
+                $search,
+                $role,
+                $validated['account_type'] ?? null,
+                $validated['store_id'] ?? null,
+            ));
         });
     }
 
@@ -414,11 +428,15 @@ class AdminUserController extends AdminBaseController
         $validated = $request->validate([
             'title' => 'required|string|min:3|max:100',
             'message' => 'required|string|min:5',
-            'filters' => 'nullable|array'
+            'filters' => 'nullable|array',
+            'filters.account_type' => ['nullable', 'string', 'in:'.implode(',', AdminUserService::ACCOUNT_TYPES)],
         ]);
 
-        return $this->withErrorResponse('Bulk Notify', 'Failed to send bulk notifications', function () use ($validated) {
-            $count = $this->adminUserService->bulkNotify($validated['filters'] ?? [], $validated['message'], $validated['title']);
+        // Read filters off the request, not $validated: adding the nested
+        // `filters.account_type` rule makes validated() rebuild `filters` from
+        // the nested rules alone, silently dropping `role`/`search`.
+        return $this->withErrorResponse('Bulk Notify', 'Failed to send bulk notifications', function () use ($request, $validated) {
+            $count = $this->adminUserService->bulkNotify($request->input('filters', []), $validated['message'], $validated['title']);
             return response()->json([
                 'message' => "Notification sent to {$count} users successfully",
                 'count' => $count

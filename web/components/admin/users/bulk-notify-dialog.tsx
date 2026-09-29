@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import type { useBulkNotifyUsersMutation } from "@/lib/api/admin-hooks";
+import type { AdminAccountType } from "@/lib/types/admin";
 
 interface BulkNotifyDialogProps {
   isOpen: boolean;
@@ -23,7 +24,7 @@ interface BulkNotifyDialogProps {
   /** Same role/search filters currently applied to the list, forwarded to
    * AdminService::bulkNotify so the send only reaches the filtered set
    * rather than silently notifying every user on the platform. */
-  filters: { role?: string; search?: string };
+  filters: { role?: string; search?: string; account_type?: AdminAccountType };
   bulkNotifyMutation: ReturnType<typeof useBulkNotifyUsersMutation>;
 }
 
@@ -42,6 +43,7 @@ export function BulkNotifyDialog({
   const [isConfirming, setIsConfirming] = useState(false);
 
   const filterSummary = [
+    filters.account_type ? `account type = ${filters.account_type}` : null,
     filters.role ? `role = ${filters.role}` : null,
     filters.search ? `search = "${filters.search}"` : null,
   ].filter(Boolean);

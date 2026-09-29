@@ -1,15 +1,56 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { webApiClient } from "./client";
 import { useScopedKey } from "./query-scope";
-import type { AdminUser, PaginatedResponse, PlatformReferrals } from "@/lib/types/admin";
+import type {
+  AdminAccountType,
+  AdminUser,
+  PaginatedResponse,
+  PlatformReferrals,
+} from "@/lib/types/admin";
 
-export const useAdminUsers = (page = 1, search = "", role = "") => {
+const buildUsersQuery = (
+  page: number,
+  search: string,
+  role: string,
+  accountType: AdminAccountType | "",
+  storeId: string,
+) =>
+  [
+    `page=${page}`,
+    search ? `search=${encodeURIComponent(search)}` : "",
+    role ? `role=${encodeURIComponent(role)}` : "",
+    accountType ? `account_type=${encodeURIComponent(accountType)}` : "",
+    storeId ? `store_id=${encodeURIComponent(storeId)}` : "",
+  ]
+    .filter(Boolean)
+    .join("&");
+
+export const useAdminUsers = (
+  page = 1,
+  search = "",
+  role = "",
+  accountType: AdminAccountType | "" = "",
+) => {
   return useQuery({
-    queryKey: useScopedKey(["admin-users", page, search, role]),
+    queryKey: useScopedKey(["admin-users", page, search, role, accountType]),
     queryFn: () =>
       webApiClient.request<PaginatedResponse<AdminUser>>(
-        `admin/users?page=${page}${search ? `&search=${encodeURIComponent(search)}` : ""}${role ? `&role=${encodeURIComponent(role)}` : ""}`
+        `admin/users?${buildUsersQuery(page, search, role, accountType, "")}`,
       ),
+  });
+};
+
+/** The staff working at one store. Shared by the Store Details page and the
+ * owner's profile dialog, so both read the same rows from the same filter
+ * rather than each growing its own endpoint. */
+export const useStoreStaff = (storeId: string | null | undefined, page = 1) => {
+  return useQuery({
+    queryKey: useScopedKey(["admin-store-staff", storeId, page]),
+    queryFn: () =>
+      webApiClient.request<PaginatedResponse<AdminUser>>(
+        `admin/users?${buildUsersQuery(page, "", "", "staff", storeId ?? "")}`,
+      ),
+    enabled: !!storeId,
   });
 };
 

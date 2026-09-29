@@ -1,0 +1,87 @@
+import type { AdminBillingTransaction } from "./admin";
+
+/** Payload of GET /admin/stores/{id}, the Store Details page's single-store
+ * view. Kept out of admin.ts purely for that file's size budget. */
+export interface AdminStoreDetailOwner {
+  id: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  role: string;
+  status: string;
+  last_login_human: string;
+  joined_at: string | null;
+  deletion_requested: boolean;
+}
+
+export interface AdminStoreDetailSubscription {
+  plan: string;
+  status: string;
+  is_trial: boolean;
+  start_date: string | null;
+  end_date: string | null;
+  days_remaining: number | null;
+}
+
+export interface AdminStoreDetailActivity {
+  id: number | string;
+  action: string;
+  description: string | null;
+  status: string | null;
+  actor: string | null;
+  at: string | null;
+}
+
+export interface AdminStoreDetail {
+  id: string;
+  name: string;
+  store_slug: string | null;
+  store_type: string | null;
+  address: string | null;
+  phone: string | null;
+  email: string | null;
+  location: string | null;
+  currency: string;
+  timezone: string;
+  vat_percentage: number | string | null;
+  pcn_license: string | null;
+  registration_number: string | null;
+  status: string;
+  suspension_reason: string | null;
+  is_demo: boolean;
+  created_at: string | null;
+  revenue: string;
+  owner: AdminStoreDetailOwner | null;
+  subscription: AdminStoreDetailSubscription | null;
+  account_manager: { id: string; name: string; email: string } | null;
+  account_manager_is_explicit: boolean;
+  sync: {
+    device_id: string | null;
+    auto_sync_enabled: boolean;
+    auto_sync_interval: number | null;
+    last_sync_at: string | null;
+    last_sync_human: string;
+  };
+  storefront: {
+    online_store_enabled: boolean;
+    store_slug: string | null;
+    pending_rebuild: boolean;
+    dirty_since: string | null;
+  };
+  payments: {
+    paystack_connected: boolean;
+    subaccount_code: string | null;
+    bank_code: string | null;
+    account_number_last4: string | null;
+    require_payment_account: boolean;
+    enabled_payment_methods: string[];
+  };
+  counts: {
+    staff: number;
+    products: number;
+    customers: number;
+    sales: number;
+  };
+  recent_transactions: AdminBillingTransaction[];
+  recent_activity: AdminStoreDetailActivity[];
+}

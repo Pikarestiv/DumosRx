@@ -16,6 +16,7 @@ import {
   isInTransaction,
 } from "./core";
 import { queryClient } from "../query-client";
+import { truncateForLog } from "../utils/error-truncation";
 import type { SyncQueueItem } from "@/lib/types/sync";
 
 // Invalidates exactly the queries that could be affected by a mutation on
@@ -485,6 +486,52 @@ const SYNC_FAILURE_REPORT_THRESHOLD = 5;
 const SYNC_FAILURE_BASE_DELAY_MS = 30_000;
 const SYNC_FAILURE_MAX_DELAY_MS = 60 * 60_000;
 
+/** logCrash() writes its report into this table, so a stuck item on this
+ * table must never be reported through logCrash() — see reportStuckCrashLog. */
+const CRASH_LOG_TABLE = "feedback";
+
+/**
+ * Handles a stuck `feedback` item without writing another `feedback` row.
+ *
+ * Reporting it through logCrash() would create a new crash row describing the
+ * old one's failure, embedding the failed row's own content, which then fails
+ * the same way — an unbounded self-feeding loop (docs/FIXED_BUGS.md,
+ * SF-CRASH-1). Crash rows are also already delivered to Sentry and to
+ * `/logs/client-error` the moment they are captured, so a crash row that the
+ * server has rejected five times is retried forever for no benefit: it is
+ * dropped from the queue and settled, the same way a terminal conflict is
+ * (see markConflictSettled), so requeueOrphanedRows() cannot resurrect it.
+ * Genuine user-submitted feedback keeps its normal retry behaviour.
+ */
+async function reportStuckCrashLog(
+  queueId: number,
+  recordId: string,
+  summary: string,
+): Promise<void> {
+  console.error(`[Sync] ${summary}`);
+
+  try {
+    const Sentry = await import("@sentry/nextjs");
+    Sentry.captureException(new Error(summary), {
+      tags: { area: "sync", table: CRASH_LOG_TABLE },
+      extra: { recordId },
+    });
+  } catch (e) {
+    console.error("Failed to report stuck crash-log item to Sentry", e);
+  }
+
+  const rows = await query<{ type: string; fingerprint: string | null }>(
+    `SELECT type, fingerprint FROM ${CRASH_LOG_TABLE} WHERE id = ?`,
+    [recordId],
+  );
+  const row = rows[0];
+  const isCrashReport = !row || (row.type === "bug" && !!row.fingerprint);
+  if (!isCrashReport) return;
+
+  await execute("DELETE FROM _sync_queue WHERE id = ?", [queueId]);
+  await markConflictSettled(CRASH_LOG_TABLE, recordId);
+}
+
 /**
  * Records a sync failure with exponential backoff so a permanently-bad item
  * stops being retried every cycle and blocking the rest of the queue. Once
@@ -521,8 +568,12 @@ export async function recordSyncFailure(
   // errorMessage here unconditionally used to clobber it on every later
   // call, so `alreadyReported` flipped back to false every other retry and
   // logCrash() fired again and again instead of exactly once.
+  // Bounded before it is stored or embedded anywhere: a DB-level failure
+  // arrives as the full driver error INCLUDING the entire attempted SQL
+  // statement, i.e. a verbatim copy of the row being pushed.
+  const boundedError = truncateForLog(errorMessage);
   const nextLastError =
-    alreadyReported || shouldReport ? `[REPORTED] ${errorMessage}` : errorMessage;
+    alreadyReported || shouldReport ? `[REPORTED] ${boundedError}` : boundedError;
 
   await execute(
     "UPDATE _sync_queue SET retry_count = ?, last_error = ?, next_retry_at = ? WHERE id = ?",
@@ -530,15 +581,18 @@ export async function recordSyncFailure(
   );
 
   if (shouldReport) {
+    const summary = `Sync item stuck after ${nextRetryCount} attempts on ${item.table_name}/${item.record_id}: ${boundedError}`;
     try {
+      if (item.table_name === CRASH_LOG_TABLE) {
+        await reportStuckCrashLog(queueId, item.record_id, summary);
+        return;
+      }
       const { logCrash } = await import("../utils/error-logger");
-      await logCrash(
-        new Error(
-          `Sync item stuck after ${nextRetryCount} attempts on ${item.table_name}/${item.record_id}: ${errorMessage}`,
-        ),
-        false,
-        { area: "sync", table: item.table_name, recordId: item.record_id },
-      );
+      await logCrash(new Error(summary), false, {
+        area: "sync",
+        table: item.table_name,
+        recordId: item.record_id,
+      });
     } catch (e) {
       console.error("Failed to report stuck sync item", e);
     }

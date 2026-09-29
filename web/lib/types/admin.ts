@@ -126,11 +126,29 @@ export interface AdminUser {
    * role-based UI logic. */
   role_slug?: string;
   store?: string;
+  /** Id of the store this account owns, else the store it is staff at, else
+   * null for a platform-level account. Mirrors `store` (the display name). */
+  store_id?: string | null;
+  /** True only when the account OWNS a store (stores.user_id), as opposed to
+   * working at one (users.store_id). See `AdminAccountType`. */
+  is_store_owner?: boolean;
   lastActive?: string;
   joinedAt?: string;
   status: string;
   deletionRequested?: boolean;
 }
+
+/** `account_type` on GET /admin/users. "owners" own a store, "staff" work at
+ * one, "platform" have no store affiliation at all; omitting it returns
+ * every account. */
+export type AdminAccountType = "owners" | "staff" | "platform";
+
+export type {
+  AdminStoreDetail,
+  AdminStoreDetailActivity,
+  AdminStoreDetailOwner,
+  AdminStoreDetailSubscription,
+} from "./admin-store-detail";
 
 export interface GlobalProductSummary {
   id: string;

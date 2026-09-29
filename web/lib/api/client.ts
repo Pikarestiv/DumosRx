@@ -173,6 +173,19 @@ class WebApiClient {
     return data;
   }
 
+  async previewBroadcastEmail(payload: { title: string; message: string }) {
+    const { data } = await apiClient.post<{
+      success: boolean;
+      data: { subject: string; html: string };
+    }>("/admin/announcements/preview-email", payload);
+    return data.data;
+  }
+
+  async sendBroadcastTestEmail(payload: { title: string; message: string; email: string }) {
+    const { data } = await apiClient.post("/admin/announcements/test-email", payload);
+    return data;
+  }
+
   async toggleBroadcast(id: string) {
     const { data } = await apiClient.patch(`/admin/announcements/${id}/toggle`);
     return data;

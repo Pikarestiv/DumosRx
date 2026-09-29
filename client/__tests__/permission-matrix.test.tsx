@@ -33,6 +33,9 @@ vi.mock("@/lib/hooks/use-permission-groups", () => ({
 // these tests - the self-lockout guard below hangs off exactly that.
 vi.mock("@/lib/hooks/use-permissions", () => ({
   useHasPermission: () => true,
+  // Owner-tier caller: the server's grant check short-circuits for them, so
+  // no cell is ever locked by the "can't grant what you don't hold" rule.
+  useOwnGrantScope: () => ({ unrestricted: true, ownPermissions: [] }),
   useOwnPermissionGroupId: () => "g3",
 }));
 vi.mock("@/lib/hooks/use-feature-gate", () => ({
@@ -204,6 +207,24 @@ describe("PermissionMatrix", () => {
     const [, keys] = toggleMany.mock.calls[0];
     expect(keys).not.toContain("manage_roles_permissions");
     expect(keys).toContain("manage_staff");
+
+    act(() => root.unmount());
+    container.remove();
+  });
+
+  it("leaves every cell editable for an owner-tier caller, whatever they personally hold", async () => {
+    const { PermissionMatrix } = await import("@/components/settings/roles-permissions/permission-matrix");
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root: Root = createRoot(container);
+    await act(async () => {
+      root.render(React.createElement(PermissionMatrix));
+    });
+
+    const lockedByGrantScope = Array.from(container.querySelectorAll("input")).filter(
+      (i) => i.disabled && i.getAttribute("title")?.includes("hold yourself"),
+    );
+    expect(lockedByGrantScope).toHaveLength(0);
 
     act(() => root.unmount());
     container.remove();

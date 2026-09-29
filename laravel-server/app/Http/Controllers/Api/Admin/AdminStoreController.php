@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Concerns\ManagesAdminSessionCookie;
 use App\Models\ActivityLog;
+use App\Services\Admin\AdminStoreDetailService;
 use App\Services\Admin\AdminStoreService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -101,6 +102,30 @@ class AdminStoreController extends AdminBaseController
                 'message' => 'Store registered successfully',
                 'store' => $store
             ], 201);
+        });
+    }
+
+    #[OA\Get(
+        path: '/admin/stores/{id}',
+        summary: 'Full detail payload for one store (Store Details page)',
+        description: "Profile, owner, current subscription, account manager, sync health, storefront and Paystack configuration, entity counts, recent transactions and recent activity. The store's staff list is NOT here — it comes from GET /admin/users?account_type=staff&store_id={id}.",
+        tags: ['Admin'],
+        security: [['sanctum' => []]],
+        parameters: [new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'string'))],
+        responses: [
+            new OA\Response(response: 200, description: 'Store detail', content: new OA\JsonContent(type: 'object')),
+            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Non-super_admin'),
+            new OA\Response(response: 404, description: 'Store not found'),
+        ],
+    )]
+    public function storeDetail(AdminStoreDetailService $detailService, string $id)
+    {
+        return $this->withErrorResponse('Store Detail', 'Failed to fetch store detail', function () use ($detailService, $id) {
+            $data = $detailService->getStoreDetail($id);
+            if ($data === null) {
+                return response()->json(['error' => 'Store not found'], 404);
+            }
+            return response()->json($data);
         });
     }
 

@@ -37,6 +37,19 @@ class BroadcastEmailService
         return $sent;
     }
 
+    public function sendTest(string $title, string $message, string $email): void
+    {
+        Mail::to($email)->send(new AdminCustomMail($title, $message));
+    }
+
+    public function renderPreview(string $title, string $message): array
+    {
+        return [
+            'subject' => $title,
+            'html' => (new AdminCustomMail($title, $message))->render(),
+        ];
+    }
+
     private function isDeliverable(Broadcast $broadcast): bool
     {
         return Broadcast::active()->whereKey($broadcast->getKey())->exists();

@@ -188,6 +188,36 @@ shape, prune it here rather than inventing a second mechanism.
   (`recordSyncFailure` in `base-helpers.ts`), with a one-time report to
   superadmins after `SYNC_FAILURE_REPORT_THRESHOLD` (5) consecutive
   failures on the same item.
+- **Never log a crash about the `feedback` table back into the `feedback`
+  table, and never embed a raw push error in a new log message.** Both
+  rules exist because breaking either one caused a live production incident
+  on 2026-09-29 (Sentry `DUMOSRX-CLIENT-1B`, `17`, `19`, `1A`, `1G`, `1M`;
+  full account in `docs/FIXED_BUGS.md`, A-27). `logCrash()` stores its
+  report as a `feedback` row, and `insert()` queues that row for push like
+  any other — so a crash report is itself a syncable row that can fail to
+  sync. When `recordSyncFailure()` reported a stuck `feedback` row by
+  embedding the push error, and that error was a database rejection (whose
+  text includes the **entire attempted SQL statement**, i.e. a verbatim
+  copy of the row), each report contained every previous one: unbounded,
+  self-nesting growth until the column limit was hit, whereupon *that*
+  insert failed and produced another report, forever. Fingerprint dedup did
+  not catch it because every generation carried a different stuck-record id.
+  The two guards now in place: `truncateForLog()`
+  (`lib/utils/error-truncation.ts`) caps anything embedded in a log message
+  at `MAX_EMBEDDED_ERROR_LENGTH`, and `logCrash()` caps its own final
+  message at `MAX_CRASH_MESSAGE_LENGTH` (2000, matching the server's
+  `/logs/client-error` validation so an oversized report is truncated
+  rather than silently 422-rejected); and `recordSyncFailure()` routes a
+  stuck `feedback` item to `reportStuckCrashLog()`, which reports via
+  `console.error` + a direct `Sentry.captureException` and writes no
+  `feedback` row. A stuck *crash* row (`type = 'bug'` with a fingerprint)
+  is also dropped from the queue and settled via `markConflictSettled` —
+  Sentry and `/logs/client-error` already have it, and leaving it
+  `_synced = 0` without that settle would let `requeueOrphanedRows()`
+  resurrect it every boot. Genuine user-submitted feedback keeps its normal
+  retry behaviour. **If you add another table that a logging/telemetry path
+  writes to, apply the same "don't log X into X" check before reporting a
+  failure on it.**
 - **`isManual` means "a human clicked Sync Now", and nothing else.** It
   bypasses per-item backoff (`getPendingSyncItems`) *and* the server's
   plan-tier sync-interval throttle (`?manual=1`), so passing it from an
@@ -206,6 +236,56 @@ shape, prune it here rather than inventing a second mechanism.
 Call `sync(true)` before any workflow where stale local data would be
 actively misleading (e.g. `StockAudits` syncs on mount before showing
 counts, see `components/stock-batch/stock-audits.tsx`).
+
+### The `stores` prune, and how a store disappears (2026-09-29)
+
+**Reported live**: a two-store owner's device showed both stores in the
+header switcher, then showed only one, alongside a stuck/pending sync
+indicator. The switcher reads `getAllStores()` (`WHERE _deleted = 0`), so
+"a store vanished" means something wrote `_deleted = 1` locally. The only
+thing that does that is `pull.ts`'s `stores` prune.
+
+**The prune's premise was wrong in one specific, ordinary situation.** It
+soft-deletes a live local store the pull response's `stores` list omits,
+on the stated premise that `stores` is "always a full, unfiltered snapshot
+of every store this account owns". It is not: `SyncController::pull()`
+scopes it through `resolvePullTenantScope()`, whose `$ownedStoreIds` is
+`[$user->store_id]` for **any user carrying a store_id** — i.e. every staff
+account — and only `Store::where('user_id', $ownerId)` for a store_id-less
+owner identity. So a pull on a cashier/manager session legitimately returns
+one store, and the prune read that as "the server confirmed the owner's
+other store is gone". Pinned server-side by
+`SyncEndpointTest::test_pull_sync_stores_snapshot_is_narrowed_to_a_staff_users_own_store`.
+`pull.ts` now skips the prune entirely unless the stored user snapshot has
+no `store_id` (`storesSnapshotIsAccountWide()`); an unknown identity (no
+stored user at all, e.g. the onboarding setup pull) still prunes, which is
+the original pre-cloud-link reconcile case.
+
+**And a wrongly-pruned store could never come back.** The prune ignored
+the pending-local-edit rule the row-apply branch three lines above it
+obeys: a store with an unpushed `_sync_queue` row is exactly the row every
+later pull *skips*, so the `_deleted = 1` written by the prune was never
+cleared again by a correctly-scoped snapshot. A pending queue row on
+`stores` is not exotic — `backfillDefaultGroupPermissions()` and
+`ensurePermissionGroupsSeeded()` both `update("stores", …)` on login, as
+do the store-profile, loyalty and fleet writes. Prune candidates now
+exclude any store with a pending `stores` queue row.
+
+Both guards fail closed, matching the direction this code already prefers:
+a stale entry lingering in the switcher beats losing sight of a real store.
+Tests: `__tests__/store-prune-fails-closed.test.ts`.
+
+**Still open, same incident, not fixed here.** A push rejected `forbidden`
+(`SyncController::push`'s `authorizeChangeTarget` — e.g. a staff session
+draining a queue row the owner left behind for a store outside that staff
+member's scope) is **retryable**, and correctly so: the same frozen payload
+succeeds once the owner signs back in, unlike the `permission_denied`
+class, which is why the H1 fix's terminal handling should *not* be widened
+to cover it. But the row then sits in `_sync_queue` indefinitely (backoff is
+capped, never abandoned), which is both the stuck sync indicator and — via
+the pending-local-edit skip — a record that stops being pulled at all for as
+long as it sits there. The general "a permanently-parked queue row silently
+freezes its record's pulls" problem is unaddressed.
 
 ## Cross-module events and `localStorage`: `lib/events.ts` and `lib/storage-keys.ts`
 
@@ -1798,12 +1878,60 @@ Two things a new category-level control must keep:
    captured by the current render, so the second write in a loop would
    overwrite the first with a set that predates it.
 2. `getCategoryToggleKeys()` filters out locked keys. Today that is the
-   acting user's own `manage_roles_permissions`, which the per-cell UI
-   renders disabled; without the filter the category checkbox would be a
-   way round that self-lockout guard.
+   acting user's own `manage_roles_permissions` plus every key the acting
+   user can't grant (below), which the per-cell UI renders disabled;
+   without the filter the category checkbox would be a way round those
+   guards. A category whose writable set comes out empty renders its
+   checkbox disabled rather than as a click that silently writes nothing.
 
 Sections default to expanded — the matrix's job is being scannable at a
 glance — and collapse state is local component state, not persisted.
+
+### "You can't grant what you don't hold" (2026-09-29)
+
+The matrix's only gate used to be `canManage` (holding
+`manage_roles_permissions`), but the sync server's
+`sanitizePermissionGroupSyncPayload()` enforces a second, narrower rule,
+and the two disagreed. `lib/permissions/grant-scope.ts` now mirrors the
+server's rule exactly and `useOwnGrantScope()` feeds it to the matrix:
+
+- **Unrestricted roles are `store_owner`, `admin` and `super_admin`** —
+  the server's own list, which is **not** the same as `hasPermission()`'s
+  short-circuit (that one omits `admin`). Follow the server here; a
+  mismatch either over-restricts a legitimate owner action or lets the
+  silent revert below back in.
+- Everyone else may only grant keys **their own permission group row**
+  carries. The server has no role-based fallback for this check, so a
+  caller with no group row can grant nothing — `buildGrantScope()`
+  deliberately does not reuse `fallbackPermissions()`.
+- The check runs against the **whole resulting `permissions` array**, not
+  the one key that changed, and `toggle()`/`toggleMany()` always write the
+  whole array. So a group that *already* holds a key the caller can't
+  grant can't be edited by that caller at all — the matrix disables that
+  group's entire column, with its own explanatory title, rather than
+  letting an untick be rejected too.
+
+Both refusals are **disabled cells with a `title`, never hidden cells** —
+the same "show something true, never a mystery-disabled control" rule the
+`factory_reset` surface follows.
+
+**Why this replaces relying on the sync layer's behavior.** Without it, a
+manager-tier user ticking a key they don't personally hold got a local
+write that applied instantly, showed as ON, pushed as `permission_denied`,
+had its queue row dropped terminally, and was reverted by the next pull —
+with **no toast at all**, because `permission_denied` is in
+`SILENT_TERMINAL_REASONS` (`lib/db/sync-engine/push.ts`). That silencing is
+correct and stays: it exists for the automatic catalog backfill's own push,
+an edit no user made and no user is waiting on. Narrowing it by "was this
+queued by machinery or by a human" would need an origin marker on the sync
+queue row (the two pushes are indistinguishable today — same table, same
+column, same shape), so the fix belongs in the UI, where the edit can be
+refused before it is ever written locally.
+
+**Known residual.** The matrix is now honest, but `revertToDefault()` and
+`copyGroup()` (the group toolbar) still write permission sets a restricted
+caller may not be able to grant, and would hit the same silent
+`permission_denied` drop. They are not gated yet.
 
 ## Reports: on-screen view
 
@@ -2098,6 +2226,20 @@ same tab session still gets its own fresh one-time retry.
   md:inline">{long}</span>`: the house pattern for abbreviating table
   headers/labels on small screens instead of letting them force horizontal
   scroll.
+- **Click-to-expand a truncated list item**: keep the `line-clamp-*` on the
+  row and add a detail modal beside it — never widen the row or drop the
+  clamp. The row's click handler sets a nullable `target` state and the
+  `ResponsiveModal`-based `<Entity>DetailModal` renders from it
+  (`components/stock-batch/stock-movement-detail-modal.tsx` is the reference;
+  `components/dashboard/notification-detail-modal.tsx`, reached by clicking a
+  clamped broadcast in the notification bell, is the smallest example). When
+  the row lives inside a `DropdownMenu` or `Drawer`, the modal is rendered as
+  a **sibling of that menu, not a child of it**, and the click closes the menu
+  before opening the modal — two dismissable layers mounted at once is what
+  leaves `document.body.style.pointerEvents` stuck (the same failure
+  `ResponsiveModal`'s `mounted` gate exists to avoid). `NotificationBell`
+  falls back to the detail modal only when a notification has no other action
+  (no `link`, not an online order), so it never displaces existing navigation.
 - **No raw `<table>` elements, ever.** Every data table in the app is
   div-based with ARIA roles standing in for real `<table>` semantics
   (`role="table"` / `"rowgroup"` / `"row"` / `"columnheader"` / `"cell"`),

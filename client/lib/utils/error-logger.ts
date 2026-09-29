@@ -5,6 +5,7 @@
 import * as Sentry from "@sentry/nextjs";
 import { SYSTEM_EMAIL } from "@/lib/constants";
 import { getDeviceId } from "@/lib/utils/device-id";
+import { MAX_CRASH_MESSAGE_LENGTH, truncateForLog } from "@/lib/utils/error-truncation";
 import {
   STORAGE_KEYS,
   getStoredUser,
@@ -118,6 +119,11 @@ export async function logCrash(error: unknown, isFatal = false, context: CrashCo
     message = err.message || JSON.stringify(error);
     stack = err.stack || "";
   }
+
+  // Last line of defence for every consumer below (fingerprint, the stored
+  // `feedback` row, the direct server report): no caller can make a crash
+  // message unbounded, whatever it embeds.
+  message = truncateForLog(message, MAX_CRASH_MESSAGE_LENGTH);
 
   // Detect platform
   const isTauri = typeof window !== "undefined" &&

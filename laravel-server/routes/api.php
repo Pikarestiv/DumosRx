@@ -180,6 +180,7 @@ Route::prefix('v1')->group(function () {
             Route::get('/summary', [AdminPlatformController::class, 'summary'])->middleware('role:super_admin');
             Route::get('/stores', [AdminStoreController::class, 'stores'])->middleware('role:super_admin');
             Route::post('/stores', [AdminStoreController::class, 'registerStore']);
+            Route::get('/stores/{id}', [AdminStoreController::class, 'storeDetail'])->middleware('role:super_admin');
             Route::post('/stores/{id}/suspend', [AdminStoreController::class, 'suspendStore'])->middleware('role:super_admin');
             Route::post('/stores/{id}/unsuspend', [AdminStoreController::class, 'unsuspendStore'])->middleware('role:super_admin');
             Route::post('/stores/{id}/mark-demo', [AdminStoreController::class, 'markStoreDemo'])->middleware('role:super_admin');
@@ -223,6 +224,8 @@ Route::prefix('v1')->group(function () {
             // Broadcasts
             Route::prefix('announcements')->middleware(['subscription:broadcast_create', 'role:super_admin'])->group(function () {
                 Route::get('/', [BroadcastController::class, 'adminIndex']);
+                Route::post('/preview-email', [BroadcastController::class, 'previewEmail']);
+                Route::post('/test-email', [BroadcastController::class, 'sendTestEmail']);
                 Route::post('/', [BroadcastController::class, 'store']);
                 Route::put('/{id}', [BroadcastController::class, 'update']);
                 Route::patch('/{id}/toggle', [BroadcastController::class, 'toggle']);

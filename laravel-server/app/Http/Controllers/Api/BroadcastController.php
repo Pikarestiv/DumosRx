@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Broadcast;
 use App\Services\Admin\BroadcastEmailService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use OpenApi\Attributes as OA;
 
@@ -146,6 +147,105 @@ class BroadcastController extends Controller
             'success' => true,
             'message' => 'Broadcast created successfully',
             'data' => $broadcast
+        ]);
+    }
+
+    #[OA\Post(
+        path: '/admin/announcements/preview-email',
+        summary: 'Render the broadcast email exactly as recipients will see it',
+        description: 'Read-only: renders the AdminCustomMail mailable for the supplied title/message and returns its HTML. Creates no broadcast and sends no mail.',
+        tags: ['Announcements'],
+        security: [['sanctum' => []]],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
+            required: ['title', 'message'],
+            properties: [
+                new OA\Property(property: 'title', type: 'string', maxLength: 255),
+                new OA\Property(property: 'message', type: 'string'),
+            ],
+        )),
+        responses: [
+            new OA\Response(response: 200, description: 'Rendered preview', content: new OA\JsonContent(properties: [
+                new OA\Property(property: 'success', type: 'boolean'),
+                new OA\Property(property: 'data', type: 'object', properties: [
+                    new OA\Property(property: 'subject', type: 'string'),
+                    new OA\Property(property: 'html', type: 'string'),
+                ]),
+            ])),
+            new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
+            new OA\Response(response: 422, ref: '#/components/responses/ValidationError'),
+        ],
+    )]
+    public function previewEmail(Request $request, BroadcastEmailService $broadcastEmailService)
+    {
+        $validator = Validator::make($request->all(), [
+            'title' => 'required|string|max:255',
+            'message' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $broadcastEmailService->renderPreview(
+                $request->input('title'),
+                $request->input('message')
+            ),
+        ]);
+    }
+
+    #[OA\Post(
+        path: '/admin/announcements/test-email',
+        summary: 'Send one test broadcast email to a single address',
+        description: 'Sends exactly one AdminCustomMail, synchronously, to the supplied address. Creates no broadcast, reaches no store owner, and does not affect the fires-once-at-creation rule.',
+        tags: ['Announcements'],
+        security: [['sanctum' => []]],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
+            required: ['title', 'message', 'email'],
+            properties: [
+                new OA\Property(property: 'title', type: 'string', maxLength: 255),
+                new OA\Property(property: 'message', type: 'string'),
+                new OA\Property(property: 'email', type: 'string', format: 'email', description: 'The single recipient of the test'),
+            ],
+        )),
+        responses: [
+            new OA\Response(response: 200, description: 'Sent', content: new OA\JsonContent(properties: [
+                new OA\Property(property: 'success', type: 'boolean'),
+                new OA\Property(property: 'message', type: 'string'),
+            ])),
+            new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
+            new OA\Response(response: 422, ref: '#/components/responses/ValidationError'),
+            new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
+        ],
+    )]
+    public function sendTestEmail(Request $request, BroadcastEmailService $broadcastEmailService)
+    {
+        $validator = Validator::make($request->all(), [
+            'title' => 'required|string|max:255',
+            'message' => 'required|string',
+            'email' => 'required|email|max:255',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
+        }
+
+        try {
+            $broadcastEmailService->sendTest(
+                $request->input('title'),
+                $request->input('message'),
+                $request->input('email')
+            );
+        } catch (\Exception $e) {
+            Log::error('Broadcast test email failed: ' . $e->getMessage());
+
+            return response()->json(['success' => false, 'message' => 'Failed to send the test email.'], 500);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Test email sent to ' . $request->input('email'),
         ]);
     }
 

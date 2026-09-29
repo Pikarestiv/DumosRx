@@ -47,25 +47,13 @@ import { SharedGrantTrialDialog } from "@/components/admin/shared-grant-trial-di
 import { SharedActivatePlanDialog } from "@/components/admin/shared-activate-plan-dialog";
 import { UserPagination } from "@/components/admin/users/user-pagination";
 import { BulkNotifyDialog } from "@/components/admin/users/bulk-notify-dialog";
-import type { AdminUser } from "@/lib/types/admin";
+import type { AdminAccountType, AdminUser } from "@/lib/types/admin";
 import { escapeCsvCell } from "@/lib/utils";
-
-// Maps the filter dropdown's display labels to the backend's raw `role`
-// slugs (AdminService::getGlobalUsers's `role` query param does an exact
-// match against the `users.role` column, not the humanized label). Matches
-// the full role set from database/seeders/RolesAndPermissionsSeeder.php -
-// this previously only listed 3 of the 9 real roles.
-const ROLE_FILTER_SLUGS: Record<string, string> = {
-  "Super Admin": "super_admin",
-  "Platform Admin": "platform_admin",
-  Agent: "agent",
-  "Store Owner": "store_owner",
-  "Store Admin": "admin",
-  Manager: "manager",
-  Specialist: "specialist",
-  "Sales Staff": "sales_staff",
-  Auditor: "auditor",
-};
+import {
+  ACCOUNT_TYPE_TABS,
+  ROLE_FILTER_SLUGS,
+  ROLE_LABELS_BY_ACCOUNT_TYPE,
+} from "@/components/admin/users/user-directory-filters";
 
 function GlobalUsersDirectoryContent() {
   const router = useRouter();
@@ -76,6 +64,7 @@ function GlobalUsersDirectoryContent() {
   const [search, setSearch] = useState(initialSearch);
   const [prevInitialSearch, setPrevInitialSearch] = useState(initialSearch);
   const [roleFilter, setRoleFilter] = useState<string | null>(null);
+  const [accountType, setAccountType] = useState<AdminAccountType>("owners");
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
 
   if (initialSearch !== prevInitialSearch) {
@@ -102,7 +91,21 @@ function GlobalUsersDirectoryContent() {
     isLoading,
     error,
     refetch,
-  } = useAdminUsers(page, debouncedSearch, roleFilter ? ROLE_FILTER_SLUGS[roleFilter] || "" : "");
+  } = useAdminUsers(
+    page,
+    debouncedSearch,
+    roleFilter ? ROLE_FILTER_SLUGS[roleFilter] || "" : "",
+    accountType,
+  );
+
+  const handleAccountTypeChange = (next: AdminAccountType) => {
+    setAccountType(next);
+    setRoleFilter(null);
+    setPage(1);
+  };
+
+  const availableRoleLabels = ROLE_LABELS_BY_ACCOUNT_TYPE[accountType];
+  const activeTabHint = ACCOUNT_TYPE_TABS.find((tab) => tab.value === accountType)?.hint ?? "";
   const deactivateMutation = useDeactivateUserMutation();
   const reactivateMutation = useReactivateUserMutation();
   const resetPasswordMutation = useResetUserPasswordMutation();
@@ -238,6 +241,27 @@ function GlobalUsersDirectoryContent() {
 
       <Card className="border-none shadow-sm overflow-hidden bg-white dark:bg-slate-900">
         <CardContent className="p-0">
+          <div className="px-6 pt-6 flex flex-col gap-2">
+            <div className="inline-flex w-fit rounded-2xl bg-slate-100 dark:bg-slate-800 p-1">
+              {ACCOUNT_TYPE_TABS.map((tab) => (
+                <button
+                  key={tab.value}
+                  type="button"
+                  onClick={() => handleAccountTypeChange(tab.value)}
+                  className={`rounded-xl px-4 py-2 text-sm font-bold transition-colors ${
+                    accountType === tab.value
+                      ? "bg-white dark:bg-slate-900 text-indigo-600 shadow-sm"
+                      : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+              {activeTabHint}
+            </p>
+          </div>
           <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="relative w-full max-w-sm group">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
@@ -276,7 +300,7 @@ function GlobalUsersDirectoryContent() {
                   >
                     All Roles
                   </DropdownMenuItem>
-                  {Object.keys(ROLE_FILTER_SLUGS).map((label) => (
+                  {availableRoleLabels.map((label) => (
                     <DropdownMenuItem
                       key={label}
                       className="rounded-xl px-3 py-2 cursor-pointer font-bold"
@@ -390,6 +414,7 @@ function GlobalUsersDirectoryContent() {
         onOpenChange={setIsBulkNotifyDialogOpen}
         recipientCount={userMeta?.total || 0}
         filters={{
+          account_type: accountType,
           role: roleFilter ? ROLE_FILTER_SLUGS[roleFilter] : undefined,
           search: debouncedSearch || undefined,
         }}

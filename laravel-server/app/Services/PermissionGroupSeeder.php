@@ -25,49 +25,150 @@ use Illuminate\Support\Str;
  */
 class PermissionGroupSeeder
 {
+    /** Hand-maintained port of client/lib/constants/permissions.ts's
+     * PERMISSION_CATALOG_VERSION. See PermissionCatalogParityTest. */
+    private const CATALOG_VERSION = 2;
+
     private const DEFAULT_GROUP_PERMISSIONS = [
         'admin' => [
             'process_sales', 'apply_discounts', 'void_refund_sales', 'override_price',
+            'hold_sales', 'view_sales_history', 'reprint_receipt', 'run_daily_close',
             'manage_products', 'adjust_stock_counts', 'manage_purchase_orders',
             'receive_purchase_orders', 'manage_suppliers', 'request_stock_transfers',
             'approve_stock_transfers',
+            'view_cost_fields', 'edit_product_cost', 'edit_product_price', 'delete_products',
+            'perform_stock_audit', 'view_stock_adjustment_history', 'print_product_labels',
+            'export_product_list', 'view_suppliers', 'delete_suppliers',
             'dispense_prescriptions', 'manage_prescriptions',
-            'manage_customers', 'manage_loyalty',
+            'manage_customers', 'manage_loyalty', 'delete_customers', 'view_customer_balances',
             'view_reports', 'export_reports', 'view_activity_log',
+            'view_dashboard', 'view_financial_reports',
             'record_expenses', 'view_all_expenses',
             'manage_staff', 'manage_roles_permissions',
             'manage_store_settings', 'manage_payment_accounts', 'manage_online_store', 'manage_billing',
-            'backup_restore_data', 'factory_reset',
+            'backup_restore_data', 'manage_device_settings', 'install_app_updates', 'factory_reset',
         ],
         'manager' => [
             'process_sales', 'apply_discounts', 'void_refund_sales', 'override_price',
+            'hold_sales', 'view_sales_history', 'reprint_receipt', 'run_daily_close',
             'manage_products', 'adjust_stock_counts', 'manage_purchase_orders',
             'receive_purchase_orders', 'manage_suppliers', 'request_stock_transfers',
             'approve_stock_transfers',
+            'view_cost_fields', 'edit_product_cost', 'edit_product_price', 'delete_products',
+            'perform_stock_audit', 'view_stock_adjustment_history', 'print_product_labels',
+            'export_product_list', 'view_suppliers', 'delete_suppliers',
             'dispense_prescriptions', 'manage_prescriptions',
-            'manage_customers', 'manage_loyalty',
+            'manage_customers', 'manage_loyalty', 'delete_customers', 'view_customer_balances',
             'view_reports', 'export_reports',
+            'view_dashboard', 'view_financial_reports',
             'record_expenses', 'view_all_expenses',
             'manage_staff',
             'manage_store_settings', 'manage_payment_accounts', 'manage_online_store', 'backup_restore_data',
+            'manage_device_settings', 'install_app_updates',
         ],
         'specialist' => [
             'process_sales',
+            'hold_sales', 'view_sales_history',
             'manage_products', 'adjust_stock_counts', 'manage_purchase_orders',
             'receive_purchase_orders', 'manage_suppliers', 'request_stock_transfers',
+            'view_cost_fields', 'edit_product_cost', 'edit_product_price',
+            'perform_stock_audit', 'view_stock_adjustment_history', 'print_product_labels',
+            'export_product_list', 'view_suppliers',
             'dispense_prescriptions', 'manage_prescriptions',
-            'manage_customers',
+            'manage_customers', 'view_customer_balances',
+            'view_dashboard',
             'record_expenses',
+            'manage_device_settings',
         ],
         'sales_staff' => [
-            'process_sales',
-            'manage_customers',
+            'process_sales', 'override_price',
+            'hold_sales', 'view_sales_history', 'reprint_receipt',
+            'request_stock_transfers',
+            'manage_customers', 'view_customer_balances',
+            'view_dashboard',
             'record_expenses',
         ],
         'auditor' => [
             'view_reports', 'export_reports', 'view_all_expenses',
+            'view_sales_history',
+            'view_cost_fields', 'view_stock_adjustment_history', 'view_suppliers',
+            'export_product_list',
+            'view_customer_balances', 'view_dashboard', 'view_financial_reports',
         ],
     ];
+
+    /** Port of the client's DEFAULT_GROUP_PERMISSION_ADDITIONS: per catalog
+     * version, the keys each default group gained at that version. */
+    private const DEFAULT_GROUP_PERMISSION_ADDITIONS = [
+        2 => [
+            'admin' => [
+                'hold_sales', 'view_sales_history', 'reprint_receipt', 'run_daily_close',
+                'view_cost_fields', 'edit_product_cost', 'edit_product_price', 'delete_products',
+                'perform_stock_audit', 'view_stock_adjustment_history', 'print_product_labels',
+                'export_product_list', 'view_suppliers', 'delete_suppliers',
+                'delete_customers', 'view_customer_balances',
+                'view_dashboard', 'view_financial_reports',
+                'manage_device_settings', 'install_app_updates',
+            ],
+            'manager' => [
+                'hold_sales', 'view_sales_history', 'reprint_receipt', 'run_daily_close',
+                'view_cost_fields', 'edit_product_cost', 'edit_product_price', 'delete_products',
+                'perform_stock_audit', 'view_stock_adjustment_history', 'print_product_labels',
+                'export_product_list', 'view_suppliers', 'delete_suppliers',
+                'delete_customers', 'view_customer_balances',
+                'view_dashboard', 'view_financial_reports',
+                'manage_device_settings', 'install_app_updates',
+            ],
+            'specialist' => [
+                'hold_sales', 'view_sales_history',
+                'view_cost_fields', 'edit_product_cost', 'edit_product_price',
+                'perform_stock_audit', 'view_stock_adjustment_history', 'print_product_labels',
+                'export_product_list', 'view_suppliers',
+                'view_customer_balances', 'view_dashboard', 'manage_device_settings',
+            ],
+            'sales_staff' => [
+                'hold_sales', 'view_sales_history', 'reprint_receipt', 'override_price',
+                'request_stock_transfers', 'view_customer_balances', 'view_dashboard',
+            ],
+            'auditor' => [
+                'view_sales_history', 'view_cost_fields', 'view_stock_adjustment_history',
+                'view_suppliers', 'view_customer_balances', 'view_dashboard',
+                'view_financial_reports', 'export_product_list',
+            ],
+        ],
+    ];
+
+    public static function catalogVersion(): int
+    {
+        return self::CATALOG_VERSION;
+    }
+
+    /** @return array<string, string[]> */
+    public static function defaultGroupPermissions(): array
+    {
+        return self::DEFAULT_GROUP_PERMISSIONS;
+    }
+
+    /** @return array<int, array<string, string[]>> */
+    public static function defaultGroupPermissionAdditions(): array
+    {
+        return self::DEFAULT_GROUP_PERMISSION_ADDITIONS;
+    }
+
+    /** Every key any backfill may ever add to a default group for $role.
+     * SyncController uses it to recognise a client-pushed backfill UPDATE
+     * whose signed-in user does not hold those keys themselves. */
+    public static function backfillableKeysForRole(string $role): array
+    {
+        $keys = [];
+        foreach (self::DEFAULT_GROUP_PERMISSION_ADDITIONS as $byRole) {
+            foreach ($byRole[$role] ?? [] as $key) {
+                $keys[$key] = true;
+            }
+        }
+
+        return array_keys($keys);
+    }
 
     private const LABELS = [
         'admin' => 'Admin',

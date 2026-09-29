@@ -232,6 +232,89 @@ export const DEFAULT_GROUP_PERMISSIONS: Record<
 };
 
 /**
+ * The catalog revision the DEFAULT_GROUP_PERMISSIONS lists above belong to.
+ * Stamped onto stores.permission_catalog_version by
+ * ensurePermissionGroupsSeeded()/backfillDefaultGroupPermissions()
+ * (lib/db/queries/permission-groups.ts) and by the server's
+ * PermissionGroupSeeder, so an ALREADY-seeded store can be brought forward
+ * to a later catalog instead of being frozen on the list it was seeded with.
+ *
+ *   1  the feature's launch lists (2026-09-27, a5f40463)
+ *   2  everything the 2026-09-28 QuickBooks expansion and the 2026-09-28/29
+ *      enforcement passes added to a default group
+ *
+ * Bumping this REQUIRES adding the matching entry to
+ * DEFAULT_GROUP_PERMISSION_ADDITIONS below and to the PHP seeder's copy of
+ * both - PermissionCatalogParityTest (laravel-server) fails otherwise.
+ */
+export const PERMISSION_CATALOG_VERSION = 2;
+
+export type DefaultGroupRole = keyof typeof DEFAULT_GROUP_PERMISSIONS;
+
+/**
+ * Per catalog version, the keys each default group GAINED at that version.
+ * The backfill unions these into an existing default group's stored
+ * `permissions` array for every version newer than the store's stamp - it
+ * never removes anything, and never adds a key from a version the store was
+ * already stamped at, so a key an owner deliberately unticked after being
+ * stamped at v2 is never silently restored by a later v3 pass.
+ *
+ * Deliberately a literal table rather than a diff computed against a stored
+ * snapshot of each old list: the same table has to exist byte-for-byte in
+ * PHP, and a literal ports without re-deriving anything.
+ */
+export const DEFAULT_GROUP_PERMISSION_ADDITIONS: Record<number, Record<DefaultGroupRole, string[]>> = {
+  2: {
+    admin: [
+      "hold_sales", "view_sales_history", "reprint_receipt", "run_daily_close",
+      "view_cost_fields", "edit_product_cost", "edit_product_price", "delete_products",
+      "perform_stock_audit", "view_stock_adjustment_history", "print_product_labels",
+      "export_product_list", "view_suppliers", "delete_suppliers",
+      "delete_customers", "view_customer_balances",
+      "view_dashboard", "view_financial_reports",
+      "manage_device_settings", "install_app_updates",
+    ],
+    manager: [
+      "hold_sales", "view_sales_history", "reprint_receipt", "run_daily_close",
+      "view_cost_fields", "edit_product_cost", "edit_product_price", "delete_products",
+      "perform_stock_audit", "view_stock_adjustment_history", "print_product_labels",
+      "export_product_list", "view_suppliers", "delete_suppliers",
+      "delete_customers", "view_customer_balances",
+      "view_dashboard", "view_financial_reports",
+      "manage_device_settings", "install_app_updates",
+    ],
+    specialist: [
+      "hold_sales", "view_sales_history",
+      "view_cost_fields", "edit_product_cost", "edit_product_price",
+      "perform_stock_audit", "view_stock_adjustment_history", "print_product_labels",
+      "export_product_list", "view_suppliers",
+      "view_customer_balances", "view_dashboard", "manage_device_settings",
+    ],
+    sales_staff: [
+      "hold_sales", "view_sales_history", "reprint_receipt", "override_price",
+      "request_stock_transfers", "view_customer_balances", "view_dashboard",
+    ],
+    auditor: [
+      "view_sales_history", "view_cost_fields", "view_stock_adjustment_history",
+      "view_suppliers", "view_customer_balances", "view_dashboard",
+      "view_financial_reports", "export_product_list",
+    ],
+  },
+};
+
+/** Every key any backfill is allowed to add to a given default role's group,
+ * across every catalog version. The server's sync-push guard uses the same
+ * set to recognise a backfill UPDATE pushed by a device whose signed-in user
+ * does not hold those keys themselves. */
+export function backfillableKeysForRole(role: string): string[] {
+  const seen = new Set<string>();
+  for (const byRole of Object.values(DEFAULT_GROUP_PERMISSION_ADDITIONS)) {
+    for (const key of byRole[role as DefaultGroupRole] ?? []) seen.add(key);
+  }
+  return Array.from(seen);
+}
+
+/**
  * Permission keys with a real useHasPermission()/hasPermission() call site
  * gating something in the app today - every OTHER key in PERMISSION_CATALOG
  * is a real, toggleable checkbox in the Roles & Permissions matrix that

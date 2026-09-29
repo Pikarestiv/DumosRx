@@ -32,6 +32,7 @@ class AdminStoreController extends AdminBaseController
             new OA\Parameter(name: 'search', in: 'query', schema: new OA\Schema(type: 'string')),
             new OA\Parameter(name: 'status', in: 'query', schema: new OA\Schema(type: 'string')),
             new OA\Parameter(name: 'plan', in: 'query', schema: new OA\Schema(type: 'string')),
+            new OA\Parameter(name: 'archived', in: 'query', description: 'active (default), only, or all', schema: new OA\Schema(type: 'string', enum: ['active', 'only', 'all'])),
         ],
         responses: [
             new OA\Response(response: 200, description: 'Stores', content: new OA\JsonContent(type: 'object')),
@@ -46,7 +47,10 @@ class AdminStoreController extends AdminBaseController
             $search = $request->query('search');
             $status = $request->query('status');
             $plan = $request->query('plan');
-            return response()->json($this->adminStoreService->getStores($page, $search, $status, $plan));
+            $archived = in_array($request->query('archived'), ['only', 'all'], true)
+                ? $request->query('archived')
+                : 'active';
+            return response()->json($this->adminStoreService->getStores($page, $search, $status, $plan, $archived));
         });
     }
 

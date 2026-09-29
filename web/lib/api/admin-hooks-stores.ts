@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { webApiClient } from "./client";
 import { useScopedKey } from "./query-scope";
 import { useAdminStore } from "@/lib/store/use-admin-store";
@@ -31,10 +31,29 @@ export const useAdminSummary = (options?: { enabled?: boolean }) => {
   });
 };
 
-export const useAdminStores = (page = 1, search = "", status = "", plan = "") => {
+export type AdminStoresArchivedScope = "active" | "only" | "all";
+
+export const useAdminStores = (
+  page = 1,
+  search = "",
+  status = "",
+  plan = "",
+  archived: AdminStoresArchivedScope = "active",
+) => {
+  const query = new URLSearchParams({ page: String(page) });
+  if (search) query.set("search", search);
+  if (status) query.set("status", status);
+  if (plan) query.set("plan", plan);
+  if (archived !== "active") query.set("archived", archived);
+
   return useQuery({
-    queryKey: useScopedKey(["admin-stores", page, search, status, plan]),
-    queryFn: () => webApiClient.request<PaginatedResponse<AdminStoreSummary>>(`admin/stores?page=${page}${search ? `&search=${encodeURIComponent(search)}` : ""}${status ? `&status=${encodeURIComponent(status)}` : ""}${plan ? `&plan=${encodeURIComponent(plan)}` : ""}`),
+    queryKey: useScopedKey(["admin-stores", page, search, status, plan, archived]),
+    queryFn: () =>
+      webApiClient.request<PaginatedResponse<AdminStoreSummary>>(`admin/stores?${query.toString()}`),
+    // The previous page's rows stay on screen while a debounced keystroke's
+    // query resolves, so the table never collapses to a skeleton mid-typing.
+    placeholderData: keepPreviousData,
+    staleTime: 30 * 1000,
   });
 };
 
@@ -209,6 +228,47 @@ export const useActivatePlanMutation = () => {
       void queryClient.invalidateQueries({ queryKey: ["admin-summary"] });
       void queryClient.invalidateQueries({ queryKey: ["admin-revenue"] });
     },
+  });
+};
+
+export const STORE_PURGE_CONFIRMATION = "DumosRx";
+
+const invalidateStoreLists = (queryClient: ReturnType<typeof useQueryClient>) => {
+  void queryClient.invalidateQueries({ queryKey: ["admin-stores"] });
+  void queryClient.invalidateQueries({ queryKey: ["admin-store-detail"] });
+  void queryClient.invalidateQueries({ queryKey: ["admin-summary"] });
+};
+
+export const useArchiveStoreMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason?: string }) =>
+      webApiClient.request<unknown>(`admin/stores/${id}`, {
+        method: "DELETE",
+        body: { reason },
+      }),
+    onSuccess: () => invalidateStoreLists(queryClient),
+  });
+};
+
+export const useRestoreStoreMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      webApiClient.request<unknown>(`admin/stores/${id}/restore`, { method: "POST" }),
+    onSuccess: () => invalidateStoreLists(queryClient),
+  });
+};
+
+export const usePurgeStoreMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, confirmation }: { id: string; confirmation: string }) =>
+      webApiClient.request<{ removed: Record<string, number> }>(`admin/stores/${id}/purge`, {
+        method: "DELETE",
+        body: { confirmation },
+      }),
+    onSuccess: () => invalidateStoreLists(queryClient),
   });
 };
 

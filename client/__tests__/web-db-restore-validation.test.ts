@@ -128,6 +128,41 @@ describe("restoreDatabase() (web) validation and pre-restore snapshot", () => {
     check.close();
   });
 
+  it("brings a backup taken on an older app version up to the current schema without touching its data", async () => {
+    const olderSchemaSql = SCHEMA_SQL.replace(
+      /CREATE TABLE IF NOT EXISTS permission_groups \([\s\S]*?\);/,
+      "",
+    );
+    expect(olderSchemaSql).not.toContain("CREATE TABLE IF NOT EXISTS permission_groups");
+
+    const older = new SQL.Database();
+    older.run(olderSchemaSql);
+    older.run(`INSERT INTO stores (id, name) VALUES ('store-old', 'Old Version Store')`);
+    older.run(`INSERT INTO products (id, name, selling_price) VALUES ('prod-old', 'aspirin', 250)`);
+    const olderBytes = older.export();
+    older.close();
+
+    await core.restoreDatabase(olderBytes);
+
+    const restored = new SQL.Database(core.getDatabaseBinary()!);
+
+    const tables = restored.exec(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name='permission_groups'",
+    );
+    expect(tables[0]?.values[0]?.[0]).toBe("permission_groups");
+
+    const productColumns = restored
+      .exec("PRAGMA table_info(products)")[0]
+      .values.map((row) => String(row[1]));
+    expect(productColumns).toContain("store_id");
+
+    const storeRow = restored.exec("SELECT name FROM stores WHERE id = 'store-old'");
+    expect(storeRow[0]?.values[0]?.[0]).toBe("Old Version Store");
+    const productRow = restored.exec("SELECT name, selling_price FROM products WHERE id = 'prod-old'");
+    expect(productRow[0]?.values[0]).toEqual(["aspirin", 250]);
+    restored.close();
+  });
+
   it("still completes the restore but reports snapshotSucceeded: false when the IndexedDB write fails", async () => {
     const idbKeyval = await import("idb-keyval");
     vi.mocked(idbKeyval.set).mockRejectedValueOnce(new Error("QuotaExceededError"));

@@ -1,5 +1,6 @@
 import { query, execute } from "@/lib/db/local-database";
 import { getActiveStoreId } from "@/lib/db/core";
+import { CRASH_REPORT_QUEUE_ROW_SQL } from "@/lib/db/crash-report-sync";
 import type { PaymentAccount } from "@/lib/types/payment-account";
 import type { StoreOption } from "@/lib/types/store";
 import type { StoreProfile } from "@/lib/context/store-context";
@@ -17,8 +18,17 @@ export async function getExistingCustomers() {
   return existingCustomers;
 }
 
+/** The single source for every "X changes unsynced" surface (sync indicator,
+ * Action Center alert, the logout warning dialog). Automatic crash reports
+ * are excluded: they are background telemetry the user never asked to send,
+ * so counting them tells someone they have unsaved work when they don't —
+ * and a crash row the server keeps rejecting would otherwise pin the
+ * indicator to "Pending Sync" forever. They still sync, as a passenger on
+ * the next sync run; see docs/SYNC_CRASH_REPORT_POLICY.md. */
 export async function getSyncQueueCount() {
-  const result = await query<{ count: number }>("SELECT COUNT(*) as count FROM _sync_queue");
+  const result = await query<{ count: number }>(
+    `SELECT COUNT(*) as count FROM _sync_queue q WHERE NOT ${CRASH_REPORT_QUEUE_ROW_SQL}`,
+  );
   return result[0]?.count || 0;
 }
 

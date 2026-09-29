@@ -142,8 +142,23 @@ entries. It deliberately does **not** embed the staff list — that is the
 revenue figure comes from `AdminStoreService::revenueSubquery()`, shared with
 the fleet list so the two can't drift apart.
 
-Covered by `tests/Feature/Admin/AdminUsersAccountTypeFilterTest.php` and
-`tests/Feature/Admin/AdminStoreDetailTest.php`.
+Its `business_metrics`/`operational_metrics` blocks come from
+`AdminStoreMetricsService`, a separate class for the file-size rule; every
+sales figure in it reuses the same store scoping as `revenueSubquery()`.
+
+`Store` uses `SoftDeletes`. Archiving a store (`DELETE /admin/stores/{id}`)
+only stamps `deleted_at`, so the global scope drops it from the fleet list,
+sync and every other Store query until `POST /admin/stores/{id}/restore`.
+The irreversible `DELETE /admin/stores/{id}/purge` lives in
+`AdminStoreDeletionController`/`AdminStoreDeletionService`; it requires the
+literal `confirmation` string `DumosRx` **server-side**, and it clears every
+table carrying a `store_id` by schema introspection because almost none of
+those columns has a real foreign key. See `docs/ADMIN_STORE_LIFECYCLE.md`.
+
+Covered by `tests/Feature/Admin/AdminUsersAccountTypeFilterTest.php`,
+`tests/Feature/Admin/AdminStoreDetailTest.php`,
+`tests/Feature/Admin/AdminStoreSearchAndMetricsTest.php` and
+`tests/Feature/Admin/AdminStoreDeletionTest.php`.
 
 **Gotcha this surfaced, worth remembering anywhere a freeform array is
 validated:** adding a nested rule (`filters.account_type`) alongside the

@@ -12,6 +12,7 @@ export interface StockMovementDbRow {
   total_cost?: number;
   reason?: string;
   reference_id?: string;
+  reference_type?: string;
   performed_by?: string;
   movement_date?: string;
   created_at?: string;

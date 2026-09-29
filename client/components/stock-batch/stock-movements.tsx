@@ -32,6 +32,7 @@ import { useAuth } from "@/lib/context/auth-context";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { ScrollToTopButton } from "@/components/ui/scroll-to-top-button";
+import { useArrowKeyScroll } from "@/lib/hooks/use-arrow-key-scroll";
 
 type MovementSortKey = "date" | "product" | "type" | "quantity" | "reference" | "user";
 
@@ -186,6 +187,7 @@ export function StockMovements() {
     estimateSize: () => DESKTOP_ROW_HEIGHT,
     overscan: 8,
   });
+  useArrowKeyScroll(desktopScrollRef, { enabled: isDesktop });
 
   const groupedMovements = useMemo(() => {
     const now = new Date();
@@ -345,7 +347,7 @@ export function StockMovements() {
         </div>
 
         {/* List */}
-        <div ref={desktopScrollRef} className="flex-1 overflow-y-auto pb-6">
+        <div ref={desktopScrollRef} className="flex-1 overflow-y-auto stable-scrollbar pb-6">
           {sortedMovements.length === 0 && <NoMovementsFound />}
           {sortedMovements.length > 0 && (
             <div

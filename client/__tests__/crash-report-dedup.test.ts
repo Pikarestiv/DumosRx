@@ -82,6 +82,31 @@ describe("logCrash() crash-report dedup", () => {
     expect(queued.length).toBeLessThanOrEqual(3);
   });
 
+  it("fingerprints crashes recovered from localStorage, so they are recognisable as crash reports", async () => {
+    const { flushPendingCrashes } = await import("@/lib/utils/error-logger");
+    const { STORAGE_KEYS } = await import("@/lib/storage-keys");
+    localStorage.setItem(
+      STORAGE_KEYS.pendingCrashes,
+      JSON.stringify([
+        {
+          message: "Crash captured before the database was ready",
+          stack: "Error: boom\n    at boot (app.ts:1:1)",
+          platform: "web",
+          timestamp: new Date().toISOString(),
+        },
+      ]),
+    );
+
+    await flushPendingCrashes();
+
+    const rows = await core.query<{ type: string; fingerprint: string | null }>(
+      `SELECT type, fingerprint FROM feedback`,
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0].type).toBe("bug");
+    expect(rows[0].fingerprint).toBeTruthy();
+  });
+
   it("keeps genuinely different crashes in separate rows", async () => {
     await logCrash(new Error("First distinct bug"), false, { area: "pos-cart" });
     await logCrash(new Error("Second distinct bug"), false, { area: "pos-cart" });

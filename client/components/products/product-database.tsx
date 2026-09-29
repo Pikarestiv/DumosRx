@@ -80,6 +80,18 @@ export function ProductDatabase() {
   // fresh on each render and defeated that memo.
   const refetchProducts = useCallback(() => void refetch(), [refetch]);
 
+  // Matches CatalogDetailPanel's own delete action, which closes itself: a
+  // panel left open over a deleted product is still editable, and its Edit
+  // button reopens a form that saves against a row that no longer exists.
+  const handleProductDeleted = useCallback(
+    (productId: string) => {
+      if (selectedProduct?.id !== productId) return;
+      setSelectedProduct(null);
+      setShowAddDialog(false);
+    },
+    [selectedProduct?.id],
+  );
+
   // Transform -> pre-filter -> fuzzy search all used to re-run on every
   // render, i.e. on every keystroke in the product search, over the whole
   // catalog. Each stage is now keyed on its real inputs.
@@ -303,6 +315,7 @@ export function ProductDatabase() {
             sortDirection={direction}
             onToggleSort={toggleSort}
             onProductUpdated={refetchProducts}
+            onProductDeleted={handleProductDeleted}
           />
         </div>
       </div>

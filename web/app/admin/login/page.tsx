@@ -19,19 +19,25 @@ export default function AdminLoginPage() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const currentUser = useAdminAuthStore.getState().user;
         // Same reasoning as the admin layout guard: the access token is
         // memory-only, so a reload always starts with none. Try to restore
         // via the refresh cookie so an already-logged-in visitor gets
         // bounced away from the login form instead of seeing it again.
-        if (!currentUser) {
+        //
+        // Keyed on sessionVerified, never on the persisted `user`. Gating on
+        // `user` skipped verification entirely and pushed to /admin on a
+        // localStorage value anyone can edit; against the layout guard, which
+        // sees an unverified session and pushes straight back here, that was
+        // an infinite redirect loop firing a concurrent refresh per bounce -
+        // and the refresh cookie is single-use.
+        if (!useAdminAuthStore.getState().sessionVerified) {
           await initSession();
         }
       } catch (e) {
         console.error("Auto-auth check failed:", e);
       } finally {
-        const finalUser = useAdminAuthStore.getState().user;
-        if (checkCanAccessAdmin(finalUser?.role)) {
+        const { user: finalUser, sessionVerified } = useAdminAuthStore.getState();
+        if (sessionVerified && checkCanAccessAdmin(finalUser?.role)) {
           router.push(checkIsSuperAdmin(finalUser?.role) ? "/admin" : "/admin/referrals");
         } else {
           setChecking(false);

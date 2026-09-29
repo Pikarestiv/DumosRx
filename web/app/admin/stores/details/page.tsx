@@ -30,6 +30,10 @@ import {
   StoreSubscriptionCard,
   StoreSyncCard,
 } from "@/components/admin/stores/details/store-detail-sections";
+import {
+  StoreBusinessMetricsCard,
+  StoreOperationalMetricsCard,
+} from "@/components/admin/stores/details/store-metrics-cards";
 import { useAdminStoreDetail } from "@/lib/api/admin-hooks";
 
 function StoreDetailsContent() {
@@ -101,6 +105,11 @@ function StoreDetailsContent() {
             {store.is_demo ? (
               <Badge className="bg-amber-500 hover:bg-amber-600">Demo</Badge>
             ) : null}
+            {store.is_archived ? (
+              <Badge className="bg-slate-500 hover:bg-slate-600">
+                Archived {store.archived_at ?? ""}
+              </Badge>
+            ) : null}
             {store.subscription ? (
               <Badge variant="outline" className="font-black capitalize border-2">
                 {store.subscription.plan}
@@ -119,6 +128,8 @@ function StoreDetailsContent() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <StoreBusinessMetricsCard store={store} />
+        <StoreOperationalMetricsCard store={store} />
         <StoreProfileCard store={store} />
         <div className="space-y-6">
           <StoreOwnerCard store={store} />

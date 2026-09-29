@@ -79,6 +79,22 @@ export const PAGE_ROUTES: PageRoute[] = [
     secondaryActionAdminOnly: true,
   },
   {
+    path: "/inventory/adjustments",
+    title: "Stock Adjustments",
+    desc: "Every stock correction made outside a sale, purchase, or transfer.",
+    // Doesn't navigate anywhere: stock-adjustments-ledger.tsx reads
+    // ?action=create on this same page (same pattern as Transfer Stock's
+    // ?action=transfer) and opens the Adjust Stock flow.
+    action: { label: "Adjust Stock", path: "/inventory/adjustments?action=create" },
+    // No actionAdminOnly: adjust_stock_counts is the precise replacement for
+    // that coarse manage_products baseline, and stacking both left a user
+    // holding only adjust_stock_counts with no reachable entry point at all
+    // above `md`, where the ledger's own button is hidden.
+    actionPermission: "adjust_stock_counts",
+    secondaryAction: { label: "Start Audit", path: "/inventory/audits" },
+    secondaryActionAdminOnly: true,
+  },
+  {
     path: "/inventory/ledger",
     title: "Stock Movements",
     desc: "Full audit trail of every stock movement: sales, receipts, and adjustments.",

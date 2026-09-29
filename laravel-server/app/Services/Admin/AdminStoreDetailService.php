@@ -25,13 +25,16 @@ class AdminStoreDetailService
 
     private const RECENT_TRANSACTION_LIMIT = 5;
 
-    public function __construct(private AdminStoreService $adminStoreService)
-    {
+    public function __construct(
+        private AdminStoreService $adminStoreService,
+        private AdminStoreMetricsService $metricsService,
+    ) {
     }
 
     public function getStoreDetail(string $storeId): ?array
     {
-        $store = Store::with(['user'])
+        $store = Store::withTrashed()
+            ->with(['user'])
             ->addSelect(['total_revenue' => AdminStoreService::revenueSubquery()])
             ->find($storeId);
 
@@ -93,7 +96,12 @@ class AdminStoreDetailService
                     ? array_values($store->enabled_payment_methods)
                     : [],
             ],
+            'is_archived' => $store->trashed(),
+            'archived_at' => $store->deleted_at?->format('M d, Y'),
+            'deletion_reason' => $store->deletion_reason,
             'counts' => $this->countsPayload($store),
+            'business_metrics' => $this->metricsService->businessMetrics($store),
+            'operational_metrics' => $this->metricsService->operationalMetrics($store),
             'recent_transactions' => collect($billing['transactions'] ?? [])
                 ->take(self::RECENT_TRANSACTION_LIMIT)
                 ->values(),
@@ -149,10 +157,10 @@ class AdminStoreDetailService
     private function countsPayload(Store $store): array
     {
         return [
-            'staff' => User::where('store_id', $store->id)->count(),
+            'staff' => User::where('store_id', $store->id)->where('id', '!=', $store->user_id)->count(),
             'products' => DB::table('products')->where('store_id', $store->id)->count(),
             'customers' => DB::table('customers')->where('store_id', $store->id)->count(),
-            'sales' => DB::table('sales')->where('store_id', $store->id)->count(),
+            'sales' => $this->metricsService->salesQuery($store)->count(),
         ];
     }
 

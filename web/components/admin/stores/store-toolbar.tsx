@@ -9,6 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import type { AdminStoresArchivedScope } from "@/lib/api/admin-hooks-stores";
 
 interface StoreToolbarProps {
   search: string;
@@ -17,10 +18,18 @@ interface StoreToolbarProps {
   onStatusFilterChange: (status: string) => void;
   planFilter: string;
   onPlanFilterChange: (plan: string) => void;
+  archivedScope: AdminStoresArchivedScope;
+  onArchivedScopeChange: (scope: AdminStoresArchivedScope) => void;
   isLoading: boolean;
   totalShown: number;
   totalCount: number;
 }
+
+const ARCHIVED_SCOPES: Array<{ value: AdminStoresArchivedScope; label: string }> = [
+  { value: "active", label: "Active Only" },
+  { value: "only", label: "Archived Only" },
+  { value: "all", label: "Active + Archived" },
+];
 
 export function StoreToolbar({
   search,
@@ -29,18 +38,21 @@ export function StoreToolbar({
   onStatusFilterChange,
   planFilter,
   onPlanFilterChange,
+  archivedScope,
+  onArchivedScopeChange,
   isLoading,
   totalShown,
   totalCount,
 }: StoreToolbarProps) {
-  const hasActiveFilters = statusFilter !== "all" || planFilter !== "all";
+  const hasActiveFilters =
+    statusFilter !== "all" || planFilter !== "all" || archivedScope !== "active";
 
   return (
     <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
       <div className="relative w-full max-w-sm group">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
         <Input
-          placeholder="Search by name, ID or owner..."
+          placeholder="Search by name, ID, device ID or owner..."
           className="pl-10 bg-slate-100 dark:bg-slate-800 border-none focus-visible:ring-2 focus-visible:ring-indigo-500"
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
@@ -58,6 +70,7 @@ export function StoreToolbar({
             onClick={() => {
               onStatusFilterChange("all");
               onPlanFilterChange("all");
+              onArchivedScopeChange("active");
             }}
             className="text-xs text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 font-bold"
           >
@@ -77,7 +90,8 @@ export function StoreToolbar({
               {hasActiveFilters && (
                 <span className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-indigo-600 text-[10px] text-white flex items-center justify-center font-bold">
                   {(statusFilter !== "all" ? 1 : 0) +
-                    (planFilter !== "all" ? 1 : 0)}
+                    (planFilter !== "all" ? 1 : 0) +
+                    (archivedScope !== "active" ? 1 : 0)}
                 </span>
               )}
             </Button>
@@ -146,6 +160,22 @@ export function StoreToolbar({
               <span>Enterprise</span>
               {planFilter === "enterprise" && <Check className="h-3.5 w-3.5" />}
             </DropdownMenuItem>
+
+            <DropdownMenuSeparator className="my-1.5 bg-slate-100 dark:bg-slate-800" />
+
+            <DropdownMenuLabel className="text-[10px] uppercase tracking-widest text-slate-400 px-3 py-1.5">
+              Archived
+            </DropdownMenuLabel>
+            {ARCHIVED_SCOPES.map((scope) => (
+              <DropdownMenuItem
+                key={scope.value}
+                className={`rounded-xl px-3 py-2 cursor-pointer font-bold flex items-center justify-between ${archivedScope === scope.value ? "text-indigo-600 bg-indigo-50/50 dark:text-indigo-400 dark:bg-indigo-500/10" : ""}`}
+                onClick={() => onArchivedScopeChange(scope.value)}
+              >
+                <span>{scope.label}</span>
+                {archivedScope === scope.value && <Check className="h-3.5 w-3.5" />}
+              </DropdownMenuItem>
+            ))}
           </DropdownMenuContent>
         </DropdownMenu>
         <div className="h-8 w-px bg-slate-200 dark:bg-slate-800 mx-1 hidden md:block" />

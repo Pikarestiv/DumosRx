@@ -233,7 +233,22 @@ trait AuthenticatesSessions
         }
 
         $refreshToken = PersonalAccessToken::findToken($raw);
-        if (!$refreshToken || !$refreshToken->can('refresh')) {
+
+        // A token this server has never heard of, or one whose rotation grace
+        // window has lapsed, gets a plain 401 and NOTHING else. Clearing the
+        // cookie here is what used to turn a harmless lost race into a logout:
+        // several tabs refresh at once, the losers find the shared token
+        // already rotated away, and their cookie-clearing responses land after
+        // the winner's fresh cookie and delete the session that had just been
+        // established. See docs/FIXED_BUGS.md.
+        if (!$refreshToken || $this->adminRefreshTokenGraceHasLapsed($refreshToken)) {
+            return response()->json(['message' => 'Session expired.'], 401);
+        }
+
+        // Genuinely the wrong kind of credential (not the ability-scoped
+        // refresh token this endpoint mints), so the cookie is worthless and
+        // is cleared.
+        if (!$refreshToken->can('refresh')) {
             return response()->json(['message' => 'Session expired.'], 401)
                 ->withCookie($this->forgetAdminSessionCookie($request));
         }
@@ -245,9 +260,19 @@ trait AuthenticatesSessions
                 ->withCookie($this->forgetAdminSessionCookie($request));
         }
 
-        // Rotate on every use: the old refresh token is single-use, limiting
-        // the blast radius if it's ever intercepted.
-        $refreshToken->delete();
+        // Inside the grace window the winning request has already rotated this
+        // token and already handed the browser a fresh cookie. Issuing a second
+        // cookie here would overwrite a perfectly good one with a token this
+        // response may or may not deliver first, so the loser is served an
+        // access token and leaves the cookie completely alone.
+        if ($this->adminRefreshTokenWasRotated($refreshToken)) {
+            return response()->json([
+                'token' => $user->createToken('web')->plainTextToken,
+                'user' => $user,
+            ]);
+        }
+
+        $this->rotateAdminRefreshToken($refreshToken);
 
         $accessToken = $user->createToken('web')->plainTextToken;
         $newRefreshToken = $user->createToken('admin-refresh', ['refresh'])->plainTextToken;
@@ -256,6 +281,50 @@ trait AuthenticatesSessions
             'token' => $accessToken,
             'user' => $user,
         ])->withCookie($this->buildAdminSessionCookie($request, $newRefreshToken));
+    }
+
+    /**
+     * How long a just-rotated admin refresh token keeps resolving to its
+     * session. Long enough to cover requests that were already in flight when
+     * the winner rotated (a multi-tab reload, a restored window), short enough
+     * that it is not a meaningful replay window for a stolen cookie.
+     */
+    private function adminRefreshRotationGraceSeconds(): int
+    {
+        return 30;
+    }
+
+    /**
+     * Rotation marks the outgoing token instead of deleting it outright.
+     * `expires_at` is what makes the marking safe: Sanctum's guard rejects an
+     * expired token everywhere else in the app, so the old value stops being a
+     * usable credential the moment the grace window closes, exactly as the
+     * previous hard delete intended - it just stays readable here long enough
+     * for concurrent siblings to recognise it as "already rotated" rather than
+     * "revoked".
+     */
+    private function rotateAdminRefreshToken(PersonalAccessToken $refreshToken): void
+    {
+        $refreshToken->forceFill([
+            'name' => 'admin-refresh-rotated',
+            'expires_at' => now()->addSeconds($this->adminRefreshRotationGraceSeconds()),
+        ])->save();
+
+        PersonalAccessToken::where('tokenable_type', $refreshToken->tokenable_type)
+            ->where('tokenable_id', $refreshToken->tokenable_id)
+            ->where('name', 'admin-refresh-rotated')
+            ->where('expires_at', '<', now())
+            ->delete();
+    }
+
+    private function adminRefreshTokenWasRotated(PersonalAccessToken $refreshToken): bool
+    {
+        return $refreshToken->expires_at !== null;
+    }
+
+    private function adminRefreshTokenGraceHasLapsed(PersonalAccessToken $refreshToken): bool
+    {
+        return $refreshToken->expires_at !== null && $refreshToken->expires_at->isPast();
     }
 
     #[OA\Get(

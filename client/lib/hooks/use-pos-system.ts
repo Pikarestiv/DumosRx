@@ -10,6 +10,7 @@ import { usePOSProductFilter } from "@/lib/hooks/use-pos-product-filter";
 import { usePOSScan } from "@/lib/hooks/use-pos-scan";
 import { getHeldTransactionCount } from "@/lib/db/queries/sales";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
+import { parseEnabledPaymentMethods } from "@/lib/payment-methods";
 import { usePOSData, Customer } from "@/lib/hooks/use-pos-data";
 import { usePOSPrescription } from "@/lib/hooks/use-pos-prescription";
 import { usePOSReturnDeepLink } from "@/lib/hooks/use-pos-return-deep-link";
@@ -130,15 +131,10 @@ export function usePOSSystem() {
   const { suggestions } = useSmartSuggestions(cart, products);
   const requirePaymentAccount = storeProfile?.require_payment_account === 1;
   const requireSaleNotes = storeProfile?.require_sale_notes === 1;
-  const enabledPaymentMethods = useMemo(() => {
-    const fallback = ["cash", "card", "transfer", "credit", "mixed"];
-    if (!storeProfile?.enabled_payment_methods) return fallback;
-    try {
-      return JSON.parse(storeProfile.enabled_payment_methods) as string[];
-    } catch {
-      return fallback;
-    }
-  }, [storeProfile?.enabled_payment_methods]);
+  const enabledPaymentMethods = useMemo(
+    () => parseEnabledPaymentMethods(storeProfile?.enabled_payment_methods),
+    [storeProfile?.enabled_payment_methods],
+  );
   const { dispensedRxId, setDispensedRxId, isRefillDispense } = usePOSPrescription({
     searchParams,
     products,

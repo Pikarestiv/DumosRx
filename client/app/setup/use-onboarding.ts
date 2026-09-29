@@ -439,7 +439,11 @@ export function useOnboarding() {
       setSyncProgress(30);
       setSyncStatus("Preparing data migration...");
 
-      const result = await sync(false, true, () => void proceedOnceIdentityReady());
+      // A failed pull fires this callback too, having rolled back its whole
+      // page (stores and users included), so only a success means identity.
+      const result = await sync(false, true, (pullSucceeded) => {
+        if (pullSucceeded) void proceedOnceIdentityReady();
+      });
 
       if (!result.success && !identityReady) {
         setSyncStatus("Synchronization failed");

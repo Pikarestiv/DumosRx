@@ -195,7 +195,7 @@ export function SupplierCombobox({
             id={listboxId}
             role="listbox"
             aria-label={placeholder}
-            className="max-h-[300px] overflow-y-auto p-1"
+            className="max-h-[300px] overflow-y-auto stable-scrollbar p-1"
           >
             <div
               id={rowId(0)}

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 
 if (!globalThis.ResizeObserver) {
   globalThis.ResizeObserver = class {
@@ -133,6 +133,34 @@ describe("Catalog row context menu", () => {
     expect(item.getAttribute("title")).toMatch(/permission/i);
     fireEvent.click(item);
     expect(onPrintLabel).not.toHaveBeenCalled();
+  });
+
+  // A `title` tooltip can never fire on a disabled item: the menu sets
+  // data-[disabled]:pointer-events-none, so the element receives no hover at
+  // all. The reason has to be on screen to be readable.
+  it("shows the denial reason inline, not only in a title attribute", () => {
+    renderRow({ canPrintLabels: false, canDeleteProducts: false });
+    openContextMenu();
+    expect(
+      within(screen.getByRole("menuitem", { name: /Print barcode label/i })).getByText(
+        /Print Product Labels/i,
+      ),
+    ).toBeTruthy();
+    expect(
+      within(screen.getByRole("menuitem", { name: /Delete product/i })).getByText(
+        /Delete Products/i,
+      ),
+    ).toBeTruthy();
+  });
+
+  it("shows no denial hint when the user does have the permission", () => {
+    renderRow();
+    openContextMenu();
+    expect(
+      within(screen.getByRole("menuitem", { name: /Print barcode label/i })).queryByText(
+        /permission/i,
+      ),
+    ).toBeNull();
   });
 
   it("keeps View details available to a user with no action permissions", () => {

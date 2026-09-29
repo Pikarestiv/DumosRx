@@ -149,6 +149,79 @@ class AdminSessionCookieTest extends TestCase
         $refreshResponse->assertJsonStructure(['token', 'user']);
     }
 
+    /**
+     * Two admin tabs (or a restored window) hitting /admin/session/refresh at
+     * once both send the same drx_admin_session cookie. Single-use rotation
+     * made the loser a destructive no-op: it found the token already consumed
+     * and answered 401 *plus* a cookie-clearing Set-Cookie, which — arriving
+     * after the winner's fresh cookie — wiped the one valid session that had
+     * just been established, logging the admin out of every tab. See
+     * docs/FIXED_BUGS.md.
+     */
+    public function test_concurrent_refreshes_with_the_same_cookie_leave_a_usable_session()
+    {
+        $login = $this->postJson('/api/v1/login', [
+            'email' => 'super@dumosrx.com',
+            'password' => 'password',
+            'device_name' => 'web',
+        ]);
+        $login->assertStatus(200);
+        $original = $this->findCookie($login, 'drx_admin_session')->getValue();
+
+        $winner = $this->withUnencryptedCookie('drx_admin_session', $original)
+            ->withCredentials()
+            ->postJson('/api/v1/admin/session/refresh');
+        $winner->assertStatus(200);
+
+        $loser = $this->withUnencryptedCookie('drx_admin_session', $original)
+            ->withCredentials()
+            ->postJson('/api/v1/admin/session/refresh');
+
+        foreach ([$winner, $loser] as $response) {
+            $cookie = $this->findCookie($response, 'drx_admin_session');
+            if ($cookie !== null) {
+                $this->assertNotSame(
+                    '',
+                    (string) $cookie->getValue(),
+                    'A concurrent refresh must never clear the session cookie the winning request just set.'
+                );
+            }
+        }
+
+        $latest = $this->findCookie($loser, 'drx_admin_session')
+            ?? $this->findCookie($winner, 'drx_admin_session');
+        $this->assertNotNull($latest);
+
+        $afterRace = $this->withUnencryptedCookie('drx_admin_session', $latest->getValue())
+            ->withCredentials()
+            ->postJson('/api/v1/admin/session/refresh');
+
+        $afterRace->assertStatus(200);
+        $afterRace->assertJsonStructure(['token', 'user']);
+    }
+
+    public function test_a_grace_expired_rotated_refresh_token_is_rejected()
+    {
+        $login = $this->postJson('/api/v1/login', [
+            'email' => 'super@dumosrx.com',
+            'password' => 'password',
+            'device_name' => 'web',
+        ]);
+        $original = $this->findCookie($login, 'drx_admin_session')->getValue();
+
+        $this->withUnencryptedCookie('drx_admin_session', $original)
+            ->withCredentials()
+            ->postJson('/api/v1/admin/session/refresh')
+            ->assertStatus(200);
+
+        $this->travel(2)->minutes();
+
+        $this->withUnencryptedCookie('drx_admin_session', $original)
+            ->withCredentials()
+            ->postJson('/api/v1/admin/session/refresh')
+            ->assertStatus(401);
+    }
+
     private function findCookie($response, string $name)
     {
         foreach ($response->headers->getCookies() as $cookie) {

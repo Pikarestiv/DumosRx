@@ -2,6 +2,10 @@ import { query, insert, update, transaction } from "@/lib/db/local-database";
 import { getActiveStoreId } from "@/lib/db/core";
 import type { FastMoverRow } from "@/lib/types/fast-mover";
 import type { StockBatch, AvailableStockBatch } from "@/lib/types/stock-batch";
+import {
+  ADJUSTMENT_REFERENCE_TYPE,
+  AUDIT_REFERENCE_TYPE,
+} from "@/lib/constants/stock-adjustments";
 
 export async function getAvailableStockBatches() {
   const storeId = getActiveStoreId();
@@ -606,6 +610,7 @@ export interface StockAuditSubmission {
 export async function submitStockAudit(
   items: StockAuditSubmission[],
   performedBy: string | null,
+  referenceType: string = AUDIT_REFERENCE_TYPE,
 ) {
   // stock_audits.user_id is a constrained foreign key server-side. Writing a
   // "system" sentinel here saved fine locally and then failed every push on
@@ -685,110 +690,197 @@ export async function submitStockAudit(
 
       if (diff === 0) continue;
 
-      let remaining = Math.abs(diff);
-      const batches = await getBatchesForProduct(item.productId);
       // Without unit_cost/total_cost, a cycle-count adjustment's real value
       // impact was invisible to getStockMoM()'s 30-day added/removed-value
       // sums (they read IFNULL(unit_cost, 0)), silently treating every
       // write-off as ₦0 regardless of the stock actually lost.
       const unitCost = item.countedCostPrice ?? item.systemCostPrice ?? 0;
 
-      if (diff > 0) {
-        // Found more stock than recorded: add it to the soonest-expiring,
-        // genuinely active/non-expired *existing* batch (regardless of its
-        // current quantity — including zero, e.g. a batch a sync pull raced
-        // to zero, or one a prior audit/sale already depleted), or open a
-        // new one only if the product genuinely has no valid batch at all.
-        // getOrCreateTargetBatchForProduct excludes expired/deactivated
-        // batches (writing found stock into one would make it permanently
-        // unsellable, since the FEFO sale path refuses to dispense it, while
-        // it still counted toward on-hand quantity/valuation), and values a
-        // newly-created batch at unitCost/the product's real store_id
-        // instead of defaulting to 0 and whatever store happens to be
-        // active on this device.
-        const targetBatch = await getOrCreateTargetBatchForProduct(item.productId, {
-          unitCost,
-          batchNumberPrefix: "AUDIT",
-        });
-        await updateStockBatchQuantity(targetBatch.id, remaining);
-        await insert("stock_movements", {
-          product_id: item.productId,
-          stock_batch_id: targetBatch.id,
-          movement_type: "adjustment",
-          quantity: remaining,
-          unit_cost: unitCost,
-          total_cost: unitCost * remaining,
-          reason: item.reason || "Cycle count adjustment",
-          reference_id: auditId,
-          reference_type: "stock_audit",
-          performed_by: performedBy || null,
-          movement_date: new Date().toISOString(),
-        });
-      } else {
-        // Found less stock than recorded: deduct FEFO across batches until
-        // the shortfall is accounted for or stock runs out.
-        for (const batch of batches) {
-          if (remaining <= 0) break;
-          const deductQty = Math.min(batch.quantity, remaining);
-          if (deductQty <= 0) continue;
-
-          await updateStockBatchQuantity(batch.id, -deductQty);
-          await insert("stock_movements", {
-            product_id: item.productId,
-            stock_batch_id: batch.id,
-            movement_type: "adjustment",
-            quantity: -deductQty,
-            unit_cost: unitCost,
-            total_cost: unitCost * deductQty,
-            reason: item.reason || "Cycle count adjustment",
-            reference_id: auditId,
-            reference_type: "stock_audit",
-            performed_by: performedBy || null,
-            movement_date: new Date().toISOString(),
-          });
-          remaining -= deductQty;
-        }
-
-        // The counted shrinkage was larger than every active batch's summed
-        // quantity could cover (system quantity was already spread thinner
-        // across batches than reality) - same situation recordSaleItemStock
-        // guards against for a sale. Attribute the remainder to the most
-        // recently touched batch rather than silently dropping it:
-        // updateStockBatchQuantity clamps that batch's own quantity at 0
-        // (it never goes negative), but this still leaves a stock_movements
-        // record explaining the full shortfall - without this, the audit's
-        // own reconciled counted quantity doesn't match any recorded
-        // movement, and there's no trace of where the rest of it went.
-        if (remaining > 0) {
-          // includeExpired: true - unlike the sale-dispensing fallback (which
-          // correctly excludes expired stock), an audit needs to be able to
-          // write off a shortfall even when the product's only remaining
-          // batches are expired. Without this, a product whose entire stock
-          // has expired would return no fallback batch here and this whole
-          // shrinkage write would be silently skipped.
-          const [fallbackBatch] = await getAnyActiveBatchForProduct(item.productId, {
-            includeExpired: true,
-          });
-          if (fallbackBatch) {
-            await updateStockBatchQuantity(fallbackBatch.id, -remaining);
-            await insert("stock_movements", {
-              product_id: item.productId,
-              stock_batch_id: fallbackBatch.id,
-              movement_type: "adjustment",
-              quantity: -remaining,
-              unit_cost: unitCost,
-              total_cost: unitCost * remaining,
-              reason: item.reason || "Cycle count adjustment (shortfall exceeded tracked batch quantity)",
-              reference_id: auditId,
-              reference_type: "stock_audit",
-              performed_by: performedBy || null,
-              movement_date: new Date().toISOString(),
-            });
-          }
-        }
-      }
+      await applyStockAdjustmentDelta({
+        productId: item.productId,
+        delta: diff,
+        unitCost,
+        reason: item.reason || "Cycle count adjustment",
+        shortfallReason:
+          item.reason ||
+          "Cycle count adjustment (shortfall exceeded tracked batch quantity)",
+        referenceId: auditId,
+        referenceType,
+        batchNumberPrefix: "AUDIT",
+        performedBy,
+      });
     }
   });
+}
+
+interface StockAdjustmentDelta {
+  productId: string;
+  delta: number;
+  unitCost: number;
+  reason: string;
+  shortfallReason?: string;
+  referenceId: string;
+  referenceType: string;
+  batchNumberPrefix: string;
+  performedBy: string | null;
+}
+
+/** The one implementation of "move a product's on-hand stock by `delta`,
+ * spread across its batches, leaving a stock_movements trail". Shared by the
+ * cycle count (submitStockAudit) and the quick Adjust Stock flow
+ * (submitStockAdjustment) so the two can never drift apart - see
+ * client/AGENTS.md. Must run inside an existing transaction. */
+async function applyStockAdjustmentDelta({
+  productId,
+  delta,
+  unitCost,
+  reason,
+  shortfallReason,
+  referenceId,
+  referenceType,
+  batchNumberPrefix,
+  performedBy,
+}: StockAdjustmentDelta) {
+  if (delta === 0) return;
+
+  let remaining = Math.abs(delta);
+  const batches = await getBatchesForProduct(productId);
+
+  if (delta > 0) {
+    // Found more stock than recorded: add it to the soonest-expiring,
+    // genuinely active/non-expired *existing* batch (regardless of its
+    // current quantity — including zero, e.g. a batch a sync pull raced
+    // to zero, or one a prior audit/sale already depleted), or open a
+    // new one only if the product genuinely has no valid batch at all.
+    // getOrCreateTargetBatchForProduct excludes expired/deactivated
+    // batches (writing found stock into one would make it permanently
+    // unsellable, since the FEFO sale path refuses to dispense it, while
+    // it still counted toward on-hand quantity/valuation), and values a
+    // newly-created batch at unitCost/the product's real store_id
+    // instead of defaulting to 0 and whatever store happens to be
+    // active on this device.
+    const targetBatch = await getOrCreateTargetBatchForProduct(productId, {
+      unitCost,
+      batchNumberPrefix,
+    });
+    await updateStockBatchQuantity(targetBatch.id, remaining);
+    await insert("stock_movements", {
+      product_id: productId,
+      stock_batch_id: targetBatch.id,
+      movement_type: "adjustment",
+      quantity: remaining,
+      unit_cost: unitCost,
+      total_cost: unitCost * remaining,
+      reason,
+      reference_id: referenceId,
+      reference_type: referenceType,
+      performed_by: performedBy || null,
+      movement_date: new Date().toISOString(),
+    });
+    return;
+  }
+
+  // Found less stock than recorded: deduct FEFO across batches until
+  // the shortfall is accounted for or stock runs out.
+  for (const batch of batches) {
+    if (remaining <= 0) break;
+    const deductQty = Math.min(batch.quantity, remaining);
+    if (deductQty <= 0) continue;
+
+    await updateStockBatchQuantity(batch.id, -deductQty);
+    await insert("stock_movements", {
+      product_id: productId,
+      stock_batch_id: batch.id,
+      movement_type: "adjustment",
+      quantity: -deductQty,
+      unit_cost: unitCost,
+      total_cost: unitCost * deductQty,
+      reason,
+      reference_id: referenceId,
+      reference_type: referenceType,
+      performed_by: performedBy || null,
+      movement_date: new Date().toISOString(),
+    });
+    remaining -= deductQty;
+  }
+
+  // The removal was larger than every active batch's summed quantity could
+  // cover (system quantity was already spread thinner across batches than
+  // reality) - same situation recordSaleItemStock guards against for a sale.
+  // Attribute the remainder to the most recently touched batch rather than
+  // silently dropping it: updateStockBatchQuantity clamps that batch's own
+  // quantity at 0 (it never goes negative), but this still leaves a
+  // stock_movements record explaining the full shortfall - without this, the
+  // submitted figure doesn't match any recorded movement, and there's no
+  // trace of where the rest of it went.
+  if (remaining > 0) {
+    // includeExpired: true - unlike the sale-dispensing fallback (which
+    // correctly excludes expired stock), a correction needs to be able to
+    // write off a shortfall even when the product's only remaining batches
+    // are expired. Without this, a product whose entire stock has expired
+    // would return no fallback batch here and this whole write would be
+    // silently skipped.
+    const [fallbackBatch] = await getAnyActiveBatchForProduct(productId, {
+      includeExpired: true,
+    });
+    if (fallbackBatch) {
+      await updateStockBatchQuantity(fallbackBatch.id, -remaining);
+      await insert("stock_movements", {
+        product_id: productId,
+        stock_batch_id: fallbackBatch.id,
+        movement_type: "adjustment",
+        quantity: -remaining,
+        unit_cost: unitCost,
+        total_cost: unitCost * remaining,
+        reason: shortfallReason ?? reason,
+        reference_id: referenceId,
+        reference_type: referenceType,
+        performed_by: performedBy || null,
+        movement_date: new Date().toISOString(),
+      });
+    }
+  }
+}
+
+export interface StockAdjustmentSubmission {
+  productId: string;
+  delta: number;
+  unitCost?: number;
+}
+
+/** Persists a quick Adjust Stock submission: every item moves under one
+ * shared reference_id so the Adjustments ledger can show the whole
+ * submission as a single row, tagged reference_type ADJUSTMENT_REFERENCE_TYPE
+ * to stay distinguishable from a full cycle count. Returns that reference id. */
+export async function submitStockAdjustment(
+  items: StockAdjustmentSubmission[],
+  { reason, performedBy }: { reason: string; performedBy: string | null },
+): Promise<string> {
+  // Same rule as submitStockAudit: performed_by is a constrained foreign key
+  // server-side, and every caller is a route-guarded screen with a real user.
+  if (!performedBy) {
+    throw new Error("Cannot record a stock adjustment without a performing user");
+  }
+
+  const adjustmentId = crypto.randomUUID();
+
+  await transaction(async () => {
+    for (const item of items) {
+      if (!item.delta) continue;
+      await applyStockAdjustmentDelta({
+        productId: item.productId,
+        delta: item.delta,
+        unitCost: item.unitCost ?? 0,
+        reason,
+        referenceId: adjustmentId,
+        referenceType: ADJUSTMENT_REFERENCE_TYPE,
+        batchNumberPrefix: "ADJ",
+        performedBy,
+      });
+    }
+  });
+
+  return adjustmentId;
 }
 
 export async function getFastMovers(days: number = 7) {

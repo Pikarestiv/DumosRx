@@ -28,36 +28,26 @@ import { clearLastSyncTime } from "@/lib/storage-keys";
 export { isWriterTab, onWriterTabChange, onPromotionFailed };
 
 /**
- * UI entry point for the graceful writer handoff (see tab-lock.ts's
- * requestWriterTakeover()): asks the current writer tab/window to force a
- * save and voluntarily drop to read-only, freeing the Web Lock for this
- * tab. On "acked", this tab's already-queued lock request (registered by
- * initWriterLock() above) gets granted just like a natural writer-tab
- * close, running rehydrateFromIndexedDb() before promoting - no different
- * handling needed here. Callers should offer forceWriterTakeover() when
- * this resolves "timeout" (the other side didn't respond - likely frozen
- * or crashed) or "unsupported" (no BroadcastChannel in this browser).
+ * UI entry point for the graceful writer handoff (tab-lock.ts's
+ * `requestWriterTakeover()`): asks the current writer to force-save and drop
+ * to read-only. Callers should offer `forceWriterTakeover()` on "timeout"
+ * (unresponsive holder) or "unsupported" (no BroadcastChannel).
  */
 export function requestWriterHandoff(): Promise<"acked" | "timeout" | "unsupported"> {
   return requestWriterTakeover();
 }
 
 /**
- * Fallback for requestWriterHandoff() timing out or being unsupported:
- * forcibly takes the Web Lock via {steal: true} rather than waiting
- * indefinitely for an unresponsive holder. Rehydrates from IndexedDB before
- * promoting, same as normal promotion - see stealWriterLock()'s doc comment
- * for why the outgoing holder's own unsaved changes (if any) are lost here,
- * unlike the graceful path.
+ * Fallback for `requestWriterHandoff()` timing out or being unsupported:
+ * steals the Web Lock, rehydrating first. The outgoing holder's unsaved
+ * changes are lost here, unlike the graceful path — see `stealWriterLock()`.
  */
 export function forceWriterTakeover(): Promise<boolean> {
   return stealWriterLock(rehydrateFromIndexedDb);
 }
 
-// Dual-backend handle: sql.js's Database in the browser, @tauri-apps/plugin-sql's
-// Database (a different, incompatible shape: .execute()/.select() vs sql.js's
-// .exec()/.run()) when running inside Tauri. Deliberately untyped rather than a
-// misleading union, since callers already branch on isTauri() before touching it.
+// Dual-backend handle (sql.js vs @tauri-apps/plugin-sql), deliberately
+// untyped rather than a misleading union of two incompatible shapes.
 let SQL: SqlJsStatic | null = null;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let db: any = null;
@@ -79,19 +69,14 @@ export function setCurrentUser(
   currentUser = user;
 }
 
-// Used to scope React Query cache keys (see lib/query-keys.ts's `resource`)
-// so a switch between logged-in users on this device can never read a
-// cache slot the outgoing user's queries wrote into.
+// Scopes React Query cache keys so a user switch can't read the outgoing
+// user's cache slots (lib/query-keys.ts's `resource`).
 export function getCurrentUserId(): string | null {
   return currentUser?.id ?? null;
 }
 
-// The store every domain query should be scoped to. Set from
-// store-context.tsx's effect mirroring `user?.store_id || activeStoreId`;
-// a staff member's fixed store_id always wins over any switcher state, same
-// precedence the UI already uses. Module-scope (not threaded as a function
-// param) because the query layer is plain async functions with no React
-// context available, called from ~40+ hook sites across the app.
+// The store every domain query scopes to; a staff member's fixed store_id
+// always wins over switcher state. Set from store-context.tsx.
 let activeStoreId: string | null = null;
 
 export function setActiveStoreId(id: string | null) {
@@ -128,12 +113,9 @@ export function generateId(): string {
   });
 }
 
-/** A short, human-scannable identifier for a display field that still needs
- * to be genuinely unique (receipt/transaction numbers) - not a wrapper
- * every id needs, only ids a person reads. Uses the first two segments of
- * generateId() (48 random bits) rather than the full id: enough headroom
- * that a birthday collision needs tens of millions of transactions to
- * become likely, while staying short enough to print on a receipt. */
+/** A short, human-scannable unique id for display fields people read
+ * (receipt/transaction numbers). 48 random bits: short enough to print,
+ * with enough headroom that collisions need tens of millions of rows. */
 export function generateShortId(): string {
   return generateId().split("-").slice(0, 2).join("").toUpperCase();
 }
@@ -144,22 +126,11 @@ export function generateShortId(): string {
 export { STORE_SCOPED_TABLES };
 
 
-// Tracks an in-flight initDatabase() call so concurrent callers share it
-// instead of each running the full body. `db` stays null for the whole
-// async duration of the first call (WASM load + IndexedDB read + schema
-// run), and query()/execute()/transaction()/etc. each independently do
-// `if (!db) await initDatabase()` - at real app startup several fire around
-// the same time, so without this they'd all race past that null check and
-// each register their own writer-lock request via initWriterLock() below,
-// piling up duplicate pending Web Lock requests for this one tab (observed
-// live: 14+ for a single tab). That breaks the writer-handoff feature in
-// tab-lock.ts: a tab dropping the lock to hand off could immediately
-// re-grant itself the lock from one of its own leftover duplicates.
+// Shared so concurrent callers don't each register a writer-lock request
+// (client/AGENTS.md, "One connection, one writer").
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let initDatabasePromise: Promise<any> | null = null;
 
-// Returns the same deliberately-untyped dual-backend handle `db` holds — see
-// its declaration above.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function initDatabase(): Promise<any> {
   if (db) return Promise.resolve(db);
@@ -178,22 +149,15 @@ async function initDatabaseInternal(): Promise<any> {
   if (isTauri()) {
     try {
       const sqlPlugin = await import("@tauri-apps/plugin-sql");
-      // Defensive: covers both an ESM default export and a CJS-style named
-      // export, since which shape the plugin resolves to isn't guaranteed
-      // across bundler/runtime versions.
+      // Covers both ESM default and CJS-style named export; which one the
+      // plugin resolves to isn't guaranteed across bundler versions.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const Database = sqlPlugin.default || (sqlPlugin as any).Database;
 
       db = await Database.load("sqlite:dumosrx.db");
 
-      // The Tauri SQL plugin hands out a pooled sqlx connection, and SQLite's
-      // default (rollback-journal) mode only allows one writer at a time:
-      // two pooled connections writing close together can lock each other
-      // out for multiple seconds, or fail outright with "database is
-      // locked", with no PRAGMA tuning applied by default. WAL lets readers
-      // and a writer proceed concurrently instead of blocking each other,
-      // and busy_timeout makes SQLite retry internally for up to 5s instead
-      // of erroring immediately when a write does have to wait its turn.
+      // Required for the plugin's pooled connections — see
+      // client/AGENTS.md, "One connection, one writer" (Tauri PRAGMAs).
       try {
         await db.execute("PRAGMA journal_mode = WAL;");
         await db.execute("PRAGMA busy_timeout = 5000;");
@@ -257,27 +221,8 @@ async function initDatabaseInternal(): Promise<any> {
       db.run(SCHEMA_SQL);
     }
 
-    // Elects exactly one open tab as the writer (see tab-lock.ts / C1 in
-    // docs/KNOWN_BUGS.md) BEFORE running migrations below, not after: one of
-    // those migrations (clearLegacyTransactionsOnce) can itself persist a
-    // destructive one-time cleanup to the shared IndexedDB snapshot via the
-    // callback passed to runSchemaMigrations. Deciding writer/read-only
-    // first, and gating that callback on it, means a soon-to-be-read-only
-    // tab that raced a real writer tab to this point can still mutate its
-    // OWN in-memory `db` (needed so its later reads see the current schema)
-    // but can never itself write that mutation back to shared storage.
-    // Every other tab becomes read-only until this one closes. Only reached
-    // once per page load (initDatabase() early-returns above once `db` is
-    // set), so this never registers more than one lock request per tab.
-    // Awaited (rather than fire-and-forget) so a caller that awaits
-    // initDatabase() can immediately read this tab's initial writer/
-    // read-only role via isWriterTab() - this only waits for that initial
-    // decision, never for an eventual promotion. saveDatabase is passed as
-    // the graceful-handoff callback (see requestWriterHandoff() below): if
-    // this tab is (or becomes) the writer and another tab asks to take
-    // over, its current in-memory changes get force-saved before this tab
-    // drops to read-only, so the requester never rehydrates a copy that's
-    // missing this tab's own last writes.
+    // Must run, and be awaited, BEFORE the migrations below — see
+    // client/AGENTS.md, "One connection, one writer".
     await initWriterLock(rehydrateFromIndexedDb, saveDatabase);
 
     const webAdapter = makeSqlJsAdapter(db);
@@ -294,24 +239,12 @@ async function initDatabaseInternal(): Promise<any> {
 }
 
 /**
- * Re-reads the shared IndexedDB snapshot and replaces the in-memory `db`
- * with it. Called by tab-lock.ts exactly once per tab, at the moment a
- * previously read-only tab is promoted to writer: the promoted tab's
- * in-memory copy predates whatever the outgoing writer committed right
- * before closing, so it must catch up before it's allowed to write itself -
- * otherwise it would silently resurrect stale rows the outgoing writer had
- * already changed or deleted, the same class of data loss C1 exists to
- * close. Deliberately does not re-run schema migrations (this tab already
- * ran them once at its own initDatabase(), and the outgoing writer - running
- * the same build - would already have applied any that landed since).
- *
- * Returns whether it's now safe for this tab to become the writer: `true`
- * either after a successful rehydrate, or when there's genuinely nothing to
- * rehydrate from yet (no snapshot has ever been saved - this tab's own
- * already-loaded copy is already the most current state there is). `false`
- * only on an actual read failure, which tab-lock.ts treats as "refuse to
- * promote" rather than risk writing over the real snapshot with a stale
- * copy - see initWriterLock()'s doc comment.
+ * Re-reads the shared IndexedDB snapshot into `db`. Called by tab-lock.ts
+ * once per tab, at promotion to writer. Returns `true` after a successful
+ * rehydrate or when no snapshot exists at all; `false` only on a real read
+ * failure, which tab-lock.ts treats as "refuse to promote". Deliberately
+ * does not re-run schema migrations. See client/AGENTS.md, "One connection,
+ * one writer".
  */
 async function rehydrateFromIndexedDb(): Promise<boolean> {
   if (!SQL) return false;
@@ -323,13 +256,8 @@ async function rehydrateFromIndexedDb(): Promise<boolean> {
     return false;
   }
   if (!savedData) return true;
-  // Reserves the same connection-wide lock query()/execute()/transaction()
-  // use (see reserveDbSlot()) before swapping `db` out from under them.
-  // Without this, a query() suspended mid-yield (or any other in-flight
-  // operation) could resume against a `db` this function has already
-  // `close()`d, throwing sql.js's generic "bad parameter or other API
-  // misuse" - reproduced via a fast login racing DatabaseProvider's
-  // boot-time requeueOrphanedRows() while this tab was mid-promotion.
+  // Reserve the connection-wide lock before swapping `db` out, or an
+  // in-flight operation resumes against a closed handle.
   const { previous, release } = reserveDbSlot();
   try {
     await previous;
@@ -338,8 +266,7 @@ async function rehydrateFromIndexedDb(): Promise<boolean> {
     try {
       db?.close?.();
     } catch {
-      // Best-effort - a failed close of the now-discarded instance doesn't
-      // block adopting the freshly-loaded one below.
+      // Best-effort; a failed close of the discarded instance is harmless.
     }
     db = fresh;
     return true;
@@ -351,10 +278,7 @@ async function rehydrateFromIndexedDb(): Promise<boolean> {
   }
 }
 
-// Rate-limits the user-facing warning below to once per this window: a
-// QuotaExceededError (or any other persistent save failure) would otherwise
-// re-fire on every single write - potentially every keystroke-adjacent
-// action - which is as good as no signal at all.
+// A persistent save failure would otherwise warn on every single write.
 const SAVE_FAILURE_NOTICE_INTERVAL_MS = 5 * 60 * 1000;
 let lastSaveFailureNoticeAt = 0;
 
@@ -380,14 +304,8 @@ export function saveDatabase(): Promise<void> {
 
 async function persistDatabaseExport(data: Uint8Array): Promise<void> {
   await set(`${APP_NAME.toLowerCase()}_db`, data).catch(err => {
-    // Previously logged to console.error only: the app kept looking
-    // completely healthy while writes silently stopped persisting (most
-    // plausibly a QuotaExceededError, on the same per-origin storage budget
-    // the PWA's precache competes against), with everything since the last
-    // successful save lost on next launch and no way for the user to know
-    // until then. Dispatched as a window event (matching this codebase's
-    // existing auth_token_cleared/dumos_sync_completed pattern) rather than
-    // importing a toast library into this low-level module directly.
+    // Surfaced as an app event, not console-only — see client/AGENTS.md,
+    // "One connection, one writer" (persistence).
     console.error("Failed to save DB to IndexedDB", err);
     if (typeof window !== "undefined") {
       const now = Date.now();
@@ -436,48 +354,24 @@ export function __bumpWriteEpochForTesting(): void {
   bumpWriteEpoch();
 }
 
-// Set while a transaction() block is running — declared here (rather than
-// only where execute() first needed it, further down) so query()'s row-fetch
-// yield above can also read it. See execute()/transaction() below for the
-// deferred-saveDatabase() half of what this flag is for.
+// Set while a transaction() block is running; read by query()'s yield guard
+// and execute()'s deferred-save branch.
 let inTransaction = false;
 
-// Lets a composed multi-statement helper (e.g. insert() in base-helpers.ts)
-// decide whether it needs to open its own transaction() for atomicity, or is
-// already running inside a caller's transaction() and must not (nesting
-// deadlocks - see transaction()'s doc comment below).
+// Lets a composed helper tell whether it must open its own transaction() or
+// is already inside one (nesting deadlocks — see transaction()).
 export function isInTransaction(): boolean {
   return inTransaction;
 }
 
-// How many rows query() fetches before yielding a tick back to the browser
-// (see the loop below) — large enough that small/typical queries (the vast
-// majority) never pay the setTimeout round-trip at all.
+// Rows query() fetches before yielding a tick; high enough that typical
+// queries never pay the setTimeout round-trip.
 const QUERY_YIELD_INTERVAL = 200;
 
 /**
- * Bumped once by every write that could land while some other query() is
- * suspended at one of its yield points (see the loop in query()).
- *
- * sql.js has a single shared connection with no reader isolation: a SELECT
- * that yields mid-iteration is stepping through a live statement, and a
- * write that interleaves into one of those yields modifies the very table
- * it's walking. SQLite's behavior then is undefined — rows can be skipped,
- * and the statement can be reset or invalidated outright, which ends the
- * step loop early and returns a *short or entirely empty* result with no
- * error raised (the "Statement closed" throw retried below is the loud
- * version of the same collision; this is the silent one).
- *
- * That's the Product Catalog's "No products found" after a large sync:
- * getProductsWithDetails() returns ~1900 rows, so it's one of the very few
- * queries that yields at all, and a draining sync backlog is exactly when
- * writes are landing continuously. Single-row aggregate queries (e.g.
- * getStockBatchStats()'s "Total Products") never reach a yield point, which
- * is why those stayed correct throughout the same window.
- *
- * Reads issued *inside* a transaction() block are unaffected: they never
- * yield (the `!inTransaction` guard below), so nothing can interleave into
- * them, and their epoch can't move under them either.
+ * Bumped by every write, so a query() suspended at a yield point can tell
+ * its read may have been torn. See client/AGENTS.md, "One connection, one
+ * writer".
  */
 let writeEpoch = 0;
 
@@ -486,18 +380,8 @@ function bumpWriteEpoch(): void {
   writeEpoch = (writeEpoch + 1) % 0xffffffff;
 }
 
-// How many times query() will re-run a read that a concurrent write may have
-// torn. Bounded so a device under permanently continuous write load returns
-// *something* rather than looping forever; in practice one retry is enough,
-// since the retry re-runs against whatever state the writes have reached.
-// Shares this same budget with the misuse-class retry below (both `continue`
-// the same loop), so it's kept comfortably above MAX_MISUSE_RETRIES: a torn
-// read detected on the last available attempt is returned to the caller
-// silently un-retried (the exact "truncated result that looks authoritative
-// but isn't" case the comment below calls out as the more dangerous of the
-// two failure modes) rather than actually failing loudly, so this must never
-// be tight enough for the misuse retries to consume the torn-read retry's
-// only remaining chance.
+// Must stay comfortably above MAX_MISUSE_RETRIES, which shares this budget
+// (client/AGENTS.md, "One connection, one writer").
 const QUERY_TORN_READ_ATTEMPTS = 6;
 
 export async function query<T = Record<string, unknown>>(
@@ -519,52 +403,15 @@ export async function query<T = Record<string, unknown>>(
     return await db.select(sql, params);
   }
 
-  // Retried once on "Statement closed": reproduced under heavy concurrent
-  // write load (a large bulk import's push/pull activity overlapping this
-  // query's own yields below) — some other operation invalidates this
-  // statement's handle mid-loop, and every subsequent .step() call on it
-  // throws that error forever after, permanently wedging whatever was
-  // running this query (the sync engine, in the reproduction — see
-  // docs/KNOWN_BUGS.md). The exact sql.js-internal mechanism wasn't
-  // isolated, but the fix doesn't need to know it: a SELECT has no side
-  // effects, so discarding whatever partial `results` a failed attempt
-  // collected and re-`prepare()`-ing a fresh statement against the same
-  // (still-valid — only the statement handle itself was invalidated, not
-  // the connection) `db` is always safe to retry. Capped at one retry so a
-  // genuinely different, non-transient failure still surfaces instead of
-  // silently retrying forever.
-  //
-  // The same loop also re-runs a read that merely *might* have been torn by
-  // an interleaved write — see writeEpoch above for why a silently
-  // truncated result is the more dangerous of the two outcomes.
-  //
-  // Either way, a re-run must not simply re-prepare against whatever the
-  // connection looks like *right now*: the write that forced the retry is
-  // very often a sync apply's transaction() that is still open, and sql.js's
-  // single connection means an immediate re-run reads its uncommitted,
-  // half-applied intermediate state (same reads-your-own-writes hazard
-  // awaitSettledTransactions() was added for). Retries therefore wait for
-  // every in-flight transaction to settle first, so a read only ever
-  // reports committed state. Safe from deadlock: a read issued from inside
-  // a transaction() block would be waiting on its own enclosing
-  // transaction, so this only applies to reads that began outside one.
-  // Holds the same connection-wide lock transaction()/execute() reserve
-  // (see reserveDbSlot()) for this call's entire duration, including every
-  // yield below, so no write can ever land mid-statement in the first
-  // place. A read issued from inside an open transaction() doesn't reserve
-  // its own slot - the enclosing transaction already holds it, and
-  // reserving again here would deadlock waiting on ourselves.
+  // Holds the connection-wide lock for this call's whole duration, yields
+  // included; a read inside a transaction must not reserve its own slot.
   const startedOutsideTransaction = !inTransaction;
   const slot = startedOutsideTransaction ? reserveDbSlot() : null;
   if (slot) await slot.previous;
 
   try {
-    // Capped at 2 (not unbounded) so a genuinely different, non-transient
-    // failure still surfaces instead of retrying forever. Kept as
-    // defense-in-depth: the lock above should make this race structurally
-    // impossible for calls that go through query()/execute()/transaction(),
-    // but this retry stays cheap insurance against any sql.js quirk that
-    // isn't actually this race.
+    // Defence-in-depth behind the lock; capped so a genuinely different
+    // failure still surfaces.
     const MAX_MISUSE_RETRIES = 2;
     let closedRetryCount = 0;
     for (let attempt = 0; attempt < QUERY_TORN_READ_ATTEMPTS; attempt++) {
@@ -580,21 +427,8 @@ export async function query<T = Record<string, unknown>>(
           const row = stmt.getAsObject() as T;
           results.push(row);
           rowCount++;
-          // sql.js runs entirely on the main thread with no Web Worker, so a
-          // large result set's row-fetch loop blocks painting for however
-          // long it takes — nothing else, including React committing an
-          // already-rendered loading skeleton, can run until this returns.
-          // This is the same characteristic product-import.ts's
-          // YIELD_INTERVAL comment describes for bulk inserts, just on the
-          // read side, and it compounds right after app launch when several
-          // heavy stat/overview queries (Inventory, Settings) land close
-          // together with sync's own DB work.
-          // Only outside an open transaction: execute() doesn't queue behind
-          // an in-progress transaction() the way nested transaction() calls
-          // do (sql.js has one shared connection, no per-caller isolation),
-          // so yielding here while `inTransaction` is true would let an
-          // unrelated write interleave into this transaction's uncommitted
-          // state.
+          // sql.js is main-thread, so a big result set blocks painting.
+          // Never yield inside a transaction (uncommitted state).
           if (!inTransaction && rowCount % QUERY_YIELD_INTERVAL === 0) {
             yielded = true;
             await new Promise((resolve) => setTimeout(resolve, 0));
@@ -602,11 +436,8 @@ export async function query<T = Record<string, unknown>>(
         }
         stmt.free();
 
-        // Historically a write could land while this statement was
-        // suspended at one of the yields above, tearing the read. The lock
-        // above now rules that out for real callers, but keep the check
-        // (harmless — writeEpoch simply never changes under the lock) in
-        // case a future caller ever bypasses it.
+        // Kept in case a future caller bypasses the lock; under it,
+        // writeEpoch simply never changes mid-read.
         if (
           yielded &&
           writeEpoch !== epochAtStart &&
@@ -623,15 +454,8 @@ export async function query<T = Record<string, unknown>>(
         } catch {
           // Already invalid — this is exactly the case being retried.
         }
-        // "closed"/"finalized" was the only observed wording when this retry
-        // was written, but the same live-statement-vs-concurrent-write race
-        // surfaces under other spellings too. Seen in production: sql.js's
-        // own SQLITE_MISUSE string ("bad parameter or other API misuse")
-        // when a step() runs against a statement invalidated by an
-        // interleaved BEGIN, and a RangeError ("Array buffer allocation
-        // failed") from the WASM heap when the same interleaving corrupts
-        // the statement's internal buffer bookkeeping. Kept as
-        // defense-in-depth alongside the lock above.
+        // All observed spellings of one race — see client/AGENTS.md, "One
+        // connection, one writer" (the misuse-class retry).
         if (closedRetryCount < MAX_MISUSE_RETRIES && /closed|finalized|bad parameter|api misuse|allocation failed/i.test(message)) {
           closedRetryCount++;
           continue;
@@ -648,16 +472,8 @@ export async function query<T = Record<string, unknown>>(
   }
 }
 
-// Registered by base-helpers.ts (which already imports from this module, so
-// this module can't import back without a cycle) so insert()/update()/
-// softDelete() can route their React Query invalidation through here instead
-// of calling queryClient directly. During a transaction() block, invalidating
-// after every single row (e.g. a 1000+ row spreadsheet import) means as many
-// refetches of whatever list is on screen — that refetch storm, not the SQL
-// work itself, is what froze the tab on a bulk import. Collecting the
-// touched table names and invalidating each one once, after the transaction
-// settles, keeps the same eventual invalidation with a bounded cost per
-// transaction instead of per row.
+// Registered by base-helpers.ts (importing it back here would be a cycle);
+// batched per transaction — see client/AGENTS.md, "One connection, one writer".
 let invalidateTablesFn: ((tables: Iterable<string>) => void) | null = null;
 let pendingInvalidations: Set<string> | null = null;
 
@@ -667,18 +483,8 @@ export function registerInvalidateTablesFn(
   invalidateTablesFn = fn;
 }
 
-// Separate from invalidateTablesFn above (React Query cache invalidation):
-// this is for plan-tier "sync instantly after any change" — see
-// SyncIndicator's instant-sync mode. A Set, not a single callback slot,
-// because SyncIndicator mounts multiple simultaneous instances (sidebar,
-// mobile header, mobile drawer) whose subscribe/unsubscribe lifecycles are
-// independent; a single slot would let one instance's unmount silently
-// kill another still-mounted instance's subscription.
-// Callback receives which table(s) actually changed - a transaction can
-// batch several distinct tables into one notification (see the flush in
-// transaction()'s finally block below), so a listener that only cares
-// about REAL business-data changes (not e.g. audit_logs's login/logout
-// telemetry) needs to see the full set, not just "something changed".
+// Drives SyncIndicator's instant-sync mode. A Set (several indicators mount
+// at once) and it passes the changed tables, not just "something changed".
 const syncQueueChangeListeners = new Set<(tables: string[]) => void>();
 
 export function addSyncQueueChangeListener(
@@ -702,13 +508,8 @@ export function queueTableInvalidation(table: string): void {
   }
 }
 
-// Shared by execute() and transaction(): this tab lost (or never won) the
-// single-writer election in tab-lock.ts, so it must not touch the shared
-// sql.js database at all - see C1 in docs/KNOWN_BUGS.md. Dispatches the same
-// rate-limited-by-listener pattern DatabaseProvider already uses for
-// dumos_db_save_failed, so the UI can surface a clear message instead of an
-// uncaught write silently corrupting nothing (good) but also silently doing
-// nothing (bad, and confusing without this signal).
+// A tab that lost the single-writer election must not write at all (C1 in
+// docs/KNOWN_BUGS.md); the event lets the UI explain why.
 function assertWritable(): void {
   if (isTauri() || isWriterTab()) return;
   if (typeof window !== "undefined") {
@@ -740,28 +541,20 @@ export async function execute(
   }
 
   if (inTransaction) {
-    // Already running inside an open transaction(), which holds the shared
-    // connection lock for its whole duration — reserving another slot here
-    // would deadlock waiting on ourselves. saveDatabase() happens once, in
-    // transaction()'s finally block, not per statement.
+    // The enclosing transaction already holds the slot, and saves once in
+    // its finally block; reserving again here would deadlock.
     assertWritable();
     db.run(sql, params);
     bumpWriteEpoch();
     return;
   }
 
-  // Reserves the same connection-wide lock query()/transaction() use (see
-  // reserveDbSlot()) so this write can never land while some other query()
-  // is mid-yield or another transaction() is open.
+  // The shared lock keeps this write from landing mid-read.
   const { previous, release } = reserveDbSlot();
   try {
     await previous;
     assertWritable();
     db.run(sql, params);
-    // Marks the shared sql.js connection as having been written to, so any
-    // query() currently suspended at a yield point knows its in-progress
-    // read may have been torn and re-runs instead of returning it (see
-    // writeEpoch). Kept as defense-in-depth alongside the lock above.
     bumpWriteEpoch();
     void saveDatabase();
   } finally {
@@ -769,46 +562,15 @@ export async function execute(
   }
 }
 
-/**
- * Serializes every transaction() call so their BEGIN/COMMIT pairs can never
- * interleave. This used to be guarded only by `inTransaction`, a plain
- * module-level boolean with no way to tell a genuinely-nested call (same
- * synchronous call chain, safe to run inline against the already-open
- * transaction) apart from two merely *concurrent*, unrelated calls that
- * happen to overlap in wall-clock time — e.g. a background sync's
- * multi-batch pushChanges() loop, which awaits between batches, still
- * running when the cashier's createSale() also calls transaction(). Both
- * looked identical to that boolean: the second call saw it already `true`
- * and ran inline against the first's still-open transaction, so when the
- * sync's block later threw and rolled back, the unrelated sale's writes
- * were silently rolled back with it — even though createSale() had already
- * returned successfully and the UI showed the sale as recorded.
- *
- * There is no reliable way to distinguish those two cases from inside this
- * function (plain browser/Tauri JS has no async-call-chain identity to
- * check against, unlike Node's AsyncLocalStorage), so nesting isn't
- * supported at all: every call queues and gets its own real BEGIN/COMMIT.
- * A composed operation that needs to run several DB writes as one atomic
- * unit from inside code that's already executing inside a transaction()
- * block must call query()/execute() directly instead of transaction()
- * again — see requeueOrphanedRows() in reconcile-identity.ts for the one
- * real example. Calling transaction() from inside another transaction()'s
- * `fn` will deadlock (the outer call can't finish until the inner one does,
- * but the inner one is queued behind the outer) — an intentional trade-off:
- * a hang during testing is far easier to catch than the silent
- * cross-transaction data loss above.
- */
+// Serializes every transaction() so BEGIN/COMMIT pairs can never interleave;
+// nesting is unsupported and deadlocks (client/AGENTS.md, "One connection").
 let transactionQueue: Promise<void> = Promise.resolve();
 
 /**
- * Reserves the next slot in the shared connection-wide queue and hands the
- * caller its own `previous`/`release` pair. Shared by transaction(),
- * execute() and query() (for calls that start outside an open transaction)
- * so every operation that touches the single sql.js/Tauri connection —
- * reads included — serializes onto one FIFO queue: a write can never land
- * while a query() is mid-yield, and vice versa. Reserves synchronously
- * (before the caller awaits anything) so two calls issued back-to-back with
- * no `await` between them still queue in call order.
+ * Reserves the next slot in the shared connection-wide FIFO queue and
+ * returns this caller's `previous`/`release` pair. Used by transaction(),
+ * execute() and query(). Reserves synchronously, before the caller awaits
+ * anything. See client/AGENTS.md, "One connection, one writer".
  */
 function reserveDbSlot(): { previous: Promise<void>; release: () => void } {
   const previous = transactionQueue;
@@ -820,23 +582,10 @@ function reserveDbSlot(): { previous: Promise<void>; release: () => void } {
 }
 
 /**
- * Waits for every transaction() call reserved so far to finish (commit or
- * rollback) before returning. sql.js/the Tauri SQL plugin use one ambient
- * connection, so a plain query() run while a transaction() is mid-flight
- * doesn't see a consistent snapshot — it sees that transaction's uncommitted
- * writes, same-connection reads-your-own-writes style. That's fine for code
- * that already runs its own reads inside a transaction() (they naturally
- * queue behind it), but getPendingSyncItems() reads the sync queue with a
- * bare query() before any network call, from a periodic background timer
- * that has no idea a multi-minute bulk import's transaction() is open. Left
- * unguarded, it can read and push rows from that transaction before it
- * commits — and if the transaction later rolls back (thrown error, or the
- * app closing before COMMIT), those rows are now orphaned on the server with
- * no corresponding local record. Awaiting this first closes that window down
- * to the brief microtask gap between this resolving and the caller's next
- * query() — not a full guarantee (a new transaction() can still reserve the
- * queue in that gap), but sync only needs to miss the multi-minute case that
- * was actually observed, not withstand adversarial timing.
+ * Waits for every transaction() reserved so far to commit or roll back.
+ * Await this before a bare query() whose rows leave the device (see
+ * `getPendingSyncItems()`); it narrows, but does not close, the window.
+ * See client/AGENTS.md, "One connection, one writer".
  */
 export async function awaitSettledTransactions(): Promise<void> {
   await transactionQueue;
@@ -844,43 +593,20 @@ export async function awaitSettledTransactions(): Promise<void> {
 
 /**
  * Runs `fn` inside a real SQL transaction so a multi-statement operation
- * (e.g. recording a sale and deducting stock for every line item) either
- * fully applies or fully rolls back: a crash, thrown error, or early return
- * partway through can never leave the database with only some of the writes
- * applied. Every write inside `fn` must go through query()/execute() (and by
- * extension insert()/update()/etc. in base-helpers.ts) against the same `db`
- * handle used here so it participates in the transaction.
+ * either fully applies or fully rolls back. Every write inside `fn` must go
+ * through query()/execute() (and so insert()/update()/etc.) against the same
+ * `db` handle to participate in it.
  *
- * Do not call this from inside another transaction()'s `fn` — see the
- * queuing comment above for why that deadlocks instead of nesting.
- *
- * If BEGIN itself fails (e.g. the Tauri SQL plugin's pooled connection
- * doesn't hand back the same connection for the follow-up statements, a
- * real risk with sqlx pooling that can't be verified from static analysis
- * alone), this falls back to running `fn` without transaction semantics
- * rather than blocking the operation entirely: no worse than the previous
- * behavior, just not improved for that run.
- *
- * That risk is currently closed, not just tolerated: the vendored
- * `@tauri-apps/plugin-sql` fork (`src-tauri/vendor/tauri-plugin-sql/src/
- * wrapper.rs`) caps its sqlx pool at `.max_connections(1)` specifically so
- * every call serializes onto the same connection, restoring real
- * transactional semantics across the BEGIN/COMMIT sequence. If that vendored
- * fork is ever replaced with a stock (non-vendored) build of the plugin —
- * e.g. during an upgrade — this cap, and the guarantee it provides, would
- * silently disappear unless re-applied there.
+ * Do NOT call this from inside another transaction()'s `fn`: it deadlocks by
+ * design. If BEGIN itself fails, `fn` runs without atomicity rather than
+ * being blocked. See client/AGENTS.md, "One connection, one writer", for
+ * both, including the vendored Tauri plugin's `.max_connections(1)` cap.
  */
 export async function transaction<T>(fn: () => Promise<T>): Promise<T> {
-  // Reserve our place in line before awaiting anything, so two calls
-  // arriving back-to-back (no `await` between them) can't both read the
-  // same "previous" link — reserveDbSlot()'s queue reassignment is
-  // synchronous.
   const { previous, release: releaseNext } = reserveDbSlot();
 
   try {
-    // Wait for whatever was queued ahead of us, regardless of whether it
-    // committed or rolled back — a failed transaction must not permanently
-    // block every later one.
+    // Committed or rolled back: a failure ahead of us must not block us.
     await previous;
 
     if (!db) {
@@ -958,28 +684,20 @@ export function getDatabaseBinary(): Uint8Array | null {
   return db.export();
 }
 
-// Tables a genuine DumosRx database must have; used to sanity-check a
-// restore candidate before it replaces the live database (see
-// restoreDatabase() below). Not exhaustive - just enough that a wrong file
-// of the right container format (e.g. some other app's .db/.sqlite) is
-// still caught, not just outright garbage that fails to parse at all.
+// Not exhaustive — just enough to catch another app's valid .db/.sqlite,
+// not only outright garbage.
 const RESTORE_SANITY_CHECK_TABLES = ["users", "stores", "products", "sales"];
 
 /**
  * Overwrites the current database with provided binary data: sql.js (web)
- * only. On desktop/mobile this would silently disconnect `db` from the real
- * file Tauri's SQL plugin manages without ever writing the restored data to
- * disk; use restoreDatabaseFromFile() there instead.
- *
- * Validates the candidate against a throwaway sql.js instance before
- * touching the live `db` at all (an invalid/corrupt/wrong-app file throws
- * here and the live database is left completely untouched), and snapshots
- * the outgoing database into IndexedDB first so a restore that turns out to
- * be wrong (valid SQLite, but not what the user meant to restore) can still
- * be recovered — see restorePreRestoreSnapshot(). Returns whether that
- * snapshot actually succeeded (e.g. false on an IndexedDB quota failure) so
- * the caller can warn the user their usual undo option won't be available
- * this time, rather than that failure being silently console-only.
+ * only — on desktop/mobile use restoreDatabaseFromFile(), or `db` is
+ * silently disconnected from the file Tauri manages. Returns whether the
+ * pre-restore snapshot succeeded, so the caller can warn that
+ * restorePreRestoreSnapshot() will not be available. Also runs the
+ * cold-start schema pass (SCHEMA_SQL + runSchemaMigrations) against the
+ * restored database before persisting it, so a backup taken on an older
+ * app version comes up on the current schema immediately. See
+ * client/AGENTS.md, "Backup, restore, wipes and diagnostics".
  */
 export async function restoreDatabase(binaryData: Uint8Array): Promise<{ snapshotSucceeded: boolean }> {
   if (isTauri()) {
@@ -994,9 +712,8 @@ export async function restoreDatabase(binaryData: Uint8Array): Promise<{ snapsho
     });
   }
 
-  // Constructed against a local variable, not `db` - a malformed file throws
-  // here (sql.js validates the SQLite file header) with the live database
-  // still fully intact.
+  // Local variable, not `db`: a malformed file throws here with the live
+  // database still fully intact.
   const candidate = new SQL.Database(binaryData);
   try {
     const tableRows = candidate.exec(
@@ -1017,19 +734,42 @@ export async function restoreDatabase(binaryData: Uint8Array): Promise<{ snapsho
   }
 
   let snapshotSucceeded = true;
-  if (db) {
-    const outgoing = db.export();
-    await set(`${APP_NAME.toLowerCase()}_db_pre_restore_backup`, outgoing).catch(
-      (err) => {
-        snapshotSucceeded = false;
-        console.error("[DB] Failed to snapshot outgoing database before restore", err);
-      },
-    );
-    db.close();
-  }
+  // Reserves the same connection-wide lock query()/execute()/transaction()
+  // use (see reserveDbSlot()), for the same reason rehydrateFromIndexedDb()
+  // does: nothing in flight may resume against the outgoing `db` once it has
+  // been close()d, and nothing may read the restored one until its schema
+  // pass below has finished.
+  const { previous, release } = reserveDbSlot();
+  try {
+    await previous;
 
-  db = candidate;
-  await saveDatabase();
+    if (db) {
+      const outgoing = db.export();
+      await set(`${APP_NAME.toLowerCase()}_db_pre_restore_backup`, outgoing).catch(
+        (err) => {
+          snapshotSucceeded = false;
+          console.error("[DB] Failed to snapshot outgoing database before restore", err);
+        },
+      );
+      db.close();
+    }
+
+    db = candidate;
+
+    // A backup taken on an older app version carries that version's schema,
+    // which leaves the live process running against a database missing
+    // whatever tables/columns have shipped since (the permission_groups
+    // drift traced in docs/KNOWN_BUGS.md) until the next cold start. Apply
+    // the exact pass initDatabaseInternal() applies to an existing database:
+    // CREATE TABLE IF NOT EXISTS plus the idempotent migrations, both
+    // additive against the restored rows.
+    db.run(SCHEMA_SQL);
+    await runSchemaMigrations(makeSqlJsAdapter(db));
+
+    await saveDatabase();
+  } finally {
+    release();
+  }
   return { snapshotSucceeded };
 }
 
@@ -1048,11 +788,9 @@ export async function restorePreRestoreSnapshot(): Promise<boolean> {
 
 /**
  * Last-resort recovery for a local database that cannot be opened at all
- * (web/PWA only) — snapshots the stored blob to
- * `dumosrx_db_pre_reset_backup` and then deletes the live IndexedDB key, so
- * the next boot starts from a fresh database and re-pulls from the cloud.
- * Deliberately does not touch `db`: this runs on the init-failure screen,
- * where there may be no usable connection to close.
+ * (web/PWA only): snapshots the blob to `dumosrx_db_pre_reset_backup`, then
+ * deletes the live key so the next boot starts fresh and re-pulls.
+ * Deliberately does not touch `db` — it runs on the init-failure screen.
  */
 export async function discardLocalDatabaseBlob(): Promise<{ backedUp: boolean }> {
   if (isTauri()) return { backedUp: false };
@@ -1074,12 +812,8 @@ export async function discardLocalDatabaseBlob(): Promise<{ backedUp: boolean }>
 }
 
 /**
- * Desktop/mobile-only backup: lets the user pick a destination via a native
- * save dialog, then writes a consistent snapshot of the live database there
- * with SQLite's VACUUM INTO. Preferred over copying the raw file directly,
- * since VACUUM INTO produces a coherent copy even if writes are landing on
- * the live database around the same time; a raw file copy could otherwise
- * catch it mid-write.
+ * Desktop/mobile-only backup: native save dialog, then `VACUUM INTO`, which
+ * stays coherent even if writes land during it (a raw file copy would not).
  */
 export async function backupDatabaseToFile(): Promise<{ success: boolean; path?: string }> {
   if (!isTauri()) {
@@ -1105,29 +839,21 @@ export async function backupDatabaseToFile(): Promise<{ success: boolean; path?:
     return { success: false }; // user cancelled the dialog
   }
 
-  // VACUUM INTO doesn't reliably accept a bound parameter for the filename
-  // across every SQLite driver combination, so the path is escaped and
-  // inlined directly instead. destPath comes from a native OS save dialog
-  // (not free-typed user input), but a single-quote in a folder name (e.g.
-  // "O'Brien's backups") would still break unescaped string interpolation.
+  // VACUUM INTO won't reliably take a bound parameter here, and a quote in
+  // a folder name would break raw interpolation.
   const escapedPath = destPath.replace(/'/g, "''");
   await db.execute(`VACUUM INTO '${escapedPath}'`);
   return { success: true, path: destPath };
 }
 
-// First 16 bytes of any genuine SQLite database file (the format's own
-// magic header) — used to reject an obviously-wrong file before it ever
-// touches the live database. See restoreDatabaseFromFile() below.
+// The SQLite format's own magic header: first 16 bytes of any real .db.
 const SQLITE_FILE_HEADER = "SQLite format 3\0";
 
 /**
- * Desktop/mobile-only restore: lets the user pick a backup file via a native
- * open dialog, validates it's at least a real SQLite file, snapshots the
- * live database file (so a restore of the wrong-but-valid file can still be
- * recovered), closes the live SQL connection so the file isn't locked, then
- * overwrites the real dumosrx.db file with it. The caller must reload the
- * app afterward so initDatabase() re-establishes a fresh connection against
- * the restored file.
+ * Desktop/mobile-only restore: native open dialog, header validation,
+ * snapshot of the live file, close, then overwrite `dumosrx.db`. The caller
+ * must reload the app afterwards so initDatabase() reconnects. See
+ * client/AGENTS.md, "Backup, restore, wipes and diagnostics".
  */
 export async function restoreDatabaseFromFile(): Promise<{ success: boolean }> {
   if (!isTauri()) {
@@ -1146,9 +872,7 @@ export async function restoreDatabaseFromFile(): Promise<{ success: boolean }> {
   const { copyFile, readFile, exists } = await import("@tauri-apps/plugin-fs");
   const { appDataDir, join } = await import("@tauri-apps/api/path");
 
-  // Validate BEFORE touching the live connection/file at all: a garbage or
-  // wrong-app file must never get the chance to close the live db and
-  // partially overwrite it.
+  // Validate BEFORE touching the live connection or file at all.
   const candidateBytes = await readFile(sourcePath);
   const header = new TextDecoder().decode(candidateBytes.slice(0, 16));
   if (header !== SQLITE_FILE_HEADER) {
@@ -1159,12 +883,8 @@ export async function restoreDatabaseFromFile(): Promise<{ success: boolean }> {
 
   if (db) {
     try {
-      // Force every committed transaction sitting in the -wal sidecar back
-      // into the main .db file BEFORE snapshotting it below. Without this, a
-      // raw copy of dumosrx.db alone can miss the most recent writes (WAL
-      // journaling is enabled - see initDatabase()), making the "recoverable"
-      // pre-restore snapshot silently incomplete for exactly the data most
-      // likely to matter (whatever the user was just doing).
+      // WAL is enabled, so the snapshot below would otherwise miss the most
+      // recent writes still sitting in the -wal sidecar.
       await db.execute("PRAGMA wal_checkpoint(TRUNCATE);");
     } catch (err) {
       console.error("[DB] Failed to checkpoint WAL before restore snapshot:", err);
@@ -1179,11 +899,8 @@ export async function restoreDatabaseFromFile(): Promise<{ success: boolean }> {
     try {
       await db.close();
     } catch (err) {
-      // Do NOT proceed to overwrite the live file past a failed close: with
-      // WAL journaling enabled, a still-open connection's -wal/-shm sidecars
-      // can replay stale pre-restore data over the freshly-copied file on
-      // the next open, silently mixing pre- and post-restore state. Safer
-      // to fail the restore outright and let the user retry/reload first.
+      // Never overwrite past a failed close: the WAL sidecars can replay
+      // stale pages over the restored file on the next open.
       console.error("[DB] Failed to close database connection before restore:", err);
       throw new Error(
         "Could not safely close the current database before restoring. Please restart the app and try again.",
@@ -1198,29 +915,12 @@ export async function restoreDatabaseFromFile(): Promise<{ success: boolean }> {
 }
 
 /**
- * Read-only audit of legacy schema artifacts on this device's local
- * database. Checks what initDatabase()'s one remaining legacy-repair step
- * (backfillStoreIdOnLegacyRows — still plausibly load-bearing) exists to
- * fix, plus several older artifacts (medicines/vendors/store_profile/
- * stock_batch table names, stock_quantity, purchase_orders.vendor_id,
- * sale_items.inventory_id, unscoped users.username) whose repair code has
- * since been removed once every real account was confirmed to postdate
- * them: for those, a finding here would mean an actual, currently-unhandled
- * problem on this device, not just a candidate for cleanup. Run from the
- * browser console (or Tauri's devtools) as
- * `await window.diagnoseLegacySchema()`; safe to run anywhere, including
- * production, since it never writes.
- *
- * `retirable` answers the question the raw `findings` list doesn't: for each
- * still-active legacy-repair step in schema-migrations.ts, is THIS device a
- * blocker to deleting it? `findings` reports problems present; retirement
- * needs the inverse verdict, per migration, so a human sweeping real devices
- * gets a direct yes/no instead of having to re-derive it from the findings
- * each time. A migration is only safe to delete once EVERY active device
- * reports `ok: true` — one device is never enough — and each entry's
- * `reason` spells out the caveats (notably that backfillStoreIdOnLegacyRows
- * re-runs every launch and so is also an ongoing safety net, not purely a
- * legacy-device repair). See docs/KNOWN_BUGS.md's deferred-work entry.
+ * Read-only audit of legacy schema artifacts on this device. Run as
+ * `await window.diagnoseLegacySchema()` from the console; safe anywhere,
+ * including production, since it never writes. `findings` lists problems
+ * present; `retirable` gives the per-migration verdict on whether THIS
+ * device blocks deleting it. See client/AGENTS.md, "Backup, restore, wipes
+ * and diagnostics", and docs/KNOWN_BUGS.md's deferred-work entry.
  */
 export async function diagnoseLegacySchema(): Promise<{
   clean: boolean;
@@ -1229,9 +929,6 @@ export async function diagnoseLegacySchema(): Promise<{
 }> {
   if (!db) await initDatabase();
   const findings: string[] = [];
-  // Per-migration retirement verdict (see the `retirable` note in the doc
-  // comment above). Filled in alongside the read-only checks below — no
-  // extra queries, and nothing here writes.
   let storeIdBackfillNeeded = false;
 
   const tableExistsLocal = async (table: string): Promise<boolean> => {
@@ -1360,17 +1057,8 @@ if (typeof window !== "undefined") {
 if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
   window.getDatabaseBinary = getDatabaseBinary;
   window.restoreDatabase = restoreDatabase;
-  // Test-only escape hatch: e2e specs that exercise a paid-tier-gated module
-  // (e.g. Expenses, Procurement — see use-feature-gate.ts's `!isFree`
-  // fallbacks) share one checked-in free-tier fixture (e2e/.auth/test-db.bin)
-  // with specs that deliberately rely on that same store being free-tier to
-  // test LockedModuleOverlay itself. Rather than mutate the shared fixture
-  // (which would break those other specs) or race the overlay's mount timing
-  // by clicking fast, a spec can call this any time after logging in — before
-  // the tier-gated content is needed, followed by a `page.reload()` — to
-  // elevate its own isolated browser-context copy of the local DB — never the
-  // checked-in fixture file, and inert outside development builds. See
-  // e2e/fixtures.ts's `loginAsPaidTier`.
+  // Elevates only this browser context's copy of the DB, never the
+  // checked-in fixture. See e2e/fixtures.ts's `loginAsPaidTier`.
   window.__e2eSetSubscriptionTier = async (tier: string) => {
     await execute("UPDATE stores SET subscription_tier = ? WHERE id = ?", [
       tier,
@@ -1379,13 +1067,8 @@ if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
   };
 }
 
-// Every table a "wipe this device's local data" operation clears, shared by
-// resetDatabase() and clearDatabaseForNewStore() so the two never drift
-// apart again the way they previously did (sale_item_batches was missing
-// from both, silently orphaning rows pointing at cleared sale_items/
-// stock_batches). Deliberately excludes loyalty_tiers/loyalty_redemption_
-// options/system_configs - store configuration, not transactional data -
-// and stores/users, which only clearDatabaseForNewStore's own list adds.
+// Shared by resetDatabase() and clearDatabaseForNewStore() so the two can't
+// drift (client/AGENTS.md, "Backup, restore, wipes and diagnostics").
 const LOCAL_WIPE_TABLES = [
   "prescription_items",
   "prescriptions",
@@ -1483,16 +1166,9 @@ export async function logAction(
   table: string,
   recordId: string,
   details?: Record<string, unknown>,
-  // Mirrors assertStoreOwnership's overrideStoreId (base-helpers.ts): the
-  // one real caller that needs it is stock-transfers.ts's transferStock(),
-  // which legitimately writes rows in two different stores within one
-  // transaction. Without this, every audit-log row for a transfer's writes
-  // was attributed to whatever store the UI happened to have active rather
-  // than the source/destination store the write actually belongs to.
+  // Mirrors assertStoreOwnership's overrideStoreId; needed by transferStock().
   overrideStoreId?: string,
-  // Ties every row one multi-step operation writes (e.g. everything a
-  // single sale touches) together for the Activity Log to collapse into
-  // one entry - see correlation_id's schema-migrations.ts comment.
+  // Groups one multi-step operation's rows in the Activity Log.
   correlationId?: string,
 ) {
   if (!db) return;
@@ -1500,17 +1176,7 @@ export async function logAction(
   const storeId = overrideStoreId ?? getActiveStoreId();
   const detailsJson = details ? JSON.stringify(details) : null;
 
-  // Dedup path: a repeating failure (e.g. LOGIN_FAILED) folds into the
-  // most recent still-unsynced row for the same (action, table, record_id,
-  // store) instead of inserting a fresh row every time - the server side
-  // of audit_logs is genuinely append-only (matched by properties->
-  // client_id, never looked up by id for an UPDATE - see SyncController),
-  // so this coalesces repeats into what eventually reaches the server as
-  // ONE row, rather than teaching the sync engine an UPDATE path that
-  // table was never designed to support. Once the row has actually synced
-  // (_synced = 1), a further repeat starts a fresh row/group, same as the
-  // very first occurrence ever - by then the count already reached the
-  // server, so there's nothing stale to keep folding into.
+  // Dedup path — see client/AGENTS.md, "`logAction()` and audit-log dedup".
   if (isDedupableAuditAction(action)) {
     const existing = await query<{ id: string; occurrence_count: number | null }>(
       `SELECT id, occurrence_count FROM audit_logs
@@ -1529,12 +1195,8 @@ export async function logAction(
         [newCount, now, detailsJson, now, row.id],
       );
 
-      // Rewrite the row's own still-pending INSERT payload in place, rather
-      // than adding a second queue entry - see the append-only note above.
-      // If it's already been picked up and cleared by a push in flight
-      // (a narrow race with the sync engine), this just no-ops here: the
-      // local row is still correctly updated above, and the next repeat
-      // will see _synced = 1 (once that push confirms) and start fresh.
+      // Rewrite the pending INSERT payload in place, never queue a second
+      // entry; a push that already cleared it makes this a harmless no-op.
       const queued = await query<{ id: number; payload: string }>(
         `SELECT id, payload FROM _sync_queue WHERE table_name = 'audit_logs' AND record_id = ? AND operation = 'INSERT' ORDER BY id DESC LIMIT 1`,
         [row.id],

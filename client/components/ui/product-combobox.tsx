@@ -18,6 +18,7 @@ export interface SelectedProduct {
   source: ProductSource;
   localId?: string;
   generic_name?: string;
+  barcode?: string;
   category?: string;
   manufacturer?: string;
   strength?: string;
@@ -69,7 +70,7 @@ interface ProductComboboxProps {
    * which the PO builder pays for twice over (once here, once through
    * useProcurementData). Omitted, the internal query is used exactly as
    * before, so no other caller changes. */
-  products?: { id: string; name: string; generic_name?: string | null; category_name?: string | null; manufacturer?: string | null; strength?: string | null; dosage_form?: string | null }[];
+  products?: { id: string; name: string; generic_name?: string | null; barcode?: string | null; category_name?: string | null; manufacturer?: string | null; strength?: string | null; dosage_form?: string | null }[];
 }
 
 function SourceBadge({
@@ -272,6 +273,7 @@ export function ProductCombobox({
       source: "local" as ProductSource,
       localId: p.id,
       generic_name: p.generic_name ?? undefined,
+      barcode: p.barcode ?? undefined,
       category: p.category_name ?? undefined,
       manufacturer: p.manufacturer ?? undefined,
       strength: p.strength ?? undefined,
@@ -291,6 +293,7 @@ export function ProductCombobox({
       : genericFuzzySearch(deferredValue, allSuggestions, [
           "name",
           "generic_name",
+          "barcode",
         ]).results.slice(0, 50);
 
     // Always show products already in this store's inventory before global
@@ -429,7 +432,7 @@ export function ProductCombobox({
             id={listboxId}
             role="listbox"
             aria-label={placeholder}
-            className="max-h-[300px] overflow-y-auto p-1"
+            className="max-h-[300px] overflow-y-auto stable-scrollbar p-1"
           >
             {/* Always pinned above matches, whether or not anything is typed:
              * with no text it opens an empty "Add New Product" form (a real

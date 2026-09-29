@@ -1,8 +1,9 @@
 "use client";
 
+import { useCallback } from "react";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/context/auth-context";
-import { useHasPermission } from "@/lib/hooks/use-permissions";
+import { hasPermission, useHasPermission } from "@/lib/hooks/use-permissions";
 import { useStore } from "@/lib/context/store-context";
 import { useInventoryAudit } from "@/lib/context/inventory-audit-context";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
@@ -35,14 +36,19 @@ interface DashboardHeaderProps {
 
 export function DashboardHeader({ onOpenFeedback }: DashboardHeaderProps) {
   const pathname = usePathname() || "/";
-  const { user, canManageStockBatch, isAdmin } = useAuth();
+  const { user, canManageStockBatch, isAdmin, permissionGroup } = useAuth();
   const { storeProfile, availableStores, activeStoreId, switchStore } = useStore();
   const { setIsAuditing } = useInventoryAudit();
   const { canManageMultiStore } = useFeatureGate();
   const canPerformStockAudit = useHasPermission("perform_stock_audit");
-  const canManageSuppliers = useHasPermission("manage_suppliers");
-  const canManagePurchaseOrders = useHasPermission("manage_purchase_orders");
-  const canManagePrescriptions = useHasPermission("manage_prescriptions");
+  /** Delegates to the same pure hasPermission() useHasPermission wraps, so a
+   * route's actionPermission is enforced whatever key it names. Enumerating
+   * keys here instead (the shape this replaced) silently allowed every key
+   * the list had not been updated for. */
+  const hasActionPermission = useCallback(
+    (key: string) => hasPermission(user, permissionGroup, key),
+    [user, permissionGroup],
+  );
   // Plan entitlement AND this device actually having synced 2+ stores —
   // same combination stock-movements.tsx's canTransferStock uses. Only
   // actionRequiresMultiStore routes (Transfer Stock) read this.
@@ -56,14 +62,7 @@ export function DashboardHeader({ onOpenFeedback }: DashboardHeaderProps) {
     isAdmin,
     hasMultiStoreAccess,
     user?.role === "sales_staff",
-    (key) =>
-      key === "manage_suppliers"
-        ? canManageSuppliers
-        : key === "manage_purchase_orders"
-          ? canManagePurchaseOrders
-          : key === "manage_prescriptions"
-            ? canManagePrescriptions
-            : true,
+    hasActionPermission,
   );
   const secondaryAction = resolveSecondaryHeaderAction(
     pathname,

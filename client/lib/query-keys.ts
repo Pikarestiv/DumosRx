@@ -90,6 +90,13 @@ export const queryKeys = {
   stockAudits: {
     all: () => resource(["stock_audits"] as const, ["stock_audits"]),
   },
+  stockAdjustments: {
+    list: (dateRange?: { from?: string; to?: string }, fullHistory?: boolean) =>
+      resource(
+        ["stockAdjustmentsLedger", dateRange?.from, dateRange?.to, !!fullHistory] as const,
+        ["stock_movements"],
+      ),
+  },
   stockMovements: {
     list: (dateRange?: { from?: string; to?: string }, fullHistory?: boolean) =>
       resource(

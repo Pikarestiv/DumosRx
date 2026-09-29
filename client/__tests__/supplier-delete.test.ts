@@ -71,6 +71,35 @@ describe("deleteSupplier", () => {
     expect(await procurement.getSupplierOutstandingBalance("v1")).toBe(0);
   });
 
+  it("counts an order with a NULL payment status as unpaid", async () => {
+    seedSupplier();
+    db.run(
+      `INSERT INTO purchase_orders (id, supplier_id, status, payment_status, total_amount, amount_paid, _deleted)
+       VALUES ('po-null', 'v1', 'received', NULL, 1000, 250, 0)`,
+    );
+    expect(await procurement.getSupplierOutstandingBalance("v1")).toBe(750);
+  });
+
+  it("counts a NULL-payment-status order in the directory's owed total", async () => {
+    seedSupplier();
+    db.run(
+      `INSERT INTO purchase_orders (id, supplier_id, status, payment_status, total_amount, amount_paid, _deleted)
+       VALUES ('po-null', 'v1', 'received', NULL, 1000, 250, 0)`,
+    );
+    const { data } = await procurement.getSuppliers();
+    expect(data.find((s) => s.id === "v1")?.total_debt).toBe(750);
+  });
+
+  it("refuses to delete a supplier owed money on a NULL-payment-status order", async () => {
+    seedSupplier();
+    db.run(
+      `INSERT INTO purchase_orders (id, supplier_id, status, payment_status, total_amount, amount_paid, _deleted)
+       VALUES ('po-null', 'v1', 'received', NULL, 1000, 0, 0)`,
+    );
+    await expect(procurement.deleteSupplier("v1")).rejects.toThrow(/owed|balance/i);
+    expect(isDeleted("v1")).toBe(false);
+  });
+
   it("refuses to delete a supplier that is still owed money", async () => {
     seedSupplier();
     seedOrder("v1", { total: 1000, paid: 0, paymentStatus: "unpaid" });

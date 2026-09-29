@@ -364,7 +364,7 @@ export async function getSuppliers() {
             COALESCE(po_stats.total_value, 0) as total_value,
             po_stats.last_order_date as last_order_date
      FROM suppliers s
-     LEFT JOIN purchase_orders po ON s.id = po.supplier_id AND po._deleted = 0 AND po.payment_status != 'paid'${storeId ? " AND po.store_id = ?" : ""}
+     LEFT JOIN purchase_orders po ON s.id = po.supplier_id AND po._deleted = 0 AND COALESCE(po.payment_status, 'unpaid') != 'paid'${storeId ? " AND po.store_id = ?" : ""}
      LEFT JOIN (
        SELECT supplier_id, COUNT(*) as total_orders, SUM(total_amount) as total_value, MAX(order_date) as last_order_date
        FROM purchase_orders
@@ -391,7 +391,7 @@ export async function getSupplierOutstandingBalance(id: string): Promise<number>
   const rows = await query<{ outstanding: number | null }>(
     `SELECT COALESCE(SUM(total_amount - amount_paid), 0) as outstanding
      FROM purchase_orders
-     WHERE supplier_id = ? AND _deleted = 0 AND payment_status != 'paid'`,
+     WHERE supplier_id = ? AND _deleted = 0 AND COALESCE(payment_status, 'unpaid') != 'paid'`,
     [id],
   );
   return Math.max(0, Number(rows[0]?.outstanding) || 0);

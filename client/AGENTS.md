@@ -835,7 +835,24 @@ than on history.
   cannot be reconciled to anything. An open PO is the same harm arriving
   later: receiving books new batches against `product_id`, so the delivery
   would create stock for a product that no longer exists. **Sale history is
-  deliberately not a blocker** (per the join note above). There is
+  deliberately not a blocker** (per the join note above).
+  The stock-on-hand check sums `ABS(quantity)`, not `quantity` (corrected
+  2026-09-29 after a review found the netting bug). This app really does
+  produce negative-quantity batches — `inventory.ts`'s FEFO deduction books
+  an oversell rather than refusing the sale, and `getOversoldAlerts()`
+  reports the result — so a plain `SUM(quantity)` let a product with a `+5`
+  and a `-5` batch net to `0` and be judged deletable, even though both rows
+  are real and both still count in the stock-value total, which sums
+  `cost_price * quantity` over **every** non-deleted batch regardless of
+  sign (`inventory.ts`'s `getStockBatchStats()`, `reports.ts`'s
+  `getBIMetrics()`). A lone negative batch is the same harm with the sign
+  flipped: orphaning it leaves negative value in the total with no product
+  to trace it to. So the guard blocks on **any non-zero batch quantity**,
+  positive or negative — the figure it reports (and the dialog's "still has
+  N in stock") is therefore a count of units still sitting on non-empty
+  batch rows, not a net inventory position. A genuinely emptied batch
+  (`quantity = 0`) still does not block, which is what keeps a sold-through
+  product deletable. There is
   **no "deactivate" alternative offered for products, on purpose**:
   `products.is_active` is read in exactly **one** place — the inventory
   dashboard's counters in `lib/db/queries/inventory.ts`'s
@@ -872,7 +889,18 @@ than on history.
   mirror of `customer-delete-dialog.tsx`'s guard, from the payable side
   instead of the receivable one. Deleting a vendor you still owe erases the
   payable from the directory's "₦X owed to N suppliers" summary while the
-  orders stay on the books. **Order history is not a blocker.** Unlike
+  orders stay on the books. "Unpaid" is
+  `COALESCE(payment_status, 'unpaid') != 'paid'`, not a bare
+  `payment_status != 'paid'` (corrected 2026-09-29): SQLite evaluates any
+  comparison against NULL to NULL, so a row whose `payment_status` is
+  explicitly NULL — which the schema default never produces, but an older
+  client version or a data import can — would be excluded from "unpaid"
+  despite plainly not being paid, letting a vendor with real debt be
+  deleted. **The same predicate has to appear in both places**:
+  `getSupplierOutstandingBalance()` and `getSuppliers()`'s `total_debt`
+  join, because the delete dialog's copy points the user at the directory's
+  owed figure, so the two undercounting differently would be worse than
+  either undercounting alone. **Order history is not a blocker.** Unlike
   products, suppliers **do** have a real, user-editable deactivate state —
   `suppliers.is_active`, set by the Add/Edit Supplier dialog's Active toggle
   and shown as the Active/Inactive badge on this very pane — so the

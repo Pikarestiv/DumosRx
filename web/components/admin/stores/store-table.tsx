@@ -1,18 +1,4 @@
-import {
-  MoreVertical,
-  ExternalLink,
-  CreditCard,
-  History,
-  Ban,
-  Mail,
-  Store as StoreIcon,
-  CheckCircle,
-  Gift,
-  FlaskConical,
-  Loader2,
-  BadgeCheck,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Mail, Store as StoreIcon, FlaskConical, Archive } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -23,32 +9,19 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  StoreRowActions,
+  type StoreRowActionHandlers,
+} from "@/components/admin/stores/store-row-actions";
+import { adminStoreDetailPath } from "@/lib/admin-routes";
 import type { AdminStoreSummary } from "@/lib/types/admin";
 import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import { useAdminAuthStore, checkIsSuperAdmin } from "@/lib/store/use-admin-auth-store";
 
-interface StoreTableProps {
+interface StoreTableProps extends StoreRowActionHandlers {
   storeList: AdminStoreSummary[];
   isLoading: boolean;
-  handleImpersonate: (store: AdminStoreSummary) => void;
-  handleViewBilling: (store: AdminStoreSummary) => void;
-  setSelectedStore: (store: AdminStoreSummary) => void;
-  setIsSuspendDialogOpen: (open: boolean) => void;
-  setIsTrialDialogOpen: (open: boolean) => void;
-  setIsActivatePlanDialogOpen: (open: boolean) => void;
-  handleUnsuspend: (store: AdminStoreSummary) => void;
-  handleToggleDemo: (store: AdminStoreSummary) => void;
   /** Id of the store whose unsuspend/demo mutation is currently in flight,
-   * so only that row's menu items go disabled (a plain `isPending` flag
-   * would freeze every row). Guards against a double-click firing the same
-   * mutation twice. */
+   * so only that row's menu items go disabled. */
   pendingStoreId: string | null;
   router: AppRouterInstance;
 }
@@ -56,23 +29,15 @@ interface StoreTableProps {
 export function StoreTable({
   storeList,
   isLoading,
-  handleImpersonate,
-  handleViewBilling,
-  setSelectedStore,
-  setIsSuspendDialogOpen,
-  setIsTrialDialogOpen,
-  setIsActivatePlanDialogOpen,
-  handleUnsuspend,
-  handleToggleDemo,
   pendingStoreId,
   router,
+  ...actions
 }: StoreTableProps) {
-  // Suspend/unsuspend is super_admin-exclusive server-side. Hiding it for
-  // platform_admin/agent avoids a dead menu item that would just 403.
   const { user } = useAdminAuthStore();
   const isSuperAdmin = checkIsSuperAdmin(user?.role);
-  // grant_trials is shared by super_admin/platform_admin, not agent.
   const canGrantTrials = isSuperAdmin || user?.role === "platform_admin";
+
+  const openStore = (store: AdminStoreSummary) => router.push(adminStoreDetailPath(store.id));
 
   return (
     <Table>
@@ -103,7 +68,17 @@ export function StoreTable({
         {storeList.map((store) => (
           <TableRow
             key={store.id}
-            className="border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 group transition-colors"
+            role="link"
+            tabIndex={0}
+            aria-label={`View details for ${store.name}`}
+            className="border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 group transition-colors cursor-pointer"
+            onClick={() => openStore(store)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                openStore(store);
+              }
+            }}
           >
             <TableCell className="pl-6 py-5">
               <div className="flex items-center gap-4">
@@ -124,10 +99,24 @@ export function StoreTable({
                         Demo
                       </Badge>
                     )}
+                    {store.is_archived && (
+                      <Badge
+                        variant="outline"
+                        className="bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-800 dark:border-slate-700 font-bold text-[9px] py-0 px-1.5 gap-1"
+                      >
+                        <Archive className="h-2.5 w-2.5" />
+                        Archived
+                      </Badge>
+                    )}
                   </div>
                   <span className="text-[10px] font-mono text-slate-400 uppercase tracking-tighter">
                     {store.id}
                   </span>
+                  {store.device_id && (
+                    <span className="text-[10px] font-mono text-slate-400 uppercase tracking-tighter">
+                      Device: {store.device_id}
+                    </span>
+                  )}
                 </div>
               </div>
             </TableCell>
@@ -150,9 +139,7 @@ export function StoreTable({
                 >
                   {store.plan}
                 </Badge>
-                <span className="text-[9px] text-slate-400 mt-1">
-                  Since {store.date}
-                </span>
+                <span className="text-[9px] text-slate-400 mt-1">Since {store.date}</span>
               </div>
             </TableCell>
             <TableCell className="text-center">
@@ -179,144 +166,27 @@ export function StoreTable({
                 {store.status}
               </Badge>
             </TableCell>
-            <TableCell className="pr-6">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="hover:bg-indigo-50 dark:hover:bg-indigo-500/10"
-                  >
-                    <MoreVertical className="h-4 w-4 text-slate-400" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56 p-2 rounded-2xl shadow-xl border-slate-200 dark:border-slate-800">
-                  <DropdownMenuLabel className="text-[10px] uppercase tracking-widest text-slate-400 px-3 py-2">Actions</DropdownMenuLabel>
-                  <DropdownMenuItem 
-                    className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold"
-                    onClick={() =>
-                      router.push(`/admin/stores/details/?id=${encodeURIComponent(store.id)}`)
-                    }
-                  >
-                    <StoreIcon className="h-4 w-4 text-slate-500" />
-                    View Store Details
-                  </DropdownMenuItem>
-                  {/* Impersonation is super_admin-exclusive server-side too
-                      (`role:super_admin` on the impersonate route), so the
-                      same "no dead menu item that would just 403" rule
-                      applies here. */}
-                  {isSuperAdmin && (
-                    <DropdownMenuItem
-                      className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold"
-                      onClick={() => handleImpersonate(store)}
-                    >
-                      <ExternalLink className="h-4 w-4 text-indigo-500" />
-                      Impersonate (Admin)
-                    </DropdownMenuItem>
-                  )}
-                  <DropdownMenuItem 
-                    className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold"
-                    onClick={() => handleViewBilling(store)}
-                  >
-                    <CreditCard className="h-4 w-4 text-emerald-500" />
-                    View Billing History
-                  </DropdownMenuItem>
-                  <DropdownMenuItem 
-                    className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold"
-                    onClick={() =>
-                      router.push(
-                        `/admin/activity?store_id=${encodeURIComponent(store.id)}&store_name=${encodeURIComponent(store.name)}`,
-                      )
-                    }
-                  >
-                    <History className="h-4 w-4 text-blue-500" />
-                    Activity Log
-                  </DropdownMenuItem>
-                  {canGrantTrials && (
-                    <DropdownMenuItem
-                      className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold text-amber-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-500/10 transition-colors"
-                      onClick={() => {
-                        setSelectedStore(store);
-                        setIsTrialDialogOpen(true);
-                      }}
-                    >
-                      <Gift className="h-4 w-4" />
-                      Grant Trial
-                    </DropdownMenuItem>
-                  )}
-                  {canGrantTrials && (
-                    <DropdownMenuItem
-                      className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors"
-                      onClick={() => {
-                        setSelectedStore(store);
-                        setIsActivatePlanDialogOpen(true);
-                      }}
-                    >
-                      <BadgeCheck className="h-4 w-4" />
-                      Activate Paid Plan
-                    </DropdownMenuItem>
-                  )}
-                  {isSuperAdmin && (
-                    <>
-                      <DropdownMenuSeparator className="my-2 bg-slate-100 dark:bg-slate-800" />
-                      <DropdownMenuItem
-                        className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold text-purple-500 hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-500/10 transition-colors"
-                        disabled={pendingStoreId === store.id}
-                        onSelect={(e) => {
-                          // Keep the menu open while the mutation runs so the
-                          // disabled/spinner state is actually visible.
-                          e.preventDefault();
-                          handleToggleDemo(store);
-                        }}
-                      >
-                        {pendingStoreId === store.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <FlaskConical className="h-4 w-4" />
-                        )}
-                        {store.is_demo ? "Unmark as Demo" : "Mark as Demo"}
-                      </DropdownMenuItem>
-                      {store.status === "Suspended" ? (
-                        <DropdownMenuItem
-                          className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors"
-                          disabled={pendingStoreId === store.id}
-                          onSelect={(e) => {
-                            e.preventDefault();
-                            handleUnsuspend(store);
-                          }}
-                        >
-                          {pendingStoreId === store.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <CheckCircle className="h-4 w-4" />
-                          )}
-                          Unsuspend Account
-                        </DropdownMenuItem>
-                      ) : (
-                        <DropdownMenuItem
-                          className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors"
-                          onClick={() => {
-                            setSelectedStore(store);
-                            setIsSuspendDialogOpen(true);
-                          }}
-                        >
-                          <Ban className="h-4 w-4" />
-                          Suspend Account
-                        </DropdownMenuItem>
-                      )}
-                    </>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
+            {/* The kebab lives inside a row that navigates on click, so its
+                whole cell swallows the event before the row handler sees it. */}
+            <TableCell
+              className="pr-6"
+              onClick={(event) => event.stopPropagation()}
+              onKeyDown={(event) => event.stopPropagation()}
+            >
+              <StoreRowActions
+                store={store}
+                isSuperAdmin={isSuperAdmin}
+                canGrantTrials={canGrantTrials}
+                pendingStoreId={pendingStoreId}
+                router={router}
+                {...actions}
+              />
             </TableCell>
           </TableRow>
         ))}
         {storeList.length === 0 && !isLoading && (
           <TableRow>
-            <TableCell
-              colSpan={7}
-              className="text-center py-20 text-slate-400 font-medium"
-            >
+            <TableCell colSpan={7} className="text-center py-20 text-slate-400 font-medium">
               <div className="flex flex-col items-center gap-2">
                 <StoreIcon className="h-10 w-10 opacity-20" />
                 <span>No stores match your search criteria</span>

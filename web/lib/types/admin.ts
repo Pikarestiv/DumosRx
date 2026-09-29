@@ -36,6 +36,11 @@ export interface AdminStoreSummary {
   stores?: number;
   revenue?: string;
   is_demo?: boolean;
+  /** The terminal this store syncs from (stores.device_id). Rendered in the
+   * fleet row and matched by the fleet search. */
+  device_id?: string | null;
+  is_archived?: boolean;
+  archived_at?: string | null;
   account_manager?: { id: string; name: string } | null;
   account_manager_is_explicit?: boolean;
 }
@@ -144,6 +149,8 @@ export interface AdminUser {
 export type AdminAccountType = "owners" | "staff" | "platform";
 
 export type {
+  AdminStoreBusinessMetrics,
+  AdminStoreOperationalMetrics,
   AdminStoreDetail,
   AdminStoreDetailActivity,
   AdminStoreDetailOwner,

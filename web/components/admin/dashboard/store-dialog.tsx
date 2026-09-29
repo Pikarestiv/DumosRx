@@ -7,6 +7,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useRouter } from "next/navigation";
+import { adminStoreDetailPath } from "@/lib/admin-routes";
 import type { AdminStoreSummary } from "@/lib/types/admin";
 
 interface StoreDialogProps {
@@ -67,7 +68,7 @@ export function StoreDialog({ selectedStore, setSelectedStore }: StoreDialogProp
                 <Button 
                   className="flex-1 bg-indigo-600 hover:bg-indigo-700 font-bold rounded-xl h-12"
                   onClick={() => {
-                    router.push(`/admin/stores?search=${selectedStore.id}`);
+                    router.push(adminStoreDetailPath(selectedStore.id));
                     setSelectedStore(null);
                   }}
                 >

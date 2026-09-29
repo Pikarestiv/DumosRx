@@ -433,6 +433,8 @@ export async function fetchTopSellersReportData(dateFrom?: string, dateTo?: stri
       ROUND(SUM(si.total_price) * 1.0 / NULLIF(SUM(si.quantity), 0), 2) as "Avg Price"
      FROM sale_items si
      JOIN sales s ON si.sale_id = s.id
+     -- Unfiltered products join on purpose: a deleted product must still name
+     -- its history (client/AGENTS.md; deleted-product-report-history.test.ts).
      JOIN products p ON si.product_id = p.id
      LEFT JOIN categories c ON p.category_id = c.id
      WHERE ${where}
@@ -609,7 +611,8 @@ export async function getBIMetrics(
     // one window's new signups - routinely several hundred percent).
     query<{ count: number }>(`SELECT COUNT(*) as count FROM customers WHERE created_at < ? AND _deleted = 0${storeId ? " AND store_id = ?" : ""}`, storeId ? [dateFilter, storeId] : [dateFilter]),
 
-    // Top Selling Products & Categories
+    // Top Selling Products & Categories. Products joined unfiltered on purpose:
+    // client/AGENTS.md, pinned by deleted-product-report-history.test.ts.
     query<{ name: string; sales: number; units: number; category: string; }>(`SELECT m.name, SUM(si.total_price) as sales, SUM(si.quantity) as units, COALESCE(c.name, 'Uncategorized') as category FROM sale_items si JOIN products m ON si.product_id = m.id LEFT JOIN categories c ON m.category_id = c.id JOIN sales s ON si.sale_id = s.id WHERE s.transaction_date >= ? AND s.transaction_date <= ? AND (s._deleted = 0 OR s._deleted IS NULL)${storeId ? " AND s.store_id = ?" : ""}${joined.clause} GROUP BY m.id ORDER BY sales DESC LIMIT 5`, s1JoinedCapped),
 
     query<{ name: string; sales: number; units: number; category: string; }>(`SELECT m.name, SUM(si.total_price) as sales, SUM(si.quantity) as units, COALESCE(c.name, 'Uncategorized') as category FROM sale_items si JOIN products m ON si.product_id = m.id LEFT JOIN categories c ON m.category_id = c.id JOIN sales s ON si.sale_id = s.id WHERE s.transaction_date >= ? AND s.transaction_date <= ? AND (s._deleted = 0 OR s._deleted IS NULL)${storeId ? " AND s.store_id = ?" : ""}${joined.clause} GROUP BY m.id ORDER BY units DESC LIMIT 5`, s1JoinedCapped),
@@ -633,6 +636,8 @@ export async function getBIMetrics(
          SUM(si.total_price) as revenue, SUM(si.quantity) as units,
          SUM(si.cost_price * si.quantity) as cost
        FROM sale_items si
+       -- Unfiltered products join on purpose: a deleted product must still name
+       -- its history (client/AGENTS.md; deleted-product-report-history.test.ts).
        JOIN products m ON si.product_id = m.id
        LEFT JOIN categories c ON m.category_id = c.id
        JOIN sales s ON si.sale_id = s.id
@@ -771,6 +776,8 @@ export async function getPurchasePatterns(dateFilter: string, filters?: SalesFil
     `SELECT CASE WHEN CAST(strftime('%H', transaction_date, 'localtime') AS INTEGER) BETWEEN 6 AND 11 THEN 'Morning (6am-12pm)' WHEN CAST(strftime('%H', transaction_date, 'localtime') AS INTEGER) BETWEEN 12 AND 16 THEN 'Afternoon (12pm-5pm)' WHEN CAST(strftime('%H', transaction_date, 'localtime') AS INTEGER) BETWEEN 17 AND 21 THEN 'Evening (5pm-10pm)' ELSE 'Night (10pm-6am)' END as slot, COUNT(*) as transactions, AVG(total_amount) as avg_value FROM sales WHERE transaction_date >= ? AND _deleted = 0${storeId ? " AND store_id = ?" : ""}${bare.clause} GROUP BY slot ORDER BY MIN(strftime('%H', transaction_date, 'localtime')) ASC`, p1Bare
   );
 
+  // Products joined unfiltered on purpose, so a deleted product still carries its
+  // category here: client/AGENTS.md, pinned by deleted-product-report-history.test.ts.
   const slotCategoryData = await query<{ slot: string; category: string; }>(
     `SELECT slot, category FROM (SELECT CASE WHEN CAST(strftime('%H', s.transaction_date, 'localtime') AS INTEGER) BETWEEN 6 AND 11 THEN 'Morning (6am-12pm)' WHEN CAST(strftime('%H', s.transaction_date, 'localtime') AS INTEGER) BETWEEN 12 AND 16 THEN 'Afternoon (12pm-5pm)' WHEN CAST(strftime('%H', s.transaction_date, 'localtime') AS INTEGER) BETWEEN 17 AND 21 THEN 'Evening (5pm-10pm)' ELSE 'Night (10pm-6am)' END as slot, COALESCE(c.name, 'General') as category, COUNT(*) as cnt, ROW_NUMBER() OVER (PARTITION BY CASE WHEN CAST(strftime('%H', s.transaction_date, 'localtime') AS INTEGER) BETWEEN 6 AND 11 THEN 'Morning (6am-12pm)' WHEN CAST(strftime('%H', s.transaction_date, 'localtime') AS INTEGER) BETWEEN 12 AND 16 THEN 'Afternoon (12pm-5pm)' WHEN CAST(strftime('%H', s.transaction_date, 'localtime') AS INTEGER) BETWEEN 17 AND 21 THEN 'Evening (5pm-10pm)' ELSE 'Night (10pm-6am)' END ORDER BY COUNT(*) DESC) as rn FROM sale_items si JOIN products m ON si.product_id = m.id LEFT JOIN categories c ON m.category_id = c.id JOIN sales s ON si.sale_id = s.id WHERE s.transaction_date >= ? AND (s._deleted = 0 OR s._deleted IS NULL)${storeId ? " AND s.store_id = ?" : ""}${joined.clause} GROUP BY slot, c.name) WHERE rn = 1`, p1Joined
   );

@@ -78,6 +78,8 @@ export async function getCustomerTransactions(
   } else if (sinceDays) {
     dateFilter = `AND s.transaction_date >= datetime('now', '-${sinceDays} days')`;
   }
+  // item_names joins products unfiltered on purpose, so a deleted product still
+  // shows: client/AGENTS.md, pinned by deleted-product-sales-history.test.ts.
   return query<CustomerTransactionRow>(
     `SELECT
       s.id,

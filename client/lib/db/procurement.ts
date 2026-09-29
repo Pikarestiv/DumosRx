@@ -143,6 +143,8 @@ export async function getPurchaseOrderItemsForDetail(poId: string) {
       poi.unit_cost as unit_price,
       poi.subtotal as total_price
      FROM purchase_order_items poi
+     -- Unfiltered products join on purpose: a deleted product must still name its
+     -- order history (client/AGENTS.md; deleted-entity-procurement-history.test.ts).
      LEFT JOIN products p ON poi.product_id = p.id
      WHERE poi.po_id = ? AND poi._deleted = 0`,
     [poId],
@@ -172,6 +174,8 @@ export async function getPurchaseOrders(viewerId?: string) {
          AND (sb.expiry_date IS NULL OR sb.expiry_date = '')
        ) THEN 1 ELSE 0 END as has_missing_expiry
      FROM purchase_orders po
+     -- Unfiltered suppliers join on purpose: a deleted vendor must still name its
+     -- order history (client/AGENTS.md; deleted-entity-procurement-history.test.ts).
      LEFT JOIN suppliers v ON po.supplier_id = v.id
      LEFT JOIN users u ON u.id = po.ordered_by
      WHERE po._deleted = 0${viewerId ? " AND po.ordered_by = ?" : ""}${storeId ? " AND po.store_id = ?" : ""}
@@ -192,6 +196,8 @@ export async function getPurchaseOrderById(id: string) {
          AND (sb.expiry_date IS NULL OR sb.expiry_date = '')
        ) THEN 1 ELSE 0 END as has_missing_expiry
      FROM purchase_orders po
+     -- Unfiltered suppliers join on purpose: a deleted vendor must still name its
+     -- order history (client/AGENTS.md; deleted-entity-procurement-history.test.ts).
      LEFT JOIN suppliers v ON po.supplier_id = v.id
      LEFT JOIN users u ON u.id = po.ordered_by
      WHERE po.id = ? AND po._deleted = 0`,
@@ -207,6 +213,8 @@ export async function getPurchaseOrderById(id: string) {
        (SELECT SUM(cost_price * quantity) * 1.0 / NULLIF(SUM(quantity), 0) FROM stock_batches WHERE product_id = m.id AND _deleted = 0 AND is_active = 1 AND quantity > 0) as current_cost_price,
        (SELECT cost_price FROM stock_batches WHERE product_id = m.id AND _deleted = 0 AND cost_price > 0 AND batch_number NOT LIKE 'ADJ-%' ORDER BY created_at DESC LIMIT 1) as last_bought_price
      FROM purchase_order_items poi
+     -- Unfiltered products join on purpose: a deleted product must still name its
+     -- order history (client/AGENTS.md; deleted-entity-procurement-history.test.ts).
      JOIN products m ON poi.product_id = m.id
      LEFT JOIN categories cat ON m.category_id = cat.id
      WHERE poi.po_id = ? AND poi._deleted = 0`,

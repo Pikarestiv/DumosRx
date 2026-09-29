@@ -4,6 +4,8 @@ import type { Sale, SaleWithDetails, SaleItemDetail, ReturnRecord, ReturnItemDet
 import type { StockBatch } from "@/lib/types/stock-batch";
 
 export async function getSaleItems(saleId: string) {
+  // Products joined unfiltered on purpose, so a deleted product still names the
+  // line: client/AGENTS.md, pinned by deleted-product-sales-history.test.ts.
   return query<SaleItemDetail>(
     "SELECT si.*, m.name as product_name FROM sale_items si JOIN products m ON si.product_id = m.id WHERE si.sale_id = ?",
     [saleId]
@@ -24,6 +26,8 @@ export async function getTransactionDetails(saleId: string) {
           WHERE r.sale_id = si.sale_id AND ri.product_id = si.product_id AND (ri._deleted = 0 OR ri._deleted IS NULL) AND (r._deleted = 0 OR r._deleted IS NULL)
         ), 0) as returned_quantity
        FROM sale_items si
+       -- Unfiltered products join on purpose: a deleted product must still name
+       -- its history (client/AGENTS.md; deleted-product-sales-history.test.ts).
        LEFT JOIN products m ON si.product_id = m.id
        WHERE si.sale_id = ? AND (si._deleted = 0 OR si._deleted IS NULL)
        ORDER BY si.created_at ASC, si.id ASC`,
@@ -201,6 +205,8 @@ export async function getSaleByTransactionNumber(transactionNumber: string) {
 /** Every reseller sale with a commission, newest first. */
 export async function getResellerCommissionSales() {
   const storeId = getActiveStoreId();
+  // item_names joins products unfiltered on purpose, so a deleted product still
+  // shows: client/AGENTS.md, pinned by deleted-product-sales-history.test.ts.
   return query<SaleWithDetails>(
     `SELECT
       s.*,
@@ -271,6 +277,8 @@ export async function getRecentSales(
   }
   if (storeId) params.push(storeId);
 
+  // item_names joins products unfiltered on purpose, so a deleted product still
+  // shows: client/AGENTS.md, pinned by deleted-product-sales-history.test.ts.
   return query<SaleWithDetails>(
     `SELECT
       s.*,
@@ -333,6 +341,8 @@ export async function getDailyCloseData(reportDate: string) {
       storeId ? [startIso, endIso, storeId] : [startIso, endIso],
     ),
 
+    // Products joined unfiltered on purpose, so a deleted product still names the
+    // line: client/AGENTS.md, pinned by deleted-product-sales-history.test.ts.
     query<SaleItemDetail>(
       `SELECT si.*, m.name as product_name, si.cost_price as med_cost_price FROM sale_items si JOIN sales s ON si.sale_id = s.id LEFT JOIN products m ON si.product_id = m.id WHERE s.transaction_date >= ? AND s.transaction_date <= ? AND (si._deleted = 0 OR si._deleted IS NULL) AND (s._deleted = 0 OR s._deleted IS NULL)${storeId ? " AND s.store_id = ?" : ""}`,
       storeId ? [startIso, endIso, storeId] : [startIso, endIso],

@@ -331,6 +331,8 @@ export async function getStockMovements(
             TRIM(u.first_name || ' ' || COALESCE(u.last_name, '')) as performed_by_name,
             sb.batch_number, sp.name as supplier_name
      FROM stock_movements sm
+     -- Products/suppliers joined unfiltered on purpose: a deleted one must still
+     -- name its history (client/AGENTS.md; deleted-entity-procurement-history.test.ts).
      LEFT JOIN products m ON sm.product_id = m.id
      LEFT JOIN users u ON sm.performed_by = u.id
      LEFT JOIN stock_batches sb ON sm.stock_batch_id = sb.id
@@ -350,6 +352,8 @@ export async function getStockAdjustments(page = 1, limit = 50) {
             TRIM(u.first_name || ' ' || COALESCE(u.last_name, '')) as performed_by_name,
             sb.batch_number, sp.name as supplier_name
      FROM stock_movements sm
+     -- Products/suppliers joined unfiltered on purpose: a deleted one must still
+     -- name its history (client/AGENTS.md; deleted-entity-procurement-history.test.ts).
      LEFT JOIN products m ON sm.product_id = m.id
      LEFT JOIN users u ON sm.performed_by = u.id
      LEFT JOIN stock_batches sb ON sm.stock_batch_id = sb.id

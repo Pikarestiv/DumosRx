@@ -621,9 +621,22 @@ noted below with what it widens or narrows:
   and `components/stock-batch/audit-ledger-step.tsx` (the Counted Selling
   cell). `edit_product_cost` — `audit-ledger-step.tsx`'s Counted Cost cell,
   the app's only master-data cost-correction surface (cost is otherwise a
-  per-batch acquisition figure set by receiving). Both compose with the
-  existing coarse `canManageStockBatch` check rather than replacing it, and
-  a withheld key leaves the figure on screen read-only. The Add Product
+  per-batch acquisition figure set by receiving). A withheld key leaves the
+  figure on screen read-only in both places, but the **two surfaces are
+  protected differently**. In `catalog-row.tsx` the new key *composes* with
+  the existing coarse check rather than replacing it —
+  `canEdit && canEditSellingPrice`, where `canEdit` is
+  `canManageStockBatch`. In `audit-ledger-step.tsx` there is **no direct
+  `canManageStockBatch` check at all**: the file holds only the two
+  `useHasPermission` consts, and the coarse protection sits **upstream**.
+  The audit screen renders only while `isAuditing` is true
+  (`components/stock-batch/inventory-audit-overlay.tsx` returns `null`
+  otherwise), and `lib/hooks/use-stock-batch-management.ts` now sets
+  `isAuditing` only when `perform_stock_audit` is held — so the whole audit
+  flow is gated before the Counted Cost/Counted Selling cells are ever
+  reached. Don't "restore" a per-cell `canManageStockBatch` composition
+  there expecting parity with the catalog row; the gate is the audit
+  entry point. The Add Product
   form's Selling Price input is deliberately **not** gated: it is part of
   creating the product at all, which is `manage_products`.
 - `adjust_stock_counts` — `catalog-row.tsx`'s stock-quantity quick edit.
@@ -809,11 +822,23 @@ than on history.
   would create stock for a product that no longer exists. **Sale history is
   deliberately not a blocker** (per the join note above). There is
   **no "deactivate" alternative offered for products, on purpose**:
-  `products.is_active` is written as `1` on every create and **never read
-  anywhere** — introducing a deactivated state would mean adding an
-  `is_active` filter to every catalog/POS/report read, which is a much
-  larger and riskier change than this feature warrants, and would silently
-  hide products in any store whose imported rows already carry `is_active = 0`.
+  `products.is_active` is read in exactly **one** place — the inventory
+  dashboard's counters in `lib/db/queries/inventory.ts`'s
+  `getStockBatchStats()`, which tests `p.is_active = 1` three times, for
+  `active_products`, `low_stock_count` and `critical_stock_count` — so an
+  `is_active = 0` product already silently drops out of those three figures
+  today, and out of nothing else. The write path can already produce a `0`:
+  `components/products/add-product-dialog.tsx` sends
+  `is_active: status === "active" ? 1 : 0` from a `status` form field (no
+  visible control is currently wired to set it to anything but `"active"`,
+  but the code path exists). So the column is neither write-only nor
+  fully-read — it is a half-wired flag. Building a real deactivate feature
+  on it would still mean adding a new `is_active` filter to **every**
+  catalog/POS/report read before it could safely gate visibility anywhere,
+  which is a much larger and riskier change than this feature warrants, and
+  would silently hide products in any store whose imported rows already
+  carry `is_active = 0`. That — not an unused column — is why the
+  delete-feature work chose a guarded soft-delete instead.
   A product with no stock and no open order is already functionally
   "deactivated" by having nothing to sell; the delete is what removes the
   row from the picker.

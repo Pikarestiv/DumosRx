@@ -1,5 +1,7 @@
-import { Shield, Store, Calendar, Activity, History } from "lucide-react";
+import { Shield, Store, Calendar, Activity, History, Users } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { StoreStaffList } from "@/components/admin/stores/store-staff-list";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
@@ -15,9 +17,12 @@ export function UserProfileDialog({
   onOpenChange,
   selectedUser,
 }: Omit<BaseDialogProps, "setSelectedUser">) {
+  const router = useRouter();
+  const ownedStoreId = selectedUser?.is_store_owner ? (selectedUser.store_id ?? null) : null;
+
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl rounded-3xl border-slate-200 dark:border-slate-800 shadow-2xl p-0 overflow-hidden">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl border-slate-200 dark:border-slate-800 shadow-2xl p-0">
         <DialogHeader className="sr-only">
           <DialogTitle>User Detailed Profile</DialogTitle>
           <DialogDescription>
@@ -96,6 +101,29 @@ export function UserProfileDialog({
             </div>
           </div>
         </div>
+        {ownedStoreId ? (
+          <div className="px-8 pb-8 space-y-3">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3 text-slate-500">
+                <Users className="h-4 w-4" />
+                <p className="text-[10px] uppercase font-bold tracking-widest opacity-50">
+                  Staff At {selectedUser?.store}
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="rounded-xl font-bold"
+                onClick={() =>
+                  router.push(`/admin/stores/details/?id=${encodeURIComponent(ownedStoreId)}`)
+                }
+              >
+                Open Store Details
+              </Button>
+            </div>
+            <StoreStaffList storeId={ownedStoreId} />
+          </div>
+        ) : null}
         <div className="p-8 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex justify-end">
           <Button
             onClick={() => onOpenChange(false)}

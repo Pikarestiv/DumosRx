@@ -42,14 +42,27 @@ export function parseAdjustmentReason(reason?: string): { reason: string; note: 
   };
 }
 
+/** An "increase"/"decrease" reason takes the entered quantity as the amount
+ * to move. An "either" reason (Inventory count) takes it as the *counted*
+ * on-shelf quantity, so the delta is the difference from what the system
+ * currently holds and goes negative when the shelf holds less. */
 export function resolveAdjustmentDelta(
   value: AdjustmentReasonValue,
   quantity: number,
+  currentStock: number,
 ): number {
   const direction = ADJUSTMENT_REASONS.find((r) => r.value === value)?.direction;
   if (direction === "decrease") return -Math.abs(quantity);
   if (direction === "increase") return Math.abs(quantity);
-  return quantity;
+  return Math.max(0, quantity) - currentStock;
+}
+
+export function isCountedQuantityReason(value: AdjustmentReasonValue): boolean {
+  return ADJUSTMENT_REASONS.find((r) => r.value === value)?.direction === "either";
+}
+
+export function adjustmentQuantityLabel(value: AdjustmentReasonValue): string {
+  return isCountedQuantityReason(value) ? "Counted" : "Quantity";
 }
 
 export function computeStockAfter(currentStock: number, delta: number): number {

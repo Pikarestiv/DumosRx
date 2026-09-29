@@ -110,6 +110,20 @@ describe.each([
     expect(within(row).getByTestId("stock-after").textContent).toBe("46");
   });
 
+  it("previews an inventory count as exactly the counted quantity", () => {
+    renderStep([item({ currentStock: 8, quantity: 5 })], "inventory_count");
+    const row = screen.getByTestId("adjustment-item-p1");
+    expect(within(row).getByTestId("current-stock").textContent).toBe("8");
+    expect(within(row).getByTestId("stock-after").textContent).toBe("5");
+  });
+
+  it("previews an inventory count above the system quantity as the count too", () => {
+    renderStep([item({ currentStock: 8, quantity: 13 })], "inventory_count");
+    expect(
+      within(screen.getByTestId("adjustment-item-p1")).getByTestId("stock-after").textContent,
+    ).toBe("13");
+  });
+
   it("never previews a negative stock level", () => {
     renderStep([item({ currentStock: 3, quantity: 10 })]);
     expect(

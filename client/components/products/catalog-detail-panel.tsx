@@ -6,11 +6,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Edit, Barcode } from "lucide-react";
+import { Edit, Barcode, Trash2 } from "lucide-react";
 import { useStore } from "@/lib/context/store-context";
 import { useAuth } from "@/lib/context/auth-context";
 import { useHasPermission } from "@/lib/hooks/use-permissions";
 import { BarcodePrintDialog } from "@/components/stock-batch/barcode-print-dialog";
+import { ProductDeleteDialog } from "./product-delete-dialog";
 import { cn } from "@/lib/utils";
 import {
   useProductDetails,
@@ -41,7 +42,12 @@ export function CatalogDetailPanel({
   const { storeProfile } = useStore();
   const { canManageStockBatch } = useAuth();
   const canPrintLabels = useHasPermission("print_product_labels");
+  const canDeleteProducts = useHasPermission("delete_products");
   const [isLabelDialogOpen, setIsLabelDialogOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
   const capsClass = useUppercaseDisplayClass();
   const {
     batches,
@@ -136,7 +142,7 @@ export function CatalogDetailPanel({
             </div>
           </div>
 
-          {(canManageStockBatch || canPrintLabels) && (
+          {(canManageStockBatch || canPrintLabels || canDeleteProducts) && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
@@ -177,6 +183,18 @@ export function CatalogDetailPanel({
                   >
                     <Barcode className="w-4 h-4 mr-2" />
                     Print Labels
+                  </DropdownMenuItem>
+                )}
+                {canDeleteProducts && (
+                  <DropdownMenuItem
+                    onClick={() =>
+                      setDeleteTarget({ id: product.id, name: product.name })
+                    }
+                    variant="destructive"
+                    className="cursor-pointer"
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete Product
                   </DropdownMenuItem>
                 )}
               </DropdownMenuContent>
@@ -232,6 +250,15 @@ export function CatalogDetailPanel({
           name: product.name,
           barcode: product.barcode,
           unit_price: product.sellingPrice,
+        }}
+      />
+
+      <ProductDeleteDialog
+        target={deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onSuccess={() => {
+          setDeleteTarget(null);
+          onClose?.();
         }}
       />
     </div>

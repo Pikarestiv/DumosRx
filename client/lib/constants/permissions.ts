@@ -41,9 +41,16 @@ export interface PermissionCatalogEntry {
  *   approve_stock_transfers     transferStock() applies both legs at once;
  *                               "needs_review" is a passive badge nothing
  *                               clears - there is no approval step
- *   delete_products             no deleteProduct query, no softDelete on
- *   delete_suppliers            products/suppliers, no row-menu delete; the
- *                               generic useDelete() hook has zero callers
+ *
+ *   delete_suppliers            no deleteSupplier query, no softDelete on
+ *                               suppliers, nothing delete-adjacent in the
+ *                               supplier table or detail pane
+ *
+ * delete_products was removed alongside these on 2026-09-29 and RESTORED the
+ * same day: the missing piece was the feature, not the key, so deleteProduct()
+ * and its confirmation dialog were built and the key came back enforced. See
+ * client/AGENTS.md's Inventory & Stock block for the deactivate-vs-delete
+ * safety-check design.
  *
  * open_cash_drawer, manage_stock_batches and approve_stock_transfers predate
  * the QuickBooks pass and may linger as inert strings in an already-synced
@@ -69,6 +76,7 @@ export const PERMISSION_CATALOG: PermissionCatalogEntry[] = [
   { key: "view_cost_fields", label: "View Cost & Margin Fields", category: "Inventory & Stock" },
   { key: "edit_product_cost", label: "Edit Product Cost Price", category: "Inventory & Stock" },
   { key: "edit_product_price", label: "Edit Product Selling Price", category: "Inventory & Stock" },
+  { key: "delete_products", label: "Delete Products", category: "Inventory & Stock" },
   { key: "perform_stock_audit", label: "Perform Stock Audit (Physical Count)", category: "Inventory & Stock" },
   { key: "view_stock_adjustment_history", label: "View Stock Adjustment History", category: "Inventory & Stock" },
   { key: "print_product_labels", label: "Print Product Labels & Tags", category: "Inventory & Stock" },
@@ -134,7 +142,7 @@ export const DEFAULT_GROUP_PERMISSIONS: Record<
     "manage_store_settings", "manage_payment_accounts", "manage_online_store", "backup_restore_data",
     // 2026-09-28 granularity pass (QuickBooks POS security-rights comparison):
     "hold_sales", "view_sales_history", "reprint_receipt", "run_daily_close",
-    "view_cost_fields", "edit_product_cost", "edit_product_price",
+    "view_cost_fields", "edit_product_cost", "edit_product_price", "delete_products",
     "perform_stock_audit", "view_stock_adjustment_history", "print_product_labels",
     "export_product_list", "view_suppliers",
     "delete_customers", "view_customer_balances",
@@ -252,6 +260,7 @@ export const ENFORCED_PERMISSION_KEYS: ReadonlySet<string> = new Set([
   "perform_stock_audit", // dashboard-header.tsx, stock-batch-management.tsx, use-stock-batch-management.ts
   "view_stock_adjustment_history", // stock-batch-tab-nav.tsx, stock-batch-management.tsx, use-stock-batch-management.ts
   "print_product_labels", // catalog-detail-panel.tsx (opens barcode-print-dialog.tsx)
+  "delete_products", // catalog-detail-panel.tsx (opens product-delete-dialog.tsx)
   "export_product_list", // import-export-toolbar.tsx
   "view_suppliers", // procurement-tab-nav.tsx, procurement/vendors route
   "dispense_prescriptions", // prescription-detail-panel.tsx, use-pos-prescription.ts

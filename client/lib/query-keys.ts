@@ -55,6 +55,12 @@ export const queryKeys = {
       resource(["productHistory", id, viewerId] as const, ["audit_logs", "stock_movements"]),
     batches: (id?: string) => resource(["productBatches", id] as const, ["stock_batches"]),
     creator: (id?: string) => resource(["productCreator", id] as const, ["audit_logs"]),
+    deletionBlockers: (id: string | null) =>
+      resource(["productDeletionBlockers", id] as const, [
+        "stock_batches",
+        "purchase_orders",
+        "purchase_order_items",
+      ]),
   },
   categories: {
     list: () => resource(["categoryList"] as const, ["categories"]),

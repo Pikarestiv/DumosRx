@@ -28,7 +28,12 @@ vi.mock("@/lib/hooks/use-uppercase-display", () => ({
 }));
 
 vi.mock("@/components/products/product-delete-dialog", () => ({
-  ProductDeleteDialog: () => null,
+  ProductDeleteDialog: ({ target }: { target: unknown }) =>
+    target ? <div data-testid="delete-dialog" /> : null,
+}));
+
+vi.mock("@/components/stock-batch/barcode-print-dialog", () => ({
+  BarcodePrintDialog: () => null,
 }));
 
 vi.mock("@/components/products/product-details/use-product-details", () => ({
@@ -72,53 +77,58 @@ const product = {
   category: "Analgesics",
   barcode: "5901234123457",
   sellingPrice: 1500,
+  stockQuantity: 0,
 } as unknown as Product;
 
-function renderPanel() {
-  render(
-    <CatalogDetailPanel product={product} onEditProduct={vi.fn()} />,
-  );
+function openMenu() {
   fireEvent.pointerDown(
     screen.getByRole("button", { name: /product actions/i }),
     new MouseEvent("pointerdown", { bubbles: true }),
   );
 }
 
-/**
- * barcode-print-dialog.tsx has always been real and tested, but its only
- * mount was keyed off a stock-overview.tsx state whose setter was never
- * called — the feature existed with no way to open it. The catalog detail
- * panel's overflow menu is the trigger, and print_product_labels gates it.
- */
-describe("Catalog detail panel label-print permission", () => {
+describe("Catalog detail panel delete-product permission", () => {
   beforeEach(() => {
     hasPermission.mockReset();
     hasPermission.mockImplementation(() => true);
   });
 
-  it("offers Print Labels to a user with print_product_labels", () => {
-    renderPanel();
-    expect(screen.getByRole("menuitem", { name: /Print Labels/ })).toBeTruthy();
+  it("offers Delete Product to a user with delete_products", () => {
+    render(<CatalogDetailPanel product={product} onEditProduct={vi.fn()} />);
+    openMenu();
+    expect(screen.getByRole("menuitem", { name: /Delete Product/ })).toBeTruthy();
   });
 
-  it("hides Print Labels from a user without print_product_labels", () => {
-    hasPermission.mockImplementation(
-      (key: string) => key !== "print_product_labels",
-    );
-    renderPanel();
-    expect(screen.queryByRole("menuitem", { name: /Print Labels/ })).toBeNull();
+  it("hides Delete Product from a user without delete_products", () => {
+    hasPermission.mockImplementation((key: string) => key !== "delete_products");
+    render(<CatalogDetailPanel product={product} onEditProduct={vi.fn()} />);
+    openMenu();
+    expect(screen.queryByRole("menuitem", { name: /Delete Product/ })).toBeNull();
   });
 
-  it("keeps Edit Product available without print_product_labels", () => {
-    hasPermission.mockImplementation(
-      (key: string) => key !== "print_product_labels",
-    );
-    renderPanel();
+  it("keeps Edit Product available without delete_products", () => {
+    hasPermission.mockImplementation((key: string) => key !== "delete_products");
+    render(<CatalogDetailPanel product={product} onEditProduct={vi.fn()} />);
+    openMenu();
     expect(screen.getByRole("menuitem", { name: /Edit Product/ })).toBeTruthy();
   });
 
-  it("checks the print_product_labels key specifically", () => {
+  it("still opens a menu for a user whose only right is delete_products", () => {
+    hasPermission.mockImplementation((key: string) => key === "delete_products");
     render(<CatalogDetailPanel product={product} onEditProduct={vi.fn()} />);
-    expect(hasPermission).toHaveBeenCalledWith("print_product_labels");
+    expect(screen.getByRole("button", { name: /product actions/i })).toBeTruthy();
+  });
+
+  it("checks the delete_products key specifically", () => {
+    render(<CatalogDetailPanel product={product} onEditProduct={vi.fn()} />);
+    expect(hasPermission).toHaveBeenCalledWith("delete_products");
+  });
+
+  it("opens the confirmation dialog rather than deleting straight from the menu", () => {
+    render(<CatalogDetailPanel product={product} onEditProduct={vi.fn()} />);
+    expect(screen.queryByTestId("delete-dialog")).toBeNull();
+    openMenu();
+    fireEvent.click(screen.getByRole("menuitem", { name: /Delete Product/ }));
+    expect(screen.getByTestId("delete-dialog")).toBeTruthy();
   });
 });

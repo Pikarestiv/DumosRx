@@ -99,11 +99,8 @@ export function useLoginPageState() {
     if (activeTab === "setup") {
       onboarding.goBack();
     } else if (isNewCredentialsMode) {
-      // Arrived here via "Login as someone else": that only calls
-      // unlock() before navigating, it never logs the current user out, so
-      // `user` is still set and /dashboard renders normally. Backing out
-      // just cancels the account switch and resumes the existing session,
-      // rather than going to "/" (which has nothing to do with this flow).
+      // Cancels the account switch: the original session is untouched, so
+      // /dashboard resumes it (still locked if it was locked).
       router.push("/dashboard");
     } else {
       router.push("/");

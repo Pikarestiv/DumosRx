@@ -980,6 +980,11 @@ const RESTORE_SANITY_CHECK_TABLES = ["users", "stores", "products", "sales"];
  * snapshot actually succeeded (e.g. false on an IndexedDB quota failure) so
  * the caller can warn the user their usual undo option won't be available
  * this time, rather than that failure being silently console-only.
+ *
+ * Runs the cold-start schema pass (SCHEMA_SQL + runSchemaMigrations) against
+ * the restored database before persisting it, so a backup taken on an older
+ * app version comes up on the current schema immediately rather than at the
+ * next page load.
  */
 export async function restoreDatabase(binaryData: Uint8Array): Promise<{ snapshotSucceeded: boolean }> {
   if (isTauri()) {
@@ -1017,19 +1022,42 @@ export async function restoreDatabase(binaryData: Uint8Array): Promise<{ snapsho
   }
 
   let snapshotSucceeded = true;
-  if (db) {
-    const outgoing = db.export();
-    await set(`${APP_NAME.toLowerCase()}_db_pre_restore_backup`, outgoing).catch(
-      (err) => {
-        snapshotSucceeded = false;
-        console.error("[DB] Failed to snapshot outgoing database before restore", err);
-      },
-    );
-    db.close();
-  }
+  // Reserves the same connection-wide lock query()/execute()/transaction()
+  // use (see reserveDbSlot()), for the same reason rehydrateFromIndexedDb()
+  // does: nothing in flight may resume against the outgoing `db` once it has
+  // been close()d, and nothing may read the restored one until its schema
+  // pass below has finished.
+  const { previous, release } = reserveDbSlot();
+  try {
+    await previous;
 
-  db = candidate;
-  await saveDatabase();
+    if (db) {
+      const outgoing = db.export();
+      await set(`${APP_NAME.toLowerCase()}_db_pre_restore_backup`, outgoing).catch(
+        (err) => {
+          snapshotSucceeded = false;
+          console.error("[DB] Failed to snapshot outgoing database before restore", err);
+        },
+      );
+      db.close();
+    }
+
+    db = candidate;
+
+    // A backup taken on an older app version carries that version's schema,
+    // which leaves the live process running against a database missing
+    // whatever tables/columns have shipped since (the permission_groups
+    // drift traced in docs/KNOWN_BUGS.md) until the next cold start. Apply
+    // the exact pass initDatabaseInternal() applies to an existing database:
+    // CREATE TABLE IF NOT EXISTS plus the idempotent migrations, both
+    // additive against the restored rows.
+    db.run(SCHEMA_SQL);
+    await runSchemaMigrations(makeSqlJsAdapter(db));
+
+    await saveDatabase();
+  } finally {
+    release();
+  }
   return { snapshotSucceeded };
 }
 

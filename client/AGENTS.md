@@ -2224,6 +2224,54 @@ And don't remove the `TZ` line: SQLite's `'localtime'` and JS's local getters
 both read the process timezone, so dropping it silently reintroduces the
 split.
 
+### "All tests passed but the run still exited 1"
+
+Vitest fails the whole run when it catches a **process-level** unhandled
+rejection or uncaught exception, independently of any assertion. The summary
+then reads `Test Files 312 passed / Tests 1708 passed` followed by
+`Errors 1 error` and exit code 1, and the offending stack is printed in an
+`Unhandled Errors` block **above** the summary — always scroll up to it
+before theorising, and note the `This error originated in "<file>"` line,
+which names the test file that was running, not necessarily the file at
+fault.
+
+These are timing races, so they reproduce on a loaded CI runner and almost
+never locally, and the same commit can be green on one trigger and red on
+another. Two have happened so far, with different mechanisms:
+
+1. **2026-09-28, after `fe374fe5`** (the `audit_logs` retention prune). The
+   prune runs from `sync()`, so `sync-skips-when-offline.test.ts` and
+   `sync-blocked-during-impersonation.test.ts` suddenly reached real sql.js,
+   whose Emscripten `abort()` escapes *outside* the awaited promise chain —
+   the `.catch()` on `pruneSyncedAuditLogs()` in `sync-engine/index.ts`
+   cannot catch it. Fixed in `036829f2` by mocking `@/lib/db/retention` in
+   those two files rather than trying to catch an uncatchable abort.
+2. **2026-09-29.** `ReferenceError: window is not defined` thrown from
+   `Timeout._onTimeout` in `node_modules/input-otp`, through React's
+   `dispatchSetState` → `resolveUpdatePriority`. `input-otp` schedules three
+   `setTimeout`s (0ms / 10ms / 50ms, its `syncTimeouts` helper) per OTP-input
+   mount, each ending in a `setState`, and **clears none of them on
+   unmount**. A test file that finishes while one is still pending has it
+   delivered after Vitest has torn that file's jsdom environment down, so
+   React reads a `window` that no longer exists. Nothing to do with promises
+   at all, despite the identical symptom. Fixed by
+   `__tests__/helpers/input-otp-timers.ts`'s `drainInputOtpSyncTimeouts()`,
+   an `afterAll` that waits out the longest of those timers while `window` is
+   still alive; called from `pin-entry-lockout-ui.test.tsx` and
+   `staff-form-group-dropdown.test.tsx`, the only two files that mount an OTP
+   input. **Any new test file that mounts `components/ui/input-otp` (directly
+   or via PinEntry / StaffFormFields / ConfirmDialog's PIN step / LockScreen
+   / the register step) must call it too.**
+
+The general rule both share: **fix the thing that leaks the async work, at
+the file that leaks it.** Do not add a blanket `unhandledRejection` /
+`uncaughtException` swallower to `vitest.config.ts` — that detector is
+exactly what would catch a real production fire-and-forget rejection, and
+silencing it globally trades one flaky check for a whole class of invisible
+bugs. A useful sanity check while hunting one of these: reproduce it
+deliberately by deleting `globalThis.window` in an `afterAll` and waiting a
+few hundred ms, which turns the race into a deterministic failure.
+
 ## Running things
 
 ```

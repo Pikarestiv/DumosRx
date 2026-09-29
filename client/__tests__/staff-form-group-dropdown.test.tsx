@@ -1,6 +1,9 @@
 import { describe, it, expect, vi } from "vitest";
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import { drainInputOtpSyncTimeouts } from "./helpers/input-otp-timers";
+
+drainInputOtpSyncTimeouts();
 
 if (typeof globalThis.ResizeObserver === "undefined") {
   globalThis.ResizeObserver = class {

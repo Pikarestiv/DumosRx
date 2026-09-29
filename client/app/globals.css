@@ -600,46 +600,63 @@ textarea,
   }
 }
 
-/* Thin scrollbars with a slim gutter on each side of the thumb — the default
-   look for every scrollable table, list, and modal in the app (anything not
-   explicitly using .hide-scrollbar). Always faintly visible rather than
-   hover-only: some Chrome/OS combinations treat a hover-revealed custom
-   scrollbar as an "overlay" scrollbar that only paints during an active
-   scroll gesture (trackpad/wheel), never on plain mouse hover, which made
-   the scrollbar invisible for anyone without two-finger/trackpad scroll.
-   Hover still darkens the thumb as a hint, but visibility never depends on it.
+/* .stable-scrollbar: a thin, always-visible scrollbar with a reserved gutter,
+   applied deliberately to a scrollable container (never globally — most of
+   the app is happier with the platform default).
+
+   Always visible rather than hover- or gesture-revealed: macOS hides overlay
+   scrollbars until a two-finger trackpad scroll reveals them, so on a mouse,
+   on a trackpad without two-finger scroll, or simply before the first scroll,
+   there was nothing to say the region scrolled at all, let alone a thumb to
+   drag. Hover still darkens the thumb as a hint, but visibility never depends
+   on it. `scrollbar-gutter: stable` keeps content from reflowing sideways
+   when the thumb appears or the content stops overflowing.
 
    The thumb is the theme's own --primary (not a neutral grey) so it reads as
    a real, findable control against both track colours; it is mixed down with
    transparent rather than hardcoded per theme, so every theme variant
    (default blue, emerald, midnight gold) and both light/dark modes stay
    correct from the one token. */
-* {
-  scrollbar-width: thin;
-  scrollbar-color: var(--primary) transparent;
-  scrollbar-color: color-mix(in srgb, var(--primary) 70%, transparent) transparent;
-}
-*::-webkit-scrollbar {
-  width: 11px;
-  height: 11px;
-}
-*::-webkit-scrollbar-track {
-  background: transparent;
-}
-*::-webkit-scrollbar-thumb {
-  background-color: var(--primary);
-  background-color: color-mix(in srgb, var(--primary) 70%, transparent);
-  border-radius: 9999px;
-}
-*::-webkit-scrollbar-thumb:hover {
-  background-color: var(--primary);
-}
-.dark * {
-  scrollbar-color: color-mix(in srgb, var(--primary) 80%, transparent) transparent;
-}
-.dark *::-webkit-scrollbar-thumb {
-  background-color: color-mix(in srgb, var(--primary) 80%, transparent);
-}
-.dark *::-webkit-scrollbar-thumb:hover {
-  background-color: var(--primary);
+@layer utilities {
+  .stable-scrollbar {
+    scrollbar-gutter: stable;
+  }
+  /* Chrome/Safari discard every ::-webkit-scrollbar rule the moment
+     scrollbar-width/scrollbar-color is set to anything but auto, which
+     falls back to the hidden-until-gesture overlay scrollbar this class
+     exists to avoid. Firefox has no ::-webkit-scrollbar selector support
+     at all, so it's the one browser that needs the standard properties. */
+  @supports not selector(::-webkit-scrollbar) {
+    .stable-scrollbar {
+      scrollbar-width: thin;
+      scrollbar-color: var(--primary) transparent;
+      scrollbar-color: color-mix(in srgb, var(--primary) 70%, transparent) transparent;
+    }
+  }
+  .stable-scrollbar::-webkit-scrollbar {
+    width: 11px;
+    height: 11px;
+  }
+  .stable-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .stable-scrollbar::-webkit-scrollbar-thumb {
+    background-color: var(--primary);
+    background-color: color-mix(in srgb, var(--primary) 70%, transparent);
+    border-radius: 9999px;
+  }
+  .stable-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: var(--primary);
+  }
+  @supports not selector(::-webkit-scrollbar) {
+    .dark .stable-scrollbar {
+      scrollbar-color: color-mix(in srgb, var(--primary) 80%, transparent) transparent;
+    }
+  }
+  .dark .stable-scrollbar::-webkit-scrollbar-thumb {
+    background-color: color-mix(in srgb, var(--primary) 80%, transparent);
+  }
+  .dark .stable-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: var(--primary);
+  }
 }

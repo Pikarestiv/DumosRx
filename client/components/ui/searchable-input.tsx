@@ -239,7 +239,7 @@ export function SearchableInput({ options, value, onValueChange, onEscapeKey, on
             id={listboxId}
             role="listbox"
             aria-label={props["aria-label"] ?? props.placeholder ?? "Suggestions"}
-            className="max-h-60 overflow-y-auto p-1"
+            className="max-h-60 overflow-y-auto stable-scrollbar p-1"
           >
             {filteredOptions.map((option, index) => (
               <div

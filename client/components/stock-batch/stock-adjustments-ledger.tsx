@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/select";
 import { DateRangePicker, type DateRangeValue } from "@/components/ui/date-range-picker";
 import { useHasPermission } from "@/lib/hooks/use-permissions";
+import { useArrowKeyScroll } from "@/lib/hooks/use-arrow-key-scroll";
 import { usePullToRefreshHandler } from "@/lib/context/pull-to-refresh-context";
 import { queryKeys } from "@/lib/query-keys";
 import type { StockMovementDbRow } from "@/lib/types/stock-movement";
@@ -137,6 +138,7 @@ export function StockAdjustmentsLedger() {
     estimateSize: () => ROW_HEIGHT,
     overscan: 8,
   });
+  useArrowKeyScroll(scrollRef, { enabled: isDesktop });
 
   // Same date bucketing stock-movements.tsx uses for its own mobile cards:
   // the desktop grid's Date column is what a phone loses first, so it is
@@ -236,7 +238,7 @@ export function StockAdjustmentsLedger() {
             <div>Net qty</div>
           </div>
 
-          <div ref={scrollRef} className="flex-1 overflow-y-auto pb-6">
+          <div ref={scrollRef} className="flex-1 overflow-y-auto stable-scrollbar pb-6">
             {visibleGroups.length === 0 && (
               <EmptyState icon={ClipboardList} title="No adjustments found" className="py-8" />
             )}
@@ -269,7 +271,7 @@ export function StockAdjustmentsLedger() {
           for a full unvirtualized render of the whole ledger and then threw
           it away. */}
       {!isDesktop && (
-        <div className="flex-1 overflow-y-auto p-4 pt-3">
+        <div className="flex-1 overflow-y-auto stable-scrollbar p-4 pt-3">
           {visibleGroups.length === 0 && (
             <EmptyState icon={ClipboardList} title="No adjustments found" className="py-8" />
           )}

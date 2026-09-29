@@ -23,6 +23,7 @@ import { getCategoryList } from "@/lib/db/queries/categories";
 import { queryKeys } from "@/lib/query-keys";
 import type { SortDirection } from "@/lib/hooks/use-sortable-data";
 import { ScrollToTopButton } from "@/components/ui/scroll-to-top-button";
+import { useArrowKeyScroll } from "@/lib/hooks/use-arrow-key-scroll";
 
 type ProductSortKey =
   | "name"
@@ -186,6 +187,7 @@ export function CatalogList({
     estimateSize: () => 72,
     overscan: 8,
   });
+  useArrowKeyScroll(scrollRef);
 
   return (
     <div className="flex flex-col h-full min-h-0">
@@ -240,7 +242,7 @@ export function CatalogList({
       {/* Rows */}
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto py-3 sm:py-0 mb-4"
+        className="flex-1 overflow-y-auto stable-scrollbar py-3 sm:py-0 mb-4"
       >
         {isLoading && filteredProducts.length === 0 && <CatalogListSkeleton />}
         {!isLoading && loadFailed && (

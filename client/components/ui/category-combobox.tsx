@@ -158,7 +158,7 @@ export function CategoryCombobox({
             id={listboxId}
             role="listbox"
             aria-label="Categories"
-            className="max-h-60 overflow-y-auto overscroll-contain p-1"
+            className="max-h-60 overflow-y-auto overscroll-contain stable-scrollbar p-1"
           >
             {showCreateRow && (
               <div

@@ -105,7 +105,7 @@ export function AdjustmentItemsTable({
   const capsClass = useUppercaseDisplayClass();
 
   return (
-    <div className="border border-border rounded-2xl overflow-x-auto">
+    <div className="border border-border rounded-2xl overflow-x-auto stable-scrollbar">
       <div role="table" aria-label="Items to adjust" className="w-full text-[12.5px]">
         <div role="rowgroup">
           <div

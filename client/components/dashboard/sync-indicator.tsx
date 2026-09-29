@@ -36,9 +36,7 @@ import {
   getLastSyncTime,
 } from "@/lib/storage-keys";
 
-// Bursts of local writes (e.g. checking out a multi-item sale, a bulk
-// stock receive) should collapse into one sync call, not one per row —
-// same reasoning as core.ts's transaction-scoped invalidation batching.
+// A burst of local writes collapses into one sync call, not one per row.
 const INSTANT_SYNC_DEBOUNCE_MS = 2000;
 
 const SolidAlertCircle = ({ className }: { className?: string }) => (
@@ -57,9 +55,7 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [isLinked, setIsLinked] = useState(false);
   const { storeProfile } = useStore();
-  // One source of truth for "is this an impersonated session" (see
-  // lib/utils/impersonation.ts); sync() enforces the same rule internally,
-  // this only makes the refusal visible instead of silent.
+  // sync() enforces the same rule; this only makes the refusal visible.
   const { isImpersonating } = useAuth();
   // Same reasoning as isImpersonating above, for a read-only tab.
   const { isReadOnlyTab } = useDatabase();
@@ -67,9 +63,7 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
   const { data: pendingCountData, refetch: refetchPendingCount } = useQuery({
     ...queryKeys.sync.queueCount(),
     queryFn: () => getSyncQueueCount(),
-    // Primarily event-driven (see the sync-queue listener below); this is a
-    // slow safety net for a queue drain that doesn't emit a change event,
-    // not the 5s poll against main-thread sql.js it used to be.
+    // Safety net only; the count is event-driven (listener below).
     refetchInterval: 30000,
   });
   const pendingCount = pendingCountData || 0;
@@ -87,9 +81,7 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
     ? Date.now() - new Date(lastSync).getTime() > 30 * 60 * 1000
     : false;
 
-  // Visibility is driven by the backlog alone; isSyncOverdue only escalates
-  // the visual urgency. Gating visibility on it let a real backlog of
-  // unsynced sales sit behind a green "Cloud Active".
+  // Backlog alone drives visibility; isSyncOverdue only escalates urgency.
   const needsSync = pendingCount > 0;
 
   useEffect(() => {
@@ -126,21 +118,11 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
     setIsLinked(!!token);
   };
 
-  // `isUserInitiated` is the ONE thing that makes a sync "manual", and it
-  // travels all the way down: to getPendingSyncItems (bypass each queue
-  // item's exponential backoff) and to the server (bypass the plan tier's
-  // sync-interval throttle). The background daemon below therefore runs
-  // this with false — it used to call the button's handler outright, which
-  // made every automatic sync claim to be a user click, silently turning
-  // both of those protections off for everyone (see docs/FIXED_BUGS.md,
-  // A-5). It also stays quiet: no success toast for a sync nobody asked
-  // for, and a plan-tier throttle rejection is the expected steady state on
-  // a throttled tier, not a "Sync Error" to show the user.
+  // `isUserInitiated` must stay false for every background caller — see
+  // client/AGENTS.md, "The sync indicator", and docs/FIXED_BUGS.md A-5.
   const runSync = useCallback(async (isUserInitiated: boolean) => {
-    // Impersonation is read-only support access: sync is disabled for the
-    // whole session (sync() itself refuses too). Toasting rather than
-    // silently returning so a superadmin isn't left wondering why the
-    // indicator looks frozen.
+    // Toasted rather than silent, so a superadmin isn't left wondering why
+    // the indicator looks frozen.
     if (isImpersonating) {
       if (isUserInitiated) toast.info("Sync is disabled during an impersonated session.");
       return;
@@ -163,9 +145,7 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
         if (isUserInitiated) toast.success("Sync completed successfully");
       } else {
         const errorMsg = typeof result.error === 'string' ? result.error : "Sync failed";
-        // Another caller (the other mounted indicator, or a sync fired from
-        // elsewhere) already holds sync()'s mutex: that sync is running and
-        // will report its own outcome, so this one is a no-op, not a failure.
+        // Another caller holds the mutex and reports its own outcome.
         if (errorMsg === SYNC_IN_PROGRESS_ERROR) return;
         if (!isUserInitiated && isExpectedSyncRestriction(errorMsg)) {
           setStatus("online");
@@ -199,23 +179,15 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
 
   const handleManualSync = useCallback(() => runSync(true), [runSync]);
 
-  // Background Auto-Sync Daemon. Two modes, switched purely by
-  // auto_sync_interval's value: 0 means "sync instantly after any local
-  // change" (event-driven, via core.ts's sync-queue-change listeners),
-  // any positive number means poll every N minutes like before. Both
-  // branches are torn down and rebuilt whenever auto_sync_interval changes
-  // (it's a dependency below), so switching a store between the two modes
-  // at runtime — e.g. an admin retunes a plan tier, or the store's own
-  // tier changes — cleanly stops whichever mode was active.
+  // Background auto-sync daemon: instant mode when auto_sync_interval is 0,
+  // otherwise an N-minute poll (client/AGENTS.md, "The sync indicator").
   useEffect(() => {
     let autoSyncIntervalTimer: NodeJS.Timeout | null = null;
     let debounceTimer: NodeJS.Timeout | null = null;
     let unsubscribe: (() => void) | null = null;
     let disposed = false;
 
-    // No daemon at all while impersonating: neither the interval timer nor
-    // the sync-queue-change listener is even installed, so an impersonated
-    // session never so much as attempts a background push/pull.
+    // Neither mode is installed at all while impersonating or read-only.
     if (storeProfile?.auto_sync_enabled === 1 && isLinked && !isImpersonating && !isReadOnlyTab) {
       const intervalMinutes = storeProfile?.auto_sync_interval ?? 15;
 
@@ -232,23 +204,14 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
         };
 
         unsubscribe = addSyncQueueChangeListener((tables) => {
-          // audit_logs alone (a PIN login/logout, a failed-login attempt,
-          // a PIN change) is low-priority telemetry, not something another
-          // device needs to see right now - it still reaches the server
-          // via the next real sync (app open, reconnect, or a genuine
-          // business-data change), just not on its OWN dedicated instant
-          // round. A mixed batch (e.g. a sale, which also logAction()s)
-          // still triggers normally: only skipped when audit_logs is the
-          // ONLY table that changed.
+          // audit_logs-only churn is telemetry; it rides the next real sync.
+          // See client/AGENTS.md "The sync indicator" for the full rationale.
           const triggerWorthy = tables.filter((t) => t !== "audit_logs");
           if (triggerWorthy.length === 0) return;
 
-          // Same reasoning for the `feedback` table, except the table name
-          // alone can't settle it: it carries both background crash reports
-          // (telemetry, no sync round of its own) and feedback the user
-          // deliberately submitted (which should sync promptly). The pending
-          // queue itself is what distinguishes them - see
-          // docs/SYNC_CRASH_REPORT_POLICY.md.
+          // A crash-report-only batch also rides the next real sync rather
+          // than triggering its own; user-submitted feedback still triggers
+          // normally. See docs/SYNC_CRASH_REPORT_POLICY.md.
           if (triggerWorthy.every((t) => t === CRASH_REPORT_TABLE)) {
             void hasPendingNonCrashFeedback().then((userSubmitted) => {
               if (userSubmitted) scheduleInstantSync();
@@ -277,8 +240,7 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
     };
   }, [storeProfile?.auto_sync_enabled, storeProfile?.auto_sync_interval, isLinked, isImpersonating, isReadOnlyTab, runSync]);
 
-  // Wins over every other state: while impersonating there is nothing the
-  // indicator could usefully report about syncing, because no sync will run.
+  // Impersonation wins over every other state: no sync will run at all.
   const stateKey = isImpersonating
     ? "impersonating"
     : isSyncInProgress
@@ -373,11 +335,8 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
   const currentConfig = configMap[stateKey];
   const statusLabel = currentConfig.label;
   const statusIcon = currentConfig.icon;
-  // Collapsed shows no status border/background at all — just the bare
-  // icon, like every other sidebar nav icon at rest. The colored border and
-  // background fade in together as part of the same transition once the
-  // sidebar actually starts expanding, rather than sitting there as a
-  // permanent box around the icon in the collapsed rail.
+  // Collapsed shows the bare icon; border and background fade in with the
+  // sidebar's own expand transition.
   const statusBorder = collapsed ? "border-transparent" : currentConfig.border;
   const desktopBg = collapsed ? "hover:bg-sidebar-accent" : currentConfig.desktopBg;
   const mobileBg = currentConfig.mobileBg;
@@ -413,15 +372,8 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
     );
   }
 
-  // A single persistent shape that grows, not two structurally different
-  // layouts swapped by a conditional — matching every other collapsible bit
-  // of sidebar content (nav labels, the logo wordmark), which fade/reveal
-  // inside markup that's always there rather than mounting a differently
-  // shaped tree. The label, the refresh button, and the "last synced" line
-  // each reveal via max-width/max-height + opacity transitions on the same
-  // 300ms timeline as the sidebar's own width transition (dashboard-
-  // sidebar.tsx's `transition-all duration-300`), so they grow in lockstep
-  // with the panel instead of popping in once it's already done widening.
+  // One persistent shape revealed by max-width/height transitions, never
+  // two trees swapped by a conditional (client/AGENTS.md).
   return (
     <div className="px-2 pb-1">
       <div
@@ -442,15 +394,8 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
           }
         }}
         onClick={() => {
-          // Always callable regardless of `status` (previously gated on
-          // `status !== "offline"`): that status comes from navigator.onLine,
-          // which iOS/Android can misreport as false right after wake before
-          // the radio has settled, disabling the user's own manual-sync
-          // escape hatch on a device that's actually online. sync() itself
-          // already checks navigator.onLine and fails gracefully with an
-          // "Offline..." message if it's genuinely offline, so there's
-          // nothing this guard was protecting against that sync() doesn't
-          // already handle.
+          // Never gate this on `status`: navigator.onLine misreports after
+          // mobile wake, and sync() already handles being offline.
           void handleManualSync();
         }}
       >
@@ -493,13 +438,8 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
                           type="button"
                           data-testid="sync-now-button"
                           onClick={(e) => {
-                            // The whole card (#tour-sync-indicator) has its
-                            // own onClick calling handleManualSync too, so
-                            // without this a click on the button itself fires
-                            // it twice - the second call hits sync()'s mutex,
-                            // toasts a spurious "already in progress" error,
-                            // and its finally{} clears isSyncInProgress while
-                            // the first call is still running.
+                            // The card's own onClick would otherwise fire a
+                            // second, mutex-colliding sync.
                             e.stopPropagation();
                             handleManualSync();
                           }}

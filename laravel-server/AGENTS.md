@@ -227,6 +227,22 @@ migration here **and** the corresponding update on the `client/` side
   is free-form (no fixed, server-enforced set of values), don't constrain
   it with a server-side `ENUM` — the two lists *will* drift.
 
+## `PermissionGroupSeeder` is a hand-maintained port of a client constant
+
+`app/Services/PermissionGroupSeeder.php`'s `DEFAULT_GROUP_PERMISSIONS`,
+`CATALOG_VERSION` and `DEFAULT_GROUP_PERMISSION_ADDITIONS` must match
+`client/lib/constants/permissions.ts` key-for-key. They silently drifted by
+20 keys over two days (the client was maintained through every permission
+pass; this file was only ever edited for removals), which would have frozen
+every server-seeded store on the pre-expansion permission lists.
+`tests/Feature/PermissionCatalogParityTest.php` parses the TypeScript and
+fails on any drift — it lives here rather than in vitest because the Checks
+workflow's `client` job has no PHP, while the `server` job has the whole
+repo. `ensureCatalogBackfilled()` and the `isCatalogBackfillOnlyPayload()`
+exemption in `SyncController` are documented in full in `client/AGENTS.md`'s
+"Catalog versioning and the default-group backfill" — read that before
+touching either.
+
 ## Known gotcha: MySQL timezone vs. Laravel's UTC clock
 
 See `.agents/AGENTS.md` §6 for the full writeup (Namecheap shared hosting's

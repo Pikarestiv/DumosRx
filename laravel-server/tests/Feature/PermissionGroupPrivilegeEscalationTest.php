@@ -86,6 +86,135 @@ class PermissionGroupPrivilegeEscalationTest extends TestCase
     }
 
     /**
+     * The client-side catalog backfill (backfillDefaultGroupPermissions,
+     * client/lib/db/queries/permission-groups.ts) runs on ANY signed-in
+     * user's login, cashiers included, and its whole job is to add keys that
+     * user does not hold. sanitizePermissionGroupSyncPayload's escalation
+     * and manage_roles_permissions checks throw rather than strip, and a
+     * thrown change goes into push.ts's exponential-backoff retry path (not
+     * the terminal version_conflict path), so without a narrow exemption a
+     * cashier's device ends up with a permanently stuck queue item. The
+     * exemption only recognises an UPDATE to a DEFAULT group that adds keys
+     * from the hardcoded DEFAULT_GROUP_PERMISSION_ADDITIONS table for that
+     * group's own role and removes nothing.
+     */
+    public function test_a_non_admin_may_push_the_catalog_backfills_add_only_update_to_a_default_group(): void
+    {
+        $store = $this->makeStore();
+        $store->forceFill([
+            'permission_groups_seeded_at' => now(),
+            'permission_catalog_version' => \App\Services\PermissionGroupSeeder::catalogVersion(),
+        ])->save();
+        $ownGroup = PermissionGroup::create([
+            'store_id' => $store->id, 'name' => 'Sales Staff', 'based_on_role' => 'sales_staff',
+            'is_default' => true, 'permissions' => ['process_sales', 'manage_customers', 'record_expenses'],
+        ]);
+        $cashier = User::create([
+            'first_name' => 'Cashier', 'last_name' => 'BF',
+            'email' => 'cashier-pgbf-' . uniqid() . '@dumosrx.com', 'password' => bcrypt('password'),
+            'role' => 'sales_staff', 'store_id' => $store->id, 'permission_group_id' => $ownGroup->id,
+        ]);
+        $backfilled = array_merge(
+            $ownGroup->permissions,
+            \App\Services\PermissionGroupSeeder::pendingCatalogAdditions('sales_staff', 1),
+        );
+
+        $response = $this->actingAs($cashier)->postJson('/api/v1/app/sync/push', [
+            'setup' => true,
+            'changes' => [[
+                'table_name' => 'permission_groups',
+                'operation' => 'UPDATE',
+                'record_id' => $ownGroup->id,
+                'payload' => [
+                    'id' => $ownGroup->id,
+                    'permissions' => $backfilled,
+                    '_version' => $ownGroup->_version,
+                    '_synced' => 0,
+                ],
+            ]],
+        ]);
+
+        $response->assertStatus(200);
+        $this->assertEmpty($response->json('failed'));
+        $this->assertContains('hold_sales', $ownGroup->fresh()->permissions);
+        $this->assertContains('view_customer_balances', $ownGroup->fresh()->permissions);
+    }
+
+    public function test_the_backfill_exemption_does_not_cover_a_key_outside_that_roles_addition_set(): void
+    {
+        $store = $this->makeStore();
+        $store->forceFill([
+            'permission_groups_seeded_at' => now(),
+            'permission_catalog_version' => \App\Services\PermissionGroupSeeder::catalogVersion(),
+        ])->save();
+        $ownGroup = PermissionGroup::create([
+            'store_id' => $store->id, 'name' => 'Sales Staff', 'based_on_role' => 'sales_staff',
+            'is_default' => true, 'permissions' => ['process_sales'],
+        ]);
+        $cashier = User::create([
+            'first_name' => 'Cashier', 'last_name' => 'BF2',
+            'email' => 'cashier-pgbf2-' . uniqid() . '@dumosrx.com', 'password' => bcrypt('password'),
+            'role' => 'sales_staff', 'store_id' => $store->id, 'permission_group_id' => $ownGroup->id,
+        ]);
+
+        $response = $this->actingAs($cashier)->postJson('/api/v1/app/sync/push', [
+            'setup' => true,
+            'changes' => [[
+                'table_name' => 'permission_groups',
+                'operation' => 'UPDATE',
+                'record_id' => $ownGroup->id,
+                'payload' => [
+                    'id' => $ownGroup->id,
+                    'permissions' => ['process_sales', 'hold_sales', 'factory_reset'],
+                    '_version' => $ownGroup->_version,
+                    '_synced' => 0,
+                ],
+            ]],
+        ]);
+
+        $response->assertStatus(200);
+        $this->assertNotEmpty($response->json('failed'));
+        $this->assertSame(['process_sales'], $ownGroup->fresh()->permissions);
+    }
+
+    public function test_the_backfill_exemption_does_not_cover_a_payload_that_removes_a_key(): void
+    {
+        $store = $this->makeStore();
+        $store->forceFill([
+            'permission_groups_seeded_at' => now(),
+            'permission_catalog_version' => \App\Services\PermissionGroupSeeder::catalogVersion(),
+        ])->save();
+        $ownGroup = PermissionGroup::create([
+            'store_id' => $store->id, 'name' => 'Sales Staff', 'based_on_role' => 'sales_staff',
+            'is_default' => true, 'permissions' => ['process_sales', 'manage_customers'],
+        ]);
+        $cashier = User::create([
+            'first_name' => 'Cashier', 'last_name' => 'BF3',
+            'email' => 'cashier-pgbf3-' . uniqid() . '@dumosrx.com', 'password' => bcrypt('password'),
+            'role' => 'sales_staff', 'store_id' => $store->id, 'permission_group_id' => $ownGroup->id,
+        ]);
+
+        $response = $this->actingAs($cashier)->postJson('/api/v1/app/sync/push', [
+            'setup' => true,
+            'changes' => [[
+                'table_name' => 'permission_groups',
+                'operation' => 'UPDATE',
+                'record_id' => $ownGroup->id,
+                'payload' => [
+                    'id' => $ownGroup->id,
+                    'permissions' => ['process_sales', 'hold_sales'],
+                    '_version' => $ownGroup->_version,
+                    '_synced' => 0,
+                ],
+            ]],
+        ]);
+
+        $response->assertStatus(200);
+        $this->assertNotEmpty($response->json('failed'));
+        $this->assertSame(['process_sales', 'manage_customers'], $ownGroup->fresh()->permissions);
+    }
+
+    /**
      * Documents PRE-EXISTING protection, not something this test file's
      * production changes add: permission_group_id was never added to
      * USER_SYNC_SELF_ALLOWED_FIELDS (a positive allow-list), so a self-edit

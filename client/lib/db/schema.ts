@@ -358,6 +358,7 @@ CREATE TABLE IF NOT EXISTS stores (
   uppercase_display_enabled INTEGER DEFAULT 1,
   loyalty_defaults_seeded_at TEXT,
   permission_groups_seeded_at TEXT,
+  permission_catalog_version INTEGER,
   staff_can_request_transfers INTEGER DEFAULT 0,
   markup_sales_enabled INTEGER DEFAULT 0
 );

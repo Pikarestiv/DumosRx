@@ -529,6 +529,11 @@ const SYNC_COLUMN_MIGRATIONS: { table: string; columns: string[] }[] = [
       // Same one-time-seed-gate pattern as loyalty_defaults_seeded_at above,
       // for ensurePermissionGroupsSeeded() (permission-groups.ts).
       "permission_groups_seeded_at TEXT",
+      // Which revision of DEFAULT_GROUP_PERMISSIONS this store's default
+      // groups have been brought up to. NULL on every store seeded before
+      // this column existed, which backfillDefaultGroupPermissions()
+      // (permission-groups.ts) reads as catalog version 1.
+      "permission_catalog_version INTEGER",
       // Whether the receipt header shows the store logo above the store
       // name (default, matches every existing store's current receipt) or
       // beside it. See ReceiptView / receipt-customization-card.tsx.

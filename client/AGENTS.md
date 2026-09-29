@@ -1426,6 +1426,124 @@ re-litigating this: the standing rule is that a key and its enforcement ship
 in the **same commit**, and that rule now runs in both directions — a key
 with no action does not get to sit in the catalog waiting for one.
 
+### Catalog versioning and the default-group backfill (2026-09-29)
+
+**The seeder only ever runs once per store, so the catalog it seeded with is
+the catalog that store is stuck on.** `ensurePermissionGroupsSeeded()`
+(`lib/db/queries/permission-groups.ts`) and its server counterpart
+`PermissionGroupSeeder::ensureSeeded()` are both gated on
+`stores.permission_groups_seeded_at`, and `hasPermission()`
+(`lib/hooks/use-permissions.ts`) reads the **stored**
+`permission_groups.permissions` array — it only falls back to
+`DEFAULT_GROUP_PERMISSIONS` when a user has no group at all, which seeding
+makes sure never happens. So every key the 2026-09-28 QuickBooks expansion
+and the 2026-09-28/29 enforcement passes added to a default group reached
+**new** stores only. An already-seeded store — including the live production
+one, which predates the feature — would have had its cashiers lose Hold
+Sale/Recall, the whole Recent Sales tab, receipt reprinting, the reseller
+price override and the customer-balance block (which carries "Record
+Payment"), and its managers lose Daily Close backup/sync, cost visibility,
+Start Audit, the Movements tab, the Vendors tab, the deletes, P&L and the
+System tab. That is the exact regression each of those grants was chosen to
+avoid; it just never arrived.
+
+Two things fix it, and both are load-bearing.
+
+**1. The PHP seeder is a port, and parity is now a test.**
+`laravel-server/app/Services/PermissionGroupSeeder.php` is a hand-maintained
+copy of `lib/constants/permissions.ts`; it had only ever been edited for
+removals and was 20 keys behind. `PermissionCatalogParityTest`
+(`laravel-server/tests/Feature/`) parses the TypeScript constants and asserts
+`DEFAULT_GROUP_PERMISSIONS`, `PERMISSION_CATALOG_VERSION` and
+`DEFAULT_GROUP_PERMISSION_ADDITIONS` match the PHP copies key-for-key, plus a
+guard test that the parser actually parsed a plausible catalog rather than
+passing on an empty parse. **It lives on the PHP side on purpose**: the
+Checks workflow's `client` job has Node but no PHP, while its `server` job
+checks out the whole repo (`client/` included) and has PHP — so that is the
+only one of the two jobs where both artifacts exist. The client remains the
+source of truth; the test just refuses to let the copy drift again.
+
+**2. `stores.permission_catalog_version` + an add-only, delta-scoped
+backfill.** `PERMISSION_CATALOG_VERSION` (currently `2`) names the revision
+the current default lists belong to — `1` is the 2026-09-27 launch lists
+(`a5f40463`). `DEFAULT_GROUP_PERMISSION_ADDITIONS` records, per version, the
+keys each role **gained** at that version. `backfillDefaultGroupPermissions()`
+(client) and `PermissionGroupSeeder::ensureCatalogBackfilled()` (server) read
+the store's stamp — NULL means 1 — and, for each `is_default = 1` group,
+union in every key owed by a newer version. The column is on `stores` (not
+per group) because defaults are seeded per store and the delta is the same
+decision for all five groups; it is an ordinary synced column, like
+`permission_groups_seeded_at`. A fresh seed stamps the current version, so
+the backfill never runs against a store that never needed it.
+
+Three properties make that safe, and each has a test on both sides:
+
+- **Add-only.** It never removes a key, so a retired-but-still-stored key
+  (`open_cash_drawer`, `manage_stock_batches`) survives untouched, as the
+  removal note above promised.
+- **Delta-scoped, not "revert to defaults".** Only keys from versions
+  *newer* than the stamp are added, so a key the owner unticked while
+  stamped at v2 is never silently restored by a v3 pass. **The known limit**:
+  a legacy store has no stamp, so the whole v1→v2 delta applies to it — if
+  such a store had already unticked one of those 20 keys, it comes back.
+  There is no baseline that distinguishes "never had it" from "had it and
+  removed it" for an unstamped store, so this is accepted and documented
+  rather than guessed at.
+- **Idempotent.** A group is written only when its stored array actually
+  changes, so a second run is a genuine no-op — no duplicate keys, no queue
+  rows, no `_version` bump.
+
+**`is_default` does NOT track customization — do not read it that way.**
+`toggle()`/`toggleMany()`/`revertToDefault()` (`lib/hooks/use-permission-groups.ts`)
+never clear the flag, and the sync layer actively refuses to let a payload
+change it (`sanitizePermissionGroupSyncPayload`). It means "this is one of
+the five seeded role groups", full stop. So `is_default = 1` is the right
+filter for *which rows the backfill may touch* (a copied or hand-made group
+is `is_default = 0` and is never touched), but it is **not** what protects a
+customized default group — the version delta is.
+
+**The client/server race, and how it resolves.** Both sides can backfill the
+same store minutes apart, and a third device may still be holding the
+pre-backfill array.
+
+- The operation is a **union of a fixed, version-indexed key set computed
+  identically on both sides**, so it commutes: client-first and server-first
+  converge on the same array. Content is never "last writer wins".
+- **The server's backfill bumps `permission_groups._version`.** This is the
+  piece that closes the silent-overwrite hole: a device that has not
+  backfilled still holds the old array at the old version, and without the
+  bump its next push would pass `SyncController::push`'s strict
+  version-equality check and erase the backfill. With it, that push is
+  rejected as `version_conflict`, which `sync-engine/push.ts` already treats
+  as terminal — it drops the queue row (and toasts) and the next pull brings
+  the server's superset down. Loud and correct, instead of silent and wrong.
+- **The client writes only on change**, so a device that pulled the
+  already-backfilled rows first pushes nothing at all and produces no
+  conflict.
+- **The stamp is queued last**, after the group rows, inside the same local
+  transaction — a device can never advertise "v2 applied" ahead of the rows
+  that make it true. And nothing derives *content* from the stamp: if a v2
+  stamp arrives by pull before the group rows do, that side skips its own
+  backfill and the rows themselves still arrive by ordinary pull.
+- **The backfill push needed a sync-push exemption.** It runs on *any*
+  signed-in user's login, cashiers included, and its whole job is to add keys
+  that user does not hold — which
+  `sanitizePermissionGroupSyncPayload`'s escalation and
+  `manage_roles_permissions` checks **throw** on, and a throw lands in
+  `push.ts`'s retry-with-backoff path rather than its terminal
+  `version_conflict` path, permanently wedging that device's queue.
+  `isCatalogBackfillOnlyPayload()` recognises the shape: an UPDATE to a
+  `is_default` group that touches only `permissions`, removes nothing, and
+  adds only keys `PermissionGroupSeeder::backfillableKeysForRole()` lists for
+  **that stored row's own** `based_on_role`. It cannot widen anything — the
+  candidate set is a server-side constant and the row's role is read from the
+  database, not the payload.
+
+Bumping `PERMISSION_CATALOG_VERSION` therefore means: add the version's entry
+to `DEFAULT_GROUP_PERMISSION_ADDITIONS`, mirror both into the PHP seeder
+(the parity test fails otherwise), and nothing else — the backfill, the
+stamping and the race handling are already generic over the version number.
+
 ### The dead `/inventory/batches` route (2026-09-29)
 
 `/inventory/batches` was a generated route with nothing behind it:

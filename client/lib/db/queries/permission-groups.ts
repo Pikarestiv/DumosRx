@@ -1,6 +1,11 @@
 import { query, transaction, getActiveStoreId } from "@/lib/db/core";
 import { insert, update } from "@/lib/db/base-helpers";
-import { DEFAULT_GROUP_PERMISSIONS } from "@/lib/constants/permissions";
+import {
+  DEFAULT_GROUP_PERMISSIONS,
+  DEFAULT_GROUP_PERMISSION_ADDITIONS,
+  PERMISSION_CATALOG_VERSION,
+  type DefaultGroupRole,
+} from "@/lib/constants/permissions";
 
 /**
  * Deterministic, UUID-shaped id derived from (storeId, role) - NOT random,
@@ -112,7 +117,82 @@ export async function ensurePermissionGroupsSeeded(): Promise<void> {
 
     await update("stores", storeId, {
       permission_groups_seeded_at: new Date().toISOString(),
+      permission_catalog_version: PERMISSION_CATALOG_VERSION,
     });
+  });
+
+  await backfillDefaultGroupPermissions();
+}
+
+/** The keys a default group for `role` is owed by every catalog version
+ * newer than `fromVersion`, in catalog order. Exported for the sync-engine
+ * and server-parity tests. */
+export function pendingCatalogAdditions(role: string, fromVersion: number): string[] {
+  const pending: string[] = [];
+  for (const [version, byRole] of Object.entries(DEFAULT_GROUP_PERMISSION_ADDITIONS)) {
+    if (Number(version) <= fromVersion) continue;
+    pending.push(...(byRole[role as DefaultGroupRole] ?? []));
+  }
+  return Array.from(new Set(pending));
+}
+
+/**
+ * Brings an ALREADY-seeded store's default groups forward to the current
+ * catalog. ensurePermissionGroupsSeeded() only ever runs once per store, so
+ * without this a store seeded under an older catalog is frozen on the
+ * permission lists that catalog shipped with - which is how the live
+ * production store's cashiers would have lost Hold Sale, Recent Sales,
+ * receipt reprinting, the reseller price override and the customer balance
+ * block the moment enforcement landed.
+ *
+ * Add-only, delta-scoped and idempotent by construction: it unions in the
+ * keys listed for each role under every catalog version newer than the
+ * store's stamp, never removes anything, and writes a group only when its
+ * stored array actually changes. See client/AGENTS.md's "Catalog versioning
+ * and the default-group backfill" for the race-resolution design the
+ * write-only-on-change rule and the stamp-last ordering belong to.
+ */
+export async function backfillDefaultGroupPermissions(): Promise<void> {
+  const storeId = getActiveStoreId();
+  if (!storeId) return;
+
+  await transaction(async () => {
+    const stores = await query<{ permission_catalog_version: number | null }>(
+      "SELECT permission_catalog_version FROM stores WHERE id = ?",
+      [storeId],
+    );
+    if (stores.length === 0) return;
+
+    const stamped = stores[0].permission_catalog_version ?? 1;
+    if (stamped >= PERMISSION_CATALOG_VERSION) return;
+
+    const groups = await query<{ id: string; based_on_role: string; permissions: string }>(
+      `SELECT id, based_on_role, permissions FROM permission_groups
+       WHERE store_id = ? AND is_default = 1 AND (_deleted = 0 OR _deleted IS NULL)`,
+      [storeId],
+    );
+
+    for (const group of groups) {
+      const owed = pendingCatalogAdditions(group.based_on_role, stamped);
+      if (owed.length === 0) continue;
+
+      let granted: string[];
+      try {
+        granted = JSON.parse(group.permissions);
+      } catch {
+        continue;
+      }
+      if (!Array.isArray(granted)) continue;
+
+      const missing = owed.filter((key) => !granted.includes(key));
+      if (missing.length === 0) continue;
+
+      await update("permission_groups", group.id, {
+        permissions: JSON.stringify([...granted, ...missing]),
+      });
+    }
+
+    await update("stores", storeId, { permission_catalog_version: PERMISSION_CATALOG_VERSION });
   });
 }
 

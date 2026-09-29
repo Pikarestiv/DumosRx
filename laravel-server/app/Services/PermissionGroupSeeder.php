@@ -207,10 +207,14 @@ class PermissionGroupSeeder
 
     /** Idempotent, gated on stores.permission_groups_seeded_at exactly
      * like the client - a store that deliberately deletes its default
-     * groups is never silently reseeded. */
+     * groups is never silently reseeded. An ALREADY-seeded store falls
+     * through to ensureCatalogBackfilled(), which is what carries it
+     * forward when the catalog grows. */
     public static function ensureSeeded(Store $store): void
     {
         if ($store->permission_groups_seeded_at) {
+            self::ensureCatalogBackfilled($store);
+
             return;
         }
 
@@ -243,6 +247,70 @@ class PermissionGroupSeeder
         }
 
         $store->permission_groups_seeded_at = now();
+        $store->permission_catalog_version = self::CATALOG_VERSION;
+        $store->save();
+    }
+
+    /** The keys a default group for $role is owed by every catalog version
+     * newer than $fromVersion. Mirror of the client's
+     * pendingCatalogAdditions(). */
+    public static function pendingCatalogAdditions(string $role, int $fromVersion): array
+    {
+        $pending = [];
+        foreach (self::DEFAULT_GROUP_PERMISSION_ADDITIONS as $version => $byRole) {
+            if ($version <= $fromVersion) {
+                continue;
+            }
+            foreach ($byRole[$role] ?? [] as $key) {
+                $pending[$key] = true;
+            }
+        }
+
+        return array_keys($pending);
+    }
+
+    /**
+     * Brings an already-seeded store's DEFAULT groups forward to the current
+     * catalog. Add-only, delta-scoped and idempotent: it unions in the keys
+     * listed for each role under every catalog version newer than the
+     * store's stamp, removes nothing, and writes a group only when its
+     * stored array actually changes.
+     *
+     * The _version bump on a changed group is load-bearing, not bookkeeping:
+     * a device that has not backfilled yet still holds the pre-backfill
+     * array at the pre-backfill version, and without the bump its next push
+     * would pass push()'s strict version-equality check and silently erase
+     * this write. With it, that push is rejected as a version_conflict,
+     * which the client's push.ts already resolves by dropping the queue row
+     * and letting the next pull bring this superset down. See
+     * client/AGENTS.md's "Catalog versioning and the default-group backfill".
+     */
+    public static function ensureCatalogBackfilled(Store $store): void
+    {
+        $stamped = $store->permission_catalog_version ?? 1;
+        if ($stamped >= self::CATALOG_VERSION) {
+            return;
+        }
+
+        $groups = PermissionGroup::where('store_id', $store->id)->where('is_default', true)->get();
+        foreach ($groups as $group) {
+            $owed = self::pendingCatalogAdditions($group->based_on_role, $stamped);
+            if (empty($owed)) {
+                continue;
+            }
+
+            $granted = is_array($group->permissions) ? $group->permissions : [];
+            $missing = array_values(array_diff($owed, $granted));
+            if (empty($missing)) {
+                continue;
+            }
+
+            $group->permissions = array_merge($granted, $missing);
+            $group->_version = (int) ($group->_version ?? 1) + 1;
+            $group->save();
+        }
+
+        $store->permission_catalog_version = self::CATALOG_VERSION;
         $store->save();
     }
 }

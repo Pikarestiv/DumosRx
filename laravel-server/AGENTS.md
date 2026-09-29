@@ -106,6 +106,45 @@ Do not reintroduce a fallback: if a staff member needs the web dashboard, an
 owner sets a real password on create or via `PUT /staff/{id}`. Covered by
 `tests/Feature/StaffPinDerivedPasswordTest.php`.
 
+## Admin: owner vs. staff accounts, and the store detail endpoint
+
+Two different columns decide what a user "is", and mixing them up has already
+caused one shipped bug (`AdminUsersStoreResolutionTest`):
+
+- **Owner** — `stores.user_id` points at them (`User::stores()`/`store()`).
+- **Staff** — their own `users.store_id` points at a store
+  (`User::employerStore()`). An owner's `store_id` is never set to their own
+  store, so the two are complementary, never overlapping.
+- **Platform account** — neither (super_admin / platform_admin / agent).
+
+`GET /admin/users` exposes that distinction through **`account_type`**
+(`owners` | `staff` | `platform`; omit it for every account, which is what
+every pre-2026-09-29 caller gets) and **`store_id`** (accounts affiliated with
+one store, as its owner *or* its staff). The two combine:
+`?account_type=staff&store_id={id}` is "this store's team" and is the single
+source the admin panel uses for a staff list — both on the Store Details page
+and in a store owner's profile dialog. An unrecognized `account_type` is a
+422, never a silently-ignored filter. Each row now also carries `store_id`
+(the resolved owned-or-employer store) and `is_store_owner`.
+
+`filters.account_type` is accepted by `POST /admin/users/bulk-notify` too, and
+the web panel always sends it: the dialog quotes the filtered list's own total
+as the recipient count, so without it "Notify All Filtered" would mail a wider
+set than the number shown.
+
+`GET /admin/stores/{id}` (`AdminStoreDetailService`, super_admin only, 404 for
+an unknown id) is the single-store payload behind the admin panel's Store
+Details page: store profile, owner, current subscription, account manager,
+sync health, storefront publish state, Paystack subaccount/payment config,
+entity counts, the last 5 payment transactions and the last 8 activity-log
+entries. It deliberately does **not** embed the staff list — that is the
+`/admin/users` filter above, so one implementation serves both surfaces. Its
+revenue figure comes from `AdminStoreService::revenueSubquery()`, shared with
+the fleet list so the two can't drift apart.
+
+Covered by `tests/Feature/Admin/AdminUsersAccountTypeFilterTest.php` and
+`tests/Feature/Admin/AdminStoreDetailTest.php`.
+
 ## Admin auth architecture (redesigned 2026-08-26)
 
 `web/`'s platform admin panel keeps its access token in JS memory only
@@ -154,6 +193,23 @@ migration here **and** the corresponding update on the `client/` side
   tenant scope is resolved once per request by `resolvePullTenantScope()`.
   Read `docs/SYNC_PULL_PAGINATION.md` before changing any of it;
   `tests/Feature/SyncPullPaginationTest.php` is what guards it.
+- **The `stores` response is scoped to the authenticated IDENTITY, not to
+  the account — and the client prunes against it.** `stores` is exempt from
+  the last-synced cursor and the 500-row cap (`fetchPullPage()`), so the
+  client treats it as a complete snapshot and soft-deletes any local store
+  the response omits. But `resolvePullTenantScope()` resolves
+  `$ownedStoreIds` to `[$user->store_id]` for any user carrying one (every
+  staff account), and only to `Store::where('user_id', $ownerId)` for a
+  store_id-less owner identity — so a staff session's pull returns exactly
+  one store while the account may own several. That combination cost a live
+  two-store owner a store in the switcher (2026-09-29); the client now
+  refuses to prune unless the signed-in identity has no `store_id`
+  (`client/AGENTS.md`, "The `stores` prune, and how a store disappears").
+  Pinned by
+  `SyncEndpointTest::test_pull_sync_stores_snapshot_is_narrowed_to_a_staff_users_own_store`.
+  Any change that narrows the `stores` list further — or that adds another
+  table the client is allowed to treat as authoritative-by-absence — has to
+  be reasoned about on both sides, in the same change.
 - **Plan-tier sync interval is per RUN, not per request:** `validateSync()`
   throttles on `stores.last_sync_at` against the tier's `sync_interval`, but
   one client `sync()` call is many requests (50-change push batches, paged
@@ -598,7 +654,7 @@ itself holds no sending logic.
 ## Testing
 
 ```
-php artisan test                            # 447 tests as of 2026-09-26 (Paystack subaccount plan, incl. its final-review fixes) — treat any drop as a regression
+php artisan test                            # 539 tests as of 2026-09-29 (admin owner-vs-staff split + store detail endpoint) — treat any drop as a regression
 php -l path/to/File.php                     # quick syntax check for a single file
 ```
 

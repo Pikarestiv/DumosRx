@@ -207,6 +207,56 @@ Call `sync(true)` before any workflow where stale local data would be
 actively misleading (e.g. `StockAudits` syncs on mount before showing
 counts, see `components/stock-batch/stock-audits.tsx`).
 
+### The `stores` prune, and how a store disappears (2026-09-29)
+
+**Reported live**: a two-store owner's device showed both stores in the
+header switcher, then showed only one, alongside a stuck/pending sync
+indicator. The switcher reads `getAllStores()` (`WHERE _deleted = 0`), so
+"a store vanished" means something wrote `_deleted = 1` locally. The only
+thing that does that is `pull.ts`'s `stores` prune.
+
+**The prune's premise was wrong in one specific, ordinary situation.** It
+soft-deletes a live local store the pull response's `stores` list omits,
+on the stated premise that `stores` is "always a full, unfiltered snapshot
+of every store this account owns". It is not: `SyncController::pull()`
+scopes it through `resolvePullTenantScope()`, whose `$ownedStoreIds` is
+`[$user->store_id]` for **any user carrying a store_id** — i.e. every staff
+account — and only `Store::where('user_id', $ownerId)` for a store_id-less
+owner identity. So a pull on a cashier/manager session legitimately returns
+one store, and the prune read that as "the server confirmed the owner's
+other store is gone". Pinned server-side by
+`SyncEndpointTest::test_pull_sync_stores_snapshot_is_narrowed_to_a_staff_users_own_store`.
+`pull.ts` now skips the prune entirely unless the stored user snapshot has
+no `store_id` (`storesSnapshotIsAccountWide()`); an unknown identity (no
+stored user at all, e.g. the onboarding setup pull) still prunes, which is
+the original pre-cloud-link reconcile case.
+
+**And a wrongly-pruned store could never come back.** The prune ignored
+the pending-local-edit rule the row-apply branch three lines above it
+obeys: a store with an unpushed `_sync_queue` row is exactly the row every
+later pull *skips*, so the `_deleted = 1` written by the prune was never
+cleared again by a correctly-scoped snapshot. A pending queue row on
+`stores` is not exotic — `backfillDefaultGroupPermissions()` and
+`ensurePermissionGroupsSeeded()` both `update("stores", …)` on login, as
+do the store-profile, loyalty and fleet writes. Prune candidates now
+exclude any store with a pending `stores` queue row.
+
+Both guards fail closed, matching the direction this code already prefers:
+a stale entry lingering in the switcher beats losing sight of a real store.
+Tests: `__tests__/store-prune-fails-closed.test.ts`.
+
+**Still open, same incident, not fixed here.** A push rejected `forbidden`
+(`SyncController::push`'s `authorizeChangeTarget` — e.g. a staff session
+draining a queue row the owner left behind for a store outside that staff
+member's scope) is **retryable**, and correctly so: the same frozen payload
+succeeds once the owner signs back in, unlike the `permission_denied`
+class, which is why the H1 fix's terminal handling should *not* be widened
+to cover it. But the row then sits in `_sync_queue` indefinitely (backoff is
+capped, never abandoned), which is both the stuck sync indicator and — via
+the pending-local-edit skip — a record that stops being pulled at all for as
+long as it sits there. The general "a permanently-parked queue row silently
+freezes its record's pulls" problem is unaddressed.
+
 ## Cross-module events and `localStorage`: `lib/events.ts` and `lib/storage-keys.ts`
 
 Required, not optional — this is the fix for A-23 (`docs/FIXED_BUGS.md`), and

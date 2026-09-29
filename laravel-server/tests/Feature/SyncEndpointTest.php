@@ -1452,6 +1452,45 @@ class SyncEndpointTest extends TestCase
         $this->assertEquals(3, $final->_version);
     }
 
+    /**
+     * The `stores` response is scoped to the AUTHENTICATED IDENTITY, not to
+     * the account: a user carrying a store_id (every staff account) gets a
+     * one-store list by design. The client's prune in
+     * client/lib/db/sync-engine/pull.ts treats an absent store as confirmed
+     * gone, so it must never run against this shape of response — pinned
+     * here because that client-side guard is derived from this rule.
+     */
+    public function test_pull_sync_stores_snapshot_is_narrowed_to_a_staff_users_own_store()
+    {
+        $secondStore = Store::create([
+            'user_id' => $this->user->id,
+            'name' => 'Second Store',
+            'email' => 'second@dumosrx.com',
+            'phone' => '1234567890',
+            'address' => '456 Test St',
+            'slug' => 'second-store',
+            'device_id' => 'WEB-TEST-2',
+        ]);
+
+        $staff = User::create([
+            'first_name' => 'Cashier',
+            'last_name' => 'User',
+            'email' => 'cashier@dumosrx.com',
+            'password' => bcrypt('password'),
+            'role' => 'sales_staff',
+            'store_id' => $this->store->id,
+        ]);
+
+        $response = $this->actingAs($staff)->postJson('/api/v1/app/sync/pull', [
+            'last_synced' => [],
+        ]);
+
+        $response->assertStatus(200);
+        $ids = array_column($response->json('changes.stores'), 'id');
+        $this->assertEquals([$this->store->id], $ids);
+        $this->assertNotContains($secondStore->id, $ids);
+    }
+
     public function test_pull_sync_returns_more_than_500_stores()
     {
         // A user with no store_id set is treated as the "pure owner" whose

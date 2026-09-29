@@ -6,7 +6,8 @@ import { PERMISSION_CATALOG, ENFORCED_PERMISSION_KEYS } from "@/lib/constants/pe
 import { Badge } from "@/components/ui/badge";
 import { ScrollFade } from "@/components/ui/scroll-fade";
 import { usePermissionGroups } from "@/lib/hooks/use-permission-groups";
-import { useHasPermission, useOwnPermissionGroupId } from "@/lib/hooks/use-permissions";
+import { useHasPermission, useOwnPermissionGroupId, useOwnGrantScope } from "@/lib/hooks/use-permissions";
+import { canGrantPermission, isGroupEditable } from "@/lib/permissions/grant-scope";
 import { GroupToolbar } from "./group-toolbar";
 import { GroupColumnActions } from "./group-column-actions";
 import { getCategoryCheckState, getCategoryToggleKeys, getCategoryToggleTarget } from "./category-selection";
@@ -19,9 +20,22 @@ import { getCategoryCheckState, getCategoryToggleKeys, getCategoryToggleTarget }
  * applies to a user's own role/permission_group_id. */
 const SELF_LOCKOUT_KEY = "manage_roles_permissions";
 
+/** The server rejects a permission_groups push that would grant a key the
+ * caller doesn't hold, and it checks the WHOLE resulting permissions array -
+ * so a group that already holds such a key can't be edited by that caller at
+ * all. Both refusals are shown here as a disabled cell with the reason,
+ * because the alternative (letting the edit through) is a local write that
+ * looks saved, pushes as `permission_denied`, is dropped silently and is
+ * reverted by the next pull with nothing said. */
+const UNGRANTABLE_KEY_TITLE =
+  "You can't grant a permission you don't hold yourself - ask the store owner to change this.";
+const UNGRANTABLE_GROUP_TITLE =
+  "This group already has permissions you don't hold yourself, so you can't change it - ask the store owner to make this change.";
+
 export function PermissionMatrix() {
   const canManage = useHasPermission("manage_roles_permissions");
   const ownGroupId = useOwnPermissionGroupId();
+  const grantScope = useOwnGrantScope();
   const { groups, toggle, toggleMany, createGroup, copyGroup, revertToDefault, renameGroup, deleteGroup } =
     usePermissionGroups();
   // Categories start expanded: the matrix's whole job is being scannable at
@@ -102,25 +116,34 @@ export function PermissionMatrix() {
                     </div>
                     {groups.map((g) => {
                       const state = getCategoryCheckState(categoryKeys, g.permissions);
-                      const lockedKeys =
-                        g.id === ownGroupId && g.permissions.includes(SELF_LOCKOUT_KEY) ? [SELF_LOCKOUT_KEY] : [];
+                      const groupEditable = isGroupEditable(grantScope, g.permissions);
+                      const lockedKeys = [
+                        ...(g.id === ownGroupId && g.permissions.includes(SELF_LOCKOUT_KEY) ? [SELF_LOCKOUT_KEY] : []),
+                        ...categoryKeys.filter((key) => !canGrantPermission(grantScope, key)),
+                      ];
+                      const writableKeys = getCategoryToggleKeys(categoryKeys, lockedKeys);
+                      const categoryDisabled = !groupEditable || writableKeys.length === 0;
                       return (
                         <div key={g.id} role="cell" className="flex items-center justify-center px-2 pt-3 pb-2">
                           <input
                             type="checkbox"
                             data-testid="category-checkbox"
                             data-state={state}
-                            className="h-4 w-4 shrink-0 rounded border-gray-300 text-primary focus:ring-primary accent-primary cursor-pointer"
+                            className="h-4 w-4 shrink-0 rounded border-gray-300 text-primary focus:ring-primary accent-primary cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
                             checked={state === "checked"}
+                            disabled={categoryDisabled}
+                            title={
+                              !groupEditable
+                                ? UNGRANTABLE_GROUP_TITLE
+                                : writableKeys.length === 0
+                                  ? UNGRANTABLE_KEY_TITLE
+                                  : undefined
+                            }
                             ref={(el) => {
                               if (el) el.indeterminate = state === "indeterminate";
                             }}
                             onChange={() =>
-                              void toggleMany(
-                                g.id,
-                                getCategoryToggleKeys(categoryKeys, lockedKeys),
-                                getCategoryToggleTarget(state),
-                              )
+                              void toggleMany(g.id, writableKeys, getCategoryToggleTarget(state))
                             }
                             aria-label={`${category} - all permissions - ${g.name}`}
                           />
@@ -146,7 +169,15 @@ export function PermissionMatrix() {
                         </div>
                         {groups.map((g) => {
                           const granted = g.permissions.includes(entry.key);
-                          const locked = entry.key === SELF_LOCKOUT_KEY && g.id === ownGroupId && granted;
+                          const selfLocked = entry.key === SELF_LOCKOUT_KEY && g.id === ownGroupId && granted;
+                          const groupEditable = isGroupEditable(grantScope, g.permissions);
+                          const keyGrantable = canGrantPermission(grantScope, entry.key);
+                          const locked = selfLocked || !groupEditable || !keyGrantable;
+                          const lockedTitle = selfLocked
+                            ? "You can't remove your own access to Roles & Permissions - ask the store owner or another admin to change this."
+                            : !groupEditable
+                              ? UNGRANTABLE_GROUP_TITLE
+                              : UNGRANTABLE_KEY_TITLE;
                           return (
                             <div key={g.id} role="cell" className="flex items-center justify-center p-2">
                               <input
@@ -154,11 +185,7 @@ export function PermissionMatrix() {
                                 className="h-4 w-4 shrink-0 rounded border-gray-300 text-primary focus:ring-primary accent-primary cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
                                 checked={granted}
                                 disabled={locked}
-                                title={
-                                  locked
-                                    ? "You can't remove your own access to Roles & Permissions - ask the store owner or another admin to change this."
-                                    : undefined
-                                }
+                                title={locked ? lockedTitle : undefined}
                                 onChange={(e) => toggle(g.id, entry.key, e.target.checked)}
                                 aria-label={`${entry.label} - ${g.name}`}
                               />

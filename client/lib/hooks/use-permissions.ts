@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { useAuth } from "@/lib/context/auth-context";
 import { DEFAULT_GROUP_PERMISSIONS } from "@/lib/constants/permissions";
+import { buildGrantScope, type PermissionGrantScope } from "@/lib/permissions/grant-scope";
 
 type MinimalUser = { role: string } | null | undefined;
 type MinimalGroup = { permissions: string[] } | null | undefined;
@@ -56,6 +57,21 @@ export function useOwnPermissionGroupId(): string | null {
   // useMemo, not a bare `return permissionGroup?.id ?? null`, for the same
   // rules-of-hooks reason spelled out on useHasPermission below.
   return useMemo(() => permissionGroup?.id ?? null, [permissionGroup]);
+}
+
+/** What the acting session is allowed to GRANT to a permission group, as
+ * opposed to what it is allowed to do. The two differ: the sync server lets
+ * store_owner/admin/super_admin grant anything and holds everyone else to
+ * the keys their own group row carries, with no role-based fallback. Used
+ * by the Roles & Permissions matrix to disable what the server would
+ * reject - see lib/permissions/grant-scope.ts. */
+export function useOwnGrantScope(): PermissionGrantScope {
+  const { user, permissionGroup } = useAuth();
+
+  return useMemo(
+    () => buildGrantScope(user?.role, permissionGroup?.permissions),
+    [user, permissionGroup],
+  );
 }
 
 /**

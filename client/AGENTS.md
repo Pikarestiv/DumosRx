@@ -1848,12 +1848,60 @@ Two things a new category-level control must keep:
    captured by the current render, so the second write in a loop would
    overwrite the first with a set that predates it.
 2. `getCategoryToggleKeys()` filters out locked keys. Today that is the
-   acting user's own `manage_roles_permissions`, which the per-cell UI
-   renders disabled; without the filter the category checkbox would be a
-   way round that self-lockout guard.
+   acting user's own `manage_roles_permissions` plus every key the acting
+   user can't grant (below), which the per-cell UI renders disabled;
+   without the filter the category checkbox would be a way round those
+   guards. A category whose writable set comes out empty renders its
+   checkbox disabled rather than as a click that silently writes nothing.
 
 Sections default to expanded — the matrix's job is being scannable at a
 glance — and collapse state is local component state, not persisted.
+
+### "You can't grant what you don't hold" (2026-09-29)
+
+The matrix's only gate used to be `canManage` (holding
+`manage_roles_permissions`), but the sync server's
+`sanitizePermissionGroupSyncPayload()` enforces a second, narrower rule,
+and the two disagreed. `lib/permissions/grant-scope.ts` now mirrors the
+server's rule exactly and `useOwnGrantScope()` feeds it to the matrix:
+
+- **Unrestricted roles are `store_owner`, `admin` and `super_admin`** —
+  the server's own list, which is **not** the same as `hasPermission()`'s
+  short-circuit (that one omits `admin`). Follow the server here; a
+  mismatch either over-restricts a legitimate owner action or lets the
+  silent revert below back in.
+- Everyone else may only grant keys **their own permission group row**
+  carries. The server has no role-based fallback for this check, so a
+  caller with no group row can grant nothing — `buildGrantScope()`
+  deliberately does not reuse `fallbackPermissions()`.
+- The check runs against the **whole resulting `permissions` array**, not
+  the one key that changed, and `toggle()`/`toggleMany()` always write the
+  whole array. So a group that *already* holds a key the caller can't
+  grant can't be edited by that caller at all — the matrix disables that
+  group's entire column, with its own explanatory title, rather than
+  letting an untick be rejected too.
+
+Both refusals are **disabled cells with a `title`, never hidden cells** —
+the same "show something true, never a mystery-disabled control" rule the
+`factory_reset` surface follows.
+
+**Why this replaces relying on the sync layer's behavior.** Without it, a
+manager-tier user ticking a key they don't personally hold got a local
+write that applied instantly, showed as ON, pushed as `permission_denied`,
+had its queue row dropped terminally, and was reverted by the next pull —
+with **no toast at all**, because `permission_denied` is in
+`SILENT_TERMINAL_REASONS` (`lib/db/sync-engine/push.ts`). That silencing is
+correct and stays: it exists for the automatic catalog backfill's own push,
+an edit no user made and no user is waiting on. Narrowing it by "was this
+queued by machinery or by a human" would need an origin marker on the sync
+queue row (the two pushes are indistinguishable today — same table, same
+column, same shape), so the fix belongs in the UI, where the edit can be
+refused before it is ever written locally.
+
+**Known residual.** The matrix is now honest, but `revertToDefault()` and
+`copyGroup()` (the group toolbar) still write permission sets a restricted
+caller may not be able to grant, and would hit the same silent
+`permission_denied` drop. They are not gated yet.
 
 ## Reports: on-screen view
 

@@ -34,6 +34,9 @@ vi.mock("@/lib/hooks/use-permission-groups", () => ({
 }));
 vi.mock("@/lib/hooks/use-permissions", () => ({
   useHasPermission: () => true,
+  // Owner-tier caller: the server's grant check short-circuits for them, so
+  // no cell is ever locked by the "can't grant what you don't hold" rule.
+  useOwnGrantScope: () => ({ unrestricted: true, ownPermissions: [] }),
   useOwnPermissionGroupId: () => null,
 }));
 vi.mock("@/lib/hooks/use-feature-gate", () => ({

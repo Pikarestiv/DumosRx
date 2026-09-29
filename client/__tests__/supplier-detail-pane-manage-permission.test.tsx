@@ -3,10 +3,11 @@ import { render, screen } from "@testing-library/react";
 
 /**
  * "manage_suppliers" is the add/edit third of the supplier three-way split
- * (view_suppliers reads, delete_suppliers would delete - it has no action
- * to gate, see AGENTS.md). The detail pane keeps every supplier figure
- * visible without it and falls back to the one action the viewer CAN take,
- * "New Order", spanning the row instead of leaving a disabled button.
+ * (view_suppliers reads, delete_suppliers deletes - see
+ * supplier-detail-pane-delete-permission.test.tsx). The detail pane keeps
+ * every supplier figure visible without it and falls back to the actions
+ * the viewer CAN take, spanning the row instead of leaving a disabled
+ * button.
  */
 
 const hasPermission = vi.fn((_key: string) => true);
@@ -16,6 +17,9 @@ vi.mock("@/lib/hooks/use-permissions", () => ({
 }));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
+}));
+vi.mock("@/components/suppliers/supplier-delete-dialog", () => ({
+  SupplierDeleteDialog: () => null,
 }));
 
 import { SupplierDetailPane } from "@/components/stock-batch/supplier-detail-pane";

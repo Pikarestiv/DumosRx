@@ -70,6 +70,19 @@ describe("permission catalog", () => {
     }
   });
 
+  it("carries the two restored delete keys, enforced, under Inventory & Stock", () => {
+    for (const key of ["delete_products", "delete_suppliers"]) {
+      const entry = PERMISSION_CATALOG.find((p) => p.key === key);
+      expect(entry).toBeDefined();
+      expect(entry?.category).toBe("Inventory & Stock");
+      expect(ENFORCED_PERMISSION_KEYS.has(key)).toBe(true);
+      expect(DEFAULT_GROUP_PERMISSIONS.manager).toContain(key);
+      expect(DEFAULT_GROUP_PERMISSIONS.specialist).not.toContain(key);
+      expect(DEFAULT_GROUP_PERMISSIONS.sales_staff).not.toContain(key);
+      expect(DEFAULT_GROUP_PERMISSIONS.auditor).not.toContain(key);
+    }
+  });
+
   it("every key in ENFORCED_PERMISSION_KEYS exists in the catalog", () => {
     const catalogKeys = new Set(PERMISSION_CATALOG.map((p) => p.key));
     for (const key of ENFORCED_PERMISSION_KEYS) {

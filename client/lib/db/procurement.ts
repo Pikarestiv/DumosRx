@@ -379,6 +379,26 @@ export async function updateSupplier(id: string, data: SupplierPayload) {
   return await update("suppliers", id, data);
 }
 
+export async function getSupplierOutstandingBalance(id: string): Promise<number> {
+  const rows = await query<{ outstanding: number | null }>(
+    `SELECT COALESCE(SUM(total_amount - amount_paid), 0) as outstanding
+     FROM purchase_orders
+     WHERE supplier_id = ? AND _deleted = 0 AND payment_status != 'paid'`,
+    [id],
+  );
+  return Math.max(0, Number(rows[0]?.outstanding) || 0);
+}
+
+export async function deleteSupplier(id: string): Promise<void> {
+  const outstanding = await getSupplierOutstandingBalance(id);
+  if (outstanding > 0) {
+    throw new Error(
+      "This supplier is still owed money on an unpaid purchase order. Settle or write off the balance before deleting them.",
+    );
+  }
+  await softDelete("suppliers", id);
+}
+
 export async function deletePurchaseOrder(id: string) {
   return await softDelete('purchase_orders', id);
 }

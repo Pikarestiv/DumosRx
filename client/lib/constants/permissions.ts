@@ -42,13 +42,10 @@ export interface PermissionCatalogEntry {
  *                               "needs_review" is a passive badge nothing
  *                               clears - there is no approval step
  *
- *   delete_suppliers            no deleteSupplier query, no softDelete on
- *                               suppliers, nothing delete-adjacent in the
- *                               supplier table or detail pane
- *
- * delete_products was removed alongside these on 2026-09-29 and RESTORED the
- * same day: the missing piece was the feature, not the key, so deleteProduct()
- * and its confirmation dialog were built and the key came back enforced. See
+ * delete_products and delete_suppliers were removed alongside these on
+ * 2026-09-29 and RESTORED the same day: the missing piece was the feature,
+ * not the key, so the feature was built (deleteProduct()/deleteSupplier()
+ * and their confirmation dialogs) and both keys came back enforced. See
  * client/AGENTS.md's Inventory & Stock block for the deactivate-vs-delete
  * safety-check design.
  *
@@ -82,6 +79,7 @@ export const PERMISSION_CATALOG: PermissionCatalogEntry[] = [
   { key: "print_product_labels", label: "Print Product Labels & Tags", category: "Inventory & Stock" },
   { key: "export_product_list", label: "Export Product List", category: "Inventory & Stock" },
   { key: "view_suppliers", label: "View Supplier Details", category: "Inventory & Stock" },
+  { key: "delete_suppliers", label: "Delete Suppliers", category: "Inventory & Stock" },
 
   { key: "dispense_prescriptions", label: "Dispense Prescriptions", category: "Prescriptions" },
   { key: "manage_prescriptions", label: "Manage Prescription Records", category: "Prescriptions" },
@@ -144,7 +142,7 @@ export const DEFAULT_GROUP_PERMISSIONS: Record<
     "hold_sales", "view_sales_history", "reprint_receipt", "run_daily_close",
     "view_cost_fields", "edit_product_cost", "edit_product_price", "delete_products",
     "perform_stock_audit", "view_stock_adjustment_history", "print_product_labels",
-    "export_product_list", "view_suppliers",
+    "export_product_list", "view_suppliers", "delete_suppliers",
     "delete_customers", "view_customer_balances",
     "view_dashboard", "view_financial_reports",
     "manage_device_settings", "install_app_updates",
@@ -261,6 +259,7 @@ export const ENFORCED_PERMISSION_KEYS: ReadonlySet<string> = new Set([
   "view_stock_adjustment_history", // stock-batch-tab-nav.tsx, stock-batch-management.tsx, use-stock-batch-management.ts
   "print_product_labels", // catalog-detail-panel.tsx (opens barcode-print-dialog.tsx)
   "delete_products", // catalog-detail-panel.tsx (opens product-delete-dialog.tsx)
+  "delete_suppliers", // supplier-detail-pane.tsx (opens supplier-delete-dialog.tsx)
   "export_product_list", // import-export-toolbar.tsx
   "view_suppliers", // procurement-tab-nav.tsx, procurement/vendors route
   "dispense_prescriptions", // prescription-detail-panel.tsx, use-pos-prescription.ts

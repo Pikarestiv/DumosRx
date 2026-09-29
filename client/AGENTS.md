@@ -2291,6 +2291,41 @@ same tab session still gets its own fresh one-time retry.
   the canonical helper; don't reintroduce ad-hoc `id.split("-")[0]` calls.
 - **Header day format**: short weekday (`Thu, Aug 13`), not long, see
   `components/dashboard/dashboard-header.tsx`.
+- **Right-click row actions** (`components/ui/context-menu.tsx`, the shadcn
+  wrapper over `@radix-ui/react-context-menu`, added 2026-09-29): the
+  Product Catalog row (`components/products/catalog-row.tsx`) is the first
+  and so far only user. Rules that made it work, and that a second row-based
+  screen should copy:
+  - **Never the only path to an action.** Every item in the catalog's menu
+    also exists as a button inside the product details panel
+    (`catalog-detail-panel.tsx`'s kebab menu). Right-click is a shortcut
+    for people who already know the action exists, not a place to hide one
+    — touch devices and keyboard users have no right-click at all.
+  - **Reuse the dialog, don't rebuild it.** The row itself owns no dialog
+    and no mutation: it calls `onPrintLabel`/`onDeleteProduct`, and
+    `catalog-list.tsx` hosts one `BarcodePrintDialog` and one
+    `ProductDeleteDialog` for the whole virtualized list. Mounting a pair
+    of dialogs per row would have been a dialog per visible row, and the
+    delete dialog carries a mutation plus a blockers query each.
+  - **Permission gating is disabled-with-a-reason, not hidden** — the
+    opposite of the detail panel's kebab menu, which omits the items
+    outright. A menu that changes shape per user teaches nothing; a
+    disabled row with a `title` naming the missing permission
+    ("Print Product Labels" / "Delete Products") does. Same reasoning as
+    the roles matrix, see `permission-matrix.tsx`. The keys are the
+    existing `print_product_labels` and `delete_products` — the context
+    menu introduced no permission key of its own.
+  - **`CatalogRow` is `React.memo`'d**, so the two new callbacks are
+    `useCallback`-stable in `catalog-list.tsx` for the same reason the
+    save handlers are; see the comment on `quickEditProduct` there.
+  - Dropped from this pass: a "jump to batches" item. `CatalogDetailPanel`
+    drives its tabs with an uncontrolled `<Tabs defaultValue="details">`,
+    so there is no existing trigger to reuse — adding one means lifting
+    that tab state into a prop, which is a change to the panel, not to the
+    catalog row. Do that first if the item is wanted.
+  - Tests: `__tests__/catalog-row-context-menu.test.tsx`. Note that
+    `CatalogList` tests must stub both dialogs (as they already stub
+    `RequestItemDialog`) or they need a `QueryClientProvider`.
 
 ## Testing & verification
 

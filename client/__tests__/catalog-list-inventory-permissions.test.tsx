@@ -99,6 +99,14 @@ vi.mock("@/components/pos/request-item-dialog", () => ({
   RequestItemDialog: () => null,
 }));
 
+vi.mock("@/components/products/product-delete-dialog", () => ({
+  ProductDeleteDialog: () => null,
+}));
+
+vi.mock("@/components/stock-batch/barcode-print-dialog", () => ({
+  BarcodePrintDialog: () => null,
+}));
+
 import { CatalogList } from "@/components/products/catalog-list";
 
 const products: Product[] = [

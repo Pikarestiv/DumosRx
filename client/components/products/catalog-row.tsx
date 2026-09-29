@@ -1,10 +1,21 @@
 import React from "react";
-import { ChevronRight } from "lucide-react";
+import { Barcode, ChevronRight, Eye, Trash2 } from "lucide-react";
 import { Product } from "./types";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 import {
   EditableCategoryCell,
   EditableQuickNumberCell,
 } from "./catalog-editable-cells";
+
+const NO_LABEL_PERMISSION =
+  "You don't have permission to print product labels. Ask an admin for the “Print Product Labels” permission.";
+const NO_DELETE_PERMISSION =
+  "You don't have permission to delete products. Ask an admin for the “Delete Products” permission.";
 
 /** Literal class strings, not a template: Tailwind's scanner only sees
  * classes that appear whole in the source. Indexed by whether the Avg Cost
@@ -30,12 +41,16 @@ export interface CatalogRowProps {
   canEditSellingPrice: boolean;
   canAdjustStockQuantity: boolean;
   hasTouchCapability: boolean;
+  canPrintLabels: boolean;
+  canDeleteProducts: boolean;
   formatCurrency: (amount: number) => string;
   onSelect: (product: Product) => void;
   onSaveCategory: (product: Product, category: string) => void;
   onSaveSellingPrice: (product: Product, sellingPrice: number) => void;
   onSaveStockQuantity: (product: Product, stockQuantity: number) => void;
   onSaveReorderLevel: (product: Product, reorderLevel: number) => void;
+  onPrintLabel: (product: Product) => void;
+  onDeleteProduct: (product: Product) => void;
 }
 
 function CatalogRowInner({
@@ -50,14 +65,18 @@ function CatalogRowInner({
   canEditSellingPrice,
   canAdjustStockQuantity,
   hasTouchCapability,
+  canPrintLabels,
+  canDeleteProducts,
   formatCurrency,
   onSelect,
   onSaveCategory,
   onSaveSellingPrice,
   onSaveStockQuantity,
   onSaveReorderLevel,
+  onPrintLabel,
+  onDeleteProduct,
 }: CatalogRowProps) {
-  return (
+  const row = (
     <div
       role="button"
       tabIndex={0}
@@ -191,6 +210,35 @@ function CatalogRowInner({
         </div>
       )}
     </div>
+  );
+
+  return (
+    <ContextMenu>
+      <ContextMenuTrigger asChild>{row}</ContextMenuTrigger>
+      <ContextMenuContent className="w-56">
+        <ContextMenuItem onSelect={() => onSelect(product)}>
+          <Eye className="w-4 h-4 mr-2" />
+          View details
+        </ContextMenuItem>
+        <ContextMenuItem
+          disabled={!canPrintLabels}
+          title={canPrintLabels ? undefined : NO_LABEL_PERMISSION}
+          onSelect={() => onPrintLabel(product)}
+        >
+          <Barcode className="w-4 h-4 mr-2" />
+          Print barcode label
+        </ContextMenuItem>
+        <ContextMenuItem
+          variant="destructive"
+          disabled={!canDeleteProducts}
+          title={canDeleteProducts ? undefined : NO_DELETE_PERMISSION}
+          onSelect={() => onDeleteProduct(product)}
+        >
+          <Trash2 className="w-4 h-4 mr-2" />
+          Delete product
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   );
 }
 

@@ -29,7 +29,7 @@
 - **A cashier (`sales_staff`, no `view_reports`) asks a sales question** — the router must not deny them outright; it should re-route to `my_sales_today` instead of showing a permission error, matching the existing cashier-visibility convention. Covered in Task 5's permission-gate tests and Task 9's tool test.
 - **An utterance contains a tool's keyword as a false-positive substring** — e.g. "how do I refund a **sale**" must resolve to `navigate_help`, not `sales_summary`, because "sale" alone is a weak signal. Covered in Task 3's matcher tests with an explicit negative case.
 - **No date phrase given on a date-taking tool** — must default to *today* and say so in the reply, not throw or return an empty range. Covered in Task 2 and Task 10/11's tool tests.
-- **User switches store or logs out mid-conversation** — stale answers from the previous user/store must not remain visible in the panel. Covered in Task 13's hook test (thread clears on `user.id`/`activeStoreId` change).
+- **User switches store or logs out mid-conversation** — stale answers from the previous user/store must not remain visible in the panel. Covered in Task 12's hook test (thread clears on `user.id`/`activeStoreId` change).
 - **A tool throws (e.g. a query error)** — the router must catch it and return a graceful `error` reply, never crash the panel or silently swallow with no message. Covered in Task 6's router test.
 
 ---
@@ -62,15 +62,15 @@ client/lib/assistant/
   intent-router-brain.ts             # IntentRouterBrain (Task 6)
   router.ts                           # answer() orchestration (Task 6)
 
-client/lib/store/use-assistant-panel.ts   # Zustand store (Task 13)
-client/lib/hooks/use-assistant.ts          # send()/isThinking hook (Task 13)
+client/lib/store/use-assistant-panel.ts   # Zustand store (Task 12)
+client/lib/hooks/use-assistant.ts          # send()/isThinking hook (Task 12)
 
 client/components/assistant/
-  assistant-panel.tsx             # (Task 14)
-  assistant-message-list.tsx       # (Task 14)
-  assistant-composer.tsx            # (Task 14)
-  assistant-suggestion-chips.tsx     # (Task 14)
-  assistant-launcher.tsx              # (Task 14)
+  assistant-panel.tsx             # (Task 13)
+  assistant-message-list.tsx       # (Task 13)
+  assistant-composer.tsx            # (Task 13)
+  assistant-suggestion-chips.tsx     # (Task 13)
+  assistant-launcher.tsx              # (Task 13)
 
 client/__tests__/
   assistant-normalize.test.ts
@@ -147,9 +147,11 @@ Modified:
 
   export type ToolCall = { tool: string; args: Record<string, unknown> };
 
+  export interface AmbiguousCandidate { tool: string; label: string }
+
   export type BrainOutcome =
     | { kind: "call"; call: ToolCall }
-    | { kind: "ambiguous"; candidates: ToolCall[] }
+    | { kind: "ambiguous"; candidates: AmbiguousCandidate[] }
     | { kind: "none" };
 
   export interface AssistantBrain {
@@ -159,9 +161,10 @@ Modified:
   export interface IntentDefinition {
     id: string;
     tool: string;
+    label: string;
     phrases: RegExp[];
     keywords: string[];
-    buildArgs: (captures: Record<string, string>, ctx: ToolContext) => Record<string, unknown>;
+    buildArgs: (captures: Record<string, string>, utterance: string, ctx: ToolContext) => Record<string, unknown>;
   }
 
   export interface NormalizedUtterance {
@@ -260,9 +263,14 @@ export type ToolCall = {
   args: Record<string, unknown>;
 };
 
+export interface AmbiguousCandidate {
+  tool: string;
+  label: string;
+}
+
 export type BrainOutcome =
   | { kind: "call"; call: ToolCall }
-  | { kind: "ambiguous"; candidates: ToolCall[] }
+  | { kind: "ambiguous"; candidates: AmbiguousCandidate[] }
   | { kind: "none" };
 
 export interface AssistantBrain {
@@ -272,9 +280,10 @@ export interface AssistantBrain {
 export interface IntentDefinition {
   id: string;
   tool: string;
+  label: string;
   phrases: RegExp[];
   keywords: string[];
-  buildArgs: (captures: Record<string, string>, ctx: ToolContext) => Record<string, unknown>;
+  buildArgs: (captures: Record<string, string>, utterance: string, ctx: ToolContext) => Record<string, unknown>;
 }
 
 export interface NormalizedUtterance {
@@ -407,6 +416,22 @@ describe("parseDatePhrase", () => {
     });
   });
 
+  it("resolves a relative-word range like 'from yesterday to today'", () => {
+    expect(parseDatePhrase("sales from yesterday to today", NOW)).toEqual({
+      from: "2026-09-28",
+      to: "2026-09-29",
+      label: "yesterday to today",
+    });
+  });
+
+  it("falls through to a bare relative-day match when the range phrase doesn't resolve to dates", () => {
+    expect(parseDatePhrase("move stock from the shelf to the counter today", NOW)).toEqual({
+      from: "2026-09-29",
+      to: "2026-09-29",
+      label: "today",
+    });
+  });
+
   it("returns null for an invalid date like 31/02/2026", () => {
     expect(parseDatePhrase("sales on 31/02/2026", NOW)).toBeNull();
   });
@@ -478,15 +503,24 @@ function parseSingleDateToken(token: string): { iso: string; label: string } | n
   return null;
 }
 
+function resolveDateToken(token: string, now: Date): { iso: string; label: string } | null {
+  const single = parseSingleDateToken(token);
+  if (single) return single;
+  if (/\btoday\b/.test(token)) return { iso: toDateOnly(now), label: "today" };
+  if (/\byesterday\b/.test(token)) return { iso: toDateOnly(addDays(now, -1)), label: "yesterday" };
+  return null;
+}
+
 export function parseDatePhrase(text: string, now: Date): DatePhraseResult | null {
   const rangeMatch = text.match(RANGE_PHRASE);
   if (rangeMatch) {
-    const from = parseSingleDateToken(rangeMatch[1]);
-    const to = parseSingleDateToken(rangeMatch[2]);
+    const from = resolveDateToken(rangeMatch[1], now);
+    const to = resolveDateToken(rangeMatch[2], now);
     if (from && to) {
       return { from: from.iso, to: to.iso, label: `${from.label} to ${to.label}` };
     }
-    return null;
+    // Not a resolvable range (e.g. "from the supplier to the warehouse") — fall through
+    // to the single-phrase checks below rather than reporting no date at all.
   }
 
   if (/\btoday\b/.test(text)) {
@@ -521,7 +555,7 @@ export function parseDatePhrase(text: string, now: Date): DatePhraseResult | nul
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `cd client && npx vitest run __tests__/assistant-date-phrases.test.ts`
-Expected: PASS (10 tests)
+Expected: PASS (12 tests)
 
 - [ ] **Step 5: Commit**
 
@@ -549,8 +583,9 @@ git commit -m "feat: add date phrase parsing for the assistant"
     | { kind: "none" };
 
   export function matchIntent(normalized: string, intents: IntentDefinition[]): MatchOutcome;
+  export function escapeRegex(text: string): string; // reused by navigation-intents.ts (Task 4) instead of redefining
   ```
-  Scoring: each matched `phrase` regex contributes 3 points, each matched `keyword` (whole-word match via `\b`) contributes 1 point. Threshold to count as a match is 3. If the two highest-scoring intents (score >= 3) tie, return `ambiguous`.
+  Scoring: each matched `phrase` regex contributes 3 points, each matched `keyword` (whole-word match via `\b`, with the keyword text escaped through `escapeRegex` so a keyword containing regex metacharacters doesn't break matching) contributes 1 point. Threshold to count as a match is 3. If the two highest-scoring intents (score >= 3) tie, return `ambiguous`.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -560,8 +595,8 @@ import { describe, it, expect } from "vitest";
 import { matchIntent } from "@/lib/assistant/intent-matcher";
 import type { IntentDefinition } from "@/lib/assistant/types";
 
-function intent(id: string, tool: string, phrases: RegExp[], keywords: string[]): IntentDefinition {
-  return { id, tool, phrases, keywords, buildArgs: () => ({}) };
+function intent(id: string, tool: string, phrases: RegExp[], keywords: string[], label = id): IntentDefinition {
+  return { id, tool, label, phrases, keywords, buildArgs: () => ({}) };
 }
 
 const SALES_INTENT = intent(
@@ -646,6 +681,10 @@ const MATCH_THRESHOLD = 3;
 const PHRASE_SCORE = 3;
 const KEYWORD_SCORE = 1;
 
+export function escapeRegex(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function scoreIntent(normalized: string, intent: IntentDefinition): { score: number; captures: Record<string, string> } {
   let score = 0;
   let captures: Record<string, string> = {};
@@ -659,7 +698,7 @@ function scoreIntent(normalized: string, intent: IntentDefinition): { score: num
   }
 
   for (const keyword of intent.keywords) {
-    const pattern = new RegExp(`\\b${keyword}\\b`);
+    const pattern = new RegExp(`\\b${escapeRegex(keyword)}\\b`);
     if (pattern.test(normalized)) score += KEYWORD_SCORE;
   }
 
@@ -720,6 +759,7 @@ git commit -m "feat: add keyword/phrase intent matcher for the assistant"
     href: string | null;
     steps: string[];
     keywords: string[];
+    phrases: RegExp[];
     requiredPermission?: string;
   }
   export const HELP_TOPICS: HelpTopic[];
@@ -762,9 +802,12 @@ describe("navigateHelpTool", () => {
     expect(reply.actions?.[0]).toEqual({ label: topic.title, href: topic.href });
   });
 
-  it("returns a reply with no link for a topic the user lacks permission for, when denied elsewhere", async () => {
-    const result = await navigateHelpTool.execute({ topic: "add_staff" }, ctx);
-    expect(result?.id).toBe("add_staff");
+  it("omits the link and explains when the user lacks the topic's required permission", async () => {
+    const cashierCtx: ToolContext = { ...ctx, user: { id: "u2", role: "sales_staff" }, permissionGroup: { permissions: [] } };
+    const result = await navigateHelpTool.execute({ topic: "add_staff" }, cashierCtx);
+    const reply = navigateHelpTool.format(result, { topic: "add_staff" }, cashierCtx);
+    expect(reply.actions ?? []).toHaveLength(0);
+    expect(reply.text).toMatch(/permission/i);
   });
 
   it("returns null for an unknown topic id", async () => {
@@ -772,6 +815,28 @@ describe("navigateHelpTool", () => {
     expect(result).toBeNull();
     const reply = navigateHelpTool.format(result, { topic: "not_a_real_topic" }, ctx);
     expect(reply.kind).toBe("fallback");
+  });
+});
+
+describe("NAVIGATION_INTENTS phrase matching (regression: derived-from-keyword phrases used to miss real phrasings)", () => {
+  it("resolves realistic utterances to the intended topic via the real matcher", async () => {
+    const { matchIntent } = await import("@/lib/assistant/intent-matcher");
+    const { normalizeUtterance } = await import("@/lib/assistant/normalize");
+    const { NAVIGATION_INTENTS } = await import("@/lib/assistant/intents/navigation-intents");
+
+    const cases: [string, string][] = [
+      ["how do i make a sale", "navigate_make_sale"],
+      ["how do i add a product", "navigate_add_product"],
+      ["where do i add staff", "navigate_add_staff"],
+      ["how do i record an expense", "navigate_record_expense"],
+    ];
+
+    for (const [utterance, expectedId] of cases) {
+      const { normalized } = normalizeUtterance(utterance);
+      const result = matchIntent(normalized, NAVIGATION_INTENTS);
+      expect(result.kind).toBe("match");
+      if (result.kind === "match") expect(result.intent.id).toBe(expectedId);
+    }
   });
 });
 ```
@@ -783,6 +848,8 @@ Expected: FAIL — module not found
 
 - [ ] **Step 3: Write `help-catalog.ts`**
 
+Each topic carries its own explicit `phrases` regexes — deriving a phrase from `keywords[0]` (e.g. turning `"sale"` into `/\bhow do i sale\b/`) does not match real phrasings like "how do I make a sale", so phrases are authored directly instead.
+
 ```ts
 // client/lib/assistant/help-catalog.ts
 export interface HelpTopic {
@@ -791,6 +858,7 @@ export interface HelpTopic {
   href: string | null;
   steps: string[];
   keywords: string[];
+  phrases: RegExp[];
   requiredPermission?: string;
 }
 
@@ -801,6 +869,7 @@ export const HELP_TOPICS: HelpTopic[] = [
     href: "/pos",
     steps: ["Open POS", "Search or scan the product", "Add it to the cart", "Tap Charge and choose a payment method"],
     keywords: ["sale", "sell", "checkout", "pos"],
+    phrases: [/\bmake a sale\b/, /\bprocess a sale\b/, /\bhow (do|to) i (make|process) a sale\b/],
     requiredPermission: "process_sales",
   },
   {
@@ -809,6 +878,7 @@ export const HELP_TOPICS: HelpTopic[] = [
     href: "/inventory/catalog?action=add",
     steps: ["Go to Inventory > Catalog", "Tap Add Product", "Fill in the product details and save"],
     keywords: ["add product", "new product", "create product"],
+    phrases: [/\badd (a |an |new )?product\b/, /\bcreate (a |new )?product\b/],
     requiredPermission: "manage_products",
   },
   {
@@ -817,6 +887,7 @@ export const HELP_TOPICS: HelpTopic[] = [
     href: "/inventory/adjustments?action=create",
     steps: ["Go to Inventory > Adjustments", "Tap New Adjustment", "Select the product and enter the correction"],
     keywords: ["adjust stock", "correct stock", "stock adjustment"],
+    phrases: [/\badjust stock\b/, /\bcorrect stock\b/, /\bstock adjustment\b/],
     requiredPermission: "adjust_stock_counts",
   },
   {
@@ -825,6 +896,7 @@ export const HELP_TOPICS: HelpTopic[] = [
     href: "/inventory/audits",
     steps: ["Go to Inventory > Audits", "Tap Start Audit", "Count and confirm each product"],
     keywords: ["stock audit", "stocktake", "count stock"],
+    phrases: [/\bstock audit\b/, /\bstocktake\b/, /\bcount stock\b/, /\bstart (an |a )?audit\b/],
     requiredPermission: "perform_stock_audit",
   },
   {
@@ -833,6 +905,7 @@ export const HELP_TOPICS: HelpTopic[] = [
     href: "/expenses?action=add",
     steps: ["Go to Expenses", "Tap Add Expense", "Enter the amount, category, and date"],
     keywords: ["record expense", "add expense", "log expense"],
+    phrases: [/\brecord (an |a )?expense\b/, /\badd (an |a )?expense\b/, /\blog (an |a )?expense\b/],
     requiredPermission: "record_expenses",
   },
   {
@@ -841,6 +914,7 @@ export const HELP_TOPICS: HelpTopic[] = [
     href: "/customers?action=add",
     steps: ["Go to Customers", "Tap Add Customer", "Fill in their details and save"],
     keywords: ["add customer", "new customer"],
+    phrases: [/\badd (a |new )?customer\b/, /\bnew customer\b/],
     requiredPermission: "manage_customers",
   },
   {
@@ -849,6 +923,7 @@ export const HELP_TOPICS: HelpTopic[] = [
     href: "/procurement/new",
     steps: ["Go to Procurement", "Tap New Purchase Order", "Select a supplier and add line items"],
     keywords: ["purchase order", "reorder from supplier", "procurement"],
+    phrases: [/\bpurchase order\b/, /\breorder from (a |the )?supplier\b/, /\bnew procurement\b/],
     requiredPermission: "manage_purchase_orders",
   },
   {
@@ -857,6 +932,7 @@ export const HELP_TOPICS: HelpTopic[] = [
     href: "/reports?tab=daily_close",
     steps: ["Go to Reports > Daily Close", "Review the summary", "Confirm to close the day"],
     keywords: ["daily close", "close the day", "end of day"],
+    phrases: [/\bdaily close\b/, /\bclose the day\b/, /\bend of day\b/],
   },
   {
     id: "view_reports",
@@ -864,6 +940,7 @@ export const HELP_TOPICS: HelpTopic[] = [
     href: "/reports",
     steps: ["Go to Reports from the sidebar", "Choose a report tab (Sales, Finance, Daily Close)"],
     keywords: ["view reports", "see reports", "reports page"],
+    phrases: [/\bview reports\b/, /\bsee (the )?reports\b/, /\breports page\b/],
     requiredPermission: "view_reports",
   },
   {
@@ -872,6 +949,7 @@ export const HELP_TOPICS: HelpTopic[] = [
     href: "/settings/staff",
     steps: ["Go to Settings > Staff", "Tap Add Staff", "Set their name, PIN, and permission group"],
     keywords: ["add staff", "new staff", "add employee", "add cashier"],
+    phrases: [/\badd (a |new )?staff\b/, /\bnew (staff|employee|cashier)\b/, /\badd (an |a )?(employee|cashier)\b/],
     requiredPermission: "manage_store_settings",
   },
   {
@@ -880,6 +958,7 @@ export const HELP_TOPICS: HelpTopic[] = [
     href: "/settings/receipt-settings",
     steps: ["Go to Settings > Receipt Settings", "Edit the receipt header/footer text or logo"],
     keywords: ["receipt settings", "receipt logo", "receipt footer"],
+    phrases: [/\breceipt settings\b/, /\breceipt logo\b/, /\breceipt footer\b/],
     requiredPermission: "manage_store_settings",
   },
   {
@@ -888,6 +967,7 @@ export const HELP_TOPICS: HelpTopic[] = [
     href: "/settings/data",
     steps: ["Go to Settings > Data", "Choose Backup or Restore"],
     keywords: ["backup data", "restore data", "export data"],
+    phrases: [/\bbackup data\b/, /\brestore data\b/, /\bexport data\b/],
     requiredPermission: "backup_restore_data",
   },
   {
@@ -896,6 +976,7 @@ export const HELP_TOPICS: HelpTopic[] = [
     href: null,
     steps: ["Open the account menu (top right / user icon)", "Choose Switch Account"],
     keywords: ["switch account", "change user", "log in as someone else"],
+    phrases: [/\bswitch account\b/, /\bchange user\b/, /\blog in as someone else\b/],
   },
 ];
 ```
@@ -910,23 +991,20 @@ import { HELP_TOPICS } from "../help-catalog";
 export const NAVIGATION_INTENTS: IntentDefinition[] = HELP_TOPICS.map((topic) => ({
   id: `navigate_${topic.id}`,
   tool: "navigate_help",
-  phrases: [
-    new RegExp(`\\bhow do i ${escapeRegex(topic.keywords[0])}\\b`),
-    new RegExp(`\\bwhere (do i|can i) ${escapeRegex(topic.keywords[0])}\\b`),
-  ],
+  label: topic.title,
+  phrases: topic.phrases,
   keywords: topic.keywords,
   buildArgs: () => ({ topic: topic.id }),
 }));
-
-function escapeRegex(text: string): string {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
 ```
 
 - [ ] **Step 5: Write `tools/navigation-tools.ts`**
 
+A topic's `requiredPermission` is enforced here, inside `format()` — not by the outer permission gate, because `navigate_help` itself is ungated (anyone can *ask* for help) while individual topics are not. A user lacking a topic's permission still gets a text answer, just with the link omitted and an explanation, per the "disabled-with-a-reason, not hidden" convention used elsewhere in the catalog UI.
+
 ```ts
 // client/lib/assistant/tools/navigation-tools.ts
+import { hasPermission } from "@/lib/hooks/use-permissions";
 import type { AssistantTool, ReplyAction } from "../types";
 import { HELP_TOPICS, type HelpTopic } from "../help-catalog";
 
@@ -934,11 +1012,20 @@ export const navigateHelpTool: AssistantTool<{ topic: string }, HelpTopic | null
   name: "navigate_help",
   description: "Explains how to do something in the app and links to the right screen.",
   parameters: { topic: { type: "string", description: "The help topic id", required: true } },
-  examples: HELP_TOPICS.map((t) => `how do i ${t.keywords[0]}`),
+  examples: HELP_TOPICS.map((t) => `how do i ${t.title.toLowerCase()}`),
   execute: async ({ topic }) => HELP_TOPICS.find((t) => t.id === topic) ?? null,
-  format: (result) => {
+  format: (result, _args, ctx) => {
     if (!result) {
       return { kind: "fallback", text: "I don't have help for that yet." };
+    }
+
+    const allowed = !result.requiredPermission || hasPermission(ctx.user, ctx.permissionGroup, result.requiredPermission, "any");
+
+    if (!allowed) {
+      return {
+        kind: "help",
+        text: `${result.title} is available, but you'll need permission from your store owner to access it.`,
+      };
     }
 
     const actions: ReplyAction[] = result.href ? [{ label: result.title, href: result.href }] : [];
@@ -974,7 +1061,7 @@ export const TOOL_REGISTRY: ReadonlyMap<string, AssistantTool> = new Map([
 - [ ] **Step 7: Run test to verify it passes**
 
 Run: `cd client && npx vitest run __tests__/assistant-navigation-tool.test.ts`
-Expected: PASS (3 tests)
+Expected: PASS (4 tests)
 
 - [ ] **Step 8: Commit**
 
@@ -1122,7 +1209,7 @@ git commit -m "feat: add permission gate for assistant tool calls"
 
 **Interfaces:**
 - Consumes: `matchIntent` (Task 3), `INTENTS` (Task 4), `TOOL_REGISTRY` (Task 4), `authorizeToolCall` (Task 5), `AssistantBrain`/`AssistantReply`/`BrainOutcome`/`ToolContext` (Task 1), `devLog` from `@/lib/utils/dev-log`.
-- Produces (used by Task 13):
+- Produces (used by Task 12):
   ```ts
   export function buildNoMatchReply(ctx: ToolContext): AssistantReply;
   export function buildAmbiguousReply(candidateLabels: string[]): AssistantReply;
@@ -1257,6 +1344,22 @@ describe("answer", () => {
     expect(reply.text).toContain("rerouted");
   });
 
+  it("notes the date mismatch instead of silently dropping it when a reroute answers a different date than requested", async () => {
+    const cashierCtx = makeCtx({
+      user: { id: "u1", role: "sales_staff" },
+      permissionGroup: { permissions: ["process_sales"] },
+      now: new Date(2026, 8, 29),
+    });
+    const reply = await answer(
+      "total sales yesterday",
+      cashierCtx,
+      brainThatCalls("denied_reroutable_tool", { date: "2026-09-28" }),
+    );
+    expect(reply.kind).toBe("answer");
+    expect(reply.text).toContain("2026-09-28");
+    expect(reply.text).toMatch(/today/i);
+  });
+
   it("returns an error reply, not a throw, when the tool execute() throws", async () => {
     const reply = await answer("anything", makeCtx(), brainThatCalls("throwing_tool"));
     expect(reply.kind).toBe("error");
@@ -1267,13 +1370,21 @@ describe("answer", () => {
     expect(reply.kind).toBe("fallback");
   });
 
-  it("returns an ambiguous-style fallback when the brain is unsure", async () => {
+  it("returns an ambiguous-style fallback naming the candidates by label, not tool name", async () => {
     const reply = await answer(
       "ambiguous input",
       makeCtx(),
-      brainWith({ kind: "ambiguous", candidates: [{ tool: "ok_tool", args: {} }] }),
+      brainWith({
+        kind: "ambiguous",
+        candidates: [
+          { tool: "ok_tool", label: "Check today's number" },
+          { tool: "throwing_tool", label: "Check the other number" },
+        ],
+      }),
     );
     expect(reply.kind).toBe("fallback");
+    expect(reply.text).toContain("Check today's number");
+    expect(reply.text).toContain("Check the other number");
   });
 });
 ```
@@ -1340,6 +1451,8 @@ export function buildErrorReply(): AssistantReply {
 
 - [ ] **Step 5: Write `intent-router-brain.ts`**
 
+`buildArgs` takes the normalized utterance as its own parameter (not smuggled through `captures`), so date-taking intents (Task 10, 11) can re-parse the full sentence without an unsafe cast. Ambiguous candidates only need a human-readable `label` for the "Did you mean…" reply — they don't need fully-built `ToolCall`s, since disambiguation just shows text, not runs a tool.
+
 ```ts
 // client/lib/assistant/intent-router-brain.ts
 import type { AssistantBrain, BrainOutcome, ToolContext } from "./types";
@@ -1357,16 +1470,13 @@ export class IntentRouterBrain implements AssistantBrain {
     if (result.kind === "ambiguous") {
       return {
         kind: "ambiguous",
-        candidates: result.candidates.map((intent) => ({
-          tool: intent.tool,
-          args: intent.buildArgs({}, ctx),
-        })),
+        candidates: result.candidates.map((intent) => ({ tool: intent.tool, label: intent.label })),
       };
     }
 
     return {
       kind: "call",
-      call: { tool: result.intent.tool, args: result.intent.buildArgs(result.captures, ctx) },
+      call: { tool: result.intent.tool, args: result.intent.buildArgs(result.captures, normalized, ctx) },
     };
   }
 }
@@ -1383,6 +1493,10 @@ export const REROUTE_ON_DENIAL: Record<string, string> = {};
 
 - [ ] **Step 7: Write `router.ts`**
 
+`TOOL_REGISTRY` is imported statically — `fallback-replies.ts` already imports it statically too, and nothing in `tools/` imports back from `router.ts`, so there's no cycle to break with a dynamic `import()`.
+
+A reroute (Task 10 registers `sales_summary → my_sales_today`) must not silently drop the date the user asked about: if the denied call carried a `date` arg that isn't today, the rerouted reply says so explicitly rather than quietly answering a different question than the one asked.
+
 ```ts
 // client/lib/assistant/router.ts
 import type { AssistantBrain, AssistantReply, AssistantTool, ToolContext } from "./types";
@@ -1390,6 +1504,8 @@ import { intentRouterBrain } from "./intent-router-brain";
 import { authorizeToolCall } from "./permission-gate";
 import { buildNoMatchReply, buildAmbiguousReply, buildDeniedReply, buildErrorReply } from "./fallback-replies";
 import { REROUTE_ON_DENIAL } from "./router-reroutes";
+import { toDateOnly } from "./date-phrases";
+import { TOOL_REGISTRY } from "./tools";
 import { devLog } from "@/lib/utils/dev-log";
 
 async function runTool(tool: AssistantTool, args: Record<string, unknown>, ctx: ToolContext): Promise<AssistantReply> {
@@ -1407,7 +1523,6 @@ export async function answer(
   ctx: ToolContext,
   brain: AssistantBrain = intentRouterBrain,
 ): Promise<AssistantReply> {
-  const { TOOL_REGISTRY } = await import("./tools");
   const outcome = brain.resolve(utterance, ctx);
 
   if (outcome.kind === "none") {
@@ -1415,8 +1530,7 @@ export async function answer(
   }
 
   if (outcome.kind === "ambiguous") {
-    const labels = outcome.candidates.map((c) => c.tool);
-    return buildAmbiguousReply(labels);
+    return buildAmbiguousReply(outcome.candidates.map((c) => c.label));
   }
 
   const tool = TOOL_REGISTRY.get(outcome.call.tool);
@@ -1433,7 +1547,12 @@ export async function answer(
   const fallbackName = REROUTE_ON_DENIAL[tool.name];
   const fallbackTool = fallbackName ? TOOL_REGISTRY.get(fallbackName) : undefined;
   if (fallbackTool && authorizeToolCall(fallbackTool, ctx).ok) {
-    return runTool(fallbackTool, {}, ctx);
+    const reply = await runTool(fallbackTool, {}, ctx);
+    const requestedDate = typeof outcome.call.args.date === "string" ? outcome.call.args.date : undefined;
+    if (requestedDate && requestedDate !== toDateOnly(ctx.now)) {
+      return { ...reply, text: `${reply.text} (Note: you can only see your own sales, so this is today's, not ${requestedDate}.)` };
+    }
+    return reply;
   }
 
   return buildDeniedReply(authorization.reason);
@@ -1586,6 +1705,7 @@ export const INVENTORY_INTENTS: IntentDefinition[] = [
   {
     id: "product_stock",
     tool: "product_stock",
+    label: "Product stock lookup",
     phrases: [/\bhow many (?<product>.+) do we have\b/, /\bis (?<product>.+) in stock\b/, /\bstock of (?<product>.+)\b/],
     keywords: ["stock", "have", "inventory"],
     buildArgs: (captures) => ({ product: captures.product ?? "" }),
@@ -1733,6 +1853,7 @@ export const inventoryStatusTool: AssistantTool<Record<string, never>, Inventory
 {
   id: "inventory_status",
   tool: "inventory_status",
+  label: "Inventory status",
   phrases: [/\blow on stock\b/, /\bexpiring soon\b/, /\binventory status\b/],
   keywords: ["inventory", "expiring", "expired"],
   buildArgs: () => ({}),
@@ -1781,6 +1902,8 @@ git commit -m "feat: add inventory_status tool to the assistant"
 
 - [ ] **Step 1: Write the failing test**
 
+Compute "today" the same way `mySalesTodayTool` will (`toDateOnly`, local calendar day), not with `new Date().toISOString()` (UTC) — this suite runs pinned to `Africa/Lagos` (UTC+1), so the two can name different calendar days near midnight.
+
 ```ts
 // client/__tests__/assistant-sales-tools.test.ts
 import { describe, it, expect, beforeAll, beforeEach } from "vitest";
@@ -1820,7 +1943,8 @@ describe("assistant sales tools", () => {
   };
 
   it("counts only the signed-in cashier's own sales for today", async () => {
-    const today = new Date().toISOString().split("T")[0];
+    const { toDateOnly } = await import("@/lib/assistant/date-phrases");
+    const today = toDateOnly(new Date());
     db.run(`INSERT INTO users (id, store_id, name, created_at, updated_at) VALUES ('cashier1', 'store1', 'Cashier One', '2026-01-01', '2026-01-01')`);
     db.run(`INSERT INTO users (id, store_id, name, created_at, updated_at) VALUES ('cashier2', 'store1', 'Cashier Two', '2026-01-01', '2026-01-01')`);
     db.run(`INSERT INTO sales (id, store_id, user_id, total, created_at, updated_at) VALUES ('s1', 'store1', 'cashier1', 100, '${today}T10:00:00.000Z', '${today}T10:00:00.000Z')`);
@@ -1953,7 +2077,8 @@ git commit -m "feat: add my_sales_today tool to the assistant"
 // append inside the describe block in client/__tests__/assistant-sales-tools.test.ts
 it("summarizes store-wide sales total and count for a date", async () => {
   const { salesSummaryTool } = await import("@/lib/assistant/tools/sales-tools");
-  const today = new Date().toISOString().split("T")[0];
+  const { toDateOnly } = await import("@/lib/assistant/date-phrases");
+  const today = toDateOnly(new Date());
   db.run(`INSERT INTO users (id, store_id, name, created_at, updated_at) VALUES ('cashier1', 'store1', 'Cashier One', '2026-01-01', '2026-01-01')`);
   db.run(`INSERT INTO sales (id, store_id, user_id, total, payment_method, created_at, updated_at) VALUES ('s1', 'store1', 'cashier1', 150, 'cash', '${today}T09:00:00.000Z', '${today}T09:00:00.000Z')`);
 
@@ -2002,26 +2127,10 @@ export const salesSummaryTool: AssistantTool<{ date: string }, SalesSummaryResul
 
 - [ ] **Step 4: Append the intent to `intents/sales-intents.ts`**
 
-```ts
-// append to the SALES_INTENTS array in client/lib/assistant/intents/sales-intents.ts
-import { parseDatePhrase, toDateOnly } from "../date-phrases";
-
-{
-  id: "sales_summary",
-  tool: "sales_summary",
-  phrases: [/\btotal sales\b/, /\bhow many sales\b/, /\bsales on\b/],
-  keywords: ["sales", "transactions"],
-  buildArgs: (_captures, ctx) => {
-    const parsed = parseDatePhrase(ctx.now.toString(), ctx.now); // placeholder replaced in Step 4b below
-    return { date: parsed?.from ?? toDateOnly(ctx.now) };
-  },
-},
-```
-
-*Step 4b — correction: `buildArgs` only receives `captures` from the matched regex, not the raw utterance, so it cannot re-run `parseDatePhrase` on the original text. Fix this properly:*
+`buildArgs`'s second parameter is the full normalized utterance (defined that way in Task 1, threaded through by `IntentRouterBrain` in Task 6), so date-taking intents parse it directly — no smuggling the utterance through `captures`.
 
 ```ts
-// client/lib/assistant/intents/sales-intents.ts — corrected buildArgs
+// client/lib/assistant/intents/sales-intents.ts — full file after this task
 import type { IntentDefinition } from "../types";
 import { parseDatePhrase, toDateOnly } from "../date-phrases";
 
@@ -2029,6 +2138,7 @@ export const SALES_INTENTS: IntentDefinition[] = [
   {
     id: "my_sales_today",
     tool: "my_sales_today",
+    label: "My sales today",
     phrases: [/\bmy sales today\b/, /\bhow much have i sold\b/],
     keywords: ["my", "sold"],
     buildArgs: () => ({}),
@@ -2036,44 +2146,15 @@ export const SALES_INTENTS: IntentDefinition[] = [
   {
     id: "sales_summary",
     tool: "sales_summary",
+    label: "Store sales for a date",
     phrases: [/\btotal sales\b/, /\bhow many sales\b/, /\bsales on\b/],
     keywords: ["sales", "transactions"],
-    buildArgs: (captures, ctx) => {
-      const date = captures.__utterance ? parseDatePhrase(captures.__utterance, ctx.now)?.from : undefined;
-      return { date: date ?? toDateOnly(ctx.now) };
+    buildArgs: (_captures, utterance, ctx) => {
+      const parsed = parseDatePhrase(utterance, ctx.now);
+      return { date: parsed?.from ?? toDateOnly(ctx.now) };
     },
   },
 ];
-```
-
-*This requires `IntentRouterBrain.resolve` (Task 6) to pass the normalized utterance into `captures` as `__utterance` so date-taking intents can re-parse it. Update `intent-router-brain.ts`:*
-
-```ts
-// client/lib/assistant/intent-router-brain.ts — update resolve()
-resolve(utterance: string, ctx: ToolContext): BrainOutcome {
-  const { normalized } = normalizeUtterance(utterance);
-  const result = matchIntent(normalized, INTENTS);
-
-  if (result.kind === "none") return { kind: "none" };
-
-  if (result.kind === "ambiguous") {
-    return {
-      kind: "ambiguous",
-      candidates: result.candidates.map((intent) => ({
-        tool: intent.tool,
-        args: intent.buildArgs({ ...intent, __utterance: normalized } as unknown as Record<string, string>, ctx),
-      })),
-    };
-  }
-
-  return {
-    kind: "call",
-    call: {
-      tool: result.intent.tool,
-      args: result.intent.buildArgs({ ...result.captures, __utterance: normalized }, ctx),
-    },
-  };
-}
 ```
 
 - [ ] **Step 5: Register in `intents/index.ts` and `tools/index.ts`, and add the cashier reroute**
@@ -2098,18 +2179,17 @@ export const REROUTE_ON_DENIAL: Record<string, string> = {
 };
 ```
 
-- [ ] **Step 6: Re-run the router test suite (Task 6) to confirm the `__utterance` change didn't break it**
+- [ ] **Step 6: Append an end-to-end reroute test using the real `answer()` function**
 
-Run: `cd client && npx vitest run __tests__/assistant-router.test.ts __tests__/assistant-intent-matcher.test.ts`
-Expected: PASS (both files, no regressions)
-
-- [ ] **Step 7: Append an end-to-end reroute test using the real `answer()` function**
+Use `toDateOnly` (the same local-date convention `mySalesTodayTool`/`salesSummaryTool` use internally) to compute "today" for the seeded row, not `toISOString()` — `toISOString()` is UTC and can name a different calendar day than `toDateOnly(new Date())` near midnight in a UTC-offset timezone (this suite runs pinned to `Africa/Lagos`, UTC+1).
 
 ```ts
 // append inside the describe block in client/__tests__/assistant-sales-tools.test.ts
 it("reroutes a sales_staff cashier's sales question to my_sales_today via answer()", async () => {
   const { answer } = await import("@/lib/assistant/router");
-  const today = new Date().toISOString().split("T")[0];
+  const { toDateOnly } = await import("@/lib/assistant/date-phrases");
+  const now = new Date();
+  const today = toDateOnly(now);
   db.run(`INSERT INTO users (id, store_id, name, created_at, updated_at) VALUES ('cashier1', 'store1', 'Cashier One', '2026-01-01', '2026-01-01')`);
   db.run(`INSERT INTO sales (id, store_id, user_id, total, created_at, updated_at) VALUES ('s1', 'store1', 'cashier1', 100, '${today}T10:00:00.000Z', '${today}T10:00:00.000Z')`);
 
@@ -2120,7 +2200,7 @@ it("reroutes a sales_staff cashier's sales question to my_sales_today via answer
     expiryWarningDays: 90,
     storeType: "pharmacy",
     t: (k: string) => k,
-    now: new Date(),
+    now,
   };
 
   const reply = await answer("how many sales today", cashierCtx);
@@ -2129,16 +2209,16 @@ it("reroutes a sales_staff cashier's sales question to my_sales_today via answer
 });
 ```
 
-- [ ] **Step 8: Run test to verify all new tests pass**
+- [ ] **Step 7: Run test to verify all new tests pass**
 
 Run: `cd client && npx vitest run __tests__/assistant-sales-tools.test.ts`
 Expected: PASS (3 tests total)
 
-- [ ] **Step 9: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
 cd /Users/admin/Documents/Projects/DumosRx
-git add client/lib/assistant/tools/sales-tools.ts client/lib/assistant/intents/sales-intents.ts client/lib/assistant/intent-router-brain.ts client/lib/assistant/router-reroutes.ts client/lib/assistant/tools/index.ts client/__tests__/assistant-sales-tools.test.ts
+git add client/lib/assistant/tools/sales-tools.ts client/lib/assistant/intents/sales-intents.ts client/lib/assistant/router-reroutes.ts client/lib/assistant/tools/index.ts client/__tests__/assistant-sales-tools.test.ts
 git commit -m "feat: add sales_summary tool with cashier reroute and utterance-aware date parsing"
 ```
 
@@ -2218,7 +2298,7 @@ describe("assistant finance tool", () => {
   it("defaults the date range to today when the utterance has no date phrase", async () => {
     const { FINANCE_INTENTS } = await import("@/lib/assistant/intents/finance-intents");
     const intent = FINANCE_INTENTS.find((i) => i.id === "profit_summary")!;
-    const args = intent.buildArgs({ __utterance: "gross profit" }, ctx) as { from: string; to: string };
+    const args = intent.buildArgs({}, "gross profit", ctx) as { from: string; to: string };
     expect(args.from).toBe("2026-09-15");
     expect(args.to).toBe("2026-09-15");
   });
@@ -2301,10 +2381,10 @@ export const FINANCE_INTENTS: IntentDefinition[] = [
   {
     id: "profit_summary",
     tool: "profit_summary",
+    label: "Profit summary",
     phrases: [/\bgross profit\b/, /\bnet profit\b/, /\brevenue\b.*\b(today|yesterday|month)\b/],
     keywords: ["profit", "margin", "revenue", "expenses"],
-    buildArgs: (captures, ctx) => {
-      const utterance = captures.__utterance ?? "";
+    buildArgs: (_captures, utterance, ctx) => {
       const parsed = parseDatePhrase(utterance, ctx.now);
       const today = toDateOnly(ctx.now);
       return { from: parsed?.from ?? today, to: parsed?.to ?? today };
@@ -2356,6 +2436,10 @@ git commit -m "feat: add profit_summary tool to the assistant"
 
 ---
 
+**Checkpoint before continuing to Task 12:** at threshold 3 with phrase hits worth 3 and keyword hits worth 1, a single keyword never crosses the threshold on its own — matching is effectively phrase-only, and keywords only break ties between phrase matches. This is intentional (it's what keeps "how do I refund a **sale**" from misrouting to `sales_summary` — see the Review Focus test in Task 3), but it means match quality now depends entirely on how many real phrasings the `phrases` arrays cover, and they're currently thin (2-4 phrases per intent, authored from the spec's own example list, not from real usage). Before treating Phase 1 as feature-complete, run 30-40 realistic utterances (typos, reordered words, local phrasing) through `answer()` and expand the phrase lists for whatever falls through to `buildNoMatchReply`. Don't change the threshold or scoring weights to chase this — widen the phrase lists instead, since that keeps the "refund a sale" guard intact.
+
+---
+
 ## Task 12: Zustand panel store and `use-assistant` hook
 
 **Files:**
@@ -2402,12 +2486,12 @@ vi.mock("@/lib/context/auth-context", () => ({
 }));
 
 vi.mock("@/lib/context/store-context", () => ({
-  useStore: () => ({
+  useStore: vi.fn(() => ({
     storeProfile: { currency: "NGN", expiry_warning_days: 90 },
     storeType: "pharmacy",
     t: (k: string) => k,
     activeStoreId: "store1",
-  }),
+  })),
 }));
 
 vi.mock("@/lib/assistant/router", () => ({
@@ -2524,6 +2608,12 @@ function buildToolContext(
   };
 }
 
+function generateId(): string {
+  return typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
 export function useAssistant() {
   const { user, permissionGroup } = useAuth();
   const { storeProfile, storeType, t, activeStoreId } = useStore();
@@ -2542,11 +2632,11 @@ export function useAssistant() {
   const send = useCallback(
     async (text: string) => {
       const ctx = buildToolContext(user, permissionGroup, storeProfile, storeType, t);
-      append({ id: crypto.randomUUID(), role: "user", text, at: new Date().toISOString() });
+      append({ id: generateId(), role: "user", text, at: new Date().toISOString() });
       setIsThinking(true);
       try {
         const reply = await answer(text, ctx);
-        append({ id: crypto.randomUUID(), role: "assistant", text: reply.text, actions: reply.actions, at: new Date().toISOString() });
+        append({ id: generateId(), role: "assistant", text: reply.text, actions: reply.actions, at: new Date().toISOString() });
       } finally {
         setIsThinking(false);
       }
@@ -3039,6 +3129,11 @@ query function and is permission-gated via the same `hasPermission()` used elsew
 - **profit_summary matches Report Center, not BI metrics:** it sums `fetchProfitLossReportData`
   rows, not `getBIMetrics`, because the assistant must report the same numbers a user can
   already see in the exported P&L, not a second net-profit definition.
+- **Two enforcement points, deliberately:** `permission-gate.ts` gates whether a tool runs at
+  all; a couple of tools additionally call `hasPermission()` themselves to vary *what's in* an
+  allowed answer (`inventory_status` omits stock value without `view_cost_fields`; `navigate_help`
+  omits a topic's link without that topic's permission). Both paths go through the same
+  `hasPermission()` — there's no second permission system, just two places it's consulted.
 - Add a new capability by: adding an `AssistantTool` in `tools/`, an `IntentDefinition` in
   `intents/`, and registering both in `tools/index.ts` / `intents/index.ts`.
 ```

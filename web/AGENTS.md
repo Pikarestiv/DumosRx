@@ -142,6 +142,41 @@ list row (`AdminStoreSummary`) is not enough and must not be passed through
 router state, since the page has to survive a reload and a pasted link.
 Section components live under `components/admin/stores/details/`.
 
+**Never trust a sync-originated column's declared type at a render site.**
+Every column on `stores` originates on the Tauri client, where it is a SQLite
+TEXT value, and reaches MySQL through `SyncController::push()` ->
+`Model::forceFill()`. A declared `string[]` in `lib/types/admin-store-detail.ts`
+describes the shape the server is *supposed* to send, not a runtime guarantee —
+`enabled_payment_methods` arrived as a JSON **string** in production and
+`.join()` on it took the entire admin panel down (see `docs/FIXED_BUGS.md` ->
+A-29). `StorePaymentsCard` therefore narrows through
+`normalizeEnabledPaymentMethods()` rather than indexing straight off the type,
+and the field is typed `unknown` so the next person cannot skip the narrowing
+by accident. Apply the same treatment to any other JSON-ish `stores` column
+before rendering it.
+
+## Error boundaries: `app/admin/error.tsx` and `app/global-error.tsx`
+
+Until 2026-09-29 this app had **no error boundary anywhere**, so a single
+uncaught render exception in any admin route replaced the whole document with
+the browser's native "This page couldn't load" screen — no recovery, no
+report, no breadcrumb. Two boundaries now exist and both must stay:
+
+- `app/admin/error.tsx` — the per-route boundary for everything under
+  `/admin`. Renders a recovery card wired to the `reset()` prop.
+- `app/global-error.tsx` — the last resort for a crash in the root layout
+  itself. It must render its own `<html>`/`<body>` (Next replaces the whole
+  document at this level), which is why it uses inline styles and no shared
+  UI components: a boundary that depends on the tree it is catching for is
+  not a boundary.
+
+Both report through `reportClientError()` from `lib/api/logger.ts` — the
+channel that already backs `POST /logs/client-error`. **Do not add a second
+error-reporting pipeline**; there is no Sentry SDK on this origin (the Sentry
+references in `app/admin/system/page.tsx` read the *client* app's issues
+through the admin API, they do not instrument `web/`). Reporting is guarded by
+a ref keyed on the error identity so a re-render does not re-report.
+
 ## Broadcasts: the "Also send by email" toggle
 
 `components/admin/broadcasts/broadcast-dialogs.tsx` carries a `send_email`

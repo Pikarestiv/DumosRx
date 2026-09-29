@@ -145,6 +145,14 @@ the fleet list so the two can't drift apart.
 Covered by `tests/Feature/Admin/AdminUsersAccountTypeFilterTest.php` and
 `tests/Feature/Admin/AdminStoreDetailTest.php`.
 
+**Gotcha this surfaced, worth remembering anywhere a freeform array is
+validated:** adding a nested rule (`filters.account_type`) alongside the
+array rule (`filters`) makes `$request->validate()`'s return value rebuild
+`filters` from the *nested rules only*, so the un-ruled `role`/`search` keys
+vanish from `$validated`. `bulkNotify` silently notified every account for one
+commit because of it. Read that kind of bag off `$request->input('filters')`
+after validating, not out of `$validated`.
+
 ## Admin auth architecture (redesigned 2026-08-26)
 
 `web/`'s platform admin panel keeps its access token in JS memory only

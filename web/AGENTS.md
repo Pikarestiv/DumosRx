@@ -100,6 +100,48 @@ together). The current design:
   based, has no cookie dependency, and silently refreshes only after 7 days
   via `refreshTokenSilently`.
 
+## Admin panel: store owners, staff, and the Store Details page
+
+**The Platform Users list (`app/admin/users/page.tsx`) no longer shows staff
+accounts.** It is a two-tab directory — *Store Owners* (the default) and
+*Platform Team* — backed by the `account_type` param on `GET /admin/users`
+(`owners` | `staff` | `platform`; see `laravel-server/AGENTS.md` for the
+column-level definition of each). The Roles dropdown is scoped per tab from
+`components/admin/users/user-directory-filters.ts`; staff-tier role slugs are
+deliberately absent from it, because selecting one could only ever return an
+empty list now. Switching tabs resets the role filter and the page number, and
+the tab is forwarded to `BulkNotifyDialog` as `filters.account_type` so
+"Notify All" reaches exactly the set whose count it quotes.
+
+**Staff are reached from two places instead**, both rendering the same
+`components/admin/stores/store-staff-list.tsx` off the same
+`useStoreStaff(storeId)` hook (`GET /admin/users?account_type=staff&store_id=`):
+the Store Details page, and the owner's own `UserProfileDialog` (which shows
+the section only when the row carries `is_store_owner`, using its new
+`store_id` field). Don't add a second staff endpoint or a second list
+component — one filter, one component, two mount points.
+
+**Store Details is a page, not a modal** (`app/admin/stores/details/page.tsx`,
+reached at `/admin/stores/details/?id=<storeId>`; the old `ViewStoreDialog` in
+`store-dialogs.tsx` is gone). Two things drove that:
+
+- The content no longer fits a dialog — profile, owner, subscription, staff,
+  contact specialist, sync health, storefront publish state, Paystack/payment
+  config, recent transactions and recent activity, over a stat-tile row.
+- **It is a query-param route, not `app/admin/stores/[id]/`, and that is not
+  stylistic.** This app is `output: "export"`; a dynamic segment would need
+  `generateStaticParams` to enumerate every store id at build time, which is
+  both impossible for an admin panel and would bake customer ids into the
+  static bundle. `/admin/handoff` is the existing precedent for reading state
+  off the URL in a statically-exported admin route. Because the page reads
+  `useSearchParams()`, it needs its own `<Suspense>` boundary — see the
+  storefront section below for why `tsc`/`vitest` won't catch a missing one.
+
+The page fetches `GET /admin/stores/{id}` via `useAdminStoreDetail`; the fleet
+list row (`AdminStoreSummary`) is not enough and must not be passed through
+router state, since the page has to survive a reload and a pasted link.
+Section components live under `components/admin/stores/details/`.
+
 ## Broadcasts: the "Also send by email" toggle
 
 `components/admin/broadcasts/broadcast-dialogs.tsx` carries a `send_email`
@@ -273,8 +315,9 @@ Backend verification for anything touching `laravel-server/`:
 ```
 cd ../laravel-server && ./vendor/bin/phpunit --testsuite=Feature
 ```
-(**447 tests passing as of 2026-09-26's Paystack subaccount plan** — treat any
-drop from that as a regression. The "89 tests" this line used to quote was
+(**539 tests passing as of 2026-09-29's admin owner-vs-staff split** — treat any
+drop from that as a regression; it was 447 at the 2026-09-26 Paystack
+subaccount plan. The "89 tests" this line used to quote was
 the count at the 2026-08-26 auth redesign and had been stale for a month; 399
 was the count after that day's earlier storefront remediation, before the
 subaccount work.)

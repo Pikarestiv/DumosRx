@@ -180,6 +180,7 @@ Route::prefix('v1')->group(function () {
             Route::get('/summary', [AdminPlatformController::class, 'summary'])->middleware('role:super_admin');
             Route::get('/stores', [AdminStoreController::class, 'stores'])->middleware('role:super_admin');
             Route::post('/stores', [AdminStoreController::class, 'registerStore']);
+            Route::get('/stores/{id}', [AdminStoreController::class, 'storeDetail'])->middleware('role:super_admin');
             Route::post('/stores/{id}/suspend', [AdminStoreController::class, 'suspendStore'])->middleware('role:super_admin');
             Route::post('/stores/{id}/unsuspend', [AdminStoreController::class, 'unsuspendStore'])->middleware('role:super_admin');
             Route::post('/stores/{id}/mark-demo', [AdminStoreController::class, 'markStoreDemo'])->middleware('role:super_admin');

@@ -10,6 +10,7 @@ import type {
   PaginatedResponse,
   AdminStoreSummary,
   AdminStoreBillingHistory,
+  AdminStoreDetail,
 } from "@/lib/types/admin";
 
 export const useAdminSummary = (options?: { enabled?: boolean }) => {
@@ -34,6 +35,17 @@ export const useAdminStores = (page = 1, search = "", status = "", plan = "") =>
   return useQuery({
     queryKey: useScopedKey(["admin-stores", page, search, status, plan]),
     queryFn: () => webApiClient.request<PaginatedResponse<AdminStoreSummary>>(`admin/stores?page=${page}${search ? `&search=${encodeURIComponent(search)}` : ""}${status ? `&status=${encodeURIComponent(status)}` : ""}${plan ? `&plan=${encodeURIComponent(plan)}` : ""}`),
+  });
+};
+
+// Backs the Store Details page (/admin/stores/details?id=...). Far more than
+// the fleet-list row carries; the store's staff list is a separate call
+// (useStoreStaff) so the owner profile dialog can reuse the same one.
+export const useAdminStoreDetail = (storeId: string | null) => {
+  return useQuery({
+    queryKey: useScopedKey(["admin-store-detail", storeId]),
+    queryFn: () => webApiClient.request<AdminStoreDetail>(`admin/stores/${storeId}`),
+    enabled: !!storeId,
   });
 };
 

@@ -133,15 +133,14 @@ const refreshSession = (isAdminPath: boolean): Promise<string> => {
       // here would create a cycle that breaks client.ts's
       // `export default apiClient` with a TDZ crash at module load.
       const { useAdminAuthStore } = await import("@/lib/store/use-admin-auth-store");
-      const { data } = await axios.post(
-        `${API_URL}/admin/session/refresh`,
-        {},
-        { withCredentials: true },
-      );
-      if (!data.token) throw new Error("No token in refresh response");
-      useAdminAuthStore.getState().setToken(data.token);
-      useAdminAuthStore.getState().setUser(data.user);
-      return data.token as string;
+      // Delegated to the store rather than posting here: the layout guard and
+      // the login page call initSession() too, and the refresh cookie rotates
+      // per use, so all three have to share one in-flight request or they race
+      // each other over a single-use cookie. initSession() owns that slot.
+      await useAdminAuthStore.getState().initSession();
+      const token = useAdminAuthStore.getState().token;
+      if (!token) throw new Error("No token in refresh response");
+      return token;
     }
 
     const { data } = await axios.post(`${API_URL}/refresh`, {}, { withCredentials: true });

@@ -54,6 +54,15 @@ interface AdminAuthState {
   logout: () => Promise<void>;
 }
 
+/** The admin layout guard, the login page and base-client.ts's 401 handler
+ * all reach for initSession() independently, and a reload can trigger two of
+ * them within the same tick. Each call posts to /admin/session/refresh, whose
+ * refresh cookie rotates per use, so overlapping calls raced each other over
+ * one cookie and could leave the browser with no valid session at all. Mirrors
+ * the refreshPromise slot base-client.ts already uses for its own 401 burst;
+ * the slot is cleared once settled so a later, genuine re-check still runs. */
+let initSessionPromise: Promise<void> | null = null;
+
 export const useAdminAuthStore = create<AdminAuthState>()(
   persist(
     (set) => ({
@@ -88,18 +97,26 @@ export const useAdminAuthStore = create<AdminAuthState>()(
       },
 
       initSession: async () => {
+        if (initSessionPromise) return initSessionPromise;
+
         set({ loading: true });
-        try {
-          const data = await webApiClient.request<{ token: string; user: User }>(
-            "admin/session/refresh",
-            { method: "POST" },
-          );
-          set({ token: data.token, user: data.user, loading: false, sessionVerified: true });
-          setAdminToken(data.token);
-        } catch (_error) {
-          set({ user: null, token: null, loading: false, sessionVerified: false });
-          setAdminToken(null);
-        }
+        initSessionPromise = (async () => {
+          try {
+            const data = await webApiClient.request<{ token: string; user: User }>(
+              "admin/session/refresh",
+              { method: "POST" },
+            );
+            set({ token: data.token, user: data.user, loading: false, sessionVerified: true });
+            setAdminToken(data.token);
+          } catch (_error) {
+            set({ user: null, token: null, loading: false, sessionVerified: false });
+            setAdminToken(null);
+          }
+        })().finally(() => {
+          initSessionPromise = null;
+        });
+
+        return initSessionPromise;
       },
 
       logout: async () => {

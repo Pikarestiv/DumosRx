@@ -1,7 +1,5 @@
-/** Stable permission keys - referenced by permission_groups.permissions
- * (a JSON array of these), never renamed once shipped (old synced rows
- * would silently lose that grant). Grouped into categories for the
- * Roles & Permissions matrix UI (Task 9). */
+// Key stability, category use and the rename ban: see client/AGENTS.md's
+// "Enforced permissions" section.
 export interface PermissionCatalogEntry {
   key: string;
   label: string;
@@ -16,44 +14,8 @@ export interface PermissionCatalogEntry {
     | "Store & Settings";
 }
 
-/**
- * Removed from the catalog on 2026-09-29, after a second, line-by-line
- * re-investigation of every catalog-only key confirmed the feature each one
- * would front does not exist anywhere in the app. A checkbox that can never
- * do anything is worse than no checkbox: it tells an owner they have
- * restricted an employee when they have not. Do NOT re-add one from the
- * QuickBooks comparison without shipping its action in the same commit.
- *
- *   open_cash_drawer            no drawer hardware integration at all - no
- *                               ESC/POS kick, no serial/USB code in
- *                               src-tauri (lib.rs/main.rs), no "no sale"
- *   view_drawer_counts          no cash-count, expected-vs-actual or
- *                               variance concept exists in any form
- *   edit_completed_sale         the only post-checkout writes to `sales` are
- *                               refunds, the reseller-commission redeem and
- *                               a debt payment - all already keyed
- *   override_credit_limit       customers.credit_limit is a column and one
- *   manage_customer_credit_terms report export column; nothing sets it and
- *                               nothing reads it as a limit
- *   manage_stock_batches        no batch CRUD screen; /inventory/batches has
- *                               no TabsContent and createStockBatch()'s only
- *                               caller is receiving/audit restock
- *
- * delete_products, delete_suppliers and approve_stock_transfers were removed
- * alongside these on 2026-09-29 and RESTORED the same day: in each case the
- * missing piece was the feature, not the key, so the feature was built and
- * the key came back enforced with it. approve_stock_transfers came back as
- * "Review Stock Transfers" rather than "Approve Incoming Stock Transfers" -
- * it clears the needs_review flag on a transfer that has already landed, it
- * does not hold stock pending approval. See client/AGENTS.md's Inventory &
- * Stock block for the deactivate-vs-delete safety-check design and the
- * review-vs-approval-queue reasoning.
- *
- * open_cash_drawer and manage_stock_batches predate the QuickBooks pass and
- * may linger as inert strings in an already-synced
- * permission_groups.permissions array. That is harmless - an unrecognised
- * key grants nothing - so no migration backfills them out.
- */
+// Keys removed from the catalog on 2026-09-29, and the three removed-then-restored
+// same day: see client/AGENTS.md's "Removed from the catalog" section.
 export const PERMISSION_CATALOG: PermissionCatalogEntry[] = [
   { key: "process_sales", label: "Process Sales", category: "Sales & POS" },
   { key: "apply_discounts", label: "Apply Discounts", category: "Sales & POS" },
@@ -112,15 +74,8 @@ export const PERMISSION_CATALOG: PermissionCatalogEntry[] = [
   { key: "factory_reset", label: "Factory Reset Device", category: "Store & Settings" },
 ];
 
-/**
- * The exact permission set each default group is seeded with (Task 5) and
- * restored to by "Revert to Default" (Task 10) - derived to reproduce
- * today's 6-helper behavior exactly for each role, so migrating an
- * existing store changes nothing on day one. Cross-referenced against
- * auth-context.tsx's checkIsAdmin/checkCanManageStockBatch/
- * checkCanProcessSales/checkCanViewAllActivity/checkCanFactoryReset arrays
- * as they stood before Task 8's migration.
- */
+// How these five lists were derived, and why each omission is deliberate:
+// see client/AGENTS.md's "The default-group lists themselves" section.
 export const DEFAULT_GROUP_PERMISSIONS: Record<
   "admin" | "manager" | "specialist" | "sales_staff" | "auditor",
   string[]
@@ -133,9 +88,6 @@ export const DEFAULT_GROUP_PERMISSIONS: Record<
     "dispense_prescriptions", "manage_prescriptions",
     "manage_customers", "manage_loyalty",
     "view_reports", "export_reports",
-    // view_all_expenses is what un-scopes the Expenses ledger from "mine" to
-    // "everyone's" (use-finance-data.ts); specialist and sales_staff are
-    // deliberately left without it, so they still see only what they logged.
     "record_expenses", "view_all_expenses",
     "manage_staff",
     "manage_store_settings", "manage_payment_accounts", "manage_online_store", "backup_restore_data",
@@ -144,10 +96,6 @@ export const DEFAULT_GROUP_PERMISSIONS: Record<
     "view_cost_fields", "edit_product_cost", "edit_product_price", "delete_products",
     "perform_stock_audit", "view_stock_adjustment_history", "print_product_labels",
     "export_product_list", "view_suppliers", "delete_suppliers",
-    // 2026-09-29: approve_stock_transfers is the owner-side "second pair of
-    // eyes" on a staff-requested transfer, so it tracks manage_staff's
-    // population rather than the stock role's - specialist can request a
-    // transfer but not sign its own request off.
     "approve_stock_transfers",
     "delete_customers", "view_customer_balances",
     "view_dashboard", "view_financial_reports",
@@ -162,20 +110,11 @@ export const DEFAULT_GROUP_PERMISSIONS: Record<
     "dispense_prescriptions", "manage_prescriptions",
     "manage_customers",
     "record_expenses",
-    // 2026-09-28 granularity pass: a specialist is the stock-owning role, so
-    // it gets the cost/price/audit rights but none of the destructive
-    // (delete_*) or money-side (daily close) ones.
     "hold_sales", "view_sales_history",
     "view_cost_fields", "edit_product_cost", "edit_product_price",
     "perform_stock_audit", "view_stock_adjustment_history", "print_product_labels",
     "export_product_list", "view_suppliers",
     "view_dashboard", "manage_device_settings",
-    // 2026-09-28 enforcement pass (Customers & Loyalty): the customer
-    // balance column, debt summary and the detail panel's outstanding
-    // block were shown to every role before the key existed, so the grant
-    // here is behaviour-preserving rather than a widening. An owner who
-    // wants debt figures kept from the stock role unticks it, which
-    // previously did nothing.
     "view_customer_balances",
     // NOT: void_refund_sales/apply_discounts/override_price (checkIsAdmin-only today),
     // NOT: view_reports/export_reports/view_activity_log/manage_staff/manage_* settings
@@ -184,35 +123,9 @@ export const DEFAULT_GROUP_PERMISSIONS: Record<
     "process_sales",
     "manage_customers",
     "record_expenses",
-    // sales_staff has no other grant under any of today's 6 helpers.
-    // 2026-09-28 granularity pass: only the rights a cashier needs to work
-    // their own till - never cost/margin figures (see AGENTS.md's cashier
-    // visibility-gating section).
     "hold_sales", "view_sales_history", "reprint_receipt", "view_dashboard",
-    // 2026-09-28 enforcement pass (Inventory & Stock): the POS header's
-    // "Request stock from another store" button is a cashier feature - it
-    // was reachable by sales_staff whenever the store's own
-    // staff_can_request_transfers toggle was on, and that toggle is still
-    // the store-wide switch. Granting the key here keeps that exact
-    // behavior now that the button also requires it; an owner who wants
-    // to withhold it from one cashier group unticks it, which previously
-    // did nothing.
     "request_stock_transfers",
-    // 2026-09-28 enforcement pass: added once override_price gained a real
-    // gate. The app's only price-override surface is the reseller /
-    // store-markup unit price (pos-cart-item.tsx), which is floored at the
-    // product's own price - it can raise a line, never discount it - and the
-    // cashier is who rings reseller sales. Withholding it here would have
-    // made the Reseller toggle inert at the till the moment enforcement
-    // landed. An owner who wants markup pricing to be a supervisor decision
-    // unticks it; that now actually does something.
     "override_price",
-    // 2026-09-28 enforcement pass (Customers & Loyalty): same reasoning as
-    // specialist above, and more sharply - "Record Payment" lives INSIDE
-    // the outstanding-balance block, so withholding this key would have
-    // taken over-the-counter debt collection away from the cashier, who is
-    // exactly who does it. Behaviour-preserving; the owner unticks it to
-    // actually restrict.
     "view_customer_balances",
   ],
   auditor: [
@@ -222,47 +135,18 @@ export const DEFAULT_GROUP_PERMISSIONS: Record<
     "view_sales_history",
     "view_cost_fields", "view_stock_adjustment_history", "view_suppliers",
     "view_customer_balances", "view_dashboard", "view_financial_reports",
-    // 2026-09-28 enforcement pass (Inventory & Stock): the catalog's
-    // Export dropdown is reachable by every role today, and an auditor
-    // already holds export_reports - taking a read-only copy of the
-    // product list off the device is the same right, so withholding it
-    // here would have been a narrowing the moment enforcement landed.
     "export_product_list",
   ],
 };
 
-/**
- * The catalog revision the DEFAULT_GROUP_PERMISSIONS lists above belong to.
- * Stamped onto stores.permission_catalog_version by
- * ensurePermissionGroupsSeeded()/backfillDefaultGroupPermissions()
- * (lib/db/queries/permission-groups.ts) and by the server's
- * PermissionGroupSeeder, so an ALREADY-seeded store can be brought forward
- * to a later catalog instead of being frozen on the list it was seeded with.
- *
- *   1  the feature's launch lists (2026-09-27, a5f40463)
- *   2  everything the 2026-09-28 QuickBooks expansion and the 2026-09-28/29
- *      enforcement passes added to a default group
- *
- * Bumping this REQUIRES adding the matching entry to
- * DEFAULT_GROUP_PERMISSION_ADDITIONS below and to the PHP seeder's copy of
- * both - PermissionCatalogParityTest (laravel-server) fails otherwise.
- */
+// What a version means and what bumping it requires: see client/AGENTS.md's
+// "Catalog versioning and the default-group backfill" section.
 export const PERMISSION_CATALOG_VERSION = 2;
 
 export type DefaultGroupRole = keyof typeof DEFAULT_GROUP_PERMISSIONS;
 
-/**
- * Per catalog version, the keys each default group GAINED at that version.
- * The backfill unions these into an existing default group's stored
- * `permissions` array for every version newer than the store's stamp - it
- * never removes anything, and never adds a key from a version the store was
- * already stamped at, so a key an owner deliberately unticked after being
- * stamped at v2 is never silently restored by a later v3 pass.
- *
- * Deliberately a literal table rather than a diff computed against a stored
- * snapshot of each old list: the same table has to exist byte-for-byte in
- * PHP, and a literal ports without re-deriving anything.
- */
+// Add-only, delta-scoped backfill semantics and why this is a literal table:
+// see client/AGENTS.md's catalog-versioning section.
 export const DEFAULT_GROUP_PERMISSION_ADDITIONS: Record<number, Record<DefaultGroupRole, string[]>> = {
   2: {
     admin: [
@@ -302,10 +186,8 @@ export const DEFAULT_GROUP_PERMISSION_ADDITIONS: Record<number, Record<DefaultGr
   },
 };
 
-/** Every key any backfill is allowed to add to a given default role's group,
- * across every catalog version. The server's sync-push guard uses the same
- * set to recognise a backfill UPDATE pushed by a device whose signed-in user
- * does not hold those keys themselves. */
+// Mirrored by the server's sync-push backfill exemption: see client/AGENTS.md's
+// catalog-versioning section.
 export function backfillableKeysForRole(role: string): string[] {
   const seen = new Set<string>();
   for (const byRole of Object.values(DEFAULT_GROUP_PERMISSION_ADDITIONS)) {
@@ -314,18 +196,8 @@ export function backfillableKeysForRole(role: string): string[] {
   return Array.from(seen);
 }
 
-/**
- * Permission keys with a real useHasPermission()/hasPermission() call site
- * gating something in the app today - every OTHER key in PERMISSION_CATALOG
- * is a real, toggleable checkbox in the Roles & Permissions matrix that
- * currently does nothing anywhere else in the app (final review, Important
- * I5: toggling one of those looks like it changes behavior but doesn't,
- * which is worse than not having the checkbox at all). The matrix UI reads
- * this set to mark unenforced rows honestly instead of implying parity with
- * the 7 keys actually wired up. Update this set in the SAME commit as any
- * new useHasPermission(key)/hasPermission(user, group, key) call site -
- * it is not derived automatically from the codebase.
- */
+// Hand-maintained; add a key here in the same commit as its first call site.
+// See client/AGENTS.md's "Enforced permissions" section.
 export const ENFORCED_PERMISSION_KEYS: ReadonlySet<string> = new Set([
   "process_sales", // pos-layout-header.tsx, auth-context.tsx (canProcessSales)
   "apply_discounts", // pos-cart.tsx

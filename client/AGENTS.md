@@ -475,9 +475,24 @@ balance. New POs already prefill from a real `AVG(cost_price)` via
 
 ## Enforced permissions
 
+**Permission keys are stable identifiers and are never renamed once
+shipped.** `permission_groups.permissions` stores a JSON array of the raw
+key strings, so renaming a key makes every already-synced group silently
+lose that grant — there is no migration path that can tell "the owner
+unticked this" from "the key moved". Retire a key by deleting it (an
+unrecognised key in a stored array grants nothing and is harmless) and add
+the replacement as a new key. `PermissionCatalogEntry.category` exists only
+to group rows for the Roles & Permissions matrix UI.
+
 `ENFORCED_PERMISSION_KEYS` (`lib/constants/permissions.ts`) lists the keys
-with a real call site; the Roles & Permissions matrix reads it to mark the
-rest as not-yet-wired. That mark is **customer-facing copy on a screen real
+with a real `useHasPermission()` / `hasPermission()` call site; the Roles &
+Permissions matrix reads it to mark the rest as not-yet-wired. **It is a
+hand-maintained set, not derived from the codebase** — add the key to it in
+the same commit as its first call site, or the matrix will keep telling
+owners a live gate is "coming soon". Each entry carries a one-line
+comment naming its call sites; that inline index is the one place in the
+file comments are allowed to stay, because it is a lookup table rather than
+an explanation. That mark is **customer-facing copy on a screen real
 store owners use**, so it reads as a product roadmap note, not a dev TODO:
 an outline `Badge` saying "Coming soon" (matching `data-settings-auto-sync.tsx`'s
 "Pro Feature" badge), with the tooltip "This permission is coming in a future
@@ -1451,6 +1466,39 @@ re-litigating this: the standing rule is that a key and its enforcement ship
 in the **same commit**, and that rule now runs in both directions — a key
 with no action does not get to sit in the catalog waiting for one.
 
+### The default-group lists themselves (`DEFAULT_GROUP_PERMISSIONS`)
+
+`DEFAULT_GROUP_PERMISSIONS` (`lib/constants/permissions.ts`) is the exact
+permission set each of the five default groups is **seeded with**, and the
+set "Revert to Default" in the matrix restores a group to. It was not
+designed from scratch: every entry was **derived to reproduce the six
+coarse `auth-context.tsx` helpers' behaviour exactly, role by role**, and
+cross-referenced against `checkIsAdmin` / `checkCanManageStockBatch` /
+`checkCanProcessSales` / `checkCanViewAllActivity` / `checkCanFactoryReset`'s
+role arrays as they stood **before** the per-permission migration — so
+migrating an existing store changed nothing on day one. That is why the
+lists look uneven; each omission below is a legacy helper's shape, not an
+oversight:
+
+- **`admin`** is `PERMISSION_CATALOG.map(p => p.key)` — everything, by
+  construction, so a new catalog key never needs an admin edit.
+- **`manager`** deliberately excludes `view_activity_log`,
+  `manage_roles_permissions`, `manage_billing` and `factory_reset`:
+  `checkCanViewAllActivity` and `checkCanFactoryReset` both excluded
+  `manager` at migration time.
+- **`specialist`** excludes `void_refund_sales`, `apply_discounts` and
+  `override_price` (all `checkIsAdmin`-only then), and the whole
+  reports / activity-log / staff / store-settings surface. As the
+  stock-owning role it holds the cost / price / audit rights but none of
+  the destructive (`delete_*`) or money-side (`run_daily_close`) ones.
+- **`sales_staff`** and **`auditor`** hold only what their helpers already
+  implied; each later addition to those two is annotated with its own
+  reasoning in the per-key blocks above, and every one of them is
+  behaviour-preserving rather than a widening.
+
+Anything that changes one of these lists is a catalog-version bump, not an
+edit in place — see the next section.
+
 ### Catalog versioning and the default-group backfill (2026-09-29)
 
 **The seeder only ever runs once per store, so the catalog it seeded with is
@@ -1563,6 +1611,14 @@ pre-backfill array.
   **that stored row's own** `based_on_role`. It cannot widen anything — the
   candidate set is a server-side constant and the row's role is read from the
   database, not the payload.
+
+`DEFAULT_GROUP_PERMISSION_ADDITIONS` is **deliberately a literal,
+hand-written table rather than a diff computed against a stored snapshot of
+each old default list.** The same table has to exist byte-for-byte in PHP
+(`PermissionGroupSeeder`, enforced by `PermissionCatalogParityTest`), and a
+literal ports across without either side re-deriving anything — a computed
+diff would have to reproduce the derivation identically in two languages to
+stay in parity.
 
 Bumping `PERMISSION_CATALOG_VERSION` therefore means: add the version's entry
 to `DEFAULT_GROUP_PERMISSION_ADDITIONS`, mirror both into the PHP seeder

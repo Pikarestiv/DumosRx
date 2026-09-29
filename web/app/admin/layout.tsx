@@ -4,7 +4,7 @@ import { AdminSidebar } from "@/components/admin/admin-sidebar";
 import { AdminHeader } from "@/components/admin/admin-header";
 import { useAdminAuthStore, checkCanAccessAdmin } from "@/lib/store/use-admin-auth-store";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 
 export default function AdminLayout({
@@ -39,12 +39,20 @@ export default function AdminLayout({
   } = useAdminAuthStore();
   const router = useRouter();
   const [checking, setChecking] = useState(true);
+  // `checking` is state, so the redirect effect below - which React runs in
+  // the same commit, right after this file's first effect - would still read
+  // the previous render's value and treat "not verified yet" as "logged out".
+  // This ref is written synchronously, so both effects agree within one
+  // commit. Both are needed: the ref keeps the guard correct inside a commit,
+  // the state drives the spinner and the re-render once the check settles.
+  const verifyingRef = useRef(false);
 
   // Summary is handled by useAdminSummary hook automatically
 
   useEffect(() => {
     const checkAuth = async () => {
       if (bypassGuard) {
+        verifyingRef.current = false;
         setChecking(false);
         return;
       }
@@ -57,7 +65,13 @@ export default function AdminLayout({
       // let a forged entry paint the whole admin shell before the first 401
       // cascade resolved.
       if (!sessionVerified) {
-        await initSession();
+        verifyingRef.current = true;
+        setChecking(true);
+        try {
+          await initSession();
+        } finally {
+          verifyingRef.current = false;
+        }
       }
       setChecking(false);
     };
@@ -65,7 +79,7 @@ export default function AdminLayout({
   }, [sessionVerified, initSession, bypassGuard]);
 
   useEffect(() => {
-    if (bypassGuard) return;
+    if (bypassGuard || verifyingRef.current) return;
 
     if (!checking && (!sessionVerified || !user || !checkCanAccessAdmin(user.role))) {
       router.push("/admin/login");

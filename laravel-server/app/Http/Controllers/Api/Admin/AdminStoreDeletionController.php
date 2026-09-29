@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Admin;
 
+use App\Exceptions\StoreActionBlockedException;
 use App\Services\Admin\AdminStoreDeletionService;
 use Illuminate\Http\Request;
 use OpenApi\Attributes as OA;
@@ -69,7 +70,11 @@ class AdminStoreDeletionController extends AdminBaseController
     public function restoreStore(Request $request, string $id)
     {
         return $this->withErrorResponse('Restore Store', 'Failed to restore store', function () use ($request, $id) {
-            $store = $this->deletionService->restoreStore($id, $request->user());
+            try {
+                $store = $this->deletionService->restoreStore($id, $request->user());
+            } catch (StoreActionBlockedException $e) {
+                return response()->json(['error' => $e->getMessage()], 422);
+            }
 
             if (!$store) {
                 return response()->json(['error' => 'No archived store with this id'], 404);
@@ -106,7 +111,11 @@ class AdminStoreDeletionController extends AdminBaseController
         ]);
 
         return $this->withErrorResponse('Purge Store', 'Failed to permanently delete store', function () use ($request, $id) {
-            $removed = $this->deletionService->purgeStore($id, $request->user());
+            try {
+                $removed = $this->deletionService->purgeStore($id, $request->user());
+            } catch (StoreActionBlockedException $e) {
+                return response()->json(['error' => $e->getMessage()], 422);
+            }
 
             if ($removed === null) {
                 return response()->json(['error' => 'Store not found'], 404);

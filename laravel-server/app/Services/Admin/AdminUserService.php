@@ -392,19 +392,23 @@ class AdminUserService
         return DB::transaction(function () use ($id) {
             $user = User::findOrFail($id);
 
-            // Delete associated store (cascades should ideally handle this, but explicit deletion is safer)
-            if ($user->store) {
-                // If there are specific related models that need explicit deletion, handle them here.
-                $user->store->delete();
+            $userEmail = $user->email;
+
+            foreach ($user->stores as $store) {
+                $store->forceFill([
+                    'deleted_by_id' => Auth::id(),
+                    'deletion_reason' => "Owner account deleted: {$userEmail} ({$user->id})",
+                ])->save();
+
+                $store->delete();
             }
 
-            $userEmail = $user->email;
             $user->delete();
 
             ActivityLog::create([
                 'user_id' => Auth::id(),
                 'action' => 'USER_DELETION',
-                'description' => "Permanently deleted user account: {$userEmail} ({$id}) and all associated data.",
+                'description' => "Deleted user account: {$userEmail} ({$id}). Their stores were archived with them.",
                 'status' => 'success',
             ]);
 

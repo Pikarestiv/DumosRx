@@ -37,11 +37,13 @@ class CheckAccountStatus
         }
 
         // 2. Check if store is suspended
+        // withTrashed(): an archived store must still answer "is this
+        // account suspended?", otherwise archiving silently un-suspends it.
         $store = null;
         if ($user->store_id) {
-            $store = Store::find($user->store_id);
+            $store = Store::withTrashed()->find($user->store_id);
         } else {
-            $store = Store::where('user_id', $user->id)->first();
+            $store = Store::withTrashed()->where('user_id', $user->id)->first();
         }
 
         if ($store && $store->status === 'Suspended') {
@@ -49,6 +51,14 @@ class CheckAccountStatus
                 'success' => false,
                 'message' => 'ACCOUNT_SUSPENDED',
                 'reason' => $store->suspension_reason ?: 'Your business account has been suspended for violating our terms of usage. Please contact administrative support.'
+            ], 403);
+        }
+
+        if ($store && $store->trashed()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'STORE_ARCHIVED',
+                'reason' => 'This store has been archived by an administrator and can no longer sync or record data. Please contact administrative support.'
             ], 403);
         }
 

@@ -188,7 +188,7 @@ export function useActionCenterAlerts(
           icon: Clock,
           priority: "warning",
           actionLabel: "Check Now",
-          actionRoute: "/inventory/batches",
+          actionRoute: "/inventory/catalog",
         });
       }
 

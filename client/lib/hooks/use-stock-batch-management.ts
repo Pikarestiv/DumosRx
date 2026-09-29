@@ -27,6 +27,12 @@ export function useStockBatchManagement(currentTab: string) {
       if (canPerformStockAudit) setIsAuditing(true);
       router.replace("/inventory/overview");
     }
+    // /inventory/batches is a generateStaticParams route with no <TabsContent>
+    // behind it, so it rendered a blank panel. The Catalog tab is the
+    // all-products view its three callers actually meant.
+    if (currentTab === "batches") {
+      router.replace("/inventory/catalog");
+    }
     // The "Movements" tab UI is hidden entirely for roles without stock-management
     // access, but the /inventory/ledger route itself is still directly reachable
     // (typed URL, stale bookmark) - bounce those viewers back to a tab they can see.

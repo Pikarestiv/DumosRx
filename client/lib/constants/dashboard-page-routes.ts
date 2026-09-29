@@ -70,15 +70,6 @@ export const PAGE_ROUTES: PageRoute[] = [
     secondaryActionAdminOnly: true,
   },
   {
-    path: "/inventory/batches",
-    title: "Stock Inventory",
-    desc: "Manage inventory intake, expiration dates, and physical stock.",
-    action: { label: "Add Batch", path: "/inventory/batches?action=add" },
-    actionAdminOnly: true,
-    secondaryAction: { label: "Start Audit", path: "/inventory/audits" },
-    secondaryActionAdminOnly: true,
-  },
-  {
     path: "/inventory/overview",
     title: "Inventory Dashboard",
     desc: "Overview of your inventory health and metrics.",

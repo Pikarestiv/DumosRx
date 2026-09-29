@@ -52,7 +52,7 @@ None open. `A-9` (receiving the same purchase order from two devices booked the 
 
 ## 4. Low-priority findings (P3)
 
-`A-25` (`npm run test:schema` was broken) is fixed — see `docs/FIXED_BUGS.md`. Its "add to CI" half is intentionally not done; see that entry's Ruling. `A-29` (a double-encoded `stores.enabled_payment_methods` blanked the admin Store Details page in production on 2026-09-29) is fixed — see `docs/FIXED_BUGS.md`; `A-30` and `A-31` below are its residual ops cleanup and a same-family follow-up, neither of which blocks it. Three findings are open:
+`A-25` (`npm run test:schema` was broken) is fixed — see `docs/FIXED_BUGS.md`. Its "add to CI" half is intentionally not done; see that entry's Ruling. `A-29` (a double-encoded `stores.enabled_payment_methods` blanked the admin Store Details page in production on 2026-09-29) is fixed — see `docs/FIXED_BUGS.md`; `A-30` below is its residual ops cleanup, which does not block it. `A-31` (the same-family follow-up in `client/`) is also fixed — see `docs/FIXED_BUGS.md`. Two findings are open:
 
 #### A-30. `laravel-server`/ops — production `stores` rows still hold a double-encoded `enabled_payment_methods` value
 - **Category:** Data cleanup — confirmed from production (store `edc5b0f0-6f59-4ce7-8015-5f96fa311895`, device `DRX-JIMA7TL8S`)
@@ -72,15 +72,6 @@ None open. `A-9` (receiving the same purchase order from two devices booked the 
   ```
   The apparent no-op assignment is the point: the accessor decodes the malformed value into a real array and the mutator writes it back singly-encoded. `saveQuietly()` avoids firing model events / touching `updated_at`-driven sync watermarks. Apply the same to `custom_units` if the query above (with the column swapped) returns rows.
 - **Do not hand-edit the column with a raw `UPDATE`** — a raw write bypasses the cast and can reintroduce exactly the encoding this is cleaning up.
-
-#### A-31. `client/` — the settings form's first render parses `enabled_payment_methods` without a `try`/`catch`
-- **Category:** Robustness — confirmed by reading, found while fixing `A-29`
-- **Location:** `client/hooks/use-settings-form.ts:40`
-- **Problem:** the `useState` initialiser does a bare `JSON.parse(storeProfile.enabled_payment_methods)`. The `useEffect` performing the identical parse at line 82 is wrapped in `try`/`catch` with a sensible fallback; the initialiser is not. A malformed or non-JSON local value therefore throws during the settings screen's very first render, before the guarded path ever runs.
-- **Why it matters:** the Tauri client has no error boundary on that route either, so the throw takes the settings screen down rather than falling back to the default method list.
-- **Recommended fix:** extract the parse-with-fallback used at line 82 into one helper and call it from both sites, so the two can't drift again. Needs a test in `client/__tests__/` alongside it.
-- **Confidence:** High on mechanics (the guarded twin 40 lines below is the proof it was an oversight); low observed frequency — no production report of this specific throw.
-- **Status:** Open, logged not fixed — deliberately not patched inside the `A-29` commit, which is scoped to `web/` and `laravel-server/`.
 
 #### A-26. `client/` — a stale device's legitimate second partial receipt collapses into the first one, and nothing tells the store the remainder was never booked
 - **Category:** Data accuracy / Sync — confirmed, accepted trade-off of the A-9 fix

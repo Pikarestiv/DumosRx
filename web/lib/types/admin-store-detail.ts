@@ -32,6 +32,44 @@ export interface AdminStoreDetailActivity {
   at: string | null;
 }
 
+export interface AdminStoreBusinessMetrics {
+  revenue_raw: number;
+  revenue: string;
+  order_count: number;
+  average_order_value: string;
+  average_order_value_raw: number;
+  active_days: number;
+  days_since_registration: number;
+  first_sale_at: string | null;
+  last_sale_at: string | null;
+  window_days: number;
+  revenue_last_window: string;
+  orders_last_window: number;
+  /** null when the previous window had no revenue at all, which makes a
+   * percentage change meaningless rather than infinite. */
+  revenue_growth_pct: number | null;
+  order_growth_pct: number | null;
+  monthly_trend: Array<{ label: string; revenue: string; revenue_raw: number; orders: number }>;
+}
+
+export interface AdminStoreOperationalMetrics {
+  staff_count: number;
+  device_id: string | null;
+  device_count: number;
+  active_sessions: number;
+  inventory: { products: number; categories: number; suppliers: number; customers: number };
+  stock_activity: {
+    movements: number;
+    movements_last_window: number;
+    audits: number;
+    audits_last_window: number;
+  };
+  last_active_at: string | null;
+  last_active_human: string;
+  activity_last_window: number;
+  sync_health: string;
+}
+
 export interface AdminStoreDetail {
   id: string;
   name: string;
@@ -76,12 +114,17 @@ export interface AdminStoreDetail {
     require_payment_account: boolean;
     enabled_payment_methods: unknown;
   };
+  is_archived: boolean;
+  archived_at: string | null;
+  deletion_reason: string | null;
   counts: {
     staff: number;
     products: number;
     customers: number;
     sales: number;
   };
+  business_metrics: AdminStoreBusinessMetrics;
+  operational_metrics: AdminStoreOperationalMetrics;
   recent_transactions: AdminBillingTransaction[];
   recent_activity: AdminStoreDetailActivity[];
 }

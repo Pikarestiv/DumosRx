@@ -27,6 +27,13 @@ class AppServiceProvider extends ServiceProvider
     {
         \Illuminate\Support\Facades\Schema::defaultStringLength(191);
 
+        // The store purge asks for an exact confirmation phrase and the
+        // dialog rejects padded input; TrimStrings would otherwise let
+        // " DumosRx" through server-side. See docs/ADMIN_STORE_LIFECYCLE.md.
+        \Illuminate\Foundation\Http\Middleware\TrimStrings::skipWhen(
+            fn (Request $request) => $request->is('api/v1/admin/stores/*/purge')
+        );
+
         RateLimiter::for('auth', function (Request $request) {
             return Limit::perMinute(5)->by($request->ip());
         });

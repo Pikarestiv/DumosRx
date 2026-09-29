@@ -137,6 +137,16 @@ reached at `/admin/stores/details/?id=<storeId>`; the old `ViewStoreDialog` in
   `useSearchParams()`, it needs its own `<Suspense>` boundary — see the
   storefront section below for why `tsc`/`vitest` won't catch a missing one.
 
+**Build the detail link with `adminStoreDetailPath()`** (`lib/admin-routes.ts`)
+— never by hand. The fleet row click, the row kebab and the dashboard's Recent
+Stores dialog all share it; the dialog used to deep-link to
+`/admin/stores?search=<uuid>` instead, landing on a filtered list rather than
+the store. The fleet row navigates on click, so the kebab's cell stops `click`
+and `keydown` propagation; any new interactive control in a row must do the
+same. Archive / restore / permanent-delete entries are super_admin-only in the
+kebab and enforced again server-side, and the permanent one is gated on typing
+`DumosRx`. See `docs/ADMIN_STORE_LIFECYCLE.md`.
+
 The page fetches `GET /admin/stores/{id}` via `useAdminStoreDetail`; the fleet
 list row (`AdminStoreSummary`) is not enough and must not be passed through
 router state, since the page has to survive a reload and a pasted link.

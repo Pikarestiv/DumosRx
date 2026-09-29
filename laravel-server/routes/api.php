@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\Admin\AdminPlatformController;
 use App\Http\Controllers\Api\Admin\AdminStoreController;
+use App\Http\Controllers\Api\Admin\AdminStoreDeletionController;
 use App\Http\Controllers\Api\Admin\AdminUserController;
 // Namespaced Controllers
 use App\Http\Controllers\Api\Admin\MailController;
@@ -188,6 +189,9 @@ Route::prefix('v1')->group(function () {
             Route::post('/stores/{id}/grant-trial', [AdminStoreController::class, 'grantTrial'])->middleware('permission:grant_trials');
             Route::post('/stores/{id}/activate-plan', [AdminStoreController::class, 'activatePlan'])->middleware('permission:grant_trials');
             Route::get('/stores/{id}/billing-history', [AdminStoreController::class, 'billingHistory'])->middleware('role:super_admin');
+            Route::delete('/stores/{id}/purge', [AdminStoreDeletionController::class, 'purgeStore'])->middleware('role:super_admin');
+            Route::delete('/stores/{id}', [AdminStoreDeletionController::class, 'archiveStore'])->middleware('role:super_admin');
+            Route::post('/stores/{id}/restore', [AdminStoreDeletionController::class, 'restoreStore'])->middleware('role:super_admin');
             Route::post('/users/{id}/grant-trial', [AdminUserController::class, 'grantUserTrial'])->middleware('permission:grant_trials');
             Route::post('/users/{id}/activate-plan', [AdminUserController::class, 'activateUserPlan'])->middleware('permission:grant_trials');
             Route::get('/products', [AdminPlatformController::class, 'products'])->middleware('role:super_admin');

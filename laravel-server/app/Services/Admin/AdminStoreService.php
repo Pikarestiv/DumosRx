@@ -97,7 +97,7 @@ class AdminStoreService
             });
     }
 
-    public function getStores($page = 1, $search = null, $status = null, $plan = null)
+    public function getStores($page = 1, $search = null, $status = null, $plan = null, $archived = 'active')
     {
         // Correlated subquery instead of a plain withSum('sales', ...), for
         // two reasons:
@@ -120,10 +120,17 @@ class AdminStoreService
         $query = Store::with(['user.subscriptions', 'user.accountManager', 'user.registeredBy'])
             ->addSelect(['total_revenue' => self::revenueSubquery()]);
 
+        if ($archived === 'only') {
+            $query->onlyTrashed();
+        } elseif ($archived === 'all') {
+            $query->withTrashed();
+        }
+
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
                     ->orWhere('id', 'like', "%{$search}%")
+                    ->orWhere('device_id', 'like', "%{$search}%")
                     ->orWhereHas('user', function ($uq) use ($search) {
                         $uq->where('first_name', 'like', "%{$search}%")
                             ->orWhere('last_name', 'like', "%{$search}%")
@@ -168,6 +175,9 @@ class AdminStoreService
                     'revenue' => '₦'.number_format($store->total_revenue ?? 0),
                     'date' => $store->created_at->format('M d, Y'),
                     'is_demo' => (bool) $store->is_demo,
+                    'device_id' => $store->device_id,
+                    'is_archived' => $store->deleted_at !== null,
+                    'archived_at' => $store->deleted_at?->format('M d, Y'),
                     'account_manager' => $manager ? [
                         'id' => $manager->id,
                         'name' => trim("{$manager->first_name} {$manager->last_name}"),

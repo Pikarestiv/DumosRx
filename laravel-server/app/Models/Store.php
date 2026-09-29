@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Casts\JsonList;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -14,6 +15,7 @@ use Illuminate\Support\Str;
 class Store extends Model
 {
     use HasFactory;
+    use SoftDeletes;
 
     protected $keyType = 'string';
     public $incrementing = false;
@@ -94,6 +96,7 @@ class Store extends Model
         'store_slug_changed_at' => 'datetime',
         'storefront_dirty_at' => 'datetime',
         'paystack_fee_dirty_at' => 'datetime',
+        'deleted_at' => 'datetime',
     ];
 
     /**

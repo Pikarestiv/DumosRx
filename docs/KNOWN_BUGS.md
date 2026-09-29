@@ -90,6 +90,20 @@ None open. `A-9` (receiving the same purchase order from two devices booked the 
   The apparent no-op assignment is the point: the accessor decodes the malformed value into a real array and the mutator writes it back singly-encoded. `saveQuietly()` avoids firing model events / touching `updated_at`-driven sync watermarks. Apply the same to `custom_units` if the query above (with the column swapped) returns rows.
 - **Do not hand-edit the column with a raw `UPDATE`** — a raw write bypasses the cast and can reintroduce exactly the encoding this is cleaning up.
 
+#### A-40. `laravel-server/` — `STORE_PURGED` audit row is written outside the purge transaction, and the archive/restore activity logs omit `store_id`
+- **Category:** Error Handling / Data Integrity — confirmed, from the admin store-management review (2026-09-29)
+- **Location:** `app/Services/Admin/AdminStoreDeletionService.php` — the `STORE_PURGED` `ActivityLog::create()` call sits after the purge's `DB::transaction()` closure returns; the `STORE_ARCHIVED`/`STORE_RESTORED` log entries don't set the `store_id` fillable on `ActivityLog`.
+- **Problem:** If the post-purge audit-log insert fails for any reason, the purge itself has already committed with no audit trail of who did it or why. Separately, because the archive/restore logs carry no `store_id`, that store's own activity view (`/admin/activity?store_id=`) never shows that it was archived or restored — the event is only visible from the global admin activity feed, not the store's own history.
+- **Recommended fix:** Move the `STORE_PURGED` log write inside the same transaction as the purge (or use an outbox/queued-log pattern if the log store must stay outside the DB transaction). Add `store_id` to the archive/restore `ActivityLog::create()` calls.
+- **Confidence:** High. **Status:** Open, logged 2026-09-29 — not fixed in the same pass that fixed the related H1/H2/M1-M4 findings from the same review.
+
+#### A-41. `laravel-server/` — restoring an archived store doesn't re-validate suspension state or handle a uniqueness collision
+- **Category:** Auth & Access Control / Data Integrity — confirmed, from the admin store-management review (2026-09-29)
+- **Location:** `app/Services/Admin/AdminStoreDeletionService.php::restoreStore()`
+- **Problem:** `restoreStore()` restores the store unconditionally (beyond the owner-soft-deleted guard added in the same pass, see `docs/FIXED_BUGS.md`). Two residual gaps: (1) it doesn't re-check or re-surface the store's suspension state on restore — if the store was suspended before being archived, restoring it silently brings back a suspended store with no explicit signal to the admin that suspension is still in effect; (2) `device_id`/`store_slug` are currently DB-unique so a collision with a newly-created store while the original was archived is impossible today, but if either uniqueness constraint is ever relaxed to be soft-delete-aware (i.e. only unique among non-archived rows), `restoreStore()` would need an explicit collision check that doesn't exist yet.
+- **Recommended fix:** Surface the store's suspension state explicitly in the restore confirmation/response. Add a uniqueness re-check to `restoreStore()` if/when `device_id`/`store_slug` uniqueness is ever relaxed to exclude soft-deleted rows.
+- **Confidence:** Medium (gap 1 is real today; gap 2 is speculative, contingent on a future schema change). **Status:** Open, logged 2026-09-29.
+
 #### A-26. `client/` — a stale device's legitimate second partial receipt collapses into the first one, and nothing tells the store the remainder was never booked
 - **Category:** Data accuracy / Sync — confirmed, accepted trade-off of the A-9 fix
 - **Location:** `client/lib/db/deterministic-id.ts` (`receiptBatchId`/`receiptMovementId`), `client/lib/db/procurement-receiving.ts` (`receivePurchaseOrder`), server-side `SyncController::push()`'s INSERT→UPDATE collapse

@@ -186,16 +186,6 @@ export const DEFAULT_GROUP_PERMISSION_ADDITIONS: Record<number, Record<DefaultGr
   },
 };
 
-// Mirrored by the server's sync-push backfill exemption: see client/AGENTS.md's
-// catalog-versioning section.
-export function backfillableKeysForRole(role: string): string[] {
-  const seen = new Set<string>();
-  for (const byRole of Object.values(DEFAULT_GROUP_PERMISSION_ADDITIONS)) {
-    for (const key of byRole[role as DefaultGroupRole] ?? []) seen.add(key);
-  }
-  return Array.from(seen);
-}
-
 // Hand-maintained; add a key here in the same commit as its first call site.
 // See client/AGENTS.md's "Enforced permissions" section.
 export const ENFORCED_PERMISSION_KEYS: ReadonlySet<string> = new Set([

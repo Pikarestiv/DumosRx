@@ -24,11 +24,22 @@ import { toast } from "sonner";
 // the ordered quantity stays impossible on every resend. Dropping it lets
 // the next pull bring down the server's real balance instead of burning
 // five retries and reporting a permanently stuck queue item.
+// permission_denied is the same class of permanent failure: the payload is
+// frozen and the caller's own grants don't change by resending it, so a
+// privilege rejection stays a privilege rejection on every attempt.
 const NON_RETRYABLE_CONFLICT_REASONS = new Set([
   "version_conflict",
   "stale_timestamp",
   "quantity_received_exceeds_ordered",
+  "permission_denied",
 ]);
+
+// Terminal reasons that are dropped quietly: the local edit was queued by
+// automatic machinery (the permission catalog backfill), not by a user
+// action anyone is waiting on, so "could not be saved" would be alarming
+// noise about something they never did. See client/AGENTS.md's "Catalog
+// versioning and the default-group backfill".
+const SILENT_TERMINAL_REASONS = new Set(["permission_denied"]);
 
 // Tables whose server row does NOT carry the id the client pushed, so no
 // future pull can ever match it and settle a terminally-conflicted local row.
@@ -543,7 +554,7 @@ export async function pushChanges(
         // into a single change before any batch was ever sent), so this
         // naturally produces exactly one toast per conflicted record, never
         // one per underlying queue row.
-        const versionConflicts: { table_name: string; record_id: string }[] = [];
+        const versionConflicts: { table_name: string; record_id: string; reason: string }[] = [];
 
         // A response lost after the server actually committed (timeout,
         // dropped connection) looks identical to a network failure from this
@@ -606,7 +617,7 @@ export async function pushChanges(
               if (wasRetried) {
                 silencedConflicts.push({ table_name: f.table_name, record_id: f.record_id });
               } else {
-                versionConflicts.push({ table_name: f.table_name, record_id: f.record_id });
+                versionConflicts.push({ table_name: f.table_name, record_id: f.record_id, reason: f.reason });
               }
             } else {
               for (const id of underlyingIds) {
@@ -695,6 +706,12 @@ export async function pushChanges(
         // server-side, only that its own edit no longer matches what it was
         // based on. State what happened, not an unverifiable cause.
         const toastableConflicts = versionConflicts.filter((conflict) => {
+          if (SILENT_TERMINAL_REASONS.has(conflict.reason)) {
+            console.info(
+              `[Sync] ${conflict.table_name} record ${conflict.record_id} was rejected as ${conflict.reason}; queue row dropped, the next pull brings the server's version down. No toast shown.`,
+            );
+            return false;
+          }
           // feedback and audit_logs are both push-only telemetry the user
           // never edits locally — nothing for them to act on, so log rather
           // than toast. audit_logs in particular has no `_version` field at

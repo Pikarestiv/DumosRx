@@ -12,6 +12,16 @@ class PermissionGroupPrivilegeEscalationTest extends TestCase
 {
     use RefreshDatabase;
 
+    /** Mirror of NON_RETRYABLE_CONFLICT_REASONS in
+     * client/lib/db/sync-engine/push.ts - every other reason is routed
+     * through recordSyncFailure's exponential-backoff retry path. */
+    private const CLIENT_NON_RETRYABLE_REASONS = [
+        'version_conflict',
+        'stale_timestamp',
+        'quantity_received_exceeds_ordered',
+        'permission_denied',
+    ];
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -86,38 +96,106 @@ class PermissionGroupPrivilegeEscalationTest extends TestCase
     }
 
     /**
-     * The client-side catalog backfill (backfillDefaultGroupPermissions,
-     * client/lib/db/queries/permission-groups.ts) runs on ANY signed-in
-     * user's login, cashiers included, and its whole job is to add keys that
-     * user does not hold. sanitizePermissionGroupSyncPayload's escalation
-     * and manage_roles_permissions checks throw rather than strip, and a
-     * thrown change goes into push.ts's exponential-backoff retry path (not
-     * the terminal version_conflict path), so without a narrow exemption a
-     * cashier's device ends up with a permanently stuck queue item. The
-     * exemption only recognises an UPDATE to a DEFAULT group that adds keys
-     * from the hardcoded DEFAULT_GROUP_PERMISSION_ADDITIONS table for that
-     * group's own role and removes nothing.
+     * The realistic upgrade ordering: validateSync() runs
+     * PermissionGroupSeeder::ensureSeeded() -> ensureCatalogBackfilled() at
+     * the top of EVERY push, before any change is processed, so the server
+     * row already holds the v2 superset by the time this device's own
+     * client-side backfill arrives. The push is therefore redundant, and
+     * must be rejected with a reason push.ts treats as TERMINAL - anything
+     * outside that set is retried forever, permanently wedging the queue
+     * row and (via pull.ts's pendingLocalEdit skip) blocking every future
+     * pull of that group.
      */
-    public function test_a_non_admin_may_push_the_catalog_backfills_add_only_update_to_a_default_group(): void
+    public function test_an_upgrading_devices_redundant_backfill_push_is_never_retryable(): void
+    {
+        $store = $this->makeStore();
+        $store->forceFill([
+            'permission_groups_seeded_at' => now(),
+            'permission_catalog_version' => null,
+        ])->save();
+
+        $defaults = \App\Services\PermissionGroupSeeder::defaultGroupPermissions();
+        $groups = [];
+        foreach (['sales_staff', 'manager'] as $role) {
+            $delta = \App\Services\PermissionGroupSeeder::pendingCatalogAdditions($role, 1);
+            $legacy = array_values(array_diff($defaults[$role], $delta));
+            $group = PermissionGroup::create([
+                'store_id' => $store->id, 'name' => ucfirst($role), 'based_on_role' => $role,
+                'is_default' => true, 'permissions' => $legacy,
+            ]);
+            $group->forceFill(['_version' => 4])->save();
+            $groups[$role] = ['model' => $group, 'backfilled' => array_merge($legacy, $delta)];
+        }
+
+        $cashier = User::create([
+            'first_name' => 'Cashier', 'last_name' => 'BF',
+            'email' => 'cashier-pgbf-' . uniqid() . '@dumosrx.com', 'password' => bcrypt('password'),
+            'role' => 'sales_staff', 'store_id' => $store->id,
+            'permission_group_id' => $groups['sales_staff']['model']->id,
+        ]);
+
+        $changes = [];
+        foreach ($groups as $entry) {
+            $changes[] = [
+                'table_name' => 'permission_groups',
+                'operation' => 'UPDATE',
+                'record_id' => $entry['model']->id,
+                'payload' => [
+                    'id' => $entry['model']->id,
+                    'permissions' => $entry['backfilled'],
+                    '_version' => 4,
+                    '_synced' => 0,
+                ],
+            ];
+        }
+
+        $response = $this->actingAs($cashier)->postJson('/api/v1/app/sync/push', [
+            'setup' => true,
+            'changes' => $changes,
+        ]);
+
+        $response->assertStatus(200);
+        foreach ($response->json('failed') ?? [] as $failure) {
+            $this->assertContains(
+                $failure['reason'],
+                self::CLIENT_NON_RETRYABLE_REASONS,
+                "Reason '{$failure['reason']}' is retried forever by push.ts, wedging the queue row.",
+            );
+        }
+
+        foreach ($groups as $entry) {
+            $this->assertContains('view_customer_balances', $entry['model']->fresh()->permissions);
+        }
+    }
+
+    /**
+     * M-1: a delta key the owner deliberately removed AFTER the store was
+     * backfilled must stay removed. Any staff member's device can pull the
+     * reduced state and push it back with the correct current _version, so
+     * nothing but the privilege check stands between them and silently
+     * undoing the owner's restriction.
+     */
+    public function test_a_staff_member_cannot_restore_a_delta_key_the_owner_removed_post_backfill(): void
     {
         $store = $this->makeStore();
         $store->forceFill([
             'permission_groups_seeded_at' => now(),
             'permission_catalog_version' => \App\Services\PermissionGroupSeeder::catalogVersion(),
         ])->save();
+
+        $defaults = \App\Services\PermissionGroupSeeder::defaultGroupPermissions();
+        $reduced = array_values(array_diff($defaults['sales_staff'], ['override_price']));
         $ownGroup = PermissionGroup::create([
             'store_id' => $store->id, 'name' => 'Sales Staff', 'based_on_role' => 'sales_staff',
-            'is_default' => true, 'permissions' => ['process_sales', 'manage_customers', 'record_expenses'],
+            'is_default' => true, 'permissions' => $reduced,
         ]);
+        $ownGroup->forceFill(['_version' => 7])->save();
+
         $cashier = User::create([
-            'first_name' => 'Cashier', 'last_name' => 'BF',
-            'email' => 'cashier-pgbf-' . uniqid() . '@dumosrx.com', 'password' => bcrypt('password'),
+            'first_name' => 'Cashier', 'last_name' => 'M1',
+            'email' => 'cashier-pgm1-' . uniqid() . '@dumosrx.com', 'password' => bcrypt('password'),
             'role' => 'sales_staff', 'store_id' => $store->id, 'permission_group_id' => $ownGroup->id,
         ]);
-        $backfilled = array_merge(
-            $ownGroup->permissions,
-            \App\Services\PermissionGroupSeeder::pendingCatalogAdditions('sales_staff', 1),
-        );
 
         $response = $this->actingAs($cashier)->postJson('/api/v1/app/sync/push', [
             'setup' => true,
@@ -127,20 +205,19 @@ class PermissionGroupPrivilegeEscalationTest extends TestCase
                 'record_id' => $ownGroup->id,
                 'payload' => [
                     'id' => $ownGroup->id,
-                    'permissions' => $backfilled,
-                    '_version' => $ownGroup->_version,
+                    'permissions' => array_merge($reduced, ['override_price']),
+                    '_version' => 7,
                     '_synced' => 0,
                 ],
             ]],
         ]);
 
         $response->assertStatus(200);
-        $this->assertEmpty($response->json('failed'));
-        $this->assertContains('hold_sales', $ownGroup->fresh()->permissions);
-        $this->assertContains('view_customer_balances', $ownGroup->fresh()->permissions);
+        $this->assertSame(['permission_denied'], array_column($response->json('failed'), 'reason'));
+        $this->assertNotContains('override_price', $ownGroup->fresh()->permissions);
     }
 
-    public function test_the_backfill_exemption_does_not_cover_a_key_outside_that_roles_addition_set(): void
+    public function test_a_non_admin_cannot_add_a_key_outside_that_roles_addition_set_to_a_default_group(): void
     {
         $store = $this->makeStore();
         $store->forceFill([
@@ -177,7 +254,7 @@ class PermissionGroupPrivilegeEscalationTest extends TestCase
         $this->assertSame(['process_sales'], $ownGroup->fresh()->permissions);
     }
 
-    public function test_the_backfill_exemption_does_not_cover_a_payload_that_removes_a_key(): void
+    public function test_a_non_admin_cannot_push_a_default_group_payload_that_removes_a_key(): void
     {
         $store = $this->makeStore();
         $store->forceFill([

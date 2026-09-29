@@ -155,21 +155,6 @@ class PermissionGroupSeeder
         return self::DEFAULT_GROUP_PERMISSION_ADDITIONS;
     }
 
-    /** Every key any backfill may ever add to a default group for $role.
-     * SyncController uses it to recognise a client-pushed backfill UPDATE
-     * whose signed-in user does not hold those keys themselves. */
-    public static function backfillableKeysForRole(string $role): array
-    {
-        $keys = [];
-        foreach (self::DEFAULT_GROUP_PERMISSION_ADDITIONS as $byRole) {
-            foreach ($byRole[$role] ?? [] as $key) {
-                $keys[$key] = true;
-            }
-        }
-
-        return array_keys($keys);
-    }
-
     private const LABELS = [
         'admin' => 'Admin',
         'manager' => 'Manager',

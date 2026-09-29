@@ -290,4 +290,54 @@ describe("pushChanges handles a version_conflict failure as non-retryable", () =
     const row = db.exec(`SELECT _version FROM products WHERE id = 'p2'`);
     expect(row[0].values[0][0]).toBe(2);
   });
+
+  // `permission_denied` is the server's stable reason for a payload
+  // sanitizePermissionGroupSyncPayload refuses on privilege grounds. The
+  // payload is frozen and the caller's own grants don't change by resending
+  // it, so retrying can never succeed - the realistic producer is an
+  // upgrading device's catalog-backfill push arriving after the server's own
+  // backfill already applied the same superset. See client/AGENTS.md's
+  // "Catalog versioning and the default-group backfill".
+  describe("permission_denied", () => {
+    function queueGroupUpdate() {
+      db.run(
+        `INSERT INTO _sync_queue (id, table_name, record_id, operation, payload, created_at)
+         VALUES (5, 'permission_groups', 'g1', 'UPDATE', ?, '2026-09-29T00:00:00Z')`,
+        [JSON.stringify({ id: "g1", permissions: '["process_sales"]', _version: 4 })],
+      );
+    }
+
+    it("is listed as non-retryable, so the queue row is dropped instead of retried forever", async () => {
+      queueGroupUpdate();
+      apiClient.pushChanges.mockResolvedValueOnce({
+        success: true,
+        processed: 0,
+        failed: [
+          { id: 5, table_name: "permission_groups", record_id: "g1", reason: "permission_denied" },
+        ],
+      });
+
+      await pushChanges();
+
+      expect(db.exec(`SELECT id FROM _sync_queue WHERE id = 5`).length).toBe(0);
+    });
+
+    it("does not toast - the user never made the edit the backfill queued on their behalf", async () => {
+      queueGroupUpdate();
+      const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+      apiClient.pushChanges.mockResolvedValueOnce({
+        success: true,
+        processed: 0,
+        failed: [
+          { id: 5, table_name: "permission_groups", record_id: "g1", reason: "permission_denied" },
+        ],
+      });
+
+      await pushChanges();
+
+      expect(toastWarning).not.toHaveBeenCalled();
+      expect(infoSpy).toHaveBeenCalled();
+      infoSpy.mockRestore();
+    });
+  });
 });

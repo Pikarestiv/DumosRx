@@ -1626,19 +1626,44 @@ pre-backfill array.
   that make it true. And nothing derives *content* from the stamp: if a v2
   stamp arrives by pull before the group rows do, that side skips its own
   backfill and the rows themselves still arrive by ordinary pull.
-- **The backfill push needed a sync-push exemption.** It runs on *any*
-  signed-in user's login, cashiers included, and its whole job is to add keys
-  that user does not hold — which
+- **The backfill push is rejected, and that rejection is terminal.** It runs
+  on *any* signed-in user's login, cashiers included, and its whole job is to
+  add keys that user does not hold — which
   `sanitizePermissionGroupSyncPayload`'s escalation and
-  `manage_roles_permissions` checks **throw** on, and a throw lands in
-  `push.ts`'s retry-with-backoff path rather than its terminal
-  `version_conflict` path, permanently wedging that device's queue.
-  `isCatalogBackfillOnlyPayload()` recognises the shape: an UPDATE to a
-  `is_default` group that touches only `permissions`, removes nothing, and
-  adds only keys `PermissionGroupSeeder::backfillableKeysForRole()` lists for
-  **that stored row's own** `based_on_role`. It cannot widen anything — the
-  candidate set is a server-side constant and the row's role is read from the
-  database, not the payload.
+  `manage_roles_permissions` checks throw on. The fix is **not** to exempt
+  that payload; it is to make the rejection terminal on the client. Those two
+  throws are a `SyncPushPermissionDeniedException`, which `push()`'s
+  per-change catch reports as the stable reason **`permission_denied`**
+  (the exception message still carries the specific detail into the log), and
+  `push.ts`'s `NON_RETRYABLE_CONFLICT_REASONS` lists it beside
+  `version_conflict`: the queue row is dropped on the first response instead
+  of retried forever, and the next pull brings the server's row down. It is
+  also in `SILENT_TERMINAL_REASONS`, so no "could not be saved" toast fires —
+  the user never made the edit the backfill queued on their behalf, and the
+  matrix UI gates a *real* group edit behind `manage_roles_permissions`
+  anyway.
+
+  This is correct for the failure class in general, not just for the
+  backfill: a payload is frozen once queued and the caller's own grants don't
+  change by resending it, so a privilege rejection stays a privilege
+  rejection on every attempt — exactly the property that already makes
+  `version_conflict` terminal.
+
+  **An exemption was tried first and was wrong twice over**
+  (`isCatalogBackfillOnlyPayload()`, removed 2026-09-29, with
+  `backfillableKeysForRole()` on both sides). It was dead code in the real
+  ordering: `validateSync()` runs `ensureSeeded()` → `ensureCatalogBackfilled()`
+  at the top of **every** push and pull, before any change is processed, so
+  the server row already holds the v2 superset when the device's own backfill
+  push arrives — the payload adds nothing, the exemption's `added` set is
+  empty, and it falls through to the privilege check anyway. Every upgrading
+  cashier device therefore ended up with 5 permanently-stuck
+  `permission_groups` queue rows, and `pull.ts` skips pulling any record with
+  a pending queue row, so those devices would never have received another
+  server-side change to any default group again. It also did not "cover
+  nothing but the backfill": it accepted any key in that role's delta set at
+  any time, so a staff device could re-add a key the owner had deliberately
+  removed post-backfill and the server took it.
 
 `DEFAULT_GROUP_PERMISSION_ADDITIONS` is **deliberately a literal,
 hand-written table rather than a diff computed against a stored snapshot of

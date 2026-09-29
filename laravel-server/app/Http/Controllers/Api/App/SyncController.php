@@ -643,7 +643,9 @@ class SyncController extends Controller
                         'id' => $change['id'] ?? null,
                         'table_name' => $change['table_name'],
                         'record_id' => $change['record_id'] ?? null,
-                        'reason' => $e->getMessage(),
+                        'reason' => $e instanceof \App\Exceptions\SyncPushPermissionDeniedException
+                            ? \App\Exceptions\SyncPushPermissionDeniedException::REASON
+                            : $e->getMessage(),
                     ];
                 }
             }
@@ -1903,11 +1905,6 @@ class SyncController extends Controller
             unset($payload['name'], $payload['is_default'], $payload['based_on_role']);
         }
 
-        if ($operation === 'UPDATE' && $existing && $existing->is_default
-            && $this->isCatalogBackfillOnlyPayload($payload, $existing)) {
-            return $payload;
-        }
-
         $role = strtolower(preg_replace('/[^a-z_]/i', '', $currentUser->role ?? ''));
         if (in_array($role, ['store_owner', 'admin', 'super_admin'], true)) {
             return $payload;
@@ -1939,7 +1936,7 @@ class SyncController extends Controller
         if (isset($payload['permissions']) && is_array($payload['permissions'])) {
             $disallowed = array_diff($payload['permissions'], $ownPermissions);
             if (!empty($disallowed)) {
-                throw new \RuntimeException(
+                throw new \App\Exceptions\SyncPushPermissionDeniedException(
                     'Sync push: permission_groups payload attempted to grant a permission the caller does not hold: '
                     . implode(', ', $disallowed),
                 );
@@ -1947,55 +1944,10 @@ class SyncController extends Controller
         }
 
         if (!in_array('manage_roles_permissions', $ownPermissions, true)) {
-            throw new \RuntimeException('Sync push: caller lacks manage_roles_permissions');
+            throw new \App\Exceptions\SyncPushPermissionDeniedException('Sync push: caller lacks manage_roles_permissions');
         }
 
         return $payload;
-    }
-
-    /**
-     * True when a `permission_groups` UPDATE is provably the client-side
-     * catalog backfill (backfillDefaultGroupPermissions, client/lib/db/
-     * queries/permission-groups.ts) and nothing else: it touches only
-     * `permissions`, removes no key, and every key it adds is one
-     * PermissionGroupSeeder's own DEFAULT_GROUP_PERMISSION_ADDITIONS table
-     * lists for THIS group's role.
-     *
-     * That backfill runs on any signed-in user's login, cashiers included,
-     * and by definition grants keys that user does not hold - so without
-     * this it would throw, and a throw lands in push.ts's retry-with-backoff
-     * path rather than its terminal version_conflict path, permanently
-     * wedging that device's queue. The exemption cannot be used to widen
-     * anything: the candidate key set is a server-side constant, keyed by
-     * the stored row's own `based_on_role`, and removals are rejected.
-     */
-    private function isCatalogBackfillOnlyPayload(array $payload, $existing): bool
-    {
-        if (!isset($payload['permissions']) || !is_array($payload['permissions'])) {
-            return false;
-        }
-
-        $touched = array_diff(
-            array_keys($payload),
-            ['id', 'permissions', '_version', '_synced', '_synced_at', '_deleted', 'store_id', 'created_at', 'updated_at'],
-        );
-        if (!empty($touched)) {
-            return false;
-        }
-
-        $current = is_array($existing->permissions) ? $existing->permissions : [];
-        if (!empty(array_diff($current, $payload['permissions']))) {
-            return false;
-        }
-
-        $added = array_diff($payload['permissions'], $current);
-        if (empty($added)) {
-            return false;
-        }
-
-        $allowed = \App\Services\PermissionGroupSeeder::backfillableKeysForRole($existing->based_on_role ?? '');
-
-        return empty(array_diff($added, $allowed));
     }
 
     // roleIsAtOrBelowCallerPrivilege() now lives on the shared

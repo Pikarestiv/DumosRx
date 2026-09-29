@@ -238,10 +238,14 @@ every server-seeded store on the pre-expansion permission lists.
 `tests/Feature/PermissionCatalogParityTest.php` parses the TypeScript and
 fails on any drift — it lives here rather than in vitest because the Checks
 workflow's `client` job has no PHP, while the `server` job has the whole
-repo. `ensureCatalogBackfilled()` and the `isCatalogBackfillOnlyPayload()`
-exemption in `SyncController` are documented in full in `client/AGENTS.md`'s
-"Catalog versioning and the default-group backfill" — read that before
-touching either.
+repo. `ensureCatalogBackfilled()` and `SyncController`'s terminal
+`permission_denied` rejection (`SyncPushPermissionDeniedException`, thrown by
+`sanitizePermissionGroupSyncPayload`'s two privilege checks) are documented in
+full in `client/AGENTS.md`'s "Catalog versioning and the default-group
+backfill" — read that before touching either, especially before adding any
+exemption to that sanitizer: one was tried and removed on 2026-09-29 because
+`validateSync()` backfills the server before any pushed change is processed,
+which made the exemption both unreachable and a hole.
 
 ## Known gotcha: MySQL timezone vs. Laravel's UTC clock
 

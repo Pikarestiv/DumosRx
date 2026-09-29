@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Search, X } from "lucide-react";
+import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ProductCombobox, type SelectedProduct } from "@/components/ui/product-combobox";
 import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
 import {
   computeStockAfter,
@@ -33,8 +34,6 @@ export function toAdjustmentDraftItem(product: ProductWithDetails): AdjustmentDr
   };
 }
 
-const MAX_RESULTS = 8;
-
 interface AdjustmentItemsStepProps {
   reason: AdjustmentReasonValue;
   items: AdjustmentDraftItem[];
@@ -60,20 +59,25 @@ export function AdjustmentItemsStep({
     [items],
   );
 
-  // Substring rather than fuzzy matching: a scanned barcode is an exact
-  // string and must land on exactly one product.
-  const results = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    if (!term) return [];
-    return products
-      .filter((product) => {
-        if (added.has(product.id)) return false;
-        return [product.name, product.barcode, product.generic_name].some((field) =>
-          field?.toLowerCase().includes(term),
-        );
-      })
-      .slice(0, MAX_RESULTS);
-  }, [search, products, added]);
+  // Rows already in the draft are withheld from the combobox's catalog
+  // instead of being filtered out of its results, so picking one can never
+  // silently overwrite a quantity that has already been entered.
+  const selectableProducts = useMemo(
+    () => products.filter((product) => !added.has(product.id)),
+    [products, added],
+  );
+
+  const handleSelect = (option: SelectedProduct) => {
+    if (option.source === "local" && option.localId) {
+      const product = products.find((candidate) => candidate.id === option.localId);
+      if (product) {
+        onAdd(product);
+        setSearch("");
+        return;
+      }
+    }
+    setSearch(option.name);
+  };
 
   return (
     <div className="animate-in fade-in slide-in-from-right-4 duration-300 space-y-4">
@@ -84,44 +88,21 @@ export function AdjustmentItemsStep({
         </div>
       </div>
 
-      <div className="relative">
-        <div className="flex items-center gap-2 bg-muted/30 border border-border rounded-[10px] px-3.5 py-2.5">
-          <Search className="w-4 h-4 text-muted-foreground/70 shrink-0" />
-          <input
-            type="text"
-            aria-label="Search products"
-            placeholder="Search by name, SKU or barcode"
-            className="border-0 outline-none text-[13px] w-full bg-transparent"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-          />
-        </div>
-
-        {results.length > 0 && (
-          <ul className="mt-2 bg-card border border-border rounded-xl divide-y divide-border overflow-hidden">
-            {results.map((product) => (
-              <li key={product.id}>
-                <button
-                  type="button"
-                  data-testid={`adjustment-search-result-${product.id}`}
-                  onClick={() => {
-                    onAdd(product);
-                    setSearch("");
-                  }}
-                  className="w-full text-left px-4 py-2.5 hover:bg-muted/40"
-                >
-                  <div className={`text-[13.5px] font-semibold ${capsClass}`}>
-                    {product.name}
-                  </div>
-                  <div className="text-[12px] text-muted-foreground/70">
-                    {product.barcode || "No SKU"} · {product.stock_quantity || 0} in stock
-                  </div>
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+      {/* Same search-to-add-a-row model the PO item builder uses: the row
+       * appears the instant a catalog product is picked, with no separate
+       * "Add" click. showCreateNewOption is off because an adjustment can
+       * only ever move stock that already exists in the catalog. */}
+      <ProductCombobox
+        value={search}
+        onChange={handleSelect}
+        onClear={() => setSearch("")}
+        showGlobalSuggestions={false}
+        showCreateNewOption={false}
+        showSearchIcon
+        placeholder="Search by name, SKU or barcode"
+        className="bg-muted/30 border-border h-10 px-3 text-[13px] rounded-[10px]"
+        products={selectableProducts}
+      />
 
       {items.length === 0 && (
         <div className="p-6 bg-card border border-border rounded-2xl text-center text-[13px] text-muted-foreground">

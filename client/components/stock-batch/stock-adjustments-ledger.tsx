@@ -28,7 +28,7 @@ import {
   groupAdjustmentMovements,
   type AdjustmentGroup,
 } from "./adjustment-derivations";
-import { AdjustStockDialog } from "./adjust-stock-dialog";
+import { AdjustStockFlow } from "./adjust-stock-flow";
 
 const RECENT_ACTIVITY_WINDOW_DAYS = 30;
 const ROW_HEIGHT = 64;
@@ -76,14 +76,14 @@ export function StockAdjustmentsLedger() {
   const [reasonFilter, setReasonFilter] = useState<string>(ALL_ADJUSTMENT_REASONS);
   const [dateRange, setDateRange] = useState<DateRangeValue>({});
   const [hasFullHistory, setHasFullHistory] = useState(false);
-  const [showAdjustDialog, setShowAdjustDialog] = useState(false);
+  const [showAdjustFlow, setShowAdjustFlow] = useState(false);
 
   // Same query-param handoff the header's Transfer Stock action uses (see
   // stock-movements.tsx): the header only navigates, this page owns the
-  // overlay state. Re-checks the permission rather than trusting the URL.
+  // flow state. Re-checks the permission rather than trusting the URL.
   useEffect(() => {
     if (searchParams.get("action") !== "create") return;
-    if (canAdjustStock) setShowAdjustDialog(true);
+    if (canAdjustStock) setShowAdjustFlow(true);
     const newParams = new URLSearchParams(searchParams.toString());
     newParams.delete("action");
     router.replace(
@@ -135,6 +135,18 @@ export function StockAdjustmentsLedger() {
     overscan: 8,
   });
 
+  // The creation flow takes over the whole tab rather than overlaying it, the
+  // same way the cycle count owns /inventory/audits. Every hook above still
+  // runs, so the ledger's query stays warm for the return trip.
+  if (showAdjustFlow && canAdjustStock) {
+    return (
+      <AdjustStockFlow
+        onClose={() => setShowAdjustFlow(false)}
+        onSubmitted={() => void adjustmentsQuery.refetch()}
+      />
+    );
+  }
+
   return (
     <div className="flex flex-col flex-1 min-h-0 bg-card border border-border rounded-2xl">
       <div className="p-4 pb-3 border-b border-border space-y-3">
@@ -171,7 +183,7 @@ export function StockAdjustmentsLedger() {
             className="bg-muted/30 border-border"
           />
           {canAdjustStock && (
-            <Button className="md:hidden ml-auto" onClick={() => setShowAdjustDialog(true)}>
+            <Button className="md:hidden ml-auto" onClick={() => setShowAdjustFlow(true)}>
               Adjust Stock
             </Button>
           )}
@@ -216,14 +228,6 @@ export function StockAdjustmentsLedger() {
           </div>
         )}
       </div>
-
-      {canAdjustStock && (
-        <AdjustStockDialog
-          open={showAdjustDialog}
-          onOpenChange={setShowAdjustDialog}
-          onSubmitted={() => void adjustmentsQuery.refetch()}
-        />
-      )}
     </div>
   );
 }

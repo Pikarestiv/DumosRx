@@ -443,7 +443,7 @@ e2e/                       Playwright end-to-end specs
   (derived via `MAX(stock_audits.reconciled_at)`, joined in
   `getProductsWithDetails()`), shown on the product detail panel with a
   90-day-stale warning banner.
-- **Quick stock adjustments** (`components/stock-batch/adjust-stock-dialog.tsx`,
+- **Quick stock adjustments** (`components/stock-batch/adjust-stock-flow.tsx`,
   `lib/db/queries/inventory.ts:submitStockAdjustment`): a two-step flow —
   step 1 picks one of four fixed reasons (`ADJUSTMENT_REASONS` in
   `adjustment-derivations.ts`: Receive items, Damage, Inventory count, Loss)
@@ -451,6 +451,30 @@ e2e/                       Playwright end-to-end specs
   Current Stock, an entered quantity and a live Stock After preview. It is
   the "correct a few items right now" counterpart to the cycle count's
   "count everything".
+
+  **It is a full page, not a dialog.** `AdjustStockFlow` renders the same
+  shell `stock-audits.tsx` uses — `fixed inset-0 z-50 flex flex-col`, a
+  header carrying a back button and a "Step N of 2" subtitle, a centered
+  `max-w-[560px]` scrolling body and a pinned full-width footer action. The
+  back button walks step 2 → step 1 before it closes the flow. The
+  Adjustments ledger does not overlay it: on `?action=create`
+  `stock-adjustments-ledger.tsx` returns `AdjustStockFlow` *instead of* the
+  ledger, after all of its own hooks have run, so the ledger's query stays
+  warm for the return trip. Dismissing the flow just flips that state back.
+  (An earlier version of this was a `Dialog`; it was reworked because the
+  two-step entry needs the whole viewport on a phone.)
+
+  **The item picker is the shared `ProductCombobox`**, wired exactly as
+  `procurement/po-item-builder.tsx` wires it: search-to-add-a-row with no
+  separate "Add" click, `showGlobalSuggestions={false}` so non-catalog name
+  suggestions never mix with real catalog matches, and
+  `showCreateNewOption={false}` (unlike the PO builder) because an
+  adjustment can only ever move stock that already exists. Rows already in
+  the draft are withheld from the `products` array handed to the combobox
+  rather than filtered out of its results, so re-picking one cannot wipe a
+  quantity that has already been typed. `ProductCombobox` now also fuzzy-
+  matches on `barcode`, which this flow depends on for scanned codes — that
+  key was added to the shared component, so PO item search gained it too.
 
   **Two `reference_type` values mean "adjustment", and both matter.** Every
   stock correction outside a sale/purchase/transfer is a

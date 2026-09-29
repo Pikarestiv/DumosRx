@@ -40,8 +40,12 @@ vi.mock("@tanstack/react-query", () => ({
 
 const replace = vi.fn();
 let searchParams = new URLSearchParams();
+// One stable router object, not a fresh one per render: the ledger's
+// ?action=create effect depends on it, and a new identity every render would
+// re-fire that effect and re-open the flow the moment it is dismissed.
+const router = { replace, push: vi.fn(), prefetch: vi.fn() };
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ replace, push: vi.fn(), prefetch: vi.fn() }),
+  useRouter: () => router,
   useSearchParams: () => searchParams,
 }));
 
@@ -56,9 +60,13 @@ vi.mock("@/lib/context/pull-to-refresh-context", () => ({
 vi.mock("@/lib/hooks/use-uppercase-display", () => ({
   useUppercaseDisplayClass: () => "",
 }));
-vi.mock("@/components/stock-batch/adjust-stock-dialog", () => ({
-  AdjustStockDialog: ({ open }: { open: boolean }) =>
-    open ? <div data-testid="adjust-stock-dialog" /> : null,
+const flowClose = vi.fn();
+vi.mock("@/components/stock-batch/adjust-stock-flow", () => ({
+  AdjustStockFlow: ({ onClose }: { onClose: () => void }) => (
+    <div data-testid="adjust-stock-flow">
+      <button onClick={() => { flowClose(); onClose(); }}>flow-back</button>
+    </div>
+  ),
 }));
 
 import { StockAdjustmentsLedger } from "@/components/stock-batch/stock-adjustments-ledger";
@@ -151,14 +159,33 @@ describe("Stock Adjustments ledger", () => {
   it("opens the Adjust Stock flow from ?action=create and clears the param", () => {
     searchParams = new URLSearchParams("action=create");
     render(<StockAdjustmentsLedger />);
-    expect(screen.getByTestId("adjust-stock-dialog")).toBeTruthy();
+    expect(screen.getByTestId("adjust-stock-flow")).toBeTruthy();
     expect(replace).toHaveBeenCalled();
+  });
+
+  // The creation flow is a full page, not a dialog over the ledger: while it
+  // is up, none of the ledger's own chrome or rows may still be rendered.
+  it("replaces the ledger entirely while the flow is open", () => {
+    searchParams = new URLSearchParams("action=create");
+    render(<StockAdjustmentsLedger />);
+    expect(screen.queryAllByTestId(/^adjustment-row-/)).toHaveLength(0);
+    expect(screen.queryByPlaceholderText(/search by adjustment id or product/i)).toBeNull();
+  });
+
+  it("returns to the ledger when the flow is dismissed", () => {
+    searchParams = new URLSearchParams("action=create");
+    render(<StockAdjustmentsLedger />);
+    fireEvent.click(screen.getByText("flow-back"));
+
+    expect(screen.queryByTestId("adjust-stock-flow")).toBeNull();
+    expect(screen.getByTestId("adjustment-row-ADJ-1")).toBeTruthy();
   });
 
   it("refuses to open the flow for a viewer without the adjust permission", () => {
     hasPermission.mockImplementation((key: string) => key !== "adjust_stock_counts");
     searchParams = new URLSearchParams("action=create");
     render(<StockAdjustmentsLedger />);
-    expect(screen.queryByTestId("adjust-stock-dialog")).toBeNull();
+    expect(screen.queryByTestId("adjust-stock-flow")).toBeNull();
+    expect(screen.getByTestId("adjustment-row-ADJ-1")).toBeTruthy();
   });
 });

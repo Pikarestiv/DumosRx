@@ -3,8 +3,30 @@ import { render, screen, fireEvent, within } from "@testing-library/react";
 import { AdjustmentItemsStep } from "@/components/stock-batch/adjustment-items-step";
 import type { AdjustmentDraftItem } from "@/components/stock-batch/adjustment-items-step";
 
+// Same jsdom stub the PO item-builder combobox tests use: the combobox keeps
+// its active option scrolled into view, which jsdom does not implement.
+if (!window.HTMLElement.prototype.scrollIntoView) {
+  window.HTMLElement.prototype.scrollIntoView = () => {};
+}
+
+if (typeof CSS === "undefined" || !CSS.escape) {
+  (globalThis as unknown as { CSS: { escape: (s: string) => string } }).CSS = {
+    escape: (s: string) => s.replace(/[^a-zA-Z0-9_-]/g, (c) => `\\${c}`),
+  };
+}
+
 vi.mock("@/lib/hooks/use-uppercase-display", () => ({
   useUppercaseDisplayClass: () => "",
+}));
+
+// The item picker is now the shared ProductCombobox (same component and
+// interaction model the PO item builder uses), so this step pulls in the
+// combobox's store/catalog dependencies.
+vi.mock("@/lib/context/store-context", () => ({
+  useStore: () => ({ storeProfile: { store_type: "pharmacy" } }),
+}));
+vi.mock("@/lib/hooks/use-product-list", () => ({
+  useProductList: () => ({ data: [] }),
 }));
 
 // `barcode` doubles as the SKU in this schema - there is no separate column,
@@ -84,28 +106,54 @@ describe("Adjust Stock - items step", () => {
     ).toBe("0");
   });
 
-  it("finds a product by name, SKU/barcode or generic name and adds it", () => {
+  it("searches through a combobox rather than a bare input", () => {
+    renderStep([]);
+    const search = screen.getByPlaceholderText(/search by name, sku or barcode/i);
+    expect(search.getAttribute("role")).toBe("combobox");
+  });
+
+  it("adds a row the moment a catalog match is picked, with no separate Add click", () => {
     renderStep([]);
     const search = screen.getByPlaceholderText(/search by name, sku or barcode/i);
 
+    fireEvent.focus(search);
     fireEvent.change(search, { target: { value: "amoxil" } });
-    fireEvent.click(screen.getByTestId("adjustment-search-result-p2"));
+    fireEvent.mouseDown(screen.getByRole("option", { name: /amoxil/i }));
+
     expect(onAdd).toHaveBeenCalledWith(expect.objectContaining({ id: "p2" }));
+  });
+
+  it("finds a product by SKU/barcode or generic name", () => {
+    renderStep([]);
+    const search = screen.getByPlaceholderText(/search by name, sku or barcode/i);
+    fireEvent.focus(search);
 
     fireEvent.change(search, { target: { value: "PAR-500" } });
-    expect(screen.getByTestId("adjustment-search-result-p1")).toBeTruthy();
+    expect(screen.getByRole("option", { name: /paracetamol/i })).toBeTruthy();
 
     fireEvent.change(search, { target: { value: "amoxicillin" } });
-    expect(screen.getByTestId("adjustment-search-result-p2")).toBeTruthy();
+    expect(screen.getByRole("option", { name: /amoxil/i })).toBeTruthy();
   });
 
   it("hides an already-added product from the search results", () => {
     renderStep([item({ productId: "p1" })]);
-    fireEvent.change(screen.getByPlaceholderText(/search by name, sku or barcode/i), {
-      target: { value: "a" },
-    });
-    expect(screen.queryByTestId("adjustment-search-result-p1")).toBeNull();
-    expect(screen.getByTestId("adjustment-search-result-p2")).toBeTruthy();
+    const search = screen.getByPlaceholderText(/search by name, sku or barcode/i);
+    fireEvent.focus(search);
+    fireEvent.change(search, { target: { value: "a" } });
+
+    expect(screen.queryByRole("option", { name: /paracetamol/i })).toBeNull();
+    expect(screen.getByRole("option", { name: /amoxil/i })).toBeTruthy();
+  });
+
+  // An adjustment can only move stock that already exists in the catalog, so
+  // the combobox's "create a new product" row is suppressed here.
+  it("never offers to create a new product from the picker", () => {
+    renderStep([]);
+    const search = screen.getByPlaceholderText(/search by name, sku or barcode/i);
+    fireEvent.focus(search);
+    fireEvent.change(search, { target: { value: "nothing matches this" } });
+
+    expect(screen.queryByText(/as new product/i)).toBeNull();
   });
 
   it("reports quantity edits and removals to its parent", () => {

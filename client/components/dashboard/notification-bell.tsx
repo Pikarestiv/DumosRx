@@ -28,6 +28,7 @@ import { useRouter } from "next/navigation";
 import { useOnlineOrdersModal } from "@/lib/store/use-online-orders-modal";
 import { useIsTouchDevice } from "@/lib/hooks/use-is-touch-device";
 import { useBroadcasts } from "@/lib/hooks/use-broadcasts";
+import { NotificationDetailModal } from "./notification-detail-modal";
 import { queryKeys } from "@/lib/query-keys";
 import type { Broadcast } from "@/lib/types/broadcast";
 import { cn } from "@/lib/utils";
@@ -114,6 +115,8 @@ export function NotificationBell() {
   // silently reopen it, needing a genuinely separate second tap to close.
   const isTouchDevice = useIsTouchDevice();
   const [open, setOpen] = useState(false);
+  const [detailNotification, setDetailNotification] =
+    useState<NotificationItem | null>(null);
 
   useEffect(() => {
     if (!readBroadcastsStorageKey) {
@@ -180,6 +183,8 @@ export function NotificationBell() {
       onOpen();
     } else if (notif.link) {
       router.push(notif.link);
+    } else {
+      setDetailNotification(notif);
     }
   };
 
@@ -187,8 +192,19 @@ export function NotificationBell() {
     <EmptyState icon={Bell} title="No notifications" />
   );
 
+  // Rendered as a sibling of the bell surface, never inside the dropdown or
+  // drawer: the row click closes the bell first, so only one dismissable
+  // layer is ever mounted.
+  const detailModal = (
+    <NotificationDetailModal
+      notification={detailNotification}
+      onClose={() => setDetailNotification(null)}
+    />
+  );
+
   if (!isTouchDevice) {
     return (
+      <>
       <DropdownMenu open={open} onOpenChange={setOpen}>
         <DropdownMenuTrigger asChild>
           <NotificationTrigger unreadCount={unreadCount} />
@@ -217,10 +233,13 @@ export function NotificationBell() {
           </div>
         </DropdownMenuContent>
       </DropdownMenu>
+      {detailModal}
+      </>
     );
   }
 
   return (
+    <>
     <Drawer open={open} onOpenChange={setOpen}>
       <DrawerTrigger asChild>
         <NotificationTrigger unreadCount={unreadCount} />
@@ -254,5 +273,7 @@ export function NotificationBell() {
         </div>
       </DrawerContent>
     </Drawer>
+    {detailModal}
+    </>
   );
 }

@@ -2098,6 +2098,20 @@ same tab session still gets its own fresh one-time retry.
   md:inline">{long}</span>`: the house pattern for abbreviating table
   headers/labels on small screens instead of letting them force horizontal
   scroll.
+- **Click-to-expand a truncated list item**: keep the `line-clamp-*` on the
+  row and add a detail modal beside it — never widen the row or drop the
+  clamp. The row's click handler sets a nullable `target` state and the
+  `ResponsiveModal`-based `<Entity>DetailModal` renders from it
+  (`components/stock-batch/stock-movement-detail-modal.tsx` is the reference;
+  `components/dashboard/notification-detail-modal.tsx`, reached by clicking a
+  clamped broadcast in the notification bell, is the smallest example). When
+  the row lives inside a `DropdownMenu` or `Drawer`, the modal is rendered as
+  a **sibling of that menu, not a child of it**, and the click closes the menu
+  before opening the modal — two dismissable layers mounted at once is what
+  leaves `document.body.style.pointerEvents` stuck (the same failure
+  `ResponsiveModal`'s `mounted` gate exists to avoid). `NotificationBell`
+  falls back to the detail modal only when a notification has no other action
+  (no `link`, not an online order), so it never displaces existing navigation.
 - **No raw `<table>` elements, ever.** Every data table in the app is
   div-based with ARIA roles standing in for real `<table>` semantics
   (`role="table"` / `"rowgroup"` / `"row"` / `"columnheader"` / `"cell"`),

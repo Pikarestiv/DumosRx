@@ -193,7 +193,7 @@ export async function getProductDeletionBlockers(
 ): Promise<ProductDeletionBlockers> {
   const [stockRows, poRows] = await Promise.all([
     query<{ stock_on_hand: number | null }>(
-      `SELECT COALESCE(SUM(quantity), 0) as stock_on_hand
+      `SELECT COALESCE(SUM(ABS(quantity)), 0) as stock_on_hand
        FROM stock_batches
        WHERE product_id = ? AND _deleted = 0 AND is_active = 1`,
       [productId],
@@ -209,7 +209,7 @@ export async function getProductDeletionBlockers(
   ]);
 
   return {
-    stockOnHand: Math.max(0, Number(stockRows[0]?.stock_on_hand) || 0),
+    stockOnHand: Number(stockRows[0]?.stock_on_hand) || 0,
     openPurchaseOrders: Number(poRows[0]?.open_orders) || 0,
   };
 }

@@ -95,6 +95,21 @@ describe("deleteProduct", () => {
       expect(blockers.stockOnHand).toBe(0);
     });
 
+    it("does not let a negative batch cancel out a positive one", async () => {
+      seedProduct();
+      seedBatch("p1", 5);
+      seedBatch("p1", -5);
+      const blockers = await products.getProductDeletionBlockers("p1");
+      expect(blockers.stockOnHand).toBe(10);
+    });
+
+    it("treats a lone negative batch as a blocker", async () => {
+      seedProduct();
+      seedBatch("p1", -5);
+      const blockers = await products.getProductDeletionBlockers("p1");
+      expect(blockers.stockOnHand).toBe(5);
+    });
+
     it("counts only still-receivable purchase orders", async () => {
       seedProduct();
       seedPurchaseOrder("p1", "sent");
@@ -108,6 +123,14 @@ describe("deleteProduct", () => {
     it("refuses to delete a product that still has stock on hand", async () => {
       seedProduct();
       seedBatch("p1", 3);
+      await expect(products.deleteProduct("p1")).rejects.toThrow(/stock/i);
+      expect(isDeleted("p1")).toBe(false);
+    });
+
+    it("refuses to delete a product whose batches sum to zero but are not empty", async () => {
+      seedProduct();
+      seedBatch("p1", 5);
+      seedBatch("p1", -5);
       await expect(products.deleteProduct("p1")).rejects.toThrow(/stock/i);
       expect(isDeleted("p1")).toBe(false);
     });

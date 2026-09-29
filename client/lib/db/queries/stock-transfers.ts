@@ -33,10 +33,15 @@ import { checkIsAdmin } from "@/lib/context/auth-context";
  * takes effect immediately, same as an admin-initiated one), a
  * non-admin-initiated transfer's two rows are flagged
  * `status: "needs_review"` (see `initiatedByRole` below) so an owner can
- * spot it after the fact. Added directly to stock_movements rather than a
- * new header table, for the same already-synced-table reasoning above.
+ * spot it after the fact, and `markStockTransferReviewed()` below is what
+ * clears that flag. Added directly to stock_movements rather than a new
+ * header table, for the same already-synced-table reasoning above. See
+ * client/AGENTS.md's Inventory & Stock block for why this is a review
+ * mechanism rather than a gate-before-it-lands approval queue.
  */
 export const STOCK_TRANSFER_REFERENCE_TYPE = "stock_transfer";
+export const STOCK_TRANSFER_NEEDS_REVIEW_STATUS = "needs_review";
+export const STOCK_TRANSFER_REVIEWED_STATUS = "reviewed";
 
 export interface StockTransferParams {
   sourceStoreId: string;
@@ -389,7 +394,7 @@ export async function transferStock(
           performed_by: performedBy,
           movement_date: now,
           store_id: sourceStoreId,
-          status: needsReview ? "needs_review" : null,
+          status: needsReview ? STOCK_TRANSFER_NEEDS_REVIEW_STATUS : null,
         },
         { storeId: sourceStoreId },
       );
@@ -410,7 +415,7 @@ export async function transferStock(
         performed_by: performedBy,
         movement_date: now,
         store_id: destStoreId,
-        status: needsReview ? "needs_review" : null,
+        status: needsReview ? STOCK_TRANSFER_NEEDS_REVIEW_STATUS : null,
       },
       { storeId: destStoreId },
     );
@@ -423,6 +428,50 @@ export async function transferStock(
       averageCostPrice: averageCost,
     };
   });
+}
+
+interface FlaggedTransferLegRow {
+  id: string;
+  store_id: string | null;
+}
+
+/**
+ * Clears the `needs_review` flag on every leg of one transfer, marking it
+ * `reviewed` rather than blanking it so the record still shows the transfer
+ * was flagged and then checked. Idempotent: it only ever touches rows still
+ * sitting at `needs_review`, so a second call (or two devices reviewing the
+ * same transfer) writes nothing and returns 0. Each leg is updated under its
+ * OWN `store_id`, never the acting store's, because the out and in legs live
+ * in two different stores by definition.
+ */
+export async function markStockTransferReviewed(
+  transferId: string,
+): Promise<number> {
+  if (!transferId) {
+    throw new Error("A transfer reference is required to mark it reviewed");
+  }
+
+  const legs = await query<FlaggedTransferLegRow>(
+    `SELECT id, store_id FROM stock_movements
+     WHERE reference_id = ? AND reference_type = ? AND status = ?
+       AND (_deleted = 0 OR _deleted IS NULL)`,
+    [
+      transferId,
+      STOCK_TRANSFER_REFERENCE_TYPE,
+      STOCK_TRANSFER_NEEDS_REVIEW_STATUS,
+    ],
+  );
+
+  for (const leg of legs) {
+    await update(
+      "stock_movements",
+      leg.id,
+      { status: STOCK_TRANSFER_REVIEWED_STATUS },
+      { storeId: leg.store_id ?? undefined },
+    );
+  }
+
+  return legs.length;
 }
 
 export interface TransferableProductRow {
@@ -503,6 +552,8 @@ export async function getStockTransferHistory(
      ) i ON i.reference_id = o.reference_id
      LEFT JOIN stores so ON so.id = o.store_id
      LEFT JOIN stores ds ON ds.id = i.store_id
+     -- Products joined unfiltered on purpose: a deleted product must still name its
+     -- transfer history (client/AGENTS.md; deleted-entity-procurement-history.test.ts).
      LEFT JOIN products po ON po.id = o.product_id
      LEFT JOIN products pi ON pi.id = i.product_id
      LEFT JOIN users u ON u.id = o.performed_by

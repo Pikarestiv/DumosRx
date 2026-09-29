@@ -40,6 +40,14 @@ export function StockMovementDesktopRow({ movement, onSelect }: Props) {
             Needs Review
           </span>
         )}
+        {movement.reviewed && (
+          <span
+            className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-muted/40 text-muted-foreground"
+            title="Was flagged for review, and has been reviewed"
+          >
+            Reviewed
+          </span>
+        )}
       </div>
       <div
         className={`text-[14px] font-semibold ${isPositive ? "text-emerald-700" : "text-destructive"}`}

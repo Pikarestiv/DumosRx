@@ -18,6 +18,10 @@ import { StockMovementDesktopRow } from "./stock-movement-desktop-row";
 import { StockMovementMobileGroup } from "./stock-movement-mobile-group";
 import { StockMovementDetailModal } from "./stock-movement-detail-modal";
 import { TransferStockDialog } from "./transfer-stock-dialog";
+import {
+  STOCK_TRANSFER_NEEDS_REVIEW_STATUS,
+  STOCK_TRANSFER_REVIEWED_STATUS,
+} from "@/lib/db/queries/stock-transfers";
 import { usePullToRefreshHandler } from "@/lib/context/pull-to-refresh-context";
 import { DateRangePicker, type DateRangeValue } from "@/components/ui/date-range-picker";
 import type { StockMovementDbRow } from "@/lib/types/stock-movement";
@@ -45,7 +49,8 @@ function mapMovement(m: StockMovementDbRow): StockMovement {
     user: m.performed_by_name?.trim() || "System",
     supplier: m.supplier_name || undefined,
     batchNumber: m.batch_number || undefined,
-    needsReview: m.status === "needs_review",
+    needsReview: m.status === STOCK_TRANSFER_NEEDS_REVIEW_STATUS,
+    reviewed: m.status === STOCK_TRANSFER_REVIEWED_STATUS,
   };
 }
 
@@ -399,6 +404,7 @@ export function StockMovements() {
           setSelectedMovement(null);
           router.push("/inventory/catalog");
         }}
+        onReviewed={() => void movementsQuery.refetch()}
       />
 
       {canTransferStock && (

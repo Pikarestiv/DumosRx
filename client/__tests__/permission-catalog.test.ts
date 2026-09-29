@@ -83,6 +83,28 @@ describe("permission catalog", () => {
     }
   });
 
+  it("carries the restored transfer-review key, enforced, under Inventory & Stock", () => {
+    const entry = PERMISSION_CATALOG.find(
+      (p) => p.key === "approve_stock_transfers",
+    );
+    expect(entry).toBeDefined();
+    expect(entry?.category).toBe("Inventory & Stock");
+    expect(entry?.label).toBe("Review Stock Transfers");
+    expect(ENFORCED_PERMISSION_KEYS.has("approve_stock_transfers")).toBe(true);
+    expect(DEFAULT_GROUP_PERMISSIONS.manager).toContain(
+      "approve_stock_transfers",
+    );
+    expect(DEFAULT_GROUP_PERMISSIONS.specialist).not.toContain(
+      "approve_stock_transfers",
+    );
+    expect(DEFAULT_GROUP_PERMISSIONS.sales_staff).not.toContain(
+      "approve_stock_transfers",
+    );
+    expect(DEFAULT_GROUP_PERMISSIONS.auditor).not.toContain(
+      "approve_stock_transfers",
+    );
+  });
+
   it("every key in ENFORCED_PERMISSION_KEYS exists in the catalog", () => {
     const catalogKeys = new Set(PERMISSION_CATALOG.map((p) => p.key));
     for (const key of ENFORCED_PERMISSION_KEYS) {

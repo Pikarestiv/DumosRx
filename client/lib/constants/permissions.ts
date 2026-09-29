@@ -38,19 +38,19 @@ export interface PermissionCatalogEntry {
  *   manage_stock_batches        no batch CRUD screen; /inventory/batches has
  *                               no TabsContent and createStockBatch()'s only
  *                               caller is receiving/audit restock
- *   approve_stock_transfers     transferStock() applies both legs at once;
- *                               "needs_review" is a passive badge nothing
- *                               clears - there is no approval step
  *
- * delete_products and delete_suppliers were removed alongside these on
- * 2026-09-29 and RESTORED the same day: the missing piece was the feature,
- * not the key, so the feature was built (deleteProduct()/deleteSupplier()
- * and their confirmation dialogs) and both keys came back enforced. See
- * client/AGENTS.md's Inventory & Stock block for the deactivate-vs-delete
- * safety-check design.
+ * delete_products, delete_suppliers and approve_stock_transfers were removed
+ * alongside these on 2026-09-29 and RESTORED the same day: in each case the
+ * missing piece was the feature, not the key, so the feature was built and
+ * the key came back enforced with it. approve_stock_transfers came back as
+ * "Review Stock Transfers" rather than "Approve Incoming Stock Transfers" -
+ * it clears the needs_review flag on a transfer that has already landed, it
+ * does not hold stock pending approval. See client/AGENTS.md's Inventory &
+ * Stock block for the deactivate-vs-delete safety-check design and the
+ * review-vs-approval-queue reasoning.
  *
- * open_cash_drawer, manage_stock_batches and approve_stock_transfers predate
- * the QuickBooks pass and may linger as inert strings in an already-synced
+ * open_cash_drawer and manage_stock_batches predate the QuickBooks pass and
+ * may linger as inert strings in an already-synced
  * permission_groups.permissions array. That is harmless - an unrecognised
  * key grants nothing - so no migration backfills them out.
  */
@@ -70,6 +70,7 @@ export const PERMISSION_CATALOG: PermissionCatalogEntry[] = [
   { key: "receive_purchase_orders", label: "Receive Purchase Orders", category: "Inventory & Stock" },
   { key: "manage_suppliers", label: "Manage Suppliers", category: "Inventory & Stock" },
   { key: "request_stock_transfers", label: "Request Stock Transfers", category: "Inventory & Stock" },
+  { key: "approve_stock_transfers", label: "Review Stock Transfers", category: "Inventory & Stock" },
   { key: "view_cost_fields", label: "View Cost & Margin Fields", category: "Inventory & Stock" },
   { key: "edit_product_cost", label: "Edit Product Cost Price", category: "Inventory & Stock" },
   { key: "edit_product_price", label: "Edit Product Selling Price", category: "Inventory & Stock" },
@@ -143,6 +144,11 @@ export const DEFAULT_GROUP_PERMISSIONS: Record<
     "view_cost_fields", "edit_product_cost", "edit_product_price", "delete_products",
     "perform_stock_audit", "view_stock_adjustment_history", "print_product_labels",
     "export_product_list", "view_suppliers", "delete_suppliers",
+    // 2026-09-29: approve_stock_transfers is the owner-side "second pair of
+    // eyes" on a staff-requested transfer, so it tracks manage_staff's
+    // population rather than the stock role's - specialist can request a
+    // transfer but not sign its own request off.
+    "approve_stock_transfers",
     "delete_customers", "view_customer_balances",
     "view_dashboard", "view_financial_reports",
     "manage_device_settings", "install_app_updates",
@@ -252,6 +258,7 @@ export const ENFORCED_PERMISSION_KEYS: ReadonlySet<string> = new Set([
   "receive_purchase_orders", // purchase-order-details.tsx
   "manage_suppliers", // supplier-table.tsx, supplier-detail-pane.tsx, supplier-management.tsx, dashboard-page-routes.ts
   "request_stock_transfers", // pos-layout-header.tsx
+  "approve_stock_transfers", // stock-movement-detail-modal.tsx (markStockTransferReviewed)
   "view_cost_fields", // catalog-list.tsx, catalog-row.tsx, product-pricing-info.tsx
   "edit_product_cost", // audit-ledger-step.tsx
   "edit_product_price", // catalog-row.tsx, audit-ledger-step.tsx

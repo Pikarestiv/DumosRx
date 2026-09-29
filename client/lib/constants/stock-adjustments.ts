@@ -13,3 +13,10 @@ export const AUDIT_REFERENCE_TYPE = "stock_audit";
  * same value product-import.ts already stamps on its opening-stock
  * movement, rather than a second near-synonym. See client/AGENTS.md. */
 export const PRODUCT_IMPORT_REFERENCE_TYPE = "import";
+
+/** Rows written by product-import.ts before commit 3b7ce8b8 still carry
+ * AUDIT_REFERENCE_TYPE instead of PRODUCT_IMPORT_REFERENCE_TYPE - a raw
+ * client-side UPDATE can't reach the server's copy through the sync queue,
+ * so the ledger also matches this legacy reason as a heal-on-read fallback
+ * (same ruling as A-29/A-30) rather than backfilling stored bytes. */
+export const LEGACY_PRODUCT_IMPORT_REASON = "Bulk import stock update";

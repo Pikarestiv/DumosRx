@@ -1,5 +1,9 @@
 import type { StockMovementDbRow } from "@/lib/types/stock-movement";
-import { PRODUCT_IMPORT_REFERENCE_TYPE } from "@/lib/constants/stock-adjustments";
+import {
+  AUDIT_REFERENCE_TYPE,
+  LEGACY_PRODUCT_IMPORT_REASON,
+  PRODUCT_IMPORT_REFERENCE_TYPE,
+} from "@/lib/constants/stock-adjustments";
 
 export {
   ADJUSTMENT_REFERENCE_TYPE,
@@ -105,6 +109,12 @@ export function groupAdjustmentMovements(
   for (const row of rows) {
     if (row.movement_type !== "adjustment") continue;
     if (row.reference_type === PRODUCT_IMPORT_REFERENCE_TYPE) continue;
+    if (
+      row.reference_type === AUDIT_REFERENCE_TYPE &&
+      parseAdjustmentReason(row.reason).reason === LEGACY_PRODUCT_IMPORT_REASON
+    ) {
+      continue;
+    }
     const key = row.reference_id || `movement:${row.id}`;
     const existing = byReference.get(key);
     if (existing) existing.push(row);

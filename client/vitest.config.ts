@@ -2,6 +2,10 @@ import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 
+// Pinned before workers fork so local-time assertions are runner-independent.
+// See AGENTS.md "Tests pin the timezone" — do not remove.
+process.env.TZ = 'Africa/Lagos';
+
 export default defineConfig({
   plugins: [react()],
   test: {

@@ -2194,6 +2194,36 @@ same tab session still gets its own fresh one-time retry.
   `typescript.ignoreBuildErrors`, so `next build` type-checks too. Running
   both locally first is still the fast path; CI is the backstop.
 
+### Tests pin the timezone: `TZ=Africa/Lagos`, set in `vitest.config.ts`
+
+This app's date handling is deliberately **local-time**, because "local" means
+the timezone the till is physically standing in: `parseLocalDateOnly()`
+(`lib/utils/date-utils.ts`) builds a `Date` from the components of a bare
+`YYYY-MM-DD` so it lands on *local* midnight rather than UTC midnight, and
+every month/day/hour bucket in `lib/db/queries/reports.ts` carries SQLite's
+`'localtime'` modifier so reports agree with the dashboard and daily close.
+Both of those are fixes for real shipped bugs, and the tests covering them
+(`__tests__/date-utils.test.ts`, `__tests__/finance-reports.test.ts`) assert
+behaviour that only distinguishes the fix from the bug **at a UTC-offset day
+or month boundary** — a sale at `2026-01-31T23:30Z` is February in Lagos and
+January in UTC.
+
+Those tests were written on WAT machines and silently depended on the runner
+being UTC+1. GitHub Actions runs UTC, so its very first run of
+`.github/workflows/checks.yml` turned four of them red while every local run
+stayed green. `vitest.config.ts` therefore sets `process.env.TZ =
+'Africa/Lagos'` at module scope — before Vitest forks its workers, so they
+inherit it — which makes the whole suite's pass/fail independent of the
+machine running it, for `npm test`, a bare `npx vitest run`, and CI alike.
+
+The rule that follows: **a test asserting local-time behaviour may rely on the
+pinned `Africa/Lagos` offset, but must never rely on the host's timezone.**
+Don't "fix" such a test by rewriting its expectation to whatever UTC produces
+— that just moves the fragility to "green in CI, red on every dev machine".
+And don't remove the `TZ` line: SQLite's `'localtime'` and JS's local getters
+both read the process timezone, so dropping it silently reintroduces the
+split.
+
 ## Running things
 
 ```

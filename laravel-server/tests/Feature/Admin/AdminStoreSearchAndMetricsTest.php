@@ -179,6 +179,42 @@ class AdminStoreSearchAndMetricsTest extends TestCase
     }
 
     #[Test]
+    public function trading_days_are_counted_against_the_stores_own_calendar_day()
+    {
+        $this->store->forceFill(['timezone' => 'Pacific/Auckland'])->save();
+
+        // Both stamps land on 2026-03-01 in UTC, but straddle midnight in
+        // Auckland (UTC+13 in March): 23:00 on the 1st and 01:00 on the 2nd.
+        $this->recordSale(1000, '2026-03-01 10:00:00');
+        $this->recordSale(1500, '2026-03-01 12:00:00');
+
+        $response = $this->actingAs($this->superAdmin)
+            ->getJson('/api/v1/admin/stores/'.$this->store->id);
+
+        $response->assertStatus(200);
+        $this->assertSame(2, $response->json('business_metrics.order_count'));
+        $this->assertSame(2, $response->json('business_metrics.active_days'));
+    }
+
+    #[Test]
+    public function active_sessions_ignore_expired_and_impersonation_tokens()
+    {
+        $this->owner->createToken('Desktop App');
+        $this->owner->createToken('Impersonation Token');
+
+        $expired = $this->owner->createToken('Old Laptop');
+        DB::table('personal_access_tokens')
+            ->where('id', $expired->accessToken->id)
+            ->update(['expires_at' => now()->subDay()]);
+
+        $response = $this->actingAs($this->superAdmin)
+            ->getJson('/api/v1/admin/stores/'.$this->store->id);
+
+        $response->assertStatus(200);
+        $this->assertSame(1, $response->json('operational_metrics.active_sessions'));
+    }
+
+    #[Test]
     public function metrics_are_zeroed_rather_than_absent_for_a_store_with_no_activity()
     {
         $response = $this->actingAs($this->superAdmin)

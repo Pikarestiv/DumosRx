@@ -170,16 +170,49 @@ class AdminStoreMetricsService
         return $months;
     }
 
+    /**
+     * Trading days are the store's own calendar days, matching
+     * Store::localDayRangeUtc()'s definition of a day, not the UTC dates
+     * the created_at column happens to be stored in: a Lagos shop that
+     * trades until 01:00 local would otherwise book that evening twice.
+     */
     private function activeDays(Store $store): int
     {
         $dates = $this->salesQuery($store)
-            ->selectRaw('DATE(created_at) as sale_day')
+            ->selectRaw($this->localDayExpression($store).' as sale_day')
             ->groupBy('sale_day')
             ->pluck('sale_day');
 
         return $dates->count();
     }
 
+    /**
+     * DATE() over the store's local clock. Uses the store's current UTC
+     * offset for every row rather than a per-row zone conversion, which no
+     * driver expresses portably; the two only disagree for rows recorded on
+     * the other side of a DST switch, in the zones that have one.
+     */
+    private function localDayExpression(Store $store): string
+    {
+        $offset = (int) Carbon::now($store->timezone ?: 'UTC')->getOffset();
+
+        if ($offset === 0) {
+            return 'DATE(created_at)';
+        }
+
+        return match (DB::connection()->getDriverName()) {
+            'sqlite' => "DATE(created_at, '{$offset} seconds')",
+            'mysql', 'mariadb' => "DATE(created_at + INTERVAL {$offset} SECOND)",
+            'pgsql' => "DATE(created_at + INTERVAL '{$offset} seconds')",
+            default => 'DATE(created_at)',
+        };
+    }
+
+    /**
+     * Live sessions only: an expired token is not a session, and the
+     * admin panel's own impersonation token (AdminStoreService::
+     * impersonate) is platform activity, not the store's.
+     */
     private function activeSessionCount(array $userIds): int
     {
         if ($userIds === [] || !Schema::hasTable('personal_access_tokens')) {
@@ -189,6 +222,8 @@ class AdminStoreMetricsService
         return (int) DB::table('personal_access_tokens')
             ->where('tokenable_type', User::class)
             ->whereIn('tokenable_id', $userIds)
+            ->where('name', '!=', 'Impersonation Token')
+            ->where(fn ($q) => $q->whereNull('expires_at')->orWhere('expires_at', '>', now()))
             ->count();
     }
 

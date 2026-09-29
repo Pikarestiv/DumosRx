@@ -32,12 +32,22 @@ return new class extends Migration
 
         $fixedSql = str_replace(self::STALE, 'coupons', $row->sql);
 
+        // sqlite_master's table SQL carries inline constraints but not
+        // standalone CREATE INDEX statements, which the DROP below takes.
+        $indexes = DB::select(
+            "SELECT sql FROM sqlite_master WHERE type = 'index' AND tbl_name = 'coupon_usages' AND sql IS NOT NULL"
+        );
+
         DB::statement('PRAGMA legacy_alter_table = ON');
         DB::statement('ALTER TABLE coupon_usages RENAME TO coupon_usages_fk_repair');
         DB::statement($fixedSql);
         DB::statement('INSERT INTO coupon_usages SELECT * FROM coupon_usages_fk_repair');
         DB::statement('DROP TABLE coupon_usages_fk_repair');
         DB::statement('PRAGMA legacy_alter_table = OFF');
+
+        foreach ($indexes as $index) {
+            DB::statement($index->sql);
+        }
     }
 
     public function down(): void

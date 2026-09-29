@@ -9,6 +9,7 @@ import { useQuery } from "@tanstack/react-query";
 import { queryClient } from "@/lib/query-client";
 import { clearPOSCartStorage } from "@/lib/hooks/use-pos-cart";
 import { clearStockAuditDraft } from "@/lib/hooks/use-stock-audit-draft";
+import { clearStockAdjustmentDraft } from "@/lib/hooks/use-stock-adjustment-draft";
 import { getStoreById, getFirstStore, getAllStores } from "@/lib/db/queries/setup";
 import { useAuth } from "@/lib/context/auth-context";
 import { queryKeys } from "@/lib/query-keys";
@@ -375,6 +376,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         // product ids/prices that belong to a different store entirely.
         clearPOSCartStorage();
         clearStockAuditDraft();
+        clearStockAdjustmentDraft();
       } finally {
         setIsSwitchingStore(false);
       }

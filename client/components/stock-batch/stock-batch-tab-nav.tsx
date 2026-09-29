@@ -13,6 +13,9 @@ export function StockBatchTabNav({
       {canViewAdjustmentHistory && (
         <TabsTrigger value="ledger">Movements</TabsTrigger>
       )}
+      {canViewAdjustmentHistory && (
+        <TabsTrigger value="adjustments">Adjustments</TabsTrigger>
+      )}
     </TabsList>
   );
 }

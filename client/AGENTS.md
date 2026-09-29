@@ -443,6 +443,59 @@ e2e/                       Playwright end-to-end specs
   (derived via `MAX(stock_audits.reconciled_at)`, joined in
   `getProductsWithDetails()`), shown on the product detail panel with a
   90-day-stale warning banner.
+- **Quick stock adjustments** (`components/stock-batch/adjust-stock-dialog.tsx`,
+  `lib/db/queries/inventory.ts:submitStockAdjustment`): a two-step flow —
+  step 1 picks one of four fixed reasons (`ADJUSTMENT_REASONS` in
+  `adjustment-derivations.ts`: Receive items, Damage, Inventory count, Loss)
+  plus an optional note; step 2 adds items by name/SKU/barcode and shows
+  Current Stock, an entered quantity and a live Stock After preview. It is
+  the "correct a few items right now" counterpart to the cycle count's
+  "count everything".
+
+  **Two `reference_type` values mean "adjustment", and both matter.** Every
+  stock correction outside a sale/purchase/transfer is a
+  `stock_movements` row with `movement_type = 'adjustment'`. The
+  `reference_type` says which flow wrote it:
+  `"stock_audit"` (a full cycle count, `submitStockAudit`) or
+  `"stock_adjustment"` (this quick flow, `submitStockAdjustment`). Both
+  constants live in `lib/constants/stock-adjustments.ts` — a neutral module
+  so `lib/db` never has to import from `components/`. **Anything querying
+  `stock_movements` for corrections must accept both**: filtering on
+  `reference_type = 'stock_adjustment'` alone silently drops every cycle
+  count. The Adjustments ledger
+  (`components/stock-batch/stock-adjustments-ledger.tsx`, `/inventory/adjustments`)
+  deliberately shows both, one row per distinct `reference_id`, labelling
+  the source as "Quick adjustment" or "Cycle count".
+
+  All items in one submission share a single `crypto.randomUUID()`
+  `reference_id` (same id convention `submitStockAudit` already uses for
+  `auditId`) — that grouping is what makes one submission one ledger row.
+
+  **`stock_movements` has no note column**, so the optional note rides in
+  `reason` behind a ` — ` separator (`buildAdjustmentReason` /
+  `parseAdjustmentReason`). `reason` therefore starts with the fixed reason
+  label, and a legacy free-text reason with no separator parses back
+  unchanged.
+
+  **The batch-level write is shared, not duplicated.**
+  `applyStockAdjustmentDelta()` in `inventory.ts` is the single
+  implementation of "move a product's stock by N, spread across its
+  batches, leaving a movement trail": FEFO deduction for a decrease, the
+  soonest-expiring-active-batch (or a new batch) target for an increase, and
+  the "shortfall exceeded every tracked batch" fallback. `submitStockAudit`
+  was refactored onto it; `submitStockAdjustment` calls the same helper with
+  a different `reference_type`/`batchNumberPrefix`. Do not add a third copy.
+
+  **Gating**: reading the ledger is `view_stock_adjustment_history` (the same
+  key the Movements tab uses — it was already wired there, not unused);
+  creating an adjustment is `adjust_stock_counts` (the key the catalog's
+  quick stock edit already uses), enforced both on the header action
+  (`actionPermission` in `dashboard-page-routes.ts`) and again inside the
+  page, since `?action=create` is a typeable URL.
+
+  **No branch column**, unlike the competitor UI this was modelled on: every
+  inventory read is already scoped to the active store by
+  `getActiveStoreId()`, so a branch filter here would be a constant.
 
 - **Purchase Orders: Standard vs Immediate** (`lib/db/procurement.ts`,
   `components/procurement/`). `purchase_orders.type` (`'standard' |

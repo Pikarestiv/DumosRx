@@ -3,6 +3,7 @@ import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { StockBatchTabNav } from "./stock-batch-tab-nav";
 import { StockOverview } from "./stock-overview";
 import { StockMovements } from "./stock-movements";
+import { StockAdjustmentsLedger } from "./stock-adjustments-ledger";
 import { ProductDatabase } from "@/components/products/product-database";
 import { Button } from "@/components/ui/button";
 import { StockBatchMetrics } from "./stock-batch-metrics";
@@ -67,6 +68,12 @@ export function StockBatchManagement({
         {canViewAdjustmentHistory && (
           <TabsContent value="ledger" className="flex flex-col flex-1 min-h-0 mt-0">
             <StockMovements />
+          </TabsContent>
+        )}
+
+        {canViewAdjustmentHistory && (
+          <TabsContent value="adjustments" className="flex flex-col flex-1 min-h-0 mt-0">
+            <StockAdjustmentsLedger />
           </TabsContent>
         )}
       </Tabs>

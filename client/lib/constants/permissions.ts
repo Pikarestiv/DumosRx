@@ -198,7 +198,7 @@ export const ENFORCED_PERMISSION_KEYS: ReadonlySet<string> = new Set([
   "reprint_receipt", // transaction-details-dialog.tsx
   "run_daily_close", // reports/daily-close/daily-close-header.tsx
   "manage_products", // transfer-stock-dialog.tsx, auth-context.tsx (canManageStockBatch)
-  "adjust_stock_counts", // catalog-row.tsx, catalog-list.tsx
+  "adjust_stock_counts", // catalog-row.tsx, catalog-list.tsx, stock-adjustments-ledger.tsx, dashboard-page-routes.ts
   "manage_purchase_orders", // purchase-order-details.tsx, procurement/new + /edit routes, dashboard-page-routes.ts
   "receive_purchase_orders", // purchase-order-details.tsx
   "manage_suppliers", // supplier-table.tsx, supplier-detail-pane.tsx, supplier-management.tsx, dashboard-page-routes.ts
@@ -208,7 +208,7 @@ export const ENFORCED_PERMISSION_KEYS: ReadonlySet<string> = new Set([
   "edit_product_cost", // audit-ledger-step.tsx
   "edit_product_price", // catalog-row.tsx, audit-ledger-step.tsx
   "perform_stock_audit", // dashboard-header.tsx, stock-batch-management.tsx, use-stock-batch-management.ts
-  "view_stock_adjustment_history", // stock-batch-tab-nav.tsx, stock-batch-management.tsx, use-stock-batch-management.ts
+  "view_stock_adjustment_history", // stock-batch-tab-nav.tsx, stock-batch-management.tsx, use-stock-batch-management.ts (Movements + Adjustments tabs)
   "print_product_labels", // catalog-detail-panel.tsx, catalog-list.tsx/catalog-row.tsx (opens barcode-print-dialog.tsx)
   "delete_products", // catalog-detail-panel.tsx, catalog-list.tsx/catalog-row.tsx (opens product-delete-dialog.tsx)
   "delete_suppliers", // supplier-detail-pane.tsx (opens supplier-delete-dialog.tsx)

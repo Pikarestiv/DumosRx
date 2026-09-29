@@ -36,7 +36,10 @@ export function useStockBatchManagement(currentTab: string) {
     // The "Movements" tab UI is hidden entirely for roles without stock-management
     // access, but the /inventory/ledger route itself is still directly reachable
     // (typed URL, stale bookmark) - bounce those viewers back to a tab they can see.
-    if (currentTab === "ledger" && !canViewAdjustmentHistory) {
+    if (
+      (currentTab === "ledger" || currentTab === "adjustments") &&
+      !canViewAdjustmentHistory
+    ) {
       router.replace("/inventory/overview");
     }
   }, [
@@ -63,6 +66,7 @@ export function useStockBatchManagement(currentTab: string) {
     router.prefetch("/inventory/catalog");
     if (canViewAdjustmentHistory) {
       router.prefetch("/inventory/ledger");
+      router.prefetch("/inventory/adjustments");
     }
   }, [canViewAdjustmentHistory, router]);
 

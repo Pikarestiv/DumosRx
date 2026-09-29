@@ -19,9 +19,22 @@ import {
   onPromotionFailed,
   requestWriterHandoff,
   forceWriterTakeover,
+  discardLocalDatabaseBlob,
 } from "./local-database";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { devLog } from "@/lib/utils/dev-log";
 import { toast } from "sonner";
+import { APP_EVENTS, onAppEvent } from "@/lib/events";
+import { STORAGE_KEYS } from "@/lib/storage-keys";
 
 interface DatabaseContextType {
   isReady: boolean;
@@ -64,6 +77,23 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
     "idle" | "requesting" | "offer-force" | "forcing"
   >("idle");
 
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
+
+  const handleResetAppData = async () => {
+    try {
+      await discardLocalDatabaseBlob();
+    } catch (err) {
+      console.error("[DB] Failed to discard the local database during reset", err);
+      toast.error(
+        "Could not clear the local database, so nothing was reset. Close any other DumosRx tabs and try again.",
+        { duration: 10000 },
+      );
+      return;
+    }
+    localStorage.clear();
+    window.location.reload();
+  };
+
   const handleUseThisWindow = async () => {
     setHandoffState("requesting");
     const result = await requestWriterHandoff();
@@ -91,6 +121,13 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
 
   // Initialize database
   useEffect(() => {
+    let hadPendingCrashes = false;
+    try {
+      hadPendingCrashes = !!localStorage.getItem(STORAGE_KEYS.pendingCrashes);
+    } catch {
+      hadPendingCrashes = false;
+    }
+
     initDatabase()
       .then(() => {
         setIsReady(true);
@@ -109,19 +146,15 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
         import("@/lib/db/queries/procurement").then(({ promoteDraftPurchaseOrdersToPending }) => {
           promoteDraftPurchaseOrdersToPending().catch(console.error);
         }).catch(console.error);
-        // One-time-per-boot repair for rows left with no _sync_queue entry
-        // by a write that was interrupted between its row INSERT and its
-        // queue INSERT (e.g. iOS killing a backgrounded PWA tab mid-write) -
-        // insert()/update()/etc. in base-helpers.ts now do those atomically
-        // going forward, but this backfills anything already stranded from
-        // before that fix, or from any write path that still bypasses those
-        // helpers. Previously requeueOrphanedRows() only ran from inside
-        // remapForeignKey()'s identity-reconcile path, never at plain launch.
+        // Repairs rows left with no _sync_queue entry by an interrupted
+        // write; once per install, not per boot (see A-8 in docs/FIXED_BUGS.md).
         Promise.all([
           import("@/lib/db/reconcile-identity"),
           import("@/lib/db/schema-migrations"),
-        ]).then(([{ requeueOrphanedRows }, { STORE_SCOPED_TABLES }]) => {
-          requeueOrphanedRows(STORE_SCOPED_TABLES).catch(console.error);
+        ]).then(([{ requeueOrphanedRowsOnce }, { STORE_SCOPED_TABLES }]) => {
+          requeueOrphanedRowsOnce(STORE_SCOPED_TABLES, {
+            force: hadPendingCrashes,
+          }).catch(console.error);
         }).catch(console.error);
       })
       .catch((err) => {
@@ -206,9 +239,7 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
         { duration: 8000 },
       );
     };
-    window.addEventListener("dumos_db_read_only_write_blocked", handleBlocked);
-    return () =>
-      window.removeEventListener("dumos_db_read_only_write_blocked", handleBlocked);
+    return onAppEvent(APP_EVENTS.dbReadOnlyWriteBlocked, handleBlocked);
   }, []);
 
   // core.ts's saveDatabase() previously only console.error'd a failed local
@@ -225,8 +256,7 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
         duration: 10000,
       });
     };
-    window.addEventListener("dumos_db_save_failed", handleSaveFailed);
-    return () => window.removeEventListener("dumos_db_save_failed", handleSaveFailed);
+    return onAppEvent(APP_EVENTS.dbSaveFailed, handleSaveFailed);
   }, []);
 
   if (error) {
@@ -253,18 +283,34 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
               Retry Connection
             </button>
             <button
-              onClick={() => {
-                if (window.confirm("Warning: This will clear all local data. Are you sure you want to proceed?")) {
-                  localStorage.clear();
-                  window.location.reload();
-                }
-              }}
+              onClick={() => setResetDialogOpen(true)}
               className="px-5 py-2.5 bg-background border hover:bg-muted text-foreground font-semibold rounded-lg transition-all text-sm cursor-pointer"
             >
               Reset App Data
             </button>
           </div>
         </div>
+
+        <AlertDialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Reset all local data?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This deletes this device&apos;s local database and signs you out.
+                A copy of the unreadable database is kept on this device so
+                support can recover it, and anything already synced will come
+                back from the cloud after you sign in again. Anything that never
+                synced will be lost.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={() => void handleResetAppData()}>
+                Reset App Data
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     );
   }

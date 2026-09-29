@@ -59,6 +59,11 @@ CREATE TABLE IF NOT EXISTS stock_batches (
   _deleted INTEGER DEFAULT 0
 );
 
+-- The rest of the read-path indexes live in schema-migrations.ts'
+-- READ_PATH_INDEXES, not here: sql.js runs this whole string as one blob, so a
+-- CREATE INDEX naming a column an old local table hasn't been migrated to yet
+-- aborts the remaining CREATE TABLEs. Fresh installs pick them up from the
+-- migration pass that runs immediately after this.
 CREATE INDEX IF NOT EXISTS idx_stock_batches_product_id ON stock_batches(product_id);
 
 CREATE TABLE IF NOT EXISTS categories (
@@ -352,6 +357,8 @@ CREATE TABLE IF NOT EXISTS stores (
   loyalty_points_per_currency REAL DEFAULT 0.01,
   uppercase_display_enabled INTEGER DEFAULT 1,
   loyalty_defaults_seeded_at TEXT,
+  permission_groups_seeded_at TEXT,
+  permission_catalog_version INTEGER,
   staff_can_request_transfers INTEGER DEFAULT 0,
   markup_sales_enabled INTEGER DEFAULT 0
 );
@@ -388,6 +395,7 @@ CREATE TABLE IF NOT EXISTS users (
   store_id TEXT,
   is_active INTEGER DEFAULT 1,
   auto_lock_duration INTEGER DEFAULT 5,
+  permission_group_id TEXT,
   created_at TEXT,
   updated_at TEXT,
   _version INTEGER DEFAULT 1,
@@ -616,6 +624,21 @@ CREATE TABLE IF NOT EXISTS payment_accounts (
   bank_name TEXT,
   is_active INTEGER DEFAULT 1,
   sort_order INTEGER DEFAULT 0,
+  created_at TEXT,
+  updated_at TEXT,
+  _version INTEGER DEFAULT 1,
+  _synced INTEGER DEFAULT 0,
+  _synced_at TEXT,
+  _deleted INTEGER DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS permission_groups (
+  id TEXT PRIMARY KEY,
+  store_id TEXT,
+  name TEXT NOT NULL,
+  based_on_role TEXT NOT NULL,
+  is_default INTEGER DEFAULT 0,
+  permissions TEXT NOT NULL DEFAULT '[]',
   created_at TEXT,
   updated_at TEXT,
   _version INTEGER DEFAULT 1,

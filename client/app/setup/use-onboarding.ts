@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { markRestoredForCloudLinkNotice } from "@/lib/utils/post-restore-notice";
 import type { StoreOption } from "@/lib/types/store";
 import { hashPin } from "@/lib/utils/pin-hash";
+import { setStoredActiveStoreId } from "@/lib/storage-keys";
 
 export type OnboardingStep = "welcome" | "register" | "cloud" | "backup" | "syncing" | "select-store";
 
@@ -152,7 +153,7 @@ export function useOnboarding() {
           [response.user.id, firstName, lastName, username, hashedPin, "admin", store.id, 1, now, now, 1],
         );
 
-        localStorage.setItem("dumos_active_store_id", store.id);
+        setStoredActiveStoreId(store.id);
         setActiveStoreId(store.id);
         toast.success(`${storeName} created and linked to your cloud account!`);
 
@@ -306,7 +307,7 @@ export function useOnboarding() {
             return;
           }
 
-          localStorage.setItem("dumos_active_store_id", store.id);
+          setStoredActiveStoreId(store.id);
           setActiveStoreId(store.id);
           setStep("syncing");
           void startSyncProcess(email);
@@ -346,7 +347,7 @@ export function useOnboarding() {
       return;
     }
 
-    localStorage.setItem("dumos_active_store_id", selectedStoreId);
+    setStoredActiveStoreId(selectedStoreId);
     setActiveStoreId(selectedStoreId);
     setStep("syncing");
     void startSyncProcess(pendingEmail);
@@ -361,7 +362,7 @@ export function useOnboarding() {
 
       const targetStoreId = selectedStoreId || (cloudStores.length === 1 ? cloudStores[0].id : "");
       if (targetStoreId) {
-        localStorage.setItem("dumos_active_store_id", targetStoreId);
+        setStoredActiveStoreId(targetStoreId);
         setActiveStoreId(targetStoreId);
       }
 

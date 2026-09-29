@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Cloud, CloudOff, RefreshCw, AlertCircle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { getSyncQueueCount } from "@/lib/db/queries/setup";
@@ -11,7 +11,11 @@ import {
   TooltipTrigger,
 } from "../ui/tooltip";
 
-import { sync, isSyncing as checkIsSyncing } from "@/lib/db/sync-engine";
+import {
+  sync,
+  isSyncing as checkIsSyncing,
+  SYNC_IN_PROGRESS_ERROR,
+} from "@/lib/db/sync-engine";
 import { addSyncQueueChangeListener } from "@/lib/db/core";
 import { useStore } from "@/lib/context/store-context";
 import { useAuth } from "@/lib/context/auth-context";
@@ -19,8 +23,14 @@ import { useDatabase } from "@/lib/db/DatabaseProvider";
 import { AuthModal } from "./auth-modal";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
+import { isExpectedSyncRestriction } from "@/lib/utils/error-logger";
 import { toast } from "sonner";
 import { queryKeys } from "@/lib/query-keys";
+import { APP_EVENTS, onAppEvent } from "@/lib/events";
+import {
+  getAuthToken,
+  getLastSyncTime,
+} from "@/lib/storage-keys";
 
 // Bursts of local writes (e.g. checking out a multi-item sale, a bulk
 // stock receive) should collapse into one sync call, not one per row —
@@ -50,83 +60,125 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
   // Same reasoning as isImpersonating above, for a read-only tab.
   const { isReadOnlyTab } = useDatabase();
 
-  const { data: pendingCountData } = useQuery({
+  const { data: pendingCountData, refetch: refetchPendingCount } = useQuery({
     ...queryKeys.sync.queueCount(),
     queryFn: () => getSyncQueueCount(),
-    refetchInterval: 5000 // Refetch every 5 seconds for indicator
+    // Primarily event-driven (see the sync-queue listener below); this is a
+    // slow safety net for a queue drain that doesn't emit a change event,
+    // not the 5s poll against main-thread sql.js it used to be.
+    refetchInterval: 30000,
   });
   const pendingCount = pendingCountData || 0;
+
+  const refetchPendingCountRef = useRef(refetchPendingCount);
+  refetchPendingCountRef.current = refetchPendingCount;
+
+  useEffect(() => {
+    return addSyncQueueChangeListener(() => {
+      void refetchPendingCountRef.current?.();
+    });
+  }, []);
 
   const isSyncOverdue = lastSync
     ? Date.now() - new Date(lastSync).getTime() > 30 * 60 * 1000
     : false;
 
-  const needsSync = pendingCount > 0 && isSyncOverdue;
+  // Visibility is driven by the backlog alone; isSyncOverdue only escalates
+  // the visual urgency. Gating visibility on it let a real backlog of
+  // unsynced sales sit behind a green "Cloud Active".
+  const needsSync = pendingCount > 0;
 
   useEffect(() => {
     updateOnlineStatus();
     window.addEventListener("online", updateOnlineStatus);
     window.addEventListener("offline", updateOnlineStatus);
-    window.addEventListener("auth_token_set", updateOnlineStatus);
-    window.addEventListener("auth_token_cleared", updateOnlineStatus);
+    const unsubscribeTokenSet = onAppEvent(APP_EVENTS.authTokenSet, updateOnlineStatus);
+    const unsubscribeTokenCleared = onAppEvent(
+      APP_EVENTS.authTokenCleared,
+      updateOnlineStatus,
+    );
 
     const interval = setInterval(() => {
-      const stored = localStorage.getItem("last_sync_time");
+      const stored = getLastSyncTime();
       if (stored) setLastSync(stored);
       setIsSyncInProgress(checkIsSyncing());
     }, 2000);
 
-    const stored = localStorage.getItem("last_sync_time");
+    const stored = getLastSyncTime();
     if (stored) setLastSync(stored);
 
     return () => {
       window.removeEventListener("online", updateOnlineStatus);
       window.removeEventListener("offline", updateOnlineStatus);
-      window.removeEventListener("auth_token_set", updateOnlineStatus);
-      window.removeEventListener("auth_token_cleared", updateOnlineStatus);
+      unsubscribeTokenSet();
+      unsubscribeTokenCleared();
       clearInterval(interval);
     };
   }, []);
 
   const updateOnlineStatus = () => {
     setStatus(navigator.onLine ? "online" : "offline");
-    const token = localStorage.getItem("auth_token");
+    const token = getAuthToken();
     setIsLinked(!!token);
   };
 
-  const handleManualSync = useCallback(async () => {
+  // `isUserInitiated` is the ONE thing that makes a sync "manual", and it
+  // travels all the way down: to getPendingSyncItems (bypass each queue
+  // item's exponential backoff) and to the server (bypass the plan tier's
+  // sync-interval throttle). The background daemon below therefore runs
+  // this with false — it used to call the button's handler outright, which
+  // made every automatic sync claim to be a user click, silently turning
+  // both of those protections off for everyone (see docs/FIXED_BUGS.md,
+  // A-5). It also stays quiet: no success toast for a sync nobody asked
+  // for, and a plan-tier throttle rejection is the expected steady state on
+  // a throttled tier, not a "Sync Error" to show the user.
+  const runSync = useCallback(async (isUserInitiated: boolean) => {
     // Impersonation is read-only support access: sync is disabled for the
     // whole session (sync() itself refuses too). Toasting rather than
     // silently returning so a superadmin isn't left wondering why the
     // indicator looks frozen.
     if (isImpersonating) {
-      toast.info("Sync is disabled during an impersonated session.");
+      if (isUserInitiated) toast.info("Sync is disabled during an impersonated session.");
       return;
     }
     if (isReadOnlyTab) {
-      toast.info("This tab is read-only. Switch to the tab where DumosRx is active to sync.");
+      if (isUserInitiated) {
+        toast.info("This tab is read-only. Switch to the tab where DumosRx is active to sync.");
+      }
       return;
     }
     if (isSyncInProgress) return;
     setIsSyncInProgress(true);
     setStatus("syncing");
     try {
-      const result = await sync(true);
+      const result = await sync(isUserInitiated);
       if (result.success) {
         setStatus("online");
         setLastSync(new Date().toISOString());
         setErrorMessage(null);
-        toast.success("Sync completed successfully");
+        if (isUserInitiated) toast.success("Sync completed successfully");
       } else {
-        setStatus("error");
         const errorMsg = typeof result.error === 'string' ? result.error : "Sync failed";
+        // Another caller (the other mounted indicator, or a sync fired from
+        // elsewhere) already holds sync()'s mutex: that sync is running and
+        // will report its own outcome, so this one is a no-op, not a failure.
+        if (errorMsg === SYNC_IN_PROGRESS_ERROR) return;
+        if (!isUserInitiated && isExpectedSyncRestriction(errorMsg)) {
+          setStatus("online");
+          return;
+        }
+        setStatus("error");
         setErrorMessage(errorMsg);
         if (errorMsg.includes("Unauthenticated") || errorMsg.includes("401")) {
           setShowAuthModal(true);
         }
       }
     } catch (err) {
-      console.error("Manual sync failed:", err);
+      console.error("Sync failed:", err);
+      if (!isUserInitiated && isExpectedSyncRestriction(err)) {
+        setStatus("online");
+        return;
+      }
       setStatus("error");
       const message = err instanceof Error ? err.message : "";
       setErrorMessage(message.includes("Unauthenticated")
@@ -140,6 +192,8 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
       setIsSyncInProgress(false);
     }
   }, [isSyncInProgress, isImpersonating, isReadOnlyTab]);
+
+  const handleManualSync = useCallback(() => runSync(true), [runSync]);
 
   // Background Auto-Sync Daemon. Two modes, switched purely by
   // auto_sync_interval's value: 0 means "sync instantly after any local
@@ -175,7 +229,7 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
           debounceTimer = setTimeout(() => {
             if (navigator.onLine && !checkIsSyncing()) {
               console.log("Auto-sync triggered (instant, on change)");
-              void handleManualSync();
+              void runSync(false);
             }
           }, INSTANT_SYNC_DEBOUNCE_MS);
         });
@@ -184,7 +238,7 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
         autoSyncIntervalTimer = setInterval(() => {
           if (navigator.onLine && !checkIsSyncing()) {
             console.log(`Auto-sync triggered (${intervalMinutes} min interval)`);
-            void handleManualSync();
+            void runSync(false);
           }
         }, intervalMs);
       }
@@ -195,7 +249,7 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
       if (debounceTimer) clearTimeout(debounceTimer);
       unsubscribe?.();
     };
-  }, [storeProfile?.auto_sync_enabled, storeProfile?.auto_sync_interval, isLinked, isImpersonating, isReadOnlyTab, handleManualSync]);
+  }, [storeProfile?.auto_sync_enabled, storeProfile?.auto_sync_interval, isLinked, isImpersonating, isReadOnlyTab, runSync]);
 
   // Wins over every other state: while impersonating there is nothing the
   // indicator could usefully report about syncing, because no sync will run.
@@ -248,10 +302,20 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
     },
     pending: {
       label: "Pending Sync",
-      icon: <Cloud className={cn(iconClass, "text-amber-500 animate-pulse")} {...fillProp} />,
-      border: "border-amber-500/50",
-      desktopBg: "bg-amber-500/10 hover:bg-amber-500/20",
-      mobileBg: "bg-amber-500/10",
+      icon: (
+        <Cloud
+          className={cn(
+            iconClass,
+            isSyncOverdue ? "text-destructive animate-pulse" : "text-amber-500",
+          )}
+          {...fillProp}
+        />
+      ),
+      border: isSyncOverdue ? "border-destructive/50" : "border-amber-500/50",
+      desktopBg: isSyncOverdue
+        ? "bg-destructive/10 hover:bg-destructive/20"
+        : "bg-amber-500/10 hover:bg-amber-500/20",
+      mobileBg: isSyncOverdue ? "bg-destructive/10" : "bg-amber-500/10",
       tooltip: `${pendingCount} local change${pendingCount > 1 ? "s" : ""} pending sync since ${lastSync ? formatDistanceToNow(new Date(lastSync)) + " ago" : "a while"}.`,
     },
     active: {

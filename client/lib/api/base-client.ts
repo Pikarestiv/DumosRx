@@ -6,6 +6,7 @@ import {
   getRefreshThreshold,
   refreshTokenSilently,
 } from "./token-manager";
+import { STORAGE_KEYS, getAuthTokenIssuedAt } from "@/lib/storage-keys";
 
 export class BaseApiClient {
   protected baseURL: string;
@@ -13,7 +14,7 @@ export class BaseApiClient {
   constructor() {
     let storedUrl = null;
     if (typeof window !== "undefined") {
-      storedUrl = localStorage.getItem("dumos_api_url");
+      storedUrl = localStorage.getItem(STORAGE_KEYS.apiUrl);
     }
 
     if (storedUrl) {
@@ -32,9 +33,9 @@ export class BaseApiClient {
     this.baseURL = url;
     if (typeof window !== "undefined") {
       if (url) {
-        localStorage.setItem("dumos_api_url", url);
+        localStorage.setItem(STORAGE_KEYS.apiUrl, url);
       } else {
-        localStorage.removeItem("dumos_api_url");
+        localStorage.removeItem(STORAGE_KEYS.apiUrl);
       }
     }
   }
@@ -62,7 +63,7 @@ export class BaseApiClient {
       !endpoint.includes("/login") &&
       !endpoint.includes("/refresh")
     ) {
-      const issuedAtStr = localStorage.getItem("auth_token_issued_at");
+      const issuedAtStr = getAuthTokenIssuedAt();
       if (issuedAtStr && navigator.onLine) {
         const issuedAt = parseInt(issuedAtStr, 10);
         if (Date.now() - issuedAt > getRefreshThreshold()) {

@@ -131,9 +131,11 @@ class PinHashingTest extends TestCase
         $staff = User::where('username', 'newhire')->firstOrFail();
         $this->assertNotSame('4321', $staff->pin);
         $this->assertTrue(Hash::check('4321', $staff->pin));
-        // The password fallback is still derived from the RAW pin (that's a
-        // separate, server-side credential - see StaffController::store).
-        $this->assertTrue(Hash::check('4321', $staff->password));
+        // The web-dashboard password is NOT derived from the PIN any more:
+        // a staff account created without one has no /login credential at
+        // all. See A-11 in docs/FIXED_BUGS.md and
+        // StaffPinDerivedPasswordTest, which owns that behaviour.
+        $this->assertNull($staff->password);
     }
 
     public function test_updating_a_staff_pin_stores_it_hashed(): void

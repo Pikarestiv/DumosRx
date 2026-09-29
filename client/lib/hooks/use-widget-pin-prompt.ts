@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { isTauri } from "@/lib/db";
 import { requestPinWidget } from "@/lib/native/widget-bridge";
+import { STORAGE_KEYS } from "@/lib/storage-keys";
 
-const DISMISSED_KEY = "dumos_widget_prompt_dismissed";
+const DISMISSED_KEY = STORAGE_KEYS.widgetPromptDismissed;
 
 /**
  * Drives the Action Center "Add Widget" card: only relevant on the Android

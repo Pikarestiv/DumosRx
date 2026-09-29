@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { createSupplier, updateSupplier } from "@/lib/db/procurement";
+import { createSupplier, updateSupplier, deleteSupplier } from "@/lib/db/procurement";
 import { update } from "@/lib/db/base-helpers";
 import { queryKeys } from "@/lib/query-keys";
 import type { SupplierPayload } from "@/lib/types/supplier";
@@ -25,6 +25,16 @@ export function useUpdateSupplierMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, payload }: UpdateSupplierParams) => updateSupplier(id, payload),
+    onSuccess: () => {
+      void queryClient.invalidateQueries(queryKeys.suppliers.all());
+    },
+  });
+}
+
+export function useDeleteSupplierMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => deleteSupplier(id),
     onSuccess: () => {
       void queryClient.invalidateQueries(queryKeys.suppliers.all());
     },

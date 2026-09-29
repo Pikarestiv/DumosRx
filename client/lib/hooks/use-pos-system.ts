@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
@@ -50,6 +50,8 @@ export function usePOSSystem() {
   };
 
   const [searchTerm, setSearchTerm] = useState("");
+  const searchTermRef = useRef(searchTerm);
+  searchTermRef.current = searchTerm;
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [isMobileScannerOpen, setIsMobileScannerOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
@@ -76,6 +78,7 @@ export function usePOSSystem() {
   const {
     products,
     loadingProducts,
+    productsLoadFailed,
     refetchProducts,
     recentSales,
     refetchSales,
@@ -84,7 +87,7 @@ export function usePOSSystem() {
     customers,
     loadingCustomers,
     paymentAccounts,
-  } = usePOSData();
+  } = usePOSData({ historyActive: activeTab === "history" });
 
   // POS doesn't use the shared DashboardLayout scroll container (its routes opt out
   // of that entirely), so each tab wires pull-to-refresh directly onto its own
@@ -127,11 +130,15 @@ export function usePOSSystem() {
   const { suggestions } = useSmartSuggestions(cart, products);
   const requirePaymentAccount = storeProfile?.require_payment_account === 1;
   const requireSaleNotes = storeProfile?.require_sale_notes === 1;
-  let enabledPaymentMethods = ["cash", "card", "transfer", "credit", "mixed"];
-  try {
-    if (storeProfile?.enabled_payment_methods)
-      enabledPaymentMethods = JSON.parse(storeProfile.enabled_payment_methods);
-  } catch (_e) {}
+  const enabledPaymentMethods = useMemo(() => {
+    const fallback = ["cash", "card", "transfer", "credit", "mixed"];
+    if (!storeProfile?.enabled_payment_methods) return fallback;
+    try {
+      return JSON.parse(storeProfile.enabled_payment_methods) as string[];
+    } catch {
+      return fallback;
+    }
+  }, [storeProfile?.enabled_payment_methods]);
   const { dispensedRxId, setDispensedRxId, isRefillDispense } = usePOSPrescription({
     searchParams,
     products,
@@ -221,14 +228,24 @@ export function usePOSSystem() {
   // themselves. Only when a search was actually active: adding straight
   // from Suggestions/Recently Sold/All Products (searchTerm already empty)
   // has nothing to clear and shouldn't reset scroll position for no reason.
-  const handleAddToCart = isPrescriptionLocked
-    ? () => toast.info("Cart is locked to this prescription. Edit the prescription to change medications.")
-    : (product: Parameters<typeof addToCart>[0]) => {
-        addToCart(product);
-        if (searchTerm.trim().length > 0) {
-          setSearchTerm("");
-        }
-      };
+  // A fresh closure here defeated POSProductCard's React.memo entirely (it
+  // is this component's only per-card prop), re-rendering every visible tile
+  // on every keystroke.
+  const handleAddToCart = useCallback(
+    (product: Parameters<typeof addToCart>[0]) => {
+      if (isPrescriptionLocked) {
+        toast.info(
+          "Cart is locked to this prescription. Edit the prescription to change medications.",
+        );
+        return;
+      }
+      addToCart(product);
+      if (searchTermRef.current.trim().length > 0) {
+        setSearchTerm("");
+      }
+    },
+    [isPrescriptionLocked, addToCart],
+  );
 
   return {
     t,
@@ -256,6 +273,7 @@ export function usePOSSystem() {
     heldSalesCount,
     products,
     loadingProducts,
+    productsLoadFailed,
     refetchProducts,
     recentSales,
     refetchSales,

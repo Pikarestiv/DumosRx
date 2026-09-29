@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { consumePostRestoreCloudLinkNotice } from "@/lib/utils/post-restore-notice";
+import { getAuthToken } from "@/lib/storage-keys";
 
 interface UsePostRestoreCloudLinkNoticeOptions {
   /** Opens whatever the "Link DumosRx Cloud" control already is for this
@@ -45,7 +46,7 @@ export function usePostRestoreCloudLinkNotice({
     // this hook isn't guaranteed, so relying on the context value here
     // could observe its pre-mount default and consume the one-shot marker
     // on a stale answer.
-    const isCloudLinked = !!localStorage.getItem("auth_token");
+    const isCloudLinked = !!getAuthToken();
 
     if (!consumePostRestoreCloudLinkNotice(isCloudLinked)) return;
 

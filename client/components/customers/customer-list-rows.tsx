@@ -2,6 +2,14 @@ import { ChevronRight } from "lucide-react";
 import { Customer } from "@/lib/hooks/use-customer-data";
 import { formatCurrency } from "@/lib/utils";
 
+/** Literal Tailwind class strings, not interpolated: the desktop row and its
+ * header must stay in lockstep when the Balance column drops out for a role
+ * without view_customer_balances. */
+export const CUSTOMER_GRID_COLS = {
+  withBalance: "grid-cols-[1.6fr_1.1fr_80px_70px_100px_110px]",
+  withoutBalance: "grid-cols-[1.6fr_1.1fr_80px_70px_110px]",
+} as const;
+
 interface RowCommonProps {
   customer: Customer;
   isSelected: boolean;
@@ -52,6 +60,7 @@ export function CustomerMobileRow({
 interface DesktopRowProps extends RowCommonProps {
   currencyCode: string;
   style: React.CSSProperties;
+  showBalance?: boolean;
 }
 
 export function CustomerDesktopRow({
@@ -61,6 +70,7 @@ export function CustomerDesktopRow({
   getTierColor,
   currencyCode,
   style,
+  showBalance = true,
 }: DesktopRowProps) {
   return (
     <div
@@ -73,7 +83,7 @@ export function CustomerDesktopRow({
           onSelect(customer);
         }
       }}
-      className={`absolute top-0 left-0 w-full grid grid-cols-[1.6fr_1.1fr_80px_70px_100px_110px] items-center gap-2 px-4 py-2.5 cursor-pointer border-b transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset ${isSelected ? "bg-primary/10" : "hover:bg-primary/5"}`}
+      className={`absolute top-0 left-0 w-full grid ${showBalance ? CUSTOMER_GRID_COLS.withBalance : CUSTOMER_GRID_COLS.withoutBalance} items-center gap-2 px-4 py-2.5 cursor-pointer border-b transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset ${isSelected ? "bg-primary/10" : "hover:bg-primary/5"}`}
       style={style}
     >
       <div className="flex items-center gap-3 min-w-0">
@@ -99,13 +109,15 @@ export function CustomerDesktopRow({
       <div className="text-[12.5px] text-right text-emerald-600 font-medium">
         {customer.points.toLocaleString()}
       </div>
-      <div
-        className={`text-[12.5px] text-right font-medium ${customer.outstanding_balance > 0 ? "text-destructive" : "text-muted-foreground"}`}
-      >
-        {customer.outstanding_balance > 0
-          ? formatCurrency(customer.outstanding_balance, currencyCode)
-          : "-"}
-      </div>
+      {showBalance && (
+        <div
+          className={`text-[12.5px] text-right font-medium ${customer.outstanding_balance > 0 ? "text-destructive" : "text-muted-foreground"}`}
+        >
+          {customer.outstanding_balance > 0
+            ? formatCurrency(customer.outstanding_balance, currencyCode)
+            : "-"}
+        </div>
+      )}
       <div className="text-[12px] text-right text-muted-foreground">
         {customer.lastVisit}
       </div>

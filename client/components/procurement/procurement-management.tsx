@@ -41,6 +41,7 @@ export function ProcurementManagement({ initialTab = "orders" }: ProcurementMana
 
   const {
     loading,
+    hasLoadError,
     searchQuery,
     setSearchQuery,
     poTab,
@@ -52,6 +53,7 @@ export function ProcurementManagement({ initialTab = "orders" }: ProcurementMana
     isReceivingPO,
     handleSendPO,
     handleDeletePO,
+    isMutatingPO,
   } = usePurchaseOrders();
 
   const handleTabChange = (value: string) => {
@@ -82,12 +84,15 @@ export function ProcurementManagement({ initialTab = "orders" }: ProcurementMana
             onSearchChange={setSearchQuery}
             activeTab={poTab}
             onTabChange={setPoTab}
-            onReceivePO={(id, receivedItems) => void handleReceivePO(id, receivedItems)}
+            onReceivePO={(id, receivedItems) => handleReceivePO(id, receivedItems)}
             isReceivingPO={isReceivingPO}
             onSendPO={(id) => void handleSendPO(id)}
             onDeletePO={(id) => void handleDeletePO(id)}
+            isMutatingPO={isMutatingPO}
             isFuzzyFallback={isFuzzyFallback}
             initialSelectedId={selectedId}
+            hasLoadError={hasLoadError}
+            onRetryLoad={() => void fetchPurchaseOrders()}
           />
         </TabsContent>
 

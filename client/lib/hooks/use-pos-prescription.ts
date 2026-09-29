@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { getPrescriptionItems } from "@/lib/db/queries/prescriptions";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { useHasPermission } from "@/lib/hooks/use-permissions";
 import type { POSProduct as Product } from "@/lib/types/product";
 import type { CartItem } from "./use-pos-cart";
 
@@ -14,6 +15,12 @@ interface UsePOSPrescriptionProps {
   pathname: string;
 }
 
+/**
+ * Loads a prescription's items onto the till from ?dispense_rx=<id>. That
+ * URL is the dispense action itself and is typeable, so it requires
+ * "dispense_prescriptions" independently of the Dispense button that
+ * normally produces it.
+ */
 export function usePOSPrescription({
   searchParams,
   products,
@@ -24,10 +31,11 @@ export function usePOSPrescription({
 }: UsePOSPrescriptionProps) {
   const [dispensedRxId, setDispensedRxId] = useState<string | null>(null);
   const [isRefillDispense, setIsRefillDispense] = useState(false);
+  const canDispense = useHasPermission("dispense_prescriptions");
 
   useEffect(() => {
     const rxId = searchParams.get("dispense_rx");
-    if (rxId && products.length > 0 && cartLength === 0) {
+    if (rxId && canDispense && products.length > 0 && cartLength === 0) {
       const isRefill = searchParams.get("refill") === "1";
       const loadPrescription = async () => {
         try {
@@ -73,7 +81,7 @@ export function usePOSPrescription({
       };
       void loadPrescription();
     }
-  }, [searchParams, products, cartLength, restoreCart, router, pathname]);
+  }, [searchParams, canDispense, products, cartLength, restoreCart, router, pathname]);
 
   return { dispensedRxId, setDispensedRxId, isRefillDispense };
 }

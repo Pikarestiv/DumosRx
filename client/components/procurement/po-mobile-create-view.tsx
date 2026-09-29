@@ -1,8 +1,9 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { POBackButton } from "./po-back-button";
+import { POImmediateConfirmDialog } from "./po-immediate-confirm-dialog";
 import { PODetailsFields } from "./po-details-fields";
 import { PODetailsSummaryBar } from "./po-details-summary-bar";
 import { POItemBuilder } from "./po-item-builder";
@@ -91,7 +92,7 @@ export function POMobileCreateView(props: POMobileCreateViewProps) {
     setIsEditDetailsOpen,
   } = props;
 
-  const router = useRouter();
+  const [isConfirmReceiveOpen, setIsConfirmReceiveOpen] = useState(false);
 
   const detailsFieldsProps = {
     poType,
@@ -113,7 +114,7 @@ export function POMobileCreateView(props: POMobileCreateViewProps) {
 
   return (
     <div
-      className="lg:hidden fixed inset-0 z-40 bg-background flex flex-col"
+      className="fixed inset-0 z-40 bg-background flex flex-col"
       style={{ height: "100dvh" }}
     >
       <div
@@ -124,14 +125,7 @@ export function POMobileCreateView(props: POMobileCreateViewProps) {
           paddingBottom: "0.75rem",
         }}
       >
-        <button
-          type="button"
-          aria-label="Back"
-          className="w-[38px] h-[38px] rounded-[10px] bg-muted flex items-center justify-center cursor-pointer text-muted-foreground shrink-0 hover:bg-muted/80 transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring"
-          onClick={() => router.push("/procurement")}
-        >
-          <ArrowLeft className="w-[17px] h-[17px]" />
-        </button>
+        <POBackButton itemCount={items.length} />
         <div className="min-w-0">
           <div className="text-[15px] font-serif font-bold leading-tight">
             Create Purchase Order
@@ -158,10 +152,14 @@ export function POMobileCreateView(props: POMobileCreateViewProps) {
             <Button
               size="sm"
               className="h-9 px-4 rounded-[10px] text-[12.5px] font-semibold"
-              onClick={handleSubmit}
+              onClick={
+                poType === "immediate"
+                  ? () => setIsConfirmReceiveOpen(true)
+                  : handleSubmit
+              }
               disabled={isSubmitting || items.length === 0}
             >
-              {isSubmitting ? "Saving..." : poType === "immediate" ? "Save" : "Save Draft"}
+              {isSubmitting ? "Saving..." : poType === "immediate" ? "Receive" : "Save Draft"}
             </Button>
           </div>
         )}
@@ -219,6 +217,15 @@ export function POMobileCreateView(props: POMobileCreateViewProps) {
           </div>
         </div>
       )}
+
+      <POImmediateConfirmDialog
+        open={isConfirmReceiveOpen}
+        onOpenChange={setIsConfirmReceiveOpen}
+        items={items}
+        products={products}
+        totalAmount={totalAmount}
+        onConfirm={handleSubmit}
+      />
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { query } from "@/lib/db/local-database";
+import { query, softDelete } from "@/lib/db/local-database";
 import { getActiveStoreId } from "@/lib/db/core";
 import type { Product, ProductWithDetails, ProductWithStockRow, POSProduct } from "@/lib/types/product";
 import type { AuditLogRow } from "@/lib/types/audit-log";
@@ -18,14 +18,6 @@ export async function getProductsWithDetails() {
      LEFT JOIN categories c ON m.category_id = c.id
      WHERE m._deleted = 0${storeId ? " AND m.store_id = ?" : ""}
      ORDER BY m.created_at DESC`,
-    storeId ? [storeId] : [],
-  );
-}
-
-export async function getCategoriesList() {
-  const storeId = getActiveStoreId();
-  return query<{ name: string }>(
-    `SELECT name FROM categories WHERE _deleted = 0${storeId ? " AND (store_id = ? OR store_id IS NULL)" : ""} ORDER BY name ASC`,
     storeId ? [storeId] : [],
   );
 }
@@ -71,6 +63,23 @@ export async function getProductBasicInfo(productId: string) {
     [productId],
   );
   return rows[0] || null;
+}
+
+/** The weighted-average cost across a product's active batches - the same
+ * DISPLAY figure getProductsWithDetails() derives for the catalog. Nothing
+ * computes on it (margin/COGS and FEFO deduction read each batch's own
+ * cost_price); it is read here only so the post-receive confirmation can
+ * state what the catalog will now show alongside the singular batch cost
+ * that was actually typed. */
+export async function getAverageCostPrice(productId: string): Promise<number | null> {
+  const rows = await query<{ cost_price: number | null }>(
+    `SELECT SUM(cost_price * quantity) * 1.0 / NULLIF(SUM(quantity), 0) as cost_price
+     FROM stock_batches
+     WHERE product_id = ? AND _deleted = 0 AND is_active = 1 AND quantity > 0`,
+    [productId],
+  );
+  const value = rows[0]?.cost_price;
+  return value == null ? null : Number(value);
 }
 
 export async function getProductByName(name: string) {
@@ -172,4 +181,52 @@ export async function getProductHistory(productId: string, viewerId?: string) {
     auditLogs: auditLogs || [],
     stockMovements: stockMovements || [],
   };
+}
+
+export interface ProductDeletionBlockers {
+  stockOnHand: number;
+  openPurchaseOrders: number;
+}
+
+export async function getProductDeletionBlockers(
+  productId: string,
+): Promise<ProductDeletionBlockers> {
+  const [stockRows, poRows] = await Promise.all([
+    query<{ stock_on_hand: number | null }>(
+      `SELECT COALESCE(SUM(ABS(quantity)), 0) as stock_on_hand
+       FROM stock_batches
+       WHERE product_id = ? AND _deleted = 0 AND is_active = 1`,
+      [productId],
+    ),
+    query<{ open_orders: number | null }>(
+      `SELECT COUNT(DISTINCT po.id) as open_orders
+       FROM purchase_order_items poi
+       JOIN purchase_orders po ON po.id = poi.po_id
+       WHERE poi.product_id = ? AND poi._deleted = 0 AND po._deleted = 0
+         AND po.status IN ('pending', 'sent', 'partially_received')`,
+      [productId],
+    ),
+  ]);
+
+  return {
+    stockOnHand: Number(stockRows[0]?.stock_on_hand) || 0,
+    openPurchaseOrders: Number(poRows[0]?.open_orders) || 0,
+  };
+}
+
+export async function deleteProduct(id: string): Promise<void> {
+  const { stockOnHand, openPurchaseOrders } = await getProductDeletionBlockers(id);
+
+  if (stockOnHand > 0) {
+    throw new Error(
+      `This product still has ${stockOnHand} in stock. Clear or write off the stock before deleting it.`,
+    );
+  }
+  if (openPurchaseOrders > 0) {
+    throw new Error(
+      `This product is on ${openPurchaseOrders} open purchase order${openPurchaseOrders === 1 ? "" : "s"}. Receive or cancel ${openPurchaseOrders === 1 ? "it" : "them"} before deleting it.`,
+    );
+  }
+
+  await softDelete("products", id);
 }

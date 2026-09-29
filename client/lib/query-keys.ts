@@ -55,9 +55,14 @@ export const queryKeys = {
       resource(["productHistory", id, viewerId] as const, ["audit_logs", "stock_movements"]),
     batches: (id?: string) => resource(["productBatches", id] as const, ["stock_batches"]),
     creator: (id?: string) => resource(["productCreator", id] as const, ["audit_logs"]),
+    deletionBlockers: (id: string | null) =>
+      resource(["productDeletionBlockers", id] as const, [
+        "stock_batches",
+        "purchase_orders",
+        "purchase_order_items",
+      ]),
   },
   categories: {
-    all: () => resource(["categoriesList"] as const, ["categories"]),
     list: () => resource(["categoryList"] as const, ["categories"]),
   },
   stockBatches: {
@@ -142,6 +147,35 @@ export const queryKeys = {
   },
   expenses: {
     all: () => resource(["expenses"] as const, ["expenses"]),
+    /** One page of the ledger. Keyed on the loaded row count as well as the
+     * filters, so "load older" widens the window rather than replacing a
+     * cached page. */
+    page: (
+      viewerId: string | undefined,
+      limit: number,
+      search: string | undefined,
+      category: string | undefined,
+    ) =>
+      resource(
+        [
+          "expenses",
+          "page",
+          viewerId ?? "all",
+          limit,
+          search ?? "",
+          category ?? "All",
+        ] as const,
+        ["expenses"],
+      ),
+    lifetimeTotal: (viewerId: string | undefined) =>
+      resource(["expenses", "lifetimeTotal", viewerId ?? "all"] as const, [
+        "expenses",
+      ]),
+    monthStats: (viewerId: string | undefined, from: string, to: string) =>
+      resource(
+        ["expenses", "monthStats", viewerId ?? "all", from, to] as const,
+        ["expenses"],
+      ),
   },
   prescriptions: {
     all: () => resource(["prescriptions"] as const, ["prescriptions"]),

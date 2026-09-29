@@ -9,7 +9,8 @@
  * one atomic step).
  */
 
-import { generateId, logAction, transaction } from "./core";
+import { generateId, logAction, query, transaction } from "./core";
+import { receiptBatchId, receiptMovementId } from "./deterministic-id";
 import { insert, update } from "./base-helpers";
 import {
   getPurchaseOrderById,
@@ -17,6 +18,8 @@ import {
   coerceOptionalNumber,
   type DraftPOLineItem,
 } from "./procurement";
+import { getStoredUser } from "@/lib/storage-keys";
+import { resolveBaseUnitCost } from "@/components/procurement/po-line-item-math";
 
 /** Per-line-item receiving overrides submitted from the "Receive Order" form:
  * only po_item_id is required, the rest default to the ordered quantity/PO id. */
@@ -25,13 +28,20 @@ export interface ReceivedItem {
   quantity?: number | string;
   lot_number?: string;
   expiry_date?: string;
-  /** Overrides the PO line's unit cost for this receipt, if the actual
-   * invoiced cost differs from what was ordered. */
+  /** Overrides the PO line's cost for this receipt, if the actual invoiced
+   * cost differs from what was ordered. Per BASE unit (per tablet/bag), not
+   * per bulk unit - the same scale as products' catalog cost and as the
+   * Immediate Purchase flow's "New Cost". */
   cost_price?: number | string;
   /** When set, updates the product's global selling price; lets a price
    * change discovered while receiving stock be applied immediately instead
    * of requiring a separate trip to the product's edit screen. */
   selling_price?: number | string;
+  /** The product's live selling_price when the receive panel was opened -
+   * not written anywhere, just carried through so a caller can tell
+   * whether `selling_price` above is a real change. */
+  current_selling_price?: number | null;
+  product_id?: string;
 }
 
 export interface ImmediateLineItemDraft extends DraftPOLineItem {
@@ -58,7 +68,21 @@ export async function receivePurchaseOrder(id: string, receivedItems?: ReceivedI
     for (const item of poData.items) {
       const receivedItem = receivedItems?.find(ri => ri.po_item_id === item.id);
 
-      const alreadyReceived = Math.max(0, Number(item.quantity_received) || 0);
+      // Re-read the line's received balance INSIDE the transaction rather
+      // than trusting the poData snapshot taken before it: that snapshot was
+      // read before this transaction's turn in the queue, so a receipt
+      // racing this one (two tabs, or the same delivery submitted twice)
+      // computes the full outstanding balance from a balance that is no
+      // longer true and books the delivery again. Same fix shape as
+      // submitStockAudit's system-quantity re-read.
+      const receivedRows = await query<{ quantity_received: number | null }>(
+        "SELECT quantity_received FROM purchase_order_items WHERE id = ?",
+        [item.id],
+      );
+      const alreadyReceived = Math.max(
+        0,
+        Number(receivedRows[0]?.quantity_received ?? item.quantity_received) || 0,
+      );
       const outstanding = Math.max(0, Number(item.bulk_quantity) - alreadyReceived);
 
       // Default to the whole outstanding balance if not provided in payload.
@@ -83,15 +107,29 @@ export async function receivePurchaseOrder(id: string, receivedItems?: ReceivedI
       const batchNumber = receivedItem?.lot_number?.trim() || poData.id.split('-')[0].toUpperCase();
       const expiryDate = receivedItem?.expiry_date ? new Date(receivedItem.expiry_date).toISOString().slice(0, 10) : null;
 
-      const safeUnitsPerBulk = unitsPerBulk || 1;
-      // Overrides are floored at 0 for the same reason as bulkQty: a negative
-      // cost would corrupt margin math everywhere stock_batches.cost_price is read.
-      const baseUnitCost =
-        receivedItem?.cost_price !== undefined && receivedItem.cost_price !== ""
-          ? Math.max(0, Number(receivedItem.cost_price))
-          : Number(item.unit_cost) / safeUnitsPerBulk;
+      // Same helper the Immediate Purchase flow uses, so the two paths can't
+      // drift on what "cost" means: a typed override is per base unit, an
+      // absent one falls back to the line's per-bulk unit_cost divided down.
+      const baseUnitCost = resolveBaseUnitCost({
+        costOverride: receivedItem?.cost_price,
+        unitCost: Number(item.unit_cost),
+        unitsPerBulk,
+      });
 
+      // Deterministic, not random: two devices booking the same delivery
+      // derive the same pair of ids (this PO line, this already-received
+      // balance), so the second device's push collapses onto the first's
+      // rows server-side — SyncController::push turns an INSERT whose id
+      // already exists into an UPDATE, which for stock_batches drops the
+      // quantity outright and for stock_movements contributes no delta.
+      // Without this, both receipts are independent rows the server has no
+      // way to recognise as one delivery, and on-hand stock doubles while
+      // the PO still shows a single receipt (one of the two
+      // quantity_received updates loses the version check). A genuine later
+      // partial receipt starts from a different balance and so keeps its own
+      // ids. See lib/db/deterministic-id.ts.
       const invId = await insert("stock_batches", {
+        id: receiptBatchId(item.id, alreadyReceived),
         product_id: item.product_id,
         quantity: totalBaseUnits,
         cost_price: baseUnitCost,
@@ -105,9 +143,9 @@ export async function receivePurchaseOrder(id: string, receivedItems?: ReceivedI
       });
 
       // Log local stock movement
-      const dumosUser = JSON.parse(localStorage.getItem("dumos_user") || "{}");
+      const dumosUser = getStoredUser() ?? {};
       await insert("stock_movements", {
-        id: crypto.randomUUID(),
+        id: receiptMovementId(item.id, alreadyReceived),
         product_id: item.product_id,
         stock_batch_id: invId,
         movement_type: "purchase",
@@ -220,7 +258,7 @@ export async function createAndReceivePurchaseOrder(
       received_at: now,
     });
 
-    const dumosUser = JSON.parse(localStorage.getItem("dumos_user") || "{}");
+    const dumosUser = getStoredUser() ?? {};
 
     for (const item of items) {
       const poItemId = generateId();

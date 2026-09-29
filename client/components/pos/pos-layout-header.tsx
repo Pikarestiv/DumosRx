@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Store as StoreIcon } from "lucide-react";
 import { useStore } from "@/lib/context/store-context";
-import { useAuth, checkCanRequestStockTransfer } from "@/lib/context/auth-context";
+import { useHasPermission } from "@/lib/hooks/use-permissions";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { APP_NAME } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -45,10 +45,28 @@ export function POSLayoutHeader({
 }: POSLayoutHeaderProps) {
   const router = useRouter();
   const { storeProfile, availableStores } = useStore();
-  const { user } = useAuth();
   const { canManageMultiStore } = useFeatureGate();
+  // See AGENTS.md's "Enforced permissions" section for why this is three
+  // checks and not one: the per-group right, the till baseline, and the
+  // store-wide opt-in toggle are all still load-bearing.
+  //
+  // All three useHasPermission() calls are hoisted to unconditional consts,
+  // never inlined into the `&&` chain below: useHasPermission's result can
+  // change between renders as its permission-group lookup resolves
+  // asynchronously (starts from a role fallback, then updates once the
+  // real group loads), and short-circuiting the second call inside `&&`
+  // made its hook count differ between renders for exactly the case this
+  // feature exists for - a custom group more permissive than its base
+  // role tier - triggering React's real "Rendered more/fewer hooks than
+  // during the previous render" crash (see
+  // __tests__/pos-layout-header-rules-of-hooks.test.tsx).
+  const canProcessSalesPermission = useHasPermission("process_sales");
+  const isAdminTierPermission = useHasPermission("manage_staff");
+  const canRequestStockTransfers = useHasPermission("request_stock_transfers");
   const canRequestTransfer =
-    checkCanRequestStockTransfer(user?.role, storeProfile?.staff_can_request_transfers) &&
+    canProcessSalesPermission &&
+    canRequestStockTransfers &&
+    (isAdminTierPermission || storeProfile?.staff_can_request_transfers === 1) &&
     canManageMultiStore &&
     availableStores.length > 1;
   const [isScannerOpen, setIsScannerOpen] = useState(false);

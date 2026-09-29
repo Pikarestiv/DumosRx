@@ -13,11 +13,9 @@ import {
 import { useStore } from "@/lib/context/store-context";
 import { capitalizeWords } from "@/lib/hooks/use-uppercase-display";
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
-import {
-  generateReportPdfBlob,
-  downloadBlob,
-  openBlobForPrint,
-} from "@/lib/utils/report-pdf";
+import { generateReportPdfBlob } from "@/lib/utils/report-pdf";
+import { downloadBlob, openBlobForPrint } from "@/lib/utils/download-blob";
+import { STORAGE_KEYS } from "@/lib/storage-keys";
 
 export interface RecentDownload {
   id: string;
@@ -27,15 +25,15 @@ export interface RecentDownload {
   sizeLabel: string;
 }
 
-const STORAGE_KEY = "drx_recent_downloads";
+const STORAGE_KEY = STORAGE_KEYS.recentDownloads;
 
 const REPORT_CONFIG = {
   sales: {
     label: "Sales Report",
     filenamePrefix: "Sales_Report",
     fetch: fetchSalesReportData,
-    headers: ["Transaction #", "Date", "Customer", "Payment Method", "Subtotal", "Tax", "Discount", "Total", "Refunded", "Net Total", "Status"],
-    columnFlex: [1.8, 1.3, 1.3, 1, 1, 0.8, 1, 1, 1, 1, 1],
+    headers: ["Transaction #", "Date", "Customer", "Cashier", "Payment Method", "Subtotal", "Tax", "Discount", "Total", "Refunded", "Net Total", "Status"],
+    columnFlex: [1.8, 1.3, 1.3, 1.2, 1, 1, 0.8, 1, 1, 1, 1, 1],
     dateColumns: ["Date"],
     takesDateRange: true,
     takesSalesFilters: true,
@@ -88,6 +86,26 @@ const REPORT_CONFIG = {
 } as const;
 
 export type ReportId = keyof typeof REPORT_CONFIG;
+
+/** The column order a report's rows are presented in - shared by the CSV,
+ * the PDF and the on-screen view so all three read the same. */
+export function getReportHeaders(reportId: ReportId): string[] {
+  return REPORT_CONFIG[reportId].headers as unknown as string[];
+}
+
+/** Whether a report's query takes dateFrom/dateTo at all - Inventory
+ * Valuation and Customer Loyalty are point-in-time snapshots, so the report
+ * view renders no date control for them rather than an inert one. */
+export function reportSupportsDateRange(reportId: ReportId): boolean {
+  return REPORT_CONFIG[reportId].takesDateRange;
+}
+
+/** Whether a report's query takes a SalesFilters object (staff id + payment
+ * method). Same contract as reportSupportsDateRange, read from the one
+ * config both the exports and the on-screen view already run on. */
+export function reportSupportsSalesFilters(reportId: ReportId): boolean {
+  return REPORT_CONFIG[reportId].takesSalesFilters;
+}
 
 // Only these two report types carry a product or category name column, and
 // both alias their SQL output to the exact header name (see
@@ -286,6 +304,7 @@ export function useReportExport() {
   }, []);
 
   return {
+    getRows,
     exportReportCsv,
     downloadReportPdf,
     printReport,

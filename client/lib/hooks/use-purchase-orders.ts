@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -10,8 +10,51 @@ import {
   type ReceivedItem,
 } from "@/lib/db/local-database";
 import { genericFuzzySearch } from "@/lib/utils/search";
+import { errorDescription } from "@/lib/utils/error-description";
+import {
+  costOverriddenLines,
+  countSellingPriceOverrides,
+} from "@/components/procurement/po-line-item-math";
+import { getAverageCostPrice } from "@/lib/db/queries/products";
+import { formatCurrency } from "@/lib/utils";
+import { useStore } from "@/lib/context/store-context";
 import { queryKeys } from "@/lib/query-keys";
-import { useAuth, checkCanViewAllActivity } from "@/lib/context/auth-context";
+import { useAuth } from "@/lib/context/auth-context";
+import { useHasPermission } from "@/lib/hooks/use-permissions";
+
+/** Each stock batch keeps the singular cost it was received at, and that is
+ * the figure margin/COGS and FEFO deduction use - the catalog's Avg. Cost is
+ * a display/reporting summary across batches, which a small new batch barely
+ * moves, so a correctly-saved cost still reads as "nothing happened". This
+ * confirmation states both, mirroring the selling-price-override toast right
+ * above its call site. */
+async function notifyCostRecorded(
+  receivedItems: ReceivedItem[],
+  currencyCode?: string,
+) {
+  const lines = costOverriddenLines(receivedItems);
+  if (lines.length === 0) return;
+
+  if (lines.length > 1) {
+    toast.success(`Cost recorded for ${lines.length} items`, {
+      description:
+        "Each new batch keeps the cost you typed. The catalog's Avg. Cost is a display figure across all batches, so it won't match any single one.",
+    });
+    return;
+  }
+
+  const [line] = lines;
+  const blendedAverage = await getAverageCostPrice(line.productId);
+  toast.success(
+    `Cost recorded at ${formatCurrency(line.cost, currencyCode)} for 1 item`,
+    {
+      description:
+        blendedAverage != null
+          ? `This batch's cost is what margin on this stock uses. The catalog's Avg. Cost, a display figure across all batches, is now ${formatCurrency(blendedAverage, currencyCode)}.`
+          : "This batch's cost is what margin on this stock uses; the catalog's Avg. Cost is a display figure across all batches.",
+    },
+  );
+}
 
 /** All business logic for the Orders tab of Procurement Management. */
 export function usePurchaseOrders() {
@@ -21,12 +64,17 @@ export function usePurchaseOrders() {
   // receivePurchaseOrder twice for the same order (which would duplicate the
   // stock batch and its movement); also drives the button's loading state.
   const [isReceivingPO, setIsReceivingPO] = useState(false);
+  // Same guard as isReceivingPO, for the status writes that had none: a
+  // double-tap on a laggy tablet fired "Mark as Sent"/"Delete" twice.
+  const [isMutatingPO, setIsMutatingPO] = useState(false);
   const { user } = useAuth();
-  const viewerId = checkCanViewAllActivity(user?.role) ? undefined : user?.id;
+  const { storeProfile } = useStore();
+  const viewerId = useHasPermission("view_activity_log") ? undefined : user?.id;
 
   const {
     data: purchaseOrders = [],
     isLoading: loading,
+    isError: hasLoadError,
     refetch,
   } = useQuery({
     // poTab isn't a query param: getPurchaseOrders() always fetches
@@ -44,8 +92,15 @@ export function usePurchaseOrders() {
     await refetch();
   };
 
-  const handleReceivePO = async (id: string, receivedItems: ReceivedItem[]) => {
-    if (isReceivingPO) return;
+  /** Resolves true only when the write actually landed, so the caller can
+   * keep the receiving panel (and its spinner) on screen until then and
+   * leave it open on failure instead of navigating away from an order that
+   * was never received. */
+  const handleReceivePO = async (
+    id: string,
+    receivedItems: ReceivedItem[],
+  ): Promise<boolean> => {
+    if (isReceivingPO) return false;
     setIsReceivingPO(true);
     try {
       const status = await receivePurchaseOrder(id, receivedItems);
@@ -54,57 +109,91 @@ export function usePurchaseOrders() {
           ? "Partial receipt recorded, the outstanding balance is still open."
           : "Order received and stock updated!",
       );
+      // receivePurchaseOrder() writes products.selling_price synchronously
+      // for any line with a real override, same as createAndReceivePurchaseOrder -
+      // this is the other of the two paths that actually change the live
+      // price immediately, so it gets the same confirmation toast.
+      const priceOverrideCount = countSellingPriceOverrides(
+        receivedItems.map((item) => ({ product_id: item.product_id ?? "", selling_price: item.selling_price })),
+        receivedItems.map((item) => ({ id: item.product_id ?? "", selling_price: item.current_selling_price ?? null })),
+      );
+      if (priceOverrideCount > 0) {
+        toast.success(
+          priceOverrideCount === 1
+            ? "Selling price updated for 1 item"
+            : `Selling price updated for ${priceOverrideCount} items`,
+        );
+      }
+      await notifyCostRecorded(receivedItems, storeProfile?.currency);
       void fetchPurchaseOrders();
+      return true;
     } catch (error) {
       console.error("Failed to receive PO:", error);
-      toast.error("Error receiving order");
+      toast.error("Couldn't receive this order", {
+        description: errorDescription(error),
+      });
+      return false;
     } finally {
       setIsReceivingPO(false);
     }
   };
 
   const handleSendPO = async (id: string) => {
+    if (isMutatingPO) return;
+    setIsMutatingPO(true);
     try {
       await updatePurchaseOrderStatus(id, "sent");
       toast.success("Order marked as sent!");
       void fetchPurchaseOrders();
     } catch (error) {
       console.error("Failed to mark PO as sent:", error);
-      toast.error("Error updating order status");
+      toast.error("Couldn't mark the order as sent", {
+        description: errorDescription(error),
+      });
+    } finally {
+      setIsMutatingPO(false);
     }
   };
 
   const handleDeletePO = async (id: string) => {
+    if (isMutatingPO) return;
+    setIsMutatingPO(true);
     try {
       await deletePurchaseOrder(id);
       toast.success("Purchase order deleted successfully");
       void fetchPurchaseOrders();
     } catch (error) {
       console.error("Failed to delete PO:", error);
-      toast.error("Error deleting purchase order");
+      toast.error("Couldn't delete the purchase order", {
+        description: errorDescription(error),
+      });
+    } finally {
+      setIsMutatingPO(false);
     }
   };
 
-  const preFilteredOrders = purchaseOrders.filter((po) => {
-    if (poTab === "all") return true;
-    if (poTab === "missing-expiry") {
-      return (
-        (po.status === "received" || po.status === "partially_received") &&
-        po.has_missing_expiry
-      );
-    }
-    return po.status === poTab;
-  });
+  const { results: filteredOrders, isFuzzyFallback } = useMemo(() => {
+    const preFilteredOrders = purchaseOrders.filter((po) => {
+      if (poTab === "all") return true;
+      if (poTab === "missing-expiry") {
+        return (
+          (po.status === "received" || po.status === "partially_received") &&
+          po.has_missing_expiry
+        );
+      }
+      return po.status === poTab;
+    });
 
-  const { results: filteredOrders, isFuzzyFallback } = genericFuzzySearch(
-    searchQuery,
-    preFilteredOrders,
-    ["vendor_name", "id"],
-  );
+    return genericFuzzySearch(searchQuery, preFilteredOrders, [
+      "vendor_name",
+      "id",
+    ]);
+  }, [purchaseOrders, poTab, searchQuery]);
 
   return {
     purchaseOrders,
     loading,
+    hasLoadError,
     searchQuery,
     setSearchQuery,
     poTab,
@@ -116,5 +205,6 @@ export function usePurchaseOrders() {
     isReceivingPO,
     handleSendPO,
     handleDeletePO,
+    isMutatingPO,
   };
 }

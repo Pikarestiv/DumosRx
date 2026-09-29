@@ -6,17 +6,35 @@ import { queryClient } from "@/lib/query-client";
 import { query, execute, isTauri, isWriterTab } from "../core";
 import { getValidColumns } from "./schema";
 import { getSyncQueueBreakdown } from "@/lib/db/queries/setup";
+import { pruneSyncedAuditLogs } from "../retention";
 import { devLog } from "@/lib/utils/dev-log";
+import { APP_EVENTS, emitAppEvent } from "@/lib/events";
 import { logCrash } from "@/lib/utils/error-logger";
 import {
   isImpersonatedSession,
   SYNC_DISABLED_IMPERSONATION_MESSAGE,
 } from "@/lib/utils/impersonation";
+import {
+  STORAGE_KEYS,
+  setLastSyncTime,
+  getAuthToken,
+} from "@/lib/storage-keys";
 
 let isSyncInProgress = false;
 
 export function isSyncing(): boolean {
   return isSyncInProgress;
+}
+
+/** Opaque per-sync-run token (see its use in sync()). crypto.randomUUID is
+ * unavailable on an insecure origin and in some older webviews, so it falls
+ * back to a timestamp+random string; the server only ever compares it for
+ * equality within one short run window, so uniqueness per device is enough. */
+function newSyncRunId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
 }
 
 /**
@@ -33,9 +51,13 @@ export function isSyncing(): boolean {
  *
  * Deliberately not wired to any UI — see the window-exposure note below.
  */
+/** Returned instead of a real failure when another sync already holds the
+ * mutex. Callers must treat it as a no-op, not an error (see SyncIndicator). */
+export const SYNC_IN_PROGRESS_ERROR = "Sync already in progress";
+
 export async function forceFullResync(): Promise<SyncResult> {
   if (isSyncInProgress) {
-    return { success: false, pushed: 0, pulled: 0, error: "Sync already in progress" };
+    return { success: false, pushed: 0, pulled: 0, error: SYNC_IN_PROGRESS_ERROR };
   }
   await execute("DELETE FROM _sync_state");
   return sync(true);
@@ -68,7 +90,7 @@ export async function sync(
       success: false,
       pushed: 0,
       pulled: 0,
-      error: "Sync already in progress",
+      error: SYNC_IN_PROGRESS_ERROR,
     };
   }
 
@@ -104,7 +126,7 @@ export async function sync(
   }
 
   const token =
-    typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
+    typeof window !== "undefined" ? getAuthToken() : null;
   if (!token) {
     return {
       success: false,
@@ -135,8 +157,14 @@ export async function sync(
 
   try {
     isSyncInProgress = true;
-    const pushResult = await pushChanges(isManual, isSetup);
-    const pullResult = await pullChanges(isManual, isSetup, onCriticalTablesReady);
+    // One token for this whole run — every push batch and every pull page
+    // below carries it. The server measures the plan tier's sync-interval
+    // throttle per run rather than per request, so a backlog that needs
+    // many batches isn't rejected by the last_sync_at its own first batch
+    // just stamped (see SyncController::validateSync).
+    const runId = newSyncRunId();
+    const pushResult = await pushChanges(isManual, isSetup, runId);
+    const pullResult = await pullChanges(isManual, isSetup, onCriticalTablesReady, runId);
 
     if (pushResult.pushed > 0 || pullResult.pulled > 0) {
       devLog(
@@ -153,15 +181,21 @@ export async function sync(
         .catch(() => null);
       if (typeof value === "string") {
         JSON.parse(value); // Validate JSON
-        localStorage.setItem("dumos_suggestions", value);
+        localStorage.setItem(STORAGE_KEYS.suggestions, value);
       } else if (value && typeof value === "object") {
-        localStorage.setItem("dumos_suggestions", JSON.stringify(value));
+        localStorage.setItem(STORAGE_KEYS.suggestions, JSON.stringify(value));
       }
     } catch (err) {
       console.error("Failed to sync autocomplete suggestions:", err);
     }
 
-    localStorage.setItem("last_sync_time", new Date().toISOString());
+    setLastSyncTime(new Date().toISOString());
+
+    if (isWriterTab()) {
+      await pruneSyncedAuditLogs().catch((err) =>
+        console.error("Failed to prune local audit logs", err),
+      );
+    }
 
     if (typeof window !== "undefined") {
       // Invalidate exactly the queries tagged (via meta.tables, see
@@ -179,15 +213,13 @@ export async function sync(
           },
         });
         if (pullResult.updatedTables.includes("stores")) {
-          window.dispatchEvent(new CustomEvent("dumos_subscription_updated"));
+          emitAppEvent(APP_EVENTS.subscriptionUpdated);
         }
       }
 
-      window.dispatchEvent(
-        new CustomEvent("dumos_sync_completed", {
-          detail: { updatedTables: pullResult.updatedTables || [] },
-        })
-      );
+      emitAppEvent(APP_EVENTS.syncCompleted, {
+        updatedTables: pullResult.updatedTables || [],
+      });
     }
 
     // A batch landing in pushChanges()'s catch block (network error,
@@ -252,7 +284,7 @@ export async function syncSubscriptionStatus(): Promise<{
   updated: boolean;
 }> {
   const token =
-    typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
+    typeof window !== "undefined" ? getAuthToken() : null;
 
   if (!token || !navigator.onLine) {
     return { success: false, updated: false };
@@ -327,7 +359,7 @@ export async function syncSubscriptionStatus(): Promise<{
     if (typeof window !== "undefined") {
       void queryClient.invalidateQueries({ queryKey: ["storeProfile"] });
       void queryClient.invalidateQueries({ queryKey: ["allStores"] });
-      window.dispatchEvent(new CustomEvent("dumos_subscription_updated"));
+      emitAppEvent(APP_EVENTS.subscriptionUpdated);
     }
 
     devLog("[SyncEngine] Subscription status synced from server.");

@@ -6,12 +6,6 @@ use App\Http\Controllers\Api\Admin\AdminUserController;
 // Namespaced Controllers
 use App\Http\Controllers\Api\Admin\MailController;
 // Web Controllers
-use App\Http\Controllers\Api\App\CategoryController;
-use App\Http\Controllers\Api\App\CustomerController;
-use App\Http\Controllers\Api\App\ProductController;
-use App\Http\Controllers\Api\App\SaleController;
-use App\Http\Controllers\Api\App\StockBatchController;
-use App\Http\Controllers\Api\App\SupplierController;
 use App\Http\Controllers\Api\App\SyncController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\AuthHandoffController;
@@ -31,9 +25,14 @@ use App\Http\Controllers\Api\Web\SubscriptionController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
-    // Public Routes
-    Route::get('/system-configs/{key}', [SystemConfigController::class, 'show']);
-    Route::post('/support', [\App\Http\Controllers\Api\Web\FeedbackController::class, 'store']);
+    // Public Routes. Laravel 11+ has no default `throttle:api` floor, so each
+    // one carries its own named limiter. See AGENTS.md for this whole block.
+    Route::middleware('throttle:public-read')->group(function () {
+        Route::get('/system-configs/{key}', [SystemConfigController::class, 'show']);
+    });
+    Route::middleware('throttle:public-write')->group(function () {
+        Route::post('/support', [\App\Http\Controllers\Api\Web\FeedbackController::class, 'store']);
+    });
     Route::middleware('throttle:auth')->group(function () {
         Route::post('/login', [AuthController::class, 'login']);
         Route::post('/register', [AuthController::class, 'register']);
@@ -69,7 +68,9 @@ Route::prefix('v1')->group(function () {
 
     // Client-side error telemetry - must stay public since it needs to report
     // failures that happen before login (e.g. the system-config fetch on app boot).
-    Route::post('/logs/client-error', [ActivityLogController::class, 'logClientError']);
+    Route::middleware('throttle:client-error-log')->group(function () {
+        Route::post('/logs/client-error', [ActivityLogController::class, 'logClientError']);
+    });
 
     // Tracking Routes
     Route::post('/track/download', [\App\Http\Controllers\Api\TrackController::class, 'download']);
@@ -262,30 +263,6 @@ Route::prefix('v1')->group(function () {
         });
         // --- APP / TERMINAL ROUTES ---
         Route::prefix('app')->middleware('subscription')->group(function () {
-            // Medicine Database
-            Route::get('/products/search', [ProductController::class, 'search']);
-            Route::apiResource('products', ProductController::class);
-
-            // Inventory
-            Route::prefix('stock-batches')->group(function () {
-                Route::get('/low-stock', [StockBatchController::class, 'lowStock']);
-                Route::get('/expiring', [StockBatchController::class, 'expiring']);
-                Route::get('/value', [StockBatchController::class, 'value']);
-                Route::get('/', [StockBatchController::class, 'index']);
-            });
-
-            // Sales & POS
-            // /daily and /top-products must stay registered before the {sale}
-            // wildcard from apiResource, or they'd be swallowed by it.
-            Route::get('sales/daily', [SaleController::class, 'dailySales']);
-            Route::get('sales/top-products', [SaleController::class, 'topProducts']);
-            Route::apiResource('sales', SaleController::class)->only(['index', 'store', 'show']);
-
-            // CRM & Supply Chain
-            Route::apiResource('customers', CustomerController::class);
-            Route::apiResource('suppliers', SupplierController::class);
-            Route::apiResource('categories', CategoryController::class);
-
             // Online Orders
             Route::get('/online-orders', [\App\Http\Controllers\Api\OnlineOrderController::class, 'index']);
             Route::post('/online-orders/{id}/fulfill', [\App\Http\Controllers\Api\OnlineOrderController::class, 'markFulfilled']);

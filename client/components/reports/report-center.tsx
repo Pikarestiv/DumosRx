@@ -3,40 +3,37 @@
 import { useState, useEffect, useCallback } from "react";
 import { format, subDays } from "date-fns";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import {
-  FileText,
-  Download,
-  FileDown,
-  Printer,
   BarChart,
   ClipboardList,
   Wallet,
   Users,
-  Loader2,
-  CheckCircle2,
   TrendingUp,
-  Info,
+  FileText,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { ReportCard } from "@/components/reports/report-card";
 import { ReportFiltersBar, type ReportFiltersValue } from "@/components/reports/report-filters-bar";
 import {
   useReportExport,
   getReportNote,
+  getReportHeaders,
   RecentDownload,
   ReportId,
 } from "@/lib/hooks/use-report-export";
+import { ReportViewDialog } from "@/components/reports/report-view-dialog";
+import type { ReportRow } from "@/components/reports/report-table-view";
+import { ScrollFade } from "@/components/ui/scroll-fade";
+import {
+  RecentDownloadsEmptyState,
+  RecentDownloadsList,
+} from "@/components/reports/recent-downloads-list";
 import { toQueryRange } from "@/lib/utils/date-range";
+import { useHasPermission } from "@/lib/hooks/use-permissions";
 import { toast } from "sonner";
-import { EmptyState } from "@/components/ui/empty-state";
 
 export function ReportCenter() {
+  const canExportReports = useHasPermission("export_reports");
+  const canViewFinancialReports = useHasPermission("view_financial_reports");
   const [filters, setFilters] = useState<ReportFiltersValue>({
     dateRange: {
       from: format(subDays(new Date(), 30), "yyyy-MM-dd"),
@@ -45,8 +42,14 @@ export function ReportCenter() {
   });
   const [loadingReport, setLoadingReport] = useState<string | null>(null);
   const [recentDownloads, setRecentDownloads] = useState<RecentDownload[]>([]);
+  const [viewing, setViewing] = useState<{
+    id: ReportId;
+    title: string;
+  } | null>(null);
+  const [viewRows, setViewRows] = useState<ReportRow[]>([]);
+  const [isViewLoading, setIsViewLoading] = useState(false);
 
-  const { exportReportCsv, downloadReportPdf, printReport, getRecentDownloads } =
+  const { getRows, exportReportCsv, downloadReportPdf, printReport, getRecentDownloads } =
     useReportExport();
 
   const refreshRecent = useCallback(() => {
@@ -83,6 +86,34 @@ export function ReportCenter() {
     } finally {
       setLoadingReport(null);
     }
+  };
+
+  const loadViewRows = async (
+    reportId: ReportId,
+    viewFilters: ReportFiltersValue,
+  ) => {
+    const { from, to } = toQueryRange(viewFilters.dateRange);
+    setIsViewLoading(true);
+    try {
+      const rows = await getRows(reportId, from, to, {
+        staffId: viewFilters.staffId,
+        paymentMethod: viewFilters.paymentMethod,
+      });
+      setViewRows(rows);
+    } catch (err) {
+      console.error(err);
+      toast.error("Couldn't load this report", {
+        description: "Something went wrong reading the data.",
+      });
+    } finally {
+      setIsViewLoading(false);
+    }
+  };
+
+  const openView = async (reportId: ReportId, title: string) => {
+    setViewing({ id: reportId, title });
+    setViewRows([]);
+    await loadViewRows(reportId, filters);
   };
 
   const reports: {
@@ -136,6 +167,10 @@ export function ReportCenter() {
     },
   ];
 
+  const visibleReports = canViewFinancialReports
+    ? reports
+    : reports.filter((report) => report.id !== "profit-loss");
+
   return (
     <div className="space-y-5">
       {/* Filters */}
@@ -154,7 +189,7 @@ export function ReportCenter() {
             <div className="text-[12px] text-muted-foreground">Generate and download structured data exports</div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {reports.map((report) => {
+            {visibleReports.map((report) => {
               const isLoading = loadingReport === report.id;
               // Only set for a report whose figures the active filters change
               // the meaning of - today, a staff/payment-method-filtered
@@ -165,72 +200,17 @@ export function ReportCenter() {
                 paymentMethod: filters.paymentMethod,
               });
               return (
-                <div
+                <ReportCard
                   key={report.id}
-                  className="flex items-start gap-3 p-4 rounded-[14px] border hover:bg-primary/5 transition-all group"
-                >
-                  <div className="h-10 w-10 rounded-[10px] bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform shrink-0">
-                    <report.icon className="h-5 w-5" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2 mb-1">
-                      <h3 className="font-bold text-[13px]">{report.title}</h3>
-                      <Badge variant="secondary" className="text-[9px] shrink-0 font-bold bg-primary/10 text-primary border-none">
-                        {report.category}
-                      </Badge>
-                    </div>
-                    <p className="text-[11.5px] text-muted-foreground line-clamp-2 leading-snug">
-                      {report.description}
-                    </p>
-                    {note && (
-                      <div className="flex items-start gap-1.5 mt-2 p-2 rounded-[10px] border border-amber-500/30 bg-amber-500/10">
-                        <Info className="h-3 w-3 text-amber-600 dark:text-amber-500 shrink-0 mt-[1px]" />
-                        <p className="text-[11px] leading-snug text-amber-700 dark:text-amber-400">
-                          {note}
-                        </p>
-                      </div>
-                    )}
-                    <div className="flex flex-wrap items-center gap-2 mt-3">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 text-[11px] gap-1.5 flex-1 md:flex-none border-border"
-                            disabled={isLoading}
-                          >
-                            {isLoading ? (
-                              <Loader2 className="h-3 w-3 animate-spin" />
-                            ) : (
-                              <Download className="h-3 w-3" />
-                            )}
-                            Export
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => void runAction(report.id, "pdf")} className="cursor-pointer text-[12px] gap-2">
-                            <FileDown className="h-3.5 w-3.5 text-inherit" />
-                            Download PDF
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => void runAction(report.id, "csv")} className="cursor-pointer text-[12px] gap-2">
-                            <FileText className="h-3.5 w-3.5 text-inherit" />
-                            Download CSV
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-7 text-[11px] gap-1.5 flex-1 md:flex-none border-border"
-                        onClick={() => void runAction(report.id, "print")}
-                        disabled={isLoading}
-                      >
-                        <Printer className="h-3 w-3" />
-                        Print
-                      </Button>
-                    </div>
-                  </div>
-                </div>
+                  report={report}
+                  note={note}
+                  isLoading={isLoading}
+                  canExportReports={canExportReports}
+                  onView={() => void openView(report.id, report.title)}
+                  onExportPdf={() => void runAction(report.id, "pdf")}
+                  onExportCsv={() => void runAction(report.id, "csv")}
+                  onPrint={() => void runAction(report.id, "print")}
+                />
               );
             })}
           </div>
@@ -245,56 +225,37 @@ export function ReportCenter() {
             <div className="text-[14.5px] font-semibold mb-0.5">Recent Downloads</div>
             <div className="text-[12px] text-muted-foreground">Reports generated in this browser session</div>
           </div>
-          <div className="flex-1 min-h-0 overflow-y-auto">
+          <ScrollFade containerClassName="flex-1">
             {recentDownloads.length === 0 ? (
               <RecentDownloadsEmptyState />
             ) : (
               <RecentDownloadsList downloads={recentDownloads} />
             )}
-          </div>
+          </ScrollFade>
         </Card>
       </div>
-    </div>
-  );
-}
 
-function RecentDownloadsEmptyState() {
-  return (
-    <EmptyState
-      icon={CheckCircle2}
-      title="No reports generated yet"
-      description="Export a report to see it here."
-    />
-  );
-}
-
-function RecentDownloadsList({ downloads }: { downloads: RecentDownload[] }) {
-  return (
-    <div className="space-y-3">
-      {downloads.map((dl) => (
-        <div
-          key={dl.id}
-          className="flex items-start gap-3 p-3 rounded-xl border bg-primary/5"
-        >
-          <FileText className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-          <div className="min-w-0 space-y-1 w-full">
-            <div className="flex items-center gap-2">
-              <p className="text-[13px] font-semibold truncate">{dl.name}</p>
-            </div>
-            <p className="text-[11.5px] text-muted-foreground">
-              {dl.type}
-            </p>
-            <div className="flex flex-col gap-0.5 mt-1">
-              <p className="text-[11px] text-muted-foreground">
-                {format(new Date(dl.generatedAt), "MMM d, yyyy 'at' h:mm a")}
-              </p>
-              <p className="text-[11px] text-muted-foreground">
-                {dl.sizeLabel}
-              </p>
-            </div>
-          </div>
-        </div>
-      ))}
+      {viewing && (
+        <ReportViewDialog
+          // Remounting per report is what gives each opened report a clean
+          // search box and a fresh seed from the card's current filters.
+          key={viewing.id}
+          open={!!viewing}
+          onOpenChange={(open) => {
+            if (!open) setViewing(null);
+          }}
+          reportId={viewing.id}
+          title={viewing.title}
+          initialFilters={filters}
+          onFiltersChange={(next) => void loadViewRows(viewing.id, next)}
+          rows={viewRows}
+          headers={getReportHeaders(viewing.id)}
+          isLoading={isViewLoading}
+          isExporting={loadingReport === viewing.id}
+          canExport={canExportReports}
+          onExport={(action) => void runAction(viewing.id, action)}
+        />
+      )}
     </div>
   );
 }

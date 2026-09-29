@@ -15,6 +15,7 @@ import { Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
+import { getRecentUsers } from "@/lib/storage-keys";
 
 export default function HomePage() {
   const router = useRouter();
@@ -26,8 +27,7 @@ export default function HomePage() {
 
   useEffect(() => {
     try {
-      const recentUsers = localStorage.getItem("dumos_recent_users");
-      if (recentUsers && JSON.parse(recentUsers).length > 0) {
+      if (getRecentUsers().length > 0) {
         router.replace("/dashboard");
         return;
       }

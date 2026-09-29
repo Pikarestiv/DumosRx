@@ -57,6 +57,7 @@ export function ReturnItemRow({ item, quantity, selected, maxQty, currencyCode, 
           </Button>
           <Input
             type="number"
+            inputMode="numeric"
             className="w-14 h-8 text-center rounded-none px-1"
             value={quantity}
             onChange={(e) => onQtyChange(parseInt(e.target.value) || 1)}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { memo, useState, useEffect } from "react";
 import {
   ShoppingCart,
   Trash2,
@@ -18,6 +18,19 @@ import { POSRedeemReward } from "./pos-redeem-reward";
 import type { CartItem, RedeemedOption, MarkupType } from "@/lib/hooks/use-pos-cart";
 import type { Customer } from "@/lib/types/customer";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
+import { useHasPermission } from "@/lib/hooks/use-permissions";
+
+/** Literal class strings, not a `grid-cols-${n}` template: Tailwind's
+ * scanner only sees classes that appear whole in the source. Indexed by how
+ * many of the three secondary cart actions are currently rendered, which now
+ * varies with the acting user's "hold_sales" permission as well as the cart
+ * and prescription-lock state. */
+const SECONDARY_ACTION_GRID_COLS = [
+  "grid-cols-1",
+  "grid-cols-1",
+  "grid-cols-2",
+  "grid-cols-3",
+] as const;
 
 interface POSCartProps {
   cart: CartItem[];
@@ -37,7 +50,7 @@ interface POSCartProps {
   currencyCode?: string;
   updateQuantity: (id: string, quantity: number) => void;
   removeFromCart: (id: string) => void;
-  clearCart: () => void;
+  onRequestClearCart: () => void;
   onCheckout: () => void;
   onHoldSale?: () => void;
   heldSalesCount?: number;
@@ -51,7 +64,7 @@ interface POSCartProps {
   updateUnitPrice?: (id: string, price: number) => void;
 }
 
-export function POSCart({
+export const POSCart = memo(function POSCart({
   cart,
   subtotal,
   tax,
@@ -69,7 +82,7 @@ export function POSCart({
   currencyCode,
   updateQuantity,
   removeFromCart,
-  clearCart,
+  onRequestClearCart,
   onCheckout,
   onHoldSale,
   heldSalesCount = 0,
@@ -86,6 +99,13 @@ export function POSCart({
   const [showRequestDialog, setShowRequestDialog] = useState(false);
   const [showProformaDialog, setShowProformaDialog] = useState(false);
   const { withRestriction, canUseResellerCommission, canUseMarkupSales, canUseProformaQuotes } = useFeatureGate();
+  // Unconditional top-level const, never inlined into the JSX conditions
+  // below: useHasPermission's answer changes between renders while the
+  // permission group resolves, and calling it inside a short-circuit is how
+  // the "Rendered more hooks than during the previous render" crash got in
+  // before - see pos-layout-header.tsx.
+  const canApplyDiscounts = useHasPermission("apply_discounts");
+  const canHoldSales = useHasPermission("hold_sales");
 
   // canUseMarkupSales can flip false mid-session (an admin disables the
   // markup_sales_enabled toggle on another device, or downgrades plan) -
@@ -99,6 +119,9 @@ export function POSCart({
       setIsResellerSale?.(false);
     }
   }, [canUseMarkupSales, isResellerSale, setIsResellerSale]);
+
+  const showHoldAction = cart.length > 0 && canHoldSales;
+  const showClearCartAction = cart.length > 0 && !isPrescriptionLocked;
 
   return (
     <div className="flex flex-col h-full">
@@ -215,12 +238,24 @@ export function POSCart({
             />
           )}
 
-          {!redeemedOption && (showDiscount || discount > 0) && (
+          {!redeemedOption && !canApplyDiscounts && discount > 0 && (
+            <div className="flex justify-between text-[12.5px] text-muted-foreground">
+              <span>Discount</span>
+              <span>
+                {discountType === "percentage"
+                  ? `${discount}%`
+                  : formatCurrency(discount, currencyCode)}
+              </span>
+            </div>
+          )}
+
+          {!redeemedOption && canApplyDiscounts && (showDiscount || discount > 0) && (
             <div className="flex justify-between text-[12.5px] items-center gap-2">
               <span className="text-muted-foreground">Discount</span>
               <div className="flex gap-1 items-center flex-1 max-w-[160px] justify-end">
                 <input
                   type="number"
+                  inputMode="decimal"
                   min={0}
                   max={discountType === "percentage" ? 100 : undefined}
                   className="flex h-7 w-16 rounded-md border border-input bg-background px-2 py-1 text-xs text-right focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
@@ -251,6 +286,8 @@ export function POSCart({
                   <option value="percentage">%</option>
                 </select>
                 <button
+                  type="button"
+                  aria-label="Remove discount"
                   className="w-7 h-7 flex items-center justify-center text-muted-foreground hover:text-destructive transition-colors"
                   onClick={() => {
                     setShowDiscount(false);
@@ -262,7 +299,7 @@ export function POSCart({
               </div>
             </div>
           )}
-          {!redeemedOption && !(showDiscount || discount > 0) && (
+          {!redeemedOption && canApplyDiscounts && !(showDiscount || discount > 0) && (
             <div className="flex justify-between text-[12.5px] text-muted-foreground">
               <button
                 type="button"
@@ -298,7 +335,9 @@ export function POSCart({
         </div>
 
         <div
-          className={`grid gap-2 mb-3 ${cart.length > 0 ? (isPrescriptionLocked ? "grid-cols-2" : "grid-cols-3") : "grid-cols-1"}`}
+          className={`grid gap-2 mb-3 ${SECONDARY_ACTION_GRID_COLS[
+            1 + (showHoldAction ? 1 : 0) + (showClearCartAction ? 1 : 0)
+          ]}`}
         >
           <button
             onClick={() => setShowRequestDialog(true)}
@@ -308,7 +347,7 @@ export function POSCart({
             Request Item
           </button>
 
-          {cart.length > 0 && (
+          {showHoldAction && (
             <button
               onClick={onHoldSale}
               className="w-full flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg border border-amber-500/20 bg-amber-500/5 text-[11.5px] font-semibold text-amber-600 cursor-pointer hover:bg-amber-500/10 transition-colors"
@@ -318,9 +357,9 @@ export function POSCart({
             </button>
           )}
 
-          {cart.length > 0 && !isPrescriptionLocked && (
+          {showClearCartAction && (
             <button
-              onClick={clearCart}
+              onClick={onRequestClearCart}
               className="w-full flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg border border-destructive/20 bg-destructive/5 text-[11.5px] font-semibold text-destructive cursor-pointer hover:bg-destructive/10 transition-colors"
             >
               <Trash2 className="w-3.5 h-3.5" />
@@ -373,7 +412,7 @@ export function POSCart({
       </div>
     </div>
   );
-}
+});
 
 function EmptyCart() {
   return (

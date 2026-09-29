@@ -6,23 +6,25 @@ import { useState, useEffect } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { LockedModuleOverlay } from "@/components/dashboard/locked-module-overlay";
 import { RequireRole } from "@/components/auth/require-role";
+import { useHasPermission } from "@/lib/hooks/use-permissions";
 
 function ExpensesPageContent() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
+  const canRecordExpenses = useHasPermission("record_expenses");
 
   useEffect(() => {
     if (searchParams.get("action") === "add") {
-      setIsAddDialogOpen(true);
+      if (canRecordExpenses) setIsAddDialogOpen(true);
       const newParams = new URLSearchParams(searchParams.toString());
       newParams.delete("action");
       const newUrl =
         pathname + (newParams.toString() ? `?${newParams.toString()}` : "");
       router.replace(newUrl);
     }
-  }, [searchParams, router, pathname]);
+  }, [searchParams, router, pathname, canRecordExpenses]);
 
   return (
     <>

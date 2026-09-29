@@ -24,9 +24,8 @@
     ],
     "macOSPrivateApi": true,
     "security": {
-      "csp": null
-    },
-    "withGlobalTauri": true
+      "csp": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; media-src 'self' blob:; worker-src 'self' blob:; connect-src 'self' ipc: http://ipc.localhost https: http://localhost:* http://127.0.0.1:* http://10.0.2.2:* ws://localhost:* http://dumosrx.test; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'"
+    }
   },
   "bundle": {
     "active": true,

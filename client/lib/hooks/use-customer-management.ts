@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useStore } from "@/lib/context/store-context";
@@ -7,7 +7,9 @@ import type { CustomerFormPayload } from "@/lib/types/customer";
 import { genericFuzzySearch } from "@/lib/utils/search";
 import { getLoyaltyTiers } from "@/lib/db/queries/loyalty";
 import { usePullToRefreshHandler } from "@/lib/context/pull-to-refresh-context";
+import { useHasPermission } from "@/lib/hooks/use-permissions";
 import { queryKeys } from "@/lib/query-keys";
+import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
 
 interface LoyaltyTier {
   name: string;
@@ -123,13 +125,25 @@ export function buildFallbackRedemptionOptions(
  * All business logic for the Customer Management page: data fetching, tab/URL
  * sync, search/filter derivation, and modal/selection state, so the component
  * itself only has to render what this hook returns.
+ *
+ * The ?action=add opener is where "manage_customers" is enforced: that URL is
+ * typeable and is also what the dashboard header's "Add Customer" navigates
+ * to, so gating the header action alone would not be a gate.
  */
 export function useCustomerManagement() {
   const { storeType, storeProfile } = useStore();
   const isStore = storeType === "pharmacy";
+  const canManageCustomers = useHasPermission("manage_customers");
 
-  const { customers, metrics, fetchCustomers, addCustomer, updateCustomer, recordPayment } =
-    useCustomerData();
+  const {
+    customers,
+    metrics,
+    loadFailed,
+    fetchCustomers,
+    addCustomer,
+    updateCustomer,
+    recordPayment,
+  } = useCustomerData();
 
   usePullToRefreshHandler(fetchCustomers);
 
@@ -138,20 +152,27 @@ export function useCustomerManagement() {
     queryFn: getLoyaltyTiers,
   });
 
-  const loyaltyTiers: LoyaltyTier[] =
-    dbTiers && dbTiers.length > 0
-      ? dbTiers
-          .map((t) => ({
-            name: t.name,
-            minSpent: t.min_spend,
-            pointsMultiplier: t.points_multiplier,
-            benefits: JSON.parse(t.benefits || "[]") as string[],
-            color: t.color,
-          }))
-          .sort((a, b) => a.minSpent - b.minSpent)
-      : buildFallbackTiers(isStore);
+  // Memoized: this parses a JSON column per tier and sorts the result, and
+  // both the array and the getTierColor closure below it are handed to every
+  // customer row.
+  const loyaltyTiers: LoyaltyTier[] = useMemo(
+    () =>
+      dbTiers && dbTiers.length > 0
+        ? dbTiers
+            .map((t) => ({
+              name: t.name,
+              minSpent: t.min_spend,
+              pointsMultiplier: t.points_multiplier,
+              benefits: JSON.parse(t.benefits || "[]") as string[],
+              color: t.color,
+            }))
+            .sort((a, b) => a.minSpent - b.minSpent)
+        : buildFallbackTiers(isStore),
+    [dbTiers, isStore],
+  );
 
   const [searchTerm, setSearchTerm] = useState("");
+  const debouncedSearchTerm = useDebouncedValue(searchTerm, 200);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
     null,
   );
@@ -173,14 +194,14 @@ export function useCustomerManagement() {
 
   useEffect(() => {
     if (searchParams.get("action") === "add") {
-      setIsAddCustomerOpen(true);
+      if (canManageCustomers) setIsAddCustomerOpen(true);
       const newParams = new URLSearchParams(searchParams.toString());
       newParams.delete("action");
       const newUrl =
         pathname + (newParams.toString() ? `?${newParams.toString()}` : "");
       router.replace(newUrl);
     }
-  }, [searchParams, router, pathname]);
+  }, [searchParams, router, pathname, canManageCustomers]);
 
   const handleTabChange = (value: string) => {
     setActiveTab(value);
@@ -244,22 +265,34 @@ export function useCustomerManagement() {
     setPayingCustomer(null);
   };
 
-  const { results: filteredCustomers } = genericFuzzySearch(
-    searchTerm,
-    customers,
-    ["name", "email", "phone"],
+  // Debounced and memoized: unmemoized this re-ran the whole fuzzy search
+  // (including its Levenshtein fallback tier) on every render of
+  // CustomerManagement, not just when the search term actually changed.
+  const filteredCustomers = useMemo(
+    () =>
+      genericFuzzySearch(debouncedSearchTerm, customers, [
+        "name",
+        "email",
+        "phone",
+      ]).results,
+    [debouncedSearchTerm, customers],
   );
 
-  const getTierColor = (tier: string) => {
-    const tierInfo = loyaltyTiers.find((t) => t.name === tier);
-    return tierInfo?.color || "bg-gray-400";
-  };
+  const getTierColor = useCallback(
+    (tier: string) => {
+      const tierInfo = loyaltyTiers.find((t) => t.name === tier);
+      return tierInfo?.color || "bg-gray-400";
+    },
+    [loyaltyTiers],
+  );
 
   return {
     storeProfile,
     metrics,
     loyaltyTiers,
     filteredCustomers,
+    customersLoadFailed: loadFailed,
+    onRetryLoadCustomers: fetchCustomers,
     getTierColor,
 
     activeTab,

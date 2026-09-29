@@ -58,6 +58,7 @@ export function PrescriptionPatientInfo({
             <Input
               id="patientAge"
               type="number"
+              inputMode="decimal"
               value={formData.patientAge}
               onChange={(e) => {
                 // min/max below are HTML hints only — clamp here so a typed

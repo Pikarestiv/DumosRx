@@ -23,9 +23,15 @@ import {
 
 interface SettingsMobileMenuProps {
   isAdmin?: boolean;
+  /** Per-tab permission resolver from use-settings. Omitted (tests, and any
+   * caller that predates the Store & Settings keys) falls back to isAdmin. */
+  canAccessTab?: (tab: string) => boolean;
 }
 
 interface MenuItem {
+  /** Internal tab value, which is what SETTINGS_TAB_PERMISSIONS is keyed by
+   * — not always the href segment (General is "appearance"). */
+  value: string;
   href: string;
   icon: LucideIcon;
   title: string;
@@ -43,62 +49,67 @@ interface MenuGroup {
 const MENU_GROUPS: MenuGroup[] = [
   {
     items: [
-      { href: "/settings/appearance", icon: Palette, title: "General", description: "Theme & Display settings" },
+      { value: "appearance", href: "/settings/appearance", icon: Palette, title: "General", description: "Theme & Display settings" },
     ],
   },
   {
     label: "Account",
     items: [
-      { href: "/settings/personal-info", icon: UserCircle, title: "Personal Info", description: "Profile, sessions & account settings", adminOnly: true },
-      { href: "/settings/security", icon: Shield, title: "Security", description: "PIN & access control" },
+      { value: "personal-info", href: "/settings/personal-info", icon: UserCircle, title: "Personal Info", description: "Profile, sessions & account settings", adminOnly: true },
+      { value: "security", href: "/settings/security", icon: Shield, title: "Security", description: "PIN & access control" },
     ],
   },
   {
     label: "Business",
     items: [
-      { href: "/settings/business-info", icon: Building2, title: "Business Info", description: "Business details & contact specialist", adminOnly: true },
-      { href: "/settings/branches", icon: Landmark, title: "Branches", description: "Manage every store location", adminOnly: true },
-      { href: "/settings/staff", icon: Users, title: "Staff", description: "Manage store personnel", adminOnly: true },
-      { href: "/settings/roles", icon: KeyRound, title: "Roles & Permissions", description: "Custom staff permissions", adminOnly: true, disabled: true, badge: "Soon" },
+      { value: "business-info", href: "/settings/business-info", icon: Building2, title: "Business Info", description: "Business details & contact specialist", adminOnly: true },
+      { value: "branches", href: "/settings/branches", icon: Landmark, title: "Branches", description: "Manage every store location", adminOnly: true },
+      { value: "staff", href: "/settings/staff", icon: Users, title: "Staff", description: "Manage store personnel", adminOnly: true },
+      { value: "roles", href: "/settings/roles", icon: KeyRound, title: "Roles & Permissions", description: "Custom staff permissions", adminOnly: true },
     ],
   },
   {
     label: "Sales",
     items: [
-      { href: "/settings/payment-methods", icon: Wallet, title: "Payment Methods", description: "Accepted payment options", adminOnly: true },
-      { href: "/settings/receipt-settings", icon: Receipt, title: "Receipt Settings", description: "Header, footer & branding", adminOnly: true },
-      { href: "/settings/register-configs", icon: SlidersHorizontal, title: "Register Configs", description: "Checkout rules & behavior", adminOnly: true },
+      { value: "payment-methods", href: "/settings/payment-methods", icon: Wallet, title: "Payment Methods", description: "Accepted payment options", adminOnly: true },
+      { value: "receipt-settings", href: "/settings/receipt-settings", icon: Receipt, title: "Receipt Settings", description: "Header, footer & branding", adminOnly: true },
+      { value: "register-configs", href: "/settings/register-configs", icon: SlidersHorizontal, title: "Register Configs", description: "Checkout rules & behavior", adminOnly: true },
     ],
   },
   {
     label: "Inventory",
     items: [
-      { href: "/settings/product-units", icon: Ruler, title: "Product Units", description: "Manage selling & pack units", adminOnly: true },
-      { href: "/settings/categories", icon: Tags, title: "Categories", description: "Organize your product catalog", adminOnly: true },
+      { value: "product-units", href: "/settings/product-units", icon: Ruler, title: "Product Units", description: "Manage selling & pack units", adminOnly: true },
+      { value: "categories", href: "/settings/categories", icon: Tags, title: "Categories", description: "Organize your product catalog", adminOnly: true },
     ],
   },
   {
     label: "System",
     items: [
-      { href: "/settings/notifications", icon: Bell, title: "Alerts", description: "Stock & expiry warnings" },
-      { href: "/settings/data", icon: Database, title: "Data & Sync", description: "Cloud backup & resets", adminOnly: true },
-      { href: "/settings/billing", icon: CreditCard, title: "Billing", description: "Plan, payment history & referrals", adminOnly: true },
-      { href: "/settings/system", icon: Globe, title: "System", description: "App information & logs", adminOnly: true },
+      { value: "notifications", href: "/settings/notifications", icon: Bell, title: "Alerts", description: "Stock & expiry warnings" },
+      { value: "data", href: "/settings/data", icon: Database, title: "Data & Sync", description: "Cloud backup & resets", adminOnly: true },
+      { value: "billing", href: "/settings/billing", icon: CreditCard, title: "Billing", description: "Plan, payment history & referrals", adminOnly: true },
+      { value: "system", href: "/settings/system", icon: Globe, title: "System", description: "App information & logs", adminOnly: true },
     ],
   },
   {
     label: "Danger Zone",
     items: [
-      { href: "/settings/danger-zone", icon: AlertTriangle, title: "Danger Zone", description: "Irreversible resets & deletions", adminOnly: true },
+      { value: "danger-zone", href: "/settings/danger-zone", icon: AlertTriangle, title: "Danger Zone", description: "Irreversible resets & deletions", adminOnly: true },
     ],
   },
 ];
 
-export function SettingsMobileMenu({ isAdmin }: SettingsMobileMenuProps) {
+export function SettingsMobileMenu({ isAdmin, canAccessTab }: SettingsMobileMenuProps) {
+  const isVisible = (item: MenuItem) =>
+    canAccessTab
+      ? canAccessTab(item.value)
+      : isAdmin || !item.adminOnly;
+
   return (
     <div className="flex flex-col gap-5 max-w-md mx-auto">
       {MENU_GROUPS.map((group) => {
-        const visibleItems = group.items.filter((item) => isAdmin || !item.adminOnly);
+        const visibleItems = group.items.filter(isVisible);
         if (visibleItems.length === 0) return null;
 
         return (

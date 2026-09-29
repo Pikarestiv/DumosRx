@@ -18,6 +18,7 @@ import { useState } from "react";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useStore } from "@/lib/context/store-context";
 import { useDeleteExpenseMutation } from "@/lib/hooks/use-expense-mutations";
+import { useHasPermission } from "@/lib/hooks/use-permissions";
 import type { Expense } from "@/lib/db/queries/finance";
 
 interface ExpenseDetailDialogProps {
@@ -38,6 +39,7 @@ export function ExpenseDetailDialog({
   const { storeProfile } = useStore();
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const deleteExpenseMutation = useDeleteExpenseMutation();
+  const canRecordExpenses = useHasPermission("record_expenses");
 
   if (!expense) return null;
 
@@ -61,6 +63,7 @@ export function ExpenseDetailDialog({
         className="sm:max-w-[440px] p-0 overflow-hidden bg-card rounded-2xl gap-0 border-border shadow-lg"
         headerClassName="px-6 py-5 border-b border-border m-0"
         footer={
+          canRecordExpenses ? (
           <div className="px-6 pb-6 flex gap-2.5">
             <Button
               variant="outline"
@@ -77,6 +80,7 @@ export function ExpenseDetailDialog({
               <Trash2 className="w-4 h-4 mr-2" /> Delete
             </Button>
           </div>
+          ) : null
         }
       >
         <div className="px-6 py-5 flex flex-col gap-5">

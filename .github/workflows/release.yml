@@ -5,7 +5,11 @@ on:
       - 'v*'
 
 jobs:
+  checks:
+    uses: ./.github/workflows/checks.yml
+
   release:
+    needs: checks
     permissions:
       contents: write
     strategy:
@@ -91,6 +95,7 @@ jobs:
           includeUpdaterJson: true
 
   release-android:
+    needs: checks
     runs-on: ubuntu-latest
     permissions:
       contents: write

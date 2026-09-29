@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useMemo, useState } from "react";
 
 interface InventoryAuditContextType {
   isAuditing: boolean;
@@ -20,9 +20,10 @@ const InventoryAuditContext = createContext<InventoryAuditContextType | undefine
  * live above it instead. */
 export function InventoryAuditProvider({ children }: { children: React.ReactNode }) {
   const [isAuditing, setIsAuditing] = useState(false);
+  const value = useMemo(() => ({ isAuditing, setIsAuditing }), [isAuditing]);
 
   return (
-    <InventoryAuditContext.Provider value={{ isAuditing, setIsAuditing }}>
+    <InventoryAuditContext.Provider value={value}>
       {children}
     </InventoryAuditContext.Provider>
   );

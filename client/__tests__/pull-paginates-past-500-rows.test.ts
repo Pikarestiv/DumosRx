@@ -80,15 +80,21 @@ describe("pullChanges pages past the server's 500-row cap", () => {
     expect(apiClient.pullChanges).toHaveBeenCalledTimes(2);
     expect(apiClient.pullChanges).toHaveBeenNthCalledWith(
       1,
-      { last_synced: { products: "2026-08-15T00:00:00Z" }, page_offset: {} },
+      { last_synced: { products: "2026-08-15T00:00:00Z" }, page_offset: {}, page_cursor: {} },
       false,
       false,
+      undefined,
     );
     expect(apiClient.pullChanges).toHaveBeenNthCalledWith(
       2,
-      { last_synced: { products: "2026-08-15T00:00:00Z" }, page_offset: { products: 2 } },
+      {
+        last_synced: { products: "2026-08-15T00:00:00Z" },
+        page_offset: { products: 2 },
+        page_cursor: { products: { updated_at: "2026-09-01T00:00:00Z", id: "prod-2" } },
+      },
       false,
       false,
+      undefined,
     );
 
     expect(result.pulled).toBe(3);

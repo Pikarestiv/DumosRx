@@ -1,6 +1,10 @@
 import { useState, useEffect } from "react";
 import { checkIfTableExists, getActiveUserCount } from "@/lib/db/queries/setup";
 import type { RecentUser } from "@/lib/context/auth-context";
+import {
+  getRecentUsers,
+  setRecentUsers as persistRecentUsers,
+} from "@/lib/storage-keys";
 
 // Shared by the merged /login page's login and setup tabs so switching
 // between them never re-runs this check or shows a second loading spinner.
@@ -28,8 +32,7 @@ export function useDeviceAuthStatus() {
     })();
 
     try {
-      const storedUsers = localStorage.getItem("dumos_recent_users");
-      if (storedUsers) setRecentUsers(JSON.parse(storedUsers));
+      setRecentUsers(getRecentUsers());
     } catch (e) {
       console.error("Failed to parse recent users", e);
     }
@@ -43,7 +46,7 @@ export function useDeviceAuthStatus() {
     const next = recentUsers.filter((u) => u.id !== id);
     setRecentUsers(next);
     try {
-      localStorage.setItem("dumos_recent_users", JSON.stringify(next));
+      persistRecentUsers(next);
     } catch (e) {
       console.error("Failed to persist recent users", e);
     }

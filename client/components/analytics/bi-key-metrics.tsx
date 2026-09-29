@@ -2,6 +2,7 @@ import { DollarSign, TrendingUp, TrendingDown, Receipt, Package, Users } from "l
 import { cn, formatMetricCurrency } from "@/lib/utils";
 import { MetricCard } from "@/components/ui/metric-card";
 import { useStore } from "@/lib/context/store-context";
+import { HorizontalScrollFade } from "@/components/ui/scroll-fade";
 
 interface BIKeyMetricsProps {
   totalRevenue: number;
@@ -9,7 +10,15 @@ interface BIKeyMetricsProps {
   stock_batchValue: number;
   activeCustomers: number;
   netProfit: number;
+  canViewFinancialReports: boolean;
 }
+
+/** Literal classes, never `lg:grid-cols-${n}` - Tailwind only ships what it
+ * can see in the source. */
+const METRIC_GRID_COLS = {
+  4: "lg:grid-cols-4",
+  5: "lg:grid-cols-5",
+} as const;
 
 export function BIKeyMetrics({
   totalRevenue,
@@ -17,6 +26,7 @@ export function BIKeyMetrics({
   stock_batchValue,
   activeCustomers,
   netProfit,
+  canViewFinancialReports,
 }: BIKeyMetricsProps) {
   const { storeProfile } = useStore();
   const currencyCode = storeProfile?.currency;
@@ -24,7 +34,12 @@ export function BIKeyMetrics({
   return (
     <div className="flex flex-col gap-5">
       <div className="-mx-4 sm:mx-0 px-4 sm:px-0">
-        <div className="flex overflow-x-auto sm:grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-4 pb-4 sm:pb-0 hide-scrollbar snap-x snap-mandatory">
+        <HorizontalScrollFade
+          className={cn(
+            "flex overflow-x-auto sm:grid sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-4 pb-4 sm:pb-0 hide-scrollbar snap-x snap-mandatory",
+            METRIC_GRID_COLS[canViewFinancialReports ? 5 : 4],
+          )}
+        >
           <MetricCard
             className="min-w-[180px] sm:min-w-0 snap-center shrink-0 border-primary/20 hover:border-primary/40"
             title="Net Sales"
@@ -34,20 +49,22 @@ export function BIKeyMetrics({
             valueClassName="font-serif"
             description="After discounts, tax & refunds"
           />
-          <MetricCard
-            className={cn(
-              "min-w-[180px] sm:min-w-0 snap-center shrink-0",
-              isProfitable
-                ? "border-emerald-200/50 hover:border-emerald-500/50"
-                : "border-red-200/50 hover:border-red-500/50",
-            )}
-            title="Net Profit"
-            value={formatMetricCurrency(netProfit, currencyCode)}
-            icon={isProfitable ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
-            iconBgClass={isProfitable ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}
-            valueClassName={cn("font-serif", isProfitable ? "text-emerald-600" : "text-red-600")}
-            description="After COGS & expenses"
-          />
+          {canViewFinancialReports && (
+            <MetricCard
+              className={cn(
+                "min-w-[180px] sm:min-w-0 snap-center shrink-0",
+                isProfitable
+                  ? "border-emerald-200/50 hover:border-emerald-500/50"
+                  : "border-red-200/50 hover:border-red-500/50",
+              )}
+              title="Net Profit"
+              value={formatMetricCurrency(netProfit, currencyCode)}
+              icon={isProfitable ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
+              iconBgClass={isProfitable ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}
+              valueClassName={cn("font-serif", isProfitable ? "text-emerald-600" : "text-red-600")}
+              description="After COGS & expenses"
+            />
+          )}
           <MetricCard
             className="min-w-[180px] sm:min-w-0 snap-center shrink-0 border-border"
             title="Transactions"
@@ -75,7 +92,7 @@ export function BIKeyMetrics({
             valueClassName="font-serif"
             description="Active base"
           />
-        </div>
+        </HorizontalScrollFade>
       </div>
     </div>
   );

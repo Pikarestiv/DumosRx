@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { useMutateUser } from "@/lib/hooks/queries/use-users";
 import { useStore } from "@/lib/context/store-context";
 import type { StaffUpdatePayload, StaffListItem } from "@/lib/types/user";
-import { StaffFormFields } from "./staff-form-fields";
+import { StaffFormFields, type StaffFormData } from "./staff-form-fields";
 
 /**
  * Resolves the store_id to actually persist for a staff row from the
@@ -23,6 +23,33 @@ export function resolveStaffStoreId(
   activeStoreId: string | null,
 ): string | null {
   return formStoreId || activeStoreId || null;
+}
+
+/**
+ * Every submit-blocking rule for the staff form, as a pure function so each
+ * one is testable without a rendered dialog (same reason resolveStaffStoreId
+ * above is extracted). Returns the message to show, or null when the form is
+ * good to submit. A Group is required: without it a staff member is saved
+ * with no permission_group_id at all and silently falls back to role-string
+ * permissions, which is never what the person filling the form intended.
+ */
+export function validateStaffForm(
+  formData: StaffFormData,
+  isEditing: boolean,
+): string | null {
+  if (!formData.first_name || !formData.last_name || !formData.username) {
+    return "Please fill in all required fields";
+  }
+  if (!formData.permission_group_id) {
+    return "Please select a Group for this staff member";
+  }
+  if (!isEditing && (!formData.pin || formData.pin.length < 4)) {
+    return "PIN must be at least 4 digits";
+  }
+  if (isEditing && formData.pin && formData.pin.length < 4) {
+    return "PIN must be at least 4 digits";
+  }
+  return null;
 }
 
 interface StaffFormDialogProps {
@@ -43,7 +70,7 @@ export function StaffFormDialog({
   const { create, update } = useMutateUser();
   const isSubmitting = create.isPending || update.isPending;
   const { availableStores } = useStore();
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<StaffFormData>({
     first_name: "",
     last_name: "",
     username: "",
@@ -51,6 +78,7 @@ export function StaffFormDialog({
     pin: "",
     role: "sales_staff",
     store_id: activeStoreId || "",
+    permission_group_id: undefined,
   });
 
   const isEditing = !!userToEdit;
@@ -66,6 +94,7 @@ export function StaffFormDialog({
           pin: "", // Leave empty unless modifying
           role: userToEdit.role || "sales_staff",
           store_id: userToEdit.store_id || activeStoreId || "",
+          permission_group_id: userToEdit.permission_group_id ?? undefined,
         });
       } else {
         setFormData({
@@ -76,6 +105,7 @@ export function StaffFormDialog({
           pin: "",
           role: "sales_staff",
           store_id: activeStoreId || "",
+          permission_group_id: undefined,
         });
       }
     }
@@ -84,18 +114,9 @@ export function StaffFormDialog({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.first_name || !formData.last_name || !formData.username) {
-      toast.error("Please fill in all required fields");
-      return;
-    }
-
-    if (!isEditing && (!formData.pin || formData.pin.length < 4)) {
-      toast.error("PIN must be at least 4 digits");
-      return;
-    }
-
-    if (isEditing && formData.pin && formData.pin.length < 4) {
-      toast.error("PIN must be at least 4 digits");
+    const validationError = validateStaffForm(formData, isEditing);
+    if (validationError) {
+      toast.error(validationError);
       return;
     }
 
@@ -110,6 +131,10 @@ export function StaffFormDialog({
           username: formData.username,
           email: formData.email,
           role: formData.role,
+          // Sent alongside role so the two never disagree about which
+          // staff member they describe - see staff-form-fields.tsx's
+          // Group Select, which sets both together.
+          permission_group_id: formData.permission_group_id,
         };
         // Only touch store_id when the selector was actually shown to the
         // user (multi-store accounts). Single-store accounts never render
@@ -142,6 +167,7 @@ export function StaffFormDialog({
           pin: formData.pin,
           role: formData.role,
           store_id: resolveStaffStoreId(formData.store_id, activeStoreId),
+          permission_group_id: formData.permission_group_id,
         };
 
         await create.mutateAsync(dataToSave);

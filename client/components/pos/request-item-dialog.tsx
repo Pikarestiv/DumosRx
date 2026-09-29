@@ -14,6 +14,7 @@ import { getAllCustomers } from "@/lib/db/queries/customers";
 import { getProductList } from "@/lib/db/queries/products";
 import { SearchableInput } from "@/components/ui/searchable-input";
 import { genericFuzzySearch } from "@/lib/utils/search";
+import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
 import { queryKeys } from "@/lib/query-keys";
 import type { Customer } from "@/lib/types/customer";
 import type { Product } from "@/lib/types/product";
@@ -62,23 +63,33 @@ export function RequestItemDialog({
     ...queryKeys.customers.posList(),
     queryFn: getAllCustomers,
     staleTime: 1000 * 60 * 5, // 5 mins
+    // This dialog is permanently mounted at five call sites (catalog, POS
+    // cart, POS product list, two procurement screens), so without this gate
+    // every one of those screens paid for a full customer + product list read
+    // on mount for a dialog that is almost never opened.
+    enabled: open,
   });
 
   const { data: products = [] } = useQuery({
     ...queryKeys.products.list(),
     queryFn: getProductList,
     staleTime: 1000 * 60 * 5, // 5 mins
+    enabled: open,
   });
 
   // Warn (non-blocking) when the typed name looks like something already in
   // the catalog: staff should double check before logging a duplicate
   // "missing product" request for stock that's already on hand.
+  // Debounced: the hint is advisory, and re-running a fuzzy search over the
+  // whole catalog on every keystroke of a product name is the expensive half
+  // of typing in this dialog.
+  const debouncedProductName = useDebouncedValue(productName, 250);
   const possibleExistingMatch = useMemo(() => {
-    const term = productName.trim();
+    const term = debouncedProductName.trim();
     if (term.length < 3) return null;
     const { results } = genericFuzzySearch(term, products, ["name"]);
     return results[0] || null;
-  }, [productName, products]);
+  }, [debouncedProductName, products]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -177,6 +188,7 @@ export function RequestItemDialog({
                 <Input
                   id="quantity"
                   type="number"
+                  inputMode="decimal"
                   min="1"
                   placeholder="1"
                   value={quantity}

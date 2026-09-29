@@ -14,11 +14,14 @@ import { Card } from "@/components/ui/card";
 import { Expense } from "@/lib/db/queries/finance";
 import { ExpenseInsightsStrip } from "./expense-insights-strip";
 import { useAuth } from "@/lib/context/auth-context";
+import { useHasPermission } from "@/lib/hooks/use-permissions";
 import { SortableHeaderCell } from "@/components/ui/sortable-header-cell";
 import { useSortableData } from "@/lib/hooks/use-sortable-data";
 import { useQuickEditExpenseMutation } from "@/lib/hooks/use-expense-mutations";
 import { ExpenseDesktopRow, CATEGORY_META, type ExpenseDraft } from "./expense-desktop-row";
 import { EmptyState as SharedEmptyState } from "@/components/ui/empty-state";
+import { useMediaQuery } from "@/hooks/use-media-query";
+import { ScrollToTopButton } from "@/components/ui/scroll-to-top-button";
 
 type ExpenseSortKey = "date" | "category" | "description" | "method" | "amount";
 
@@ -44,10 +47,14 @@ export function ExpenseList() {
     topCategoryStr,
     selectedExpense,
     expenses,
+    totalCount,
+    hasMore,
+    loadMore,
   } = useExpensesPage();
   const { user, canManageStockBatch } = useAuth();
+  const canRecordExpenses = useHasPermission("record_expenses");
   const canAddExpense =
-    canManageStockBatch || user?.role === "sales_staff";
+    (canManageStockBatch || user?.role === "sales_staff") && canRecordExpenses;
 
   const { sortKey, direction, toggleSort, sortedData: sortedExpenses } =
     useSortableData<Expense, ExpenseSortKey>(filteredExpenses, {
@@ -58,6 +65,7 @@ export function ExpenseList() {
       amount: (e) => e.amount,
     });
 
+  const isDesktop = useMediaQuery("(min-width: 768px)");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<ExpenseDraft | null>(null);
   const quickEditMutation = useQuickEditExpenseMutation();
@@ -116,6 +124,16 @@ export function ExpenseList() {
     />
   );
 
+  const LoadOlderButton = hasMore ? (
+    <button
+      type="button"
+      onClick={loadMore}
+      className="w-full py-3 text-[13px] font-semibold text-primary hover:bg-primary/5 transition-colors cursor-pointer"
+    >
+      Load older expenses ({expenses.length} of {totalCount})
+    </button>
+  ) : null;
+
   const SearchInput = (
     <div className="flex items-center gap-2 bg-card border border-border md:bg-muted md:border-none rounded-[10px] px-3.5 py-2.5">
       <Search className="w-4 h-4 text-muted-foreground shrink-0" />
@@ -136,12 +154,12 @@ export function ExpenseList() {
         totalExpenses={totalExpenses}
         thisMonthExpenses={thisMonthExpenses}
         topCategoryStr={topCategoryStr}
-        transactionCount={expenses.length}
+        transactionCount={totalCount}
         currencyCode={storeProfile?.currency}
       />
 
       {/* Mobile: search bar stands alone above the category chips */}
-      <div className="md:hidden mb-4">{SearchInput}</div>
+      {!isDesktop && <div className="mb-4">{SearchInput}</div>}
 
       <ExpenseCategoryFilter
         categories={CATEGORIES}
@@ -149,8 +167,11 @@ export function ExpenseList() {
         onChange={setSelectedCategory}
       />
 
-      {/* Mobile: flat card list, no wrapping table card */}
-      <div className="md:hidden flex flex-col gap-2">
+      {/* Mobile: flat card list, no wrapping table card. Conditionally
+          rendered, not CSS-hidden: the desktop branch is virtualized and this
+          one isn't. */}
+      {!isDesktop && (
+      <div className="flex flex-col gap-2">
         {filteredExpenses.length === 0 && EmptyState}
         {filteredExpenses.map((expense: Expense) => {
           const meta =
@@ -198,10 +219,13 @@ export function ExpenseList() {
             </div>
           );
         })}
+        {LoadOlderButton}
       </div>
+      )}
 
       {/* Desktop: table card, own search bar in its header */}
-      <Card className="hidden md:flex flex-col gap-0 py-0 border border-border rounded-2xl flex-1 overflow-hidden">
+      {isDesktop && (
+      <Card className="flex flex-col gap-0 py-0 border border-border rounded-2xl flex-1 overflow-hidden">
         <div className="p-4 pb-3 border-b border-border">{SearchInput}</div>
 
         <div className="grid grid-cols-[110px_150px_1fr_130px_120px_28px] gap-2 px-5 py-3 text-[11px] font-bold text-muted-foreground/80 uppercase tracking-wide border-b border-border bg-muted/20">
@@ -258,6 +282,7 @@ export function ExpenseList() {
                       height: virtualRow.size,
                       transform: `translateY(${virtualRow.start}px)`,
                     }}
+                    canEdit={canRecordExpenses}
                     isEditing={isEditingRow}
                     draft={isEditingRow ? draft : null}
                     onDraftChange={setDraft}
@@ -273,8 +298,11 @@ export function ExpenseList() {
               })}
             </div>
           )}
+          {LoadOlderButton}
         </div>
+        <ScrollToTopButton scrollRef={desktopScrollRef} />
       </Card>
+      )}
 
       <ExpenseDetailDialog
         expense={selectedExpense}

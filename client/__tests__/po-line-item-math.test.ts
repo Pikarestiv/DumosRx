@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getImmediateUnitCost, getLineTotal, getValidatedAmountPaid } from "@/components/procurement/po-line-item-math";
+import { getImmediateUnitCost, getLineTotal, getValidatedAmountPaid, countSellingPriceOverrides } from "@/components/procurement/po-line-item-math";
 import type { POLineItemDraft } from "@/components/procurement/po-item-ledger-table";
 
 function item(overrides: Partial<POLineItemDraft> = {}): POLineItemDraft {
@@ -83,6 +83,32 @@ describe("po-line-item-math", () => {
 
     it("accepts an amount exactly equal to the order total", () => {
       expect(getValidatedAmountPaid("10000", 10000)).toBe(10000);
+    });
+  });
+
+  describe("countSellingPriceOverrides", () => {
+    const products = [{ id: "p1", selling_price: 20 }];
+
+    it("counts only lines with a real, non-blank selling_price override that actually differs from the product's current price", () => {
+      const items = [
+        item({ selling_price: 12.5 }), // differs - counts
+        item({ selling_price: "" }), // blank - doesn't count
+        item({ selling_price: undefined }), // unset - doesn't count
+        item({ selling_price: null as unknown as undefined }), // a PO reloaded from the DB hands back SQL NULL, not undefined
+      ];
+      expect(countSellingPriceOverrides(items, products)).toBe(1);
+    });
+
+    it("returns 0 when no line has an override", () => {
+      expect(countSellingPriceOverrides([item(), item()], products)).toBe(0);
+    });
+
+    it("does not count a line whose override equals the product's current price (no real change)", () => {
+      expect(countSellingPriceOverrides([item({ selling_price: 20 })], products)).toBe(0);
+    });
+
+    it("counts a line whose override is a real, explicit zero, different from the current price", () => {
+      expect(countSellingPriceOverrides([item({ selling_price: 0 })], products)).toBe(1);
     });
   });
 });

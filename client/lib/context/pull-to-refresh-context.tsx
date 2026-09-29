@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useRef } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef } from "react";
 
 type RefreshHandler = () => Promise<void> | void;
 
@@ -20,12 +20,18 @@ export function PullToRefreshProvider({
 }) {
   const handlerRef = useRef<RefreshHandler | null>(null);
 
-  const value: PullToRefreshContextValue = {
-    setHandler: (fn) => {
-      handlerRef.current = fn;
-    },
-    getHandler: () => handlerRef.current,
-  };
+  // Stable for the provider's lifetime: this only ever closes over a ref, and
+  // the provider sits at the top of the dashboard tree, so a fresh object here
+  // would invalidate every consumer on any re-render of that layout.
+  const value = useMemo<PullToRefreshContextValue>(
+    () => ({
+      setHandler: (fn) => {
+        handlerRef.current = fn;
+      },
+      getHandler: () => handlerRef.current,
+    }),
+    [],
+  );
 
   return (
     <PullToRefreshContext.Provider value={value}>

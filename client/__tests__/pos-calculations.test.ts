@@ -5,6 +5,7 @@ import {
   calculateDiscountAmount,
   calculateTotal,
   calculateChangeDue,
+  calculateCashShortfall,
   calculateSplitShortage,
   calculateTaxPercentage,
   calculateProportionalRefund,
@@ -76,6 +77,16 @@ describe('POS Calculations', () => {
   it('calculates change due correctly', () => {
     expect(calculateChangeDue(1000, 925)).toBe(75);
     expect(calculateChangeDue(500, 925)).toBe(0); // Exact or underpayment yields 0 change
+  });
+
+  // U11: the payment dialog only reported a cash shortfall as a toast after
+  // submit; it needs the number inline while the cashier is still typing.
+  it('calculates the cash shortfall as the mirror of change due', () => {
+    expect(calculateCashShortfall(500, 925)).toBe(425);
+    expect(calculateCashShortfall(925, 925)).toBe(0);
+    expect(calculateCashShortfall(1000, 925)).toBe(0);
+    expect(calculateCashShortfall(Number.NaN, 925)).toBe(0);
+    expect(calculateCashShortfall(-50, 925)).toBe(925);
   });
 
   describe('Split Payments', () => {

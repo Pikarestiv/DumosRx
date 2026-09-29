@@ -2,6 +2,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SearchableInput } from "@/components/ui/searchable-input";
 import { ProductCombobox } from "@/components/ui/product-combobox";
+import { CategoryCombobox } from "@/components/ui/category-combobox";
 import { Button } from "@/components/ui/button";
 import { ScanLine, HelpCircle } from "lucide-react";
 import {
@@ -90,11 +91,10 @@ export function ProductBasicInfoFields({
               </TooltipProvider>
             )}
           </div>
-          <SearchableInput
-            options={suggestions.categories}
+          <CategoryCombobox
+            id="category"
             value={formData.category}
             onValueChange={(val) => onInputChange("category", val)}
-            placeholder="Select or type category"
           />
         </div>
 
@@ -130,6 +130,7 @@ export function ProductBasicInfoFields({
           <Input
             id="sellingPrice"
             type="number"
+            inputMode="decimal"
             min="0"
             step="0.01"
             value={formData.sellingPrice || ""}
@@ -166,6 +167,7 @@ export function ProductBasicInfoFields({
           <Input
             id="reorderLevel"
             type="number"
+            inputMode="decimal"
             min="0"
             value={formData.reorderLevel || ""}
             onChange={(e) =>

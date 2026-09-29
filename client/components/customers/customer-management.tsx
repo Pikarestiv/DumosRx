@@ -21,6 +21,8 @@ export function CustomerManagement() {
     metrics,
     loyaltyTiers,
     filteredCustomers,
+    customersLoadFailed,
+    onRetryLoadCustomers,
     getTierColor,
     activeTab,
     handleTabChange,
@@ -68,6 +70,8 @@ export function CustomerManagement() {
         >
           <DirectoryTab
             customers={filteredCustomers}
+            loadFailed={customersLoadFailed}
+            onRetryLoad={() => void onRetryLoadCustomers()}
             searchTerm={searchTerm}
             onSearchChange={setSearchTerm}
             selectedCustomer={selectedCustomer}

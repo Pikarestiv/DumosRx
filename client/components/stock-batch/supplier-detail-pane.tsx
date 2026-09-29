@@ -1,9 +1,19 @@
-import React from "react";
-import { ChevronLeft, Search } from "lucide-react";
+import React, { useState } from "react";
+import { ChevronLeft, Search, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useHasPermission } from "@/lib/hooks/use-permissions";
 import { useRouter } from "next/navigation";
+import { SupplierDeleteDialog } from "@/components/suppliers/supplier-delete-dialog";
 import type { SupplierViewModel } from "@/lib/types/supplier";
+
+/** Literal Tailwind classes, not an interpolated `grid-cols-${n}` - the JIT
+ * compiler only sees class names it can read in the source. */
+const ACTION_GRID_COLS: Record<number, string> = {
+  1: "grid-cols-1",
+  2: "grid-cols-2",
+  3: "grid-cols-3",
+};
 
 interface SupplierDetailPaneProps {
   selectedSupplier: SupplierViewModel | null;
@@ -23,6 +33,9 @@ export function SupplierDetailPane({
   onBack,
 }: SupplierDetailPaneProps) {
   const router = useRouter();
+  const canManageSuppliers = useHasPermission("manage_suppliers");
+  const canDeleteSuppliers = useHasPermission("delete_suppliers");
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   if (!selectedSupplier) {
     return (
@@ -156,14 +169,32 @@ export function SupplierDetailPane({
         </div>
       </div>
 
-      <div className="p-6 border-t border-border mt-auto grid grid-cols-2 gap-3 shrink-0">
-        <Button
-          variant="outline"
-          className="w-full font-semibold border-border"
-          onClick={() => setIsEditDialogOpen(true)}
-        >
-          Edit Details
-        </Button>
+      <div
+        className={`p-6 border-t border-border mt-auto grid gap-3 shrink-0 ${
+          ACTION_GRID_COLS[
+            1 + (canManageSuppliers ? 1 : 0) + (canDeleteSuppliers ? 1 : 0)
+          ]
+        }`}
+      >
+        {canManageSuppliers && (
+          <Button
+            variant="outline"
+            className="w-full font-semibold border-border"
+            onClick={() => setIsEditDialogOpen(true)}
+          >
+            Edit Details
+          </Button>
+        )}
+        {canDeleteSuppliers && (
+          <Button
+            variant="outline"
+            className="w-full font-semibold border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
+            onClick={() => setIsDeleteDialogOpen(true)}
+          >
+            <Trash2 className="w-4 h-4" />
+            Delete Supplier
+          </Button>
+        )}
         <Button
           className="w-full font-semibold"
           onClick={() =>
@@ -173,6 +204,25 @@ export function SupplierDetailPane({
           New Order
         </Button>
       </div>
+
+      <SupplierDeleteDialog
+        target={
+          isDeleteDialogOpen
+            ? {
+                id: selectedSupplier.id,
+                name: selectedSupplier.name,
+                debtAmount: selectedSupplier.debtAmount,
+                totalOrders: selectedSupplier.totalOrders,
+              }
+            : null
+        }
+        formatCurrency={formatCurrency}
+        onClose={() => setIsDeleteDialogOpen(false)}
+        onSuccess={() => {
+          setIsDeleteDialogOpen(false);
+          onBack?.();
+        }}
+      />
     </div>
   );
 }

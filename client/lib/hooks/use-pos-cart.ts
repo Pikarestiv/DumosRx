@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { toast } from "sonner";
@@ -14,6 +14,7 @@ import {
 } from "@/lib/utils/pos-calculations";
 export type { POSProduct as Product } from "@/lib/types/product";
 import type { POSProduct as Product } from "@/lib/types/product";
+import { STORAGE_KEYS } from "@/lib/storage-keys";
 
 export interface CartItem extends Product {
   quantity: number;
@@ -68,7 +69,7 @@ const usePOSCartStore = create<POSCartState>()(
       setMarkupType: (markupType) => set({ markupType }),
     }),
     {
-      name: "pos-cart-storage",
+      name: STORAGE_KEYS.posCart,
     }
   )
 );
@@ -94,6 +95,77 @@ export function clearPOSCartStorage() {
   });
 }
 
+export function formatInsufficientStock(availableStock: number) {
+  return `Insufficient stock — only ${availableStock} unit${availableStock === 1 ? "" : "s"} available`;
+}
+
+/** Below a tenth of a kobo two prices are the same price; anything coarser
+ * re-prices a line on a float artefact and nags the cashier about it. */
+const PRICE_EPSILON = 0.001;
+
+export interface CartRepricing {
+  /** The same array reference when nothing changed, so a caller can use
+   * identity to decide whether to write state at all. */
+  cart: CartItem[];
+  /** Product names whose catalog selling price moved, for the warning. */
+  repricedNames: string[];
+}
+
+/**
+ * Re-points every cart line at the catalog's current selling price and
+ * average cost. The cart is a `persist`ed store, so a line otherwise keeps
+ * whatever the product cost and sold for at the moment it was added — a cart
+ * held overnight, or held across a price change synced from the owner's
+ * device, charged yesterday's price and booked COGS at yesterday's average
+ * cost.
+ *
+ * A line whose product isn't in `products` is left exactly as it is: that is
+ * the catalog still loading (`usePOSData` returns `[]` until its query
+ * resolves) far more often than it is a deleted product, and silently
+ * re-pricing against a catalog that hasn't arrived is worse than the staleness
+ * this fixes.
+ *
+ * A reseller markup is carried across as a markup, not as an absolute price:
+ * the cashier agreed a margin over the shelf price with the reseller, and
+ * `unit_price` may never fall below `original_unit_price` (updateUnitPrice's
+ * own floor), which the new catalog price has just moved.
+ */
+export function repriceCartFromCatalog(
+  cart: CartItem[],
+  products: Product[],
+): CartRepricing {
+  const repricedNames: string[] = [];
+  let changed = false;
+
+  const next = cart.map((item) => {
+    const product = products.find((p) => p.id === item.id);
+    if (!product) return item;
+
+    const markup = Math.max(0, item.unit_price - item.original_unit_price);
+    const unitPrice = product.unit_price + markup;
+    const costPrice = product.cost_price ?? item.cost_price;
+
+    const priceMoved =
+      Math.abs(product.unit_price - item.original_unit_price) > PRICE_EPSILON;
+    const costMoved =
+      Math.abs((costPrice ?? 0) - (item.cost_price ?? 0)) > PRICE_EPSILON;
+    if (!priceMoved && !costMoved) return item;
+
+    if (priceMoved) repricedNames.push(product.name);
+    changed = true;
+
+    return {
+      ...item,
+      original_unit_price: product.unit_price,
+      unit_price: unitPrice,
+      cost_price: costPrice,
+      subtotal: unitPrice * item.quantity,
+    };
+  });
+
+  return { cart: changed ? next : cart, repricedNames };
+}
+
 export function usePOSCart(products: Product[]) {
   const { vatPercentage } = useStore();
   const { canUseLoyaltyProgram } = useFeatureGate();
@@ -115,34 +187,63 @@ export function usePOSCart(products: Product[]) {
   // slot (by design, to keep a single source of truth for "the" discount) —
   // editing the discount by hand while a reward is redeemed detaches it from
   // that reward, since the point cost no longer corresponds to what's typed.
-  const setDiscount = (value: number) => {
-    setStoreDiscount(value);
-    setRedeemedOption(null);
-  };
-  const setDiscountType = (type: "fixed" | "percentage") => {
-    setStoreDiscountType(type);
-    setRedeemedOption(null);
-  };
+  const setDiscount = useCallback(
+    (value: number) => {
+      setStoreDiscount(value);
+      setRedeemedOption(null);
+    },
+    [setStoreDiscount, setRedeemedOption],
+  );
+  const setDiscountType = useCallback(
+    (type: "fixed" | "percentage") => {
+      setStoreDiscountType(type);
+      setRedeemedOption(null);
+    },
+    [setStoreDiscountType, setRedeemedOption],
+  );
 
-  const redeemReward = (option: { id: string; label: string; points_cost: number; discount_value: number }) => {
-    setStoreDiscount(option.discount_value);
-    setStoreDiscountType("fixed");
-    setRedeemedOption({
-      id: option.id,
-      label: option.label,
-      pointsCost: option.points_cost,
-      discountValue: option.discount_value,
-    });
-  };
+  const redeemReward = useCallback(
+    (option: { id: string; label: string; points_cost: number; discount_value: number }) => {
+      setStoreDiscount(option.discount_value);
+      setStoreDiscountType("fixed");
+      setRedeemedOption({
+        id: option.id,
+        label: option.label,
+        pointsCost: option.points_cost,
+        discountValue: option.discount_value,
+      });
+    },
+    [setStoreDiscount, setStoreDiscountType, setRedeemedOption],
+  );
 
-  const clearRedemption = () => {
+  const clearRedemption = useCallback(() => {
     setStoreDiscount(0);
     setRedeemedOption(null);
-  };
+  }, [setStoreDiscount, setRedeemedOption]);
 
   useEffect(() => {
     setIsHydrated(true);
   }, []);
+
+  // Re-price against the catalog rather than at checkout: every figure the
+  // cashier and the customer see (line subtotal, cart subtotal, VAT, total,
+  // the amount tendered and the change due) is derived from these lines, so
+  // correcting a price at checkout would charge an amount that was never on
+  // screen. Correcting it the moment the new catalog arrives keeps all of
+  // them consistent and gives the cashier a chance to tell the customer.
+  // Idempotent by design — it returns the same array when nothing moved —
+  // so re-running it on every cart change costs one pass and settles.
+  useEffect(() => {
+    if (products.length === 0) return;
+    const { cart: repriced, repricedNames } = repriceCartFromCatalog(cart, products);
+    if (repriced === cart) return;
+    setCart(repriced);
+    if (repricedNames.length > 0) {
+      toast.warning(
+        `Price updated from the catalog: ${repricedNames.join(", ")}`,
+      );
+    }
+  }, [products, cart, setCart]);
 
   // A redemption already staged in cart state can outlive the gate that
   // allowed it — a plan downgrade, or an admin flipping the store's on/off
@@ -175,16 +276,67 @@ export function usePOSCart(products: Product[]) {
     [subtotal, tax, calculatedDiscount]
   );
 
-  const addToCart = (product: Product) => {
-    const existingItem = cart.find((item) => item.id === product.id);
+  const removeFromCart = useCallback(
+    (id: string) => {
+      const removed = cart.find((item) => item.id === id);
+      setCart((prev) => prev.filter((item) => item.id !== id));
+      if (!removed) return;
+      // A swipe-to-remove is easy to trigger by accident while scrolling the
+      // cart on a phone, so every removal is reversible rather than silent.
+      toast(`${removed.name} removed from cart`, {
+        action: {
+          label: "Undo",
+          onClick: () =>
+            setCart((prev) =>
+              prev.some((item) => item.id === removed.id) ? prev : [...prev, removed],
+            ),
+        },
+      });
+    },
+    [cart, setCart],
+  );
 
-    if (existingItem) {
-      if (existingItem.quantity < product.stock) {
-        updateQuantity(product.id, existingItem.quantity + 1);
-      } else {
-        toast.warning("Insufficient stock available");
+  const updateQuantity = useCallback(
+    (id: string, newQuantity: number) => {
+      if (newQuantity <= 0) {
+        removeFromCart(id);
+        return;
       }
-    } else {
+
+      const product = products.find((m) => m.id === id);
+      if (product && newQuantity > product.stock) {
+        toast.warning(formatInsufficientStock(product.stock));
+        return;
+      }
+
+      setCart((prev) =>
+        prev.map((item) =>
+          item.id === id
+            ? {
+                ...item,
+                quantity: newQuantity,
+                subtotal: item.unit_price * newQuantity,
+              }
+            : item,
+        ),
+      );
+    },
+    [products, setCart, removeFromCart],
+  );
+
+  const addToCart = useCallback(
+    (product: Product) => {
+      const existingItem = cart.find((item) => item.id === product.id);
+
+      if (existingItem) {
+        if (existingItem.quantity < product.stock) {
+          updateQuantity(product.id, existingItem.quantity + 1);
+        } else {
+          toast.warning(formatInsufficientStock(product.stock));
+        }
+        return;
+      }
+
       if (product.stock > 0) {
         const cartItem: CartItem = {
           ...product,
@@ -197,88 +349,69 @@ export function usePOSCart(products: Product[]) {
       } else {
         toast.error("This item is out of stock");
       }
-    }
-  };
+    },
+    [cart, setCart, updateQuantity],
+  );
 
-  const updateQuantity = (id: string, newQuantity: number) => {
-    if (newQuantity <= 0) {
-      removeFromCart(id);
-      return;
-    }
-
-    const product = products.find((m) => m.id === id);
-    if (product && newQuantity > product.stock) {
-      toast.warning("Insufficient stock available");
-      return;
-    }
-
-    setCart((prev) =>
-      prev.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              quantity: newQuantity,
-              subtotal: item.unit_price * newQuantity,
-            }
-          : item,
-      ),
-    );
-  };
-
-  const removeFromCart = (id: string) => {
-    setCart((prev) => prev.filter((item) => item.id !== id));
-  };
-
-  const updateUnitPrice = (id: string, newPrice: number) => {
-    setCart((prev) =>
-      prev.map((item) => {
-        if (item.id !== id) return item;
-        // A reseller sale can only mark price up, never down - clamped here
-        // too, not just in the input's `min`, so a pasted/typed value below
-        // the floor can't get through either.
-        const clamped = Math.max(newPrice, item.original_unit_price);
-        return { ...item, unit_price: clamped, subtotal: clamped * item.quantity };
-      }),
-    );
-  };
-
-  const setIsResellerSale = (value: boolean) => {
-    setStoreIsResellerSale(value);
-    if (!value) {
-      // Turning reseller mode off with marked-up prices still in the cart
-      // would silently keep charging the marked-up amount with no
-      // commission tracked for it - revert every line back to normal.
+  const updateUnitPrice = useCallback(
+    (id: string, newPrice: number) => {
       setCart((prev) =>
-        prev.map((item) => ({
-          ...item,
-          unit_price: item.original_unit_price,
-          subtotal: item.original_unit_price * item.quantity,
-        })),
+        prev.map((item) => {
+          if (item.id !== id) return item;
+          // A reseller sale can only mark price up, never down - clamped here
+          // too, not just in the input's `min`, so a pasted/typed value below
+          // the floor can't get through either.
+          const clamped = Math.max(newPrice, item.original_unit_price);
+          return { ...item, unit_price: clamped, subtotal: clamped * item.quantity };
+        }),
       );
-      setMarkupType(null);
-    }
-  };
+    },
+    [setCart],
+  );
 
-  const clearCart = () => {
+  const setIsResellerSale = useCallback(
+    (value: boolean) => {
+      setStoreIsResellerSale(value);
+      if (!value) {
+        // Turning reseller mode off with marked-up prices still in the cart
+        // would silently keep charging the marked-up amount with no
+        // commission tracked for it - revert every line back to normal.
+        setCart((prev) =>
+          prev.map((item) => ({
+            ...item,
+            unit_price: item.original_unit_price,
+            subtotal: item.original_unit_price * item.quantity,
+          })),
+        );
+        setMarkupType(null);
+      }
+    },
+    [setStoreIsResellerSale, setCart, setMarkupType],
+  );
+
+  const clearCart = useCallback(() => {
     setCart([]);
     setDiscount(0);
     setStoreIsResellerSale(false);
     setMarkupType(null);
-  };
+  }, [setCart, setDiscount, setStoreIsResellerSale, setMarkupType]);
 
-  const restoreCart = (
-    items: CartItem[],
-    restoredDiscount?: number,
-    restoredDiscountType?: "fixed" | "percentage",
-  ) => {
-    setCart(items);
-    // A held transaction never persisted a redemption (only its resulting
-    // discount amount), so any redemption tag from before this restore is
-    // now stale and must not carry over.
-    setRedeemedOption(null);
-    if (restoredDiscount !== undefined) setStoreDiscount(restoredDiscount);
-    if (restoredDiscountType !== undefined) setStoreDiscountType(restoredDiscountType);
-  };
+  const restoreCart = useCallback(
+    (
+      items: CartItem[],
+      restoredDiscount?: number,
+      restoredDiscountType?: "fixed" | "percentage",
+    ) => {
+      setCart(items);
+      // A held transaction never persisted a redemption (only its resulting
+      // discount amount), so any redemption tag from before this restore is
+      // now stale and must not carry over.
+      setRedeemedOption(null);
+      if (restoredDiscount !== undefined) setStoreDiscount(restoredDiscount);
+      if (restoredDiscountType !== undefined) setStoreDiscountType(restoredDiscountType);
+    },
+    [setCart, setRedeemedOption, setStoreDiscount, setStoreDiscountType],
+  );
 
   return {
     cart: isHydrated ? cart : [],

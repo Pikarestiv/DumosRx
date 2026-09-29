@@ -3,6 +3,7 @@
 import { format } from "date-fns";
 import { formatMetricCurrency } from "@/lib/utils";
 import { MetricCard } from "@/components/ui/metric-card";
+import { HorizontalScrollFade } from "@/components/ui/scroll-fade";
 
 interface ExpenseInsightsStripProps {
   totalExpenses: number;
@@ -20,7 +21,7 @@ export function ExpenseInsightsStrip({
   currencyCode,
 }: ExpenseInsightsStripProps) {
   return (
-    <div className="flex overflow-x-auto sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-[10px] sm:gap-4 hide-scrollbar snap-x snap-mandatory mb-4">
+    <HorizontalScrollFade className="flex overflow-x-auto sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-[10px] sm:gap-4 hide-scrollbar snap-x snap-mandatory mb-4">
       <MetricCard
         className="min-w-[180px] sm:min-w-0 shrink-0 snap-start border-border"
         title="Total expenses"
@@ -110,6 +111,6 @@ export function ExpenseInsightsStrip({
         iconBgClass="bg-muted text-muted-foreground"
         description={<span className="hidden sm:inline">recorded all time</span>}
       />
-    </div>
+    </HorizontalScrollFade>
   );
 }

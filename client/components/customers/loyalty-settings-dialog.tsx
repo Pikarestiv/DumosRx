@@ -26,6 +26,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useAuth } from "@/lib/context/auth-context";
 import { useStore } from "@/lib/context/store-context";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
+import { useHasPermission } from "@/lib/hooks/use-permissions";
 import { getCurrencySymbol } from "@/lib/utils";
 import {
   getLoyaltyTiers,
@@ -52,6 +53,7 @@ interface Props {
 
 export function LoyaltySettingsDialog({ open, onOpenChange }: Props) {
   const { user, canManageStockBatch } = useAuth();
+  const canManageLoyalty = useHasPermission("manage_loyalty");
   const { storeProfile, updateStoreProfile } = useStore();
   const currencySymbol = getCurrencySymbol(storeProfile?.currency);
   const { canAccessLoyaltyProgramPlan, getUpgradeMessage } = useFeatureGate();
@@ -72,10 +74,10 @@ export function LoyaltySettingsDialog({ open, onOpenChange }: Props) {
 
   // Defense-in-depth: the only current entry point (LoyaltyTab's "Edit
   // Settings" button) is already gated, but this closes the dialog if it's
-  // ever reached another way by a role that can't manage stock/config.
+  // ever reached another way by a role lacking either right.
   useEffect(() => {
-    if (open && !canManageStockBatch) onOpenChange(false);
-  }, [open, canManageStockBatch, onOpenChange]);
+    if (open && !(canManageStockBatch && canManageLoyalty)) onOpenChange(false);
+  }, [open, canManageStockBatch, canManageLoyalty, onOpenChange]);
 
   // Stored as points-per-currency-unit (e.g. 0.01), edited here as
   // "points per 100 [currency]" since that reads far more naturally than a
@@ -224,6 +226,7 @@ export function LoyaltySettingsDialog({ open, onOpenChange }: Props) {
               <Input
                 id="loyalty-earn-rate"
                 type="number"
+                inputMode="decimal"
                 min="0"
                 step="0.1"
                 className="w-20"

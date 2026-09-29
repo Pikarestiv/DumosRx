@@ -15,7 +15,6 @@ export function AppearancePanel(s: SettingsState) {
       localResellerCommission={s.localResellerCommission}
       setLocalResellerCommission={s.setLocalResellerCommission}
       handleSaveRegional={s.handleSaveRegional}
-      isAdmin={s.isAdmin}
     />
   );
 }

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2, ShieldAlert } from "lucide-react";
 import { apiClient } from "@/lib/api/client";
 import { useAuth } from "@/lib/context/auth-context";
+import { STORAGE_KEYS } from "@/lib/storage-keys";
 
 /**
  * The codes arrive in the URL fragment (`#code=...&return_code=...`), not
@@ -63,7 +64,7 @@ function CallbackHandler() {
         loginFromHandoff(user);
 
         if (returnCode) {
-          localStorage.setItem("impersonator_handoff_return_code", returnCode);
+          localStorage.setItem(STORAGE_KEYS.impersonatorReturnCode, returnCode);
         }
 
         router.replace("/dashboard");

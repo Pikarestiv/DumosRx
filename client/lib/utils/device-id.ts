@@ -1,4 +1,5 @@
-const DEVICE_ID_KEY = "dumos_device_id";
+import { STORAGE_KEYS } from "@/lib/storage-keys";
+const DEVICE_ID_KEY = STORAGE_KEYS.deviceId;
 
 /**
  * Stable per-device identifier used to correlate remote logs (Sentry,

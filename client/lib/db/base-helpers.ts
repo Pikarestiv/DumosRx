@@ -464,6 +464,23 @@ export async function markSynced(
   }
 }
 
+/**
+ * Flags a source row as settled after the server terminally rejected its
+ * push (version_conflict/stale_timestamp) and the queue row was dropped.
+ *
+ * Only for tables where no future pull can reconcile the row by id — see
+ * TERMINAL_CONFLICT_SETTLES_SOURCE_ROW in sync-engine/push.ts. Without it the
+ * row keeps _synced = 0 with no queue entry, which requeueOrphanedRows()
+ * re-queues on every app boot into the same conflict, forever.
+ */
+export async function markConflictSettled(table: string, recordId: string): Promise<void> {
+  try {
+    await execute(`UPDATE ${table} SET _synced = 1 WHERE id = ?`, [recordId]);
+  } catch (err) {
+    console.warn(`[Sync] Failed to settle conflicted ${table}/${recordId}:`, err);
+  }
+}
+
 const SYNC_FAILURE_REPORT_THRESHOLD = 5;
 const SYNC_FAILURE_BASE_DELAY_MS = 30_000;
 const SYNC_FAILURE_MAX_DELAY_MS = 60 * 60_000;

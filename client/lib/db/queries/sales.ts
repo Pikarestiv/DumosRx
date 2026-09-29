@@ -4,6 +4,8 @@ import type { Sale, SaleWithDetails, SaleItemDetail, ReturnRecord, ReturnItemDet
 import type { StockBatch } from "@/lib/types/stock-batch";
 
 export async function getSaleItems(saleId: string) {
+  // Products joined unfiltered on purpose, so a deleted product still names the
+  // line: client/AGENTS.md, pinned by deleted-product-sales-history.test.ts.
   return query<SaleItemDetail>(
     "SELECT si.*, m.name as product_name FROM sale_items si JOIN products m ON si.product_id = m.id WHERE si.sale_id = ?",
     [saleId]
@@ -24,6 +26,8 @@ export async function getTransactionDetails(saleId: string) {
           WHERE r.sale_id = si.sale_id AND ri.product_id = si.product_id AND (ri._deleted = 0 OR ri._deleted IS NULL) AND (r._deleted = 0 OR r._deleted IS NULL)
         ), 0) as returned_quantity
        FROM sale_items si
+       -- Unfiltered products join on purpose: a deleted product must still name
+       -- its history (client/AGENTS.md; deleted-product-sales-history.test.ts).
        LEFT JOIN products m ON si.product_id = m.id
        WHERE si.sale_id = ? AND (si._deleted = 0 OR si._deleted IS NULL)
        ORDER BY si.created_at ASC, si.id ASC`,
@@ -201,6 +205,8 @@ export async function getSaleByTransactionNumber(transactionNumber: string) {
 /** Every reseller sale with a commission, newest first. */
 export async function getResellerCommissionSales() {
   const storeId = getActiveStoreId();
+  // item_names joins products unfiltered on purpose, so a deleted product still
+  // shows: client/AGENTS.md, pinned by deleted-product-sales-history.test.ts.
   return query<SaleWithDetails>(
     `SELECT
       s.*,
@@ -271,6 +277,8 @@ export async function getRecentSales(
   }
   if (storeId) params.push(storeId);
 
+  // item_names joins products unfiltered on purpose, so a deleted product still
+  // shows: client/AGENTS.md, pinned by deleted-product-sales-history.test.ts.
   return query<SaleWithDetails>(
     `SELECT
       s.*,
@@ -325,38 +333,44 @@ export async function getDailyCloseData(reportDate: string) {
   const endIso = new Date(year, month - 1, day, 23, 59, 59, 999).toISOString();
   const storeId = getActiveStoreId();
 
-  const salesToday = await query<Sale>(
-    `SELECT * FROM sales WHERE transaction_date >= ? AND transaction_date <= ? AND _deleted = 0${storeId ? " AND store_id = ?" : ""}`,
-    storeId ? [startIso, endIso, storeId] : [startIso, endIso],
-  );
+  // All four reads are independent, so they go out together rather than one
+  // await at a time (same shape as getCurrentMonthRevenue in finance.ts).
+  const [salesToday, itemsToday, returnsToday, returnItemsToday] = await Promise.all([
+    query<Sale>(
+      `SELECT * FROM sales WHERE transaction_date >= ? AND transaction_date <= ? AND _deleted = 0${storeId ? " AND store_id = ?" : ""}`,
+      storeId ? [startIso, endIso, storeId] : [startIso, endIso],
+    ),
 
-  const itemsToday = await query<SaleItemDetail>(
-    `SELECT si.*, m.name as product_name, si.cost_price as med_cost_price FROM sale_items si JOIN sales s ON si.sale_id = s.id LEFT JOIN products m ON si.product_id = m.id WHERE s.transaction_date >= ? AND s.transaction_date <= ? AND (si._deleted = 0 OR si._deleted IS NULL) AND (s._deleted = 0 OR s._deleted IS NULL)${storeId ? " AND s.store_id = ?" : ""}`,
-    storeId ? [startIso, endIso, storeId] : [startIso, endIso],
-  );
+    // Products joined unfiltered on purpose, so a deleted product still names the
+    // line: client/AGENTS.md, pinned by deleted-product-sales-history.test.ts.
+    query<SaleItemDetail>(
+      `SELECT si.*, m.name as product_name, si.cost_price as med_cost_price FROM sale_items si JOIN sales s ON si.sale_id = s.id LEFT JOIN products m ON si.product_id = m.id WHERE s.transaction_date >= ? AND s.transaction_date <= ? AND (si._deleted = 0 OR si._deleted IS NULL) AND (s._deleted = 0 OR s._deleted IS NULL)${storeId ? " AND s.store_id = ?" : ""}`,
+      storeId ? [startIso, endIso, storeId] : [startIso, endIso],
+    ),
 
-  const returnsToday = await query<ReturnRecord>(
-    `SELECT r.*, s.payment_method, s.payment_details, s.transaction_number FROM returns r JOIN sales s ON r.sale_id = s.id WHERE r.created_at >= ? AND r.created_at <= ? AND (r._deleted = 0 OR r._deleted IS NULL)${storeId ? " AND r.store_id = ?" : ""}`,
-    storeId ? [startIso, endIso, storeId] : [startIso, endIso],
-  );
+    query<ReturnRecord>(
+      `SELECT r.*, s.payment_method, s.payment_details, s.transaction_number FROM returns r JOIN sales s ON r.sale_id = s.id WHERE r.created_at >= ? AND r.created_at <= ? AND (r._deleted = 0 OR r._deleted IS NULL)${storeId ? " AND r.store_id = ?" : ""}`,
+      storeId ? [startIso, endIso, storeId] : [startIso, endIso],
+    ),
 
-  // Uses the sale-time cost_price (pre-aggregated per (sale_id, product_id)
-  // to stay correct when a sale has >1 sale_items row for the same
-  // product), not a recomputed current-stock average — see the matching
-  // fix on returnedCogsData/rawMonthlyReturns in reports.ts. return_items
-  // has no cost_price column of its own, so a `||` fallback here would
-  // always fire and silently use today's stock cost instead of the cost
-  // actually recorded at sale time.
-  const returnItemsToday = await query<ReturnItemDetail & { med_cost_price?: number }>(
-    `SELECT ri.*, IFNULL(si.avg_cost_price, 0) as med_cost_price
-     FROM return_items ri
-     JOIN returns r ON ri.return_id = r.id
-     LEFT JOIN products m ON ri.product_id = m.id
-     LEFT JOIN (SELECT sale_id, product_id, SUM(cost_price * quantity) * 1.0 / NULLIF(SUM(quantity), 0) as avg_cost_price FROM sale_items GROUP BY sale_id, product_id) si
-       ON si.sale_id = r.sale_id AND si.product_id = ri.product_id
-     WHERE r.created_at >= ? AND r.created_at <= ? AND (ri._deleted = 0 OR ri._deleted IS NULL) AND (r._deleted = 0 OR r._deleted IS NULL)${storeId ? " AND ri.store_id = ?" : ""}`,
-    storeId ? [startIso, endIso, storeId] : [startIso, endIso],
-  );
+    // Uses the sale-time cost_price (pre-aggregated per (sale_id, product_id)
+    // to stay correct when a sale has >1 sale_items row for the same
+    // product), not a recomputed current-stock average — see the matching
+    // fix on returnedCogsData/rawMonthlyReturns in reports.ts. return_items
+    // has no cost_price column of its own, so a `||` fallback here would
+    // always fire and silently use today's stock cost instead of the cost
+    // actually recorded at sale time.
+    query<ReturnItemDetail & { med_cost_price?: number }>(
+      `SELECT ri.*, IFNULL(si.avg_cost_price, 0) as med_cost_price
+       FROM return_items ri
+       JOIN returns r ON ri.return_id = r.id
+       LEFT JOIN products m ON ri.product_id = m.id
+       LEFT JOIN (SELECT sale_id, product_id, SUM(cost_price * quantity) * 1.0 / NULLIF(SUM(quantity), 0) as avg_cost_price FROM sale_items GROUP BY sale_id, product_id) si
+         ON si.sale_id = r.sale_id AND si.product_id = ri.product_id
+       WHERE r.created_at >= ? AND r.created_at <= ? AND (ri._deleted = 0 OR ri._deleted IS NULL) AND (r._deleted = 0 OR r._deleted IS NULL)${storeId ? " AND ri.store_id = ?" : ""}`,
+      storeId ? [startIso, endIso, storeId] : [startIso, endIso],
+    ),
+  ]);
 
   return { salesToday, itemsToday, returnsToday, returnItemsToday };
 }

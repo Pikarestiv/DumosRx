@@ -1,24 +1,33 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { Search, Users } from "lucide-react";
+import { AlertCircle, Search, Users } from "lucide-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Customer } from "@/lib/hooks/use-customer-data";
 import { Card } from "@/components/ui/card";
 import { ResponsiveDetailPanel } from "@/components/ui/responsive-detail-panel";
 import { formatCurrency } from "@/lib/utils";
 import { CustomerDetailPanel } from "./customer-detail-panel";
-import { CustomerMobileRow, CustomerDesktopRow } from "./customer-list-rows";
+import {
+  CustomerMobileRow,
+  CustomerDesktopRow,
+  CUSTOMER_GRID_COLS,
+} from "./customer-list-rows";
 import { SortableHeaderCell } from "@/components/ui/sortable-header-cell";
 import { useSortableData } from "@/lib/hooks/use-sortable-data";
 import { EmptyState } from "@/components/ui/empty-state";
-import { useAuth } from "@/lib/context/auth-context";
+import { useHasPermission } from "@/lib/hooks/use-permissions";
+import { useMediaQuery } from "@/hooks/use-media-query";
+import { ScrollToTopButton } from "@/components/ui/scroll-to-top-button";
 
 // Matches the row's px-4 py-2.5 padding + single line of 13.5px/12px text.
 const DESKTOP_ROW_HEIGHT = 56;
 
 interface DirectoryTabProps {
   customers: Customer[];
+  /** The customer read itself failed, as opposed to returning zero rows. */
+  loadFailed?: boolean;
+  onRetryLoad?: () => void;
   searchTerm: string;
   onSearchChange: (val: string) => void;
   selectedCustomer: Customer | null;
@@ -34,11 +43,23 @@ interface DirectoryTabProps {
 
 type CustFilter = "all" | "debt" | "loyalty";
 
+function CustomersLoadFailed({ onRetry }: { onRetry?: () => void }) {
+  return (
+    <EmptyState
+      icon={AlertCircle}
+      title="Couldn't load customers on this device"
+      description="The customer list couldn't be read from this device's local database. Nothing is lost — try again."
+      className="p-8"
+      action={onRetry ? { label: "Retry", onClick: onRetry } : undefined}
+    />
+  );
+}
+
 function NoCustomersFound({
-  isAuditor,
+  canAddCustomer,
   onAddCustomer,
 }: {
-  isAuditor: boolean;
+  canAddCustomer: boolean;
   onAddCustomer?: () => void;
 }) {
   return (
@@ -47,7 +68,7 @@ function NoCustomersFound({
       title="No customers found"
       className="p-8"
       action={
-        isAuditor || !onAddCustomer
+        !canAddCustomer || !onAddCustomer
           ? undefined
           : { label: "Add Customer", onClick: onAddCustomer }
       }
@@ -57,6 +78,8 @@ function NoCustomersFound({
 
 export function DirectoryTab({
   customers,
+  loadFailed = false,
+  onRetryLoad,
   searchTerm,
   onSearchChange,
   selectedCustomer,
@@ -69,10 +92,11 @@ export function DirectoryTab({
   onAddCustomer,
   onDeleteCustomer,
 }: DirectoryTabProps) {
+  const isDesktop = useMediaQuery("(min-width: 1024px)");
   const [filter, setFilter] = useState<CustFilter>("all");
-  const { user } = useAuth();
-  const isAuditor = user?.role === "auditor";
-  const canDeleteCustomer = !isAuditor && user?.role !== "sales_staff";
+  const canManageCustomers = useHasPermission("manage_customers");
+  const canDeleteCustomers = useHasPermission("delete_customers");
+  const canViewBalances = useHasPermission("view_customer_balances");
 
   const desktopScrollRef = useRef<HTMLDivElement>(null);
 
@@ -107,7 +131,7 @@ export function DirectoryTab({
 
   const filterChips: { key: CustFilter; label: string }[] = [
     { key: "all", label: "All" },
-    { key: "debt", label: "Has debt" },
+    ...(canViewBalances ? [{ key: "debt" as const, label: "Has debt" }] : []),
     { key: "loyalty", label: "Loyalty members" },
   ];
 
@@ -129,7 +153,7 @@ export function DirectoryTab({
     </div>
   );
 
-  const DebtSummary = debtSummary.count > 0 && (
+  const DebtSummary = canViewBalances && debtSummary.count > 0 && (
     <div className="text-[11.5px] text-destructive font-medium whitespace-nowrap">
       {formatCurrency(debtSummary.total, currencyCode)} outstanding across{" "}
       {debtSummary.count} customer{debtSummary.count === 1 ? "" : "s"}
@@ -160,14 +184,20 @@ export function DirectoryTab({
       onEditProfile={onEditProfile}
       onRecordPayment={onRecordPayment}
       onDelete={onDeleteCustomer}
-      canDelete={canDeleteCustomer}
+      canDelete={canDeleteCustomers}
+      canEdit={canManageCustomers}
+      canViewBalance={canViewBalances}
     />
   );
 
   return (
     <div className="flex flex-col h-full gap-4 relative">
-      {/* Mobile List: flat, no wrapping card */}
-      <div className="flex lg:hidden flex-col w-full gap-4">
+      {/* Mobile List: flat, no wrapping card. Conditionally rendered rather
+          than `lg:hidden`, since the desktop branch is virtualized and this
+          one isn't — CSS-hiding made desktop render every customer row twice
+          over, once only to hide it. */}
+      {!isDesktop && (
+      <div className="flex flex-col w-full gap-4">
         {SearchInput}
         <div className="flex items-center justify-between gap-2 flex-wrap">
           {FilterChips}
@@ -184,14 +214,17 @@ export function DirectoryTab({
               getTierColor={getTierColor}
             />
           ))}
-          {filteredCustomers.length === 0 && (
-            <NoCustomersFound isAuditor={isAuditor} onAddCustomer={onAddCustomer} />
+          {loadFailed && <CustomersLoadFailed onRetry={onRetryLoad} />}
+          {!loadFailed && filteredCustomers.length === 0 && (
+            <NoCustomersFound canAddCustomer={canManageCustomers} onAddCustomer={onAddCustomer} />
           )}
         </div>
       </div>
+      )}
 
       {/* Desktop List Panel */}
-      <Card className="hidden lg:flex flex-col gap-0 py-0 border rounded-[14px] shadow-sm w-full flex-1 min-h-0 h-full overflow-hidden">
+      {isDesktop && (
+      <Card className="flex flex-col gap-0 py-0 border rounded-[14px] shadow-sm w-full flex-1 min-h-0 h-full overflow-hidden">
         <div className="p-4 border-b space-y-3">
           {SearchInput}
           <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -201,7 +234,7 @@ export function DirectoryTab({
         </div>
 
         {/* Desktop table header */}
-        <div className="hidden lg:grid grid-cols-[1.6fr_1.1fr_80px_70px_100px_110px] gap-2 px-4 py-2 text-[10.5px] font-bold text-muted-foreground uppercase tracking-wide border-b">
+        <div className={`hidden lg:grid ${canViewBalances ? CUSTOMER_GRID_COLS.withBalance : CUSTOMER_GRID_COLS.withoutBalance} gap-2 px-4 py-2 text-[10.5px] font-bold text-muted-foreground uppercase tracking-wide border-b`}>
           <SortableHeaderCell
             label="Customer"
             active={sortKey === "name"}
@@ -227,13 +260,15 @@ export function DirectoryTab({
             onClick={() => toggleSort("points")}
             className="justify-end"
           />
-          <SortableHeaderCell
-            label="Balance"
-            active={sortKey === "balance"}
-            direction={direction}
-            onClick={() => toggleSort("balance")}
-            className="justify-end"
-          />
+          {canViewBalances && (
+            <SortableHeaderCell
+              label="Balance"
+              active={sortKey === "balance"}
+              direction={direction}
+              onClick={() => toggleSort("balance")}
+              className="justify-end"
+            />
+          )}
           <SortableHeaderCell
             label="Last Visit"
             active={sortKey === "lastVisit"}
@@ -259,6 +294,7 @@ export function DirectoryTab({
                     onSelect={setSelectedCustomer}
                     getTierColor={getTierColor}
                     currencyCode={currencyCode}
+                    showBalance={canViewBalances}
                     style={{
                       height: virtualRow.size,
                       transform: `translateY(${virtualRow.start}px)`,
@@ -268,11 +304,14 @@ export function DirectoryTab({
               })}
             </div>
           )}
-          {filteredCustomers.length === 0 && (
-            <NoCustomersFound isAuditor={isAuditor} onAddCustomer={onAddCustomer} />
+          {loadFailed && <CustomersLoadFailed onRetry={onRetryLoad} />}
+          {!loadFailed && filteredCustomers.length === 0 && (
+            <NoCustomersFound canAddCustomer={canManageCustomers} onAddCustomer={onAddCustomer} />
           )}
         </div>
+        <ScrollToTopButton scrollRef={desktopScrollRef} />
       </Card>
+      )}
 
       <ResponsiveDetailPanel
         open={!!selectedCustomer}

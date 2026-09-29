@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery } from "@tanstack/react-query";
@@ -9,9 +8,7 @@ import { useStockBatchStats } from "@/lib/hooks/use-stock-batch-stats";
 import { useStore } from "@/lib/context/store-context";
 import { NeedsAttention } from "./needs-attention";
 import { FastMovers } from "./fast-movers";
-import { BarcodePrintDialog } from "./barcode-print-dialog";
 import { queryKeys } from "@/lib/query-keys";
-import type { POSProduct } from "@/lib/types/product";
 
 interface StockItem {
   id: string;
@@ -61,7 +58,6 @@ export function StockOverview() {
   }));
 
   const loading = stockLoading || stats.loading;
-  const [selectedProduct, setSelectedProduct] = useState<POSProduct | null>(null);
 
   if (loading) {
     return (
@@ -120,12 +116,6 @@ export function StockOverview() {
         <NeedsAttention stockData={stockItems} />
         <FastMovers />
       </div>
-
-      <BarcodePrintDialog
-        isOpen={!!selectedProduct}
-        onClose={() => setSelectedProduct(null)}
-        product={selectedProduct}
-      />
     </div>
   );
 }

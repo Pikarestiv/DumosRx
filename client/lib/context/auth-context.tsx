@@ -1,6 +1,8 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import type { RecentUser } from "@/lib/types/user";
+
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
 import * as Sentry from "@sentry/nextjs";
 import { setCurrentUser as setDbUser, logAction } from "@/lib/db/local-database";
 import { apiClient } from "@/lib/api/client";
@@ -13,6 +15,8 @@ import {
 } from "@/lib/db/queries/auth";
 import { pinMatches, needsPinRehash } from "@/lib/utils/pin-hash";
 import { getTotalUserCount } from "@/lib/db/queries/setup";
+import { ensurePermissionGroupsSeeded, getUserPermissionGroup } from "@/lib/db/queries/permission-groups";
+import { hasPermission } from "@/lib/hooks/use-permissions";
 import {
   checkLoginLockout,
   recordLoginFailure,
@@ -24,6 +28,7 @@ import { AUDIT_ACTIONS } from "@/lib/db/audit-actions";
 import { sync, isSyncing } from "@/lib/db/sync-engine";
 import { queryClient } from "@/lib/query-client";
 import { clearPOSCartStorage } from "@/lib/hooks/use-pos-cart";
+import { clearStockAuditDraft } from "@/lib/hooks/use-stock-audit-draft";
 import { isTauri } from "@/lib/db";
 import { setActiveStoreId as setResolvedStoreId } from "@/lib/db/core";
 import { getToken } from "@/lib/api/token-manager";
@@ -33,6 +38,17 @@ import {
   clearImpersonatedSession,
   isImpersonatedSession,
 } from "@/lib/utils/impersonation";
+import { APP_EVENTS, onAppEvent } from "@/lib/events";
+import {
+  STORAGE_KEYS,
+  getAuthToken,
+  getStoredUser,
+  setStoredUser,
+  clearStoredUser,
+  getRecentUsers,
+  setRecentUsers,
+  setStoredActiveStoreId,
+} from "@/lib/storage-keys";
 
 // Polls until any in-flight sync finishes, so a caller that just triggered
 // (or piggybacked on) a sync can safely read fresh local data afterward.
@@ -84,14 +100,7 @@ export interface User {
   store_id?: string;
 }
 
-export interface RecentUser {
-  id: string;
-  first_name: string;
-  last_name: string;
-  username: string;
-  role: string;
-  last_login: string;
-}
+export type { RecentUser };
 
 /** The user payload the cloud handoff endpoint returns (a raw App\Models\User
  * row plus its appended `name` accessor); only the fields we map are listed. */
@@ -123,6 +132,13 @@ interface AuthContextType {
   canManageStockBatch: boolean;
   canProcessSales: boolean;
   canViewAllActivity: boolean;
+  /** The acting session's resolved permission group, or null when they have
+   * none yet (pre-sync gap, or a store_owner/super_admin, who are never
+   * group-assigned). THE single copy of this state: useHasPermission and
+   * useOwnPermissionGroupId read it from here rather than each running their
+   * own query and sync listener, so all 26+ call sites can never transiently
+   * disagree with each other or with the booleans computed just below. */
+  permissionGroup: { id: string; permissions: string[] } | null;
   changePin: (currentPin: string, newPin: string) => Promise<{ success: boolean; message: string }>;
   verifyPin: (pin: string) => Promise<boolean>;
   linkCloudAccount: (email: string, password: string) => Promise<{ success: boolean; message: string }>;
@@ -136,6 +152,13 @@ interface AuthContextType {
   isImpersonating: boolean;
 }
 
+/** Plain role-tier utility, NOT a permission gate - kept only for the two
+ * call sites that inspect a role belonging to someone OTHER than the
+ * acting user (staff-list.tsx's per-row admin badge, stock-transfers.ts's
+ * original initiator), where "which permission group is this OTHER
+ * record's role" doesn't apply. Every current-actor permission check uses
+ * useHasPermission()/hasPermission() (lib/hooks/use-permissions.ts)
+ * instead - do not call this from new gating code. */
 export const checkIsAdmin = (role?: string) => {
   if (!role) return false;
   const normalizedRole = role.toLowerCase().replace(/[^a-z_]/g, "");
@@ -148,46 +171,14 @@ export const checkIsAdmin = (role?: string) => {
   return ["admin", "manager", "store_owner", "super_admin"].includes(normalizedRole);
 };
 
-export const checkCanManageStockBatch = (role?: string) => {
-  if (!role) return false;
-  const normalizedRole = role.toLowerCase().replace(/[^a-z_]/g, "");
-  return ["admin", "manager", "specialist", "store_owner"].includes(normalizedRole);
-};
-
-export const checkCanProcessSales = (role?: string) => {
-  if (!role) return false;
-  const normalizedRole = role.toLowerCase().replace(/[^a-z_]/g, "");
-  return ["admin", "manager", "specialist", "sales_staff", "store_owner"].includes(normalizedRole);
-};
-
-/** Whether this user can open the POS header's "Request stock from another
- * store" dialog. Admin-tier roles always can; everyone else needs the
- * store's staff_can_request_transfers setting turned on (off by default -
- * see multi-store-card.tsx). Doesn't check plan tier or store count -
- * callers (pos-layout-header.tsx) combine this with canManageMultiStore and
- * availableStores.length. */
-export const checkCanRequestStockTransfer = (
-  role: string | undefined,
-  staffCanRequestTransfers: number | undefined,
-) => {
-  if (!checkCanProcessSales(role)) return false;
-  return checkIsAdmin(role) || staffCanRequestTransfers === 1;
-};
-
-/** Activity/history views (audit logs, stock movements, sales, expenses,
- * purchase orders, stock audits, prescriptions, returns) are scoped to the
- * viewer's own actions unless they're a store owner or admin; everyone
- * else (manager, specialist, sales_staff, auditor) only sees what they
- * themselves performed. */
-export const checkCanViewAllActivity = (role?: string) => {
-  if (!role) return false;
-  const normalizedRole = role.toLowerCase().replace(/[^a-z_]/g, "");
-  return ["admin", "store_owner"].includes(normalizedRole);
-};
-
-// Gates Factory Reset (Settings > Data): narrower than checkIsAdmin (which
-// also passes "manager") - wiping local data and disconnecting cloud sync
-// shouldn't be unilateral for anyone but the owner/main admin account.
+/** Plain role-tier utility, NOT a permission gate - kept only for
+ * cloud-danger-zone.tsx, whose `role` comes from the cloud-authenticated
+ * dashboard account (useCurrentUser()), not the local PIN-authenticated
+ * POS session useHasPermission()/hasPermission() resolve against. Gates
+ * Factory Reset (Settings > Data): narrower than checkIsAdmin (which also
+ * passes "manager") - wiping local data and disconnecting cloud sync
+ * shouldn't be unilateral for anyone but the owner/main admin account. Do
+ * not call this from new gating code on the local session's own user. */
 export const checkCanFactoryReset = (role?: string) =>
   !!role && ["admin", "store_owner", "super_admin"].includes(role.toLowerCase().replace(/[^a-z_]/g, ""));
 
@@ -211,8 +202,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // Check for saved user in session
-    const savedUser = localStorage.getItem("dumos_user");
-    const token = localStorage.getItem("auth_token");
+    const savedUser = getStoredUser();
+    const token = getAuthToken();
     
     setIsCloudLinked(!!token);
 
@@ -243,20 +234,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.removeItem(IMPERSONATED_USER_STORAGE_KEY);
       }
     } else if (savedUser) {
-      try {
-        const parsedUser = JSON.parse(savedUser);
-        setUser(parsedUser);
-        setDbUser(parsedUser);
-      } catch (err) {
-        // Corrupted/partial write (e.g. interrupted by a connection drop
-        // mid-save). Without this, the throw aborts the rest of this
-        // effect silently, leaving `user` stuck null forever and the
-        // token-event listeners below never attached. Clear the bad value
-        // so the next reload doesn't repeat the same failure, and let the
-        // caller's own !user handling (redirect to /login) take it from here.
-        console.error("Failed to parse saved user, clearing corrupted session", err);
-        localStorage.removeItem("dumos_user");
-      }
+      const parsedUser = savedUser as unknown as User;
+      setUser(parsedUser);
+      setDbUser(parsedUser);
+    } else if (localStorage.getItem(STORAGE_KEYS.user)) {
+      // Corrupted/partial write (e.g. interrupted by a connection drop
+      // mid-save) - getStoredUser() returned null for a key that is set.
+      // Clear it so the next reload doesn't repeat the same failure.
+      console.error("Clearing a corrupted saved user session");
+      clearStoredUser();
     }
 
     // Evaluated after the branch above (not inside it) so a session that
@@ -270,16 +256,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const handleTokenSet = () => setIsCloudLinked(true);
     const handleTokenCleared = () => setIsCloudLinked(false);
 
-    window.addEventListener("auth_token_set", handleTokenSet);
-    window.addEventListener("auth_token_cleared", handleTokenCleared);
+    const unsubscribeTokenSet = onAppEvent(APP_EVENTS.authTokenSet, handleTokenSet);
+    const unsubscribeTokenCleared = onAppEvent(
+      APP_EVENTS.authTokenCleared,
+      handleTokenCleared,
+    );
 
     return () => {
-      window.removeEventListener("auth_token_set", handleTokenSet);
-      window.removeEventListener("auth_token_cleared", handleTokenCleared);
+      unsubscribeTokenSet();
+      unsubscribeTokenCleared();
     };
   }, []);
 
-  const login = async (identifier: string, pin?: string) => {
+  const login = useCallback(async (identifier: string, pin?: string) => {
     // For local-first, we check both username and email
     const cleanIdentifier = identifier.trim();
     // Captured before any state changes below: distinguishes the ordinary
@@ -327,7 +316,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // before actually failing the login.
         const now = Date.now();
         const hasCloudLink =
-          typeof window !== "undefined" && !!localStorage.getItem("auth_token");
+          typeof window !== "undefined" && !!getAuthToken();
         if (
           hasCloudLink &&
           navigator.onLine &&
@@ -431,7 +420,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // persists on their behalf.
       if (dbUser.store_id) {
         setResolvedStoreId(dbUser.store_id);
-        localStorage.setItem("dumos_active_store_id", dbUser.store_id);
+        setStoredActiveStoreId(dbUser.store_id);
       }
 
       // Covers the "switch user" lock-screen flow (selecting a different
@@ -462,12 +451,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // whoever was previously logged in.
       if (previousUserId && previousUserId !== dbUser.id) {
         clearPOSCartStorage();
+        clearStockAuditDraft();
       }
 
       setUser(userProfile);
       setDbUser(userProfile);
       Sentry.setUser({ id: userProfile.id, username: userProfile.username, role: userProfile.role });
-      localStorage.setItem("dumos_user", JSON.stringify(userProfile));
+      setStoredUser(userProfile);
       // Marks this tab as already having gone through a real auth/unlock this
       // session. DashboardLayout's fresh-load lock check reads this so it
       // doesn't immediately re-lock right after a login/unlock that just
@@ -499,8 +489,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsImpersonating(false);
 
       // Update recent users list
-      const recentUsersStr = localStorage.getItem("dumos_recent_users");
-      let recentUsers: RecentUser[] = recentUsersStr ? JSON.parse(recentUsersStr) : [];
+      let recentUsers: RecentUser[] = getRecentUsers();
       
       const recentUser: RecentUser = {
         id: userProfile.id,
@@ -523,7 +512,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       recentUsers.unshift(recentUser);
       if (recentUsers.length > 5) recentUsers = recentUsers.slice(0, 5); // Keep last 5
 
-      localStorage.setItem("dumos_recent_users", JSON.stringify(recentUsers));
+      setRecentUsers(recentUsers);
 
       logAction(AUDIT_ACTIONS.LOGIN, "users", userProfile.id, {
         username: userProfile.username,
@@ -573,15 +562,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       setUser(defaultAdmin);
       setDbUser(defaultAdmin);
-      localStorage.setItem("dumos_user", JSON.stringify(defaultAdmin));
+      setStoredUser(defaultAdmin);
       sessionStorage.setItem("dumos_session_authenticated", "1");
       useAutoLockStore.getState().unlock();
       clearImpersonatedSession();
       setIsImpersonating(false);
 
       // Update recent users list for default admin
-      const recentUsersStr = localStorage.getItem("dumos_recent_users");
-      let recentUsers: RecentUser[] = recentUsersStr ? JSON.parse(recentUsersStr) : [];
+      let recentUsers: RecentUser[] = getRecentUsers();
       
       const recentUser: RecentUser = {
         id: defaultAdmin.id,
@@ -598,7 +586,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       recentUsers.unshift(recentUser);
       if (recentUsers.length > 5) recentUsers = recentUsers.slice(0, 5); // Keep last 5
 
-      localStorage.setItem("dumos_recent_users", JSON.stringify(recentUsers));
+      setRecentUsers(recentUsers);
 
       logAction(AUDIT_ACTIONS.LOGIN, "users", defaultAdmin.id, {
         username: defaultAdmin.username,
@@ -610,7 +598,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     if (pin) recordLoginFailure(cleanIdentifier);
     return false;
-  };
+  }, [user]);
 
   /** Bootstraps a local session for a user who authenticated on the cloud side
    * and arrived here via the one-time handoff code (/auth/callback); most
@@ -624,7 +612,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
    * account tiles with foreign-store staff), and does NOT logAction() (would
    * write into the wrong store's local audit trail (the impersonation itself
    * is already audited server-side by AdminService::impersonateStore). */
-  const loginFromHandoff = (apiUser: HandoffApiUser) => {
+  const loginFromHandoff = useCallback((apiUser: HandoffApiUser) => {
     const userProfile: User = {
       id: apiUser.id,
       first_name: apiUser.first_name || "",
@@ -650,9 +638,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsImpersonating(true);
     sessionStorage.setItem("dumos_session_authenticated", "1");
     useAutoLockStore.getState().unlock();
-  };
+  }, []);
 
-  const logout = () => {
+  const logout = useCallback(() => {
     // Captured before clearing: logAction attributes to the current
     // session's user, which is about to be cleared.
     if (user) {
@@ -663,13 +651,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     setDbUser(null);
     Sentry.setUser(null);
-    localStorage.removeItem("dumos_user");
+    clearStoredUser();
     sessionStorage.removeItem("dumos_session_authenticated");
     // Without this, a shared terminal's POS cart (items, discount, redeemed
     // reward, reseller flag — all persisted under this one global key by
     // use-pos-cart.ts's zustand store) survives logout and is inherited by
     // whichever cashier signs in next.
     clearPOSCartStorage();
+    clearStockAuditDraft();
     // See the matching comment in login(): an impersonated session that
     // ends via the ordinary "Sign Out" button instead of the banner's "End
     // Session" button would otherwise leave these flags behind forever.
@@ -683,9 +672,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // repopulate a store/user-unscoped query key.
     void queryClient.cancelQueries();
     queryClient.clear();
-  };
+  }, [user]);
 
-  const changePin = async (currentPin: string, newPin: string) => {
+  const changePin = useCallback(async (currentPin: string, newPin: string) => {
     if (!user) return { success: false, message: "Not authenticated" };
 
     const currentStoredPin = await getUserPin(user.id);
@@ -705,9 +694,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error("Failed to update PIN", e);
       return { success: false, message: "Database error" };
     }
-  };
+  }, [user]);
 
-  const verifyPin = async (pin: string) => {
+  const verifyPin = useCallback(async (pin: string) => {
     if (!user) return false;
     const storedPin = await getUserPin(user.id);
     if (!storedPin) return false;
@@ -720,9 +709,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       void migrateLegacyPinToHash(user.id, pin);
     }
     return true;
-  };
+  }, [user]);
 
-  const linkCloudAccount = async (email: string, password: string) => {
+  const linkCloudAccount = useCallback(async (email: string, password: string) => {
     try {
       // Prevent linking to a different account if already linked before
       if (user?.email && user.email.toLowerCase() !== email.toLowerCase()) {
@@ -754,7 +743,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (user) {
           const updatedUser = { ...user, email };
           setUser(updatedUser);
-          localStorage.setItem("dumos_user", JSON.stringify(updatedUser));
+          setStoredUser(updatedUser);
         }
 
         return { success: true, message: "Cloud account linked successfully!" };
@@ -763,36 +752,92 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (e) {
       return { success: false, message: e instanceof Error ? e.message : "Failed to connect to cloud" };
     }
-  };
+  }, [user]);
 
-  const isAdmin = user ? checkIsAdmin(user.role) : false;
-  const canManageStockBatch = user ? checkCanManageStockBatch(user.role) : false;
-  const canProcessSales = user ? checkCanProcessSales(user.role) : false;
-  const canViewAllActivity = user ? checkCanViewAllActivity(user.role) : false;
+  // Seeds the active store's 5 default permission groups (idempotent, see
+  // ensurePermissionGroupsSeeded) the moment a session is established -
+  // covers login, a restored session, and a cross-origin handoff
+  // uniformly, since all three end in setUser(...).
+  useEffect(() => {
+    if (!user) return;
+    void ensurePermissionGroupsSeeded().catch(() => {});
+  }, [user?.id]);
 
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        isHydrated,
-        login,
-        loginFromHandoff,
-        logout,
-        isAuthenticated: !!user,
-        isAdmin,
-        canManageStockBatch,
-        canProcessSales,
-        canViewAllActivity,
-        changePin,
-        verifyPin,
-        linkCloudAccount,
-        isCloudLinked,
-        isImpersonating,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
+  const [permissionGroup, setPermissionGroup] = useState<{ id: string; permissions: string[] } | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    if (!user) {
+      setPermissionGroup(null);
+      return;
+    }
+    const load = () => {
+      getUserPermissionGroup(user.id).then((g) => {
+        if (!cancelled) setPermissionGroup(g);
+      }).catch(() => {});
+    };
+    load();
+    // A pull can bring down a permission_groups edit made from another
+    // device (or another admin) affecting this user's own group - without
+    // this, the change wouldn't be reflected until the user logs out and
+    // back in, since the effect otherwise only re-runs on user id change.
+    const unsubscribeSyncCompleted = onAppEvent(APP_EVENTS.syncCompleted, load);
+    return () => {
+      cancelled = true;
+      unsubscribeSyncCompleted();
+    };
+  }, [user?.id]);
+
+  // Deliberate, spec-sanctioned change from the deleted checkIsAdmin/
+  // checkCanManageStockBatch/checkCanViewAllActivity helpers, which never
+  // listed super_admin and so returned false for it: hasPermission()
+  // short-circuits to "everything granted" for store_owner/super_admin, so
+  // a super_admin (i.e. an impersonation session) now gets isAdmin,
+  // canManageStockBatch and canViewAllActivity too. Not a regression -
+  // pinned by auth-context-permission-booleans.test.ts.
+  const isAdmin = hasPermission(user, permissionGroup, "manage_staff");
+  const canManageStockBatch = hasPermission(user, permissionGroup, "manage_products");
+  const canProcessSales = hasPermission(user, permissionGroup, "process_sales");
+  const canViewAllActivity = hasPermission(user, permissionGroup, "view_activity_log");
+
+  const value = useMemo<AuthContextType>(
+    () => ({
+      user,
+      isHydrated,
+      login,
+      loginFromHandoff,
+      logout,
+      isAuthenticated: !!user,
+      isAdmin,
+      canManageStockBatch,
+      canProcessSales,
+      canViewAllActivity,
+      permissionGroup,
+      changePin,
+      verifyPin,
+      linkCloudAccount,
+      isCloudLinked,
+      isImpersonating,
+    }),
+    [
+      user,
+      isHydrated,
+      login,
+      loginFromHandoff,
+      logout,
+      isAdmin,
+      canManageStockBatch,
+      canProcessSales,
+      canViewAllActivity,
+      permissionGroup,
+      changePin,
+      verifyPin,
+      linkCloudAccount,
+      isCloudLinked,
+      isImpersonating,
+    ],
   );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export const useAuth = () => {

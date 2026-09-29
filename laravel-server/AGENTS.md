@@ -85,6 +85,27 @@ without updating that.
   ...); `-1` means unlimited. `SubscriptionService` enforces these
   (`enforceStaffLimits`, `getSubscriptionOwner`).
 
+## Staff credentials: the PIN and the web password are unrelated
+
+`users.pin` (bcrypt, `User::hashPin()`) and `users.password` are two separate
+credentials for two separate surfaces, and **neither is ever derived from the
+other**. The PIN unlocks the POS and is verified entirely client-side against
+the hash the sync pull ships down — `/login` is never involved in staff POS
+auth (the client's only `/login` call is `linkCloudAccount()`, the store
+owner's cloud-account link). The password is only for `web/`'s dashboard.
+
+`users.password` is therefore **nullable**, and that is the default state of a
+staff account: `StaffController::store()` and the sync-push `users` INSERT both
+leave it NULL unless a real password was supplied, and
+`AuthenticatesSessions::login()` rejects a null/empty-password account before
+it ever reaches `Hash::check()`. Both paths used to fall back to
+`Hash::make($pin)` (or `Hash::make('1234')`), which handed every PIN-only staff
+account a live `/login` credential with a 10,000-value keyspace on the
+predictable `<username>@local.dumosrx.com` address the same method generates.
+Do not reintroduce a fallback: if a staff member needs the web dashboard, an
+owner sets a real password on create or via `PUT /staff/{id}`. Covered by
+`tests/Feature/StaffPinDerivedPasswordTest.php`.
+
 ## Admin auth architecture (redesigned 2026-08-26)
 
 `web/`'s platform admin panel keeps its access token in JS memory only
@@ -125,6 +146,23 @@ migration here **and** the corresponding update on the `client/` side
 (`client/lib/db/schema.ts` + sync engine coverage) — see `.agents/AGENTS.md`
 §4 and `client/AGENTS.md` for the client-side half of this.
 
+- **Pull paging and tenant scoping:** `pull()` pages by a keyset cursor on
+  `(updated_at, id)` (`page_cursor`), falling back to the legacy
+  `page_offset` for older clients, and the six parent-scoped child tables
+  scope through a **Builder** subquery — never `->pluck('id')`, which
+  inlines every id the tenant owns as bound literals on every page. The
+  tenant scope is resolved once per request by `resolvePullTenantScope()`.
+  Read `docs/SYNC_PULL_PAGINATION.md` before changing any of it;
+  `tests/Feature/SyncPullPaginationTest.php` is what guards it.
+- **Plan-tier sync interval is per RUN, not per request:** `validateSync()`
+  throttles on `stores.last_sync_at` against the tier's `sync_interval`, but
+  one client `sync()` call is many requests (50-change push batches, paged
+  pulls). The client sends one `X-Sync-Run-Id` per `sync()` call; the run's
+  first request is checked and the rest are exempt, recorded on
+  `stores.last_sync_run_id`/`last_sync_run_started_at` and honoured for at
+  most `SYNC_RUN_MAX_MINUTES`. `?manual=1` (a real "Sync Now" click only —
+  the background daemon does **not** send it) still bypasses the interval.
+  `tests/Feature/SyncRunThrottleTest.php` guards all of this.
 - **Table-name mismatches:** the client's sync table name doesn't always
   match the real MySQL table — check `getModelForTable()` in
   `SyncController.php` first. E.g. client `audit_logs` → server model
@@ -188,6 +226,26 @@ migration here **and** the corresponding update on the `client/` side
   caught and fixed 2026-09-23 (converted to `VARCHAR`). If a client column
   is free-form (no fixed, server-enforced set of values), don't constrain
   it with a server-side `ENUM` — the two lists *will* drift.
+
+## `PermissionGroupSeeder` is a hand-maintained port of a client constant
+
+`app/Services/PermissionGroupSeeder.php`'s `DEFAULT_GROUP_PERMISSIONS`,
+`CATALOG_VERSION` and `DEFAULT_GROUP_PERMISSION_ADDITIONS` must match
+`client/lib/constants/permissions.ts` key-for-key. They silently drifted by
+20 keys over two days (the client was maintained through every permission
+pass; this file was only ever edited for removals), which would have frozen
+every server-seeded store on the pre-expansion permission lists.
+`tests/Feature/PermissionCatalogParityTest.php` parses the TypeScript and
+fails on any drift — it lives here rather than in vitest because the Checks
+workflow's `client` job has no PHP, while the `server` job has the whole
+repo. `ensureCatalogBackfilled()` and `SyncController`'s terminal
+`permission_denied` rejection (`SyncPushPermissionDeniedException`, thrown by
+`sanitizePermissionGroupSyncPayload`'s two privilege checks) are documented in
+full in `client/AGENTS.md`'s "Catalog versioning and the default-group
+backfill" — read that before touching either, especially before adding any
+exemption to that sanitizer: one was tried and removed on 2026-09-29 because
+`validateSync()` backfills the server before any pushed change is processed,
+which made the exemption both unreachable and a hole.
 
 ## Known gotcha: MySQL timezone vs. Laravel's UTC clock
 
@@ -370,6 +428,37 @@ merge in the slug-cooldown check above. Prefer `now()->lt($date->addMonths(N))`
 style comparisons over `diffIn*() < N` to sidestep the sign question
 entirely.
 
+## The other unauthenticated surface (not the storefront)
+
+Three routes sit at the top of `routes/api.php` outside every auth group, and
+each now carries its own named limiter for the same Laravel-11 reason the
+storefront ones do (see the next section):
+
+- **`GET /system-configs/{key}`** (`throttle:public-read`, 120/min/IP) returns
+  a value **only for the keys in `SystemConfigController::PUBLIC_KEYS`** —
+  `subscription_plans`, `global_suggestions`, `require_email_verification`,
+  `smartsupp_key`, `social_links`. Anything else is a **404** for everyone
+  except a `super_admin` bearer token (resolved explicitly with
+  `$request->user('sanctum')`, since the route is outside `auth:sanctum`). This
+  matters because the sibling `PUT /admin/system-configs/{key}` stores
+  arbitrary JSON under arbitrary keys: before the allow-list, every one of them
+  — `referral_program`, `default_account_manager_id`,
+  `storefront_rebuild_requested_at` — was world-readable. **Adding a config key
+  that a logged-out client needs means adding it to `PUBLIC_KEYS` with a
+  comment naming the reader**; the admin panel needs no change, because its
+  requests carry a super_admin token.
+- **`POST /support`** (`throttle:public-write`, 5/min/IP) — persists a
+  `Feedback` row and emails every platform admin.
+- **`POST /logs/client-error`** (`throttle:client-error-log`, 30/min/IP) —
+  writes to `laravel.log` on shared hosting, plus an `activity_logs` row when a
+  token happens to be present. Every field is length-capped
+  (`ActivityLogController::MAX_*`), and `details` is capped in **bytes** by
+  `App\Rules\EncodedSizeAtMost` — Laravel's `max:` on an array counts elements,
+  which is no defence against one key holding a megabyte.
+
+`tests/Feature/PublicSurfaceHardeningTest.php` covers all of this and, like
+`StorefrontThrottleTest`, deliberately does not disable `ThrottleRequests`.
+
 ## Public storefront endpoints
 
 `Api/Public/StorefrontController` is the only unauthenticated tenant-data
@@ -443,12 +532,74 @@ left in place for a future real worker — so that interface's presence is
 `RegistersAccounts`/`RecoversPasswords`/`SendEndOfDaySummaries` for any new
 mail path.
 
+## Broadcast emails (`broadcasts.send_email`)
+
+A broadcast (`Broadcast`, `BroadcastController`) is delivered in-app by
+default: `client/` polls `GET /announcements` and renders a banner or a bell
+notification. `broadcasts.send_email` (nullable boolean, default `false`)
+additionally emails it. `BroadcastController::store()` delegates to
+`App\Services\Admin\BroadcastEmailService::sendForBroadcast()`; the controller
+itself holds no sending logic.
+
+- **Store owners only, never staff.** Recipients are resolved as
+  `User::whereHas('stores')` — i.e. the user actually owns a row in `stores`
+  (`stores.user_id`), the same ownership relation the multi-tenancy model is
+  built on. `hasRole('admin')` is deliberately **not** the test: `admin` is
+  also a real assignable *staff* role, so it would pull in non-owners. Any
+  address ending in `@local.dumosrx.com` is then excluded, because
+  `StaffController::store()` auto-generates exactly that placeholder for staff
+  accounts created without an email — mail to it would only bounce. Skipped
+  recipients are silently dropped, never an error.
+- **Target types.** `specific` narrows to the named `user_ids` (a staff id
+  named there resolves to nothing and is skipped); `all`, `pharmacies` and
+  `stores` all resolve to the same set once the store-owner filter is applied,
+  which mirrors `index()`'s in-app targeting where `pharmacies`/`stores` are
+  the store-owner-facing types.
+- **Fires once, at creation, never on update.** `update()` persists the flag
+  but never sends — flipping `send_email` on an existing broadcast, or editing
+  its text, must not re-mail everyone who already received it. The admin
+  panel's edit dialog therefore renders the toggle disabled with that
+  explanation. If a resend is ever genuinely wanted, the answer is a new
+  broadcast, not a new code path here.
+- **Expired/inactive broadcasts send nothing.** The service re-checks the
+  record through `Broadcast::scopeActive()` (`is_active` **and**
+  `expires_at` null or in the future) before sending, so a broadcast created
+  already-dead is silently skipped.
+- **No new mailable.** It reuses `AdminCustomMail` (`title` as subject,
+  `message` as body) via `Mail::to(...)->send(...)` per the rule above,
+  chunking recipients 100 at a time and catching per-recipient failures with a
+  `Log::error` — the same shape as `Api/Admin/MailController::send()` and
+  `AdminUserService::bulkNotify()`. Those paths have no extra throttling and
+  neither does this one.
+- Coverage: `tests/Feature/Admin/BroadcastEmailTest.php`.
+
 ## Testing
 
 ```
 php artisan test                            # 447 tests as of 2026-09-26 (Paystack subaccount plan, incl. its final-review fixes) — treat any drop as a regression
 php -l path/to/File.php                     # quick syntax check for a single file
 ```
+
+**Setting an env var inside a test means writing all three channels.**
+`env()` resolves through phpdotenv's default adapter chain, and the order is
+`ServerConstAdapter` (`$_SERVER`) **first**, then `EnvConstAdapter` (`$_ENV`),
+then `PutenvAdapter` — the first adapter that holds the name wins. Loading a
+`.env` that declares a key writes it into all three, so a test that sets only
+`putenv()` and `$_ENV` is silently overridden by the `$_SERVER` copy and
+`env()` keeps returning the `.env` value. Always set (and clear)
+`putenv()`, `$_ENV[...]` and `$_SERVER[...]` together —
+`DatabaseSeederTest`'s `setSeedSuperAdminPassword()` /
+`clearSeedSuperAdminPassword()` helpers are the pattern to copy.
+
+**This is also the shape of the local-vs-CI split to check first when a test
+passes locally and fails in CI.** The Checks workflow runs
+`cp .env.example .env`, so tests execute against **`.env.example`, not the
+`.env` on your machine** — a key the example file declares (even empty, e.g.
+`SEED_SUPER_ADMIN_PASSWORD=`) exists in CI's `$_SERVER` and does not exist in
+yours. That was the entire cause of `DatabaseSeederTest`'s CI-only failure;
+it looked order-dependent and was not, and `--order-by=random` never
+reproduced it. To reproduce a CI-only failure locally, back up `.env`,
+`cp .env.example .env && php artisan key:generate`, run the suite, and restore.
 
 `tests/Feature/` covers: tenant isolation (`TenantIsolationTest`), admin
 account-security regressions (`AccountSecurityTest`), the handoff/

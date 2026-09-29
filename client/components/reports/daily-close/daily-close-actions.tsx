@@ -1,5 +1,4 @@
 import { RefObject } from "react";
-import { pdf } from "@react-pdf/renderer";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -11,8 +10,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { printNode } from "@/lib/utils/print-node";
-import { downloadBlob } from "@/lib/utils/report-pdf";
-import { DailyClosePdf } from "./daily-close-pdf";
+import { downloadBlob } from "@/lib/utils/download-blob";
+// Type-only: the component itself is loaded lazily in the handler below,
+// since daily-close-pdf.tsx statically imports @react-pdf/renderer.
+import type { DailyClosePdf } from "./daily-close-pdf";
 
 interface DailyCloseActionsProps {
   exportToCSV: () => void;
@@ -37,7 +38,14 @@ export function DailyCloseActions({
     }
   };
 
+  // @react-pdf/renderer and the PDF document are both pulled in on demand:
+  // statically imported, they were downloaded and parsed on every visit to
+  // the Reports route just in case someone exported.
   const handleDownloadPdf = async () => {
+    const [{ pdf }, { DailyClosePdf }] = await Promise.all([
+      import("@react-pdf/renderer"),
+      import("./daily-close-pdf"),
+    ]);
     const blob = await pdf(
       <DailyClosePdf
         {...pdfInput}

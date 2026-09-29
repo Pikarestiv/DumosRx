@@ -59,6 +59,10 @@ interface DatePickerInputProps {
    * bordered container (e.g. the Daily Close date filter). */
   inputClassName?: string;
   placeholder?: string;
+  /** Accessible name for the text input, for the dense ledger tables where
+   * the visible column header is not programmatically associated with each
+   * row's field. */
+  ariaLabel?: string;
   disabled?: boolean;
   // Bounds for the calendar's quick month/year dropdown jump: pick years
   // that make sense for what's being entered (e.g. a birthdate needs the
@@ -78,6 +82,7 @@ export function DatePickerInput({
   className,
   inputClassName,
   placeholder = "DD/MM/YYYY",
+  ariaLabel,
   disabled = false,
   fromYear,
   toYear,
@@ -173,6 +178,7 @@ export function DatePickerInput({
         <Input
           type="text"
           inputMode="numeric"
+          aria-label={ariaLabel}
           placeholder={placeholder}
           value={inputValue}
           onChange={handleInputChange}

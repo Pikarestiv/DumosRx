@@ -10,7 +10,6 @@ function useInvalidateCategories() {
   const queryClient = useQueryClient();
   return () => {
     void queryClient.invalidateQueries({ queryKey: queryKeys.categories.list().queryKey });
-    void queryClient.invalidateQueries({ queryKey: queryKeys.categories.all().queryKey });
   };
 }
 

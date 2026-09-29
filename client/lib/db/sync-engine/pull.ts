@@ -4,12 +4,15 @@ import { PullResponse } from "./types";
 import { getValidColumns } from "./schema";
 import { remapForeignKey, DUPLICATE_NAME_TABLES, columnExists } from "../reconcile-identity";
 import { logCrash } from "@/lib/utils/error-logger";
+import { STORAGE_KEYS } from "@/lib/storage-keys";
 
-// Safety bound on the page loop below. Each page returns up to 500 rows per
-// table (SyncController::pull), so this comfortably covers realistic
-// backlogs (tens of thousands of rows per table) while still guaranteeing
-// termination if a server bug ever reports has_more=true forever.
-const MAX_PULL_PAGES = 200;
+// Safety bound on the page loop below: it stops one sync() call running
+// forever if a server bug ever reports has_more=true indefinitely. It is no
+// longer a correctness ceiling — every committed page persists its own keyset
+// position (see PULL_PROGRESS below), so a round that stops here resumes from
+// exactly where it left off on the next sync() instead of restarting the
+// window. See docs/SYNC_PULL_PAGINATION.md.
+const MAX_PULL_PAGES = 1000;
 
 // A UNIQUE-constraint collision on a pulled record (e.g. two accounts
 // independently created a user with the same email) is not self-resolving
@@ -20,7 +23,7 @@ const MAX_PULL_PAGES = 200;
 // advance past it anyway (the record stays in skippedRecords/logCrash either
 // way, so the loss is visible, not silent).
 const MAX_UNIQUE_SKIP_RETRIES = 5;
-const UNIQUE_SKIP_COUNTS_KEY = "dumos_sync_unique_skip_counts";
+const UNIQUE_SKIP_COUNTS_KEY = STORAGE_KEYS.syncUniqueSkipCounts;
 
 function readSkipCounts(): Record<string, number> {
   if (typeof window === "undefined") return {};
@@ -59,6 +62,63 @@ function recordUniqueSkipAndCheckGiveUp(table: string, recordId: string): boolea
 const SETUP_CRITICAL_TABLES = ["stores", "users"];
 
 /**
+ * Columns each device owns privately: written locally, never pushed, so the
+ * server's copy of them is meaningless and must never be written back.
+ * Applied exactly like the stock_batches.quantity exclusion further down —
+ * the rest of the pulled row still applies, only these columns are dropped.
+ *
+ * stores.last_monotonic_time is the anchor for the offline clock-tamper
+ * guard (lib/licensing/licensing-manager.ts refuses a local time earlier
+ * than the last recorded action). Only updateStoreMonotonicTime()
+ * (lib/db/queries/setup.ts) writes it, as a raw local `execute` that never
+ * reaches _sync_queue, so the server's column is permanently NULL. Writing
+ * that NULL back disarmed the guard after every sync round; and were the
+ * column ever pushed (window.forceSyncAllData queues whole `stores` rows),
+ * a device with a fast clock would propagate a future timestamp to every
+ * other device of the store and lock them all out.
+ */
+const DEVICE_LOCAL_PULL_COLUMNS: Record<string, readonly string[]> = {
+  stores: ["last_monotonic_time"],
+};
+
+interface PullPageCursor {
+  updated_at: string;
+  id: string;
+}
+
+// Upserts one column without disturbing the other: last_synced_at is the
+// delta window, server_cursor the position reached inside it. They advance on
+// different schedules — see docs/SYNC_PULL_PAGINATION.md.
+const PULL_PROGRESS = {
+  savePosition:
+    `INSERT INTO _sync_state (table_name, last_synced_at, server_cursor) VALUES (?, NULL, ?)
+     ON CONFLICT(table_name) DO UPDATE SET server_cursor = excluded.server_cursor`,
+  completeWindow:
+    `INSERT INTO _sync_state (table_name, last_synced_at, server_cursor) VALUES (?, ?, NULL)
+     ON CONFLICT(table_name) DO UPDATE SET last_synced_at = excluded.last_synced_at, server_cursor = NULL`,
+} as const;
+
+function parsePullPageCursor(raw: string | null | undefined): PullPageCursor | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed.updated_at === "string" && typeof parsed.id === "string") {
+      return parsed;
+    }
+  } catch {
+    // A corrupt cursor just means this table pages from the window start
+    // again, which is idempotent — never a reason to fail the whole pull.
+  }
+  return null;
+}
+
+function cursorForLastRecord(records: Record<string, unknown>[]): PullPageCursor | null {
+  const last = records[records.length - 1];
+  if (!last || typeof last.updated_at !== "string" || last.id == null) return null;
+  return { updated_at: last.updated_at, id: String(last.id) };
+}
+
+/**
  * Pull changes from server
  *
  * `onCriticalTablesReady`, when passed, fires once — the first time every
@@ -75,6 +135,10 @@ export async function pullChanges(
   isManual: boolean = false,
   isSetup: boolean = false,
   onCriticalTablesReady?: () => void,
+  // Marks every page below as part of the same sync run as the push that
+  // preceded it, so the server's plan-tier sync-interval throttle doesn't
+  // reject this run's own later requests (see push.ts's own runId note).
+  runId?: string,
 ): Promise<{
   pulled: number;
   updatedTables?: string[];
@@ -93,7 +157,8 @@ export async function pullChanges(
     const syncState = await query<{
       table_name: string;
       last_synced_at: string;
-    }>("SELECT table_name, last_synced_at FROM _sync_state");
+      server_cursor: string | null;
+    }>("SELECT table_name, last_synced_at, server_cursor FROM _sync_state");
 
     // Map to object { table: timestamp }. Tables in DUPLICATE_NAME_TABLES
     // (categories, suppliers) are deliberately never given a cursor here: the
@@ -105,14 +170,33 @@ export async function pullChanges(
     // row like "DRUGS", permanently hiding the collision from every future
     // sync. Categories/suppliers are small collections by nature — tens,
     // rarely hundreds — so always fetching them in full costs nothing.
+    //
+    // A still-NULL last_synced_at (mid-window progress recorded before any
+    // window was ever drained) is left out too, or an interrupted first-ever
+    // sync would stop looking like one and lose the setup escape hatch.
     const lastSyncedMap = syncState.reduce(
       (acc, row) => {
-        if (!(row.table_name in DUPLICATE_NAME_TABLES)) {
+        if (!(row.table_name in DUPLICATE_NAME_TABLES) && row.last_synced_at) {
           acc[row.table_name] = row.last_synced_at;
         }
         return acc;
       },
       {} as Record<string, string>
+    );
+
+    // Where the last round got to inside each table's still-undrained delta
+    // window. A table that finished its backlog has none (it is cleared when
+    // its cursor is stamped), so a normal incremental pull starts from the
+    // window boundary exactly as before.
+    const pageCursors = syncState.reduce(
+      (acc, row) => {
+        const cursor = parsePullPageCursor(row.server_cursor);
+        if (cursor && !(row.table_name in DUPLICATE_NAME_TABLES)) {
+          acc[row.table_name] = cursor;
+        }
+        return acc;
+      },
+      {} as Record<string, PullPageCursor>
     );
 
     let pulledCount = 0;
@@ -157,6 +241,9 @@ export async function pullChanges(
     // movement is only ever seen by the insert branch once, so the increment
     // would be lost permanently.
     let deferredMovementCursor: string | null = null;
+    // Same reasoning for the mid-window position: persisting it early would
+    // claim those movements as pulled while their deltas were still pending.
+    let deferredMovementPageCursor: string | null = null;
 
     let hasMoreAny = true;
     let page = 0;
@@ -169,9 +256,11 @@ export async function pullChanges(
         {
           last_synced: lastSyncedMap,
           page_offset: { ...pageOffsets },
+          page_cursor: { ...pageCursors },
         },
         isManual,
-        isSetup
+        isSetup,
+        runId,
       )) as PullResponse;
       const { changes, server_timestamp, has_more } = response;
 
@@ -246,11 +335,27 @@ export async function pullChanges(
               delete data.quantity;
             }
 
+            for (const deviceLocalColumn of DEVICE_LOCAL_PULL_COLUMNS[table] ?? []) {
+              delete data[deviceLocalColumn];
+            }
+
             const columns = Object.keys(data);
             const values = columns.map((c) => {
               const val = data[c];
               if (typeof val === "boolean") {
                 return val ? 1 : 0;
+              }
+              // A JSON-cast server attribute (e.g. permission_groups.
+              // permissions, an array) arrives here as a real JS array/
+              // object, not a pre-stringified value - binding it straight
+              // into the statement silently mis-serializes it (sql.js
+              // turns an array into an object of numeric keys), producing
+              // a value no later JSON.parse() of this column can read back.
+              // Matches how every local write of a JSON-shaped column
+              // already stores it (see insert()/update() call sites that
+              // pass JSON.stringify(...) themselves).
+              if (val !== null && typeof val === "object") {
+                return JSON.stringify(val);
               }
               return val;
             });
@@ -432,41 +537,49 @@ export async function pullChanges(
           if (table === "stores" && records.length > 0) {
             const serverStoreIds = records.map((r) => r.id as string);
             const placeholders = serverStoreIds.map(() => "?").join(", ");
-            // Never silently prune a store that has real accumulated business
-            // data attached; a store the server doesn't currently recognize
-            // is still not "safe to hide" if it's the one everything on this
-            // device's local history is actually attributed to (e.g. the
-            // original pre-cloud-link store on a device, before it was ever
-            // reconciled with a server-side account). Losing visibility into
-            // real data is a far worse outcome than a stale entry lingering
-            // in the switcher, so this only prunes stores that are genuinely
-            // empty locally — checked against every store-scoped table, not
-            // just products/sales: a store whose only local data is, say,
-            // expenses or customers deserves the exact same protection.
-            // Most STORE_SCOPED_TABLES only gain their store_id column via
-            // initDatabase()'s runtime ALTER TABLE migration, not the base
-            // schema (see core.ts) — a device that hasn't run that migration
-            // yet (or a test harness that bypasses it) would make this query
-            // throw "no such column: store_id", rolling back the whole pull
-            // transaction rather than just skipping the prune check for that
-            // one table.
-            const scopedTablesWithStoreId: string[] = [];
-            for (const t of STORE_SCOPED_TABLES) {
-              if (await columnExists(t, "store_id")) {
-                scopedTablesWithStoreId.push(t);
-              }
-            }
-            const noDataClauses = scopedTablesWithStoreId.map(
-              (t) => `AND id NOT IN (SELECT DISTINCT store_id FROM ${t} WHERE store_id IS NOT NULL)`,
-            ).join("\n              ");
-            const pruneSql = `
-              UPDATE stores SET _deleted = 1
-              WHERE _deleted = 0
-                AND id NOT IN (${placeholders})
-                ${noDataClauses}
-            `;
+            const pruneCandidates = await query<{ id: string }>(
+              `SELECT id FROM stores WHERE _deleted = 0 AND id NOT IN (${placeholders})`,
+              serverStoreIds,
+            );
 
-            await execute(pruneSql, serverStoreIds);
+            if (pruneCandidates.length > 0) {
+              // Never silently prune a store that has real accumulated
+              // business data attached; a store the server doesn't currently
+              // recognize is still not "safe to hide" if it's the one
+              // everything on this device's local history is actually
+              // attributed to (e.g. the original pre-cloud-link store on a
+              // device, before it was ever reconciled with a server-side
+              // account). Losing visibility into real data is a far worse
+              // outcome than a stale entry lingering in the switcher, so this
+              // only prunes stores that are genuinely empty locally — checked
+              // against every store-scoped table, not just products/sales: a
+              // store whose only local data is, say, expenses or customers
+              // deserves the exact same protection.
+              // Most STORE_SCOPED_TABLES only gain their store_id column via
+              // initDatabase()'s runtime ALTER TABLE migration, not the base
+              // schema (see core.ts) — a device that hasn't run that migration
+              // yet (or a test harness that bypasses it) would make this query
+              // throw "no such column: store_id", rolling back the whole pull
+              // transaction rather than just skipping the prune check for that
+              // one table.
+              const scopedTablesWithStoreId: string[] = [];
+              for (const t of STORE_SCOPED_TABLES) {
+                if (await columnExists(t, "store_id")) {
+                  scopedTablesWithStoreId.push(t);
+                }
+              }
+              const noDataClauses = scopedTablesWithStoreId.map(
+                (t) => `AND id NOT IN (SELECT DISTINCT store_id FROM ${t} WHERE store_id IS NOT NULL)`,
+              ).join("\n                ");
+              const candidatePlaceholders = pruneCandidates.map(() => "?").join(", ");
+              const pruneSql = `
+                UPDATE stores SET _deleted = 1
+                WHERE id IN (${candidatePlaceholders})
+                  ${noDataClauses}
+              `;
+
+              await execute(pruneSql, pruneCandidates.map((r) => r.id));
+            }
           }
 
           if (DUPLICATE_NAME_TABLES[table] && records.length > 0) {
@@ -500,12 +613,30 @@ export async function pullChanges(
             skippedTables.add(table);
           }
 
+          // Always advances, even past a skipped record, or the next request
+          // would re-ask for this page and the round would never terminate.
+          const nextCursor = cursorForLastRecord(records);
+          if (nextCursor) {
+            pageCursors[table] = nextCursor;
+          }
+
           // Only stamp this table's cursor once its backlog for this round
           // is fully drained (has_more false) and no page along the way hit
           // a pending-local-edit skip; otherwise a row past this page, or
           // the skipped row itself, would never be re-offered by a future
           // pull once the cursor moves past its updated_at.
           const tableHasMore = has_more?.[table] ?? false;
+
+          // Unlike the window stamp below, the position inside an undrained
+          // window is persisted per page (docs/SYNC_PULL_PAGINATION.md).
+          if (tableHasMore && nextCursor && !skippedTables.has(table)) {
+            if (table === "stock_movements" && deferredMovementDeltas.length > 0) {
+              deferredMovementPageCursor = JSON.stringify(nextCursor);
+            } else {
+              await execute(PULL_PROGRESS.savePosition, [table, JSON.stringify(nextCursor)]);
+            }
+          }
+
           if (!tableHasMore && !skippedTables.has(table)) {
             criticalTablesPending.delete(table);
             // A pulled movement whose delta had to be deferred (its batch
@@ -519,10 +650,7 @@ export async function pullChanges(
             if (table === "stock_movements" && deferredMovementDeltas.length > 0) {
               deferredMovementCursor = server_timestamp;
             } else {
-              await execute(
-                "INSERT OR REPLACE INTO _sync_state (table_name, last_synced_at) VALUES (?, ?)",
-                [table, server_timestamp],
-              );
+              await execute(PULL_PROGRESS.completeWindow, [table, server_timestamp]);
             }
           }
         }
@@ -549,7 +677,11 @@ export async function pullChanges(
     // deltas are applied, or neither happened and the next pull re-offers the
     // same movements (whose insert branch will then re-derive the deltas).
     // There is deliberately no window in between for a crash to fall into.
-    if (deferredMovementDeltas.length > 0 || deferredMovementCursor !== null) {
+    if (
+      deferredMovementDeltas.length > 0 ||
+      deferredMovementCursor !== null ||
+      deferredMovementPageCursor !== null
+    ) {
       await transaction(async () => {
         for (const d of deferredMovementDeltas) {
           await execute(
@@ -558,10 +690,15 @@ export async function pullChanges(
           );
         }
         if (deferredMovementCursor !== null) {
-          await execute(
-            "INSERT OR REPLACE INTO _sync_state (table_name, last_synced_at) VALUES (?, ?)",
-            ["stock_movements", deferredMovementCursor],
-          );
+          await execute(PULL_PROGRESS.completeWindow, [
+            "stock_movements",
+            deferredMovementCursor,
+          ]);
+        } else if (deferredMovementPageCursor !== null) {
+          await execute(PULL_PROGRESS.savePosition, [
+            "stock_movements",
+            deferredMovementPageCursor,
+          ]);
         }
       });
     }

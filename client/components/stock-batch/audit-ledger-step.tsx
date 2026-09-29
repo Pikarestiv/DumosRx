@@ -1,7 +1,10 @@
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { Search, SearchX } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { FilterPill } from "@/components/ui/filter-pill";
 import { EditableNumberCell } from "@/components/ui/editable-number-cell";
+import { useHasPermission } from "@/lib/hooks/use-permissions";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SortableHeaderCell } from "@/components/ui/sortable-header-cell";
 import type { AuditItem } from "./stock-audits";
@@ -12,6 +15,7 @@ import { useSortableData } from "@/lib/hooks/use-sortable-data";
 const ALL_CATEGORIES = "__all__";
 const GRID_COLS =
   "grid-cols-[220px_100px_100px_90px_100px_110px_100px_110px_120px_110px]";
+const LEDGER_ROW_HEIGHT = 49;
 
 function formatDiffCurrency(amount: number) {
   return amount > 0 ? `+${formatCurrency(amount)}` : formatCurrency(amount);
@@ -38,6 +42,10 @@ interface AuditLedgerStepProps {
   setSelectedCategory: (category: string) => void;
   search: string;
   setSearch: (val: string) => void;
+  /** The one scrollable ancestor these rows live in (the screen's own
+   * `flex-1 overflow-y-auto` region) — same arrangement as POS's virtualized
+   * grid: react-virtual needs the real scroll element, not one of its own. */
+  scrollElementRef: React.RefObject<HTMLDivElement | null>;
 }
 
 /** Dense, single-screen count flow: every item is visible and editable at
@@ -58,23 +66,30 @@ export function AuditLedgerStep({
   setSelectedCategory,
   search,
   setSearch,
+  scrollElementRef,
 }: AuditLedgerStepProps) {
   const capsClass = useUppercaseDisplayClass();
+  const canEditProductCost = useHasPermission("edit_product_cost");
+  const canEditProductPrice = useHasPermission("edit_product_price");
   // Totals reflect the rows currently shown (respects the category filter
   // and search), so switching categories gives a live subtotal for that
   // slice as well as the whole-audit total when nothing's filtered.
-  const totals = items.reduce(
-    (acc, item) => {
-      const countedQty = item.countedQty ?? item.systemQty;
-      const diffQty = countedQty - item.systemQty;
-      acc.diffQty += diffQty;
-      acc.diffCost +=
-        item.costPrice !== undefined ? diffQty * item.costPrice : 0;
-      acc.diffSelling +=
-        item.sellingPrice !== undefined ? diffQty * item.sellingPrice : 0;
-      return acc;
-    },
-    { diffQty: 0, diffCost: 0, diffSelling: 0 },
+  const totals = useMemo(
+    () =>
+      items.reduce(
+        (acc, item) => {
+          const countedQty = item.countedQty ?? item.systemQty;
+          const diffQty = countedQty - item.systemQty;
+          acc.diffQty += diffQty;
+          acc.diffCost +=
+            item.costPrice !== undefined ? diffQty * item.costPrice : 0;
+          acc.diffSelling +=
+            item.sellingPrice !== undefined ? diffQty * item.sellingPrice : 0;
+          return acc;
+        },
+        { diffQty: 0, diffCost: 0, diffSelling: 0 },
+      ),
+    [items],
   );
 
   const { sortKey, direction, toggleSort, sortedData } = useSortableData(
@@ -101,6 +116,27 @@ export function AuditLedgerStep({
       },
     },
   );
+
+  const rowsContainerRef = useRef<HTMLDivElement>(null);
+  const [scrollMargin, setScrollMargin] = useState(0);
+  // No deps array on purpose (same reasoning as pos-virtualized-product-grid):
+  // the filter row, the category pill and the intro copy above these rows can
+  // all change height without this component's row list changing, and a stale
+  // scrollMargin draws every row at the wrong offset. The !== guard is what
+  // prevents a loop.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useLayoutEffect(() => {
+    const top = rowsContainerRef.current?.offsetTop;
+    if (top !== undefined && top !== scrollMargin) setScrollMargin(top);
+  });
+
+  const rowVirtualizer = useVirtualizer({
+    count: sortedData.length,
+    getScrollElement: () => scrollElementRef.current,
+    estimateSize: () => LEDGER_ROW_HEIGHT,
+    overscan: 10,
+    scrollMargin,
+  });
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-300 pb-4">
@@ -251,8 +287,17 @@ export function AuditLedgerStep({
               </div>
             </div>
 
-            <div role="rowgroup" className="divide-y divide-border">
-              {sortedData.map((item) => {
+            <div
+              role="rowgroup"
+              ref={rowsContainerRef}
+              className="relative"
+              style={{
+                height: sortedData.length > 0 ? rowVirtualizer.getTotalSize() : undefined,
+              }}
+            >
+              {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                const item = sortedData[virtualRow.index];
+                if (!item) return null;
                 const countedQty = item.countedQty ?? item.systemQty;
                 const diffQty = countedQty - item.systemQty;
                 // Valued at the system price, not the counted one: this is
@@ -278,7 +323,12 @@ export function AuditLedgerStep({
                   <div
                     key={item.id}
                     role="row"
-                    className={`grid ${GRID_COLS} hover:bg-accent/10`}
+                    data-index={virtualRow.index}
+                    ref={rowVirtualizer.measureElement}
+                    className={`grid ${GRID_COLS} hover:bg-accent/10 absolute top-0 left-0 w-full border-b border-border`}
+                    style={{
+                      transform: `translateY(${virtualRow.start - scrollMargin}px)`,
+                    }}
                   >
                     <div
                       role="cell"
@@ -329,16 +379,24 @@ export function AuditLedgerStep({
                       role="cell"
                       className="px-2 py-1.5 text-right flex items-center"
                     >
-                      <EditableNumberCell
-                        value={item.countedCostPrice ?? item.costPrice ?? 0}
-                        onCommit={(val) =>
-                          onUpdateItem(item.id, { countedCostPrice: val })
-                        }
-                        parse={parseFloat}
-                        step="0.01"
-                        hasError={costChanged}
-                        widthClassName="w-24"
-                      />
+                      {canEditProductCost ? (
+                        <EditableNumberCell
+                          value={item.countedCostPrice ?? item.costPrice ?? 0}
+                          onCommit={(val) =>
+                            onUpdateItem(item.id, { countedCostPrice: val })
+                          }
+                          parse={parseFloat}
+                          step="0.01"
+                          hasError={costChanged}
+                          widthClassName="w-24"
+                        />
+                      ) : (
+                        <span className="w-24 text-right text-muted-foreground">
+                          {formatCurrency(
+                            item.countedCostPrice ?? item.costPrice ?? 0,
+                          )}
+                        </span>
+                      )}
                     </div>
                     <div
                       role="cell"
@@ -360,18 +418,26 @@ export function AuditLedgerStep({
                       role="cell"
                       className="px-2 py-1.5 text-right flex items-center"
                     >
-                      <EditableNumberCell
-                        value={
-                          item.countedSellingPrice ?? item.sellingPrice ?? 0
-                        }
-                        onCommit={(val) =>
-                          onUpdateItem(item.id, { countedSellingPrice: val })
-                        }
-                        parse={parseFloat}
-                        step="0.01"
-                        hasError={sellingChanged}
-                        widthClassName="w-24"
-                      />
+                      {canEditProductPrice ? (
+                        <EditableNumberCell
+                          value={
+                            item.countedSellingPrice ?? item.sellingPrice ?? 0
+                          }
+                          onCommit={(val) =>
+                            onUpdateItem(item.id, { countedSellingPrice: val })
+                          }
+                          parse={parseFloat}
+                          step="0.01"
+                          hasError={sellingChanged}
+                          widthClassName="w-24"
+                        />
+                      ) : (
+                        <span className="w-24 text-right text-muted-foreground">
+                          {formatCurrency(
+                            item.countedSellingPrice ?? item.sellingPrice ?? 0,
+                          )}
+                        </span>
+                      )}
                     </div>
                     <div
                       role="cell"

@@ -1,4 +1,6 @@
 "use client";
+import { useCallback } from "react";
+import type { SaleWithDetails } from "@/lib/types/sale";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { usePOSSystem } from "@/lib/hooks/use-pos-system";
 import { POSLayoutHeader } from "./pos-layout-header";
@@ -10,6 +12,7 @@ import { POSMobileSearch } from "./pos-mobile-search";
 import { POSDialogs } from "./pos-dialogs";
 import { POSCartPanels } from "./pos-cart-panels";
 import { PullToRefreshIndicator } from "@/components/ui/pull-to-refresh-indicator";
+import { useHasPermission } from "@/lib/hooks/use-permissions";
 
 export function POSSystem() {
   const {
@@ -37,6 +40,7 @@ export function POSSystem() {
     setShowClearCartDialog,
     heldSalesCount,
     loadingProducts,
+    productsLoadFailed,
     refetchProducts,
     recentSales,
     refetchSales,
@@ -102,6 +106,23 @@ export function POSSystem() {
     handleAddToCart,
   } = usePOSSystem();
 
+  // The Recent Sales tab is reachable by URL (?tab=history), so the panel and
+  // the resolved tab are gated here as well as the trigger in POSMainTabNav.
+  // Note this is a different question from "view_activity_log", which scopes
+  // WHOSE sales the panel lists once it is open.
+  const canViewSalesHistory = useHasPermission("view_sales_history");
+  const resolvedTab = canViewSalesHistory ? activeTab : "products";
+
+  // Stable: this is a prop of every virtualized transaction row, and a fresh
+  // arrow here would re-render all of them on any POS state change.
+  const handleReturnClick = useCallback(
+    (sale: SaleWithDetails) => {
+      setSaleToReturn(sale);
+      setShowReturnDialog(true);
+    },
+    [setSaleToReturn, setShowReturnDialog],
+  );
+
   const posDialogProps = {
     isMobileScannerOpen,
     setIsMobileScannerOpen,
@@ -163,7 +184,7 @@ export function POSSystem() {
 
         <div className="p-4 sm:p-6 sm:pt-3 sm:py-4 flex-1 overflow-hidden flex flex-col">
           <Tabs
-            value={activeTab}
+            value={resolvedTab}
             onValueChange={handleTabChange}
             className="w-full flex-1 flex flex-col overflow-hidden"
           >
@@ -202,6 +223,8 @@ export function POSSystem() {
 
                 <POSProductList
                   loadingProducts={loadingProducts}
+                  productsLoadFailed={productsLoadFailed}
+                  onRetryLoadProducts={() => void refetchProducts()}
                   filteredProducts={filteredProducts}
                   isFuzzyFallback={isFuzzyFallback}
                   addToCart={handleAddToCart}
@@ -221,25 +244,25 @@ export function POSSystem() {
                   })}
                 />
               </TabsContent>
-              <TabsContent
-                ref={historyPullToRefresh.scrollRef}
-                value="history"
-                className="absolute inset-0 overflow-y-auto mt-0 pr-1"
-              >
-                <PullToRefreshIndicator
-                  pullDistance={historyPullToRefresh.pullDistance}
-                  isRefreshing={historyPullToRefresh.isRefreshing}
-                  threshold={historyPullToRefresh.threshold}
-                />
-                <POSTransactionHistory
-                  recentSales={recentSales}
-                  onReturnClick={(sale) => {
-                    setSaleToReturn(sale);
-                    setShowReturnDialog(true);
-                  }}
-                  currencyCode={storeProfile?.currency}
-                />
-              </TabsContent>
+              {canViewSalesHistory && (
+                <TabsContent
+                  ref={historyPullToRefresh.scrollRef}
+                  value="history"
+                  className="absolute inset-0 overflow-y-auto mt-0 pr-1"
+                >
+                  <PullToRefreshIndicator
+                    pullDistance={historyPullToRefresh.pullDistance}
+                    isRefreshing={historyPullToRefresh.isRefreshing}
+                    threshold={historyPullToRefresh.threshold}
+                  />
+                  <POSTransactionHistory
+                    recentSales={recentSales}
+                    onReturnClick={handleReturnClick}
+                    currencyCode={storeProfile?.currency}
+                    scrollElementRef={historyPullToRefresh.scrollRef}
+                  />
+                </TabsContent>
+              )}
             </div>
           </Tabs>
         </div>
@@ -263,7 +286,7 @@ export function POSSystem() {
         currencyCode={storeProfile?.currency}
         updateQuantity={updateQuantity}
         removeFromCart={removeFromCart}
-        clearCart={clearCart}
+        onRequestClearCart={() => setShowClearCartDialog(true)}
         onCheckout={withRestriction(() => setShowPaymentDialog(true))}
         onHoldSale={() => void handleHoldTransaction()}
         heldSalesCount={heldSalesCount}

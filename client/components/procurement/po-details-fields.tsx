@@ -20,6 +20,7 @@ import {
 import { DatePickerInput } from "@/components/ui/date-picker-input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SupplierCombobox } from "./supplier-combobox";
+import { formatCurrency } from "@/lib/utils";
 
 interface Supplier {
   id: string;
@@ -46,6 +47,10 @@ interface PODetailsFieldsProps {
   setDueDate: (date: string) => void;
   amountPaid: string;
   setAmountPaid: (amount: string) => void;
+  /** The order's running total, so the Amount Paid field can name the cap
+   * getValidatedAmountPaid applies to it at save time. Zero/absent in the
+   * create flow, where these details are confirmed before any item exists. */
+  totalAmount?: number;
   onOpenAddSupplier: () => void;
   /** Editing an existing PO is only ever done for Standard POs (Immediate
    * ones are created already "received" and never enter an editable
@@ -71,30 +76,20 @@ export function PODetailsFields({
   setDueDate,
   amountPaid,
   setAmountPaid,
+  totalAmount = 0,
   onOpenAddSupplier,
   hideTypeToggle,
 }: PODetailsFieldsProps) {
+  const hasOrderTotal = totalAmount > 0;
+  const exceedsOrderTotal =
+    hasOrderTotal && Number(amountPaid) > totalAmount;
+
   return (
     <div className="flex flex-col gap-4">
       {!hideTypeToggle && (
         <div className="space-y-1.5">
-          <Label className="text-[12.5px] font-semibold text-foreground flex items-center gap-1">
+          <Label className="text-[12.5px] font-semibold text-foreground">
             Order Type
-            <TooltipProvider delayDuration={0}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <HelpCircle className="w-3 h-3 opacity-50 cursor-pointer" />
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>
-                    Immediate Purchase receives stock and updates prices
-                    right away in one pass. Purchase Order just records the
-                    order - stock and pricing are entered later when you
-                    receive it.
-                  </p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
           </Label>
           <Tabs
             value={poType}
@@ -122,6 +117,11 @@ export function PODetailsFields({
               </TabsTrigger>
             </TabsList>
           </Tabs>
+          <p className="text-[11.5px] text-muted-foreground leading-snug">
+            {poType === "immediate"
+              ? "Adds stock and updates selling prices store-wide as soon as you save."
+              : "Records the order only. Stock and pricing are entered later, when you receive it."}
+          </p>
         </div>
       )}
 
@@ -217,11 +217,27 @@ export function PODetailsFields({
             </Label>
             <Input
               type="number"
+              inputMode="decimal"
+              min={0}
+              step="0.01"
+              max={hasOrderTotal ? totalAmount : undefined}
+              aria-label="Amount Paid (Initial Payment)"
               placeholder="0.00"
               className="w-full border border-border rounded-[10px] px-3.5 h-11 text-[13px] bg-card shadow-sm"
               value={amountPaid}
               onChange={(e) => setAmountPaid(e.target.value)}
             />
+            <p className="text-[11.5px] text-muted-foreground leading-snug">
+              {hasOrderTotal
+                ? `Max ${formatCurrency(totalAmount)} — the order total.`
+                : "The order total comes from the items you add next; anything above it is capped when you save."}
+            </p>
+            {exceedsOrderTotal && (
+              <p className="text-[11.5px] text-destructive font-medium leading-snug">
+                Above the order total — this will be capped at{" "}
+                {formatCurrency(totalAmount)} when you save.
+              </p>
+            )}
           </div>
         </div>
       )}

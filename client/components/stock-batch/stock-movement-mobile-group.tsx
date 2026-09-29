@@ -75,6 +75,11 @@ export function StockMovementMobileGroup({
                       Needs Review
                     </span>
                   )}
+                  {movement.reviewed && (
+                    <span className="ml-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-muted/40 text-muted-foreground">
+                      Reviewed
+                    </span>
+                  )}
                 </div>
               </div>
               <div className={`text-[15px] font-bold shrink-0 ${signColor}`}>

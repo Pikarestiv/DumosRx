@@ -8,9 +8,12 @@ import { SELF_PURCHASE_VENDOR_ID } from "@/components/procurement/po-details-fie
 import { PODetailsDialog } from "@/components/procurement/po-details-dialog";
 import { POMobileCreateView } from "@/components/procurement/po-mobile-create-view";
 import { PODesktopCreateView } from "@/components/procurement/po-desktop-create-view";
-import { getLineTotal, getValidatedAmountPaid } from "@/components/procurement/po-line-item-math";
+import { POFormSkeleton } from "@/components/procurement/po-form-skeleton";
+import { useResolvedMediaQuery } from "@/hooks/use-media-query";
+import { getOrderTotal, getValidatedAmountPaid, countSellingPriceOverrides } from "@/components/procurement/po-line-item-math";
 import { RequireRole } from "@/components/auth/require-role";
 import { toast } from "sonner";
+import { errorDescription } from "@/lib/utils/error-description";
 
 import { useProcurementData } from "@/lib/hooks/use-procurement-data";
 import { useCreateSupplierMutation } from "@/lib/hooks/use-supplier-mutations";
@@ -55,10 +58,8 @@ function CreateOrderContent() {
   const [isAddSupplierOpen, setIsAddSupplierOpen] = useState(false);
 
   const { suppliers, products, refetch: fetchData } = useProcurementData();
-
-  useEffect(() => {
-    void fetchData();
-  }, [fetchData]);
+  const { matches: isDesktop, resolved: layoutResolved } =
+    useResolvedMediaQuery("(min-width: 1024px)");
 
   useEffect(() => {
     const defaultSupplierId = searchParams.get("supplierId");
@@ -96,7 +97,9 @@ function CreateOrderContent() {
       },
       onError: (error) => {
         console.error("Failed to add product:", error);
-        toast.error("Failed to add product");
+        toast.error("Couldn't add the product", {
+          description: errorDescription(error),
+        });
       },
     });
   };
@@ -115,15 +118,14 @@ function CreateOrderContent() {
       },
       onError: (error) => {
         console.error("Failed to add supplier:", error);
-        toast.error("Failed to add supplier");
+        toast.error("Couldn't add the vendor", {
+          description: errorDescription(error),
+        });
       },
     });
   };
 
-  const totalAmount = items.reduce(
-    (sum, item) => sum + getLineTotal(item, poType),
-    0,
-  );
+  const totalAmount = getOrderTotal(items, poType);
 
   const createPurchaseOrderMutation = useCreatePurchaseOrderMutation();
   const createAndReceivePurchaseOrderMutation =
@@ -159,11 +161,21 @@ function CreateOrderContent() {
             toast.success("Purchase received", {
               description: "Stock has been added to inventory.",
             });
+            const priceOverrideCount = countSellingPriceOverrides(items, products);
+            if (priceOverrideCount > 0) {
+              toast.success(
+                priceOverrideCount === 1
+                  ? "Selling price updated for 1 item"
+                  : `Selling price updated for ${priceOverrideCount} items`,
+              );
+            }
             router.push(`/procurement?selected=${poId}`);
           },
           onError: (error) => {
             console.error("Failed to create PO:", error);
-            toast.error("Error creating purchase order");
+            toast.error("Couldn't save this purchase", {
+              description: errorDescription(error),
+            });
           },
         },
       );
@@ -187,7 +199,9 @@ function CreateOrderContent() {
           },
           onError: (error) => {
             console.error("Failed to create PO:", error);
-            toast.error("Error creating purchase order");
+            toast.error("Couldn't save this purchase", {
+              description: errorDescription(error),
+            });
           },
         },
       );
@@ -233,7 +247,9 @@ function CreateOrderContent() {
         },
         onError: (error) => {
           console.error("Failed to save PO draft:", error);
-          toast.error("Error saving purchase order draft");
+          toast.error("Couldn't save the draft", {
+            description: errorDescription(error),
+          });
         },
       },
     );
@@ -266,42 +282,32 @@ function CreateOrderContent() {
     onOpenAddSupplier: () => setIsAddSupplierOpen(true),
   };
 
+  const createViewProps = {
+    ...detailsFieldsProps,
+    products,
+    items,
+    onItemsChange: setItems,
+    onOpenAddProduct: handleOpenAddProduct,
+    newlyCreatedProductId,
+    onNewlyCreatedProductConsumed: () => setNewlyCreatedProductId(null),
+    selectedSupplierName,
+    isSubmitting,
+    handleSubmit,
+    handleSaveDraft,
+    detailsConfirmed,
+    onContinue: () => setDetailsConfirmed(true),
+    setIsEditDetailsOpen,
+  };
+
+  if (!layoutResolved) return <POFormSkeleton />;
+
   return (
     <>
-      {/* Mobile: full-screen takeover, just like POS */}
-      <POMobileCreateView
-        {...detailsFieldsProps}
-        products={products}
-        items={items}
-        onItemsChange={setItems}
-        onOpenAddProduct={handleOpenAddProduct}
-        newlyCreatedProductId={newlyCreatedProductId}
-        onNewlyCreatedProductConsumed={() => setNewlyCreatedProductId(null)}
-        selectedSupplierName={selectedSupplierName}
-        isSubmitting={isSubmitting}
-        handleSubmit={handleSubmit}
-        handleSaveDraft={handleSaveDraft}
-        detailsConfirmed={detailsConfirmed}
-        onContinue={() => setDetailsConfirmed(true)}
-        setIsEditDetailsOpen={setIsEditDetailsOpen}
-      />
-
-      <PODesktopCreateView
-        {...detailsFieldsProps}
-        products={products}
-        items={items}
-        onItemsChange={setItems}
-        onOpenAddProduct={handleOpenAddProduct}
-        newlyCreatedProductId={newlyCreatedProductId}
-        onNewlyCreatedProductConsumed={() => setNewlyCreatedProductId(null)}
-        selectedSupplierName={selectedSupplierName}
-        isSubmitting={isSubmitting}
-        handleSubmit={handleSubmit}
-        handleSaveDraft={handleSaveDraft}
-        detailsConfirmed={detailsConfirmed}
-        onContinue={() => setDetailsConfirmed(true)}
-        setIsEditDetailsOpen={setIsEditDetailsOpen}
-      />
+      {isDesktop ? (
+        <PODesktopCreateView {...createViewProps} />
+      ) : (
+        <POMobileCreateView {...createViewProps} />
+      )}
 
       <PODetailsDialog
         open={isEditDetailsOpen}
@@ -330,7 +336,7 @@ function CreateOrderContent() {
 
 export default function CreateOrderPage() {
   return (
-    <RequireRole>
+    <RequireRole permission="manage_purchase_orders">
       <CreateOrderContent />
     </RequireRole>
   );

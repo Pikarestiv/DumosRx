@@ -205,6 +205,7 @@ export function AddExpenseDialog({
               </label>
               <input
                 type="number"
+                inputMode="decimal"
                 min="0"
                 step="0.01"
                 required
@@ -245,6 +246,7 @@ export function AddExpenseDialog({
             </label>
             <input
               type="number"
+              inputMode="decimal"
               min="2"
               step="1"
               placeholder="e.g. 12 for a year's rent paid up front"

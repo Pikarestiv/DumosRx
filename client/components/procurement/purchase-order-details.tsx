@@ -1,14 +1,14 @@
 import React from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Clock, CheckCircle2, Edit2, Download, PackageOpen } from "lucide-react";
-import { pdf } from "@react-pdf/renderer";
+import { ArrowLeft, Clock, CheckCircle2, Edit2, Download, Loader2, PackageOpen } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/utils";
+import { errorDescription } from "@/lib/utils/error-description";
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
-import { downloadBlob } from "@/lib/utils/report-pdf";
-import { PurchaseOrderPdf } from "./purchase-order-pdf";
+import { downloadBlob } from "@/lib/utils/download-blob";
 import { useStore } from "@/lib/context/store-context";
+import { useHasPermission } from "@/lib/hooks/use-permissions";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -31,6 +31,9 @@ interface PurchaseOrderDetailsProps {
   getStatusBadge: (status: string) => React.ReactNode;
   onSendPO: (id: string) => void;
   onDeletePO?: (id: string) => void;
+  /** True while a status write is in flight, so "Mark as Sent" and "Delete"
+   * lock the way "Confirm & Receive" already does. */
+  isMutatingPO?: boolean;
   onReceiveGoods: () => void;
   onClose: () => void;
 }
@@ -41,17 +44,30 @@ export function PurchaseOrderDetails({
   getStatusBadge,
   onSendPO,
   onDeletePO,
+  isMutatingPO,
   onReceiveGoods,
   onClose,
 }: PurchaseOrderDetailsProps) {
   const router = useRouter();
   const { storeProfile } = useStore();
+  const canManagePurchaseOrders = useHasPermission("manage_purchase_orders");
+  const canReceivePurchaseOrders = useHasPermission("receive_purchase_orders");
   const capsClass = useUppercaseDisplayClass();
   const uppercaseNames = storeProfile?.uppercase_display_enabled !== 0;
+  const [isGeneratingPdf, setIsGeneratingPdf] = React.useState(false);
 
   const handleDownloadPdf = async () => {
-    if (!selectedPO) return;
+    if (!selectedPO || isGeneratingPdf) return;
+    setIsGeneratingPdf(true);
     try {
+      // Both imported here rather than at module scope: @react-pdf/renderer is
+      // a heavy dependency that every visitor to the Orders tab was paying for,
+      // whether or not they ever downloaded anything. purchase-order-pdf has to
+      // be deferred alongside it, since that module statically imports it.
+      const [{ pdf }, { PurchaseOrderPdf }] = await Promise.all([
+        import("@react-pdf/renderer"),
+        import("./purchase-order-pdf"),
+      ]);
       const blob = await pdf(
         <PurchaseOrderPdf
           storeName={storeProfile?.name || "Store"}
@@ -84,7 +100,11 @@ export function PurchaseOrderDetails({
       toast.success("PO downloaded successfully");
     } catch (error) {
       console.error("Failed to generate PO PDF:", error);
-      toast.error("Failed to download PO");
+      toast.error("Couldn't build the PO PDF", {
+        description: errorDescription(error),
+      });
+    } finally {
+      setIsGeneratingPdf(false);
     }
   };
 
@@ -245,12 +265,18 @@ export function PurchaseOrderDetails({
                 variant="outline"
                 className="flex-1 bg-transparent h-10 text-[13.5px] font-bold"
                 onClick={() => void handleDownloadPdf()}
+                disabled={isGeneratingPdf}
               >
-                <Download className="w-4 h-4 mr-2" />
-                Download PDF
+                {isGeneratingPdf ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Download className="w-4 h-4 mr-2" />
+                )}
+                {isGeneratingPdf ? "Preparing..." : "Download PDF"}
               </Button>
               
-              {(selectedPO.status === "pending" || selectedPO.status === "sent") && (
+              {canManagePurchaseOrders &&
+                (selectedPO.status === "pending" || selectedPO.status === "sent") && (
                 <Button
                   variant="outline"
                   className="flex-1 bg-transparent h-10 text-[13.5px] font-bold text-blue-600 hover:text-blue-700 hover:bg-blue-50"
@@ -263,12 +289,14 @@ export function PurchaseOrderDetails({
             </div>
 
             <div className="flex items-center gap-2">
-              {(selectedPO.status === "pending" || selectedPO.status === "sent") && onDeletePO && (
+              {canManagePurchaseOrders &&
+                (selectedPO.status === "pending" || selectedPO.status === "sent") && onDeletePO && (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button
                       variant="destructive"
                       className="flex-1 h-10 text-[13.5px] font-bold"
+                      disabled={isMutatingPO}
                     >
                       Delete
                     </Button>
@@ -296,7 +324,7 @@ export function PurchaseOrderDetails({
                 </AlertDialog>
               )}
 
-              {selectedPO.status === "pending" && selectedPO.type === "immediate" && (
+              {canReceivePurchaseOrders && selectedPO.status === "pending" && selectedPO.type === "immediate" && (
                 <Button
                   className="flex-1 h-10 text-[13.5px] font-bold"
                   onClick={onReceiveGoods}
@@ -305,16 +333,17 @@ export function PurchaseOrderDetails({
                 </Button>
               )}
 
-              {selectedPO.status === "pending" && selectedPO.type !== "immediate" && (
+              {canManagePurchaseOrders && selectedPO.status === "pending" && selectedPO.type !== "immediate" && (
                 <Button
                   className="flex-1 h-10 text-[13.5px] font-bold"
                   onClick={() => onSendPO(selectedPO.id)}
+                  disabled={isMutatingPO}
                 >
-                  Mark as Sent
+                  {isMutatingPO ? "Working..." : "Mark as Sent"}
                 </Button>
               )}
 
-              {(selectedPO.status === "sent" || isPartiallyReceived) && (
+              {canReceivePurchaseOrders && (selectedPO.status === "sent" || isPartiallyReceived) && (
                 <Button
                   className="flex-1 h-10 text-[13.5px] font-bold"
                   onClick={onReceiveGoods}

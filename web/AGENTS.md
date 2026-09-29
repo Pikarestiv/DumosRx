@@ -100,6 +100,25 @@ together). The current design:
   based, has no cookie dependency, and silently refreshes only after 7 days
   via `refreshTokenSilently`.
 
+## Broadcasts: the "Also send by email" toggle
+
+`components/admin/broadcasts/broadcast-dialogs.tsx` carries a `send_email`
+switch alongside the in-app announcement fields. Two things about it are load-
+bearing and easy to break:
+
+- The email **only ever fires when the broadcast is created**. The edit dialog
+  therefore passes `isEdit` to `BroadcastFormFields`, which renders the switch
+  disabled with copy saying so. Don't re-enable it there: `PUT
+  /admin/announcements/{id}` persists the flag but never sends, so an enabled
+  switch would silently promise a resend that never happens.
+- The helper copy says store owners only for a reason — the server skips every
+  staff account, because staff are created with a placeholder
+  `<username>@local.dumosrx.com` address. Full recipient-resolution rules are
+  in `laravel-server/AGENTS.md`.
+
+The field rides the existing `BroadcastFormData` payload through
+`webApiClient.createBroadcast()`/`updateBroadcast()`; no separate endpoint.
+
 ## Running things
 
 ```

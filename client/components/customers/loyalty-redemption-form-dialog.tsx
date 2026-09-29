@@ -99,6 +99,7 @@ export function LoyaltyRedemptionFormDialog({ open, onOpenChange, option, userId
               <Label>Points Cost</Label>
               <Input
                 type="number"
+                inputMode="decimal"
                 min={0}
                 value={form.points_cost}
                 onChange={(e) => setForm({ ...form, points_cost: e.target.value })}
@@ -108,6 +109,7 @@ export function LoyaltyRedemptionFormDialog({ open, onOpenChange, option, userId
               <Label>Discount Value ({currencySymbol})</Label>
               <Input
                 type="number"
+                inputMode="decimal"
                 min={0}
                 placeholder="0 for non-monetary perks"
                 value={form.discount_value}

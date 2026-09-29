@@ -22,7 +22,13 @@ const CATEGORY_CHART_COLORS = ["#0ea5e9", "#10b981", "#f59e0b", "#ef4444", "#8b5
  * The previous-period comparison window is the same length as the SELECTED
  * range, immediately before it (e.g. 1-31 March compares against 29 Jan -
  * 28 Feb), rather than a "now minus from"-wide window anchored to now. */
-export function useBIData(dateRange?: DateRangeValue, filters?: SalesFilters) {
+export function useBIData(
+  dateRange?: DateRangeValue,
+  filters?: SalesFilters,
+  /** The Analytics dashboard's active tab, used to gate the reads that only
+   * feed one tab. Undefined means "no tab gating". */
+  activeTab?: string,
+) {
   const { storeProfile } = useStore();
   const currencyCode = storeProfile?.currency;
 
@@ -173,8 +179,18 @@ export function useBIData(dateRange?: DateRangeValue, filters?: SalesFilters) {
     }));
   }, [categoryDistribution]);
 
-  const stock_batchAlerts = useStockBatchAlerts();
-  const purchasePatterns = usePurchasePatterns(dateFilter, filters);
+  // Gated on their own tab: neither is displayed on the default Sales tab, so
+  // together they were four extra reads on every mount of the dashboard. Radix
+  // keeps the active tab mounted, so switching to one of these fetches then
+  // and the result stays cached from there on.
+  const stock_batchAlerts = useStockBatchAlerts(
+    activeTab === undefined || activeTab === "stock_batches",
+  );
+  const purchasePatterns = usePurchasePatterns(
+    dateFilter,
+    filters,
+    activeTab === undefined || activeTab === "customers",
+  );
 
   const liveCustomerMetrics = useMemo(
     () => [

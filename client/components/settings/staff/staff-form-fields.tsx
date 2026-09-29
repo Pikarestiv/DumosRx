@@ -13,7 +13,7 @@ import {
   InputOTPSlot,
 } from "@/components/ui/input-otp";
 import { HelpCircle } from "lucide-react";
-import { STAFF_ROLES } from "@/lib/constants/roles";
+import { usePermissionGroups } from "@/lib/hooks/use-permission-groups";
 import type { StoreProfile } from "@/lib/context/store-context";
 import {
   Tooltip,
@@ -30,6 +30,7 @@ export interface StaffFormData {
   pin: string;
   role: string;
   store_id: string;
+  permission_group_id?: string;
 }
 
 interface StaffFormFieldsProps {
@@ -52,6 +53,8 @@ export function StaffFormFields({
   isEditing,
   availableStores,
 }: StaffFormFieldsProps) {
+  const { groups } = usePermissionGroups();
+
   return (
     <form id={formId} onSubmit={onSubmit} className="space-y-4 py-4 my-0.5">
       <div className="grid grid-cols-2 gap-4">
@@ -151,35 +154,42 @@ export function StaffFormFields({
       </div>
       <div className="grid gap-2">
         <div className="flex items-center gap-2">
-          <Label htmlFor="role">System Role</Label>
+          <Label htmlFor="role">Group *</Label>
           <TooltipProvider delayDuration={0}>
             <Tooltip>
               <TooltipTrigger asChild>
                 <HelpCircle className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
               </TooltipTrigger>
-              <TooltipContent>
+              <TooltipContent className="max-w-xs">
                 <p>
-                  Determines what the staff member can access. Cashiers can only
-                  make sales, Managers can view stock batches, and Admins have
-                  full access.
+                  The Group decides exactly what this staff member can do. The
+                  built-in groups (Admin, Manager, Specialist, Sales Staff,
+                  Auditor) match how those roles have always worked. To change
+                  what a group can do, or to build your own, go to Settings →
+                  Staff → Roles &amp; Permissions.
                 </p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
         </div>
         <Select
-          value={formData.role}
-          onValueChange={(val) =>
-            setFormData((prev) => ({ ...prev, role: val }))
-          }
+          value={formData.permission_group_id ?? ""}
+          onValueChange={(groupId) => {
+            const group = groups.find((g) => g.id === groupId);
+            setFormData((prev) => ({
+              ...prev,
+              permission_group_id: groupId,
+              role: group?.based_on_role ?? prev.role,
+            }));
+          }}
         >
           <SelectTrigger>
-            <SelectValue placeholder="Select role" />
+            <SelectValue placeholder="Select group" />
           </SelectTrigger>
           <SelectContent>
-            {STAFF_ROLES.map((r) => (
-              <SelectItem key={r.value} value={r.value}>
-                {r.label}
+            {groups.map((g) => (
+              <SelectItem key={g.id} value={g.id}>
+                {g.name}
               </SelectItem>
             ))}
           </SelectContent>

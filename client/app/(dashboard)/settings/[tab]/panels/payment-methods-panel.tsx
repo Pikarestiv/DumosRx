@@ -1,9 +1,17 @@
+"use client";
+
 import { PaymentSettingsCard } from "@/components/settings/store/payment-settings-card";
 import { PaymentAccountsCard } from "@/components/settings/store/payment-accounts-card";
 import { OnlinePaymentsSection } from "@/components/settings/store/online-payments-section";
+import { useHasPermission } from "@/lib/hooks/use-permissions";
 import type { SettingsState } from "@/hooks/use-settings";
 
 export function PaymentMethodsPanel(s: SettingsState) {
+  // The tab itself is manage_payment_accounts. This one section is the
+  // storefront's payout onboarding and exists only so the public checkout
+  // works, so it takes manage_online_store on top of the tab's own key.
+  const canManageOnlineStore = useHasPermission("manage_online_store");
+
   return (
     <>
       <PaymentSettingsCard
@@ -13,7 +21,7 @@ export function PaymentMethodsPanel(s: SettingsState) {
         setEnabledPaymentMethods={s.setEnabledPaymentMethods}
       />
       <PaymentAccountsCard />
-      {s.storeProfile && (
+      {canManageOnlineStore && s.storeProfile && (
         <OnlinePaymentsSection
           storeId={s.storeProfile.id}
           storeName={s.storeProfile.name}

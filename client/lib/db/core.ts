@@ -4,7 +4,8 @@
 
 import initSqlJs, { Database, SqlJsStatic } from "sql.js";
 import { APP_NAME } from "@/lib/constants";
-import { get, set } from "idb-keyval";
+import { APP_EVENTS, emitAppEvent } from "@/lib/events";
+import { del, get, set } from "idb-keyval";
 /* eslint-disable max-lines */
 import { SCHEMA_SQL } from "./schema";
 import { isDedupableAuditAction } from "./audit-actions";
@@ -22,6 +23,7 @@ import {
   requestWriterTakeover,
   stealWriterLock,
 } from "./tab-lock";
+import { clearLastSyncTime } from "@/lib/storage-keys";
 
 export { isWriterTab, onWriterTabChange, onPromotionFailed };
 
@@ -282,6 +284,8 @@ async function initDatabaseInternal(): Promise<any> {
 
     await runSchemaMigrations(webAdapter, isWriterTab() ? saveDatabase : undefined);
 
+    installExitFlush();
+
     return db;
   } catch (err) {
     console.error("[DB] Failed to initialize database:", err);
@@ -354,9 +358,27 @@ async function rehydrateFromIndexedDb(): Promise<boolean> {
 const SAVE_FAILURE_NOTICE_INTERVAL_MS = 5 * 60 * 1000;
 let lastSaveFailureNoticeAt = 0;
 
-export async function saveDatabase(): Promise<void> {
-  if (!db) return;
-  const data = db.export();
+let saveChain: Promise<void> = Promise.resolve();
+let queuedExport: { data: Uint8Array; epoch: number } | null = null;
+let savedWriteEpoch = 0;
+
+export function saveDatabase(): Promise<void> {
+  if (!db) return Promise.resolve();
+
+  queuedExport = { data: db.export(), epoch: writeEpoch };
+
+  saveChain = saveChain.then(async () => {
+    const pending = queuedExport;
+    queuedExport = null;
+    if (!pending) return;
+    await persistDatabaseExport(pending.data);
+    savedWriteEpoch = pending.epoch;
+  });
+
+  return saveChain;
+}
+
+async function persistDatabaseExport(data: Uint8Array): Promise<void> {
   await set(`${APP_NAME.toLowerCase()}_db`, data).catch(err => {
     // Previously logged to console.error only: the app kept looking
     // completely healthy while writes silently stopped persisting (most
@@ -371,12 +393,47 @@ export async function saveDatabase(): Promise<void> {
       const now = Date.now();
       if (now - lastSaveFailureNoticeAt > SAVE_FAILURE_NOTICE_INTERVAL_MS) {
         lastSaveFailureNoticeAt = now;
-        window.dispatchEvent(
-          new CustomEvent("dumos_db_save_failed", { detail: { error: err } }),
-        );
+        emitAppEvent(APP_EVENTS.dbSaveFailed, { error: err });
       }
     }
   });
+}
+
+export function hasUnpersistedWrites(): boolean {
+  return queuedExport !== null || savedWriteEpoch !== writeEpoch;
+}
+
+let exitFlushInstalled = false;
+
+export function installExitFlush(): void {
+  if (exitFlushInstalled || typeof window === "undefined" || isTauri()) return;
+  exitFlushInstalled = true;
+
+  const flush = () => {
+    if (!db || !isWriterTab() || !hasUnpersistedWrites()) return;
+    void saveDatabase();
+  };
+
+  window.addEventListener("pagehide", flush);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") flush();
+  });
+}
+
+/** Test-only: resets the module-level save chain and exit-flush registration
+ * so each test starts from a clean persistence state. */
+export function __resetExitFlushForTesting(): void {
+  exitFlushInstalled = false;
+  saveChain = Promise.resolve();
+  queuedExport = null;
+  savedWriteEpoch = 0;
+  writeEpoch = 0;
+}
+
+/** Test-only: marks the in-memory database as having unpersisted writes,
+ * without going through execute()'s own save. */
+export function __bumpWriteEpochForTesting(): void {
+  bumpWriteEpoch();
 }
 
 // Set while a transaction() block is running — declared here (rather than
@@ -655,7 +712,7 @@ export function queueTableInvalidation(table: string): void {
 function assertWritable(): void {
   if (isTauri() || isWriterTab()) return;
   if (typeof window !== "undefined") {
-    window.dispatchEvent(new CustomEvent("dumos_db_read_only_write_blocked"));
+    emitAppEvent(APP_EVENTS.dbReadOnlyWriteBlocked);
   }
   throw new Error(
     "This tab is read-only because DumosRx is already open in another tab or window. Switch to that tab, or close it, to make changes here.",
@@ -987,6 +1044,33 @@ export async function restorePreRestoreSnapshot(): Promise<boolean> {
   if (!snapshot) return false;
   await restoreDatabase(snapshot);
   return true;
+}
+
+/**
+ * Last-resort recovery for a local database that cannot be opened at all
+ * (web/PWA only) — snapshots the stored blob to
+ * `dumosrx_db_pre_reset_backup` and then deletes the live IndexedDB key, so
+ * the next boot starts from a fresh database and re-pulls from the cloud.
+ * Deliberately does not touch `db`: this runs on the init-failure screen,
+ * where there may be no usable connection to close.
+ */
+export async function discardLocalDatabaseBlob(): Promise<{ backedUp: boolean }> {
+  if (isTauri()) return { backedUp: false };
+
+  const key = `${APP_NAME.toLowerCase()}_db`;
+  let backedUp = false;
+  try {
+    const existing = await get<Uint8Array>(key);
+    if (existing) {
+      await set(`${key}_pre_reset_backup`, existing);
+      backedUp = true;
+    }
+  } catch (err) {
+    console.error("[DB] Failed to snapshot the local database before reset", err);
+  }
+
+  await del(key);
+  return { backedUp };
 }
 
 /**
@@ -1358,7 +1442,7 @@ export async function resetDatabase(): Promise<void> {
   }
 
   if (typeof window !== "undefined") {
-    localStorage.removeItem("last_sync_time");
+    clearLastSyncTime();
     window.location.reload();
   }
 }
@@ -1390,7 +1474,7 @@ export async function clearDatabaseForNewStore(): Promise<void> {
   }
 
   if (typeof window !== "undefined") {
-    localStorage.removeItem("last_sync_time");
+    clearLastSyncTime();
   }
 }
 

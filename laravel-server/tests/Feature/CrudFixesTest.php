@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Models\Coupon;
-use App\Models\Sale;
 use App\Models\Store;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -11,9 +10,10 @@ use Tests\TestCase;
 
 /**
  * Regression coverage for the remaining "apiResource registered a route
- * whose controller method didn't exist" fixes (Staff, Store, Sale — 500
- * before the fix), plus CouponController::update(), which was fully
- * implemented but had no route wired to it at all.
+ * whose controller method didn't exist" fixes (Staff, Store — 500 before
+ * the fix), plus CouponController::update(), which was fully implemented
+ * but had no route wired to it at all. The Sale cases that lived here went
+ * with the /app/sales routes themselves (A-19, docs/FIXED_BUGS.md).
  */
 class CrudFixesTest extends TestCase
 {
@@ -101,53 +101,6 @@ class CrudFixesTest extends TestCase
         $response = $this->actingAs($this->ownerA)->getJson("/api/v1/stores/{$storeB->id}");
 
         $response->assertStatus(404);
-    }
-
-    // ---- Sales ----
-
-    public function test_sale_index_no_longer_errors_on_missing_cashier_relation()
-    {
-        Sale::create([
-            'transaction_number' => 'INV-001', 'cashier_id' => $this->ownerA->id,
-            'subtotal' => 100, 'total_amount' => 100, 'amount_paid' => 100, 'payment_method' => 'cash',
-            'transaction_date' => now(),
-        ]);
-
-        $response = $this->actingAs($this->ownerA)->getJson('/api/v1/app/sales');
-
-        $response->assertStatus(200);
-    }
-
-    public function test_sale_show_returns_a_sale_scoped_to_caller()
-    {
-        $sale = Sale::create([
-            'transaction_number' => 'INV-002', 'cashier_id' => $this->ownerA->id,
-            'subtotal' => 100, 'total_amount' => 100, 'amount_paid' => 100, 'payment_method' => 'cash',
-            'transaction_date' => now(),
-        ]);
-
-        $response = $this->actingAs($this->ownerA)->getJson("/api/v1/app/sales/{$sale->id}");
-
-        $response->assertStatus(200);
-    }
-
-    public function test_sale_show_404s_for_another_stores_sale()
-    {
-        $foreignSale = Sale::create([
-            'transaction_number' => 'INV-003', 'cashier_id' => $this->ownerB->id,
-            'subtotal' => 100, 'total_amount' => 100, 'amount_paid' => 100, 'payment_method' => 'cash',
-            'transaction_date' => now(),
-        ]);
-
-        $response = $this->actingAs($this->ownerA)->getJson("/api/v1/app/sales/{$foreignSale->id}");
-
-        $response->assertStatus(404);
-    }
-
-    public function test_sales_daily_and_top_products_routes_are_not_swallowed_by_the_sale_wildcard()
-    {
-        $this->actingAs($this->ownerA)->getJson('/api/v1/app/sales/daily')->assertStatus(200);
-        $this->actingAs($this->ownerA)->getJson('/api/v1/app/sales/top-products')->assertStatus(200);
     }
 
     // ---- Coupons ----

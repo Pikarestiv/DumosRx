@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Broadcast;
+use App\Services\Admin\BroadcastEmailService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use OpenApi\Attributes as OA;
@@ -107,6 +108,7 @@ class BroadcastController extends Controller
                 new OA\Property(property: 'user_ids', type: 'array', items: new OA\Items(type: 'string'), nullable: true, description: 'Required when target_type=specific'),
                 new OA\Property(property: 'expires_at', type: 'string', format: 'date-time', nullable: true),
                 new OA\Property(property: 'is_active', type: 'boolean'),
+                new OA\Property(property: 'send_email', type: 'boolean', description: 'Also email the announcement, once, to every targeted store owner with a real (non-placeholder) address'),
             ],
         )),
         responses: [
@@ -119,7 +121,7 @@ class BroadcastController extends Controller
             new OA\Response(response: 422, ref: '#/components/responses/ValidationError'),
         ],
     )]
-    public function store(Request $request)
+    public function store(Request $request, BroadcastEmailService $broadcastEmailService)
     {
         $validator = Validator::make($request->all(), [
             'title' => 'required|string|max:255',
@@ -128,7 +130,8 @@ class BroadcastController extends Controller
             'target_type' => 'required|string|in:all,pharmacies,stores,specific',
             'user_ids' => 'nullable|array',
             'expires_at' => 'nullable|date',
-            'is_active' => 'boolean'
+            'is_active' => 'boolean',
+            'send_email' => 'boolean'
         ]);
 
         if ($validator->fails()) {
@@ -136,6 +139,8 @@ class BroadcastController extends Controller
         }
 
         $broadcast = Broadcast::create($request->all());
+
+        $broadcastEmailService->sendForBroadcast($broadcast);
 
         return response()->json([
             'success' => true,
@@ -158,6 +163,7 @@ class BroadcastController extends Controller
             new OA\Property(property: 'user_ids', type: 'array', items: new OA\Items(type: 'string'), nullable: true),
             new OA\Property(property: 'expires_at', type: 'string', format: 'date-time', nullable: true),
             new OA\Property(property: 'is_active', type: 'boolean'),
+            new OA\Property(property: 'send_email', type: 'boolean', description: 'Stored for the record only: email fires once, at creation, and is never re-sent by an update'),
         ])),
         responses: [
             new OA\Response(response: 200, description: 'Updated', content: new OA\JsonContent(properties: [
@@ -188,7 +194,8 @@ class BroadcastController extends Controller
             'target_type' => 'string|in:all,pharmacies,stores,specific',
             'user_ids' => 'nullable|array',
             'expires_at' => 'nullable|date',
-            'is_active' => 'boolean'
+            'is_active' => 'boolean',
+            'send_email' => 'boolean'
         ]);
 
         if ($validator->fails()) {

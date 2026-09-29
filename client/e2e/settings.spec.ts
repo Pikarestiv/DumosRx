@@ -9,7 +9,7 @@ import { test, expect, login, loginAsPaidTier } from './fixtures';
  * brief's instruction to prioritize by blast radius, covering `staff`
  * (permission/role changes), `security` (auto-lock), `data`/`cloud` (sync
  * settings, directly tied to Task 0's sync-queue transaction race fix),
- * and `roles` (a placeholder — see below). Purely cosmetic tabs like
+ * and `roles` (the permission matrix). Purely cosmetic tabs like
  * `appearance`/`general` (theme/color/sidebar — device-local preferences
  * with no business-state impact) are scoped out on purpose, not silently
  * skipped.
@@ -49,6 +49,11 @@ test.describe('Settings', () => {
     // typing into the first one fills the whole group (same pattern
     // fixtures.ts uses for the login PIN).
     await dialog.locator('input[data-input-otp="true"]').first().fill('4321');
+    // A Group is required (staff-form-dialog.tsx's validateStaffForm), and
+    // the dropdown now lists the store's permission GROUPS rather than the
+    // old fixed STAFF_ROLES labels.
+    await dialog.getByRole('combobox').first().click();
+    await page.getByRole('option', { name: 'Sales Staff', exact: true }).click();
 
     await dialog.getByRole('button', { name: /^Create Account$/i }).click();
     await expect(dialog).not.toBeVisible();
@@ -68,7 +73,7 @@ test.describe('Settings', () => {
     const editDialog = page.getByRole('dialog');
     await expect(editDialog).toBeVisible();
     await editDialog.getByRole('combobox').first().click();
-    await page.getByRole('option', { name: 'Manager (Admin)' }).click();
+    await page.getByRole('option', { name: 'Manager', exact: true }).click();
     await editDialog.getByRole('button', { name: /^Save Changes$/i }).click();
     await expect(editDialog).not.toBeVisible();
 
@@ -153,22 +158,55 @@ test.describe('Settings', () => {
     await expect(page.getByRole('combobox')).toContainText('Every 1 Hour');
   });
 
-  test('roles: placeholder renders (feature not yet implemented, nothing to persist)', async ({ page }) => {
+  test('roles: permission matrix renders with the 5 seeded default groups', async ({ page }) => {
     await login(page);
     // No elevateToPaidTier needed - this tab is admin-gated, not tier-gated,
     // and the seeded fixture user is the store owner/admin.
     await page.goto('/settings/roles');
 
-    // Deliberately NOT a "change setting, reload, assert" test like the
-    // three above: RolesPermissionsPlaceholder (components/settings/
-    // roles-permissions-placeholder.tsx) is a static "coming soon" card with
-    // no fields, toggles, or forms - there is no real setting on this page
-    // to change. This assertion documents that fact in the test suite
-    // itself, rather than silently omitting roles coverage or faking a
-    // persistence check against a page that has nothing to persist.
-    await expect(page.getByRole('heading', { name: 'Roles & Permissions' })).toBeVisible();
-    await expect(
-      page.getByText(/Custom staff roles with fine-grained permissions are coming soon/i),
-    ).toBeVisible();
+    // Replaces the old RolesPermissionsPlaceholder ("coming soon" static
+    // card, since removed) now that the real matrix (components/settings/
+    // roles-permissions/permission-matrix.tsx) exists: a checkbox grid of
+    // permissions x groups, seeded with the 5 default groups the first
+    // time this page (or any permission check) touches the store - see
+    // ensurePermissionGroupsSeeded (lib/db/queries/permission-groups.ts).
+    await expect(page.getByRole('columnheader', { name: 'Manager' })).toBeVisible();
+    await expect(page.getByRole('columnheader', { name: 'Auditor' })).toBeVisible();
+    await expect(page.getByText('Process Sales')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'New Group' })).toBeVisible();
+  });
+
+  // Stands in for the manual smoke test the feature's plan called for:
+  // reaching the panel through the Settings nav (its tab was still
+  // disabled/"Soon" until this pass), ticking a checkbox, creating a custom
+  // group, and confirming both survive a reload from the local DB.
+  test('roles: the tab is reachable from the nav, and a toggle plus a new group survive a reload', async ({ page }) => {
+    await loginAsPaidTier(page);
+
+    await page.goto('/settings/staff');
+    await page.getByRole('tab', { name: 'Roles & Permissions' }).click();
+    await expect(page.getByRole('button', { name: 'New Group' })).toBeVisible();
+
+    // Auditor's seeded default set grants reports/expenses only, so this
+    // cell starts unticked.
+    // click() rather than check(): the write goes to the local DB and the
+    // row is re-read before the controlled checkbox flips, which is a beat
+    // later than check()'s own immediate state assertion allows for.
+    const cell = page.getByLabel('Manage Suppliers - Auditor');
+    await expect(cell).not.toBeChecked();
+    await cell.click();
+    await expect(cell).toBeChecked();
+
+    const groupName = `E2EGroup${Date.now()}`;
+    await page.getByRole('button', { name: 'New Group' }).click();
+    const dialog = page.getByRole('dialog');
+    await dialog.getByPlaceholder('e.g. Supervisor').fill(groupName);
+    await dialog.getByRole('button', { name: 'Create' }).click();
+    await expect(dialog).not.toBeVisible();
+    await expect(page.getByRole('columnheader', { name: new RegExp(groupName) })).toBeVisible();
+
+    await page.reload();
+    await expect(page.getByLabel('Manage Suppliers - Auditor')).toBeChecked();
+    await expect(page.getByRole('columnheader', { name: new RegExp(groupName) })).toBeVisible();
   });
 });

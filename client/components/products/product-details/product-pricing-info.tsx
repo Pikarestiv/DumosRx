@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { DollarSign } from "lucide-react";
 import type { Product } from "./use-product-details";
-import { useAuth } from "@/lib/context/auth-context";
+import { useHasPermission } from "@/lib/hooks/use-permissions";
 
 interface ProductPricingInfoProps {
   product: Product;
@@ -15,8 +15,7 @@ export function ProductPricingInfo({
   formatPrice,
   profitMargin,
 }: ProductPricingInfoProps) {
-  const { user } = useAuth();
-  const showProfit = user?.role !== "sales_staff";
+  const canViewCostFields = useHasPermission("view_cost_fields");
   const unit = product.baseUnit || "unit";
 
   return (
@@ -31,16 +30,18 @@ export function ProductPricingInfo({
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <p className="text-sm text-muted-foreground">Avg. Cost Price</p>
-            <p className="font-bold text-lg">
-              {formatPrice(product.costPrice)}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Averaged across current batches
-            </p>
-          </div>
+        <div className={`grid gap-4 ${canViewCostFields ? "grid-cols-2" : "grid-cols-1"}`}>
+          {canViewCostFields && (
+            <div>
+              <p className="text-sm text-muted-foreground">Avg. Cost Price</p>
+              <p className="font-bold text-lg">
+                {formatPrice(product.costPrice)}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Averaged across current batches
+              </p>
+            </div>
+          )}
           <div>
             <p className="text-sm text-muted-foreground">Selling Price</p>
             <p className="font-bold text-lg text-accent">
@@ -48,7 +49,7 @@ export function ProductPricingInfo({
             </p>
           </div>
         </div>
-        {product.lastBoughtPrice != null && (
+        {canViewCostFields && product.lastBoughtPrice != null && (
           <div>
             <p className="text-sm text-muted-foreground">Last Bought Price</p>
             <p className="font-bold text-lg">
@@ -59,7 +60,7 @@ export function ProductPricingInfo({
             </p>
           </div>
         )}
-        {showProfit && (
+        {canViewCostFields && (
           <>
             <Separator />
             <div>

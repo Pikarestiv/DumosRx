@@ -23,6 +23,7 @@ import type { StaffCreatePayload, StaffUpdatePayload, StaffListItem } from "@/li
 import type { Product } from "@/lib/types/product";
 import type { CustomerDbRow } from "@/lib/types/customer";
 import { hashPin } from "@/lib/utils/pin-hash";
+import { getStoredUser } from "@/lib/storage-keys";
 
 const STOCK_MOVEMENT_AUDIT_ACTIONS: Record<string, string> = {
   adjustment: AUDIT_ACTIONS.STOCK_ADJUSTMENT,
@@ -96,27 +97,33 @@ export async function getProductById(id: string) {
   return results[0] || null;
 }
 
+/** The category a product names is created on demand when it doesn't exist
+ * yet, so this is a two-row write and belongs in one transaction() (same
+ * reason as createPrescription below): committing the category and then
+ * dying before the product leaves an empty category behind, already queued
+ * for sync, that nothing will ever fill. */
 export async function createProduct(data: NewProductPayload) {
   // Ensure we have a valid UUID for category, else wait for sync
   const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-  
-  if (data.category_id && !UUID_REGEX.test(data.category_id)) {
-    const storeId = getActiveStoreId();
-    const categories = await query<{ id: string }>(
-      `SELECT id FROM categories WHERE name = ? COLLATE NOCASE${storeId ? " AND store_id = ?" : ""}`,
-      storeId ? [data.category_id, storeId] : [data.category_id],
-    );
-    if (categories.length > 0) {
-      data.category_id = categories[0].id;
-    } else {
-      const newCatId = crypto.randomUUID();
-      await insert("categories", { id: newCatId, name: data.category_id });
-      data.category_id = newCatId;
+
+  return transaction(async () => {
+    if (data.category_id && !UUID_REGEX.test(data.category_id)) {
+      const storeId = getActiveStoreId();
+      const categories = await query<{ id: string }>(
+        `SELECT id FROM categories WHERE name = ? COLLATE NOCASE${storeId ? " AND store_id = ?" : ""}`,
+        storeId ? [data.category_id, storeId] : [data.category_id],
+      );
+      if (categories.length > 0) {
+        data.category_id = categories[0].id;
+      } else {
+        const newCatId = crypto.randomUUID();
+        await insert("categories", { id: newCatId, name: data.category_id });
+        data.category_id = newCatId;
+      }
     }
-  }
 
-
-  return await insert("products", data);
+    return await insert("products", data);
+  });
 }
 
 /**
@@ -141,7 +148,7 @@ export async function createSale(saleData: Record<string, unknown>, items: Creat
     // DB (no default); reading it here the same way receivePurchaseOrder()
     // does, since it was never set on this insert before and every sale's
     // movement row was silently failing to sync as a result.
-    const dumosUser = JSON.parse(localStorage.getItem("dumos_user") || "{}");
+    const dumosUser = getStoredUser() ?? {};
 
     for (const item of items) {
       await insert("sale_items", {
@@ -198,14 +205,22 @@ export async function createPrescription(
   data: Record<string, unknown>,
   items: Omit<PrescriptionItemInsertPayload, "prescription_id">[],
 ) {
-  const prescriptionId = await insert("prescriptions", data);
+  // One transaction, like createSale/receivePurchaseOrder: a prescription
+  // header committed without its medications is a clinically empty record
+  // that is nonetheless already in _sync_queue, so the gap propagates to
+  // every other device and can never be reconstructed from what survived.
+  const prescriptionId = await transaction(async () => {
+    const id = await insert("prescriptions", data);
 
-  for (const item of items) {
-    await insert("prescription_items", {
-      ...item,
-      prescription_id: prescriptionId,
-    });
-  }
+    for (const item of items) {
+      await insert("prescription_items", {
+        ...item,
+        prescription_id: id,
+      });
+    }
+
+    return id;
+  });
 
   // insert("prescriptions", ...) above already invalidated the prescriptions
   // query and refetched, but that refetch can race the prescription_items
@@ -221,7 +236,12 @@ export async function createPrescription(
 /**
  * Staff & Users
  */
-const STAFF_LIST_COLUMNS = "id, first_name, last_name, username, email, role, store_id, is_active, created_at";
+// `has_pin` is derived, never the hash itself: the staff list needs to know
+// whether a PIN exists (a newly created account may have none) and nothing
+// more. See lib/types/user.ts's StaffListItem.
+const STAFF_LIST_COLUMNS =
+  "id, first_name, last_name, username, email, role, store_id, is_active, created_at, permission_group_id, " +
+  "CASE WHEN pin IS NOT NULL AND pin != '' THEN 1 ELSE 0 END AS has_pin";
 
 export async function getUsers(storeId?: string | null) {
   // Only fall back to the module-scope resolver when the caller omits the
@@ -311,6 +331,8 @@ export async function getStockMovements(
             TRIM(u.first_name || ' ' || COALESCE(u.last_name, '')) as performed_by_name,
             sb.batch_number, sp.name as supplier_name
      FROM stock_movements sm
+     -- Products/suppliers joined unfiltered on purpose: a deleted one must still
+     -- name its history (client/AGENTS.md; deleted-entity-procurement-history.test.ts).
      LEFT JOIN products m ON sm.product_id = m.id
      LEFT JOIN users u ON sm.performed_by = u.id
      LEFT JOIN stock_batches sb ON sm.stock_batch_id = sb.id
@@ -330,6 +352,8 @@ export async function getStockAdjustments(page = 1, limit = 50) {
             TRIM(u.first_name || ' ' || COALESCE(u.last_name, '')) as performed_by_name,
             sb.batch_number, sp.name as supplier_name
      FROM stock_movements sm
+     -- Products/suppliers joined unfiltered on purpose: a deleted one must still
+     -- name its history (client/AGENTS.md; deleted-entity-procurement-history.test.ts).
      LEFT JOIN products m ON sm.product_id = m.id
      LEFT JOIN users u ON sm.performed_by = u.id
      LEFT JOIN stock_batches sb ON sm.stock_batch_id = sb.id

@@ -9,6 +9,7 @@ import { getCustomerBalance, getCustomerLoyaltyPoints } from "@/lib/db/queries/c
 import { updatePrescriptionStatus } from "@/lib/db/queries/prescriptions";
 import { calculateLoyaltyPointsAfterSale, calculateReturnPointsAdjustment } from "@/lib/utils/loyalty-calculator";
 import type { SaleWithDetails, SaleItemDetail } from "@/lib/types/sale";
+import { getStoredUser } from "@/lib/storage-keys";
 
 type ReturnableItem = SaleItemDetail & {
   returnQuantity: number;
@@ -35,13 +36,23 @@ export function useProcessReturnMutation() {
       itemsToReturn,
       saleItems,
     }: ProcessReturnParams) => {
+      // returns.user_id is a constrained foreign key server-side, so a
+      // sentinel written here only fails much later and somewhere else: the
+      // row saves locally, pushes, is rejected on the FK, retried through
+      // backoff and finally reported as a permanently stuck sync item. The
+      // return dialog is reachable for a frame while useAuth().user is still
+      // null, which is a caller bug worth surfacing here and now.
+      if (!userId) {
+        throw new Error("Cannot process a return without a signed-in user");
+      }
+
       await transaction(async () => {
         // 1. Create return record
         const returnId = await insert(
           "returns",
           {
             sale_id: sale.id,
-            user_id: userId || "system",
+            user_id: userId,
             reason: reason,
             total_refunded: totalRefund,
             created_at: new Date().toISOString(),
@@ -50,7 +61,7 @@ export function useProcessReturnMutation() {
         );
 
         // 2. Create return items and restore stock
-        const dumosUser = JSON.parse(localStorage.getItem("dumos_user") || "{}");
+        const dumosUser = getStoredUser() ?? {};
         for (const item of itemsToReturn) {
           await insert("return_items", {
             return_id: returnId,

@@ -2,6 +2,9 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { PinEntry } from "@/components/auth/pin-entry";
 import type { RecentUser } from "@/lib/context/auth-context";
+import { drainInputOtpSyncTimeouts } from "./helpers/input-otp-timers";
+
+drainInputOtpSyncTimeouts();
 
 // jsdom doesn't implement ResizeObserver; the input-otp library used by
 // PinEntry's OTP fields needs one to mount at all.

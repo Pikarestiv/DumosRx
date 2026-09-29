@@ -3,13 +3,18 @@ import { apiClient } from "@/lib/api/client";
 import { logCrash } from "@/lib/utils/error-logger";
 import { isImpersonatedSession } from "@/lib/utils/impersonation";
 import { forceFullResync } from "./index";
+import {
+  STORAGE_KEYS,
+  getLastSyncTime,
+  getAuthToken,
+} from "@/lib/storage-keys";
 
 // Same tables SyncController::counts() reports on server-side - see that
 // endpoint's own doc comment for why this list is scoped to
 // inventory+sales rather than every synced table.
 const HEALTH_CHECK_TABLES = ["products", "stock_batches", "sales", "customers", "categories"] as const;
 
-const LAST_CHECK_KEY = "dumos_last_sync_health_check";
+const LAST_CHECK_KEY = STORAGE_KEYS.lastSyncHealthCheck;
 const CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
 // Tracks the previous run's per-table gap (server - local) so a deficit
@@ -19,7 +24,7 @@ const CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
 // unbounded once-a-day forceFullResync() forever. A resync re-runs the
 // exact same pull scoping that produced the gap in the first place, so if
 // it didn't shrink, running it again won't either.
-const LAST_DEFICIT_KEY = "dumos_sync_health_deficit_state";
+const LAST_DEFICIT_KEY = STORAGE_KEYS.syncHealthDeficitState;
 const MAX_NON_IMPROVING_RESYNCS = 2;
 
 interface DeficitState {
@@ -83,7 +88,7 @@ export async function checkSyncHealth(): Promise<void> {
   if (!isTauri() && !isWriterTab()) return;
   if (!navigator.onLine) return;
 
-  const token = localStorage.getItem("auth_token");
+  const token = getAuthToken();
   if (!token) return;
 
   // A device that has never completed a sync round at all (last_sync_time
@@ -92,7 +97,7 @@ export async function checkSyncHealth(): Promise<void> {
   // up yet - normal for a brand-new device or one still mid-first-sync on
   // a slow connection, not a deficit to alarm on or resync over. Its own
   // ordinary sync() calls already handle catching it up.
-  if (!localStorage.getItem("last_sync_time")) return;
+  if (!getLastSyncTime()) return;
 
   const lastCheckedStr = localStorage.getItem(LAST_CHECK_KEY);
   const lastChecked = lastCheckedStr ? parseInt(lastCheckedStr, 10) : 0;

@@ -607,10 +607,17 @@ textarea,
    scrollbar as an "overlay" scrollbar that only paints during an active
    scroll gesture (trackpad/wheel), never on plain mouse hover, which made
    the scrollbar invisible for anyone without two-finger/trackpad scroll.
-   Hover still darkens the thumb as a hint, but visibility never depends on it. */
+   Hover still darkens the thumb as a hint, but visibility never depends on it.
+
+   The thumb is the theme's own --primary (not a neutral grey) so it reads as
+   a real, findable control against both track colours; it is mixed down with
+   transparent rather than hardcoded per theme, so every theme variant
+   (default blue, emerald, midnight gold) and both light/dark modes stay
+   correct from the one token. */
 * {
   scrollbar-width: thin;
-  scrollbar-color: var(--border) transparent;
+  scrollbar-color: var(--primary) transparent;
+  scrollbar-color: color-mix(in srgb, var(--primary) 70%, transparent) transparent;
 }
 *::-webkit-scrollbar {
   width: 11px;
@@ -620,15 +627,19 @@ textarea,
   background: transparent;
 }
 *::-webkit-scrollbar-thumb {
-  background-color: rgba(0, 0, 0, 0.25);
+  background-color: var(--primary);
+  background-color: color-mix(in srgb, var(--primary) 70%, transparent);
   border-radius: 9999px;
 }
 *::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(0, 0, 0, 0.4);
+  background-color: var(--primary);
+}
+.dark * {
+  scrollbar-color: color-mix(in srgb, var(--primary) 80%, transparent) transparent;
 }
 .dark *::-webkit-scrollbar-thumb {
-  background-color: rgba(255, 255, 255, 0.28);
+  background-color: color-mix(in srgb, var(--primary) 80%, transparent);
 }
 .dark *::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(255, 255, 255, 0.45);
+  background-color: var(--primary);
 }

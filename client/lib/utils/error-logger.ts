@@ -5,6 +5,11 @@
 import * as Sentry from "@sentry/nextjs";
 import { SYSTEM_EMAIL } from "@/lib/constants";
 import { getDeviceId } from "@/lib/utils/device-id";
+import {
+  STORAGE_KEYS,
+  getStoredUser,
+  getAuthToken,
+} from "@/lib/storage-keys";
 
 interface CrashInfo {
   message: string;
@@ -25,7 +30,7 @@ export interface CrashContext {
   [key: string]: unknown;
 }
 
-const STORAGE_KEY = "dumosrx_pending_crashes";
+const STORAGE_KEY = STORAGE_KEYS.pendingCrashes;
 
 /**
  * Groups repeat occurrences of "the same" crash for both dedup paths below.
@@ -181,7 +186,7 @@ export async function logCrash(error: unknown, isFatal = false, context: CrashCo
         message,
         { stack, deviceId, isFatal, ...context },
         apiClient.getBaseURL(),
-        localStorage.getItem("auth_token"),
+        getAuthToken(),
       );
     } catch (_) {}
   }
@@ -189,12 +194,9 @@ export async function logCrash(error: unknown, isFatal = false, context: CrashCo
   // Try to find user_id
   let userId = "anonymous";
   try {
-    const authData = localStorage.getItem("dumos_user");
-    if (authData) {
-      const parsed = JSON.parse(authData);
-      if (parsed?.id) {
-        userId = parsed.id;
-      }
+    const parsed = getStoredUser();
+    if (parsed?.id) {
+      userId = parsed.id;
     }
   } catch (_) {}
 
@@ -259,12 +261,9 @@ export async function flushPendingCrashes() {
     
     let userId = "anonymous";
     try {
-      const authData = localStorage.getItem("dumos_user");
-      if (authData) {
-        const parsed = JSON.parse(authData);
-        if (parsed?.id) {
-          userId = parsed.id;
-        }
+      const parsed = getStoredUser();
+      if (parsed?.id) {
+        userId = parsed.id;
       }
     } catch (_) {}
 

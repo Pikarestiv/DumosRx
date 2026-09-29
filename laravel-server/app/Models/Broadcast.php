@@ -24,11 +24,13 @@ class Broadcast extends Model
         'user_ids',
         'expires_at',
         'is_active',
+        'send_email',
         'created_by'
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
+        'send_email' => 'boolean',
         'expires_at' => 'datetime',
         'user_ids' => 'array'
     ];

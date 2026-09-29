@@ -1,276 +1,218 @@
 # DumosRx — Known Bugs & Engineering Audit
 
 ## Audit Information
-- **Date:** 2026-09-26
-- **Scope:** Whole monorepo — `client/` (Next.js/React/TypeScript offline-first Tauri POS app, sql.js/native-SQLite dual backend), `web/` (Next.js marketing site + store-owner dashboard stubs + platform admin panel), `laravel-server/` (Laravel 11/PHP 8.2 API, MySQL), CI/CD workflows (`.github/workflows/`).
-- **General architecture observed:** Offline-first POS/inventory/pharmacy system. `client/` is the primary product surface — every screen works fully offline against a local SQLite database (sql.js/WASM in browser tabs, native SQLite via `@tauri-apps/plugin-sql` in the Tauri desktop/Android build), with a background delta sync engine (`client/lib/db/sync-engine/`) reconciling against `laravel-server`'s REST API. `web/` is a separate static-export Next.js app for marketing, store-owner auth, and a platform admin panel. Multi-tenancy on the server is enforced primarily via the `ScopesToTenant` trait plus a source-scanning `TenantScopingArchitectureTest` regression guard.
-- **Areas reviewed this pass:** POS payment/cart flow, stock deduction/FEFO, procurement (PO create/receive), CSV/XLSX import, React Query cache-key/invalidation conventions, multi-store scoping, service-worker caching strategy, Laravel tenant-scoping coverage across all controller directories, `SyncController` push/pull, queued-mail/`ShouldQueue` usage against the documented "no confirmed queue worker in production" constraint, payment webhook idempotency, admin auth/cookie architecture, CI workflow security (concurrency guards, permissions, dependency audit steps).
-- **Storefront pass (2026-09-26, separate):** the public customer-facing storefront (`web/app/store/[store_slug]/`, `Api/Public/StorefrontController`, the `storefront_dirty_at`/`RebuildStorefrontIfDirty` static-rebuild pipeline, storefront order fulfilment) was **excluded** from the whole-monorepo pass above and audited separately — see **`docs/STOREFRONT_REVIEW.md`** for the full writeup (1 P0, 3 P1, 6 P2, 6 P3 plus a feature-completeness review). **All 16 findings are now fixed** and have moved to `docs/FIXED_BUGS.md`, `SF-P1-2` (wiring the Paystack UI flow) last, closed the same day as this pass once the subaccount payment design (`docs/superpowers/specs/2026-09-26-storefront-paystack-subaccounts-design.md`) shipped. Two of the review's feature items shipped alongside the earlier remediation: per-store SEO metadata + a generated sitemap/robots.txt (#12), and `show_online` in the CSV/XLSX importer/exporter plus a bulk show/hide action (#7).
-- **Areas intentionally excluded:** `node_modules/`, build output (`client/out`, `web/out`, `laravel-server/vendor`, `laravel-server/public/build`), `.git/`, `.claude/worktrees/`, `.worktrees/`, `brag-output/`, generated/minified files, lockfiles (reviewed only where a specific CVE/version claim needed checking). Areas the project's own prior audits already covered exhaustively and re-verified as still accurate here without re-deriving from scratch: payment webhook signature/idempotency, `SyncController`'s role/field allow-list, `AuthHandoffController`'s handoff-code TTL, CORS allowlist, admin token storage, XSS/`dangerouslySetInnerHTML` surface, PIN login lockout, tab-lock writer-election architecture (see `docs/DATABASE_CONCURRENCY.md`, a standalone deep-dive already covering that subsystem in detail).
 
-This file holds **open** items only — fixed entries are removed outright, not marked done in place. See `docs/FIXED_BUGS.md` for the full changelog of everything already closed (dozens of prior review cycles: tenant isolation, payment idempotency, sync conflict resolution, float/rounding drift, PWA offline handling, cross-tab data loss, dependency CVEs, and more). See `docs/DATABASE_CONCURRENCY.md` for a dedicated deep-dive on the web/PWA build's single-writer-tab lock and sql.js persistence lifecycle — its findings are referenced, not repeated, here.
+- **Date of this pass:** 2026-09-28 (supersedes and extends the 2026-09-26 whole-monorepo pass and the 2026-09-27 payment-gateway pass, both of whose still-open findings are preserved below under their original IDs).
+- **Scope:** Whole monorepo — `client/` (Next.js 16 / React 19 offline-first Tauri POS app, sql.js in the browser, native SQLite via the vendored `@tauri-apps/plugin-sql` fork on desktop/Android), `laravel-server/` (Laravel 12 / PHP 8.2 API, MySQL on shared hosting), `web/` (static-export marketing site, store-owner stubs, platform admin panel, public storefront), CI/CD workflows (`.github/workflows/`), Android widget/native code under `client/src-tauri/gen/android/`.
+- **Methodology:** critical flows were traced end to end rather than pattern-searched, following `docs/BUG_REVIEW_PROMPT.md`'s checklist categories: POS sale → FEFO deduction → sync push → server apply → pull on a second device; stock adjustments and cycle counts; PO create/receive (standard and immediate); CSV/XLSX import; offline writes and reconnect; multi-tab writer election and promotion; multi-store scoping (client resolver and server `applyPullTenantScope`/`authorizeChangeTarget`); PIN login, permission groups, Sanctum token lifecycle; the licensing/clock-tamper guard; database init, migrations, backup/restore; PWA service worker; Tauri startup and updater; returns, loyalty, credit/debt; reports/BI queries over a synthetic mature dataset.
+- **Validation performed (read-only):** `npx tsc --noEmit -p client` — clean; `npx vitest run` in `client/` — 237 files / 1303 tests passing; `php artisan test` in `laravel-server/` — 469 tests / 1355 assertions passing; a synthetic-dataset query benchmark run against the app's own `SCHEMA_SQL` in sql.js (the exact engine the web/PWA build runs on) to measure the queries the app actually issues — see the Performance section for the numbers and the caveat that a desktop Node run is 5–20× faster than the low-end Android hardware this product targets.
+- **Excluded:** `node_modules/`, `.git/`, `.claude/worktrees/`, `.worktrees/`, `brag-output/`, `refs/`, `client/out/` (inspected only for export size), `client/playwright-report/`, `client/test-results/`, `laravel-server/vendor/`, `laravel-server/public/build/`, generated Tauri bindings under `src-tauri/gen/android/.../generated/`, lockfiles, the `dumosrx-release-key.jks`/keystore files (present in the working tree, flagged below), and `docs/superpowers/` plan/spec history. Areas covered exhaustively by previous passes and re-verified without re-derivation: payment webhook signature/idempotency, `SyncController` role/field allow-lists, handoff-code TTL, CORS allowlist, admin token storage, PIN lockout, and the writer-lock architecture documented in `docs/DATABASE_CONCURRENCY.md` (whose short-term recommendations were checked against current code — see §6).
+
+This file holds **open** items only. Fixed entries move to `docs/FIXED_BUGS.md` and are removed here outright, per `.agents/AGENTS.md` §2.
 
 ---
 
 ## Executive Summary
 
-**Overall health:** This is an unusually well-audited codebase for its size. Prior passes (documented in `docs/FIXED_BUGS.md`) already closed the "obvious" classes of bug: tenant isolation, payment idempotency, sync conflict resolution, cross-tab data loss, dependency CVEs, and a long tail of smaller issues — several backed by regression tests specifically designed to catch the codebase's own recurring failure shape ("a fix applied to one endpoint, not mirrored onto a structurally identical sibling," per `TenantScopingArchitectureTest`).
+**Overall health.** The codebase is unusually well-defended for its size: the sync engine's conflict model, the single-writer tab lock, tenant scoping on the server and the money math have all been through several review-and-fix cycles, and both test suites pass cleanly. The new findings in this pass are therefore not the "obvious" classes (cross-tenant leaks, double-charging, silent rollbacks) but the next layer down: **scale limits that were never exercised** (all three found so far have since been fixed — a local database with essentially no indexes, plus the pull engine's own un-resumable page cap and the server tenant-scope that loaded every sale id into PHP memory per request; see `docs/FIXED_BUGS.md`) and **attribution/consistency gaps** on the newest flows (the online-order fulfilment one, `A-4`, has since been fixed too).
 
-**This pass's findings, by severity:** 1 new **P1**, 3 **P2** (2 new, 1 pre-existing), 4 **P3** (3 new, 1 pre-existing). No P0s found — no evidence of cross-tenant data leakage, broken payment idempotency, or catastrophic data-loss paths beyond what prior passes already documented and fixed or explicitly accepted.
+**Findings this pass, by severity:** 0 **P0**, 0 **P1**, 0 **P2**, 1 **P3** — 1 open finding from this pass (`A-26`, logged post-review as a known limitation of the A-9 fix; IDs `A-1`…`A-26`, less the fixed `A-1`, `A-2`, `A-3`, `A-4`, `A-5`, `A-6`, `A-7`, `A-8`, `A-9`, `A-10`, `A-11`, `A-12`, `A-13`, `A-14`, `A-15`, `A-16`, `A-17`, `A-18`, `A-19`, `A-20`, `A-21`, `A-22`, `A-23`, `A-24` and `A-25`), plus 14 still-open items carried from the two earlier passes (`P2-1`, `P3-1`, `P3-2`, `P3-5`, `PG-1`…`PG-10`), all preserved verbatim below.
 
-**The separate storefront pass (`docs/STOREFRONT_REVIEW.md`) did find a P0 and three P1s**, in a surface this pass explicitly did not cover. All are now closed — see the storefront remediation note below.
+**Most important risks, in order:**
 
-**Remediation status (2026-09-26):** 6 of the 10 were **fixed the same day** and have moved to `docs/FIXED_BUGS.md` — P1-1 (queued mail with no confirmed worker), P2-2 (`resetData()` scoping), P2-3 + P3-4 (all-or-nothing PO receiving, fixed together as one change introducing partial receipts), P3-3 (`sw.js` catch-all cache guard), P3-6 (`getSuppliers()` store scoping).
+1. **PG-2 / PG-1 (carried)** — storefront online payments still have no webhook/reconciliation path and can settle via the wrong gateway. **This is the only open finding calling for work of its own size; the one other open item, `A-26`, is a P3 logged as an accepted limitation.** Every one of this pass's own 25 findings (`A-1`…`A-25`, the last logged and fixed during batch 9) is fixed and moved to `docs/FIXED_BUGS.md`, across nine remediation batches plus one follow-up commit on `dev` on 2026-09-28; the payment-gateway findings were explicitly deferred out of that series by the user and are unchanged. What remains open in this document is therefore: the deferred `PG-*` work, and the four carried findings that are deliberate non-actions (`P2-1` is ops-only; `P3-1`, `P3-2`, `P3-5` are accepted tradeoffs).
 
-**Storefront remediation status (2026-09-26):** all 16 of the storefront pass's findings are now fixed or explicitly accepted (`SF-P0-1`, `SF-P1-1`, `SF-P1-2`, `SF-P1-3`, `SF-P2-1`…`SF-P2-6`, `SF-P3-1`…`SF-P3-6`), all in `docs/FIXED_BUGS.md`. `SF-P1-2` (the Paystack UI flow) was deferred at first by explicit user direction, then closed the same day once the subaccount payment model — the business question that deferral was waiting on — was designed and built; see `docs/superpowers/specs/2026-09-26-storefront-paystack-subaccounts-design.md`.
-
-**4 findings remain open below, all intentionally deferred by explicit user direction, not forgotten:**
-
-| Still open | Why it's deferred |
-|---|---|
-| **P2-1** — `FLUTTERWAVE_SECRET_HASH` production `.env` | Pure ops action, zero code change; nothing in the repo to fix. |
-| **P3-1** — auth token in `localStorage` | Accepted tradeoff; a real fix is a dual-path auth design (the native widget needs a token the webview's HttpOnly cookie can't give it), i.e. its own design project. |
-| **P3-2** — chunk-load-after-deploy race | Accepted tradeoff; fully closing it needs deploy-asset retention. Existing mitigations (`controllerchange` reload, one-time `ChunkLoadError` auto-reload) already cover the common case. |
-| **P3-5** — manifest `theme_color` under dark mode | No action recommended; the Web App Manifest spec has no conditional-syntax equivalent. |
-
-**Most important remaining risk:** P2-1, purely because it's an unverifiable-from-the-repo production `.env` state that fails closed (every Flutterwave webhook 500s, Paystack unaffected, so it surfaces only as isolated "customer paid, subscription never activated" tickets).
-
-**Major performance/architecture concerns:** none newly found beyond what `docs/DATABASE_CONCURRENCY.md` already covers in depth (the web/PWA build's whole-blob `db.export()`-per-write persistence model, and the writer-lock's lack of a steal/handoff mechanism). Client-side React Query cache-key hygiene, POS double-submit protection, FEFO stock-deduction correctness, and CSV/XLSX import edge cases were all found to be in solid, already-hardened shape (see "Areas That Appeared Healthy").
+**The major performance concern** that remains is the whole-blob `db.export()` persistence model already analysed in `docs/DATABASE_CONCURRENCY.md`; the rest of §5's list (boot-time scans, the license-guard sync gate on launch, the 5-second sync-queue poll) is fixed.
 
 ---
 
-## Findings
+## 1. Critical findings (P0)
 
-### P0 — Critical
-
-None open. (The storefront pass's `SF-P0-1` — a transient `/storefront-slugs` failure deleting every live storefront — was fixed 2026-09-26; see `docs/FIXED_BUGS.md`.)
+None found this pass. No cross-tenant read/write path, payment double-charge, or unguarded data-destroying path was identified beyond what previous passes closed. (The storefront pass's `SF-P0-1` remains fixed.)
 
 ---
 
-### P1 — High
+## 2. High-priority findings (P1)
 
-None open from the whole-monorepo pass. (P1-1 — two mail paths depending on an unconfirmed queue worker — was fixed 2026-09-26; see `docs/FIXED_BUGS.md`.)
-
-None open from the storefront pass either. All three of its P1s (`SF-P1-1`, `SF-P1-2`, `SF-P1-3`) were fixed 2026-09-26 — see `docs/FIXED_BUGS.md`.
+None open. `A-1` (the pull page cap that made a >100,000-row table un-syncable) and `A-3` (the server's materialised id lists and offset paging behind it) were fixed together — see `docs/FIXED_BUGS.md` and `docs/SYNC_PULL_PAGINATION.md`.
 
 ---
 
-### P2 — Medium
+## 3. Medium-priority findings (P2)
+
+None open. `A-9` (receiving the same purchase order from two devices booked the delivery twice) is fixed — see `docs/FIXED_BUGS.md`.
+
+---
+
+## 4. Low-priority findings (P3)
+
+`A-25` (`npm run test:schema` was broken) is fixed — see `docs/FIXED_BUGS.md`. Its "add to CI" half is intentionally not done; see that entry's Ruling. One finding is open:
+
+#### A-26. `client/` — a stale device's legitimate second partial receipt collapses into the first one, and nothing tells the store the remainder was never booked
+- **Category:** Data accuracy / Sync — confirmed, accepted trade-off of the A-9 fix
+- **Location:** `client/lib/db/deterministic-id.ts` (`receiptBatchId`/`receiptMovementId`), `client/lib/db/procurement-receiving.ts` (`receivePurchaseOrder`), server-side `SyncController::push()`'s INSERT→UPDATE collapse
+- **Problem:** A receipt's stock batch and stock movement are keyed on the PO line plus the balance already received against it, which is what makes a genuine double-submit from two devices collapse harmlessly into one booking. A device that has **not** pulled since another device received against the same line still computes a start balance of 0, so its receipt derives the *same* ids as the first one — even when it is a legitimate, different second partial receipt (device A receives 60, device B, offline-stale, receives 40). The server turns B's INSERTs into UPDATEs of A's rows: an `UPDATE` on `stock_batches` drops `quantity` outright and an `UPDATE` on `stock_movements` contributes no delta, so B's 40 units are never booked. B's own `quantity_received` UPDATE separately loses the version check and is dropped as `version_conflict`.
+- **Why it matters:** Stock and the PO stay *consistent with each other* (which is the point — the pre-fix behaviour was a phantom doubling), but 40 units of real delivered goods exist on the shelf and not in the system, and **nobody is told**. The dropped push is a conflict the sync layer handles silently; the receiving UI shows the line as having 60 of 100 received, which looks like a normal outstanding balance rather than a lost receipt. The store discovers it at the next cycle count, if at all.
+- **Evidence:** This is explicitly the accepted cost recorded in `docs/FIXED_BUGS.md` → A-9 → *"Ruling — the key is the PO line plus its already-received balance, not a separate receipt counter"* ("Losing an un-synced second receipt is strictly better than booking a phantom one"). Logged here so the silence, as distinct from the collapse, is not rediscovered from scratch. `client/__tests__/po-receive-no-double-booking.test.ts` pins the collapse behaviour itself as intended.
+- **Recommended fix:** Don't change the keying — surface the loss. Carry the dropped `version_conflict` receipt through to the sync-health surface (the sync indicator / a per-PO badge on the receiving screen) so the store is told "a receipt against PO-XXXXXXXX was not applied — re-check the received quantity", which turns a silent shortfall into a one-click re-receive of the remainder. A stricter alternative — pulling the PO line before staging a receipt and refusing to stage against a balance the device knows is stale — would prevent it outright but breaks the offline-first premise of the receiving screen.
+- **Confidence:** High on mechanics (both halves are pinned by existing tests and by the A-9 ruling); the frequency depends on how often two devices receive the same PO while one is offline, which is low but not zero for a multi-till store.
+- **Status:** Open, logged not fixed — recorded as a known limitation of the A-9 fix, not a regression in it.
+
+---
+
+### Still-open findings carried from the 2026-09-26 pass (unchanged)
 
 #### P2-1. `laravel-server/` — `FLUTTERWAVE_SECRET_HASH` must be set in production before this deploys, or every Flutterwave webhook 500s
 - **Category:** Reliability / Payments — confirmed (code fails closed as designed; production `.env` state itself can't be verified from the repo)
 - **Location:** `app/Http/Controllers/Api/Web/PaymentController.php` (Flutterwave webhook handler), `config/payment.php`, `.env.example`
-- **Problem:** The Flutterwave webhook is authenticated against `flutterwave.secret_hash`, read from `FLUTTERWAVE_SECRET_HASH`. The variable is documented in `laravel-server/.env.example:122` but whether it is actually set in production `.env` cannot be verified from the repo. The handler deliberately fails closed (500, webhook rejected) if the value is empty.
-- **Why it matters:** Every Flutterwave subscription payment silently stops activating the moment this deploys, until someone copies the Secret Hash from the Flutterwave dashboard into production `.env`. Paystack continues working fine, so this would only surface as isolated "customer paid via Flutterwave, subscription never activated" support tickets — easy to miss.
-- **Reproduction/Failure scenario:** A customer completes a Flutterwave payment; the webhook fires against a production `.env` still missing `FLUTTERWAVE_SECRET_HASH`; the handler 500s and the subscription is never activated, with no visible error to the customer or admin until they report it.
+- **Problem:** The Flutterwave webhook is authenticated against `flutterwave.secret_hash`, read from `FLUTTERWAVE_SECRET_HASH`. The variable is documented in `laravel-server/.env.example` but whether it is actually set in production `.env` cannot be verified from the repo. The handler deliberately fails closed (500, webhook rejected) if the value is empty.
+- **Why it matters:** Every Flutterwave subscription payment silently stops activating the moment this deploys, until someone copies the Secret Hash from the Flutterwave dashboard into production `.env`. Paystack continues working fine, so this would only surface as isolated "customer paid via Flutterwave, subscription never activated" support tickets.
 - **Recommended fix:** Confirm `FLUTTERWAVE_SECRET_HASH` is set in the production `.env` (pure ops action, zero code change). Remove this entry once confirmed.
-- **Confidence:** High (code path verified; production env state is the only unverifiable part, by design of the audit).
-- **Status:** Open, intentionally skipped 2026-09-26 per user direction — ops-only, no code to change.
-
----
-
-### P3 — Low
+- **Confidence:** High. **Status:** Open, intentionally skipped 2026-09-26 per user direction — ops-only.
 
 #### P3-1. `client/` — auth bearer token kept in `localStorage` instead of an HttpOnly cookie
 - **Category:** Security — confirmed, deliberately accepted
-- **Location:** `client/lib/api/token-manager.ts:7-25`
-- **Problem:** `auth_token` (the Sanctum bearer token) is read/written via `localStorage`, not an HttpOnly cookie. Any XSS in the client app could read `localStorage.auth_token` and exfiltrate a long-lived session token, versus an HttpOnly cookie which JS can't read at all.
-- **Why not fixed already:** `setToken`/`clearToken` call `mirrorAuthToken`/`clearMirroredAuthToken` (`client/lib/native/widget-bridge.ts`), handing the raw token to native Tauri (Rust) code so the home-screen widget can make its own authenticated background HTTP requests entirely outside the webview. An HttpOnly cookie can't be mirrored to native code, so swapping to one would break the widget's live data rather than just change a storage mechanism. A real fix needs a dual-path auth design (webview uses a cookie for its own requests; native widget code gets a separate, narrowly-scoped token via its own exchange) — a genuine architecture change, not a quick fix.
-- **Recommended fix:** Scope as its own design project — `client/` auth/storage architecture work, not a quick patch.
-- **Confidence:** High.
+- **Location:** `client/lib/api/token-manager.ts:17-50`
+- **Problem:** `auth_token` (the Sanctum bearer token) is read/written via `localStorage`. Any XSS in the client app could read it and exfiltrate a long-lived session token (Sanctum expiry is 30 days, `config/sanctum.php:49`; the client rotates after 7 days).
+- **Why not fixed already:** `setToken`/`clearToken` mirror the token to native Tauri code (`lib/native/widget-bridge.ts` → Android `TokenStore`, which does use `EncryptedSharedPreferences`) so the home-screen widget can make its own authenticated requests. A real fix needs a dual-path auth design. The compensating control on the desktop/Android side is now in place: A-13's Tauri CSP shipped on 2026-09-28 (`script-src 'self' 'wasm-unsafe-eval'`, no remote or inline script, `object-src`/`frame-src 'none'` — see `docs/FIXED_BUGS.md` and `client/AGENTS.md`), so a script injection in the bundled webview can no longer load remote code to read and exfiltrate the token. It does **not** close this finding: the CSP does not cover the web/PWA build at `app.dumosrx.com`, and even in the bundled app an injected script that satisfies the policy still has same-origin `localStorage` access.
 - **Status:** Open, intentionally skipped 2026-09-26 per user direction — accepted tradeoff, needs a real design project.
 
 #### P3-2. `client/` — a long-open tab can 404 on a lazy chunk after a deploy that edits `sw.js`
 - **Category:** Reliability — confirmed, accepted tradeoff
-- **Location:** `client/public/sw.js` (`activate()`'s cache prune)
-- **Problem:** `activate()` prunes cache entries not in the current build's manifest, to stop unbounded cache growth across deploys. This only runs when `sw.js`'s own bytes change, but when it does, an already-open tab still running the *old* build's JS can lazy-load a chunk that both the cache prune and the new deploy's server files have already removed — a chunk-load error, while fully online, until reload. `pwa-registrar.tsx`'s `controllerchange` reload mitigates the common case, but a chunk requested in the brief window between prune and reload could still race it. (`client/lib/utils/chunk-error.ts`'s one-time auto-reload-on-`ChunkLoadError` mechanism, documented in `client/AGENTS.md`, further narrows the user-visible impact of this window but doesn't close it.)
-- **Recommended fix:** No action needed beyond what's already in place unless this becomes a reported user complaint; would require deploy-asset retention to fully close.
-- **Confidence:** High.
-- **Status:** Open, intentionally skipped 2026-09-26 per user direction — accepted tradeoff.
+- **Location:** `client/public/sw.js` (`activate()`'s cache prune), `client/components/pwa-registrar.tsx`
+- **Problem:** `activate()` prunes cache entries not in the current build's manifest. An already-open tab still running the old build's JS can lazy-load a chunk that both the prune and the new deploy have removed. `pwa-registrar.tsx`'s `controllerchange` reload and `lib/utils/chunk-error.ts`'s one-time auto-reload narrow the window but do not close it.
+- **Status:** Open, intentionally skipped 2026-09-26 per user direction — accepted tradeoff; needs deploy-asset retention to close fully.
 
 #### P3-5. `client/` — manifest `theme_color` doesn't follow dark mode
 - **Category:** UX
-- **Location:** `client/public/manifest.json:8`, `client/app/layout.tsx:66-68`
-- **Problem:** `manifest.json` hardcodes `theme_color`/`background_color` to `#ffffff`; `layout.tsx`'s `viewport.themeColor` correctly switches to black under `prefers-color-scheme: dark`. On Android, the manifest's value drives the install splash screen, so a dark-mode user briefly sees a white splash before the dark app renders.
-- **Recommended fix:** The Web App Manifest spec has no conditional-syntax equivalent for this; left as the light-mode default since it also matches the manifest's own `background_color`. No action recommended unless the spec gains conditional support.
-- **Confidence:** High.
-- **Status:** Open, intentionally skipped 2026-09-26 per user direction — spec limitation, no action recommended.
+- **Location:** `client/public/manifest.json`, `client/app/layout.tsx`
+- **Problem:** `manifest.json` hardcodes `theme_color`/`background_color` to white; on Android the install splash is white for dark-mode users.
+- **Status:** Open, intentionally skipped 2026-09-26 per user direction — Web App Manifest spec limitation, no action recommended.
 
----
-
-### Storefront pass — remaining open findings (index only)
-
-None. Every finding the storefront pass raised (`SF-P0-1`, `SF-P1-1`, `SF-P1-2`, `SF-P1-3`, `SF-P2-1`…`SF-P2-6`, `SF-P3-1`…`SF-P3-6`) is now fixed or explicitly accepted — see `docs/FIXED_BUGS.md` for each, and `docs/STOREFRONT_REVIEW.md` for the original writeups with what remains scoped out of each fix. `SF-P1-2` (the Paystack UI flow) was the last to close, once the subaccount payment model (`docs/superpowers/specs/2026-09-26-storefront-paystack-subaccounts-design.md`) answered the business question its earlier deferral was waiting on.
-
-One item from that spec's design is a deliberate, accepted-not-fixed cost rather than an open finding: a refund on an already-settled split transaction draws from DumosRx's own Paystack balance, not clawed back from the store, per that design's "Refunds" section — revisit only if refund volume makes automating a claw-back worth it.
-
-A confirmation page / order number for the storefront customer (feature #2 in `docs/STOREFRONT_REVIEW.md`) remains unbuilt — not a bug, but the first thing a real paying customer will ask for, and still worth its own pass.
-
----
-
-### Payment gateway pass (2026-09-27, separate)
-
-A dedicated audit of the Paystack/Flutterwave integration (subscriptions + storefront checkout + payout/subaccount routing). Logged here for tracking; **not yet fixed**.
+### Still-open findings carried from the 2026-09-27 payment-gateway pass (unchanged, not yet fixed)
 
 #### PG-1. `laravel-server/` — storefront checkout silently falls back to Flutterwave, which drops the store's payout subaccount, forces NGN, and can never be verified or refunded
 - **Category:** Payments / Money-losing — confirmed
-- **Location:** `app/Services/Payment/PaymentService.php:45-58` (silent fallback), `:93-129` (`initializeFlutterwave` takes no `$subaccount`/`$currency`, hardcodes `'currency' => 'NGN'`); `app/Http/Controllers/Api/Public/StorefrontController.php:414-446` (initialize), `:628` (`verifyTransaction($ref, 'paystack')` — provider hardcoded regardless of which gateway actually processed the charge), `:113`/`:118` (refund path, same hardcoding)
-- **Problem:** `initializeTransaction()` is shared between subscriptions and storefront checkout. Both gateways default enabled (`PaymentService.php:28-29`; `SystemConfigSeeder.php:18` only seeds the Paystack flag). Any non-2xx from Paystack's initialize call throws and silently retries on Flutterwave. For a storefront cart this (1) drops `$subaccount`, so the charge settles to the platform's account instead of the store's, (2) forces NGN even though the `StorefrontPaymentIntent` is priced in the store's own currency (e.g. GHS/KES), and (3) writes `provider = 'flutterwave'` on the intent, but `checkout()`'s verify call and the refund path both hardcode the string `'paystack'`, so a Flutterwave-settled intent can never be confirmed or refunded.
-- **Failure scenario:** A transient Paystack 5xx (or an admin toggling `enable_paystack` off) during storefront checkout → customer pays in full via Flutterwave → sees "Could not confirm your payment" (422, since verify checks the wrong provider) → gets no goods and no refund, while the money sits in the platform's Flutterwave balance rather than the store's.
-- **Recommended fix:** Pin the storefront call site to Paystack only (no silent fallback), and make `checkout()`/refund read `$intent->provider` instead of hardcoding it.
-- **Confidence:** High (code path traced end to end).
-- **Status:** Open, logged 2026-09-27.
+- **Location:** `app/Services/Payment/PaymentService.php:45-58` (silent fallback), `:93-129` (`initializeFlutterwave` takes no `$subaccount`/`$currency`, hardcodes `'currency' => 'NGN'`); `app/Http/Controllers/Api/Public/StorefrontController.php:414-446` (initialize), `:628` (`verifyTransaction($ref, 'paystack')` — provider hardcoded), `:113`/`:118` (refund path, same hardcoding)
+- **Problem:** `initializeTransaction()` is shared between subscriptions and storefront checkout. Both gateways default enabled. Any non-2xx from Paystack's initialize call throws and silently retries on Flutterwave, which (1) drops `$subaccount`, (2) forces NGN, (3) writes `provider = 'flutterwave'` on the intent while `checkout()`'s verify and the refund path hardcode `'paystack'`.
+- **Failure scenario:** A transient Paystack 5xx during storefront checkout → customer pays in full via Flutterwave → "Could not confirm your payment" → no goods, no refund, money in the platform's Flutterwave balance.
+- **Recommended fix:** Pin the storefront call site to Paystack only (no silent fallback), and make `checkout()`/refund read `$intent->provider`.
+- **Confidence:** High. **Status:** Open, logged 2026-09-27.
 
 #### PG-2. `laravel-server`/`web` — storefront payments have no webhook handler and no reconciliation sweep; confirmation depends entirely on the customer's browser session surviving the redirect
 - **Category:** Payments / Money-losing — confirmed
-- **Location:** `web/components/storefront/checkout-form.tsx:87-126` (confirm only fires if `sessionStorage['dumos_pending_checkout_<slug>']` survived the redirect, else an "orphaned reference, contact the store" screen at `:189-211`); `app/Http/Controllers/Api/Web/PaymentController.php:95-101` (`processSuccessfulPayment` only ever looks up `PaymentTransaction`, never `StorefrontPaymentIntent`); no command under `app/Console/Commands/` sweeps stale/expired storefront intents.
-- **Problem:** A genuine Paystack `charge.success` webhook for a storefront payment is silently discarded, because the webhook handler only knows about subscription `PaymentTransaction` rows. The *only* confirmation path is the customer's own browser returning to the storefront with matching `sessionStorage` state.
-- **Failure scenario (no attacker needed):** customer pays, then returns in a new tab, on a different device, via a bank app's in-app browser, after clearing site data, or just closes the tab. The `StorefrontPaymentIntent` stays `pending` forever — no order is ever created, no refund is issued, and the store has settled money with zero record of it. This is the single most likely real-world money-loss path in the integration.
-- **Recommended fix:** Add a storefront branch to the Paystack webhook handler (mirroring the existing intent-confirm logic in `checkout()`), plus a scheduled sweep command for stale `pending` intents (auto-refund or auto-flag after N hours).
-- **Confidence:** High.
-- **Status:** Open, logged 2026-09-27.
+- **Location:** `web/components/storefront/checkout-form.tsx:87-126, 189-211`; `app/Http/Controllers/Api/Web/PaymentController.php:95-101` (`processSuccessfulPayment` never looks up `StorefrontPaymentIntent`); no sweep command under `app/Console/Commands/`.
+- **Problem:** A genuine Paystack `charge.success` webhook for a storefront payment is discarded; the only confirmation path is the customer's own browser returning with matching `sessionStorage`.
+- **Failure scenario:** Customer pays, then returns in a new tab / another device / after clearing site data, or just closes the tab. The intent stays `pending` forever — no order, no refund, settled money with zero record.
+- **Recommended fix:** Add a storefront branch to the Paystack webhook handler plus a scheduled sweep for stale `pending` intents.
+- **Confidence:** High. **Status:** Open, logged 2026-09-27.
 
 #### PG-3. `laravel-server/` — an under-paying or wrong-currency subscription webhook keeps the money with no refund and no operator alert
-- **Category:** Payments — confirmed
 - **Location:** `app/Http/Controllers/Api/Web/PaymentController.php:128-163`; same shape in `app/Http/Controllers/Api/Web/SubscriptionController.php:525-537`
-- **Problem:** The amount/currency mismatch check itself is correct, but on mismatch the only outcome is `Log::warning` + `status = 'failed'` with a `suspicious_webhook` metadata blob. No refund is attempted and `AdminAlertService` (used for successful-payment alerts) is never invoked for this case.
-- **Failure scenario:** A customer pays a partial/wrong-currency amount (or a wrong amount is probed against a valid reference). The platform keeps the funds already taken by the provider, the customer gets nothing activated, and nobody is alerted — it surfaces only if someone greps logs.
-- **Recommended fix:** On mismatch, either attempt an automatic refund or fire an admin alert (or both) instead of a silent log line.
-- **Confidence:** High.
-- **Status:** Open, logged 2026-09-27.
+- **Problem:** On amount/currency mismatch the only outcome is `Log::warning` + `status = 'failed'`; no refund, no `AdminAlertService` call.
+- **Recommended fix:** Attempt an automatic refund and/or fire an admin alert on mismatch.
+- **Confidence:** High. **Status:** Open, logged 2026-09-27.
 
 #### PG-4. `web/` — storefront checkout always displays ₦ regardless of the store's actual currency
-- **Category:** Correctness / customer-facing — confirmed
-- **Location:** `web/components/storefront/checkout-form.tsx:327,350,355`; `app/Http/Controllers/Api/Public/StorefrontController.php:270-282` (`show()`'s store payload omits `currency`, though `Store::$currency` exists), vs. `:69-72`/`:442` where the charge/intent are correctly minted in `$store->currency`.
-- **Problem:** The checkout price is hardcoded with the naira symbol, but a Ghana/Kenya store's customer is actually charged in GHS/KES on the Paystack page — the displayed price and the charged price disagree.
-- **Recommended fix:** Add `currency` to the `show()` payload and format the displayed price from it.
-- **Confidence:** High.
-- **Status:** Open, logged 2026-09-27.
+- **Location:** `web/components/storefront/checkout-form.tsx:327,350,355`; `app/Http/Controllers/Api/Public/StorefrontController.php:270-282` (`show()` omits `currency`).
+- **Recommended fix:** Add `currency` to the `show()` payload and format from it.
+- **Confidence:** High. **Status:** Open, logged 2026-09-27.
 
 #### PG-5. `laravel-server/` — bank-account resolve endpoint is an unbounded name-lookup oracle
-- **Category:** Privacy / abuse surface — confirmed
 - **Location:** `app/Http/Controllers/Api/Web/StorePaymentAccountController.php:70-86`; route `routes/api.php:148` (`throttle:60,1`)
-- **Problem:** Ownership is checked on the *store*, but `account_number`/`bank_code` are free-form and unrelated to the caller — any authenticated store owner can resolve arbitrary account numbers to full holder names, 60/min, using the platform's Paystack credentials.
-- **Recommended fix:** Tighter per-user rate limit and/or an attempt counter; this is a known name-harvesting primitive class.
-- **Confidence:** Medium-High.
-- **Status:** Open, logged 2026-09-27.
+- **Problem:** Ownership is checked on the store, but `account_number`/`bank_code` are free-form — any authenticated owner can resolve arbitrary account numbers to holder names at 60/min using the platform's Paystack credentials.
+- **Recommended fix:** Tighter per-user limit and/or attempt counter.
+- **Confidence:** Medium-High. **Status:** Open, logged 2026-09-27.
 
 #### PG-6. `laravel-server/` — `checkout()` accepts and permanently burns a `paystack_reference` on a non-Paystack order
-- **Category:** Edge case — confirmed, low practical exploitability
-- **Location:** `app/Http/Controllers/Api/Public/StorefrontController.php:517` (field is `nullable` rather than rejected for non-Paystack methods), `:554-577` (already-used check runs regardless of method), `:688` (written to the unique `paystack_reference` column)
-- **Problem:** An anonymous caller can attach a reference to a free `transfer`/`in_store` order, consuming it forever; the genuine confirm for that reference then 422s as "already used" with no refund path, since the intent it belongs to is untouched.
+- **Location:** `app/Http/Controllers/Api/Public/StorefrontController.php:517, 554-577, 688`
 - **Recommended fix:** Reject `paystack_reference` unless `payment_method === 'paystack'`.
-- **Confidence:** Medium (references are provider-generated and only visible to the payer, so hard to weaponize in practice).
-- **Status:** Open, logged 2026-09-27.
+- **Confidence:** Medium. **Status:** Open, logged 2026-09-27.
 
 #### PG-7. `laravel-server/` — a Paystack subaccount can be created and then orphaned from its store row
-- **Category:** Reliability — confirmed
 - **Location:** `app/Http/Controllers/Api/Web/StorePaymentAccountController.php:150-168`
-- **Problem:** `createSubaccount()` hits Paystack first, then persists the returned code to the store row. If that DB write fails, a live Paystack subaccount exists with no store pointing at it, and the `:118` idempotency guard (keyed on the local column) won't prevent a retry from creating a second, duplicate subaccount. No money moves incorrectly (the newest code always wins), but it leaves untracked payout destinations on the platform's Paystack account.
-- **Recommended fix:** Wrap the Paystack call + DB persist in a pattern that can detect/clean up an orphaned remote subaccount, or make the idempotency check query Paystack directly rather than only the local column.
-- **Confidence:** Medium.
-- **Status:** Open, logged 2026-09-27.
+- **Recommended fix:** Detect/clean up an orphaned remote subaccount, or make the idempotency check query Paystack.
+- **Confidence:** Medium. **Status:** Open, logged 2026-09-27.
 
 #### PG-8. `laravel-server/` — payment webhook routes have no rate limit
-- **Category:** Reliability / abuse surface — confirmed
-- **Location:** `routes/api.php:106-107` (`/webhooks/paystack`, `/webhooks/flutterwave`)
-- **Problem:** Neither webhook route sits behind a `throttle:*` group (Laravel 11 applies no default floor). Not a bypass — HMAC verification is fail-closed and constant-time — but each hit still does an HMAC over an arbitrary-size body plus a DB lookup, so an anonymous caller can spend unbounded server work.
-- **Recommended fix:** Add a generous named rate limit (these are legitimate high-volume endpoints, so the ceiling should be high, not tight).
-- **Confidence:** High.
-- **Status:** Open, logged 2026-09-27.
+- **Location:** `routes/api.php:106-107`
+- **Recommended fix:** A generous named rate limit.
+- **Confidence:** High. **Status:** Open, logged 2026-09-27.
 
 #### PG-9. `laravel-server/` — only `charge.success`/`status: successful` webhook events are handled
-- **Category:** Reliability — confirmed
 - **Location:** `app/Http/Controllers/Api/Web/PaymentController.php:48,88`
-- **Problem:** `refund.processed`, `charge.dispute*`, and Flutterwave's failure events are all ignored. A subscription refunded or charged back at the provider stays `active` indefinitely with no signal to the platform.
-- **Recommended fix:** Handle at minimum `refund.processed`/dispute events to flip the subscription/order state, or log+alert so it's caught manually.
-- **Confidence:** Medium.
-- **Status:** Open, logged 2026-09-27.
+- **Recommended fix:** Handle `refund.processed`/dispute events, or log+alert.
+- **Confidence:** Medium. **Status:** Open, logged 2026-09-27.
 
 #### PG-10. `laravel-server/` — full bank account numbers stored in plaintext on the merchant-owned `payment_accounts` table
-- **Category:** Data handling — confirmed, likely intentional
-- **Location:** `app/Models/PaymentAccount.php:26`; also synced to client SQLite, `client/lib/db/schema.ts:610`; table is in `SyncController.php:669`'s syncable list
-- **Problem:** Unlike the Paystack payout path (which correctly stores only `paystack_account_number_last4`), this table stores the merchant's own deposit account numbers in full, both server-side and on every synced client device. This is the store's own transfer-instructions account, not cardholder data, so it reads as an intentional design choice rather than a defect — flagged for completeness/confirmation only.
-- **Recommended fix:** None unless product direction changes; confirm with the user whether this is intended.
-- **Confidence:** Medium (intent unconfirmed).
-- **Status:** Open, logged 2026-09-27 — needs a product decision, not necessarily a code fix.
+- **Location:** `app/Models/PaymentAccount.php:26`; also synced to client SQLite, `client/lib/db/schema.ts:611-627`
+- **Problem:** The store's own transfer-instructions account is stored in full server-side and on every synced device. Reads as an intentional product choice; flagged for confirmation only.
+- **Confidence:** Medium. **Status:** Open — needs a product decision.
 
-**Suggested order:** PG-2 first (closes the largest real-world money-loss surface and would also catch PG-1's symptom), then PG-1, then PG-3/PG-4 as cheap follow-ups, then PG-5 through PG-9 as hardening, with PG-10 needing a product answer rather than code.
+**Storefront pass index:** every `SF-*` finding is fixed or explicitly accepted (see `docs/FIXED_BUGS.md`, `docs/STOREFRONT_REVIEW.md`). `SF-P3-5` (slug enumeration) is accepted. A confirmation page / order number for the storefront customer remains unbuilt (feature, not a bug).
 
 ---
 
-## Security Findings (index)
+## 5. Performance and low-end-device risks
 
-| Finding | Severity | Status |
-|---|---|---|
-| PG-2 — storefront payments have no webhook/reconciliation, confirmation depends on client session | High | Open (2026-09-27) |
-| PG-1 — storefront checkout can silently settle via Flutterwave with no payout routing and no way to verify/refund | High | Open (2026-09-27) |
-| P2-1 — `FLUTTERWAVE_SECRET_HASH` production `.env` status unverified | Medium | Open (needs prod confirmation) |
-| PG-3 — mismatched-amount webhook keeps funds with no refund/alert | Medium | Open (2026-09-27) |
-| PG-4 — storefront always displays ₦ regardless of store currency | Medium | Open (2026-09-27) |
-| PG-5 — bank-account resolve endpoint is an unbounded name-lookup oracle | Low-Medium | Open (2026-09-27) |
-| P3-1 — auth token in `localStorage`, not HttpOnly cookie | Low | Open (accepted tradeoff) |
-| PG-6 — non-Paystack order can burn a `paystack_reference` | Low | Open (2026-09-27) |
-| PG-7 — orphaned Paystack subaccount on DB-write failure | Low | Open (2026-09-27) |
-| PG-8 — payment webhook routes have no rate limit | Low | Open (2026-09-27) |
-| PG-9 — only success webhook events handled, refund/dispute events ignored | Low | Open (2026-09-27) |
-| PG-10 — full bank account numbers stored in plaintext on `payment_accounts` | Low | Open (2026-09-27, likely intentional — needs product confirmation) |
-| SF-P3-5 — `/storefront-slugs` enumerates every customer with an online store | Low | Accepted 2026-09-26 (product call, not a defect; a build token would make a rotated secret break every `web/` deploy — see `docs/FIXED_BUGS.md`) |
+### Measured: local SQLite query cost on a one-year-old store (sql.js, desktop Node)
 
-(`SF-P1-3` — no rate limit on the public storefront reads or on order placement — and `SF-P2-1` — storefront products/stock scoped by owner rather than store — were both fixed 2026-09-26; see `docs/FIXED_BUGS.md`.)
+Synthetic dataset built from the app's own `SCHEMA_SQL` plus the migration-added `store_id`/`cashier_id` columns: 5,000 products, 8,000 batches, 2,000 customers, 50,000 sales, ~125,000 sale items and ~125,000 stock movements, 3,000 returns, 200,000 audit rows, 15,000 queued sync rows. Each row is the SQL the app actually issues. **These are desktop numbers; the same WASM engine on an entry-level Android phone is typically 5–20× slower, and on the web build every one of these blocks the main thread.**
 
-Areas specifically audited and found **clean** (this pass and prior passes, re-verified where re-checked): webhook signature verification (constant-time, fail-closed) and idempotent lock-guarded payment activation; `SyncController::sanitizeUserSyncPayload`'s role/field allow-list; `AuthHandoffController`'s single-use/60s-TTL/high-entropy handoff codes; CORS allowlist (no wildcard, explicit origins); admin access-token storage (memory-only, never in `localStorage`); XSS surface (no `dangerouslySetInnerHTML` on user-controlled content — the two call sites found, `client/components/ui/chart.tsx:97` and `web/components/smartsupp-widget.tsx:85`, both render static/config-driven CSS, not user input); rate limiting on auth/session-refresh/handoff endpoints (`routes/api.php`'s `throttle:*` middleware groups — **note:** the storefront was the exception, with only the `/checkout/initialize` step throttled; the public reads and order placement got their own named limiters on 2026-09-26, see SF-P1-3 in `docs/FIXED_BUGS.md`); path traversal in `.github/downloads-index.php`; secrets in `.env.example` files and git history; PIN login lockout; every controller under `Api/*`, `Api/App/*`, `Api/Web/*`, `Api/Admin/*`, `Api/Public/*` that touches a tenant-owned model, per `TenantScopingArchitectureTest`'s source-scanning guard (re-verified: `admin`/`web`-side controllers not on the allow-list — `StaffController`, `StoreController`, `BackupController`, `PaymentController`, `SubscriptionController`, `SessionController`, `FeedbackController`, `NotificationController`, `BroadcastController` — either use `ScopesToTenant` or don't reference the `TENANT_OWNED_MODELS` list at all).
+**This pass shipped without its benchmark table** — the section was left holding a literal `BENCHMARK_TABLE_PLACEHOLDER` and the numbers were never substituted in. The indexing work (A-6) re-measured the queries it touched and those numbers are in `docs/LOCAL_DB_INDEXES.md`. The two queries A-8 covered (the per-pull `stores` prune, the boot-time orphan scan across all 26 tables) were never re-measured either; both are now skipped in their steady state rather than optimised (see `docs/FIXED_BUGS.md`), so the remaining value in benchmarking them is confirming the skip on a real low-end device.
+
+### Other performance risks (not individually benchmarked)
+
+- **First install download (PWA):** `precache-manifest.json` lists every file in the export — 399 URLs, ~15 MB including both 650 KB sql.js WASM binaries and every route's HTML + RSC payload — on first install (`client/AGENTS.md` already lists this as an open thread). On a metered connection this is the single largest network cost the app incurs.
+- **Whole-catalog in-memory search:** `getProductsWithDetails()` returns the entire catalog with six correlated subqueries per row (fast now that `stock_batches(product_id)` and the rest of the read-path indexes exist — see `docs/LOCAL_DB_INDEXES.md`), and `product-database.tsx` fuzzy-searches it in memory (now debounced). Acceptable to ~10k products; beyond that the transform+filter+sort chain on every filter change is O(catalog) on the main thread.
+- **The per-request `validateSync()` chain** (`SubscriptionService`, `SystemConfig::getVal`, `PermissionGroupSeeder::ensureSeeded`, `enforceStaffLimits`) adds ~10 queries to every push and pull request before any data is touched.
+- **`getStockMovements()` with no window** loads the whole `stock_movements` table (by design, only when searching/filtering) — at ~125k rows this is a large result set held in React state regardless of indexing, since no predicate narrows it.
+- **`db.export()` per write** (`docs/DATABASE_CONCURRENCY.md` §2.4) — every `execute()` outside a transaction still re-serialises the whole database and writes it to IndexedDB on the web build, and that remains the dominant long-term scaling problem for the PWA. Two of its inputs are now bounded rather than unbounded: A-20 caps `audit_logs` at a 730-day local window (it was the largest single contributor to blob growth), and A-22 makes a burst of saves cost one write of the newest image instead of N writes of N images. The per-write export itself is unchanged and would need a different persistence model (incremental/OPFS) to fix properly.
 
 ---
 
-## Performance & Low-End Device Risks
+## 6. Offline / sync / database risks
 
-No new N+1 query patterns, unbounded pagination, or missing-index issues were confirmed this pass in the areas re-reviewed (`SaleController`, `SyncController` push/pull, dashboard aggregation queries, stock/purchase-order controllers) — foreign-key columns are auto-indexed via Laravel's `foreignUuid()->constrained()`. One item was sampled but not exhaustively traced: `SyncController::pull()`'s per-table result sets and `SaleController::topProducts`'s `groupBy` join were not fully verified to have a LIMIT/cursor on every pulled table — flagged as a follow-up, not a confirmed finding.
-
-On the client side, POS product-grid rendering, cart derived-state memoization, and the FEFO stock-deduction path were all found already hardened against O(catalog-size) re-render/recompute costs (see `docs/FIXED_BUGS.md`'s 2026-09-25 "memoize the POS product grid" entry). The dominant remaining performance/architecture concern for growing datasets is the one already covered in depth by `docs/DATABASE_CONCURRENCY.md`: the web/PWA build's `saveDatabase()` re-serializes the *entire* SQLite database (`db.export()`) on every write, which scales with total local database size rather than with the size of any individual write — see that document's §2.4 and §3 for the full analysis and the recommended OPFS-based long-term fix. That analysis is not repeated here.
-
----
-
-## Architecture & Technical Debt
-
-- **The recurring failure pattern across this codebase's history is "fix (or pattern) applied to one endpoint/method, not mirrored onto a structurally identical sibling."** `TenantScopingArchitectureTest` guards the tenant-scoping instance of this pattern mechanically, but only for **controllers** — it doesn't scan `app/Services/`, which is exactly where this pass found a fresh instance (P2-2, `DashboardService::resetData()`, since fixed).
-- **Still open as technical debt, not as a bug:** `app/Http/Controllers/Api/App/SaleController.php` and `app/Services/Web/DashboardService.php` both hand-roll the "staff → owner" resolution inline (`Store::where('user_id', ...)->pluck('id')`, `User::whereIn('store_id', ...)`), repeated across several methods, instead of using the shared `ScopesToTenant` trait — which they *can't* use directly, since it takes a `Request` and these are service/controller methods taking a bare `$user`. P2-2's fix added a fourth copy of the lookup (a private `DashboardService::tenantOwnerId()`) rather than removing the duplication, deliberately keeping that fix contained. Two follow-ups worth scoping on their own: (a) extract the resolution into one shared, `Request`-free helper both can call, and (b) extend `TenantScopingArchitectureTest`'s scan to service classes that resolve tenant scope inline. Note also that `DashboardService`'s three read-only methods (`getSummary`/`getStats`/`getWidgetSnapshot`) still resolve by `$user->id` — lower-stakes than the destructive `resetData()` and so not changed in that pass, but the same latent shape.
+- **`docs/DATABASE_CONCURRENCY.md` status check:** all of its short-term items are now done — `restoreDatabase()`/`resetDatabase()`/`clearDatabaseForNewStore()` call `assertWritable()`, the queued-promotion rejection is scoped away from the outer `.catch` (`tab-lock.ts:314-329`), the graceful handoff + `steal` fallback with UI exists (`tab-lock.ts:177-246`), and A-22 closed the last two (serialised, coalescing `saveDatabase()`; `pagehide`/`visibilitychange` flush gated on the writer lock). Two residual notes on the new handoff code: `resetDatabase()`/`clearDatabaseForNewStore()` still call `db.run()` directly rather than through `reserveDbSlot()`, so they can interleave with an in-flight yielding `query()`; and a stolen-from tab only learns it lost the lock via the `steal-notice` broadcast, which a frozen tab receives only on thaw — its `holdUntilTakeover()` promise is rejected by the browser first, and `writerTab` stays `true` until the notice arrives (the doc's "frozen holder that later thaws" caveat still applies).
+- **Server-side row-lock duration:** `SyncController::push()` holds `lockForUpdate()` row locks for the whole outer transaction (documented at `:383-393`); with 50-change batches from several devices this is bounded but is the first place to look if "Lock wait timeout" appears in server logs.
+- **Healthy (re-verified):** version-equality conflict resolution and the `versions`/`id_map` echo; the quantity-only `stock_batches` exemption; delta application floored at 0 on both sides; `markSynced` flipping `_synced`; `audit_logs` terminal-conflict settling; deferred movement deltas committed atomically with the `stock_movements` cursor; the `stores` snapshot prune only touching stores with no local data; `awaitSettledTransactions()` before reading the queue; `pull.ts` skipping rows with pending local edits and holding the cursor; `UNIQUE`-collision give-up after 5 retries; the boot-order rule (writer election before migrations).
 
 ---
 
-## Testing Gaps
+## 7. Architecture and technical debt
 
-- **`composer audit`/`npm audit` are not run in CI** (re-confirmed this pass — none of the five workflows in `.github/workflows/` invoke either). Add an audit step (non-blocking initially, since some advisories currently have no fix) to at least surface new ones going forward.
-- **`client/public/sw.js` has no test coverage of any kind** — no unit, integration, or E2E test exercises the install/precache, navigation, or stale-while-revalidate paths, despite two separate content-type cache-poisoning bugs having been found and fixed in it (the navigation path on 2026-09-23, the catch-all branch on 2026-09-26). Every fix in that file so far has been verified by reading and by `node --check` only.
-- A queue-worker assumption is invisible to the Laravel test suite by construction (Laravel's testing config runs queues synchronously regardless of production), which is part of why P1-1 went unnoticed. Now moot for mail specifically — every mail call site is synchronous `->send()` — but it still means any *future* `ShouldQueue` dispatch would pass CI and silently no-op in production. A test asserting no `->queue(` call sites exist, in the spirit of `TenantScopingArchitectureTest`, would close that mechanically; not written.
-- P2-2's fix is covered (`tests/Feature/DashboardResetScopingTest.php`), but nothing covers the same class of gap in `DashboardService`'s three read-only methods — see Architecture & Technical Debt above.
-
----
-
-## Areas That Appeared Healthy
-
-- **POS payment flow** (`client/lib/hooks/use-pos-payment.ts`, `use-pos-payment-helpers.ts`): double-submit re-entrancy guard (`processingPaymentRef`), FEFO stock deduction with oversell tracking and fallback-batch handling, loyalty redemption re-read/rollback, correlation-id grouping for multi-row audit trails — all already hardened per `docs/FIXED_BUGS.md` and re-verified this pass with no new gaps found.
-- **CSV/XLSX import** (`client/lib/utils/product-import-export.ts` + `lib/utils/spreadsheet-io.ts`): negative-value clamping, blank-row handling (fixed from an earlier truncation bug), `.xls` rejection with an actionable message, formula-error-cell handling — all verified intact. The one real gap this pass missed and the storefront pass found (no `show_online` column at all, so a bulk import could never publish anything online) was closed 2026-09-26, along with the file split that keeps both halves under the 350-line limit.
-- **React Query cache-key/invalidation conventions** (`client/lib/query-keys.ts`): store/user-scoping is structural (built into the `resource()` factory itself, not left to per-call-site discipline), closing off an entire class of potential cross-store cache leak.
-- **Multi-store cart/session hygiene**: `clearPOSCartStorage()` is wired into both `auth-context.tsx` (logout) and `store-context.tsx` (store switch), preventing a stale cart from surviving either transition.
-- **Payment webhooks, subscription resolution, staff role-privilege checks** (server side): idempotent lock-guarded activation, amount/currency verification, role-privilege-ceiling checks mirrored across `store()`/`update()`, grace-period-aware subscription resolution — all read in full this pass with no new issues found, consistent with prior audit passes' conclusions.
-- **Rate limiting**: auth, session-refresh and handoff endpoints all sit behind named `throttle:*` middleware groups in `routes/api.php`. **Corrected twice on 2026-09-26:** this entry originally also claimed the storefront-checkout endpoints were covered, when only `POST /storefront/{slug}/checkout/initialize` was (Laravel 11 dropped `throttle:api` from the default `api` group and `bootstrap/app.php` still doesn't call `throttleApi()`). `SF-P1-3`'s fix added `throttle:storefront-order` to order placement and `throttle:storefront-read` to both public GETs the same day, with `StorefrontThrottleTest` — which deliberately does not disable `ThrottleRequests` — guarding all four.
-- **Tenant scoping breadth**: every controller directory (`Api/*`, `Api/App/*`, `Api/Web/*`, `Api/Admin/*`, `Api/Public/*`) was re-checked against `TENANT_OWNED_MODELS`; the only gap found was the service-class instance in P2-2 (since fixed), not a controller-level regression.
+- **One hand-rolled tenant-resolution copy remains** (carried, narrowed): `DashboardService` still hand-rolls the staff→owner lookup instead of using a shared `Request`-free helper, and `TenantScopingArchitectureTest` still scans controllers only. The second copy, in `SaleController`, went with A-19.
+- **`core.ts` is ~1,640 lines and `SyncController.php` ~2,450 lines** against the project's own 350-line guideline; `getProductsWithDetails`-style "load everything, filter in React" is the norm for catalog/customers/PO lists (documented as intentional; the cutoff at which it stops being fine is not written down anywhere).
+- **Two client-side sale-recording paths exist** (`recordSaleItemStock` for POS/online orders; `local-database.ts::createSale` for demo seeding only) — the comment on the second is clear, but it still writes `stock_batches.quantity` directly with a raw `UPDATE` rather than through `update()`, so a demo-seeded batch is the one batch the version model never saw.
+- **Quality gates are now enforced** (A-15 fixed): `.github/workflows/checks.yml` runs `tsc --noEmit` + `vitest` + `php artisan test` and every deploy/release workflow `needs:` it. `composer audit`/`npm audit` are still not run in CI (carried from the previous pass).
+- **`sw.js` still has no automated coverage** (carried) despite two cache-poisoning fixes.
 
 ---
 
-## Recommended Remediation Order
+## 8. Areas reviewed that appear healthy
 
-Everything actionable from this pass was completed on 2026-09-26 and has moved to `docs/FIXED_BUGS.md`, in this order: **P1-1** (queued mail → synchronous `->send()`), **P2-2** (`resetData()` tenant-owner scoping, plus its regression test), **P3-3** (`sw.js` catch-all cache guard), **P3-6** (`getSuppliers()` store scoping), then **P2-3 + P3-4** as one change (PO partial receipts: client + server schema, sync mapping, receiving logic, and every status-aware UI surface).
+- **POS sale path** (`use-pos-payment.ts`, `use-pos-payment-helpers.ts`, `recordSaleItemStock`): synchronous re-entrancy guard; one `transaction()` for sale, items, FEFO deduction, credit balance, loyalty (re-validated against the live balance), prescription status; oversell floor + alert; correlation ids; VAT computed net of discount; money rounding at storage boundaries.
+- **Stock adjustments / cycle counts** (`submitStockAudit`): system quantity re-read inside the transaction; FEFO deductions; expired-batch write-off fallback; cost corrections applied to active batches only.
+- **Returns**: per-batch restoration honours prior partial returns; credit-portion forgiveness capped at what the sale still owes; loyalty claw-back prorated; all in one transaction.
+- **Customer debt payments**: single transaction; FIFO settlement; epsilon-safe zero detection.
+- **PO receiving (single device)**: partial receipts, clamped quantities, cost/selling overrides floored at 0, `quantity_received` re-sent with `bulk_quantity`/`units_per_bulk` so the server scales it correctly.
+- **CSV/XLSX import**: transactional, yields every 25 rows, duplicate detection via union-find, opening-stock movement written so server-derived quantities are correct, matched-product stock applied as an audit after the transaction (nesting deadlock avoided deliberately).
+- **Multi-tab writer election** (`tab-lock.ts`): idempotent promotion, rehydrate-or-refuse, graceful takeover with `steal` fallback, every DB operation on one FIFO connection lock.
+- **Server tenant scoping**: `authorizeChangeTarget`/`resolveChangeStoreId` mirror `applyPullTenantScope`; INSERT payloads naming a foreign `store_id` are rejected; `users`/`stores`/`permission_groups` payloads are allow-listed; `audit_logs` matched only by `properties->client_id` within the pushing store; DELETE against `audit_logs` rejected outright.
+- **Auth**: PIN hashed (bcrypt) with lazy migration; lockout with countdown; multi-store username/PIN ambiguity fails closed; Sanctum refresh rotates tokens and only clears on a definitive 401/403; admin panel access token memory-only with a `refresh`-ability cookie; the Android widget's mirrored token uses `EncryptedSharedPreferences`.
+- **Permissions**: one owner of permission-group state (`AuthContext`), corrupt rows deny rather than fall back, `useMemo` tripwire preserved.
+- **Service worker**: precache is all-or-nothing on the shell, per-URL otherwise; both the navigation and asset branches refuse HTML under a non-HTML key; RSC `.txt` keys normalised; `controllerchange` reload.
+- **Tauri**: vendored SQL plugin pinned to one pooled connection so `BEGIN/COMMIT` are real; WAL + busy_timeout; restore checkpoints the WAL and refuses to overwrite past a failed `close()`; updater artifacts are signed and CI fails if the signing secrets are missing.
+- **Money/tax math** (`pos-calculations.ts`, `finance.ts`, `reports.ts`): consistent cent rounding, ex-VAT refunds netted correctly, prepaid expense smoothing shared by every consumer, sales-level and item-level aggregates split to avoid join fan-out (each of these was a fixed bug in `FIXED_BUGS.md` and is still correct).
+- **CI/CD**: pinned action SHAs, `contents: read` where possible, queued (not cancelled) deploy concurrency, storefront output verification before FTP sync, updater-signing preflight, and (since A-15) a reusable `checks.yml` running `tsc`/`vitest`/`phpunit` that every deploy and release workflow gates on.
+- **Test suites**: both green. At the time of this pass: client 1303 tests, server 469 tests. After the nine remediation batches: client 255 files / 1392 tests, server 480 tests / 1541 assertions, `tsc --noEmit` clean. (The server count is lower than mid-series because A-19 deleted the endpoints ~46 of those tests covered.)
+- **Secrets hygiene (verified):** the Android release keystore, its base64 copy, the local dev SQLite file and the server's local DB file all sit in the working tree but are git-ignored and untracked (`git ls-files`/`git check-ignore` confirmed); no secrets were found in `.env.example` files or committed source. The Sentry DSN in the workflows is a public ingest key by design.
 
-The storefront pass's findings were then worked through: all 16 are closed (`SF-P0-1`, `SF-P1-1`, `SF-P1-2`, `SF-P1-3`, `SF-P2-1`…`SF-P2-6`, `SF-P3-1`…`SF-P3-6`) — `SF-P1-2` last, once the Paystack subaccount payment design shipped (see `docs/superpowers/specs/2026-09-26-storefront-paystack-subaccounts-design.md`). Nothing from that pass remains open. What's left overall, in the order it should be picked up:
+---
 
-1. **P2-1** (`FLUTTERWAVE_SECRET_HASH`) — the only item with a real failure mode still live. Pure ops/deploy confirmation, zero code risk; shouldn't wait on anything. Delete the entry once confirmed set in production `.env`.
-2. **P3-1** (auth token in `localStorage`) — needs its own design project (dual-path auth: cookie for the webview, a separate narrowly-scoped token for the native widget). Revisit if an XSS finding ever lands.
-3. **P3-2** (chunk-load-after-deploy race) and **P3-5** (manifest `theme_color`) — accepted as-is; P3-2 needs deploy-asset retention to close fully, P3-5 needs a Web App Manifest spec change. Revisit only if either becomes a reported user complaint.
+## What is left, and why
 
-All four were explicitly skipped this round by user direction — they are deferred, not overlooked. Also still outstanding, ops-only: `STOREFRONT_REBUILD_TOKEN` needs setting on both sides (API `.env` + GitHub Actions secret) for `SF-P2-3`'s rebuild-confirmation loop to engage, per `docs/FIXED_BUGS.md`.
+This pass's own remediation is complete — nothing from `A-1`…`A-25` is still open, and the one later addition (`A-26`) is a logged limitation rather than queued work, so this is no longer an ordered work queue. What remains in this document is one piece of real deferred work and a set of deliberate non-actions:
 
-**Follow-ups this pass created or left behind** (not findings, but the natural next steps): extract the shared staff→owner tenant resolution so `SaleController`/`DashboardService` stop repeating it, extend `TenantScopingArchitectureTest` to service classes, add any test coverage at all to `sw.js`, add `composer audit`/`npm audit` to CI, and get product judgement on the partial-receipt UX questions noted in the PO entry in `docs/FIXED_BUGS.md` (over-delivery, cancelling an outstanding balance, editing a partially-received PO).
-
-**Follow-ups the storefront remediation (2026-09-26) left behind**, none of them findings: a paginated online-order history view now that `index()` is capped at 50; raising `throttle:storefront-read`'s 120/min ceiling, or giving the build pipeline a token, before the platform passes roughly 50 live storefronts (the static build spends ~2 requests per store from one runner IP); setting `STOREFRONT_REBUILD_TOKEN` on both sides so `SF-P2-3`'s rebuild-confirmation loop engages (ops, no code); and `Api/Public/StorefrontController.php` is now **638 lines** against `.agents/AGENTS.md` §4's 350-line limit — it was already 566 before this work and its OpenAPI attributes are most of the bulk, but `priceCart`/`storeProducts`/`availableQuantity`/`checkAvailability` are business logic sitting in a controller and belong in `app/Services/` per that file's Controller/Service rule. Deliberately not attempted alongside the correctness fixes; worth scoping on its own, with the 34 existing storefront tests as the safety net.
+1. **Deferred by user direction: PG-2 then PG-1**, then **PG-3…PG-10** — the storefront webhook/reconciliation path and the gateway pinning first; still the largest real-world money-loss surface, and the only substantial engineering work this document still describes. Explicitly excluded from the 2026-09-28 remediation series rather than overlooked.
+2. **Deliberate non-actions, listed here so they are not re-filed as findings next pass:** **P2-1** is a one-line production `.env` confirmation with zero code change; **P3-1** (bearer token in `localStorage`) needs a dual-path auth design project and has a compensating control in the shipped Tauri CSP; **P3-2** (stale lazy chunk after a deploy) needs deploy-asset retention to close fully; **P3-5** (manifest `theme_color`) is a Web App Manifest spec limitation with no action recommended; **A-26** is the accepted cost of A-9's deterministic receipt ids, worth closing only via a sync-health signal, never by changing the keying. **PG-10** needs a product decision, not a fix.

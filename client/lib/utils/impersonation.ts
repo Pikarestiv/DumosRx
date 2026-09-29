@@ -1,3 +1,4 @@
+import { STORAGE_KEYS } from "@/lib/storage-keys";
 /**
  * Single source of truth for "is this session an impersonated (superadmin
  * handoff) session?".
@@ -21,8 +22,8 @@
  * and the UI all answer this question the same way rather than each poking at
  * localStorage with its own hard-coded key.
  */
-export const IMPERSONATED_USER_STORAGE_KEY = "dumos_impersonated_user";
-export const IMPERSONATOR_RETURN_CODE_KEY = "impersonator_handoff_return_code";
+export const IMPERSONATED_USER_STORAGE_KEY = STORAGE_KEYS.impersonatedUser;
+export const IMPERSONATOR_RETURN_CODE_KEY = STORAGE_KEYS.impersonatorReturnCode;
 
 /** True when this device currently holds an impersonated (superadmin handoff)
  * session. Safe to call during SSR/prerender and when localStorage access

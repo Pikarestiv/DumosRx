@@ -1,18 +1,19 @@
+"use client";
+
 import { TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ResponsiveTabLabel } from "@/components/ui/responsive-tab-label";
-
-interface ReportsTabNavProps {
-  isAdmin: boolean;
-}
+import { useHasPermission } from "@/lib/hooks/use-permissions";
 
 const tabTriggerClass =
   "h-10 px-5 rounded-lg text-[13px] font-semibold gap-1.5 whitespace-nowrap shrink-0 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent shadow-none";
 
 /** Tab nav only. Pairs with sibling <TabsContent> panels owned by the parent, which switches page content on selection. */
-export function ReportsTabNav({ isAdmin }: ReportsTabNavProps) {
+export function ReportsTabNav() {
+  const canViewReports = useHasPermission("view_reports");
+
   return (
     <TabsList className="w-full md:w-max inline-flex gap-1 bg-background border rounded-[11px] p-1 h-auto overflow-x-auto">
-      {isAdmin && (
+      {canViewReports && (
         <TabsTrigger value="reports" className={tabTriggerClass}>
           <svg
             className="w-3.5 h-3.5"
@@ -39,7 +40,7 @@ export function ReportsTabNav({ isAdmin }: ReportsTabNavProps) {
         </svg>
         Daily Close
       </TabsTrigger>
-      {isAdmin && (
+      {canViewReports && (
         <TabsTrigger value="analytics" className={tabTriggerClass}>
           <svg
             className="w-3.5 h-3.5"

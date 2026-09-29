@@ -1,3 +1,4 @@
+import { STORAGE_KEYS } from "@/lib/storage-keys";
 /** A stale tab holding chunk hashes from before the last auto-deploy (see
  * the debounced storefront rebuild) will 404 the moment it lazy-loads a
  * route it doesn't already have in memory - not a real crash, just the
@@ -26,7 +27,7 @@
 // the other three patterns already auto-reload for).
 export const CHUNK_ERROR_PATTERN =
   /Loading (chunk|CSS chunk) [\w.-]+ failed|Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module|Unexpected token '<'/i;
-export const CHUNK_RELOAD_GUARD_KEY = "chunk-error-reload-attempted";
+export const CHUNK_RELOAD_GUARD_KEY = STORAGE_KEYS.chunkReloadGuard;
 
 // "Unexpected token '<'" isn't unique to a script tag being handed HTML -
 // V8's JSON.parse() throws the exact same wording ("Unexpected token '<',

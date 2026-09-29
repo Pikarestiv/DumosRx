@@ -27,3 +27,23 @@ export function useMediaQuery(query: string) {
 
   return value;
 }
+
+/**
+ * useMediaQuery plus the `resolved` flag a consumer needs before it may
+ * branch its render on the answer. Because the raw hook deliberately starts
+ * at `false` until its effect runs, choosing between a mobile and a desktop
+ * component tree off the uncorrected value mounts the wrong one first and
+ * then throws it away — a wasted mount plus a visible flash of the wrong
+ * layout. React batches this hook's `resolved` effect with the underlying
+ * one's correction into a single re-render, so the first render where
+ * `resolved` is true already carries the real value.
+ */
+export function useResolvedMediaQuery(query: string): {
+  matches: boolean;
+  resolved: boolean;
+} {
+  const matches = useMediaQuery(query);
+  const [resolved, setResolved] = useState(false);
+  useEffect(() => setResolved(true), []);
+  return { matches, resolved };
+}

@@ -82,9 +82,25 @@ export interface PurchaseOrderItem {
   /** Live conversion factor from the product record; always used for receiving math, since units_per_bulk above is a point-in-time snapshot that can go stale if the product's packaging is edited later. */
   product_units_per_bulk: number;
   selling_price?: number | string;
+  /** The product's live selling_price at read time (not the value stored on
+   * this line item, which is whatever was submitted with the PO) - lets a
+   * receive-time override be compared against what's actually on file
+   * right now, rather than assuming any override differs from it. */
+  current_selling_price?: number | null;
   cost_price_override?: number | string;
   lot_number?: string;
   expiry_date?: string;
+  /** The product's current category name, for the receive flow's inline
+   * category fix-up. Null when the product has no category yet. */
+  category_name?: string | null;
+  /** Weighted-average cost across the product's active batches right now -
+   * the same figure the catalog shows, and the scale ("per base unit") the
+   * receive panel's Cost Price input is read at. */
+  current_cost_price?: number | null;
+  /** The cost of the most recent real (non-adjustment) batch, so the
+   * receive panel can show what was actually last paid rather than only the
+   * blended average. */
+  last_bought_price?: number | null;
 }
 
 /** A line item as it exists in the create/edit PO form before submission:
@@ -127,6 +143,8 @@ export async function getPurchaseOrderItemsForDetail(poId: string) {
       poi.unit_cost as unit_price,
       poi.subtotal as total_price
      FROM purchase_order_items poi
+     -- Unfiltered products join on purpose: a deleted product must still name its
+     -- order history (client/AGENTS.md; deleted-entity-procurement-history.test.ts).
      LEFT JOIN products p ON poi.product_id = p.id
      WHERE poi.po_id = ? AND poi._deleted = 0`,
     [poId],
@@ -156,6 +174,8 @@ export async function getPurchaseOrders(viewerId?: string) {
          AND (sb.expiry_date IS NULL OR sb.expiry_date = '')
        ) THEN 1 ELSE 0 END as has_missing_expiry
      FROM purchase_orders po
+     -- Unfiltered suppliers join on purpose: a deleted vendor must still name its
+     -- order history (client/AGENTS.md; deleted-entity-procurement-history.test.ts).
      LEFT JOIN suppliers v ON po.supplier_id = v.id
      LEFT JOIN users u ON u.id = po.ordered_by
      WHERE po._deleted = 0${viewerId ? " AND po.ordered_by = ?" : ""}${storeId ? " AND po.store_id = ?" : ""}
@@ -176,6 +196,8 @@ export async function getPurchaseOrderById(id: string) {
          AND (sb.expiry_date IS NULL OR sb.expiry_date = '')
        ) THEN 1 ELSE 0 END as has_missing_expiry
      FROM purchase_orders po
+     -- Unfiltered suppliers join on purpose: a deleted vendor must still name its
+     -- order history (client/AGENTS.md; deleted-entity-procurement-history.test.ts).
      LEFT JOIN suppliers v ON po.supplier_id = v.id
      LEFT JOIN users u ON u.id = po.ordered_by
      WHERE po.id = ? AND po._deleted = 0`,
@@ -185,9 +207,16 @@ export async function getPurchaseOrderById(id: string) {
   if (!po[0]) return null;
 
   const items = await query<PurchaseOrderItem>(
-    `SELECT poi.*, m.name as product_name, m.base_unit, m.bulk_unit, m.units_per_bulk as product_units_per_bulk
+    `SELECT poi.*, m.name as product_name, m.base_unit, m.bulk_unit, m.units_per_bulk as product_units_per_bulk,
+       m.selling_price as current_selling_price,
+       cat.name as category_name,
+       (SELECT SUM(cost_price * quantity) * 1.0 / NULLIF(SUM(quantity), 0) FROM stock_batches WHERE product_id = m.id AND _deleted = 0 AND is_active = 1 AND quantity > 0) as current_cost_price,
+       (SELECT cost_price FROM stock_batches WHERE product_id = m.id AND _deleted = 0 AND cost_price > 0 AND batch_number NOT LIKE 'ADJ-%' ORDER BY created_at DESC LIMIT 1) as last_bought_price
      FROM purchase_order_items poi
+     -- Unfiltered products join on purpose: a deleted product must still name its
+     -- order history (client/AGENTS.md; deleted-entity-procurement-history.test.ts).
      JOIN products m ON poi.product_id = m.id
+     LEFT JOIN categories cat ON m.category_id = cat.id
      WHERE poi.po_id = ? AND poi._deleted = 0`,
     [id]
   );
@@ -335,7 +364,7 @@ export async function getSuppliers() {
             COALESCE(po_stats.total_value, 0) as total_value,
             po_stats.last_order_date as last_order_date
      FROM suppliers s
-     LEFT JOIN purchase_orders po ON s.id = po.supplier_id AND po._deleted = 0 AND po.payment_status != 'paid'${storeId ? " AND po.store_id = ?" : ""}
+     LEFT JOIN purchase_orders po ON s.id = po.supplier_id AND po._deleted = 0 AND COALESCE(po.payment_status, 'unpaid') != 'paid'${storeId ? " AND po.store_id = ?" : ""}
      LEFT JOIN (
        SELECT supplier_id, COUNT(*) as total_orders, SUM(total_amount) as total_value, MAX(order_date) as last_order_date
        FROM purchase_orders
@@ -356,6 +385,26 @@ export async function createSupplier(data: SupplierPayload) {
 
 export async function updateSupplier(id: string, data: SupplierPayload) {
   return await update("suppliers", id, data);
+}
+
+export async function getSupplierOutstandingBalance(id: string): Promise<number> {
+  const rows = await query<{ outstanding: number | null }>(
+    `SELECT COALESCE(SUM(total_amount - amount_paid), 0) as outstanding
+     FROM purchase_orders
+     WHERE supplier_id = ? AND _deleted = 0 AND COALESCE(payment_status, 'unpaid') != 'paid'`,
+    [id],
+  );
+  return Math.max(0, Number(rows[0]?.outstanding) || 0);
+}
+
+export async function deleteSupplier(id: string): Promise<void> {
+  const outstanding = await getSupplierOutstandingBalance(id);
+  if (outstanding > 0) {
+    throw new Error(
+      "This supplier is still owed money on an unpaid purchase order. Settle or write off the balance before deleting them.",
+    );
+  }
+  await softDelete("suppliers", id);
 }
 
 export async function deletePurchaseOrder(id: string) {

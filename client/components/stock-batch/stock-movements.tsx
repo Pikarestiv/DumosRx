@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { Search, Lock, ArrowLeftRight } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -18,6 +18,10 @@ import { StockMovementDesktopRow } from "./stock-movement-desktop-row";
 import { StockMovementMobileGroup } from "./stock-movement-mobile-group";
 import { StockMovementDetailModal } from "./stock-movement-detail-modal";
 import { TransferStockDialog } from "./transfer-stock-dialog";
+import {
+  STOCK_TRANSFER_NEEDS_REVIEW_STATUS,
+  STOCK_TRANSFER_REVIEWED_STATUS,
+} from "@/lib/db/queries/stock-transfers";
 import { usePullToRefreshHandler } from "@/lib/context/pull-to-refresh-context";
 import { DateRangePicker, type DateRangeValue } from "@/components/ui/date-range-picker";
 import type { StockMovementDbRow } from "@/lib/types/stock-movement";
@@ -26,6 +30,8 @@ import { useSortableData } from "@/lib/hooks/use-sortable-data";
 import { useStore } from "@/lib/context/store-context";
 import { useAuth } from "@/lib/context/auth-context";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
+import { useMediaQuery } from "@/hooks/use-media-query";
+import { ScrollToTopButton } from "@/components/ui/scroll-to-top-button";
 
 type MovementSortKey = "date" | "product" | "type" | "quantity" | "reference" | "user";
 
@@ -43,7 +49,8 @@ function mapMovement(m: StockMovementDbRow): StockMovement {
     user: m.performed_by_name?.trim() || "System",
     supplier: m.supplier_name || undefined,
     batchNumber: m.batch_number || undefined,
-    needsReview: m.status === "needs_review",
+    needsReview: m.status === STOCK_TRANSFER_NEEDS_REVIEW_STATUS,
+    reviewed: m.status === STOCK_TRANSFER_REVIEWED_STATUS,
   };
 }
 
@@ -54,6 +61,7 @@ function NoMovementsFound() {
 }
 
 export function StockMovements() {
+  const isDesktop = useMediaQuery("(min-width: 768px)");
   const [hasFullHistory, setHasFullHistory] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
@@ -130,19 +138,33 @@ export function StockMovements() {
     setHasFullHistory(true);
   }, [searchTerm, typeFilter, hasFullHistory, dateRange.from]);
 
-  const preFilteredMovements = movements.filter((movement) => {
-    if (typeFilter === "all") return true;
-    // "Transfers" is one filter chip covering both legs (transfer_out on the
-    // sending store's ledger, transfer_in on the receiving store's) rather
-    // than two separate chips a user would have to know to toggle together.
-    if (typeFilter === "transfer") return movement.type.startsWith("transfer_");
-    return movement.type === typeFilter;
-  });
+  // Filter -> fuzzy search -> date grouping all ran on every render; once the
+  // search-triggered full-history load fires, that is the whole ledger being
+  // re-scanned on every keystroke.
+  const preFilteredMovements = useMemo(
+    () =>
+      movements.filter((movement) => {
+        if (typeFilter === "all") return true;
+        // "Transfers" is one filter chip covering both legs (transfer_out on
+        // the sending store's ledger, transfer_in on the receiving store's)
+        // rather than two separate chips a user would have to know to toggle
+        // together.
+        if (typeFilter === "transfer")
+          return movement.type.startsWith("transfer_");
+        return movement.type === typeFilter;
+      }),
+    [movements, typeFilter],
+  );
 
-  const { results: filteredMovements } = genericFuzzySearch(
-    searchTerm,
-    preFilteredMovements,
-    ["product", "reference", "reason", "user"],
+  const { results: filteredMovements } = useMemo(
+    () =>
+      genericFuzzySearch(searchTerm, preFilteredMovements, [
+        "product",
+        "reference",
+        "reason",
+        "user",
+      ]),
+    [searchTerm, preFilteredMovements],
   );
 
   // Sorting only applies to the desktop table view; mobile's date-grouped
@@ -165,24 +187,27 @@ export function StockMovements() {
     overscan: 8,
   });
 
-  const groupedMovements = filteredMovements.reduce(
-    (acc, movement) => {
-      const date = new Date(movement.date);
-      let groupLabel = format(date, "MMM d, yyyy").toUpperCase();
+  const groupedMovements = useMemo(() => {
+    const now = new Date();
+    return filteredMovements.reduce(
+      (acc, movement) => {
+        const date = new Date(movement.date);
+        let groupLabel = format(date, "MMM d, yyyy").toUpperCase();
 
-      if (isToday(date)) groupLabel = "TODAY";
-      else if (isYesterday(date)) groupLabel = "YESTERDAY";
-      else {
-        const diff = differenceInDays(new Date(), date);
-        if (diff > 1 && diff <= 7) groupLabel = `${diff} DAYS AGO`;
-      }
+        if (isToday(date)) groupLabel = "TODAY";
+        else if (isYesterday(date)) groupLabel = "YESTERDAY";
+        else {
+          const diff = differenceInDays(now, date);
+          if (diff > 1 && diff <= 7) groupLabel = `${diff} DAYS AGO`;
+        }
 
-      if (!acc[groupLabel]) acc[groupLabel] = [];
-      acc[groupLabel].push(movement);
-      return acc;
-    },
-    {} as Record<string, StockMovement[]>,
-  );
+        if (!acc[groupLabel]) acc[groupLabel] = [];
+        acc[groupLabel].push(movement);
+        return acc;
+      },
+      {} as Record<string, StockMovement[]>,
+    );
+  }, [filteredMovements]);
 
   // Only the very first load shows the full-page skeleton. Later refetches
   // (date-range picks, pull-to-refresh, search-driven full-history upgrade)
@@ -196,7 +221,8 @@ export function StockMovements() {
   return (
     <div className="relative flex flex-col flex-1 min-h-0">
       {/* Mobile: search + type/date filters stand alone above the list; no outer card, immutable-log note hidden */}
-      <div className="md:hidden space-y-3 mb-4">
+      {!isDesktop && (
+      <div className="space-y-3 mb-4">
         <div className="flex items-center gap-2 bg-card border border-border rounded-[10px] px-3.5 py-2.5">
           <Search className="w-4 h-4 text-muted-foreground/70 shrink-0" />
           <input
@@ -230,8 +256,10 @@ export function StockMovements() {
           </p>
         )}
       </div>
+      )}
 
-      <div className="hidden md:flex bg-card border border-border rounded-2xl flex-col flex-1 min-h-0">
+      {isDesktop && (
+      <div className="flex bg-card border border-border rounded-2xl flex-col flex-1 min-h-0">
         {/* Header & Filters */}
         <div className="p-4 pb-3 border-b border-border">
           <div className="flex items-center gap-2 bg-muted/30 border border-border rounded-[10px] px-3.5 py-2.5 mb-3">
@@ -345,10 +373,17 @@ export function StockMovements() {
             </div>
           )}
         </div>
+        <ScrollToTopButton scrollRef={desktopScrollRef} />
       </div>
+      )}
 
-      {/* Mobile: grouped list, each group already renders its own card */}
-      <div className="md:hidden">
+      {/* Mobile: grouped list, each group already renders its own card.
+          Conditionally rendered, not `md:hidden`: the desktop branch is
+          virtualized and this one isn't, so CSS-hiding meant desktop paid
+          for a full unvirtualized render of the whole ledger and then threw
+          it away. */}
+      {!isDesktop && (
+      <div>
         {filteredMovements.length === 0 && <NoMovementsFound />}
         {filteredMovements.length > 0 &&
           Object.entries(groupedMovements).map(([groupLabel, groupItems]) => (
@@ -360,6 +395,7 @@ export function StockMovements() {
             />
           ))}
       </div>
+      )}
 
       <StockMovementDetailModal
         movement={selectedMovement}
@@ -368,6 +404,7 @@ export function StockMovements() {
           setSelectedMovement(null);
           router.push("/inventory/catalog");
         }}
+        onReviewed={() => void movementsQuery.refetch()}
       />
 
       {canTransferStock && (

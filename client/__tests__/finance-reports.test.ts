@@ -20,7 +20,7 @@ describe("finance.ts / reports.ts financial aggregates", () => {
   let getCurrentMonthCOGS: typeof import("@/lib/db/queries/finance").getCurrentMonthCOGS;
   let getCurrentMonthExpensesByCategory: typeof import("@/lib/db/queries/finance").getCurrentMonthExpensesByCategory;
   let getSmoothedExpensesTotal: typeof import("@/lib/db/queries/finance").getSmoothedExpensesTotal;
-  let getAllExpenses: typeof import("@/lib/db/queries/finance").getAllExpenses;
+  let getExpensesPage: typeof import("@/lib/db/queries/finance").getExpensesPage;
   let fetchProfitLossReportData: typeof import("@/lib/db/queries/reports").fetchProfitLossReportData;
   let getBIMetrics: typeof import("@/lib/db/queries/reports").getBIMetrics;
   let getAdvancedMonthlySalesData: typeof import("@/lib/db/queries/reports").getAdvancedMonthlySalesData;
@@ -32,7 +32,7 @@ describe("finance.ts / reports.ts financial aggregates", () => {
     getCurrentMonthCOGS = finance.getCurrentMonthCOGS;
     getCurrentMonthExpensesByCategory = finance.getCurrentMonthExpensesByCategory;
     getSmoothedExpensesTotal = finance.getSmoothedExpensesTotal;
-    getAllExpenses = finance.getAllExpenses;
+    getExpensesPage = finance.getExpensesPage;
 
     const reports = await import("@/lib/db/queries/reports");
     fetchProfitLossReportData = reports.fetchProfitLossReportData;
@@ -434,7 +434,7 @@ describe("finance.ts / reports.ts financial aggregates", () => {
     });
   });
 
-  describe("getAllExpenses", () => {
+  describe("getExpensesPage", () => {
     it("restricts to a single user's expenses when viewerId is passed, joins their display name", async () => {
       db.run(`INSERT INTO users (id, first_name, last_name) VALUES ('u1', 'Ada', 'Obi'), ('u2', 'Bo', 'Lee')`);
       db.run(
@@ -444,12 +444,12 @@ describe("finance.ts / reports.ts financial aggregates", () => {
         [todayISO(), todayISO()],
       );
 
-      const mine = await getAllExpenses("u1");
-      expect(mine).toHaveLength(1);
-      expect(mine[0]).toMatchObject({ id: "e1", recorded_by_name: "Ada Obi" });
+      const mine = await getExpensesPage({ viewerId: "u1" });
+      expect(mine.rows).toHaveLength(1);
+      expect(mine.rows[0]).toMatchObject({ id: "e1", recorded_by_name: "Ada Obi" });
 
-      const everyone = await getAllExpenses(undefined);
-      expect(everyone).toHaveLength(2);
+      const everyone = await getExpensesPage();
+      expect(everyone.rows).toHaveLength(2);
     });
   });
 

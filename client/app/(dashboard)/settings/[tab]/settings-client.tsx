@@ -4,13 +4,10 @@ import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { CloudLinkDialog } from "@/components/settings/cloud-link-dialog";
 import { StaffManagement } from "@/components/settings/staff-management";
 import { SettingsMobileMenu } from "@/components/settings/settings-mobile-menu";
-import { RolesPermissionsPlaceholder } from "@/components/settings/roles-permissions-placeholder";
 import { SettingsTabNav } from "./settings-tab-nav";
 import { SettingsHeader } from "./settings-header";
 
-import { BillingSettings } from "@/components/settings/billing/billing-settings";
 import { AccountSettings } from "@/components/settings/account/account-settings";
-import { FleetOverview } from "@/components/settings/store/fleet-overview";
 import { MultiStoreCard } from "@/components/settings/store/multi-store-card";
 import { CategoriesCard } from "@/components/settings/store/categories-card";
 import { ProductUnitsCard } from "@/components/settings/store/product-units-card";
@@ -19,7 +16,6 @@ import { SystemSettings } from "@/components/settings/system-settings";
 import { AppearancePanel } from "./panels/appearance-panel";
 import { BusinessInfoPanel } from "./panels/business-info-panel";
 import { AlertsPanel } from "./panels/alerts-panel";
-import { DataPanel } from "./panels/data-panel";
 import { DangerZonePanel } from "./panels/danger-zone-panel";
 import { SecurityPanel } from "./panels/security-panel";
 import { PaymentMethodsPanel } from "./panels/payment-methods-panel";
@@ -28,6 +24,46 @@ import { RegisterConfigsPanel } from "./panels/register-configs-panel";
 
 import { useSettings } from "@/hooks/use-settings";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
+
+// Only one settings tab renders at a time, and these four are the heaviest and
+// least-visited of the eighteen: the billing screen, the full permission
+// matrix, the multi-store fleet overview and the backup/restore panel. Loaded
+// on demand so the other fourteen tabs don't ship them.
+const PanelFallback = () => (
+  <div className="py-10 text-center text-sm text-muted-foreground">
+    Loading...
+  </div>
+);
+
+const BillingSettings = dynamic(
+  () =>
+    import("@/components/settings/billing/billing-settings").then(
+      (m) => m.BillingSettings,
+    ),
+  { loading: PanelFallback },
+);
+
+const PermissionMatrix = dynamic(
+  () =>
+    import("@/components/settings/roles-permissions/permission-matrix").then(
+      (m) => m.PermissionMatrix,
+    ),
+  { loading: PanelFallback },
+);
+
+const FleetOverview = dynamic(
+  () =>
+    import("@/components/settings/store/fleet-overview").then(
+      (m) => m.FleetOverview,
+    ),
+  { loading: PanelFallback },
+);
+
+const DataPanel = dynamic(
+  () => import("./panels/data-panel").then((m) => m.DataPanel),
+  { loading: PanelFallback },
+);
 
 const TAB_LABELS: Record<string, string> = {
   appearance: "General",
@@ -57,7 +93,7 @@ export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
           onBack={() => router.push("/dashboard")}
         />
         <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4">
-          <SettingsMobileMenu isAdmin={s.isAdmin} />
+          <SettingsMobileMenu isAdmin={s.isAdmin} canAccessTab={s.canAccessTab} />
         </div>
       </div>
     );
@@ -83,7 +119,7 @@ export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
       style={{ height: "calc(100dvh - var(--tauri-top, 0px))" }}
     >
       <aside className="hidden md:flex md:flex-col w-full md:w-56 flex-shrink-0 h-full min-h-0 overflow-y-auto border-border/50 p-3 pr-0">
-        <SettingsTabNav isAdmin={s.isAdmin} />
+        <SettingsTabNav isAdmin={s.isAdmin} canAccessTab={s.canAccessTab} />
       </aside>
 
       <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
@@ -104,13 +140,13 @@ export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
             </TabsContent>
           )}
 
-          {s.isAdmin && (
+          {s.canAccessTab("business-info") && (
             <TabsContent value="business-info" className="space-y-6">
               <BusinessInfoPanel {...s} />
             </TabsContent>
           )}
 
-          {s.isAdmin && (
+          {s.canAccessTab("branches") && (
             <TabsContent value="branches" className="space-y-6">
               <FleetOverview />
               <MultiStoreCard />
@@ -121,7 +157,7 @@ export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
             <AlertsPanel {...s} />
           </TabsContent>
 
-          {s.isAdmin && (
+          {s.canAccessTab("data") && (
             <TabsContent value="data">
               <DataPanel {...s} />
             </TabsContent>
@@ -138,24 +174,24 @@ export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
           )}
 
           {s.isAdmin && (
-            <TabsContent value="roles">
-              <RolesPermissionsPlaceholder />
+            <TabsContent value="roles" className="h-full">
+              <PermissionMatrix />
             </TabsContent>
           )}
 
-          {s.isAdmin && (
+          {s.canAccessTab("payment-methods") && (
             <TabsContent value="payment-methods" className="space-y-6">
               <PaymentMethodsPanel {...s} />
             </TabsContent>
           )}
 
-          {s.isAdmin && (
+          {s.canAccessTab("receipt-settings") && (
             <TabsContent value="receipt-settings" className="space-y-6">
               <ReceiptSettingsPanel {...s} />
             </TabsContent>
           )}
 
-          {s.isAdmin && (
+          {s.canAccessTab("register-configs") && (
             <TabsContent value="register-configs">
               <RegisterConfigsPanel {...s} />
             </TabsContent>
@@ -173,13 +209,13 @@ export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
             </TabsContent>
           )}
 
-          {s.isAdmin && (
+          {s.canAccessTab("system") && (
             <TabsContent value="system">
               <SystemSettings />
             </TabsContent>
           )}
 
-          {s.isAdmin && (
+          {s.canAccessTab("billing") && (
             <TabsContent value="billing">
               <BillingSettings />
             </TabsContent>

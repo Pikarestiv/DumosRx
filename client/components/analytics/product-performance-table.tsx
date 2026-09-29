@@ -1,5 +1,7 @@
 "use client";
 
+import { useRef } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { Card } from "@/components/ui/card";
 import { TrendingUp } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
@@ -7,6 +9,7 @@ import { SortableHeaderCell } from "@/components/ui/sortable-header-cell";
 import { useSortableData } from "@/lib/hooks/use-sortable-data";
 import { useStore } from "@/lib/context/store-context";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ScrollToTopButton } from "@/components/ui/scroll-to-top-button";
 
 export interface ProductPerformanceRow {
   id: string;
@@ -24,12 +27,17 @@ interface ProductPerformanceTableProps {
 
 type SortKey = "name" | "category" | "revenue" | "units" | "margin";
 
+/** Uniform single-line rows, so a fixed estimate is exact; each row still
+ * measures itself in case a wrapped cell ever makes one taller. */
+const ROW_HEIGHT = 41;
+
 /** Full, sortable product performance breakdown for the selected time
  * range - replaces the old top-5-only "Top Selling Products" list so
  * underperformers (not just the winners) are visible too. */
 export function ProductPerformanceTable({ products }: ProductPerformanceTableProps) {
   const { storeProfile } = useStore();
   const currencyCode = storeProfile?.currency;
+  const scrollRef = useRef<HTMLDivElement>(null);
   const { sortKey, direction, toggleSort, sortedData } = useSortableData<
     ProductPerformanceRow,
     SortKey
@@ -39,6 +47,13 @@ export function ProductPerformanceTable({ products }: ProductPerformanceTablePro
     revenue: (p) => p.revenue,
     units: (p) => p.units,
     margin: (p) => p.margin,
+  });
+
+  const rowVirtualizer = useVirtualizer({
+    count: sortedData.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => ROW_HEIGHT,
+    overscan: 10,
   });
 
   return (
@@ -95,12 +110,29 @@ export function ProductPerformanceTable({ products }: ProductPerformanceTablePro
                 />
               </div>
             </div>
-            <div role="rowgroup" className="divide-y divide-border/50 max-h-[420px] overflow-y-auto">
-              {sortedData.map((p) => (
+            {/* Virtualized: this table deliberately lists EVERY product sold in
+                the period (see the doc comment on getBIMetrics's
+                productPerformance) - on a busy month that is thousands of rows,
+                all of which used to be in the DOM at once. */}
+            <div
+              ref={scrollRef}
+              role="rowgroup"
+              className="max-h-[420px] overflow-y-auto"
+            >
+              <div
+                className="relative w-full"
+                style={{ height: rowVirtualizer.getTotalSize() }}
+              >
+              {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                const p = sortedData[virtualRow.index];
+                return (
                 <div
                   key={p.id}
+                  data-index={virtualRow.index}
+                  ref={rowVirtualizer.measureElement}
                   role="row"
-                  className="grid grid-cols-[1.6fr_1fr_90px_90px_90px] gap-2 px-3 py-2.5 items-center text-[13px]"
+                  className="absolute top-0 left-0 w-full grid grid-cols-[1.6fr_1fr_90px_90px_90px] gap-2 px-3 py-2.5 items-center text-[13px] border-b border-border/50"
+                  style={{ transform: `translateY(${virtualRow.start}px)` }}
                 >
                   <div role="cell" className="font-medium truncate">
                     {p.name}
@@ -121,8 +153,11 @@ export function ProductPerformanceTable({ products }: ProductPerformanceTablePro
                     {p.margin.toFixed(0)}%
                   </div>
                 </div>
-              ))}
+                );
+              })}
+              </div>
             </div>
+            <ScrollToTopButton scrollRef={scrollRef} />
           </div>
         </div>
       )}

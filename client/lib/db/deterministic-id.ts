@@ -1,0 +1,77 @@
+/**
+ * Deterministic, UUID-shaped ids.
+ *
+ * Most rows get a random `generateId()`, which is right when the row is a
+ * genuinely new event. It is wrong when two devices can independently
+ * perform the *same* real-world event: two random ids make one event look
+ * like two, and the server — which resolves conflicts per row — has nothing
+ * to collide them against, so both are accepted.
+ *
+ * Deriving the id from what makes the event unique instead means the second
+ * device's row arrives carrying the first device's id. `SyncController::push`
+ * already turns an INSERT whose id exists into an UPDATE, so the duplicate
+ * collapses onto the original rather than doubling it, with no new
+ * server-side idempotency machinery to keep in step with the client.
+ *
+ * The output is formatted as a v5 UUID (version nibble 5, RFC 4122 variant)
+ * so it satisfies every UUID shape check in this codebase and is
+ * indistinguishable from a random id anywhere it is stored or displayed.
+ * The digest is four independently salted 32-bit FNV-1a passes rather than a
+ * real SHA-1: `crypto.subtle` is async and unavailable outside a secure
+ * context, and both callers here need a synchronous value inside a
+ * transaction.
+ */
+
+const FNV_OFFSET_BASIS = 0x811c9dc5;
+const FNV_PRIME = 0x01000193;
+
+function fnv1a(input: string): number {
+  let hash = FNV_OFFSET_BASIS;
+  for (let i = 0; i < input.length; i++) {
+    hash ^= input.charCodeAt(i);
+    hash = Math.imul(hash, FNV_PRIME);
+  }
+  return hash >>> 0;
+}
+
+function lane(salt: number, input: string): string {
+  return fnv1a(`${salt}\0${input}`).toString(16).padStart(8, "0");
+}
+
+/**
+ * A stable id for `parts`. The same parts always produce the same id, on
+ * every device; different parts practically never collide (128 bits across
+ * four salted lanes).
+ */
+export function deterministicId(...parts: (string | number)[]): string {
+  const input = parts.join("\0");
+  const hex = lane(0, input) + lane(1, input) + lane(2, input) + lane(3, input);
+
+  const version = `5${hex.slice(13, 16)}`;
+  const variantNibble = ((parseInt(hex[16], 16) & 0x3) | 0x8).toString(16);
+  const variant = `${variantNibble}${hex.slice(17, 20)}`;
+
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${version}-${variant}-${hex.slice(20, 32)}`;
+}
+
+/**
+ * The stock batch a receipt against one purchase-order line creates.
+ *
+ * Keyed on the line plus the quantity already received against it, which is
+ * exactly "which receipt of this line is this": two devices booking the same
+ * delivery both see the same prior balance and derive the same id, so the
+ * second collapses onto the first server-side instead of doubling the stock.
+ * A genuine *later* partial receipt starts from a different balance and so
+ * gets a different id, as it should.
+ */
+export function receiptBatchId(poItemId: string, alreadyReceived: number): string {
+  return deterministicId("po_receipt_batch", poItemId, alreadyReceived);
+}
+
+/** The stock movement accompanying that batch — same key, so it collapses
+ * with it. This is the one that actually matters for on-hand quantity: the
+ * server derives `stock_batches.quantity` from movement deltas, and only an
+ * INSERT contributes one. */
+export function receiptMovementId(poItemId: string, alreadyReceived: number): string {
+  return deterministicId("po_receipt_movement", poItemId, alreadyReceived);
+}

@@ -1,10 +1,15 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useTheme } from "@/components/theme-provider";
 import { useStore, StoreType } from "@/lib/context/store-context";
 import { useAuth } from "@/lib/context/auth-context";
+import { hasPermission } from "@/lib/hooks/use-permissions";
+import {
+  ALL_SETTINGS_TABS,
+  canAccessSettingsTab,
+} from "@/lib/constants/settings-tabs";
 import { toast } from "sonner";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { apiClient } from "@/lib/api/client";
@@ -35,7 +40,7 @@ export function resolveAutoSyncInterval(
 
 export function useSettings() {
   const { theme, setTheme } = useTheme();
-  const { user, isAdmin, changePin, isCloudLinked } = useAuth();
+  const { user, isAdmin, changePin, isCloudLinked, permissionGroup } = useAuth();
   const {
     storeProfile,
     storeType,
@@ -120,42 +125,17 @@ export function useSettings() {
     store: "business-info",
   };
 
-  const ADMIN_ONLY_TABS = [
-    "personal-info",
-    "business-info",
-    "branches",
-    "payment-methods",
-    "receipt-settings",
-    "register-configs",
-    "product-units",
-    "categories",
-    "data",
-    "staff",
-    "system",
-    "billing",
-    "roles",
-    "danger-zone",
-  ];
-
-  const ALL_TABS = [
-    "appearance",
-    "personal-info",
-    "security",
-    "business-info",
-    "branches",
-    "staff",
-    "payment-methods",
-    "receipt-settings",
-    "register-configs",
-    "product-units",
-    "categories",
-    "notifications",
-    "data",
-    "system",
-    "billing",
-    "roles",
-    "danger-zone",
-  ];
+  // The Store & Settings tabs resolve against their own permission key and
+  // the rest against the coarse isAdmin check, in one place that the tab
+  // rail, the mobile list and the URL effect below all share — so a hidden
+  // trigger and a typed /settings/<tab> can never disagree.
+  const canAccessTab = useCallback(
+    (tab: string) =>
+      canAccessSettingsTab(tab, isAdmin, (key) =>
+        hasPermission(user, permissionGroup, key),
+      ),
+    [isAdmin, user, permissionGroup],
+  );
 
   // Tab activation from URL
   useEffect(() => {
@@ -177,11 +157,11 @@ export function useSettings() {
         }
       }
 
-      if (!ALL_TABS.includes(internalTab)) {
+      if (!(ALL_SETTINGS_TABS as readonly string[]).includes(internalTab)) {
         return;
       }
 
-      if (!isAdmin && ADMIN_ONLY_TABS.includes(internalTab)) {
+      if (!canAccessTab(internalTab)) {
         setActiveTab("appearance");
         return;
       }
@@ -197,7 +177,7 @@ export function useSettings() {
     // - rerun on every render for as long as the route stayed on the
     // "cloud" alias, reopening the Link DumosRx Cloud dialog immediately
     // after the user closed it. See __tests__/settings-cloud-link-dialog-loop.test.ts.
-  }, [tabParam, isCloudLinked, isAdmin, activeTab, syncState.setIsCloudLinkOpen]);
+  }, [tabParam, isCloudLinked, canAccessTab, activeTab, syncState.setIsCloudLinkOpen]);
 
   // Tab change handler that updates URL
   const handleTabChange = (value: string) => {
@@ -340,6 +320,7 @@ export function useSettings() {
     theme,
     setTheme,
     isAdmin,
+    canAccessTab,
     isCloudLinked,
     storeType,
     canAccessLoyaltyProgramPlan,

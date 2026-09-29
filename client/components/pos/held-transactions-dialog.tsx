@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/utils";
 import { useStore } from "@/lib/context/store-context";
+import { useHasPermission } from "@/lib/hooks/use-permissions";
 
 import type { HeldTransaction } from "@/lib/db/queries/sales";
 
@@ -51,6 +52,10 @@ export function HeldTransactionsDialog({
     refetch: loadHeldTransactions,
   } = useHeldTransactions();
   const { storeProfile } = useStore();
+  // Unconditional top-level const (see pos-cart.tsx's canApplyDiscounts).
+  // Resuming a parked sale is the other half of what pos-cart.tsx's Hold
+  // Sale button creates; the list itself stays readable without it.
+  const canHoldSales = useHasPermission("hold_sales");
   const deleteMutation = useDeleteHeldTransactionMutation();
   // Only one delete is ever in flight per dialog instance, so the pending
   // mutation's own variables (the id it was called with) double as the
@@ -178,15 +183,17 @@ export function HeldTransactionsDialog({
                       <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
                     )}
                   </Button>
-                  <Button
-                    variant="default"
-                    className="h-9 sm:h-10 px-3 sm:px-4 rounded-lg sm:rounded-xl text-xs sm:text-base font-bold bg-primary hover:bg-primary/90 shrink-0"
-                    onClick={() => onRecall(item)}
-                    disabled={deletingId === item.id}
-                  >
-                    <PlayCircle className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
-                    Recall
-                  </Button>
+                  {canHoldSales && (
+                    <Button
+                      variant="default"
+                      className="h-9 sm:h-10 px-3 sm:px-4 rounded-lg sm:rounded-xl text-xs sm:text-base font-bold bg-primary hover:bg-primary/90 shrink-0"
+                      onClick={() => onRecall(item)}
+                      disabled={deletingId === item.id}
+                    >
+                      <PlayCircle className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
+                      Recall
+                    </Button>
+                  )}
                 </div>
               </div>
             </div>

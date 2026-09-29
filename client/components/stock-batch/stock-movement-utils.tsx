@@ -22,6 +22,7 @@ export interface StockMovement {
   supplier?: string;
   batchNumber?: string;
   needsReview?: boolean;
+  reviewed?: boolean;
 }
 
 export const FILTER_TYPES = [

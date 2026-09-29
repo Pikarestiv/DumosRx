@@ -1,9 +1,15 @@
-import { getPendingSyncItems, markSynced, recordSyncFailure } from "../local-database";
+import {
+  getPendingSyncItems,
+  markConflictSettled,
+  markSynced,
+  recordSyncFailure,
+} from "../local-database";
 import { apiClient } from "@/lib/api/client";
 import { PushResponse } from "./types";
 import type { SyncChange, SyncQueueItem } from "@/lib/types/sync";
 import { remapForeignKey, DUPLICATE_NAME_TABLES } from "../reconcile-identity";
 import { execute, query, transaction } from "../core";
+import { isExpectedSyncRestriction } from "@/lib/utils/error-logger";
 import { toast } from "sonner";
 
 // Reasons the server can report in `response.failed` that mean "this exact
@@ -13,7 +19,32 @@ import { toast } from "sonner";
 // these through recordSyncFailure's exponential-backoff retry path would
 // silently loop forever — the base version this edit was computed from
 // doesn't change no matter how many times it's resent.
-const NON_RETRYABLE_CONFLICT_REASONS = new Set(["version_conflict", "stale_timestamp"]);
+// quantity_received_exceeds_ordered belongs here for the same reason: the
+// payload is frozen, so a receipt the server has judged impossible against
+// the ordered quantity stays impossible on every resend. Dropping it lets
+// the next pull bring down the server's real balance instead of burning
+// five retries and reporting a permanently stuck queue item.
+// permission_denied is the same class of permanent failure: the payload is
+// frozen and the caller's own grants don't change by resending it, so a
+// privilege rejection stays a privilege rejection on every attempt.
+const NON_RETRYABLE_CONFLICT_REASONS = new Set([
+  "version_conflict",
+  "stale_timestamp",
+  "quantity_received_exceeds_ordered",
+  "permission_denied",
+]);
+
+// Terminal reasons that are dropped quietly: the local edit was queued by
+// automatic machinery (the permission catalog backfill), not by a user
+// action anyone is waiting on, so "could not be saved" would be alarming
+// noise about something they never did. See client/AGENTS.md's "Catalog
+// versioning and the default-group backfill".
+const SILENT_TERMINAL_REASONS = new Set(["permission_denied"]);
+
+// Tables whose server row does NOT carry the id the client pushed, so no
+// future pull can ever match it and settle a terminally-conflicted local row.
+// See docs/FIXED_BUGS.md "audit_logs conflict resurrection loop".
+const TERMINAL_CONFLICT_SETTLES_SOURCE_ROW = new Set(["audit_logs"]);
 
 const SYNC_BATCH_SIZE = 50;
 
@@ -225,7 +256,12 @@ async function withheldRecordsWithBackedOffSiblingsRemoved(
  */
 export async function pushChanges(
   isManual: boolean = false,
-  isSetup: boolean = false
+  isSetup: boolean = false,
+  // Identifies every batch below as part of ONE sync run, so the server's
+  // plan-tier sync-interval throttle measures the interval per run instead
+  // of per request (see SyncController::validateSync). Without it, batch 2
+  // of a backlog is rejected by the last_sync_at that batch 1 just stamped.
+  runId?: string,
 ): Promise<{ pushed: number; failedBatches: number }> {
   let pending = await getPendingSyncItems(isManual);
 
@@ -486,7 +522,8 @@ export async function pushChanges(
           changes,
         },
         isManual,
-        isSetup
+        isSetup,
+        runId,
       )) as PushResponse;
 
       // The server isolates each change to its own savepoint (see
@@ -517,7 +554,7 @@ export async function pushChanges(
         // into a single change before any batch was ever sent), so this
         // naturally produces exactly one toast per conflicted record, never
         // one per underlying queue row.
-        const versionConflicts: { table_name: string; record_id: string }[] = [];
+        const versionConflicts: { table_name: string; record_id: string; reason: string }[] = [];
 
         // A response lost after the server actually committed (timeout,
         // dropped connection) looks identical to a network failure from this
@@ -573,10 +610,14 @@ export async function pushChanges(
 
               await execute(`DELETE FROM _sync_queue WHERE id IN (${placeholders})`, underlyingIds);
 
+              if (TERMINAL_CONFLICT_SETTLES_SOURCE_ROW.has(f.table_name)) {
+                await markConflictSettled(f.table_name, f.record_id);
+              }
+
               if (wasRetried) {
                 silencedConflicts.push({ table_name: f.table_name, record_id: f.record_id });
               } else {
-                versionConflicts.push({ table_name: f.table_name, record_id: f.record_id });
+                versionConflicts.push({ table_name: f.table_name, record_id: f.record_id, reason: f.reason });
               }
             } else {
               for (const id of underlyingIds) {
@@ -665,6 +706,12 @@ export async function pushChanges(
         // server-side, only that its own edit no longer matches what it was
         // based on. State what happened, not an unverifiable cause.
         const toastableConflicts = versionConflicts.filter((conflict) => {
+          if (SILENT_TERMINAL_REASONS.has(conflict.reason)) {
+            console.info(
+              `[Sync] ${conflict.table_name} record ${conflict.record_id} was rejected as ${conflict.reason}; queue row dropped, the next pull brings the server's version down. No toast shown.`,
+            );
+            return false;
+          }
           // feedback and audit_logs are both push-only telemetry the user
           // never edits locally — nothing for them to act on, so log rather
           // than toast. audit_logs in particular has no `_version` field at
@@ -733,6 +780,19 @@ export async function pushChanges(
         });
       }
     } catch (error) {
+      // A plan restriction (SYNC_THROTTLED, SYNC_DISABLED, STORE_LIMIT_
+      // EXCEEDED) isn't this batch's fault and isn't fixed by retrying an
+      // individual item: the server is telling the whole device to wait or
+      // upgrade. Routing it through recordSyncFailure would burn every
+      // queued item's 5-attempt backoff budget and then report a perfectly
+      // healthy queue as "stuck". Stop the run and leave the queue exactly
+      // as it was — the next run (after the interval elapses) sends it
+      // untouched. Reachable for background syncs only since they stopped
+      // claiming `manual` (see docs/FIXED_BUGS.md, A-5).
+      if (isExpectedSyncRestriction(error)) {
+        console.warn("[Sync] Push stopped by a plan restriction:", error);
+        throw error;
+      }
       // Don't abort the whole push run over one bad batch; record backoff
       // for this batch's items and continue with the remaining batches.
       console.error("Push sync failed for batch:", error);

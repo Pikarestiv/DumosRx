@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/lib/context/auth-context";
+import { HorizontalScrollFade } from "@/components/ui/scroll-fade";
 
 interface QuickAction {
   label: string;
@@ -107,11 +108,11 @@ export function DashboardQuickActions() {
         </CardTitle>
       </CardHeader>
       <CardContent className="p-0 px-2.5 sm:px-0">
-        <div className="flex overflow-x-auto sm:grid sm:grid-cols-2 gap-1 sm:gap-4 pb-0 hide-scrollbar snap-x snap-mandatory -mx-4 sm:mx-0 px-4 sm:px-0">
+        <HorizontalScrollFade className="flex overflow-x-auto sm:grid sm:grid-cols-2 gap-1 sm:gap-4 pb-0 hide-scrollbar snap-x snap-mandatory -mx-4 sm:mx-0 px-4 sm:px-0">
           {visibleActions.map((action, i) => (
             <QuickActionCard key={i} action={action} />
           ))}
-        </div>
+        </HorizontalScrollFade>
       </CardContent>
     </Card>
   );

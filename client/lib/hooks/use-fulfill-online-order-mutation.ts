@@ -88,8 +88,8 @@ async function recordLocalOnlineSale({
     amount_paid: order.total_amount,
     change_given: 0,
     payment_method: order.payment_method,
-    payment_status: "paid",
-    cashier_id: cashierId,
+    payment_status: "completed",
+    user_id: cashierId,
     notes: order.customer_name ? `Online order - ${order.customer_name}` : "Online order",
   });
 

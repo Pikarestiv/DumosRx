@@ -1,7 +1,51 @@
+import type { POProduct } from "@/lib/db/queries/procurement";
 import type { POLineItemDraft } from "./po-item-ledger-table";
 
 /**
- * Single source of truth for Immediate Purchase cost math. unit_cost is
+ * Adding a product to the order being built. Picking the same product twice
+ * used to append a second row for it, leaving two lines for one product to
+ * be reconciled by hand (and two competing sets of lot/expiry/price
+ * overrides); the second pick is almost always "one more of these", so it
+ * increments the row that already exists. `merged` lets the caller say which
+ * of the two happened.
+ */
+export function addOrMergeLineItem(
+  items: POLineItemDraft[],
+  product: POProduct,
+): { items: POLineItemDraft[]; merged: boolean } {
+  const existingIndex = items.findIndex((i) => i.product_id === product.id);
+  if (existingIndex >= 0) {
+    const next = [...items];
+    const existing = next[existingIndex];
+    next[existingIndex] = {
+      ...existing,
+      bulk_quantity: existing.bulk_quantity + 1,
+    };
+    return { items: next, merged: true };
+  }
+
+  const unitsPerBulk = product.units_per_bulk || 1;
+  const unitCost = product.cost_price ? product.cost_price * unitsPerBulk : 0;
+  return {
+    items: [
+      ...items,
+      {
+        product_id: product.id,
+        product_name: product.name,
+        bulk_unit: product.bulk_unit || "Carton",
+        bulk_quantity: 1,
+        units_per_bulk: unitsPerBulk,
+        unit_cost: unitCost,
+        subtotal: unitCost,
+      },
+    ],
+    merged: false,
+  };
+}
+
+/**
+ * Single source of truth for cost math on BOTH the Immediate Purchase and
+ * the Receive-goods flows. unit_cost is
  * always per bulk unit (e.g. per carton); cost_price_override, when typed
  * into "New Cost", is per single base unit (e.g. per tablet) — the same
  * scale as the catalog's current cost and the sell price entered in
@@ -10,15 +54,33 @@ import type { POLineItemDraft } from "./po-item-ledger-table";
  * inline: that duplication is exactly how "New Cost", "Total", and
  * "Review price" drifted out of sync with each other before.
  */
-export function getImmediateUnitCost(item: POLineItemDraft): number {
-  const unitsPerBulk = item.units_per_bulk || 1;
+export function resolveBaseUnitCost({
+  costOverride,
+  unitCost,
+  unitsPerBulk,
+}: {
+  costOverride?: number | string | null;
+  unitCost: number;
+  unitsPerBulk?: number | null;
+}): number {
+  const safeUnitsPerBulk = Number(unitsPerBulk) || 1;
   // Loose `!=` (not `!==`) deliberately also catches `null`: a PO reloaded
   // from the DB hands back SQL NULL for an unset override, not
   // `undefined` - `Number(null)` is `0`, which would silently read back
   // as "override to zero cost" instead of "no override".
-  return item.cost_price_override != null && item.cost_price_override !== ""
-    ? Number(item.cost_price_override)
-    : item.unit_cost / unitsPerBulk;
+  const resolved =
+    costOverride != null && costOverride !== ""
+      ? Number(costOverride)
+      : Number(unitCost) / safeUnitsPerBulk;
+  return Number.isFinite(resolved) ? Math.max(0, resolved) : 0;
+}
+
+export function getImmediateUnitCost(item: POLineItemDraft): number {
+  return resolveBaseUnitCost({
+    costOverride: item.cost_price_override,
+    unitCost: item.unit_cost,
+    unitsPerBulk: item.units_per_bulk,
+  });
 }
 
 /**
@@ -68,6 +130,21 @@ export function getLineTotal(item: POLineItemDraft, poType: "standard" | "immedi
 }
 
 /**
+ * The order's total: every screen that shows an "Estimated total" must go
+ * through this rather than reducing over its own formula. The edit page's
+ * header used getLineTotal(item, "standard") while its rows rendered as
+ * "immediate", and the mobile edit view's drawer used a raw
+ * bulk_quantity * unit_cost — three different numbers for the same order
+ * once a "New Cost" override was typed.
+ */
+export function getOrderTotal(
+  items: POLineItemDraft[],
+  poType: "standard" | "immediate",
+): number {
+  return items.reduce((sum, item) => sum + getLineTotal(item, poType), 0);
+}
+
+/**
  * Validates the free-text "Amount Paid" field before it's ever written to
  * the PO: `Number(amountPaid) || 0` alone silently records ₦0 paid for a
  * blank/non-numeric input, and accepted any value above the order total
@@ -78,4 +155,46 @@ export function getValidatedAmountPaid(rawAmountPaid: string, orderTotal: number
   const parsed = Number(rawAmountPaid);
   if (!Number.isFinite(parsed) || parsed <= 0) return 0;
   return Math.min(parsed, orderTotal);
+}
+
+/**
+ * How many lines carry a real Sell Price override that actually differs
+ * from the product's current price - blank/null/undefined all mean "not
+ * overridden" (a PO reloaded via getPurchaseOrderById() hands back SQL
+ * NULL, not undefined, for an unset override - see coerceOptionalNumber in
+ * lib/db/procurement.ts), and retyping the same number the field was
+ * prefilled with is not a real change either. Only meaningful for a submit
+ * that writes products.selling_price synchronously in the same action -
+ * createAndReceivePurchaseOrder does, and so does receivePurchaseOrder;
+ * createPurchaseOrder (a Standard order, or an Immediate order saved as a
+ * draft) never touches the live product row at all, so a caller must not
+ * report a price change from that path even though the same field was
+ * filled in - nothing has actually changed yet.
+ */
+export function countSellingPriceOverrides(
+  items: { product_id: string; selling_price?: number | string }[],
+  products: { id: string; selling_price?: number | null }[],
+): number {
+  return items.filter((item) => {
+    if (item.selling_price == null || item.selling_price === "") return false;
+    const product = products.find((p) => p.id === item.product_id);
+    return Number(item.selling_price) !== (product?.selling_price ?? null);
+  }).length;
+}
+
+/**
+ * The lines on a receipt that carried a real cost override, with the cost
+ * that was typed. Each batch keeps its own singular cost_price, and that is
+ * what margin/COGS and FEFO deduction use; the catalog's averaged cost is a
+ * display figure only. This drives the post-receive confirmation that says
+ * so, because a small new batch barely moves a large displayed average and
+ * therefore reads as "the cost didn't save".
+ */
+export function costOverriddenLines(
+  items: { product_id?: string; cost_price?: number | string }[],
+): { productId: string; cost: number }[] {
+  return items
+    .filter((item) => item.cost_price != null && item.cost_price !== "")
+    .filter((item): item is { product_id: string; cost_price: number | string } => !!item.product_id)
+    .map((item) => ({ productId: item.product_id, cost: Number(item.cost_price) }));
 }

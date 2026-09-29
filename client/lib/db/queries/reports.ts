@@ -143,129 +143,183 @@ export async function getDashboardOverviewData(viewerId?: string) {
   const today = getLocalTodayDate();
   const storeId = getActiveStoreId();
 
-  const salesToday = await query<{
-    total: number;
-    count: number;
-    cash: number;
-    card: number;
-    debt: number;
-  }>(
-    `SELECT
-      SUM(total_amount) as total,
-      COUNT(*) as count,
-      SUM(CASE WHEN payment_method = 'cash' THEN total_amount ELSE 0 END) as cash,
-      SUM(CASE WHEN payment_method = 'card' THEN total_amount ELSE 0 END) as card,
-      SUM(CASE WHEN payment_method = 'credit' THEN total_amount ELSE 0 END) as debt
-     FROM sales
-     WHERE date(transaction_date, 'localtime') = ? AND (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}`,
-    storeId ? [today, storeId] : [today],
-  );
+  const dateYesterday = new Date();
+  dateYesterday.setDate(dateYesterday.getDate() - 1);
+  const yesterday = `${dateYesterday.getFullYear()}-${String(dateYesterday.getMonth() + 1).padStart(2, '0')}-${String(dateYesterday.getDate()).padStart(2, '0')}`;
 
-  const refundsToday = await query<{
-    total: number;
-    cash: number;
-    card: number;
-    debt: number;
-  }>(
-    `SELECT
-      SUM(r.total_refunded) as total,
-      SUM(CASE WHEN s.payment_method = 'cash' OR s.payment_method = 'mixed' THEN r.total_refunded ELSE 0 END) as cash,
-      SUM(CASE WHEN s.payment_method = 'card' THEN r.total_refunded ELSE 0 END) as card,
-      SUM(CASE WHEN s.payment_method = 'credit' THEN r.total_refunded ELSE 0 END) as debt
-     FROM returns r
-     JOIN sales s ON r.sale_id = s.id
-     WHERE date(r.created_at, 'localtime') = ? AND (r._deleted = 0 OR r._deleted IS NULL)${storeId ? " AND r.store_id = ?" : ""}`,
-    storeId ? [today, storeId] : [today],
-  );
+  // None of the reads below depend on each other's results, so they go out
+  // together rather than one await at a time - the same shape as
+  // getCurrentMonthRevenue in finance.ts.
+  const [
+    salesToday,
+    refundsToday,
+    recentSales,
+    recentMovements,
+    recentReturns,
+    recentPurchaseOrders,
+    recentExpenses,
+    recentPrescriptions,
+    recentProducts,
+    salesYesterday,
+    refundsYesterday,
+    activeCategories,
+  ] = await Promise.all([
+    query<{
+      total: number;
+      count: number;
+      cash: number;
+      card: number;
+      debt: number;
+    }>(
+      `SELECT
+        SUM(total_amount) as total,
+        COUNT(*) as count,
+        SUM(CASE WHEN payment_method = 'cash' THEN total_amount ELSE 0 END) as cash,
+        SUM(CASE WHEN payment_method = 'card' THEN total_amount ELSE 0 END) as card,
+        SUM(CASE WHEN payment_method = 'credit' THEN total_amount ELSE 0 END) as debt
+       FROM sales
+       WHERE date(transaction_date, 'localtime') = ? AND (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}`,
+      storeId ? [today, storeId] : [today],
+    ),
 
-  const recentSales = await query<SaleWithDetails>(
-    `SELECT s.*, TRIM(u.first_name || ' ' || u.last_name) as cashier_name
-     FROM sales s
-     LEFT JOIN users u ON u.id = s.user_id
-     WHERE s._deleted = 0${viewerId ? " AND s.user_id = ?" : ""}${storeId ? " AND s.store_id = ?" : ""}
-     ORDER BY s.created_at DESC LIMIT 5`,
-    [...(viewerId ? [viewerId] : []), ...(storeId ? [storeId] : [])],
-  );
+    query<{
+      total: number;
+      cash: number;
+      card: number;
+      debt: number;
+    }>(
+      `SELECT
+        SUM(r.total_refunded) as total,
+        SUM(CASE WHEN s.payment_method = 'cash' OR s.payment_method = 'mixed' THEN r.total_refunded ELSE 0 END) as cash,
+        SUM(CASE WHEN s.payment_method = 'card' THEN r.total_refunded ELSE 0 END) as card,
+        SUM(CASE WHEN s.payment_method = 'credit' THEN r.total_refunded ELSE 0 END) as debt
+       FROM returns r
+       JOIN sales s ON r.sale_id = s.id
+       WHERE date(r.created_at, 'localtime') = ? AND (r._deleted = 0 OR r._deleted IS NULL)${storeId ? " AND r.store_id = ?" : ""}`,
+      storeId ? [today, storeId] : [today],
+    ),
 
-  // Excludes movements already represented by their own richer feed entry
-  // below (a sale's stock deduction, a PO's receipt, a return's restock);
-  // otherwise every one of those events produced two feed rows for the same
-  // action, one showing revenue/refund and one showing cost basis, with
-  // nothing distinguishing them. Movements with no reference_type (manual
-  // adjustments, stock audit reconciliation) have no other feed
-  // representation, so they still show up here.
-  const recentMovements = await query<StockMovementHistoryRow>(
-    `SELECT sm.*, TRIM(u.first_name || ' ' || u.last_name) as performed_by_name
-     FROM stock_movements sm
-     LEFT JOIN users u ON u.id = sm.performed_by
-     WHERE sm._deleted = 0
-       AND (sm.reference_type IS NULL OR sm.reference_type NOT IN ('sale', 'purchase_order', 'return'))
-       ${viewerId ? " AND sm.performed_by = ?" : ""}${storeId ? " AND sm.store_id = ?" : ""}
-     ORDER BY sm.created_at DESC LIMIT 5`,
-    [...(viewerId ? [viewerId] : []), ...(storeId ? [storeId] : [])],
-  );
+    query<SaleWithDetails>(
+      `SELECT s.*, TRIM(u.first_name || ' ' || u.last_name) as cashier_name
+       FROM sales s
+       LEFT JOIN users u ON u.id = s.user_id
+       WHERE s._deleted = 0${viewerId ? " AND s.user_id = ?" : ""}${storeId ? " AND s.store_id = ?" : ""}
+       ORDER BY s.created_at DESC LIMIT 5`,
+      [...(viewerId ? [viewerId] : []), ...(storeId ? [storeId] : [])],
+    ),
 
-  const recentReturns = await query<{
-    id: string;
-    sale_id: string;
-    reason?: string;
-    total_refunded: number;
-    created_at: string;
-    transaction_number?: string;
-  }>(
-    `SELECT r.*, s.transaction_number
-     FROM returns r
-     LEFT JOIN sales s ON s.id = r.sale_id
-     WHERE r._deleted = 0${viewerId ? " AND r.user_id = ?" : ""}${storeId ? " AND r.store_id = ?" : ""}
-     ORDER BY r.created_at DESC LIMIT 5`,
-    [...(viewerId ? [viewerId] : []), ...(storeId ? [storeId] : [])],
-  );
+    // Excludes movements already represented by their own richer feed entry
+    // below (a sale's stock deduction, a PO's receipt, a return's restock);
+    // otherwise every one of those events produced two feed rows for the same
+    // action, one showing revenue/refund and one showing cost basis, with
+    // nothing distinguishing them. Movements with no reference_type (manual
+    // adjustments, stock audit reconciliation) have no other feed
+    // representation, so they still show up here.
+    query<StockMovementHistoryRow>(
+      `SELECT sm.*, TRIM(u.first_name || ' ' || u.last_name) as performed_by_name
+       FROM stock_movements sm
+       LEFT JOIN users u ON u.id = sm.performed_by
+       WHERE sm._deleted = 0
+         AND (sm.reference_type IS NULL OR sm.reference_type NOT IN ('sale', 'purchase_order', 'return'))
+         ${viewerId ? " AND sm.performed_by = ?" : ""}${storeId ? " AND sm.store_id = ?" : ""}
+       ORDER BY sm.created_at DESC LIMIT 5`,
+      [...(viewerId ? [viewerId] : []), ...(storeId ? [storeId] : [])],
+    ),
 
-  const recentPurchaseOrders = await query<PurchaseOrder>(
-    `SELECT po.*, TRIM(u.first_name || ' ' || u.last_name) as ordered_by_name
-     FROM purchase_orders po
-     LEFT JOIN users u ON u.id = po.ordered_by
-     WHERE po._deleted = 0${viewerId ? " AND po.ordered_by = ?" : ""}${storeId ? " AND po.store_id = ?" : ""}
-     ORDER BY po.created_at DESC LIMIT 5`,
-    [...(viewerId ? [viewerId] : []), ...(storeId ? [storeId] : [])],
-  );
+    query<{
+      id: string;
+      sale_id: string;
+      reason?: string;
+      total_refunded: number;
+      created_at: string;
+      transaction_number?: string;
+    }>(
+      `SELECT r.*, s.transaction_number
+       FROM returns r
+       LEFT JOIN sales s ON s.id = r.sale_id
+       WHERE r._deleted = 0${viewerId ? " AND r.user_id = ?" : ""}${storeId ? " AND r.store_id = ?" : ""}
+       ORDER BY r.created_at DESC LIMIT 5`,
+      [...(viewerId ? [viewerId] : []), ...(storeId ? [storeId] : [])],
+    ),
 
-  const recentExpenses = await query<Expense>(
-    `SELECT e.*, TRIM(u.first_name || ' ' || u.last_name) as recorded_by_name
-     FROM expenses e
-     LEFT JOIN users u ON u.id = e.user_id
-     WHERE e._deleted = 0${viewerId ? " AND e.user_id = ?" : ""}${storeId ? " AND e.store_id = ?" : ""}
-     ORDER BY e.created_at DESC LIMIT 5`,
-    [...(viewerId ? [viewerId] : []), ...(storeId ? [storeId] : [])],
-  );
+    query<PurchaseOrder>(
+      `SELECT po.*, TRIM(u.first_name || ' ' || u.last_name) as ordered_by_name
+       FROM purchase_orders po
+       LEFT JOIN users u ON u.id = po.ordered_by
+       WHERE po._deleted = 0${viewerId ? " AND po.ordered_by = ?" : ""}${storeId ? " AND po.store_id = ?" : ""}
+       ORDER BY po.created_at DESC LIMIT 5`,
+      [...(viewerId ? [viewerId] : []), ...(storeId ? [storeId] : [])],
+    ),
 
-  const recentPrescriptions = await query<PrescriptionRow>(
-    `SELECT p.*, TRIM(u.first_name || ' ' || u.last_name) as created_by_name
-     FROM prescriptions p
-     LEFT JOIN users u ON u.id = p.user_id
-     WHERE p._deleted = 0${viewerId ? " AND p.user_id = ?" : ""}${storeId ? " AND p.store_id = ?" : ""}
-     ORDER BY p.created_at DESC LIMIT 5`,
-    [...(viewerId ? [viewerId] : []), ...(storeId ? [storeId] : [])],
-  );
+    query<Expense>(
+      `SELECT e.*, TRIM(u.first_name || ' ' || u.last_name) as recorded_by_name
+       FROM expenses e
+       LEFT JOIN users u ON u.id = e.user_id
+       WHERE e._deleted = 0${viewerId ? " AND e.user_id = ?" : ""}${storeId ? " AND e.store_id = ?" : ""}
+       ORDER BY e.created_at DESC LIMIT 5`,
+      [...(viewerId ? [viewerId] : []), ...(storeId ? [storeId] : [])],
+    ),
 
-  // Products have no creator/user column, so unlike every other feed source
-  // above, this can't be scoped to the viewer's own actions - skip it
-  // entirely for a scoped viewer rather than showing everyone else's
-  // catalog additions (e.g. a cashier seeing products the store owner added).
-  const recentProducts = viewerId
-    ? []
-    : await query<{
-        id: string;
-        name: string;
-        selling_price?: number;
-        created_at: string;
-      }>(
-        `SELECT id, name, selling_price, created_at
-         FROM products
-         WHERE _deleted = 0${storeId ? " AND store_id = ?" : ""}
-         ORDER BY created_at DESC LIMIT 5`,
-        storeId ? [storeId] : [],
-      );
+    query<PrescriptionRow>(
+      `SELECT p.*, TRIM(u.first_name || ' ' || u.last_name) as created_by_name
+       FROM prescriptions p
+       LEFT JOIN users u ON u.id = p.user_id
+       WHERE p._deleted = 0${viewerId ? " AND p.user_id = ?" : ""}${storeId ? " AND p.store_id = ?" : ""}
+       ORDER BY p.created_at DESC LIMIT 5`,
+      [...(viewerId ? [viewerId] : []), ...(storeId ? [storeId] : [])],
+    ),
+
+    // Products have no creator/user column, so unlike every other feed source
+    // above, this can't be scoped to the viewer's own actions - skip it
+    // entirely for a scoped viewer rather than showing everyone else's
+    // catalog additions (e.g. a cashier seeing products the store owner added).
+    viewerId
+      ? Promise.resolve(
+          [] as {
+            id: string;
+            name: string;
+            selling_price?: number;
+            created_at: string;
+          }[],
+        )
+      : query<{
+          id: string;
+          name: string;
+          selling_price?: number;
+          created_at: string;
+        }>(
+          `SELECT id, name, selling_price, created_at
+           FROM products
+           WHERE _deleted = 0${storeId ? " AND store_id = ?" : ""}
+           ORDER BY created_at DESC LIMIT 5`,
+          storeId ? [storeId] : [],
+        ),
+
+    query<{ total?: number }>(
+      `SELECT SUM(total_amount) as total FROM sales WHERE date(transaction_date, 'localtime') = ? AND (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}`,
+      storeId ? [yesterday, storeId] : [yesterday],
+    ),
+
+    // Yesterday's refunds, so the dashboard's "x% vs yesterday" comparison
+    // divides a net-of-refunds today by a net-of-refunds yesterday. Today's
+    // side (salesToday - refundsToday, see use-dashboard-overview.ts) has
+    // always netted refunds out; without this the denominator was gross
+    // revenue, so a day with any refund at all reported a fake drop (or a
+    // muted rise) against yesterday. Same date basis as refundsToday above:
+    // the return's own created_at, i.e. refunds *issued* yesterday, not
+    // refunds against sales made yesterday.
+    query<{ total?: number }>(
+      `SELECT SUM(r.total_refunded) as total
+       FROM returns r
+       WHERE date(r.created_at, 'localtime') = ? AND (r._deleted = 0 OR r._deleted IS NULL)${storeId ? " AND r.store_id = ?" : ""}`,
+      storeId ? [yesterday, storeId] : [yesterday],
+    ),
+
+    query<{ count?: number }>(
+      `SELECT COUNT(DISTINCT category_id) as count FROM products WHERE _deleted = 0${storeId ? " AND store_id = ?" : ""}`,
+      storeId ? [storeId] : [],
+    ),
+  ]);
 
   const allActivities: DashboardActivity[] = [
     ...(recentSales || []).map((s): DashboardActivity => ({ ...s, activity_type: 'sale' })),
@@ -280,35 +334,6 @@ export async function getDashboardOverviewData(viewerId?: string) {
     const timeB = new Date(b.created_at || b.date || b.transaction_date || 0).getTime();
     return timeB - timeA;
   }).slice(0, 10);
-
-  const dateYesterday = new Date();
-  dateYesterday.setDate(dateYesterday.getDate() - 1);
-  const yesterday = `${dateYesterday.getFullYear()}-${String(dateYesterday.getMonth() + 1).padStart(2, '0')}-${String(dateYesterday.getDate()).padStart(2, '0')}`;
-
-  const salesYesterday = await query<{ total?: number }>(
-    `SELECT SUM(total_amount) as total FROM sales WHERE date(transaction_date, 'localtime') = ? AND (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}`,
-    storeId ? [yesterday, storeId] : [yesterday],
-  );
-
-  // Yesterday's refunds, so the dashboard's "x% vs yesterday" comparison
-  // divides a net-of-refunds today by a net-of-refunds yesterday. Today's
-  // side (salesToday - refundsToday, see use-dashboard-overview.ts) has
-  // always netted refunds out; without this the denominator was gross
-  // revenue, so a day with any refund at all reported a fake drop (or a
-  // muted rise) against yesterday. Same date basis as refundsToday above:
-  // the return's own created_at, i.e. refunds *issued* yesterday, not
-  // refunds against sales made yesterday.
-  const refundsYesterday = await query<{ total?: number }>(
-    `SELECT SUM(r.total_refunded) as total
-     FROM returns r
-     WHERE date(r.created_at, 'localtime') = ? AND (r._deleted = 0 OR r._deleted IS NULL)${storeId ? " AND r.store_id = ?" : ""}`,
-    storeId ? [yesterday, storeId] : [yesterday],
-  );
-
-  const activeCategories = await query<{ count?: number }>(
-    `SELECT COUNT(DISTINCT category_id) as count FROM products WHERE _deleted = 0${storeId ? " AND store_id = ?" : ""}`,
-    storeId ? [storeId] : [],
-  );
 
   return {
     salesToday: salesToday[0] || { total: 0, count: 0, cash: 0, card: 0, debt: 0 },
@@ -336,6 +361,7 @@ export async function fetchSalesReportData(dateFrom?: string, dateTo?: string, f
       s.transaction_number as "Transaction #",
       date(s.transaction_date, 'localtime') as "Date",
       COALESCE(c.first_name || ' ' || COALESCE(c.last_name, ''), 'Walk-in') as "Customer",
+      TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')) as "Cashier",
       s.payment_method as "Payment Method",
       s.subtotal as "Subtotal",
       s.tax_amount as "Tax",
@@ -346,6 +372,7 @@ export async function fetchSalesReportData(dateFrom?: string, dateTo?: string, f
       s.payment_status as "Status"
      FROM sales s
      LEFT JOIN customers c ON s.customer_id = c.id
+     LEFT JOIN users u ON s.user_id = u.id
      LEFT JOIN (
        SELECT sale_id, SUM(total_refunded) as refunded
        FROM returns
@@ -406,6 +433,8 @@ export async function fetchTopSellersReportData(dateFrom?: string, dateTo?: stri
       ROUND(SUM(si.total_price) * 1.0 / NULLIF(SUM(si.quantity), 0), 2) as "Avg Price"
      FROM sale_items si
      JOIN sales s ON si.sale_id = s.id
+     -- Unfiltered products join on purpose: a deleted product must still name
+     -- its history (client/AGENTS.md; deleted-product-report-history.test.ts).
      JOIN products p ON si.product_id = p.id
      LEFT JOIN categories c ON p.category_id = c.id
      WHERE ${where}
@@ -467,130 +496,179 @@ export async function getBIMetrics(
   const s1Capped = storeId ? [dateFilter, to, storeId] : [dateFilter, to];
   const s1CappedJoined = [...s1Capped, ...joined.params];
 
-  // Current Period
-  const revenueData = await query<{ total: number }>(`SELECT SUM(total_amount) as total FROM sales WHERE transaction_date >= ? AND transaction_date <= ? AND (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}${bare.clause}`, s1BareCapped);
-  // Gross Sales: list-price total before any discount, tax, or refund -
-  // subtotal is captured pre-discount at sale time (see pos-calculations.ts:
-  // total_amount = subtotal + tax_amount - discount_total).
-  const grossSalesData = await query<{ total: number }>(`SELECT SUM(subtotal) as total FROM sales WHERE transaction_date >= ? AND transaction_date <= ? AND (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}${bare.clause}`, s1BareCapped);
-  // Tax collected is pass-through, not real business revenue - subtracted
-  // out of total_amount to get Net Sales (see getBIMetrics's totalRevenue
-  // caller, use-bi-data.ts).
-  const taxData = await query<{ total: number }>(`SELECT SUM(tax_amount) as total FROM sales WHERE transaction_date >= ? AND transaction_date <= ? AND (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}${bare.clause}`, s1BareCapped);
-  // EX-VAT refunds. r.total_refunded is VAT-INCLUSIVE (calculateProportionalRefund
-  // in pos-calculations.ts bakes the refunded line's tax share into it), but
-  // every figure this feeds (useBIData's netSales = revenue - tax - refunds)
-  // is ex-VAT: subtracting the raw refund from ex-VAT revenue removes the
-  // refunded VAT a second time, since SUM(tax_amount) above already took it
-  // out. Net out only the refund's ex-VAT share -
-  // refund * (total_amount - tax_amount) / total_amount - the same fix
-  // already applied in fetchProfitLossReportData's refundRows and the Daily
-  // Close report (see use-daily-close-data.ts for the algebra). Falls back to
-  // the full refund when the original sale row can't be joined to compute the
-  // ratio. Deliberately NOT joined to return_items: a returns-level
-  // SUM(total_refunded) alongside a return_items join fans out per item.
-  const totalRefundsData = await query<{ total: number }>(`SELECT SUM(CASE WHEN s.total_amount IS NOT NULL AND s.total_amount != 0 THEN r.total_refunded * (s.total_amount - IFNULL(s.tax_amount, 0)) / s.total_amount ELSE r.total_refunded END) as total FROM returns r LEFT JOIN sales s ON s.id = r.sale_id WHERE r.created_at >= ? AND r.created_at <= ? AND (r._deleted = 0 OR r._deleted IS NULL)${storeId ? " AND r.store_id = ?" : ""}${joined.clause}`, s1CappedJoined);
-  const cogsData = await query<{ total: number }>(`SELECT SUM(si.cost_price * si.quantity) as total FROM sale_items si JOIN sales s ON si.sale_id = s.id WHERE s.transaction_date >= ? AND s.transaction_date <= ? AND (s._deleted = 0 OR s._deleted IS NULL)${storeId ? " AND s.store_id = ?" : ""}${joined.clause}`, s1JoinedCapped);
-  // Uses the cost_price recorded on the original sale_items row, not a
-  // recomputed current-stock average - the product's cost basis can change
-  // between the sale and the return, and averaging over current active
-  // batches also silently reports 0 once a product has none left.
-  // return_items has no sale_item_id column, so this joins on (sale_id,
-  // product_id) - normally at-most-one-row per the POS cart's merge-
-  // duplicates behavior, but a prescription dispense (one row per
-  // instruction line) or an online-order fulfillment (one row per raw
-  // payload item) can legitimately produce >1 sale_items row for the same
-  // product within one sale. Pre-aggregating to a single quantity-weighted
-  // average cost_price per (sale_id, product_id) before joining keeps this
-  // correct in that case, instead of fanning the return_items row out
-  // across every matching sale_items row and overcounting the total.
-  const returnedCogsData = await query<{ total: number }>(`SELECT SUM(ri.quantity * IFNULL(si.avg_cost_price, 0)) as total FROM return_items ri JOIN returns r ON ri.return_id = r.id LEFT JOIN sales s ON s.id = r.sale_id LEFT JOIN (SELECT sale_id, product_id, SUM(cost_price * quantity) * 1.0 / NULLIF(SUM(quantity), 0) as avg_cost_price FROM sale_items GROUP BY sale_id, product_id) si ON si.sale_id = r.sale_id AND si.product_id = ri.product_id WHERE r.created_at >= ? AND r.created_at <= ? AND (r._deleted = 0 OR r._deleted IS NULL)${storeId ? " AND r.store_id = ?" : ""}${joined.clause}`, s1CappedJoined);
-  // Smoothed, not a raw SUM: a prepaid expense (covers_months set) is split
-  // into equal calendar-month installments instead of hitting this whole
-  // window as a lump sum wherever it happened to be logged. See
-  // getSmoothedExpensesTotal for the "why".
-  const smoothedExpensesTotal = await getSmoothedExpensesTotal({
-    from: dateFilter,
-    to,
-  });
+  // Every read below is independent of the others, so they all go out at
+  // once rather than one await at a time - same shape as
+  // getCurrentMonthRevenue in finance.ts.
+  const [
+    revenueData,
+    grossSalesData,
+    taxData,
+    totalRefundsData,
+    cogsData,
+    returnedCogsData,
+    smoothedExpensesTotal,
+    transactionData,
+    stock_batchValueData,
+    customerData,
+    loyaltyData,
+    retentionData,
+    prevRevenueData,
+    prevTaxData,
+    prevRefundsData,
+    prevTransactionData,
+    prevCustomerData,
+    topSellingByRevenue,
+    topSellingByQuantity,
+    categoryDistribution,
+    productPerformance,
+    cashierPerformance,
+  ] = await Promise.all([
+    // Current Period
+    query<{ total: number }>(`SELECT SUM(total_amount) as total FROM sales WHERE transaction_date >= ? AND transaction_date <= ? AND (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}${bare.clause}`, s1BareCapped),
+
+    // Gross Sales: list-price total before any discount, tax, or refund -
+    // subtotal is captured pre-discount at sale time (see pos-calculations.ts:
+    // total_amount = subtotal + tax_amount - discount_total).
+    query<{ total: number }>(`SELECT SUM(subtotal) as total FROM sales WHERE transaction_date >= ? AND transaction_date <= ? AND (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}${bare.clause}`, s1BareCapped),
+
+    // Tax collected is pass-through, not real business revenue - subtracted
+    // out of total_amount to get Net Sales (see getBIMetrics's totalRevenue
+    // caller, use-bi-data.ts).
+    query<{ total: number }>(`SELECT SUM(tax_amount) as total FROM sales WHERE transaction_date >= ? AND transaction_date <= ? AND (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}${bare.clause}`, s1BareCapped),
+
+    // EX-VAT refunds. r.total_refunded is VAT-INCLUSIVE (calculateProportionalRefund
+    // in pos-calculations.ts bakes the refunded line's tax share into it), but
+    // every figure this feeds (useBIData's netSales = revenue - tax - refunds)
+    // is ex-VAT: subtracting the raw refund from ex-VAT revenue removes the
+    // refunded VAT a second time, since SUM(tax_amount) above already took it
+    // out. Net out only the refund's ex-VAT share -
+    // refund * (total_amount - tax_amount) / total_amount - the same fix
+    // already applied in fetchProfitLossReportData's refundRows and the Daily
+    // Close report (see use-daily-close-data.ts for the algebra). Falls back to
+    // the full refund when the original sale row can't be joined to compute the
+    // ratio. Deliberately NOT joined to return_items: a returns-level
+    // SUM(total_refunded) alongside a return_items join fans out per item.
+    query<{ total: number }>(`SELECT SUM(CASE WHEN s.total_amount IS NOT NULL AND s.total_amount != 0 THEN r.total_refunded * (s.total_amount - IFNULL(s.tax_amount, 0)) / s.total_amount ELSE r.total_refunded END) as total FROM returns r LEFT JOIN sales s ON s.id = r.sale_id WHERE r.created_at >= ? AND r.created_at <= ? AND (r._deleted = 0 OR r._deleted IS NULL)${storeId ? " AND r.store_id = ?" : ""}${joined.clause}`, s1CappedJoined),
+
+    query<{ total: number }>(`SELECT SUM(si.cost_price * si.quantity) as total FROM sale_items si JOIN sales s ON si.sale_id = s.id WHERE s.transaction_date >= ? AND s.transaction_date <= ? AND (s._deleted = 0 OR s._deleted IS NULL)${storeId ? " AND s.store_id = ?" : ""}${joined.clause}`, s1JoinedCapped),
+
+    // Uses the cost_price recorded on the original sale_items row, not a
+    // recomputed current-stock average - the product's cost basis can change
+    // between the sale and the return, and averaging over current active
+    // batches also silently reports 0 once a product has none left.
+    // return_items has no sale_item_id column, so this joins on (sale_id,
+    // product_id) - normally at-most-one-row per the POS cart's merge-
+    // duplicates behavior, but a prescription dispense (one row per
+    // instruction line) or an online-order fulfillment (one row per raw
+    // payload item) can legitimately produce >1 sale_items row for the same
+    // product within one sale. Pre-aggregating to a single quantity-weighted
+    // average cost_price per (sale_id, product_id) before joining keeps this
+    // correct in that case, instead of fanning the return_items row out
+    // across every matching sale_items row and overcounting the total.
+    query<{ total: number }>(`SELECT SUM(ri.quantity * IFNULL(si.avg_cost_price, 0)) as total FROM return_items ri JOIN returns r ON ri.return_id = r.id LEFT JOIN sales s ON s.id = r.sale_id LEFT JOIN (SELECT sale_id, product_id, SUM(cost_price * quantity) * 1.0 / NULLIF(SUM(quantity), 0) as avg_cost_price FROM sale_items GROUP BY sale_id, product_id) si ON si.sale_id = r.sale_id AND si.product_id = ri.product_id WHERE r.created_at >= ? AND r.created_at <= ? AND (r._deleted = 0 OR r._deleted IS NULL)${storeId ? " AND r.store_id = ?" : ""}${joined.clause}`, s1CappedJoined),
+
+    // Smoothed, not a raw SUM: a prepaid expense (covers_months set) is split
+    // into equal calendar-month installments instead of hitting this whole
+    // window as a lump sum wherever it happened to be logged. See
+    // getSmoothedExpensesTotal for the "why".
+    getSmoothedExpensesTotal({
+      from: dateFilter,
+      to,
+    }),
+
+    query<{ count: number }>(`SELECT COUNT(*) as count FROM sales WHERE transaction_date >= ? AND transaction_date <= ? AND (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}${bare.clause}`, s1BareCapped),
+
+    query<{ value: number }>(`SELECT SUM(inv.cost_price * inv.quantity) as value FROM stock_batches inv WHERE (inv._deleted = 0 OR inv._deleted IS NULL)${storeId ? " AND inv.store_id = ?" : ""}`, storeOnly),
+
+    query<{ count: number }>(`SELECT COUNT(*) as count FROM customers WHERE _deleted = 0${storeId ? " AND store_id = ?" : ""}`, storeOnly),
+
+    query<{ count: number }>(`SELECT COUNT(*) as count FROM customers WHERE loyalty_points > 0 AND _deleted = 0${storeId ? " AND store_id = ?" : ""}`, storeOnly),
+
+    query<{ returning_count: number; total: number }>(`SELECT COUNT(DISTINCT CASE WHEN cnt > 1 THEN customer_id END) as returning_count, COUNT(DISTINCT customer_id) as total FROM (SELECT customer_id, COUNT(*) as cnt FROM sales WHERE transaction_date >= ? AND transaction_date <= ? AND (_deleted = 0 OR _deleted IS NULL) AND customer_id IS NOT NULL${storeId ? " AND store_id = ?" : ""} GROUP BY customer_id)`, s1Capped),
+
+    // Previous Period
+    query<{ total: number }>(`SELECT SUM(total_amount) as total FROM sales WHERE transaction_date >= ? AND transaction_date < ? AND (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}${bare.clause}`, sPrevBare),
+
+    // The previous period's tax and refunds, so the revenue-change and
+    // avg-transaction-change percentages compare like with like. The current
+    // period's figure those are measured against is Net Sales (total_amount
+    // minus tax minus refunds - see useBIData's netSales); leaving the
+    // denominator as gross, tax-inclusive total_amount understated every
+    // growth number by roughly the tax rate plus the refund rate.
+    query<{ total: number }>(`SELECT SUM(tax_amount) as total FROM sales WHERE transaction_date >= ? AND transaction_date < ? AND (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}${bare.clause}`, sPrevBare),
+
+    // Ex-VAT, exactly like totalRefundsData above - the baseline has to be the
+    // same definition as the current period's netSales it's compared against.
+    query<{ total: number }>(`SELECT SUM(CASE WHEN s.total_amount IS NOT NULL AND s.total_amount != 0 THEN r.total_refunded * (s.total_amount - IFNULL(s.tax_amount, 0)) / s.total_amount ELSE r.total_refunded END) as total FROM returns r LEFT JOIN sales s ON s.id = r.sale_id WHERE r.created_at >= ? AND r.created_at < ? AND (r._deleted = 0 OR r._deleted IS NULL)${storeId ? " AND r.store_id = ?" : ""}${joined.clause}`, sPrevJoined),
+
+    query<{ count: number }>(`SELECT COUNT(*) as count FROM sales WHERE transaction_date >= ? AND transaction_date < ? AND (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}${bare.clause}`, sPrevBare),
+
+    // The customer base as it stood at the start of the current period (i.e.
+    // every customer created before it), NOT just the customers created during
+    // the previous window: the figure this is the baseline for is the
+    // all-time "Total Customers" count, so a window-only denominator made the
+    // card's "+x% vs last period" a nonsense ratio (all customers ever over
+    // one window's new signups - routinely several hundred percent).
+    query<{ count: number }>(`SELECT COUNT(*) as count FROM customers WHERE created_at < ? AND _deleted = 0${storeId ? " AND store_id = ?" : ""}`, storeId ? [dateFilter, storeId] : [dateFilter]),
+
+    // Top Selling Products & Categories. Products joined unfiltered on purpose:
+    // client/AGENTS.md, pinned by deleted-product-report-history.test.ts.
+    query<{ name: string; sales: number; units: number; category: string; }>(`SELECT m.name, SUM(si.total_price) as sales, SUM(si.quantity) as units, COALESCE(c.name, 'Uncategorized') as category FROM sale_items si JOIN products m ON si.product_id = m.id LEFT JOIN categories c ON m.category_id = c.id JOIN sales s ON si.sale_id = s.id WHERE s.transaction_date >= ? AND s.transaction_date <= ? AND (s._deleted = 0 OR s._deleted IS NULL)${storeId ? " AND s.store_id = ?" : ""}${joined.clause} GROUP BY m.id ORDER BY sales DESC LIMIT 5`, s1JoinedCapped),
+
+    query<{ name: string; sales: number; units: number; category: string; }>(`SELECT m.name, SUM(si.total_price) as sales, SUM(si.quantity) as units, COALESCE(c.name, 'Uncategorized') as category FROM sale_items si JOIN products m ON si.product_id = m.id LEFT JOIN categories c ON m.category_id = c.id JOIN sales s ON si.sale_id = s.id WHERE s.transaction_date >= ? AND s.transaction_date <= ? AND (s._deleted = 0 OR s._deleted IS NULL)${storeId ? " AND s.store_id = ?" : ""}${joined.clause} GROUP BY m.id ORDER BY units DESC LIMIT 5`, s1JoinedCapped),
+
+    query<{ name: string; value: number; }>(`SELECT COALESCE(c.name, 'Uncategorized') as name, SUM(si.total_price) as value FROM sale_items si JOIN products m ON si.product_id = m.id LEFT JOIN categories c ON m.category_id = c.id JOIN sales s ON si.sale_id = s.id WHERE s.transaction_date >= ? AND s.transaction_date <= ? AND (s._deleted = 0 OR s._deleted IS NULL)${storeId ? " AND s.store_id = ?" : ""}${joined.clause} GROUP BY COALESCE(c.name, 'Uncategorized')`, s1JoinedCapped),
+
+    // Full product performance (not top-N): revenue/units/cost per product so
+    // the UI can sort by any column and compute margin. Doesn't net returns
+    // against a specific product, matching the existing top-selling queries
+    // above (they don't either) - the store-wide returnedCogsData/refunds
+    // above already cover the aggregate P&L correction.
+    query<{
+      id: string;
+      name: string;
+      category: string;
+      revenue: number;
+      units: number;
+      cost: number;
+    }>(
+      `SELECT m.id, m.name, COALESCE(c.name, 'Uncategorized') as category,
+         SUM(si.total_price) as revenue, SUM(si.quantity) as units,
+         SUM(si.cost_price * si.quantity) as cost
+       FROM sale_items si
+       -- Unfiltered products join on purpose: a deleted product must still name
+       -- its history (client/AGENTS.md; deleted-product-report-history.test.ts).
+       JOIN products m ON si.product_id = m.id
+       LEFT JOIN categories c ON m.category_id = c.id
+       JOIN sales s ON si.sale_id = s.id
+       WHERE s.transaction_date >= ? AND s.transaction_date <= ? AND (s._deleted = 0 OR s._deleted IS NULL)${storeId ? " AND s.store_id = ?" : ""}${joined.clause}
+       GROUP BY m.id
+       ORDER BY revenue DESC`,
+      s1JoinedCapped,
+    ),
+
+    // Per-cashier performance: mirrors productPerformance's shape/scope
+    // (no refund netting, same as the rest of this dashboard's per-entity
+    // breakdowns). Note: when filters.staffId is set this naturally narrows
+    // to a single row - no separate UI change needed in the Staff tab.
+    query<{
+      id: string;
+      name: string;
+      transactionCount: number;
+      totalSales: number;
+    }>(
+      `SELECT u.id, TRIM(u.first_name || ' ' || u.last_name) as name,
+         COUNT(*) as transactionCount, SUM(s.total_amount) as totalSales
+       FROM sales s
+       JOIN users u ON u.id = s.user_id
+       WHERE s.transaction_date >= ? AND s.transaction_date <= ? AND (s._deleted = 0 OR s._deleted IS NULL)${storeId ? " AND s.store_id = ?" : ""}${joined.clause}
+       GROUP BY u.id
+       ORDER BY totalSales DESC`,
+      s1JoinedCapped,
+    ),
+  ]);
+
   const expensesData = [{ total: smoothedExpensesTotal }];
-  const transactionData = await query<{ count: number }>(`SELECT COUNT(*) as count FROM sales WHERE transaction_date >= ? AND transaction_date <= ? AND (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}${bare.clause}`, s1BareCapped);
-  const stock_batchValueData = await query<{ value: number }>(`SELECT SUM(inv.cost_price * inv.quantity) as value FROM stock_batches inv WHERE (inv._deleted = 0 OR inv._deleted IS NULL)${storeId ? " AND inv.store_id = ?" : ""}`, storeOnly);
-  const customerData = await query<{ count: number }>(`SELECT COUNT(*) as count FROM customers WHERE _deleted = 0${storeId ? " AND store_id = ?" : ""}`, storeOnly);
-  const loyaltyData = await query<{ count: number }>(`SELECT COUNT(*) as count FROM customers WHERE loyalty_points > 0 AND _deleted = 0${storeId ? " AND store_id = ?" : ""}`, storeOnly);
-  const retentionData = await query<{ returning_count: number; total: number }>(`SELECT COUNT(DISTINCT CASE WHEN cnt > 1 THEN customer_id END) as returning_count, COUNT(DISTINCT customer_id) as total FROM (SELECT customer_id, COUNT(*) as cnt FROM sales WHERE transaction_date >= ? AND transaction_date <= ? AND (_deleted = 0 OR _deleted IS NULL) AND customer_id IS NOT NULL${storeId ? " AND store_id = ?" : ""} GROUP BY customer_id)`, s1Capped);
-
-  // Previous Period
-  const prevRevenueData = await query<{ total: number }>(`SELECT SUM(total_amount) as total FROM sales WHERE transaction_date >= ? AND transaction_date < ? AND (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}${bare.clause}`, sPrevBare);
-  // The previous period's tax and refunds, so the revenue-change and
-  // avg-transaction-change percentages compare like with like. The current
-  // period's figure those are measured against is Net Sales (total_amount
-  // minus tax minus refunds - see useBIData's netSales); leaving the
-  // denominator as gross, tax-inclusive total_amount understated every
-  // growth number by roughly the tax rate plus the refund rate.
-  const prevTaxData = await query<{ total: number }>(`SELECT SUM(tax_amount) as total FROM sales WHERE transaction_date >= ? AND transaction_date < ? AND (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}${bare.clause}`, sPrevBare);
-  // Ex-VAT, exactly like totalRefundsData above - the baseline has to be the
-  // same definition as the current period's netSales it's compared against.
-  const prevRefundsData = await query<{ total: number }>(`SELECT SUM(CASE WHEN s.total_amount IS NOT NULL AND s.total_amount != 0 THEN r.total_refunded * (s.total_amount - IFNULL(s.tax_amount, 0)) / s.total_amount ELSE r.total_refunded END) as total FROM returns r LEFT JOIN sales s ON s.id = r.sale_id WHERE r.created_at >= ? AND r.created_at < ? AND (r._deleted = 0 OR r._deleted IS NULL)${storeId ? " AND r.store_id = ?" : ""}${joined.clause}`, sPrevJoined);
-  const prevTransactionData = await query<{ count: number }>(`SELECT COUNT(*) as count FROM sales WHERE transaction_date >= ? AND transaction_date < ? AND (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}${bare.clause}`, sPrevBare);
-  // The customer base as it stood at the start of the current period (i.e.
-  // every customer created before it), NOT just the customers created during
-  // the previous window: the figure this is the baseline for is the
-  // all-time "Total Customers" count, so a window-only denominator made the
-  // card's "+x% vs last period" a nonsense ratio (all customers ever over
-  // one window's new signups - routinely several hundred percent).
-  const prevCustomerData = await query<{ count: number }>(`SELECT COUNT(*) as count FROM customers WHERE created_at < ? AND _deleted = 0${storeId ? " AND store_id = ?" : ""}`, storeId ? [dateFilter, storeId] : [dateFilter]);
-
-  // Top Selling Products & Categories
-  const topSellingByRevenue = await query<{ name: string; sales: number; units: number; category: string; }>(`SELECT m.name, SUM(si.total_price) as sales, SUM(si.quantity) as units, COALESCE(c.name, 'Uncategorized') as category FROM sale_items si JOIN products m ON si.product_id = m.id LEFT JOIN categories c ON m.category_id = c.id JOIN sales s ON si.sale_id = s.id WHERE s.transaction_date >= ? AND s.transaction_date <= ? AND (s._deleted = 0 OR s._deleted IS NULL)${storeId ? " AND s.store_id = ?" : ""}${joined.clause} GROUP BY m.id ORDER BY sales DESC LIMIT 5`, s1JoinedCapped);
-  const topSellingByQuantity = await query<{ name: string; sales: number; units: number; category: string; }>(`SELECT m.name, SUM(si.total_price) as sales, SUM(si.quantity) as units, COALESCE(c.name, 'Uncategorized') as category FROM sale_items si JOIN products m ON si.product_id = m.id LEFT JOIN categories c ON m.category_id = c.id JOIN sales s ON si.sale_id = s.id WHERE s.transaction_date >= ? AND s.transaction_date <= ? AND (s._deleted = 0 OR s._deleted IS NULL)${storeId ? " AND s.store_id = ?" : ""}${joined.clause} GROUP BY m.id ORDER BY units DESC LIMIT 5`, s1JoinedCapped);
-  const categoryDistribution = await query<{ name: string; value: number; }>(`SELECT COALESCE(c.name, 'Uncategorized') as name, SUM(si.total_price) as value FROM sale_items si JOIN products m ON si.product_id = m.id LEFT JOIN categories c ON m.category_id = c.id JOIN sales s ON si.sale_id = s.id WHERE s.transaction_date >= ? AND s.transaction_date <= ? AND (s._deleted = 0 OR s._deleted IS NULL)${storeId ? " AND s.store_id = ?" : ""}${joined.clause} GROUP BY COALESCE(c.name, 'Uncategorized')`, s1JoinedCapped);
-
-  // Full product performance (not top-N): revenue/units/cost per product so
-  // the UI can sort by any column and compute margin. Doesn't net returns
-  // against a specific product, matching the existing top-selling queries
-  // above (they don't either) - the store-wide returnedCogsData/refunds
-  // above already cover the aggregate P&L correction.
-  const productPerformance = await query<{
-    id: string;
-    name: string;
-    category: string;
-    revenue: number;
-    units: number;
-    cost: number;
-  }>(
-    `SELECT m.id, m.name, COALESCE(c.name, 'Uncategorized') as category,
-       SUM(si.total_price) as revenue, SUM(si.quantity) as units,
-       SUM(si.cost_price * si.quantity) as cost
-     FROM sale_items si
-     JOIN products m ON si.product_id = m.id
-     LEFT JOIN categories c ON m.category_id = c.id
-     JOIN sales s ON si.sale_id = s.id
-     WHERE s.transaction_date >= ? AND s.transaction_date <= ? AND (s._deleted = 0 OR s._deleted IS NULL)${storeId ? " AND s.store_id = ?" : ""}${joined.clause}
-     GROUP BY m.id
-     ORDER BY revenue DESC`,
-    s1JoinedCapped,
-  );
-
-  // Per-cashier performance: mirrors productPerformance's shape/scope
-  // (no refund netting, same as the rest of this dashboard's per-entity
-  // breakdowns). Note: when filters.staffId is set this naturally narrows
-  // to a single row - no separate UI change needed in the Staff tab.
-  const cashierPerformance = await query<{
-    id: string;
-    name: string;
-    transactionCount: number;
-    totalSales: number;
-  }>(
-    `SELECT u.id, TRIM(u.first_name || ' ' || u.last_name) as name,
-       COUNT(*) as transactionCount, SUM(s.total_amount) as totalSales
-     FROM sales s
-     JOIN users u ON u.id = s.user_id
-     WHERE s.transaction_date >= ? AND s.transaction_date <= ? AND (s._deleted = 0 OR s._deleted IS NULL)${storeId ? " AND s.store_id = ?" : ""}${joined.clause}
-     GROUP BY u.id
-     ORDER BY totalSales DESC`,
-    s1JoinedCapped,
-  );
 
   return {
     revenueData, grossSalesData, taxData, totalRefundsData, cogsData, returnedCogsData, expensesData,
@@ -698,6 +776,8 @@ export async function getPurchasePatterns(dateFilter: string, filters?: SalesFil
     `SELECT CASE WHEN CAST(strftime('%H', transaction_date, 'localtime') AS INTEGER) BETWEEN 6 AND 11 THEN 'Morning (6am-12pm)' WHEN CAST(strftime('%H', transaction_date, 'localtime') AS INTEGER) BETWEEN 12 AND 16 THEN 'Afternoon (12pm-5pm)' WHEN CAST(strftime('%H', transaction_date, 'localtime') AS INTEGER) BETWEEN 17 AND 21 THEN 'Evening (5pm-10pm)' ELSE 'Night (10pm-6am)' END as slot, COUNT(*) as transactions, AVG(total_amount) as avg_value FROM sales WHERE transaction_date >= ? AND _deleted = 0${storeId ? " AND store_id = ?" : ""}${bare.clause} GROUP BY slot ORDER BY MIN(strftime('%H', transaction_date, 'localtime')) ASC`, p1Bare
   );
 
+  // Products joined unfiltered on purpose, so a deleted product still carries its
+  // category here: client/AGENTS.md, pinned by deleted-product-report-history.test.ts.
   const slotCategoryData = await query<{ slot: string; category: string; }>(
     `SELECT slot, category FROM (SELECT CASE WHEN CAST(strftime('%H', s.transaction_date, 'localtime') AS INTEGER) BETWEEN 6 AND 11 THEN 'Morning (6am-12pm)' WHEN CAST(strftime('%H', s.transaction_date, 'localtime') AS INTEGER) BETWEEN 12 AND 16 THEN 'Afternoon (12pm-5pm)' WHEN CAST(strftime('%H', s.transaction_date, 'localtime') AS INTEGER) BETWEEN 17 AND 21 THEN 'Evening (5pm-10pm)' ELSE 'Night (10pm-6am)' END as slot, COALESCE(c.name, 'General') as category, COUNT(*) as cnt, ROW_NUMBER() OVER (PARTITION BY CASE WHEN CAST(strftime('%H', s.transaction_date, 'localtime') AS INTEGER) BETWEEN 6 AND 11 THEN 'Morning (6am-12pm)' WHEN CAST(strftime('%H', s.transaction_date, 'localtime') AS INTEGER) BETWEEN 12 AND 16 THEN 'Afternoon (12pm-5pm)' WHEN CAST(strftime('%H', s.transaction_date, 'localtime') AS INTEGER) BETWEEN 17 AND 21 THEN 'Evening (5pm-10pm)' ELSE 'Night (10pm-6am)' END ORDER BY COUNT(*) DESC) as rn FROM sale_items si JOIN products m ON si.product_id = m.id LEFT JOIN categories c ON m.category_id = c.id JOIN sales s ON si.sale_id = s.id WHERE s.transaction_date >= ? AND (s._deleted = 0 OR s._deleted IS NULL)${storeId ? " AND s.store_id = ?" : ""}${joined.clause} GROUP BY slot, c.name) WHERE rn = 1`, p1Joined
   );

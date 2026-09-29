@@ -12,6 +12,8 @@ interface CustomerDetailPanelProps {
   onRecordPayment?: (customer: Customer) => void;
   onDelete?: (customer: Customer) => void;
   canDelete?: boolean;
+  canEdit?: boolean;
+  canViewBalance?: boolean;
 }
 
 export function CustomerDetailPanel({
@@ -24,6 +26,8 @@ export function CustomerDetailPanel({
   onRecordPayment,
   onDelete,
   canDelete = true,
+  canEdit = true,
+  canViewBalance = true,
 }: CustomerDetailPanelProps) {
   const detailFields = [
     { label: "Phone", value: customer.phone || "Not provided" },
@@ -80,7 +84,7 @@ export function CustomerDetailPanel({
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 md:p-5">
-        {customer.outstanding_balance > 0 && (
+        {canViewBalance && customer.outstanding_balance > 0 && (
           <div className="border border-destructive/20 bg-destructive/5 rounded-[12px] p-4 mb-5">
             <div className="flex items-center justify-between mb-1 gap-2">
               <div className="text-[11px] font-semibold text-destructive uppercase tracking-wide flex items-center gap-1.5">
@@ -120,12 +124,14 @@ export function CustomerDetailPanel({
       </div>
 
       <div className="p-4 md:p-5 pt-4 border-t flex gap-2.5">
-        <button
-          onClick={() => onEditProfile?.(customer)}
-          className="flex-1 border bg-background text-foreground py-2.5 rounded-xl text-[13px] font-semibold hover:bg-primary/5 transition-colors"
-        >
-          Edit Profile
-        </button>
+        {canEdit && (
+          <button
+            onClick={() => onEditProfile?.(customer)}
+            className="flex-1 border bg-background text-foreground py-2.5 rounded-xl text-[13px] font-semibold hover:bg-primary/5 transition-colors"
+          >
+            Edit Profile
+          </button>
+        )}
         <button
           onClick={() => onViewHistory?.(customer)}
           className="flex-1 bg-primary text-primary-foreground py-2.5 rounded-xl text-[13px] font-semibold hover:bg-primary/90 transition-colors"

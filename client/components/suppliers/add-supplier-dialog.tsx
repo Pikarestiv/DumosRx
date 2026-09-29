@@ -273,6 +273,7 @@ export function AddSupplierDialog({
                 <Input
                   id="paymentTerms"
                   type="number"
+                  inputMode="decimal"
                   value={formData.paymentTerms}
                   onChange={(e) =>
                     handleInputChange("paymentTerms", e.target.value)

@@ -121,6 +121,7 @@ export function AlertSettings({
           {!!(isEditing) && (
                               <Input
                                 type="number"
+                                inputMode="numeric"
                                 value={expiryDays}
                                 onChange={(e) => setExpiryDays(e.target.value)}
                                 className="max-w-[150px]"

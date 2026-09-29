@@ -3,19 +3,17 @@
 import { useEffect, useState } from "react";
 import { Joyride, STATUS, Step, EventData } from "react-joyride";
 import { shift } from "@floating-ui/react-dom";
+import {
+  isTourEligible,
+  TOUR_COMPLETED_KEY,
+  TOUR_SNOOZED_UNTIL_KEY,
+} from "@/lib/utils/tour-eligibility";
 
 export function DashboardTour() {
   const [run, setRun] = useState(false);
 
   useEffect(() => {
-    const hasSeenTour = localStorage.getItem("dumos_client_tour_completed");
-    const snoozedUntil = localStorage.getItem(
-      "dumos_client_tour_snoozed_until",
-    );
-
-    const isSnoozed = snoozedUntil && parseInt(snoozedUntil, 10) > Date.now();
-
-    if (!hasSeenTour && !isSnoozed) {
+    if (isTourEligible()) {
       // Small delay to ensure the DOM is fully rendered
       const timer = setTimeout(() => {
         setRun(true);
@@ -93,15 +91,12 @@ export function DashboardTour() {
 
     if (finishedStatuses.includes(status)) {
       setRun(false);
-      localStorage.setItem("dumos_client_tour_completed", "true");
+      localStorage.setItem(TOUR_COMPLETED_KEY, "true");
     } else if (action === "close") {
       setRun(false);
       // Snooze for 24 hours (24 * 60 * 60 * 1000 ms)
       const snoozeTime = Date.now() + 24 * 60 * 60 * 1000;
-      localStorage.setItem(
-        "dumos_client_tour_snoozed_until",
-        snoozeTime.toString(),
-      );
+      localStorage.setItem(TOUR_SNOOZED_UNTIL_KEY, snoozeTime.toString());
     }
   };
 

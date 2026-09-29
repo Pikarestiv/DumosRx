@@ -1,6 +1,7 @@
 "use client";
 
 import { Theme } from "@/components/theme-provider";
+import { useHasPermission } from "@/lib/hooks/use-permissions";
 import { ThemeAppearanceCard } from "./theme-appearance-card";
 import { SidebarPreferencesCard } from "./sidebar-preferences-card";
 import { RegionalSettingsCard } from "./regional-settings-card";
@@ -17,7 +18,6 @@ interface AppearanceSettingsProps {
   localResellerCommission: string;
   setLocalResellerCommission: (val: string) => void;
   handleSaveRegional: () => void;
-  isAdmin: boolean;
 }
 
 export function AppearanceSettings({
@@ -32,8 +32,13 @@ export function AppearanceSettings({
   localResellerCommission,
   setLocalResellerCommission,
   handleSaveRegional,
-  isAdmin,
 }: AppearanceSettingsProps) {
+  // Currency, VAT and the reseller commission are store-wide figures that
+  // happen to sit on the everyone-can-open General tab, so they carry their
+  // own key while the theme and sidebar cards above stay open. Converted
+  // from isAdmin, which is the same population by default.
+  const canManageStoreSettings = useHasPermission("manage_store_settings");
+
   return (
     <div className="space-y-6">
       <ThemeAppearanceCard
@@ -45,7 +50,7 @@ export function AppearanceSettings({
 
       <SidebarPreferencesCard />
 
-      {isAdmin && (
+      {canManageStoreSettings && (
         <RegionalSettingsCard
           localCurrency={localCurrency}
           setLocalCurrency={setLocalCurrency}

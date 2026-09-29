@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Table,
   TableBody,
+  TableCell,
   TableHead,
   TableHeader,
   TableRow,
@@ -59,7 +60,7 @@ export function ReturnDialog({
   // data source here) only returns the original sold quantity, with no way
   // to know a customer already returned some of it, which let the same
   // items be returned twice.
-  const { data: detailsData } = useQuery({
+  const { data: detailsData, isLoading: loadingSaleItems } = useQuery({
     ...queryKeys.sales.transactionDetails(sale?.id),
     queryFn: () => (sale ? getTransactionDetails(sale.id) : Promise.resolve(null)),
     enabled: !!sale,
@@ -177,7 +178,7 @@ export function ReturnDialog({
             </Button>
             <Button
               onClick={handleInitialSubmit}
-              disabled={returnMutation.isPending}
+              disabled={returnMutation.isPending || loadingSaleItems}
               className="bg-accent hover:bg-accent/90"
             >
               {returnMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -199,7 +200,16 @@ export function ReturnDialog({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {saleItems?.map((item) => {
+                {loadingSaleItems && (
+                  <TableRow>
+                    <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin inline-block mr-2" />
+                      Loading items from this sale...
+                    </TableCell>
+                  </TableRow>
+                )}
+                {!loadingSaleItems &&
+                  saleItems?.map((item) => {
                   const maxQty = getMaxReturnable(item);
                   return (
                     <ReturnItemRow

@@ -26,8 +26,9 @@ test.describe('Procurement Module', () => {
 
     // 4. Verify Create Purchase Order page loads (components/procurement/po-order-form-fields.tsx)
     await expect(page.getByText('Create Purchase Order', { exact: true }).first()).toBeVisible({ timeout: 15000 });
-    // Both fields render twice: once in the desktop panel, once in the
-    // off-screen mobile create-order view. Match the visible instance.
+    // Only the viewport's own create view is mounted now (the pages render
+    // one or the other rather than hiding one with CSS), but keep the
+    // visible-instance match so this holds either way.
     await expect(page.locator('text="Select Vendor" >> visible=true').first()).toBeVisible();
 
     // 4b. Continue to the item-entry step (components/procurement/po-item-builder.tsx,

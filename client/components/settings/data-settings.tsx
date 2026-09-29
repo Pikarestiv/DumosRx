@@ -14,6 +14,7 @@ import { Separator } from "@/components/ui/separator";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { DataSettingsAutoSync } from "./data-settings-auto-sync";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
+import { getLastSyncTime } from "@/lib/storage-keys";
 
 const RESTORE_CONFIRM_DESCRIPTION =
   "This will permanently overwrite all data currently on this device (products, sales, customers, and expenses) with the contents of the backup file. This cannot be undone.";
@@ -122,7 +123,7 @@ export function DataSettings({
                 <p className="text-sm text-muted-foreground">
                   {!!isCloudLinked &&
                     (() => {
-                      const lastSyncTime = localStorage.getItem("last_sync_time");
+                      const lastSyncTime = getLastSyncTime();
                       return `Last synced: ${lastSyncTime ? new Date(lastSyncTime).toLocaleString() : "Never"}`;
                     })()}
                   {!isCloudLinked &&

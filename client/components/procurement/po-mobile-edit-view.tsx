@@ -1,11 +1,11 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { POBackButton } from "./po-back-button";
 import { PODetailsSummaryBar } from "./po-details-summary-bar";
 import { POItemBuilder } from "./po-item-builder";
 import { POMobileSummaryDrawer } from "./po-mobile-summary-drawer";
+import { getLineTotal, getOrderTotal } from "./po-line-item-math";
 import type { POProduct } from "@/lib/db/queries/procurement";
 import type { POLineItemDraft } from "./po-item-ledger-table";
 import type { ProductViewModel } from "@/lib/types/product";
@@ -13,7 +13,6 @@ import type { ProductViewModel } from "@/lib/types/product";
 interface POMobileEditViewProps {
   poId: string | null;
   selectedSupplierName: string;
-  totalAmount: number;
   poType: "standard" | "immediate";
   products: POProduct[];
   items: POLineItemDraft[];
@@ -24,6 +23,9 @@ interface POMobileEditViewProps {
   isSubmitting: boolean;
   handleSubmit: () => void;
   onOpenEditDetails: () => void;
+  paymentStatus?: string;
+  dueDate?: string;
+  amountPaid?: string;
 }
 
 /** Mobile full-screen takeover for editing an existing purchase order.
@@ -33,7 +35,6 @@ interface POMobileEditViewProps {
 export function POMobileEditView({
   poId,
   selectedSupplierName,
-  totalAmount,
   poType,
   products,
   items,
@@ -44,12 +45,15 @@ export function POMobileEditView({
   isSubmitting,
   handleSubmit,
   onOpenEditDetails,
+  paymentStatus,
+  dueDate,
+  amountPaid,
 }: POMobileEditViewProps) {
-  const router = useRouter();
+  const totalAmount = getOrderTotal(items, poType);
 
   return (
     <div
-      className="lg:hidden fixed inset-0 z-50 bg-background flex flex-col"
+      className="fixed inset-0 z-50 bg-background flex flex-col"
       style={{ height: "100dvh" }}
     >
       <div
@@ -60,14 +64,7 @@ export function POMobileEditView({
           paddingBottom: "0.75rem",
         }}
       >
-        <button
-          type="button"
-          aria-label="Back"
-          className="w-[38px] h-[38px] rounded-[10px] bg-muted flex items-center justify-center cursor-pointer text-muted-foreground shrink-0 hover:bg-muted/80 transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring"
-          onClick={() => router.push("/procurement")}
-        >
-          <ArrowLeft className="w-[17px] h-[17px]" />
-        </button>
+        <POBackButton itemCount={items.length} />
         <div className="min-w-0">
           <div className="text-[15px] font-serif font-bold leading-tight">
             Edit Purchase Order
@@ -96,6 +93,9 @@ export function POMobileEditView({
       >
         <PODetailsSummaryBar
           vendorName={selectedSupplierName}
+          paymentStatus={paymentStatus}
+          dueDate={dueDate}
+          amountPaid={amountPaid}
           onEdit={onOpenEditDetails}
         />
         <POItemBuilder
@@ -117,7 +117,7 @@ export function POMobileEditView({
           productName: item.product_name,
           quantity: item.bulk_quantity,
           bulkUnit: item.bulk_unit,
-          lineTotal: item.bulk_quantity * item.unit_cost,
+          lineTotal: getLineTotal(item, poType),
         }))}
       />
     </div>

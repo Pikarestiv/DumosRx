@@ -30,7 +30,7 @@ interface POSMobileCartDrawerProps {
   currencyCode?: string;
   updateQuantity: (id: string, quantity: number) => void;
   removeFromCart: (id: string) => void;
-  clearCart: () => void;
+  onRequestClearCart: () => void;
   onCheckout: () => void;
   onHoldSale?: () => void;
   heldSalesCount?: number;
@@ -62,7 +62,7 @@ export function POSMobileCartDrawer({
   currencyCode,
   updateQuantity,
   removeFromCart,
-  clearCart,
+  onRequestClearCart,
   onCheckout,
   onHoldSale,
   heldSalesCount,
@@ -130,7 +130,7 @@ export function POSMobileCartDrawer({
               currencyCode={currencyCode}
               updateQuantity={updateQuantity}
               removeFromCart={removeFromCart}
-              clearCart={clearCart}
+              onRequestClearCart={onRequestClearCart}
               onCheckout={() => {
                 setOpen(false);
                 onCheckout();

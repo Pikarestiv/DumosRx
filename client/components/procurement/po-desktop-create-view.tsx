@@ -1,11 +1,12 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { POBackButton } from "./po-back-button";
 import { PODetailsFields } from "./po-details-fields";
 import { PODetailsSummaryBar } from "./po-details-summary-bar";
 import { POItemBuilder } from "./po-item-builder";
+import { POImmediateConfirmDialog } from "./po-immediate-confirm-dialog";
 import { formatCurrency } from "@/lib/utils";
 import type { ProductViewModel } from "@/lib/types/product";
 import type { POProduct } from "@/lib/db/queries/procurement";
@@ -89,7 +90,7 @@ export function PODesktopCreateView(props: PODesktopCreateViewProps) {
     onContinue,
     setIsEditDetailsOpen,
   } = props;
-  const router = useRouter();
+  const [isConfirmReceiveOpen, setIsConfirmReceiveOpen] = useState(false);
 
   const detailsFieldsProps = {
     poType,
@@ -110,19 +111,12 @@ export function PODesktopCreateView(props: PODesktopCreateViewProps) {
   };
 
   return (
-    <div className="hidden lg:flex fixed inset-0 z-50 flex-col bg-background">
+    <div className="flex fixed inset-0 z-50 flex-col bg-background">
       <div
         className="flex items-center gap-3 px-6 pb-5 border-b border-border bg-card shrink-0"
         style={{ paddingTop: "calc(var(--tauri-top, 0px) + 1.25rem)" }}
       >
-        <button
-          type="button"
-          aria-label="Back"
-          className="w-[38px] h-[38px] rounded-[10px] bg-muted flex items-center justify-center cursor-pointer text-muted-foreground shrink-0 hover:bg-muted/80 transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring"
-          onClick={() => router.push("/procurement")}
-        >
-          <ArrowLeft className="w-[17px] h-[17px]" />
-        </button>
+        <POBackButton itemCount={items.length} />
         <div>
           <div className="text-[17px] font-serif font-bold leading-tight">
             Create Purchase Order
@@ -155,13 +149,17 @@ export function PODesktopCreateView(props: PODesktopCreateViewProps) {
             )}
             <Button
               className="h-10 px-5 rounded-[10px] text-[13px] font-bold"
-              onClick={handleSubmit}
+              onClick={
+                poType === "immediate"
+                  ? () => setIsConfirmReceiveOpen(true)
+                  : handleSubmit
+              }
               disabled={isSubmitting || items.length === 0}
             >
               {isSubmitting
                 ? "Saving..."
                 : poType === "immediate"
-                  ? "Save Purchase Order"
+                  ? "Receive & Save"
                   : "Save as Draft"}
             </Button>
           </div>
@@ -202,6 +200,15 @@ export function PODesktopCreateView(props: PODesktopCreateViewProps) {
           </div>
         </div>
       )}
+
+      <POImmediateConfirmDialog
+        open={isConfirmReceiveOpen}
+        onOpenChange={setIsConfirmReceiveOpen}
+        items={items}
+        products={products}
+        totalAmount={totalAmount}
+        onConfirm={handleSubmit}
+      />
     </div>
   );
 }

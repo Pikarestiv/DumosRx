@@ -81,6 +81,20 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(120)->by($request->ip());
         });
 
+        // The three non-storefront public routes. Rationale per limit:
+        // "The other unauthenticated surface" in AGENTS.md.
+        RateLimiter::for('public-read', function (Request $request) {
+            return Limit::perMinute(120)->by($request->ip());
+        });
+
+        RateLimiter::for('public-write', function (Request $request) {
+            return Limit::perMinute(5)->by($request->ip());
+        });
+
+        RateLimiter::for('client-error-log', function (Request $request) {
+            return Limit::perMinute(30)->by($request->ip());
+        });
+
         Gate::define('manage-staff', function (User $user) {
             $role = $user->getAttribute('role');
             return \in_array($role, ['super_admin', 'manager', 'admin'], true);

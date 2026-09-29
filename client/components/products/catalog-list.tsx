@@ -1,25 +1,26 @@
-import React, { useRef, useState } from "react";
-import { ChevronRight } from "lucide-react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
+import { AlertCircle, ChevronRight } from "lucide-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Product } from "./types";
 import { useStore } from "@/lib/context/store-context";
 import { useAuth } from "@/lib/context/auth-context";
+import { useHasPermission } from "@/lib/hooks/use-permissions";
 import { SortableHeaderCell } from "@/components/ui/sortable-header-cell";
 import { RequestItemDialog } from "@/components/pos/request-item-dialog";
-import {
-  EditableCategoryCell,
-  EditableQuickNumberCell,
-} from "./catalog-editable-cells";
+import { CATALOG_GRID_COLS, CatalogRow } from "./catalog-row";
 import { CatalogListSkeleton, EmptyCatalogList } from "./catalog-list-states";
+import { EmptyState } from "@/components/ui/empty-state";
 import { useQuickEditProductMutation } from "@/lib/hooks/use-product-quick-edit-mutation";
 import { useSubmitStockAuditMutation } from "@/lib/hooks/use-stock-audit-mutation";
 import { useHasTouchCapability } from "@/lib/hooks/use-has-touch-capability";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
 import { getCategoryList } from "@/lib/db/queries/categories";
 import { queryKeys } from "@/lib/query-keys";
 import type { SortDirection } from "@/lib/hooks/use-sortable-data";
+import { ScrollToTopButton } from "@/components/ui/scroll-to-top-button";
 
 type ProductSortKey =
   | "name"
@@ -31,6 +32,9 @@ type ProductSortKey =
 
 interface CatalogListProps {
   isLoading?: boolean;
+  /** The catalog read itself failed, as opposed to returning zero rows. */
+  loadFailed?: boolean;
+  onRetryLoad?: () => void;
   filteredProducts: Product[];
   totalCount: number;
   isFuzzyFallback: boolean;
@@ -45,6 +49,8 @@ interface CatalogListProps {
 
 export function CatalogList({
   isLoading = false,
+  loadFailed = false,
+  onRetryLoad,
   filteredProducts,
   totalCount,
   isFuzzyFallback,
@@ -59,6 +65,9 @@ export function CatalogList({
   const { storeType } = useStore();
   const isPharmacy = storeType === "pharmacy";
   const { canManageStockBatch, isAdmin, user } = useAuth();
+  const showCostColumn = useHasPermission("view_cost_fields");
+  const canEditSellingPrice = useHasPermission("edit_product_price");
+  const canAdjustStockQuantity = useHasPermission("adjust_stock_counts");
   const [showRequestDialog, setShowRequestDialog] = useState(false);
   // A 2-in-1 laptop's trackpad still lets it hover, but a user tapping its
   // touchscreen directly never fires :hover — so the edit pencil must stay
@@ -66,61 +75,87 @@ export function CatalogList({
   // devices (see useHasTouchCapability's doc comment for the distinction).
   const hasTouchCapability = useHasTouchCapability();
   const capsClass = useUppercaseDisplayClass();
+  // Matches the sm: breakpoint the two row layouts used to be gated on in
+  // CSS. useMediaQuery starts at `false` and corrects itself right after
+  // mount, which is harmless here: the catalog's rows come from the local
+  // database after mount, so there are none to render on that first pass.
+  const isDesktop = useMediaQuery("(min-width: 640px)");
 
   const { data: categoryRows } = useQuery({
     ...queryKeys.categories.list(),
     queryFn: () => getCategoryList(),
   });
-  const categoryOptions = categoryRows?.map((c) => c.name) ?? [];
+  // Memoized: this array is a prop of every visible row's category cell, so a
+  // fresh one per render defeated the row memoization below.
+  const categoryOptions = useMemo(
+    () => categoryRows?.map((c) => c.name) ?? [],
+    [categoryRows],
+  );
 
-  const quickEditMutation = useQuickEditProductMutation();
-  const stockAuditMutation = useSubmitStockAuditMutation();
+  // Destructured to the stable member on purpose: react-query rebuilds its
+  // useMutation result as a new object literal on every render, so depending on
+  // the whole result below made every row handler fresh and defeated
+  // React.memo(CatalogRow). mutateAsync is bound once per observer.
+  const { mutateAsync: quickEditProduct } = useQuickEditProductMutation();
+  const { mutateAsync: submitStockAudit } = useSubmitStockAuditMutation();
 
-  const saveCategory = async (product: Product, category: string) => {
-    try {
-      await quickEditMutation.mutateAsync({ id: product.id, category });
-      onProductUpdated();
-    } catch {
-      toast.error("Failed to update category. Please try again.");
-    }
-  };
+  const saveCategory = useCallback(
+    async (product: Product, category: string) => {
+      try {
+        await quickEditProduct({ id: product.id, category });
+        onProductUpdated();
+      } catch {
+        toast.error("Failed to update category. Please try again.");
+      }
+    },
+    [quickEditProduct, onProductUpdated],
+  );
 
-  const saveSellingPrice = async (product: Product, sellingPrice: number) => {
-    try {
-      await quickEditMutation.mutateAsync({ id: product.id, sellingPrice });
-      onProductUpdated();
-    } catch {
-      toast.error("Failed to update selling price. Please try again.");
-    }
-  };
+  const saveSellingPrice = useCallback(
+    async (product: Product, sellingPrice: number) => {
+      try {
+        await quickEditProduct({ id: product.id, sellingPrice });
+        onProductUpdated();
+      } catch {
+        toast.error("Failed to update selling price. Please try again.");
+      }
+    },
+    [quickEditProduct, onProductUpdated],
+  );
 
-  const saveReorderLevel = async (product: Product, reorderLevel: number) => {
-    try {
-      await quickEditMutation.mutateAsync({ id: product.id, reorderLevel });
-      onProductUpdated();
-    } catch {
-      toast.error("Failed to update reorder level. Please try again.");
-    }
-  };
+  const saveReorderLevel = useCallback(
+    async (product: Product, reorderLevel: number) => {
+      try {
+        await quickEditProduct({ id: product.id, reorderLevel });
+        onProductUpdated();
+      } catch {
+        toast.error("Failed to update reorder level. Please try again.");
+      }
+    },
+    [quickEditProduct, onProductUpdated],
+  );
 
-  const saveStockQuantity = async (product: Product, stockQuantity: number) => {
-    try {
-      await stockAuditMutation.mutateAsync({
-        items: [
-          {
-            productId: product.id,
-            systemQty: product.stockQuantity,
-            countedQty: stockQuantity,
-            reason: "Quick edit from catalog",
-          },
-        ],
-        performedBy: user?.id || null,
-      });
-      onProductUpdated();
-    } catch {
-      toast.error("Failed to update stock. Please try again.");
-    }
-  };
+  const saveStockQuantity = useCallback(
+    async (product: Product, stockQuantity: number) => {
+      try {
+        await submitStockAudit({
+          items: [
+            {
+              productId: product.id,
+              systemQty: product.stockQuantity,
+              countedQty: stockQuantity,
+              reason: "Quick edit from catalog",
+            },
+          ],
+          performedBy: user?.id || null,
+        });
+        onProductUpdated();
+      } catch {
+        toast.error("Failed to update stock. Please try again.");
+      }
+    },
+    [submitStockAudit, user?.id, onProductUpdated],
+  );
 
   const scrollRef = useRef<HTMLDivElement>(null);
   // Row height differs between the stacked mobile layout and the desktop grid
@@ -142,7 +177,7 @@ export function CatalogList({
       )}
 
       {/* Header */}
-      <div className="hidden sm:grid grid-cols-[1fr_150px_90px_90px_100px_90px] gap-2 px-4 py-2.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wide border-b border-border shrink-0">
+      <div className={`hidden sm:grid gap-2 ${showCostColumn ? CATALOG_GRID_COLS.withCost : CATALOG_GRID_COLS.withoutCost} px-4 py-2.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wide border-b border-border shrink-0`}>
         <SortableHeaderCell
           label="Product"
           active={sortKey === "name"}
@@ -155,12 +190,14 @@ export function CatalogList({
           direction={sortDirection}
           onClick={() => onToggleSort("category")}
         />
-        <SortableHeaderCell
-          label="Avg Cost"
-          active={sortKey === "costPrice"}
-          direction={sortDirection}
-          onClick={() => onToggleSort("costPrice")}
-        />
+        {showCostColumn && (
+          <SortableHeaderCell
+            label="Avg Cost"
+            active={sortKey === "costPrice"}
+            direction={sortDirection}
+            onClick={() => onToggleSort("costPrice")}
+          />
+        )}
         <SortableHeaderCell
           label="S. Price"
           active={sortKey === "sellingPrice"}
@@ -187,7 +224,15 @@ export function CatalogList({
         className="flex-1 overflow-y-auto py-3 sm:py-0 mb-4"
       >
         {isLoading && filteredProducts.length === 0 && <CatalogListSkeleton />}
-        {!isLoading && filteredProducts.length === 0 && (
+        {!isLoading && loadFailed && (
+          <EmptyState
+            icon={AlertCircle}
+            title="Couldn't load the catalog on this device"
+            description="The product list couldn't be read from this device's local database. Nothing is lost — try again."
+            action={onRetryLoad ? { label: "Retry", onClick: onRetryLoad } : undefined}
+          />
+        )}
+        {!isLoading && !loadFailed && filteredProducts.length === 0 && (
           <EmptyCatalogList
             totalCount={totalCount}
             isAdmin={isAdmin}
@@ -202,7 +247,6 @@ export function CatalogList({
           >
             {rowVirtualizer.getVirtualItems().map((virtualRow) => {
               const product = filteredProducts[virtualRow.index];
-              const isSelected = selectedProductId === product.id;
               return (
                 <div
                   key={product.id}
@@ -211,133 +255,32 @@ export function CatalogList({
                   className="absolute top-0 left-0 w-full pb-2 sm:pb-0"
                   style={{ transform: `translateY(${virtualRow.start}px)` }}
                 >
-                  <div
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => onSelectProduct(product)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        onSelectProduct(product);
-                      }
-                    }}
-                    className={`group px-4 py-3 sm:py-2 rounded-xl sm:rounded-none border sm:border-t-0 sm:border-r-0 sm:border-b border-border cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset transition-colors ${
-                      isSelected
-                        ? "bg-primary/5 border-l-2 border-l-primary"
-                        : "bg-card sm:bg-transparent hover:bg-muted/50 border-l-2 border-l-transparent"
-                    }`}
-                  >
-                    {/* Mobile View */}
-                    <div className="flex sm:hidden items-center justify-between">
-                      <div className="min-w-0 pr-2 flex-1">
-                        <div className="text-[15px] font-bold text-foreground truncate flex items-center gap-2">
-                          <span className={capsClass}>{product.name}</span>
-                          {isPharmacy && !product.genericName && (
-                            <span
-                              className="text-[10px] font-medium bg-amber-500/10 text-amber-600 px-1.5 py-0.5 rounded border border-amber-500/20"
-                              title="Missing Generic Name"
-                            >
-                              No Generic
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-[13px] text-muted-foreground mt-0.5 truncate flex">
-                          {product.barcode || product.id.slice(0, 8)} ·{" "}
-                          <span className={capsClass}>
-                            {product.category || "Uncategorized"}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3 shrink-0">
-                        <div className="flex flex-col items-end">
-                          <div className="text-[15px] font-bold text-foreground">
-                            {formatCurrency(product.sellingPrice)}
-                          </div>
-                          <div
-                            className={`text-[13px] font-semibold mt-0.5 ${product.stockQuantity <= product.reorderLevel ? "text-orange-600" : "text-emerald-600"}`}
-                          >
-                            {product.stockQuantity} {product.baseUnit || "unit"}
-                            {product.stockQuantity === 1 ? "" : "s"}
-                          </div>
-                        </div>
-                        <ChevronRight className="w-4 h-4 text-muted-foreground/30" />
-                      </div>
-                    </div>
-
-                    {/* Desktop View */}
-                    <div className="hidden sm:grid grid-cols-[1fr_150px_90px_90px_100px_90px] gap-2 items-center">
-                      <div className="min-w-0 pr-2">
-                        <div className="text-[13px] font-semibold truncate flex items-center gap-2">
-                          <span className={capsClass}>{product.name}</span>
-                          {isPharmacy && !product.genericName && (
-                            <span
-                              className="text-[9px] font-medium bg-amber-500/10 text-amber-600 px-1.5 py-0.5 rounded border border-amber-500/20"
-                              title="Missing Generic Name"
-                            >
-                              No Generic
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-[11px] text-muted-foreground truncate">
-                          {product.barcode || product.id.slice(0, 8)}
-                        </div>
-                      </div>
-                      <EditableCategoryCell
-                        product={product}
-                        categoryOptions={categoryOptions}
-                        canEdit={canManageStockBatch}
-                        hasTouchCapability={hasTouchCapability}
-                        onSave={(prod, category) => void saveCategory(prod, category)}
-                      />
-                      <div className="text-[13px] font-medium text-muted-foreground">
-                        {product.costPrice > 0
-                          ? formatCurrency(product.costPrice)
-                          : "-"}
-                        {product.lastBoughtPrice != null && (
-                          <div
-                            className="text-[10px] font-normal text-muted-foreground/60"
-                            title="Cost of the most recently received stock batch"
-                          >
-                            Last: {formatCurrency(product.lastBoughtPrice)}
-                          </div>
-                        )}
-                      </div>
-                      <EditableQuickNumberCell
-                        displayValue={formatCurrency(product.sellingPrice)}
-                        value={product.sellingPrice}
-                        parse={parseFloat}
-                        step="0.01"
-                        widthClassName="w-20"
-                        canEdit={canManageStockBatch}
-                        hasTouchCapability={hasTouchCapability}
-                        onSave={(val) => void saveSellingPrice(product, val)}
-                      />
-                      <EditableQuickNumberCell
-                        displayValue={`${product.stockQuantity} ${product.baseUnit || "unit"}${product.stockQuantity === 1 ? "" : "s"}`}
-                        displayClassName={`text-[13px] font-semibold ${product.stockQuantity <= product.reorderLevel ? "text-destructive" : "text-primary"}`}
-                        value={product.stockQuantity}
-                        parse={(raw) => parseInt(raw, 10)}
-                        canEdit={canManageStockBatch}
-                        hasTouchCapability={hasTouchCapability}
-                        onSave={(val) => void saveStockQuantity(product, val)}
-                      />
-                      <EditableQuickNumberCell
-                        displayValue={String(product.reorderLevel)}
-                        displayClassName="text-[13px] text-muted-foreground"
-                        value={product.reorderLevel}
-                        parse={(raw) => parseInt(raw, 10)}
-                        canEdit={canManageStockBatch}
-                        hasTouchCapability={hasTouchCapability}
-                        onSave={(val) => void saveReorderLevel(product, val)}
-                      />
-                    </div>
-                  </div>
+                  <CatalogRow
+                    product={product}
+                    isSelected={selectedProductId === product.id}
+                    isDesktop={isDesktop}
+                    isPharmacy={isPharmacy}
+                    capsClass={capsClass}
+                    categoryOptions={categoryOptions}
+                    canEdit={canManageStockBatch}
+                    showCostColumn={showCostColumn}
+                    canEditSellingPrice={canEditSellingPrice}
+                    canAdjustStockQuantity={canAdjustStockQuantity}
+                    hasTouchCapability={hasTouchCapability}
+                    formatCurrency={formatCurrency}
+                    onSelect={onSelectProduct}
+                    onSaveCategory={saveCategory}
+                    onSaveSellingPrice={saveSellingPrice}
+                    onSaveStockQuantity={saveStockQuantity}
+                    onSaveReorderLevel={saveReorderLevel}
+                  />
                 </div>
               );
             })}
           </div>
         )}
       </div>
+      <ScrollToTopButton scrollRef={scrollRef} />
       <RequestItemDialog
         open={showRequestDialog}
         onOpenChange={setShowRequestDialog}

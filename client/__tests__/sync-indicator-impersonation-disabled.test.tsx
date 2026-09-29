@@ -125,10 +125,13 @@ describe("SyncIndicator during an impersonated session", () => {
 
   it("never installs the auto-sync daemon, so no background sync can fire", async () => {
     await render(true);
-    // auto_sync_interval === 0 would normally subscribe to sync-queue changes.
-    expect(registeredListener).toBeNull();
 
+    // The indicator does subscribe to sync-queue changes to keep its pending
+    // COUNT fresh (that replaced a 5s poll against main-thread sql.js), so a
+    // registered listener isn't itself proof of a daemon — firing it, and
+    // every timer the daemon would have used, must still sync nothing.
     await act(async () => {
+      registeredListener?.(["sales"]);
       vi.advanceTimersByTime(60 * 60 * 1000);
       await Promise.resolve();
     });

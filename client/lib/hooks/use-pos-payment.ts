@@ -22,6 +22,7 @@ import {
 import { calculateTaxPercentage, calculateMixedAmountPaid, calculateMixedChangeDue, calculateSalePaymentStatus } from "@/lib/utils/pos-calculations";
 import type { Customer } from "@/lib/types/customer";
 import type { ReceiptTransaction } from "@/components/pos/receipt-view";
+import { getStoredUser } from "@/lib/storage-keys";
 
 export type { Customer };
 
@@ -157,7 +158,7 @@ export function usePOSPayment({
     setProcessingPayment(true);
 
     try {
-      const user = JSON.parse(localStorage.getItem("dumos_user") || "{}");
+      const user = getStoredUser() ?? {};
       const cashierId = user?.id || null;
       // Date.now() collides across two terminals checking out in the same
       // millisecond (or with clock skew) - transaction_number is UNIQUE NOT
@@ -377,7 +378,9 @@ export function usePOSPayment({
         onInsufficientLoyaltyPoints?.();
         toast.error(`${error.message}. The reward has been removed - please try the sale again.`);
       } else {
-        toast.error("An error occurred while processing payment");
+        toast.error(
+          "Payment failed — nothing was saved and your cart is intact. Please try again.",
+        );
       }
     } finally {
       processingPaymentRef.current = false;

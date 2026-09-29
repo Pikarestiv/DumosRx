@@ -15,6 +15,9 @@ vi.mock("@/lib/query-client", () => ({
 vi.mock("@/lib/db/sync-engine/schema", () => ({
   getValidColumns: vi.fn(async () => new Set()),
 }));
+vi.mock("@/lib/db/retention", () => ({
+  pruneSyncedAuditLogs: vi.fn(async () => 0),
+}));
 vi.mock("@/lib/utils/dev-log", () => ({ devLog: vi.fn() }));
 vi.mock("@/lib/utils/error-logger", () => ({ logCrash: vi.fn() }));
 vi.mock("@/lib/api/client", () => ({

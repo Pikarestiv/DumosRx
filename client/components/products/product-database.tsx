@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { ProductDatabaseFilters } from "./product-database-filters";
 import { AddProductDialog } from "./add-product-dialog";
@@ -8,8 +8,8 @@ import { useAddProduct } from "./use-add-product";
 import { useQuery } from "@tanstack/react-query";
 import {
   getProductsWithDetails,
-  getCategoriesList,
 } from "@/lib/db/queries/products";
+import { getCategoryList } from "@/lib/db/queries/categories";
 import { useStore } from "@/lib/context/store-context";
 import { formatCurrency as formatCurrencyWithCode } from "@/lib/utils";
 import { genericFuzzySearch } from "@/lib/utils/search";
@@ -22,10 +22,21 @@ import { FilterPill, formatFilterLabel } from "@/components/ui/filter-pill";
 import { ResponsiveDetailPanel } from "@/components/ui/responsive-detail-panel";
 import { queryKeys } from "@/lib/query-keys";
 import { useSortableData } from "@/lib/hooks/use-sortable-data";
+import { useMediaQuery } from "@/hooks/use-media-query";
+import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
+
+/** Matches pos-transaction-history, the other fuzzy-search surface. */
+const SEARCH_DEBOUNCE_MS = 200;
 
 export function ProductDatabase() {
   const { storeType, storeProfile } = useStore();
+  const isDesktop = useMediaQuery("(min-width: 1024px)");
   const [searchTerm, setSearchTerm] = useState("");
+  // The inputs below stay bound to searchTerm so typing is instant; the
+  // expensive work (genericFuzzySearch over the WHOLE catalog, whose Tier-4
+  // Levenshtein fallback fires exactly while a user is mid-word, on the same
+  // main thread as synchronous sql.js) runs off the settled value instead.
+  const debouncedSearchTerm = useDebouncedValue(searchTerm, SEARCH_DEBOUNCE_MS);
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -54,12 +65,28 @@ export function ProductDatabase() {
 
   const isStore = storeType === "pharmacy";
 
-  const { data: rawProducts, isLoading: productsLoading, refetch } = useQuery({
+  const {
+    data: rawProducts,
+    isLoading: productsLoading,
+    isError: productsLoadFailed,
+    refetch,
+  } = useQuery({
     ...queryKeys.products.withDetails(),
     queryFn: () => getProductsWithDetails(),
   });
 
-  const products = rawProducts ? rawProducts.map(transformProduct) : [];
+  // Stable identity: this is a prop of CatalogList, which hands it down to the
+  // memoized CatalogRow. An inline arrow here made every row's save handler
+  // fresh on each render and defeated that memo.
+  const refetchProducts = useCallback(() => void refetch(), [refetch]);
+
+  // Transform -> pre-filter -> fuzzy search all used to re-run on every
+  // render, i.e. on every keystroke in the product search, over the whole
+  // catalog. Each stage is now keyed on its real inputs.
+  const products = useMemo(
+    () => (rawProducts ? rawProducts.map(transformProduct) : []),
+    [rawProducts],
+  );
 
   // Deep-link from Dashboard's "Product added" activity rows
   // (dashboard-overview.tsx): opens that product's detail panel once its
@@ -84,8 +111,8 @@ export function ProductDatabase() {
   }, [searchParams, rawProducts, router]);
 
   const { data: rawCategories } = useQuery({
-    ...queryKeys.categories.all(),
-    queryFn: () => getCategoriesList(),
+    ...queryKeys.categories.list(),
+    queryFn: () => getCategoryList(),
   });
 
   const defaultCategories = isStore
@@ -126,42 +153,51 @@ export function ProductDatabase() {
     setShowAddDialog(true);
   };
 
-  const preFilteredProducts = products.filter((product) => {
-    const matchesCategory =
-      categoryFilter === "all" || product.category === categoryFilter;
+  const preFilteredProducts = useMemo(() => {
+    const now = new Date();
+    return products.filter((product) => {
+      const matchesCategory =
+        categoryFilter === "all" || product.category === categoryFilter;
 
-    let matchesStatus =
-      statusFilter === "all" || product.status === statusFilter;
+      let matchesStatus =
+        statusFilter === "all" || product.status === statusFilter;
 
-    // Explicit overrides for inclusive filtering
-    if (
-      statusFilter === "low_stock" &&
-      product.stockQuantity <= product.reorderLevel
-    ) {
-      matchesStatus = true;
-    }
-    if (
-      statusFilter === "expired" &&
-      product.expiryDate &&
-      new Date(product.expiryDate) < new Date()
-    ) {
-      matchesStatus = true;
-    }
-    if (
-      statusFilter === "expiring_soon" &&
-      product.expiryDate &&
-      getExpiryStatus(product.expiryDate) === "expiring_soon"
-    ) {
-      matchesStatus = true;
-    }
+      // Explicit overrides for inclusive filtering
+      if (
+        statusFilter === "low_stock" &&
+        product.stockQuantity <= product.reorderLevel
+      ) {
+        matchesStatus = true;
+      }
+      if (
+        statusFilter === "expired" &&
+        product.expiryDate &&
+        new Date(product.expiryDate) < now
+      ) {
+        matchesStatus = true;
+      }
+      if (
+        statusFilter === "expiring_soon" &&
+        product.expiryDate &&
+        getExpiryStatus(product.expiryDate) === "expiring_soon"
+      ) {
+        matchesStatus = true;
+      }
 
-    return matchesCategory && matchesStatus;
-  });
+      return matchesCategory && matchesStatus;
+    });
+  }, [products, categoryFilter, statusFilter]);
 
-  const { results: searchedProducts, isFuzzyFallback } = genericFuzzySearch(
-    searchTerm,
-    preFilteredProducts,
-    ["name", "genericName", "nafdacNumber", "barcode", "id"],
+  const { results: searchedProducts, isFuzzyFallback } = useMemo(
+    () =>
+      genericFuzzySearch(debouncedSearchTerm, preFilteredProducts, [
+        "name",
+        "genericName",
+        "nafdacNumber",
+        "barcode",
+        "id",
+      ]),
+    [debouncedSearchTerm, preFilteredProducts],
   );
 
   const { sortKey, direction, toggleSort, sortedData: filteredProducts } =
@@ -174,8 +210,13 @@ export function ProductDatabase() {
       reorderLevel: (p: Product) => p.reorderLevel,
     });
 
+  // Debounced, not raw: this gates filteredProductIds, which is derived from
+  // the debounced search, so the raw term would claim "filtering" for a frame
+  // while filteredProducts still held the unfiltered list.
   const isFiltering =
-    searchTerm.trim() !== "" || categoryFilter !== "all" || statusFilter !== "all";
+    debouncedSearchTerm.trim() !== "" ||
+    categoryFilter !== "all" ||
+    statusFilter !== "all";
 
   const formatCurrency = (amount: number) =>
     formatCurrencyWithCode(amount, storeProfile?.currency);
@@ -183,7 +224,13 @@ export function ProductDatabase() {
   return (
     <div className="flex flex-col flex-1 min-h-0 h-full gap-4">
       <div className="flex flex-col min-h-0 gap-3 lg:gap-0 h-full flex-1">
-        {/* Mobile: search bar + filter pills stand alone above the card, contrasting with the page background */}
+        {/* Mobile: search bar + filter pills stand alone above the card,
+            contrasting with the page background. Conditionally rendered, not
+            just CSS-hidden: this and ProductDatabaseFilters below are bound to
+            the same searchTerm state, so leaving both mounted re-rendered two
+            full filter bars on every keystroke. The lg:hidden class stays as
+            the first-frame guard, since useMediaQuery starts at false. */}
+        {!isDesktop && (
         <div className="lg:hidden space-y-3">
           <SearchInput
             value={searchTerm}
@@ -215,6 +262,7 @@ export function ProductDatabase() {
             />
           </div>
         </div>
+        )}
 
         {/* flex-1 already fills exactly the space left after the tabs/header
             above (verified live) — min-h-[360px] is the only bound that
@@ -226,6 +274,7 @@ export function ProductDatabase() {
             binding on every normal screen and undoing the fill instead of
             only guarding the extreme case. */}
         <div className="border-0 sm:border sm:border-border bg-transparent sm:bg-card rounded-none sm:rounded-2xl flex flex-col flex-1 min-h-[360px] lg:max-h-[900px]">
+          {isDesktop && (
           <ProductDatabaseFilters
             searchTerm={searchTerm}
             setSearchTerm={setSearchTerm}
@@ -239,8 +288,11 @@ export function ProductDatabase() {
             onProductsChanged={() => void refetch()}
             filteredProductIds={isFiltering ? filteredProducts.map((p) => p.id) : undefined}
           />
+          )}
           <CatalogList
             isLoading={productsLoading}
+            loadFailed={productsLoadFailed}
+            onRetryLoad={refetchProducts}
             filteredProducts={filteredProducts}
             totalCount={products.length}
             isFuzzyFallback={isFuzzyFallback}
@@ -250,7 +302,7 @@ export function ProductDatabase() {
             sortKey={sortKey}
             sortDirection={direction}
             onToggleSort={toggleSort}
-            onProductUpdated={() => void refetch()}
+            onProductUpdated={refetchProducts}
           />
         </div>
       </div>

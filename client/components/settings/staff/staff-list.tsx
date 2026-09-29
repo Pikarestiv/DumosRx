@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import {
   Table,
   TableBody,
@@ -11,17 +12,19 @@ import { Button } from "@/components/ui/button";
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import {
   Edit2,
-  Trash2,
+  UserX,
   Shield,
   Loader2,
   Users,
   Key,
+  KeyRound,
   RotateCcw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { checkIsAdmin, useAuth } from "@/lib/context/auth-context";
 import { EmptyState } from "@/components/ui/empty-state";
 import type { StaffListItem } from "@/lib/types/user";
+import { useMediaQuery } from "@/hooks/use-media-query";
 
 interface StaffListProps {
   users: StaffListItem[];
@@ -56,6 +59,21 @@ function NoStaffFoundRow({
   );
 }
 
+function PinBadge({ hasPin }: { hasPin: boolean }) {
+  return (
+    <span
+      className={`inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 ${
+        hasPin
+          ? "text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30"
+          : "text-amber-600 bg-amber-50 dark:bg-amber-900/30"
+      }`}
+    >
+      {hasPin ? <Key className="w-2.5 h-2.5" /> : <KeyRound className="w-2.5 h-2.5" />}
+      {hasPin ? "PIN set" : "No PIN"}
+    </span>
+  );
+}
+
 export function StaffList({
   users,
   isLoading,
@@ -82,20 +100,30 @@ export function StaffList({
     onDelete(user.id, name);
   };
 
-  const sortedUsers = [...users].sort((a, b) => {
-    const isAMain = !a.store_id || a.role === "admin";
-    const isBMain = !b.store_id || b.role === "admin";
-    if (isAMain && !isBMain) return -1;
-    if (!isAMain && isBMain) return 1;
-    return 0;
-  });
+  const sortedUsers = useMemo(
+    () =>
+      [...users].sort((a, b) => {
+        const isAMain = !a.store_id || a.role === "admin";
+        const isBMain = !b.store_id || b.role === "admin";
+        if (isAMain && !isBMain) return -1;
+        if (!isAMain && isBMain) return 1;
+        return 0;
+      }),
+    [users],
+  );
 
   const isEmpty = !isLoading && users.length === 0;
+  // Conditional, not just CSS-hidden: both the table and the stacked-card
+  // list used to be mounted for every staff member. The sm:/hidden classes
+  // stay as the first-frame guard, since useMediaQuery starts at false and
+  // corrects itself after mount.
+  const isDesktop = useMediaQuery("(min-width: 640px)");
 
   return (
     <>
       {/* Desktop: real table, horizontally scrollable if content ever
           demands more than the column widths naturally settle at. */}
+      {isDesktop && (
       <div className="hidden sm:block overflow-x-auto">
         <Table>
           <TableHeader>
@@ -147,10 +175,7 @@ export function StaffList({
                     <TableCell className="font-mono text-sm">
                       <div className="flex items-center gap-2">
                         {user.username}
-                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30 px-1.5 py-0.5 rounded-full shrink-0">
-                          <Key className="w-2.5 h-2.5" />
-                          PIN set
-                        </span>
+                        <PinBadge hasPin={user.has_pin === 1} />
                       </div>
                     </TableCell>
                     <TableCell>
@@ -211,11 +236,11 @@ export function StaffList({
                             variant="ghost"
                             size="icon"
                             onClick={() => handleDeleteClick(user)}
-                            aria-label={`Delete ${user.username}`}
+                            aria-label={`Deactivate ${user.username}`}
                             className="h-8 w-8 text-muted-foreground hover:text-destructive"
                             disabled={user.id === "default-admin"}
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <UserX className="w-4 h-4" />
                           </Button>
                         )}
                       </div>
@@ -226,9 +251,11 @@ export function StaffList({
           </TableBody>
         </Table>
       </div>
+      )}
 
       {/* Mobile: rows become stacked cards instead of a cramped table,
           matching the pattern used by the product catalog list. */}
+      {!isDesktop && (
       <div className="sm:hidden divide-y divide-border">
         {!!isLoading && (
           <div className="h-24 flex items-center justify-center">
@@ -299,11 +326,11 @@ export function StaffList({
                         variant="ghost"
                         size="icon"
                         onClick={() => handleDeleteClick(user)}
-                        aria-label={`Delete ${user.username}`}
+                        aria-label={`Deactivate ${user.username}`}
                         className="h-8 w-8 text-muted-foreground hover:text-destructive"
                         disabled={user.id === "default-admin"}
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <UserX className="w-4 h-4" />
                       </Button>
                     )}
                   </div>
@@ -332,10 +359,7 @@ export function StaffList({
                   >
                     {user.is_active === 0 ? "Inactive" : "Active"}
                   </Badge>
-                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30 px-1.5 py-0.5 rounded-full">
-                    <Key className="w-2.5 h-2.5" />
-                    PIN set
-                  </span>
+                  <PinBadge hasPin={user.has_pin === 1} />
                 </div>
 
                 <div className="text-xs text-muted-foreground">
@@ -346,6 +370,7 @@ export function StaffList({
             );
           })}
       </div>
+      )}
     </>
   );
 }

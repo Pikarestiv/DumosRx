@@ -1,7 +1,9 @@
 "use client";
 
 import React, { useEffect, useRef, useState, useCallback } from "react";
-import { Html5Qrcode } from "html5-qrcode";
+// Type-only: the real module (~300KB) is loaded on demand inside
+// startScanner so it stays out of the POS bundle.
+import type { Html5Qrcode } from "html5-qrcode";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { Button } from "@/components/ui/button";
 import {
@@ -50,6 +52,7 @@ export function CameraScannerDialog({
     async (cameraIndex = 0) => {
       setState("requesting");
       try {
+        const { Html5Qrcode } = await import("html5-qrcode");
         const cameras = await Html5Qrcode.getCameras();
         setCameraCount(cameras.length);
         const camera = cameras[cameraIndex] ?? cameras[0];

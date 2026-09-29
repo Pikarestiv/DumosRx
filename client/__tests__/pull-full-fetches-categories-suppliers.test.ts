@@ -73,9 +73,11 @@ describe("pullChanges always full-fetches categories and suppliers", () => {
       {
         last_synced: { products: "2026-08-15T00:00:00Z" },
         page_offset: {},
+        page_cursor: {},
       },
       false,
       false,
+      undefined,
     );
   });
 

@@ -1,20 +1,9 @@
 import { FleetBillingApiClient } from "./client-fleet-billing";
-import type { CustomerFormPayload } from "@/lib/types/customer";
 import type { Broadcast } from "@/lib/types/broadcast";
-import type { NewProductPayload } from "@/lib/types/product";
-import type { SupplierPayload } from "@/lib/types/supplier";
 import type { SyncChange } from "@/lib/types/sync";
 import type { CurrentUser, Session } from "@/lib/types/user";
 import { getDeviceId } from "@/lib/utils/device-id";
-
-/** Loose shape shared by the legacy cloud list/aggregate endpoints below:
- * callers only ever read `.total`/`.count`/`.data?.length`/`.revenue`. */
-interface CloudListResponse {
-  total?: number;
-  count?: number;
-  revenue?: number;
-  data?: unknown[];
-}
+import { getStoredActiveStoreId } from "@/lib/storage-keys";
 
 class ApiClient extends FleetBillingApiClient {
   // Auth endpoints
@@ -119,147 +108,16 @@ class ApiClient extends FleetBillingApiClient {
     });
   }
 
-  // NOTE: the endpoints below (products/sales/customers/categories/suppliers/
-  // stock-movements/purchase-orders/stock-adjustments/prescriptions cloud CRUD)
-  // predate the offline-first SQLite architecture and have no callers left in
-  // the app (superseded by lib/db/queries/*); typed loosely since their
-  // response shape is unused, not because it's unknowable.
-  async getProducts(page = 1, limit = 50) {
-    return this.request<CloudListResponse>(`/app/products?page=${page}&limit=${limit}`);
-  }
-
-  async searchProducts(params: Record<string, string>) {
-    const searchParams = new URLSearchParams(params);
-    return this.request<unknown>(`/app/products/search?${searchParams}`);
-  }
-
-  async getProduct(id: string) {
-    return this.request<unknown>(`/app/products/${id}`);
-  }
-
-  async createProduct(data: NewProductPayload) {
-    return this.request<unknown>("/app/products", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-  }
-
-  // Stock Batch endpoints
-  async getStockBatch(page = 1, limit = 50) {
-    return this.request<unknown>(`/app/stock-batches?page=${page}&limit=${limit}`);
-  }
-
-  async getLowStockItems() {
-    return this.request<CloudListResponse>("/app/stock-batches/low-stock");
-  }
-
-  async getExpiringItems(days = 90) {
-    return this.request<CloudListResponse>(`/app/stock-batches/expiring?days=${days}`);
-  }
-
-  async getStockBatchValue() {
-    return this.request<unknown>("/app/stock-batches/value");
-  }
-
-  // Sales endpoints
-  async createSale(data: Record<string, unknown>) {
-    return this.request<unknown>("/app/sales", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-  }
-
-  async getSales(page = 1, limit = 50) {
-    return this.request<unknown>(`/app/sales?page=${page}&limit=${limit}`);
-  }
-
-  async getDailySales(date?: string) {
-    const params = date ? `?date=${date}` : "";
-    return this.request<CloudListResponse>(`/app/sales/daily${params}`);
-  }
-
-  async getTopSellingProducts(limit = 10, days = 30) {
-    return this.request<unknown>(`/app/sales/top-products?limit=${limit}&days=${days}`);
-  }
-
-  // Customers endpoints
-  async getCustomers(page = 1, limit = 50) {
-    return this.request<unknown>(`/app/customers?page=${page}&limit=${limit}`);
-  }
-
-  async createCustomer(data: CustomerFormPayload) {
-    return this.request<unknown>("/app/customers", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-  }
-
-  // Categories endpoints
-  async getCategories() {
-    return this.request<unknown>("/app/categories");
-  }
-
-  // Dashboard endpoints
-  //
-  // There is deliberately no getDashboardStats() here. One used to exist,
-  // unused, assembling dashboard-shaped numbers (totalProducts,
-  // dailySalesRevenue, expiringSoon, lowStockCount) from the cloud API -
-  // server-side, not netted of refunds, and bucketed by UTC day. It looked
-  // like a drop-in replacement for the real dashboard figures, which come
-  // from the local SQLite queries (getDashboardOverviewData /
-  // getStockBatchStats) and are refund-netted and bucketed by the store's
-  // LOCAL day. Do not reintroduce it: the dashboard reads local data.
-  async getRecentActivity(limit = 5) {
-    return this.request<CloudListResponse>(`/activity?limit=${limit}`).catch(
-      (): CloudListResponse => ({ data: [] }),
-    );
-  }
-
-  // Suppliers endpoints
-  async getSuppliers(page = 1, limit = 50) {
-    return this.request<unknown>(`/app/suppliers?page=${page}&limit=${limit}`);
-  }
-
-  async createSupplier(data: SupplierPayload) {
-    return this.request<unknown>("/app/suppliers", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-  }
-
-  // Stock Movements endpoints
-  async getStockMovements(page = 1, limit = 50) {
-    return this.request<CloudListResponse>(
-      `/stock-movements?page=${page}&limit=${limit}`,
-    ).catch((): CloudListResponse => ({ data: [] }));
-  }
-
-  // Purchase Orders endpoints
-  async getPurchaseOrders(page = 1, limit = 50) {
-    return this.request<CloudListResponse>(
-      `/purchase-orders?page=${page}&limit=${limit}`,
-    ).catch((): CloudListResponse => ({ data: [] }));
-  }
-
-  // Stock Adjustments endpoints
-  async getStockAdjustments(page = 1, limit = 50) {
-    return this.request<CloudListResponse>(
-      `/stock-adjustments?page=${page}&limit=${limit}`,
-    ).catch((): CloudListResponse => ({ data: [] }));
-  }
-
-  // Prescriptions endpoints
-  async getPrescriptions(page = 1, limit = 50) {
-    return this.request<CloudListResponse>(
-      `/prescriptions?page=${page}&limit=${limit}`,
-    ).catch((): CloudListResponse => ({ data: [] }));
-  }
-
   // Sync Endpoints
   async pushChanges(
     payload: { changes: SyncChange[] },
     isManual: boolean = false,
     isSetup: boolean = false,
+    // One token per sync() call, repeated on every batch of that run. The
+    // server measures the plan's sync-interval throttle per RUN rather than
+    // per request, so a backlog spanning many batches isn't rejected by its
+    // own first batch — see SyncController::validateSync.
+    runId?: string,
   ) {
     let url = `/app/sync/push`;
     const params = new URLSearchParams();
@@ -268,8 +126,9 @@ class ApiClient extends FleetBillingApiClient {
     if (params.toString()) url += `?${params.toString()}`;
 
     const headers: Record<string, string> = {};
+    if (runId) headers["X-Sync-Run-Id"] = runId;
     if (typeof window !== "undefined") {
-      const activeStoreId = localStorage.getItem("dumos_active_store_id");
+      const activeStoreId = getStoredActiveStoreId();
       if (activeStoreId) {
         headers["X-Store-Id"] = activeStoreId;
       }
@@ -289,7 +148,7 @@ class ApiClient extends FleetBillingApiClient {
   async getSyncCounts(): Promise<{ success: boolean; counts: Record<string, number> }> {
     const headers: Record<string, string> = {};
     if (typeof window !== "undefined") {
-      const activeStoreId = localStorage.getItem("dumos_active_store_id");
+      const activeStoreId = getStoredActiveStoreId();
       if (activeStoreId) {
         headers["X-Store-Id"] = activeStoreId;
       }
@@ -303,9 +162,12 @@ class ApiClient extends FleetBillingApiClient {
     payload: {
       last_synced: Record<string, string>;
       page_offset?: Record<string, number>;
+      page_cursor?: Record<string, { updated_at: string; id: string }>;
     },
     isManual: boolean = false,
     isSetup: boolean = false,
+    // See pushChanges' own runId note.
+    runId?: string,
   ) {
     let url = `/app/sync/pull`;
     const params = new URLSearchParams();
@@ -314,8 +176,9 @@ class ApiClient extends FleetBillingApiClient {
     if (params.toString()) url += `?${params.toString()}`;
 
     const headers: Record<string, string> = {};
+    if (runId) headers["X-Sync-Run-Id"] = runId;
     if (typeof window !== "undefined") {
-      const activeStoreId = localStorage.getItem("dumos_active_store_id");
+      const activeStoreId = getStoredActiveStoreId();
       if (activeStoreId) {
         headers["X-Store-Id"] = activeStoreId;
       }

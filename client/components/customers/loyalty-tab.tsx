@@ -12,6 +12,7 @@ import { ResponsiveTabLabel } from "@/components/ui/responsive-tab-label";
 import { REDEMPTION_ICONS, REDEMPTION_ICON_BG } from "./loyalty-icons";
 import { queryKeys } from "@/lib/query-keys";
 import { useAuth } from "@/lib/context/auth-context";
+import { useHasPermission } from "@/lib/hooks/use-permissions";
 
 interface Tier {
   name: string;
@@ -30,6 +31,7 @@ export function LoyaltyTab({
 }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const { canManageStockBatch } = useAuth();
+  const canManageLoyalty = useHasPermission("manage_loyalty");
 
   const { data: optionsData } = useQuery({
     ...queryKeys.loyalty.redemptionOptions(),
@@ -57,7 +59,7 @@ export function LoyaltyTab({
               Manage customer rewards and point multipliers
             </p>
           </div>
-          {canManageStockBatch && (
+          {canManageStockBatch && canManageLoyalty && (
             <button
               onClick={() => setSettingsOpen(true)}
               className="text-[13px] font-medium border px-3 py-1.5 rounded-[8px] hover:bg-primary/10"

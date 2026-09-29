@@ -230,9 +230,7 @@ class SyncController extends Controller
                         // correctly (but permanently, since audit_logs are
                         // append-only and nothing ever re-queues it) rejected
                         // as 'forbidden', losing that log entry for good.
-                        $exists = $modelClass::where('properties->client_id', $recordId)
-                            ->where('store_id', $currentStoreId)
-                            ->exists();
+                        $exists = $this->findAuditLogByClientId($modelClass, $recordId, $currentStoreId) !== null;
                     } else {
                         // Use withTrashed to catch soft-deleted items so we don't get Duplicate Entry crashes
                         $exists = \method_exists($modelClass, 'trashed') 
@@ -276,30 +274,9 @@ class SyncController extends Controller
                         // Force missing required fields for users
                         if ($change['table_name'] === 'users') {
                             if (empty($model->password)) {
-                                // $payload['pin'] used to be the raw 4-digit
-                                // PIN a device pushed for a user it created
-                                // offline, so hashing it here gave that
-                                // account a working web-dashboard password
-                                // equal to their PIN (StaffController::store
-                                // does the same thing intentionally for the
-                                // online creation path). The client now
-                                // hashes `pin` before it's ever written
-                                // locally, so this fallback would otherwise
-                                // hash an already-hashed value - not a
-                                // lockout (the row still gets SOME password),
-                                // but it silently drops the "log into the
-                                // dashboard with your PIN" convenience for
-                                // every offline-created user. Detect that
-                                // case and fall back to the same generic
-                                // placeholder StaffController::store already
-                                // uses when no PIN was supplied at all,
-                                // rather than deriving a password from a
-                                // value that no longer represents a secret
-                                // the user actually knows.
-                                $rawPin = (isset($payload['pin']) && preg_match('/^\$2[aby]\$\d{2}\$/', $payload['pin']) !== 1)
-                                    ? $payload['pin']
-                                    : '1234';
-                                $model->password = \Illuminate\Support\Facades\Hash::make($rawPin);
+                                // Offline-created users are PIN-only; never
+                                // derive one. "Staff credentials" in AGENTS.md.
+                                $model->password = null;
                             }
                             if (empty($model->first_name)) {
                                 $model->first_name = $payload['first_name'] ?? 'User';
@@ -393,7 +370,18 @@ class SyncController extends Controller
                     // locked at all. That's an acceptable, bounded tradeoff for correctness here,
                     // not a deadlock risk beyond what already exists from save() locking rows in
                     // whatever order the batch happens to process them.
-                    $model = \method_exists($modelClass, 'trashed') ? $modelClass::withTrashed()->lockForUpdate()->find($recordId) : $modelClass::lockForUpdate()->find($recordId);
+                    // audit_logs never carries the client's id as its primary
+                    // key (the INSERT path deliberately keeps the server's own
+                    // auto-increment and stores the client id in
+                    // properties->client_id), so it must be matched the same
+                    // way the INSERT existence probe above matches it — a raw
+                    // find() here coerces the id string to a leading numeric
+                    // run under MySQL and can hit an unrelated row.
+                    if ($change['table_name'] === 'audit_logs') {
+                        $model = $this->findAuditLogByClientId($modelClass, $recordId, $currentStoreId, true);
+                    } else {
+                        $model = \method_exists($modelClass, 'trashed') ? $modelClass::withTrashed()->lockForUpdate()->find($recordId) : $modelClass::lockForUpdate()->find($recordId);
+                    }
 
                     if ($model && $currentUser && !$isSuperAdmin && !$this->authorizeChangeTarget($change['table_name'], $model, $allowedStoreIds, $allowedUserIds)) {
                         // Reject before even looking at version info: the
@@ -408,6 +396,41 @@ class SyncController extends Controller
                             'reason' => 'forbidden',
                         ];
                         continue;
+                    }
+
+                    // A receipt can never book more than was ordered. The client
+                    // clamps to the outstanding balance already, but that clamp is
+                    // computed against whatever that device knew — so two devices
+                    // booking the same delivery both compute the full outstanding
+                    // balance and both push a receipt for it. The version check
+                    // rejects the second UPDATE on this row only when both were
+                    // based on the same version; a receipt staged against a
+                    // stale-but-different version, or any other producer of an
+                    // over-receipt, would otherwise be applied. quantity_received
+                    // and quantity_ordered are both in base units by this point
+                    // (SyncPayloadMapper scales them together), so they are
+                    // directly comparable. See docs/FIXED_BUGS.md, A-9.
+                    if (
+                        $model
+                        && $change['table_name'] === 'purchase_order_items'
+                        && isset($payload['quantity_received'])
+                    ) {
+                        $ordered = $payload['quantity_ordered'] ?? $model->quantity_ordered;
+                        if ($ordered !== null && (float) $payload['quantity_received'] > (float) $ordered) {
+                            DB::commit();
+                            Log::warning(
+                                'Sync push: rejected purchase_order_items ' . $recordId
+                                . ' receipt of ' . $payload['quantity_received']
+                                . ' against ' . $ordered . ' ordered',
+                            );
+                            $failed[] = [
+                                'id' => $change['id'] ?? null,
+                                'table_name' => $change['table_name'],
+                                'record_id' => $recordId,
+                                'reason' => 'quantity_received_exceeds_ordered',
+                            ];
+                            continue;
+                        }
                     }
 
                     if ($model) {
@@ -547,6 +570,32 @@ class SyncController extends Controller
                         }
                     }
                 } elseif ($change['operation'] === 'DELETE') {
+                    // audit_logs is append-only on both sides: the client only
+                    // ever queues INSERT for it (see logAction() in
+                    // client/lib/db/core.ts - even the repeat-dedup path
+                    // rewrites the pending INSERT rather than queueing an
+                    // UPDATE or DELETE), and ActivityLog has no SoftDeletes,
+                    // so $target->delete() here is a HARD delete of a
+                    // tamper-evidence record. Because activity_logs.id is the
+                    // server's own bigint while the client's id lives in
+                    // properties->client_id, a client id passed to find() gets
+                    // coerced to its leading numeric run and can match a
+                    // COMPLETELY UNRELATED row in the same store, which
+                    // authorizeChangeTarget() (store-ownership only) then
+                    // happily waves through. There is no correct row for this
+                    // lookup to find, so reject rather than guess.
+                    if ($change['table_name'] === 'audit_logs') {
+                        DB::commit();
+                        Log::warning('Sync push: rejected DELETE against append-only audit_logs for record ' . ($change['record_id'] ?? '?'));
+                        $failed[] = [
+                            'id' => $change['id'] ?? null,
+                            'table_name' => $change['table_name'],
+                            'record_id' => $change['record_id'] ?? null,
+                            'reason' => 'unsupported_operation',
+                        ];
+                        continue;
+                    }
+
                     $target = \method_exists($modelClass, 'trashed')
                         ? $modelClass::withTrashed()->find($change['record_id'])
                         : $modelClass::find($change['record_id']);
@@ -594,7 +643,9 @@ class SyncController extends Controller
                         'id' => $change['id'] ?? null,
                         'table_name' => $change['table_name'],
                         'record_id' => $change['record_id'] ?? null,
-                        'reason' => $e->getMessage(),
+                        'reason' => $e instanceof \App\Exceptions\SyncPushPermissionDeniedException
+                            ? \App\Exceptions\SyncPushPermissionDeniedException::REASON
+                            : $e->getMessage(),
                     ];
                 }
             }
@@ -657,6 +708,13 @@ class SyncController extends Controller
         // drained — offsets exist so a table with >500 changed rows can be
         // paged within a single round without prematurely marking it synced.
         $pageOffsets = $request->input('page_offset', []);
+        // Keyset position within the current in-progress walk, per table:
+        // { table: { updated_at, id } }, echoed back from the last row of the
+        // page the client most recently committed. Supersedes $pageOffsets
+        // for any table that supplies one; $pageOffsets stays honored so a
+        // client older than this cursor keeps paging exactly as before.
+        $pageCursors = $request->input('page_cursor', []);
+        $this->hasSyncedAtColumnCache = [];
         $changes = [];
         $hasMore = [];
         $serverTimestamp = now()->toIso8601String();
@@ -666,7 +724,7 @@ class SyncController extends Controller
         // getModelForTable/schema fixes landed) but never pulled back down
         // to any other device, so a second device or a fresh restore would
         // never see them even after the push-side bug was fixed.
-        $tables = ['products', 'stock_batches', 'categories', 'customers', 'suppliers', 'sales', 'sale_items', 'sale_item_batches', 'stores', 'users', 'stock_movements', 'purchase_orders', 'purchase_order_items', 'expenses', 'payment_accounts', 'requested_products', 'supplier_payments', 'returns', 'return_items', 'prescriptions', 'prescription_items', 'loyalty_tiers', 'loyalty_redemption_options', 'stock_audits', 'held_transactions', 'loyalty_transactions', 'customer_payments', 'audit_logs'];
+        $tables = ['products', 'stock_batches', 'categories', 'customers', 'suppliers', 'sales', 'sale_items', 'sale_item_batches', 'stores', 'users', 'stock_movements', 'purchase_orders', 'purchase_order_items', 'expenses', 'payment_accounts', 'requested_products', 'supplier_payments', 'returns', 'return_items', 'prescriptions', 'prescription_items', 'loyalty_tiers', 'loyalty_redemption_options', 'stock_audits', 'held_transactions', 'loyalty_transactions', 'customer_payments', 'audit_logs', 'permission_groups'];
 
         // The privileged subscription-status pull (client's
         // syncSubscriptionStatus()) sends `?setup=1` specifically to bypass
@@ -683,6 +741,11 @@ class SyncController extends Controller
         if ($this->isStoresOnlySetupOverridePull($request, $lastSyncedMap)) {
             $tables = ['stores'];
         }
+
+        $user = $request->user();
+        $tenantScope = $user->hasRole('super_admin')
+            ? null
+            : $this->resolvePullTenantScope($user, $request);
 
         foreach ($tables as $table) {
             $modelClass = $this->getModelForTable($table);
@@ -704,14 +767,18 @@ class SyncController extends Controller
                 : $modelClass::query();
 
             // Multi-tenant filtering
-            $user = $request->user();
-            if (!$user->hasRole('super_admin')) {
-                $this->applyPullTenantScope($query, $table, $user, $request);
+            if ($tenantScope) {
+                $this->applyPullTenantScope($query, $table, $tenantScope);
             }
 
             $this->applyPullCursor($query, $table, $lastSyncedMap[$table] ?? null);
 
-            [$records, $hasMore[$table]] = $this->fetchPullPage($query, $table, (int) ($pageOffsets[$table] ?? 0));
+            [$records, $hasMore[$table]] = $this->fetchPullPage(
+                $query,
+                $table,
+                (int) ($pageOffsets[$table] ?? 0),
+                $this->normalizePageCursor($pageCursors[$table] ?? null),
+            );
 
             $changes[$table] = $records->map(fn ($item) => $this->mapPullRowForClient($item, $table));
         }
@@ -725,6 +792,14 @@ class SyncController extends Controller
     }
 
     /**
+     * Memoizes applyPullCursor()'s _synced_at column probe for the lifetime
+     * of one request. Schema::hasColumn() is a real INFORMATION_SCHEMA round
+     * trip that Laravel does not cache, and the probe runs once per table per
+     * page — same reasoning as stampSyncedAt()'s own per-push cache.
+     */
+    private array $hasSyncedAtColumnCache = [];
+
+    /**
      * Applies the client's per-table last_synced cursor, preferring
      * _synced_at OR updated_at where the table has a _synced_at column.
      * 'stores' is deliberately exempt (see fetchPullPage()).
@@ -733,7 +808,11 @@ class SyncController extends Controller
     {
         if ($lastSynced && $table !== 'stores') {
             $parsedLastSynced = \Carbon\Carbon::parse($lastSynced)->setTimezone('UTC')->format('Y-m-d H:i:s');
-            if (\Illuminate\Support\Facades\Schema::hasColumn($table, '_synced_at')) {
+            if (!isset($this->hasSyncedAtColumnCache[$table])) {
+                $this->hasSyncedAtColumnCache[$table] =
+                    \Illuminate\Support\Facades\Schema::hasColumn($table, '_synced_at');
+            }
+            if ($this->hasSyncedAtColumnCache[$table]) {
                 $query->where(function ($q) use ($parsedLastSynced) {
                     $q->where('_synced_at', '>', $parsedLastSynced)
                       ->orWhere('updated_at', '>', $parsedLastSynced);
@@ -757,21 +836,68 @@ class SyncController extends Controller
      *
      * Every other table gets deterministic ordering (previously unordered,
      * so the 500 that made it into any given page were an arbitrary subset
-     * of the matching rows, not even the oldest) plus offset-based paging
-     * within this pull round: fetching 501 and slicing tells us whether more
-     * rows remain beyond this page without a second COUNT query.
+     * of the matching rows, not even the oldest) and is walked by a keyset
+     * cursor on that same (updated_at, id) ordering: fetching 501 and slicing
+     * tells us whether more rows remain beyond this page without a second
+     * COUNT query, and seeking by the previous page's last row keeps every
+     * page the same cost instead of degrading as OFFSET grows.
+     *
+     * $offset is the pre-keyset fallback, still honored for clients that send
+     * page_offset without page_cursor. See docs/SYNC_PULL_PAGINATION.md.
      */
-    private function fetchPullPage($query, string $table, int $offset): array
+    private function fetchPullPage($query, string $table, int $offset, ?array $cursor = null): array
     {
         if ($table === 'stores') {
             return [$query->get(), false];
         }
 
-        $page = $query->orderBy('updated_at')->orderBy('id')
-            ->skip($offset)->limit(501)->get();
+        if ($cursor) {
+            // The column format, not ISO8601 - SQLite compares datetimes as
+            // text (docs/SYNC_PULL_PAGINATION.md, "Why keyset, not OFFSET").
+            $at = \Carbon\Carbon::parse($cursor['updated_at'])
+                ->setTimezone('UTC')
+                ->format($query->getModel()->getDateFormat());
+            $id = $cursor['id'];
+
+            $query->where(function ($q) use ($at, $id) {
+                $q->where('updated_at', '>', $at)
+                  ->orWhere(function ($q2) use ($at, $id) {
+                      $q2->where('updated_at', '=', $at)->where('id', '>', $id);
+                  });
+            });
+            $page = $query->orderBy('updated_at')->orderBy('id')->limit(501)->get();
+        } else {
+            $page = $query->orderBy('updated_at')->orderBy('id')
+                ->skip($offset)->limit(501)->get();
+        }
+
         $hasMore = $page->count() > 500;
 
         return [$hasMore ? $page->slice(0, 500) : $page, $hasMore];
+    }
+
+    /**
+     * Validates one table's client-supplied keyset position, returning null
+     * for anything that isn't a complete, parseable (updated_at, id) pair so
+     * the page falls back to offset paging rather than throwing.
+     */
+    private function normalizePageCursor($cursor): ?array
+    {
+        if (!is_array($cursor) || !isset($cursor['updated_at'], $cursor['id'])) {
+            return null;
+        }
+
+        if (!is_scalar($cursor['updated_at']) || !is_scalar($cursor['id'])) {
+            return null;
+        }
+
+        try {
+            \Carbon\Carbon::parse($cursor['updated_at']);
+        } catch (\Exception $e) {
+            return null;
+        }
+
+        return ['updated_at' => $cursor['updated_at'], 'id' => $cursor['id']];
     }
 
     /**
@@ -782,28 +908,18 @@ class SyncController extends Controller
      * store-scoped, which derive scope through a parent, and which are
      * legacy user_id-owned. Mutates the query in place, exactly as the
      * inline match() it replaces did.
+     *
+     * Takes an already-resolved scope (resolvePullTenantScope()) rather than
+     * re-deriving it: this is called once per table per page, and the owner
+     * lookup + owned-store list + staff-id list never change within a
+     * request.
      */
-    private function applyPullTenantScope($query, string $table, $user, Request $request): void
+    private function applyPullTenantScope($query, string $table, array $scope): void
     {
-        $ownerId = $user->store_id
-            ? Store::where('id', $user->store_id)->value('user_id') 
-            : $user->id;
-        
-        $requestedStoreId = $request->header('X-Store-Id') ?? $request->input('store_id');
-        if ($requestedStoreId) {
-            $ownsStore = Store::where('id', $requestedStoreId)->where('user_id', $ownerId)->exists();
-            if ($ownsStore) {
-                $storeIds = [$requestedStoreId];
-            } else {
-                $storeIds = [];
-            }
-        } else {
-            $storeIds = $user->store_id 
-                ? [$user->store_id] 
-                : Store::where('user_id', $ownerId)->pluck('id')->toArray();
-        }
-            
-        $userIds = User::whereIn('store_id', $storeIds)->pluck('id')->push($ownerId)->toArray();
+        $ownerId = $scope['ownerId'];
+        $storeIds = $scope['storeIds'];
+        $userIds = $scope['userIds'];
+        $ownedStoreIds = $scope['ownedStoreIds'];
 
         match ($table) {
             'users' => $query->whereIn('id', $userIds),
@@ -816,10 +932,7 @@ class SyncController extends Controller
             // granted by an admin) could never be pulled down at all.
             // Staff (fixed store_id) still only ever see their own
             // store, same as before.
-            'stores' => $query->whereIn(
-                'id',
-                $user->store_id ? $storeIds : Store::where('user_id', $ownerId)->pluck('id')->toArray()
-            )->with(['user.subscriptions']),
+            'stores' => $query->whereIn('id', $ownedStoreIds)->with(['user.subscriptions']),
             // These 11 tables now carry a real store_id column (see
             // add_store_id_to_domain_tables migration); scope directly
             // by store rather than by an owner/cashier user-id chain, so
@@ -838,12 +951,22 @@ class SyncController extends Controller
             'supplier_payments' => $query->whereIn('store_id', $storeIds),
             // Child tables still derive scoping through their now
             // correctly store-scoped parent, no store_id of their own.
-            'sale_items' => $query->whereIn('sale_id', Sale::whereIn('store_id', $storeIds)->pluck('id')),
-            'return_items' => $query->whereIn('return_id', \App\Models\SaleReturn::whereIn('store_id', $storeIds)->pluck('id')),
-            'prescription_items' => $query->whereIn('prescription_id', \App\Models\Prescription::whereIn('store_id', $storeIds)->pluck('id')),
-            'purchase_order_items' => $query->whereIn('purchase_order_id', PurchaseOrder::whereIn('store_id', $storeIds)->pluck('id')),
-            'stock_batches' => $query->whereIn('product_id', Product::whereIn('store_id', $storeIds)->pluck('id')),
-            'sale_item_batches' => $query->whereIn('sale_item_id', SaleItem::whereIn('sale_id', Sale::whereIn('store_id', $storeIds)->pluck('id'))->pluck('id')),
+            // Each passes a Builder, never a Collection: Laravel compiles a
+            // Builder into a real SQL subquery, while ->pluck('id') executed
+            // the parent query and inlined every id the tenant owns as bound
+            // literals, once per table per page (see
+            // docs/SYNC_PULL_PAGINATION.md). The soft-delete global scope
+            // still applies to each subquery exactly as it did to the pluck,
+            // which counts()'s stock_batches mirror depends on.
+            'sale_items' => $query->whereIn('sale_id', $this->tenantSaleIds($storeIds)),
+            'return_items' => $query->whereIn('return_id', \App\Models\SaleReturn::query()->select('id')->whereIn('store_id', $storeIds)),
+            'prescription_items' => $query->whereIn('prescription_id', \App\Models\Prescription::query()->select('id')->whereIn('store_id', $storeIds)),
+            'purchase_order_items' => $query->whereIn('purchase_order_id', PurchaseOrder::query()->select('id')->whereIn('store_id', $storeIds)),
+            'stock_batches' => $query->whereIn('product_id', Product::query()->select('id')->whereIn('store_id', $storeIds)),
+            'sale_item_batches' => $query->whereIn(
+                'sale_item_id',
+                SaleItem::query()->select('id')->whereIn('sale_id', $this->tenantSaleIds($storeIds)),
+            ),
             'requested_products' => $query->whereIn('store_id', $storeIds),
             // Upgraded from the legacy `where('user_id', $ownerId)`
             // now that these carry a real store_id (see
@@ -867,8 +990,58 @@ class SyncController extends Controller
             'loyalty_transactions' => $query->whereIn('store_id', $storeIds),
             'customer_payments' => $query->whereIn('store_id', $storeIds),
             'audit_logs' => $query->whereIn('store_id', $storeIds),
+            // Has a store_id column but no user_id column at all (see
+            // PermissionGroup migration) - falling through to `default`
+            // below would throw "Unknown column 'user_id'", exactly the
+            // class of bug the comment above already fixed for
+            // held_transactions/loyalty_transactions/customer_payments.
+            'permission_groups' => $query->whereIn('store_id', $storeIds),
             default => $query->where('user_id', $ownerId),
         };
+    }
+
+    /**
+     * The tenant's sale-id subquery, used by both sale_items and (nested one
+     * level deeper) sale_item_batches.
+     */
+    private function tenantSaleIds(array $storeIds)
+    {
+        return Sale::query()->select('id')->whereIn('store_id', $storeIds);
+    }
+
+    /**
+     * Resolves, once per request, everything applyPullTenantScope() needs:
+     * the subscription owner, the store list this pull is narrowed to, the
+     * full owned-store list ('stores' is deliberately never narrowed by
+     * X-Store-Id — it IS the store-switcher's discovery list), and the staff
+     * ids that go with them.
+     */
+    private function resolvePullTenantScope($user, Request $request): array
+    {
+        $ownerId = $user->store_id
+            ? Store::where('id', $user->store_id)->value('user_id')
+            : $user->id;
+
+        $ownedStoreIds = $user->store_id
+            ? [$user->store_id]
+            : Store::where('user_id', $ownerId)->pluck('id')->toArray();
+
+        $requestedStoreId = $request->header('X-Store-Id') ?? $request->input('store_id');
+        if ($requestedStoreId) {
+            $ownsStore = Store::where('id', $requestedStoreId)->where('user_id', $ownerId)->exists();
+            $storeIds = $ownsStore ? [$requestedStoreId] : [];
+        } else {
+            $storeIds = $ownedStoreIds;
+        }
+
+        $userIds = User::whereIn('store_id', $storeIds)->pluck('id')->push($ownerId)->toArray();
+
+        return [
+            'ownerId' => $ownerId,
+            'storeIds' => $storeIds,
+            'ownedStoreIds' => $ownedStoreIds,
+            'userIds' => $userIds,
+        ];
     }
 
     /**
@@ -1117,6 +1290,37 @@ class SyncController extends Controller
      * with _deleted=1 and no _version). Confirm none of those still rely on
      * it before deleting the branch.
      */
+    /**
+     * The only correct way to find the activity_logs row a client-generated
+     * audit_logs id refers to: activity_logs.id is the server's own
+     * auto-increment bigint, and the client's id lives in
+     * properties->client_id. Scoped to the pushing store because a client id
+     * is only unique on the device that generated it (see the INSERT
+     * existence probe in push() for the cross-store case that proved it).
+     */
+    private function findAuditLogByClientId(string $modelClass, $recordId, $currentStoreId, bool $lock = false)
+    {
+        // A null store id (super-admin push, or no active store) has no store
+        // to scope to, and `where('store_id', null)` would silently become
+        // `whereNull('store_id')` — matching legacy store-less rows that share
+        // this client id rather than nothing. Since a client id is only unique
+        // per device, there is no safe unscoped match: report "not found" so
+        // an INSERT stays an INSERT and an UPDATE no-ops, instead of writing
+        // to a row we cannot prove is the right one.
+        if ($currentStoreId === null || $currentStoreId === '') {
+            return null;
+        }
+
+        $query = $modelClass::where('properties->client_id', $recordId)
+            ->where('store_id', $currentStoreId);
+
+        if ($lock) {
+            $query->lockForUpdate();
+        }
+
+        return $query->orderBy('id')->first();
+    }
+
     private function resolveUpdateConflict(string $tableName, $model, array $payload, bool $isCommutativeTable, $recordId): array
     {
         $payloadVersion = isset($payload['_version']) ? (int)$payload['_version'] : null;
@@ -1269,6 +1473,11 @@ class SyncController extends Controller
             $payload = $this->sanitizeUserSyncPayload($payload, $recordId, $currentUser, $allowedStoreIds);
         }
 
+        if ($change['table_name'] === 'permission_groups' && $currentUser && !$isSuperAdmin) {
+            $pgRecordId = $change['record_id'] ?? ($payload['id'] ?? null);
+            $payload = $this->sanitizePermissionGroupSyncPayload($payload, $pgRecordId, $change['operation'], $currentUser, $allowedStoreIds);
+        }
+
         if ($change['table_name'] === 'stores') {
             foreach (self::STORE_SYNC_FORBIDDEN_FIELDS as $field) {
                 unset($payload[$field]);
@@ -1395,6 +1604,7 @@ class SyncController extends Controller
             'products', 'sales', 'customers', 'categories', 'suppliers',
             'expenses', 'purchase_orders', 'prescriptions', 'returns',
             'stock_movements', 'supplier_payments', 'audit_logs',
+            'permission_groups',
         ];
         if (in_array($change['table_name'], $tablesWithStoreId) && $currentStoreId) {
             if (empty($payload['store_id'])) {
@@ -1560,6 +1770,7 @@ class SyncController extends Controller
         'paystack_subaccount_code', 'paystack_subaccount_country',
         'paystack_bank_code', 'paystack_account_number_last4',
         'paystack_fee_dirty_at',
+        'last_sync_run_id', 'last_sync_run_started_at',
     ];
 
     /**
@@ -1619,6 +1830,121 @@ class SyncController extends Controller
             if (!in_array($payload['store_id'], $allowedStoreIds, true)) {
                 throw new \RuntimeException('Sync push: users payload attempted to set store_id outside caller\'s allowed stores');
             }
+        }
+
+        return $payload;
+    }
+
+    /**
+     * Privilege-limits a client-originated `permission_groups` sync change
+     * end to end - not just the escalation check the name used to
+     * describe alone.
+     *
+     * Two rules apply to EVERYONE, including store_owner/admin/
+     * super_admin - these are structural invariants (spec's Global
+     * Constraints: default groups "can never be renamed or deleted, in
+     * the UI or at the data/sync layer"), not a privilege the owner can
+     * override:
+     *  - DELETE against a default group is rejected outright.
+     *  - DELETE against a group with an active staff member still
+     *    assigned is rejected (reassign first).
+     *  - UPDATE against an existing DEFAULT group strips `name`/
+     *    `is_default`/`based_on_role` from the payload - only its
+     *    checkbox set may change.
+     *
+     * The remaining rules bypass for store_owner/admin/super_admin, same
+     * as every other ownership check in this controller:
+     *  - INSERT/UPDATE granting a `permissions` key the caller doesn't
+     *    themselves hold is rejected (the escalation guard).
+     *  - Any mutation at all additionally requires the caller to hold
+     *    manage_roles_permissions - matching the client matrix UI's own
+     *    useHasPermission("manage_roles_permissions") gate. Without this,
+     *    a caller holding every permission they're trying to grant (so
+     *    the escalation check alone doesn't catch them) could still edit
+     *    a group they have no business touching.
+     *
+     * One deliberate exception to the escalation/manage_roles_permissions
+     * pair, checked before them: a genuinely new default group
+     * (`is_default: true`, `based_on_role` set, and no row already
+     * exists for that (store, role) pair) skips both. This is first-time
+     * seeding (ensurePermissionGroupsSeeded, client core.ts), which fires
+     * from ANY authenticated user's login on a fresh device - not just an
+     * owner's - and legitimately needs to create even the Admin default
+     * group despite the seeding user usually holding none of its
+     * permissions themselves. The `permissions` this bootstrap inserts
+     * come from a hardcoded client constant the UI gives the user no way
+     * to alter, and the (store, role) uniqueness check means this bypass
+     * only ever fires once per role per store; a repeat attempt is an
+     * ordinary UPDATE and goes through every rule above.
+     */
+    private function sanitizePermissionGroupSyncPayload(array $payload, ?string $recordId, string $operation, $currentUser, array $allowedStoreIds = []): array
+    {
+        $existing = $recordId ? \App\Models\PermissionGroup::find($recordId) : null;
+
+        // Ownership is authorized later (authorizeChangeTarget), but that
+        // check runs AFTER this method for the DELETE/UPDATE paths - so a
+        // cross-tenant request targeting another store's row must bail out
+        // here before any business-rule check fires, otherwise the specific
+        // rejection reason (e.g. "default groups cannot be deleted") leaks
+        // whether the victim's row is a default group, and masks the
+        // 'forbidden' reason the later ownership check is supposed to give.
+        if ($existing && !in_array($existing->store_id, $allowedStoreIds, true)) {
+            return $payload;
+        }
+
+        if ($operation === 'DELETE') {
+            if ($existing && $existing->is_default) {
+                throw new \RuntimeException('Sync push: default permission groups cannot be deleted');
+            }
+            if ($existing && \App\Models\User::where('permission_group_id', $existing->id)->where('is_active', true)->exists()) {
+                throw new \RuntimeException('Sync push: cannot delete a permission group with staff assigned - reassign them first');
+            }
+        }
+
+        if ($existing && $existing->is_default) {
+            unset($payload['name'], $payload['is_default'], $payload['based_on_role']);
+        }
+
+        $role = strtolower(preg_replace('/[^a-z_]/i', '', $currentUser->role ?? ''));
+        if (in_array($role, ['store_owner', 'admin', 'super_admin'], true)) {
+            return $payload;
+        }
+
+        if ($operation === 'INSERT') {
+            $isFirstTimeDefaultSeed = !empty($payload['is_default'])
+                && !empty($payload['based_on_role'])
+                && $currentUser->store_id
+                && !\App\Models\PermissionGroup::where('store_id', $currentUser->store_id)
+                    ->where('based_on_role', $payload['based_on_role'])
+                    ->exists();
+            if ($isFirstTimeDefaultSeed) {
+                return $payload;
+            }
+        }
+
+        // The caller's OWN granted permissions, per the NEW store-scoped
+        // permission_groups system (a hardcoded catalog key like
+        // "manage_roles_permissions" here, not a row in the platform-level
+        // roles/permissions tables User::hasPermission() checks - those
+        // are a deliberately separate system per the feature's spec, see
+        // docs/superpowers/specs/2026-09-27-roles-and-permissions-design.md).
+        $ownGroup = $currentUser->permission_group_id
+            ? \App\Models\PermissionGroup::find($currentUser->permission_group_id)
+            : null;
+        $ownPermissions = $ownGroup->permissions ?? [];
+
+        if (isset($payload['permissions']) && is_array($payload['permissions'])) {
+            $disallowed = array_diff($payload['permissions'], $ownPermissions);
+            if (!empty($disallowed)) {
+                throw new \App\Exceptions\SyncPushPermissionDeniedException(
+                    'Sync push: permission_groups payload attempted to grant a permission the caller does not hold: '
+                    . implode(', ', $disallowed),
+                );
+            }
+        }
+
+        if (!in_array('manage_roles_permissions', $ownPermissions, true)) {
+            throw new \App\Exceptions\SyncPushPermissionDeniedException('Sync push: caller lacks manage_roles_permissions');
         }
 
         return $payload;
@@ -1745,7 +2071,7 @@ class SyncController extends Controller
             'stock_movements', 'supplier_payments', 'requested_products',
             'payment_accounts', 'loyalty_tiers', 'loyalty_redemption_options',
             'stock_audits', 'held_transactions', 'loyalty_transactions',
-            'customer_payments', 'audit_logs',
+            'customer_payments', 'audit_logs', 'permission_groups',
         ];
 
         if (in_array($tableName, $directStoreTables, true)) {
@@ -1810,8 +2136,9 @@ class SyncController extends Controller
         // cursor failure mode (inventory + sales) rather than every synced
         // table - a targeted, cheap check, not a second sync engine.
         // stock_batches must be scoped EXACTLY the way pull() scopes it
-        // (line ~845: whereIn('product_id', Product::whereIn('store_id', ...)
-        // ->pluck('id'))), not by stock_batches.store_id directly. Product
+        // (applyPullTenantScope(): whereIn('product_id', Product::query()
+        // ->select('id')->whereIn('store_id', ...))), not by
+        // stock_batches.store_id directly. Product
         // uses SoftDeletes, so that pull-side subquery silently excludes
         // batches belonging to a deleted product — completely routine
         // (discontinuing/removing a product) for a store like this one.
@@ -1822,7 +2149,7 @@ class SyncController extends Controller
         // the very same pull scoping and can never close a gap that isn't
         // real. Matching this exactly is what keeps the health check
         // comparing apples to apples.
-        $nonDeletedProductIds = Product::where('store_id', $currentStoreId)->pluck('id');
+        $nonDeletedProductIds = Product::query()->select('id')->where('store_id', $currentStoreId);
 
         $counts = [
             'products' => DB::table('products')->where('store_id', $currentStoreId)->whereNull('deleted_at')->count(),
@@ -1851,6 +2178,7 @@ class SyncController extends Controller
             'stock_batches' => StockBatch::class,
             'activity_logs' => ActivityLog::class,
             'audit_logs' => ActivityLog::class,
+            'permission_groups' => \App\Models\PermissionGroup::class,
             'categories' => \App\Models\Category::class,
             'expenses' => Expense::class,
             'feedback' => \App\Models\Feedback::class,
@@ -1908,6 +2236,30 @@ class SyncController extends Controller
         return $request->boolean('setup')
             && is_array($lastSyncedMap)
             && array_keys($lastSyncedMap) === ['stores'];
+    }
+
+    /**
+     * How long one client sync run may keep exempting its own follow-up
+     * batches from the plan's sync-interval throttle. Generously above what
+     * a real run costs (50-change batches paced ~1.1s apart, plus paged
+     * pulls) and far below the smallest configured interval (30 min on the
+     * mid tier), so it can never swallow a whole interval.
+     */
+    private const SYNC_RUN_MAX_MINUTES = 10;
+
+    /**
+     * The client's per-sync()-call run token, or null when the request
+     * carries none (an older client build, or any other caller). Length- and
+     * charset-capped because it is persisted on the store row.
+     */
+    private function syncRunId(Request $request): ?string
+    {
+        $runId = trim((string)$request->header('X-Sync-Run-Id', ''));
+        if ($runId === '' || strlen($runId) > 64 || !preg_match('/^[A-Za-z0-9._:-]+$/', $runId)) {
+            return null;
+        }
+
+        return $runId;
     }
 
     private function validateSync(Request $request, $isPush = true)
@@ -1991,19 +2343,37 @@ class SyncController extends Controller
                 }
 
                 $syncIntervalMinutes = $systemConfig['tiers'][$plan]['limits']['sync_interval'] ?? 0;
-                
-                if ($syncIntervalMinutes > 0 && !$isManual) {
-                    if ($store && $store->last_sync_at) {
+
+                if ($syncIntervalMinutes > 0) {
+                    // One sync() call on the client is many requests: the
+                    // push is split into 50-change batches and the pull into
+                    // pages, all seconds apart. Throttling per REQUEST would
+                    // therefore reject every batch after the first of a
+                    // multi-batch backlog (batch 1 stamps last_sync_at, batch
+                    // 2 arrives with minutesSinceLastSync === 0) — which only
+                    // stayed invisible while the client labelled every
+                    // background sync `manual=1` and skipped this whole
+                    // block. The client now sends one X-Sync-Run-Id per
+                    // sync() call, so the interval is measured per RUN: the
+                    // run's first request is checked, the rest are not.
+                    $runId = $this->syncRunId($request);
+                    $isSameRun = $runId !== null
+                        && $store
+                        && $store->last_sync_run_id === $runId
+                        && $store->last_sync_run_started_at
+                        && abs((int)$store->last_sync_run_started_at->diffInMinutes(now())) < self::SYNC_RUN_MAX_MINUTES;
+
+                    if (!$isManual && !$isSameRun && $store && $store->last_sync_at) {
                         $minutesSinceLastSync = abs((int)$store->last_sync_at->diffInMinutes(now()));
                         if ($minutesSinceLastSync < $syncIntervalMinutes) {
                             // Allow pull requests that happen immediately after a push (in the same minute)
                             if (!$isPush && $minutesSinceLastSync === 0) {
                                 // Skip throttling for this immediate paired pull
                             } else {
-                                $intervalText = $syncIntervalMinutes >= 60 
-                                    ? floor($syncIntervalMinutes / 60) . ' hours' 
+                                $intervalText = $syncIntervalMinutes >= 60
+                                    ? floor($syncIntervalMinutes / 60) . ' hours'
                                     : $syncIntervalMinutes . ' minutes';
-                                    
+
                                 return [
                                     'valid' => false,
                                     'message' => "Sync limit reached. Your current plan synchronizes once every {$intervalText}. Last sync: " . $store->last_sync_at->diffForHumans() . '. Please upgrade your plan for faster sync.',
@@ -2013,11 +2383,35 @@ class SyncController extends Controller
                             }
                         }
                     }
+
+                    // This request opened a new run and was allowed through:
+                    // remember which run it was, so its own later batches are
+                    // recognized. Stamped with a start time, and only honored
+                    // for SYNC_RUN_MAX_MINUTES, so a client that pinned one
+                    // run id forever gets one run's worth of exemption, not a
+                    // standing bypass of its plan's interval.
+                    if ($runId !== null && !$isSameRun && $store) {
+                        $store->forceFill([
+                            'last_sync_run_id' => $runId,
+                            'last_sync_run_started_at' => now(),
+                        ])->save();
+                    }
                 }
             }
             
             // Enforce staff limits
             $subscriptionService->enforceStaffLimits($owner);
+
+            // Lazily seed this store's 5 default permission groups server-side
+            // (spec: "server: equivalent lazy check on relevant API entry
+            // points") - covers stores whose staff are only ever managed via
+            // the web dashboard, and closes the gap where a second device
+            // pulling before the first device's own client-side seed has
+            // pushed up would otherwise see no groups at all. Idempotent,
+            // gated the same way the client is (stores.permission_groups_seeded_at).
+            if ($store) {
+                \App\Services\PermissionGroupSeeder::ensureSeeded($store);
+            }
 
             // Enforce store limits for syncing
             $storeLimit = \App\Models\SystemConfig::getVal('subscription_plans')['tiers'][$plan]['limits']['stores'] ?? 0;

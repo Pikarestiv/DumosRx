@@ -25,6 +25,20 @@ interface SearchableInputProps extends Omit<React.InputHTMLAttributes<HTMLInputE
   onCommitKey?: (value: string) => void
 }
 
+export interface MenuRect {
+  top?: number
+  bottom?: number
+  left: number
+  width: number
+}
+
+/** True when a freshly measured rect would place the menu exactly where it
+ * already is, so the measurement can be dropped instead of re-rendering. */
+export function isSameMenuRect(a: MenuRect | null, b: MenuRect): boolean {
+  if (!a) return false
+  return a.top === b.top && a.bottom === b.bottom && a.left === b.left && a.width === b.width
+}
+
 export function SearchableInput({ options, value, onValueChange, onEscapeKey, onCommitKey, className, ...props }: SearchableInputProps) {
   const [open, setOpen] = React.useState(false)
 
@@ -55,7 +69,7 @@ export function SearchableInput({ options, value, onValueChange, onEscapeKey, on
   // Portaling to <body> with `position: fixed` coordinates computed from
   // the input's own bounding rect escapes every ancestor's overflow/stacking
   // context, the same way Radix's Popover/DropdownMenu do internally.
-  const [menuRect, setMenuRect] = React.useState<{ top?: number; bottom?: number; left: number; width: number } | null>(null)
+  const [menuRect, setMenuRect] = React.useState<MenuRect | null>(null)
   // Stable per-instance ids: the input keeps DOM focus and points at the
   // highlighted option through aria-activedescendant, so each option needs
   // its own id and two of these on one page must not collide.
@@ -79,25 +93,42 @@ export function SearchableInput({ options, value, onValueChange, onEscapeKey, on
     // viewport (not just the table's own scroll area) pushes the menu
     // straight off the bottom of the screen.
     const spaceBelow = window.innerHeight - rect.bottom
-    if (spaceBelow < 250) {
-      setMenuRect({ bottom: window.innerHeight - rect.top + 4, left: rect.left, width: rect.width })
-    } else {
-      setMenuRect({ top: rect.bottom + 4, left: rect.left, width: rect.width })
-    }
+    const next: MenuRect = spaceBelow < 250
+      ? { bottom: window.innerHeight - rect.top + 4, left: rect.left, width: rect.width }
+      : { top: rect.bottom + 4, left: rect.left, width: rect.width }
+    // A scroll that didn't actually move this input (very common, since the
+    // capture-phase listener below sees every scrollable element on the page)
+    // must not re-render the menu.
+    setMenuRect(prev => (isSameMenuRect(prev, next) ? prev : next))
   }, [])
 
   React.useEffect(() => {
     if (!open) return
     updateMenuRect()
+
+    // Coalesced to one measurement per frame: the capture-phase listener
+    // below fires for scrolling anywhere on the page, and each measurement
+    // forces a layout, so a single flick of a long list would otherwise cost
+    // dozens of them.
+    let frame: number | null = null
+    const scheduleUpdate = () => {
+      if (frame !== null) return
+      frame = requestAnimationFrame(() => {
+        frame = null
+        updateMenuRect()
+      })
+    }
+
     // The table this lives in scrolls its own container, not the window, so
     // `scroll` needs the capture phase to see it (scroll events don't
     // bubble) — recompute the menu's position on every scroll/resize while
     // open rather than leaving it stranded over the old spot.
-    window.addEventListener("scroll", updateMenuRect, true)
-    window.addEventListener("resize", updateMenuRect)
+    window.addEventListener("scroll", scheduleUpdate, true)
+    window.addEventListener("resize", scheduleUpdate)
     return () => {
-      window.removeEventListener("scroll", updateMenuRect, true)
-      window.removeEventListener("resize", updateMenuRect)
+      if (frame !== null) cancelAnimationFrame(frame)
+      window.removeEventListener("scroll", scheduleUpdate, true)
+      window.removeEventListener("resize", scheduleUpdate)
     }
   }, [open, updateMenuRect])
 

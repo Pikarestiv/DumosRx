@@ -1,4 +1,5 @@
 import { execute, query, transaction, isInTransaction, STORE_SCOPED_TABLES } from "./core";
+import { STORAGE_KEYS } from "@/lib/storage-keys";
 
 /**
  * One-time recovery tool for devices that hit the pre-fix local-first setup
@@ -132,6 +133,37 @@ export async function requeueOrphanedRows(
 
       requeued[table] = rows.length;
     }
+  }
+
+  return requeued;
+}
+
+const ORPHAN_REQUEUE_MARKER = STORAGE_KEYS.orphanRequeueMarker;
+
+/**
+ * Runs requeueOrphanedRows() once per install, or when `force` says this
+ * launch followed a crash. Returns null when skipped. See A-8 in
+ * docs/FIXED_BUGS.md.
+ */
+export async function requeueOrphanedRowsOnce(
+  tables: string[],
+  options: { force?: boolean } = {},
+): Promise<Record<string, number> | null> {
+  let alreadyRun = false;
+  try {
+    alreadyRun = localStorage.getItem(ORPHAN_REQUEUE_MARKER) !== null;
+  } catch {
+    alreadyRun = false;
+  }
+
+  if (alreadyRun && !options.force) return null;
+
+  const requeued = await requeueOrphanedRows(tables);
+
+  try {
+    localStorage.setItem(ORPHAN_REQUEUE_MARKER, new Date().toISOString());
+  } catch {
+    // A storage failure costs one repeated scan on the next boot, nothing more.
   }
 
   return requeued;

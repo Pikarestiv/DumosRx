@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import {
+  AlertTriangle,
   Search,
   CheckCircle2,
   Clock,
@@ -9,6 +10,7 @@ import {
   ClipboardList,
   PackageOpen,
 } from "lucide-react";
+import { useResolvedMediaQuery } from "@/hooks/use-media-query";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -40,14 +42,25 @@ interface PurchaseOrderTableProps {
   onSearchChange: (query: string) => void;
   activeTab: string;
   onTabChange: (tab: string) => void;
-  onReceivePO: (id: string, receivedItems: ReceivedItemPayload[]) => void;
+  /** Resolves true only once the receive has actually landed, so the panel
+   * stays put with its spinner until then and is only dismissed on success. */
+  onReceivePO: (
+    id: string,
+    receivedItems: ReceivedItemPayload[],
+  ) => void | Promise<boolean | void>;
   /** True while a receive is in flight, so the panel can lock its
    * "Confirm & Receive" button instead of allowing a second submit. */
   isReceivingPO?: boolean;
   onSendPO: (id: string) => void;
   onDeletePO?: (id: string) => void;
+  /** True while a status write (mark-as-sent / delete) is in flight. */
+  isMutatingPO?: boolean;
   isFuzzyFallback?: boolean;
   initialSelectedId?: string | null;
+  /** The orders query failed, which is not the same thing as there being no
+   * orders - both used to render the identical "No purchase orders found". */
+  hasLoadError?: boolean;
+  onRetryLoad?: () => void;
 }
 
 function formatPONumber(id: string) {
@@ -205,8 +218,11 @@ export function PurchaseOrderTable({
   isReceivingPO,
   onSendPO,
   onDeletePO,
+  isMutatingPO,
   isFuzzyFallback,
   initialSelectedId,
+  hasLoadError,
+  onRetryLoad,
 }: PurchaseOrderTableProps) {
   const {
     selectedOrderId,
@@ -219,6 +235,10 @@ export function PurchaseOrderTable({
   const { isAdmin, user } = useAuth();
   const isAuditor = user?.role === "auditor";
   const [showRequestDialog, setShowRequestDialog] = useState(false);
+  const { matches: isDesktopList, resolved: layoutResolved } =
+    useResolvedMediaQuery("(min-width: 768px)");
+  const showEmpty = !loading && !hasLoadError && orders.length === 0;
+  const showRows = !loading && !hasLoadError && orders.length > 0;
 
   return (
     <div className="flex flex-col gap-5 flex-1 min-h-0 overflow-hidden">
@@ -247,44 +267,56 @@ export function PurchaseOrderTable({
               </div>
             </div>
           )}
-          {/* Mobile: card list */}
-          <div className="md:hidden flex flex-col gap-2 px-0 py-3 md:px-3 md:p-3">
-            {loading && (
-              <div className="h-32 flex flex-col items-center justify-center text-muted-foreground">
-                <Clock className="w-6 h-6 animate-spin mb-2 opacity-50" />
-                Loading orders...
-              </div>
-            )}
-            {!loading && orders.length === 0 && (
-              <EmptyState
-                icon={ClipboardList}
-                title="No purchase orders found"
-                action={
-                  isAdmin
-                    ? { label: "Create Purchase Order", href: "/procurement/new" }
-                    : isAuditor
-                      ? undefined
-                      : {
-                          label: "Request Product",
-                          onClick: () => setShowRequestDialog(true),
-                        }
-                }
-              />
-            )}
-            {!loading &&
-              orders.length > 0 &&
-              orders.map((po) => (
-                <PurchaseOrderMobileRow
-                  key={po.id}
-                  order={po}
-                  isSelected={selectedOrderId === po.id}
-                  onSelect={() => setSelectedOrderId(po.id)}
+          {layoutResolved && !isDesktopList && (
+            <div className="flex flex-col gap-2 px-0 py-3">
+              {loading && (
+                <div className="h-32 flex flex-col items-center justify-center text-muted-foreground">
+                  <Clock className="w-6 h-6 animate-spin mb-2 opacity-50" />
+                  Loading orders...
+                </div>
+              )}
+              {!loading && hasLoadError && (
+                <EmptyState
+                  icon={AlertTriangle}
+                  title="Couldn't load orders"
+                  description="Something went wrong reading the order list."
+                  action={
+                    onRetryLoad
+                      ? { label: "Try again", onClick: onRetryLoad }
+                      : undefined
+                  }
                 />
-              ))}
-          </div>
+              )}
+              {showEmpty && (
+                <EmptyState
+                  icon={ClipboardList}
+                  title="No purchase orders found"
+                  action={
+                    isAdmin
+                      ? { label: "Create Purchase Order", href: "/procurement/new" }
+                      : isAuditor
+                        ? undefined
+                        : {
+                            label: "Request Product",
+                            onClick: () => setShowRequestDialog(true),
+                          }
+                  }
+                />
+              )}
+              {showRows &&
+                orders.map((po) => (
+                  <PurchaseOrderMobileRow
+                    key={po.id}
+                    order={po}
+                    isSelected={selectedOrderId === po.id}
+                    onSelect={() => setSelectedOrderId(po.id)}
+                  />
+                ))}
+            </div>
+          )}
 
-          {/* Desktop: table */}
-          <Table className="hidden md:table">
+          {layoutResolved && isDesktopList && (
+          <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent border-b border-border">
                 <TableHead className="w-[110px] pl-4 text-[11px] font-bold text-muted-foreground uppercase tracking-wide h-11 align-middle">
@@ -316,15 +348,30 @@ export function PurchaseOrderTable({
                   </TableCell>
                 </TableRow>
               )}
-              {!loading && orders.length === 0 && (
+              {!loading && hasLoadError && (
+                <TableRow>
+                  <TableCell colSpan={5} className="h-32">
+                    <EmptyState
+                      icon={AlertTriangle}
+                      title="Couldn't load orders"
+                      description="Something went wrong reading the order list."
+                      action={
+                        onRetryLoad
+                          ? { label: "Try again", onClick: onRetryLoad }
+                          : undefined
+                      }
+                    />
+                  </TableCell>
+                </TableRow>
+              )}
+              {showEmpty && (
                 <NoPurchaseOrdersRow
                   isAdmin={isAdmin}
                   isAuditor={isAuditor}
                   onRequestProduct={() => setShowRequestDialog(true)}
                 />
               )}
-              {!loading &&
-                orders.length > 0 &&
+              {showRows &&
                 orders.map((po) => (
                   <PurchaseOrderRow
                     key={po.id}
@@ -335,6 +382,7 @@ export function PurchaseOrderTable({
                 ))}
             </TableBody>
           </Table>
+          )}
         </div>
       </Card>
 
@@ -355,8 +403,10 @@ export function PurchaseOrderTable({
             isReceiving={isReceivingPO}
             onBack={() => setPanelView("details")}
             onConfirm={(id, receivedItems) => {
-              onReceivePO(id, receivedItems);
-              setPanelView("details");
+              void (async () => {
+                const received = await onReceivePO(id, receivedItems);
+                if (received !== false) setPanelView("details");
+              })();
             }}
           />
         ) : (
@@ -366,6 +416,7 @@ export function PurchaseOrderTable({
             getStatusBadge={getStatusBadge}
             onSendPO={onSendPO}
             onDeletePO={onDeletePO}
+            isMutatingPO={isMutatingPO}
             onReceiveGoods={() => setPanelView("receive")}
             onClose={() => setSelectedOrderId(null)}
           />

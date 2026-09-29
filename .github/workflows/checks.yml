@@ -61,6 +61,7 @@ jobs:
           cd laravel-server
           cp .env.example .env
           php artisan key:generate
+          mkdir -p storage/framework/{cache/data,sessions,testing,views} storage/logs bootstrap/cache
 
       - name: PHPUnit
         run: |

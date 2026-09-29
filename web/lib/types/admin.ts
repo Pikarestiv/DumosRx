@@ -275,6 +275,9 @@ export interface AdminBroadcast {
   user_ids?: string[];
   expires_at?: string | null;
   is_active: boolean;
+  /** Whether the announcement was also emailed. The email fires once, when
+   * the broadcast is created — editing this field later never re-sends. */
+  send_email?: boolean;
 }
 
 export interface BroadcastFormData {
@@ -286,6 +289,8 @@ export interface BroadcastFormData {
   user_ids: string[];
   expires_at: string;
   is_active: boolean;
+  /** Only honoured on create — see AdminBroadcast.send_email. */
+  send_email: boolean;
 }
 
 export interface FeedbackItem {

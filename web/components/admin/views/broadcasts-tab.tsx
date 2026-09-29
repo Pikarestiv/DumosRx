@@ -101,7 +101,8 @@ export function BroadcastsTab() {
     target_type: "all",
     user_ids: [],
     expires_at: "",
-    is_active: true
+    is_active: true,
+    send_email: false
   });
 
   // Keeps the display list and the submitted id list in lockstep.
@@ -126,7 +127,8 @@ export function BroadcastsTab() {
         target_type: "all",
         user_ids: [],
         expires_at: "",
-        is_active: true
+        is_active: true,
+        send_email: false
       });
       void queryClient.invalidateQueries({ queryKey: ["admin-broadcasts"] });
       void queryClient.invalidateQueries({ queryKey: ["broadcasts"] });
@@ -227,7 +229,8 @@ export function BroadcastsTab() {
               target_type: "all",
               user_ids: [],
               expires_at: "",
-              is_active: true
+              is_active: true,
+              send_email: false
             });
             setIsCreateOpen(true);
           }}
@@ -382,7 +385,8 @@ export function BroadcastsTab() {
                                 // Robust to both "2026-01-01T00:00:00Z" and
                                 // "2026-01-01 00:00:00" (and to garbage).
                                 expires_at: formatDateSafe(broadcast.expires_at, "yyyy-MM-dd", ""),
-                                is_active: broadcast.is_active
+                                is_active: broadcast.is_active,
+                                send_email: broadcast.send_email ?? false
                               });
                               setIsEditOpen(true);
                             }}

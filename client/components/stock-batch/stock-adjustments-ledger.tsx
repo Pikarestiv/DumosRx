@@ -215,7 +215,7 @@ export function StockAdjustmentsLedger() {
             className="bg-muted/30 border-border"
           />
           {canAdjustStock && (
-            <Button className="md:hidden ml-auto" onClick={() => setShowAdjustFlow(true)}>
+            <Button className="sm:hidden ml-auto" onClick={() => setShowAdjustFlow(true)}>
               Adjust Stock
             </Button>
           )}

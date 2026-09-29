@@ -4,6 +4,11 @@ A changelog of bugs that were tracked in `docs/KNOWN_BUGS.md` and have since bee
 
 ## 2026-09-29
 
+### A-50 — the Adjustments ledger showed two "Adjust Stock" buttons between 640px and 767px
+- **Branch:** none — committed directly on `dev`. Found by the product owner through manual testing on mobile.
+- **Root cause.** The header's action button (`dashboard-header.tsx`, `hidden sm:flex`) appears at ≥640px; the ledger's own in-page fallback button (`stock-adjustments-ledger.tsx`, was `md:hidden`) was visible below 768px. Between 640px and 767px both rendered — this gap was already noted as a residual consequence when `A-45` fixed the header's permission enforcement, but left unfixed at the time as out of scope.
+- **Fix.** The in-page button's breakpoint changed from `md:hidden` to `sm:hidden`, making it the exact complement of the header's `sm:flex` — precisely one "Adjust Stock" entry point renders at every width, with no gap or overlap.
+
 ### A-32 — the lock screen could be bypassed entirely by backing out of "Set Up as New Device"
 - **Branch:** `fix/lock-screen-bypass-and-account-removal` (worktree). Found by the product owner through manual testing, not by an audit pass.
 - **Repro (exact).** Lock the app (Ctrl/Cmd+L or idle auto-lock) → on the PIN screen press **Back**, which reveals the account picker → click **Set Up as New Device** → press the back arrow on the setup screen. The app lands on `/dashboard` **fully unlocked**, with no PIN ever entered.

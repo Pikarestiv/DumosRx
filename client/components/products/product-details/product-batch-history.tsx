@@ -57,21 +57,23 @@ export function ProductBatchHistory({
   return (
     <div className="flex flex-col gap-3">
       {batches.map((batch) => {
-        const days = Math.ceil(
-          (new Date(batch.expiry_date || 0).getTime() - new Date().getTime()) /
-            (1000 * 60 * 60 * 24),
-        );
-
         let statusColor = "bg-emerald-50 text-emerald-600";
-        let statusText = `Expires in ${days} days`;
+        let statusText = "No expiry";
 
-        if (days <= 0) {
-          statusColor = "bg-red-50 text-red-600";
-          statusText = "Expired";
-        } else if (days <= 30) {
-          statusColor = "bg-red-50 text-red-600";
-        } else if (days <= 90) {
-          statusColor = "bg-orange-50 text-orange-600";
+        if (batch.expiry_date) {
+          const days = Math.ceil(
+            (new Date(batch.expiry_date).getTime() - new Date().getTime()) /
+              (1000 * 60 * 60 * 24),
+          );
+          statusText = `Expires in ${days} days`;
+          if (days <= 0) {
+            statusColor = "bg-red-50 text-red-600";
+            statusText = "Expired";
+          } else if (days <= 30) {
+            statusColor = "bg-red-50 text-red-600";
+          } else if (days <= 90) {
+            statusColor = "bg-orange-50 text-orange-600";
+          }
         }
 
         return (

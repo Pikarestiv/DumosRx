@@ -18,7 +18,7 @@ use Illuminate\Database\Eloquent\Model;
  * A true SQL NULL is passed through as null rather than normalised to [].
  * Laravel short-circuits NULL for primitive casts but not for class casts, so
  * without that the "column was never set" state would read back as "every
- * payment method is disabled". See docs/FIXED_BUGS.md -> A-29 and A-32.
+ * payment method is disabled". See docs/FIXED_BUGS.md -> A-29 and A-42.
  */
 class JsonList implements CastsAttributes
 {

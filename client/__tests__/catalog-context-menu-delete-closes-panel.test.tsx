@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import React from "react";
 
 /**
- * Regression coverage for FIXED_BUGS.md A-36: deleting a product through the
+ * Regression coverage for FIXED_BUGS.md A-46: deleting a product through the
  * row context menu left its detail panel open and editable against a row
  * that no longer exists. The panel's own Delete action always called
  * onClose(); the context-menu path only refetched the list.

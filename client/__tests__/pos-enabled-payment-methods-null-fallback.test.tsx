@@ -10,7 +10,7 @@ import {
 import { PaymentMethodSelector } from "@/components/pos/payment-method-selector";
 
 /**
- * Regression coverage for FIXED_BUGS.md A-32: a store row whose
+ * Regression coverage for FIXED_BUGS.md A-42: a store row whose
  * enabled_payment_methods column was never written must read back as NULL
  * after a sync pull, not as an empty list. NULL means "the store never chose",
  * and the POS shows every method; an empty list would render a payment step

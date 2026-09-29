@@ -5,7 +5,7 @@ import React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 /**
- * Regression coverage for FIXED_BUGS.md A-34: the Adjust Stock draft is
+ * Regression coverage for FIXED_BUGS.md A-44: the Adjust Stock draft is
  * persisted under one global key, exactly like the POS cart and the
  * cycle-count draft, so it must be cleared on a store switch and on logout.
  * Without that, a half-entered adjustment staged against store A's product

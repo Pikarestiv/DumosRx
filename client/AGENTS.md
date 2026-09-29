@@ -460,7 +460,7 @@ e2e/                       Playwright end-to-end specs
   and Stock After previews the count itself. That is why the function takes
   `currentStock` as a required third argument. Quantity inputs stay
   `min={0}` — a physical count cannot be negative; only the derived delta
-  can. See `docs/FIXED_BUGS.md` → A-33.
+  can. See `docs/FIXED_BUGS.md` → A-43.
 
   **The draft is cleared on a store switch and on logout**, via
   `clearStockAdjustmentDraft()` (`lib/hooks/use-stock-adjustment-draft.ts`),
@@ -573,7 +573,7 @@ e2e/                       Playwright end-to-end specs
   point above `md`, where the in-page button is hidden. `DashboardHeader`
   checks whatever key a route names via `hasPermission()` — do not
   reintroduce a hardcoded list of keys there. See `docs/FIXED_BUGS.md` →
-  A-35.
+  A-45.
 
   **No branch column**, unlike the competitor UI this was modelled on: every
   inventory read is already scoped to the active store by

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 
 /**
- * Regression coverage for FIXED_BUGS.md A-35: DashboardHeader passes
+ * Regression coverage for FIXED_BUGS.md A-45: DashboardHeader passes
  * resolveHeaderAction a permission-check closure, and that closure used to
  * recognise only three hardcoded keys and return true for anything else.
  * Every other route's `actionPermission` - adjust_stock_counts on Adjust

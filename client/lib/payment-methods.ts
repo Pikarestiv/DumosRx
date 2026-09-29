@@ -4,7 +4,7 @@ export const DEFAULT_ENABLED_PAYMENT_METHODS = ["cash", "card", "transfer", "cre
  * stores.enabled_payment_methods is TEXT holding JSON, not a real array
  * column. NULL/absent means the store never chose, which enables every
  * method; a malformed or double-encoded value (docs/FIXED_BUGS.md A-29,
- * A-31, A-32) must fall back the same way rather than throwing mid-render.
+ * A-31, A-42) must fall back the same way rather than throwing mid-render.
  */
 export function parseEnabledPaymentMethods(raw: string | null | undefined): string[] {
   if (!raw) return DEFAULT_ENABLED_PAYMENT_METHODS;

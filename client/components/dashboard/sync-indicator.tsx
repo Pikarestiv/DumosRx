@@ -17,6 +17,10 @@ import {
   SYNC_IN_PROGRESS_ERROR,
 } from "@/lib/db/sync-engine";
 import { addSyncQueueChangeListener } from "@/lib/db/core";
+import {
+  CRASH_REPORT_TABLE,
+  hasPendingNonCrashFeedback,
+} from "@/lib/db/crash-report-sync";
 import { useStore } from "@/lib/context/store-context";
 import { useAuth } from "@/lib/context/auth-context";
 import { useDatabase } from "@/lib/db/DatabaseProvider";
@@ -207,6 +211,7 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
     let autoSyncIntervalTimer: NodeJS.Timeout | null = null;
     let debounceTimer: NodeJS.Timeout | null = null;
     let unsubscribe: (() => void) | null = null;
+    let disposed = false;
 
     // No daemon at all while impersonating: neither the interval timer nor
     // the sync-queue-change listener is even installed, so an impersonated
@@ -215,6 +220,17 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
       const intervalMinutes = storeProfile?.auto_sync_interval ?? 15;
 
       if (intervalMinutes === 0) {
+        const scheduleInstantSync = () => {
+          if (disposed) return;
+          if (debounceTimer) clearTimeout(debounceTimer);
+          debounceTimer = setTimeout(() => {
+            if (navigator.onLine && !checkIsSyncing()) {
+              console.log("Auto-sync triggered (instant, on change)");
+              void runSync(false);
+            }
+          }, INSTANT_SYNC_DEBOUNCE_MS);
+        };
+
         unsubscribe = addSyncQueueChangeListener((tables) => {
           // audit_logs alone (a PIN login/logout, a failed-login attempt,
           // a PIN change) is low-priority telemetry, not something another
@@ -224,14 +240,23 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
           // round. A mixed batch (e.g. a sale, which also logAction()s)
           // still triggers normally: only skipped when audit_logs is the
           // ONLY table that changed.
-          if (tables.every((t) => t === "audit_logs")) return;
-          if (debounceTimer) clearTimeout(debounceTimer);
-          debounceTimer = setTimeout(() => {
-            if (navigator.onLine && !checkIsSyncing()) {
-              console.log("Auto-sync triggered (instant, on change)");
-              void runSync(false);
-            }
-          }, INSTANT_SYNC_DEBOUNCE_MS);
+          const triggerWorthy = tables.filter((t) => t !== "audit_logs");
+          if (triggerWorthy.length === 0) return;
+
+          // Same reasoning for the `feedback` table, except the table name
+          // alone can't settle it: it carries both background crash reports
+          // (telemetry, no sync round of its own) and feedback the user
+          // deliberately submitted (which should sync promptly). The pending
+          // queue itself is what distinguishes them - see
+          // docs/SYNC_CRASH_REPORT_POLICY.md.
+          if (triggerWorthy.every((t) => t === CRASH_REPORT_TABLE)) {
+            void hasPendingNonCrashFeedback().then((userSubmitted) => {
+              if (userSubmitted) scheduleInstantSync();
+            });
+            return;
+          }
+
+          scheduleInstantSync();
         });
       } else {
         const intervalMs = intervalMinutes * 60 * 1000;
@@ -245,6 +270,7 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
     }
 
     return () => {
+      disposed = true;
       if (autoSyncIntervalTimer) clearInterval(autoSyncIntervalTimer);
       if (debounceTimer) clearTimeout(debounceTimer);
       unsubscribe?.();

@@ -30,6 +30,12 @@ vi.mock("@/lib/db/queries/setup", () => ({
   getSyncQueueCount: vi.fn(async () => 0),
 }));
 
+const hasPendingNonCrashFeedbackMock = vi.fn(async () => false);
+vi.mock("@/lib/db/crash-report-sync", () => ({
+  CRASH_REPORT_TABLE: "feedback",
+  hasPendingNonCrashFeedback: () => hasPendingNonCrashFeedbackMock(),
+}));
+
 vi.mock("@/lib/db/sync-engine", () => ({
   sync: mockSync,
   isSyncing: () => false,
@@ -83,6 +89,8 @@ describe("SyncIndicator instant sync (auto_sync_interval === 0)", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     mockSync.mockClear();
+    hasPendingNonCrashFeedbackMock.mockClear();
+    hasPendingNonCrashFeedbackMock.mockResolvedValue(false);
     registeredListener = null;
     unsubscribeSpy.mockClear();
     container = document.createElement("div");
@@ -157,6 +165,71 @@ describe("SyncIndicator instant sync (auto_sync_interval === 0)", () => {
     });
 
     expect(mockSync).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not trigger a sync for a feedback-only change that is just a background crash report", async () => {
+    hasPendingNonCrashFeedbackMock.mockResolvedValue(false);
+    await render({ auto_sync_enabled: 1, auto_sync_interval: 0 });
+
+    await act(async () => {
+      registeredListener?.(["feedback"]);
+      await Promise.resolve();
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(2000);
+      await Promise.resolve();
+    });
+
+    expect(mockSync).not.toHaveBeenCalled();
+  });
+
+  it("triggers for a feedback-only change the user deliberately submitted", async () => {
+    hasPendingNonCrashFeedbackMock.mockResolvedValue(true);
+    await render({ auto_sync_enabled: 1, auto_sync_interval: 0 });
+
+    await act(async () => {
+      registeredListener?.(["feedback"]);
+      await Promise.resolve();
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(2000);
+      await Promise.resolve();
+    });
+
+    expect(mockSync).toHaveBeenCalledTimes(1);
+  });
+
+  it("still triggers when a crash report lands alongside a real change (e.g. a sale)", async () => {
+    hasPendingNonCrashFeedbackMock.mockResolvedValue(false);
+    await render({ auto_sync_enabled: 1, auto_sync_interval: 0 });
+
+    await act(async () => {
+      registeredListener?.(["sales", "feedback"]);
+      await Promise.resolve();
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(2000);
+      await Promise.resolve();
+    });
+
+    expect(mockSync).toHaveBeenCalledTimes(1);
+    expect(hasPendingNonCrashFeedbackMock).not.toHaveBeenCalled();
+  });
+
+  it("does not trigger for a crash report batched with audit_logs telemetry", async () => {
+    hasPendingNonCrashFeedbackMock.mockResolvedValue(false);
+    await render({ auto_sync_enabled: 1, auto_sync_interval: 0 });
+
+    await act(async () => {
+      registeredListener?.(["feedback", "audit_logs"]);
+      await Promise.resolve();
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(2000);
+      await Promise.resolve();
+    });
+
+    expect(mockSync).not.toHaveBeenCalled();
   });
 
   it("switches cleanly from instant to interval-based sync when the interval changes from 0 to a positive number", async () => {

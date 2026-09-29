@@ -283,6 +283,12 @@ export async function flushPendingCrashes() {
         content: `[QUEUED CRASH] [${info.platform?.toUpperCase()}] ${info.isFatal ? 'FATAL: ' : ''}${info.message}\n\nStack:\n${info.stack}\n\nUA: ${info.userAgent}\nURL: ${info.url}`,
         contact_email: SYSTEM_EMAIL,
         status: "pending",
+        // type='bug' + a fingerprint is what marks a row as automatic crash
+        // telemetry rather than feedback a user typed — see
+        // lib/db/crash-report-sync.ts and reportStuckCrashLog().
+        fingerprint: buildCrashFingerprint(info.message, info.stack || ""),
+        occurrence_count: 1,
+        last_occurred_at: info.timestamp,
         created_at: info.timestamp,
         _synced: 0
       });

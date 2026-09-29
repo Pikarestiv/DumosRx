@@ -532,6 +532,47 @@ left in place for a future real worker — so that interface's presence is
 `RegistersAccounts`/`RecoversPasswords`/`SendEndOfDaySummaries` for any new
 mail path.
 
+## Broadcast emails (`broadcasts.send_email`)
+
+A broadcast (`Broadcast`, `BroadcastController`) is delivered in-app by
+default: `client/` polls `GET /announcements` and renders a banner or a bell
+notification. `broadcasts.send_email` (nullable boolean, default `false`)
+additionally emails it. `BroadcastController::store()` delegates to
+`App\Services\Admin\BroadcastEmailService::sendForBroadcast()`; the controller
+itself holds no sending logic.
+
+- **Store owners only, never staff.** Recipients are resolved as
+  `User::whereHas('stores')` — i.e. the user actually owns a row in `stores`
+  (`stores.user_id`), the same ownership relation the multi-tenancy model is
+  built on. `hasRole('admin')` is deliberately **not** the test: `admin` is
+  also a real assignable *staff* role, so it would pull in non-owners. Any
+  address ending in `@local.dumosrx.com` is then excluded, because
+  `StaffController::store()` auto-generates exactly that placeholder for staff
+  accounts created without an email — mail to it would only bounce. Skipped
+  recipients are silently dropped, never an error.
+- **Target types.** `specific` narrows to the named `user_ids` (a staff id
+  named there resolves to nothing and is skipped); `all`, `pharmacies` and
+  `stores` all resolve to the same set once the store-owner filter is applied,
+  which mirrors `index()`'s in-app targeting where `pharmacies`/`stores` are
+  the store-owner-facing types.
+- **Fires once, at creation, never on update.** `update()` persists the flag
+  but never sends — flipping `send_email` on an existing broadcast, or editing
+  its text, must not re-mail everyone who already received it. The admin
+  panel's edit dialog therefore renders the toggle disabled with that
+  explanation. If a resend is ever genuinely wanted, the answer is a new
+  broadcast, not a new code path here.
+- **Expired/inactive broadcasts send nothing.** The service re-checks the
+  record through `Broadcast::scopeActive()` (`is_active` **and**
+  `expires_at` null or in the future) before sending, so a broadcast created
+  already-dead is silently skipped.
+- **No new mailable.** It reuses `AdminCustomMail` (`title` as subject,
+  `message` as body) via `Mail::to(...)->send(...)` per the rule above,
+  chunking recipients 100 at a time and catching per-recipient failures with a
+  `Log::error` — the same shape as `Api/Admin/MailController::send()` and
+  `AdminUserService::bulkNotify()`. Those paths have no extra throttling and
+  neither does this one.
+- Coverage: `tests/Feature/Admin/BroadcastEmailTest.php`.
+
 ## Testing
 
 ```

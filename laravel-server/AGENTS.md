@@ -580,6 +580,27 @@ php artisan test                            # 447 tests as of 2026-09-26 (Paysta
 php -l path/to/File.php                     # quick syntax check for a single file
 ```
 
+**Setting an env var inside a test means writing all three channels.**
+`env()` resolves through phpdotenv's default adapter chain, and the order is
+`ServerConstAdapter` (`$_SERVER`) **first**, then `EnvConstAdapter` (`$_ENV`),
+then `PutenvAdapter` — the first adapter that holds the name wins. Loading a
+`.env` that declares a key writes it into all three, so a test that sets only
+`putenv()` and `$_ENV` is silently overridden by the `$_SERVER` copy and
+`env()` keeps returning the `.env` value. Always set (and clear)
+`putenv()`, `$_ENV[...]` and `$_SERVER[...]` together —
+`DatabaseSeederTest`'s `setSeedSuperAdminPassword()` /
+`clearSeedSuperAdminPassword()` helpers are the pattern to copy.
+
+**This is also the shape of the local-vs-CI split to check first when a test
+passes locally and fails in CI.** The Checks workflow runs
+`cp .env.example .env`, so tests execute against **`.env.example`, not the
+`.env` on your machine** — a key the example file declares (even empty, e.g.
+`SEED_SUPER_ADMIN_PASSWORD=`) exists in CI's `$_SERVER` and does not exist in
+yours. That was the entire cause of `DatabaseSeederTest`'s CI-only failure;
+it looked order-dependent and was not, and `--order-by=random` never
+reproduced it. To reproduce a CI-only failure locally, back up `.env`,
+`cp .env.example .env && php artisan key:generate`, run the suite, and restore.
+
 `tests/Feature/` covers: tenant isolation (`TenantIsolationTest`), admin
 account-security regressions (`AccountSecurityTest`), the handoff/
 impersonation flow (`AuthHandoffTest`), sync push/pull (`SyncEndpointTest`),

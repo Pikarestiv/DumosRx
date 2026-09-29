@@ -18,13 +18,42 @@ class DatabaseSeederTest extends TestCase
 {
     use RefreshDatabase;
 
+    private const SEED_PASSWORD_VAR = 'SEED_SUPER_ADMIN_PASSWORD';
+
+    /**
+     * `env()` reads through phpdotenv's default adapter chain, and
+     * `ServerConstAdapter` ($_SERVER) is consulted BEFORE `EnvConstAdapter`
+     * ($_ENV) and `PutenvAdapter` — the first adapter holding the name wins.
+     * Loading a `.env` that declares the key writes it to all three, so a
+     * test that sets only `putenv()` + `$_ENV` is silently overridden by the
+     * stale `$_SERVER` copy and `env()` returns the `.env` value.
+     *
+     * That is exactly the local/CI split this file hit: the repo's own `.env`
+     * has no `SEED_SUPER_ADMIN_PASSWORD` line at all, while CI runs against a
+     * copy of `.env.example`, which declares it empty (`SEED_SUPER_ADMIN_PASSWORD=`).
+     * So the seeder read `''`, fell through to the random-password branch, and
+     * the assertion failed in CI only. Always write and clear all three
+     * channels together.
+     */
+    private function setSeedSuperAdminPassword(string $password): void
+    {
+        putenv(self::SEED_PASSWORD_VAR . '=' . $password);
+        $_ENV[self::SEED_PASSWORD_VAR] = $password;
+        $_SERVER[self::SEED_PASSWORD_VAR] = $password;
+    }
+
+    private function clearSeedSuperAdminPassword(): void
+    {
+        putenv(self::SEED_PASSWORD_VAR);
+        unset($_ENV[self::SEED_PASSWORD_VAR], $_SERVER[self::SEED_PASSWORD_VAR]);
+    }
+
     public function test_local_env_uses_the_documented_default_password_when_unset()
     {
         // app()->environment() defaults to 'testing' here, which the
         // seeder buckets with 'local' as the only environments allowed the
         // documented default password.
-        putenv('SEED_SUPER_ADMIN_PASSWORD');
-        unset($_ENV['SEED_SUPER_ADMIN_PASSWORD'], $_SERVER['SEED_SUPER_ADMIN_PASSWORD']);
+        $this->clearSeedSuperAdminPassword();
 
         (new DatabaseSeeder())->run();
 
@@ -34,8 +63,7 @@ class DatabaseSeederTest extends TestCase
 
     public function test_production_env_does_not_use_the_hardcoded_default_when_unset()
     {
-        putenv('SEED_SUPER_ADMIN_PASSWORD');
-        unset($_ENV['SEED_SUPER_ADMIN_PASSWORD'], $_SERVER['SEED_SUPER_ADMIN_PASSWORD']);
+        $this->clearSeedSuperAdminPassword();
 
         app()->instance('env', 'production');
 
@@ -65,8 +93,7 @@ class DatabaseSeederTest extends TestCase
      */
     public function test_non_local_non_testing_env_does_not_use_the_hardcoded_default_when_unset()
     {
-        putenv('SEED_SUPER_ADMIN_PASSWORD');
-        unset($_ENV['SEED_SUPER_ADMIN_PASSWORD'], $_SERVER['SEED_SUPER_ADMIN_PASSWORD']);
+        $this->clearSeedSuperAdminPassword();
 
         app()->instance('env', 'staging');
 
@@ -85,8 +112,7 @@ class DatabaseSeederTest extends TestCase
 
     public function test_seed_super_admin_password_env_var_is_honored_in_any_environment()
     {
-        putenv('SEED_SUPER_ADMIN_PASSWORD=SomeStrongOperatorChosenPassword1!');
-        $_ENV['SEED_SUPER_ADMIN_PASSWORD'] = 'SomeStrongOperatorChosenPassword1!';
+        $this->setSeedSuperAdminPassword('SomeStrongOperatorChosenPassword1!');
 
         app()->instance('env', 'production');
 
@@ -94,8 +120,7 @@ class DatabaseSeederTest extends TestCase
             (new DatabaseSeeder())->run();
         } finally {
             app()->instance('env', 'testing');
-            putenv('SEED_SUPER_ADMIN_PASSWORD');
-            unset($_ENV['SEED_SUPER_ADMIN_PASSWORD'], $_SERVER['SEED_SUPER_ADMIN_PASSWORD']);
+            $this->clearSeedSuperAdminPassword();
         }
 
         $admin = User::where('email', 'admin@dumosrx.com')->firstOrFail();

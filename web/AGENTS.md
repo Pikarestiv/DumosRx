@@ -116,8 +116,26 @@ bearing and easy to break:
   `<username>@local.dumosrx.com` address. Full recipient-resolution rules are
   in `laravel-server/AGENTS.md`.
 
-The field rides the existing `BroadcastFormData` payload through
-`webApiClient.createBroadcast()`/`updateBroadcast()`; no separate endpoint.
+The field itself rides the existing `BroadcastFormData` payload through
+`webApiClient.createBroadcast()`/`updateBroadcast()`; no separate endpoint
+sets it.
+
+`components/admin/broadcasts/broadcast-email-tools.tsx` renders under the
+switch, **only in the create dialog and only while the switch is on** —
+previewing or testing an email nobody is sending makes no sense, and the edit
+dialog can't send one at all. It does have its own two endpoints, both of
+which create no broadcast (see `laravel-server/AGENTS.md`):
+
+- "Preview Email" fetches `POST /admin/announcements/preview-email` and drops
+  the returned HTML into a `sandbox=""` `srcDoc` iframe, so the admin sees the
+  server-rendered mailable — header, footer and all — rather than the raw text
+  already in the form. It's fetched on demand, hence the explicit "Refresh"
+  button: the pane does not follow later edits on its own.
+- "Send Test" posts `POST /admin/announcements/test-email` to one address,
+  defaulting to `useAdminAuthStore`'s logged-in email but overridable. The
+  input's Enter key is deliberately intercepted (`preventDefault`) — it sits
+  inside the create `<form>`, so an unhandled Enter would dispatch the real
+  broadcast instead of sending a test.
 
 ## Running things
 

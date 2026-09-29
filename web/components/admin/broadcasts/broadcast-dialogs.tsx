@@ -1,5 +1,8 @@
+"use client";
+
 import { Megaphone, Edit, Loader2 } from "lucide-react";
 import { UserSelector } from "@/components/admin/user-selector";
+import { BroadcastEmailTools } from "@/components/admin/broadcasts/broadcast-email-tools";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DatePickerInput } from "@/components/ui/date-picker-input";
@@ -122,21 +125,27 @@ function BroadcastFormFields({
           )}
       </div>
 
-      <div className="flex items-start gap-4 rounded-2xl border border-slate-200 dark:border-slate-800 p-4">
-        <Switch
-          id="broadcast-send-email"
-          checked={formData.send_email}
-          disabled={isEdit}
-          onCheckedChange={(checked) => setFormData({...formData, send_email: checked})}
-        />
-        <div className="space-y-1">
-          <Label htmlFor="broadcast-send-email" className="font-bold text-sm">Also send by email</Label>
-          <p className="text-xs font-medium text-slate-400">
-            {isEdit
-              ? "Email is sent once, when the broadcast is created. Changing this now will not resend it."
-              : "Emails only the targeted store owners who have a real email address — staff accounts are always skipped."}
-          </p>
+      <div className="space-y-4 rounded-2xl border border-slate-200 dark:border-slate-800 p-4">
+        <div className="flex items-start gap-4">
+          <Switch
+            id="broadcast-send-email"
+            checked={formData.send_email}
+            disabled={isEdit}
+            onCheckedChange={(checked) => setFormData({...formData, send_email: checked})}
+          />
+          <div className="space-y-1">
+            <Label htmlFor="broadcast-send-email" className="font-bold text-sm">Also send by email</Label>
+            <p className="text-xs font-medium text-slate-400">
+              {isEdit
+                ? "Email is sent once, when the broadcast is created. Changing this now will not resend it."
+                : "Emails only the targeted store owners who have a real email address — staff accounts are always skipped."}
+            </p>
+          </div>
         </div>
+
+        {formData.send_email && !isEdit && (
+          <BroadcastEmailTools title={formData.title} message={formData.message} />
+        )}
       </div>
     </>
   );

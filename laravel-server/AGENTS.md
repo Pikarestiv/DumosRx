@@ -571,7 +571,29 @@ itself holds no sending logic.
   `Log::error` — the same shape as `Api/Admin/MailController::send()` and
   `AdminUserService::bulkNotify()`. Those paths have no extra throttling and
   neither does this one.
-- Coverage: `tests/Feature/Admin/BroadcastEmailTest.php`.
+- **Two compose-time companions, neither of which creates a `Broadcast`.** Both
+  live in the same `announcements` route group, so they inherit its
+  `auth:sanctum` + `subscription:broadcast_create` + `role:super_admin` gate
+  unchanged — there is no extra throttling, matching `mail/send` and
+  `users/bulk-notify`, and none was added: the gate is the control.
+  - `POST /admin/announcements/preview-email` (`previewEmail()` →
+    `BroadcastEmailService::renderPreview()`) takes `title`/`message` and
+    returns `{subject, html}`, where `html` is
+    `(new AdminCustomMail(...))->render()` — the **real** mailable, not a
+    re-implementation, so the preview can't drift from what ships. Sends
+    nothing. The admin panel renders it into a fully sandboxed
+    (`sandbox=""`) `srcDoc` iframe in the create dialog.
+  - `POST /admin/announcements/test-email` (`sendTestEmail()` →
+    `BroadcastEmailService::sendTest()`) takes `title`/`message`/`email` and
+    sends exactly **one** `AdminCustomMail` via `Mail::to($email)->send()` to
+    that one validated address. It never touches the store-owner recipient
+    query, so no real recipient can be reached, and because it writes no
+    record it leaves the fires-once-at-creation rule untouched. A send failure
+    is a `Log::error` + 500, not a silent success.
+- Coverage: `tests/Feature/Admin/BroadcastEmailTest.php` (the broadcast send
+  itself) and `tests/Feature/Admin/BroadcastTestEmailTest.php` (preview +
+  test-send: one mail to the named address, no `Broadcast` row, no store owner
+  reached, 401/403 without admin auth, and recipient-email validation).
 
 ## Testing
 

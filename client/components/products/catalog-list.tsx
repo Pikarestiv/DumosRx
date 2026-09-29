@@ -47,6 +47,10 @@ interface CatalogListProps {
   sortDirection: SortDirection;
   onToggleSort: (key: ProductSortKey) => void;
   onProductUpdated: () => void;
+  /** Lets the catalog close a detail panel that is still showing the product
+   * the row context menu just deleted - the panel's own Delete action closes
+   * itself, and this path has to match it. */
+  onProductDeleted?: (productId: string) => void;
 }
 
 export function CatalogList({
@@ -63,6 +67,7 @@ export function CatalogList({
   sortDirection,
   onToggleSort,
   onProductUpdated,
+  onProductDeleted,
 }: CatalogListProps) {
   const { storeType } = useStore();
   const isPharmacy = storeType === "pharmacy";
@@ -324,7 +329,9 @@ export function CatalogList({
         target={deleteTarget}
         onClose={() => setDeleteTarget(null)}
         onSuccess={() => {
+          const deletedId = deleteTarget?.id;
           setDeleteTarget(null);
+          if (deletedId) onProductDeleted?.(deletedId);
           onProductUpdated();
         }}
       />

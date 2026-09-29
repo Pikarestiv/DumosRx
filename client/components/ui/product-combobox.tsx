@@ -432,7 +432,7 @@ export function ProductCombobox({
             id={listboxId}
             role="listbox"
             aria-label={placeholder}
-            className="max-h-[300px] overflow-y-auto p-1"
+            className="max-h-[300px] overflow-y-auto stable-scrollbar p-1"
           >
             {/* Always pinned above matches, whether or not anything is typed:
              * with no text it opens an empty "Add New Product" form (a real

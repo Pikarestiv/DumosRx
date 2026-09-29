@@ -348,7 +348,7 @@ export function AddProductDialog({
           onSubmit={withRestriction(handleSubmit)}
           className="flex flex-col flex-1 min-h-0 overflow-hidden"
         >
-          <div className="flex-1 overflow-y-auto px-4 sm:px-0 py-2">
+          <div className="flex-1 overflow-y-auto stable-scrollbar px-4 sm:px-0 py-2">
             <ProductFormFields
               formData={formData}
               onInputChange={handleInputChange}

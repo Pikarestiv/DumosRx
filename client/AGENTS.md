@@ -2439,6 +2439,36 @@ same tab session still gets its own fresh one-time retry.
     `CatalogList` tests must stub both dialogs (as they already stub
     `RequestItemDialog`) or they need a `QueryClientProvider`.
 
+- **Scrolling on desktop: two opt-in mechanisms, neither global.**
+  - `.stable-scrollbar` (`app/globals.css`) forces a thin, always-visible,
+    theme-coloured scrollbar with `scrollbar-gutter: stable`. macOS hides
+    overlay scrollbars until a two-finger trackpad gesture reveals them, so
+    on a mouse — or before the first scroll — a scrollable region looked
+    like a clipped one. Applied deliberately to the Catalog list and detail
+    panel, the Movements and Adjustments lists, the Adjust Stock items
+    table, the Add/Edit Product modal body, and the combobox dropdowns it
+    feeds (product, category, strength/size, supplier, transfer picker).
+    This replaced a blanket `* { scrollbar-width: thin; ... }` rule that
+    restyled every scroller in the app, including ones nobody had looked
+    at; add the class to a container rather than widening the selector.
+  - `useArrowKeyScroll(ref)` (`lib/hooks/use-arrow-key-scroll.ts`) makes the
+    arrow keys scroll one container the way a browser scrolls a plain page,
+    for tabs whose content lives in an `overflow-auto` div rather than the
+    document scroller. Call it on the container from the page/tab that owns
+    it — it is not a global listener, because arrow keys are already spoken
+    for on plenty of screens. Wired to Catalog, Movements and Adjustments
+    (the two ledgers gate it on `isDesktop`, since only the desktop branch
+    owns the scroller). It stands down for text fields, selects,
+    contenteditable, anything matching `ARROW_CONSUMING_SELECTOR`
+    (combobox/menu/tablist/grid/slider roles, or an explicit
+    `data-arrow-keys="own"`), modified or already-handled keypresses,
+    nested scrollers, and — rescanned at most every 200ms — any page that
+    has a second visible scroll region, which is what suspends it while a
+    detail panel, dropdown or dialog is open. Guards are covered by
+    `__tests__/use-arrow-key-scroll.test.tsx`; note jsdom lays nothing out,
+    so a test element must state `scrollHeight`/`clientHeight` and
+    `getClientRects` itself.
+
 ## Testing & verification
 
 - `npm test`: Vitest unit tests. Cover: DB transaction semantics

@@ -223,6 +223,8 @@ Route::prefix('v1')->group(function () {
             // Broadcasts
             Route::prefix('announcements')->middleware(['subscription:broadcast_create', 'role:super_admin'])->group(function () {
                 Route::get('/', [BroadcastController::class, 'adminIndex']);
+                Route::post('/preview-email', [BroadcastController::class, 'previewEmail']);
+                Route::post('/test-email', [BroadcastController::class, 'sendTestEmail']);
                 Route::post('/', [BroadcastController::class, 'store']);
                 Route::put('/{id}', [BroadcastController::class, 'update']);
                 Route::patch('/{id}/toggle', [BroadcastController::class, 'toggle']);

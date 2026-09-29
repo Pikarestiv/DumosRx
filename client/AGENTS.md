@@ -188,6 +188,36 @@ shape, prune it here rather than inventing a second mechanism.
   (`recordSyncFailure` in `base-helpers.ts`), with a one-time report to
   superadmins after `SYNC_FAILURE_REPORT_THRESHOLD` (5) consecutive
   failures on the same item.
+- **Never log a crash about the `feedback` table back into the `feedback`
+  table, and never embed a raw push error in a new log message.** Both
+  rules exist because breaking either one caused a live production incident
+  on 2026-09-29 (Sentry `DUMOSRX-CLIENT-1B`, `17`, `19`, `1A`, `1G`, `1M`;
+  full account in `docs/FIXED_BUGS.md`, A-27). `logCrash()` stores its
+  report as a `feedback` row, and `insert()` queues that row for push like
+  any other — so a crash report is itself a syncable row that can fail to
+  sync. When `recordSyncFailure()` reported a stuck `feedback` row by
+  embedding the push error, and that error was a database rejection (whose
+  text includes the **entire attempted SQL statement**, i.e. a verbatim
+  copy of the row), each report contained every previous one: unbounded,
+  self-nesting growth until the column limit was hit, whereupon *that*
+  insert failed and produced another report, forever. Fingerprint dedup did
+  not catch it because every generation carried a different stuck-record id.
+  The two guards now in place: `truncateForLog()`
+  (`lib/utils/error-truncation.ts`) caps anything embedded in a log message
+  at `MAX_EMBEDDED_ERROR_LENGTH`, and `logCrash()` caps its own final
+  message at `MAX_CRASH_MESSAGE_LENGTH` (2000, matching the server's
+  `/logs/client-error` validation so an oversized report is truncated
+  rather than silently 422-rejected); and `recordSyncFailure()` routes a
+  stuck `feedback` item to `reportStuckCrashLog()`, which reports via
+  `console.error` + a direct `Sentry.captureException` and writes no
+  `feedback` row. A stuck *crash* row (`type = 'bug'` with a fingerprint)
+  is also dropped from the queue and settled via `markConflictSettled` —
+  Sentry and `/logs/client-error` already have it, and leaving it
+  `_synced = 0` without that settle would let `requeueOrphanedRows()`
+  resurrect it every boot. Genuine user-submitted feedback keeps its normal
+  retry behaviour. **If you add another table that a logging/telemetry path
+  writes to, apply the same "don't log X into X" check before reporting a
+  failure on it.**
 - **`isManual` means "a human clicked Sync Now", and nothing else.** It
   bypasses per-item backoff (`getPendingSyncItems`) *and* the server's
   plan-tier sync-interval throttle (`?manual=1`), so passing it from an

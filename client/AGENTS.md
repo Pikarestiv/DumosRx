@@ -86,6 +86,233 @@ Adding an index there also means updating the stats gate in the same
 function — see `docs/LOCAL_DB_INDEXES.md` for which query each index serves
 and why the `ANALYZE` step is not optional.
 
+### One connection, one writer: the `core.ts` concurrency model
+
+Everything below is why `lib/db/core.ts` looks the way it does. The source
+now carries only pointers; the reasoning lives here.
+
+**One FIFO queue for every database operation.** `reserveDbSlot()` hands
+each caller a `previous`/`release` pair, and `query()`, `execute()` and
+`transaction()` all reserve a slot, so reads and writes serialize onto a
+single connection-wide queue. The slot is reserved *synchronously*, before
+the caller awaits anything, so two calls issued back-to-back with no `await`
+between them still queue in call order. A `query()` or `execute()` running
+*inside* an open `transaction()` does not reserve its own slot — the
+enclosing transaction already holds it and reserving again deadlocks on
+itself.
+
+**Why the lock exists.** sql.js has one shared connection and no reader
+isolation. A `SELECT` that yields mid-iteration is stepping a live
+statement, and a write landing in one of those yields modifies the table it
+is walking. SQLite's behaviour is then undefined: rows can be skipped, and
+the statement can be reset or invalidated outright, ending the step loop
+early and returning a **short or entirely empty result with no error**. That
+was the Product Catalog's "No products found" after a large sync —
+`getProductsWithDetails()` returns ~1900 rows so it is one of the few
+queries that yields at all, and a draining sync backlog is exactly when
+writes land continuously. Single-row aggregates (`getStockBatchStats()`)
+never reach a yield point, which is why they stayed correct in the same
+window.
+
+**`query()` yields every `QUERY_YIELD_INTERVAL` (200) rows** because sql.js
+runs on the main thread with no worker, so a large result set blocks
+painting — nothing else, not even React committing an already-rendered
+skeleton, runs until it returns (the read-side twin of `product-import.ts`'s
+`YIELD_INTERVAL`). It never yields inside a transaction: `execute()` does
+not queue behind an open transaction the way nested `transaction()` calls
+do, so yielding there would let an unrelated write interleave into
+uncommitted state.
+
+**`writeEpoch` and the torn-read retry.** Every write bumps `writeEpoch`; a
+read that actually yielded and finds the epoch changed re-runs, up to
+`QUERY_TORN_READ_ATTEMPTS` (6). With the lock in place this can no longer
+trigger for callers going through `query()`/`execute()`/`transaction()`, and
+is kept as defence-in-depth for any future caller that bypasses them. A
+retry must not simply re-prepare against the connection as it looks *right
+now* — the write that forced the retry is often a sync apply's still-open
+`transaction()`, and the single connection would hand back its uncommitted,
+half-applied state — so retries wait for in-flight transactions to settle
+first. Reads issued inside a transaction never yield, so nothing can tear
+them.
+
+**The misuse-class retry** (`MAX_MISUSE_RETRIES` = 2) re-runs on
+`closed|finalized|bad parameter|api misuse|allocation failed`. Those are all
+observed spellings of the same live-statement-vs-write race: sql.js's
+`SQLITE_MISUSE` text when a `step()` hits a statement invalidated by an
+interleaved `BEGIN`, and a `RangeError` ("Array buffer allocation failed")
+from the WASM heap when the interleaving corrupts the statement's buffer
+bookkeeping. A `SELECT` has no side effects, so discarding a partial result
+and re-`prepare()`ing against the same (still valid — only the statement
+handle died) connection is always safe. Its budget is deliberately kept well
+below `QUERY_TORN_READ_ATTEMPTS`, because both `continue` the same loop: a
+torn read detected on the last available attempt is returned to the caller
+silently un-retried, and that truncated-but-authoritative-looking result is
+the more dangerous of the two failure modes.
+
+**`transaction()` does not nest — calling it from inside another
+`transaction()`'s `fn` deadlocks, on purpose.** This used to be guarded only
+by the `inTransaction` boolean, which cannot tell a genuinely nested call
+apart from two merely concurrent ones overlapping in wall-clock time — e.g.
+a background `pushChanges()` loop (which awaits between batches) still
+running when a cashier's `createSale()` also calls `transaction()`. The
+second ran inline against the first's open transaction, so when the sync's
+block later threw and rolled back, the sale's writes were rolled back with
+it, after `createSale()` had already returned and the UI showed the sale as
+recorded. Plain browser/Tauri JS has no async-call-chain identity (no
+`AsyncLocalStorage`) to distinguish the two, so nesting is unsupported
+outright: every call queues and gets its own real `BEGIN`/`COMMIT`. A
+composed operation that is already inside a transaction must call
+`query()`/`execute()` directly — see `requeueOrphanedRows()` in
+`reconcile-identity.ts`, the one real example. A hang in testing is far
+easier to catch than silent cross-transaction data loss.
+
+If `BEGIN` itself fails, `transaction()` falls back to running `fn` without
+atomicity rather than blocking the operation. On Tauri that risk is closed,
+not merely tolerated: the vendored `@tauri-apps/plugin-sql` fork
+(`src-tauri/vendor/tauri-plugin-sql/src/wrapper.rs`) caps its sqlx pool at
+`.max_connections(1)` so every call serializes onto the same connection.
+Replacing that fork with a stock build silently removes real transactional
+semantics unless the cap is re-applied.
+
+**`awaitSettledTransactions()`** exists for `getPendingSyncItems()`, which
+reads `_sync_queue` with a bare `query()` from a background timer that has
+no idea a multi-minute bulk import's transaction is open. Same-connection
+reads-your-own-writes means it would otherwise read and push rows from that
+transaction before it commits — and if it later rolls back, those rows are
+orphaned on the server with no local record. Awaiting first narrows the
+window to a microtask gap; it is not a guarantee, and does not need to be.
+
+**Persistence is whole-database.** `saveDatabase()` exports the entire sql.js
+database, so `transaction()` saves once per block instead of once per
+statement, and any bulk write loop belongs inside a `transaction()` — a
+manual sync retrying thousands of backed-off items without that batching can
+exhaust the tab's memory on one full re-serialization per item. A failed
+save (most plausibly `QuotaExceededError`, competing with the PWA precache
+for the same origin budget) emits `APP_EVENTS.dbSaveFailed` rate-limited to
+once per `SAVE_FAILURE_NOTICE_INTERVAL_MS` (5 min) rather than importing a
+toast library into this low-level module; before that, it was
+`console.error` only and the app looked perfectly healthy while writes
+silently stopped persisting.
+
+**Invalidation is batched per transaction.** `queueTableInvalidation()`
+collects touched table names while `inTransaction` and fires once after
+commit. Invalidating per row during a 1000+ row import means as many
+refetches of whatever list is on screen — that refetch storm, not the SQL,
+is what froze the tab. `syncQueueChangeListeners` is a `Set`, not a single
+slot, because `SyncIndicator` mounts several instances (sidebar, mobile
+header, mobile drawer) with independent lifecycles; listeners receive the
+*set of tables* that changed so they can ignore pure `audit_logs` churn.
+
+**Writer election runs before the schema migrations.** `initWriterLock()` is
+awaited in `initDatabase()` *before* `runSchemaMigrations()`, because one
+migration (`clearLegacyTransactionsOnce`) can persist a destructive one-time
+cleanup to the shared IndexedDB snapshot. Deciding writer/read-only first,
+and gating that callback on it, lets a soon-to-be-read-only tab mutate its
+own in-memory `db` (so its later reads see the current schema) while never
+writing that back to shared storage. It is awaited rather than
+fire-and-forget so a caller that awaits `initDatabase()` can read
+`isWriterTab()` immediately; that only waits for the initial decision, never
+for an eventual promotion. `saveDatabase` is passed as the graceful-handoff
+callback so an outgoing writer force-saves before dropping to read-only.
+
+`initDatabasePromise` dedupes concurrent `initDatabase()` calls. `db` stays
+null for the whole async init (WASM load, IndexedDB read, schema run) and
+every `query()`/`execute()` independently does `if (!db) await
+initDatabase()`, so without the shared promise each would register its own
+writer-lock request — 14+ pending Web Lock requests for a single tab,
+observed live, which breaks the handoff in `tab-lock.ts` (a tab dropping the
+lock could instantly re-grant itself from one of its own leftovers).
+
+`rehydrateFromIndexedDb()` runs once per tab, at promotion: the promoted
+tab's in-memory copy predates whatever the outgoing writer committed just
+before closing, so it must catch up or it would resurrect stale rows (the
+same class of loss C1 exists to close). It reserves a db slot before
+swapping `db` out, or an operation suspended mid-yield could resume against
+a `close()`d handle and throw sql.js's generic "bad parameter or other API
+misuse" (reproduced: a fast login racing boot-time `requeueOrphanedRows()`
+during promotion). It returns `true` after a successful rehydrate *or* when
+no snapshot exists at all; `false` only on a real read failure, which
+`tab-lock.ts` treats as "refuse to promote". It deliberately does not re-run
+schema migrations.
+
+**Tauri PRAGMAs.** The Tauri SQL plugin hands out a pooled sqlx connection,
+and SQLite's default rollback-journal mode allows one writer at a time, so
+two pooled connections writing close together can lock each other out for
+seconds or fail with "database is locked", with no PRAGMA tuning by default.
+`initDatabase()` sets `journal_mode = WAL` (readers and a writer proceed
+concurrently), `busy_timeout = 5000` (retry internally instead of erroring)
+and `synchronous = NORMAL`.
+
+### Backup, restore, wipes and diagnostics (`core.ts`)
+
+- **`restoreDatabase()` (web).** Builds the candidate as a throwaway sql.js
+  instance first, so a malformed file throws with the live database fully
+  intact, then sanity-checks it against `RESTORE_SANITY_CHECK_TABLES`
+  (`users`, `stores`, `products`, `sales`) — not exhaustive, just enough to
+  reject some other app's valid `.db`/`.sqlite`. It snapshots the outgoing
+  database to `<app>_db_pre_restore_backup` first (recoverable via
+  `restorePreRestoreSnapshot()`, one generation deep) and returns
+  `snapshotSucceeded` so the caller can warn the user that the usual undo
+  will not be available this time instead of that failing console-only.
+- **`restoreDatabaseFromFile()` (desktop/mobile).** Validates the SQLite
+  magic header (`SQLITE_FILE_HEADER`) *before* touching the live connection
+  or file. Runs `PRAGMA wal_checkpoint(TRUNCATE)` before snapshotting,
+  because WAL is enabled and a raw copy of `dumosrx.db` alone misses the most
+  recent writes — exactly the data most likely to matter. A failed
+  `db.close()` aborts the restore outright rather than overwriting: a still-
+  open connection's `-wal`/`-shm` sidecars can replay stale pre-restore pages
+  over the freshly copied file on the next open, mixing pre- and post-restore
+  state. The caller must reload the app afterwards.
+- **`backupDatabaseToFile()`** uses `VACUUM INTO` rather than a raw file
+  copy, so the snapshot is coherent even if writes land during it. The
+  destination path is escaped and inlined because `VACUUM INTO` does not
+  reliably accept a bound parameter across drivers; the path comes from a
+  native save dialog, but a quote in a folder name would still break it.
+- **`discardLocalDatabaseBlob()`** is the last resort for a database that
+  cannot be opened at all (web/PWA): snapshots to `<key>_pre_reset_backup`,
+  deletes the live key, and deliberately does not touch `db`, since it runs
+  on the init-failure screen where there may be no usable connection.
+- **`LOCAL_WIPE_TABLES`** is shared by `resetDatabase()` and
+  `clearDatabaseForNewStore()` so the two cannot drift apart again — they
+  previously both omitted `sale_item_batches`, orphaning rows pointing at
+  cleared `sale_items`/`stock_batches`. It excludes store configuration
+  (`loyalty_tiers`, `loyalty_redemption_options`, `system_configs`); only
+  `clearDatabaseForNewStore()` adds `stores`/`users`.
+- **`diagnoseLegacySchema()`** is read-only and exposed on `window`
+  unconditionally (not dev-gated), like `window.__forceFullResync`: a rare
+  production recovery/inspection tool for a support session to run from
+  DevTools, deliberately not an in-app button. Its `retirable` map answers
+  the inverse of `findings` — per still-active legacy migration, is *this*
+  device a blocker to deleting it. A migration is only safe to delete once
+  every active device reports `ok: true`, and `backfillStoreIdOnLegacyRows`
+  re-runs on every launch, so it doubles as an ongoing safety net: a clean
+  device is necessary but not sufficient to retire it.
+- **`window.__e2eSetSubscriptionTier`** (development builds only) elevates
+  the e2e browser context's own copy of the local DB, never the checked-in
+  free-tier fixture (`e2e/.auth/test-db.bin`) that other specs rely on for
+  `LockedModuleOverlay`. See `e2e/fixtures.ts`'s `loginAsPaidTier`.
+
+### `logAction()` and audit-log dedup (`core.ts`)
+
+A repeating action (`isDedupableAuditAction`, e.g. `LOGIN_FAILED`) folds
+into the most recent still-unsynced `audit_logs` row for the same
+`(action, table, record_id, store)` by bumping `occurrence_count` and
+rewriting that row's pending `_sync_queue` INSERT payload **in place**. The
+server side of `audit_logs` is genuinely append-only — matched by
+`properties->client_id`, never looked up by id for an UPDATE (see
+`SyncController`) — so folding repeats into one eventual row is preferable
+to teaching the sync engine an UPDATE path that table was never designed
+for. Once the row has synced (`_synced = 1`) a further repeat starts a fresh
+row, same as a first occurrence; the count already reached the server. If a
+push in flight has already cleared the queue row, the payload rewrite simply
+no-ops — the local row is still correct, and the next repeat starts fresh.
+
+`logAction()`'s `overrideStoreId` mirrors `assertStoreOwnership`'s: the one
+real caller is `stock-transfers.ts`'s `transferStock()`, which writes rows in
+two stores inside one transaction, and without it every audit row was
+attributed to whatever store the UI had active rather than the one the write
+belongs to.
+
 ### Every table follows the same sync-tracking convention
 
 Every syncable table has: `id` (UUID, client-generated via `generateId()`),
@@ -237,6 +464,358 @@ Call `sync(true)` before any workflow where stale local data would be
 actively misleading (e.g. `StockAudits` syncs on mount before showing
 counts, see `components/stock-batch/stock-audits.tsx`).
 
+#### Push details (`sync-engine/push.ts`)
+
+- **Terminal vs retryable rejections.** `NON_RETRYABLE_CONFLICT_REASONS`
+  (`version_conflict`, `stale_timestamp`,
+  `quantity_received_exceeds_ordered`, `permission_denied`) all share one
+  property: the queued payload is *frozen*, so resending it cannot change
+  the outcome — the base version this edit was computed from never moves,
+  the receipt the server judged impossible against the ordered quantity
+  stays impossible, and the caller's own grants do not change by resending.
+  Routing any of them through `recordSyncFailure()`'s backoff would loop
+  until the cap and then report a permanently stuck item. They are deleted
+  from `_sync_queue` outright instead; the next pull brings the server's
+  real value down, now that nothing local blocks it (see pull's
+  pending-local-edit skip). A `forbidden` rejection is deliberately *not* in
+  this set — see "the `stores` prune" below.
+- `SILENT_TERMINAL_REASONS` (`permission_denied`) is dropped without a
+  toast: those edits are queued by automatic machinery (the permission
+  catalog backfill), not a user action anyone is waiting on, so "could not
+  be saved" would be alarming noise about something they never did.
+- `TERMINAL_CONFLICT_SETTLES_SOURCE_ROW` (`audit_logs`): the server row does
+  not carry the id the client pushed, so no future pull can ever match and
+  settle the terminally-conflicted local row — `markConflictSettled()` is
+  called explicitly. See `docs/FIXED_BUGS.md`, "audit_logs conflict
+  resurrection loop".
+- **`coalescePendingUpdates()`.** `update()` no longer bumps `_version`
+  locally (it sends the unchanged base version so the server can tell a
+  stale edit from a current one), which fixed the two-device case but left a
+  single-device regression: `addToSyncQueue` appends one row per `update()`
+  with no coalescing, so two ordinary sequential edits to the same record
+  before the next sync (e.g. `outstanding_balance` then `loyalty_points` in
+  `use-pos-payment.ts`) freeze the *identical* base `_version` in two rows.
+  The first is accepted and bumps the server version; the second collides
+  with that bump and is rejected as a false `version_conflict`, silently
+  losing an ordinary edit and showing a misleading "another device" toast.
+  The fix folds every pending UPDATE for one record into one change — later
+  field values win per column (same full-overwrite semantics a single
+  `update()` has), the merged payload carries the **earliest** entry's
+  `_version` (the true base the chain started from; none of these has
+  synced, so the server knows nothing past it), and `mergedIdsByRepId`
+  tracks every folded queue row id so mark-synced/drop acts on all of them
+  and never orphans the rest. It runs once up front, before batch slicing,
+  so batching can never re-split two edits to one record. INSERT and DELETE
+  are untouched: an INSERT never faces a version check, and a record is only
+  ever deleted once while pending.
+- **`withheldRecordsWithBackedOffSiblingsRemoved()`.** Retry backoff can
+  still split a same-record pair that coalescing would have merged:
+  `getPendingSyncItems()` only returns rows currently due. If edit A failed
+  retryably and is still backed off while edit B for the same record is due,
+  a background sync pushes B alone, it is accepted, the server version
+  bumps, and A later collides as a false conflict. So for background syncs
+  every due UPDATE is held back if any sibling UPDATE for that record is
+  still in `_sync_queue` (one `COUNT(*)` per distinct record — a
+  correctness-critical path, not a hot loop). It lives in `pushChanges()`
+  rather than in `coalescePendingUpdates()` because it must see the *full*
+  queue, including not-yet-due rows. A manual sync bypasses backoff and
+  already sees every row together, so this is a no-op there.
+- **`_version` is re-read at push time**, not taken from the frozen payload.
+  Coalescing only folds edits queued *before* a push run starts; an edit
+  made while an earlier push for the same record is in flight is queued into
+  a later run, by which point the earlier response's `versions` handling has
+  already bumped the local `_version`. The frozen pre-bump value would
+  collide with this device's own accepted change. The re-read falls back to
+  the frozen value on error (e.g. a queue row naming a table that no longer
+  exists locally) so one bad row cannot reject the whole batch's
+  `Promise.all`.
+- **`compareCategoriesFirst()`** moves every category change to the front of
+  the *whole* queue, not just within a batch: the server's duplicate-name id
+  remap lives only in that one request's in-memory `$idMap`, so a product in
+  a later batch referencing a category resolved in an earlier one would fail
+  its foreign key forever. The comparator must also be *consistent* — the
+  previous `table_name === "categories" ? -1 : … ? 1 : 0` version returned
+  `-1` in both directions when both rows were categories, reversing their
+  `created_at` order and sending an UPDATE ahead of the INSERT it edited, so
+  the server applied the stale INSERT last and the edit vanished.
+- **`response.id_map` handling.** `remapForeignKey()` only rewrites payload
+  *content* (a foreign key baked into another row's queued JSON); the queue
+  row's own `record_id` column — what the server actually looks the target
+  up by — is rewritten separately, or a pending edit to the merged-away
+  record keeps targeting an id the server no longer has, failing until the
+  backoff cap. The local duplicate is then soft-deleted. This must happen at
+  push time: a future delta pull only reconciles categories/suppliers that
+  appear in that pull's own response, and a long-unchanged row never will.
+- **`response.versions` is applied per row inside a `try`/`catch`.** Applying
+  the server's authoritative version immediately (rather than waiting for a
+  pull) stops this device's very next edit being rejected against its own
+  accepted change. But `table` comes straight from the server, and an
+  unrecognized or locally-absent name would throw `no such table` inside the
+  transaction callback, rolling back the entire batch *including*
+  `markSynced()` and setting up an infinite re-push loop. Caught per row
+  instead; the affected record keeps its pre-push version until the next
+  pull corrects it, which is harmless since pull always trusts the server's
+  version.
+- **Payload scrubbing before send.** `_deleted`/`_synced`/`_synced_at` are
+  stripped, `_version` is deliberately kept (stripping it once forced every
+  conflict check onto the weaker `updated_at` fallback, which trusts each
+  device's local clock instead of a monotonic per-record counter). Every
+  string field matching `ISO_DATETIME_REGEX` is rewritten to
+  `YYYY-MM-DD HH:MM:SS`, because MySQL `DATETIME` rejects the `T`/`Z` and
+  fractional seconds — applied by shape, not by hardcoded column name.
+- **Per-table payload fixes.** `products`: `brand_name`/`supplier_id` are
+  stripped, since a row queued before the server dropped those columns still
+  carries them in its frozen snapshot (a write-time snapshot never picks up
+  later schema changes); a non-UUID `category_id`/`supplier_id` is rejected
+  rather than allowed to block the queue. `stock_movements`: a null
+  `stock_batch_id` is rejected (the server requires it). `stock_batches`:
+  `selling_price` is dropped, and an **INSERT** with no `batch_number` gets
+  `"Opening Stock"` to satisfy the server's NOT NULL column for rows queued
+  before `product-import.ts` stopped writing `batch_number: null`. That is
+  gated to INSERT deliberately — applied to an UPDATE it (1) injected a
+  bogus value into the quantity-only payloads
+  `updateStockBatchQuantity()` produces, defeating
+  `SyncController::push`'s narrowed `stock_batches` conflict exemption
+  (which only fires when the payload is provably quantity-only) and
+  reintroducing the false-conflict regression, and (2) reached the server's
+  `forceFill($payload)` and overwrote the batch's real `batch_number` on
+  every ordinary sale, cost correction or return restock. Neither is
+  possible for an INSERT.
+- **Rejected items are never silently dropped**: each gets a
+  backoff-tracked `recordSyncFailure()` with `reportImmediately = true`,
+  because these are deterministic client-side validation failures that will
+  fail identically forever, so waiting for the 5-retry report threshold just
+  delays remote visibility. `alreadyRejectedIds` is populated only *after*
+  that transaction commits, so a rollback cannot make a never-recorded
+  failure look recorded; both the whole-batch-failure branch and the catch
+  block iterate the full `batch` and skip those ids rather than overwriting
+  a specific reason with a generic one and double-bumping `retry_count`.
+- **Batching and throttling.** `SYNC_BATCH_SIZE` is 50 with a 1.1s pause
+  between batches (never before the first): the API route's shared limit is
+  60 requests/minute and other app traffic competes for it, so a manual sync
+  draining a large backlog would otherwise trip "Too Many Attempts" instead
+  of syncing. All per-item bookkeeping is wrapped in one `transaction()` per
+  batch, because each `markSynced`/`recordSyncFailure`/`remapForeignKey`
+  outside a transaction triggers a full sql.js database export.
+- **Conflict toasts.** One per conflicted record (coalescing guarantees at
+  most one `failed` entry per record per run), collapsing into a single
+  summary above `CONFLICT_TOAST_THRESHOLD` (5) — Sonner's Toaster does a
+  `flushSync` state update per `toast()` call, and a batch's worth fired in
+  one tick trips React's "Maximum update depth exceeded" and crashes the
+  page. The wording deliberately does not claim "another device": a
+  `stale_timestamp` rejection is the legacy fallback for a row with no
+  version tracking, and this client cannot verify what changed the record
+  server-side — state what happened, not an unverifiable cause. A conflict
+  on an item with `retry_count > 0` is logged, not toasted: a response lost
+  after the server committed (timeout, dropped connection) is
+  indistinguishable from a network failure here, so the resend collides with
+  its *own* already-applied first attempt. That can occasionally mute a real
+  conflict, but the cost is a missed notification, not lost data — the
+  server's version is kept either way. `feedback` and `audit_logs` conflicts
+  are logged rather than toasted: both are push-only telemetry the user
+  never edits, and `audit_logs` has no `_version` at all, so the server's
+  duplicate-INSERT handling always falls to the `stale_timestamp` path.
+- **Whole-batch and thrown failures.** A `success: false` response (the
+  request completed, the server rejected the batch — auth, validation, rate
+  limit) previously had no handling at all: no backoff, no retry counter, no
+  report, every item retried forever invisibly. It now routes through the
+  same `recordSyncFailure()` path as a thrown error, keyed off the `batch`
+  actually sent. A plan restriction (`SYNC_THROTTLED`, `SYNC_DISABLED`,
+  `STORE_LIMIT_EXCEEDED`) is rethrown and stops the run with the queue
+  untouched — it is not any item's fault, and burning every item's
+  5-attempt budget would report a perfectly healthy queue as stuck. Any
+  other thrown error fails just its batch and the run continues.
+  `failedBatches` counts only these two cases (not ordinary per-item
+  rejections), so `sync()` can tell "nothing to push" from "everything
+  failed" — see `index.ts`.
+
+#### Pull details (`sync-engine/pull.ts`)
+
+- **`MAX_PULL_PAGES` (1000) is a safety bound, not a correctness ceiling.**
+  It only stops one `sync()` running forever if the server ever reports
+  `has_more` indefinitely; every committed page persists its own keyset
+  position, so a round that stops there resumes.
+- **Paging within a round.** The server caps each response at 500
+  rows/table and reports `has_more` per table; `last_synced` stays fixed for
+  the whole round (it is the delta-window boundary) while the round walks
+  that filtered, deterministically-ordered `(updated_at, id)` set. Before
+  this, only page 1 was ever fetched and the cursor was stamped to `now()`
+  regardless, permanently losing every row past the 500th changed row in a
+  table (`docs/KNOWN_BUGS.md`). The legacy `page_offset` is still sent
+  alongside `page_cursor` so client and server can deploy independently;
+  offset paging alone was never immune to concurrent writes shifting
+  offsets mid-round, which was an accepted trade-off because a row missed
+  that way still has `updated_at >= ` this round's start and is caught by
+  the next delta pull.
+- **`categories`/`suppliers` (`DUPLICATE_NAME_TABLES`) are never given a
+  cursor.** The server treats a table missing from `last_synced` as "return
+  everything", and duplicate-name reconciliation can only fix a collision if
+  the pre-existing row it collided with is present in the response — a delta
+  pull would never re-surface a long-unchanged row like "DRUGS", hiding the
+  collision from every future sync. These are small collections, so a full
+  fetch costs nothing. A row whose `last_synced_at` is still NULL (mid-window
+  progress recorded before any window was drained) is also left out, or an
+  interrupted first-ever sync would stop looking like one and lose the setup
+  escape hatch.
+- **Skips hold the window cursor back, never the page cursor.** A record
+  with a pending `_sync_queue` entry is left alone (the next push resolves
+  it by version); a record that hit a UNIQUE collision was not applied. In
+  both cases the per-table window cursor must not advance past it, or the
+  server never re-offers it and the local row is stuck on stale data
+  forever. Re-fetching and re-applying an already-applied page is a harmless
+  no-op. The *page* cursor always advances, or the round would re-ask for
+  the same page and never terminate.
+- **UNIQUE collisions give up after `MAX_UNIQUE_SKIP_RETRIES` (5).** Unlike
+  a pending-local-edit skip, a UNIQUE collision (e.g. two accounts each
+  created a user with the same email) is not self-resolving, and blocking
+  the table's cursor on it forever would stall every other record in that
+  table. Counts are kept per record in `localStorage`
+  (`STORAGE_KEYS.syncUniqueSkipCounts`); a failed write there just resets the
+  count, which only makes the behaviour more conservative. The record stays
+  in `skippedRecords`/`logCrash` either way, so the loss is visible, not
+  silent. Those reports are collected and emitted *after* the transaction
+  commits, because `logCrash()` writes to SQLite and would otherwise nest a
+  write transaction inside the pull's own.
+- **`stock_batches.quantity` is never trusted from a pulled snapshot**,
+  mirroring the server's rule for pushed payloads. The pulled value is only
+  as current as the movements the server had processed at pull time, so
+  writing it clobbers real local state — reproduced as a pull racing a push
+  leaving ~500 batches permanently forked into duplicates, because a zeroed
+  batch becomes invisible to the "does one already exist" check. Quantity
+  stays whatever local movements derived, and each newly-pulled
+  `stock_movements` row applies its own delta as
+  `MAX(0, quantity + delta)`. The floor is load-bearing: without it, an
+  oversell floored at 0 on the originating device diverged permanently from
+  every other device applying the raw delta. Movements are an immutable log,
+  so the insert branch sees each one exactly once — a missed delta is lost
+  forever, which is why the deferral below exists.
+- **Deferred movement deltas.** Batches and movements paginate
+  independently, so a movement can arrive on an earlier page than the batch
+  it references, where the delta would silently no-op (an `UPDATE … WHERE
+  id = ?` matching zero rows). Such deltas are collected and applied after
+  every page of every table, and `stock_movements`' cursor stamps (both the
+  window stamp and the mid-window position) are **held back** and committed
+  in the same transaction as those deltas. Committing the cursor first would
+  let a crash in between leave the cursor claiming the movements were pulled
+  while their deltas were never applied. Within a page, `stock_batches` is
+  sorted first explicitly — the server's table order happens to match today,
+  but that is incidental, not a contract.
+- **`DEVICE_LOCAL_PULL_COLUMNS`.** Columns each device owns privately:
+  written locally, never pushed, so the server's copy is meaningless and
+  must never be written back. Today that is `stores.last_monotonic_time`,
+  the anchor for the offline clock-tamper guard
+  (`lib/licensing/licensing-manager.ts` refuses a local time earlier than
+  the last recorded action). Only `updateStoreMonotonicTime()` writes it, as
+  a raw `execute` that never reaches `_sync_queue`, so the server's column is
+  permanently NULL and writing that NULL back disarmed the guard after every
+  sync round. Were the column ever pushed (`window.forceSyncAllData` queues
+  whole `stores` rows), a device with a fast clock would propagate a future
+  timestamp and lock every other device of the store out.
+- **JSON-cast server attributes** (e.g. `permission_groups.permissions`)
+  arrive as real JS arrays/objects and are `JSON.stringify`d before binding:
+  sql.js turns an array into an object of numeric keys, producing a value no
+  later `JSON.parse()` can read back. This matches how every local write of
+  a JSON-shaped column already stores it.
+- Updates set only the columns the server returned, preserving local-only
+  columns (`is_initialized`, `theme`, `license_token`).
+- **Duplicate-name reconciliation:** a local row absent from the response
+  but name-matching a server row has its references remapped to the server's
+  id and is then soft-deleted rather than left as an orphaned duplicate.
+- **`onCriticalTablesReady` / `SETUP_CRITICAL_TABLES` (`stores`, `users`).**
+  Fires once, the first time those tables have fully drained this round, so
+  a caller mid-first-sync (`startSyncProcess` in `use-onboarding.ts`) can let
+  the user log in and reach the dashboard while the same call keeps pulling
+  everything else — it decides only *when* the callback fires, never what is
+  fetched. It is checked after each page's transaction commits, and fired
+  from `finally` so a thrown pull cannot leave a future caller awaiting it
+  forever.
+
+#### `sync()` and friends (`sync-engine/index.ts`)
+
+- **Guards, in order, all centralized here so no call site can bypass
+  them:** the in-progress mutex (returns `SYNC_IN_PROGRESS_ERROR`, which
+  callers must treat as a no-op, not a failure); impersonation (a superadmin
+  handed into a store's app is read-only support visibility — syncing would
+  push writes and pull-overwrite state under ambiguous attribution, bypassing
+  the owner's own auto-sync settings and audit trail); a read-only tab
+  (caught before `assertWritable()` throws mid-sync); a missing auth token;
+  and `navigator.onLine`. The offline check is centralized because a couple
+  of call sites (e.g. the store-switch handler) did not check: an offline
+  attempt gives every queued item a "Failed to fetch", burning the 5-attempt
+  backoff (~15 minutes) and firing a "stuck sync" crash report when nothing
+  is broken.
+- **`runId`** is minted once per `sync()` (`newSyncRunId()`, which falls back
+  off `crypto.randomUUID` since it is unavailable on insecure origins and
+  some older webviews — only per-device uniqueness within a short window
+  matters) and threaded through every push batch and pull page.
+- **`failedBatches > 0` makes `sync()` report failure**, even though the
+  individual batches were swallowed so one bad batch cannot block the rest —
+  otherwise the indicator toasted "Sync completed successfully" when nothing
+  pushed. Ordinary per-item rejections do not fail the sync.
+- On failure, the first 20 entries of `getSyncQueueBreakdown()` are attached
+  to the crash report under `area: sync-run`. Not user-facing: it lets a
+  support session tell a one-off bulk-import backlog from "stuck on the same
+  handful of records every time" without device access.
+- **`forceFullResync()` / `window.__forceFullResync`.** Escape hatch for a
+  device whose pull cursor drifted ahead of rows it never received (a
+  mid-round crash stamping `_sync_state` past content a later page never
+  applied): every future delta pull silently skips that content forever, with
+  no error. Clearing `_sync_state` touches neither local data nor the
+  outbound queue; pull treats a table missing from `last_synced` as "return
+  everything", so the next pull re-fetches in full. Exposed on `window`
+  unconditionally as a support tool and deliberately not wired to any UI — a
+  full re-pull of a large catalog is not free on a slow connection.
+- **`syncSubscriptionStatus()`** passes `last_synced: { stores: "" }` so the
+  server returns the full current store record regardless of delta
+  timestamps, and `isSetup = true` to bypass the backend's free-tier sync
+  block. It writes only `SUBSCRIPTION_FIELDS` so local-only columns are not
+  clobbered, and invalidates `["storeProfile"]`/`["allStores"]` as
+  prefix-only keys so every store/user-scoped variant matches.
+
+#### The sync indicator (`components/dashboard/sync-indicator.tsx`)
+
+- `isUserInitiated` is the one thing that makes a sync "manual", and it
+  travels all the way to `getPendingSyncItems()` and the server. The
+  background daemon therefore calls `runSync(false)`; it used to invoke the
+  button's own handler, making every automatic sync claim to be a click and
+  turning both protections off for everyone (`docs/FIXED_BUGS.md`, A-5). A
+  background sync also stays quiet: no success toast for a sync nobody asked
+  for, and an expected plan-tier restriction is the steady state on a
+  throttled tier, not a "Sync Error".
+- **Two daemon modes, chosen purely by `auto_sync_interval`:** `0` means
+  instant (subscribe to `addSyncQueueChangeListener`, debounced by
+  `INSTANT_SYNC_DEBOUNCE_MS` = 2000 so a multi-item checkout or bulk receive
+  collapses into one sync, same reasoning as `core.ts`'s transaction-scoped
+  invalidation batching); any positive number polls every N minutes. Both
+  are torn down and rebuilt when the setting changes, so retuning a plan
+  tier at runtime cleanly stops whichever mode was active. Neither is
+  installed at all while impersonating or on a read-only tab.
+- A change batch containing **only `audit_logs`** does not trigger an instant
+  sync: PIN logins, failed logins and PIN changes are low-priority telemetry
+  no other device needs immediately, and they still reach the server with
+  the next real sync. A mixed batch (a sale, which also `logAction()`s)
+  triggers normally.
+- **Manual sync is always clickable**, regardless of `status`. It used to be
+  gated on `status !== "offline"`, but that comes from `navigator.onLine`,
+  which iOS/Android can misreport as false right after wake before the radio
+  settles — disabling the user's own escape hatch on a device that is
+  actually online. `sync()` already checks and fails gracefully.
+- The Sync Now button calls `stopPropagation()` because the whole card also
+  handles click: without it a click fired twice, the second hit `sync()`'s
+  mutex, toasted a spurious error, and its `finally` cleared
+  `isSyncInProgress` while the first call was still running.
+- **Visibility is driven by the pending count alone**; `isSyncOverdue`
+  (30 min) only escalates the visual urgency. Gating visibility on it let a
+  real backlog of unsynced sales sit behind a green "Cloud Active".
+- The queue count is event-driven via `addSyncQueueChangeListener`, with a
+  30s `refetchInterval` as a slow safety net for a drain that emits no
+  change event — it is no longer the 5s poll against main-thread sql.js it
+  once was.
+- Collapsed rendering: the collapsed rail shows the bare icon with no status
+  border or background, and the expanded state is one persistent shape
+  revealed via max-width/max-height + opacity on the sidebar's own 300ms
+  timeline, not two structurally different trees swapped by a conditional.
+
 ### The `stores` prune, and how a store disappears (2026-09-29)
 
 **Reported live**: a two-store owner's device showed both stores in the
@@ -274,6 +853,19 @@ exclude any store with a pending `stores` queue row.
 Both guards fail closed, matching the direction this code already prefers:
 a stale entry lingering in the switcher beats losing sight of a real store.
 Tests: `__tests__/store-prune-fails-closed.test.ts`.
+
+**A third, older guard: only a locally *empty* store is ever pruned.** A
+store the server does not currently recognize is still not safe to hide if
+it is the one this device's whole local history is attributed to (e.g. the
+original pre-cloud-link store). Emptiness is checked against every
+`STORE_SCOPED_TABLES` entry, not just products/sales — a store whose only
+local data is expenses or customers deserves the same protection. Each
+table is filtered through `columnExists(t, "store_id")` first, because most
+of those columns arrive via `initDatabase()`'s runtime `ALTER TABLE` pass
+rather than the base schema: on a device that has not run it (or a test
+harness that bypasses it) the query would throw `no such column: store_id`
+and roll back the *entire* pull transaction instead of merely skipping that
+one table's check.
 
 **Still open, same incident, not fixed here.** A push rejected `forbidden`
 (`SyncController::push`'s `authorizeChangeTarget` — e.g. a staff session

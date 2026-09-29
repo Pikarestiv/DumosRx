@@ -12,21 +12,8 @@ import { execute, query, transaction } from "../core";
 import { isExpectedSyncRestriction } from "@/lib/utils/error-logger";
 import { toast } from "sonner";
 
-// Reasons the server can report in `response.failed` that mean "this exact
-// edit can never succeed by retrying" (see SyncController::push's strict
-// version-equality check) rather than a transient failure worth backing off
-// and retrying (network blip, momentary server error). Routing either of
-// these through recordSyncFailure's exponential-backoff retry path would
-// silently loop forever — the base version this edit was computed from
-// doesn't change no matter how many times it's resent.
-// quantity_received_exceeds_ordered belongs here for the same reason: the
-// payload is frozen, so a receipt the server has judged impossible against
-// the ordered quantity stays impossible on every resend. Dropping it lets
-// the next pull bring down the server's real balance instead of burning
-// five retries and reporting a permanently stuck queue item.
-// permission_denied is the same class of permanent failure: the payload is
-// frozen and the caller's own grants don't change by resending it, so a
-// privilege rejection stays a privilege rejection on every attempt.
+// Terminal: the queued payload is frozen, so resending can never change the
+// outcome. See client/AGENTS.md, "Push details (sync-engine/push.ts)".
 const NON_RETRYABLE_CONFLICT_REASONS = new Set([
   "version_conflict",
   "stale_timestamp",
@@ -34,30 +21,18 @@ const NON_RETRYABLE_CONFLICT_REASONS = new Set([
   "permission_denied",
 ]);
 
-// Terminal reasons that are dropped quietly: the local edit was queued by
-// automatic machinery (the permission catalog backfill), not by a user
-// action anyone is waiting on, so "could not be saved" would be alarming
-// noise about something they never did. See client/AGENTS.md's "Catalog
-// versioning and the default-group backfill".
+// Dropped without a toast: queued by automatic machinery, not a user action.
 const SILENT_TERMINAL_REASONS = new Set(["permission_denied"]);
 
-// Tables whose server row does NOT carry the id the client pushed, so no
-// future pull can ever match it and settle a terminally-conflicted local row.
+// Server row doesn't carry the pushed id, so no pull can ever settle it.
 // See docs/FIXED_BUGS.md "audit_logs conflict resurrection loop".
 const TERMINAL_CONFLICT_SETTLES_SOURCE_ROW = new Set(["audit_logs"]);
 
 const SYNC_BATCH_SIZE = 50;
 
-/** Sorts categories to the front of the queue (see pushChanges' comment on
- * its call site) while leaving every other row's relative order untouched.
- * Must return a consistent result for every pair - `a` categories-before-`b`
- * required `compare(a,b) === compare(b,a) * -1`, which the previous
- * `table_name === "categories" ? -1 : ... ? 1 : 0` version violated
- * whenever BOTH rows were categories (both directions returned -1), an
- * inconsistent comparator that silently reversed every category-vs-category
- * pair's original created_at order - sending e.g. an UPDATE ahead of the
- * INSERT it edited, so the server applied the stale INSERT last and the
- * edit was silently lost. */
+/** Sorts categories to the front of the queue, leaving every other row's
+ * relative order untouched. Must stay a *consistent* comparator — see
+ * client/AGENTS.md, "Push details (sync-engine/push.ts)". */
 export function compareCategoriesFirst(
   a: { table_name: string },
   b: { table_name: string },
@@ -65,10 +40,8 @@ export function compareCategoriesFirst(
   return Number(b.table_name === "categories") - Number(a.table_name === "categories");
 }
 
-// Matches ISO 8601 datetimes as produced by Date#toISOString(), e.g.
-// "2026-07-25T03:35:07.593Z". MySQL DATETIME columns reject the 'T'/'Z'
-// and fractional seconds, so every such field (not just one hardcoded
-// column name) needs to become "2026-07-25 03:35:07" before it's sent.
+// MySQL DATETIME rejects the 'T'/'Z' and fractional seconds, so every
+// ISO-shaped string field is rewritten before it's sent.
 const ISO_DATETIME_REGEX = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z?$/;
 
 function normalizeDatetimeFields(payload: Record<string, unknown>) {
@@ -80,9 +53,8 @@ function normalizeDatetimeFields(payload: Record<string, unknown>) {
   }
 }
 
-// Best-effort, human-friendly singular label for the version-conflict toast.
-// Not exhaustive — falls back to the raw table name for anything not listed,
-// which is still an intelligible (if less polished) signal.
+// Best-effort singular labels for the version-conflict toast; anything not
+// listed falls back to the raw table name.
 const RECORD_LABELS: Record<string, string> = {
   products: "a product",
   stock_batches: "a stock batch",
@@ -102,48 +74,12 @@ function describeSyncedRecord(tableName: string): string {
 }
 
 /**
- * Coalesces multiple pending UPDATE entries for the SAME (table_name,
- * record_id) into one merged change before anything is sent to the server.
- *
- * Why this exists: update() (base-helpers.ts) no longer bumps `_version`
- * locally (see the fix for _known-bugs.md #11) — it now sends/stores the
- * row's unchanged base version, so the server can tell "this edit is based
- * on my current state" from "this edit is based on something stale."  That
- * fix is correct for the TWO-DEVICE case it targeted, but on its own it
- * introduces a single-device regression: `addToSyncQueue` appends one new
- * `_sync_queue` row per update() call with NO coalescing, so two ordinary
- * sequential edits to the same row before the next sync (e.g. a credit/
- * mixed-payment checkout's `update("customers", id, {outstanding_balance})`
- * immediately followed by `update("customers", id, {loyalty_points})` in
- * use-pos-payment.ts) queue two separate rows that both freeze the
- * IDENTICAL base `_version`. Pushed together (or even split across batches
- * for a large backlog), the first is accepted and the server bumps the
- * version — the second then collides against that bump and gets rejected
- * as a false "version_conflict," silently losing a completely ordinary,
- * non-conflicting local edit and showing a misleading "another device"
- * toast.
- *
- * The fix: fold every UPDATE queued for the same record into ONE change —
- * later field values win over earlier ones for the same column (the same
- * per-call "full overwrite of whatever fields it's given" semantics a
- * single update() already has), the merged payload carries the EARLIEST
- * entry's `_version` (the true base this whole local edit chain started
- * from — none of these rows has synced yet, so the server has no
- * knowledge of anything past that point), and every underlying queue row
- * id folded into the merge is tracked in `mergedIdsByRepId` so the caller
- * can mark them all synced (or all dropped, on a real conflict) together —
- * never just the representative row, which would silently orphan the rest.
- *
- * Runs once, up front, before the pending list is sliced into
- * SYNC_BATCH_SIZE batches, so batch-splitting can never separate two edits
- * to the same record into different requests and reintroduce this bug for
- * a large backlog.
- *
- * INSERT and DELETE entries are left untouched: INSERT never goes through
- * the version-conflict check at all (a fresh row has nothing to conflict
- * with yet), and a record is only ever soft/hard-deleted once while still
- * pending, so neither operation can produce the same-row queue pile-up
- * this function exists to fix.
+ * Folds every pending UPDATE for the same (table_name, record_id) into one
+ * merged change: later fields win, the merged payload keeps the EARLIEST
+ * entry's `_version`, and `mergedIdsByRepId` maps the representative queue
+ * row id to every row folded into it so callers settle them all together.
+ * INSERT/DELETE are untouched. Why this is required, and why it must run
+ * before batch slicing: client/AGENTS.md, "Push details".
  */
 function coalescePendingUpdates(pending: SyncQueueItem[]): {
   items: SyncQueueItem[];
@@ -197,19 +133,10 @@ function coalescePendingUpdates(pending: SyncQueueItem[]): {
 }
 
 /**
- * Removes every currently-due UPDATE entry from `pending` whose record
- * (table_name + record_id) has ANY sibling UPDATE row still sitting in
- * `_sync_queue` under backoff (next_retry_at in the future) — see the call
- * site's doc comment for why letting a due row race ahead of a not-yet-due
- * sibling for the same record reintroduces a narrower version of the
- * coalescing bug. INSERT/DELETE entries are never held back — same
- * rationale as coalescePendingUpdates() not touching them.
- *
- * One query per distinct (table_name, record_id) key found among
- * `pending`'s UPDATE entries — acceptable here: this is a correctness-
- * critical path, not a hot loop, and matches this codebase's existing
- * precedent of per-record queries elsewhere in the sync path (e.g.
- * assertStoreOwnership in base-helpers.ts).
+ * Removes every currently-due UPDATE from `pending` whose record has ANY
+ * sibling UPDATE still backed off in `_sync_queue`; INSERT/DELETE are never
+ * held back. One query per distinct record — a correctness-critical path,
+ * not a hot loop. Rationale: client/AGENTS.md, "Push details".
  */
 async function withheldRecordsWithBackedOffSiblingsRemoved(
   pending: SyncQueueItem[],
@@ -235,9 +162,7 @@ async function withheldRecordsWithBackedOffSiblingsRemoved(
     );
     const totalCount = totalRows[0]?.total ?? 0;
 
-    // More rows exist for this record than are currently due: at least one
-    // sibling UPDATE is still backed off. Hold back every due row for this
-    // record too, rather than letting them push ahead alone this cycle.
+    // More rows than are due means a sibling UPDATE is still backed off.
     if (totalCount > dueCount) {
       heldBackKeys.add(key);
     }
@@ -257,92 +182,45 @@ async function withheldRecordsWithBackedOffSiblingsRemoved(
 export async function pushChanges(
   isManual: boolean = false,
   isSetup: boolean = false,
-  // Identifies every batch below as part of ONE sync run, so the server's
-  // plan-tier sync-interval throttle measures the interval per run instead
-  // of per request (see SyncController::validateSync). Without it, batch 2
-  // of a backlog is rejected by the last_sync_at that batch 1 just stamped.
+  // Marks every batch as one sync run; the server throttles per run.
   runId?: string,
 ): Promise<{ pushed: number; failedBatches: number }> {
   let pending = await getPendingSyncItems(isManual);
 
   if (pending.length === 0) return { pushed: 0, failedBatches: 0 };
 
-  // Categories are batched by created_at like everything else, so a product
-  // whose category was (re)created after it chronologically can land in a
-  // *later* request than the category referencing it, by which point the
-  // category's server-side id-remap (from SyncController::push's duplicate-
-  // name handling) no longer applies, since it only lives in that earlier
-  // request's in-memory $idMap. Move every category change to the front of
-  // the whole queue, not just within one batch, so categories are always
-  // resolved (created or remapped) before anything in a later batch can
-  // reference them.
+  // Categories must resolve before any later batch can reference them: the
+  // server's id-remap only lives in that one request's in-memory $idMap.
   pending.sort(compareCategoriesFirst);
 
-  // Retry-backoff can otherwise still split a same-record edit pair even
-  // with coalescePendingUpdates() below: getPendingSyncItems() (unless
-  // `isManual`, which bypasses backoff entirely) only returns rows that are
-  // currently due, per next_retry_at. If edit A for a record failed
-  // retryably earlier and is still backed off while edit B for the SAME
-  // record is due, a background sync would only ever see B here — pushing
-  // it alone, getting it accepted, and bumping the server version. When A
-  // later comes due on its own (in some future sync), it now collides
-  // against that bump with a stale base version: a false version_conflict
-  // that silently drops A's fields, a narrower variant (needs a specific
-  // retry-timing sequence, not just two ordinary sequential edits) of the
-  // same bug coalescing already fixes for the "both due at once" case.
-  // Guarded here rather than in coalescePendingUpdates() itself, since it
-  // needs to see the FULL _sync_queue (including not-yet-due rows), not
-  // just what getPendingSyncItems() already filtered down to. A manual sync
-  // (isManual) already bypasses backoff and sees every row for a record
-  // together in `pending`, so this is a no-op for that path.
+  // Backoff can otherwise split a same-record edit pair that coalescing
+  // would have merged; no-op for a manual sync, which bypasses backoff.
   if (!isManual) {
     pending = await withheldRecordsWithBackedOffSiblingsRemoved(pending);
     if (pending.length === 0) return { pushed: 0, failedBatches: 0 };
   }
 
-  // See coalescePendingUpdates()'s doc comment: folds multiple pending
-  // UPDATEs for the same record into one merged change so they can't freeze
-  // the same base _version in separate queue rows and falsely collide with
-  // each other server-side. `mergedIdsByRepId` lets every id-keyed lookup
-  // below (rejected/failed/succeeded/exception handling) act on every
-  // underlying queue row a merged change represents, not just its
-  // representative id.
+  // idsFor() expands a merged change back to every queue row it represents;
+  // every id-keyed branch below must use it, never the representative id.
   const { items: coalesced, mergedIdsByRepId } = coalescePendingUpdates(pending);
   const idsFor = (repId: number): number[] => mergedIdsByRepId.get(repId) ?? [repId];
 
   // Process in batches
   let pushedCount = 0;
-  // Distinct from a normal server-reported per-item rejection (already
-  // handled gracefully via response.failed/recordSyncFailure, and doesn't
-  // affect this): a batch landing in the catch block below means something
-  // unexpected happened (a network error, corrupted queue JSON, an
-  // unrecognized response shape) before the server ever got to isolate
-  // individual items. Tracked so the caller can tell "nothing pushed
-  // because there was nothing to push" apart from "nothing pushed because
-  // it kept failing" — see sync() in index.ts.
+  // Counts whole-batch failures only (not per-item rejections), so sync()
+  // can tell "nothing to push" from "everything failed".
   let failedBatches = 0;
 
   for (let i = 0; i < coalesced.length; i += SYNC_BATCH_SIZE) {
-    // A manual sync (see the backoff-bypass fix) can retry a backlog spanning
-    // many batches back-to-back; the API's shared rate limit is 60
-    // requests/minute (see throttle:60,1 on this route in routes/api.php),
-    // and other app traffic shares that same budget. Pausing between batches
-    // (not before the first) keeps a large backlog from tripping "Too Many
-    // Attempts" instead of actually syncing.
+    // The route's shared limit is 60 req/min; pace multi-batch backlogs.
     if (i > 0) {
       await new Promise((resolve) => setTimeout(resolve, 1100));
     }
 
     const batch = coalesced.slice(i, i + SYNC_BATCH_SIZE);
 
-    // Ids already given a specific, useful rejection reason by the
-    // pre-network-call validation pass below (bad UUID, missing required
-    // column, etc.). Declared here, above the try/catch, so both the
-    // whole-batch-failure branch (response.success === false) and the catch
-    // block — which both iterate the FULL `batch`, not just the filtered
-    // `changes` — can skip these ids instead of overwriting their specific
-    // reason with a generic batch-failure message and double-bumping
-    // retry_count.
+    // Ids already given a specific rejection reason below; the whole-batch
+    // and catch paths skip them rather than overwrite it.
     const alreadyRejectedIds = new Set<number>();
 
     try {
@@ -352,35 +230,16 @@ export async function pushChanges(
         batch.map(async (item) => {
           const payload = JSON.parse(item.payload);
           delete payload._deleted;
-          // _version is intentionally kept: the server's conflict resolution
-          // compares it against its own copy to decide whether this update is
-          // stale (see SyncController::push). Stripping it here used to force
-          // every conflict check onto the weaker updated_at-timestamp fallback,
-          // which trusts each device's local clock instead of a monotonic
-          // per-record counter.
+          // _version is intentionally kept — the server's conflict check
+          // needs it (see client/AGENTS.md, "Push details").
           delete payload._synced;
           delete payload._synced_at;
 
-          // Re-read the record's CURRENT local _version rather than trusting
-          // the one frozen into this queue row's payload at update()-time.
-          // Closes a race coalescePendingUpdates() doesn't cover: that fix
-          // only folds together edits queued BEFORE a push run starts. An
-          // edit made to the same record while an EARLIER push for it is
-          // still in flight queues a new row this run never saw; by the time
-          // that new row is picked up in a LATER push run, the earlier
-          // edit's response may have already bumped this row's local
-          // _version (see the `response.versions` handling below) — but the
-          // frozen payload still carries the pre-bump value, so it would
-          // collide against its own device's already-accepted change and get
-          // dropped as a false "version_conflict", silently losing a real,
-          // non-conflicting edit. Re-reading here means the payload actually
-          // sent always reflects this device's latest known state.
+          // The frozen payload's _version can already be stale; re-read the
+          // current one (client/AGENTS.md, "Push details").
           if (item.operation === "UPDATE") {
-            // Falls back to the frozen payload value on error (e.g. a queue
-            // row naming a table that no longer exists locally) rather than
-            // letting this one item's lookup failure throw and reject the
-            // WHOLE batch's Promise.all - that would turn a single bad row
-            // into every other item in the batch missing this push tick too.
+            // Falls back to the frozen value so one bad row can't reject the
+            // whole batch's Promise.all.
             try {
               const current = await query<{ _version: number }>(
                 `SELECT _version FROM ${item.table_name} WHERE id = ?`,
@@ -408,12 +267,8 @@ export async function pushChanges(
 
       const changes = mapped.filter((item) => {
         if (item.table_name === "products") {
-          // Any product row created/updated before the server dropped these
-          // two columns (2026_07_23_182355_remove_brand_and_supplier_from_
-          // products.php) still carries them in its queued payload snapshot,
-          // since a snapshot taken at write time never picks up later schema
-          // changes. Strip rather than reject: the row itself is otherwise
-          // fine, only these two fields are stale.
+          // Stale columns still present in payloads queued before the server
+          // dropped them; strip rather than reject the whole row.
           delete item.payload.brand_name;
           delete item.payload.supplier_id;
 
@@ -451,31 +306,8 @@ export async function pushChanges(
           if (item.payload && "selling_price" in item.payload) {
             delete item.payload.selling_price;
           }
-          // Any batch INSERT created before product-import.ts stopped writing
-          // batch_number: null still carries that literal null in its frozen
-          // _sync_queue payload snapshot — a client code fix alone can't
-          // rewrite data already queued. The server's batch_number column is
-          // NOT NULL (unlike the local SQLite schema), so this keeps failing
-          // forever on retry otherwise.
-          //
-          // Gated to INSERT specifically (not UPDATE) for two reasons found
-          // in review: (1) a real quantity-only UPDATE payload — the normal
-          // multi-terminal-sale shape from updateStockBatchQuantity() etc. in
-          // lib/db/queries/inventory.ts — never includes batch_number at all,
-          // so applying this unconditionally injected a bogus "Opening Stock"
-          // into it, defeating SyncController::push's narrowed stock_batches
-          // version-conflict exemption (which only fires when the payload is
-          // provably quantity-only — a payload that's never actually empty
-          // can never qualify) and reintroducing the false-conflict
-          // regression that exemption exists to prevent. (2) worse, on an
-          // ACCEPTED UPDATE this placeholder reaches the server's
-          // `forceFill($payload)` and silently overwrites the batch's real,
-          // already-correct batch_number in the database on every ordinary
-          // sale/cost-correction/return-restock UPDATE. Neither problem is
-          // possible for an INSERT: a legacy queued INSERT genuinely needs
-          // *some* non-null value to satisfy the server's NOT NULL column,
-          // and there's no pre-existing real batch_number on the server yet
-          // for it to clobber.
+          // INSERT only — never widen this to UPDATE (client/AGENTS.md,
+          // "Push details": it clobbers real batch_numbers server-side).
           if (item.operation === "INSERT" && !item.payload.batch_number) {
             item.payload.batch_number = "Opening Stock";
           }
@@ -483,31 +315,18 @@ export async function pushChanges(
         return true;
       });
 
-      // Filtered-out items are not silently dropped: record a backoff-tracked
-      // failure so they're visible via last_error and eventually reported to
-      // superadmins if the underlying data never gets fixed. Wrapped in a
-      // single transaction so a large rejected batch defers the (expensive,
-      // whole-database) sql.js saveDatabase() export to once here instead of
-      // once per item — see transaction()'s own doc comment in core.ts. A
-      // manual sync retrying thousands of backed-off items at once without
-      // this batching can exhaust the tab's memory doing one full-database
-      // re-serialization per item.
+      // Filtered-out items are never silently dropped; one transaction so
+      // sql.js exports the database once, not once per item.
       if (rejected.length > 0) {
-        // reportImmediately=true: these are deterministic client-side
-        // validation failures (bad UUID, missing required column) that will
-        // fail identically on every retry, so waiting for the normal 5-retry
-        // report threshold just delays remote visibility into a store that's
-        // permanently stuck on this item for no operational reason.
+        // reportImmediately: deterministic validation failures that will
+        // fail identically forever, so don't wait for the retry threshold.
         await transaction(async () => {
           for (const r of rejected) {
             await recordSyncFailure(r.id, r.reason, true);
           }
         });
-        // Only recorded once the transaction has actually committed — if it
-        // throws partway (e.g. recordSyncFailure itself fails for one item)
-        // and rolls back, these ids must NOT be treated as "already
-        // recorded" by the else/catch passes below, or a real failure that
-        // never made it to the database would go completely unrecorded.
+        // Only after the transaction commits: a rollback must not leave an
+        // unrecorded failure looking recorded.
         for (const r of rejected) {
           alreadyRejectedIds.add(r.id);
         }
@@ -526,59 +345,24 @@ export async function pushChanges(
         runId,
       )) as PushResponse;
 
-      // The server isolates each change to its own savepoint (see
-      // SyncController::push), so `response.success` reflects the batch
-      // request succeeding, not every change within it: `response.failed`
-      // lists which specific changes were rolled back individually. Only
-      // mark the ones NOT in that list as synced; items filtered out above
-      // (e.g. malformed payloads) were never sent and must NOT be marked
-      // synced here either, or they'd be silently dropped from the queue.
+      // The server savepoints each change, so `success` means the request
+      // succeeded; `failed` lists the changes rolled back individually.
       if (response.success) {
         const failedIds = new Set((response.failed ?? []).map((f) => f.id));
-        // Expanded so a merged change's representative id marks/deletes
-        // EVERY underlying queue row it folded together, not just itself —
-        // see coalescePendingUpdates()'s doc comment for why leaving any of
-        // them behind would silently orphan a real, still-pending edit.
         const succeededChanges = changes.filter((c) => !failedIds.has(c.id));
         const succeededIds = succeededChanges
           .map((c) => c.id)
           .flatMap((id) => idsFor(id));
 
-        // Collected inside the transaction below, reported (toast) after it
-        // commits — same reason pull.ts defers its skippedRecords reporting:
-        // a version conflict is known-permanent the moment the server says
-        // so, not worth risking a nested write inside this batch's own
-        // transaction just to surface it a few lines earlier. Coalescing
-        // guarantees at most one `failed` entry per (table_name, record_id)
-        // in the whole push run (every UPDATE for a given record was merged
-        // into a single change before any batch was ever sent), so this
-        // naturally produces exactly one toast per conflicted record, never
-        // one per underlying queue row.
+        // Collected in the transaction below, toasted after it commits.
         const versionConflicts: { table_name: string; record_id: string; reason: string }[] = [];
 
-        // A response lost after the server actually committed (timeout,
-        // dropped connection) looks identical to a network failure from this
-        // device's point of view: it's caught below, routed through
-        // recordSyncFailure, and bumps this queue item's retry_count before
-        // the next attempt resends the same frozen payload. That resend then
-        // collides with the version bump from its OWN already-applied first
-        // attempt and is rejected here as a version_conflict — a false
-        // positive, not a real edit from elsewhere. retry_count > 0 at the
-        // time of a version_conflict is a cheap, already-available signal
-        // for "this was a retry, not a first attempt," so it's used to mute
-        // the toast for that case; a genuinely first-attempt conflict
-        // (retry_count still 0) still gets the normal toast. This can still
-        // occasionally mute a real conflict that happens to land on an
-        // already-retried item for an unrelated reason, but the cost of that
-        // is a missed notification, not lost or corrupted data — the
-        // server's version is kept either way.
+        // retry_count > 0 means this conflict is most likely the item's own
+        // already-applied first attempt — logged, not toasted.
         const silencedConflicts: { table_name: string; record_id: string }[] = [];
 
-        // Wrapped in a single transaction: a batch of up to SYNC_BATCH_SIZE
-        // markSynced/recordSyncFailure/remapForeignKey calls each triggers
-        // its own full-database sql.js export when run outside a
-        // transaction (see the rejected-items comment above for why that
-        // matters at scale).
+        // One transaction per batch: each bookkeeping call outside one
+        // triggers its own full-database sql.js export.
         await transaction(async () => {
           await markSynced(
             succeededIds,
@@ -591,16 +375,8 @@ export async function pushChanges(
             const underlyingIds = idsFor(f.id);
 
             if (NON_RETRYABLE_CONFLICT_REASONS.has(f.reason)) {
-              // A version conflict can never be resolved by retrying — the
-              // edit's base version is permanently stale no matter how many
-              // times it's resent. Drop it (and every queue row merged into
-              // it) from the queue outright instead of routing it through
-              // recordSyncFailure's exponential-backoff retry path, which
-              // would silently loop forever (well, until the backoff cap,
-              // then a crash report — still not a real user-facing signal).
-              // The next pull will naturally bring in the winning server
-              // value now that nothing local is blocking it (see pull.ts's
-              // pendingLocalEdit skip).
+              // Terminal: drop every merged queue row rather than retrying;
+              // the next pull brings the server's winning value down.
               const placeholders = underlyingIds.map(() => "?").join(", ");
               const priorAttempts = await query<{ retry_count: number | null }>(
                 `SELECT retry_count FROM _sync_queue WHERE id IN (${placeholders})`,
@@ -626,16 +402,8 @@ export async function pushChanges(
             }
           }
 
-          // The server silently skips an INSERT (and remaps the id) when a
-          // category/supplier name collides with one it already has, but that
-          // remap only lives in the memory of this one push request server-side
-          // (see SyncController::push) — it's never reflected in this device's
-          // local rows unless applied here. Left unhandled, any row in a LATER
-          // batch that still references the old local id fails its foreign key
-          // check forever, since a future delta pull only ever reconciles
-          // categories/suppliers that appear in that pull's own response (see
-          // DUPLICATE_NAME_TABLES in reconcile-identity.ts) — a long-unchanged,
-          // already-existing row like this one never will.
+          // The duplicate-name id remap must be applied locally here; no
+          // future pull will do it (client/AGENTS.md, "Push details").
           for (const [table, mapping] of Object.entries(response.id_map ?? {})) {
             const refs = DUPLICATE_NAME_TABLES[table];
             if (!refs) continue;
@@ -643,14 +411,8 @@ export async function pushChanges(
               if (oldId === newId) continue;
               await remapForeignKey(oldId, newId, refs);
               await execute(`UPDATE ${table} SET _deleted = 1 WHERE id = ?`, [oldId]);
-              // remapForeignKey() only rewrites payload CONTENT (a foreign
-              // key value baked into some OTHER row's queued JSON) — it
-              // never touches this queue row's own `record_id` column,
-              // which is what the server actually looks the target row up
-              // by. Any edit still pending for the merged-away record
-              // itself (queued before this push ran) would otherwise keep
-              // targeting `oldId` forever, a record the server no longer
-              // has, failing on every retry until the backoff cap.
+              // remapForeignKey() rewrites payload content only, never the
+              // queue row's own record_id, which the server looks up by.
               await execute(
                 `UPDATE _sync_queue SET record_id = ? WHERE table_name = ? AND record_id = ?`,
                 [newId, table, oldId],
@@ -658,26 +420,8 @@ export async function pushChanges(
             }
           }
 
-          // Apply the server-assigned authoritative version to accepted
-          // UPDATEs right away, rather than waiting for a future pull to
-          // bring it in: without this, this same device's very next local
-          // edit (now that update() no longer increments _version locally)
-          // would still be based on the pre-push version and get spuriously
-          // rejected as a conflict against its own already-accepted change.
-          //
-          // `table` here comes straight from the server response, unlike the
-          // id_map loop just above (which is guarded by
-          // `DUPLICATE_NAME_TABLES[table]`) — the server is trusted, but an
-          // unrecognized or locally-absent table name would still throw
-          // (`no such table`) inside this transaction's callback, and an
-          // uncaught throw here rolls back the ENTIRE batch's transaction,
-          // including the markSynced() calls above — undoing otherwise-
-          // successful work and setting up an infinite re-push loop for
-          // every other item in the batch. Caught and warned per-row instead
-          // of per-table so one bad table name can't take the rest down; the
-          // affected record simply keeps its pre-push local _version until
-          // the next pull corrects it (harmless — pull.ts always trusts the
-          // server's version over whatever the local row has).
+          // Caught per row: an unrecognized `table` throwing here would roll
+          // back the whole batch, markSynced() included.
           for (const [table, mapping] of Object.entries(response.versions ?? {})) {
             for (const [recordId, newVersion] of Object.entries(mapping)) {
               try {
@@ -692,19 +436,8 @@ export async function pushChanges(
           }
         });
 
-        // Loud, not silent — matching _known-bugs.md #10's post-restore
-        // cloud-link notice, the closest existing precedent for "something
-        // happened during sync that the user needs to know about, but
-        // doesn't need a full merge UI to act on." One toast per conflicted
-        // record: this is expected to be rare (the exact conflict shape
-        // _known-bugs.md #11 was filed for), not a routine batch event.
-        //
-        // Deliberately does NOT claim "another device" as the cause: a
-        // `stale_timestamp` rejection (the legacy fallback for a row with no
-        // version tracking at all) isn't necessarily a second device — this
-        // client can't actually verify who or what changed the record
-        // server-side, only that its own edit no longer matches what it was
-        // based on. State what happened, not an unverifiable cause.
+        // Wording deliberately never blames "another device" — see
+        // client/AGENTS.md, "Push details".
         const toastableConflicts = versionConflicts.filter((conflict) => {
           if (SILENT_TERMINAL_REASONS.has(conflict.reason)) {
             console.info(
@@ -712,13 +445,7 @@ export async function pushChanges(
             );
             return false;
           }
-          // feedback and audit_logs are both push-only telemetry the user
-          // never edits locally — nothing for them to act on, so log rather
-          // than toast. audit_logs in particular has no `_version` field at
-          // all (logAction() never sets one), so the server's duplicate-
-          // INSERT handling falls to the legacy stale_timestamp fallback and
-          // rejects it as a "conflict" on every resubmit — a sync plumbing
-          // detail, not a real edit collision.
+          // Push-only telemetry the user never edits: log, don't toast.
           if (conflict.table_name === "feedback" || conflict.table_name === "audit_logs") {
             console.info(
               `[Sync] ${conflict.table_name} record ${conflict.record_id} hit a version conflict; server's version kept, no toast shown.`,
@@ -727,14 +454,8 @@ export async function pushChanges(
           }
           return true;
         });
-        // A batch can report up to SYNC_BATCH_SIZE conflicts at once (e.g.
-        // draining a large backlog), and Sonner's Toaster does a
-        // flushSync-driven state update per toast() call - enough of those
-        // fired synchronously in the same tick trips React's own "Maximum
-        // update depth exceeded" guard and crashes the whole page. One toast
-        // per record only holds up under the "expected to be rare" case
-        // above; past this threshold, collapse into a single summary toast
-        // instead.
+        // Sonner flushSyncs per toast(); a batch's worth in one tick trips
+        // React's "Maximum update depth exceeded" and crashes the page.
         const CONFLICT_TOAST_THRESHOLD = 5;
         if (toastableConflicts.length > CONFLICT_TOAST_THRESHOLD) {
           toast.warning(
@@ -747,27 +468,14 @@ export async function pushChanges(
             );
           }
         }
-        // Not surfaced to the user — see the retry_count comment above. Still
-        // logged so it's visible in a support/debug session, just not as a
-        // scary toast for what's very likely this device's own earlier
-        // write that already landed.
         for (const conflict of silencedConflicts) {
           console.info(
             `[Sync] Retried edit to ${conflict.table_name}/${conflict.record_id} hit a version conflict, likely its own earlier attempt already applied; server's version kept, no toast shown.`,
           );
         }
       } else {
-        // A batch-level failure response (success: false, distinct from a
-        // thrown exception - the request completed, the server just
-        // rejected the whole batch, e.g. auth/validation/rate-limit) had no
-        // handling at all here: no markSynced, no recordSyncFailure, no
-        // backoff, no retry counter, no crash report - every item in the
-        // batch was silently retried forever on each sync tick with zero
-        // visibility. Route it through the same recordSyncFailure path the
-        // catch block below already uses for a thrown error, keyed off the
-        // batch it actually sent (not `changes`, in case that var's scope
-        // ever narrows) so filtered-out/rejected items above are covered
-        // too, matching the catch block's own behavior.
+        // Whole-batch rejection (request completed, server refused it):
+        // keyed off `batch`, not `changes`, same as the catch block.
         failedBatches++;
         const message = response.message || "Sync batch rejected by server";
         await transaction(async () => {
@@ -780,15 +488,8 @@ export async function pushChanges(
         });
       }
     } catch (error) {
-      // A plan restriction (SYNC_THROTTLED, SYNC_DISABLED, STORE_LIMIT_
-      // EXCEEDED) isn't this batch's fault and isn't fixed by retrying an
-      // individual item: the server is telling the whole device to wait or
-      // upgrade. Routing it through recordSyncFailure would burn every
-      // queued item's 5-attempt backoff budget and then report a perfectly
-      // healthy queue as "stuck". Stop the run and leave the queue exactly
-      // as it was — the next run (after the interval elapses) sends it
-      // untouched. Reachable for background syncs only since they stopped
-      // claiming `manual` (see docs/FIXED_BUGS.md, A-5).
+      // A plan restriction stops the run with the queue untouched; backing
+      // off per item would report a healthy queue as stuck.
       if (isExpectedSyncRestriction(error)) {
         console.warn("[Sync] Push stopped by a plan restriction:", error);
         throw error;

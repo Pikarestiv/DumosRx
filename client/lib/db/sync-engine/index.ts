@@ -26,10 +26,9 @@ export function isSyncing(): boolean {
   return isSyncInProgress;
 }
 
-/** Opaque per-sync-run token (see its use in sync()). crypto.randomUUID is
- * unavailable on an insecure origin and in some older webviews, so it falls
- * back to a timestamp+random string; the server only ever compares it for
- * equality within one short run window, so uniqueness per device is enough. */
+/** Opaque per-sync-run token. crypto.randomUUID is unavailable on insecure
+ * origins and older webviews, so it falls back to timestamp+random; only
+ * per-device uniqueness within one short run window matters. */
 function newSyncRunId(): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
     return crypto.randomUUID();
@@ -37,24 +36,15 @@ function newSyncRunId(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
 }
 
-/**
- * Escape hatch for a device whose pull cursor has drifted ahead of rows it
- * never actually received (e.g. a mid-round crash left `_sync_state`
- * stamped past content a subsequent page never got to apply) — every
- * future delta pull (`updated_at > cursor`) silently skips that content
- * forever, with no error, since as far as the cursor is concerned it's
- * already-seen history. Clearing `_sync_state` doesn't touch local data or
- * the outbound `_sync_queue`; pull.ts already treats a table missing from
- * `last_synced` as "return everything" (see its own comment on
- * `lastSyncedMap`), so this just forces the next pull to re-fetch every
- * table in full instead of resuming from wherever the cursor was stuck.
- *
- * Deliberately not wired to any UI — see the window-exposure note below.
- */
 /** Returned instead of a real failure when another sync already holds the
  * mutex. Callers must treat it as a no-op, not an error (see SyncIndicator). */
 export const SYNC_IN_PROGRESS_ERROR = "Sync already in progress";
 
+/**
+ * Escape hatch for a device whose pull cursor has drifted ahead of rows it
+ * never received: clears `_sync_state` only, forcing a full re-fetch. See
+ * client/AGENTS.md, "`sync()` and friends (sync-engine/index.ts)".
+ */
 export async function forceFullResync(): Promise<SyncResult> {
   if (isSyncInProgress) {
     return { success: false, pushed: 0, pulled: 0, error: SYNC_IN_PROGRESS_ERROR };
@@ -64,25 +54,18 @@ export async function forceFullResync(): Promise<SyncResult> {
 }
 
 if (typeof window !== "undefined") {
-  // Unconditionally exposed (not dev-gated), same as core.ts's
-  // diagnoseLegacySchema: a real, if rare, production recovery tool for a
-  // support session to run from DevTools on the affected device, not
-  // something to surface as an in-app button a store owner could trigger
-  // by accident (a full re-pull of a large catalog isn't free on a slow
-  // connection).
+  // Support tool for a DevTools session, deliberately not an in-app button.
   window.__forceFullResync = forceFullResync;
 }
 
 /**
- * Main Sync Function
+ * Main Sync Function. One push-then-pull cycle; every guard it applies is
+ * documented in client/AGENTS.md, "`sync()` and friends".
  */
 export async function sync(
   isManual: boolean = false,
   isSetup: boolean = false,
-  // Setup-only: lets a caller mid-first-sync (see startSyncProcess in
-  // use-onboarding.ts) move on as soon as store/user identity is pulled,
-  // while this same call keeps running underneath for everything else. See
-  // pullChanges's own doc comment. No-op for every other caller.
+  // Setup-only: fires once store/user identity is pulled. See pullChanges.
   onCriticalTablesReady?: () => void,
 ): Promise<SyncResult> {
   if (isSyncInProgress) {
@@ -94,15 +77,8 @@ export async function sync(
     };
   }
 
-  // Impersonation (a superadmin handing off into a store's app, see
-  // app/auth/callback/page.tsx + auth-context's loginFromHandoff) exists for
-  // read-only support/troubleshooting visibility, never for transacting on a
-  // store's behalf. Syncing during such a session would push local writes and
-  // pull-overwrite local state under ambiguous attribution, bypassing the
-  // store owner's own auto-sync settings and audit trail. Gated here rather
-  // than in the sync indicator's UI so no call site can bypass it — manual
-  // button, auto-sync interval/instant listener, store switch, license guard,
-  // the PIN-recovery sync, onboarding's post-restore sync — present or future.
+  // An impersonated session is read-only support access; gated here so no
+  // call site, present or future, can bypass it.
   if (isImpersonatedSession()) {
     devLog("[SyncEngine] Sync skipped: impersonated session is read-only.");
     return {
@@ -136,16 +112,8 @@ export async function sync(
     };
   }
 
-  // Centralized here (mirroring syncSubscriptionStatus's own check) rather
-  // than trusting every call site to check first: a couple of them didn't
-  // (e.g. the store-switch handler), and an offline device attempting a
-  // push/pull anyway doesn't just fail cleanly — every queued item gets a
-  // "Failed to fetch" network error, which burns through the sync queue's
-  // 5-attempt exponential backoff (~15 minutes) and then fires a "stuck
-  // sync" crash report, even though nothing is actually broken; the device
-  // is just offline, which this offline-first app is supposed to handle
-  // silently. Returning early here means no fetch is even attempted, so no
-  // retry_count is spent and no false alarm is raised.
+  // Centralized so an offline attempt never burns the queue's retry budget
+  // and raises a false "stuck sync" alarm.
   if (typeof window !== "undefined" && !navigator.onLine) {
     return {
       success: false,
@@ -157,11 +125,8 @@ export async function sync(
 
   try {
     isSyncInProgress = true;
-    // One token for this whole run — every push batch and every pull page
-    // below carries it. The server measures the plan tier's sync-interval
-    // throttle per run rather than per request, so a backlog that needs
-    // many batches isn't rejected by the last_sync_at its own first batch
-    // just stamped (see SyncController::validateSync).
+    // One token for the whole run; the server throttles per run, not per
+    // request, so every batch and page must carry it.
     const runId = newSyncRunId();
     const pushResult = await pushChanges(isManual, isSetup, runId);
     const pullResult = await pullChanges(isManual, isSetup, onCriticalTablesReady, runId);
@@ -173,9 +138,7 @@ export async function sync(
     }
 
     try {
-      // getSystemConfig() already unwraps the server's {success, data}
-      // envelope, so the fetched value itself is the suggestions payload,
-      // not a nested {success, data} object.
+      // getSystemConfig() already unwraps the {success, data} envelope.
       const value = await apiClient
         .getSystemConfig("global_suggestions")
         .catch(() => null);
@@ -198,12 +161,8 @@ export async function sync(
     }
 
     if (typeof window !== "undefined") {
-      // Invalidate exactly the queries tagged (via meta.tables, see
-      // lib/query-keys.ts) as depending on any table that changed,
-      // same predicate-based approach as base-helpers.ts's
-      // invalidateQueriesForTable. Untagged queries still fall back to
-      // always invalidating, so this stays safe for anything not yet
-      // migrated to the factory.
+      // Matches on meta.tables like base-helpers.ts; untagged queries still
+      // always invalidate, so this is safe pre-migration.
       if (pullResult.updatedTables && pullResult.updatedTables.length > 0) {
         const updated = pullResult.updatedTables;
         void queryClient.invalidateQueries({
@@ -222,14 +181,8 @@ export async function sync(
       });
     }
 
-    // A batch landing in pushChanges()'s catch block (network error,
-    // corrupted queue JSON, an unrecognized response shape) is swallowed
-    // there so one bad batch can't block the rest — but that means this
-    // function would otherwise always resolve successfully even when
-    // everything failed to push, and the sync indicator showed a false
-    // "Sync completed successfully" toast. A normal server-reported
-    // per-item rejection (response.failed) is unaffected by this: those are
-    // expected, already visible via retry backoff, and don't fail the sync.
+    // pushChanges() swallows a bad batch so the rest can proceed; without
+    // this the indicator would toast success when nothing pushed.
     if (pushResult.failedBatches > 0) {
       return {
         success: false,
@@ -246,11 +199,7 @@ export async function sync(
     };
   } catch (error) {
     console.error("Sync failed:", error);
-    // Not shown to the user anywhere — attached only so a support session
-    // (searching Sentry by area:sync-run) can see what was actually sitting
-    // in the queue when this failed, e.g. distinguishing "a huge one-time
-    // bulk import backlog" from "stuck on the same handful of records every
-    // time" without needing remote access to the device.
+    // Support-only context for Sentry (area:sync-run), never user-facing.
     const queueBreakdown = await getSyncQueueBreakdown().catch(() => null);
     logCrash(error, false, {
       area: "sync-run",
@@ -272,12 +221,9 @@ export async function sync(
 /**
  * Privileged Subscription Status Sync
  *
- * This runs regardless of the user's plan tier. It pulls ONLY the `stores`
- * table from the server so the local app always has the latest
- * subscription_tier, status, suspension_reason and license_token.
- *
- * Keeps plan downgrades, suspensions, and renewals reflected locally even
- * when full cloud sync is disabled for free-tier users.
+ * Pulls ONLY the `stores` table (subscription_tier, status,
+ * suspension_reason, license_token), regardless of plan tier, so downgrades,
+ * suspensions and renewals still land when full sync is disabled.
  */
 export async function syncSubscriptionStatus(): Promise<{
   success: boolean;
@@ -291,11 +237,8 @@ export async function syncSubscriptionStatus(): Promise<{
   }
 
   try {
-    // Always pass empty string so the server returns the full current store
-    // record regardless of when the last sync happened, so plan
-    // downgrades/upgrades written on the server are never missed due
-    // to timestamp delta logic.
-    // We pass isSetup=true as the 3rd arg to bypass the backend sync block for free tier.
+    // Empty last_synced returns the full store record regardless of delta
+    // timestamps; isSetup bypasses the backend's free-tier sync block.
     const response = (await apiClient.pullChanges(
       { last_synced: { stores: "" } },
       false,
@@ -352,10 +295,7 @@ export async function syncSubscriptionStatus(): Promise<{
       ["stores", response.server_timestamp]
     );
 
-    // Invalidate React Query cache so UI re-renders with new tier/status.
-    // Prefix-only keys (no targetId/userStoreId arg) so this matches every
-    // variant of these queries regardless of which store/user they're
-    // scoped to: invalidateQueries does prefix matching by default.
+    // Prefix-only keys, so every store/user-scoped variant is matched.
     if (typeof window !== "undefined") {
       void queryClient.invalidateQueries({ queryKey: ["storeProfile"] });
       void queryClient.invalidateQueries({ queryKey: ["allStores"] });

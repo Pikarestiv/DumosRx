@@ -3,28 +3,15 @@
 import { useState, useEffect, useCallback } from "react";
 import { format, subDays } from "date-fns";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import {
-  FileText,
-  Download,
-  FileDown,
-  Printer,
   BarChart,
   ClipboardList,
   Wallet,
   Users,
-  Loader2,
   TrendingUp,
-  Info,
-  Eye,
+  FileText,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { ReportCard } from "@/components/reports/report-card";
 import { ReportFiltersBar, type ReportFiltersValue } from "@/components/reports/report-filters-bar";
 import {
   useReportExport,
@@ -213,86 +200,17 @@ export function ReportCenter() {
                 paymentMethod: filters.paymentMethod,
               });
               return (
-                <div
+                <ReportCard
                   key={report.id}
-                  className="flex items-start gap-3 p-4 rounded-[14px] border hover:bg-primary/5 transition-all group"
-                >
-                  <div className="h-10 w-10 rounded-[10px] bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform shrink-0">
-                    <report.icon className="h-5 w-5" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2 mb-1">
-                      <h3 className="font-bold text-[13px]">{report.title}</h3>
-                      <Badge variant="secondary" className="text-[9px] shrink-0 font-bold bg-primary/10 text-primary border-none">
-                        {report.category}
-                      </Badge>
-                    </div>
-                    <p className="text-[11.5px] text-muted-foreground line-clamp-2 leading-snug">
-                      {report.description}
-                    </p>
-                    {note && (
-                      <div className="flex items-start gap-1.5 mt-2 p-2 rounded-[10px] border border-amber-500/30 bg-amber-500/10">
-                        <Info className="h-3 w-3 text-amber-600 dark:text-amber-500 shrink-0 mt-[1px]" />
-                        <p className="text-[11px] leading-snug text-amber-700 dark:text-amber-400">
-                          {note}
-                        </p>
-                      </div>
-                    )}
-                    <div className="flex flex-wrap items-center gap-2 mt-3">
-                      {canExportReports && (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-7 text-[11px] gap-1.5 flex-1 md:flex-none border-border"
-                              disabled={isLoading}
-                            >
-                              {isLoading ? (
-                                <Loader2 className="h-3 w-3 animate-spin" />
-                              ) : (
-                                <Download className="h-3 w-3" />
-                              )}
-                              Export
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => void runAction(report.id, "pdf")} className="cursor-pointer text-[12px] gap-2">
-                              <FileDown className="h-3.5 w-3.5 text-inherit" />
-                              Download PDF
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => void runAction(report.id, "csv")} className="cursor-pointer text-[12px] gap-2">
-                              <FileText className="h-3.5 w-3.5 text-inherit" />
-                              Download CSV
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      )}
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-7 text-[11px] gap-1.5 flex-1 md:flex-none border-border"
-                        onClick={() => void openView(report.id, report.title)}
-                        disabled={isLoading}
-                      >
-                        <Eye className="h-3 w-3" />
-                        View
-                      </Button>
-                      {canExportReports && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 text-[11px] gap-1.5 flex-1 md:flex-none border-border"
-                          onClick={() => void runAction(report.id, "print")}
-                          disabled={isLoading}
-                        >
-                          <Printer className="h-3 w-3" />
-                          Print
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                </div>
+                  report={report}
+                  note={note}
+                  isLoading={isLoading}
+                  canExportReports={canExportReports}
+                  onView={() => void openView(report.id, report.title)}
+                  onExportPdf={() => void runAction(report.id, "pdf")}
+                  onExportCsv={() => void runAction(report.id, "csv")}
+                  onPrint={() => void runAction(report.id, "print")}
+                />
               );
             })}
           </div>

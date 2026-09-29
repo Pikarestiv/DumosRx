@@ -732,7 +732,94 @@ manager, specialist) are exactly `canManageStockBatch`'s population, which is
 who could open that menu before, and the item it sits beside is new — nobody
 loses anything they had.
 
-The other five Inventory & Stock keys were **removed from the catalog** on
+`delete_products` and `delete_suppliers` joined the enforced list on
+2026-09-29 as well, and they are the **third** reversal of that morning's
+removal pass — but a different kind. `run_daily_close` and
+`print_product_labels` were re-investigation errors: the feature was there
+and the pass missed it. These two were not. The removal finding was
+factually correct (no `deleteProduct`/`deleteSupplier` query, no
+`softDelete()` call site, no menu action, `useDelete()` with zero callers)
+and the conclusion drawn from it — "a key with no action does not sit in the
+catalog" — still stands. What changed is the **product** decision: not being
+able to delete a product or a vendor is a real gap, so the action was built
+and the key came back with it, in the same commit, exactly as the standing
+rule requires.
+
+**The deactivate-vs-delete design, and why it differs per entity.** Both are
+soft deletes (`softDelete()`, `_deleted = 1`, a `DELETE` on the sync queue),
+never `remove()`. Neither cascades: nothing rewrites `sale_items`,
+`purchase_order_items` or `stock_batches`. That is safe **only because every
+historical join is a plain `JOIN`/`LEFT JOIN` with no `_deleted = 0` filter
+on the joined side** — `reports.ts`'s top-products/category queries join
+`products` bare, and `procurement.ts` / `local-database.ts` LEFT JOIN
+`suppliers` bare — so a deleted product's or vendor's **name still resolves
+on the records it already appears in**. Deleting removes it from the
+catalog, the till and the directory; it does not rewrite history. If a future
+change ever adds `_deleted = 0` to one of those joins, these deletes silently
+start erasing report rows — that filter is load-bearing in its absence.
+
+- `delete_products` — `components/products/catalog-detail-panel.tsx`'s
+  overflow menu (a third item beside Edit Product and Print Labels, opening
+  `components/products/product-delete-dialog.tsx`), backed by
+  `deleteProduct()` in `lib/db/queries/products.ts`. **Two blockers, both
+  hard**: stock on hand across the product's active batches, and membership
+  of a still-receivable purchase order
+  (`pending`/`sent`/`partially_received`). `getProductDeletionBlockers()`
+  reads both in one pass; the dialog reads it for **wording** and
+  `deleteProduct()` re-checks it for **enforcement**, so a stale dialog
+  cannot slip a delete through. The reasoning is the same shape as the
+  customer dialog's "settle the balance first": stock batches are not
+  cascaded, so deleting a product with stock leaves those units still
+  counted in total stock value (`local-database.ts`'s
+  `WHERE _deleted = 0 AND is_active = 1` sums batches, never joining
+  `products`) with no product to show for them — an inventory figure that
+  cannot be reconciled to anything. An open PO is the same harm arriving
+  later: receiving books new batches against `product_id`, so the delivery
+  would create stock for a product that no longer exists. **Sale history is
+  deliberately not a blocker** (per the join note above). There is
+  **no "deactivate" alternative offered for products, on purpose**:
+  `products.is_active` is written as `1` on every create and **never read
+  anywhere** — introducing a deactivated state would mean adding an
+  `is_active` filter to every catalog/POS/report read, which is a much
+  larger and riskier change than this feature warrants, and would silently
+  hide products in any store whose imported rows already carry `is_active = 0`.
+  A product with no stock and no open order is already functionally
+  "deactivated" by having nothing to sell; the delete is what removes the
+  row from the picker.
+- `delete_suppliers` — `components/stock-batch/supplier-detail-pane.tsx`'s
+  action row (a "Delete Supplier" outline button beside Edit Details and New
+  Order, opening `components/suppliers/supplier-delete-dialog.tsx`), backed
+  by `deleteSupplier()` in `lib/db/procurement.ts`. The row's column count is
+  now a literal-class lookup (`ACTION_GRID_COLS`, same mechanism as
+  `CATALOG_GRID_COLS`/`SECONDARY_ACTION_GRID_COLS`) because it varies from
+  one to three buttons with the two keys. It sits in the **detail pane, not
+  `supplier-table.tsx`'s rows**: the table has no row menu at all (its only
+  row affordance is the inline rating pencil), and a destructive action on a
+  row you may have clicked by accident is the wrong place for one.
+  **One blocker**: money still owed, summed by
+  `getSupplierOutstandingBalance()` over unpaid purchase orders — the exact
+  mirror of `customer-delete-dialog.tsx`'s guard, from the payable side
+  instead of the receivable one. Deleting a vendor you still owe erases the
+  payable from the directory's "₦X owed to N suppliers" summary while the
+  orders stay on the books. **Order history is not a blocker.** Unlike
+  products, suppliers **do** have a real, user-editable deactivate state —
+  `suppliers.is_active`, set by the Add/Edit Supplier dialog's Active toggle
+  and shown as the Active/Inactive badge on this very pane — so the
+  non-blocking delete dialog **names it**: "If you only want to stop ordering
+  from them, set them to Inactive under Edit Details instead." That is the
+  asymmetry in one line: products get a guard because they have no softer
+  option, suppliers get a signpost because they do.
+
+Defaults follow the catalog's standing rule that `delete_*` keys are
+admin/manager only: `manager` holds both, `specialist` (the stock-owning
+role) holds neither despite holding every other Inventory & Stock write key,
+and `sales_staff`/`auditor` hold neither. The safety-check design does not
+change that calculus — the guards stop a *destructive mistake*, not an
+*unauthorised* one, and a store that wants its stock specialist deleting
+dead catalog rows ticks one box. Nothing narrows on day one, because neither
+action existed before.
+
+The other three Inventory & Stock keys were **removed from the catalog** on
 2026-09-29 — see "Removed from the catalog" below.
 
 Both **Prescriptions** keys followed on 2026-09-28, in the same pass. The
@@ -1142,14 +1229,15 @@ narrowing this pass has no evidence anyone wants.
 
 All eight categories have now been walked: Sales & POS, Inventory & Stock,
 Prescriptions, Customers & Loyalty, Reports & Activity, Expenses, Staff &
-Groups and Store & Settings. After the 2026-09-29 re-investigation below,
-**44 of the catalog's 45 keys are enforced** and exactly **one is
+Groups and Store & Settings. After the 2026-09-29 re-investigation below
+and the two delete features built the same day,
+**46 of the catalog's 47 keys are enforced** and exactly **one is
 catalog-only**:
 
 | Category | Enforced | Catalog-only |
 | --- | --- | --- |
 | Sales & POS | 8 / 8 | — |
-| Inventory & Stock | 14 / 14 | — |
+| Inventory & Stock | 16 / 16 | — |
 | Prescriptions | 2 / 2 | — |
 | Customers & Loyalty | 4 / 4 | — |
 | Reports & Activity | 4 / 5 | `view_dashboard` |
@@ -1160,8 +1248,9 @@ catalog-only**:
 `view_dashboard` is the only one left, and it is **not** a "the feature does
 not exist" finding: it has a real surface and the gate would simply be wrong
 (see its entry above). Every key that *was* a "does not exist yet" finding
-has now been resolved one way or the other — two were wired, nine were
-removed.
+has now been resolved one way or the other — two were wired, two had their
+missing feature **built** (`delete_products`, `delete_suppliers`), and seven
+were removed.
 
 ### Removed from the catalog (2026-09-29)
 
@@ -1173,7 +1262,18 @@ leak the first pass never opened the file to see) and `print_product_labels`
 (a finished dialog whose trigger was simply never wired). Their entries are
 in the Sales & POS and Inventory & Stock blocks above.
 
-The other nine were re-traced file by file and confirmed dead — **no
+Two more — `delete_products` and `delete_suppliers` — were removed that day
+and **restored the same day**, and this is the one case where the finding
+was right and the *decision* was overturned rather than the evidence. There
+genuinely was no delete anywhere; the owner's call was that this is a
+product gap, not a catalog-cleanup item. So the feature was built
+(`deleteProduct()`/`deleteSupplier()` and their confirmation dialogs) and
+both keys came back **with** their enforcement, in the same commit — which
+is the standing rule working as intended, in the direction it is usually
+read. Their entries, including the deactivate-vs-delete safety-check
+design, are in the Inventory & Stock block above.
+
+The remaining seven were re-traced file by file and confirmed dead — **no
 feature, and no small safe fix available** — so they were **deleted** from
 `PERMISSION_CATALOG`, `DEFAULT_GROUP_PERMISSIONS` and
 `PermissionGroupSeeder.php`'s server-side copy, rather than left wearing a
@@ -1188,10 +1288,8 @@ restricted an employee when they have not.
 | `edit_completed_sale` | Every `update("sales", …)` call site: the refund path (`use-process-return-mutation.ts`, already `void_refund_sales`), the reseller-commission redeem, and a debt payment (`customers.ts`). No re-assign customer, no note/reference edit, no payment-method correction; `transaction-details-dialog.tsx`'s only buttons are payment, return, reprint and commission. |
 | `override_credit_limit` | `customers.credit_limit` appears in exactly two places repo-wide: `schema.ts`'s column and one report-export column in `reports.ts`. `use-pos-payment.ts` adds a credit sale straight onto `outstanding_balance` with no ceiling check — not even a soft warning. There is no block, so there is nothing to override. |
 | `manage_customer_credit_terms` | The same two places, from the other side: nothing in the app ever **sets** `credit_limit` either — no field in the add/edit customer modals, no terms UI. Both keys would front a feature that is one unused column. |
-| `manage_stock_batches` | No batch CRUD screen. `/inventory/batches` is in `generateStaticParams` but `stock-batch-management.tsx` renders no `<TabsContent>` for it, and its "Add Batch" header action points at a `?action=add` nothing handles. `createStockBatch()`'s only caller is `getOrCreateTargetBatchForProduct()`; every other `stock_batches` write is receiving, audit restock or CSV import. Batch expiry is only ever set during receiving (`receive_purchase_orders`). |
+| `manage_stock_batches` | No batch CRUD screen. `/inventory/batches` was in `generateStaticParams` but `stock-batch-management.tsx` rendered no `<TabsContent>` for it, and its "Add Batch" header action pointed at a `?action=add` nothing handles. `createStockBatch()`'s only caller is `getOrCreateTargetBatchForProduct()`; every other `stock_batches` write is receiving, audit restock or CSV import. Batch expiry is only ever set during receiving (`receive_purchase_orders`). The dead route itself was fixed on 2026-09-29 — see "The dead /inventory/batches route" below. |
 | `approve_stock_transfers` | `transferStock()` applies both legs immediately. The `needs_review` status it sets for a non-admin initiator is a **passive amber badge** in the movements ledger (`stock-movement-desktop-row.tsx`, `stock-movement-mobile-group.tsx`) and nothing anywhere clears it. No pending queue, no incoming view, no accept/reject, not even partial. |
-| `delete_products` | No `deleteProduct` query, no `softDelete("products", …)`, no row or detail menu delete, no bulk deactivate or archive, no import-driven removal. The generic `useDelete()` hook in `useLocalMutation.ts` has **zero callers**. Products are deactivated by status. |
-| `delete_suppliers` | Identical: no `deleteSupplier`, no `softDelete("suppliers", …)`, nothing delete-adjacent in the supplier table or detail pane. The supplier split is a genuine two-way split. |
 
 **`open_cash_drawer`, `manage_stock_batches` and `approve_stock_transfers`
 predate the QuickBooks pass** (the other six were all added in `91c3dfd3`
@@ -1201,10 +1299,44 @@ three as strings. That is harmless — an unrecognised key grants nothing and
 is never read — so no migration backfills them out. The client catalog and
 the Laravel seeder were changed together so the two stay in step.
 
-Do **not** re-add any of the nine from a fresh QuickBooks comparison without
+Do **not** re-add any of the seven from a fresh QuickBooks comparison without
 re-litigating this: the standing rule is that a key and its enforcement ship
 in the **same commit**, and that rule now runs in both directions — a key
 with no action does not get to sit in the catalog waiting for one.
+
+### The dead `/inventory/batches` route (2026-09-29)
+
+`/inventory/batches` was a generated route with nothing behind it:
+`app/(dashboard)/inventory/[tab]/page.tsx` lists `batches` in
+`generateStaticParams`, but `stock-batch-management.tsx` renders no
+`<TabsContent value="batches">`, so the page resolved to the tab bar and an
+empty panel. Three things pointed at it — the `/inventory/batches` header
+action ("Add Batch", `?action=add`, which nothing anywhere handles),
+`needs-attention.tsx`'s "View batch" card and
+`use-action-center-alerts.ts`'s expiring-items alert.
+
+The fix is a **redirect to `/inventory/catalog`**, not a new Add Batch
+dialog, because there is no batch-create flow to point the button at:
+`createStockBatch()`'s only caller is `getOrCreateTargetBatchForProduct()`,
+and every other `stock_batches` write is receiving, audit restock or CSV
+import (this is the same finding that removed `manage_stock_batches`, and it
+is still true). The Catalog tab is the all-products-with-stock view all
+three callers actually meant.
+
+It redirects **client-side, in `use-stock-batch-management.ts`**, beside the
+existing `audits` and `ledger` redirects, rather than server-side in the tab
+page. That is not a style choice: `next.config.mjs` sets `output: "export"`,
+so a `redirect()` inside a statically generated param is evaluated at build
+time, and `batches` has to stay in `generateStaticParams` or an existing
+bookmark 404s instead of redirecting. The route still generates; the page
+bounces on mount.
+
+The `/inventory/batches` `PAGE_ROUTES` entry was **deleted** rather than
+repointed — it existed only to title a page that never rendered and to offer
+an action that landed nowhere, and `/inventory`'s own entry (Inventory
+Dashboard / Add Product) already covers the prefix. The two in-app callers
+were repointed at `/inventory/catalog` directly so they do not flash through
+the redirect.
 
 ### The 2026-09-28 granularity pass
 
@@ -1238,8 +1370,9 @@ enforcement and add the key in the same commit**, and add the key to
   same day, along with `adjust_stock_counts`, `manage_purchase_orders`,
   `receive_purchase_orders`, `manage_suppliers` and
   `request_stock_transfers`; `print_product_labels` followed on 2026-09-29,
-  and `delete_products`/`delete_suppliers` were removed that day — see the
-  Inventory & Stock block above before re-investigating any of them. `view_cost_fields` is the key form of the cashier cost/margin
+  and `delete_products`/`delete_suppliers` on the same day, once the delete
+  features they front were actually built — see the Inventory & Stock block
+  above before re-investigating any of them. `view_cost_fields` is the key form of the cashier cost/margin
   gating described below; that conversion has now happened for
   `product-pricing-info.tsx`, and the remaining
   `role === "sales_staff"` sites (`daily-close-report.tsx`,
@@ -1758,11 +1891,26 @@ is now wired to the Daily Close banner's backup/sync buttons (which were a
 real data-export leak open to cashiers), and `print_product_labels` to a new
 "Print Labels" item in the catalog detail panel's overflow menu, which
 finally makes the long-finished barcode dialog reachable. The other nine were
-confirmed dead and **removed from the catalog** outright. 44 of the catalog's
-45 keys now have a real call site; only `view_dashboard` is catalog-only, and
-deliberately so. Read the Enforced permissions section — especially "The
-category-by-category pass is complete" and "Removed from the catalog
-(2026-09-29)" — before touching a permission key or re-adding a removed one.
+confirmed dead and **removed from the catalog** outright.
+
+Two of those nine came straight back the same day, by a different route:
+`delete_products` and `delete_suppliers`. The removal finding was correct —
+there really was no delete anywhere — but the owner's call was that this is
+a **product gap, not a catalog-cleanup item**, so the features were built
+(`deleteProduct()` / `deleteSupplier()`, a confirmation dialog each, gated
+menu/action-row triggers) and both keys returned with their enforcement in
+the same commit. Read their entries in the Inventory & Stock block for the
+**deactivate-vs-delete** design: products get a hard guard (stock on hand,
+open purchase order) because they have no deactivate state worth the blast
+radius of adding one; suppliers get a debt guard plus a signpost to the
+Inactive toggle they already have. The same day's other fix retired the dead
+`/inventory/batches` route, which now redirects to the Catalog tab.
+
+46 of the catalog's 47 keys now have a real call site; only `view_dashboard`
+is catalog-only, and deliberately so. Read the Enforced permissions section —
+especially "The category-by-category pass is complete", "Removed from the
+catalog (2026-09-29)" and "The dead `/inventory/batches` route" — before
+touching a permission key or re-adding a removed one.
 
 Most recent work (2026-09-28, later) worked through a live client's
 ("Cynthia", construction-materials store) feedback list — see the

@@ -93,6 +93,20 @@ export function getReportHeaders(reportId: ReportId): string[] {
   return REPORT_CONFIG[reportId].headers as unknown as string[];
 }
 
+/** Whether a report's query takes dateFrom/dateTo at all - Inventory
+ * Valuation and Customer Loyalty are point-in-time snapshots, so the report
+ * view renders no date control for them rather than an inert one. */
+export function reportSupportsDateRange(reportId: ReportId): boolean {
+  return REPORT_CONFIG[reportId].takesDateRange;
+}
+
+/** Whether a report's query takes a SalesFilters object (staff id + payment
+ * method). Same contract as reportSupportsDateRange, read from the one
+ * config both the exports and the on-screen view already run on. */
+export function reportSupportsSalesFilters(reportId: ReportId): boolean {
+  return REPORT_CONFIG[reportId].takesSalesFilters;
+}
+
 // Only these two report types carry a product or category name column, and
 // both alias their SQL output to the exact header name (see
 // fetchStockBatchReportData/fetchTopSellersReportData in lib/db/queries/

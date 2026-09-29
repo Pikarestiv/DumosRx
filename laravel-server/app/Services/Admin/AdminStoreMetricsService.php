@@ -66,7 +66,7 @@ class AdminStoreMetricsService
 
     public function operationalMetrics(Store $store): array
     {
-        $staffIds = User::where('store_id', $store->id)->pluck('id');
+        $staffIds = User::where('store_id', $store->id)->where('id', '!=', $store->user_id)->pluck('id');
         $staffCount = $staffIds->count();
         $sessionUserIds = $staffIds->merge([$store->user_id])->filter()->unique();
 
@@ -119,7 +119,7 @@ class AdminStoreMetricsService
      * falling back to the owner's / staff's cashier_id for rows synced
      * before that column existed.
      */
-    private function salesQuery(Store $store)
+    public function salesQuery(Store $store)
     {
         return DB::table('sales')->where(function ($q) use ($store) {
             $q->where('sales.store_id', $store->id)

@@ -157,10 +157,10 @@ class AdminStoreDetailService
     private function countsPayload(Store $store): array
     {
         return [
-            'staff' => User::where('store_id', $store->id)->count(),
+            'staff' => User::where('store_id', $store->id)->where('id', '!=', $store->user_id)->count(),
             'products' => DB::table('products')->where('store_id', $store->id)->count(),
             'customers' => DB::table('customers')->where('store_id', $store->id)->count(),
-            'sales' => DB::table('sales')->where('store_id', $store->id)->count(),
+            'sales' => $this->metricsService->salesQuery($store)->count(),
         ];
     }
 

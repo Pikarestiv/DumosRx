@@ -758,6 +758,37 @@ catalog, the till and the directory; it does not rewrite history. If a future
 change ever adds `_deleted = 0` to one of those joins, these deletes silently
 start erasing report rows — that filter is load-bearing in its absence.
 
+**That absence is pinned by tests, not just by this note** (added 2026-09-29).
+Each one seeds a product/vendor, records history against it, soft-deletes it
+through the real `deleteProduct()`/`deleteSupplier()`, then runs the actual
+query function and asserts the historical row still resolves the name. All
+sixteen go red the moment a `_deleted = 0` filter is added to the join they
+protect (verified by temporarily adding one to every join below):
+
+- `__tests__/deleted-product-report-history.test.ts` — `reports.ts`:
+  `getBIMetrics()`'s `topSellingByRevenue` / `topSellingByQuantity` /
+  `categoryDistribution` / `productPerformance`, `fetchTopSellersReportData()`,
+  and `getPurchasePatterns()`'s `slotCategoryData`.
+- `__tests__/deleted-product-sales-history.test.ts` — `sales.ts`:
+  `getSaleItems()`, `getTransactionDetails()`, `getRecentSales()`'s
+  `item_names`, `getDailyCloseData()`'s `itemsToday`; plus `customers.ts`'s
+  `getCustomerTransactions()` `item_names`. (`getResellerCommissionSales()`
+  carries the same `item_names` subquery and the same comment.)
+- `__tests__/deleted-entity-procurement-history.test.ts` — `procurement.ts`:
+  `getPurchaseOrders()` and `getPurchaseOrderById()` (`vendor_name`, which
+  falls back to "Self / Walk-in Purchase" if the vendor join is filtered) plus
+  their product joins, `getPurchaseOrderItemsForDetail()`;
+  `local-database.ts`'s `getStockMovements()` / `getStockAdjustments()`
+  (product **and** supplier name); and `stock-transfers.ts`'s
+  `getStockTransferHistory()` source/destination product names.
+
+Every one of those joins now also carries a two-line comment at the join
+itself pointing back here, so the warning is visible where the edit would be
+made. `reports.ts`'s `fetchStockBatchReportData()` and `inventory.ts`'s
+expiry/oversold/fast-mover reads are **not** in that set: they already filter
+`m._deleted = 0` on purpose, because they report on *current* stock rather
+than on history.
+
 - `delete_products` — `components/products/catalog-detail-panel.tsx`'s
   overflow menu (a third item beside Edit Product and Print Labels, opening
   `components/products/product-delete-dialog.tsx`), backed by
@@ -819,8 +850,95 @@ change that calculus — the guards stop a *destructive mistake*, not an
 dead catalog rows ticks one box. Nothing narrows on day one, because neither
 action existed before.
 
-The other three Inventory & Stock keys were **removed from the catalog** on
-2026-09-29 — see "Removed from the catalog" below.
+`approve_stock_transfers` joined the enforced list on 2026-09-29 too, and it
+is the **fourth** reversal of that morning's removal pass — and, like the two
+deletes, a product decision rather than a missed file. The removal finding
+was re-traced from scratch and every line of it holds: `transferStock()`
+(`lib/db/queries/stock-transfers.ts`) deducts the source batches FEFO,
+opens the destination batch and writes **both** `transfer_out`/`transfer_in`
+movement rows inside one `transaction()`, so the stock lands the instant the
+dialog is submitted; `needs_review` is set on both legs only when
+`checkIsAdmin(initiatedByRole)` is false, i.e. a non-admin initiator; and
+nothing anywhere read that status except two amber badges
+(`stock-movement-desktop-row.tsx`, `stock-movement-mobile-group.tsx`) that
+the detail modal did not even repeat. No pending queue, no accept/reject.
+The label was the lie, not the mechanism.
+
+**Option A (a real approval queue) was considered and deliberately not
+built.** The decisive argument is not risk, it is that the flow does not
+have two parties in the places an approval queue assumes:
+
+- **The requester IS the destination.** `transfer-stock-dialog.tsx` pins
+  `destStoreId` to the acting store for a non-admin (`isAdmin ?
+  manualDestStoreId : activeStoreId`) precisely so a cashier can only PULL
+  stock in, never push it out. An "confirm it arrived at the destination"
+  gate would therefore be the cashier approving their own request. The party
+  with an exposure here is the **source** store, which is losing stock, and
+  the person who should check is the **owner**, after the fact — which is
+  exactly the shape `needs_review` already has.
+- `receive_purchase_orders` is not the precedent it looks like. A supplier
+  delivery has a genuine gap in time and custody between ordering and
+  arrival; a store-to-store transfer in this app is one atomic local write
+  across two stores on the same synced database.
+- The data model actively resists it. The header note at the top of
+  `stock-transfers.ts` records why there is no `stock_transfers` table: a
+  new table needs a matching Laravel migration before it can round-trip
+  through cloud sync, and a pending transfer held in an unsynced local table
+  would be invisible on every other terminal. A pending state is exactly the
+  thing that must sync. With a live multi-store customer on this flow since
+  2026-09-25, that is a change that needs product sign-off and a server-side
+  commit, not a permission pass.
+
+**Option A stays on the table as a follow-up** if a store ever reports
+receiving-end disputes ("it says it arrived, it never did"); it would need a
+synced pending state (server migration included) and would change the
+multi-store UX for anyone already using transfers. Do not ship it off the
+back of this entry.
+
+So **Option B**: the existing flag was made actionable, and the key's label
+changed with it — `approve_stock_transfers` is now **"Review Stock
+Transfers"**, not "Approve Incoming Stock Transfers", because the label must
+describe what the key gates. It gates the **"Mark Reviewed"** action in
+`components/stock-batch/stock-movement-detail-modal.tsx` (one hoisted
+`useHasPermission("approve_stock_transfers")` const, as usual), backed by
+`markStockTransferReviewed()` in `lib/db/queries/stock-transfers.ts`.
+
+- The action lives in the **detail modal, not the ledger row**. The rows are
+  virtualized and the whole ledger is click-to-open; the same reasoning that
+  put Delete Supplier in the detail pane rather than the table applies.
+- It clears **both legs by `reference_id`**, not the one row that was opened
+  — reviewing the out leg and leaving the in leg flagged is meaningless. Each
+  leg is updated under its **own `store_id`**, never the acting store's,
+  because the two legs live in two different stores by definition and
+  `update()`'s `assertStoreOwnership` would otherwise reject one of them.
+- Status goes to **`"reviewed"`, not `null`**. Blanking it would make a
+  reviewed transfer indistinguishable from one that was never flagged, so
+  the ledger now carries a muted "Reviewed" badge beside the amber "Needs
+  Review" one. `stock_movements.status` is a nullable string on **both**
+  sides already (client `schema-migrations.ts`, server
+  `2026_09_23_000003_add_status_to_stock_movements.php`), so this needed **no
+  schema change on either side** — which is the other half of why Option B
+  was safe to ship today and Option A was not.
+- It is **idempotent**: it only ever selects rows still sitting at
+  `needs_review`, so a second click, or two devices reviewing the same
+  transfer, writes nothing and reports 0. The modal says "already reviewed"
+  rather than failing.
+- The amber flag itself stays visible to **every** role that can open the
+  ledger; only the button to clear it is gated. A group without the key sees
+  that a transfer needs checking and cannot sign it off.
+
+Defaults: `manager` holds it (restored), admin holds everything.
+`specialist` deliberately does **not**, despite holding every other
+Inventory & Stock write key including `request_stock_transfers` — it is the
+one key in this category that tracks `manage_staff`'s population rather than
+the stock role's, because a stock specialist signing off their own transfer
+request is the exact thing the flag exists to prevent. `sales_staff` and
+`auditor` hold neither. Nothing narrows on day one: the action did not exist
+before.
+
+The one remaining Inventory & Stock key, `manage_stock_batches`, was
+**removed from the catalog** on 2026-09-29 — see "Removed from the catalog"
+below.
 
 Both **Prescriptions** keys followed on 2026-09-28, in the same pass. The
 category is small and was **completely ungated before this** — the
@@ -1229,15 +1347,15 @@ narrowing this pass has no evidence anyone wants.
 
 All eight categories have now been walked: Sales & POS, Inventory & Stock,
 Prescriptions, Customers & Loyalty, Reports & Activity, Expenses, Staff &
-Groups and Store & Settings. After the 2026-09-29 re-investigation below
-and the two delete features built the same day,
-**46 of the catalog's 47 keys are enforced** and exactly **one is
+Groups and Store & Settings. After the 2026-09-29 re-investigation below,
+the two delete features and the transfer-review action built the same day,
+**47 of the catalog's 48 keys are enforced** and exactly **one is
 catalog-only**:
 
 | Category | Enforced | Catalog-only |
 | --- | --- | --- |
 | Sales & POS | 8 / 8 | — |
-| Inventory & Stock | 16 / 16 | — |
+| Inventory & Stock | 17 / 17 | — |
 | Prescriptions | 2 / 2 | — |
 | Customers & Loyalty | 4 / 4 | — |
 | Reports & Activity | 4 / 5 | `view_dashboard` |
@@ -1248,9 +1366,9 @@ catalog-only**:
 `view_dashboard` is the only one left, and it is **not** a "the feature does
 not exist" finding: it has a real surface and the gate would simply be wrong
 (see its entry above). Every key that *was* a "does not exist yet" finding
-has now been resolved one way or the other — two were wired, two had their
-missing feature **built** (`delete_products`, `delete_suppliers`), and seven
-were removed.
+has now been resolved one way or the other — two were wired, three had their
+missing feature **built** (`delete_products`, `delete_suppliers`,
+`approve_stock_transfers`), and six were removed.
 
 ### Removed from the catalog (2026-09-29)
 
@@ -1262,18 +1380,24 @@ leak the first pass never opened the file to see) and `print_product_labels`
 (a finished dialog whose trigger was simply never wired). Their entries are
 in the Sales & POS and Inventory & Stock blocks above.
 
-Two more — `delete_products` and `delete_suppliers` — were removed that day
-and **restored the same day**, and this is the one case where the finding
-was right and the *decision* was overturned rather than the evidence. There
-genuinely was no delete anywhere; the owner's call was that this is a
-product gap, not a catalog-cleanup item. So the feature was built
-(`deleteProduct()`/`deleteSupplier()` and their confirmation dialogs) and
-both keys came back **with** their enforcement, in the same commit — which
-is the standing rule working as intended, in the direction it is usually
-read. Their entries, including the deactivate-vs-delete safety-check
-design, are in the Inventory & Stock block above.
+Three more — `delete_products`, `delete_suppliers` and
+`approve_stock_transfers` — were removed that day and **restored the same
+day**, and these are the cases where the finding was right and the
+*decision* was overturned rather than the evidence. There genuinely was no
+delete anywhere, and there genuinely was no way to clear a `needs_review`
+transfer; the owner's call was that each is a product gap, not a
+catalog-cleanup item. So the features were built
+(`deleteProduct()`/`deleteSupplier()` and their confirmation dialogs;
+`markStockTransferReviewed()` and the ledger detail modal's "Mark
+Reviewed") and all three keys came back **with** their enforcement, in the
+same commit — which is the standing rule working as intended, in the
+direction it is usually read. Their entries — the deactivate-vs-delete
+safety-check design, and the Option A (approval queue) vs. Option B
+(actionable review flag) reasoning that also renamed
+`approve_stock_transfers` to "Review Stock Transfers" — are in the
+Inventory & Stock block above.
 
-The remaining seven were re-traced file by file and confirmed dead — **no
+The remaining six were re-traced file by file and confirmed dead — **no
 feature, and no small safe fix available** — so they were **deleted** from
 `PERMISSION_CATALOG`, `DEFAULT_GROUP_PERMISSIONS` and
 `PermissionGroupSeeder.php`'s server-side copy, rather than left wearing a
@@ -1289,17 +1413,15 @@ restricted an employee when they have not.
 | `override_credit_limit` | `customers.credit_limit` appears in exactly two places repo-wide: `schema.ts`'s column and one report-export column in `reports.ts`. `use-pos-payment.ts` adds a credit sale straight onto `outstanding_balance` with no ceiling check — not even a soft warning. There is no block, so there is nothing to override. |
 | `manage_customer_credit_terms` | The same two places, from the other side: nothing in the app ever **sets** `credit_limit` either — no field in the add/edit customer modals, no terms UI. Both keys would front a feature that is one unused column. |
 | `manage_stock_batches` | No batch CRUD screen. `/inventory/batches` was in `generateStaticParams` but `stock-batch-management.tsx` rendered no `<TabsContent>` for it, and its "Add Batch" header action pointed at a `?action=add` nothing handles. `createStockBatch()`'s only caller is `getOrCreateTargetBatchForProduct()`; every other `stock_batches` write is receiving, audit restock or CSV import. Batch expiry is only ever set during receiving (`receive_purchase_orders`). The dead route itself was fixed on 2026-09-29 — see "The dead /inventory/batches route" below. |
-| `approve_stock_transfers` | `transferStock()` applies both legs immediately. The `needs_review` status it sets for a non-admin initiator is a **passive amber badge** in the movements ledger (`stock-movement-desktop-row.tsx`, `stock-movement-mobile-group.tsx`) and nothing anywhere clears it. No pending queue, no incoming view, no accept/reject, not even partial. |
 
-**`open_cash_drawer`, `manage_stock_batches` and `approve_stock_transfers`
-predate the QuickBooks pass** (the other six were all added in `91c3dfd3`
-on 2026-09-28, so no real store could hold them), which means an
-already-synced `permission_groups.permissions` array may still carry those
-three as strings. That is harmless — an unrecognised key grants nothing and
+**`open_cash_drawer` and `manage_stock_batches` predate the QuickBooks
+pass** (the other four were all added in `91c3dfd3` on 2026-09-28, so no
+real store could hold them), which means an already-synced
+`permission_groups.permissions` array may still carry those two as strings. That is harmless — an unrecognised key grants nothing and
 is never read — so no migration backfills them out. The client catalog and
 the Laravel seeder were changed together so the two stay in step.
 
-Do **not** re-add any of the seven from a fresh QuickBooks comparison without
+Do **not** re-add any of the six from a fresh QuickBooks comparison without
 re-litigating this: the standing rule is that a key and its enforcement ship
 in the **same commit**, and that rule now runs in both directions — a key
 with no action does not get to sit in the catalog waiting for one.

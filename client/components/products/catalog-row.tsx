@@ -16,6 +16,12 @@ const NO_LABEL_PERMISSION =
   "You don't have permission to print product labels. Ask an admin for the “Print Product Labels” permission.";
 const NO_DELETE_PERMISSION =
   "You don't have permission to delete products. Ask an admin for the “Delete Products” permission.";
+// The `title` above can never surface on a disabled item - the menu applies
+// data-[disabled]:pointer-events-none, so it never receives hover. The short
+// form renders on screen instead; the long one stays as a title for the
+// pointer-events cases (and for assistive tech reading the attribute).
+const NO_LABEL_PERMISSION_HINT = "Needs the “Print Product Labels” permission";
+const NO_DELETE_PERMISSION_HINT = "Needs the “Delete Products” permission";
 
 /** Literal class strings, not a template: Tailwind's scanner only sees
  * classes that appear whole in the source. Indexed by whether the Avg Cost
@@ -224,18 +230,34 @@ function CatalogRowInner({
           disabled={!canPrintLabels}
           title={canPrintLabels ? undefined : NO_LABEL_PERMISSION}
           onSelect={() => onPrintLabel(product)}
+          className="items-start"
         >
-          <Barcode className="w-4 h-4 mr-2" />
-          Print barcode label
+          <Barcode className="w-4 h-4 mr-2 mt-0.5" />
+          <span className="flex flex-col gap-0.5">
+            Print barcode label
+            {!canPrintLabels && (
+              <span className="text-[11px] leading-tight text-muted-foreground">
+                {NO_LABEL_PERMISSION_HINT}
+              </span>
+            )}
+          </span>
         </ContextMenuItem>
         <ContextMenuItem
           variant="destructive"
           disabled={!canDeleteProducts}
           title={canDeleteProducts ? undefined : NO_DELETE_PERMISSION}
           onSelect={() => onDeleteProduct(product)}
+          className="items-start"
         >
-          <Trash2 className="w-4 h-4 mr-2" />
-          Delete product
+          <Trash2 className="w-4 h-4 mr-2 mt-0.5" />
+          <span className="flex flex-col gap-0.5">
+            Delete product
+            {!canDeleteProducts && (
+              <span className="text-[11px] leading-tight text-muted-foreground">
+                {NO_DELETE_PERMISSION_HINT}
+              </span>
+            )}
+          </span>
         </ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>

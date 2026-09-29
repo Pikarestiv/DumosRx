@@ -29,6 +29,7 @@ import { sync, isSyncing } from "@/lib/db/sync-engine";
 import { queryClient } from "@/lib/query-client";
 import { clearPOSCartStorage } from "@/lib/hooks/use-pos-cart";
 import { clearStockAuditDraft } from "@/lib/hooks/use-stock-audit-draft";
+import { clearStockAdjustmentDraft } from "@/lib/hooks/use-stock-adjustment-draft";
 import { isTauri } from "@/lib/db";
 import { setActiveStoreId as setResolvedStoreId } from "@/lib/db/core";
 import { getToken } from "@/lib/api/token-manager";
@@ -452,6 +453,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (previousUserId && previousUserId !== dbUser.id) {
         clearPOSCartStorage();
         clearStockAuditDraft();
+        clearStockAdjustmentDraft();
       }
 
       setUser(userProfile);
@@ -659,6 +661,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // whichever cashier signs in next.
     clearPOSCartStorage();
     clearStockAuditDraft();
+    clearStockAdjustmentDraft();
     // See the matching comment in login(): an impersonated session that
     // ends via the ordinary "Sign Out" button instead of the banner's "End
     // Session" button would otherwise leave these flags behind forever.

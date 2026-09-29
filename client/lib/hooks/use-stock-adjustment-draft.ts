@@ -53,3 +53,11 @@ export const useStockAdjustmentDraftStore = create<StockAdjustmentDraftState>()(
     { name: "stock-adjustment-draft" },
   ),
 );
+
+/** Called on a store switch and on logout, alongside clearPOSCartStorage()
+ * and clearStockAuditDraft(): the draft is staged against one store's
+ * product ids under a single global key, so it must not survive into a
+ * newly-active store or a different cashier on a shared terminal. */
+export function clearStockAdjustmentDraft() {
+  useStockAdjustmentDraftStore.getState().clearDraft();
+}

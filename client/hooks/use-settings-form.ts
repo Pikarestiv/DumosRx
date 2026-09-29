@@ -1,20 +1,6 @@
 import { useState, useEffect } from "react";
 import type { StoreProfile } from "@/lib/context/store-context";
-
-const DEFAULT_ENABLED_PAYMENT_METHODS = ["cash", "card", "transfer", "credit", "mixed"];
-
-// enabled_payment_methods is stored as TEXT holding JSON, not a real column
-// type - a malformed or double-encoded value (see docs/FIXED_BUGS.md A-29)
-// must fall back to the default rather than throwing during a render.
-function parseEnabledPaymentMethods(raw: string | null | undefined): string[] {
-  if (!raw) return DEFAULT_ENABLED_PAYMENT_METHODS;
-  try {
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : DEFAULT_ENABLED_PAYMENT_METHODS;
-  } catch {
-    return DEFAULT_ENABLED_PAYMENT_METHODS;
-  }
-}
+import { parseEnabledPaymentMethods } from "@/lib/payment-methods";
 
 export function useSettingsForm(storeProfile: StoreProfile | null, minimumSyncIntervalMinutes: number) {
   // Form States

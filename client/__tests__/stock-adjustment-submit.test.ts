@@ -79,6 +79,7 @@ vi.mock('@/lib/db/local-database', () => ({
 }));
 
 import { submitStockAdjustment } from '@/lib/db/queries/inventory';
+import { resolveAdjustmentDelta } from '@/components/stock-batch/adjustment-derivations';
 
 describe('submitStockAdjustment (quick Adjust Stock persistence)', () => {
   beforeEach(() => {
@@ -185,6 +186,29 @@ describe('submitStockAdjustment (quick Adjust Stock persistence)', () => {
 
     expect(movements).toHaveLength(0);
     expect(batches['b1'].quantity).toBe(20);
+  });
+
+  it('reduces stock FEFO when an inventory count comes in under the system quantity', async () => {
+    batches['soon'] = { id: 'soon', product_id: 'p1', quantity: 4, expiry_date: NEAR_EXPIRY };
+    batches['later'] = { id: 'later', product_id: 'p1', quantity: 4, expiry_date: FAR_EXPIRY };
+
+    const countedQuantity = 5;
+    const currentStock = 8;
+
+    await submitStockAdjustment(
+      [
+        {
+          productId: 'p1',
+          delta: resolveAdjustmentDelta('inventory_count', countedQuantity, currentStock),
+        },
+      ],
+      { reason: 'Inventory count', performedBy: 'user-1' },
+    );
+
+    expect(batches['soon'].quantity).toBe(1);
+    expect(batches['later'].quantity).toBe(4);
+    const onHand = batches['soon'].quantity + batches['later'].quantity;
+    expect(onHand).toBe(countedQuantity);
   });
 
   it('refuses to record an adjustment with no performing user', async () => {

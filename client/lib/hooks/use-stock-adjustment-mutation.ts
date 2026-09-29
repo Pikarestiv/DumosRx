@@ -17,8 +17,11 @@ interface SubmitStockAdjustmentParams {
 
 /** Turns a draft (a fixed reason, an optional note, and per-item quantities
  * entered as plain positive numbers) into the signed deltas the DB layer
- * writes. The note rides in `reason` behind a separator - stock_movements has
- * no note column (see adjustment-derivations.ts). */
+ * writes. Under Inventory count the entered number is the counted on-shelf
+ * quantity rather than an amount to move, so its delta is the difference from
+ * current stock and can be negative - see resolveAdjustmentDelta. The note
+ * rides in `reason` behind a separator, since stock_movements has no note
+ * column (see adjustment-derivations.ts). */
 export function useSubmitStockAdjustmentMutation() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -26,7 +29,7 @@ export function useSubmitStockAdjustmentMutation() {
       submitStockAdjustment(
         items.map((item) => ({
           productId: item.productId,
-          delta: resolveAdjustmentDelta(reason, item.quantity),
+          delta: resolveAdjustmentDelta(reason, item.quantity, item.currentStock),
           unitCost: item.unitCost,
         })),
         { reason: buildAdjustmentReason(reason, note), performedBy },

@@ -150,20 +150,30 @@ describe("adjustment quantity maths", () => {
   });
 
   it("signs the entered quantity from the reason's direction", () => {
-    expect(resolveAdjustmentDelta("receive_items", 5)).toBe(5);
-    expect(resolveAdjustmentDelta("damage", 5)).toBe(-5);
-    expect(resolveAdjustmentDelta("loss", 5)).toBe(-5);
+    expect(resolveAdjustmentDelta("receive_items", 5, 8)).toBe(5);
+    expect(resolveAdjustmentDelta("damage", 5, 8)).toBe(-5);
+    expect(resolveAdjustmentDelta("loss", 5, 8)).toBe(-5);
   });
 
-  it("lets an inventory count move stock either way", () => {
-    expect(resolveAdjustmentDelta("inventory_count", 5)).toBe(5);
-    expect(resolveAdjustmentDelta("inventory_count", -5)).toBe(-5);
+  it("reads an inventory count as the counted quantity, not a delta to add", () => {
+    expect(resolveAdjustmentDelta("inventory_count", 12, 8)).toBe(4);
+    expect(resolveAdjustmentDelta("inventory_count", 8, 8)).toBe(0);
+  });
+
+  it("makes an inventory count below the system quantity a removal", () => {
+    expect(resolveAdjustmentDelta("inventory_count", 5, 8)).toBe(-3);
+    expect(resolveAdjustmentDelta("inventory_count", 0, 8)).toBe(-8);
   });
 
   it("previews stock after the adjustment without going negative", () => {
     expect(computeStockAfter(10, 5)).toBe(15);
     expect(computeStockAfter(10, -4)).toBe(6);
     expect(computeStockAfter(3, -8)).toBe(0);
+  });
+
+  it("previews an inventory count as exactly the counted quantity", () => {
+    expect(computeStockAfter(8, resolveAdjustmentDelta("inventory_count", 5, 8))).toBe(5);
+    expect(computeStockAfter(8, resolveAdjustmentDelta("inventory_count", 13, 8))).toBe(13);
   });
 
   it("round-trips a reason with and without a note", () => {

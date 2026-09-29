@@ -452,6 +452,23 @@ e2e/                       Playwright end-to-end specs
   the "correct a few items right now" counterpart to the cycle count's
   "count everything".
 
+  **"Inventory count" is a target, not a delta.** Every other reason has a
+  fixed direction and the entered number is the amount to move. Inventory
+  count's direction is `"either"`, and there its number is the **counted
+  on-shelf quantity**: `resolveAdjustmentDelta()` returns
+  `entered - currentStock`, which goes negative when the shelf holds less,
+  and Stock After previews the count itself. That is why the function takes
+  `currentStock` as a required third argument. Quantity inputs stay
+  `min={0}` — a physical count cannot be negative; only the derived delta
+  can. See `docs/FIXED_BUGS.md` → A-43.
+
+  **The draft is cleared on a store switch and on logout**, via
+  `clearStockAdjustmentDraft()` (`lib/hooks/use-stock-adjustment-draft.ts`),
+  called from `store-context.tsx` and `auth-context.tsx` beside
+  `clearPOSCartStorage()`/`clearStockAuditDraft()`. It is persisted under one
+  global key and staged against one store's product ids, so it must never
+  survive into a newly-active store or a different cashier.
+
   **It is a full page, not a dialog.** `AdjustStockFlow` renders the same
   shell `stock-audits.tsx` uses — `fixed inset-0 z-50 flex flex-col`, a
   header carrying a back button and a "Step N of 2" subtitle, a centered
@@ -550,7 +567,13 @@ e2e/                       Playwright end-to-end specs
   creating an adjustment is `adjust_stock_counts` (the key the catalog's
   quick stock edit already uses), enforced both on the header action
   (`actionPermission` in `dashboard-page-routes.ts`) and again inside the
-  page, since `?action=create` is a typeable URL.
+  page, since `?action=create` is a typeable URL. That route carries **no**
+  `actionAdminOnly`: the coarse `manage_products` gate on top of the precise
+  key left a holder of `adjust_stock_counts` alone with no reachable entry
+  point above `md`, where the in-page button is hidden. `DashboardHeader`
+  checks whatever key a route names via `hasPermission()` — do not
+  reintroduce a hardcoded list of keys there. See `docs/FIXED_BUGS.md` →
+  A-45.
 
   **No branch column**, unlike the competitor UI this was modelled on: every
   inventory read is already scoped to the active store by

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { EditableNumberCell } from "@/components/ui/editable-number-cell";
 import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
 import {
+  adjustmentQuantityLabel,
   computeStockAfter,
   resolveAdjustmentDelta,
   type AdjustmentReasonValue,
@@ -38,7 +39,7 @@ const AdjustmentItemRow = React.memo(function AdjustmentItemRow({
 }) {
   const stockAfter = computeStockAfter(
     item.currentStock,
-    resolveAdjustmentDelta(reason, item.quantity),
+    resolveAdjustmentDelta(reason, item.quantity, item.currentStock),
   );
 
   return (
@@ -63,7 +64,7 @@ const AdjustmentItemRow = React.memo(function AdjustmentItemRow({
           parse={(raw) => parseInt(raw, 10)}
           min={0}
           widthClassName="w-20"
-          ariaLabel={`Quantity for ${item.name}`}
+          ariaLabel={`${adjustmentQuantityLabel(reason)} quantity for ${item.name}`}
         />
       </div>
 
@@ -123,7 +124,7 @@ export function AdjustmentItemsTable({
               Current
             </div>
             <div role="columnheader" className="text-right px-3 py-2">
-              Quantity
+              {adjustmentQuantityLabel(reason)}
             </div>
             <div role="columnheader" className="text-right px-3 py-2">
               Stock After

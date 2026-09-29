@@ -69,6 +69,28 @@ class StoreEnabledPaymentMethodsCastTest extends TestCase
         $this->assertSame([], $store->fresh()->enabled_payment_methods);
     }
 
+    public function test_a_null_column_stays_null_so_the_client_falls_back_to_every_method(): void
+    {
+        $store = $this->makeStore();
+
+        DB::table('stores')
+            ->where('id', $store->id)
+            ->update(['enabled_payment_methods' => null]);
+
+        $this->assertNull($store->fresh()->enabled_payment_methods);
+    }
+
+    public function test_writing_null_does_not_persist_an_empty_list(): void
+    {
+        $store = $this->makeStore();
+
+        $store->forceFill(['enabled_payment_methods' => ['cash']])->save();
+        $store->forceFill(['enabled_payment_methods' => null])->save();
+
+        $this->assertNull($store->fresh()->enabled_payment_methods);
+        $this->assertNull(DB::table('stores')->where('id', $store->id)->value('enabled_payment_methods'));
+    }
+
     public function test_a_real_array_round_trips_unchanged(): void
     {
         $store = $this->makeStore();

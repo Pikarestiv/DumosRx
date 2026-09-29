@@ -48,7 +48,7 @@ export function AdjustmentPreferencesStep({
                 ? "Adds stock"
                 : option.direction === "decrease"
                   ? "Removes stock"
-                  : "Adds or removes"}
+                  : "Sets stock to the counted quantity"}
             </span>
           </label>
         ))}

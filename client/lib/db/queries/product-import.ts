@@ -1,6 +1,7 @@
 import { query, transaction, getActiveStoreId, insert, update, createSupplier } from "@/lib/db/local-database";
 import { getCategoryByName, getSupplierByName } from "@/lib/db/queries/products";
 import { submitStockAudit, getAllActiveBatchesForProduct } from "@/lib/db/queries/inventory";
+import { PRODUCT_IMPORT_REFERENCE_TYPE } from "@/lib/constants/stock-adjustments";
 import type { ProductImportRow } from "@/lib/utils/product-import-export";
 
 /**
@@ -263,7 +264,7 @@ export async function importProductRows(
             quantity: row.quantity,
             unit_cost: row.costPrice ?? null,
             total_cost: row.costPrice ? row.costPrice * row.quantity : null,
-            reference_type: "import",
+            reference_type: PRODUCT_IMPORT_REFERENCE_TYPE,
             reason: "Bulk import - opening stock",
             performed_by: options?.performedBy ?? null,
             movement_date: new Date().toISOString(),
@@ -301,6 +302,7 @@ export async function importProductRows(
         reason: "Bulk import stock update",
       })),
       options?.performedBy as string,
+      PRODUCT_IMPORT_REFERENCE_TYPE,
     );
   }
 

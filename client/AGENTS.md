@@ -1154,6 +1154,21 @@ e2e/                       Playwright end-to-end specs
   deliberately shows both, one row per distinct `reference_id`, labelling
   the source as "Quick adjustment" or "Cycle count".
 
+  **A third `reference_type`, `"import"` (`PRODUCT_IMPORT_REFERENCE_TYPE`),
+  is deliberately excluded.** Bulk CSV/XLSX import
+  (`lib/db/queries/product-import.ts`) also corrects a product's quantity
+  via `submitStockAudit`, passed this reference_type instead of the default
+  `AUDIT_REFERENCE_TYPE` (its third, optional param). An import side effect
+  isn't something a person deliberately recorded, the way a cycle count or
+  a quick adjustment is — the same reasoning that already keeps a purchase
+  order receipt (`movement_type = 'purchase'`) out of this ledger.
+  `groupAdjustmentMovements` skips it; the underlying `stock_movements` row
+  and its `stock_audits` reconciliation record are unchanged, so FEFO,
+  reporting and the audit trail still see it. One residual side effect,
+  left as-is: a bulk import still bumps the product's `last_audited_at`
+  (read from `stock_audits`, `lib/db/queries/products.ts`), clearing its
+  stale-audit banner even though nobody manually counted it.
+
   All items in one submission share a single `crypto.randomUUID()`
   `reference_id` (same id convention `submitStockAudit` already uses for
   `auditId`) — that grouping is what makes one submission one ledger row.

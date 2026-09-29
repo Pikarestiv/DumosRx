@@ -10,6 +10,7 @@ import {
   parseAdjustmentReason,
   resolveAdjustmentDelta,
 } from "@/components/stock-batch/adjustment-derivations";
+import { PRODUCT_IMPORT_REFERENCE_TYPE } from "@/lib/constants/stock-adjustments";
 import type { StockMovementDbRow } from "@/lib/types/stock-movement";
 
 function row(over: Partial<StockMovementDbRow> & { id: string }): StockMovementDbRow {
@@ -47,6 +48,16 @@ describe("adjustment ledger grouping", () => {
       ADJUSTMENT_REFERENCE_TYPE,
       AUDIT_REFERENCE_TYPE,
     ]);
+  });
+
+  it("excludes a bulk-import stock correction, unlike a genuine cycle-count audit", () => {
+    const groups = groupAdjustmentMovements([
+      row({ id: "m1", reference_id: "IMPORT-1", reference_type: PRODUCT_IMPORT_REFERENCE_TYPE }),
+      row({ id: "m2", reference_id: "AUD-1", reference_type: AUDIT_REFERENCE_TYPE }),
+    ]);
+
+    expect(groups).toHaveLength(1);
+    expect(groups[0].referenceId).toBe("AUD-1");
   });
 
   it("keeps a movement with no reference_id as its own row rather than merging them all", () => {

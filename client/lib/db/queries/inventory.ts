@@ -610,6 +610,7 @@ export interface StockAuditSubmission {
 export async function submitStockAudit(
   items: StockAuditSubmission[],
   performedBy: string | null,
+  referenceType: string = AUDIT_REFERENCE_TYPE,
 ) {
   // stock_audits.user_id is a constrained foreign key server-side. Writing a
   // "system" sentinel here saved fine locally and then failed every push on
@@ -704,7 +705,7 @@ export async function submitStockAudit(
           item.reason ||
           "Cycle count adjustment (shortfall exceeded tracked batch quantity)",
         referenceId: auditId,
-        referenceType: AUDIT_REFERENCE_TYPE,
+        referenceType,
         batchNumberPrefix: "AUDIT",
         performedBy,
       });

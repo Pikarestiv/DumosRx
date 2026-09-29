@@ -1,15 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { X } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { ProductCombobox, type SelectedProduct } from "@/components/ui/product-combobox";
-import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
-import {
-  computeStockAfter,
-  resolveAdjustmentDelta,
-  type AdjustmentReasonValue,
-} from "./adjustment-derivations";
+import { useMediaQuery } from "@/hooks/use-media-query";
+import { AdjustmentItemsTable } from "./adjustment-items-table";
+import { AdjustmentItemsCardList } from "./adjustment-items-card-list";
+import { type AdjustmentReasonValue } from "./adjustment-derivations";
 import type { ProductWithDetails } from "@/lib/types/product";
 
 export interface AdjustmentDraftItem {
@@ -51,8 +47,10 @@ export function AdjustmentItemsStep({
   onChangeQuantity,
   onRemove,
 }: AdjustmentItemsStepProps) {
-  const capsClass = useUppercaseDisplayClass();
   const [search, setSearch] = useState("");
+  // Same breakpoint the PO item builder switches its own cart on: below 640px
+  // the four columns are too cramped to use even with horizontal scroll.
+  const isTabletUp = useMediaQuery("(min-width: 640px)");
 
   const added = useMemo(
     () => new Set(items.map((item) => item.productId)),
@@ -65,6 +63,22 @@ export function AdjustmentItemsStep({
   const selectableProducts = useMemo(
     () => products.filter((product) => !added.has(product.id)),
     [products, added],
+  );
+
+  // Read through refs so the callbacks handed to the memoised rows stay
+  // identical across renders, the same way POItemBuilder keeps its own stable.
+  const onChangeQuantityRef = useRef(onChangeQuantity);
+  onChangeQuantityRef.current = onChangeQuantity;
+  const onRemoveRef = useRef(onRemove);
+  onRemoveRef.current = onRemove;
+
+  const handleChangeQuantity = useCallback(
+    (productId: string, quantity: number) => onChangeQuantityRef.current(productId, quantity),
+    [],
+  );
+  const handleRemove = useCallback(
+    (productId: string) => onRemoveRef.current(productId),
+    [],
   );
 
   const handleSelect = (option: SelectedProduct) => {
@@ -110,76 +124,29 @@ export function AdjustmentItemsStep({
         </div>
       )}
 
-      {items.length > 0 && (
-        <div className="bg-card border border-border rounded-2xl divide-y divide-border">
-          {items.map((item) => {
-            const delta = resolveAdjustmentDelta(reason, item.quantity);
-            return (
-              <div
-                key={item.productId}
-                data-testid={`adjustment-item-${item.productId}`}
-                className="p-4 flex flex-wrap items-center justify-between gap-3"
-              >
-                <div className="min-w-0">
-                  <div className={`text-[14px] font-semibold text-foreground ${capsClass}`}>
-                    {item.name}
-                  </div>
-                  <div className="text-[12px] text-muted-foreground/70">{item.sku}</div>
-                </div>
-
-                <div className="flex items-center gap-4">
-                  <div className="text-center">
-                    <div className="text-[11px] text-muted-foreground font-semibold uppercase">
-                      Current
-                    </div>
-                    <div data-testid="current-stock" className="text-[14px] font-bold">
-                      {item.currentStock}
-                    </div>
-                  </div>
-
-                  <div className="text-center">
-                    <label
-                      htmlFor={`adjustment-qty-${item.productId}`}
-                      className="text-[11px] text-muted-foreground font-semibold uppercase block"
-                    >
-                      Quantity
-                    </label>
-                    <input
-                      id={`adjustment-qty-${item.productId}`}
-                      type="number"
-                      inputMode="numeric"
-                      value={item.quantity}
-                      onChange={(event) =>
-                        onChangeQuantity(item.productId, Number(event.target.value) || 0)
-                      }
-                      className="w-20 text-center text-[14px] font-semibold bg-muted/30 border border-border rounded-lg px-2 py-1"
-                    />
-                  </div>
-
-                  <div className="text-center">
-                    <div className="text-[11px] text-muted-foreground font-semibold uppercase">
-                      Stock after
-                    </div>
-                    <div data-testid="stock-after" className="text-[14px] font-bold">
-                      {computeStockAfter(item.currentStock, delta)}
-                    </div>
-                  </div>
-
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    aria-label={`Remove ${item.name}`}
-                    onClick={() => onRemove(item.productId)}
-                  >
-                    <X className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+      {/* Desktop table vs. phone cards, conditionally rendered rather than
+       * CSS-hidden, so only one of the two ever mounts its per-row inputs.
+       * Same split, at the same 640px breakpoint, as procurement's
+       * POItemBuilder — an adjustment is a handful of explicitly added rows,
+       * not the cycle count's bulk sweep of the whole catalog, so it wants
+       * the item-builder pattern rather than audit-ledger-step's virtualized
+       * grid. */}
+      {items.length > 0 &&
+        (isTabletUp ? (
+          <AdjustmentItemsTable
+            reason={reason}
+            items={items}
+            onChangeQuantity={handleChangeQuantity}
+            onRemove={handleRemove}
+          />
+        ) : (
+          <AdjustmentItemsCardList
+            reason={reason}
+            items={items}
+            onChangeQuantity={handleChangeQuantity}
+            onRemove={handleRemove}
+          />
+        ))}
     </div>
   );
 }

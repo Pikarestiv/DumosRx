@@ -19,6 +19,13 @@ vi.mock("@/lib/hooks/use-uppercase-display", () => ({
   useUppercaseDisplayClass: () => "",
 }));
 
+// The step picks a desktop table or a phone card list off this hook, the same
+// way POItemBuilder does, so every row assertion below runs against both.
+let isTabletUp = true;
+vi.mock("@/hooks/use-media-query", () => ({
+  useMediaQuery: () => isTabletUp,
+}));
+
 // The item picker is now the shared ProductCombobox (same component and
 // interaction model the PO item builder uses), so this step pulls in the
 // combobox's store/catalog dependencies.
@@ -79,8 +86,12 @@ function renderStep(items: AdjustmentDraftItem[], reason = "damage") {
   );
 }
 
-describe("Adjust Stock - items step", () => {
+describe.each([
+  ["desktop table", true],
+  ["mobile cards", false],
+])("Adjust Stock - items step (%s)", (_label, tabletUp) => {
   beforeEach(() => {
+    isTabletUp = tabletUp;
     onAdd.mockReset();
     onChangeQuantity.mockReset();
     onRemove.mockReset();
@@ -104,6 +115,78 @@ describe("Adjust Stock - items step", () => {
     expect(
       within(screen.getByTestId("adjustment-item-p1")).getByTestId("stock-after").textContent,
     ).toBe("0");
+  });
+
+  it("reports quantity edits and removals to its parent", () => {
+    renderStep([item({ quantity: 2 })]);
+    const row = screen.getByTestId("adjustment-item-p1");
+
+    fireEvent.change(within(row).getByLabelText(/quantity/i), { target: { value: "7" } });
+    expect(onChangeQuantity).toHaveBeenCalledWith("p1", 7);
+
+    fireEvent.click(within(row).getByRole("button", { name: /remove/i }));
+    expect(onRemove).toHaveBeenCalledWith("p1");
+  });
+
+  it("shows the item's name and SKU", () => {
+    renderStep([item()]);
+    const row = screen.getByTestId("adjustment-item-p1");
+    expect(row.textContent).toContain("Paracetamol 500mg");
+    expect(row.textContent).toContain("PAR-500");
+  });
+
+  it("prompts to add an item when the list is empty", () => {
+    renderStep([]);
+    expect(screen.getByText(/no items added yet/i)).toBeTruthy();
+    expect(screen.queryByTestId(/^adjustment-item-/)).toBeNull();
+  });
+});
+
+// Only one of the two branches may ever be mounted: the table and the card
+// list each own a per-row quantity input, so CSS-hiding one would double
+// every row's inputs and duplicate its accessible names.
+describe("Adjust Stock - items step responsive split", () => {
+  beforeEach(() => {
+    onAdd.mockReset();
+    onChangeQuantity.mockReset();
+    onRemove.mockReset();
+  });
+
+  it("renders the ARIA table with its column headers at tablet width and up", () => {
+    isTabletUp = true;
+    renderStep([item()]);
+
+    const table = screen.getByRole("table", { name: /items to adjust/i });
+    const headers = within(table).getAllByRole("columnheader").map((cell) => cell.textContent);
+    expect(headers).toEqual(["Item", "Current", "Quantity", "Stock After", ""]);
+  });
+
+  it("renders cards instead of the table below tablet width", () => {
+    isTabletUp = false;
+    renderStep([item()]);
+
+    expect(screen.queryByRole("table")).toBeNull();
+    expect(screen.getByTestId("adjustment-item-p1")).toBeTruthy();
+  });
+
+  it("mounts exactly one quantity input per item on either branch", () => {
+    isTabletUp = true;
+    const desktop = renderStep([item()]);
+    expect(screen.getAllByLabelText(/quantity for paracetamol/i)).toHaveLength(1);
+    desktop.unmount();
+
+    isTabletUp = false;
+    renderStep([item()]);
+    expect(screen.getAllByLabelText(/quantity for paracetamol/i)).toHaveLength(1);
+  });
+});
+
+describe("Adjust Stock - items step picker", () => {
+  beforeEach(() => {
+    isTabletUp = true;
+    onAdd.mockReset();
+    onChangeQuantity.mockReset();
+    onRemove.mockReset();
   });
 
   it("searches through a combobox rather than a bare input", () => {
@@ -154,21 +237,5 @@ describe("Adjust Stock - items step", () => {
     fireEvent.change(search, { target: { value: "nothing matches this" } });
 
     expect(screen.queryByText(/as new product/i)).toBeNull();
-  });
-
-  it("reports quantity edits and removals to its parent", () => {
-    renderStep([item({ quantity: 2 })]);
-    const row = screen.getByTestId("adjustment-item-p1");
-
-    fireEvent.change(within(row).getByLabelText(/quantity/i), { target: { value: "7" } });
-    expect(onChangeQuantity).toHaveBeenCalledWith("p1", 7);
-
-    fireEvent.click(within(row).getByRole("button", { name: /remove/i }));
-    expect(onRemove).toHaveBeenCalledWith("p1");
-  });
-
-  it("prompts to add an item when the list is empty", () => {
-    renderStep([]);
-    expect(screen.getByText(/no items added yet/i)).toBeTruthy();
   });
 });

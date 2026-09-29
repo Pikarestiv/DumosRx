@@ -476,6 +476,41 @@ e2e/                       Playwright end-to-end specs
   matches on `barcode`, which this flow depends on for scanned codes — that
   key was added to the shared component, so PO item search gained it too.
 
+  **Both of the feature's lists are responsive, each following the pattern of
+  its nearest neighbour.** The items-to-adjust list takes the *procurement*
+  pattern, not the cycle count's: `adjustment-items-step.tsx` switches on
+  `useMediaQuery("(min-width: 640px)")` between `AdjustmentItemsTable`
+  (`adjustment-items-table.tsx`, a div/ARIA-table on the same conventions as
+  `po-item-ledger-table.tsx`) and `AdjustmentItemsCardList`
+  (`adjustment-items-card-list.tsx`), exactly as `po-item-builder.tsx` does.
+  An adjustment is a handful of explicitly searched-and-added rows, so it
+  wants the item-builder's table/card split rather than `audit-ledger-step`'s
+  single virtualized grid, which exists for counting the whole catalog at
+  once. The two components are adjustment-specific rather than reuses of the
+  PO ones: `POItemLedgerTable`'s props are purchase-order shaped
+  (`POLineItemDraft`, `poType`, expiry and sell-price columns) and none of
+  them fit an adjustment's four fields (Item / Current / Quantity / Stock
+  After + remove). Quantity entry uses the shared `EditableNumberCell` on
+  both branches, and both rows are `React.memo`'d against callbacks the step
+  keeps stable through refs, so a keystroke in one row does not re-render
+  every other row's input.
+
+  **The Adjustments ledger mirrors `stock-movements.tsx`'s split**, being
+  the same kind of history data in the same tab family:
+  `useMediaQuery("(min-width: 768px)")` picks either the virtualized desktop
+  grid or `AdjustmentMobileGroup` (`adjustment-mobile-group.tsx`), the
+  analogue of `StockMovementMobileGroup`. The two branches are
+  *conditionally rendered, never `md:hidden`* — the desktop branch is
+  virtualized and the mobile one is not, so CSS-hiding would make desktop pay
+  for a full unvirtualized render of the whole ledger and then throw it away.
+  Mobile cards are bucketed by the same date-label scheme the movements
+  ledger uses (TODAY / YESTERDAY / N DAYS AGO / MMM d, yyyy), keyed off each
+  group's own `date`, because the Date column is the first thing the desktop
+  grid loses on a phone; it becomes the heading above its cards. Search,
+  reason and date-range chrome stays shared above both branches. Both test
+  files parameterise their row assertions over the two branches with a
+  mutable flag behind `vi.mock("@/hooks/use-media-query", ...)`.
+
   **Two `reference_type` values mean "adjustment", and both matter.** Every
   stock correction outside a sale/purchase/transfer is a
   `stock_movements` row with `movement_type = 'adjustment'`. The

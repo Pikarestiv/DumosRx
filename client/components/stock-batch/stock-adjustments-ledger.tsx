@@ -4,8 +4,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { format } from "date-fns";
+import { format, isToday, isYesterday, differenceInDays } from "date-fns";
 import { ClipboardList, Search } from "lucide-react";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
@@ -29,6 +30,7 @@ import {
   type AdjustmentGroup,
 } from "./adjustment-derivations";
 import { AdjustStockFlow } from "./adjust-stock-flow";
+import { AdjustmentMobileGroup } from "./adjustment-mobile-group";
 
 const RECENT_ACTIVITY_WINDOW_DAYS = 30;
 const ROW_HEIGHT = 64;
@@ -38,7 +40,7 @@ function AdjustmentRow({ group }: { group: AdjustmentGroup }) {
   return (
     <div
       data-testid={`adjustment-row-${group.referenceId}`}
-      className="grid grid-cols-2 md:grid-cols-[1.4fr_1fr_1fr_0.8fr_0.8fr] gap-2 items-center px-4 py-3 border-b border-border text-[13px]"
+      className="grid grid-cols-[1.4fr_1fr_1fr_0.8fr_0.8fr] gap-2 items-center px-4 py-3 border-b border-border text-[13px] hover:bg-accent/30 transition-colors"
     >
       <div className="min-w-0">
         <div className="font-semibold truncate">{group.referenceId}</div>
@@ -71,6 +73,7 @@ export function StockAdjustmentsLedger() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const canAdjustStock = useHasPermission("adjust_stock_counts");
+  const isDesktop = useMediaQuery("(min-width: 768px)");
 
   const [searchTerm, setSearchTerm] = useState("");
   const [reasonFilter, setReasonFilter] = useState<string>(ALL_ADJUSTMENT_REASONS);
@@ -135,6 +138,33 @@ export function StockAdjustmentsLedger() {
     overscan: 8,
   });
 
+  // Same date bucketing stock-movements.tsx uses for its own mobile cards:
+  // the desktop grid's Date column is what a phone loses first, so it is
+  // promoted to a heading over the cards that fall under it.
+  const groupedByDate = useMemo(() => {
+    const now = new Date();
+    return visibleGroups.reduce(
+      (acc, group) => {
+        const date = new Date(group.date);
+        let groupLabel = group.date ? format(date, "MMM d, yyyy").toUpperCase() : "UNDATED";
+
+        if (group.date) {
+          if (isToday(date)) groupLabel = "TODAY";
+          else if (isYesterday(date)) groupLabel = "YESTERDAY";
+          else {
+            const diff = differenceInDays(now, date);
+            if (diff > 1 && diff <= 7) groupLabel = `${diff} DAYS AGO`;
+          }
+        }
+
+        if (!acc[groupLabel]) acc[groupLabel] = [];
+        acc[groupLabel].push(group);
+        return acc;
+      },
+      {} as Record<string, AdjustmentGroup[]>,
+    );
+  }, [visibleGroups]);
+
   // The creation flow takes over the whole tab rather than overlaying it, the
   // same way the cycle count owns /inventory/audits. Every hook above still
   // runs, so the ledger's query stays warm for the return trip.
@@ -196,38 +226,63 @@ export function StockAdjustmentsLedger() {
         )}
       </div>
 
-      <div className="hidden md:grid grid-cols-[1.4fr_1fr_1fr_0.8fr_0.8fr] gap-2 px-4 py-2.5 text-[11px] font-bold text-muted-foreground/70 uppercase tracking-wide border-b border-border">
-        <div>Adjustment ID</div>
-        <div>Date</div>
-        <div>Reason</div>
-        <div>Items</div>
-        <div>Net qty</div>
-      </div>
-
-      <div ref={scrollRef} className="flex-1 overflow-y-auto pb-6">
-        {visibleGroups.length === 0 && (
-          <EmptyState icon={ClipboardList} title="No adjustments found" className="py-8" />
-        )}
-        {visibleGroups.length > 0 && (
-          <div className="relative w-full" style={{ height: rowVirtualizer.getTotalSize() }}>
-            {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-              const group = visibleGroups[virtualRow.index];
-              return (
-                <div
-                  key={group.referenceId}
-                  className="absolute top-0 left-0 w-full"
-                  style={{
-                    height: virtualRow.size,
-                    transform: `translateY(${virtualRow.start}px)`,
-                  }}
-                >
-                  <AdjustmentRow group={group} />
-                </div>
-              );
-            })}
+      {isDesktop && (
+        <>
+          <div className="grid grid-cols-[1.4fr_1fr_1fr_0.8fr_0.8fr] gap-2 px-4 py-2.5 text-[11px] font-bold text-muted-foreground/70 uppercase tracking-wide border-b border-border">
+            <div>Adjustment ID</div>
+            <div>Date</div>
+            <div>Reason</div>
+            <div>Items</div>
+            <div>Net qty</div>
           </div>
-        )}
-      </div>
+
+          <div ref={scrollRef} className="flex-1 overflow-y-auto pb-6">
+            {visibleGroups.length === 0 && (
+              <EmptyState icon={ClipboardList} title="No adjustments found" className="py-8" />
+            )}
+            {visibleGroups.length > 0 && (
+              <div className="relative w-full" style={{ height: rowVirtualizer.getTotalSize() }}>
+                {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                  const group = visibleGroups[virtualRow.index];
+                  return (
+                    <div
+                      key={group.referenceId}
+                      className="absolute top-0 left-0 w-full"
+                      style={{
+                        height: virtualRow.size,
+                        transform: `translateY(${virtualRow.start}px)`,
+                      }}
+                    >
+                      <AdjustmentRow group={group} />
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* Mobile: grouped list, each group already renders its own card.
+          Conditionally rendered, not `md:hidden`: the desktop branch is
+          virtualized and this one isn't, so CSS-hiding meant desktop paid
+          for a full unvirtualized render of the whole ledger and then threw
+          it away. */}
+      {!isDesktop && (
+        <div className="flex-1 overflow-y-auto p-4 pt-3">
+          {visibleGroups.length === 0 && (
+            <EmptyState icon={ClipboardList} title="No adjustments found" className="py-8" />
+          )}
+          {visibleGroups.length > 0 &&
+            Object.entries(groupedByDate).map(([groupLabel, groupItems]) => (
+              <AdjustmentMobileGroup
+                key={groupLabel}
+                groupLabel={groupLabel}
+                adjustments={groupItems}
+              />
+            ))}
+        </div>
+      )}
     </div>
   );
 }

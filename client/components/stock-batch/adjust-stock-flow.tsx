@@ -115,7 +115,7 @@ export function AdjustStockFlow({ onClose, onSubmitted }: AdjustStockFlowProps) 
             "calc(var(--tauri-bottom, env(safe-area-inset-bottom, 0px)) + 1rem)",
         }}
       >
-        <div className="w-full max-w-[560px]">
+        <div className={`w-full ${step === "preferences" ? "max-w-[560px]" : "max-w-[1280px]"}`}>
           {step === "preferences" ? (
             <AdjustmentPreferencesStep
               reason={reason}
@@ -137,7 +137,7 @@ export function AdjustStockFlow({ onClose, onSubmitted }: AdjustStockFlowProps) 
       </div>
 
       <div className="border-t border-border bg-background p-4 md:px-8 md:py-5 flex justify-center shrink-0">
-        <div className="w-full max-w-[560px]">
+        <div className={`w-full ${step === "preferences" ? "max-w-[560px]" : "max-w-[1280px]"}`}>
           {step === "preferences" ? (
             <button
               type="button"

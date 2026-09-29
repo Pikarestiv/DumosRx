@@ -155,8 +155,27 @@ export function StoreStorefrontCard({ store }: { store: AdminStoreDetail }) {
   );
 }
 
+function normalizeEnabledPaymentMethods(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.filter((entry): entry is string => typeof entry === "string");
+  }
+
+  if (typeof value === "string") {
+    try {
+      return normalizeEnabledPaymentMethods(JSON.parse(value));
+    } catch {
+      return [];
+    }
+  }
+
+  return [];
+}
+
 export function StorePaymentsCard({ store }: { store: AdminStoreDetail }) {
   const payments = store.payments;
+  const enabledPaymentMethods = normalizeEnabledPaymentMethods(
+    payments.enabled_payment_methods,
+  );
 
   return (
     <DetailCard title="Payments" icon={<Receipt className="h-4 w-4" />}>
@@ -177,11 +196,7 @@ export function StorePaymentsCard({ store }: { store: AdminStoreDetail }) {
         />
         <Field
           label="Enabled Methods"
-          value={
-            payments.enabled_payment_methods.length > 0
-              ? payments.enabled_payment_methods.join(", ")
-              : null
-          }
+          value={enabledPaymentMethods.length > 0 ? enabledPaymentMethods.join(", ") : null}
         />
       </div>
     </DetailCard>

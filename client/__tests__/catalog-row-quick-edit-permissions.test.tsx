@@ -44,12 +44,16 @@ function renderRow(
       canEditSellingPrice
       canAdjustStockQuantity
       hasTouchCapability={false}
+      canPrintLabels
+      canDeleteProducts
       formatCurrency={(n) => `N${n}`}
       onSelect={() => {}}
       onSaveCategory={() => {}}
       onSaveSellingPrice={() => {}}
       onSaveStockQuantity={() => {}}
       onSaveReorderLevel={() => {}}
+      onPrintLabel={() => {}}
+      onDeleteProduct={() => {}}
       {...overrides}
     />,
   );

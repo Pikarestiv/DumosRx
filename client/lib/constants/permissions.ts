@@ -209,8 +209,8 @@ export const ENFORCED_PERMISSION_KEYS: ReadonlySet<string> = new Set([
   "edit_product_price", // catalog-row.tsx, audit-ledger-step.tsx
   "perform_stock_audit", // dashboard-header.tsx, stock-batch-management.tsx, use-stock-batch-management.ts
   "view_stock_adjustment_history", // stock-batch-tab-nav.tsx, stock-batch-management.tsx, use-stock-batch-management.ts
-  "print_product_labels", // catalog-detail-panel.tsx (opens barcode-print-dialog.tsx)
-  "delete_products", // catalog-detail-panel.tsx (opens product-delete-dialog.tsx)
+  "print_product_labels", // catalog-detail-panel.tsx, catalog-list.tsx/catalog-row.tsx (opens barcode-print-dialog.tsx)
+  "delete_products", // catalog-detail-panel.tsx, catalog-list.tsx/catalog-row.tsx (opens product-delete-dialog.tsx)
   "delete_suppliers", // supplier-detail-pane.tsx (opens supplier-delete-dialog.tsx)
   "export_product_list", // import-export-toolbar.tsx
   "view_suppliers", // procurement-tab-nav.tsx, procurement/vendors route

@@ -1,6 +1,21 @@
 import { useState, useEffect } from "react";
 import type { StoreProfile } from "@/lib/context/store-context";
 
+const DEFAULT_ENABLED_PAYMENT_METHODS = ["cash", "card", "transfer", "credit", "mixed"];
+
+// enabled_payment_methods is stored as TEXT holding JSON, not a real column
+// type - a malformed or double-encoded value (see docs/FIXED_BUGS.md A-29)
+// must fall back to the default rather than throwing during a render.
+function parseEnabledPaymentMethods(raw: string | null | undefined): string[] {
+  if (!raw) return DEFAULT_ENABLED_PAYMENT_METHODS;
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : DEFAULT_ENABLED_PAYMENT_METHODS;
+  } catch {
+    return DEFAULT_ENABLED_PAYMENT_METHODS;
+  }
+}
+
 export function useSettingsForm(storeProfile: StoreProfile | null, minimumSyncIntervalMinutes: number) {
   // Form States
   const [localName, setLocalName] = useState(storeProfile?.name || "");
@@ -37,7 +52,7 @@ export function useSettingsForm(storeProfile: StoreProfile | null, minimumSyncIn
   const [onlineStoreEnabled, setOnlineStoreEnabled] = useState(storeProfile?.online_store_enabled === 1);
   const [loyaltyProgramEnabled, setLoyaltyProgramEnabled] = useState(storeProfile?.loyalty_program_enabled !== 0);
   const [enabledPaymentMethods, setEnabledPaymentMethods] = useState<string[]>(
-    storeProfile?.enabled_payment_methods ? JSON.parse(storeProfile.enabled_payment_methods) : ["cash", "card", "transfer", "credit", "mixed"]
+    parseEnabledPaymentMethods(storeProfile?.enabled_payment_methods)
   );
   const [requireSaleNotes, setRequireSaleNotes] = useState(storeProfile?.require_sale_notes === 1);
   const [displayStockLevels, setDisplayStockLevels] = useState(storeProfile?.display_stock_levels !== 0);
@@ -78,11 +93,7 @@ export function useSettingsForm(storeProfile: StoreProfile | null, minimumSyncIn
       setRequirePaymentAccount(storeProfile.require_payment_account === 1);
       setOnlineStoreEnabled(storeProfile.online_store_enabled === 1);
       setLoyaltyProgramEnabled(storeProfile.loyalty_program_enabled !== 0);
-      try {
-        setEnabledPaymentMethods(storeProfile.enabled_payment_methods ? JSON.parse(storeProfile.enabled_payment_methods) : ["cash", "card", "transfer", "credit", "mixed"]);
-      } catch (_e) {
-        setEnabledPaymentMethods(["cash", "card", "transfer", "credit", "mixed"]);
-      }
+      setEnabledPaymentMethods(parseEnabledPaymentMethods(storeProfile.enabled_payment_methods));
       setRequireSaleNotes(storeProfile.require_sale_notes === 1);
       setDisplayStockLevels(storeProfile.display_stock_levels !== 0);
       setUppercaseDisplayEnabled(storeProfile.uppercase_display_enabled !== 0);

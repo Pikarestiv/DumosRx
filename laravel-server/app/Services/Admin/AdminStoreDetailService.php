@@ -89,7 +89,9 @@ class AdminStoreDetailService
                 'bank_code' => $store->paystack_bank_code,
                 'account_number_last4' => $store->paystack_account_number_last4,
                 'require_payment_account' => (bool) $store->require_payment_account,
-                'enabled_payment_methods' => $store->enabled_payment_methods ?: [],
+                'enabled_payment_methods' => is_array($store->enabled_payment_methods)
+                    ? array_values($store->enabled_payment_methods)
+                    : [],
             ],
             'counts' => $this->countsPayload($store),
             'recent_transactions' => collect($billing['transactions'] ?? [])

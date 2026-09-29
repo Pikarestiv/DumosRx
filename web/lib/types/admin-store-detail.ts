@@ -74,7 +74,7 @@ export interface AdminStoreDetail {
     bank_code: string | null;
     account_number_last4: string | null;
     require_payment_account: boolean;
-    enabled_payment_methods: string[];
+    enabled_payment_methods: unknown;
   };
   counts: {
     staff: number;

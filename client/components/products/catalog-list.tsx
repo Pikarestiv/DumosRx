@@ -9,6 +9,8 @@ import { useAuth } from "@/lib/context/auth-context";
 import { useHasPermission } from "@/lib/hooks/use-permissions";
 import { SortableHeaderCell } from "@/components/ui/sortable-header-cell";
 import { RequestItemDialog } from "@/components/pos/request-item-dialog";
+import { BarcodePrintDialog } from "@/components/stock-batch/barcode-print-dialog";
+import { ProductDeleteDialog } from "./product-delete-dialog";
 import { CATALOG_GRID_COLS, CatalogRow } from "./catalog-row";
 import { CatalogListSkeleton, EmptyCatalogList } from "./catalog-list-states";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -68,7 +70,16 @@ export function CatalogList({
   const showCostColumn = useHasPermission("view_cost_fields");
   const canEditSellingPrice = useHasPermission("edit_product_price");
   const canAdjustStockQuantity = useHasPermission("adjust_stock_counts");
+  const canPrintLabels = useHasPermission("print_product_labels");
+  const canDeleteProducts = useHasPermission("delete_products");
   const [showRequestDialog, setShowRequestDialog] = useState(false);
+  // The row context menu reuses the detail panel's two dialogs, so the catalog
+  // hosts one instance of each and the rows only name a target.
+  const [labelTarget, setLabelTarget] = useState<Product | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
   // A 2-in-1 laptop's trackpad still lets it hover, but a user tapping its
   // touchscreen directly never fires :hover — so the edit pencil must stay
   // visible whenever touch is available at all, not just on touch-primary
@@ -156,6 +167,14 @@ export function CatalogList({
     },
     [submitStockAudit, user?.id, onProductUpdated],
   );
+
+  const openLabelDialog = useCallback((product: Product) => {
+    setLabelTarget(product);
+  }, []);
+
+  const openDeleteDialog = useCallback((product: Product) => {
+    setDeleteTarget({ id: product.id, name: product.name });
+  }, []);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   // Row height differs between the stacked mobile layout and the desktop grid
@@ -267,12 +286,16 @@ export function CatalogList({
                     canEditSellingPrice={canEditSellingPrice}
                     canAdjustStockQuantity={canAdjustStockQuantity}
                     hasTouchCapability={hasTouchCapability}
+                    canPrintLabels={canPrintLabels}
+                    canDeleteProducts={canDeleteProducts}
                     formatCurrency={formatCurrency}
                     onSelect={onSelectProduct}
                     onSaveCategory={saveCategory}
                     onSaveSellingPrice={saveSellingPrice}
                     onSaveStockQuantity={saveStockQuantity}
                     onSaveReorderLevel={saveReorderLevel}
+                    onPrintLabel={openLabelDialog}
+                    onDeleteProduct={openDeleteDialog}
                   />
                 </div>
               );
@@ -284,6 +307,26 @@ export function CatalogList({
       <RequestItemDialog
         open={showRequestDialog}
         onOpenChange={setShowRequestDialog}
+      />
+      {labelTarget && (
+        <BarcodePrintDialog
+          isOpen
+          onClose={() => setLabelTarget(null)}
+          product={{
+            id: labelTarget.id,
+            name: labelTarget.name,
+            barcode: labelTarget.barcode,
+            unit_price: labelTarget.sellingPrice,
+          }}
+        />
+      )}
+      <ProductDeleteDialog
+        target={deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onSuccess={() => {
+          setDeleteTarget(null);
+          onProductUpdated();
+        }}
       />
     </div>
   );

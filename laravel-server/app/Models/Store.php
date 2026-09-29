@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Casts\JsonList;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
@@ -75,8 +76,8 @@ class Store extends Model
     ];
 
     protected $casts = [
-        'enabled_payment_methods' => 'array',
-        'custom_units' => 'array',
+        'enabled_payment_methods' => JsonList::class,
+        'custom_units' => JsonList::class,
         'require_payment_account' => 'boolean',
         'online_store_enabled' => 'boolean',
         'is_demo' => 'boolean',

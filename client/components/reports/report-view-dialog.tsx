@@ -150,7 +150,7 @@ export function ReportViewDialog({
         </div>
       )}
     >
-      <div className="flex-1 min-h-0 overflow-auto space-y-3 pb-2">
+      <div className="flex-1 min-h-0 overflow-auto space-y-3 pb-2 px-0.5 pt-0.5">
         <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
           <SearchInput
             value={search}

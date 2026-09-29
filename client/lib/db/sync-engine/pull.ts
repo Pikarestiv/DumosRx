@@ -144,11 +144,17 @@ function cursorForLastRecord(records: Record<string, unknown>[]): PullPageCursor
  * data is in place, while this same call keeps running underneath to pull
  * everything else. Never fires more than once. No-op for a normal
  * (non-setup) pull that doesn't pass it.
+ *
+ * It is always passed whether the pull it is reporting on actually
+ * succeeded. A pull that threw still fires it (so a caller awaiting the
+ * signal is never left hanging) but fires it with `false`: the page
+ * transaction that carries stores and users rolls back as a unit, so on a
+ * failure nothing was written and there is no identity to move on with.
  */
 export async function pullChanges(
   isManual: boolean = false,
   isSetup: boolean = false,
-  onCriticalTablesReady?: () => void,
+  onCriticalTablesReady?: (pullSucceeded: boolean) => void,
   // Marks every page below as part of the same sync run as the push that
   // preceded it, so the server's plan-tier sync-interval throttle doesn't
   // reject this run's own later requests (see push.ts's own runId note).
@@ -160,10 +166,11 @@ export async function pullChanges(
 }> {
   const criticalTablesPending = new Set(SETUP_CRITICAL_TABLES);
   let criticalReadyFired = false;
-  const fireCriticalReadyOnce = () => {
+  let pullFailed = false;
+  const fireCriticalReadyOnce = (pullSucceeded: boolean) => {
     if (criticalReadyFired) return;
     criticalReadyFired = true;
-    onCriticalTablesReady?.();
+    onCriticalTablesReady?.(pullSucceeded);
   };
 
   try {
@@ -240,6 +247,7 @@ export async function pullChanges(
     // triggered by backlogs over 500 rows in a single table).
     const pageOffsets: Record<string, number> = {};
     const skippedTables = new Set<string>();
+    const missingLocalTables = new Set<string>();
 
     // stock_movements deltas whose referencing stock_batches row hadn't been
     // inserted locally yet at the time the movement was pulled (see the
@@ -299,11 +307,41 @@ export async function pullChanges(
       await transaction(async () => {
         for (const [table, records] of orderedEntries) {
           if (!Array.isArray(records)) continue;
+
+          const validColumns = await getValidColumns(table);
+
+          // A table this device's local schema doesn't have yet (it predates
+          // the migration that added it) is skipped for this round instead of
+          // being allowed to throw: every table in this page shares one
+          // transaction, so a single missing table would otherwise roll back
+          // stores and users along with it — which is how a schema-drifted
+          // device turned its first sync into "no staff accounts were found".
+          // Nothing is persisted for it, so a later round re-offers the same
+          // window once the table exists; the in-memory page position still
+          // advances so this round terminates.
+          if (validColumns.size === 0) {
+            if (!missingLocalTables.has(table)) {
+              missingLocalTables.add(table);
+              console.warn(
+                `[SyncPull] Skipping "${table}": this device has no local schema for it.`,
+              );
+              logCrash(
+                new Error(`Pull skipped table ${table}: missing from local schema`),
+                false,
+                { area: "sync-pull", table },
+              ).catch(() => {});
+            }
+            pageOffsets[table] = (pageOffsets[table] ?? 0) + records.length;
+            const missingTableCursor = cursorForLastRecord(records);
+            if (missingTableCursor) {
+              pageCursors[table] = missingTableCursor;
+            }
+            continue;
+          }
+
           if (records.length > 0) {
             updatedTables.push(table);
           }
-
-          const validColumns = await getValidColumns(table);
 
           // If any record in this table's batch gets skipped below (because a
           // local edit for it hasn't been pushed yet), the per-table sync
@@ -690,7 +728,7 @@ export async function pullChanges(
       // file - stores/users are typically small enough (a full snapshot,
       // and a handful of staff) to drain within the very first page.
       if (criticalTablesPending.size === 0) {
-        fireCriticalReadyOnce();
+        fireCriticalReadyOnce(true);
       }
     }
 
@@ -735,6 +773,7 @@ export async function pullChanges(
 
     return { pulled: pulledCount, updatedTables };
   } catch (error) {
+    pullFailed = true;
     console.error("Pull sync failed:", error);
     logCrash(error, false, { area: "sync-pull" }).catch(() => {});
     throw error; // Throw so sync() can catch it properly
@@ -743,11 +782,11 @@ export async function pullChanges(
     // saw criticalTablesPending empty (e.g. this round had zero stores/
     // users changes at all, so the loop broke on an empty `changes` before
     // ever reaching that check) - and, via `finally` rather than only the
-    // success path, for a THROWN pull too. onboarding's own caller already
-    // handles a failed sync() correctly regardless (identityReady stays
-    // false, so it falls back to the "cloud" step), but any future caller
-    // awaiting this callback specifically must not be left hanging forever
-    // just because the pull that was supposed to signal it blew up first.
-    fireCriticalReadyOnce();
+    // success path, for a THROWN pull too, so a caller awaiting this
+    // callback is never left hanging just because the pull that was
+    // supposed to signal it blew up first. The success flag keeps those two
+    // cases apart: a thrown pull wrote nothing, so reporting it as "identity
+    // ready" made onboarding announce a failed sync as a store with no staff.
+    fireCriticalReadyOnce(!pullFailed);
   }
 }

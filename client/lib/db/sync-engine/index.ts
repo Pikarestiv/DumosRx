@@ -82,8 +82,10 @@ export async function sync(
   // Setup-only: lets a caller mid-first-sync (see startSyncProcess in
   // use-onboarding.ts) move on as soon as store/user identity is pulled,
   // while this same call keeps running underneath for everything else. See
-  // pullChanges's own doc comment. No-op for every other caller.
-  onCriticalTablesReady?: () => void,
+  // pullChanges's own doc comment. Receives whether the pull that fired it
+  // actually succeeded — a failed pull wrote nothing, identity included.
+  // No-op for every other caller.
+  onCriticalTablesReady?: (pullSucceeded: boolean) => void,
 ): Promise<SyncResult> {
   if (isSyncInProgress) {
     return {

@@ -393,14 +393,92 @@ describe('Sync Engine & Local Database', () => {
       await expect(pullChanges()).resolves.toBeDefined();
     });
 
-    it('still fires (via finally) when the pull throws, so a caller awaiting it is never left hanging', async () => {
+    it('still fires (via finally) when the pull throws, but reports the pull as failed', async () => {
       vi.mocked(apiClient.pullChanges).mockRejectedValueOnce(new Error('Network error'));
       vi.mocked(query).mockResolvedValue([]);
 
       const onCriticalTablesReady = vi.fn();
       await expect(pullChanges(false, true, onCriticalTablesReady)).rejects.toThrow('Network error');
 
+      // Nothing was written (the page transaction carrying stores AND users
+      // rolls back as a unit), so a caller must not read the callback as
+      // "identity is in place" - see onboarding-cloud-setup-failed-pull.
       expect(onCriticalTablesReady).toHaveBeenCalledTimes(1);
+      expect(onCriticalTablesReady).toHaveBeenCalledWith(false);
+    });
+
+    it('reports the pull as succeeded when the critical tables actually drained', async () => {
+      vi.mocked(apiClient.pullChanges).mockResolvedValueOnce({
+        success: true,
+        changes: {
+          stores: [{ id: 'store-1', name: 'Store One', _version: 1, deleted_at: null }],
+          users: [{ id: 'user-1', username: 'owner', role: 'store_owner', _version: 1, deleted_at: null }],
+        },
+        server_timestamp: '2026-09-25T00:00:00Z',
+        has_more: { stores: false, users: false },
+      });
+      vi.mocked(query).mockImplementation(async (sql: string) => {
+        if (sql.includes('_sync_state')) return [];
+        if (sql.includes('PRAGMA table_info')) return [{ name: 'id' }, { name: 'name' }, { name: '_version' }];
+        if (sql.includes('SELECT 1 FROM')) return [];
+        return [];
+      });
+
+      const onCriticalTablesReady = vi.fn();
+      await pullChanges(false, true, onCriticalTablesReady);
+
+      expect(onCriticalTablesReady).toHaveBeenCalledWith(true);
+    });
+
+    it('propagates the failure flag through sync() to its caller', async () => {
+      localStorage.setItem('auth_token', 'test-token');
+      vi.mocked(apiClient.pushChanges).mockResolvedValue({ success: true });
+      vi.mocked(apiClient.pullChanges).mockRejectedValueOnce(new Error('Server error'));
+      vi.mocked(query).mockResolvedValue([]);
+
+      const onCriticalTablesReady = vi.fn();
+      const result = await sync(false, true, onCriticalTablesReady);
+
+      expect(result.success).toBe(false);
+      expect(onCriticalTablesReady).toHaveBeenCalledWith(false);
+    });
+  });
+
+  describe('pullChanges() with a table missing from the local schema', () => {
+    it('skips that table and still commits the rest of the page', async () => {
+      vi.mocked(apiClient.pullChanges).mockResolvedValueOnce({
+        success: true,
+        changes: {
+          stores: [{ id: 'store-1', name: 'Store One', _version: 1, deleted_at: null }],
+          users: [{ id: 'user-1', name: 'owner', _version: 1, deleted_at: null }],
+          permission_groups: [{ id: 'pg-1', name: 'Cashier', _version: 1, deleted_at: null }],
+        },
+        server_timestamp: '2026-09-25T00:00:00Z',
+        has_more: { stores: false, users: false, permission_groups: false },
+      });
+
+      // A device whose local SQLite predates the migration that added
+      // permission_groups: PRAGMA table_info returns nothing for it, and
+      // any statement naming it throws "no such table".
+      vi.mocked(query).mockImplementation(async (sql: string) => {
+        if (sql.includes('permission_groups')) {
+          if (sql.includes('PRAGMA table_info')) return [];
+          throw new Error('no such table: permission_groups');
+        }
+        if (sql.includes('_sync_state')) return [];
+        if (sql.includes('PRAGMA table_info')) return [{ name: 'id' }, { name: 'name' }, { name: '_version' }];
+        if (sql.includes('SELECT 1 FROM')) return [];
+        return [];
+      });
+
+      const onCriticalTablesReady = vi.fn();
+      await expect(pullChanges(false, true, onCriticalTablesReady)).resolves.toBeDefined();
+
+      const written = vi.mocked(execute).mock.calls.map((c) => String(c[0]));
+      expect(written.some((sql) => sql.includes('INTO stores') || sql.includes('UPDATE stores'))).toBe(true);
+      expect(written.some((sql) => sql.includes('INTO users') || sql.includes('UPDATE users'))).toBe(true);
+      expect(written.some((sql) => sql.includes('permission_groups'))).toBe(false);
+      expect(onCriticalTablesReady).toHaveBeenCalledWith(true);
     });
   });
 

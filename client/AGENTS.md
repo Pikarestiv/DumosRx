@@ -1443,6 +1443,55 @@ and the PDF can't drift. `fetchSalesReportData` now also selects a
 "Cashier" column (`LEFT JOIN users`), which the export formats already
 carried a *filter* for but never showed.
 
+### Searching and re-filtering from inside the view (2026-09-29)
+
+The filters used to live only on the Report Center card: they were captured
+in a closure when "View" was clicked and baked into the one `getRows()` call
+behind the modal, so changing anything meant closing the modal, changing the
+card, and clicking View again. `report-view-dialog.tsx` now carries both
+kinds of control itself, and the distinction between them is the thing to
+preserve:
+
+- **Search filters the rows already on screen.** One `SearchInput` over
+  `genericFuzzySearch` (`lib/utils/search.ts`, the same utility the product
+  catalog and customer directory use), across every visible column, with no
+  query behind it. It renders for **every** report, including the two that
+  take no parameters at all.
+- **Date range / staff / payment method re-fetch.** They call the *same*
+  `getRows()` machinery the card's exports use: the dialog raises
+  `onFiltersChange`, and `report-center.tsx`'s `loadViewRows(reportId,
+  filters)` — which `openView` also calls — does the fetch and flips the
+  existing `isLoading`, so a re-fetch shows the same spinner the first load
+  does. The filter controls stay mounted while it runs; only the table is
+  replaced.
+
+**Which controls render is read from `REPORT_CONFIG`, not a second list.**
+`reportSupportsDateRange()` / `reportSupportsSalesFilters()`
+(`lib/hooks/use-report-export.ts`) expose the `takesDateRange` /
+`takesSalesFilters` flags that the export path already ran on, so the view
+cannot drift from what the query actually accepts. Today that means: Detailed
+Sales, Top Sellers and Profit & Loss get date + staff + payment; Expense
+Categories gets date only; Inventory Valuation and Customer Loyalty (pure
+point-in-time snapshots) get neither, only the search box. A report whose
+query gains or loses a dimension gets the right controls by changing that one
+config entry. `ReportFiltersBar` grew `showDateRange`/`showStaff`/
+`showPaymentMethod` (default `true`, so the card and Analytics are untouched)
+plus a `compact` variant for the narrower modal row.
+
+**The modal's filters are independent of the card's, seeded from them.** It
+opens pre-populated with whatever the card had when "View" was clicked and
+owns its state from then on: adjusting inside the modal never moves the card
+behind it, and the card re-rendering never resets the modal. The seeding is a
+`key={viewing.id}` remount in `report-center.tsx`, not a sync effect — an
+effect that copied the prop back into state would undo the user's in-modal
+change on any unrelated parent render. The reasoning: the card's filters are
+"what the next export will use" and are shared by six reports at once, while
+the modal's are "what I'm looking at right now" in one of them; silently
+rewriting the card from a modal would change what the other five reports'
+Export buttons do. The amber Profit & Loss note is computed from the
+**modal's** filters while it is open, so the banner always describes the rows
+actually on screen.
+
 ## Cashier (`sales_staff`) visibility gating — a recurring pattern, not a one-off
 
 A cashier account should never see store-wide profit/margin figures or

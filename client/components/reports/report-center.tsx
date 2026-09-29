@@ -101,15 +101,16 @@ export function ReportCenter() {
     }
   };
 
-  const openView = async (reportId: ReportId, title: string) => {
-    const { from, to } = toQueryRange(filters.dateRange);
-    setViewing({ id: reportId, title });
-    setViewRows([]);
+  const loadViewRows = async (
+    reportId: ReportId,
+    viewFilters: ReportFiltersValue,
+  ) => {
+    const { from, to } = toQueryRange(viewFilters.dateRange);
     setIsViewLoading(true);
     try {
       const rows = await getRows(reportId, from, to, {
-        staffId: filters.staffId,
-        paymentMethod: filters.paymentMethod,
+        staffId: viewFilters.staffId,
+        paymentMethod: viewFilters.paymentMethod,
       });
       setViewRows(rows);
     } catch (err) {
@@ -120,6 +121,12 @@ export function ReportCenter() {
     } finally {
       setIsViewLoading(false);
     }
+  };
+
+  const openView = async (reportId: ReportId, title: string) => {
+    setViewing({ id: reportId, title });
+    setViewRows([]);
+    await loadViewRows(reportId, filters);
   };
 
   const reports: {
@@ -312,15 +319,17 @@ export function ReportCenter() {
 
       {viewing && (
         <ReportViewDialog
+          // Remounting per report is what gives each opened report a clean
+          // search box and a fresh seed from the card's current filters.
+          key={viewing.id}
           open={!!viewing}
           onOpenChange={(open) => {
             if (!open) setViewing(null);
           }}
+          reportId={viewing.id}
           title={viewing.title}
-          note={getReportNote(viewing.id, {
-            staffId: filters.staffId,
-            paymentMethod: filters.paymentMethod,
-          })}
+          initialFilters={filters}
+          onFiltersChange={(next) => void loadViewRows(viewing.id, next)}
           rows={viewRows}
           headers={getReportHeaders(viewing.id)}
           isLoading={isViewLoading}

@@ -16,10 +16,16 @@ export function RecentDownloadsEmptyState() {
   );
 }
 
-export function RecentDownloadsList({ downloads }: { downloads: RecentDownload[] }) {
+export function RecentDownloadsList({
+  downloads,
+  limit = 4,
+}: {
+  downloads: RecentDownload[];
+  limit?: number;
+}) {
   return (
     <div className="space-y-3">
-      {downloads.map((dl) => (
+      {downloads.slice(0, limit).map((dl) => (
         <div
           key={dl.id}
           className="flex items-start gap-3 p-3 rounded-xl border bg-primary/5"

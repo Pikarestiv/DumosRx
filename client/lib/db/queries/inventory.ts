@@ -199,6 +199,21 @@ export async function recordSaleItemStock({
   if (batches.length === 0) {
     batches = await getAnyActiveBatchForProduct(productId);
   }
+  // Last resort, in order: an expired batch, then a batch opened here.
+  // Without it, a product whose only batches are expired (or which has none
+  // at all) produced a sale line with revenue, no COGS and no stock ledger
+  // trace whatsoever — see docs/FIXED_BUGS.md (A-57).
+  if (batches.length === 0) {
+    batches = await getAnyActiveBatchForProduct(productId, { includeExpired: true });
+  }
+  if (batches.length === 0) {
+    batches = [
+      await getOrCreateTargetBatchForProduct(productId, {
+        unitCost: costPrice || 0,
+        batchNumberPrefix: "SALE",
+      }),
+    ];
+  }
 
   const saleItemId = await insert("sale_items", {
     sale_id: saleId,
@@ -288,7 +303,10 @@ export async function recordSaleItemStock({
   // gets the same fallback: attribute the leftover to the most-recently-
   // touched active batch instead of leaving it undeducted and unlogged.
   if (remainingToDeduct > 0) {
-    const fallbackBatches = await getAnyActiveBatchForProduct(productId);
+    let fallbackBatches = await getAnyActiveBatchForProduct(productId);
+    if (fallbackBatches.length === 0) {
+      fallbackBatches = await getAnyActiveBatchForProduct(productId, { includeExpired: true });
+    }
     for (const batch of fallbackBatches) {
       if (remainingToDeduct <= 0) break;
       await deductFromBatch(batch);

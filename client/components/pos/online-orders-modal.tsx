@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import { useOnlineOrdersModal } from "@/lib/store/use-online-orders-modal";
@@ -12,7 +13,21 @@ import { toast } from "sonner";
 import { Loader2, CheckCircle, PackageOpen } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 
-import { useFulfillOnlineOrderMutation } from "@/lib/hooks/use-fulfill-online-order-mutation";
+import {
+  findOnlineOrderStockGaps,
+  useFulfillOnlineOrderMutation,
+  type OnlineOrderStockGap,
+} from "@/lib/hooks/use-fulfill-online-order-mutation";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { formatCurrency } from "@/lib/utils";
 import { useStore } from "@/lib/context/store-context";
 import type { OnlineOrder } from "@/lib/types/online-order";
@@ -46,8 +61,13 @@ export function OnlineOrdersModal() {
     ? fulfillOrderMutation.variables?.order.id ?? null
     : null;
 
-  const handleFulfill = (order: OnlineOrder) => {
-    if (fulfillOrderMutation.isPending) return;
+  const [pendingOversell, setPendingOversell] = useState<{
+    order: OnlineOrder;
+    gaps: OnlineOrderStockGap[];
+  } | null>(null);
+  const [checkingStockFor, setCheckingStockFor] = useState<string | null>(null);
+
+  const fulfill = (order: OnlineOrder) => {
     fulfillOrderMutation.mutate(
       // A store OWNER's own users.store_id is always null by design (they
       // "have" a store via stores.user_id), so passing it straight through
@@ -67,7 +87,32 @@ export function OnlineOrdersModal() {
     );
   };
 
+  const handleFulfill = async (order: OnlineOrder) => {
+    if (fulfillOrderMutation.isPending || checkingStockFor) return;
+    setCheckingStockFor(order.id);
+    try {
+      const gaps = await findOnlineOrderStockGaps(order);
+      if (gaps.length > 0) {
+        setPendingOversell({ order, gaps });
+        return;
+      }
+      fulfill(order);
+    } catch (e) {
+      console.error(e);
+      toast.error("Could not check stock for this order");
+    } finally {
+      setCheckingStockFor(null);
+    }
+  };
+
+  const confirmOversell = () => {
+    const order = pendingOversell?.order;
+    setPendingOversell(null);
+    if (order) fulfill(order);
+  };
+
   return (
+    <>
     <ResponsiveModal open={isOpen} onOpenChange={onClose} title={<>Online Orders</>}  className="max-w-4xl max-h-[80vh] flex flex-col">
         
         <div className="flex-1 pr-4 overflow-y-auto max-h-[60vh]">
@@ -123,8 +168,8 @@ export function OnlineOrdersModal() {
                       <Button 
                         variant="default" 
                         className="bg-emerald-600 hover:bg-emerald-700 text-white"
-                        onClick={() => handleFulfill(order)}
-                        disabled={fulfillingId === order.id}
+                        onClick={() => void handleFulfill(order)}
+                        disabled={fulfillingId === order.id || checkingStockFor === order.id}
                       >
                         {fulfillingId === order.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
                         Fulfill & Deduct Stock
@@ -137,5 +182,36 @@ export function OnlineOrdersModal() {
           )}
         </div>
       </ResponsiveModal>
+      <AlertDialog
+        open={pendingOversell !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingOversell(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Not enough sellable stock for this order</AlertDialogTitle>
+            <AlertDialogDescription>
+              These items don&apos;t have enough unexpired stock to cover the order.
+              Fulfilling anyway
+              records the sale and logs the shortfall as an oversell against the
+              product&apos;s most recent batch, so your stock and profit figures will
+              show it. Check the shelf first if you can.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <ul className="space-y-1 text-sm text-muted-foreground">
+            {(pendingOversell?.gaps ?? []).map((gap) => (
+              <li key={gap.productId} className={capsClass}>
+                {gap.productName} — ordered {gap.requested}, sellable {gap.available}
+              </li>
+            ))}
+          </ul>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmOversell}>Fulfill anyway</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

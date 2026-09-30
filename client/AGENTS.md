@@ -1066,6 +1066,19 @@ e2e/                       Playwright end-to-end specs
   the moment a new default-off toggle ships, until the owner finds and
   flips it — a real rollout cost worth flagging when introducing one, not
   something to "fix" by quietly changing the requested default.
+- **Every sale line leaves exactly one `stock_movements` row.**
+  `recordSaleItemStock()` (`lib/db/queries/inventory.ts`) escalates through
+  four lookups — FEFO over positive-stock batches, the most recently touched
+  active batch, the same lookup with `includeExpired: true`, and finally
+  `getOrCreateTargetBatchForProduct()` to open a `SALE-` batch — so a
+  product with only expired batches (or none at all) can no longer record
+  revenue with no ledger trace and no COGS. Don't reintroduce an early
+  return that skips the movement write when no batch is found. The POS
+  catalog query hides such products, so the path that actually reaches this
+  is online-order fulfilment: `findOnlineOrderStockGaps()` in
+  `lib/hooks/use-fulfill-online-order-mutation.ts` precomputes the
+  unsellable lines and `online-orders-modal.tsx` makes the owner confirm the
+  oversell before fulfilling (A-57 in `docs/FIXED_BUGS.md`).
 - **Stock audits / cycle counts** (`components/stock-batch/stock-audits.tsx`,
   `lib/db/queries/inventory.ts:submitStockAudit`): tracks three kinds of
   deviation per product (**qty**, **cost price**, **selling price**)

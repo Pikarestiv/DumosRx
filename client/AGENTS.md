@@ -3324,8 +3324,9 @@ reply/authorization/error handling around it.
   denied call ends the turn".** It maps a tool name to a narrower fallback
   tool tried when the first is denied and the fallback *is* permitted — the
   cashier case: a sales-shaped question from a user without `view_reports`
-  is answered with their own sales rather than refused. It ships empty and
-  is populated as such pairs appear. The reroute is only ever a
+  is answered with their own sales rather than refused. It currently holds
+  exactly one pair, `sales_summary → my_sales_today`, and is extended as
+  further such pairs appear. The reroute is only ever a
   *narrowing*, and it must not silently answer a different question than
   the one asked: if the denied call carried a `date` arg that isn't
   `ctx.now`'s date, the rerouted reply appends an explicit note saying so.
@@ -3406,6 +3407,30 @@ router's `REROUTE_ON_DENIAL` exists for: a cashier without `view_reports`
 asking a sales-shaped question gets their own numbers rather than a refusal.
 `getRecentSales()` also filters by `getActiveStoreId()`, so nothing here
 needs its own store scoping.
+
+`salesSummaryTool` ("total sales yesterday") is the store-wide counterpart
+and the wide half of that reroute pair: `requiredPermission` is
+`view_reports`, and it sums `getSalesTotalsByPaymentMethod(date)` across
+payment methods for the total while taking the count from
+`getTransactionCountByDate(date)`. Unlike `mySalesTodayTool` it reports
+**gross** — both queries aggregate `sales` alone and neither joins
+`returns` — so the two tools' numbers for the same day are not directly
+comparable, by design: one is a cashier's own net takings, the other the
+store's transaction ledger.
+
+**The date default lives in the intent, not the tool.** `sales_summary`'s
+`buildArgs` runs `parseDatePhrase(utterance, ctx.now)` and falls back to
+`toDateOnly(ctx.now)`, so `execute()` always receives an explicit `date`
+and never has to invent one. That is also what makes the router's reroute
+note correct: it compares `args.date` against today to decide whether to
+warn that the rerouted answer is about a different day, which it can only
+do because the requested date is always present in the args.
+
+**These two queries filter `transaction_date`, not `created_at`** (which is
+what `getRecentSales()` uses). A test seeding `sales` rows for them must set
+`transaction_date`, or the queries return zero rows with no error — the
+shared `insertSale()` helper in `__tests__/assistant-sales-tools.test.ts`
+writes both columns plus `payment_method` for exactly this reason.
 
 ## Running things
 

@@ -39,11 +39,17 @@ describe("assistant sales tools", () => {
     now,
   };
 
-  function insertSale(id: string, userId: string, totalAmount: number, createdAt: string) {
+  function insertSale(
+    id: string,
+    userId: string,
+    totalAmount: number,
+    createdAt: string,
+    paymentMethod = "cash",
+  ) {
     db.run(
-      `INSERT INTO sales (id, transaction_number, user_id, subtotal, total_amount, created_at, _deleted)
-       VALUES (?, ?, ?, ?, ?, ?, 0)`,
-      [id, `TXN-${id}`, userId, totalAmount, totalAmount, createdAt],
+      `INSERT INTO sales (id, transaction_number, user_id, subtotal, total_amount, payment_method, transaction_date, created_at, _deleted)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+      [id, `TXN-${id}`, userId, totalAmount, totalAmount, paymentMethod, createdAt, createdAt],
     );
   }
 
@@ -85,5 +91,47 @@ describe("assistant sales tools", () => {
     expect(reply.kind).toBe("answer");
     expect(reply.text).toContain("2");
     expect(reply.text).toContain("120");
+  });
+
+  it("summarizes store-wide sales total and count for a date", async () => {
+    const { salesSummaryTool } = await import("@/lib/assistant/tools/sales-tools");
+    const today = toDateOnly(now);
+    const yesterday = toDateOnly(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1));
+
+    insertSale("s1", "cashier1", 150, localNoon(today), "cash");
+    insertSale("s2", "cashier2", 50, localNoon(today), "card");
+    insertSale("s3", "cashier1", 999, localNoon(yesterday), "cash");
+
+    const result = await salesSummaryTool.execute({ date: today }, baseCtx);
+    expect(result.count).toBe(2);
+    expect(result.total).toBe(200);
+    expect(result.date).toBe(today);
+  });
+
+  it("names the date, count and total in its reply", async () => {
+    const { salesSummaryTool } = await import("@/lib/assistant/tools/sales-tools");
+    const reply = salesSummaryTool.format(
+      { total: 200, count: 2, date: "2026-09-29" },
+      { date: "2026-09-29" },
+      baseCtx,
+    );
+    expect(reply.kind).toBe("answer");
+    expect(reply.text).toContain("29/09/2026");
+    expect(reply.text).toContain("2");
+    expect(reply.text).toContain("200");
+  });
+
+  it("reroutes a sales_staff cashier's sales question to my_sales_today via answer()", async () => {
+    const { answer } = await import("@/lib/assistant/router");
+    const today = toDateOnly(now);
+
+    insertSale("s1", "cashier1", 100, localNoon(today));
+    insertSale("s2", "cashier2", 400, localNoon(today));
+
+    const reply = await answer("how many sales today", baseCtx);
+    expect(reply.kind).toBe("answer");
+    expect(reply.text).toContain("You've made");
+    expect(reply.text).toContain("1");
+    expect(reply.text).not.toContain("Note:");
   });
 });

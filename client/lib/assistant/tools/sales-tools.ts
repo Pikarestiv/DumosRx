@@ -1,8 +1,8 @@
-import { getRecentSales } from "@/lib/db/queries/sales";
+import { getRecentSales, getSalesTotalsByPaymentMethod, getTransactionCountByDate } from "@/lib/db/queries/sales";
 import { calculateNetSaleAmount } from "@/lib/utils/pos-calculations";
 import type { AssistantTool } from "../types";
 import { toDateOnly } from "../date-phrases";
-import { formatMoney } from "../reply-formatters";
+import { formatDateLabel, formatMoney } from "../reply-formatters";
 
 export interface MySalesTodayResult {
   count: number;
@@ -29,5 +29,29 @@ export const mySalesTodayTool: AssistantTool<Record<string, never>, MySalesToday
   format: (result, _args, ctx) => ({
     kind: "answer",
     text: `You've made ${result.count} sale(s) today, totalling ${formatMoney(result.netTotal, ctx)}.`,
+  }),
+};
+
+export interface SalesSummaryResult {
+  total: number;
+  count: number;
+  date: string;
+}
+
+export const salesSummaryTool: AssistantTool<{ date: string }, SalesSummaryResult> = {
+  name: "sales_summary",
+  description: "Reports store-wide sales total and transaction count for a date.",
+  parameters: { date: { type: "string", description: "Date in YYYY-MM-DD", required: true } },
+  requiredPermission: "view_reports",
+  examples: ["how many sales today", "total sales yesterday"],
+  execute: async ({ date }) => {
+    const totals = await getSalesTotalsByPaymentMethod(date);
+    const count = await getTransactionCountByDate(date);
+    const total = totals.reduce((sum, row) => sum + (Number(row.total) || 0), 0);
+    return { total, count, date };
+  },
+  format: (result, _args, ctx) => ({
+    kind: "answer",
+    text: `${formatDateLabel(result.date)}: ${result.count} sale(s) totalling ${formatMoney(result.total, ctx)}.`,
   }),
 };

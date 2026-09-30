@@ -475,6 +475,26 @@ per-store Paystack subaccounts — see the dedicated section below for the
 onboarding flow, fee semantics, propagation cadence, and the refund decision.
 Full design: `docs/superpowers/specs/2026-09-26-storefront-paystack-subaccounts-design.md`.
 
+## `POST /subscription/verify-license` is scoped to the caller's own account
+
+The license key is not a secret in the threat model that matters here: `GET
+/subscription/status` returns it in plaintext to the store's own users, so it
+travels through support chats and screenshots. Verification therefore may
+never be "does this key exist" — it looks the subscription up **by key *and*
+by `user_id`, resolved through `SubscriptionService::getSubscriptionOwner()`**
+so a staff member verifies their employer's key and nobody else's. Before
+that, any authenticated user could present a stranger's `enterprise` key, have
+a `License` row created for *their* `machine_id` against the victim's
+subscription, and be answered `valid: true, plan: enterprise` — an entitlement
+bypass plus a write into another tenant's `licenses` rows (A-87). A key that
+exists but isn't the caller's returns the same 404 as an unknown one, so the
+endpoint never confirms a key as valid-but-not-yours.
+
+`last_check_in` is stamped **after** the `is_active` check, not before: a
+deactivated device must not leave a fresh check-in behind on its way to a 403.
+Pinned by `tests/Feature/VerifyLicenseOwnershipTest.php`. `.agents/AGENTS.md`
+§8 covers the client-side JWT/anti-backdating half of the licensing system.
+
 ## Referral credits on a subscription checkout are reserved, not deferred
 
 `SubscriptionController::initiatePayment()` **deducts** the credits a paid

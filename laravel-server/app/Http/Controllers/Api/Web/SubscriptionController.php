@@ -108,7 +108,7 @@ class SubscriptionController extends Controller
                 new OA\Property(property: 'valid', type: 'boolean', example: false),
                 new OA\Property(property: 'message', type: 'string'),
             ])),
-            new OA\Response(response: 404, description: 'Unknown license key', content: new OA\JsonContent(properties: [
+            new OA\Response(response: 404, description: "Unknown license key, or one that does not belong to the caller's own subscription", content: new OA\JsonContent(properties: [
                 new OA\Property(property: 'valid', type: 'boolean', example: false),
                 new OA\Property(property: 'message', type: 'string'),
             ])),
@@ -122,7 +122,11 @@ class SubscriptionController extends Controller
             'machine_id' => 'required|string',
         ]);
 
-        $sub = Subscription::where('license_key', $request->license_key)->first();
+        $owner = app(SubscriptionService::class)->getSubscriptionOwner($request->user());
+
+        $sub = Subscription::where('license_key', $request->license_key)
+            ->where('user_id', $owner->id)
+            ->first();
 
         if (!$sub) {
             return response()->json(['valid' => false, 'message' => 'Invalid license key.'], 404);
@@ -143,11 +147,11 @@ class SubscriptionController extends Controller
             ]
         );
 
-        $license->update(['last_check_in' => now()]);
-
         if (!$license->is_active) {
             return response()->json(['valid' => false, 'message' => 'This device has been deactivated.'], 403);
         }
+
+        $license->update(['last_check_in' => now()]);
 
         return response()->json([
             'valid' => true,

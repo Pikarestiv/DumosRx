@@ -224,6 +224,64 @@ which create no broadcast (see `laravel-server/AGENTS.md`):
   inside the create `<form>`, so an unhandled Enter would dispatch the real
   broadcast instead of sending a test.
 
+## Storefront checkout: the three states of a Paystack return (A-95)
+
+`components/storefront/checkout-form.tsx` handles a `?reference=`/`?trxref=`
+return from Paystack. The customer has already paid by then, so **none of the
+three outcomes may render the ordinary `Delivery & Payment` form** — its
+"Place Order" button creates a *second* order for a cart that is still full,
+and "Pay Online" takes a second real charge. The panels live in
+`components/storefront/checkout-reference-panels.tsx`:
+
+- **Confirmed** — `POST /storefront/{slug}/checkout` succeeds: the
+  `sessionStorage` pending entry is removed, the cart is cleared, and the
+  customer is pushed back to the store.
+- **Orphan reference** (no pending entry in `sessionStorage` at all — a new
+  tab, a different session, cleared storage): `OrphanReferencePanel`. Nothing
+  local can identify the order, so the reference is quoted and the customer is
+  told to contact the store.
+- **Failed confirmation** (there *was* a pending entry, but the POST failed):
+  `FailedConfirmationPanel`. Distinct state (`failedReference`), not the
+  orphan one. It quotes the reference, says the payment may have gone through,
+  and offers **Retry confirmation**, which re-posts the retained pending
+  entry. The retry is safe because `StorefrontController::checkout()` rejects
+  a reference already consumed by an `OnlineOrder` or a `PaymentTransaction`
+  with a 422, so a retry can never create a second order. The pending entry is
+  therefore deliberately **kept** on failure — don't "clean it up".
+  A 422 body carrying `refunded: true` (the server refunded an unfulfillable
+  paid checkout) switches the copy to refund wording and removes the retry
+  button, since a refunded payment must not be re-confirmed.
+
+The auto-confirm effect is guarded by an `autoConfirmedReference` ref, so one
+reference is confirmed at most once per mount no matter how often the
+component re-renders; only the explicit retry button posts again.
+
+## Public pages must only call public endpoints (A-94)
+
+`base-client.ts` attaches the admin bearer token **only** when
+`window.location.pathname.startsWith('/admin')`, because `/admin` is the one
+authenticated surface on this origin. Two consequences that are easy to
+re-break:
+
+- A public/marketing page (`downloads`, `faq`, `support`, the landing page,
+  the storefront) may only call endpoints that are unauthenticated
+  server-side. Calling an `admin/*` endpoint from one sends an anonymous
+  request that answers 401. If a public page needs data an admin endpoint
+  already returns, add a public route on the server and a **separate hook** —
+  don't share one hook across both surfaces. The Downloads page is the worked
+  example: `usePublicLatestRelease()` vs. `useLatestRelease()`, documented in
+  `docs/DOWNLOADS_MANIFEST.md`.
+- 401 handling is admin-only. `shouldRecoverFromUnauthorized(pathname, url)`
+  gates the whole refresh-and-redirect branch of the response interceptor on
+  an `/admin*` pathname, so a 401 on a public page is an ordinary rejected
+  promise. Previously it refreshed and then navigated to `/login` from
+  anywhere, which threw anonymous visitors off the marketing site entirely.
+  There is no non-admin refresh path any more (this origin stores no
+  non-admin bearer token), and the admin path still shares one in-flight
+  refresh via `useAdminAuthStore.initSession()` — that shared slot is the
+  A-51 race fix, covered by `__tests__/admin-session-refresh-race.test.tsx`;
+  don't give the interceptor its own `POST /refresh` back.
+
 ## Running things
 
 ```

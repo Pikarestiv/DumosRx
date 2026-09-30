@@ -121,40 +121,33 @@ apiClient.interceptors.request.use((config: ConfigWithMetadata) => {
 // shared and the slot is cleared once settled.
 let refreshPromise: Promise<string> | null = null;
 
-const refreshSession = (isAdminPath: boolean): Promise<string> => {
+const refreshSession = (): Promise<string> => {
   if (refreshPromise) return refreshPromise;
 
   refreshPromise = (async () => {
-    if (isAdminPath) {
-      // Admin sessions refresh via the HttpOnly refresh cookie, not a
-      // bearer token - see use-admin-auth-store.ts's initSession().
-      // Dynamic import, not a static one: use-admin-auth-store.ts
-      // imports client.ts which imports this file, so a static import
-      // here would create a cycle that breaks client.ts's
-      // `export default apiClient` with a TDZ crash at module load.
-      const { useAdminAuthStore } = await import("@/lib/store/use-admin-auth-store");
-      // Delegated to the store rather than posting here: the layout guard and
-      // the login page call initSession() too, and the refresh cookie rotates
-      // per use, so all three have to share one in-flight request or they race
-      // each other over a single-use cookie. initSession() owns that slot.
-      await useAdminAuthStore.getState().initSession();
-      const token = useAdminAuthStore.getState().token;
-      if (!token) throw new Error("No token in refresh response");
-      return token;
-    }
-
-    const { data } = await axios.post(`${API_URL}/refresh`, {}, { withCredentials: true });
-    if (!data.token || typeof window === "undefined") {
-      throw new Error("No token in refresh response");
-    }
-    // Returned for the in-flight retry only; deliberately not persisted (see
-    // the request interceptor above - this origin stores no bearer token).
-    return data.token as string;
+    // Dynamic import, not a static one: use-admin-auth-store.ts imports
+    // client.ts which imports this file, so a static import would cycle.
+    const { useAdminAuthStore } = await import("@/lib/store/use-admin-auth-store");
+    await useAdminAuthStore.getState().initSession();
+    const token = useAdminAuthStore.getState().token;
+    if (!token) throw new Error("No token in refresh response");
+    return token;
   })().finally(() => {
     refreshPromise = null;
   });
 
   return refreshPromise;
+};
+
+/**
+ * /admin is the only authenticated surface on this origin, so a 401 anywhere
+ * else is an ordinary error, never a reason to navigate. See web/AGENTS.md
+ * ("401 handling is admin-only") for why this guard exists (A-94).
+ */
+export const shouldRecoverFromUnauthorized = (pathname: string, requestUrl?: string): boolean => {
+  if (!pathname.startsWith("/admin")) return false;
+  if (!requestUrl) return true;
+  return !requestUrl.includes("/login") && !requestUrl.includes("/refresh");
 };
 
 // Response interceptor for logging & 401 refresh
@@ -262,31 +255,22 @@ apiClient.interceptors.response.use(
       error.response?.status === 401 &&
       originalRequest &&
       !originalRequest._retry &&
-      !originalRequest.url?.includes('/login') &&
-      !originalRequest.url?.includes('/refresh')
+      typeof window !== "undefined" &&
+      shouldRecoverFromUnauthorized(window.location.pathname, originalRequest.url)
     ) {
       originalRequest._retry = true;
-      const isAdminPath = typeof window !== "undefined" && window.location.pathname.startsWith('/admin');
 
       try {
-        const token = await refreshSession(isAdminPath);
+        const token = await refreshSession();
         originalRequest.headers.Authorization = `Bearer ${token}`;
         return apiClient(originalRequest);
       } catch (_refreshError) {
-        if (typeof window !== "undefined") {
-          const cleanPath = window.location.pathname.replace(/\/$/, "");
-          const isAlreadyOnLoginPage = cleanPath === "/admin/login" || cleanPath === "/login";
-          // Only the admin surface has session state to clear here: this
-          // origin no longer stores a non-admin bearer token at all.
-          if (isAdminPath) {
-            const { useAdminAuthStore } = await import("@/lib/store/use-admin-auth-store");
-            useAdminAuthStore.getState().setToken(null);
-            useAdminAuthStore.getState().setUser(null);
-          }
-          if (!isAlreadyOnLoginPage) {
-            const redirectParam = `?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`;
-            window.location.href = isAdminPath ? `/admin/login${redirectParam}` : `/login${redirectParam}`;
-          }
+        const { useAdminAuthStore } = await import("@/lib/store/use-admin-auth-store");
+        useAdminAuthStore.getState().setToken(null);
+        useAdminAuthStore.getState().setUser(null);
+        if (window.location.pathname.replace(/\/$/, "") !== "/admin/login") {
+          const redirectParam = `?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+          window.location.href = `/admin/login${redirectParam}`;
         }
       }
     }

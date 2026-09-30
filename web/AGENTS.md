@@ -127,6 +127,28 @@ all, so a 422 was indistinguishable from success (A-98). Every save handler
 on this tab surfaces `error.message`; don't pass a bare `async` function to
 `onClick`.
 
+## `platform_admin`/`agent`: "My Stores", the scoped fleet view (A-113)
+
+These two roles register stores (`create_accounts`) but must not see the
+platform-wide fleet list — `GET /admin/stores` is `role:super_admin` because
+its rows carry every store's revenue. They now get `/admin/stores/mine`,
+backed by `GET /admin/stores/registered-by-me`
+(`AdminStoreController::storesRegisteredByMe` → `AdminStoreService::getStoresRegisteredBy`),
+which returns only stores whose owner carries the caller's id in
+`users.registered_by_id` — the column `registerStore()` already sets — and
+**no revenue fields at all**. The route is gated on
+`permission:create_accounts`, the same permission that lets them register a
+store, not on a role string; it must stay registered *above* `/stores/{id}`
+or the wildcard swallows it. Coverage:
+`laravel-server/tests/Feature/Admin/AdminRegisteredStoresScopeTest.php` and
+`web/__tests__/admin-my-stores.test.tsx`.
+
+Still missing for these roles (deliberately deferred, was the other half of
+A-113): a UI for `grant-trial`/`activate-plan`. Note those routes are
+`permission:grant_trials`, which `RolesAndPermissionsSeeder` grants
+`platform_admin` but **not** `agent` — so that surface belongs to
+`platform_admin` only, and the sidebar item would need `roles: ["platform_admin"]`.
+
 ## Admin nav: one role filter, two renderers (A-96)
 
 `components/admin/sidebar-items.ts` owns both the `sidebarItems` list and

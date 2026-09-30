@@ -38,6 +38,13 @@ export const sidebarItems: AdminSidebarItem[] = [
     roles: ["platform_admin", "agent"],
   },
   {
+    id: "my-stores",
+    name: "My Stores",
+    icon: Store,
+    href: "/admin/stores/mine",
+    roles: ["platform_admin", "agent"],
+  },
+  {
     id: "referrals",
     name: "My Referrals",
     icon: Link2,

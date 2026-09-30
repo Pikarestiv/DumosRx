@@ -300,6 +300,37 @@ migration here **and** the corresponding update on the `client/` side
   theoretical one. Anything only a dedicated endpoint or a console command may
   set belongs in one of those lists in the same change that adds it.
   Coverage: `tests/Feature/SyncStoresPaystackFieldGuardTest.php`.
+- **Write authorization is checked on all three operations, and INSERT is the
+  one that needs its own resolver.** `push()` gates UPDATE and DELETE with
+  `authorizeChangeTarget()` (which inspects the *stored* row) and INSERT with
+  `authorizeInsertTarget()` (which inspects the *incoming payload*, because
+  there is no stored row yet). Both funnel through the same
+  `resolveChangeStoreId()` table map, so read scoping, UPDATE/DELETE scoping
+  and INSERT scoping cannot drift. INSERT needed the separate resolver because
+  six child tables — `stock_batches`→`product_id`, `sale_items`→`sale_id`,
+  `sale_item_batches`→`sale_item_id`, `return_items`→`return_id`,
+  `prescription_items`→`prescription_id`,
+  `purchase_order_items`→`purchase_order_id` — carry no `store_id` of their
+  own, so `normalizePushPayload()`'s `$tablesWithStoreId` check can't see
+  them; for as long as the INSERT branch had no check at all, a product id
+  harvested off the unauthenticated `GET /storefront/{slug}` was enough to
+  plant phantom stock or fabricated sale line items in a stranger's tenant
+  (A-77). **A new child table whose tenant scope comes from a parent FK must
+  be added to `resolveChangeStoreId()` in the same change**, or it lands
+  unchecked on every operation.
+  - Both resolvers fail **open** on a parent that resolves to *no* store
+    (a child pushed before its parent in the same batch, or a legacy row
+    predating the `store_id` backfill) and **closed** on a parent that
+    resolves to a store outside the caller's scope. Don't "tidy" the
+    fail-open away — `backfillStoreIdOnLegacyRows` is still live for
+    accounts with local DBs older than its ship date.
+  - `normalizePushPayload()`'s foreign-`store_id` rejection is deliberately
+    **not** gated on `$currentStoreId`. It used to be, which meant a caller
+    who owns no store yet (`resolvePushStoreId()` → null) had an explicit
+    foreign `store_id` accepted verbatim.
+  Coverage: `tests/Feature/TenantIsolationTest.php` (child-table INSERT under
+  a foreign parent, plus the store-less caller) and
+  `tests/Feature/SyncPushOwnershipTest.php` (UPDATE/DELETE).
 - **A MySQL `ENUM` column for a client-controlled string field is a
   recurring footgun, not a one-off bug:** `stock_movements.movement_type`
   was created as an `ENUM` back in 2024 that never actually matched every

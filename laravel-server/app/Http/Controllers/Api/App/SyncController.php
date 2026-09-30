@@ -247,6 +247,17 @@ class SyncController extends Controller
                 }
 
                 if ($change['operation'] === 'INSERT') {
+                    if ($currentUser && !$isSuperAdmin && !$this->authorizeInsertTarget($change['table_name'], $payload, $allowedStoreIds)) {
+                        DB::commit();
+                        $failed[] = [
+                            'id' => $change['id'] ?? null,
+                            'table_name' => $change['table_name'],
+                            'record_id' => $recordId,
+                            'reason' => 'forbidden',
+                        ];
+                        continue;
+                    }
+
                     // Re-calculate exists for normal INSERT flow just in case
                     $exists = false;
 
@@ -1606,9 +1617,15 @@ class SyncController extends Controller
             'stock_movements', 'supplier_payments', 'audit_logs',
             'permission_groups',
         ];
-        if (in_array($change['table_name'], $tablesWithStoreId) && $currentStoreId) {
+        // Deliberately NOT gated on $currentStoreId: a caller for whom
+        // resolvePushStoreId() returns null (an account that owns no store
+        // yet) has nothing to backfill from, but their payload's explicit
+        // store_id must still be verified rather than trusted verbatim.
+        if (in_array($change['table_name'], $tablesWithStoreId, true)) {
             if (empty($payload['store_id'])) {
-                $payload['store_id'] = $currentStoreId;
+                if ($currentStoreId) {
+                    $payload['store_id'] = $currentStoreId;
+                }
             } elseif ($currentUser && !$isSuperAdmin && !in_array($payload['store_id'], $allowedStoreIds, true)) {
                 // An explicit store_id in the payload is otherwise
                 // trusted as-is (only a MISSING one gets backfilled
@@ -2061,6 +2078,39 @@ class SyncController extends Controller
         // know the id, which is exactly the "another tenant's property" case
         // this fallback exists to keep denied.
         return !User::withTrashed()->whereKey($model->user_id)->exists();
+    }
+
+    /**
+     * The INSERT counterpart of authorizeChangeTarget(): there is no stored
+     * row to inspect yet, so ownership is resolved from the incoming payload's
+     * own parent FK instead. This is what stops a caller planting rows in a
+     * child table that carries no store_id of its own (stock_batches,
+     * sale_items, sale_item_batches, return_items, prescription_items,
+     * purchase_order_items) under a parent id harvested off the
+     * unauthenticated storefront endpoints.
+     *
+     * `stores`/`users` are exempt: a brand-new row of either is the caller's
+     * own account/setup row, gated by validateSync() and the plan's store
+     * limit rather than by an owning store that doesn't exist yet.
+     *
+     * Fails open on an unresolvable parent (a child pushed before its parent
+     * in the same batch, or a legacy row with no store_id), matching
+     * authorizeChangeTarget()'s reasoning: the attack this closes only ever
+     * yields parents that do resolve to a real, foreign store.
+     */
+    private function authorizeInsertTarget(string $tableName, array $payload, array $allowedStoreIds): bool
+    {
+        if ($tableName === 'stores' || $tableName === 'users') {
+            return true;
+        }
+
+        $resolvedStoreId = $this->resolveChangeStoreId($tableName, (object) $payload);
+
+        if ($resolvedStoreId === null) {
+            return true;
+        }
+
+        return in_array($resolvedStoreId, $allowedStoreIds, true);
     }
 
     /**

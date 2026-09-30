@@ -30,6 +30,21 @@ use OpenApi\Attributes as OA;
  */
 trait RegistersAccounts
 {
+    private const EMAIL_VERIFICATION_TOKEN_TTL_HOURS = 168;
+
+    /**
+     * Whether the platform requires a verified email before an account is
+     * usable. Resolved once per registration, above the store_name branch:
+     * it is read on both paths, so assigning it inside the branch left a
+     * store-less registration auto-marked verified.
+     */
+    private function requiresEmailVerification(): bool
+    {
+        $configured = \App\Models\SystemConfig::getVal('require_email_verification', false);
+
+        return $configured === true || $configured === 'true' || $configured === 1 || $configured === '1';
+    }
+
     #[OA\Post(
         path: '/register',
         summary: 'Register a new user (optionally creating a store)',
@@ -120,6 +135,8 @@ trait RegistersAccounts
             'registered_by_id' => $registeredById,
         ]);
 
+        $requireVerification = $this->requiresEmailVerification();
+
         if ($request->filled('store_name')) {
             Store::create([
                 'user_id' => $user->id,
@@ -131,8 +148,6 @@ trait RegistersAccounts
 
             // Create trial subscription
             app(SubscriptionService::class)->createTrial($user);
-
-            $requireVerification = \App\Models\SystemConfig::getVal('require_email_verification', false) === true || \App\Models\SystemConfig::getVal('require_email_verification', false) === 'true';
 
             // Send Welcome Email if verification is NOT required
             if (!$requireVerification) {
@@ -216,7 +231,7 @@ trait RegistersAccounts
 
         $record = DB::table('email_verification_tokens')->where('email', $request->email)->first();
 
-        if (!$record || !Hash::check($request->token, $record->token)) {
+        if (!$record || !Hash::check($request->token, $record->token) || $this->verificationTokenExpired($record)) {
             return response()->json(['message' => 'Invalid or expired verification link.'], 400);
         }
 
@@ -242,6 +257,17 @@ trait RegistersAccounts
         }
 
         return response()->json(['message' => 'User not found.'], 404);
+    }
+
+    private function verificationTokenExpired(object $record): bool
+    {
+        if (empty($record->created_at)) {
+            return true;
+        }
+
+        return \Illuminate\Support\Carbon::parse($record->created_at)
+            ->addHours(self::EMAIL_VERIFICATION_TOKEN_TTL_HOURS)
+            ->isPast();
     }
 
     #[OA\Post(

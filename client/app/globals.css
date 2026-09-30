@@ -590,6 +590,26 @@ textarea,
   animation: progress-stripes 0.75s linear infinite;
 }
 
+@keyframes assistant-sheen {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+.animate-assistant-sheen {
+  background-size: 220% 220%;
+  animation: assistant-sheen 6s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-assistant-sheen {
+    animation: none;
+    background-position: 0% 50%;
+  }
+}
+
 @layer utilities {
   .hide-scrollbar {
     -ms-overflow-style: none; /* IE and Edge */

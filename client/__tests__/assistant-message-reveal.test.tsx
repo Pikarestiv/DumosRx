@@ -128,6 +128,40 @@ describe("assistant message reveal", () => {
     expect(document.querySelectorAll('[data-revealed="false"]').length).toBe(0);
   });
 
+  it("renders a new reply fully revealed when the OS asks for reduced motion", () => {
+    const original = window.matchMedia;
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      matches: query.includes("prefers-reduced-motion"),
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })) as unknown as typeof window.matchMedia;
+
+    try {
+      const { rerender } = render(
+        <AssistantMessageList messages={[]} isThinking onActionClick={() => {}} />,
+      );
+      rerender(
+        <AssistantMessageList
+          messages={[assistantMessage()]}
+          isThinking={false}
+          onActionClick={() => {}}
+        />,
+      );
+
+      expect(document.querySelectorAll('[data-revealed="false"]').length).toBe(0);
+      expect(document.querySelectorAll("[data-revealed]").length).toBe(0);
+      expect(screen.getByText(REPLY_TEXT)).toBeTruthy();
+      expect(screen.getByRole("link", { name: "Make a sale" }).getAttribute("href")).toBe("/pos");
+    } finally {
+      window.matchMedia = original;
+    }
+  });
+
   it("shows a user message immediately even though it is new", () => {
     const { rerender } = render(
       <AssistantMessageList messages={[]} isThinking={false} onActionClick={() => {}} />,

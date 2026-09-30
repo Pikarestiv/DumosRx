@@ -10,6 +10,7 @@ import { getSyncQueueCount } from "@/lib/db/queries/setup";
 import { queryKeys } from "@/lib/query-keys";
 import { clearRecentUsers } from "@/lib/storage-keys";
 import { useAssistantPanel } from "@/lib/store/use-assistant-panel";
+import { ASSISTANT_NAME } from "@/components/assistant/assistant-brand";
 
 export interface NavAction {
   key: string;
@@ -72,7 +73,7 @@ export function useAccountActions({
   const navActions: NavAction[] = [
     {
       key: "assistant",
-      label: "Ask the assistant",
+      label: `Ask ${ASSISTANT_NAME} (Beta)`,
       icon: Sparkles,
       onClick: () => {
         onClose();

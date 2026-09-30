@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { prefersReducedMotion } from "@/lib/prefers-reduced-motion";
 import type { AssistantMessage } from "@/lib/assistant/types";
 
 const WORD_INTERVAL_MS = 45;
@@ -13,15 +14,6 @@ interface AssistantMessageBubbleProps {
   message: AssistantMessage;
   animate: boolean;
   onActionClick: () => void;
-}
-
-function prefersReducedMotion(): boolean {
-  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
-  try {
-    return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  } catch {
-    return false;
-  }
 }
 
 interface TextSegment {

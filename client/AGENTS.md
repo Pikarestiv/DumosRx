@@ -3677,12 +3677,13 @@ not to the thread.
 
 ## Assistant chat UI (`components/assistant/`)
 
-Six small presentational pieces sit on top of that state:
+Seven small presentational pieces sit on top of that state:
 `assistant-panel.tsx` (the only one wired to global state — it reads
 `isOpen`/`close` from `useAssistantPanel` itself and calls `useAssistant()`),
 plus `assistant-message-list.tsx`, `assistant-message-bubble.tsx`
 (one message, including its reveal animation), `assistant-composer.tsx`,
-`assistant-suggestion-chips.tsx` and `assistant-launcher.tsx`, all of which
+`assistant-suggestion-chips.tsx`, `assistant-launcher.tsx` and
+`assistant-brand.tsx` (the name + BETA tag, see below), all of which
 take everything through props. Mounting them is a separate concern — the
 panel is designed to be rendered once globally and the launcher wherever an
 entry point is wanted.
@@ -3692,7 +3693,7 @@ once, in `components/dashboard/dashboard-layout.tsx` beside `<FeedbackForm />`
 and `<OnlineOrdersModal />`, so it survives route changes and is available on
 every dashboard route. There are two entry points into the same thread:
 `<AssistantLauncher />` in `dashboard-header.tsx` (beside `NotificationBell`,
-in the same rounded-border wrapper), and an "Ask the assistant" action at the
+in the same rounded-border wrapper), and an "Ask <name> (Beta)" action at the
 top of `navActions` in `lib/hooks/use-account-actions.ts`, which reaches every
 account surface at once (desktop dropdown, mobile avatar drawer, the bottom
 nav's "More" sheet). That action calls `useAssistantPanel.getState().open()`
@@ -3797,9 +3798,46 @@ paragraph is a single plain text node.
 - Only messages that were absent on the list's first render animate, tracked in
   a `preexistingIds` ref, so reopening the panel doesn't replay the thread.
   User messages never animate, and `prefers-reduced-motion: reduce` reveals
-  instantly (guarded for jsdom, which has no reliable `matchMedia`).
+  instantly (guarded for jsdom, which has no reliable `matchMedia`). The check
+  itself lives in `lib/prefers-reduced-motion.ts` — one helper shared by the
+  reveal and by the thinking indicator, so the two can't drift. Any new motion
+  in this panel goes through it (or through a CSS
+  `@media (prefers-reduced-motion: reduce)` override, as the launcher does).
 - **`actions` render only once the text has fully revealed**, so a link can't be
   clicked out from under a reply that is still arriving.
+
+**Branding: the assistant has a name, and it lives in exactly one place.**
+`components/assistant/assistant-brand.tsx` exports `ASSISTANT_NAME`
+(currently `"DumoAI"`) and `AssistantBetaTag`. Every user-visible mention of the
+assistant reads that constant — the panel/drawer title, the launcher's tooltip,
+and the `navActions` entry in `lib/hooks/use-account-actions.ts` (which imports
+the constant rather than repeating the string, so a rename is one edit). The
+feature is still labelled **Beta**: `AssistantBetaTag` is a compact pill
+(`text-[10px] uppercase tracking-wide rounded-full`) with two tones —
+`onPrimary` for the primary-filled panel header, `onSurface` for a normal
+background like the tooltip. The nav-menu row is too tight for a chip, so it
+inlines "(Beta)" in its label instead.
+
+- **The visible name and the `aria-label`s are deliberately different strings.**
+  `assistant-launcher.tsx` keeps `aria-label="Open assistant"` and
+  `assistant-composer.tsx` keeps `aria-label="Ask the assistant"`; these are the
+  stable accessibility identifiers `e2e/assistant.spec.ts` and
+  `__tests__/assistant-panel.test.tsx` locate by exact match. Rebrand the
+  visible text freely; renaming those two labels means updating both test files,
+  so don't do it incidentally.
+
+**The launcher is deliberately loud.** `assistant-launcher.tsx` is a default
+(primary) `Button` carrying `animate-assistant-sheen` plus
+`bg-gradient-to-br from-primary via-primary/60 to-primary` — a gradient built
+only from `--primary` so it survives every theme preset in `globals.css`
+(note `--accent` *equals* `--primary` in the light theme, so a
+`from-primary to-accent` gradient would render as a flat fill there). The
+`animate-assistant-sheen` utility in `globals.css` oversizes the gradient to
+220% and slides `background-position` on a 6s loop, and a
+`@media (prefers-reduced-motion: reduce)` block next to it sets
+`animation: none` — the CSS carries the reduced-motion opt-out, so no JS check
+is needed for this one. The `Sparkles` icon stays `text-primary-foreground`,
+which is the contrast pair for every shade the gradient passes through.
 
 **Visual language** (`.agents/AGENTS.md` §6, semantic tokens only — no hex):
 `bg-primary` header band; user bubbles `bg-primary`/`text-primary-foreground`,
@@ -3809,7 +3847,9 @@ and reply actions are `rounded-full` `border-primary/40 text-primary`
 outline buttons; the composer is a rounded `Input` plus a circular
 `size="icon"` `SendHorizontal` submit button (`aria-label="Send"`); the
 thinking state is three `animate-bounce` dots (staggered `animationDelay`,
-`role="status"` `aria-label="Thinking"`) instead of the old "Thinking…" text.
+`role="status"` `aria-label="Thinking"`), falling back to a static "Thinking…"
+label under `prefers-reduced-motion: reduce`. The `role`/`aria-label` pair is
+identical in both branches, so the indicator is found the same way either way.
 Glassmorphism lives on `SheetContent`/`DrawerContent`
 (`bg-background/95 backdrop-blur-sm`) and the composer bar — `Sheet` ships
 plain `bg-background`, so it has to be added here.

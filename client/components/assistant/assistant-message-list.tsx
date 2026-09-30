@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Sparkles } from "lucide-react";
 import { ScrollFade } from "@/components/ui/scroll-fade";
+import { prefersReducedMotion } from "@/lib/prefers-reduced-motion";
 import type { AssistantMessage } from "@/lib/assistant/types";
 import { AssistantMessageBubble } from "./assistant-message-bubble";
 
@@ -15,23 +16,29 @@ interface AssistantMessageListProps {
 const DOT_DELAYS = ["0ms", "150ms", "300ms"];
 
 function TypingDots() {
+  const [reduceMotion] = useState(() => prefersReducedMotion());
+
   return (
     <div className="flex items-start gap-2">
       <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
         <Sparkles className="h-3.5 w-3.5" />
       </span>
       <div
-        className="flex items-center gap-1 rounded-2xl rounded-tl-sm border border-border bg-muted px-3 py-3 shadow-sm"
+        className={`flex items-center gap-1 rounded-2xl rounded-tl-sm border border-border bg-muted px-3 shadow-sm ${
+          reduceMotion ? "py-2 text-sm text-muted-foreground" : "py-3"
+        }`}
         aria-label="Thinking"
         role="status"
       >
-        {DOT_DELAYS.map((delay) => (
-          <span
-            key={delay}
-            className="size-1.5 animate-bounce rounded-full bg-primary/70"
-            style={{ animationDelay: delay }}
-          />
-        ))}
+        {reduceMotion
+          ? "Thinking…"
+          : DOT_DELAYS.map((delay) => (
+              <span
+                key={delay}
+                className="size-1.5 animate-bounce rounded-full bg-primary/70"
+                style={{ animationDelay: delay }}
+              />
+            ))}
       </div>
     </div>
   );

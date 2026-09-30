@@ -24,13 +24,14 @@ import { useAssistantPanel } from "@/lib/store/use-assistant-panel";
 import { AssistantMessageList } from "./assistant-message-list";
 import { AssistantComposer } from "./assistant-composer";
 import { AssistantSuggestionChips } from "./assistant-suggestion-chips";
+import { ASSISTANT_NAME, AssistantBetaTag } from "./assistant-brand";
 
-const PANEL_TITLE = "Assistant";
 const PANEL_DESCRIPTION = "Ask how to do something, or ask for a quick number.";
 const HEADER_CLASS =
   "flex shrink-0 flex-row items-start justify-between gap-3 space-y-0 bg-primary bg-gradient-to-b from-primary to-primary/85 px-4 py-3 text-left";
 const CLOSE_CLASS =
   "rounded-sm p-1 text-primary-foreground opacity-80 transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+const TITLE_CLASS = "flex items-center gap-2 text-primary-foreground";
 
 function HeaderText({ title, description }: { title: ReactNode; description: ReactNode }) {
   return (
@@ -93,7 +94,12 @@ export function AssistantPanel() {
         >
           <SheetHeader className={HEADER_CLASS}>
             <HeaderText
-              title={<SheetTitle className="text-primary-foreground">{PANEL_TITLE}</SheetTitle>}
+              title={
+                <SheetTitle className={TITLE_CLASS}>
+                  {ASSISTANT_NAME}
+                  <AssistantBetaTag tone="onPrimary" />
+                </SheetTitle>
+              }
               description={
                 <SheetDescription className="text-primary-foreground/80">
                   {PANEL_DESCRIPTION}
@@ -116,7 +122,12 @@ export function AssistantPanel() {
       <DrawerContent className="flex h-[85vh] flex-col overflow-hidden bg-background/95 p-0 backdrop-blur-sm">
         <DrawerHeader className={HEADER_CLASS}>
           <HeaderText
-            title={<DrawerTitle className="text-primary-foreground">{PANEL_TITLE}</DrawerTitle>}
+            title={
+              <DrawerTitle className={TITLE_CLASS}>
+                {ASSISTANT_NAME}
+                <AssistantBetaTag tone="onPrimary" />
+              </DrawerTitle>
+            }
             description={
               <DrawerDescription className="text-primary-foreground/80">
                 {PANEL_DESCRIPTION}

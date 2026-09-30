@@ -35,6 +35,7 @@ export function BusinessIntelligenceDashboard() {
     formattedCategoryData,
     totalCogs,
     totalExpenses,
+    stockLoss,
     grossProfit,
     netProfit,
     stock_batchAlerts,
@@ -86,6 +87,7 @@ export function BusinessIntelligenceDashboard() {
               netSales={netSales}
               totalCogs={totalCogs}
               totalExpenses={totalExpenses}
+              stockLoss={stockLoss}
               grossProfit={grossProfit}
               netProfit={netProfit}
               monthlySalesData={monthlySalesData}

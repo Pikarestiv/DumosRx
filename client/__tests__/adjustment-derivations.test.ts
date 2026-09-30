@@ -13,6 +13,7 @@ import {
 import {
   LEGACY_PRODUCT_IMPORT_REASON,
   PRODUCT_IMPORT_REFERENCE_TYPE,
+  STOCK_LOSS_REASON_LABELS,
 } from "@/lib/constants/stock-adjustments";
 import type { StockMovementDbRow } from "@/lib/types/stock-movement";
 
@@ -221,5 +222,23 @@ describe("adjustment quantity maths", () => {
       reason: "Cycle count adjustment",
       note: "",
     });
+  });
+});
+
+describe("STOCK_LOSS_REASON_LABELS", () => {
+  it("stays in step with every decrease-direction ADJUSTMENT_REASONS label", () => {
+    const decreaseLabels = ADJUSTMENT_REASONS.filter(
+      (reason) => reason.direction === "decrease",
+    ).map((reason) => reason.label);
+
+    expect([...STOCK_LOSS_REASON_LABELS].sort()).toEqual(decreaseLabels.sort());
+  });
+
+  it("matches what buildAdjustmentReason actually persists", () => {
+    for (const label of STOCK_LOSS_REASON_LABELS) {
+      const reason = ADJUSTMENT_REASONS.find((entry) => entry.label === label);
+      expect(reason).toBeDefined();
+      expect(buildAdjustmentReason(reason!.value)).toBe(label);
+    }
   });
 });

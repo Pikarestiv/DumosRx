@@ -1,5 +1,6 @@
 import type { StockMovementDbRow } from "@/lib/types/stock-movement";
 import {
+  ADJUSTMENT_REASON_NOTE_SEPARATOR,
   AUDIT_REFERENCE_TYPE,
   LEGACY_PRODUCT_IMPORT_REASON,
   PRODUCT_IMPORT_REFERENCE_TYPE,
@@ -21,10 +22,6 @@ export type AdjustmentReasonValue = (typeof ADJUSTMENT_REASONS)[number]["value"]
 
 export const ALL_ADJUSTMENT_REASONS = "all";
 
-// stock_movements has no note column, so the optional note rides along in
-// `reason` behind this separator and is split back out for display.
-const NOTE_SEPARATOR = " — ";
-
 function reasonLabel(value: AdjustmentReasonValue): string {
   return ADJUSTMENT_REASONS.find((r) => r.value === value)?.label ?? value;
 }
@@ -34,16 +31,16 @@ export function buildAdjustmentReason(
   note?: string,
 ): string {
   const trimmed = note?.trim();
-  return trimmed ? `${reasonLabel(value)}${NOTE_SEPARATOR}${trimmed}` : reasonLabel(value);
+  return trimmed ? `${reasonLabel(value)}${ADJUSTMENT_REASON_NOTE_SEPARATOR}${trimmed}` : reasonLabel(value);
 }
 
 export function parseAdjustmentReason(reason?: string): { reason: string; note: string } {
   const raw = reason?.trim() ?? "";
-  const separatorIndex = raw.indexOf(NOTE_SEPARATOR);
+  const separatorIndex = raw.indexOf(ADJUSTMENT_REASON_NOTE_SEPARATOR);
   if (separatorIndex === -1) return { reason: raw, note: "" };
   return {
     reason: raw.slice(0, separatorIndex).trim(),
-    note: raw.slice(separatorIndex + NOTE_SEPARATOR.length).trim(),
+    note: raw.slice(separatorIndex + ADJUSTMENT_REASON_NOTE_SEPARATOR.length).trim(),
   };
 }
 

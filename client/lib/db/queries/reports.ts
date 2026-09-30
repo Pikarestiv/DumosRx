@@ -6,7 +6,11 @@ import type { SaleWithDetails } from "@/lib/types/sale";
 import type { StockMovementHistoryRow } from "@/lib/types/stock-movement";
 import type { PurchaseOrder } from "@/lib/db/procurement";
 import { addMonths, startOfMonth, endOfMonth } from "date-fns";
-import { getSmoothedExpensesTotal, getSmoothedAmountInWindow } from "@/lib/db/queries/finance";
+import {
+  getSmoothedExpensesTotal,
+  getSmoothedAmountInWindow,
+  getStockLossTotal,
+} from "@/lib/db/queries/finance";
 import type { Expense } from "@/lib/db/queries/finance";
 import { parseLocalDateOnly } from "@/lib/utils/date-utils";
 import type { PrescriptionRow } from "@/lib/types/prescription";
@@ -507,6 +511,7 @@ export async function getBIMetrics(
     cogsData,
     returnedCogsData,
     smoothedExpensesTotal,
+    stockLossTotal,
     transactionData,
     stock_batchValueData,
     customerData,
@@ -575,6 +580,11 @@ export async function getBIMetrics(
       from: dateFilter,
       to,
     }),
+
+    // Not staff/payment-method filterable for the same reason expenses aren't
+    // (see the JUDGEMENT CALL note on fetchProfitLossReportData): a write-off
+    // carries no attribution meaning the same thing as the sales filter.
+    getStockLossTotal({ from: dateFilter, to }),
 
     query<{ count: number }>(`SELECT COUNT(*) as count FROM sales WHERE transaction_date >= ? AND transaction_date <= ? AND (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}${bare.clause}`, s1BareCapped),
 
@@ -669,9 +679,11 @@ export async function getBIMetrics(
   ]);
 
   const expensesData = [{ total: smoothedExpensesTotal }];
+  const stockLossData = [{ total: stockLossTotal }];
 
   return {
     revenueData, grossSalesData, taxData, totalRefundsData, cogsData, returnedCogsData, expensesData,
+    stockLossData,
     transactionData, stock_batchValueData, customerData, loyaltyData, retentionData,
     prevRevenueData, prevTaxData, prevRefundsData, prevTransactionData, prevCustomerData,
     topSellingByRevenue, topSellingByQuantity, categoryDistribution,

@@ -3,8 +3,9 @@
 import { Card } from "@/components/ui/card";
 import { 
   Calculator, 
-  ArrowDownRight, 
-  PieChart as PieChartIcon 
+  ArrowDownRight,
+  PackageX,
+  PieChart as PieChartIcon
 } from "lucide-react";
 import { 
   PieChart, 
@@ -31,6 +32,7 @@ interface ProfitLossTabProps {
   netSales: number;
   totalCogs: number;
   totalExpenses: number;
+  stockLoss: number;
   grossProfit: number;
   netProfit: number;
   monthlySalesData: MonthlySalesDataPoint[];
@@ -56,6 +58,7 @@ export function ProfitLossTab({
   netSales,
   totalCogs,
   totalExpenses,
+  stockLoss,
   grossProfit,
   netProfit,
   monthlySalesData
@@ -99,6 +102,20 @@ export function ProfitLossTab({
           <div className="flex items-center justify-between py-3 border-b text-[13.5px] text-destructive italic">
             <div className="flex items-center gap-1"><ArrowDownRight className="w-3.5 h-3.5" /> Total Operational Expenses</div>
             <div className="font-semibold">− {formatMetricCurrency(totalExpenses, currencyCode)}</div>
+          </div>
+          <div className="flex items-start justify-between py-3 text-[13.5px] text-muted-foreground">
+            <div>
+              <div className="flex items-center gap-1">
+                <PackageX className="w-3.5 h-3.5" /> Stock Loss (Damage/Write-offs)
+              </div>
+              <div className="text-[11.5px]">
+                Cost of stock adjusted away as damaged or lost. Shown for visibility — not
+                deducted above, since unsold stock never entered COGS.
+              </div>
+            </div>
+            <div className="font-semibold whitespace-nowrap">
+              {formatMetricCurrency(stockLoss, currencyCode)}
+            </div>
           </div>
         </div>
 

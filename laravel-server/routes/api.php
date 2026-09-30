@@ -30,6 +30,9 @@ Route::prefix('v1')->group(function () {
     // one carries its own named limiter. See AGENTS.md for this whole block.
     Route::middleware('throttle:public-read')->group(function () {
         Route::get('/system-configs/{key}', [SystemConfigController::class, 'show']);
+        // Serves the marketing Downloads page, which is anonymous by
+        // definition - see docs/DOWNLOADS_MANIFEST.md.
+        Route::get('/downloads/manifest', [\App\Http\Controllers\Api\Public\DownloadsController::class, 'manifest']);
     });
     Route::middleware('throttle:public-write')->group(function () {
         Route::post('/support', [\App\Http\Controllers\Api\Web\FeedbackController::class, 'store']);

@@ -509,7 +509,7 @@ entirely.
 
 ## The other unauthenticated surface (not the storefront)
 
-Three routes sit at the top of `routes/api.php` outside every auth group, and
+Four routes sit at the top of `routes/api.php` outside every auth group, and
 each now carries its own named limiter for the same Laravel-11 reason the
 storefront ones do (see the next section):
 
@@ -528,6 +528,14 @@ storefront ones do (see the next section):
   requests carry a super_admin token.
 - **`POST /support`** (`throttle:public-write`, 5/min/IP) — persists a
   `Feedback` row and emails every platform admin.
+- **`GET /downloads/manifest`** (`throttle:public-read`) — per-platform
+  installer URL, existence and size for the marketing Downloads page, which is
+  anonymous by definition. It shares `DownloadsManifestService` with the
+  `super_admin`-gated `GET /admin/downloads/manifest` and caches its CDN probe
+  for 10 minutes (the admin endpoint deliberately does not, so an admin sees a
+  live probe). The public page used to call the admin route and got a 401 plus
+  a forced redirect off the site — see `docs/DOWNLOADS_MANIFEST.md` (A-94)
+  before merging the two back together.
 - **`POST /logs/client-error`** (`throttle:client-error-log`, 30/min/IP) —
   writes to `laravel.log` on shared hosting, plus an `activity_logs` row when a
   token happens to be present. Every field is length-capped
@@ -535,7 +543,8 @@ storefront ones do (see the next section):
   `App\Rules\EncodedSizeAtMost` — Laravel's `max:` on an array counts elements,
   which is no defence against one key holding a megabyte.
 
-`tests/Feature/PublicSurfaceHardeningTest.php` covers all of this and, like
+`tests/Feature/PublicSurfaceHardeningTest.php` covers all of this (the
+downloads manifest in `tests/Feature/PublicDownloadsManifestTest.php`) and, like
 `StorefrontThrottleTest`, deliberately does not disable `ThrottleRequests`.
 
 ## Public storefront endpoints

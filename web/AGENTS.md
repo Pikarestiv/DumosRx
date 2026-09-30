@@ -224,6 +224,32 @@ which create no broadcast (see `laravel-server/AGENTS.md`):
   inside the create `<form>`, so an unhandled Enter would dispatch the real
   broadcast instead of sending a test.
 
+## Public pages must only call public endpoints (A-94)
+
+`base-client.ts` attaches the admin bearer token **only** when
+`window.location.pathname.startsWith('/admin')`, because `/admin` is the one
+authenticated surface on this origin. Two consequences that are easy to
+re-break:
+
+- A public/marketing page (`downloads`, `faq`, `support`, the landing page,
+  the storefront) may only call endpoints that are unauthenticated
+  server-side. Calling an `admin/*` endpoint from one sends an anonymous
+  request that answers 401. If a public page needs data an admin endpoint
+  already returns, add a public route on the server and a **separate hook** —
+  don't share one hook across both surfaces. The Downloads page is the worked
+  example: `usePublicLatestRelease()` vs. `useLatestRelease()`, documented in
+  `docs/DOWNLOADS_MANIFEST.md`.
+- 401 handling is admin-only. `shouldRecoverFromUnauthorized(pathname, url)`
+  gates the whole refresh-and-redirect branch of the response interceptor on
+  an `/admin*` pathname, so a 401 on a public page is an ordinary rejected
+  promise. Previously it refreshed and then navigated to `/login` from
+  anywhere, which threw anonymous visitors off the marketing site entirely.
+  There is no non-admin refresh path any more (this origin stores no
+  non-admin bearer token), and the admin path still shares one in-flight
+  refresh via `useAdminAuthStore.initSession()` — that shared slot is the
+  A-51 race fix, covered by `__tests__/admin-session-refresh-race.test.tsx`;
+  don't give the interceptor its own `POST /refresh` back.
+
 ## Running things
 
 ```

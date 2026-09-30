@@ -4,18 +4,22 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Models\Product;
 use App\Services\Admin\AdminPlatformService;
+use App\Services\DownloadsManifestService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 use OpenApi\Attributes as OA;
 
 class AdminPlatformController extends AdminBaseController
 {
     protected $adminPlatformService;
 
-    public function __construct(AdminPlatformService $adminPlatformService)
-    {
+    protected $downloadsManifestService;
+
+    public function __construct(
+        AdminPlatformService $adminPlatformService,
+        DownloadsManifestService $downloadsManifestService
+    ) {
         $this->adminPlatformService = $adminPlatformService;
+        $this->downloadsManifestService = $downloadsManifestService;
     }
 
     #[OA\Get(
@@ -140,69 +144,7 @@ class AdminPlatformController extends AdminBaseController
     )]
     public function downloadsManifest(Request $request)
     {
-        // downloads.dumosrx.com sends no Access-Control-Allow-Origin header on
-        // updater.json or the binaries themselves, so the superadmin panel
-        // (a statically-exported Next.js app with no server runtime of its
-        // own in production) can never read them via a browser-side fetch —
-        // confirmed live: fetch() always rejects with a CORS network error,
-        // even on a 200 response. This backend endpoint does the real
-        // cross-origin work server-side (no browser, no CORS) and reports
-        // back real existence + Content-Length per platform.
-        //
-        // updater.json's own `platforms` key only lists Tauri auto-update
-        // targets (currently just darwin-aarch64) — not the full set of raw
-        // installers actually uploaded to the CDN, so it's used here only to
-        // read the current version string. Per-platform existence is
-        // determined by directly HEAD-probing each platform's conventional
-        // per-version URL, which is the complete, authoritative signal.
-        $base = 'https://downloads.dumosrx.com';
-        // Fallback version if updater.json is unreachable — mirrors the
-        // frontend's own hardcoded APP_VERSION constant (web/lib/constants.ts).
-        $version = '0.0.35';
-
-        try {
-            $manifestResponse = Http::timeout(5)->get("{$base}/updater.json");
-            if ($manifestResponse->successful() && $manifestResponse->json('version')) {
-                $version = ltrim((string) $manifestResponse->json('version'), 'v');
-            }
-        } catch (\Exception $e) {
-            Log::warning('Admin Downloads Manifest: failed to fetch updater.json, using fallback version: ' . $e->getMessage());
-        }
-
-        $urls = [
-            'windows' => "{$base}/v{$version}/DumosRx_{$version}_x64_en-US.msi",
-            'macos' => "{$base}/v{$version}/DumosRx_{$version}_aarch64.dmg",
-            'linux' => "{$base}/v{$version}/DumosRx_{$version}_amd64.AppImage",
-            'android' => "{$base}/v{$version}/DumosRx-Android.apk",
-        ];
-
-        $platforms = [];
-        try {
-            $responses = Http::pool(fn ($pool) => collect($urls)->map(
-                fn (string $url, string $platform) => $pool->as($platform)->timeout(5)->head($url)
-            )->all());
-
-            foreach ($urls as $platform => $url) {
-                $response = $responses[$platform] ?? null;
-                $exists = $response instanceof \Illuminate\Http\Client\Response && $response->successful();
-                $sizeBytes = $exists ? (int) $response->header('Content-Length') ?: null : null;
-                $platforms[$platform] = [
-                    'url' => $url,
-                    'exists' => $exists,
-                    'sizeBytes' => $sizeBytes,
-                ];
-            }
-        } catch (\Exception $e) {
-            Log::warning('Admin Downloads Manifest: failed to probe platform binaries: ' . $e->getMessage());
-            foreach ($urls as $platform => $url) {
-                $platforms[$platform] = ['url' => $url, 'exists' => false, 'sizeBytes' => null];
-            }
-        }
-
-        return response()->json([
-            'version' => "v{$version}",
-            'platforms' => $platforms,
-        ]);
+        return response()->json($this->downloadsManifestService->manifest());
     }
 
     #[OA\Get(

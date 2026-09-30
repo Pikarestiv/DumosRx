@@ -16,7 +16,7 @@ This file holds **open** items only. Fixed entries move to `docs/FIXED_BUGS.md` 
 
 **Overall health.** The codebase is unusually well-defended for its size: the sync engine's conflict model, the single-writer tab lock, tenant scoping on the server and the money math have all been through several review-and-fix cycles, and all three packages' test suites pass cleanly. The 2026-09-28 pass's own remediation is complete (nothing from `A-1`…`A-25` is still open). This 2026-09-30 pass was a fresh whole-monorepo sweep, split into three parallel package-scoped reviews (`client/`, `laravel-server/`, `web/`), followed the same day by a full remediation pass across five isolated worktrees (one per package/theme) covering every P1 and P2/P3 it found, plus the two real findings from a same-day follow-up spot-check. Every one of those 44 findings is fixed and documented in `docs/FIXED_BUGS.md` — nothing from this pass is still open in this document.
 
-**Findings this pass, by severity:** 0 **P0**, 0 **P1**, 0 **P2**, 0 **P3** — all 44 findings from the 2026-09-30 three-package sweep (7 P1, 19 P2, 18 P3) plus both real findings from the same-day follow-up spot-check (`A-112`, `A-113` — 46 in total, `A-54`…`A-113` non-contiguous) are fixed — see `docs/FIXED_BUGS.md` for what shipped for each. What remains open in this document is entirely carried from earlier passes: `A-26`, `A-28`, `A-30`, `A-40`, `A-41`, `A-48`, `A-49`, `A-53` from the 2026-09-28/29 passes, and `P2-1`, `P3-1`, `P3-2`, `P3-5`, `PG-1`…`PG-10` from the two earliest passes — all preserved verbatim below. `A-111` (bulk-import movement-type conflation), one of the follow-up spot-check's three claims, was retracted on review — it duplicates the already-fixed `A-52` and was never an open finding.
+**Findings this pass, by severity:** 0 **P0**, 0 **P1**, 0 **P2**, 0 **P3** — all 44 findings from the 2026-09-30 three-package sweep (7 P1, 19 P2, 18 P3) plus both real findings from the same-day follow-up spot-check (`A-112`, `A-113` — 46 in total, `A-54`…`A-113` non-contiguous) are fixed — see `docs/FIXED_BUGS.md` for what shipped for each. What remains open in this document is entirely carried from earlier passes: `A-26`, `A-28`, `A-30`, `A-40`, `A-41`, `A-48`, `A-49`, `A-53` from the 2026-09-28/29 passes, and `P2-1`, `P3-1`, `P3-2`, `P3-5`, `PG-1`…`PG-4` and `PG-10` from the two earliest passes (`PG-5`…`PG-9` were fixed on 2026-09-30 — see `docs/FIXED_BUGS.md`) — all preserved verbatim below. `A-111` (bulk-import movement-type conflation), one of the follow-up spot-check's three claims, was retracted on review — it duplicates the already-fixed `A-52` and was never an open finding.
 
 **Most important risks, in order:**
 
@@ -182,32 +182,6 @@ None found this pass. No cross-tenant read/write path, payment double-charge, or
 - **Recommended fix:** Add `currency` to the `show()` payload and format from it.
 - **Confidence:** High. **Status:** Open, logged 2026-09-27.
 
-#### PG-5. `laravel-server/` — bank-account resolve endpoint is an unbounded name-lookup oracle
-- **Location:** `app/Http/Controllers/Api/Web/StorePaymentAccountController.php:70-86`; route `routes/api.php:148` (`throttle:60,1`)
-- **Problem:** Ownership is checked on the store, but `account_number`/`bank_code` are free-form — any authenticated owner can resolve arbitrary account numbers to holder names at 60/min using the platform's Paystack credentials.
-- **Recommended fix:** Tighter per-user limit and/or attempt counter.
-- **Confidence:** Medium-High. **Status:** Open, logged 2026-09-27.
-
-#### PG-6. `laravel-server/` — `checkout()` accepts and permanently burns a `paystack_reference` on a non-Paystack order
-- **Location:** `app/Http/Controllers/Api/Public/StorefrontController.php:517, 554-577, 688`
-- **Recommended fix:** Reject `paystack_reference` unless `payment_method === 'paystack'`.
-- **Confidence:** Medium. **Status:** Open, logged 2026-09-27.
-
-#### PG-7. `laravel-server/` — a Paystack subaccount can be created and then orphaned from its store row
-- **Location:** `app/Http/Controllers/Api/Web/StorePaymentAccountController.php:150-168`
-- **Recommended fix:** Detect/clean up an orphaned remote subaccount, or make the idempotency check query Paystack.
-- **Confidence:** Medium. **Status:** Open, logged 2026-09-27.
-
-#### PG-8. `laravel-server/` — payment webhook routes have no rate limit
-- **Location:** `routes/api.php:106-107`
-- **Recommended fix:** A generous named rate limit.
-- **Confidence:** High. **Status:** Open, logged 2026-09-27.
-
-#### PG-9. `laravel-server/` — only `charge.success`/`status: successful` webhook events are handled
-- **Location:** `app/Http/Controllers/Api/Web/PaymentController.php:48,88`
-- **Recommended fix:** Handle `refund.processed`/dispute events, or log+alert.
-- **Confidence:** Medium. **Status:** Open, logged 2026-09-27.
-
 #### PG-10. `laravel-server/` — full bank account numbers stored in plaintext on the merchant-owned `payment_accounts` table
 - **Location:** `app/Models/PaymentAccount.php:26`; also synced to client SQLite, `client/lib/db/schema.ts:611-627`
 - **Problem:** The store's own transfer-instructions account is stored in full server-side and on every synced device. Reads as an intentional product choice; flagged for confirmation only.
@@ -279,5 +253,5 @@ Synthetic dataset built from the app's own `SCHEMA_SQL` plus the migration-added
 The 2026-09-28 pass's own remediation is complete — nothing from `A-1`…`A-25` is still open — and the 2026-09-30 three-package sweep (`client/`, `laravel-server/`, `web/`) is a fresh finding set layered on top, not a follow-up to that remediation. What remains open in this document, in priority order:
 
 1. **Every one of this pass's 46 findings is fixed** — all seven P1s (`A-54`, `A-74`, `A-75`, `A-77`, `A-79`, `A-94`, `A-95`), all nineteen P2s and all eighteen P3s from the three-package sweep (44 total), and both real findings from the same-day follow-up spot-check (`A-112`, `A-113`) — each remediated with TDD in its own isolated worktree and merged into `dev` on 2026-09-30. See `docs/FIXED_BUGS.md` for what shipped for each.
-2. **Deferred by user direction: PG-2 then PG-1**, then **PG-3…PG-10** — the storefront webhook/reconciliation path and the gateway pinning first; still the largest previously-identified real-world money-loss surface. Explicitly excluded from the 2026-09-28 remediation series rather than overlooked. `A-105`'s fix note that the checkout button's redirect-race is closed, but the reprice's structural half (the storefront listing endpoint's 300-product cap disagreeing with `checkout()`/`priceCart()`, from `A-106`) was deliberately left as a shallow mitigation — worth a dedicated follow-up if the platform grows stores past that catalogue size.
+2. **Deferred by user direction: PG-2 then PG-1**, then **PG-3**, **PG-4** and **PG-10** (`PG-5`…`PG-9` are fixed as of 2026-09-30) — the storefront webhook/reconciliation path and the gateway pinning first; still the largest previously-identified real-world money-loss surface. Explicitly excluded from the 2026-09-28 remediation series rather than overlooked. `A-105`'s fix note that the checkout button's redirect-race is closed, but the reprice's structural half (the storefront listing endpoint's 300-product cap disagreeing with `checkout()`/`priceCart()`, from `A-106`) was deliberately left as a shallow mitigation — worth a dedicated follow-up if the platform grows stores past that catalogue size.
 3. **Deliberate non-actions, listed here so they are not re-filed as findings next pass:** **P2-1** is a one-line production `.env` confirmation with zero code change; **P3-1** (bearer token in `localStorage`) needs a dual-path auth design project and has a compensating control in the shipped Tauri CSP; **P3-2** (stale lazy chunk after a deploy) needs deploy-asset retention to close fully; **P3-5** (manifest `theme_color`) is a Web App Manifest spec limitation with no action recommended; **A-26** is the accepted cost of A-9's deterministic receipt ids, worth closing only via a sync-health signal, never by changing the keying. **PG-10** needs a product decision, not a fix.

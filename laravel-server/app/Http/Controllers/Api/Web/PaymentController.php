@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\PaymentTransaction;
 use App\Models\Subscription;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use OpenApi\Attributes as OA;
 use App\Http\Controllers\Api\Web\SubscriptionController;
@@ -135,26 +134,14 @@ class PaymentController extends Controller
                 'expected_currency' => $expectedCurrency,
             ]);
 
-            // Mark failed under the same lock/re-check pattern
-            // activateSubscriptionFromTransaction uses, so a mismatched
-            // webhook arriving after a legitimate activation can't stomp a
-            // live subscription's transaction back to 'failed'.
-            DB::transaction(function () use ($txn, $data, $reportedAmount, $reportedCurrency) {
-                $locked = PaymentTransaction::where('id', $txn->id)->lockForUpdate()->first();
-                if ($locked && $locked->status === 'pending') {
-                    $locked->update([
-                        'status' => 'failed',
-                        'metadata' => array_merge($locked->metadata ?? [], [
-                            'suspicious_webhook' => [
-                                'reason' => 'amount_or_currency_mismatch',
-                                'reported_amount' => $reportedAmount,
-                                'reported_currency' => $reportedCurrency,
-                                'webhook_data' => $data,
-                            ],
-                        ]),
-                    ]);
-                }
-            });
+            app(SubscriptionController::class)->failTransaction($txn, [
+                'suspicious_webhook' => [
+                    'reason' => 'amount_or_currency_mismatch',
+                    'reported_amount' => $reportedAmount,
+                    'reported_currency' => $reportedCurrency,
+                    'webhook_data' => $data,
+                ],
+            ]);
 
             // Deliberately not an error response: the payload was genuinely
             // signed, so there is nothing for the provider to retry. Erroring

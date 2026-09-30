@@ -15,6 +15,7 @@ use App\Services\Payment\PaymentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Exception;
 use OpenApi\Attributes as OA;
 
@@ -394,6 +395,15 @@ class SubscriptionController extends Controller
             ]);
         }
 
+        // Credits are RESERVED here, not merely recorded: deferring the
+        // deduction to activation meant a second credit-funded checkout could
+        // consume the same balance first, making the activation-time
+        // deductCredits() throw and roll back the whole activation of an
+        // already-paid transaction. See docs/FIXED_BUGS.md, A-79.
+        if ($creditsApplied > 0) {
+            $user->deductCredits($creditsApplied, "Reserved credits for subscription to " . $planName);
+        }
+
         try {
             $payment = $paymentService->initializeTransaction(
                 $finalAmount,
@@ -419,6 +429,7 @@ class SubscriptionController extends Controller
                     'user_id' => $user->id,
                     'coupon_code' => $request->coupon_code,
                     'credits_applied' => $creditsApplied,
+                    'credits_reserved' => $creditsApplied > 0,
                     'interval' => $interval
                 ]
             ]);
@@ -430,6 +441,10 @@ class SubscriptionController extends Controller
                 'payment_url' => $payment['checkout_url'],
             ]);
         } catch (Exception $e) {
+            if ($creditsApplied > 0) {
+                $user->addCredits($creditsApplied, "Released reserved credits for abandoned subscription to " . $planName);
+            }
+
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage()
@@ -523,16 +538,8 @@ class SubscriptionController extends Controller
         $currencyOk = $verifiedCurrency === $expectedCurrency;
 
         if (!$verification['success'] || !$currencyOk || $verifiedAmount < (float) $txn->amount - 0.01) {
-            // Locked and re-checked the same way activateSubscriptionFromTransaction()
-            // is, so a stale/short verify call arriving after the webhook has
-            // already activated the subscription can't stomp its 'success'
-            // status back to 'failed' out from under an active subscription.
-            DB::transaction(function () use ($txn) {
-                $locked = PaymentTransaction::where('id', $txn->id)->lockForUpdate()->first();
-                if ($locked && $locked->status === 'pending') {
-                    $locked->update(['status' => 'failed']);
-                }
-            });
+            $this->failTransaction($txn);
+
             return response()->json(['success' => false, 'message' => 'Payment verification failed.'], 400);
         }
 
@@ -604,11 +611,7 @@ class SubscriptionController extends Controller
                 app(SubscriptionService::class)->enforceStaffLimits($user);
             }
 
-            // Deduct applied credits
-            $creditsApplied = (float) ($txn->metadata['credits_applied'] ?? 0);
-            if ($creditsApplied > 0 && $user) {
-                $user->deductCredits($creditsApplied, "Applied credits to offset subscription to " . $txn->metadata['plan_name']);
-            }
+            $this->settleAppliedCredits($txn, $user);
 
             // Award referral credits
             if ($user && $user->referred_by_id) {
@@ -653,6 +656,83 @@ class SubscriptionController extends Controller
             }
 
             return ['already' => false, 'subscription' => $sub];
+        });
+    }
+
+    /**
+     * Settles the credits a transaction said it would consume. initiatePayment()
+     * reserves them up front (`credits_reserved`), so the normal path has
+     * nothing left to do here. A transaction created before reservation
+     * existed carries `credits_applied` with no flag: deduct what is actually
+     * available and log any shortfall rather than throwing, because throwing
+     * inside activateSubscriptionFromTransaction()'s DB::transaction() rolls
+     * back the status -> 'success' transition of an already-PAID transaction
+     * and leaves it permanently unactivatable (the provider's webhook then
+     * retries and 500s forever). Never block activation on bookkeeping.
+     */
+    private function settleAppliedCredits(PaymentTransaction $txn, ?User $user): void
+    {
+        $creditsApplied = (float) ($txn->metadata['credits_applied'] ?? 0);
+
+        if ($creditsApplied <= 0 || !$user) {
+            return;
+        }
+
+        if ($txn->metadata['credits_reserved'] ?? false) {
+            return;
+        }
+
+        $deductible = min($creditsApplied, (float) $user->referral_credits);
+
+        if ($deductible < $creditsApplied) {
+            Log::warning('Subscription activation: applied credits exceed the available balance; deducting what is available.', [
+                'transaction_id' => $txn->id,
+                'user_id' => $user->id,
+                'credits_applied' => $creditsApplied,
+                'available' => (float) $user->referral_credits,
+            ]);
+        }
+
+        if ($deductible > 0) {
+            $user->deductCredits($deductible, "Applied credits to offset subscription to " . $txn->metadata['plan_name']);
+        }
+    }
+
+    /**
+     * Marks a still-pending transaction failed and releases any credits
+     * initiatePayment() reserved for it, under the same row lock so a
+     * stale/short verification arriving after a legitimate activation can't
+     * stomp a live subscription's transaction back to 'failed'. The
+     * `credits_released` stamp makes the release idempotent across the verify
+     * path and the webhook path, either of which may get here first.
+     */
+    public function failTransaction(PaymentTransaction $txn, array $extraMetadata = []): void
+    {
+        DB::transaction(function () use ($txn, $extraMetadata) {
+            $locked = PaymentTransaction::where('id', $txn->id)->lockForUpdate()->first();
+
+            if (!$locked || $locked->status !== 'pending') {
+                return;
+            }
+
+            $metadata = $locked->metadata ?? [];
+            $creditsApplied = (float) ($metadata['credits_applied'] ?? 0);
+            $shouldRelease = $creditsApplied > 0
+                && ($metadata['credits_reserved'] ?? false)
+                && !($metadata['credits_released'] ?? false);
+
+            if ($shouldRelease) {
+                $user = User::find($metadata['user_id'] ?? null);
+                if ($user) {
+                    $user->addCredits($creditsApplied, "Released reserved credits for failed subscription payment " . $locked->provider_reference);
+                    $metadata['credits_released'] = true;
+                }
+            }
+
+            $locked->update([
+                'status' => 'failed',
+                'metadata' => array_merge($metadata, $extraMetadata),
+            ]);
         });
     }
 

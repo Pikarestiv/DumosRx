@@ -442,6 +442,43 @@ per-store Paystack subaccounts — see the dedicated section below for the
 onboarding flow, fee semantics, propagation cadence, and the refund decision.
 Full design: `docs/superpowers/specs/2026-09-26-storefront-paystack-subaccounts-design.md`.
 
+## Referral credits on a subscription checkout are reserved, not deferred
+
+`SubscriptionController::initiatePayment()` **deducts** the credits a paid
+checkout applies at initiation and stamps `metadata.credits_reserved`, rather
+than only recording `metadata.credits_applied` and deducting at activation.
+The rules that follow from that, all of which matter:
+
+- **Never let bookkeeping block an activation.**
+  `activateSubscriptionFromTransaction()` runs inside a `DB::transaction()`
+  that performs the `status` → `'success'` transition, so anything that
+  throws in there rolls back the activation of an *already-paid*
+  transaction — and the provider's webhook then retries the same failure
+  forever, stranding a paying customer with no subscription and no code path
+  that can ever give them one (A-79). `settleAppliedCredits()` therefore
+  skips reserved credits entirely and, for a legacy transaction created
+  before reservation existed (`credits_applied` with no `credits_reserved`),
+  clamps to the balance actually available and logs the shortfall instead of
+  throwing. Anything new added to that transaction must follow the same rule.
+- **Every path out of a pending transaction releases the reservation.**
+  `failTransaction()` is the single writer of `status = 'failed'`, shared by
+  `verifyPayment()` and `PaymentController::processSuccessfulPayment()`'s
+  amount/currency-mismatch branch. It marks failed and refunds under the same
+  row lock, and stamps `credits_released` so the release is idempotent across
+  whichever of the two gets there first. A new failure path must call it
+  rather than writing `status` itself. `initiatePayment()`'s own catch block
+  releases the reservation too, for a provider that fails at initialization.
+- **`User::addCredits()`/`deductCredits()` take a row lock.** Both are
+  read-modify-write on `users.referral_credits`; without
+  `lockCreditBalance()` two concurrent grants/spends both read the same
+  balance and the second `save()` silently discards the first.
+- Releases are recorded with type `'earned'`, not a new type:
+  `referral_credit_transactions.type` is a MySQL `ENUM('earned', 'spent',
+  'admin_adjustment')`, and adding a value means a migration (see the ENUM
+  footgun note in the sync section).
+- Coverage: `tests/Feature/SubscriptionCreditReservationTest.php`, including
+  the two-concurrent-checkouts race that produced the original stranding.
+
 ## `stores.status` casing: never compare it with `===`
 
 `stores.status` holds `'Active'`/`'Suspended'` — capitalised. That is the

@@ -748,6 +748,17 @@ left in place for a future real worker — so that interface's presence is
 `RegistersAccounts`/`RecoversPasswords`/`SendEndOfDaySummaries` for any new
 mail path.
 
+**Corollary — never `->send()` inside an open transaction.** Because the send
+is synchronous, a slow or unreachable SMTP server holds the transaction (and
+every `lockForUpdate()` row lock it took) open for the full mail timeout. This
+is what A-110 was: `SyncController::touchStoreLastSyncAt()` fired the
+first-sync admin alert before push()'s outer `DB::commit()`, so the client's
+batch timed out and retried against still-locked rows. The method now returns
+the first-synced `Store` and `push()` calls `sendFirstSyncAlert()` *after* the
+commit; `tests/Feature/SyncFirstSyncAlertTest.php` pins that by asserting
+`DB::transactionLevel()` at `MessageSending` time. Any new mail call on a
+write path has to sit after the commit, not inside it.
+
 ## Broadcast emails (`broadcasts.send_email`)
 
 A broadcast (`Broadcast`, `BroadcastController`) is delivered in-app by

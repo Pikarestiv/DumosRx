@@ -1,15 +1,40 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { useEffect, useRef, useState } from "react";
+import { Sparkles } from "lucide-react";
 import { ScrollFade } from "@/components/ui/scroll-fade";
 import type { AssistantMessage } from "@/lib/assistant/types";
+import { AssistantMessageBubble } from "./assistant-message-bubble";
 
 interface AssistantMessageListProps {
   messages: AssistantMessage[];
   isThinking: boolean;
   onActionClick: () => void;
+}
+
+const DOT_DELAYS = ["0ms", "150ms", "300ms"];
+
+function TypingDots() {
+  return (
+    <div className="flex items-start gap-2">
+      <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
+        <Sparkles className="h-3.5 w-3.5" />
+      </span>
+      <div
+        className="flex items-center gap-1 rounded-2xl rounded-tl-sm border border-border bg-muted px-3 py-3 shadow-sm"
+        aria-label="Thinking"
+        role="status"
+      >
+        {DOT_DELAYS.map((delay) => (
+          <span
+            key={delay}
+            className="size-1.5 animate-bounce rounded-full bg-primary/70"
+            style={{ animationDelay: delay }}
+          />
+        ))}
+      </div>
+    </div>
+  );
 }
 
 export function AssistantMessageList({
@@ -18,6 +43,7 @@ export function AssistantMessageList({
   onActionClick,
 }: AssistantMessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
+  const [preexistingIds] = useState(() => new Set(messages.map((message) => message.id)));
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -25,39 +51,16 @@ export function AssistantMessageList({
 
   return (
     <ScrollFade containerClassName="flex-1 min-h-0" className="p-3">
-      <div role="log" aria-live="polite" className="flex flex-col gap-2">
+      <div role="log" aria-live="polite" className="flex flex-col gap-3">
         {messages.map((message) => (
-          <div
+          <AssistantMessageBubble
             key={message.id}
-            className={
-              message.role === "user"
-                ? "max-w-[85%] self-end rounded-lg bg-primary px-3 py-2 text-sm text-primary-foreground"
-                : "max-w-[85%] self-start rounded-lg bg-muted px-3 py-2 text-sm text-foreground"
-            }
-          >
-            <p className="whitespace-pre-wrap">{message.text}</p>
-            {message.actions && message.actions.length > 0 && (
-              <div className="mt-2 flex flex-wrap gap-2">
-                {message.actions.map((action) => (
-                  <Button
-                    key={`${action.href}:${action.label}`}
-                    asChild
-                    variant="outline"
-                    size="sm"
-                    onClick={onActionClick}
-                  >
-                    <Link href={action.href}>{action.label}</Link>
-                  </Button>
-                ))}
-              </div>
-            )}
-          </div>
+            message={message}
+            animate={!preexistingIds.has(message.id)}
+            onActionClick={onActionClick}
+          />
         ))}
-        {isThinking && (
-          <div className="max-w-[85%] self-start rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground">
-            Thinking…
-          </div>
-        )}
+        {isThinking && <TypingDots />}
         <div ref={bottomRef} />
       </div>
     </ScrollFade>

@@ -18,7 +18,7 @@ export function AssistantSuggestionChips({ suggestions, onPick }: AssistantSugge
           type="button"
           variant="outline"
           size="sm"
-          className="h-auto whitespace-normal text-left text-xs"
+          className="h-auto whitespace-normal rounded-full border-primary/40 px-3 py-1.5 text-left text-xs text-primary hover:bg-primary/10 hover:text-primary"
           onClick={() => onPick(suggestion)}
         >
           {suggestion}

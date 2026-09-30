@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { SendHorizontal } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
@@ -23,16 +24,26 @@ export function AssistantComposer({ isThinking, onSend }: AssistantComposerProps
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex gap-2 border-t border-border p-3">
+    <form
+      onSubmit={handleSubmit}
+      className="flex items-center gap-2 border-t border-border bg-background/95 p-3 backdrop-blur-sm"
+    >
       <Input
         aria-label="Ask the assistant"
         value={value}
         onChange={(e) => setValue(e.target.value)}
         placeholder="Ask a question…"
         disabled={isThinking}
+        className="rounded-full"
       />
-      <Button type="submit" disabled={isThinking || value.trim().length === 0}>
-        Send
+      <Button
+        type="submit"
+        size="icon"
+        aria-label="Send"
+        className="rounded-full"
+        disabled={isThinking || value.trim().length === 0}
+      >
+        <SendHorizontal className="h-4 w-4" />
       </Button>
     </form>
   );

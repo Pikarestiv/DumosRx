@@ -3677,10 +3677,11 @@ not to the thread.
 
 ## Assistant chat UI (`components/assistant/`)
 
-Five small presentational pieces sit on top of that state:
-`assistant-panel.tsx` (the only stateful one — it reads `isOpen`/`close` from
-`useAssistantPanel` itself and calls `useAssistant()`), plus
-`assistant-message-list.tsx`, `assistant-composer.tsx`,
+Six small presentational pieces sit on top of that state:
+`assistant-panel.tsx` (the only one wired to global state — it reads
+`isOpen`/`close` from `useAssistantPanel` itself and calls `useAssistant()`),
+plus `assistant-message-list.tsx`, `assistant-message-bubble.tsx`
+(one message, including its reveal animation), `assistant-composer.tsx`,
 `assistant-suggestion-chips.tsx` and `assistant-launcher.tsx`, all of which
 take everything through props. Mounting them is a separate concern — the
 panel is designed to be rendered once globally and the launcher wherever an
@@ -3714,9 +3715,27 @@ no host-supplied callback.
   because that prop is an arbitrary callback and the composer must not be able
   to strand its own input on a throw it did not expect. `onSend` is typed
   `(text: string) => void | Promise<void>` for that reason.
-- **The panel pins the composer with `ResponsiveModal`'s `footer` prop**, not
-  inside `children`: on mobile `children` is the scrollable region, so a
-  composer placed there scrolls away from the user mid-conversation.
+- **The panel is a docked right-hand `Sheet` on desktop and a bottom `Drawer`
+  on mobile — not `ResponsiveModal`.** It branches on
+  `useResolvedMediaQuery("(min-width: 768px)")` (the same breakpoint
+  `ResponsiveModal` uses) and renders nothing until `resolved`, for exactly the
+  reason documented on that hook: branching on the uncorrected `false` mounts
+  the wrong tree first and races two scroll-lock implementations. A chat
+  thread wants to sit beside the page it is about, so the centred dialog was
+  replaced; `ResponsiveModal` is untouched and still used everywhere else.
+- **The pinned composer is built by hand, because `Sheet` has no `footer`
+  prop.** Both branches render the same `body`: a `flex-1 min-h-0` column
+  holding the chips + message list, then a `shrink-0` composer. Don't put the
+  composer inside the scrollable region — it scrolls away from the user
+  mid-conversation. `SheetContent` and `DrawerContent` get `p-0` plus
+  `overflow-hidden`, and the sheet re-passes `style.paddingTop/Bottom` as the
+  bare `--tauri-top`/`--tauri-bottom` insets: those paddings are *inline* on
+  `SheetContent`, so `p-0` alone cannot remove them.
+- **Both headers are a `bg-primary` band** (`HEADER_CLASS` in
+  `assistant-panel.tsx`, title/description in
+  `text-primary-foreground`/`/80`), with `hideClose` on `SheetContent` and an
+  explicit `SheetClose`/`DrawerClose` in the band — the built-in close button
+  is `foreground`-coloured and disappears against the primary fill.
 - **`ScrollFade`'s two class props are not interchangeable.**
   `containerClassName` is the positioning wrapper and is what must carry
   `flex-1 min-h-0` to participate in the panel's flex column;
@@ -3726,8 +3745,8 @@ no host-supplied callback.
 - **The message list scrolls itself.** `assistant-message-list.tsx` keeps a
   `bottomRef` sentinel `<div>` after the thinking indicator and
   `scrollIntoView({ behavior: "smooth", block: "end" })`s it on every change
-  to `messages.length` or `isThinking`. The panel is a fixed `h-[60vh]`, so
-  without it the newest reply renders below the fold after ~3 exchanges and
+  to `messages.length` or `isThinking`. The panel is full-height on desktop and
+  `h-[85vh]` on mobile, so without it the newest reply renders below the fold after ~3 exchanges and
   the user has to scroll to read the answer they just asked for. jsdom
   implements `scrollIntoView` as a no-op, so the test stubs
   `Element.prototype.scrollIntoView` with a spy in `beforeEach` to assert it
@@ -3735,14 +3754,75 @@ no host-supplied callback.
 - **Action buttons close the panel** (`onActionClick` → `close`): a reply's
   action is a navigation, and leaving a modal open over the page it just
   routed to hides the thing the user asked for.
-- Test: `__tests__/assistant-panel.test.tsx`. It flattens `ResponsiveModal` to
-  a plain div (the repo's standing pattern for modal-hosted behaviour — the
-  real one is Radix plus a media query that jsdom has no `matchMedia` for) and
-  mocks `next/link`. There is no `@testing-library/jest-dom` in this repo, so
-  assertions are plain (`toBeTruthy()`, `getAttribute("href")`), not
+
+**The word-by-word reveal is presentational only — the full text is in the DOM
+from the first frame.** `assistant-message-bubble.tsx` animates a newly
+appended *assistant* message in at 45ms per step, capped at a 1.5s total
+budget (`MAX_REVEAL_MS`) by revealing `ceil(words / 33)` words per tick, so a
+long reply speeds up instead of dragging. Such a message's paragraph holds two
+layers: an `absolute inset-0 opacity-0 select-none` span carrying the
+**complete** text (what the live region announces and what `getByText` finds),
+and an `aria-hidden` span of per-word spans toggled between
+`opacity-0`/`opacity-100` (`data-revealed`). Messages that don't animate are a
+single plain text node.
+
+- **The two-layer structure is decided once (`layered`) and then never
+  changes**, including after the reveal finishes. Collapsing it back to one
+  text node afterwards mutates the `aria-live` region's text and makes a screen
+  reader read the whole reply a second time; `select-none` on the hidden layer
+  is what keeps a copy-paste from duplicating the text instead.
+
+- **Do not switch this to growing the visible text content per tick.** The list
+  is `role="log" aria-live="polite"`: incremental text mutation makes a screen
+  reader announce every partial fragment, and it breaks `getByText`/Playwright
+  assertions that expect the whole string. The invariant is: complete text in
+  the DOM immediately, reveal is visual only.
+- Splitting on `/(\s+)/` and wrapping only the non-whitespace segments is what
+  keeps `whitespace-pre-wrap` newlines intact. Note that
+  `getByText(fullString)` only matches the hidden full-text layer, because
+  Testing Library's default matcher reads an element's *direct* text nodes —
+  the per-word layer would never match it.
+- Only messages that were absent on the list's first render animate, tracked in
+  a `preexistingIds` ref, so reopening the panel doesn't replay the thread.
+  User messages never animate, and `prefers-reduced-motion: reduce` reveals
+  instantly (guarded for jsdom, which has no reliable `matchMedia`).
+- **`actions` render only once the text has fully revealed**, so a link can't be
+  clicked out from under a reply that is still arriving.
+
+**Visual language** (`.agents/AGENTS.md` §6, semantic tokens only — no hex):
+`bg-primary` header band; user bubbles `bg-primary`/`text-primary-foreground`,
+assistant bubbles `bg-muted` with a `border-border` and a small
+`bg-primary` `Sparkles` avatar (same icon as the launcher); suggestion chips
+and reply actions are `rounded-full` `border-primary/40 text-primary`
+outline buttons; the composer is a rounded `Input` plus a circular
+`size="icon"` `SendHorizontal` submit button (`aria-label="Send"`); the
+thinking state is three `animate-bounce` dots (staggered `animationDelay`,
+`role="status"` `aria-label="Thinking"`) instead of the old "Thinking…" text.
+Glassmorphism lives on `SheetContent`/`DrawerContent`
+(`bg-background/95 backdrop-blur-sm`) and the composer bar — `Sheet` ships
+plain `bg-background`, so it has to be added here.
+Avoid `hover:border-primary/40` anywhere in this panel: `globals.css`
+deliberately neutralises that exact class on hover; the chips use a static
+`border-primary/40` with `hover:bg-primary/10` instead.
+
+- Tests: `__tests__/assistant-panel.test.tsx` (wiring) and
+  `__tests__/assistant-message-reveal.test.tsx` (reveal, with fake timers and
+  `[data-revealed="false"]` as the stable hook). The panel test flattens
+  `@/components/ui/sheet` to plain divs and mocks
+  `@/hooks/use-media-query` to a resolved desktop match — the repo's standing
+  pattern for modal-hosted behaviour, since the real components are Radix plus
+  a media query jsdom has no `matchMedia` for. It also mocks `next/link`, and
+  because the action links now wait for the reveal, it asserts them with
+  `findByRole` rather than `getByRole`. There is no
+  `@testing-library/jest-dom` in this repo, so assertions are plain
+  (`toBeTruthy()`, `getAttribute("href")`), not
   `toBeInTheDocument()`/`toHaveAttribute()`.
 - E2E: `e2e/assistant.spec.ts` covers the wired-up panel end to end (launcher →
-  composer → reply → action link navigation). Scope every assertion to
+  composer → reply → action link navigation). It needed no changes for the
+  sidepanel redesign: `Sheet` is the same Radix Dialog primitive, so
+  `getByRole('dialog')` still resolves at the Desktop Chrome viewport, and the
+  reveal animates `opacity` (Playwright still considers the text visible, and
+  auto-waits for the action link that appears after it). Scope every assertion to
   `page.getByRole('dialog')` rather than the whole page: the user's own message
   bubble echoes the question verbatim, so a bare `getByText(/low on stock/)`
   matches both bubbles and trips Playwright strict mode. For the same reason

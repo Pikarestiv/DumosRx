@@ -7,28 +7,19 @@ vi.mock("next/link", () => ({
     React.createElement("a", { href, ...rest }, children),
 }));
 
-vi.mock("@/components/ui/responsive-modal", () => ({
-  ResponsiveModal: ({
-    open,
-    title,
-    description,
-    children,
-    footer,
-  }: {
-    open: boolean;
-    title: React.ReactNode;
-    description?: React.ReactNode;
-    children: React.ReactNode;
-    footer?: React.ReactNode;
-  }) =>
-    open ? (
-      <div>
-        <div>{title}</div>
-        <div>{description}</div>
-        {children}
-        {footer}
-      </div>
-    ) : null,
+vi.mock("@/hooks/use-media-query", () => ({
+  useMediaQuery: () => true,
+  useResolvedMediaQuery: () => ({ matches: true, resolved: true }),
+}));
+
+vi.mock("@/components/ui/sheet", () => ({
+  Sheet: ({ open, children }: { open: boolean; children: React.ReactNode }) =>
+    open ? <div role="dialog">{children}</div> : null,
+  SheetContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  SheetHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  SheetTitle: ({ children }: { children: React.ReactNode }) => <h2>{children}</h2>,
+  SheetDescription: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
+  SheetClose: ({ children }: { children: React.ReactNode }) => <button>{children}</button>,
 }));
 
 vi.mock("@/lib/context/auth-context", () => ({
@@ -76,7 +67,8 @@ describe("AssistantPanel", () => {
     await waitFor(() => {
       expect(screen.getByText(/Make a sale: Open POS/)).toBeTruthy();
     });
-    expect(screen.getByRole("link", { name: "Make a sale" }).getAttribute("href")).toBe("/pos");
+    const link = await screen.findByRole("link", { name: "Make a sale" });
+    expect(link.getAttribute("href")).toBe("/pos");
   });
 
   it("closes the panel when an action link is clicked", async () => {

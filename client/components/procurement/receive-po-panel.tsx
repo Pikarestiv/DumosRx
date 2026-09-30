@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { ArrowLeft, Loader2, Package } from "lucide-react";
+import { ArrowLeft, Loader2, Package, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 import { ReceiveLedgerTable } from "./receive-ledger-table";
 import { ScrollFade } from "@/components/ui/scroll-fade";
@@ -21,6 +22,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { outstandingBulkQuantity } from "./po-line-item-math";
+import { useDroppedReceiptSignal } from "@/lib/hooks/use-dropped-receipt-signal";
 
 export interface ReceivedItemPayload {
   po_item_id: string;
@@ -63,6 +65,8 @@ export function ReceivePOPanel({
   // it, phones get the one-item-at-a-time card flow instead.
   const isTabletUp = useMediaQuery("(min-width: 640px)");
   const mode = isTabletUp ? "ledger" : "standard";
+  const { signal: droppedReceipt, dismiss: dismissDroppedReceipt } =
+    useDroppedReceiptSignal(po?.id ?? null);
 
   useEffect(() => {
     if (!po) return;
@@ -151,6 +155,32 @@ export function ReceivePOPanel({
 
       <ScrollFade containerClassName="flex-1" className="p-5">
         <div className="space-y-4">
+          {droppedReceipt && (
+            <Alert variant="destructive" data-testid="dropped-receipt-warning">
+              <TriangleAlert className="w-4 h-4" />
+              <AlertTitle>A receipt against this order may not have been applied</AlertTitle>
+              <AlertDescription>
+                <span>
+                  {droppedReceipt.lineCount === 1
+                    ? "One line's received quantity"
+                    : `${droppedReceipt.lineCount} lines' received quantities`}{" "}
+                  could not be saved, most likely because another device
+                  received the same delivery. Count what is physically on the
+                  shelf against the figures below and receive any remainder
+                  before confirming.
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-2 w-fit"
+                  onClick={() => void dismissDroppedReceipt()}
+                >
+                  I&apos;ve checked this
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
+
           <p className="text-[13px] text-muted-foreground">
             Confirm the quantities received and provide the batch/lot numbers
             and expiry dates for each item.

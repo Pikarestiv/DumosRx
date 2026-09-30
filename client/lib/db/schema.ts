@@ -284,6 +284,19 @@ CREATE TABLE IF NOT EXISTS _pending_stock_deltas (
   attempts INTEGER NOT NULL DEFAULT 0
 );
 
+CREATE TABLE IF NOT EXISTS _sync_conflicts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  table_name TEXT NOT NULL,
+  record_id TEXT NOT NULL,
+  reason TEXT NOT NULL,
+  fields TEXT,
+  detected_at TEXT NOT NULL,
+  resolved_at TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_sync_conflicts_unresolved
+  ON _sync_conflicts(table_name, record_id, resolved_at);
+
 CREATE TABLE IF NOT EXISTS customer_payments (
   id TEXT PRIMARY KEY,
   customer_id TEXT NOT NULL,

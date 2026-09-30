@@ -493,6 +493,52 @@ counts, see `components/stock-batch/stock-audits.tsx`).
   toast: those edits are queued by automatic machinery (the permission
   catalog backfill), not a user action anyone is waiting on, so "could not
   be saved" would be alarming noise about something they never did.
+- **The terminal-conflict ledger (`sync-engine/conflict-log.ts`, A-26).** A
+  terminal rejection used to leave nothing behind but a `toast.warning` — fine
+  for an ordinary lost edit the person is standing in front of, useless when
+  the dropped change is the only record that real-world stock arrived. That is
+  `A-26`: the `A-9` fix keys a receipt's `stock_batches`/`stock_movements` rows
+  on the PO line plus its already-received balance, so a device that has not
+  pulled since another device received against the same line derives the *same*
+  ids for a genuine second partial receipt; the server collapses its INSERTs
+  onto the first receipt's rows and drops its `quantity_received` UPDATE as a
+  `version_conflict`. Stock and the PO stay consistent with each other (the
+  point of `A-9` — a phantom doubling is worse), but the delivered goods exist
+  on the shelf and not in the system, and the PO just reads as having an
+  ordinary outstanding balance. **The keying is not what changed, the silence
+  is.** Every terminal conflict on an allow-listed table now writes a row to
+  the local-only `_sync_conflicts` table (`table_name`, `record_id`, `reason`,
+  the dropped payload's non-`_` field names, `detected_at`, `resolved_at`).
+  Rows are resolved in three ways: the store dismisses the warning, a *later*
+  change to the same record is accepted by the server (so whatever the dropped
+  one carried has been superseded — done from `markSynced()`'s own path in the
+  same transaction), or a `resetDatabase()` wipe. `CONFLICT_LOGGED_TABLES` is
+  deliberately an allow-list of one (`purchase_order_items`): every logged row
+  must have a reader, otherwise this becomes an unbounded ledger of rows nobody
+  looks at. Extend it together with the surface that reads the new table.
+  `_sync_conflicts` is local-only — it is not in `SYNC_CONFIG`, so
+  `npm run test:schema` correctly ignores it and no Laravel migration
+  corresponds to it. On the reading side,
+  `getDroppedReceiptSignal(purchaseOrderId)` (`queries/procurement.ts`) reports
+  any unresolved `quantity_received` drop against that order's lines, and
+  `ReceivePOPanel` renders a destructive `Alert` above the receiving form
+  telling the store to count the shelf and receive the remainder, with an
+  "I've checked this" dismissal. A conflict with **no** recorded field list is
+  treated as possibly a receipt rather than hidden — failing toward the warning
+  is the right direction for lost stock. What is unit-tested:
+  `__tests__/po-dropped-receipt-signal.test.ts` covers the ledger and the query
+  (per-order scoping, distinct-line counting, field filtering, both resolution
+  paths, the allow-list), and
+  `__tests__/receive-po-dropped-receipt-banner.test.tsx` covers the banner's
+  presence, wording, pluralisation and dismissal against a mocked signal. What
+  is **not** covered is the end-to-end path — that a real two-device stale
+  receipt produces the `version_conflict` the ledger then records — which needs
+  a live smoke test against the server, so treat that link as verified by
+  reading `push.ts` rather than by a test. Note also that `ReceivePOPanel` now
+  reads the local database through this hook: a component test rendering it
+  must mock `@/lib/hooks/use-dropped-receipt-signal` (see
+  `receive-item-card-price-fields.test.tsx`) or sql.js will try to fetch
+  `/sql-wasm.wasm` and log an unhandled rejection.
 - `TERMINAL_CONFLICT_SETTLES_SOURCE_ROW` (`audit_logs`): the server row does
   not carry the id the client pushed, so no future pull can ever match and
   settle the terminally-conflicted local row — `markConflictSettled()` is

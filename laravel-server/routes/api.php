@@ -149,7 +149,8 @@ Route::prefix('v1')->group(function () {
         Route::apiResource('staff', StaffController::class)->middleware(['permission:manage_staff', 'subscription']);
         Route::get('stores/check-slug', [StoreController::class, 'checkSlug']);
         Route::get('stores/{store}/payment-banks', [StorePaymentAccountController::class, 'paymentBanks']);
-        Route::post('stores/{store}/payment-account/resolve', [StorePaymentAccountController::class, 'resolvePaymentAccount']);
+        Route::post('stores/{store}/payment-account/resolve', [StorePaymentAccountController::class, 'resolvePaymentAccount'])
+            ->middleware('throttle:bank-account-resolve');
         Route::post('stores/{store}/payment-account', [StorePaymentAccountController::class, 'createPaymentAccount']);
         Route::apiResource('stores', StoreController::class);
 

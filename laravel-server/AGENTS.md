@@ -700,6 +700,20 @@ straight to their own bank account.
   Paystack call made) and re-resolves the account server-side even though
   the client already called `/resolve` — never trust a client-sent
   confirmation of someone else's bank details alone.
+- **The resolve endpoint is a name-lookup oracle, and is limited as one
+  (PG-5).** `account_number`/`bank_code` are free-form: ownership is checked on
+  the *store*, never on the account being resolved, so the endpoint will turn
+  any account number in Nigeria or Ghana into its holder's name using the
+  platform's own Paystack credentials. On the authenticated group's shared
+  `throttle:60,1` that was 60 free lookups a minute per owner. It now carries
+  its own `throttle:bank-account-resolve` (**8/min, keyed on the user id, not
+  the IP** — an IP key would let one account rotate through proxies, and a
+  household of owners behind one NAT would share a budget they shouldn't).
+  Eight is deliberately above real onboarding (resolve, fix a typo, resolve
+  again) and far below anything usable for enumeration. Don't fold this route
+  back into the group limiter, and don't re-key it to the IP.
+  `PaymentRouteThrottleTest` asserts both the named limiter and that it trips
+  well under 60.
 - **`percentage_charge` is the platform's cut, not the store's** — a real,
   easy-to-get-backwards fact worth stating plainly. `createSubaccount()`
   passes the current `storefront_platform_fee_percentage` (a `SystemConfig`

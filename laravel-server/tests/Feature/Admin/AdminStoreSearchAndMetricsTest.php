@@ -132,6 +132,44 @@ class AdminStoreSearchAndMetricsTest extends TestCase
         $this->assertSame(1, $response->json('business_metrics.active_days'));
     }
 
+    /**
+     * A-86: both admin revenue helpers read `sales` through DB::table(), so
+     * they miss the SoftDeletes global scope the store owner's own dashboard
+     * inherits. A voided/reset sale must be excluded from every admin figure
+     * too, or the two surfaces quote different revenue for the same store.
+     */
+    #[Test]
+    public function soft_deleted_sales_are_excluded_from_the_store_detail_metrics()
+    {
+        $this->recordSale(1000);
+        $voided = $this->recordSale(3000);
+
+        $voided->delete();
+
+        $response = $this->actingAs($this->superAdmin)
+            ->getJson('/api/v1/admin/stores/'.$this->store->id);
+
+        $response->assertStatus(200);
+
+        $this->assertSame(1, $response->json('business_metrics.order_count'));
+        $this->assertEquals(1000, $response->json('business_metrics.revenue_raw'));
+        $this->assertEquals(1000, $response->json('business_metrics.average_order_value_raw'));
+    }
+
+    #[Test]
+    public function soft_deleted_sales_are_excluded_from_the_fleet_list_revenue()
+    {
+        $this->recordSale(1000);
+        $this->recordSale(3000)->delete();
+
+        $response = $this->actingAs($this->superAdmin)->getJson('/api/v1/admin/stores');
+
+        $response->assertStatus(200);
+
+        $row = collect($response->json('data'))->firstWhere('id', $this->store->id);
+        $this->assertSame('₦1,000', $row['revenue']);
+    }
+
     #[Test]
     public function business_metrics_report_growth_against_the_previous_window()
     {

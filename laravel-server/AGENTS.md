@@ -179,6 +179,28 @@ vanish from `$validated`. `bulkNotify` silently notified every account for one
 commit because of it. Read that kind of bag off `$request->input('filters')`
 after validating, not out of `$validated`.
 
+## A voided sale is not revenue — including on the admin surfaces
+
+`Sale` uses `SoftDeletes`, and a voided or `POST /dashboard/reset`-cleared
+sale is **excluded from every revenue figure the product quotes**, admin panel
+included. The store owner's own dashboard gets that for free (`DashboardService`
+goes through Eloquent, so the global scope applies), but the two admin revenue
+helpers read the table through `DB::table('sales')` for their correlated
+legacy-`cashier_id` fallback and so bypass it: for as long as that went
+unnoticed, the admin fleet list and Store Details page quoted ₦500,000 and 50
+orders for a store whose own dashboard said ₦0, and
+`average_order_value`/`active_days`/the 6-month trend were all derived from
+the inflated numbers (A-86).
+
+Both helpers — `AdminStoreService::revenueSubquery()` and
+`AdminStoreMetricsService::salesQuery()` — now carry
+`->whereNull('sales.deleted_at')`, and they are the single source for every
+consumer of those figures. **Any new raw-builder query over `sales` (or any
+other soft-deleting table) must add that filter explicitly**; prefer Eloquent
+unless a correlated subquery forces the builder. The third revenue site,
+`AdminPlatformService::summary()`, uses Eloquent `Sale::sum()` and already
+agrees. Pinned by `tests/Feature/Admin/AdminStoreSearchAndMetricsTest.php`.
+
 ## Admin auth architecture (redesigned 2026-08-26)
 
 `web/`'s platform admin panel keeps its access token in JS memory only

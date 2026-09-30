@@ -3283,6 +3283,53 @@ logic here or gate tools ad hoc inside `execute`; declare
 `requiredPermission` on the tool and let the gate do it, so the router can
 answer with a `denied` reply instead of running the query.
 
+## Assistant routing pipeline (`lib/assistant/router.ts`)
+
+`answer(utterance, ctx, brain?)` is the single entry point every assistant
+turn goes through, and it is deliberately the only place that decides *what*
+to say: a brain resolves the utterance to a `BrainOutcome`, the router turns
+that outcome into an `AssistantReply`. The default brain is
+`intentRouterBrain` (`intent-router-brain.ts`: normalize → `matchIntent`
+against `INTENTS` → `buildArgs`); the parameter exists so tests can inject a
+stub brain and so a future brain can be swapped in without touching the
+reply/authorization/error handling around it.
+
+- **`buildArgs` receives the normalized utterance as its own argument**, not
+  smuggled through `captures`. A date-taking intent re-parses the full
+  sentence with `parseDatePhrase`; it must not have to cast a magic key out
+  of the captures bag.
+- **Ambiguous candidates carry `{ tool, label }` only.** Disambiguation
+  renders text ("Did you mean: … or …?"), it never runs a tool, so building
+  full `ToolCall`s for candidates would be dead weight — and the reply names
+  the human-readable `label`, never the internal tool name.
+- **Errors never escape.** A throwing `execute()`/`format()` returns
+  `buildErrorReply()` and logs via `devLog` only. This path writes no
+  `audit_logs` row and calls no `logCrash()`: the assistant is a read-only
+  convenience surface, and a crash report that itself becomes a syncable
+  row is the exact shape of the A-27 incident above.
+- **`REROUTE_ON_DENIAL` (`router-reroutes.ts`) is the one exception to "a
+  denied call ends the turn".** It maps a tool name to a narrower fallback
+  tool tried when the first is denied and the fallback *is* permitted — the
+  cashier case: a sales-shaped question from a user without `view_reports`
+  is answered with their own sales rather than refused. It ships empty and
+  is populated as such pairs appear. The reroute is only ever a
+  *narrowing*, and it must not silently answer a different question than
+  the one asked: if the denied call carried a `date` arg that isn't
+  `ctx.now`'s date, the rerouted reply appends an explicit note saying so.
+  Keep that note — dropping it turns "you can only see today's, yours" into
+  a confidently wrong answer about yesterday.
+- **`TOOL_REGISTRY` is imported statically** here and in
+  `fallback-replies.ts`. Nothing under `tools/` imports back from
+  `router.ts`, so there is no cycle needing a dynamic `import()`.
+
+**Testing gotcha: `store_owner` is not a useful role for a denial test.**
+`hasPermission()` blanket-allows `store_owner`/`super_admin` regardless of
+the permission group, so a test that expects `authorizeToolCall` to *deny*
+must use a non-privileged role (e.g. `sales_staff`) with a
+`permissionGroup` that lacks the key. Given a `store_owner` ctx the gate
+returns `ok`, the tool runs, and the assertion fails against a perfectly
+correct router.
+
 ## Running things
 
 ```

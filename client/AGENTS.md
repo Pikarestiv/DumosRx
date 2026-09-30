@@ -3192,6 +3192,17 @@ And don't remove the `TZ` line: SQLite's `'localtime'` and JS's local getters
 both read the process timezone, so dropping it silently reintroduces the
 split.
 
+### Named capture groups need `new RegExp(...)`, not a regex literal
+
+`tsconfig.json` sets `"target": "ES6"`, and TypeScript rejects a regex
+*literal* containing a named capture group under that target (`TS1503:
+Named capturing groups are only available when targeting 'ES2018' or
+later`). The runtime supports them fine — only the literal syntax is
+checked. So anywhere a pattern needs named groups (the assistant's
+`IntentDefinition.phrases`, whose captures feed `buildArgs`, is the main
+case), build it with `new RegExp("...(?<name>...)...")` instead of `/.../`.
+Don't raise the compile target to work around this.
+
 ### "All tests passed but the run still exited 1"
 
 Vitest fails the whole run when it catches a **process-level** unhandled

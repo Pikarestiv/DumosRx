@@ -3203,6 +3203,24 @@ checked. So anywhere a pattern needs named groups (the assistant's
 case), build it with `new RegExp("...(?<name>...)...")` instead of `/.../`.
 Don't raise the compile target to work around this.
 
+### `TOOL_REGISTRY` entries need an explicit cast
+
+`lib/assistant/tools/index.ts` types the registry as `ReadonlyMap<string,
+AssistantTool>` — i.e. `AssistantTool<Record<string, unknown>, unknown>` —
+because the router only ever has an untyped `args` bag and an opaque
+result to hand around. A concrete tool is declared with its own argument
+and result types (e.g. `AssistantTool<{ topic: string }, HelpTopic |
+null>`), and under `strictFunctionTypes` that is **not** assignable to the
+registry's element type: `execute`/`format` are property-style function
+types, so their parameters are contravariant and `Record<string, unknown>`
+is not assignable to `{ topic: string }`. Registering a tool therefore
+goes through an explicit `as unknown as AssistantTool` at the map entry,
+which is also where a tool's own signature stays precise for its direct
+callers and its tests. Don't "fix" a new tool's registration by widening
+its declared argument type to `Record<string, unknown>` — that throws away
+the typing inside `execute`/`format` — and don't loosen the registry's
+element type to `any`.
+
 ### "All tests passed but the run still exited 1"
 
 Vitest fails the whole run when it catches a **process-level** unhandled

@@ -1,0 +1,127 @@
+export interface HelpTopic {
+  id: string;
+  title: string;
+  href: string | null;
+  steps: string[];
+  keywords: string[];
+  phrases: RegExp[];
+  requiredPermission?: string;
+}
+
+export const HELP_TOPICS: HelpTopic[] = [
+  {
+    id: "make_sale",
+    title: "Make a sale",
+    href: "/pos",
+    steps: ["Open POS", "Search or scan the product", "Add it to the cart", "Tap Charge and choose a payment method"],
+    keywords: ["sale", "sell", "checkout", "pos"],
+    phrases: [/\bmake a sale\b/, /\bprocess a sale\b/, /\bhow (do|to) i (make|process) a sale\b/],
+    requiredPermission: "process_sales",
+  },
+  {
+    id: "add_product",
+    title: "Add a product",
+    href: "/inventory/catalog?action=add",
+    steps: ["Go to Inventory > Catalog", "Tap Add Product", "Fill in the product details and save"],
+    keywords: ["add product", "new product", "create product"],
+    phrases: [/\badd (a |an |new )?product\b/, /\bcreate (a |new )?product\b/],
+    requiredPermission: "manage_products",
+  },
+  {
+    id: "adjust_stock",
+    title: "Adjust stock",
+    href: "/inventory/adjustments?action=create",
+    steps: ["Go to Inventory > Adjustments", "Tap New Adjustment", "Select the product and enter the correction"],
+    keywords: ["adjust stock", "correct stock", "stock adjustment"],
+    phrases: [/\badjust stock\b/, /\bcorrect stock\b/, /\bstock adjustment\b/],
+    requiredPermission: "adjust_stock_counts",
+  },
+  {
+    id: "start_audit",
+    title: "Start a stock audit",
+    href: "/inventory/audits",
+    steps: ["Go to Inventory > Audits", "Tap Start Audit", "Count and confirm each product"],
+    keywords: ["stock audit", "stocktake", "count stock"],
+    phrases: [/\bstock audit\b/, /\bstocktake\b/, /\bcount stock\b/, /\bstart (an |a )?audit\b/],
+    requiredPermission: "perform_stock_audit",
+  },
+  {
+    id: "record_expense",
+    title: "Record an expense",
+    href: "/expenses?action=add",
+    steps: ["Go to Expenses", "Tap Add Expense", "Enter the amount, category, and date"],
+    keywords: ["record expense", "add expense", "log expense"],
+    phrases: [/\brecord (an |a )?expense\b/, /\badd (an |a )?expense\b/, /\blog (an |a )?expense\b/],
+    requiredPermission: "record_expenses",
+  },
+  {
+    id: "add_customer",
+    title: "Add a customer",
+    href: "/customers?action=add",
+    steps: ["Go to Customers", "Tap Add Customer", "Fill in their details and save"],
+    keywords: ["add customer", "new customer"],
+    phrases: [/\badd (a |new )?customer\b/, /\bnew customer\b/],
+    requiredPermission: "manage_customers",
+  },
+  {
+    id: "create_purchase_order",
+    title: "Create a purchase order",
+    href: "/procurement/new",
+    steps: ["Go to Procurement", "Tap New Purchase Order", "Select a supplier and add line items"],
+    keywords: ["purchase order", "reorder from supplier", "procurement"],
+    phrases: [/\bpurchase order\b/, /\breorder from (a |the )?supplier\b/, /\bnew procurement\b/],
+    requiredPermission: "manage_purchase_orders",
+  },
+  {
+    id: "daily_close",
+    title: "Run daily close",
+    href: "/reports?tab=daily_close",
+    steps: ["Go to Reports > Daily Close", "Review the summary", "Confirm to close the day"],
+    keywords: ["daily close", "close the day", "end of day"],
+    phrases: [/\bdaily close\b/, /\bclose the day\b/, /\bend of day\b/],
+  },
+  {
+    id: "view_reports",
+    title: "View reports",
+    href: "/reports",
+    steps: ["Go to Reports from the sidebar", "Choose a report tab (Sales, Finance, Daily Close)"],
+    keywords: ["view reports", "see reports", "reports page"],
+    phrases: [/\bview reports\b/, /\bsee (the )?reports\b/, /\breports page\b/],
+    requiredPermission: "view_reports",
+  },
+  {
+    id: "add_staff",
+    title: "Add a staff member",
+    href: "/settings/staff",
+    steps: ["Go to Settings > Staff", "Tap Add Staff", "Set their name, PIN, and permission group"],
+    keywords: ["add staff", "new staff", "add employee", "add cashier"],
+    phrases: [/\badd (a |new )?staff\b/, /\bnew (staff|employee|cashier)\b/, /\badd (an |a )?(employee|cashier)\b/],
+    requiredPermission: "manage_store_settings",
+  },
+  {
+    id: "receipt_settings",
+    title: "Change receipt settings",
+    href: "/settings/receipt-settings",
+    steps: ["Go to Settings > Receipt Settings", "Edit the receipt header/footer text or logo"],
+    keywords: ["receipt settings", "receipt logo", "receipt footer"],
+    phrases: [/\breceipt settings\b/, /\breceipt logo\b/, /\breceipt footer\b/],
+    requiredPermission: "manage_store_settings",
+  },
+  {
+    id: "backup_data",
+    title: "Back up or restore data",
+    href: "/settings/data",
+    steps: ["Go to Settings > Data", "Choose Backup or Restore"],
+    keywords: ["backup data", "restore data", "export data"],
+    phrases: [/\bbackup data\b/, /\brestore data\b/, /\bexport data\b/],
+    requiredPermission: "backup_restore_data",
+  },
+  {
+    id: "switch_account",
+    title: "Switch account",
+    href: null,
+    steps: ["Open the account menu (top right / user icon)", "Choose Switch Account"],
+    keywords: ["switch account", "change user", "log in as someone else"],
+    phrases: [/\bswitch account\b/, /\bchange user\b/, /\blog in as someone else\b/],
+  },
+];

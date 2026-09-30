@@ -708,17 +708,37 @@ counts, see `components/stock-batch/stock-audits.tsx`).
   every other device applying the raw delta. Movements are an immutable log,
   so the insert branch sees each one exactly once — a missed delta is lost
   forever, which is why the deferral below exists.
-- **Deferred movement deltas.** Batches and movements paginate
-  independently, so a movement can arrive on an earlier page than the batch
-  it references, where the delta would silently no-op (an `UPDATE … WHERE
-  id = ?` matching zero rows). Such deltas are collected and applied after
-  every page of every table, and `stock_movements`' cursor stamps (both the
-  window stamp and the mid-window position) are **held back** and committed
-  in the same transaction as those deltas. Committing the cursor first would
-  let a crash in between leave the cursor claiming the movements were pulled
-  while their deltas were never applied. Within a page, `stock_batches` is
-  sorted first explicitly — the server's table order happens to match today,
-  but that is incidental, not a contract.
+- **Deferred movement deltas** (`sync-engine/deferred-stock-deltas.ts`).
+  Batches and movements paginate independently, so a movement can arrive on
+  an earlier page than the batch it references, where the delta would
+  silently no-op (an `UPDATE … WHERE id = ?` matching zero rows). Such a
+  delta is written to the local-only `_pending_stock_deltas` table
+  (`movement_id` primary key) **inside the same page transaction that
+  inserts the movement row**, which is the whole point: the movement row is
+  an immutable log entry, the insert branch sees it exactly once, and the
+  `UPDATE` branch applies no delta at all — so a delta parked only in memory
+  was lost for good the moment any *later* page of that round threw (a
+  network drop is the ordinary case), permanently understating on-hand
+  stock. That was `A-54`; see `docs/FIXED_BUGS.md`.
+  `applyDeferredStockDeltas()` drains the table at the start of every pull
+  and again at the end of every round, applying each delta and deleting its
+  row in one transaction so nothing can be applied twice. A deferral whose
+  movement has since been soft-deleted is discarded rather than applied
+  (matching the insert path's `!_deleted` gate); a deferral whose batch
+  still does not exist is **kept and retried**, never dropped, and reported
+  via `logCrash` once it has waited `REPORT_AFTER_ATTEMPTS` rounds — only a
+  batch arriving can settle it, and dropping it would be the silent loss all
+  over again. `stock_movements`' cursor stamps (both the window stamp and
+  the mid-window position) are still held back and committed in the same
+  transaction as the drain. Within a page, `stock_batches` is sorted first
+  explicitly — the server's table order happens to match today, but that is
+  incidental, not a contract.
+  `_pending_stock_deltas` is local bookkeeping: it is never pushed (nothing
+  writes it through the `insert()`/`update()` helpers, so it never reaches
+  `_sync_queue`), has no MySQL counterpart, and is not in
+  `STORE_SCOPED_TABLES`, so `npm run test:schema` ignores it. It **is** in
+  `LOCAL_WIPE_TABLES`, so a `resetDatabase()` cannot leave a delta behind to
+  be applied against a freshly re-pulled batch.
 - **`DEVICE_LOCAL_PULL_COLUMNS`.** Columns each device owns privately:
   written locally, never pushed, so the server's copy is meaningless and
   must never be written back. Today that is `stores.last_monotonic_time`,

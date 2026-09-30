@@ -44,7 +44,7 @@ The change is deliberately additive in both directions, so client and server can
 Two cases deliberately do **not** persist the position for a page:
 
 - **A skipped record.** If a pulled row was skipped (a pending local edit in `_sync_queue`, or a UNIQUE collision under the retry cap), that table's *persisted* position stops advancing for the rest of the round, exactly as its window stamp does — the row must stay re-offerable. The *in-memory* position keeps advancing regardless, or the next request would ask for the same page again and the round would never terminate.
-- **`stock_movements` with deferred deltas.** A movement whose `stock_batches` row hadn't arrived yet has its quantity delta deferred to a final transaction. Persisting a position that claims those movements as pulled before their deltas land would lose the increments permanently (a movement is only seen by the insert branch once), so both the position and the window stamp are carried into that same final transaction.
+- **`stock_movements` with deferred deltas.** A movement whose `stock_batches` row hadn't arrived yet has its quantity delta recorded in `_pending_stock_deltas` (in the same page transaction as the movement row itself) and drained in a final transaction. Persisting a position that claims those movements as pulled before their deltas land would lose the increments permanently (a movement is only seen by the insert branch once), so both the position and the window stamp are carried into that same final transaction. The persistence is what makes the delta survive an interrupted round at all — see `A-54` in `docs/FIXED_BUGS.md` and `client/AGENTS.md`, "Deferred movement deltas".
 
 ## Tenant scoping cost
 

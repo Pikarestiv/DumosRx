@@ -12,6 +12,8 @@ use OpenApi\Attributes as OA;
 
 class BroadcastController extends Controller
 {
+    private const PUBLIC_FEED_LIMIT = 50;
+
     #[OA\Get(
         path: '/announcements',
         summary: 'Get active broadcast announcements targeted at the caller',
@@ -63,7 +65,7 @@ class BroadcastController extends Controller
             $query->where('target_type', 'all');
         }
 
-        $broadcasts = $query->get();
+        $broadcasts = $query->limit(self::PUBLIC_FEED_LIMIT)->get();
 
         return response()->json([
             'success' => true,

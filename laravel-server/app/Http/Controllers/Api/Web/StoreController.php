@@ -70,8 +70,9 @@ class StoreController extends Controller
 
         $slug = Str::slug($request->slug);
         
-        // Exclude the current store if ID is provided
-        $query = Store::where('store_slug', $slug);
+        // withTrashed: store_slug is DB-unique across archived rows too, so
+        // an archived store's slug is not actually free to reuse.
+        $query = Store::withTrashed()->where('store_slug', $slug);
         if ($request->has('ignore_id')) {
             $query->where('id', '!=', $request->ignore_id);
         }

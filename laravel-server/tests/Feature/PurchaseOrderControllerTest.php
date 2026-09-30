@@ -76,4 +76,21 @@ class PurchaseOrderControllerTest extends TestCase
         $response->assertStatus(200);
         $response->assertJsonCount(1, 'data');
     }
+    public function test_an_out_of_range_limit_is_rejected()
+    {
+        foreach (['-1', '0', '1000000', 'abc'] as $limit) {
+            $this->actingAs($this->owner)
+                ->getJson('/api/v1/purchase-orders?limit='.$limit)
+                ->assertStatus(422)
+                ->assertJsonValidationErrors('limit');
+        }
+    }
+
+    public function test_a_limit_within_range_is_accepted()
+    {
+        $this->actingAs($this->owner)
+            ->getJson('/api/v1/purchase-orders?limit=10')
+            ->assertStatus(200)
+            ->assertJsonCount(1, 'data');
+    }
 }

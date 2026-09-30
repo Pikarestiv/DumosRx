@@ -104,6 +104,7 @@ class PublicSurfaceHardeningTest extends TestCase
             ['api/v1/support', 'POST', 'throttle:public-write'],
             ['api/v1/logs/client-error', 'POST', 'throttle:client-error-log'],
             ['api/v1/system-configs/{key}', 'GET', 'throttle:public-read'],
+            ['api/v1/announcements', 'GET', 'throttle:public-read'],
         ];
 
         foreach ($expected as [$uri, $method, $limiter]) {
@@ -195,5 +196,22 @@ class PublicSurfaceHardeningTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertJson(['status' => 'logged']);
+    }
+    public function test_the_public_announcements_feed_is_bounded()
+    {
+        foreach (range(1, 60) as $i) {
+            \App\Models\Broadcast::create([
+                'title' => "Notice {$i}",
+                'message' => 'Body',
+                'type' => 'info',
+                'target_type' => 'all',
+                'is_active' => true,
+            ]);
+        }
+
+        $response = $this->getJson('/api/v1/announcements');
+
+        $response->assertStatus(200);
+        $this->assertLessThanOrEqual(50, count($response->json('data')));
     }
 }

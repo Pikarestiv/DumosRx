@@ -167,17 +167,7 @@ class DashboardService
             // Inventory
             $storeInventory = DB::table('products')->where('store_id', $storeId)->whereNull('deleted_at');
             $totalInventory = $storeInventory->count();
-            $lowStock = DB::table('products')
-                ->where('products.store_id', $storeId)
-                ->whereNull('products.deleted_at')
-                ->leftJoin('stock_batches', 'products.id', '=', 'stock_batches.product_id')
-                ->select('products.id', 'products.reorder_level', DB::raw('SUM(COALESCE(stock_batches.quantity, 0)) as total_stock'))
-                ->groupBy('products.id', 'products.reorder_level')
-                ->get()
-                ->filter(function ($product) {
-                    return $product->total_stock <= $product->reorder_level;
-                })
-                ->count();
+            $lowStock = $this->lowStockCount($storeId);
 
             // Expiring Items
             $warningDays = $store->expiry_warning_days ?? 90;
@@ -394,15 +384,7 @@ class DashboardService
 
             $storeTotalSales = (float) Sale::where('store_id', $storeId)->sum('total_amount');
 
-            $lowStock = DB::table('products')
-                ->where('products.store_id', $storeId)
-                ->whereNull('products.deleted_at')
-                ->leftJoin('stock_batches', 'products.id', '=', 'stock_batches.product_id')
-                ->select('products.id', 'products.reorder_level', DB::raw('SUM(COALESCE(stock_batches.quantity, 0)) as total_stock'))
-                ->groupBy('products.id', 'products.reorder_level')
-                ->get()
-                ->filter(fn ($product) => $product->total_stock <= $product->reorder_level)
-                ->count();
+            $lowStock = $this->lowStockCount($storeId);
 
             $warningDays = $store->expiry_warning_days ?? 90;
             // Joined through products.store_id rather than filtering
@@ -484,15 +466,7 @@ class DashboardService
                 ->whereBetween('created_at', [$storeDayStart, $storeDayEnd])
                 ->sum('total_amount');
 
-            $lowStock = DB::table('products')
-                ->where('products.store_id', $storeId)
-                ->whereNull('products.deleted_at')
-                ->leftJoin('stock_batches', 'products.id', '=', 'stock_batches.product_id')
-                ->select('products.id', 'products.reorder_level', DB::raw('SUM(COALESCE(stock_batches.quantity, 0)) as total_stock'))
-                ->groupBy('products.id', 'products.reorder_level')
-                ->get()
-                ->filter(fn ($product) => $product->total_stock <= $product->reorder_level)
-                ->count();
+            $lowStock = $this->lowStockCount($storeId);
 
             $warningDays = $store->expiry_warning_days ?? 90;
             // Joined through products.store_id rather than filtering
@@ -531,6 +505,25 @@ class DashboardService
     }
 
     /**
+     * Products at or below a real reorder level, matching the client's own
+     * getStockBatchStats() query: reorder_level defaults to 0, so without
+     * the > 0 condition every zero-stock product counts as low stock.
+     */
+    private function lowStockCount(string $storeId): int
+    {
+        return DB::table('products')
+            ->where('products.store_id', $storeId)
+            ->whereNull('products.deleted_at')
+            ->where('products.reorder_level', '>', 0)
+            ->leftJoin('stock_batches', 'products.id', '=', 'stock_batches.product_id')
+            ->select('products.id', 'products.reorder_level', DB::raw('SUM(COALESCE(stock_batches.quantity, 0)) as total_stock'))
+            ->groupBy('products.id', 'products.reorder_level')
+            ->get()
+            ->filter(fn ($product) => $product->total_stock <= $product->reorder_level)
+            ->count();
+    }
+
+    /**
      * Resolve the tenant-owning user's id for a caller, mirroring
      * App\Http\Controllers\Concerns\ScopesToTenant::tenantOwnerId(): tenant
      * data lives under the owner's user_id, never a staff member's own id.
@@ -540,6 +533,26 @@ class DashboardService
         return $user->store_id
             ? Store::where('id', $user->store_id)->value('user_id')
             : $user->id;
+    }
+
+    /**
+     * Every store the tenant owner owns. Sales are scoped by store_id, not
+     * by cashier_id: cashier_id is whichever staff member rang the sale up,
+     * so scoping a delete by it only ever matches the owner's own sales.
+     */
+    private function tenantStoreIds(?string $ownerId): array
+    {
+        return Store::where('user_id', $ownerId)->pluck('id')->all();
+    }
+
+    /**
+     * The owner plus every staff member employed by their stores, mirroring
+     * ActivityLogController::index() and AdminStoreService::revenueSubquery()'s
+     * legacy pre-store_id fallback.
+     */
+    private function tenantUserIds(?string $ownerId, array $storeIds): array
+    {
+        return User::whereIn('store_id', $storeIds)->pluck('id')->push($ownerId)->all();
     }
 
     /**
@@ -556,23 +569,27 @@ class DashboardService
 
             if ($type === 'all' || $type === 'sales') {
                 if (Schema::hasTable('sales')) {
-                    $query = Sale::query();
-                    if (Schema::hasColumn('sales', 'cashier_id')) {
-                        $query->where('cashier_id', $userId);
-                        Log::info("Clearing sales for cashier: {$userId}");
-                        $query->delete();
-                        $message = 'Sales records cleared.';
-                    }
+                    $storeIds = $this->tenantStoreIds($userId);
+                    $tenantUserIds = $this->tenantUserIds($userId, $storeIds);
+
+                    Log::info("Clearing sales for tenant owner: {$userId}");
+                    Sale::where(function ($q) use ($storeIds, $tenantUserIds) {
+                        $q->whereIn('store_id', $storeIds)
+                            ->orWhere(function ($legacy) use ($tenantUserIds) {
+                                $legacy->whereNull('store_id')
+                                    ->whereIn('cashier_id', $tenantUserIds);
+                            });
+                    })->delete();
+                    $message = 'Sales records cleared.';
                 }
             }
 
             if ($type === 'all' || $type === 'logs') {
                 if (Schema::hasTable('activity_logs')) {
-                    $query = ActivityLog::query();
                     if (Schema::hasColumn('activity_logs', 'user_id')) {
-                        $query->where('user_id', $userId);
-                        Log::info("Clearing activity logs for user: {$userId}");
-                        $query->delete();
+                        $tenantUserIds = $this->tenantUserIds($userId, $this->tenantStoreIds($userId));
+                        Log::info("Clearing activity logs for tenant owner: {$userId}");
+                        ActivityLog::whereIn('user_id', $tenantUserIds)->delete();
                         $message = $type === 'all' ? 'All data cleared.' : 'Activity logs cleared.';
                     }
                 }

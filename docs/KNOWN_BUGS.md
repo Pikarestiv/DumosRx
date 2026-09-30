@@ -16,7 +16,7 @@ This file holds **open** items only. Fixed entries move to `docs/FIXED_BUGS.md` 
 
 **Overall health.** The codebase is unusually well-defended for its size: the sync engine's conflict model, the single-writer tab lock, tenant scoping on the server and the money math have all been through several review-and-fix cycles, and all three packages' test suites pass cleanly. The 2026-09-28 pass's own remediation is complete (nothing from `A-1`…`A-25` is still open). This 2026-09-30 pass is a fresh whole-monorepo sweep, split into three parallel package-scoped reviews (`client/`, `laravel-server/`, `web/`). All seven of its P1 findings — the store-suspension case-sensitivity no-op and its two compounding gaps (`A-74`, `A-75`, `A-77`), the referral-credit reservation gap that could permanently strand a paid subscription (`A-79`), the lost stock-delta on an interrupted pull (`A-54`), and the two `web/` findings around the public Downloads page and a failed storefront checkout (`A-94`, `A-95`) — were remediated the same day and moved to `docs/FIXED_BUGS.md`, along with ten of the `laravel-server/` P2s (`A-76` — suspension being a coin flip for a multi-store owner — plus `A-80`…`A-87` and `A-89`).
 
-**Findings this pass, by severity:** 0 **P0**, 0 **P1**, 6 **P2**, 16 **P3** — 22 open findings from the 2026-09-30 three-package sweep plus a same-day follow-up spot-check (`A-90`…`A-113`, non-contiguous; all seven P1s — `A-54`, `A-74`, `A-75`, `A-77`, `A-79`, `A-94`, `A-95` — all six `client/` P2/P3s — `A-55`, `A-56`, `A-57`, `A-58`, `A-59`, `A-60` — all ten `laravel-server/` P2s from this pass (`A-76`, `A-80`…`A-87`, `A-89`) — and the follow-up's `A-112` (no loss/shrinkage metric) are fixed the same day, see `docs/FIXED_BUGS.md`; see each section for the exact IDs), plus the still-open carried findings below: `A-26`, `A-28`, `A-30`, `A-40`, `A-41`, `A-48`, `A-49`, `A-53` from the 2026-09-28/29 passes, and `P2-1`, `P3-1`, `P3-2`, `P3-5`, `PG-1`…`PG-10` from the two earliest passes — all preserved verbatim below. `A-113` was logged from the same follow-up check (the admin sidebar's role coverage); that check's third claim, `A-111` (bulk-import movement-type conflation), was retracted on review — it duplicates the already-fixed `A-52`.
+**Findings this pass, by severity:** 0 **P0**, 0 **P1**, 5 **P2**, 8 **P3** — 13 open findings from the 2026-09-30 three-package sweep plus a same-day follow-up spot-check, **all in `web/`** (`A-96`…`A-107`, `A-113`; every `client/` and `laravel-server/` finding from this pass is fixed, see `docs/FIXED_BUGS.md`; see each section for the exact IDs), plus the still-open carried findings below: `A-26`, `A-28`, `A-30`, `A-40`, `A-41`, `A-48`, `A-49`, `A-53` from the 2026-09-28/29 passes, and `P2-1`, `P3-1`, `P3-2`, `P3-5`, `PG-1`…`PG-10` from the two earliest passes — all preserved verbatim below. `A-113` was logged from a same-day follow-up check (the admin sidebar's role coverage); that check's other two claims, `A-112` (no loss/shrinkage metric, fixed) and `A-111` (bulk-import movement-type conflation, retracted as a duplicate of the already-fixed `A-52`), are resolved.
 
 **Most important risks, in order:**
 
@@ -46,16 +46,7 @@ None found this pass. No cross-tenant read/write path, payment double-charge, or
 
 ## 3. Medium-priority findings (P2)
 
-`A-9` (receiving the same purchase order from two devices booked the delivery twice) is fixed — see `docs/FIXED_BUGS.md`, as are the four `client/` P2s this sweep found (`A-55` permission-group identity on an account switch, `A-56` the over-allocated mixed-payment credit split, `A-57` the untraced online-order fulfilment, `A-58` the schema-sync verifier) and all ten `laravel-server/` P2s (`A-76`, `A-80`…`A-87`, `A-89`). One finding is open:
-
-#### A-88. `laravel-server/` — "reset sales data" scopes by the owner's own `cashier_id`, so every staff-rung sale survives and the response still says "cleared"
-- **Category:** Data Integrity — confirmed by code trace
-- **Location:** `app/Services/Web/DashboardService.php:559-569` (`sales` branch, `where('cashier_id', $userId)` where `$userId = tenantOwnerId($user)`), `:571-581` (`logs` branch, `where('user_id', $userId)`)
-- **Problem:** `sales` has no `user_id` column; it is scoped by `store_id` everywhere else in the app (see `Store::sales()`'s doc block, written for exactly this reason). Resolving to the tenant owner's id — which the 2026-09-26 fix correctly introduced for the *other* branches — still only matches sales the **owner personally rang up**. Every sale with a staff `cashier_id` is untouched. `activity_logs` has the same shape: only the owner's own rows are deleted.
-- **Concrete failure scenario:** A store with three cashiers runs `POST /dashboard/reset` with `type: 'sales'`. The response is `{"status":"success","message":"Sales records cleared."}`; in reality only the handful of sales the owner rang up are gone. The owner's dashboard still shows the staff sales, the reports still include them, and the next sync pulls them back down to every device. With `type: 'all'` the same partial delete happens while the message reads "All data cleared."
-- **Why it matters:** A destructive operation that reports complete success having done a fraction of the work — the exact failure shape `P2-2` (in `FIXED_BUGS.md`) was filed for, on the two branches that fix did not touch. Worse than a plain no-op, because the resulting state is half-reset: inventory and products are gone (they scope by `user_id` correctly) while the sales referencing them remain, leaving `sale_items` pointing at deleted products.
-- **Recommended fix:** Scope the `sales` branch by `store_id` across the tenant's stores (`Sale::whereIn('store_id', Store::where('user_id',$ownerId)->pluck('id'))`), with the legacy `cashier_id IN (owner + staff)` fallback for pre-`store_id` rows that `AdminStoreService::revenueSubquery()` already models. Scope `activity_logs` by the same owner-plus-staff id set `ActivityLogController::index()` builds. Extend `tests/Feature/DashboardResetScopingTest.php` with a staff-rung sale.
-- **Confidence:** High. **Status:** Open, logged 2026-09-30.
+`A-9` (receiving the same purchase order from two devices booked the delivery twice) is fixed — see `docs/FIXED_BUGS.md`, as are the four `client/` P2s this sweep found (`A-55` permission-group identity on an account switch, `A-56` the over-allocated mixed-payment credit split, `A-57` the untraced online-order fulfilment, `A-58` the schema-sync verifier) and all eleven `laravel-server/` P2s (`A-76`, `A-80`…`A-89`). Five findings are open, all `web/`:
 
 #### A-96. `web/` — the mobile admin nav renders every sidebar item with no role filter, so `platform_admin`/`agent` see the whole super_admin nav below 1024px
 - **Category:** Auth & Access Control / Frontend — confirmed by tracing
@@ -105,79 +96,7 @@ None found this pass. No cross-tenant read/write path, payment double-charge, or
 
 ## 4. Low-priority findings (P3)
 
-`A-25` (`npm run test:schema` was broken) is fixed — see `docs/FIXED_BUGS.md`. Its "add to CI" half is intentionally not done; see that entry's Ruling. `A-29` (a double-encoded `stores.enabled_payment_methods` blanked the admin Store Details page in production on 2026-09-29) is fixed — see `docs/FIXED_BUGS.md`; `A-30` below is its residual ops cleanup, which does not block it. `A-31` (the same-family follow-up in `client/`) is also fixed — see `docs/FIXED_BUGS.md`. An independent review of `c384ca47..6218e1ed` (the Product Catalog context menu, the `enabled_payment_methods` encoding fix and the new Stock Adjustments feature) produced six further findings, `A-42`…`A-47`, all fixed — see `docs/FIXED_BUGS.md`; `A-48` and `A-49` below are that review's two display-only findings, deliberately deferred. `A-52` (the same bulk-import/adjustments-ledger conflation a later follow-up spot-check briefly mis-logged again as a new finding, `A-111` — corrected: `A-111` never existed as an open finding, `A-52` already covers it) is fixed — see `docs/FIXED_BUGS.md`. `A-53` was logged from the offline-assistant final review pass on 2026-09-30. The 2026-09-30 three-package sweep added 18 further P3 findings (`A-59`, `A-60`, `A-78`, `A-90`…`A-93`, `A-100`…`A-107`, `A-108`…`A-110`), of which the two `client/` held-sale ones (`A-59`, `A-60`) are fixed — see `docs/FIXED_BUGS.md`; a same-day follow-up spot-check added one more, `A-112`, which is also fixed (its sibling `A-111` was retracted as a duplicate of the already-fixed `A-52`). 16 findings are open in total:
-
-#### A-78. `laravel-server/` — the web dashboard's low-stock count includes every zero-stock product with no reorder level set
-- **Category:** Reporting consistency — confirmed by code trace, display-only
-- **Location:** `app/Services/Web/DashboardService.php:170-180` (`getSummary`), `:399-407` (`getStats`), `:489-497` (`getWidgetSnapshot`) — three copies of `->filter(fn ($product) => $product->total_stock <= $product->reorder_level)` with no `reorder_level > 0` condition
-- **Problem:** `products.reorder_level` defaults to 0, so any product with zero stock satisfies `0 <= 0` and is counted as low-stock. The client's equivalent query requires `m.reorder_level > 0` (`getStockBatchStats()`), so the server and the device answer the same question differently.
-- **Concrete failure scenario:** A store imports a 2,000-product catalog and has received stock for 300 of them, leaving `reorder_level` at its default. The web dashboard, the Fleet Overview card and the Android home-screen widget all report `low_stock_alerts: 1700`, while the POS app's own low-stock list shows only the handful of products with a real reorder level actually running low.
-- **Why it matters:** Display-only, but the number is the store's headline operational alert on three surfaces at once, and it is unusable at that magnitude. Same family as `A-53` on the client side.
-- **Recommended fix:** Add `AND products.reorder_level > 0` to the three `lowStock` queries, matching the client, and extract them into one private helper in the same change.
-- **Confidence:** High. **Status:** Open, logged 2026-09-30.
-
-#### A-90. `laravel-server/` — a store-less registration is auto-marked email-verified even when the platform requires verification
-- **Category:** Auth & Access Control / Error Handling — confirmed by code trace
-- **Location:** `app/Http/Controllers/Api/Concerns/RegistersAccounts.php:135` (`$requireVerification` assigned **inside** `if ($request->filled('store_name'))`) vs. `:164` (`if ($requireVerification)`, read unconditionally)
-- **Problem:** The variable is only defined on the store-creating branch. For a registration without `store_name`, PHP 8 emits an "Undefined variable $requireVerification" warning and evaluates it as null, so the `else` runs and stamps `email_verified_at = now()` — the opposite of what `require_email_verification` asks for. No verification email is sent either.
-- **Concrete failure scenario:** `require_email_verification` is on platform-wide. `POST /register` with no `store_name` returns 201 with a live token and an account already marked verified — bypassing the only anti-abuse gate on self-serve signup (trial farming, signup spam) by omitting one optional field.
-- **Why it matters:** the undefined-variable warning is the tell that this was never intended.
-- **Recommended fix:** Hoist the `$requireVerification` computation above the `if ($request->filled('store_name'))` block. Add a feature test registering without `store_name` while the config is on. While there: `verifyEmail()` never compares `email_verification_tokens.created_at` against anything, so a verification link never expires despite the endpoint's "expired" message.
-- **Confidence:** High. **Status:** Open, logged 2026-09-30.
-
-#### A-91. `laravel-server/` — the admin panel's "Recent Stores" sync status is always "Active" (Carbon 3 signed `diffInMinutes`)
-- **Category:** Frontend-adjacent reporting accuracy — confirmed by execution
-- **Location:** `app/Services/Admin/AdminPlatformService.php:67` (`$minutesSinceSync = now()->diffInMinutes($store->last_sync_at);`), used at `:68-72`
-- **Problem:** Carbon 3's `diffIn*()` are **signed** (`$other - $this`), the footgun `laravel-server/AGENTS.md` documents and `Store::boot()` was already fixed for. `now()->diffInMinutes($past)` is negative, so `$minutesSinceSync < 60` is always true. Verified in `tinker`: `now()->diffInMinutes(now()->subDays(30))` → `-43200.0`.
-- **Concrete failure scenario:** A store that last synced a year ago appears as `sync_status: 'Active'` on the admin dashboard's Recent Stores panel. The `'Away'`/`'Inactive'` branches are unreachable for any store that has ever synced.
-- **Why it matters:** Display-only, but it is the panel a founder glances at to spot stores that have stopped syncing — the single signal it exists to give is inverted. `AdminStoreMetricsService::syncHealth()` computes the same thing correctly, so the two surfaces disagree about the same store.
-- **Recommended fix:** Flip the receiver: `$store->last_sync_at->diffInMinutes(now())`. A grep for `diffIn*` across the package found no other wrong-direction call.
-- **Confidence:** High (confirmed by execution). **Status:** Open, logged 2026-09-30.
-
-#### A-92. `laravel-server/` — the `limit` query param on three list endpoints is unvalidated and uncapped; `?limit=-1` is a 500
-- **Category:** Data Integrity — input validation at API boundaries / Error Handling — confirmed by execution
-- **Location:** `app/Http/Controllers/Api/App/StockMovementController.php:52` and `:107`, `app/Http/Controllers/Api/App/PurchaseOrderController.php:36` — all `$limit = $request->get('limit', 50);` passed straight to `paginate($limit)` with no validation rule
-- **Problem:** No `integer|min:1|max:50` rule, contrary to `.agents/AGENTS.md` §8. The value reaches `paginate()` raw.
-- **Concrete failure scenario:** `GET /stock-movements?limit=-1` → Laravel emits `LIMIT -1` → MySQL syntax error → uncaught `QueryException` → 500. Verified against the local MySQL dev DB. `GET /stock-movements?limit=1000000` on a mature store loads the whole ~125k-row table with `product`/`user` eager-loaded into PHP memory, exhausting the shared host's PHP memory limit.
-- **Why it matters:** A trivially reachable 500 from any authenticated session, plus a self-service memory-exhaustion lever on a shared host.
-- **Recommended fix:** `$request->validate(['limit' => 'sometimes|integer|min:1|max:50'])` in all three methods, defaulting to 50.
-- **Confidence:** High (the 500 is confirmed by execution). **Status:** Open, logged 2026-09-30.
-
-#### A-93. `laravel-server/` — `checkSlug` ignores archived stores while `stores.store_slug` is DB-unique, so a "free" slug permanently fails to sync
-- **Category:** Data Integrity — confirmed by code trace
-- **Location:** `app/Http/Controllers/Api/Web/StoreController.php:74` (`Store::where('store_slug', $slug)` — the `SoftDeletes` global scope excludes archived rows)
-- **Problem:** The availability check runs against non-archived stores only, but the uniqueness constraint it is checking on behalf of is a database-level `UNIQUE` index that does not exclude soft-deleted rows (confirmed by `A-41`: "`device_id`/`store_slug` are currently DB-unique").
-- **Concrete failure scenario:** Store A, slug `mypharmacy`, is archived. Store B checks `mypharmacy` → `{available: true}`, the settings UI accepts it. The resulting `stores` UPDATE in the next sync push hits the unique index and fails — and because the client keeps re-queuing it, **every subsequent push for that store row fails forever** while the local DB and the UI both show the new slug as saved.
-- **Why it matters:** Silent, permanent per-row sync breakage from a normal UI action. The 6-month slug cooldown in `Store::boot()` then makes the failed attempt expensive to retry.
-- **Recommended fix:** Use `Store::withTrashed()->where('store_slug', $slug)` in `checkSlug()`. If reclaiming an archived store's slug is desirable, that needs the unique index made soft-delete-aware first — the same schema change `A-41`'s gap (2) is contingent on, so decide the two together.
-- **Confidence:** High. **Status:** Open, logged 2026-09-30.
-
-#### A-108. `laravel-server/` — `GET /announcements` is outside every auth group and every named rate limiter
-- **Category:** Reliability / Error Handling — confirmed by code trace
-- **Location:** `routes/api.php:68` — unlike the three public routes `AGENTS.md` documents (`/system-configs/{key}`, `/support`, `/logs/client-error`), this one has no `throttle:` group, and Laravel 11 applies no `throttle:api` floor (`bootstrap/app.php` deliberately omits `throttleApi()`).
-- **Problem:** `BroadcastController::index()` runs an unbounded `Broadcast::active()->get()` (no `limit`) per hit, with no rate limit anywhere in front of it. `POST /track/download` and `GET /health` are unmetered for the same reason; the webhook routes are covered by the already-open `PG-8`.
-- **Concrete failure scenario:** an unauthenticated client polls `/announcements` without limit, each hit a full-table read, with nothing to throttle it.
-- **Why it matters:** a cheap, unauthenticated resource-consumption lever on a shared host.
-- **Recommended fix:** add it to a `throttle:public-read` group and bound the result set with `limit()`.
-- **Confidence:** High. **Status:** Open, logged 2026-09-30.
-
-#### A-109. `laravel-server/` — `BackupController::upload()` has no size cap, mime restriction, per-tenant quota or retention
-- **Category:** Data Integrity / Reliability — confirmed by code trace
-- **Location:** `app/Http/Controllers/Api/Web/BackupController.php:47-51` — validates only `required|file`
-- **Problem:** No `max:` size cap, no mime/extension restriction, no per-tenant quota and no retention/pruning of old backups.
-- **Concrete failure scenario:** any authenticated user can POST 60 max-size uploads per minute (the group's `throttle:60,1`) into `storage/app/backups/{owner}/`, filling the shared host's disk; nothing ever prunes old backups, so ordinary use also grows without bound over time.
-- **Why it matters:** a self-service disk-exhaustion lever on shared hosting, worsened by having no retention even in the honest-use case.
-- **Recommended fix:** add a `max:` size rule, restrict to the expected backup mime/extension, cap per-tenant storage, and add a scheduled prune of backups past a retention window.
-- **Confidence:** High. **Status:** Open, logged 2026-09-30.
-
-#### A-110. `laravel-server/` — `AdminAlertService::send()` runs synchronous SMTP inside the sync push's open transaction, so a slow mail server holds sync row locks open
-- **Category:** Reliability / State & Concurrency — confirmed by code trace
-- **Location:** `SyncController::touchStoreLastSyncAt()` (`:1222-1235`), called at `:655`, *before* the outer `DB::commit()` at `:657`; fires one `Mail::to(...)->send()` per configured admin email, with mail itself having no timeout either.
-- **Problem:** The "no queue worker, always `->send()`" rule (correct on its own) collides here with holding a transaction: the mail send happens while the push's `lockForUpdate()` row locks are still held.
-- **Concrete failure scenario:** on a store's first-ever sync, a slow or unreachable SMTP server holds the push transaction — and every row lock it took — open for the SMTP timeout, so the client's batch times out and retries against still-locked rows.
-- **Why it matters:** once-per-store, but it is the one place a correct-in-isolation rule creates a concurrency hazard under a shared-hosting mail setup.
-- **Recommended fix:** move the alert send outside the transaction (after commit), or defer it to a queued job/console command sweep.
-- **Confidence:** High. **Status:** Open, logged 2026-09-30.
+`A-25` (`npm run test:schema` was broken) is fixed — see `docs/FIXED_BUGS.md`. Its "add to CI" half is intentionally not done; see that entry's Ruling. `A-29` (a double-encoded `stores.enabled_payment_methods` blanked the admin Store Details page in production on 2026-09-29) is fixed — see `docs/FIXED_BUGS.md`; `A-30` below is its residual ops cleanup, which does not block it. `A-31` (the same-family follow-up in `client/`) is also fixed — see `docs/FIXED_BUGS.md`. An independent review of `c384ca47..6218e1ed` (the Product Catalog context menu, the `enabled_payment_methods` encoding fix and the new Stock Adjustments feature) produced six further findings, `A-42`…`A-47`, all fixed — see `docs/FIXED_BUGS.md`; `A-48` and `A-49` below are that review's two display-only findings, deliberately deferred. `A-52` (the same bulk-import/adjustments-ledger conflation a later follow-up spot-check briefly mis-logged again as a new finding, `A-111` — corrected: `A-111` never existed as an open finding, `A-52` already covers it) is fixed — see `docs/FIXED_BUGS.md`. `A-53` was logged from the offline-assistant final review pass on 2026-09-30. The 2026-09-30 three-package sweep's P3s and the follow-up's `A-112` are all fixed except the eight `web/` findings below — see `docs/FIXED_BUGS.md` for what shipped for `A-59`, `A-60`, `A-78`, `A-90`…`A-93`, `A-108`…`A-110` and `A-112`. Eight findings are open, all `web/`:
 
 #### A-100. `web/` — platform-wide revenue and owner emails persist in `localStorage` and are only cleared on an explicit Sign Out, never on session expiry
 - **Category:** Auth & Access Control / data exposure — confirmed by tracing

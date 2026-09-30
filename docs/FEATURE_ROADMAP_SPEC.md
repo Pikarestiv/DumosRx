@@ -15,6 +15,14 @@ This document tracks the proposed features for the DumosRx system, sorted by imp
 
 ## ✅ Recently Completed
 
+### AI Assistant, Phase 1 — offline intent router: DONE (2026-09-29)
+
+- **Status:** Shipped in `client/lib/assistant/` + `client/components/assistant/`. A chat panel reachable from the dashboard header and the account menu, answering typed questions with no LLM, no API key and no network — a deterministic pipeline (normalize → intent match → permission gate → tool → formatted reply).
+- **What it answers:** thirteen procedural "how do I…" topics (each replying with steps plus a deep link to the right screen), and six read-only data tools — `product_stock`, `inventory_status`, `my_sales_today`, `sales_summary`, `profit_summary`, `navigate_help` — all reading the same local query functions the UI uses, so its numbers can't drift from the screens'.
+- **Permission-aware:** every tool passes `authorizeToolCall()` (the app's own `hasPermission()`); suggestion chips are filtered the same way, so a user is never invited to ask a question that can only be answered with a refusal. A cashier without `view_reports` asking a store-wide sales question is *narrowed* to their own sales rather than refused (`REROUTE_ON_DENIAL`).
+- **Deliberately not built:** no persistence (the thread is in-memory Zustand only — no table, no sync coverage), no audit-log or crash-report rows, no write actions, and no open-ended/forecasting answers. Those last two are what a future LLM phase would add: see "AI Assistant Module" under Medium below, which stays on the roadmap for exactly that reason.
+- **Docs:** `client/AGENTS.md` ("In-app Assistant" and the Assistant sections following it) for the architecture; `docs/SYSTEM_FEATURES_DOCUMENTATION.md` for the customer-facing description.
+
 ### Sentry Integration (client): DONE (2026-08-14)
 
 - **Status:** Shipped and verified live in production. Client-side error capture wired via `client/instrumentation-client.ts` (Next.js 15+ auto-loaded convention), reading `NEXT_PUBLIC_SENTRY_DSN`/`NEXT_PUBLIC_SENTRY_ENVIRONMENT` from env. `GlobalHandlers` integration explicitly disabled to avoid double-reporting alongside the existing `error-logger.ts` + `GlobalErrorListener` choke point: Sentry captures through that same choke point, not a parallel `window.onerror` hook.
@@ -324,7 +332,11 @@ architectural notes this entry doesn't repeat.
 
 ### AI Assistant Module
 
-> **Architecture Decision: Use third-party LLM APIs, server-proxied.**
+**Update (2026-09-29): Phase 1 has shipped, and it is *not* the design described below.** It is an offline, deterministic **intent router** (`client/lib/assistant/`) — no LLM, no API key, no network, works identically on desktop, Android and the PWA. It answers procedural "how do I…" questions from a help catalogue and six read-only data questions (product stock, inventory status, my sales today, store sales for a date, gross/net profit for a period) straight from local SQLite, permission-gated through the app's existing `hasPermission()`. See `client/AGENTS.md`'s "In-app Assistant" sections and `docs/SYSTEM_FEATURES_DOCUMENTATION.md` for what it does today.
+
+The Gemini/LLM approach below remains a **possible future phase**, not a superseded one — it is still the only path to open-ended questions and to **AI Reorder Forecasting**, which the intent router deliberately does not attempt. If it is pursued: it must be a second `AssistantBrain` implementation behind the existing interface, reusing the `AssistantTool` definitions in `client/lib/assistant/tools/` rather than redefining them server-side, and it must degrade back to the offline router when there is no connection (the assistant is currently usable offline and must not regress to online-only).
+
+> **Architecture Decision (original, for the possible LLM phase): Use third-party LLM APIs, server-proxied.**
 
 **Why NOT embed a local model:**
 
@@ -413,7 +425,7 @@ architectural notes this entry doesn't repeat.
 - **Phase 2 (Queries):** Natural language queries ("how many paracetamol left?"): inbound, read-only
 - **Phase 3 (Commands):** Queued write actions ("/reorder amoxicillin 50"): requires in-app confirmation
 
-**Best paired with AI Assistant (Phase 2 & 3 rely on LLM intent parsing).**
+**Best paired with AI Assistant (Phase 2 & 3 rely on intent parsing).** Phase 2's read-only natural-language queries no longer need an LLM to exist: the shipped offline intent router (`client/lib/assistant/`) already parses exactly that class of question, so the work is routing a WhatsApp message into `answer()` rather than building a parser. Phase 3's write commands still need the confirmation flow described above regardless.
 
 **Effort:** 2–3 weeks, mostly external approval latency (Meta Business Verification), not engineering time.
 

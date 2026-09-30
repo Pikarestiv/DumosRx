@@ -986,11 +986,14 @@ components/
   pos/                    Point of sale
   settings/                One file/folder per settings card, composed by store-settings.tsx etc.
   dashboard/               Home dashboard + DashboardHeader (route-based page titles, PAGE_ROUTES)
+  assistant/               In-app assistant chat panel + launcher (presentational; see below)
 
 lib/
   db/                     Everything described above
     queries/               One file per domain (products.ts, inventory.ts, sales.ts, procurement.ts, ...)
+  assistant/               Offline intent-router assistant: router, intent matcher, tools/, intents/
   context/                 AuthProvider, StoreProvider (business vertical + multi-store), pull-to-refresh
+  store/                   Zustand stores (e.g. use-assistant-panel.ts)
   hooks/                   useFeatureGate, dashboard/report hooks
   licensing/               Offline-first license/tier checks (see below)
   api/                     Axios client talking to the Laravel backend (sync + auth only)
@@ -2785,6 +2788,12 @@ just delete/loosen the existing `actionAdminOnly`/`canManageStockBatch`
 check, that widens the gate for every non-admin role at once, not just
 the one you meant to add.
 
+The in-app assistant follows the same convention by a different mechanism:
+rather than hiding a store-wide answer, its router *narrows* the question —
+a cashier without `view_reports` asking a sales-shaped question is answered
+with their own sales instead of refused. See `REROUTE_ON_DENIAL` in the
+assistant routing section below.
+
 ## PWA offline precaching
 
 `public/sw.js` does both runtime caching (stale-while-revalidate for
@@ -3269,6 +3278,77 @@ bugs. A useful sanity check while hunting one of these: reproduce it
 deliberately by deleting `globalThis.window` in an `afterAll` and waiting a
 few hundred ms, which turns the race into a deterministic failure.
 
+## In-app Assistant (`lib/assistant/`) — start here
+
+`lib/assistant/` is an offline, zero-cost, zero-API-key chat assistant. A
+deterministic pipeline — normalize → `matchIntent` → `buildArgs` →
+`authorizeToolCall` → `execute` → `format` — resolves a typed question to one
+of a fixed set of `AssistantTool`s in `tools/`. Each tool wraps an existing
+query function and is gated by the same `hasPermission()` used everywhere
+else in the app. The sections that follow document each stage; read this one
+first for the decisions that apply to all of them.
+
+- **Why deterministic, not an LLM.** No model download, no bundle-size cost,
+  no API key, no network: it works identically offline on Tauri, Android and
+  the PWA. `AssistantBrain` (`types.ts`) is the only seam a future LLM brain
+  would need — it would reuse `tools/`, `reply-formatters.ts` and
+  `permission-gate.ts` unchanged, which is also what
+  `docs/FEATURE_ROADMAP_SPEC.md`'s "AI Assistant Module" entry now points at.
+- **No persistence, anywhere.** The thread lives only in the
+  `useAssistantPanel` Zustand store, in memory. No new SQLite table, no
+  `localStorage`, no sync-engine push/pull coverage, so nothing here appears
+  in `npm run test:schema`.
+- **No audit logging and no crash reporting.** The router writes no
+  `audit_logs` row and calls no `logCrash()` — a read-only convenience
+  surface that emitted a syncable row per question would be pure sync churn.
+- **Everything is read-only.** Nothing under `tools/` calls
+  `insert`/`update`/`softDelete`, and a reply's only side effect is a
+  `ReplyAction` link the user may choose to follow.
+- **The six tools** are `navigate_help`, `product_stock`, `inventory_status`,
+  `my_sales_today`, `sales_summary` and `profit_summary`, registered in
+  `tools/index.ts`.
+
+**Adding a capability:** add an `AssistantTool` in `tools/`, an
+`IntentDefinition` in `intents/`, and register both in `tools/index.ts` and
+`intents/index.ts`. Declare the tool's `requiredPermission` rather than
+checking permissions inside `execute()` (see the authorization section), give
+it at least one `examples` entry (the suggestion chips and the no-match reply
+are built from those), and add its permission key's assistant call site to
+the comment in `ENFORCED_PERMISSION_KEYS` (`lib/constants/permissions.ts`) in
+the same change.
+
+## Assistant intent layer (`lib/assistant/normalize.ts`, `intent-matcher.ts`, `intents/`, `help-catalog.ts`)
+
+`normalizeUtterance()` lowercases, collapses whitespace and strips
+punctuation **except `/` and `-`**, which `parseDatePhrase` (`date-phrases.ts`)
+still needs to read a typed date. `matchIntent()` then scores every
+`IntentDefinition` in `INTENTS`: 3 points per matching `phrases` regex, 1 per
+matching `keywords` entry, with a floor of 3 — so a keyword alone never
+matches and a single phrase hit always does. A unique top score is a match, a
+tie is `ambiguous` (the router renders "Did you mean: …?" from the intents'
+`label`s and runs nothing), everything below the floor is `none`.
+
+- **Named capture groups feed `buildArgs`**, and under this repo's ES6 target
+  they must be built with `new RegExp("…")` rather than a regex literal — see
+  "Named capture groups need `new RegExp(...)`" above.
+- **Date defaults live in the intent, not the tool.** Every date-taking
+  `buildArgs` runs `parseDatePhrase(utterance, ctx.now)` and falls back to
+  `toDateOnly(ctx.now)`, so `execute()` always receives an explicit date. The
+  router's reroute note depends on this (it compares `args.date` to today).
+- **`parseDatePhrase` understands `today`/`yesterday`/`this month`/`last
+  month`, a `from … to …` range, and a literal date as ISO `YYYY-MM-DD` or
+  **`DD/MM/YYYY`** — day-first, per the repo-wide date convention in
+  `.agents/AGENTS.md` §6. It validates the calendar date (`31/02/2026`
+  returns `null`, it does not roll over into March) and returns `null`
+  rather than guessing, which is what makes the intent's `ctx.now` fallback
+  the single place "no date given" is decided.
+- **`NAVIGATION_INTENTS` is derived from `HELP_TOPICS`, not hand-written.**
+  `intents/navigation-intents.ts` maps each topic to an intent whose phrases,
+  keywords and label are the topic's own, and whose `buildArgs` returns that
+  topic's id. A new "how do I…" answer is therefore *one* entry in
+  `help-catalog.ts` — adding a matching intent by hand would double-register
+  it and make every such question permanently ambiguous.
+
 ## Assistant tool authorization (`lib/assistant/permission-gate.ts`)
 
 Every assistant tool call passes through `authorizeToolCall(tool, ctx)`,
@@ -3283,18 +3363,33 @@ logic here or gate tools ad hoc inside `execute`; declare
 `requiredPermission` on the tool and let the gate do it, so the router can
 answer with a `denied` reply instead of running the query.
 
-**The one accepted exception: a permission that shapes an answer rather
-than gating it.** `inventoryStatusTool` calls `hasPermission(…,
-"view_cost_fields")` inside its own `execute()` and uses the result only to
-decide whether the reply mentions total stock value; the counts themselves
-are open to any signed-in user. Declaring `view_cost_fields` as the tool's
-`requiredPermission` would instead refuse the whole "what's low on stock"
-question to every cashier, which is the wrong answer. The rule is therefore
-"the gate is the only place that *denies* a call" — a tool may still read a
-permission to redact part of its own result, and when it does it must not
-put the redacted value in the result object either (the tool zeroes
-`stockValue` when the check fails, rather than trusting `format` to skip
-it).
+**The accepted exception: a permission that shapes an answer rather than
+gating it.** Two tools read a permission themselves, and both do it to vary
+*what is in* an answer they are allowed to give, never to decide whether to
+give one:
+
+- `inventoryStatusTool` calls `hasPermission(…, "view_cost_fields")` inside
+  its own `execute()` and uses the result only to decide whether the reply
+  mentions total stock value; the counts themselves are open to any
+  signed-in user. Declaring `view_cost_fields` as the tool's
+  `requiredPermission` would instead refuse the whole "what's low on stock"
+  question to every cashier, which is the wrong answer.
+- `navigateHelpTool` checks the matched `HelpTopic`'s own optional
+  `requiredPermission` in `format()`, and on a miss returns the steps-free
+  "…you'll need permission from your store owner" reply with **no**
+  `ReplyAction`, so the assistant never hands out a deep link into a screen
+  the user would only bounce off. It cannot be a tool-level
+  `requiredPermission`: one tool answers all thirteen help topics, twelve of
+  which carry a different key each (`switch_account` carries none, and is
+  also the one topic with a `null` `href` — it explains a thing you do from
+  the account menu, not a screen to link to).
+
+So there is no second permission system — `hasPermission()` is still the
+only check anywhere — just two places it is consulted, with one rule
+separating them: **the gate is the only thing that *denies* a call.** When a
+tool redacts, it must keep the redacted value out of the result object too
+(`inventoryStatusTool` zeroes `stockValue` when the check fails rather than
+trusting `format` to skip it).
 
 ## Assistant routing pipeline (`lib/assistant/router.ts`)
 
@@ -3358,8 +3453,7 @@ catalog with `searchProducts()` from `lib/utils/search.ts` rather than
 writing its own `LIKE` query, so the assistant's idea of "which product did
 you mean" is the same one the POS search bar has (exact → starts-with →
 token → fuzzy fallback, in that order), and a tie is reported as
-alternates instead of silently picking one. Tools stay read-only: nothing
-under `tools/` calls `insert`/`update`/`softDelete`.
+alternates instead of silently picking one.
 
 `inventoryStatusTool` is the aggregate counterpart: `getStockBatchStats()`
 for the low/critical/expiring/expired counts and the valuation, plus
@@ -3705,7 +3799,22 @@ number into local SQLite and hope it matches. Treat this exactly like the
 
 ## Current focus / recent work (update this section as work continues)
 
-Most recent work (2026-09-29, latest) **re-investigated all twelve
+Most recent work (2026-09-29, latest) shipped the **in-app assistant**
+(`lib/assistant/`, `components/assistant/`, `lib/store/use-assistant-panel.ts`,
+`lib/hooks/use-assistant.ts`): an offline, deterministic intent router — no
+LLM, no API key, no network — answering thirteen procedural "how do I…"
+topics and six read-only data questions from the same local query functions
+the UI uses. Read the "In-app Assistant" section above and the Assistant
+sections following it before touching any of it; the two decisions most
+likely to be undone by accident are that **no permission check belongs
+inside a tool's `execute()` except to redact part of an allowed answer**, and
+that **the assistant persists and logs nothing** (no table, no sync
+coverage, no `audit_logs`/`logCrash()` rows). `docs/FEATURE_ROADMAP_SPEC.md`'s
+"AI Assistant Module" entry is still live — but only as a *future* LLM phase
+that would slot in behind the existing `AssistantBrain` interface, not as a
+replacement for what shipped.
+
+Work just before that (2026-09-29) **re-investigated all twelve
 catalog-only keys** left by the 2026-09-28 category-by-category pass, on the
 premise that some had been dismissed too quickly. Two had: `run_daily_close`
 is now wired to the Daily Close banner's backup/sync buttons (which were a

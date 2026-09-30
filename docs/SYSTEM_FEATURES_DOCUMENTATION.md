@@ -72,6 +72,18 @@ The desktop application is built for speed, reliability, and ease of use. It con
 
 **Offline Backups:** You can manually export a backup of your entire store's data to a flash drive for extra peace of mind.
 
+### 🤖 In-app Assistant
+
+**Just Ask:** Open the assistant from the icon in the header — or "Ask the assistant" in your account menu — and type a question in plain English.
+
+**Shows You How:** Ask "how do I add a product?" or "how do I run daily close?" and it walks you through the steps, then gives you a button that takes you straight to the right screen. No more hunting through menus or waiting on a support call to train a new staff member.
+
+**Answers About Your Store:** Ask "what's low on stock?", "how many paracetamol do we have?", "total sales yesterday" or "net profit last month" and it reads the answer out of your own store's data.
+
+**Works With No Internet:** Like the rest of the POS, the assistant runs entirely on your store's computer. There is no AI subscription, no API key to buy, and nothing to set up — it works exactly the same on a till that has never been online.
+
+**Respects Your Staff Permissions:** Everyone gets answers to the things they're allowed to see, and only those. A cashier asking about sales gets their *own* sales for the day rather than the store's takings, and profit questions stay with the people you've given financial access to. The suggestions it offers each person are filtered the same way, so nobody is prompted to ask something they'd only be refused.
+
 ---
 
 ## 📈 3. The Cloud Dashboard (For Store Owners)

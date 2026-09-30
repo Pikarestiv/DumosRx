@@ -10,21 +10,11 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * The two destructive store actions, kept out of AdminStoreService so the
- * irreversible one lives in a file whose whole purpose is obvious.
- *
- * Archive is Store's SoftDeletes column: the row and every child record
- * stay exactly as they are, and the model's global scope drops the store
- * out of the fleet list, sync and every other Store query until it is
- * restored.
- *
- * Purge is the founder's escape hatch for a store created by mistake. Most
- * store_id columns in this schema carry no database-level foreign key (see
- * add_store_id_to_domain_tables), so nothing cascades on its own and a
- * plain Store::forceDelete() would leave every product, sale and staff row
- * behind as an orphan. Instead the purge introspects the live schema for
- * every table carrying a store_id and clears each one, which also means a
- * table added later is covered without touching this file.
+ * Archive, restore and purge for a store, kept out of AdminStoreService so
+ * the irreversible action lives in a file whose whole purpose is obvious.
+ * The behaviour of all three — and the reasons behind the purge's schema
+ * introspection, its transaction shape and the restore's suspension
+ * warning — is documented in docs/ADMIN_STORE_LIFECYCLE.md.
  */
 class AdminStoreDeletionService
 {
@@ -95,12 +85,37 @@ class AdminStoreDeletionService
                 'user_id' => $actor->id,
                 'store_id' => $store->id,
                 'action' => 'STORE_RESTORED',
-                'description' => "Restored archived store: {$store->name} ({$store->id})",
+                'description' => "Restored archived store: {$store->name} ({$store->id})"
+                    .$this->suspensionNote($store),
                 'status' => 'success',
             ]);
         });
 
         return $store;
+    }
+
+    /** @return array{was_suspended: bool, suspension_reason: string|null, warning: string|null} */
+    public function restoreWarnings(Store $store): array
+    {
+        if (!$store->isSuspended()) {
+            return ['was_suspended' => false, 'suspension_reason' => null, 'warning' => null];
+        }
+
+        return [
+            'was_suspended' => true,
+            'suspension_reason' => $store->suspension_reason,
+            'warning' => 'This store was suspended before it was archived and is still suspended: '
+                .'its owner and staff cannot sign in until it is unsuspended.',
+        ];
+    }
+
+    private function suspensionNote(Store $store): string
+    {
+        if (!$store->isSuspended()) {
+            return '';
+        }
+
+        return '. Store remains suspended. Reason: '.($store->suspension_reason ?: 'N/A');
     }
 
     /**

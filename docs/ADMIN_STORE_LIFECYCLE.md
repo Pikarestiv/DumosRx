@@ -71,6 +71,28 @@ of soft-deleting the owner. It stamps `deleted_by_id` and a
 (422) to restore a store whose owner is still soft-deleted — otherwise a
 restore would put a live store back in the fleet with no owner.
 
+## Restore puts the store back exactly as it was — suspension included
+
+Archiving does not clear `stores.status`, so a store suspended before it was
+archived comes back suspended, and `CheckAccountStatus` keeps 403-ing its
+owner and staff after a restore that looked successful. That used to be
+silent (A-41). `POST /admin/stores/{id}/restore` now answers with
+`was_suspended`, `suspension_reason` and an admin-facing `warning` string
+(`AdminStoreDeletionService::restoreWarnings()`), the `STORE_RESTORED`
+activity row repeats the suspension in its description, and the fleet page's
+restore action shows a warning toast instead of "is active again" whenever
+`was_suspended` is true. Unsuspending is still a separate, deliberate act.
+
+**If `stores.store_slug` or `stores.device_id` uniqueness is ever made
+soft-delete-aware** (unique only among non-archived rows, which is what
+reclaiming an archived store's slug would require — see A-93 in
+`docs/FIXED_BUGS.md`), `restoreStore()` needs an explicit collision check
+added at the same time: another store could legitimately have taken the
+archived store's slug or device id in the meantime, and the restore would
+then fail on the unique index, or succeed into a duplicate. With today's
+unconditional unique indexes that collision cannot happen, so no check
+exists.
+
 ## Permanent delete (purge)
 
 `DELETE /admin/stores/{id}/purge` is irreversible and exists for the

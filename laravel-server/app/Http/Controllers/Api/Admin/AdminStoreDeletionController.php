@@ -62,7 +62,14 @@ class AdminStoreDeletionController extends AdminBaseController
         security: [['sanctum' => []]],
         parameters: [new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'string'))],
         responses: [
-            new OA\Response(response: 200, description: 'Restored', content: new OA\JsonContent(ref: '#/components/schemas/MessageOnly')),
+            new OA\Response(response: 200, description: 'Restored. `was_suspended` reports whether the store comes back still suspended, with `suspension_reason` and an admin-facing `warning` when it does.', content: new OA\JsonContent(
+                properties: [
+                    new OA\Property(property: 'message', type: 'string'),
+                    new OA\Property(property: 'was_suspended', type: 'boolean'),
+                    new OA\Property(property: 'suspension_reason', type: 'string', nullable: true),
+                    new OA\Property(property: 'warning', type: 'string', nullable: true),
+                ],
+            )),
             new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Non-super_admin'),
             new OA\Response(response: 404, description: 'No archived store with this id'),
         ],
@@ -80,7 +87,10 @@ class AdminStoreDeletionController extends AdminBaseController
                 return response()->json(['error' => 'No archived store with this id'], 404);
             }
 
-            return response()->json(['message' => 'Store restored successfully']);
+            return response()->json([
+                'message' => 'Store restored successfully',
+                ...$this->deletionService->restoreWarnings($store),
+            ]);
         });
     }
 

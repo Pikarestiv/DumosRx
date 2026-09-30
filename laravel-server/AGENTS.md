@@ -209,7 +209,18 @@ literal `confirmation` string `DumosRx` **server-side**, and it clears every
 table carrying a `store_id` by schema introspection because almost none of
 those columns has a real foreign key. See `docs/ADMIN_STORE_LIFECYCLE.md`.
 
+Two things restore and purge now guarantee, both from A-40/A-41 and both
+detailed in that file: every archive/restore/purge `ActivityLog` row is
+written **inside** the action's own transaction and carries `store_id`, and a
+restore reports `was_suspended`/`suspension_reason`/`warning` because
+archiving never cleared `stores.status`. And a standing note for whoever
+changes the schema: `stores.store_slug`/`stores.device_id` are unique across
+archived rows too, which is the only reason `restoreStore()` needs no
+collision check — make either index soft-delete-aware and that check has to
+be added in the same change.
+
 Covered by `tests/Feature/Admin/AdminUsersAccountTypeFilterTest.php`,
+`tests/Feature/Admin/AdminStoreLifecycleAuditTest.php`,
 `tests/Feature/Admin/AdminStoreDetailTest.php`,
 `tests/Feature/Admin/AdminStoreSearchAndMetricsTest.php` and
 `tests/Feature/Admin/AdminStoreDeletionTest.php`.

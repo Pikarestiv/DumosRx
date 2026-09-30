@@ -62,8 +62,16 @@ export function useStoreDeletionActions(onChanged: () => void) {
     if (restoreMutation.isPending) return;
 
     restoreMutation.mutate(store.id, {
-      onSuccess: () => {
-        toast.success("Store Restored", { description: `${store.name} is active again.` });
+      onSuccess: (result) => {
+        if (result?.was_suspended) {
+          toast.warning("Store Restored — Still Suspended", {
+            description: `${store.name} is out of the archive but remains suspended${
+              result.suspension_reason ? `: ${result.suspension_reason}` : ""
+            }. Unsuspend it before its team can sign in.`,
+          });
+        } else {
+          toast.success("Store Restored", { description: `${store.name} is active again.` });
+        }
         onChanged();
       },
       onError: fail("Failed to restore store."),

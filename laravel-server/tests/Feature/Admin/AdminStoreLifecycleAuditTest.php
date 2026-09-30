@@ -12,9 +12,10 @@ use RuntimeException;
 use Tests\TestCase;
 
 /**
- * The audit trail of the store lifecycle: the purge cannot commit without
- * its STORE_PURGED row, and archive/restore rows are attributed to the
- * store they describe.
+ * The audit trail and the restore-time signals of the store lifecycle:
+ * that the purge cannot commit without its STORE_PURGED row, that archive
+ * and restore rows are attributed to the store they describe, and that a
+ * restore tells the admin when the store comes back still suspended.
  */
 class AdminStoreLifecycleAuditTest extends TestCase
 {
@@ -112,4 +113,49 @@ class AdminStoreLifecycleAuditTest extends TestCase
         ]);
     }
 
+    #[Test]
+    public function restoring_a_store_that_was_suspended_before_archival_warns_the_admin()
+    {
+        $this->store->forceFill([
+            'status' => Store::STATUS_SUSPENDED,
+            'suspension_reason' => 'Chargeback investigation',
+        ])->save();
+
+        $this->actingAs($this->superAdmin)
+            ->deleteJson('/api/v1/admin/stores/'.$this->store->id, ['reason' => 'Archived while suspended'])
+            ->assertStatus(200);
+
+        $response = $this->actingAs($this->superAdmin)
+            ->postJson('/api/v1/admin/stores/'.$this->store->id.'/restore');
+
+        $response->assertStatus(200);
+        $response->assertJson([
+            'was_suspended' => true,
+            'suspension_reason' => 'Chargeback investigation',
+        ]);
+        $this->assertNotNull($response->json('warning'));
+
+        $description = (string) \Illuminate\Support\Facades\DB::table('activity_logs')
+            ->where('action', 'STORE_RESTORED')
+            ->value('description');
+
+        $this->assertStringContainsString('suspended', strtolower($description));
+        $this->assertStringContainsString('Chargeback investigation', $description);
+    }
+
+    #[Test]
+    public function restoring_an_unsuspended_store_reports_no_suspension_warning()
+    {
+        $this->actingAs($this->superAdmin)
+            ->deleteJson('/api/v1/admin/stores/'.$this->store->id)
+            ->assertStatus(200);
+
+        $response = $this->actingAs($this->superAdmin)
+            ->postJson('/api/v1/admin/stores/'.$this->store->id.'/restore');
+
+        $response->assertStatus(200);
+        $response->assertJson(['was_suspended' => false]);
+        $this->assertNull($response->json('warning'));
+        $this->assertNull($response->json('suspension_reason'));
+    }
 }

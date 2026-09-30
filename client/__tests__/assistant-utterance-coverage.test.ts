@@ -59,9 +59,15 @@ const UTTERANCES: [string, string][] = [
 
   ["order from supplier", "navigate_create_purchase_order"],
   ["create a purchase order", "navigate_create_purchase_order"],
+  ["procurement", "navigate_create_purchase_order"],
+  ["procurements?", "navigate_create_purchase_order"],
 
   ["where are the reports", "navigate_view_reports"],
   ["how do i view reports", "navigate_view_reports"],
+
+  ["settings", "navigate_settings"],
+  ["settings?", "navigate_settings"],
+  ["go to settings", "navigate_settings"],
 
   ["how do i start a stock audit", "navigate_start_audit"],
   ["how do i record an expense", "navigate_record_expense"],
@@ -91,6 +97,11 @@ const UTTERANCES: [string, string][] = [
   ["new cashier", "navigate_add_staff"],
   ["log expense", "navigate_record_expense"],
   ["add customer", "navigate_add_customer"],
+  ["customers?", "navigate_add_customer"],
+  ["staff", "navigate_add_staff"],
+  ["expenses?", "navigate_record_expense"],
+  ["audit", "navigate_start_audit"],
+  ["audits?", "navigate_start_audit"],
 
   ["how are we doing on profit this month", "profit_summary"],
   ["did we make a profit today", "profit_summary"],

@@ -3436,10 +3436,30 @@ give one:
   "…you'll need permission from your store owner" reply with **no**
   `ReplyAction`, so the assistant never hands out a deep link into a screen
   the user would only bounce off. It cannot be a tool-level
-  `requiredPermission`: one tool answers all thirteen help topics, twelve of
-  which carry a different key each (`switch_account` carries none, and is
+  `requiredPermission`: one tool answers all fourteen help topics, thirteen
+  of which carry a different key each (`switch_account` carries none, and is
   also the one topic with a `null` `href` — it explains a thing you do from
-  the account menu, not a screen to link to).
+  the account menu, not a screen to link to; the generic `settings` topic
+  below is also ungated — it's a navigational landing page, not a privileged
+  action).
+- **Bare/short topic-name queries need their own anchored phrase, not just a
+  verb phrase.** A cashier typing a single word — "customers?", "staff",
+  "audit", "procurements?" — was falling through even though a full
+  sentence like "how do i add a customer" already matched. Each topic that
+  makes sense as a one-word answer gets a `/^word$/`-style anchor (e.g.
+  `/^customers?$/`, `/^audits?$/`) in addition to its verb phrases, not a
+  keyword — a bare keyword alone (1 point) never crosses the 3-point floor.
+  `/^reports?$/` on `view_reports` was the first of these; `settings`,
+  `create_purchase_order`, `add_customer`, `add_staff`, `record_expense` and
+  `start_audit` followed the same pattern. Skip a bare anchor for a topic
+  whose one-word form is genuinely ambiguous with something else (bare
+  "sales"/"inventory"/"orders" were deliberately left alone — they'd either
+  collide with a data intent or don't have one unambiguous topic to land
+  on). There is no generic "Settings" screen topic before this addition;
+  `settings` (href `/settings`) is new, added specifically to answer a bare
+  `settings?` query — the per-tab topics (`receipt_settings`, `backup_data`,
+  `add_staff`'s `/settings/staff`) are unaffected and still win on their own
+  more specific phrases.
 
 So there is no second permission system — `hasPermission()` is still the
 only check anywhere — just two places it is consulted, with one rule

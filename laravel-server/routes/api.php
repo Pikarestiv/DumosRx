@@ -33,6 +33,7 @@ Route::prefix('v1')->group(function () {
         // Serves the marketing Downloads page, which is anonymous by
         // definition - see docs/DOWNLOADS_MANIFEST.md.
         Route::get('/downloads/manifest', [\App\Http\Controllers\Api\Public\DownloadsController::class, 'manifest']);
+        Route::get('/announcements', [BroadcastController::class, 'index']);
     });
     Route::middleware('throttle:public-write')->group(function () {
         Route::post('/support', [\App\Http\Controllers\Api\Web\FeedbackController::class, 'store']);
@@ -67,8 +68,6 @@ Route::prefix('v1')->group(function () {
     Route::get('/health', function () {
         return response()->json(['status' => 'ok', 'timestamp' => now()]);
     });
-    
-    Route::get('/announcements', [BroadcastController::class, 'index']);
 
     // Client-side error telemetry - must stay public since it needs to report
     // failures that happen before login (e.g. the system-config fetch on app boot).

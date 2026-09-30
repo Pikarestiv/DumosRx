@@ -64,7 +64,7 @@ class AdminPlatformService
                 // contradictory next to Fleet for the same store.
                 $syncStatus = 'Inactive';
                 if ($store->last_sync_at) {
-                    $minutesSinceSync = now()->diffInMinutes($store->last_sync_at);
+                    $minutesSinceSync = $store->last_sync_at->diffInMinutes(now());
                     if ($minutesSinceSync < 60) {
                         $syncStatus = 'Active';
                     } elseif ($minutesSinceSync < 1440) {

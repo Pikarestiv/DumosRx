@@ -13,4 +13,12 @@ export const INVENTORY_INTENTS: IntentDefinition[] = [
     keywords: ["stock", "have", "inventory"],
     buildArgs: (captures) => ({ product: captures.product ?? "" }),
   },
+  {
+    id: "inventory_status",
+    tool: "inventory_status",
+    label: "Inventory status",
+    phrases: [/\blow on stock\b/, /\bexpiring soon\b/, /\binventory status\b/],
+    keywords: ["inventory", "expiring", "expired"],
+    buildArgs: () => ({}),
+  },
 ];

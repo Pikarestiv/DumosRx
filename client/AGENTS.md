@@ -3283,6 +3283,19 @@ logic here or gate tools ad hoc inside `execute`; declare
 `requiredPermission` on the tool and let the gate do it, so the router can
 answer with a `denied` reply instead of running the query.
 
+**The one accepted exception: a permission that shapes an answer rather
+than gating it.** `inventoryStatusTool` calls `hasPermission(…,
+"view_cost_fields")` inside its own `execute()` and uses the result only to
+decide whether the reply mentions total stock value; the counts themselves
+are open to any signed-in user. Declaring `view_cost_fields` as the tool's
+`requiredPermission` would instead refuse the whole "what's low on stock"
+question to every cashier, which is the wrong answer. The rule is therefore
+"the gate is the only place that *denies* a call" — a tool may still read a
+permission to redact part of its own result, and when it does it must not
+put the redacted value in the result object either (the tool zeroes
+`stockValue` when the check fails, rather than trusting `format` to skip
+it).
+
 ## Assistant routing pipeline (`lib/assistant/router.ts`)
 
 `answer(utterance, ctx, brain?)` is the single entry point every assistant
@@ -3340,6 +3353,15 @@ you mean" is the same one the POS search bar has (exact → starts-with →
 token → fuzzy fallback, in that order), and a tie is reported as
 alternates instead of silently picking one. Tools stay read-only: nothing
 under `tools/` calls `insert`/`update`/`softDelete`.
+
+`inventoryStatusTool` is the aggregate counterpart: `getStockBatchStats()`
+for the low/critical/expiring/expired counts and the valuation, plus
+`getLowStockAlerts()` for the (already `LIMIT 5`) named items, so the
+assistant's numbers are the same ones the dashboard cards show. Note
+`getStockBatchStats()` returns **a single row object, not an array** — it
+already does `result[0]` internally, so destructuring it as `const [stats]`
+yields `undefined`. It takes `ctx.expiryWarningDays` so "expiring soon"
+means the same window as the store's own setting.
 
 **Testing a data tool: seed the real schema, not the migrated one.**
 `__tests__/assistant-inventory-tools.test.ts` is the reference harness — a

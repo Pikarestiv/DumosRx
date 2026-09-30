@@ -15,7 +15,7 @@ class PaymentController extends Controller
     #[OA\Post(
         path: '/webhooks/paystack',
         summary: 'Paystack payment webhook (not for manual use)',
-        description: 'Verifies the `x-paystack-signature` header (HMAC-SHA512 of the raw body using the Paystack secret key) before processing. On `charge.success`, activates the pending subscription tied to the transaction reference.',
+        description: 'Verifies the `x-paystack-signature` header (HMAC-SHA512 of the raw body using the Paystack secret key) before processing. On `charge.success`, activates the pending subscription tied to the transaction reference. Any other event is acknowledged but not processed: refund/dispute/chargeback events are logged at warning level and raise a super-admin alert for manual reconciliation, everything else is logged at info.',
         tags: ['Webhooks'],
         requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(type: 'object')),
         responses: [
@@ -46,6 +46,8 @@ class PaymentController extends Controller
 
         if ($event === 'charge.success' && is_array($data) && !empty($data['reference'])) {
             $this->processSuccessfulPayment($data['reference'], 'paystack', $data);
+        } else {
+            $this->recordUnhandledEvent('paystack', (string) $event, is_array($data) ? $data : [], $data['reference'] ?? null);
         }
 
         return response()->json(['status' => 'ok']);
@@ -54,7 +56,7 @@ class PaymentController extends Controller
     #[OA\Post(
         path: '/webhooks/flutterwave',
         summary: 'Flutterwave payment webhook (not for manual use)',
-        description: 'Verifies the `verif-hash` header against the configured Flutterwave webhook secret hash (`FLUTTERWAVE_SECRET_HASH`) before processing. On a `successful` status, and only if the reported amount/currency match the recorded transaction, activates the pending subscription tied to `tx_ref`.',
+        description: 'Verifies the `verif-hash` header against the configured Flutterwave webhook secret hash (`FLUTTERWAVE_SECRET_HASH`) before processing. On a `successful` status, and only if the reported amount/currency match the recorded transaction, activates the pending subscription tied to `tx_ref`. Any other event or status is acknowledged but not processed: refund/dispute/chargeback wording raises a super-admin alert for manual reconciliation, everything else is logged at info.',
         tags: ['Webhooks'],
         requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(type: 'object')),
         responses: [
@@ -86,9 +88,64 @@ class PaymentController extends Controller
 
         if (is_array($data) && ($data['status'] ?? null) === 'successful' && !empty($data['tx_ref'])) {
             $this->processSuccessfulPayment($data['tx_ref'], 'flutterwave', $data);
+        } else {
+            $this->recordUnhandledEvent(
+                'flutterwave',
+                trim($event . ' ' . (is_array($data) ? (string) ($data['status'] ?? '') : '')),
+                is_array($data) ? $data : [],
+                is_array($data) ? ($data['tx_ref'] ?? null) : null,
+            );
         }
 
         return response()->json(['status' => 'ok']);
+    }
+
+    /**
+     * Matched on refund/dispute/chargeback/reversal wording rather than an
+     * exact per-provider event-name list: Flutterwave's names for these were
+     * never verified against its live payloads. See the PG-9 note in
+     * laravel-server/AGENTS.md before narrowing this.
+     */
+    private const NOTABLE_EVENT_NEEDLES = ['refund', 'dispute', 'chargeback', 'charge_back', 'reversal', 'reversed'];
+
+    /**
+     * Never called with a DB transaction or row lock held (the A-110 lesson):
+     * both handlers reach this before any transactional work.
+     */
+    protected function recordUnhandledEvent(string $provider, string $event, array $data, $reference): void
+    {
+        $context = ['provider' => $provider, 'event' => $event, 'reference' => $reference];
+
+        $haystack = strtolower($event);
+        $notable = false;
+        foreach (self::NOTABLE_EVENT_NEEDLES as $needle) {
+            if (str_contains($haystack, $needle)) {
+                $notable = true;
+                break;
+            }
+        }
+
+        if (!$notable) {
+            Log::info('Unhandled payment webhook event ignored.', $context);
+            return;
+        }
+
+        Log::warning('Payment webhook reports a refund, dispute or chargeback that happened outside the app.', $context + ['webhook_data' => $data]);
+
+        try {
+            \App\Services\AdminAlertService::send(
+                'Payment ' . $provider . ' webhook: refund/dispute needs attention',
+                [
+                    'A payment webhook arrived for an event this app does not process automatically.',
+                    "Provider: {$provider}",
+                    "Event: {$event}",
+                    'Reference: ' . ($reference ?: 'none supplied'),
+                    'Nothing was refunded, reversed or cancelled in DumosRx - reconcile this by hand in the provider dashboard and in the affected subscription or order.',
+                ]
+            );
+        } catch (\Exception $e) {
+            Log::error('Failed to alert admins about a refund/dispute webhook: ' . $e->getMessage());
+        }
     }
 
     protected function processSuccessfulPayment($reference, $provider, $data)

@@ -594,6 +594,34 @@ The rules that follow from that, all of which matter:
   whichever of the two gets there first. A new failure path must call it
   rather than writing `status` itself. `initiatePayment()`'s own catch block
   releases the reservation too, for a provider that fails at initialization.
+- **Every webhook event other than a successful charge is now visible (PG-9).**
+  Both handlers used to process `charge.success` / `status: successful` and drop
+  everything else on the floor — no log, no alert. A refund, dispute or
+  chargeback raised in the provider's own dashboard therefore left the
+  subscription active and nobody in DumosRx any the wiser.
+  `PaymentController::recordUnhandledEvent()` is the single `else` branch of
+  both handlers: it logs at `info` for ordinary noise (`transfer.success`, a
+  plain failed charge, `subscription.*`) and, for anything whose event/status
+  string reads as a refund/dispute/chargeback, logs at `warning` **and** fires
+  an `AdminAlertService` alert. It always returns 200 — a 4xx/5xx only makes
+  the provider redeliver forever.
+  - **Matched on wording, not an event-name list, deliberately.** The needles
+    are `refund`, `dispute`, `chargeback`, `charge_back`, `reversal`,
+    `reversed`, tested against Paystack's `event` and against Flutterwave's
+    `event` + `data.status` concatenated. Paystack's names are known
+    (`refund.processed`, `refund.failed`, `charge.dispute.create|remind|
+    resolve`); **Flutterwave's are not verified anywhere in this codebase** —
+    the Flutterwave handler never read `event` at all before this, only
+    `data.status`. Substring matching covers whichever spelling actually
+    arrives without a guess that would silently miss. If you ever confirm
+    Flutterwave's real event names against a live payload, write them down here
+    before narrowing the match.
+  - **This is visibility, not automation.** Nothing is refunded, reversed or
+    cancelled automatically; the alert says so explicitly and tells the
+    operator to reconcile by hand. `recordUnhandledEvent()` runs before any
+    transactional work in either handler, so the A-110 rule (never
+    `AdminAlertService::send()` under a DB transaction or row lock) holds.
+  - Covered by the PG-9 block in `tests/Feature/PaymentWebhookTest.php`.
 - **`User::addCredits()`/`deductCredits()` take a row lock.** Both are
   read-modify-write on `users.referral_credits`; without
   `lockCreditBalance()` two concurrent grants/spends both read the same

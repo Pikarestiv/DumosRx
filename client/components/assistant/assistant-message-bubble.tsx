@@ -108,13 +108,8 @@ export function AssistantMessageBubble({
             : "max-w-[85%] rounded-2xl rounded-tl-sm border border-border bg-muted px-3 py-2 text-sm text-foreground shadow-sm"
         }
       >
-        {layered ? (
-          <p className="relative whitespace-pre-wrap">
-            <span className="pointer-events-none absolute inset-0 select-none opacity-0">
-              {message.text}
-            </span>
-            <span aria-hidden="true">{revealingWords}</span>
-          </p>
+        {layered && !fullyRevealed ? (
+          <p className="whitespace-pre-wrap">{revealingWords}</p>
         ) : (
           <p className="whitespace-pre-wrap">{message.text}</p>
         )}

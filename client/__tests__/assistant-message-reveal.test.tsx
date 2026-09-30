@@ -45,7 +45,8 @@ describe("assistant message reveal", () => {
       />,
     );
 
-    expect(screen.getByText(REPLY_TEXT)).toBeTruthy();
+    const paragraphs = Array.from(document.querySelectorAll("p"));
+    expect(paragraphs.map((p) => p.textContent)).toEqual([REPLY_TEXT]);
     expect(screen.queryByRole("link", { name: "Make a sale" })).toBeNull();
     expect(document.querySelectorAll('[data-revealed="false"]').length).toBeGreaterThan(0);
   });
@@ -69,6 +70,28 @@ describe("assistant message reveal", () => {
     expect(document.querySelectorAll('[data-revealed="false"]').length).toBe(0);
     expect(screen.getByText(REPLY_TEXT)).toBeTruthy();
     expect(screen.getByRole("link", { name: "Make a sale" }).getAttribute("href")).toBe("/pos");
+    expect(document.querySelectorAll("p").length).toBe(1);
+  });
+
+  it("settles into a single plain paragraph once the reveal finishes", () => {
+    const { rerender } = render(
+      <AssistantMessageList messages={[]} isThinking onActionClick={() => {}} />,
+    );
+    rerender(
+      <AssistantMessageList
+        messages={[assistantMessage()]}
+        isThinking={false}
+        onActionClick={() => {}}
+      />,
+    );
+
+    act(() => {
+      vi.advanceTimersByTime(1500);
+    });
+
+    expect(screen.getAllByText(REPLY_TEXT)).toHaveLength(1);
+    expect(document.querySelectorAll("[data-revealed]").length).toBe(0);
+    expect(document.querySelectorAll('[aria-hidden="true"]').length).toBe(0);
   });
 
   it("caps a long reply's reveal at the budget by revealing several words per tick", () => {

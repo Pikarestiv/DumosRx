@@ -3759,29 +3759,41 @@ no host-supplied callback.
 from the first frame.** `assistant-message-bubble.tsx` animates a newly
 appended *assistant* message in at 45ms per step, capped at a 1.5s total
 budget (`MAX_REVEAL_MS`) by revealing `ceil(words / 33)` words per tick, so a
-long reply speeds up instead of dragging. Such a message's paragraph holds two
-layers: an `absolute inset-0 opacity-0 select-none` span carrying the
-**complete** text (what the live region announces and what `getByText` finds),
-and an `aria-hidden` span of per-word spans toggled between
-`opacity-0`/`opacity-100` (`data-revealed`). Messages that don't animate are a
-single plain text node.
+long reply speeds up instead of dragging. While a message is still revealing,
+its paragraph holds one span per word, toggled between `opacity-0` and
+`opacity-100` (`data-revealed`); the concatenated text of those spans is the
+**complete** reply from the first frame, so nothing is ever missing from the
+DOM. Once the reveal finishes — and for any message that never animates — the
+paragraph is a single plain text node.
 
-- **The two-layer structure is decided once (`layered`) and then never
-  changes**, including after the reveal finishes. Collapsing it back to one
-  text node afterwards mutates the `aria-live` region's text and makes a screen
-  reader read the whole reply a second time; `select-none` on the hidden layer
-  is what keeps a copy-paste from duplicating the text instead.
-
+- **There must only ever be ONE element in the bubble whose text is the full
+  reply.** An earlier version layered two: an `absolute inset-0 opacity-0
+  select-none` span with the complete text plus an `aria-hidden` span of
+  per-word spans. That broke `e2e/assistant.spec.ts` twice over — Playwright
+  located the `opacity-0` copy and `toBeVisible()` failed (opacity 0 is not
+  visible to Playwright, `select-none`/`pointer-events-none` notwithstanding),
+  and both spans matched the same text, which is a **strict-mode violation**.
+  Strict-mode violations are *not* retried away by `expect`'s timeout, so even a
+  duplicate that exists for only the ~1.5s reveal window fails the test
+  immediately. Do not reintroduce a hidden full-text layer.
+- **The animated paragraph collapses back to a plain text node at
+  `fullyRevealed`** (`layered && !fullyRevealed` picks the animated branch).
+  The two branches render identical text with identical styling, so the swap is
+  visually seamless; the cost is that the `aria-live` region sees a
+  remove+insert of the same string and a screen reader may repeat the reply.
+  That trade is deliberate: the settled DOM has to be plain text for anything
+  that queries by text (Playwright, Testing Library) to behave.
 - **Do not switch this to growing the visible text content per tick.** The list
   is `role="log" aria-live="polite"`: incremental text mutation makes a screen
-  reader announce every partial fragment, and it breaks `getByText`/Playwright
-  assertions that expect the whole string. The invariant is: complete text in
+  reader announce every partial fragment. The invariant is: complete text in
   the DOM immediately, reveal is visual only.
 - Splitting on `/(\s+)/` and wrapping only the non-whitespace segments is what
-  keeps `whitespace-pre-wrap` newlines intact. Note that
-  `getByText(fullString)` only matches the hidden full-text layer, because
-  Testing Library's default matcher reads an element's *direct* text nodes —
-  the per-word layer would never match it.
+  keeps `whitespace-pre-wrap` newlines intact. Note that while a message is
+  revealing, Testing Library's `getByText(fullString)` matches **nothing** — its
+  default matcher reads an element's *direct* text nodes, and the paragraph's
+  are only the whitespace between word spans. Assert on
+  `element.textContent`/`[data-revealed]` for the in-flight state, and on
+  `getByText` only after the reveal has finished.
 - Only messages that were absent on the list's first render animate, tracked in
   a `preexistingIds` ref, so reopening the panel doesn't replay the thread.
   User messages never animate, and `prefers-reduced-motion: reduce` reveals
@@ -3821,8 +3833,12 @@ deliberately neutralises that exact class on hover; the chips use a static
   composer → reply → action link navigation). It needed no changes for the
   sidepanel redesign: `Sheet` is the same Radix Dialog primitive, so
   `getByRole('dialog')` still resolves at the Desktop Chrome viewport, and the
-  reveal animates `opacity` (Playwright still considers the text visible, and
-  auto-waits for the action link that appears after it). Scope every assertion to
+  reveal only animates per-word `opacity` inside one paragraph, which Playwright
+  still resolves as a single visible element (and it auto-waits for the action
+  link that appears after the reveal). **Run this spec after any change to the
+  reveal's DOM** — the unit tests cannot see Playwright's visibility or
+  strict-mode rules, which is exactly how the two-layer regression shipped.
+  Scope every assertion to
   `page.getByRole('dialog')` rather than the whole page: the user's own message
   bubble echoes the question verbatim, so a bare `getByText(/low on stock/)`
   matches both bubbles and trips Playwright strict mode. For the same reason

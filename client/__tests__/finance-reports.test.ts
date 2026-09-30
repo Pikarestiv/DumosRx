@@ -51,6 +51,7 @@ describe("finance.ts / reports.ts financial aggregates", () => {
   });
 
   beforeEach(() => {
+    core.setActiveStoreId(null);
     db.run(
       `DELETE FROM sales; DELETE FROM sale_items; DELETE FROM expenses; DELETE FROM users;
        DELETE FROM returns; DELETE FROM return_items; DELETE FROM stock_batches;

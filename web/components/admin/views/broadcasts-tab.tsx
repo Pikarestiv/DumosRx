@@ -132,8 +132,10 @@ export function BroadcastsTab() {
       });
       void queryClient.invalidateQueries({ queryKey: ["admin-broadcasts"] });
       void queryClient.invalidateQueries({ queryKey: ["broadcasts"] });
-    } catch (_error) {
-      toast.error("Failed to create broadcast");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to create broadcast",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -149,8 +151,10 @@ export function BroadcastsTab() {
       setIsEditOpen(false);
       void queryClient.invalidateQueries({ queryKey: ["admin-broadcasts"] });
       void queryClient.invalidateQueries({ queryKey: ["broadcasts"] });
-    } catch (_error) {
-      toast.error("Failed to update broadcast");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to update broadcast",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -167,8 +171,10 @@ export function BroadcastsTab() {
         void queryClient.invalidateQueries({ queryKey: ["admin-broadcasts"] });
         setDeleteTargetId(null);
       },
-      onError: () => {
-        toast.error("Failed to delete broadcast");
+      onError: (error) => {
+        toast.error(
+          error instanceof Error ? error.message : "Failed to delete broadcast",
+        );
         setDeleteTargetId(null);
       }
     });
@@ -179,8 +185,10 @@ export function BroadcastsTab() {
       await webApiClient.toggleBroadcast(id);
       void queryClient.invalidateQueries({ queryKey: ["admin-broadcasts"] });
       void queryClient.invalidateQueries({ queryKey: ["broadcasts"] });
-    } catch (_error) {
-      toast.error("Failed to toggle status");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to toggle status",
+      );
     }
   };
 

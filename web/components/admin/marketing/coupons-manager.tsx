@@ -123,8 +123,10 @@ export function CouponsManager() {
     try {
       await toggleMutation.mutateAsync(id);
       toast.success("Coupon status updated");
-    } catch (_error) {
-      toast.error("Failed to update status");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to update status",
+      );
     }
   };
 
@@ -132,8 +134,10 @@ export function CouponsManager() {
     try {
       await deleteMutation.mutateAsync(id);
       toast.success("Coupon deleted");
-    } catch (_error) {
-      toast.error("Failed to delete coupon");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to delete coupon",
+      );
     }
   };
 

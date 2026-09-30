@@ -3316,7 +3316,13 @@ reply/authorization/error handling around it.
   full `ToolCall`s for candidates would be dead weight — and the reply names
   the human-readable `label`, never the internal tool name.
 - **Errors never escape.** A throwing `execute()`/`format()` returns
-  `buildErrorReply()` and logs via `devLog` only. This path writes no
+  `buildErrorReply()` and logs via `devLog` only, and `brain.resolve()` is
+  wrapped the same way — a `matchIntent`/`buildArgs` throw becomes an error
+  reply instead of a rejected promise, so `answer()` never rejects and a UI
+  caller can't be left with a floating rejection. Keep that wrap around the
+  `resolve()` call only: the no-match/ambiguous/call branching stays outside
+  it so a bug in reply construction isn't silently swallowed as a "tool
+  error". This path writes no
   `audit_logs` row and calls no `logCrash()`: the assistant is a read-only
   convenience surface, and a crash report that itself becomes a syncable
   row is the exact shape of the A-27 incident above.
@@ -3512,11 +3518,13 @@ not to the thread.
   user-switch or store-switch wipes the thread. Without this, switching
   stores would leave the previous store's figures sitting in the transcript
   looking like answers about the new one.
-- **`send()` can reject.** `answer()` swallows every `execute`/`format` throw
-  into an error reply, but `brain.resolve()` (normalize → `matchIntent` →
-  `buildArgs`) runs outside that `try`, so a malformed capture could still
-  propagate. `isThinking` is cleared in a `finally` either way; the UI calling
-  `send()` should still catch rather than leave a floating rejection.
+- **`send()` does not reject on a routing failure.** `answer()` swallows every
+  throw from `brain.resolve()` (normalize → `matchIntent` → `buildArgs`) as
+  well as from `execute`/`format` into an error reply, so a malformed capture
+  surfaces as a message in the thread rather than an unhandled rejection off a
+  chat input. `isThinking` is still cleared in a `finally`, which covers the
+  remaining ways `send()` could throw (`buildToolContext` on a malformed
+  context, `append`).
 
 ## Running things
 

@@ -135,6 +135,16 @@ describe("answer", () => {
     expect(reply.kind).toBe("error");
   });
 
+  it("returns an error reply, not a throw, when the brain's resolve() throws", async () => {
+    const throwingBrain: AssistantBrain = {
+      resolve: () => {
+        throw new Error("buildArgs blew up");
+      },
+    };
+    const reply = await answer("anything", makeCtx(), throwingBrain);
+    expect(reply).toEqual({ kind: "error", text: "Something went wrong answering that. Please try again." });
+  });
+
   it("returns a fallback reply when the brain finds no match", async () => {
     const reply = await answer("gibberish", makeCtx(), brainWith({ kind: "none" }));
     expect(reply.kind).toBe("fallback");

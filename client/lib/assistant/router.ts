@@ -26,7 +26,13 @@ export async function answer(
   ctx: ToolContext,
   brain: AssistantBrain = intentRouterBrain,
 ): Promise<AssistantReply> {
-  const outcome = brain.resolve(utterance, ctx);
+  let outcome: ReturnType<AssistantBrain["resolve"]>;
+  try {
+    outcome = brain.resolve(utterance, ctx);
+  } catch (error) {
+    devLog("[assistant] brain resolution failed:", utterance, error);
+    return buildErrorReply();
+  }
 
   if (outcome.kind === "none") {
     return buildNoMatchReply(ctx);

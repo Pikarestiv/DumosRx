@@ -2,8 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Models\ActivityLog;
 use App\Models\Customer;
 use App\Models\Product;
+use App\Models\Sale;
 use App\Models\Store;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -120,6 +122,101 @@ class DashboardResetScopingTest extends TestCase
             ->assertStatus(200);
 
         $this->assertSame(0, Product::where('user_id', $this->owner->id)->count());
+    }
+
+    private function sale(string $cashierId, ?string $storeId): Sale
+    {
+        $sale = Sale::create([
+            'cashier_id' => $cashierId,
+            'subtotal' => 1000, 'total_amount' => 1000, 'amount_paid' => 1000,
+            'payment_method' => 'cash', 'payment_status' => 'paid',
+            'transaction_date' => now(),
+        ]);
+        $sale->store_id = $storeId;
+        $sale->save();
+
+        return $sale;
+    }
+
+    public function test_sales_reset_deletes_staff_rung_sales_not_just_the_owners_own(): void
+    {
+        $staff = $this->staffAdmin();
+        $ownerSale = $this->sale($this->owner->id, $this->store->id);
+        $staffSale = $this->sale($staff->id, $this->store->id);
+        $legacyStaffSale = $this->sale($staff->id, null);
+
+        $token = $staff->createToken('test')->plainTextToken;
+
+        $this->withHeader('Authorization', "Bearer {$token}")
+            ->postJson('/api/v1/dashboard/reset', [
+                'type' => 'sales',
+                'password' => 'staff-password',
+            ])
+            ->assertStatus(200)
+            ->assertJsonPath('status', 'success');
+
+        $this->assertNull(Sale::find($ownerSale->id));
+        $this->assertNull(Sale::find($staffSale->id));
+        $this->assertNull(Sale::find($legacyStaffSale->id));
+    }
+
+    public function test_sales_reset_leaves_another_tenants_sales_alone(): void
+    {
+        $otherOwner = User::create([
+            'first_name' => 'Other',
+            'last_name' => 'Owner',
+            'email' => 'other-sales-owner@dumosrx.com',
+            'password' => bcrypt('password'),
+            'role' => 'store_owner',
+        ]);
+        $otherStore = Store::create([
+            'user_id' => $otherOwner->id,
+            'name' => 'Other Branch',
+            'store_type' => 'pharmacy',
+            'device_id' => 'test-device-'.uniqid(),
+        ]);
+        $foreignSale = $this->sale($otherOwner->id, $otherStore->id);
+        $ownSale = $this->sale($this->owner->id, $this->store->id);
+
+        $token = $this->owner->createToken('test')->plainTextToken;
+
+        $this->withHeader('Authorization', "Bearer {$token}")
+            ->postJson('/api/v1/dashboard/reset', [
+                'type' => 'sales',
+                'password' => 'password',
+            ])
+            ->assertStatus(200);
+
+        $this->assertNotNull(Sale::find($foreignSale->id));
+        $this->assertNull(Sale::find($ownSale->id));
+    }
+
+    public function test_logs_reset_deletes_staff_activity_logs_too(): void
+    {
+        $staff = $this->staffAdmin();
+
+        $ownerLog = ActivityLog::create([
+            'user_id' => $this->owner->id,
+            'action' => 'login',
+            'description' => 'Owner logged in',
+        ]);
+        $staffLog = ActivityLog::create([
+            'user_id' => $staff->id,
+            'action' => 'login',
+            'description' => 'Staff logged in',
+        ]);
+
+        $token = $staff->createToken('test')->plainTextToken;
+
+        $this->withHeader('Authorization', "Bearer {$token}")
+            ->postJson('/api/v1/dashboard/reset', [
+                'type' => 'logs',
+                'password' => 'staff-password',
+            ])
+            ->assertStatus(200);
+
+        $this->assertNull(ActivityLog::find($ownerLog->id));
+        $this->assertNull(ActivityLog::find($staffLog->id));
     }
 
     public function test_reset_does_not_touch_another_tenants_data(): void

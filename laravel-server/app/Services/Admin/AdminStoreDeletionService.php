@@ -63,6 +63,7 @@ class AdminStoreDeletionService
 
             ActivityLog::create([
                 'user_id' => $actor->id,
+                'store_id' => $store->id,
                 'action' => 'STORE_ARCHIVED',
                 'description' => "Archived store: {$store->name} ({$store->id}). Reason: ".($reason ?: 'N/A'),
                 'status' => 'success',
@@ -92,6 +93,7 @@ class AdminStoreDeletionService
 
             ActivityLog::create([
                 'user_id' => $actor->id,
+                'store_id' => $store->id,
                 'action' => 'STORE_RESTORED',
                 'description' => "Restored archived store: {$store->name} ({$store->id})",
                 'status' => 'success',
@@ -120,66 +122,76 @@ class AdminStoreDeletionService
 
         // SQLite ignores `PRAGMA foreign_keys` inside an open transaction, so
         // the constraint suspension has to wrap the transaction, not sit in it.
-        Schema::withoutForeignKeyConstraints(function () use ($store, &$removed) {
-            DB::transaction(function () use ($store, &$removed) {
-                // Read inside the transaction, under a row lock on the
-                // owner's stores, so a store created concurrently for the
-                // same owner cannot be missed by the solely-owns check.
-                $ownerId = $store->user_id;
-                $staffIds = User::withTrashed()->where('store_id', $store->id)->pluck('id')->all();
-                $ownedStoreIds = $ownerId
-                    ? Store::withTrashed()->where('user_id', $ownerId)->lockForUpdate()->pluck('id')->all()
-                    : [];
-                $ownerIsSolelyThisStore = $ownerId
-                    && array_values(array_diff($ownedStoreIds, [$store->id])) === [];
+        Schema::withoutForeignKeyConstraints(function () use ($store, $storeId, $storeName, $actor, &$removed) {
+            DB::transaction(function () use ($store, $storeId, $storeName, $actor, &$removed) {
+                $this->purgeRows($store, $removed);
 
-                foreach ($this->storeScopedTables() as $table) {
-                    $count = DB::table($table)->where('store_id', $store->id)->delete();
-                    if ($count > 0) {
-                        $removed[$table] = $count;
-                    }
-                }
-
-                $this->purgeLegacyCashierSales($staffIds, $ownerId, $removed);
-
-                $store->forceDelete();
-                $removed['stores'] = 1;
-
-                $userIds = $staffIds;
-                if ($ownerIsSolelyThisStore) {
-                    $userIds[] = $ownerId;
-                }
-
-                if ($userIds === []) {
-                    return;
-                }
-
-                foreach (self::OWNER_SCOPED_TABLES as $table => $column) {
-                    if (!Schema::hasTable($table)) {
-                        continue;
-                    }
-                    $count = DB::table($table)->whereIn($column, $userIds)->delete();
-                    if ($count > 0) {
-                        $removed[$table] = ($removed[$table] ?? 0) + $count;
-                    }
-                }
-
-                $this->revokeSessions($userIds);
-                $this->cascades->cascadeChildren('users', $userIds, $removed, ['stores']);
-
-                $removed['users'] = User::withTrashed()->whereIn('id', $userIds)->forceDelete();
+                ActivityLog::create([
+                    'user_id' => $actor->id,
+                    'action' => 'STORE_PURGED',
+                    'description' => "Permanently deleted store: {$storeName} ({$storeId}). Rows removed: "
+                        .json_encode($removed),
+                    'status' => 'success',
+                ]);
             });
         });
 
-        ActivityLog::create([
-            'user_id' => $actor->id,
-            'action' => 'STORE_PURGED',
-            'description' => "Permanently deleted store: {$storeName} ({$storeId}). Rows removed: "
-                .json_encode($removed),
-            'status' => 'success',
-        ]);
-
         return $removed;
+    }
+
+    /**
+     * The purge's own deletions, split out of purgeStore() so the audit-log
+     * write can sit in the same transaction despite this body's early return.
+     *
+     * @param  array<string, int>  $removed
+     */
+    private function purgeRows(Store $store, array &$removed): void
+    {
+        // Read inside the transaction, under a row lock on the owner's stores,
+        // so a store created concurrently for the same owner cannot be missed.
+        $ownerId = $store->user_id;
+        $staffIds = User::withTrashed()->where('store_id', $store->id)->pluck('id')->all();
+        $ownedStoreIds = $ownerId
+            ? Store::withTrashed()->where('user_id', $ownerId)->lockForUpdate()->pluck('id')->all()
+            : [];
+        $ownerIsSolelyThisStore = $ownerId
+            && array_values(array_diff($ownedStoreIds, [$store->id])) === [];
+
+        foreach ($this->storeScopedTables() as $table) {
+            $count = DB::table($table)->where('store_id', $store->id)->delete();
+            if ($count > 0) {
+                $removed[$table] = $count;
+            }
+        }
+
+        $this->purgeLegacyCashierSales($staffIds, $ownerId, $removed);
+
+        $store->forceDelete();
+        $removed['stores'] = 1;
+
+        $userIds = $staffIds;
+        if ($ownerIsSolelyThisStore) {
+            $userIds[] = $ownerId;
+        }
+
+        if ($userIds === []) {
+            return;
+        }
+
+        foreach (self::OWNER_SCOPED_TABLES as $table => $column) {
+            if (!Schema::hasTable($table)) {
+                continue;
+            }
+            $count = DB::table($table)->whereIn($column, $userIds)->delete();
+            if ($count > 0) {
+                $removed[$table] = ($removed[$table] ?? 0) + $count;
+            }
+        }
+
+        $this->revokeSessions($userIds);
+        $this->cascades->cascadeChildren('users', $userIds, $removed, ['stores']);
+
+        $removed['users'] = User::withTrashed()->whereIn('id', $userIds)->forceDelete();
     }
 
     /**

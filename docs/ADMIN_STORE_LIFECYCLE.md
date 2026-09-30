@@ -127,6 +127,27 @@ owner's `stores` rows, so a store created concurrently for the same owner
 cannot slip past the guard. SQLite compiles the lock clause away and
 serializes writes anyway, so tests are unaffected.
 
+## The audit trail is part of each action, not a follow-up to it
+
+All three actions write their `ActivityLog` row **inside** the same
+`DB::transaction()` that performs the change, and every row carries
+`store_id` as well as `user_id`:
+
+- `STORE_PURGED` used to be written after the purge transaction had already
+  committed, so an audit-log insert that failed for any reason (a full disk,
+  a constraint, a transient connection error) left the whole store
+  irreversibly deleted with no record of who did it or why (A-40). The
+  purge's deletions now live in `purgeRows()` and the log write is the last
+  statement of the transaction that calls it — the early `return` in the
+  deletion body is exactly why the split is needed.
+- `STORE_ARCHIVED` / `STORE_RESTORED` used to omit `store_id`, so the store's
+  own activity view (`/admin/activity?store_id=`) never showed that it had
+  been archived or restored; only the global admin feed did.
+
+Covered by `tests/Feature/Admin/AdminStoreLifecycleAuditTest.php`, which
+fails the `STORE_PURGED` insert from a model event and asserts the store and
+its owner are still there.
+
 ## Store detail metrics
 
 `AdminStoreDetailService` returns profile, owner, subscription, account

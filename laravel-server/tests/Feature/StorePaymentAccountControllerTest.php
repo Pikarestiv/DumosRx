@@ -232,6 +232,93 @@ class StorePaymentAccountControllerTest extends TestCase
         $this->assertSame('ACCT_existing', $this->store->paystack_subaccount_code);
     }
 
+    /**
+     * PG-7: the remote subaccount is created before the local link is saved,
+     * so a transient DB failure in between used to orphan a real Paystack
+     * subaccount with nothing pointing at it.
+     */
+    private function fakeSuccessfulCreate(): void
+    {
+        Http::fake([
+            'api.paystack.co/bank/resolve*' => Http::response([
+                'status' => true,
+                'data' => ['account_name' => 'JANE M DOE'],
+            ], 200),
+            'api.paystack.co/subaccount' => Http::response([
+                'status' => true, 'data' => ['subaccount_code' => 'ACCT_orphan_test'],
+            ], 200),
+        ]);
+    }
+
+    private function postCreate(): \Illuminate\Testing\TestResponse
+    {
+        return $this->actingAs($this->owner)
+            ->postJson("/api/v1/stores/{$this->store->id}/payment-account", [
+                'account_number' => '0123456789',
+                'bank_code' => '058',
+                'country' => 'nigeria',
+            ]);
+    }
+
+    public function test_a_transient_failure_saving_the_subaccount_code_is_retried()
+    {
+        $this->fakeSuccessfulCreate();
+
+        $attempts = 0;
+        Store::updating(function () use (&$attempts) {
+            $attempts++;
+            if ($attempts === 1) {
+                throw new \RuntimeException('Deadlock found when trying to get lock');
+            }
+        });
+
+        $response = $this->postCreate();
+
+        $response->assertStatus(200);
+        $this->assertGreaterThan(1, $attempts, 'The local save was never retried.');
+        $this->store->refresh();
+        $this->assertSame('ACCT_orphan_test', $this->store->paystack_subaccount_code);
+    }
+
+    public function test_an_unsavable_subaccount_code_is_logged_and_alerted_rather_than_silently_orphaned()
+    {
+        $this->fakeSuccessfulCreate();
+        config(['dumos.admin_emails' => ['ops@dumosrx.com']]);
+        \Illuminate\Support\Facades\Mail::fake();
+        \Illuminate\Support\Facades\Log::spy();
+
+        Store::updating(fn () => throw new \RuntimeException('MySQL server has gone away'));
+
+        $response = $this->postCreate();
+
+        $response->assertStatus(500);
+
+        \Illuminate\Support\Facades\Log::shouldHaveReceived('critical')
+            ->withArgs(fn ($message, $context = []) => str_contains((string) $message, 'orphan')
+                && ($context['paystack_subaccount_code'] ?? null) === 'ACCT_orphan_test'
+                && ($context['store_id'] ?? null) === $this->store->id)
+            ->atLeast()->once();
+
+        \Illuminate\Support\Facades\Mail::assertSent(\App\Mail\SuperAdminAlertMail::class);
+
+        $this->store->refresh();
+        $this->assertNull($this->store->paystack_subaccount_code);
+    }
+
+    public function test_a_failed_local_save_does_not_invite_a_retry_that_would_create_a_second_subaccount()
+    {
+        $this->fakeSuccessfulCreate();
+        config(['dumos.admin_emails' => []]);
+
+        Store::updating(fn () => throw new \RuntimeException('MySQL server has gone away'));
+
+        $response = $this->postCreate();
+
+        $response->assertStatus(500);
+        $this->assertStringContainsString('support', strtolower((string) $response->json('message')));
+        $this->assertStringNotContainsString('try again', strtolower((string) $response->json('message')));
+    }
+
     public function test_a_staff_member_cannot_configure_another_owners_store_payment_account()
     {
         $otherOwner = User::create([

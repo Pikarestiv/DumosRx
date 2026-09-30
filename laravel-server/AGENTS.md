@@ -714,6 +714,29 @@ straight to their own bank account.
   back into the group limiter, and don't re-key it to the IP.
   `PaymentRouteThrottleTest` asserts both the named limiter and that it trips
   well under 60.
+- **A created subaccount must never be orphaned (PG-7).** `createSubaccount()`
+  makes a real, permanent object at Paystack *before* the store row is updated,
+  and the "does this store already have one?" 409 check reads only
+  `stores.paystack_subaccount_code`. A failed local save therefore used to
+  leave a live remote subaccount with nothing pointing at it, and the local
+  idempotency check quietly lying — the owner's obvious next move (submit
+  again) would create a *second* one. `linkSubaccountToStore()` now retries the
+  local write 3 times with a short backoff and, if it still fails, logs
+  `Log::critical` with the subaccount code, store id, bank code and last 4,
+  fires an `AdminAlertService` alert, and returns a **500 whose message tells
+  the owner to contact support and explicitly not to resubmit**. Don't soften
+  that wording into "please try again" — the retry is the duplicate.
+  - **Not done, and deliberately:** making the idempotency check ask Paystack
+    whether a subaccount for this bank/account pair already exists. Paystack
+    does expose `GET /subaccount`, but its exact list/filter semantics for
+    matching on `settlement_bank` + `account_number` weren't verified against
+    the live API, and guessing a matcher here risks *reusing* a subaccount
+    belonging to a different store. If this is ever built, verify the response
+    shape and paging against Paystack's live API first, and match on the
+    account pair rather than `business_name` (store names are not unique).
+  - Covered by `test_a_transient_failure_saving_the_subaccount_code_is_retried`,
+    `test_an_unsavable_subaccount_code_is_logged_and_alerted_rather_than_silently_orphaned`
+    and `test_a_failed_local_save_does_not_invite_a_retry_that_would_create_a_second_subaccount`.
 - **`percentage_charge` is the platform's cut, not the store's** — a real,
   easy-to-get-backwards fact worth stating plainly. `createSubaccount()`
   passes the current `storefront_platform_fee_percentage` (a `SystemConfig`

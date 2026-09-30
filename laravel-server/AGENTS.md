@@ -290,7 +290,10 @@ migration here **and** the corresponding update on the `client/` side
   `normalizePushPayload()` holds the per-table strip lists:
   `USER_SYNC_FORBIDDEN_FIELDS`/`sanitizeUserSyncPayload()` for `users`,
   `STORE_SYNC_FORBIDDEN_FIELDS` for `stores` (every `paystack_*` column —
-  settlement destination and the fee-dirty flag), and `stock_batches.quantity`
+  settlement destination and the fee-dirty flag — plus the account-state
+  columns `status`/`suspension_reason`/`is_demo`, which only
+  `AdminStoreService` may write, and the `*_seeded_at` server-seeding
+  watermarks), and `stock_batches.quantity`
   inline in `push()`. `authorizeChangeTarget()` admits **any** caller whose
   allowed stores include the row — staff, not just the owner — so a money-
   routing column riding the generic push is a settlement-redirect hole, not a

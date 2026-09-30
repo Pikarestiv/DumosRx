@@ -1758,18 +1758,25 @@ class SyncController extends Controller
     private const USER_SYNC_ASSIGNABLE_ROLES = ['admin', 'manager', 'specialist', 'sales_staff', 'auditor'];
 
     /**
-     * stores columns that decide where a storefront sale's money settles, and
-     * the fee-propagation flag that drives it. Only
-     * StorePaymentAccountController::createPaymentAccount() (bank resolution,
-     * 409 idempotency, last-4-only persistence) and SyncSubaccountFeeRates may
-     * ever write them; push() applies a stores payload with forceFill(), which
-     * bypasses $fillable, so excluding them there is not enough. See
-     * laravel-server/AGENTS.md.
+     * stores columns a device may never write over sync, in three groups:
+     * the ones that decide where a storefront sale's money settles plus the
+     * fee-propagation flag that drives it (only
+     * StorePaymentAccountController::createPaymentAccount() — bank
+     * resolution, 409 idempotency, last-4-only persistence — and
+     * SyncSubaccountFeeRates may write those); the account-state columns,
+     * which only AdminStoreService may write (a store that could push its own
+     * `status` could lift an admin's suspension, and `is_demo` moves it in
+     * and out of the admin panel's demo filtering); and the server's own
+     * bookkeeping/seeding watermarks. push() applies a stores payload with
+     * forceFill(), which bypasses $fillable, so excluding them there is not
+     * enough. See laravel-server/AGENTS.md.
      */
     private const STORE_SYNC_FORBIDDEN_FIELDS = [
         'paystack_subaccount_code', 'paystack_subaccount_country',
         'paystack_bank_code', 'paystack_account_number_last4',
         'paystack_fee_dirty_at',
+        'status', 'suspension_reason', 'is_demo',
+        'loyalty_defaults_seeded_at', 'permission_groups_seeded_at',
         'last_sync_run_id', 'last_sync_run_started_at',
     ];
 

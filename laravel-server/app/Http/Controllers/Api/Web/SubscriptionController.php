@@ -556,7 +556,15 @@ class SubscriptionController extends Controller
         $currencyOk = $verifiedCurrency === $expectedCurrency;
 
         if (!$verification['success'] || !$currencyOk || $verifiedAmount < (float) $txn->amount - 0.01) {
-            $this->failTransaction($txn);
+            // A mismatch on a charge the provider says SUCCEEDED is money the
+            // platform is holding for nothing; a plain "not successful" answer
+            // is not, so only the former is refunded and alerted.
+            if ($verification['success']) {
+                app(\App\Services\Payment\PaymentMismatchHandler::class)
+                    ->handle($txn, $verifiedAmount, $verifiedCurrency, $verification['data'] ?? []);
+            } else {
+                $this->failTransaction($txn);
+            }
 
             return response()->json(['success' => false, 'message' => 'Payment verification failed.'], 400);
         }

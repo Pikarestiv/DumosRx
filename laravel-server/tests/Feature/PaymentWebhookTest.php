@@ -38,6 +38,10 @@ class PaymentWebhookTest extends TestCase
             'payment.flutterwave.secret_hash' => self::FLUTTERWAVE_SECRET_HASH,
         ]);
 
+        // The mismatch branch now attempts a real refund (PG-3); without this
+        // these tests would reach out to the live provider.
+        \Illuminate\Support\Facades\Http::fake();
+
         $this->user = User::create([
             'first_name' => 'Owner', 'last_name' => 'User',
             'email' => 'webhook-subscriber@dumosrx.com',

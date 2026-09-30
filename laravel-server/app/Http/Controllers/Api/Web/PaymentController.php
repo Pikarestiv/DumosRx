@@ -91,57 +91,46 @@ class PaymentController extends Controller
         return response()->json(['status' => 'ok']);
     }
 
+    /**
+     * Paystack reports `amount` in the currency's minor unit (kobo),
+     * Flutterwave in the major unit. Everything this app stores an expected
+     * amount in (`payment_transactions.amount`,
+     * `storefront_payment_intents.amount`) is the major unit.
+     */
+    protected function reportedMajorUnitAmount($provider, $data): float
+    {
+        $amount = (float) ($data['amount'] ?? 0);
+
+        return $provider === 'paystack' ? $amount / 100 : $amount;
+    }
+
     protected function processSuccessfulPayment($reference, $provider, $data)
     {
+        $reportedAmount = $this->reportedMajorUnitAmount($provider, $data);
+        $reportedCurrency = strtoupper((string) ($data['currency'] ?? ''));
+
+        // A storefront charge lives in its own table, never in
+        // payment_transactions (see the intents migration), so it has to be
+        // matched here or the webhook is silently discarded (PG-2).
+        $intent = \App\Models\StorefrontPaymentIntent::where('reference', $reference)->first();
+        if ($intent) {
+            app(\App\Services\Storefront\StorefrontPaymentReconciler::class)
+                ->recordProviderPayment($intent, $reportedAmount, $reportedCurrency, $data);
+
+            return;
+        }
+
         $txn = PaymentTransaction::where('provider_reference', $reference)->first();
 
         if (!$txn || $txn->status === 'success') {
             return;
         }
 
-        // A valid signature only proves the payload came from the provider -
-        // it says nothing about WHAT was paid. Without this check a genuine
-        // ₦100 charge (or a charge in another currency) could activate a
-        // ₦100,000 plan. Both providers report the settled amount and
-        // currency in the webhook body, so compare them against what this
-        // transaction was created for before activating anything.
-        //
-        // Unit: Paystack reports `amount` in the currency's minor unit
-        // (kobo), matching its initialize payload (`$amount * 100` in
-        // PaymentService::initializePaystack) and its verify response
-        // (divided by 100 in verifyPaystack). Flutterwave reports the major
-        // unit (naira), matching the un-multiplied `amount` it is sent.
-        // PaymentTransaction::amount is stored in naira (SubscriptionController
-        // writes $finalAmount directly), so only Paystack needs converting.
-        $reportedAmount = (float) ($data['amount'] ?? 0);
-        if ($provider === 'paystack') {
-            $reportedAmount = $reportedAmount / 100;
-        }
-
-        $reportedCurrency = strtoupper((string) ($data['currency'] ?? ''));
         $expectedCurrency = strtoupper((string) ($txn->currency ?: 'NGN'));
 
-        // Same 1-kobo tolerance SubscriptionController::verifyPayment uses:
-        // $txn->amount can carry sub-kobo precision from coupon-percentage
-        // arithmetic while the provider only ever settles whole kobo.
         if ($reportedCurrency !== $expectedCurrency || $reportedAmount < (float) $txn->amount - 0.01) {
-            Log::warning('Payment webhook amount/currency mismatch; refusing to activate.', [
-                'reference' => $reference,
-                'provider' => $provider,
-                'reported_amount' => $reportedAmount,
-                'reported_currency' => $reportedCurrency,
-                'expected_amount' => (float) $txn->amount,
-                'expected_currency' => $expectedCurrency,
-            ]);
-
-            app(SubscriptionController::class)->failTransaction($txn, [
-                'suspicious_webhook' => [
-                    'reason' => 'amount_or_currency_mismatch',
-                    'reported_amount' => $reportedAmount,
-                    'reported_currency' => $reportedCurrency,
-                    'webhook_data' => $data,
-                ],
-            ]);
+            app(\App\Services\Payment\PaymentMismatchHandler::class)
+                ->handle($txn, $reportedAmount, $reportedCurrency, $data);
 
             // Deliberately not an error response: the payload was genuinely
             // signed, so there is nothing for the provider to retry. Erroring

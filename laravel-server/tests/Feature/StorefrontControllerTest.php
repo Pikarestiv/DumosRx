@@ -69,7 +69,7 @@ class StorefrontControllerTest extends TestCase
         Store::where('store_slug', $slug)->update(['paystack_subaccount_code' => 'ACCT_test']);
 
         $this->mock(PaymentService::class, function ($mock) use ($reference) {
-            $mock->shouldReceive('initializeTransaction')
+            $mock->shouldReceive('initializeStorefrontTransaction')
                 ->once()
                 ->andReturn([
                     'provider' => 'paystack',
@@ -1147,6 +1147,24 @@ class StorefrontControllerTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertJson(['online_payment_available' => true]);
+    }
+
+    public function test_show_reports_the_stores_own_currency()
+    {
+        $this->storeA->update(['currency' => 'KES']);
+
+        $this->getJson('/api/v1/storefront/store-a')
+            ->assertStatus(200)
+            ->assertJson(['store' => ['currency' => 'KES']]);
+    }
+
+    public function test_show_falls_back_to_the_platform_currency_for_a_store_with_none_set()
+    {
+        $this->storeA->update(['currency' => '']);
+
+        $this->getJson('/api/v1/storefront/store-a')
+            ->assertStatus(200)
+            ->assertJson(['store' => ['currency' => 'NGN']]);
     }
 
     public function test_initialize_checkout_uses_the_stores_own_currency_and_subaccount()

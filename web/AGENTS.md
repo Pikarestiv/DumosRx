@@ -120,6 +120,31 @@ together). The current design:
   (`POST /storefront/{slug}/price-cart` taking item ids); log it there if it
   gets built.
 
+## Storefront money is formatted from the store's own currency (PG-4)
+
+`GET /storefront/{slug}` returns `store.currency` (the store's ISO code,
+falling back to the platform default only for a row with no currency at all —
+see `StorefrontController::storeCurrency()`). `useCartRepricing` surfaces it as
+`currency`, and `components/storefront/checkout-form.tsx` formats every amount
+through **`lib/utils/currency.ts`'s `formatMoney(amount, currency)`** instead
+of the three hardcoded `₦` literals it used to carry: a Ghana or Kenya store
+charged in its own currency but displayed a naira sign at checkout. `currency`
+is `null` until the catalog call resolves, and `formatMoney` falls back to NGN
+for that window, so the summary can briefly show `₦` before the fetch lands —
+acceptable because the submit button is disabled while `pricesLoading`.
+
+`formatMoney` uses `Intl` `narrowSymbol` and degrades to the raw ISO code for a
+currency with no widely-recognised symbol (KES renders as `KES`, GHS as `GH₵`)
+rather than guessing.
+
+**Still open, deliberately out of PG-4's scope:** the rest of `web/` keeps its
+own hardcoded naira — `storefront-cart.tsx`, `product-card.tsx`, the
+`referrals-*`/`plan-tier-card`/`subscription-config-tab` per-file `naira()`
+helpers, `revenue-overview.tsx`, `lib/constants/subscription-plans.ts`. The
+admin/subscription ones are genuinely naira (platform billing is NGN); the two
+storefront ones are the same bug as PG-4 and should move to `formatMoney` when
+the storefront product/cart views next get touched.
+
 ## Download and site URLs come from `lib/constants.ts` (A-104)
 
 `DOWNLOAD_URL` and `WEB_APP_URL` are env-overridable

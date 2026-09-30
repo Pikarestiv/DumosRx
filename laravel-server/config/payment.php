@@ -5,6 +5,10 @@ return [
     // the provider reports before any payment is accepted.
     'currency' => env('PAYMENT_CURRENCY', 'NGN'),
 
+    // How long a storefront payment intent may sit unclaimed before
+    // storefront:sweep-payment-intents re-verifies it against the provider.
+    'storefront_intent_stale_minutes' => (int) env('STOREFRONT_INTENT_STALE_MINUTES', 60),
+
     'paystack' => [
         'public_key' => env('PAYSTACK_PUBLIC_KEY'),
         'secret_key' => env('PAYSTACK_SECRET_KEY'),

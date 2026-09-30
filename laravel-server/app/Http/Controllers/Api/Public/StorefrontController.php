@@ -96,7 +96,7 @@ class StorefrontController extends Controller
 
         $intent = \App\Models\StorefrontPaymentIntent::where('reference', $reference)
             ->where('store_id', $store->id)
-            ->where('status', 'pending')
+            ->whereIn('status', \App\Models\StorefrontPaymentIntent::CLAIMABLE_STATUSES)
             ->first();
 
         if (!$intent) {
@@ -110,12 +110,12 @@ class StorefrontController extends Controller
             return null;
         }
 
-        $verification = $paymentService->verifyTransaction($reference, 'paystack');
+        $verification = $paymentService->verifyTransaction($reference, $intent->provider);
         if (!($verification['success'] ?? false)) {
             return null;
         }
 
-        $refund = $paymentService->refundTransaction($reference, 'paystack');
+        $refund = $paymentService->refundTransaction($reference, $intent->provider);
 
         if (!($refund['success'] ?? false)) {
             Log::error('Storefront refund failed for an unfulfillable paid checkout', [
@@ -237,7 +237,7 @@ class StorefrontController extends Controller
         parameters: [new OA\Parameter(name: 'store_slug', in: 'path', required: true, schema: new OA\Schema(type: 'string'))],
         responses: [
             new OA\Response(response: 200, description: 'Store + products', content: new OA\JsonContent(properties: [
-                new OA\Property(property: 'store', type: 'object'),
+                new OA\Property(property: 'store', type: 'object', description: "Includes the store's own `currency` (ISO code), which the storefront must format every price with — prices are never naira by default."),
                 new OA\Property(property: 'products', type: 'array', items: new OA\Items(type: 'object')),
             ])),
             new OA\Response(response: 403, description: 'Store is suspended'),
@@ -276,6 +276,7 @@ class StorefrontController extends Controller
                 'phone' => $store->phone,
                 'email' => $store->email,
                 'logo_url' => $store->logo_url,
+                'currency' => $this->storeCurrency($store),
             ],
             'products' => StorefrontProductResource::collection($products),
             'online_payment_available' => (bool) $store->paystack_subaccount_code,
@@ -411,7 +412,7 @@ class StorefrontController extends Controller
         }
 
         try {
-            $payment = $paymentService->initializeTransaction(
+            $payment = $paymentService->initializeStorefrontTransaction(
                 $totalAmount,
                 $validated['customer_email'],
                 [
@@ -599,7 +600,7 @@ class StorefrontController extends Controller
                 ], 422);
             }
 
-            if ($intent->status !== 'pending') {
+            if (!in_array($intent->status, \App\Models\StorefrontPaymentIntent::CLAIMABLE_STATUSES, true)) {
                 return response()->json([
                     'message' => 'This payment reference has already been used for another order.',
                 ], 422);
@@ -625,7 +626,7 @@ class StorefrontController extends Controller
                 ], 422);
             }
 
-            $verification = $paymentService->verifyTransaction($validated['paystack_reference'], 'paystack');
+            $verification = $paymentService->verifyTransaction($validated['paystack_reference'], $intent->provider);
 
             if ($verification['unknown'] ?? false) {
                 return response()->json([
@@ -677,7 +678,7 @@ class StorefrontController extends Controller
                         ->lockForUpdate()
                         ->first();
 
-                    if (!$locked || $locked->status !== 'pending') {
+                    if (!$locked || !in_array($locked->status, \App\Models\StorefrontPaymentIntent::CLAIMABLE_STATUSES, true)) {
                         throw new \App\Exceptions\PaymentReferenceAlreadyUsedException();
                     }
                 }

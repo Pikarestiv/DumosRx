@@ -1784,12 +1784,31 @@ than on history.
   (`quantity = 0`) still does not block, which is what keeps a sold-through
   product deletable. There is
   **no "deactivate" alternative offered for products, on purpose**:
-  `products.is_active` is read in exactly **one** place — the inventory
-  dashboard's counters in `lib/db/queries/inventory.ts`'s
-  `getStockBatchStats()`, which tests `p.is_active = 1` three times, for
-  `active_products`, `low_stock_count` and `critical_stock_count` — so an
-  `is_active = 0` product already silently drops out of those three figures
-  today, and out of nothing else. The write path can already produce a `0`:
+  `products.is_active` is read in exactly **two** places, both in
+  `lib/db/queries/inventory.ts` and both feeding the same inventory-dashboard
+  widget: `getStockBatchStats()`, which tests `p.is_active = 1` three times,
+  for `active_products`, `low_stock_count` and `critical_stock_count`, and —
+  since the `A-53` fix — `getLowStockAlerts()`, whose `(m.is_active = 1 OR
+  m.is_active IS NULL)` exists only to keep that card's drill-down list over
+  the same population as the count above it. So an `is_active = 0` product
+  drops out of those figures and that one list, and out of nothing else.
+
+  **Low-stock card and its list.** `getStockBatchStats()`'s
+  `low_stock_count + critical_stock_count` and `getLowStockAlerts()`' rows
+  must always describe one population: not soft-deleted, `is_active` 1 or
+  NULL, `reorder_level > 0`, and on-hand counted only over batches the sale
+  path could dispense (active, non-expired). `A-53` was these two drifting —
+  the list had no product-level `is_active` filter, so a card reading "2 low
+  on stock" could sit above five names, three of them retired products. If
+  you change either query's predicates, change both, and keep
+  `__tests__/inventory-stock-alerts.test.ts`'s agreement case (which asserts
+  the list's length equals the two counts summed) passing. One difference is
+  deliberate: the list is `LIMIT 5`, so it is a sample of the count rather
+  than all of it. One is not, and is still open — the stats query scopes
+  `stock_batches.store_id` directly while the list scopes only through
+  `products.store_id`, so a batch attributed to another store but hanging off
+  this store's product counts toward the list's on-hand figure and not the
+  card's (`docs/KNOWN_BUGS.md` `A-120`). The write path can already produce a `0`:
   `components/products/add-product-dialog.tsx` sends
   `is_active: status === "active" ? 1 : 0` from a `status` form field (no
   visible control is currently wired to set it to anything but `"active"`,
@@ -3648,18 +3667,16 @@ alternates instead of silently picking one.
 `inventoryStatusTool` is the aggregate counterpart: `getStockBatchStats()`
 for the low/critical/expiring/expired counts and the valuation, plus
 `getLowStockAlerts()` for the (already `LIMIT 5`) named items. The **counts**
-are the same ones the dashboard cards show; the **named list is not a subset
-of them**, and the reply must not imply it is. `getStockBatchStats()` requires
-`p.is_active = 1` for both its low and critical cases, `getLowStockAlerts()`
-has no `is_active` filter at all (`lib/db/queries/inventory.ts` — see
-`docs/KNOWN_BUGS.md` A-53), so a deactivated product at or below its reorder
-level is listed but never counted. The reply therefore says "Low-stock alerts
-include: …" rather than the old "Top low-stock items (of N): …", which could
-read "2 product(s) low on stock" above five names, and it drops the list
-entirely when the count is `0` (naming products under "0 product(s) low on
-stock" is the same contradiction the other way round). Fixing the
-divergence properly means changing `getLowStockAlerts()`, which the dashboard
-shares — out of scope for the assistant, hence A-53. Note
+are the same ones the dashboard cards show, and since `A-53` both queries now
+answer over the **same population** (see "Low-stock card and its list"
+below) — but the named list is still capped at five, so it remains a
+*sample*, not the whole set, and the reply must not imply otherwise. It says
+"Low-stock alerts include: …" rather than the old "Top low-stock items
+(of N): …", which could read "2 product(s) low on stock" above five names,
+and it drops the list entirely when the count is `0` (naming products under
+"0 product(s) low on stock" is the same contradiction the other way round).
+That phrasing is kept for the `LIMIT 5` reason alone; the population
+divergence it was originally written for is gone. Note
 `getStockBatchStats()` returns **a single row object, not an array** — it
 already does `result[0]` internally, so destructuring it as `const [stats]`
 yields `undefined`. It takes `ctx.expiryWarningDays` so "expiring soon"

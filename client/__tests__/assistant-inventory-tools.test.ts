@@ -82,7 +82,7 @@ describe("assistant inventory tools", () => {
     expect(reply.text).not.toMatch(/NGN|value/i);
   });
 
-  it("does not present the named list as a subset of the count when a deactivated product is in it", async () => {
+  it("leaves a deactivated product out of both the count and the named list", async () => {
     seedLowStockProduct();
     db.run(`INSERT INTO products (id, name, reorder_level, selling_price, is_active, created_at, updated_at)
             VALUES ('p3', 'Retired Syrup', 15, 300, 0, '2026-01-01', '2026-01-01')`);
@@ -94,7 +94,8 @@ describe("assistant inventory tools", () => {
     const reply = inventoryStatusTool.format(result, {}, unprivilegedCtx);
 
     expect(result.lowStockCount).toBe(1);
-    expect(result.lowStockItems.map((i) => i.product)).toContain("Retired Syrup");
+    expect(result.lowStockItems.map((i) => i.product)).toEqual(["Amoxicillin 250mg"]);
+    expect(reply.text).not.toContain("Retired Syrup");
     expect(reply.text).not.toMatch(/\(of \d+\)/);
   });
 

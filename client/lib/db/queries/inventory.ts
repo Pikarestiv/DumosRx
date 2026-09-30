@@ -360,10 +360,8 @@ export async function getExpiringBatches(days: number = 90) {
   );
 }
 
-// Only counts batches the sale path can actually dispense from (active,
-// non-expired) toward on-hand quantity — a product whose entire stock has
-// expired or been deactivated must still show as needing reorder, not as
-// healthily stocked.
+// Population and on-hand rules must stay identical to getStockBatchStats's
+// low/critical cases — see client/AGENTS.md, "Low-stock card and its list".
 export async function getLowStockAlerts() {
   const storeId = getActiveStoreId();
   return query<{
@@ -381,7 +379,8 @@ export async function getLowStockAlerts() {
      LEFT JOIN stock_batches inv ON inv.product_id = m.id
        AND (inv._deleted = 0 OR inv._deleted IS NULL) AND (inv.is_active = 1 OR inv.is_active IS NULL)
        AND (inv.expiry_date IS NULL OR inv.expiry_date = '' OR date(inv.expiry_date) > date('now'))
-     WHERE (m._deleted = 0 OR m._deleted IS NULL)${storeId ? " AND m.store_id = ?" : ""}
+     WHERE (m._deleted = 0 OR m._deleted IS NULL)
+       AND (m.is_active = 1 OR m.is_active IS NULL)${storeId ? " AND m.store_id = ?" : ""}
      GROUP BY m.id
      HAVING COALESCE(SUM(inv.quantity), 0) <= m.reorder_level AND m.reorder_level > 0
      ORDER BY COALESCE(SUM(inv.quantity), 0) ASC

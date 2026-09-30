@@ -50,11 +50,12 @@ describe("inventory stock alerts", () => {
     name: string,
     reorderLevel: number,
     storeId?: string,
+    isActive: number | null = 1,
   ) {
     db.run(
-      `INSERT INTO products (id, name, reorder_level, base_unit, store_id, _deleted)
-       VALUES (?, ?, ?, 'Unit', ?, 0)`,
-      [id, name, reorderLevel, storeId ?? null],
+      `INSERT INTO products (id, name, reorder_level, base_unit, store_id, is_active, _deleted)
+       VALUES (?, ?, ?, 'Unit', ?, ?, 0)`,
+      [id, name, reorderLevel, storeId ?? null, isActive],
     );
   }
 
@@ -160,6 +161,33 @@ describe("inventory stock alerts", () => {
 
       const rows = await q.getLowStockAlerts();
       expect(rows.map((r) => r.quantity)).toEqual([0, 1, 2, 3, 4]);
+    });
+
+    it("ignores a deactivated product, matching getStockBatchStats's population", async () => {
+      seedProduct("p1", "Retired", 10, undefined, 0);
+      seedBatch("b1", "p1", { quantity: 2, expiry: iso(200) });
+
+      expect(await q.getLowStockAlerts()).toEqual([]);
+    });
+
+    it("still flags a product whose is_active was never recorded", async () => {
+      seedProduct("p1", "Legacy", 10, undefined, null);
+      seedBatch("b1", "p1", { quantity: 2, expiry: iso(200) });
+
+      expect((await q.getLowStockAlerts()).map((r) => r.product)).toEqual(["Legacy"]);
+    });
+
+    it("agrees with getStockBatchStats on how many products are low or critical", async () => {
+      seedProduct("p1", "Live low", 10);
+      seedBatch("b1", "p1", { quantity: 2, expiry: iso(200) });
+      seedProduct("p2", "Live critical", 10);
+      seedProduct("p3", "Retired low", 10, undefined, 0);
+      seedBatch("b3", "p3", { quantity: 2, expiry: iso(200) });
+
+      const stats = await q.getStockBatchStats();
+      const rows = await q.getLowStockAlerts();
+      expect(rows).toHaveLength(stats.low_stock_count + stats.critical_stock_count);
+      expect(rows.map((r) => r.product).sort()).toEqual(["Live critical", "Live low"]);
     });
 
     it("reports only the active store's products", async () => {

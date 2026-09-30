@@ -65,7 +65,7 @@ export function SupplierTable({
   onAddSupplier,
 }: SupplierTableProps) {
   const canManageSuppliers = useHasPermission("manage_suppliers");
-  const isDesktop = useMediaQuery("(min-width: 768px)");
+  const isDesktop = useMediaQuery("(min-width: 1024px)");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftRating, setDraftRating] = useState(0);
   const updateRatingMutation = useUpdateSupplierRatingMutation();

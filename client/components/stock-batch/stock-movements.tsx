@@ -62,7 +62,7 @@ function NoMovementsFound() {
 }
 
 export function StockMovements() {
-  const isDesktop = useMediaQuery("(min-width: 768px)");
+  const isDesktop = useMediaQuery("(min-width: 1024px)");
   const [hasFullHistory, setHasFullHistory] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");

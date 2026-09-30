@@ -1190,7 +1190,7 @@ e2e/                       Playwright end-to-end specs
 
   **The Adjustments ledger mirrors `stock-movements.tsx`'s split**, being
   the same kind of history data in the same tab family:
-  `useMediaQuery("(min-width: 768px)")` picks either the virtualized desktop
+  `useMediaQuery("(min-width: 1024px)")` picks either the virtualized desktop
   grid or `AdjustmentMobileGroup` (`adjustment-mobile-group.tsx`), the
   analogue of `StockMovementMobileGroup`. The two branches are
   *conditionally rendered, never `md:hidden`* — the desktop branch is
@@ -2998,6 +2998,20 @@ same tab session still gets its own fresh one-time retry.
 
 ## UI conventions worth knowing before changing shared components
 
+- **A table/card layout switch belongs at `1024px`, the nav-chrome
+  breakpoint.** `MobileBottomNav` (`components/dashboard/mobile-bottom-nav.tsx`)
+  is `lg:hidden`, so mobile chrome is anything below `1024px`. Any list that
+  branches between a wide desktop table and a mobile card list must use
+  `useMediaQuery`/`useResolvedMediaQuery("(min-width: 1024px)")` to match it —
+  otherwise a 768–1023px device shows the mobile bottom nav and the desktop
+  table at once. `__tests__/responsive-table-breakpoint-convention.test.ts`
+  pins the six such components and the nav's own class so the two cannot
+  drift again (they did: all six sat at `768px` until the `A-48` sweep).
+  This is specifically about *table vs. card layout*. Dialog- and
+  toast-presentation breakpoints are a separate, unrelated decision and stay
+  where they are: `ResponsiveModal`, `Sonner`, `DateRangePicker` and the
+  assistant panel's Sheet-vs-Drawer split all deliberately switch at `768px`,
+  and the adjustment/PO *item-builder* lists at `640px`.
 - **Full-screen page takeover**: `fixed inset-0 z-50 flex flex-col
   bg-background` (no dashboard shell, no sidebar), used for
   `stock-batch/stock-audits.tsx` (Cycle Count) and both

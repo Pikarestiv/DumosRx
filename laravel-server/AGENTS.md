@@ -538,6 +538,36 @@ deactivated device must not leave a fresh check-in behind on its way to a 403.
 Pinned by `tests/Feature/VerifyLicenseOwnershipTest.php`. `.agents/AGENTS.md`
 §8 covers the client-side JWT/anti-backdating half of the licensing system.
 
+## Coupon usage is reserved under a lock, not counted at activation
+
+`max_uses`/`max_uses_per_user` are counted from `coupon_usages`, and those rows
+used to be written only when a subscription **activated** — so validity was
+evaluated against a count that moved after the money was already committed, with
+no lock anywhere. Twenty concurrent checkouts on a `max_uses: 1` launch coupon
+all passed, all got the discount, and all activated at it; a double-submitted
+100%-off coupon minted two overlapping active subscriptions (A-80).
+
+The rule now matches the referral-credit one below: **the discount is reserved
+where it is granted.** `SubscriptionService::reserveCoupon()` takes a
+`lockForUpdate()` on the coupon row, re-validates inside that transaction and
+writes the `CouponUsage` row before returning, so a second caller blocks and
+then sees the real count. `initiatePayment()` uses it for both branches, stamps
+`metadata.coupon_usage_id` on the `PaymentTransaction`, and the reservation is
+then either **linked** (`attachCouponUsageToSubscription()`, at
+`$finalAmount <= 0` self-activation and at `activateSubscriptionFromTransaction()`)
+or **released** (`releaseCouponUsage()`, on an `initializeTransaction()` failure
+and in `failTransaction()`, stamped `coupon_usage_released` so it is idempotent
+across the verify and webhook paths). Activation never creates a usage row for a
+transaction that carries a `coupon_usage_id` — the legacy create branch is only
+for transactions started before reservations existed.
+
+**No `UNIQUE (coupon_id, user_id)` index was added**, deliberately:
+`max_uses_per_user` is a column and is legitimately greater than 1, so the index
+would enforce a cap the product does not have. The lock is the enforcement
+point; anything new that grants a coupon discount must go through
+`reserveCoupon()` rather than `validateCoupon()`, which is now only a read-only
+check. Pinned by `tests/Feature/CouponUsageReservationTest.php`.
+
 ## Referral credits on a subscription checkout are reserved, not deferred
 
 `SubscriptionController::initiatePayment()` **deducts** the credits a paid

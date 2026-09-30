@@ -225,13 +225,65 @@ class SubscriptionService
     }
 
     /**
+     * validateCoupon() plus the write that makes the answer binding: the
+     * usage row is created inside a transaction holding a lock on the coupon
+     * row, so two concurrent checkouts can't both pass a limit check against
+     * the same zero count. Returns the reservation's id for the caller to
+     * link to a subscription (attachCouponUsageToSubscription) or release
+     * (releaseCouponUsage) if the checkout never completes. See
+     * laravel-server/AGENTS.md's coupon-reservation section.
+     */
+    public function reserveCoupon(User $user, string $code, ?string $planName = null, ?string $interval = null): array
+    {
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($user, $code, $planName, $interval) {
+            $locked = Coupon::where('code', $code)->lockForUpdate()->first();
+
+            if (!$locked) {
+                return ['valid' => false, 'message' => 'Invalid coupon code'];
+            }
+
+            $result = $this->validateCoupon($user, $code, $planName, $interval);
+
+            if (!$result['valid']) {
+                return $result;
+            }
+
+            $usage = $this->recordCouponUsage($locked, $user);
+
+            return [
+                'valid' => true,
+                'coupon' => $result['coupon'],
+                'usage_id' => $usage->id,
+            ];
+        });
+    }
+
+    public function attachCouponUsageToSubscription(?string $usageId, Subscription $subscription): void
+    {
+        if (!$usageId) {
+            return;
+        }
+
+        CouponUsage::where('id', $usageId)->update(['subscription_id' => $subscription->id]);
+    }
+
+    public function releaseCouponUsage(?string $usageId): void
+    {
+        if (!$usageId) {
+            return;
+        }
+
+        CouponUsage::where('id', $usageId)->delete();
+    }
+
+    /**
      * Record a coupon usage
      */
     public function recordCouponUsage(Coupon $coupon, User $user, ?Subscription $subscription = null)
     {
         $owner = $this->getSubscriptionOwner($user);
-        
-        CouponUsage::create([
+
+        return CouponUsage::create([
             'coupon_id' => $coupon->id,
             'user_id' => $owner->id,
             'subscription_id' => $subscription ? $subscription->id : null,

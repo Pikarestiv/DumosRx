@@ -223,10 +223,16 @@ export default function StoresManagement() {
           <Button
             variant="outline"
             className="border-2 font-bold dark:bg-slate-900 dark:border-slate-800"
-            onClick={() => downloadStoreFleetCsv(storeList)}
+            onClick={() => {
+              if (!downloadStoreFleetCsv(storeList)) {
+                toast.error("Nothing to export yet", {
+                  description: "This page of the fleet list is empty.",
+                });
+              }
+            }}
           >
             <Download className="h-4 w-4 mr-2" />
-            Export CSV
+            Export this page ({storeList.length})
           </Button>
           <Button
             className="bg-indigo-600 hover:bg-indigo-700 font-bold shadow-lg shadow-indigo-600/20"

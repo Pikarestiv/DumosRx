@@ -122,7 +122,10 @@ describe("assistant message reveal", () => {
 
     expect(screen.getAllByText(REPLY_TEXT)).toHaveLength(1);
     expect(document.querySelectorAll("[data-revealed]").length).toBe(0);
-    expect(document.querySelectorAll('[aria-hidden="true"]').length).toBe(0);
+    const hiddenReplyText = Array.from(
+      document.querySelectorAll('[aria-hidden="true"]'),
+    ).some((node) => node.textContent?.includes(REPLY_TEXT));
+    expect(hiddenReplyText).toBe(false);
   });
 
   it("caps a long reply's reveal at the budget by revealing several words per tick", () => {

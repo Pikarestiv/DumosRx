@@ -92,7 +92,10 @@ export function AssistantMessageBubble({
   return (
     <div className={`flex items-start gap-2 ${isUser ? "justify-end" : ""}`}>
       {!isUser && (
-        <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
+        <span
+          aria-hidden="true"
+          className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground"
+        >
           <Sparkles className="h-3.5 w-3.5" />
         </span>
       )}
@@ -126,7 +129,7 @@ export function AssistantMessageBubble({
         )}
       </div>
       {isUser && (
-        <Avatar className="mt-0.5 h-7 w-7 border border-border">
+        <Avatar aria-hidden="true" className="mt-0.5 h-7 w-7 shrink-0 border border-border">
           <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
             {userInitials}
           </AvatarFallback>

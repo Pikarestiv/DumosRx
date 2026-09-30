@@ -3777,7 +3777,12 @@ no host-supplied callback.
   sized `h-7 w-7` to match the assistant circle's `size-7` footprint. Don't
   invent a second avatar treatment here; if that styling changes, change it
   in both places. The user row is `flex items-start justify-end gap-2` so the
-  two layouts mirror each other.
+  two layouts mirror each other. Both circles carry `aria-hidden="true"` and
+  `shrink-0` — the `AvatarFallback`'s initials are ordinary text, not
+  decorative markup, so without `aria-hidden` a screen reader announces them
+  before every user utterance inside the `aria-live` log; `shrink-0` stops
+  the initials avatar (the one flex child otherwise without shrink
+  protection) compressing under a long, unbreakable message.
 - **The initials are threaded down as a prop, not read from context in the
   bubble.** `assistant-panel.tsx` — the one component wired to global state —
   calls `useAuth()` alongside `useAssistant()` and computes

@@ -89,6 +89,9 @@ describe("getUserPermissionGroup with a malformed permissions column", () => {
     const group = await getUserPermissionGroup("u1");
 
     expect(group!.permissions).toEqual(["process_sales"]);
+    // A-55: the group carries the id of the user it was read for, so
+    // hasPermission can refuse to apply it to anybody else.
+    expect(group!.userId).toBe("u1");
     expect(hasPermission({ role: "manager" }, group, "process_sales")).toBe(true);
     expect(hasPermission({ role: "manager" }, group, "manage_products")).toBe(false);
   });

@@ -5,8 +5,18 @@ import { useAuth } from "@/lib/context/auth-context";
 import { DEFAULT_GROUP_PERMISSIONS } from "@/lib/constants/permissions";
 import { buildGrantScope, type PermissionGrantScope } from "@/lib/permissions/grant-scope";
 
-type MinimalUser = { role: string } | null | undefined;
-type MinimalGroup = { permissions: string[] } | null | undefined;
+type MinimalUser = { role: string; id?: string } | null | undefined;
+type MinimalGroup = { permissions: string[]; userId?: string } | null | undefined;
+
+/** A group loaded for another user must never govern the acting one: on a
+ * lock-screen account switch (user -> user, no logout) AuthContext still
+ * holds the outgoing user's group until the async read for the incoming user
+ * resolves. A mismatch is treated as "no group yet" so the acting user falls
+ * back to their own role tier - see docs/FIXED_BUGS.md (A-55). */
+function belongsToUser(user: MinimalUser, group: MinimalGroup): boolean {
+  if (!group?.userId || !user?.id) return true;
+  return group.userId === user.id;
+}
 
 /**
  * Fallback used whenever a user has no synced permission_groups row yet
@@ -41,7 +51,8 @@ export function hasPermission(
   const normalized = user.role.toLowerCase().replace(/[^a-z_]/g, "");
   if (normalized === "store_owner" || normalized === "super_admin") return true;
 
-  const granted = group?.permissions ?? fallbackPermissions(user.role);
+  const ownGroup = belongsToUser(user, group) ? group : null;
+  const granted = ownGroup?.permissions ?? fallbackPermissions(user.role);
   const keys = Array.isArray(key) ? key : [key];
   return mode === "all" ? keys.every((k) => granted.includes(k)) : keys.some((k) => granted.includes(k));
 }
@@ -52,11 +63,14 @@ export function hasPermission(
  * Permissions matrix single out the column the acting user themselves
  * belongs to - see its self-lockout guard. */
 export function useOwnPermissionGroupId(): string | null {
-  const { permissionGroup } = useAuth();
+  const { user, permissionGroup } = useAuth();
 
   // useMemo, not a bare `return permissionGroup?.id ?? null`, for the same
   // rules-of-hooks reason spelled out on useHasPermission below.
-  return useMemo(() => permissionGroup?.id ?? null, [permissionGroup]);
+  return useMemo(
+    () => (belongsToUser(user, permissionGroup) ? permissionGroup?.id ?? null : null),
+    [user, permissionGroup],
+  );
 }
 
 /** What the acting session is allowed to GRANT to a permission group, as
@@ -69,7 +83,11 @@ export function useOwnGrantScope(): PermissionGrantScope {
   const { user, permissionGroup } = useAuth();
 
   return useMemo(
-    () => buildGrantScope(user?.role, permissionGroup?.permissions),
+    () =>
+      buildGrantScope(
+        user?.role,
+        belongsToUser(user, permissionGroup) ? permissionGroup?.permissions : undefined,
+      ),
     [user, permissionGroup],
   );
 }

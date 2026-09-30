@@ -1348,6 +1348,19 @@ unrecognised key in a stored array grants nothing and is harmless) and add
 the replacement as a new key. `PermissionCatalogEntry.category` exists only
 to group rows for the Roles & Permissions matrix UI.
 
+**A permission group carries the id of the user it was loaded for.**
+`getUserPermissionGroup()` returns `{ userId, id, permissions }` and
+`hasPermission()`/`useHasPermission()`/`useOwnPermissionGroupId()`/
+`useOwnGrantScope()` ignore a group whose `userId` is not the acting user's,
+falling through to `fallbackPermissions(role)` instead. This exists because
+the lock screen's "switch account" tile calls `login()` without ever going
+through `logout()`, so `user` commits synchronously while the group read is
+an awaited sql.js query: for that window AuthContext holds the *outgoing*
+user's group. Do not drop the `userId` field or compare only ids in
+AuthContext — the identity check at the call site is the fail-safe half
+(A-55 in `docs/FIXED_BUGS.md`). A group with no `userId` (the assistant's
+tool context builds one) is still honoured as-is.
+
 `ENFORCED_PERMISSION_KEYS` (`lib/constants/permissions.ts`) lists the keys
 with a real `useHasPermission()` / `hasPermission()` call site; the Roles &
 Permissions matrix reads it to mark the rest as not-yet-wired. **It is a

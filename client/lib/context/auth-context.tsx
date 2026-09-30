@@ -139,7 +139,7 @@ interface AuthContextType {
    * useOwnPermissionGroupId read it from here rather than each running their
    * own query and sync listener, so all 26+ call sites can never transiently
    * disagree with each other or with the booleans computed just below. */
-  permissionGroup: { id: string; permissions: string[] } | null;
+  permissionGroup: { userId: string; id: string; permissions: string[] } | null;
   changePin: (currentPin: string, newPin: string) => Promise<{ success: boolean; message: string }>;
   verifyPin: (pin: string) => Promise<boolean>;
   linkCloudAccount: (email: string, password: string) => Promise<{ success: boolean; message: string }>;
@@ -766,13 +766,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     void ensurePermissionGroupsSeeded().catch(() => {});
   }, [user?.id]);
 
-  const [permissionGroup, setPermissionGroup] = useState<{ id: string; permissions: string[] } | null>(null);
+  const [permissionGroup, setPermissionGroup] = useState<{ userId: string; id: string; permissions: string[] } | null>(null);
   useEffect(() => {
     let cancelled = false;
     if (!user) {
       setPermissionGroup(null);
       return;
     }
+    // A user-to-user switch (the lock screen's "switch account", which never
+    // goes through logout()) must not leave the outgoing user's group in
+    // state while the incoming user's read is in flight - see A-55.
+    setPermissionGroup((previous) => (previous?.userId === user.id ? previous : null));
     const load = () => {
       getUserPermissionGroup(user.id).then((g) => {
         if (!cancelled) setPermissionGroup(g);

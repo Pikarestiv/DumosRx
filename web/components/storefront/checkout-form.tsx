@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useCart, useCartStore } from "@/lib/store/use-cart-store";
+import { useEffect, useRef, useState } from "react";
+import { useCart } from "@/lib/store/use-cart-store";
+import { useCartRepricing } from "@/lib/store/use-cart-repricing";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,71 +11,42 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { apiClient } from "@/lib/api/base-client";
-import type { StorefrontProduct } from "@/lib/types/storefront";
+import {
+  FailedConfirmationPanel,
+  OrphanReferencePanel,
+} from "@/components/storefront/checkout-reference-panels";
 
 interface CheckoutFormProps {
   storeSlug: string;
 }
+
+interface PendingCheckout {
+  formData: {
+    customer_name: string;
+    customer_phone: string;
+    customer_address: string;
+    customer_email: string;
+    payment_method: string;
+  };
+  items: { product_id: string; quantity: number }[];
+}
+
+const wasRefunded = (error: unknown): boolean => {
+  const response = (error as { response?: { status?: number; data?: { refunded?: boolean } } } | null)
+    ?.response;
+  return response?.status === 422 && response?.data?.refunded === true;
+};
 
 export function CheckoutForm({ storeSlug }: CheckoutFormProps) {
   const cart = useCart(storeSlug);
   const router = useRouter();
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
-  // Re-priced against the live catalog on mount: the server prices the order
-  // from product_id + quantity, not from the cart's cached prices.
-  const [pricesLoading, setPricesLoading] = useState(true);
-  const [pricesStale, setPricesStale] = useState(false);
-  const [onlinePaymentAvailable, setOnlinePaymentAvailable] = useState(false);
+  const { pricesLoading, pricesStale, onlinePaymentAvailable } = useCartRepricing(storeSlug);
   const [orphanReference, setOrphanReference] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const repriceCart = async () => {
-      const { carts, reconcilePrices } = useCartStore.getState();
-      const items = carts[storeSlug] ?? [];
-      if (items.length === 0) {
-        if (!cancelled) setPricesLoading(false);
-        return;
-      }
-
-      try {
-        const { data } = await apiClient.get<{ products: StorefrontProduct[]; online_payment_available?: boolean }>(
-          `/storefront/${storeSlug}`
-        );
-        if (cancelled) return;
-
-        setOnlinePaymentAvailable(!!data.online_payment_available);
-
-        const prices: Record<string, number> = {};
-        for (const product of data.products ?? []) {
-          prices[product.id] = parseFloat(String(product.selling_price));
-        }
-
-        const changed = items.some(
-          (item) => prices[item.id] === undefined || prices[item.id] !== item.price
-        );
-        reconcilePrices(storeSlug, prices);
-        if (changed) {
-          toast.info(
-            "Some prices or items in your cart changed. Your order summary has been updated."
-          );
-        }
-      } catch {
-        // Couldn't reach the catalog - fall back to the cached prices but say
-        // so next to the total rather than presenting them as confirmed.
-        if (!cancelled) setPricesStale(true);
-      } finally {
-        if (!cancelled) setPricesLoading(false);
-      }
-    };
-
-    void repriceCart();
-    return () => {
-      cancelled = true;
-    };
-  }, [storeSlug]);
+  const [failedReference, setFailedReference] = useState<string | null>(null);
+  const [failedWasRefunded, setFailedWasRefunded] = useState(false);
+  const autoConfirmedReference = useRef<string | null>(null);
 
   const [formData, setFormData] = useState({
     customer_name: "",
@@ -84,46 +56,70 @@ export function CheckoutForm({ storeSlug }: CheckoutFormProps) {
     payment_method: "in_store", // transfer, in_store, paystack
   });
 
-  useEffect(() => {
-    const reference = searchParams.get('reference') ?? searchParams.get('trxref');
-    if (!reference) return;
+  const pendingStorageKey = `dumos_pending_checkout_${storeSlug}`;
 
-    const pendingRaw = sessionStorage.getItem(`dumos_pending_checkout_${storeSlug}`);
-    if (!pendingRaw) {
-      setOrphanReference(reference);
-      return;
-    }
-
-    let pending: { formData: typeof formData; items: { product_id: string; quantity: number }[] };
+  const readPendingCheckout = (): PendingCheckout | null => {
+    const raw = sessionStorage.getItem(pendingStorageKey);
+    if (!raw) return null;
     try {
-      pending = JSON.parse(pendingRaw);
+      return JSON.parse(raw) as PendingCheckout;
     } catch {
-      setOrphanReference(reference);
-      return;
+      return null;
     }
+  };
 
+  const confirmPaidCheckout = async (reference: string, pending: PendingCheckout) => {
     setLoading(true);
-    apiClient
-      .post(`/storefront/${storeSlug}/checkout`, {
+    try {
+      await apiClient.post(`/storefront/${storeSlug}/checkout`, {
         ...pending.formData,
         items: pending.items,
         payment_method: 'paystack',
         paystack_reference: reference,
-      })
-      .then(() => {
-        sessionStorage.removeItem(`dumos_pending_checkout_${storeSlug}`);
-        toast.success("Order placed successfully!");
-        cart.clearCart();
-        router.push(`/store/${storeSlug}`);
-      })
-      .catch((error) => {
-        const detail = error instanceof Error ? ` (${error.message})` : "";
-        toast.error(`Could not confirm your payment. Contact the store with reference ${reference}.${detail}`);
-      })
-      .finally(() => setLoading(false));
+      });
+      sessionStorage.removeItem(pendingStorageKey);
+      setFailedReference(null);
+      toast.success("Order placed successfully!");
+      cart.clearCart();
+      router.push(`/store/${storeSlug}`);
+    } catch (error) {
+      setFailedReference(reference);
+      setFailedWasRefunded(wasRefunded(error));
+      const detail = error instanceof Error ? ` (${error.message})` : "";
+      toast.error(`Could not confirm your payment. Contact the store with reference ${reference}.${detail}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const reference = searchParams.get('reference') ?? searchParams.get('trxref');
+    if (!reference) return;
+
+    if (autoConfirmedReference.current === reference) return;
+    autoConfirmedReference.current = reference;
+
+    const pending = readPendingCheckout();
+    if (!pending) {
+      setOrphanReference(reference);
+      return;
+    }
+
+    void confirmPaidCheckout(reference, pending);
     // Deliberately not re-run on formData/cart changes, which would resubmit.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, storeSlug]);
+
+  const retryConfirmation = () => {
+    if (!failedReference) return;
+    const pending = readPendingCheckout();
+    if (!pending) {
+      setFailedReference(null);
+      setOrphanReference(failedReference);
+      return;
+    }
+    void confirmPaidCheckout(failedReference, pending);
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -161,10 +157,7 @@ export function CheckoutForm({ storeSlug }: CheckoutFormProps) {
       }));
 
       if (formData.payment_method === 'paystack') {
-        sessionStorage.setItem(
-          `dumos_pending_checkout_${storeSlug}`,
-          JSON.stringify({ formData, items }),
-        );
+        sessionStorage.setItem(pendingStorageKey, JSON.stringify({ formData, items }));
         const { data } = await apiClient.post<{ payment_url: string }>(
           `/storefront/${storeSlug}/checkout/initialize`,
           { customer_email: formData.customer_email, items },
@@ -186,28 +179,22 @@ export function CheckoutForm({ storeSlug }: CheckoutFormProps) {
     }
   };
 
-  if (orphanReference) {
+  const returnToStore = () => router.push(`/store/${storeSlug}`);
+
+  if (failedReference) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>We couldn&apos;t match your payment to this cart</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3 text-sm text-gray-600">
-          <p>
-            Your payment may have gone through, but this browser has no record of the order it was
-            for (that happens if you came back in a new tab or window).
-          </p>
-          <p>
-            Please contact the store with your payment reference so they can find and confirm your
-            order:
-          </p>
-          <p className="font-mono text-base font-semibold text-gray-900">{orphanReference}</p>
-        </CardContent>
-        <CardFooter className="flex justify-center">
-          <Button onClick={() => router.push(`/store/${storeSlug}`)}>Return to Store</Button>
-        </CardFooter>
-      </Card>
+      <FailedConfirmationPanel
+        reference={failedReference}
+        refunded={failedWasRefunded}
+        retrying={loading}
+        onRetry={retryConfirmation}
+        onReturnToStore={returnToStore}
+      />
     );
+  }
+
+  if (orphanReference) {
+    return <OrphanReferencePanel reference={orphanReference} onReturnToStore={returnToStore} />;
   }
 
   if (cart.items.length === 0) {

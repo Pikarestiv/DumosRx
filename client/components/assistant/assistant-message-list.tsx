@@ -59,7 +59,7 @@ export function AssistantMessageList({
   }, [messages.length, isThinking]);
 
   return (
-    <ScrollFade containerClassName="flex-1 min-h-0" className="p-3">
+    <ScrollFade containerClassName="flex-1 min-h-0" className="hover-scrollbar p-3">
       <div role="log" aria-live="polite" className="flex flex-col gap-3">
         {messages.map((message) => (
           <AssistantMessageBubble

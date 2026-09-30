@@ -3801,6 +3801,14 @@ no host-supplied callback.
   `className` lands on the element that actually scrolls and carries padding.
   Swapping them collapses the message list to zero height inside a flex
   parent.
+- **The message list uses `hover-scrollbar`, not `stable-scrollbar`.** Both
+  live in `app/globals.css` and tint the thumb with `--primary`, but
+  `stable-scrollbar` (used by the 11 other scrollable panels in the app) is
+  always visible; `hover-scrollbar` keeps the same reserved gutter and width
+  so there's no layout shift, but the thumb stays transparent until
+  `:hover`/`:focus-within`. Deliberate: the assistant panel is a small,
+  short-lived overlay where an always-visible scrollbar reads as more
+  chrome than needed, unlike the app's persistent full-page tables.
 - **The message list scrolls itself.** `assistant-message-list.tsx` keeps a
   `bottomRef` sentinel `<div>` after the thinking indicator and
   `scrollIntoView({ behavior: "smooth", block: "end" })`s it on every change

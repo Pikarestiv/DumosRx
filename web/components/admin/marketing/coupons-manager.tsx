@@ -26,6 +26,7 @@ import {
 } from "@/lib/api/admin-hooks";
 import { toast } from "sonner";
 import { CouponDialog } from "./coupon-dialog";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import type { Coupon } from "@/lib/types/admin";
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 
@@ -49,6 +50,9 @@ export function CouponsManager() {
   const updateMutation = useUpdateCouponMutation();
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [couponPendingDelete, setCouponPendingDelete] = useState<Coupon | null>(
+    null,
+  );
   const [editingId, setEditingId] = useState<string | null>(null);
   const [newCoupon, setNewCoupon] = useState<Partial<Coupon>>({
     type: "discount_percent",
@@ -119,19 +123,28 @@ export function CouponsManager() {
     try {
       await toggleMutation.mutateAsync(id);
       toast.success("Coupon status updated");
-    } catch (_error) {
-      toast.error("Failed to update status");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to update status",
+      );
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this coupon?")) return;
     try {
       await deleteMutation.mutateAsync(id);
       toast.success("Coupon deleted");
-    } catch (_error) {
-      toast.error("Failed to delete coupon");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to delete coupon",
+      );
     }
+  };
+
+  const confirmDelete = () => {
+    const target = couponPendingDelete;
+    setCouponPendingDelete(null);
+    if (target) void handleDelete(target.id);
   };
 
   if (loading) {
@@ -261,7 +274,8 @@ export function CouponsManager() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => void handleDelete(coupon.id)}
+                    aria-label={`Delete coupon ${coupon.code}`}
+                    onClick={() => setCouponPendingDelete(coupon)}
                   >
                     <Trash2 className="h-4 w-4 text-red-500" />
                   </Button>
@@ -281,6 +295,21 @@ export function CouponsManager() {
           </TableBody>
         </Table>
       </div>
+
+      <ConfirmDialog
+        open={couponPendingDelete !== null}
+        onOpenChange={(open) => {
+          if (!open) setCouponPendingDelete(null);
+        }}
+        title="Delete this coupon?"
+        description={
+          couponPendingDelete
+            ? `${couponPendingDelete.code} is deleted permanently and can no longer be redeemed. Existing redemptions are unaffected.`
+            : ""
+        }
+        confirmLabel="Delete coupon"
+        onConfirm={confirmDelete}
+      />
 
       <CouponDialog
         isDialogOpen={isDialogOpen}

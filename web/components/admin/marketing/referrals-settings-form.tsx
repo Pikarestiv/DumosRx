@@ -1,7 +1,6 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -18,6 +17,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { NumericConfigInput } from "@/components/admin/numeric-config-input";
 import { ReferralProgramSettings } from "./types";
 
 interface ReferralsSettingsFormProps {
@@ -65,25 +65,23 @@ export function ReferralsSettingsForm({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label
-              htmlFor="reward"
-              className="font-bold text-slate-800 dark:text-slate-200"
-            >
-              Reward Percentage (%)
-            </Label>
-            <Input
+            <NumericConfigInput
               id="reward"
-              type="number"
-              min={0}
-              max={100}
+              label="Reward Percentage (%)"
+              labelClass="font-bold text-slate-800 dark:text-slate-200"
+              inputClass="border-slate-200 dark:border-slate-800"
               value={settings.reward_percentage}
-              onChange={(e) =>
-                onChange({
-                  ...settings,
-                  reward_percentage: Number(e.target.value),
-                })
+              min={0.01}
+              max={100}
+              step={0.5}
+              isAcceptable={(percentage) =>
+                percentage > 0 && percentage <= 100
               }
-              className="border-slate-200 dark:border-slate-800"
+              rejectionHint="Enter a reward percentage between 0.01 and 100."
+              formatValue={(percentage) => `${percentage}%`}
+              onCommit={(reward_percentage) =>
+                onChange({ ...settings, reward_percentage })
+              }
             />
             <p className="text-xs text-muted-foreground">
               Percent of transaction paid out.

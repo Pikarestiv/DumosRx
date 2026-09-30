@@ -1,89 +1,25 @@
-import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import type { SubscriptionConfig, TierConfig, TierLimits, TierFeatures } from "@/lib/types/admin";
+import { NumericConfigInput } from "@/components/admin/numeric-config-input";
+import type {
+  SubscriptionConfig,
+  TierConfig,
+  TierLimits,
+  TierFeatures,
+} from "@/lib/types/admin";
 
-/** Highest price this editor will accept, in naira. Mirrors the server-side
- * ceiling in SystemConfigController::update - a typo with an extra zero or
- * two is a far likelier explanation than a real ₦100m/month plan. */
 const MAX_PLAN_PRICE = 100_000_000;
 
-/** A price field that never lets a bad value into the saved config.
- *
- * The old implementation was `Number(e.target.value)` straight into form
- * state, so clearing the box published `Number("") === 0` - a live, free,
- * "paid" tier - and typing `-1` published a negative one. Here the raw text
- * is kept as local draft state and only *committed* to the config once it
- * parses as a positive number in range; anything else leaves the last good
- * value in place and explains why. Blurring discards the rejected draft so
- * what is on screen is always what would be saved. */
-function PriceInput({
-  label,
-  labelClass,
-  inputClass,
-  value,
-  disabled,
-  onCommit,
-}: {
-  label: string;
-  labelClass: string;
-  inputClass: string;
-  value: number;
-  disabled: boolean;
-  onCommit: (price: number) => void;
-}) {
-  const [draft, setDraft] = useState<string | null>(null);
-  const [prevValue, setPrevValue] = useState(value);
+const naira = (amount: number) => `₦${amount.toLocaleString()}`;
 
-  // A committed change (or a fresh config load) wins over a stale draft.
-  if (value !== prevValue) {
-    setPrevValue(value);
-    setDraft(null);
-  }
+const isAcceptablePrice = (price: number) =>
+  price > 0 && price <= MAX_PLAN_PRICE;
 
-  const text = draft ?? String(value);
-  const parsed = Number(text);
-  const isRejected =
-    text.trim() === "" ||
-    !Number.isFinite(parsed) ||
-    parsed <= 0 ||
-    parsed > MAX_PLAN_PRICE;
+const isAcceptableLimit = (limit: number) =>
+  Number.isInteger(limit) && (limit === -1 || limit >= 1);
 
-  return (
-    <div className="space-y-2">
-      <Label className={labelClass}>{label}</Label>
-      <Input
-        type="number"
-        min={1}
-        max={MAX_PLAN_PRICE}
-        className={`${inputClass} ${isRejected ? "border-rose-500 focus-visible:ring-rose-500" : ""}`}
-        value={text}
-        onChange={(e) => {
-          const next = e.target.value;
-          setDraft(next);
-          const candidate = Number(next);
-          if (
-            next.trim() !== "" &&
-            Number.isFinite(candidate) &&
-            candidate > 0 &&
-            candidate <= MAX_PLAN_PRICE
-          ) {
-            onCommit(candidate);
-          }
-        }}
-        onBlur={() => setDraft(null)}
-        disabled={disabled}
-      />
-      {isRejected && (
-        <p className="text-xs text-rose-500">
-          Enter a price between ₦1 and ₦{MAX_PLAN_PRICE.toLocaleString()}. Until
-          then ₦{value.toLocaleString()} stays saved.
-        </p>
-      )}
-    </div>
-  );
-}
+const describeLimit = (limit: number) => (limit === -1 ? "unlimited" : String(limit));
 
 interface PlanTierCardProps {
   tierKey: "free" | "starter" | "pro" | "enterprise";
@@ -152,45 +88,66 @@ export function PlanTierCard({
       <div className="grid grid-cols-2 gap-4">
         {tierKey !== "free" && (
           <>
-            <PriceInput
+            <NumericConfigInput
               label="Price (₦) / Month"
               labelClass={labelClass}
               inputClass={inputClass}
               value={tier.price_monthly}
+              min={1}
+              max={MAX_PLAN_PRICE}
               disabled={!tier.active}
+              isAcceptable={isAcceptablePrice}
+              rejectionHint={`Enter a price between ${naira(1)} and ${naira(MAX_PLAN_PRICE)}.`}
+              formatValue={naira}
               onCommit={(price_monthly) => updateTier({ price_monthly })}
             />
-            <PriceInput
+            <NumericConfigInput
               label="Price (₦) / Year"
               labelClass={labelClass}
               inputClass={inputClass}
               value={tier.price_yearly}
+              min={1}
+              max={MAX_PLAN_PRICE}
               disabled={!tier.active}
+              isAcceptable={isAcceptablePrice}
+              rejectionHint={`Enter a price between ${naira(1)} and ${naira(MAX_PLAN_PRICE)}.`}
+              formatValue={naira}
               onCommit={(price_yearly) => updateTier({ price_yearly })}
             />
           </>
         )}
-        <div className={`space-y-2 pt-2 border-t col-span-2 ${dividerClass}`}>
-          <Label className={labelClass}>Max Staff (-1 for ∞)</Label>
-          <Input
-            type="number"
-            className={inputClass}
+        <div className={`pt-2 border-t col-span-2 ${dividerClass}`}>
+          <NumericConfigInput
+            id={`${tierKey}-max-staff`}
+            label="Max Staff (-1 for ∞)"
+            labelClass={labelClass}
+            inputClass={inputClass}
             value={tier.limits.staff}
-            onChange={(e) => updateLimits({ staff: Number(e.target.value) })}
+            min={-1}
+            step={1}
             disabled={!tier.active}
+            isAcceptable={isAcceptableLimit}
+            rejectionHint="Enter a whole number of at least 1, or -1 for unlimited."
+            formatValue={describeLimit}
+            onCommit={(staff) => updateLimits({ staff })}
           />
         </div>
-        <div className={`space-y-2 pt-2 border-t ${dividerClass}`}>
-          <Label className={labelClass}>Max Stores (-1 for ∞)</Label>
-          <Input
-            type="number"
-            className={inputClass}
+        <div className={`pt-2 border-t ${dividerClass}`}>
+          <NumericConfigInput
+            id={`${tierKey}-max-stores`}
+            label="Max Stores (-1 for ∞)"
+            labelClass={labelClass}
+            inputClass={inputClass}
             value={tier.limits.stores}
-            onChange={(e) => updateLimits({ stores: Number(e.target.value) })}
+            min={-1}
+            step={1}
             disabled={!tier.active}
+            isAcceptable={isAcceptableLimit}
+            rejectionHint="Enter a whole number of at least 1, or -1 for unlimited."
+            formatValue={describeLimit}
+            onCommit={(stores) => updateLimits({ stores })}
           />
         </div>
-        {/* Limits continued */}
         <div className={`space-y-2 pt-2 border-t col-span-2 ${dividerClass}`}>
           <Label className={labelClass}>Sync Interval (Mins, 0 = instant)</Label>
           <Input
@@ -203,7 +160,6 @@ export function PlanTierCard({
           />
         </div>
 
-        {/* Feature Toggles */}
         <div className={`col-span-2 space-y-3 pt-3 border-t ${dividerClass}`}>
           <Label className={`${labelClass} block mb-2 font-bold`}>Feature Gates</Label>
 

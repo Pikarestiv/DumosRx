@@ -200,6 +200,59 @@ class AdminStoreService
         ];
     }
 
+    /**
+     * The stores a given platform user personally registered (their owner's
+     * users.registered_by_id points at that user), for the scoped "My Stores"
+     * view platform_admin/agent get in place of the super_admin-only fleet
+     * list. Deliberately leaner than getStores(): no revenue figures, which
+     * these roles are not meant to see.
+     */
+    public function getStoresRegisteredBy(string $registeredById, $page = 1, $search = null)
+    {
+        $query = Store::with(['user.subscriptions'])
+            ->whereHas('user', fn ($q) => $q->where('registered_by_id', $registeredById));
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhereHas('user', function ($uq) use ($search) {
+                        $uq->where('first_name', 'like', "%{$search}%")
+                            ->orWhere('last_name', 'like', "%{$search}%")
+                            ->orWhere('email', 'like', "%{$search}%");
+                    });
+            });
+        }
+
+        $paginator = $query->latest()->paginate(10, ['*'], 'page', $page);
+
+        return [
+            'data' => collect($paginator->items())->map(function ($store) {
+                $subscription = $store->user?->subscriptions->sortByDesc('created_at')->first();
+
+                return [
+                    'id' => $store->id,
+                    'name' => $store->name,
+                    'owner' => $store->user ? $store->user->first_name.' '.$store->user->last_name : 'N/A',
+                    'email' => $store->user ? $store->user->email : 'N/A',
+                    'phone' => $store->user?->phone,
+                    'plan' => $subscription->plan_name ?? 'free',
+                    'plan_status' => $subscription->status ?? 'none',
+                    'plan_ends_at' => $subscription?->end_date?->format('M d, Y'),
+                    'status' => $store->status ?: 'Active',
+                    'date' => $store->created_at->format('M d, Y'),
+                    'is_demo' => (bool) $store->is_demo,
+                    'device_id' => $store->device_id,
+                ];
+            }),
+            'meta' => [
+                'current_page' => $paginator->currentPage(),
+                'last_page' => $paginator->lastPage(),
+                'total' => $paginator->total(),
+                'per_page' => $paginator->perPage(),
+            ],
+        ];
+    }
+
     /** Platform staff eligible to be a store's "contact specialist" /
      * account manager - unpaginated (platform headcount is small), unlike
      * AdminUserService::getGlobalUsers() which lists every account on the

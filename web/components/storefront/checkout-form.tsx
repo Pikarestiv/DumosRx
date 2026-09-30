@@ -42,6 +42,7 @@ export function CheckoutForm({ storeSlug }: CheckoutFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
   const { pricesLoading, pricesStale, onlinePaymentAvailable } = useCartRepricing(storeSlug);
   const [orphanReference, setOrphanReference] = useState<string | null>(null);
   const [failedReference, setFailedReference] = useState<string | null>(null);
@@ -149,6 +150,9 @@ export function CheckoutForm({ storeSlug }: CheckoutFormProps) {
     }
 
     setLoading(true);
+    // Assigning window.location.href starts a navigation but does not stop
+    // this function, so the `finally` below must not re-enable the button.
+    let redirectStarted = false;
 
     try {
       const items = cart.items.map(item => ({
@@ -162,6 +166,8 @@ export function CheckoutForm({ storeSlug }: CheckoutFormProps) {
           `/storefront/${storeSlug}/checkout/initialize`,
           { customer_email: formData.customer_email, items },
         );
+        redirectStarted = true;
+        setRedirecting(true);
         window.location.href = data.payment_url;
         return;
       }
@@ -175,7 +181,7 @@ export function CheckoutForm({ storeSlug }: CheckoutFormProps) {
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Checkout failed");
     } finally {
-      setLoading(false);
+      if (!redirectStarted) setLoading(false);
     }
   };
 
@@ -304,14 +310,16 @@ export function CheckoutForm({ storeSlug }: CheckoutFormProps) {
                 type="submit"
                 className="w-full"
                 size="lg"
-                disabled={loading || pricesLoading}
+                disabled={loading || redirecting || pricesLoading}
               >
-                {(loading || pricesLoading) && (
+                {(loading || redirecting || pricesLoading) && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}
-                {pricesLoading
-                  ? "Confirming prices..."
-                  : `Place Order (₦${cart.getTotal().toLocaleString()})`}
+                {redirecting
+                  ? "Redirecting to Paystack..."
+                  : pricesLoading
+                    ? "Confirming prices..."
+                    : `Place Order (₦${cart.getTotal().toLocaleString()})`}
               </Button>
               {pricesStale && (
                 <p className="text-xs text-amber-600 text-center">

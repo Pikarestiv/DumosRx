@@ -183,6 +183,10 @@ Route::prefix('v1')->group(function () {
             Route::get('/summary', [AdminPlatformController::class, 'summary'])->middleware('role:super_admin');
             Route::get('/stores', [AdminStoreController::class, 'stores'])->middleware('role:super_admin');
             Route::post('/stores', [AdminStoreController::class, 'registerStore']);
+            // Must stay above /stores/{id}: a literal segment registered after
+            // the wildcard would be swallowed by it.
+            Route::get('/stores/registered-by-me', [AdminStoreController::class, 'storesRegisteredByMe'])
+                ->middleware('permission:create_accounts');
             Route::get('/stores/{id}', [AdminStoreController::class, 'storeDetail'])->middleware('role:super_admin');
             Route::post('/stores/{id}/suspend', [AdminStoreController::class, 'suspendStore'])->middleware('role:super_admin');
             Route::post('/stores/{id}/unsuspend', [AdminStoreController::class, 'unsuspendStore'])->middleware('role:super_admin');

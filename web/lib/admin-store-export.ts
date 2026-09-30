@@ -1,10 +1,14 @@
 import { escapeCsvCell } from "@/lib/utils";
+import { downloadCsv } from "@/lib/admin-metrics-export";
 import type { AdminStoreSummary } from "@/lib/types/admin";
 
 const HEADER = ["ID", "Name", "Device ID", "Owner", "Email", "Plan", "Status", "Date"];
 
-export function downloadStoreFleetCsv(storeList: AdminStoreSummary[]) {
-  if (storeList.length === 0) return;
+/** Exports the page of stores currently in the table (the API paginates).
+ * Returns false when that page is empty so the caller can say so instead of
+ * looking like a successful, silent export. */
+export function downloadStoreFleetCsv(storeList: AdminStoreSummary[]): boolean {
+  if (storeList.length === 0) return false;
 
   const csv = [
     HEADER,
@@ -22,13 +26,6 @@ export function downloadStoreFleetCsv(storeList: AdminStoreSummary[]) {
     .map((row) => row.map((cell) => escapeCsvCell(cell)).join(","))
     .join("\n");
 
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = `stores-export-${new Date().toISOString().split("T")[0]}.csv`;
-  document.body.appendChild(anchor);
-  anchor.click();
-  anchor.remove();
-  URL.revokeObjectURL(url);
+  downloadCsv(csv, `stores-export-${new Date().toISOString().split("T")[0]}.csv`);
+  return true;
 }

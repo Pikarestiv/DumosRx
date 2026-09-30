@@ -266,8 +266,10 @@ apiClient.interceptors.response.use(
         return apiClient(originalRequest);
       } catch (_refreshError) {
         const { useAdminAuthStore } = await import("@/lib/store/use-admin-auth-store");
+        const { useAdminStore } = await import("@/lib/store/use-admin-store");
         useAdminAuthStore.getState().setToken(null);
         useAdminAuthStore.getState().setUser(null);
+        useAdminStore.getState().reset();
         if (window.location.pathname.replace(/\/$/, "") !== "/admin/login") {
           const redirectParam = `?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`;
           window.location.href = `/admin/login${redirectParam}`;

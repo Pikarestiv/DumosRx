@@ -8,8 +8,13 @@ import {
   DEFAULT_SOCIAL_LINKS,
 } from "@/lib/constants/subscription-config-defaults";
 
-const { mockMutateAsync } = vi.hoisted(() => ({
+const { mockMutateAsync, mockToastError } = vi.hoisted(() => ({
   mockMutateAsync: vi.fn(async () => undefined),
+  mockToastError: vi.fn(),
+}));
+
+vi.mock("sonner", () => ({
+  toast: { success: vi.fn(), error: mockToastError },
 }));
 
 vi.mock("@/lib/api/hooks", async () => {
@@ -60,10 +65,29 @@ describe("SubscriptionConfigTab - storefront fee", () => {
     await user.clear(feeInput);
     await user.type(feeInput, "3.5");
     await user.click(screen.getByRole("button", { name: /save storefront commission/i }));
+    expect(screen.getByText(/2% to 3.5%/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /update commission/i }));
 
     await waitFor(() => expect(mockMutateAsync).toHaveBeenCalledWith({
       key: "storefront_platform_fee_percentage",
       value: 3.5,
     }));
+  });
+
+  it("surfaces the server's message when the commission save is rejected", async () => {
+    mockMutateAsync.mockRejectedValueOnce(
+      new Error("The value may not be greater than 50."),
+    );
+    render(<SubscriptionConfigTab />, { wrapper });
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: /save storefront commission/i }));
+    await user.click(screen.getByRole("button", { name: /update commission/i }));
+
+    await waitFor(() =>
+      expect(mockToastError).toHaveBeenCalledWith(
+        "The value may not be greater than 50.",
+      ),
+    );
   });
 });

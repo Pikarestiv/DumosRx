@@ -100,6 +100,125 @@ together). The current design:
   based, has no cookie dependency, and silently refreshes only after 7 days
   via `refreshTokenSilently`.
 
+## Storefront checkout: redirect lock and named reprice removals (A-105/A-106)
+
+- **Don't clear `loading` on the Paystack branch.** `window.location.href = ...`
+  starts a navigation but keeps running JavaScript, so the old
+  `finally { setLoading(false) }` re-enabled "Place Order" for the whole
+  interval before the browser unloaded — a second tap minted a second,
+  orphaned payment intent (A-105). `handleSubmit` now tracks a local
+  `redirectStarted` flag (the `finally` skips the reset) plus a `redirecting`
+  state the button honours and labels ("Redirecting to Paystack...").
+- **`useCartRepricing` names what it removed.** It splits the reprice result
+  into `removed` (absent from the catalog response) and `repriced`, and names
+  the items in each toast instead of the old blanket "Some prices or items in
+  your cart changed" (A-106). The structural half of A-106 is **not** fixed:
+  `GET /storefront/{slug}` is still capped at `MAX_STOREFRONT_PRODUCTS = 300`
+  while `checkout()`/`priceCart()` are uncapped, so a catalogue past 300
+  products can still drop a legitimately purchasable item — the customer now
+  at least sees which one. The real fix is a cart-scoped pricing endpoint
+  (`POST /storefront/{slug}/price-cart` taking item ids); log it there if it
+  gets built.
+
+## Download and site URLs come from `lib/constants.ts` (A-104)
+
+`DOWNLOAD_URL` and `WEB_APP_URL` are env-overridable
+(`NEXT_PUBLIC_DOWNLOAD_URL`, `NEXT_PUBLIC_WEB_APP_URL`), so nothing under
+`app/`, `components/` or `hooks/` may spell those domains out — a hardcoded
+copy silently makes the override a no-op (a staging build pointing testers at
+production binaries). Both Downloads pages now share
+`FALLBACK_RELEASE_LINKS` from `lib/api/release-hooks.ts` instead of their own
+literal defaults, and `app/layout.tsx`'s OpenGraph/Twitter metadata is built
+from `WEB_APP_URL` like `app/sitemap.ts` already was.
+`__tests__/no-hardcoded-domains.test.ts` scans those three directories and
+fails on any new literal.
+
+## Telemetry redaction and session-end cache hygiene (A-100/A-107)
+
+`lib/api/logger.ts`'s `sanitizePayload` masks (never drops) sensitive values,
+so a report keeps its shape and stays diagnosable. It matches two ways:
+`SENSITIVE_KEY_FRAGMENTS` as substrings (`password`, `token`, `pin`,
+`credentials`, `customer_*`) and `SENSITIVE_KEY_NAMES` as whole keys
+(`email`, `phone`, `address`, …) so `store_name`/`product_name` survive while
+a bare `email` does not. This matters because the response interceptor
+reports **every** failed request's body to `/logs/client-error`, which is
+unauthenticated on non-`/admin` paths, and the storefront checkout body is
+the one place a member of the public types their name, phone, email and
+delivery address (A-107). Adding a PII field to a public form means adding
+its key here.
+
+**Anywhere `sessionVerified` goes false, `useAdminStore.getState().reset()`
+must run** — it is what removes the persisted `admin-storage` platform
+summary (revenue, recent store names, owner emails) from `localStorage`.
+Call sites: `logout()`, `initSession()`'s catch, and `base-client.ts`'s 401
+refresh-failure branch. Previously only Sign Out cleared it, so a lapsed
+session left the summary readable on a shared machine indefinitely (A-100).
+
+## Numeric platform-config fields: draft/commit, never raw `Number()` (A-97/A-98)
+
+`components/admin/numeric-config-input.tsx` (`NumericConfigInput`) is the only
+way a number should reach platform config state. `onChange={(e) => Number(e.target.value)}`
+is banned on these fields: `Number("") === 0`, so clearing a box to retype it
+used to commit `0` instantly — a zero-day trial, a paid tier admitting no
+staff, a 0% referral reward, a 0% platform commission (A-97). The component
+holds the raw text as a local draft, commits only a value its `isAcceptable`
+predicate accepts, shows the rejection inline, and **discards the draft on
+blur** so what's on screen is always what would be saved (so a test that
+clears a field and then types must clear again after touching another field).
+
+Current call sites: `plan-tier-card.tsx` (prices, staff/store limits),
+`subscription-config-tab.tsx` (`trial_days`), `storefront-commission-card.tsx`,
+`marketing/referrals-settings-form.tsx`. Server-side floors mirror them in
+`laravel-server`'s `SystemConfigController::validatePlanPricing()` /
+`rejectZeroTierLimits()` — a staff/store limit of `0` is rejected outright
+(`-1` means unlimited), as is `trial_days` outside 1–365.
+
+**Storefront Commission has its own card** (`storefront-commission-card.tsx`,
+split out of `subscription-config-tab.tsx`) because it needed the same
+`try`/`catch` + `toast.error` shape as its siblings and a `ConfirmDialog`
+naming the before/after rate: its save previously had no error handling at
+all, so a 422 was indistinguishable from success (A-98). Every save handler
+on this tab surfaces `error.message`; don't pass a bare `async` function to
+`onClick`.
+
+## `platform_admin`/`agent`: "My Stores", the scoped fleet view (A-113)
+
+These two roles register stores (`create_accounts`) but must not see the
+platform-wide fleet list — `GET /admin/stores` is `role:super_admin` because
+its rows carry every store's revenue. They now get `/admin/stores/mine`,
+backed by `GET /admin/stores/registered-by-me`
+(`AdminStoreController::storesRegisteredByMe` → `AdminStoreService::getStoresRegisteredBy`),
+which returns only stores whose owner carries the caller's id in
+`users.registered_by_id` — the column `registerStore()` already sets — and
+**no revenue fields at all**. The route is gated on
+`permission:create_accounts`, the same permission that lets them register a
+store, not on a role string; it must stay registered *above* `/stores/{id}`
+or the wildcard swallows it. Coverage:
+`laravel-server/tests/Feature/Admin/AdminRegisteredStoresScopeTest.php` and
+`web/__tests__/admin-my-stores.test.tsx`.
+
+Still missing for these roles (deliberately deferred, was the other half of
+A-113): a UI for `grant-trial`/`activate-plan`. Note those routes are
+`permission:grant_trials`, which `RolesAndPermissionsSeeder` grants
+`platform_admin` but **not** `agent` — so that surface belongs to
+`platform_admin` only, and the sidebar item would need `roles: ["platform_admin"]`.
+
+## Admin nav: one role filter, two renderers (A-96)
+
+`components/admin/sidebar-items.ts` owns both the `sidebarItems` list and
+`visibleSidebarItems(role)`, the single role filter. An item with no `roles`
+field is **super_admin-only** — that's the default, so only list `roles`
+explicitly for what `platform_admin`/`agent` should see. Everything hidden
+here is still enforced per-endpoint server-side; the filter exists so those
+roles don't get dead links that only 403.
+
+Two components render that list and **both must go through
+`visibleSidebarItems`**: `admin-sidebar.tsx` (desktop, `hidden lg:flex`) and
+`admin-header.tsx`'s mobile `Sheet`. The sheet is the *only* navigation below
+1024px, and it previously mapped `sidebarItems` raw — so an agent on a tablet
+saw the whole super_admin nav (A-96). `__tests__/admin-nav-role-visibility.test.tsx`
+asserts both renderers agree; don't reintroduce a second copy of the filter.
+
 ## Admin panel: store owners, staff, and the Store Details page
 
 **The Platform Users list (`app/admin/users/page.tsx`) no longer shows staff

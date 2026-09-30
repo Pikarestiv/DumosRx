@@ -54,6 +54,33 @@ class AdminStoreController extends AdminBaseController
         });
     }
 
+    #[OA\Get(
+        path: '/admin/stores/registered-by-me',
+        summary: "List only the stores the caller personally registered",
+        description: "Scoped alternative to GET /admin/stores (super_admin-only) for platform_admin/agent: the stores whose owner carries the caller's id in users.registered_by_id. Carries no revenue figures.",
+        tags: ['Admin'],
+        security: [['sanctum' => []]],
+        parameters: [
+            new OA\Parameter(name: 'page', in: 'query', schema: new OA\Schema(type: 'integer', default: 1)),
+            new OA\Parameter(name: 'search', in: 'query', schema: new OA\Schema(type: 'string')),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Stores registered by the caller', content: new OA\JsonContent(type: 'object')),
+            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Caller lacks create_accounts permission'),
+            new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
+        ],
+    )]
+    public function storesRegisteredByMe(Request $request)
+    {
+        return $this->withErrorResponse('My Stores', 'Failed to fetch your registered stores', function () use ($request) {
+            return response()->json($this->adminStoreService->getStoresRegisteredBy(
+                $request->user()->id,
+                $request->query('page', 1),
+                $request->query('search'),
+            ));
+        });
+    }
+
     #[OA\Post(
         path: '/admin/stores',
         summary: 'Register a new store + owner on behalf of a customer',

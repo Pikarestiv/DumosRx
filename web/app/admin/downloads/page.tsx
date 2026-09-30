@@ -1,7 +1,9 @@
 "use client";
 
-import { useLatestRelease } from "@/lib/api/release-hooks";
-import { APP_VERSION } from "@/lib/constants";
+import {
+  useLatestRelease,
+  FALLBACK_RELEASE_LINKS,
+} from "@/lib/api/release-hooks";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Monitor, Globe, Smartphone, Download, ShieldCheck, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,19 +12,7 @@ import { cn } from "@/lib/utils";
 export default function AdminDownloadsPage() {
   const { data: links, isLoading } = useLatestRelease();
 
-  const defaultLinks = {
-    windows: `https://downloads.dumosrx.com`,
-    macos: `https://downloads.dumosrx.com`,
-    linux: `https://downloads.dumosrx.com`,
-    android: `https://downloads.dumosrx.com`,
-    version: APP_VERSION,
-    winSize: "---",
-    macSize: "---",
-    linuxSize: "---",
-    androidSize: "---",
-  };
-
-  const currentLinks = links || defaultLinks;
+  const currentLinks = links || FALLBACK_RELEASE_LINKS;
   const linuxAssetExists = !!currentLinks.linux;
   const androidAssetExists = !!currentLinks.android;
 

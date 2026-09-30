@@ -290,13 +290,47 @@ migration here **and** the corresponding update on the `client/` side
   `normalizePushPayload()` holds the per-table strip lists:
   `USER_SYNC_FORBIDDEN_FIELDS`/`sanitizeUserSyncPayload()` for `users`,
   `STORE_SYNC_FORBIDDEN_FIELDS` for `stores` (every `paystack_*` column —
-  settlement destination and the fee-dirty flag), and `stock_batches.quantity`
+  settlement destination and the fee-dirty flag — plus the account-state
+  columns `status`/`suspension_reason`/`is_demo`, which only
+  `AdminStoreService` may write, and the `*_seeded_at` server-seeding
+  watermarks), and `stock_batches.quantity`
   inline in `push()`. `authorizeChangeTarget()` admits **any** caller whose
   allowed stores include the row — staff, not just the owner — so a money-
   routing column riding the generic push is a settlement-redirect hole, not a
   theoretical one. Anything only a dedicated endpoint or a console command may
   set belongs in one of those lists in the same change that adds it.
   Coverage: `tests/Feature/SyncStoresPaystackFieldGuardTest.php`.
+- **Write authorization is checked on all three operations, and INSERT is the
+  one that needs its own resolver.** `push()` gates UPDATE and DELETE with
+  `authorizeChangeTarget()` (which inspects the *stored* row) and INSERT with
+  `authorizeInsertTarget()` (which inspects the *incoming payload*, because
+  there is no stored row yet). Both funnel through the same
+  `resolveChangeStoreId()` table map, so read scoping, UPDATE/DELETE scoping
+  and INSERT scoping cannot drift. INSERT needed the separate resolver because
+  six child tables — `stock_batches`→`product_id`, `sale_items`→`sale_id`,
+  `sale_item_batches`→`sale_item_id`, `return_items`→`return_id`,
+  `prescription_items`→`prescription_id`,
+  `purchase_order_items`→`purchase_order_id` — carry no `store_id` of their
+  own, so `normalizePushPayload()`'s `$tablesWithStoreId` check can't see
+  them; for as long as the INSERT branch had no check at all, a product id
+  harvested off the unauthenticated `GET /storefront/{slug}` was enough to
+  plant phantom stock or fabricated sale line items in a stranger's tenant
+  (A-77). **A new child table whose tenant scope comes from a parent FK must
+  be added to `resolveChangeStoreId()` in the same change**, or it lands
+  unchecked on every operation.
+  - Both resolvers fail **open** on a parent that resolves to *no* store
+    (a child pushed before its parent in the same batch, or a legacy row
+    predating the `store_id` backfill) and **closed** on a parent that
+    resolves to a store outside the caller's scope. Don't "tidy" the
+    fail-open away — `backfillStoreIdOnLegacyRows` is still live for
+    accounts with local DBs older than its ship date.
+  - `normalizePushPayload()`'s foreign-`store_id` rejection is deliberately
+    **not** gated on `$currentStoreId`. It used to be, which meant a caller
+    who owns no store yet (`resolvePushStoreId()` → null) had an explicit
+    foreign `store_id` accepted verbatim.
+  Coverage: `tests/Feature/TenantIsolationTest.php` (child-table INSERT under
+  a foreign parent, plus the store-less caller) and
+  `tests/Feature/SyncPushOwnershipTest.php` (UPDATE/DELETE).
 - **A MySQL `ENUM` column for a client-controlled string field is a
   recurring footgun, not a one-off bug:** `stock_movements.movement_type`
   was created as an `ENUM` back in 2024 that never actually matched every
@@ -362,7 +396,8 @@ extending or relying on any of this):
 - **What dirties a storefront.** `Store::boot()`'s `saved()` hook fires on
   `Store::STOREFRONT_PUBLISHED_FIELDS` (`online_store_enabled`, `store_slug`,
   `name`, `logo_url`, `phone`, `email`, `address`, `location` — i.e. exactly
-  what the public page renders) and on a `status` → `suspended` transition.
+  what the public page renders) and on a `status` → suspended transition
+  (tested via `Store::isSuspended()` — see "stores.status casing" below).
   `Product::booted()` mirrors it for the other half of what a customer sees:
   `created` when `show_online`, `updated` on
   `name`/`selling_price`/`show_online`/`is_active`, and `deleted` when
@@ -406,6 +441,77 @@ Note also that the storefront's online-payment flow (`initializeCheckout`/
 per-store Paystack subaccounts — see the dedicated section below for the
 onboarding flow, fee semantics, propagation cadence, and the refund decision.
 Full design: `docs/superpowers/specs/2026-09-26-storefront-paystack-subaccounts-design.md`.
+
+## Referral credits on a subscription checkout are reserved, not deferred
+
+`SubscriptionController::initiatePayment()` **deducts** the credits a paid
+checkout applies at initiation and stamps `metadata.credits_reserved`, rather
+than only recording `metadata.credits_applied` and deducting at activation.
+The rules that follow from that, all of which matter:
+
+- **Never let bookkeeping block an activation.**
+  `activateSubscriptionFromTransaction()` runs inside a `DB::transaction()`
+  that performs the `status` → `'success'` transition, so anything that
+  throws in there rolls back the activation of an *already-paid*
+  transaction — and the provider's webhook then retries the same failure
+  forever, stranding a paying customer with no subscription and no code path
+  that can ever give them one (A-79). `settleAppliedCredits()` therefore
+  skips reserved credits entirely and, for a legacy transaction created
+  before reservation existed (`credits_applied` with no `credits_reserved`),
+  clamps to the balance actually available and logs the shortfall instead of
+  throwing. Anything new added to that transaction must follow the same rule.
+- **Every path out of a pending transaction releases the reservation.**
+  `failTransaction()` is the single writer of `status = 'failed'`, shared by
+  `verifyPayment()` and `PaymentController::processSuccessfulPayment()`'s
+  amount/currency-mismatch branch. It marks failed and refunds under the same
+  row lock, and stamps `credits_released` so the release is idempotent across
+  whichever of the two gets there first. A new failure path must call it
+  rather than writing `status` itself. `initiatePayment()`'s own catch block
+  releases the reservation too, for a provider that fails at initialization.
+- **`User::addCredits()`/`deductCredits()` take a row lock.** Both are
+  read-modify-write on `users.referral_credits`; without
+  `lockCreditBalance()` two concurrent grants/spends both read the same
+  balance and the second `save()` silently discards the first.
+- Releases are recorded with type `'earned'`, not a new type:
+  `referral_credit_transactions.type` is a MySQL `ENUM('earned', 'spent',
+  'admin_adjustment')`, and adding a value means a migration (see the ENUM
+  footgun note in the sync section).
+- Coverage: `tests/Feature/SubscriptionCreditReservationTest.php`, including
+  the two-concurrent-checkouts race that produced the original stranding.
+
+## `stores.status` casing: never compare it with `===`
+
+`stores.status` holds `'Active'`/`'Suspended'` — capitalised. That is the
+canonical *stored* form and must stay that way, because two other packages
+compare it exactly and are deployed separately from this API:
+`client/lib/licensing/licensing-manager.ts` gates its suspension lock screen
+on `profile.status === "Suspended"` (and `client/lib/api/base-client.ts`
+writes that literal locally on an `ACCOUNT_SUSPENDED` 403), and `web/`'s
+admin store table/detail/dashboard badges branch on `=== "Suspended"`.
+Lower-casing the column would silently un-gate the desktop app's lock screen
+on every already-installed client.
+
+Server-side, however, nothing may compare the raw value: `AdminStoreService`
+wrote `'Suspended'` while four read sites compared `=== 'suspended'`, so
+suspension was a complete no-op on the storefront and on the
+`storefront_dirty_at` rebuild trigger for as long as both existed (A-74).
+The rule that replaces it:
+
+- **Reads go through `Store::isSuspended()`** (PHP, `strcasecmp`) or
+  **`Store::scopeNotSuspended()`** (query builder). Never `$store->status ===
+  '…'` and never a bare `where('status', …)` on a suspension check.
+- **Writes go through `Store::STATUS_SUSPENDED`/`STATUS_ACTIVE`**, not
+  string literals.
+- The scope uses `LOWER(...)` deliberately: MySQL's default collation is
+  case-insensitive but SQLite's — which the test suite runs on — is not, so a
+  bare `where('status', '!=', 'suspended')` gives *different answers in test
+  and in production*. That divergence is exactly why the original bug stayed
+  invisible (the slug list looked correct while the live endpoints did not).
+  Any new status comparison must be written so both engines agree.
+- `tests/Feature/StoreSuspensionEnforcementTest.php` pins both halves: the
+  stored value itself (`'Suspended'`, so the casing contract with `client/`
+  and `web/` can't drift) and casing-agnostic enforcement across the
+  storefront, the slug list, `storefront_dirty_at` and `CheckAccountStatus`.
 
 ## Storefront online payment: Paystack subaccounts
 

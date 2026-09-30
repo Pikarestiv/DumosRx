@@ -140,8 +140,7 @@ class AdminStoreService
         }
 
         if ($status && $status !== 'all') {
-            // Capitalize status if needed or check directly (e.g. Active, Suspended)
-            $query->where('status', ucwords(strtolower($status)));
+            $query->whereRaw('LOWER(COALESCE(status, ?)) = ?', ['', strtolower($status)]);
         }
 
         if ($plan && $plan !== 'all') {
@@ -274,7 +273,7 @@ class AdminStoreService
     {
         return DB::transaction(function () use ($id, $suspend, $reason) {
             $store = Store::findOrFail($id);
-            $store->status = $suspend ? 'Suspended' : 'Active';
+            $store->status = $suspend ? Store::STATUS_SUSPENDED : Store::STATUS_ACTIVE;
             $store->suspension_reason = $suspend
                 ? ($reason ?: 'Your store account has been suspended for violating our terms of usage. Please contact administrative support.')
                 : null;

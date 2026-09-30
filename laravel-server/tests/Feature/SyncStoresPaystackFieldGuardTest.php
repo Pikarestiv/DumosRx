@@ -124,6 +124,56 @@ class SyncStoresPaystackFieldGuardTest extends TestCase
         $this->assertSame('ACCT_owner_real', $this->store->paystack_subaccount_code);
     }
 
+    /**
+     * A-75: `status`/`suspension_reason` are server-authoritative (only
+     * AdminStoreService may write them), but they sit in $fillable and push()
+     * applies a stores payload with forceFill(), so without the strip a
+     * suspended owner could lift their own suspension over sync.
+     */
+    public function test_a_push_cannot_lift_its_own_suspension()
+    {
+        \Illuminate\Support\Facades\DB::table('stores')
+            ->where('id', $this->store->id)
+            ->update(['status' => 'Suspended', 'suspension_reason' => 'Terms violation']);
+
+        $this->pushStoreChange($this->owner, [
+            'status' => 'Active',
+            'suspension_reason' => null,
+        ])->assertStatus(200);
+
+        $this->store->refresh();
+        $this->assertTrue($this->store->isSuspended());
+        $this->assertSame('Terms violation', $this->store->suspension_reason);
+    }
+
+    public function test_a_push_cannot_flip_the_demo_flag()
+    {
+        $this->pushStoreChange($this->owner, [
+            'is_demo' => true,
+        ])->assertStatus(200);
+
+        $this->assertFalse((bool) $this->store->fresh()->is_demo);
+    }
+
+    public function test_a_push_cannot_rewrite_the_server_side_seeding_watermarks()
+    {
+        \Illuminate\Support\Facades\DB::table('stores')
+            ->where('id', $this->store->id)
+            ->update([
+                'loyalty_defaults_seeded_at' => '2026-01-01 00:00:00',
+                'permission_groups_seeded_at' => '2026-01-01 00:00:00',
+            ]);
+
+        $this->pushStoreChange($this->owner, [
+            'loyalty_defaults_seeded_at' => null,
+            'permission_groups_seeded_at' => null,
+        ])->assertStatus(200);
+
+        $this->store->refresh();
+        $this->assertNotNull($this->store->loyalty_defaults_seeded_at);
+        $this->assertNotNull($this->store->permission_groups_seeded_at);
+    }
+
     public function test_a_push_cannot_clear_the_fee_dirty_flag()
     {
         \Illuminate\Support\Facades\DB::table('stores')

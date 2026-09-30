@@ -257,4 +257,170 @@ class TenantIsolationTest extends TestCase
             'store_id' => null,
         ]);
     }
+
+    // ---- Sync push: INSERT into a child table scoped through a parent FK ----
+
+    /**
+     * A-77: push()'s INSERT branch never called authorizeChangeTarget(), and
+     * normalizePushPayload()'s store_id check only covers tables that carry
+     * their own store_id column. The six child tables that derive their scope
+     * through a parent FK were therefore unchecked on INSERT entirely, so a
+     * product id harvested off the unauthenticated GET /storefront/{slug}
+     * could be used to plant phantom stock in a stranger's tenant.
+     */
+    private function pushAs(User $as, array $change): \Illuminate\Testing\TestResponse
+    {
+        \App\Models\SystemConfig::setVal('subscription_plans', [
+            'tiers' => [
+                'free' => [
+                    'features' => ['cloud_sync' => true],
+                    'limits' => ['stores' => -1],
+                ],
+            ],
+        ]);
+
+        return $this->actingAs($as)->postJson('/api/v1/app/sync/push', [
+            'setup' => true,
+            'changes' => [$change],
+        ]);
+    }
+
+    private function victimProductId(): string
+    {
+        \Illuminate\Support\Facades\DB::table('products')->insert([
+            'id' => 'victim-product-a',
+            'store_id' => $this->storeA->id,
+            'user_id' => $this->ownerA->id,
+            'name' => 'Victim Painkillers',
+            'selling_price' => 500,
+            '_version' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return 'victim-product-a';
+    }
+
+    public function test_sync_push_insert_of_a_stock_batch_under_another_tenants_product_is_rejected()
+    {
+        $productId = $this->victimProductId();
+
+        $response = $this->pushAs($this->ownerB, [
+            'table_name' => 'stock_batches',
+            'operation' => 'INSERT',
+            'record_id' => 'planted-batch-1',
+            'payload' => [
+                'id' => 'planted-batch-1',
+                'product_id' => $productId,
+                'batch_number' => 'PLANTED',
+                'quantity' => 9999,
+                'cost_price' => 1,
+                '_version' => 1,
+            ],
+        ]);
+
+        $response->assertStatus(200);
+        $response->assertJsonCount(1, 'failed');
+        $response->assertJsonPath('failed.0.reason', 'forbidden');
+        $this->assertDatabaseMissing('stock_batches', ['id' => 'planted-batch-1']);
+    }
+
+    public function test_sync_push_insert_of_a_sale_item_under_another_tenants_sale_is_rejected()
+    {
+        \Illuminate\Support\Facades\DB::table('sales')->insert([
+            'id' => 'victim-sale-a',
+            'store_id' => $this->storeA->id,
+            'cashier_id' => $this->ownerA->id,
+            'transaction_number' => 'TXN-VICTIM-A',
+            'payment_method' => 'cash',
+            'total_amount' => 500,
+            'amount_paid' => 500,
+            '_version' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $response = $this->pushAs($this->ownerB, [
+            'table_name' => 'sale_items',
+            'operation' => 'INSERT',
+            'record_id' => 'planted-sale-item-1',
+            'payload' => [
+                'id' => 'planted-sale-item-1',
+                'sale_id' => 'victim-sale-a',
+                'product_id' => $this->victimProductId(),
+                'quantity' => 1,
+                'unit_price' => 1,
+                '_version' => 1,
+            ],
+        ]);
+
+        $response->assertStatus(200);
+        $response->assertJsonPath('failed.0.reason', 'forbidden');
+        $this->assertDatabaseMissing('sale_items', ['id' => 'planted-sale-item-1']);
+    }
+
+    public function test_sync_push_insert_of_a_stock_batch_under_the_callers_own_product_still_succeeds()
+    {
+        $storeB = Store::where('user_id', $this->ownerB->id)->firstOrFail();
+
+        \Illuminate\Support\Facades\DB::table('products')->insert([
+            'id' => 'own-product-b',
+            'store_id' => $storeB->id,
+            'user_id' => $this->ownerB->id,
+            'name' => 'Own Painkillers',
+            'selling_price' => 500,
+            '_version' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $response = $this->pushAs($this->ownerB, [
+            'table_name' => 'stock_batches',
+            'operation' => 'INSERT',
+            'record_id' => 'own-batch-1',
+            'payload' => [
+                'id' => 'own-batch-1',
+                'product_id' => 'own-product-b',
+                'batch_number' => 'OWN',
+                'quantity' => 10,
+                'cost_price' => 1,
+                '_version' => 1,
+            ],
+        ]);
+
+        $response->assertStatus(200);
+        $response->assertJsonCount(0, 'failed');
+        $this->assertDatabaseHas('stock_batches', ['id' => 'own-batch-1']);
+    }
+
+    /**
+     * A-77, second gap: normalizePushPayload()'s foreign-store_id rejection
+     * was gated on `&& $currentStoreId`, so a caller who owns no store at all
+     * had an explicit foreign store_id accepted verbatim.
+     */
+    public function test_sync_push_insert_with_a_foreign_store_id_is_rejected_for_a_store_less_caller()
+    {
+        $storeless = User::create([
+            'first_name' => 'Storeless', 'last_name' => 'Caller',
+            'email' => 'storeless@dumosrx.com', 'password' => bcrypt('password'),
+            'role' => 'store_owner',
+        ]);
+
+        $response = $this->pushAs($storeless, [
+            'table_name' => 'products',
+            'operation' => 'INSERT',
+            'record_id' => 'planted-product-1',
+            'payload' => [
+                'id' => 'planted-product-1',
+                'store_id' => $this->storeA->id,
+                'name' => 'Planted Product',
+                'selling_price' => 1,
+                '_version' => 1,
+            ],
+        ]);
+
+        $response->assertStatus(200);
+        $response->assertJsonCount(1, 'failed');
+        $this->assertDatabaseMissing('products', ['id' => 'planted-product-1']);
+    }
 }

@@ -192,7 +192,7 @@ class Store extends Model
         // three. A raw DB write (not another ->save()) avoids re-firing
         // these same boot events.
         static::saved(function ($model) {
-            $becameSuspended = $model->wasChanged('status') && $model->status === 'suspended';
+            $becameSuspended = $model->wasChanged('status') && $model->isSuspended();
 
             if ($model->wasChanged(self::STOREFRONT_PUBLISHED_FIELDS) || $becameSuspended) {
                 DB::table('stores')->where('id', $model->id)->update([
@@ -200,6 +200,32 @@ class Store extends Model
                 ]);
             }
         });
+    }
+
+    public const STATUS_SUSPENDED = 'Suspended';
+
+    public const STATUS_ACTIVE = 'Active';
+
+    /**
+     * The single definition of "this store is suspended". Deliberately
+     * casing-insensitive; see laravel-server/AGENTS.md ("stores.status
+     * casing") for why the stored value is capitalised but never compared
+     * with ===.
+     */
+    public function isSuspended(): bool
+    {
+        return strcasecmp((string) $this->status, self::STATUS_SUSPENDED) === 0;
+    }
+
+    /**
+     * The query-builder counterpart of isSuspended(). LOWER() rather than a
+     * plain `!=` because MySQL's default collation is case-insensitive while
+     * SQLite's (the test suite's engine) is not, so a bare comparison gives
+     * two different answers in test and in production.
+     */
+    public function scopeNotSuspended($query)
+    {
+        return $query->whereRaw('LOWER(COALESCE(status, ?)) != ?', ['', strtolower(self::STATUS_SUSPENDED)]);
     }
 
     public function user()

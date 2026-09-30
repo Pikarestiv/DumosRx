@@ -167,17 +167,7 @@ class DashboardService
             // Inventory
             $storeInventory = DB::table('products')->where('store_id', $storeId)->whereNull('deleted_at');
             $totalInventory = $storeInventory->count();
-            $lowStock = DB::table('products')
-                ->where('products.store_id', $storeId)
-                ->whereNull('products.deleted_at')
-                ->leftJoin('stock_batches', 'products.id', '=', 'stock_batches.product_id')
-                ->select('products.id', 'products.reorder_level', DB::raw('SUM(COALESCE(stock_batches.quantity, 0)) as total_stock'))
-                ->groupBy('products.id', 'products.reorder_level')
-                ->get()
-                ->filter(function ($product) {
-                    return $product->total_stock <= $product->reorder_level;
-                })
-                ->count();
+            $lowStock = $this->lowStockCount($storeId);
 
             // Expiring Items
             $warningDays = $store->expiry_warning_days ?? 90;
@@ -396,15 +386,7 @@ class DashboardService
 
             $storeTotalSales = (float) Sale::where('store_id', $storeId)->sum('total_amount');
 
-            $lowStock = DB::table('products')
-                ->where('products.store_id', $storeId)
-                ->whereNull('products.deleted_at')
-                ->leftJoin('stock_batches', 'products.id', '=', 'stock_batches.product_id')
-                ->select('products.id', 'products.reorder_level', DB::raw('SUM(COALESCE(stock_batches.quantity, 0)) as total_stock'))
-                ->groupBy('products.id', 'products.reorder_level')
-                ->get()
-                ->filter(fn ($product) => $product->total_stock <= $product->reorder_level)
-                ->count();
+            $lowStock = $this->lowStockCount($storeId);
 
             $warningDays = $store->expiry_warning_days ?? 90;
             // Joined through products.store_id rather than filtering
@@ -486,15 +468,7 @@ class DashboardService
                 ->whereBetween('created_at', [$storeDayStart, $storeDayEnd])
                 ->sum('total_amount');
 
-            $lowStock = DB::table('products')
-                ->where('products.store_id', $storeId)
-                ->whereNull('products.deleted_at')
-                ->leftJoin('stock_batches', 'products.id', '=', 'stock_batches.product_id')
-                ->select('products.id', 'products.reorder_level', DB::raw('SUM(COALESCE(stock_batches.quantity, 0)) as total_stock'))
-                ->groupBy('products.id', 'products.reorder_level')
-                ->get()
-                ->filter(fn ($product) => $product->total_stock <= $product->reorder_level)
-                ->count();
+            $lowStock = $this->lowStockCount($storeId);
 
             $warningDays = $store->expiry_warning_days ?? 90;
             // Joined through products.store_id rather than filtering
@@ -530,6 +504,25 @@ class DashboardService
             ],
             'stores' => $stores,
         ];
+    }
+
+    /**
+     * Products at or below a real reorder level, matching the client's own
+     * getStockBatchStats() query: reorder_level defaults to 0, so without
+     * the > 0 condition every zero-stock product counts as low stock.
+     */
+    private function lowStockCount(string $storeId): int
+    {
+        return DB::table('products')
+            ->where('products.store_id', $storeId)
+            ->whereNull('products.deleted_at')
+            ->where('products.reorder_level', '>', 0)
+            ->leftJoin('stock_batches', 'products.id', '=', 'stock_batches.product_id')
+            ->select('products.id', 'products.reorder_level', DB::raw('SUM(COALESCE(stock_batches.quantity, 0)) as total_stock'))
+            ->groupBy('products.id', 'products.reorder_level')
+            ->get()
+            ->filter(fn ($product) => $product->total_stock <= $product->reorder_level)
+            ->count();
     }
 
     /**

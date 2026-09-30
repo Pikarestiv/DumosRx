@@ -100,6 +100,26 @@ together). The current design:
   based, has no cookie dependency, and silently refreshes only after 7 days
   via `refreshTokenSilently`.
 
+## Storefront checkout: redirect lock and named reprice removals (A-105/A-106)
+
+- **Don't clear `loading` on the Paystack branch.** `window.location.href = ...`
+  starts a navigation but keeps running JavaScript, so the old
+  `finally { setLoading(false) }` re-enabled "Place Order" for the whole
+  interval before the browser unloaded — a second tap minted a second,
+  orphaned payment intent (A-105). `handleSubmit` now tracks a local
+  `redirectStarted` flag (the `finally` skips the reset) plus a `redirecting`
+  state the button honours and labels ("Redirecting to Paystack...").
+- **`useCartRepricing` names what it removed.** It splits the reprice result
+  into `removed` (absent from the catalog response) and `repriced`, and names
+  the items in each toast instead of the old blanket "Some prices or items in
+  your cart changed" (A-106). The structural half of A-106 is **not** fixed:
+  `GET /storefront/{slug}` is still capped at `MAX_STOREFRONT_PRODUCTS = 300`
+  while `checkout()`/`priceCart()` are uncapped, so a catalogue past 300
+  products can still drop a legitimately purchasable item — the customer now
+  at least sees which one. The real fix is a cart-scoped pricing endpoint
+  (`POST /storefront/{slug}/price-cart` taking item ids); log it there if it
+  gets built.
+
 ## Download and site URLs come from `lib/constants.ts` (A-104)
 
 `DOWNLOAD_URL` and `WEB_APP_URL` are env-overridable

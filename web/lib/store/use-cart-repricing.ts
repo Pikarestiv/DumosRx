@@ -42,13 +42,22 @@ export function useCartRepricing(storeSlug: string) {
           prices[product.id] = parseFloat(String(product.selling_price));
         }
 
-        const changed = items.some(
-          (item) => prices[item.id] === undefined || prices[item.id] !== item.price
+        const removed = items.filter((item) => prices[item.id] === undefined);
+        const repriced = items.filter(
+          (item) => prices[item.id] !== undefined && prices[item.id] !== item.price,
         );
         reconcilePrices(storeSlug, prices);
-        if (changed) {
+
+        if (removed.length > 0) {
+          const names = removed.map((item) => item.name).join(", ");
+          toast.error(
+            `${names} ${removed.length === 1 ? "is" : "are"} no longer available online and ${removed.length === 1 ? "was" : "were"} removed from your cart. Ask the store if you still want ${removed.length === 1 ? "it" : "them"}.`,
+            { duration: 10000 },
+          );
+        }
+        if (repriced.length > 0) {
           toast.info(
-            "Some prices or items in your cart changed. Your order summary has been updated."
+            `The price of ${repriced.map((item) => item.name).join(", ")} changed. Your order summary has been updated.`,
           );
         }
       } catch {

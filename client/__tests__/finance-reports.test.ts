@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from "vitest";
 import initSqlJs, { type Database } from "sql.js";
 
 vi.mock("idb-keyval", () => ({
@@ -87,6 +87,25 @@ describe("finance.ts / reports.ts financial aggregates", () => {
     const y = now.getFullYear();
     const m = String(now.getMonth() + 1).padStart(2, "0");
     return `${y}-${m}-01`;
+  };
+  // Same reasoning as firstDayOfMonthLocal, for "today": todayISO() is a UTC
+  // instant, so for the ~1h after local midnight in a positive-offset zone it
+  // names yesterday - and, on the 1st, last month (A-121).
+  const todayLocal = () => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, "0");
+    const d = String(now.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  };
+  const todayLocalMonth = () => todayLocal().slice(0, 7);
+  // Local midnight today, as the UTC instant it really is: strftime(...,
+  // 'localtime') buckets it into today's local month, and it is always in the
+  // past, so report queries that cap their upper bound at "now" still include
+  // it (a noon-UTC anchor would sit in the future just after local midnight).
+  const todayLocalStartISO = () => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
   };
 
   describe("getCurrentMonthRevenue / getCurrentMonthCOGS", () => {
@@ -260,7 +279,7 @@ describe("finance.ts / reports.ts financial aggregates", () => {
     });
 
     it("getAdvancedMonthlySalesData.rawMonthlyReturns uses the same sale-time cost, and doesn't fan total_refunded out across the return's line items", async () => {
-      const now = todayISO();
+      const now = todayLocalStartISO();
       db.run(
         `INSERT INTO sales (id, transaction_number, subtotal, total_amount, transaction_date, _deleted) VALUES ('s1', 'TXN-1', 5000, 5000, ?, 0)`,
         [now],
@@ -288,7 +307,7 @@ describe("finance.ts / reports.ts financial aggregates", () => {
       );
 
       const { rawMonthlyReturns } = await getAdvancedMonthlySalesData(otherMonthISO());
-      const thisMonth = rawMonthlyReturns.find((r) => r.month === now.slice(0, 7));
+      const thisMonth = rawMonthlyReturns.find((r) => r.month === todayLocalMonth());
       // 2 * 500 (prod1, sale-time cost) + 1 * 700 (prod2).
       expect(thisMonth?.returned_cogs).toBe(1700);
       // The return's own total, once - not once per returned line item.
@@ -395,6 +414,57 @@ describe("finance.ts / reports.ts financial aggregates", () => {
     });
   });
 
+  describe("fixture dates stay on the local calendar day (A-121)", () => {
+    const boundaryInstant = new Date("2026-09-30T23:11:00.000Z");
+
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(boundaryInstant);
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("names the local calendar day even when UTC is still on the previous month", () => {
+      expect(todayISO().slice(0, 10)).toBe("2026-09-30");
+      expect(todayLocal()).toBe("2026-10-01");
+      expect(todayLocalMonth()).toBe("2026-10");
+      expect(todayLocalStartISO()).toBe("2026-09-30T23:00:00.000Z");
+    });
+
+    it("keeps a today-dated expense inside currentMonthWindow at that clock position", async () => {
+      db.run(
+        `INSERT INTO expenses (id, category, amount, date, _deleted) VALUES ('e1', 'Rent', 20000, ?, 0)`,
+        [todayLocal()],
+      );
+
+      const rows = await getCurrentMonthExpensesByCategory(currentMonthWindow());
+      expect(rows.find((r) => r.category === "Rent")?.total).toBe(20000);
+    });
+
+    it("keeps a today-dated return in the local month bucket at that clock position", async () => {
+      const now = todayLocalStartISO();
+      db.run(
+        `INSERT INTO sales (id, transaction_number, subtotal, total_amount, transaction_date, _deleted) VALUES ('s1', 'TXN-1', 4000, 4000, ?, 0)`,
+        [now],
+      );
+      db.run(
+        `INSERT INTO sale_items (id, sale_id, product_id, quantity, unit_price, total_price, cost_price) VALUES ('si1', 's1', 'prod1', 4, 1000, 4000, 500)`,
+      );
+      db.run(
+        `INSERT INTO returns (id, sale_id, user_id, total_refunded, created_at, _deleted) VALUES ('r1', 's1', 'u1', 2000, ?, 0)`,
+        [now],
+      );
+      db.run(
+        `INSERT INTO return_items (id, return_id, product_id, quantity, unit_price, subtotal) VALUES ('ri1', 'r1', 'prod1', 2, 1000, 2000)`,
+      );
+
+      const { rawMonthlyReturns } = await getAdvancedMonthlySalesData("2026-08-01T00:00:00.000Z");
+      expect(rawMonthlyReturns.find((r) => r.month === todayLocalMonth())?.refunds).toBe(2000);
+    });
+  });
+
   describe("getCurrentMonthExpensesByCategory", () => {
     it("groups this month's expenses by category, excluding other months", async () => {
       db.run(
@@ -403,7 +473,7 @@ describe("finance.ts / reports.ts financial aggregates", () => {
           ('e2', 'Rent', 5000, ?, 0),
           ('e3', 'Utilities', 3000, ?, 0),
           ('e4', 'Rent', 99999, ?, 0)`,
-        [todayISO(), todayISO(), todayISO(), otherMonthISO()],
+        [todayLocal(), todayLocal(), todayLocal(), otherMonthISO()],
       );
 
       const rows = await getCurrentMonthExpensesByCategory(currentMonthWindow());
@@ -422,7 +492,7 @@ describe("finance.ts / reports.ts financial aggregates", () => {
         `INSERT INTO expenses (id, category, amount, date, covers_months, _deleted) VALUES
           ('e1', 'Rent', 120000, ?, 12, 0),
           ('e2', 'Utilities', 3000, ?, NULL, 0)`,
-        [todayISO(), todayISO()],
+        [todayLocal(), todayLocal()],
       );
 
       const window = currentMonthWindow();

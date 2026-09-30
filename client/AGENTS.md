@@ -3339,6 +3339,33 @@ And don't remove the `TZ` line: SQLite's `'localtime'` and JS's local getters
 both read the process timezone, so dropping it silently reintroduces the
 split.
 
+Pinning the timezone is not the whole story, though — **a fixture's own date
+values must be derived from the local calendar too, never from
+`new Date().toISOString()`.** That was `A-121` (fixed 2026-10-01): three
+`finance-reports.test.ts` fixtures dated rows with a full UTC ISO instant while
+the queries under test bucket by local month, so for the ~1 hour after local
+midnight on the 1st of a month (Lagos is UTC+1, so UTC is still on the 30th/
+31st) the fixture row landed in the previous month and every assertion built on
+it read `undefined`/`0` — a real, reproducible monthly flake with no code change
+behind it. The file now carries three helpers for this, and new fixtures should
+use them rather than `todayISO()`:
+
+- `firstDayOfMonthLocal()` — bare `YYYY-MM-01` for the local month.
+- `todayLocal()` / `todayLocalMonth()` — bare `YYYY-MM-DD` / `YYYY-MM` for the
+  local day and month. Use these for bare-date columns like `expenses.date`
+  and for any expected month key.
+- `todayLocalStartISO()` — local midnight today as the UTC instant it actually
+  is, for full-timestamp columns (`sales.transaction_date`,
+  `returns.created_at`). Anchoring at local midnight rather than, say, noon UTC
+  matters because report queries such as `getAdvancedMonthlySalesData()` cap
+  their upper bound at `new Date()`, so a fixture timestamp must be in the past
+  as well as on the right local day.
+
+The `describe("fixture dates stay on the local calendar day (A-121)")` block
+pins all three with fake timers frozen at the exact boundary instant
+(`2026-09-30T23:11Z`), so the regression is caught at any clock position rather
+than only in the monthly window where it used to surface.
+
 ### Named capture groups need `new RegExp(...)`, not a regex literal
 
 `tsconfig.json` sets `"target": "ES6"`, and TypeScript rejects a regex

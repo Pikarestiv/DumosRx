@@ -96,7 +96,7 @@ class StorefrontController extends Controller
 
         $intent = \App\Models\StorefrontPaymentIntent::where('reference', $reference)
             ->where('store_id', $store->id)
-            ->where('status', 'pending')
+            ->whereIn('status', \App\Models\StorefrontPaymentIntent::CLAIMABLE_STATUSES)
             ->first();
 
         if (!$intent) {
@@ -600,7 +600,7 @@ class StorefrontController extends Controller
                 ], 422);
             }
 
-            if ($intent->status !== 'pending') {
+            if (!in_array($intent->status, \App\Models\StorefrontPaymentIntent::CLAIMABLE_STATUSES, true)) {
                 return response()->json([
                     'message' => 'This payment reference has already been used for another order.',
                 ], 422);
@@ -678,7 +678,7 @@ class StorefrontController extends Controller
                         ->lockForUpdate()
                         ->first();
 
-                    if (!$locked || $locked->status !== 'pending') {
+                    if (!$locked || !in_array($locked->status, \App\Models\StorefrontPaymentIntent::CLAIMABLE_STATUSES, true)) {
                         throw new \App\Exceptions\PaymentReferenceAlreadyUsedException();
                     }
                 }

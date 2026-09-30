@@ -594,6 +594,20 @@ The rules that follow from that, all of which matter:
   whichever of the two gets there first. A new failure path must call it
   rather than writing `status` itself. `initiatePayment()`'s own catch block
   releases the reservation too, for a provider that fails at initialization.
+- **A valid signature proves who sent the payload, never what was paid.**
+  Both webhook handlers compare the reported amount *and* currency against
+  the row the charge was minted for before activating anything: without it a
+  genuine ₦100 charge — or a charge in a weaker currency — activates a
+  ₦100,000 plan. Two facts that are easy to get wrong:
+  **units** — Paystack reports the minor unit (kobo), matching its initialize
+  payload (`$amount * 100`) and its verify response (`/100`), while
+  Flutterwave reports the major unit; everything this app stores an expected
+  amount in is the major unit, so only Paystack is converted (one place:
+  `PaymentController::reportedMajorUnitAmount()`). And **tolerance** — the
+  comparison allows 0.01, because `payment_transactions.amount` can carry
+  sub-kobo precision from coupon-percentage arithmetic (e.g. 13124.124) while
+  a provider only ever settles whole kobo (13124.12); a strict `<` rejects a
+  genuine full payment.
 - **An amount/currency mismatch on a SUCCESSFUL charge is refunded, and a
   human is always told.** Marking the transaction `failed` is not an outcome
   on its own: the provider says the money moved, so leaving it there kept a
@@ -761,6 +775,47 @@ straight to their own bank account.
   path without also giving Flutterwave a subaccount/currency equivalent.
   Pinned by `tests/Feature/StorefrontProviderPinningTest.php`, which also
   asserts the subscription fallback is still in place.
+- **A storefront payment is reconciled server-side, not only by the
+  customer's browser.** `StorefrontPaymentIntent.status` is a five-value
+  lifecycle: `pending` → (`paid` | `consumed` | `refunded` | `abandoned`).
+  `pending` and `paid` are the two **claimable** states
+  (`StorefrontPaymentIntent::CLAIMABLE_STATUSES` — use it, don't compare to
+  `'pending'` by hand); `checkout()` consumes either one.
+  - **The webhook.** `PaymentController::processSuccessfulPayment()` looks the
+    reference up in `storefront_payment_intents` **before**
+    `payment_transactions` and hands a match to
+    `App\Services\Storefront\StorefrontPaymentReconciler`. Before this, a
+    genuine signed `charge.success` for a storefront charge matched no
+    `PaymentTransaction` and was silently dropped, so the only confirmation
+    path was the customer's own browser returning with intact
+    `sessionStorage` (PG-2). A matching amount/currency marks the intent
+    `paid`; a mismatch is refunded and alerted, same rule as the subscription
+    side.
+  - **The webhook deliberately does NOT create the order.** `online_orders`
+    requires `customer_name` and `customer_phone`, which only the return-flow
+    POST carries — the webhook has nothing but `customer_email`. Inventing
+    those would hand the store an order it can't act on *and* burn the
+    reference, so the genuine confirmation (whenever it arrives, even days
+    later) would then be rejected as already used. Marking `paid` instead
+    makes the money durable, keeps the reference claimable, and gives the
+    sweep something concrete to escalate. If contact details ever move onto
+    the intent at initialize time, revisit this — the webhook could then
+    complete the order outright.
+  - **The sweep.** `App\Console\Commands\SweepStorefrontPaymentIntents`
+    (`storefront:sweep-payment-intents`, hourly in `routes/console.php`,
+    window from `payment.storefront_intent_stale_minutes`, default 60)
+    re-verifies every `pending` intent past the window against the provider:
+    a confirmed one becomes `paid` and alerts, a provider answer of
+    not-successful becomes `abandoned`, and an *unreachable* provider is left
+    strictly alone (never `abandoned` — `PaymentService`'s `unknown` result
+    means the money may well have moved). It then alerts once per `paid`
+    intent nobody ever turned into an order, stamped with
+    `reconciliation_alerted_at` so an hourly schedule doesn't re-mail the
+    same one forever. A stale intent is never auto-refunded: the customer may
+    still be mid-return, and a human deciding between "contact them to
+    finish the order" and "refund" is the right call for money that did
+    arrive.
+  - Pinned by `tests/Feature/StorefrontPaymentReconciliationTest.php`.
 - **A paid-but-unfulfillable confirm refunds itself.** `checkout()` prices the
   cart and re-checks availability *after* the customer has already paid at
   Paystack (nothing is reserved at initialize time — availability is only

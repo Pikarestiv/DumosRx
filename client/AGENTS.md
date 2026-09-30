@@ -3526,6 +3526,45 @@ not to the thread.
   remaining ways `send()` could throw (`buildToolContext` on a malformed
   context, `append`).
 
+## Assistant chat UI (`components/assistant/`)
+
+Five small presentational pieces sit on top of that state:
+`assistant-panel.tsx` (the only stateful one — it reads `isOpen`/`close` from
+`useAssistantPanel` itself and calls `useAssistant()`), plus
+`assistant-message-list.tsx`, `assistant-composer.tsx`,
+`assistant-suggestion-chips.tsx` and `assistant-launcher.tsx`, all of which
+take everything through props. Mounting them is a separate concern — the
+panel is designed to be rendered once globally and the launcher wherever an
+entry point is wanted.
+
+- **The panel funnels every send through one guarded `handleSend`.** Both the
+  composer and the suggestion chips call it, and it dispatches via
+  `Promise.resolve().then(() => send(text)).catch(...)` so a *synchronous*
+  throw out of `send()` (the `buildToolContext` path noted above, the one
+  failure `answer()` cannot swallow) is caught in the same place as a
+  rejection. The composer repeats the same wrapper around its `onSend` prop,
+  because that prop is an arbitrary callback and the composer must not be able
+  to strand its own input on a throw it did not expect. `onSend` is typed
+  `(text: string) => void | Promise<void>` for that reason.
+- **The panel pins the composer with `ResponsiveModal`'s `footer` prop**, not
+  inside `children`: on mobile `children` is the scrollable region, so a
+  composer placed there scrolls away from the user mid-conversation.
+- **`ScrollFade`'s two class props are not interchangeable.**
+  `containerClassName` is the positioning wrapper and is what must carry
+  `flex-1 min-h-0` to participate in the panel's flex column;
+  `className` lands on the element that actually scrolls and carries padding.
+  Swapping them collapses the message list to zero height inside a flex
+  parent.
+- **Action buttons close the panel** (`onActionClick` → `close`): a reply's
+  action is a navigation, and leaving a modal open over the page it just
+  routed to hides the thing the user asked for.
+- Test: `__tests__/assistant-panel.test.tsx`. It flattens `ResponsiveModal` to
+  a plain div (the repo's standing pattern for modal-hosted behaviour — the
+  real one is Radix plus a media query that jsdom has no `matchMedia` for) and
+  mocks `next/link`. There is no `@testing-library/jest-dom` in this repo, so
+  assertions are plain (`toBeTruthy()`, `getAttribute("href")`), not
+  `toBeInTheDocument()`/`toHaveAttribute()`.
+
 ## Running things
 
 ```

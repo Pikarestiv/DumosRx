@@ -277,6 +277,13 @@ CREATE TABLE IF NOT EXISTS _sync_state (
   server_cursor TEXT
 );
 
+CREATE TABLE IF NOT EXISTS _pending_stock_deltas (
+  movement_id TEXT PRIMARY KEY,
+  stock_batch_id TEXT NOT NULL,
+  quantity REAL NOT NULL,
+  attempts INTEGER NOT NULL DEFAULT 0
+);
+
 CREATE TABLE IF NOT EXISTS customer_payments (
   id TEXT PRIMARY KEY,
   customer_id TEXT NOT NULL,

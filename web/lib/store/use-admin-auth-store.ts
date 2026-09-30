@@ -111,6 +111,9 @@ export const useAdminAuthStore = create<AdminAuthState>()(
           } catch (_error) {
             set({ user: null, token: null, loading: false, sessionVerified: false });
             setAdminToken(null);
+            // Same reason as logout(): `admin-storage` persists the platform
+            // summary, so an expired session must not leave it in localStorage.
+            useAdminStore.getState().reset();
           }
         })().finally(() => {
           initSessionPromise = null;

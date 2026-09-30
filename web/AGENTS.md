@@ -100,6 +100,27 @@ together). The current design:
   based, has no cookie dependency, and silently refreshes only after 7 days
   via `refreshTokenSilently`.
 
+## Telemetry redaction and session-end cache hygiene (A-100/A-107)
+
+`lib/api/logger.ts`'s `sanitizePayload` masks (never drops) sensitive values,
+so a report keeps its shape and stays diagnosable. It matches two ways:
+`SENSITIVE_KEY_FRAGMENTS` as substrings (`password`, `token`, `pin`,
+`credentials`, `customer_*`) and `SENSITIVE_KEY_NAMES` as whole keys
+(`email`, `phone`, `address`, …) so `store_name`/`product_name` survive while
+a bare `email` does not. This matters because the response interceptor
+reports **every** failed request's body to `/logs/client-error`, which is
+unauthenticated on non-`/admin` paths, and the storefront checkout body is
+the one place a member of the public types their name, phone, email and
+delivery address (A-107). Adding a PII field to a public form means adding
+its key here.
+
+**Anywhere `sessionVerified` goes false, `useAdminStore.getState().reset()`
+must run** — it is what removes the persisted `admin-storage` platform
+summary (revenue, recent store names, owner emails) from `localStorage`.
+Call sites: `logout()`, `initSession()`'s catch, and `base-client.ts`'s 401
+refresh-failure branch. Previously only Sign Out cleared it, so a lapsed
+session left the summary readable on a shared machine indefinitely (A-100).
+
 ## Numeric platform-config fields: draft/commit, never raw `Number()` (A-97/A-98)
 
 `components/admin/numeric-config-input.tsx` (`NumericConfigInput`) is the only

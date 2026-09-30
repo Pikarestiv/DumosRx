@@ -44,9 +44,19 @@ class PaystackSubaccountService
         return in_array($countryCode, self::RESOLVE_COUNTRIES, true);
     }
 
+    private const REQUEST_TIMEOUT_SECONDS = 10;
+    private const CONNECT_TIMEOUT_SECONDS = 5;
+
     public function __construct()
     {
         $this->secretKey = (string) config('payment.paystack.secret_key');
+    }
+
+    private function client()
+    {
+        return Http::withToken($this->secretKey)
+            ->timeout(self::REQUEST_TIMEOUT_SECONDS)
+            ->connectTimeout(self::CONNECT_TIMEOUT_SECONDS);
     }
 
     public function listBanks(string $countryCode): array
@@ -56,7 +66,7 @@ class PaystackSubaccountService
         }
 
         try {
-            $response = Http::withToken($this->secretKey)
+            $response = $this->client()
                 ->get('https://api.paystack.co/bank', ['country' => $countryCode]);
         } catch (\Throwable $e) {
             Log::warning('Paystack listBanks failed: ' . $e->getMessage());
@@ -77,7 +87,7 @@ class PaystackSubaccountService
         }
 
         try {
-            $response = Http::withToken($this->secretKey)
+            $response = $this->client()
                 ->get('https://api.paystack.co/bank/resolve', [
                     'account_number' => $accountNumber,
                     'bank_code' => $bankCode,
@@ -105,7 +115,7 @@ class PaystackSubaccountService
         string $accountNumber,
         float $percentageCharge,
     ): string {
-        $response = Http::withToken($this->secretKey)
+        $response = $this->client()
             ->post('https://api.paystack.co/subaccount', [
                 'business_name' => $businessName,
                 'settlement_bank' => $bankCode,
@@ -127,7 +137,7 @@ class PaystackSubaccountService
 
     public function updateSubaccountFee(string $subaccountCode, float $percentageCharge): void
     {
-        $response = Http::withToken($this->secretKey)
+        $response = $this->client()
             ->put("https://api.paystack.co/subaccount/{$subaccountCode}", [
                 'percentage_charge' => $percentageCharge,
             ]);
@@ -149,7 +159,7 @@ class PaystackSubaccountService
         }
 
         try {
-            $response = Http::withToken($this->secretKey)
+            $response = $this->client()
                 ->post('https://api.paystack.co/refund', $payload);
         } catch (\Throwable $e) {
             return ['success' => false, 'message' => $e->getMessage()];

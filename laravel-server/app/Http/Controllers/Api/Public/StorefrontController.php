@@ -627,6 +627,12 @@ class StorefrontController extends Controller
 
             $verification = $paymentService->verifyTransaction($validated['paystack_reference'], 'paystack');
 
+            if ($verification['unknown'] ?? false) {
+                return response()->json([
+                    'message' => "We could not reach the payment provider to confirm this payment, so this order has not been placed. Do not pay again — contact the store with reference {$validated['paystack_reference']}.",
+                ], 503);
+            }
+
             // The amount is only comparable to the order total if it settled
             // in the same currency the charge was minted in.
             $verifiedCurrency = strtoupper((string) ($verification['currency'] ?? ''));

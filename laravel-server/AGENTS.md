@@ -833,6 +833,29 @@ actually run — do it synchronously (fast, timeout-guarded) or via
 `routes/console.php`'s `Schedule::command(...)`, which the OS cron does
 reliably run.
 
+**The payment services are no exception, and they are the ones that matter
+most.** Guzzle's default request timeout is 0 — wait forever — and every
+Paystack/Flutterwave call went out that way while every other outbound call in
+the app carried a short one (A-81). `POST /storefront/{slug}/checkout/initialize`
+is unauthenticated, so a blackholed provider socket pinned a PHP-FPM worker per
+hung checkout until the pool (small, on shared hosting) was gone and the whole
+API — sync included — stopped answering. Both `PaymentService` and
+`PaystackSubaccountService` now funnel every call through a single private
+client factory carrying `->timeout(10)->connectTimeout(5)`; add new calls
+through that factory, never a bare `Http::withToken(...)`.
+`tests/Feature/PaymentProviderTimeoutTest.php` asserts that at the source level
+(the options are invisible on a faked request, so behaviour alone can't pin it).
+
+**A verification that never reached the provider is `unknown`, not failed.**
+`verifyPaystack()`/`verifyFlutterwave()` catch `ConnectionException` and return
+`['success' => false, 'unknown' => true]`, and consumers must branch on that
+*before* their failure handling: the money may well have moved, so the correct
+answer is "we don't know yet" — a **503**, no order booked, no
+`PaymentTransaction` marked failed (`failTransaction()` on a timeout would
+declare a possibly-successful payment dead) and a message telling the customer
+not to pay again. `StorefrontController::checkout()` and
+`SubscriptionController::verifyPayment()` both do this.
+
 **Mail is always `Mail::to(...)->send(...)`, never `->queue(...)`** — a
 direct consequence of the constraint above, stated as its own rule because a
 `->queue()` call fails *silently*: nothing checks a return value, nothing

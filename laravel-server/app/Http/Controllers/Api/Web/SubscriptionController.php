@@ -536,6 +536,13 @@ class SubscriptionController extends Controller
         // both providers report the settlement currency, so a charge for
         // "13124" of anything other than the naira the transaction was
         // created in must not be allowed to satisfy it.
+        if ($verification['unknown'] ?? false) {
+            return response()->json([
+                'success' => false,
+                'message' => 'We could not reach the payment provider to confirm this payment. It is still being processed — please try again in a moment.',
+            ], 503);
+        }
+
         $verifiedAmount = (float) ($verification['amount'] ?? 0);
         $verifiedCurrency = strtoupper((string) ($verification['currency'] ?? ''));
         $expectedCurrency = strtoupper((string) ($txn->currency ?: 'NGN'));

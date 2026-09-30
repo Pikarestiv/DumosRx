@@ -117,6 +117,17 @@ caused one shipped bug (`AdminUsersStoreResolutionTest`):
   store, so the two are complementary, never overlapping.
 - **Platform account** — neither (super_admin / platform_admin / agent).
 
+Two *other* user columns look adjacent and are not: `referred_by_id` is the
+customer **referral program** pointer (an unrelated store owner who signed up
+through the caller's link) and `registered_by_id` is platform attribution.
+Neither is a staff relationship, and neither may ever widen a staff query:
+`DashboardService::getSummary()`'s `staff` array used to `orWhere(
+'referred_by_id', …)`, so a referred owner was returned to the caller as one
+of their employees, email and last-login included — cross-tenant PII through
+an ordinary authenticated endpoint (A-83). Referral data has its own scoped
+endpoint (`GET /subscription/referral-stats`, name/store/status only).
+Pinned by `tests/Feature/DashboardStaffScopingTest.php`.
+
 `GET /admin/users` exposes that distinction through **`account_type`**
 (`owners` | `staff` | `platform`; omit it for every account, which is what
 every pre-2026-09-29 caller gets) and **`store_id`** (accounts affiliated with

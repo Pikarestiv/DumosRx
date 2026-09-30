@@ -256,9 +256,7 @@ class DashboardService
         $staff = collect([]);
         try {
             if (Schema::hasTable('users')) {
-                // Fetch staff belonging to the user's stores or created by them
                 $staff = User::whereIn('store_id', $storeIds)
-                    ->orWhere('referred_by_id', $userId)
                     ->get()
                     ->map(function ($u) {
                         return [

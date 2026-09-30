@@ -3432,6 +3432,46 @@ what `getRecentSales()` uses). A test seeding `sales` rows for them must set
 shared `insertSale()` helper in `__tests__/assistant-sales-tools.test.ts`
 writes both columns plus `payment_method` for exactly this reason.
 
+## Assistant finance tool (`lib/assistant/tools/finance-tools.ts`)
+
+`profitSummaryTool` ("gross profit today", "net profit last month") reuses
+`fetchProfitLossReportData()` — the same query the Report Center's P&L
+export runs — and sums its per-month rows into one `{ revenue, cogs,
+grossProfit, expenses, netProfit, margin }`. Reusing it is the point: the
+assistant's profit figure can then never drift from the exported report's,
+including every judgement already baked into that query (revenue excludes
+`tax_amount`, refunds and returned COGS are netted out, expenses are
+amortized rather than lumped). Its `requiredPermission` is
+`view_financial_reports`, the permission the P&L report itself is gated on,
+and it is deliberately not part of the router's `REROUTE_ON_DENIAL` pair —
+there is no narrower "your own profit" question to fall back to.
+
+**`fetchProfitLossReportData()` expects full ISO instants, not date-only
+strings, so the tool widens its args through `toQueryRange()` first.** The
+function compares `dateFrom`/`dateTo` directly against `s.transaction_date`
+as strings, and `'2026-09-15T12:00:00.000Z' <= '2026-09-15'` is false — a
+bare date-only `dateTo` silently excludes every sale on the last day of the
+range (and a plain string compare against `expenses.date` misses the first
+day's expenses, which is why `getSmoothedExpensesByMonth` wraps both sides
+in `date(?, 'localtime')`). Every UI caller already goes through
+`toQueryRange()`, which widens a date-only value to that day's **local**
+midnight/end-of-day; the tool does the same rather than hand-rolling
+bounds. `getSalesTotalsByPaymentMethod()` does this widening internally,
+which is why `sales_summary` can pass a bare date and this one cannot —
+don't assume the convention is shared across query modules.
+
+`margin` is `netProfit / revenue`, guarded to `0` when revenue is `0`, and
+is a fraction (the reply multiplies by 100), not the `"Margin %"` string
+column the report row carries. Like `sales_summary`, the date default lives
+in the intent (`intents/finance-intents.ts`: `parseDatePhrase(utterance,
+ctx.now)` falling back to `toDateOnly(ctx.now)` for both ends), so
+`execute()` always receives an explicit `from`/`to`.
+
+`__tests__/assistant-finance-tool.test.ts` seeds the sale at local noon via
+`toISOString()` precisely so the widening stays pinned — seeding a bare
+date-only `transaction_date` (as `finance-reports.test.ts` does) passes
+either way and would not catch a regression here.
+
 ## Running things
 
 ```

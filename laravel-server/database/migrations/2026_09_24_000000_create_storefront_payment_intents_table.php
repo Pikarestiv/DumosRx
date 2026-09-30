@@ -38,7 +38,7 @@ return new class extends Migration
             $table->string('provider'); // paystack | flutterwave
             $table->decimal('amount', 12, 2);
             $table->string('currency')->default('NGN');
-            $table->string('status')->default('pending'); // pending | consumed
+            $table->string('status')->default('pending'); // pending | paid | consumed | refunded | abandoned
             // Snapshot of the cart this reference was minted for, as
             // [{product_id, quantity, unit_price, subtotal}, ...]. checkout()
             // requires the confirmed order's product_id/quantity set to match

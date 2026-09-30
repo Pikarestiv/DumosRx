@@ -158,6 +158,30 @@ export function calculateMixedChangeDue(splits: PaymentSplit[], total: number): 
   return Math.max(0, calculateMixedAmountPaid(splits) - total);
 }
 
+/** The largest credit split a mixed sale can carry: whatever the sale still
+ * owes once every non-credit tender is counted. applyCreditPaymentFIFO() can
+ * only ever settle `total_amount - amount_paid` against this sale, so any
+ * credit beyond this is debt with no sale behind it. */
+export function calculateMaxAllowedCreditSplit(splits: PaymentSplit[], total: number): number {
+  return Math.max(0, roundMoney(total - calculateMixedAmountPaid(splits)));
+}
+
+export function calculateCreditSplitTotal(splits: PaymentSplit[]): number {
+  return roundMoney(
+    splits.reduce(
+      (acc, s) => acc + (s.method === "credit" ? Math.max(0, s.amount || 0) : 0),
+      0,
+    ),
+  );
+}
+
+export function isCreditSplitOverAllocated(splits: PaymentSplit[], total: number): boolean {
+  return (
+    calculateCreditSplitTotal(splits) >
+    calculateMaxAllowedCreditSplit(splits, total) + MONEY_EPSILON
+  );
+}
+
 /** A mixed sale with a nonzero credit split still owes that amount, so it
  * must be "partial" — the same status recordCustomerPayment()/
  * applyCreditPaymentFIFO() already look for — not "completed", or debt

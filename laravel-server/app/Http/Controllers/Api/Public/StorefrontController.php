@@ -469,7 +469,7 @@ class StorefrontController extends Controller
     #[OA\Post(
         path: '/storefront/{store_slug}/checkout',
         summary: 'Place a public storefront order',
-        description: 'For `payment_method: paystack`, `paystack_reference` must be one this app itself minted for this exact cart on this exact store via `POST /storefront/{store_slug}/checkout/initialize`, and it must still be unconsumed; it is then additionally verified server-side against the Paystack API (status successful, matching currency, paid amount covering the order total) before the order is marked paid. A fabricated, foreign, replayed or under-paying reference is rejected with a 422.',
+        description: 'For `payment_method: paystack`, `paystack_reference` must be one this app itself minted for this exact cart on this exact store via `POST /storefront/{store_slug}/checkout/initialize`, and it must still be unconsumed; it is then additionally verified server-side against the Paystack API (status successful, matching currency, paid amount covering the order total) before the order is marked paid. A fabricated, foreign, replayed or under-paying reference is rejected with a 422. Sending a `paystack_reference` alongside `transfer`/`in_store` is also a 422: the reference column is unique across every payment method, so accepting one on a cash order permanently burned a reference the genuine Paystack flow still needed.',
         tags: ['Storefront'],
         parameters: [new OA\Parameter(name: 'store_slug', in: 'path', required: true, schema: new OA\Schema(type: 'string'))],
         requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
@@ -479,7 +479,7 @@ class StorefrontController extends Controller
                 new OA\Property(property: 'customer_phone', type: 'string', maxLength: 20),
                 new OA\Property(property: 'customer_address', type: 'string', nullable: true, maxLength: 1000),
                 new OA\Property(property: 'payment_method', type: 'string', enum: ['paystack', 'transfer', 'in_store']),
-                new OA\Property(property: 'paystack_reference', type: 'string', nullable: true, description: 'Required when payment_method is paystack'),
+                new OA\Property(property: 'paystack_reference', type: 'string', nullable: true, description: 'Required when payment_method is paystack, and prohibited (422) for any other payment method'),
                 new OA\Property(property: 'items', type: 'array', items: new OA\Items(
                     properties: [
                         new OA\Property(property: 'product_id', type: 'string', format: 'uuid'),
@@ -515,7 +515,12 @@ class StorefrontController extends Controller
             'customer_phone' => 'required|string|max:20',
             'customer_address' => 'nullable|string|max:1000',
             'payment_method' => 'required|in:paystack,transfer,in_store',
-            'paystack_reference' => 'required_if:payment_method,paystack|nullable|string',
+            'paystack_reference' => [
+                'required_if:payment_method,paystack',
+                'nullable',
+                'string',
+                'prohibited_unless:payment_method,paystack',
+            ],
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|uuid|exists:products,id',
             'items.*.quantity' => 'required|integer|min:1',

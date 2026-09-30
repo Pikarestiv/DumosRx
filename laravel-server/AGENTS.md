@@ -637,6 +637,34 @@ The rules that follow from that, all of which matter:
   HTTP call) and the alert (synchronous mail) both happen outside
   `failTransaction()`'s transaction, never with its row lock held. Pinned by
   `tests/Feature/PaymentMismatchRefundAlertTest.php`.
+- **Every webhook event other than a successful charge is now visible (PG-9).**
+  Both handlers used to process `charge.success` / `status: successful` and drop
+  everything else on the floor — no log, no alert. A refund, dispute or
+  chargeback raised in the provider's own dashboard therefore left the
+  subscription active and nobody in DumosRx any the wiser.
+  `PaymentController::recordUnhandledEvent()` is the single `else` branch of
+  both handlers: it logs at `info` for ordinary noise (`transfer.success`, a
+  plain failed charge, `subscription.*`) and, for anything whose event/status
+  string reads as a refund/dispute/chargeback, logs at `warning` **and** fires
+  an `AdminAlertService` alert. It always returns 200 — a 4xx/5xx only makes
+  the provider redeliver forever.
+  - **Matched on wording, not an event-name list, deliberately.** The needles
+    are `refund`, `dispute`, `chargeback`, `charge_back`, `reversal`,
+    `reversed`, tested against Paystack's `event` and against Flutterwave's
+    `event` + `data.status` concatenated. Paystack's names are known
+    (`refund.processed`, `refund.failed`, `charge.dispute.create|remind|
+    resolve`); **Flutterwave's are not verified anywhere in this codebase** —
+    the Flutterwave handler never read `event` at all before this, only
+    `data.status`. Substring matching covers whichever spelling actually
+    arrives without a guess that would silently miss. If you ever confirm
+    Flutterwave's real event names against a live payload, write them down here
+    before narrowing the match.
+  - **This is visibility, not automation.** Nothing is refunded, reversed or
+    cancelled automatically; the alert says so explicitly and tells the
+    operator to reconcile by hand. `recordUnhandledEvent()` runs before any
+    transactional work in either handler, so the A-110 rule (never
+    `AdminAlertService::send()` under a DB transaction or row lock) holds.
+  - Covered by the PG-9 block in `tests/Feature/PaymentWebhookTest.php`.
 - **`User::addCredits()`/`deductCredits()` take a row lock.** Both are
   read-modify-write on `users.referral_credits`; without
   `lockCreditBalance()` two concurrent grants/spends both read the same
@@ -743,6 +771,43 @@ straight to their own bank account.
   Paystack call made) and re-resolves the account server-side even though
   the client already called `/resolve` — never trust a client-sent
   confirmation of someone else's bank details alone.
+- **The resolve endpoint is a name-lookup oracle, and is limited as one
+  (PG-5).** `account_number`/`bank_code` are free-form: ownership is checked on
+  the *store*, never on the account being resolved, so the endpoint will turn
+  any account number in Nigeria or Ghana into its holder's name using the
+  platform's own Paystack credentials. On the authenticated group's shared
+  `throttle:60,1` that was 60 free lookups a minute per owner. It now carries
+  its own `throttle:bank-account-resolve` (**8/min, keyed on the user id, not
+  the IP** — an IP key would let one account rotate through proxies, and a
+  household of owners behind one NAT would share a budget they shouldn't).
+  Eight is deliberately above real onboarding (resolve, fix a typo, resolve
+  again) and far below anything usable for enumeration. Don't fold this route
+  back into the group limiter, and don't re-key it to the IP.
+  `PaymentRouteThrottleTest` asserts both the named limiter and that it trips
+  well under 60.
+- **A created subaccount must never be orphaned (PG-7).** `createSubaccount()`
+  makes a real, permanent object at Paystack *before* the store row is updated,
+  and the "does this store already have one?" 409 check reads only
+  `stores.paystack_subaccount_code`. A failed local save therefore used to
+  leave a live remote subaccount with nothing pointing at it, and the local
+  idempotency check quietly lying — the owner's obvious next move (submit
+  again) would create a *second* one. `linkSubaccountToStore()` now retries the
+  local write 3 times with a short backoff and, if it still fails, logs
+  `Log::critical` with the subaccount code, store id, bank code and last 4,
+  fires an `AdminAlertService` alert, and returns a **500 whose message tells
+  the owner to contact support and explicitly not to resubmit**. Don't soften
+  that wording into "please try again" — the retry is the duplicate.
+  - **Not done, and deliberately:** making the idempotency check ask Paystack
+    whether a subaccount for this bank/account pair already exists. Paystack
+    does expose `GET /subaccount`, but its exact list/filter semantics for
+    matching on `settlement_bank` + `account_number` weren't verified against
+    the live API, and guessing a matcher here risks *reusing* a subaccount
+    belonging to a different store. If this is ever built, verify the response
+    shape and paging against Paystack's live API first, and match on the
+    account pair rather than `business_name` (store names are not unique).
+  - Covered by `test_a_transient_failure_saving_the_subaccount_code_is_retried`,
+    `test_an_unsavable_subaccount_code_is_logged_and_alerted_rather_than_silently_orphaned`
+    and `test_a_failed_local_save_does_not_invite_a_retry_that_would_create_a_second_subaccount`.
 - **`percentage_charge` is the platform's cut, not the store's** — a real,
   easy-to-get-backwards fact worth stating plainly. `createSubaccount()`
   passes the current `storefront_platform_fee_percentage` (a `SystemConfig`
@@ -838,6 +903,20 @@ straight to their own bank account.
   through to its own error) when there is nothing paid to refund, so an
   unpaid/failed reference is never refunded and its intent stays `pending`
   for a retry.
+- **`paystack_reference` is prohibited on a non-Paystack order (PG-6).**
+  `online_orders.paystack_reference` is unique across *every* payment method,
+  and the replay guard in `checkout()` deliberately checks it regardless of
+  `payment_method`. Those two facts together meant a cash/`transfer` order that
+  merely *carried* a reference consumed it permanently — a customer (or
+  anyone) could post `payment_method: in_store` with a reference minted for a
+  real Paystack cart, get a cash order, and leave the genuine paid
+  confirmation to be refused as "already used". The field now carries
+  `prohibited_unless:payment_method,paystack`, so such a request 422s before
+  anything is created or consumed and the reference stays spendable. The
+  prohibition is on a *non-empty* value, so a client that always sends the key
+  as `null` is unaffected. Covered by
+  `test_checkout_rejects_a_paystack_reference_on_a_non_paystack_order` and
+  `test_a_reference_refused_on_a_cash_order_is_still_usable_for_the_real_paystack_checkout`.
 - **Refunds are real, but not clawed back from the store.**
   `OnlineOrderController`'s cancel-a-paid-order path now calls
   `PaymentService::refundTransaction()` (which delegates to
@@ -962,6 +1041,16 @@ surface in the app. Three things about it are easy to undo by accident:
   deliberately does **not** disable `ThrottleRequests` — `StorefrontControllerTest`
   does, which is exactly why this gap was invisible for so long, so add
   limiter coverage there, not here.
+- **The provider webhook routes carry `throttle:webhooks` (PG-8).**
+  `POST /webhooks/paystack` and `POST /webhooks/flutterwave` sat outside every
+  limiter, which under Laravel 11 means completely unmetered — each call runs an
+  HMAC-SHA512 over the raw body and a `provider_reference` lookup, so an
+  unauthenticated flood was free CPU and free queries. The limiter is
+  **300/min/IP, deliberately loose**: a provider legitimately bursts (a
+  settlement batch, a replay of a backlog after an outage) and a 429 just makes
+  it redeliver forever. Don't tighten it toward the 5-15/min the storefront
+  limiters use. Asserted by `tests/Feature/PaymentRouteThrottleTest.php`, which
+  checks both routes carry the group *and* that the limit stays generous.
 - **`storefront-read` is generous on purpose.** The static-export build pulls
   the slug list plus every storefront from one GitHub runner IP in a single
   pass, about two requests per store. 120/min leaves headroom for roughly 50

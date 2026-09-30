@@ -615,7 +615,7 @@ entirely.
 
 ## The other unauthenticated surface (not the storefront)
 
-Four routes sit at the top of `routes/api.php` outside every auth group, and
+Five routes sit at the top of `routes/api.php` outside every auth group, and
 each now carries its own named limiter for the same Laravel-11 reason the
 storefront ones do (see the next section):
 
@@ -642,6 +642,11 @@ storefront ones do (see the next section):
   live probe). The public page used to call the admin route and got a 401 plus
   a forced redirect off the site — see `docs/DOWNLOADS_MANIFEST.md` (A-94)
   before merging the two back together.
+- **`GET /announcements`** (`throttle:public-read`) — the active-broadcast
+  feed. It sat outside every limiter until A-108; because Laravel 11 applies no
+  `throttle:api` floor, an unauthenticated poll was an unmetered full-table
+  read. Its result set is also bounded by
+  `BroadcastController::PUBLIC_FEED_LIMIT`.
 - **`POST /logs/client-error`** (`throttle:client-error-log`, 30/min/IP) —
   writes to `laravel.log` on shared hosting, plus an `activity_logs` row when a
   token happens to be present. Every field is length-capped
@@ -652,6 +657,23 @@ storefront ones do (see the next section):
 `tests/Feature/PublicSurfaceHardeningTest.php` covers all of this (the
 downloads manifest in `tests/Feature/PublicDownloadsManifestTest.php`) and, like
 `StorefrontThrottleTest`, deliberately does not disable `ThrottleRequests`.
+
+## Manual backup uploads: size, type, quota and retention
+
+`Api/Web/BackupController` stores tenant uploads under
+`backups/{owner_id}/` on the local disk of a **shared** host, so every limit
+lives in `config/backups.php` rather than in the controller:
+
+- `max_upload_kilobytes` and `allowed_extensions` are the `max:`/`extensions:`
+  validation rules on `POST /backups/upload`. It previously validated only
+  `required|file` (A-109).
+- `tenant_quota_kilobytes` is enforced in `assertWithinQuota()` by summing the
+  tenant's existing files before accepting a new one; over quota is a 422 on
+  the `backup` field, not a 500.
+- `retention_days` drives `backups:prune` (`App\Console\Commands\PruneBackups`,
+  scheduled nightly at 03:00 in `routes/console.php`). It **always keeps each
+  tenant's newest backup** regardless of age — a store that has not synced in a
+  year still has a restore point, which is the entire point of the feature.
 
 ## Public storefront endpoints
 

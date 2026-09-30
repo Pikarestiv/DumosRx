@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Store;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use OpenApi\Attributes as OA;
 
 class BackupController extends Controller
@@ -45,12 +46,40 @@ class BackupController extends Controller
     public function upload(Request $request)
     {
         $request->validate([
-            'backup' => 'required|file',
+            'backup' => [
+                'required',
+                'file',
+                'max:' . config('backups.max_upload_kilobytes'),
+                'extensions:' . implode(',', config('backups.allowed_extensions')),
+            ],
         ]);
 
-        $path = $request->file('backup')->store('backups/' . $this->ownerId($request));
+        $directory = 'backups/' . $this->ownerId($request);
+
+        $this->assertWithinQuota($directory, $request->file('backup')->getSize());
+
+        $path = $request->file('backup')->store($directory);
 
         return response()->json(['success' => true, 'path' => $path]);
+    }
+
+    /**
+     * Per-tenant storage ceiling. Without it, the throttle:60,1 group lets a
+     * single authenticated account fill the shared host's disk by repeating
+     * max-size uploads.
+     */
+    private function assertWithinQuota(string $directory, int $incomingBytes): void
+    {
+        $quotaBytes = ((int) config('backups.tenant_quota_kilobytes')) * 1024;
+
+        $usedBytes = collect(Storage::files($directory))
+            ->sum(fn ($file) => Storage::size($file));
+
+        if ($usedBytes + $incomingBytes > $quotaBytes) {
+            throw ValidationException::withMessages([
+                'backup' => 'Backup storage quota reached. Delete older backups before uploading a new one.',
+            ]);
+        }
     }
 
     #[OA\Get(

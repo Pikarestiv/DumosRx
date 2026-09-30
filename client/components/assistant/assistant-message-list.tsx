@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ScrollFade } from "@/components/ui/scroll-fade";
@@ -16,6 +17,12 @@ export function AssistantMessageList({
   isThinking,
   onActionClick,
 }: AssistantMessageListProps) {
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [messages.length, isThinking]);
+
   return (
     <ScrollFade containerClassName="flex-1 min-h-0" className="p-3">
       <div role="log" aria-live="polite" className="flex flex-col gap-2">
@@ -51,6 +58,7 @@ export function AssistantMessageList({
             Thinking…
           </div>
         )}
+        <div ref={bottomRef} />
       </div>
     </ScrollFade>
   );

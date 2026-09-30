@@ -6,7 +6,15 @@ export const FINANCE_INTENTS: IntentDefinition[] = [
     id: "profit_summary",
     tool: "profit_summary",
     label: "Profit summary",
-    phrases: [/\bgross profit\b/, /\bnet profit\b/, /\bprofit and loss\b/, /\bprofit margin\b/, /\brevenue\b.*\b(today|yesterday|month)\b/],
+    phrases: [
+      /\bprofit\b/,
+      /\bgross profit\b/,
+      /\bnet profit\b/,
+      /\bprofit and loss\b/,
+      /\bprofit margin\b/,
+      /\bmargin\b/,
+      /\brevenue\b.*\b(today|yesterday|month)\b/,
+    ],
     keywords: ["profit", "margin", "revenue", "expenses"],
     buildArgs: (_captures, utterance, ctx) => {
       const parsed = parseDatePhrase(utterance, ctx.now);

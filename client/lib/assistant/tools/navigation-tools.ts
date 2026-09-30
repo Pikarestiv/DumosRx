@@ -2,11 +2,17 @@ import { hasPermission } from "@/lib/hooks/use-permissions";
 import type { AssistantTool, ReplyAction } from "../types";
 import { HELP_TOPICS, type HelpTopic } from "../help-catalog";
 
+export const NAVIGATE_HELP_TOOL_NAME = "navigate_help";
+
+export function helpTopicExample(topic: HelpTopic): string {
+  return `how do i ${topic.title.toLowerCase()}`;
+}
+
 export const navigateHelpTool: AssistantTool<{ topic: string }, HelpTopic | null> = {
-  name: "navigate_help",
+  name: NAVIGATE_HELP_TOOL_NAME,
   description: "Explains how to do something in the app and links to the right screen.",
   parameters: { topic: { type: "string", description: "The help topic id", required: true } },
-  examples: HELP_TOPICS.map((t) => `how do i ${t.title.toLowerCase()}`),
+  examples: HELP_TOPICS.map(helpTopicExample),
   execute: async ({ topic }) => HELP_TOPICS.find((t) => t.id === topic) ?? null,
   format: (result, _args, ctx) => {
     if (!result) {

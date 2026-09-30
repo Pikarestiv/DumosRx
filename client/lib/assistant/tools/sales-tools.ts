@@ -38,10 +38,16 @@ export interface SalesSummaryResult {
   date: string;
 }
 
-export const salesSummaryTool: AssistantTool<{ date: string }, SalesSummaryResult> = {
+export const salesSummaryTool: AssistantTool<
+  { date: string; requestedTo?: string },
+  SalesSummaryResult
+> = {
   name: "sales_summary",
   description: "Reports store-wide sales total and transaction count for a date.",
-  parameters: { date: { type: "string", description: "Date in YYYY-MM-DD", required: true } },
+  parameters: {
+    date: { type: "string", description: "Date in YYYY-MM-DD", required: true },
+    requestedTo: { type: "string", description: "End of a requested range, when one was asked for" },
+  },
   requiredPermission: "view_reports",
   examples: ["how many sales today", "total sales yesterday"],
   execute: async ({ date }) => {
@@ -50,8 +56,14 @@ export const salesSummaryTool: AssistantTool<{ date: string }, SalesSummaryResul
     const total = totals.reduce((sum, row) => sum + (Number(row.total) || 0), 0);
     return { total, count, date };
   },
-  format: (result, _args, ctx) => ({
-    kind: "answer",
-    text: `${formatDateLabel(result.date)}: ${result.count} sale(s) totalling ${formatMoney(result.total, ctx)}.`,
-  }),
+  format: (result, args, ctx) => {
+    const day = formatDateLabel(result.date);
+    let text = `${day}: ${result.count} sale(s) totalling ${formatMoney(result.total, ctx)}.`;
+
+    if (args.requestedTo && args.requestedTo !== result.date) {
+      text += ` (You asked about a range up to ${formatDateLabel(args.requestedTo)}; this is just ${day} — ask about one date at a time for now.)`;
+    }
+
+    return { kind: "answer", text };
+  },
 };

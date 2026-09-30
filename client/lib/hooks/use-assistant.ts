@@ -4,6 +4,7 @@ import { useStore } from "@/lib/context/store-context";
 import { answer } from "@/lib/assistant/router";
 import { TOOL_REGISTRY } from "@/lib/assistant/tools";
 import { authorizeToolCall } from "@/lib/assistant/permission-gate";
+import { suggestionExampleFor } from "@/lib/assistant/suggestion-examples";
 import { useAssistantPanel } from "@/lib/store/use-assistant-panel";
 import type { ToolContext } from "@/lib/assistant/types";
 
@@ -74,7 +75,8 @@ export function useAssistant() {
     const ctx = buildToolContext(user, permissionGroup, storeProfile, storeType, t);
     return Array.from(TOOL_REGISTRY.values())
       .filter((tool) => authorizeToolCall(tool, ctx).ok)
-      .flatMap((tool) => tool.examples.slice(0, 1))
+      .map((tool) => suggestionExampleFor(tool, ctx))
+      .filter((example): example is string => Boolean(example))
       .slice(0, MAX_SUGGESTIONS);
   }, [user, permissionGroup, storeProfile, storeType, t]);
 

@@ -121,6 +121,29 @@ describe("assistant sales tools", () => {
     expect(reply.text).toContain("200");
   });
 
+  it("says it is only answering the first day when a date range was asked for", async () => {
+    const { salesSummaryTool } = await import("@/lib/assistant/tools/sales-tools");
+    const reply = salesSummaryTool.format(
+      { total: 200, count: 2, date: "2026-09-01" },
+      { date: "2026-09-01", requestedTo: "2026-09-15" },
+      baseCtx,
+    );
+    expect(reply.text).toContain("01/09/2026");
+    expect(reply.text).toContain("15/09/2026");
+    expect(reply.text).toMatch(/range/i);
+  });
+
+  it("carries the requested range end into the args a range utterance builds", async () => {
+    const { SALES_INTENTS } = await import("@/lib/assistant/intents/sales-intents");
+    const summaryIntent = SALES_INTENTS.find((intent) => intent.id === "sales_summary")!;
+
+    const ranged = summaryIntent.buildArgs({}, "total sales from 2026-09-01 to 2026-09-15", baseCtx);
+    expect(ranged).toEqual({ date: "2026-09-01", requestedTo: "2026-09-15" });
+
+    const singleDay = summaryIntent.buildArgs({}, "total sales on 2026-09-01", baseCtx);
+    expect(singleDay).toEqual({ date: "2026-09-01" });
+  });
+
   it("reroutes a sales_staff cashier's sales question to my_sales_today via answer()", async () => {
     const { answer } = await import("@/lib/assistant/router");
     const today = toDateOnly(now);

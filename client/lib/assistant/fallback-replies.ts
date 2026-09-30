@@ -1,12 +1,14 @@
 import type { AssistantReply, ToolContext } from "./types";
 import { TOOL_REGISTRY } from "./tools";
 import { authorizeToolCall } from "./permission-gate";
+import { suggestionExampleFor } from "./suggestion-examples";
 
 function permittedExamples(ctx: ToolContext, limit: number): string[] {
   const examples: string[] = [];
   for (const tool of TOOL_REGISTRY.values()) {
     if (authorizeToolCall(tool, ctx).ok) {
-      examples.push(...tool.examples.slice(0, 1));
+      const example = suggestionExampleFor(tool, ctx);
+      if (example) examples.push(example);
     }
     if (examples.length >= limit) break;
   }

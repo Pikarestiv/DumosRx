@@ -2,10 +2,10 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 
 vi.mock("@/lib/context/auth-context", () => ({
-  useAuth: () => ({
+  useAuth: vi.fn(() => ({
     user: { id: "u1", role: "store_owner" },
     permissionGroup: { id: "g1", permissions: ["view_reports"] },
-  }),
+  })),
 }));
 
 vi.mock("@/lib/context/store-context", () => ({
@@ -54,6 +54,27 @@ describe("useAssistant", () => {
     for (const suggestion of result.current.suggestions) {
       expect(allExamples).toContain(suggestion);
     }
+  });
+
+  it("does not suggest a question an auditor would only be refused", async () => {
+    const authContext = await import("@/lib/context/auth-context");
+    const { DEFAULT_GROUP_PERMISSIONS } = await import("@/lib/constants/permissions");
+    vi.mocked(authContext.useAuth).mockReturnValue({
+      user: { id: "u9", role: "auditor" },
+      permissionGroup: { id: "g9", permissions: DEFAULT_GROUP_PERMISSIONS.auditor },
+    } as ReturnType<typeof authContext.useAuth>);
+
+    const { useAssistant } = await import("@/lib/hooks/use-assistant");
+    const { result } = renderHook(() => useAssistant());
+
+    expect(result.current.suggestions).not.toContain("how do i make a sale");
+    expect(result.current.suggestions).not.toContain("my sales today");
+    expect(result.current.suggestions.length).toBeGreaterThan(0);
+
+    vi.mocked(authContext.useAuth).mockReturnValue({
+      user: { id: "u1", role: "store_owner" },
+      permissionGroup: { id: "g1", permissions: ["view_reports"] },
+    } as ReturnType<typeof authContext.useAuth>);
   });
 
   it("clears the thread when the store switches", async () => {

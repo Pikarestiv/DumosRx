@@ -22,7 +22,7 @@ export const profitSummaryTool: AssistantTool<{ from: string; to: string }, Prof
     to: { type: "string", description: "End date YYYY-MM-DD", required: true },
   },
   requiredPermission: "view_financial_reports",
-  examples: ["how much gross profit did we make on 2026-09-01", "net profit this month"],
+  examples: ["net profit this month", "how much gross profit did we make on 2026-09-01"],
   execute: async ({ from, to }) => {
     const range = toQueryRange({ from, to });
     const rows = await fetchProfitLossReportData(range.from, range.to);

@@ -82,6 +82,22 @@ describe("assistant inventory tools", () => {
     expect(reply.text).not.toMatch(/NGN|value/i);
   });
 
+  it("does not present the named list as a subset of the count when a deactivated product is in it", async () => {
+    seedLowStockProduct();
+    db.run(`INSERT INTO products (id, name, reorder_level, selling_price, is_active, created_at, updated_at)
+            VALUES ('p3', 'Retired Syrup', 15, 300, 0, '2026-01-01', '2026-01-01')`);
+    db.run(`INSERT INTO stock_batches (id, product_id, quantity, cost_price, created_at, updated_at)
+            VALUES ('b3', 'p3', 1, 50, '2026-01-01', '2026-01-01')`);
+
+    const { inventoryStatusTool } = await import("@/lib/assistant/tools/inventory-tools");
+    const result = await inventoryStatusTool.execute({}, unprivilegedCtx);
+    const reply = inventoryStatusTool.format(result, {}, unprivilegedCtx);
+
+    expect(result.lowStockCount).toBe(1);
+    expect(result.lowStockItems.map((i) => i.product)).toContain("Retired Syrup");
+    expect(reply.text).not.toMatch(/\(of \d+\)/);
+  });
+
   it("includes stock value when the caller has view_cost_fields", async () => {
     seedLowStockProduct();
     const { inventoryStatusTool } = await import("@/lib/assistant/tools/inventory-tools");

@@ -77,9 +77,9 @@ export const inventoryStatusTool: AssistantTool<Record<string, never>, Inventory
     }
 
     let text = parts.join(", ") + ".";
-    if (result.lowStockItems.length > 0) {
+    if (result.lowStockCount > 0 && result.lowStockItems.length > 0) {
       const names = result.lowStockItems.map((i) => i.product).join(", ");
-      text += ` Top low-stock items (of ${result.lowStockCount}): ${names}.`;
+      text += ` Low-stock alerts include: ${names}.`;
     }
 
     return { kind: "answer", text };

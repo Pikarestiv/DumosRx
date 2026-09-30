@@ -3342,6 +3342,18 @@ tie is `ambiguous` (the router renders "Did you mean: …?" from the intents'
   returns `null`, it does not roll over into March) and returns `null`
   rather than guessing, which is what makes the intent's `ctx.now` fallback
   the single place "no date given" is decided.
+- **The phrase/keyword lists are pinned by a table-driven coverage sweep.**
+  `__tests__/assistant-utterance-coverage.test.ts` runs ~65 realistic
+  utterances through the real `matchIntent`/`INTENTS` (no DB, no context
+  beyond what `buildArgs` needs) and asserts the exact intent id each one
+  resolves to, plus three that must stay `none`. It exists because the
+  plan's post-data-tools sweep was skipped once and 26% of realistic
+  phrasings fell through to `buildNoMatchReply` — widen a phrase list and
+  add the utterance here in the same change. The table is also the guard
+  against the *other* failure mode: a widened phrase that ties with another
+  intent and turns a working question permanently `ambiguous` (the reason
+  `sales_summary` has no bare `/\bsales (today|yesterday)\b/` phrase — it
+  would tie with `my_sales_today` on "what are my sales today").
 - **`NAVIGATION_INTENTS` is derived from `HELP_TOPICS`, not hand-written.**
   `intents/navigation-intents.ts` maps each topic to an intent whose phrases,
   keywords and label are the topic's own, and whose `buildArgs` returns that
@@ -3457,8 +3469,19 @@ alternates instead of silently picking one.
 
 `inventoryStatusTool` is the aggregate counterpart: `getStockBatchStats()`
 for the low/critical/expiring/expired counts and the valuation, plus
-`getLowStockAlerts()` for the (already `LIMIT 5`) named items, so the
-assistant's numbers are the same ones the dashboard cards show. Note
+`getLowStockAlerts()` for the (already `LIMIT 5`) named items. The **counts**
+are the same ones the dashboard cards show; the **named list is not a subset
+of them**, and the reply must not imply it is. `getStockBatchStats()` requires
+`p.is_active = 1` for both its low and critical cases, `getLowStockAlerts()`
+has no `is_active` filter at all (`lib/db/queries/inventory.ts` — see
+`docs/KNOWN_BUGS.md` A-53), so a deactivated product at or below its reorder
+level is listed but never counted. The reply therefore says "Low-stock alerts
+include: …" rather than the old "Top low-stock items (of N): …", which could
+read "2 product(s) low on stock" above five names, and it drops the list
+entirely when the count is `0` (naming products under "0 product(s) low on
+stock" is the same contradiction the other way round). Fixing the
+divergence properly means changing `getLowStockAlerts()`, which the dashboard
+shares — out of scope for the assistant, hence A-53. Note
 `getStockBatchStats()` returns **a single row object, not an array** — it
 already does `result[0]` internally, so destructuring it as `const [stats]`
 yields `undefined`. It takes `ctx.expiryWarningDays` so "expiring soon"
@@ -3518,6 +3541,15 @@ payment methods for the total while taking the count from
 comparable, by design: one is a cashier's own net takings, the other the
 store's transaction ledger.
 
+**A requested *range* is disclosed, not dropped.** Both of `sales_summary`'s
+queries are single-date only, so "total sales from 2026-09-01 to 2026-09-15"
+cannot be answered as a range without new queries. `buildArgs` therefore adds
+`requestedTo` when `parseDatePhrase` returned a real range (`parsed.to !==
+parsed.from`), and `format()` appends "(You asked about a range up to …; this
+is just …)". Dropping `parsed.to` silently, as it used to, answered one day of
+a fifteen-day question. `profit_summary` takes a genuine `{ from, to }` and
+needs none of this — don't assume the two tools handle a range alike.
+
 **The date default lives in the intent, not the tool.** `sales_summary`'s
 `buildArgs` runs `parseDatePhrase(utterance, ctx.now)` and falls back to
 `toDateOnly(ctx.now)`, so `execute()` always receives an explicit `date`
@@ -3560,6 +3592,12 @@ bounds. `getSalesTotalsByPaymentMethod()` does this widening internally,
 which is why `sales_summary` can pass a bare date and this one cannot —
 don't assume the convention is shared across query modules.
 
+**`examples[0]` must be a relative date.** `use-assistant.ts` takes
+`examples.slice(0, 1)` for the suggestion chip, so the literal-date example
+(`"how much gross profit did we make on 2026-09-01"`, kept second because it
+is what pins the typed-date path) would otherwise be a permanent chip asking
+about a fixed past day. The relative `"net profit this month"` leads instead.
+
 `margin` is `netProfit / revenue`, guarded to `0` when revenue is `0`, and
 is a fraction (the reply multiplies by 100), not the `"Margin %"` string
 column the report row carries. Like `sales_summary`, the date default lives
@@ -3599,13 +3637,30 @@ not to the thread.
   an app left open overnight answer yesterday's question. The `suggestions`
   memo builds its own throwaway context for the same reason it can afford to:
   `authorizeToolCall` reads only `user`/`permissionGroup`.
-- **Suggestions are permission-filtered, not a static list.** They are the
-  first `examples` entry of each tool the current user is actually allowed to
-  call, capped at 5 — so a cashier is never invited to ask a question that can
-  only be answered with a denial. They go through the same
-  `authorizeToolCall()` the router uses; don't hand-maintain a parallel list,
-  it would drift from the gate the moment a tool's `requiredPermission`
-  changes.
+- **Suggestions are permission-filtered, not a static list.** They are one
+  example per tool the current user is actually allowed to call, capped at 5 —
+  so a cashier is never invited to ask a question that can only be answered
+  with a denial. They go through the same `authorizeToolCall()` the router
+  uses; don't hand-maintain a parallel list, it would drift from the gate the
+  moment a tool's `requiredPermission` changes.
+- **`navigate_help` needs a second filter, and it lives in
+  `lib/assistant/suggestion-examples.ts`.** That tool has no tool-level
+  `requiredPermission` (one tool, thirteen topics, twelve different keys), so
+  `authorizeToolCall` always passes it and `examples[0]` —
+  `"how do i make a sale"` — used to be offered to every role, including an
+  `auditor` with no `process_sales`, who was then refused on tapping it.
+  `suggestionExampleFor(tool, ctx)` returns `examples[0]` for every other tool
+  and, for `navigate_help`, the example built from the **first `HELP_TOPICS`
+  entry the user passes `hasPermission(…, topic.requiredPermission, "any")`
+  for** — the same check `navigateHelpTool.format()` already makes. It returns
+  `undefined` when no topic qualifies and both callers drop it. Both the
+  hook's `suggestions` memo and `fallback-replies.ts`'s `permittedExamples`
+  go through it; keep it that way, or the no-match reply and the chips will
+  disagree about what a role may ask. `helpTopicExample(topic)` in
+  `tools/navigation-tools.ts` is the single derivation of the string, so the
+  helper never has to index `examples` positionally.
+  Tests: `__tests__/assistant-suggestion-examples.test.ts` and the auditor
+  case in `__tests__/use-assistant.test.ts`.
 - **The thread is cleared when the identity changes, not on every render.**
   The effect compares `${user?.id}:${activeStoreId}` against a ref seeded to
   `null`, so the first run only records the identity and a genuine
@@ -3668,6 +3723,15 @@ no host-supplied callback.
   `className` lands on the element that actually scrolls and carries padding.
   Swapping them collapses the message list to zero height inside a flex
   parent.
+- **The message list scrolls itself.** `assistant-message-list.tsx` keeps a
+  `bottomRef` sentinel `<div>` after the thinking indicator and
+  `scrollIntoView({ behavior: "smooth", block: "end" })`s it on every change
+  to `messages.length` or `isThinking`. The panel is a fixed `h-[60vh]`, so
+  without it the newest reply renders below the fold after ~3 exchanges and
+  the user has to scroll to read the answer they just asked for. jsdom
+  implements `scrollIntoView` as a no-op, so the test stubs
+  `Element.prototype.scrollIntoView` with a spy in `beforeEach` to assert it
+  fired.
 - **Action buttons close the panel** (`onActionClick` → `close`): a reply's
   action is a navigation, and leaving a modal open over the page it just
   routed to hides the thing the user asked for.

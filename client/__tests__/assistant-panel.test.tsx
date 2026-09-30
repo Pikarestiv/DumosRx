@@ -60,6 +60,7 @@ vi.mock("@/lib/assistant/router", () => ({
 describe("AssistantPanel", () => {
   beforeEach(async () => {
     answer.mockClear();
+    Element.prototype.scrollIntoView = vi.fn();
     const { useAssistantPanel } = await import("@/lib/store/use-assistant-panel");
     useAssistantPanel.setState({ isOpen: true, messages: [] });
   });
@@ -91,6 +92,23 @@ describe("AssistantPanel", () => {
     fireEvent.click(link);
 
     expect(useAssistantPanel.getState().isOpen).toBe(false);
+  });
+
+  it("scrolls the newest message into view", async () => {
+    const { AssistantPanel } = await import("@/components/assistant/assistant-panel");
+    render(<AssistantPanel />);
+
+    const scrollIntoView = vi.mocked(Element.prototype.scrollIntoView);
+    scrollIntoView.mockClear();
+
+    const input = screen.getByLabelText("Ask the assistant");
+    fireEvent.change(input, { target: { value: "how do i make a sale" } });
+    fireEvent.submit(input.closest("form")!);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Make a sale: Open POS/)).toBeTruthy();
+    });
+    expect(scrollIntoView).toHaveBeenCalled();
   });
 
   it("stays usable when sending throws instead of resolving", async () => {

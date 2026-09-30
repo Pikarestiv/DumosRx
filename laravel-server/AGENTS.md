@@ -726,6 +726,24 @@ straight to their own bank account.
   that reconcilable. Anything summing paid online orders as revenue must
   therefore treat `'refunded'` as not-revenue rather than assuming three
   values.
+- **The cancel transition is committed under a row lock before the provider is
+  called, and a provider "already refunded" counts as success.** The
+  pending-only guard is a check-then-write, so without a lock two concurrent
+  cancels (staff double-tapping, or the POS retrying a request whose response
+  was lost) both read `pending`, both wrote `cancelled` and both called the
+  refund API — a double payout, or, when Paystack rejected the second, a
+  *correct* refund falling through to the manual-refund flag with
+  `payment_status` still `'paid'` (A-82). `markFulfilled()` now takes the
+  transition inside `DB::transaction()` + `lockForUpdate()` and the loser gets
+  the 409, so only one caller ever reaches the provider; the refund happens
+  after that commit (never with a lock held across a third-party call) and
+  `payment_status` is written in its own short transaction on the outcome.
+  `PaystackSubaccountService::refund()` maps an "already refunded"/"fully
+  reversed" rejection to `success: true, already_refunded: true` — the money is
+  back, which is the outcome asked for — and the duplicate store notification is
+  suppressed for that case. A genuine failure (unknown reference, provider
+  error) still falls through to flag-and-notify. Pinned by
+  `tests/Feature/OnlineOrderCancelRefundLockTest.php`.
 
 **Carbon 3 gotcha:** `diffInMonths()` (and the other `diffIn*` methods)
 return a **signed** value (`$other - $this`) in Carbon 3, unlike Carbon 2's

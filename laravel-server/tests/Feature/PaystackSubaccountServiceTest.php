@@ -117,11 +117,26 @@ class PaystackSubaccountServiceTest extends TestCase
 
     public function test_refund_returns_failure_on_a_provider_error()
     {
-        Http::fake(['api.paystack.co/refund' => Http::response(['status' => false, 'message' => 'Transaction already refunded'], 400)]);
+        Http::fake(['api.paystack.co/refund' => Http::response(['status' => false, 'message' => 'Transaction not found'], 400)]);
 
         $result = (new PaystackSubaccountService())->refund('DRX-REF-1');
 
         $this->assertFalse($result['success']);
-        $this->assertSame('Transaction already refunded', $result['message']);
+        $this->assertSame('Transaction not found', $result['message']);
+    }
+
+    /**
+     * A-82: the money is already back with the customer, which is the outcome
+     * the caller asked for — reporting it as a failure sent the store off to
+     * refund by hand a payment that had already been reversed.
+     */
+    public function test_refund_reports_an_already_reversed_transaction_as_success()
+    {
+        Http::fake(['api.paystack.co/refund' => Http::response(['status' => false, 'message' => 'Transaction already refunded'], 400)]);
+
+        $result = (new PaystackSubaccountService())->refund('DRX-REF-1');
+
+        $this->assertTrue($result['success']);
+        $this->assertTrue($result['already_refunded']);
     }
 }

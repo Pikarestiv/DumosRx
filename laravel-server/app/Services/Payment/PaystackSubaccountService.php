@@ -162,14 +162,38 @@ class PaystackSubaccountService
             $response = $this->client()
                 ->post('https://api.paystack.co/refund', $payload);
         } catch (\Throwable $e) {
-            return ['success' => false, 'message' => $e->getMessage()];
+            return ['success' => false, 'already_refunded' => false, 'message' => $e->getMessage()];
         }
 
         $body = $response->json();
+        $message = $body['message'] ?? ($response->successful() ? 'Refund processed' : 'Refund failed');
+        $succeeded = $response->successful() && ($body['status'] ?? false);
+        $alreadyRefunded = !$succeeded && $this->messageMeansAlreadyRefunded((string) $message);
 
         return [
-            'success' => $response->successful() && ($body['status'] ?? false),
-            'message' => $body['message'] ?? ($response->successful() ? 'Refund processed' : 'Refund failed'),
+            'success' => $succeeded || $alreadyRefunded,
+            'already_refunded' => $alreadyRefunded,
+            'message' => $message,
         ];
+    }
+
+    /**
+     * A refund Paystack rejects because the transaction is already reversed is
+     * the desired end state, not a failure: treating it as one told the store
+     * to refund by hand money that had already gone back. See
+     * laravel-server/AGENTS.md's online-order cancellation section.
+     */
+    private function messageMeansAlreadyRefunded(string $message): bool
+    {
+        $needles = ['already been refunded', 'already refunded', 'fully reversed', 'has been reversed'];
+        $message = strtolower($message);
+
+        foreach ($needles as $needle) {
+            if (str_contains($message, $needle)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

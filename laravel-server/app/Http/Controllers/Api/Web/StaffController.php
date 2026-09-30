@@ -346,6 +346,12 @@ class StaffController extends Controller
             ], 422);
         }
 
+        if ($request->has('is_active') && !$request->boolean('is_active')) {
+            if ($blocked = $this->irreversibleDeactivationResponse($request, $staff)) {
+                return $blocked;
+            }
+        }
+
         $data = $request->only(['first_name', 'last_name', 'email', 'username', 'role', 'pin', 'store_id', 'is_active']);
 
         // A PIN change through this endpoint must be hashed too, not just
@@ -382,6 +388,34 @@ class StaffController extends Controller
         return response()->json($staff);
     }
 
+    /**
+     * `is_active = false` is terminal for two targets and must be refused for
+     * both: the tenant owner (whose account is the only one that can restore
+     * anything, so deactivating it 403s every request in the tenant and
+     * rejects the password login, recoverable only by a super_admin) and the
+     * caller themselves (same dead end, one step shorter). `manage_staff` is
+     * not owner-exclusive, so without this any admin- or manager-role staff
+     * member could take the whole tenant offline (A-85).
+     */
+    private function irreversibleDeactivationResponse(Request $request, User $staff)
+    {
+        $caller = $request->user();
+        $owner = app(\App\Services\SubscriptionService::class)->getSubscriptionOwner($caller);
+
+        $message = $staff->id === $caller->id
+            ? 'You cannot deactivate your own account.'
+            : 'The main account cannot be deactivated. Contact support if this account should be closed.';
+
+        if ($staff->id === $caller->id || $staff->id === $owner->id) {
+            return response()->json([
+                'message' => $message,
+                'errors' => ['is_active' => [$message]],
+            ], 422);
+        }
+
+        return null;
+    }
+
     #[OA\Delete(
         path: '/staff/{staff}',
         summary: 'Deactivate a staff account',
@@ -400,6 +434,11 @@ class StaffController extends Controller
         // Same ownership scoping as update() above — otherwise DELETE
         // /staff/{any id} could deactivate any user on the platform.
         $staff = $this->visibleStaffBaseQuery($request)->findOrFail($id);
+
+        if ($blocked = $this->irreversibleDeactivationResponse($request, $staff)) {
+            return $blocked;
+        }
+
         $staff->update(['is_active' => false]);
         return response()->json(['message' => 'Staff deactivated']);
     }

@@ -106,6 +106,37 @@ Do not reintroduce a fallback: if a staff member needs the web dashboard, an
 owner sets a real password on create or via `PUT /staff/{id}`. Covered by
 `tests/Feature/StaffPinDerivedPasswordTest.php`.
 
+## No tenant-facing endpoint may create a lockout only a super_admin can undo
+
+`users.is_active = false` and `stores.deleted_at` both make `CheckAccountStatus`
+403 every request in the protected group, and the only way back out of either
+is a super_admin call (`POST /admin/users/{id}/reactivate`,
+`POST /admin/stores/{id}/restore`). So a self-service endpoint that can reach
+those states from inside the tenant is a support ticket by construction, and
+two of them could:
+
+- **`DELETE /staff/{id}` / `is_active: false` on `PUT /staff/{id}`** refuse two
+  targets with a 422: the **tenant owner** and the **caller themselves**. The
+  owner's own row is deliberately visible and editable through these endpoints
+  (the web staff table's "Main Account"), and `manage_staff` is not
+  owner-exclusive — so any admin- or manager-role staff member could deactivate
+  the owner and take the whole tenant offline, with nobody left inside it able
+  to reverse that (A-85). `AdminUserController::deactivateUser()` refuses
+  self-deactivation for the same reason. Both pinned by
+  `tests/Feature/StaffSelfLockoutGuardTest.php`.
+- **`DELETE /stores/{id}`** refuses with a **409** when it is the caller's last
+  remaining store, because `Store` soft-deletes and one "Remove store" click
+  otherwise bricked a paying single-store account (A-84). When it does archive
+  a store it stamps `deleted_by_id`/`deletion_reason` the way
+  `AdminStoreDeletionService::archiveStore()` does, so the state is not silently
+  different from an admin-archived one.
+
+`CheckAccountStatus`'s `STORE_ARCHIVED` 403 distinguishes the two cases —
+`archived_by: 'owner' | 'administrator'`, with matching `reason` text — since
+telling an owner who just removed a branch themselves that "an administrator
+archived this store" guarantees a support ticket that starts from the wrong
+premise. Pinned by `tests/Feature/StoreSelfDeletionGuardTest.php`.
+
 ## Admin: owner vs. staff accounts, and the store detail endpoint
 
 Two different columns decide what a user "is", and mixing them up has already

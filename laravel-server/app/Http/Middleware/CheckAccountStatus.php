@@ -108,10 +108,15 @@ class CheckAccountStatus
         }
 
         if ($store->trashed()) {
+            $selfArchived = $store->deleted_by_id && $store->deleted_by_id === $store->user_id;
+
             return response()->json([
                 'success' => false,
                 'message' => 'STORE_ARCHIVED',
-                'reason' => 'This store has been archived by an administrator and can no longer sync or record data. Please contact administrative support.'
+                'archived_by' => $selfArchived ? 'owner' : 'administrator',
+                'reason' => $selfArchived
+                    ? 'This store was removed from your own account and can no longer sync or record data. Contact support if you need it restored.'
+                    : 'This store has been archived by an administrator and can no longer sync or record data. Please contact administrative support.'
             ], 403);
         }
 

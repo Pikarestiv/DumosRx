@@ -3269,6 +3269,20 @@ bugs. A useful sanity check while hunting one of these: reproduce it
 deliberately by deleting `globalThis.window` in an `afterAll` and waiting a
 few hundred ms, which turns the race into a deterministic failure.
 
+## Assistant tool authorization (`lib/assistant/permission-gate.ts`)
+
+Every assistant tool call passes through `authorizeToolCall(tool, ctx)`,
+which returns `{ ok: true }` or `{ ok: false, reason }`. It is the single
+gate: no signed-in `ctx.user` denies everything, a tool with no
+`requiredPermission` is open to any signed-in user, and a gated tool is
+checked with `hasPermission(user, permissionGroup, requiredPermission,
+"any")` — so `requiredPermission` may be an array and any one key suffices,
+and `store_owner`/`super_admin` keep the blanket allow `hasPermission`
+already gives them everywhere else. Don't reimplement the role/fallback
+logic here or gate tools ad hoc inside `execute`; declare
+`requiredPermission` on the tool and let the gate do it, so the router can
+answer with a `denied` reply instead of running the query.
+
 ## Running things
 
 ```

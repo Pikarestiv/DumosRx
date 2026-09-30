@@ -36,27 +36,49 @@ function getMySQLSchema(): Column[] {
   }
 }
 
-function getSQLiteSchema(): Record<string, string[]> {
-  console.log('Parsing SQLite schema from schema.ts...');
-  const content = fs.readFileSync(SCHEMA_FILE, 'utf-8');
-  const tables: Record<string, string[]> = {};
-  
-  // Extract CREATE TABLE blocks
+/** The sync engine does not always write a client table to a server table of
+ * the same name: `audit_logs` rows are applied to `activity_logs`, mirroring
+ * SyncController's getModelForTable(). A separate, unused MySQL `audit_logs`
+ * table also exists, so looking the client name up directly compared against
+ * the wrong table entirely. Keep this in step with getModelForTable(). */
+const CLIENT_TO_SERVER_TABLE = new Map<string, string>([['audit_logs', 'activity_logs']]);
+
+export function serverTableFor(clientTable: string): string {
+  return CLIENT_TO_SERVER_TABLE.get(clientTable) ?? clientTable;
+}
+
+function stripSQLComments(block: string): string {
+  return block
+    .split('\n')
+    .map((line) => line.replace(/--.*$/, ''))
+    .join('\n');
+}
+
+export function parseSQLiteSchema(content: string): Record<string, string[]> {
+  const tables: Record<string, string[]> = Object.create(null);
+
   const tableRegex = /CREATE TABLE IF NOT EXISTS ([a-zA-Z0-9_]+) \(([\s\S]*?)\);/g;
   let match;
   while ((match = tableRegex.exec(content)) !== null) {
     const tableName = match[1];
-    const columnsBlock = match[2];
-    
-    // Extract column names
+    // Inline `-- ...` comments contain commas of their own ("-- 'earned',
+    // 'redeemed'"), so splitting the raw block on commas both invented
+    // phantom columns and swallowed the real column after the comment.
+    const columnsBlock = stripSQLComments(match[2]);
+
     const columns = columnsBlock.split(',').map(line => {
-      const parts = line.trim().split(' ');
+      const parts = line.trim().split(/\s+/);
       return parts[0].trim();
-    }).filter(col => col && col !== 'FOREIGN' && col !== 'PRIMARY' && col !== 'UNIQUE');
-    
+    }).filter(col => col && col !== 'FOREIGN' && col !== 'PRIMARY' && col !== 'UNIQUE' && col !== 'CHECK');
+
     tables[tableName] = columns;
   }
   return tables;
+}
+
+function getSQLiteSchema(): Record<string, string[]> {
+  console.log('Parsing SQLite schema from schema.ts...');
+  return parseSQLiteSchema(fs.readFileSync(SCHEMA_FILE, 'utf-8'));
 }
 
 function getSyncConfig(): string[] {
@@ -97,9 +119,11 @@ function runVerification() {
   
   console.log('\\n--- Validating Synced Tables ---');
   for (const table of syncedTables) {
+    const serverTable = serverTableFor(table);
+    const serverLabel = serverTable === table ? `'${table}'` : `'${table}' -> server '${serverTable}'`;
     let tableOk = true;
-    if (!mysqlTables[table]) {
-      console.error(`❌ Table '${table}' is in SYNC_CONFIG but missing from MySQL (Laravel)`);
+    if (!mysqlTables[serverTable]) {
+      console.error(`❌ Table ${serverLabel} is in SYNC_CONFIG but missing from MySQL (Laravel)`);
       hasErrors = true;
       tableOk = false;
     }
@@ -110,17 +134,17 @@ function runVerification() {
     }
     
     if (tableOk) {
-      console.log(`✅ Table '${table}' exists in both DBs.`);
+      console.log(`✅ Table ${serverLabel} exists in both DBs.`);
       
       // Check for sync tracking columns
       const syncTrackingColumns = ['_version', '_synced_at', 'deleted_at', 'store_id'];
       
-      const mysqlTableCols = mysqlTables[table];
+      const mysqlTableCols = mysqlTables[serverTable];
       const sqliteTableCols = sqliteTables[table];
       
       for (const reqCol of syncTrackingColumns) {
         if (!mysqlTableCols.includes(reqCol) && reqCol !== '_synced_at' && reqCol !== 'store_id') {
-          console.warn(`  ⚠️ MySQL table '${table}' is missing '${reqCol}'`);
+          console.warn(`  ⚠️ MySQL table '${serverTable}' is missing '${reqCol}'`);
           hasWarnings = true;
         }
       }
@@ -130,11 +154,11 @@ function runVerification() {
       const missingInSQLite = mysqlTableCols.filter(c => !sqliteTableCols.includes(c) && c !== 'store_id');
       
       if (missingInMySQL.length > 0) {
-        console.warn(`  ⚠️ SQLite table '${table}' has columns missing in MySQL: ${missingInMySQL.join(', ')}`);
+        console.warn(`  ⚠️ SQLite table '${table}' has columns missing in MySQL '${serverTable}': ${missingInMySQL.join(', ')}`);
         hasWarnings = true;
       }
       if (missingInSQLite.length > 0) {
-        console.warn(`  ⚠️ MySQL table '${table}' has columns missing in SQLite: ${missingInSQLite.join(', ')}`);
+        console.warn(`  ⚠️ MySQL table '${serverTable}' has columns missing in SQLite '${table}': ${missingInSQLite.join(', ')}`);
         hasWarnings = true;
       }
     }
@@ -151,4 +175,6 @@ function runVerification() {
   }
 }
 
-runVerification();
+const invokedDirectly =
+  !!process.argv[1] && path.resolve(process.argv[1]) === __filename;
+if (invokedDirectly) runVerification();

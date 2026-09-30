@@ -3182,7 +3182,20 @@ same tab session still gets its own fresh one-time retry.
   the whole app stays covered, not just the area you're adding.
 - `npm run test:schema`: diffs local SQLite schema against the Laravel
   backend's live MySQL schema. Requires the sibling `../laravel-server` repo
-  and a working `php artisan tinker` in it.
+  and a working `php artisan tinker` in it. Two things about it are load
+  bearing: `CLIENT_TO_SERVER_TABLE` in `scripts/verify-schema-sync.ts` maps a
+  client table onto the server table the sync engine really writes
+  (`audit_logs` -> `activity_logs`, mirroring `SyncController`'s
+  `getModelForTable()`; MySQL's own unused `audit_logs` table is vestigial),
+  so add an entry there whenever `getModelForTable()` gains a mismatched
+  pair; and the column parser strips inline `-- ...` comments before
+  splitting `SCHEMA_SQL` on commas, because a comment's own commas otherwise
+  invent phantom columns and swallow the real column after it. Its pure
+  parts (`parseSQLiteSchema`, `serverTableFor`) are exported and covered by
+  `__tests__/verify-schema-sync-parsing.test.ts`; the script only
+  self-executes when run directly. Remaining warnings today are all
+  MySQL-only columns (`deleted_at`, Laravel-side `activity_logs` extras) —
+  nothing the client writes is missing server-side.
 - **There is no substitute for exercising a change in the actual app** for
   anything touching a live screen. This session's convention has been:
   start the dev server (`npm run dev`, already runs on `:3000` in most

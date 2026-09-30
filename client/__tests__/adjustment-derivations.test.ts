@@ -110,6 +110,18 @@ describe("adjustment ledger grouping", () => {
     expect(groups[0].date).toBe("2026-09-07T09:00:00.000Z");
   });
 
+  it("carries both ends of a group's movement date interval", () => {
+    const [group] = groupAdjustmentMovements([
+      row({ id: "m1", reference_id: "ADJ-1", movement_date: "2026-09-05T23:58:00.000Z" }),
+      row({ id: "m2", reference_id: "ADJ-1", movement_date: "2026-09-06T00:01:00.000Z" }),
+      row({ id: "m3", reference_id: "ADJ-1", movement_date: "2026-09-05T23:59:00.000Z" }),
+    ]);
+
+    expect(group.startDate).toBe("2026-09-05T23:58:00.000Z");
+    expect(group.endDate).toBe("2026-09-06T00:01:00.000Z");
+    expect(group.date).toBe(group.endDate);
+  });
+
   it("surfaces the fixed reason and its optional note separately", () => {
     const [group] = groupAdjustmentMovements([
       row({ id: "m1", reference_id: "ADJ-1", reason: buildAdjustmentReason("damage", "Water leak in store room") }),
@@ -166,6 +178,44 @@ describe("adjustment ledger filtering", () => {
 
   it("returns everything when no filter is applied", () => {
     expect(filterAdjustmentGroups(groups, {})).toHaveLength(2);
+  });
+
+  describe("a group whose movements straddle midnight", () => {
+    const spanning = groupAdjustmentMovements([
+      row({
+        id: "m1",
+        reference_id: "ADJ-MIDNIGHT",
+        reason: buildAdjustmentReason("inventory_count"),
+        movement_date: "2026-09-10T23:55:00.000Z",
+      }),
+      row({
+        id: "m2",
+        reference_id: "ADJ-MIDNIGHT",
+        reason: buildAdjustmentReason("inventory_count"),
+        movement_date: "2026-09-11T00:04:00.000Z",
+      }),
+    ]);
+
+    it("matches a range ending on the day it started", () => {
+      expect(
+        filterAdjustmentGroups(spanning, { from: "2026-09-10", to: "2026-09-10" }).map(
+          (g) => g.referenceId,
+        ),
+      ).toEqual(["ADJ-MIDNIGHT"]);
+    });
+
+    it("matches a range starting on the day it finished", () => {
+      expect(
+        filterAdjustmentGroups(spanning, { from: "2026-09-11", to: "2026-09-11" }).map(
+          (g) => g.referenceId,
+        ),
+      ).toEqual(["ADJ-MIDNIGHT"]);
+    });
+
+    it("stays out of a range that touches neither of its days", () => {
+      expect(filterAdjustmentGroups(spanning, { from: "2026-09-12", to: "2026-09-20" })).toEqual([]);
+      expect(filterAdjustmentGroups(spanning, { from: "2026-09-01", to: "2026-09-09" })).toEqual([]);
+    });
   });
 });
 

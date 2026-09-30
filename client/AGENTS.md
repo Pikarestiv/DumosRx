@@ -1204,6 +1204,17 @@ e2e/                       Playwright end-to-end specs
   files parameterise their row assertions over the two branches with a
   mutable flag behind `vi.mock("@/hooks/use-media-query", ...)`.
 
+  **A group carries a date *interval*, not just one date.**
+  `groupAdjustmentMovements` sets `startDate` (earliest movement) and
+  `endDate` (latest) alongside the display/sort `date`, which remains the
+  latest. `filterAdjustmentGroups`' `from`/`to` treats a group as matching
+  when `[startDate, endDate]` overlaps the requested range, because one
+  `reference_id` can hold movements written either side of midnight (a long
+  cycle count, a slow write batch) and filtering on the latest date alone hid
+  such a group from a range ending on the day it started — finding `A-48`'s
+  sibling `A-49`. Day comparison is a raw `slice(0, 10)` of the ISO string on
+  both ends, i.e. UTC days, matching what it always compared.
+
   **Two `reference_type` values mean "adjustment", and both matter.** Every
   stock correction outside a sale/purchase/transfer is a
   `stock_movements` row with `movement_type = 'adjustment'`. The

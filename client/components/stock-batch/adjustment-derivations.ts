@@ -74,6 +74,8 @@ export function computeStockAfter(currentStock: number, delta: number): number {
 export interface AdjustmentGroup {
   referenceId: string;
   date: string;
+  startDate: string;
+  endDate: string;
   reason: string;
   note: string;
   source: string;
@@ -124,19 +126,24 @@ export function groupAdjustmentMovements(
     const productNames = new Set<string>();
     const productIds = new Set<string>();
     let netQuantity = 0;
-    let date = "";
+    let startDate = "";
+    let endDate = "";
 
     for (const movement of movements) {
       productIds.add(movement.product_id);
       if (movement.product_name) productNames.add(movement.product_name);
       netQuantity += movement.quantity || 0;
       const current = movementDate(movement);
-      if (current > date) date = current;
+      if (!current) continue;
+      if (!startDate || current < startDate) startDate = current;
+      if (current > endDate) endDate = current;
     }
 
     groups.push({
       referenceId: movements[0]?.reference_id || key,
-      date,
+      date: endDate,
+      startDate,
+      endDate,
       reason: parsed.reason,
       note: parsed.note,
       source: movements[0]?.reference_type || "",
@@ -169,9 +176,10 @@ export function filterAdjustmentGroups(
       if (!matches) return false;
     }
     if (reasonFilter && group.reason.toLowerCase() !== reasonFilter) return false;
-    const day = group.date.slice(0, 10);
-    if (from && day < from) return false;
-    if (to && day > to) return false;
+    const firstDay = (group.startDate || group.date).slice(0, 10);
+    const lastDay = (group.endDate || group.date).slice(0, 10);
+    if (from && lastDay < from) return false;
+    if (to && firstDay > to) return false;
     return true;
   });
 }

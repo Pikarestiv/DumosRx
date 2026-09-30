@@ -3732,11 +3732,24 @@ no host-supplied callback.
   `overflow-hidden`, and the sheet re-passes `style.paddingTop/Bottom` as the
   bare `--tauri-top`/`--tauri-bottom` insets: those paddings are *inline* on
   `SheetContent`, so `p-0` alone cannot remove them.
-- **Both headers are a `bg-primary` band** (`HEADER_CLASS` in
-  `assistant-panel.tsx`, title/description in
-  `text-primary-foreground`/`/80`), with `hideClose` on `SheetContent` and an
-  explicit `SheetClose`/`DrawerClose` in the band — the built-in close button
-  is `foreground`-coloured and disappears against the primary fill.
+- **Both headers are a `bg-primary` band** (`HEADER_CLASS` on desktop's
+  `SheetHeader`, title/description in `text-primary-foreground`/`/80`), with
+  `hideClose` on `SheetContent` and an explicit `SheetClose`/`DrawerClose` in
+  the band — the built-in close button is `foreground`-coloured and
+  disappears against the primary fill.
+- **The mobile grab handle lives inside the blue band, not above it.**
+  `DrawerContent`'s own handle (`components/ui/drawer.tsx`) renders in the
+  plain `bg-background` area *before* whatever children a caller passes, so
+  with the panel's full-bleed `bg-primary` header starting right after it,
+  the default handle's white backdrop showed as a visible seam — a second,
+  paler panel stacked above the blue one. Fixed by passing `hideHandle` to
+  `DrawerContent` (an opt-in prop, default off, so the other 8 `Drawer`
+  consumers — POS cart, notification bell, user nav, etc. — are unaffected)
+  and rendering the panel's own handle (`GRAB_HANDLE_CLASS`,
+  `bg-primary-foreground/40`) as the first child of a `HEADER_WRAP_CLASS`
+  wrapper that now carries the `bg-primary` fill itself; `DrawerHeader` below
+  it is just the flex row (`HEADER_ROW_CLASS`), no background of its own.
+  Desktop's `Sheet` needs no handle and is untouched.
 - **`ScrollFade`'s two class props are not interchangeable.**
   `containerClassName` is the positioning wrapper and is what must carry
   `flex-1 min-h-0` to participate in the panel's flex column;

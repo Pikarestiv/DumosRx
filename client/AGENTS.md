@@ -3378,6 +3378,35 @@ migrations too, or — simpler, and what this test does — call
 `storeId ? " AND p.store_id = ?" : ""` branch drops out, and seed rows
 without a store.
 
+The same trap applies to `sales`: `SCHEMA_SQL`'s `CREATE TABLE sales` has no
+`store_id` column either, so a sales-tool test seeds rows without one and
+calls `core.setActiveStoreId(null)` — see
+`__tests__/assistant-sales-tools.test.ts` and the older
+`__tests__/get-recent-sales-date-range.test.ts`. Two further column facts
+that bite when seeding it: `transaction_number` is `UNIQUE NOT NULL` (every
+seeded row needs its own), and the money column is `total_amount`, not
+`total`.
+
+## Assistant sales tools (`lib/assistant/tools/sales-tools.ts`)
+
+`mySalesTodayTool` ("my sales today") answers for the signed-in user only:
+it passes `ctx.user?.id` and a `{ from, to }` of `toDateOnly(ctx.now)` to
+`getRecentSales()`, so the day boundary is the store's local calendar day
+and the filtering happens in SQL (the undated form of that query caps at
+`LIMIT 100`, which would silently drop a busy cashier's earliest sales —
+`get-recent-sales-date-range.test.ts` pins this). The reported total is
+**net**: each row goes through `calculateNetSaleAmount(total_amount,
+total_refunded)`, `total_refunded` being the `returns` subquery
+`getRecentSales()` already computes, so a refunded sale doesn't overstate
+the cashier's day.
+
+Its `requiredPermission` is `process_sales` — the permission every user who
+can ring a sale already has, and the narrow half of the reroute pair the
+router's `REROUTE_ON_DENIAL` exists for: a cashier without `view_reports`
+asking a sales-shaped question gets their own numbers rather than a refusal.
+`getRecentSales()` also filters by `getActiveStoreId()`, so nothing here
+needs its own store scoping.
+
 ## Running things
 
 ```

@@ -912,6 +912,16 @@ surface in the app. Three things about it are easy to undo by accident:
   deliberately does **not** disable `ThrottleRequests` — `StorefrontControllerTest`
   does, which is exactly why this gap was invisible for so long, so add
   limiter coverage there, not here.
+- **The provider webhook routes carry `throttle:webhooks` (PG-8).**
+  `POST /webhooks/paystack` and `POST /webhooks/flutterwave` sat outside every
+  limiter, which under Laravel 11 means completely unmetered — each call runs an
+  HMAC-SHA512 over the raw body and a `provider_reference` lookup, so an
+  unauthenticated flood was free CPU and free queries. The limiter is
+  **300/min/IP, deliberately loose**: a provider legitimately bursts (a
+  settlement batch, a replay of a backlog after an outage) and a 429 just makes
+  it redeliver forever. Don't tighten it toward the 5-15/min the storefront
+  limiters use. Asserted by `tests/Feature/PaymentRouteThrottleTest.php`, which
+  checks both routes carry the group *and* that the limit stays generous.
 - **`storefront-read` is generous on purpose.** The static-export build pulls
   the slug list plus every storefront from one GitHub runner IP in a single
   pass, about two requests per store. 120/min leaves headroom for roughly 50

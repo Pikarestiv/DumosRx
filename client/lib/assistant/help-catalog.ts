@@ -79,6 +79,7 @@ export const HELP_TOPICS: HelpTopic[] = [
     steps: ["Go to Reports > Daily Close", "Review the summary", "Confirm to close the day"],
     keywords: ["daily close", "close the day", "end of day"],
     phrases: [/\bdaily close\b/, /\bclose the day\b/, /\bend of day\b/],
+    requiredPermission: "run_daily_close",
   },
   {
     id: "view_reports",
@@ -96,7 +97,7 @@ export const HELP_TOPICS: HelpTopic[] = [
     steps: ["Go to Settings > Staff", "Tap Add Staff", "Set their name, PIN, and permission group"],
     keywords: ["add staff", "new staff", "add employee", "add cashier"],
     phrases: [/\badd (a |new )?staff\b/, /\bnew (staff|employee|cashier)\b/, /\badd (an |a )?(employee|cashier)\b/],
-    requiredPermission: "manage_store_settings",
+    requiredPermission: "manage_staff",
   },
   {
     id: "receipt_settings",

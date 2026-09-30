@@ -201,6 +201,8 @@ export function usePOSSystem() {
       restoreCart,
       customers,
       setShowHeldDialog,
+      isResellerSale,
+      markupType,
     });
   const { categories, filteredProducts, isFuzzyFallback } = usePOSProductFilter(
     products,

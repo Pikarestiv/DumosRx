@@ -3,7 +3,7 @@ import { generateId } from "@/lib/db/core";
 import { toast } from "sonner";
 import { Customer } from "./use-pos-data";
 import type { POSProduct as Product } from "@/lib/types/product";
-import type { CartItem } from "./use-pos-cart";
+import type { CartItem, MarkupType } from "./use-pos-cart";
 import type { HeldTransaction } from "@/lib/db/queries/sales";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
@@ -21,9 +21,12 @@ interface UsePOSHeldTransactionsProps {
     items: CartItem[],
     restoredDiscount?: number,
     restoredDiscountType?: "fixed" | "percentage",
+    restoredMarkup?: { isResellerSale: boolean; markupType: MarkupType | null },
   ) => void;
   customers: Customer[];
   setShowHeldDialog: (show: boolean) => void;
+  isResellerSale: boolean;
+  markupType: MarkupType | null;
 }
 
 export function usePOSHeldTransactions({
@@ -38,6 +41,8 @@ export function usePOSHeldTransactions({
   restoreCart,
   customers,
   setShowHeldDialog,
+  isResellerSale,
+  markupType,
 }: UsePOSHeldTransactionsProps) {
   const queryClient = useQueryClient();
 
@@ -62,6 +67,10 @@ export function usePOSHeldTransactions({
         // total the customer was quoted couldn't be reconstructed on recall.
         discount,
         discount_type: discountType,
+        // Without these two a recalled reseller sale came back as an ordinary
+        // sale at catalog prices: markup lost, commission never tracked.
+        is_reseller_sale: isResellerSale ? 1 : 0,
+        markup_type: isResellerSale ? markupType : null,
         created_at: new Date().toISOString(),
       });
 
@@ -88,28 +97,28 @@ export function usePOSHeldTransactions({
       const items: (CartItem & { product_id?: string })[] = JSON.parse(
         held.items_json,
       );
+      const wasResellerSale = held.is_reseller_sale === 1;
+      const productFor = (item: CartItem & { product_id?: string }) =>
+        products.find((m) => m.id === (item.product_id || item.id));
+
       const restoredItems = items
         .map((item) => {
-          const product = products.find(
-            (m) => m.id === (item.product_id || item.id),
-          );
-          if (product) {
-            return {
-              ...product,
-              quantity: item.quantity,
-              subtotal: product.unit_price * item.quantity,
-              // Always derive from the current catalog price, not the
-              // parsed items_json (which, for a transaction held before
-              // this feature shipped, may not have an original_unit_price
-              // at all). Same fix as use-pos-prescription.ts: without this,
-              // a CartItem-shaped object flows into restoreCart() with
-              // original_unit_price undefined, and a later updateUnitPrice()
-              // call (e.g. after toggling reseller mode) does
-              // Math.max(newPrice, undefined) => NaN, corrupting the price.
-              original_unit_price: product.unit_price,
-            };
-          }
-          return null;
+          const product = productFor(item);
+          if (!product) return null;
+          // Prices are rebuilt from the current catalog, which is the floor a
+          // markup sits on top of; a held reseller sale keeps the agreed
+          // marked-up unit price (clamped to that floor) instead of silently
+          // re-quoting the customer at shelf price.
+          const unitPrice = wasResellerSale
+            ? Math.max(item.unit_price, product.unit_price)
+            : product.unit_price;
+          return {
+            ...product,
+            quantity: item.quantity,
+            unit_price: unitPrice,
+            subtotal: unitPrice * item.quantity,
+            original_unit_price: product.unit_price,
+          };
         })
         .filter((item): item is CartItem => item !== null);
 
@@ -118,32 +127,43 @@ export function usePOSHeldTransactions({
       // quietly shorter cart than what was quoted.
       const missingCount = items.length - restoredItems.length;
 
-      // Prices come from the current catalog, not from items_json, so a
-      // price change during the hold silently re-quotes the customer unless
-      // we flag it. One notice per recall, not per line.
+      // A genuine catalog price change, measured against the price the line
+      // was based on (original_unit_price when present) rather than the
+      // possibly marked-up unit_price - comparing the latter reported every
+      // restored reseller markup as a price change.
       const hasRepricedItem = items.some((item) => {
-        const product = products.find(
-          (m) => m.id === (item.product_id || item.id),
-        );
-        return !!product && product.unit_price !== item.unit_price;
+        const product = productFor(item);
+        const heldBasePrice = item.original_unit_price ?? item.unit_price;
+        return !!product && product.unit_price !== heldBasePrice;
       });
 
-      // 2. Only now is it safe to drop the current cart.
+      // 2. Delete the held row BEFORE touching cart state. remove() can fail
+      // for reasons unrelated to the recall (a read-only second tab, an
+      // active store that has moved), and a cart already mutated behind a
+      // "Failed to recall" toast left the sale listed as recallable again.
+      await remove("held_transactions", held.id);
+
+      // 3. Only now is it safe to drop the current cart.
       clearCart();
 
       restoreCart(
         restoredItems,
         held.discount ?? 0,
         held.discount_type === "percentage" ? "percentage" : "fixed",
+        {
+          isResellerSale: wasResellerSale,
+          markupType: wasResellerSale
+            ? held.markup_type === "store"
+              ? "store"
+              : "reseller"
+            : null,
+        },
       );
 
       if (held.customer_id) {
         const customer = customers.find((c) => c.id === held.customer_id);
         if (customer) setSelectedCustomer(customer);
       }
-
-      // 3. Delete from held
-      await remove("held_transactions", held.id);
 
       toast.success("Transaction recalled");
       if (missingCount > 0) {

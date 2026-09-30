@@ -449,6 +449,8 @@ const SYNC_COLUMN_MIGRATIONS: { table: string; columns: string[] }[] = [
       "store_id TEXT",
       "discount REAL DEFAULT 0",
       "discount_type TEXT",
+      "is_reseller_sale INTEGER DEFAULT 0",
+      "markup_type TEXT",
     ],
   },
   {

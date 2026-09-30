@@ -523,6 +523,8 @@ CREATE TABLE IF NOT EXISTS held_transactions (
   total_amount REAL NOT NULL,
   discount REAL DEFAULT 0,
   discount_type TEXT,
+  is_reseller_sale INTEGER DEFAULT 0,
+  markup_type TEXT,
   notes TEXT,
   created_at TEXT,
   updated_at TEXT,

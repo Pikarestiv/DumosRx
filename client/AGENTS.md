@@ -1066,6 +1066,23 @@ e2e/                       Playwright end-to-end specs
   the moment a new default-off toggle ships, until the owner finds and
   flips it — a real rollout cost worth flagging when introducing one, not
   something to "fix" by quietly changing the requested default.
+- **Held sales carry their reseller state** (`lib/hooks/use-pos-held-transactions.ts`).
+  `held_transactions` has `is_reseller_sale`/`markup_type` (client schema,
+  `SYNC_COLUMN_MIGRATIONS`, and the Laravel
+  `add_reseller_columns_to_held_transactions_table` migration), and
+  `restoreCart()` takes a fourth `restoredMarkup` argument that re-applies
+  them through the **raw** store setters — never `setIsResellerSale`, whose
+  off-branch reverts every line to `original_unit_price` and would undo the
+  markup being restored. Recall rebuilds each line from the current catalog
+  (that price is the markup's floor and becomes `original_unit_price`) but
+  keeps the held marked-up `unit_price` for a reseller sale. The
+  "prices have changed" notice compares the catalog against the held line's
+  `original_unit_price`, not its `unit_price`, or every restored markup reads
+  as a catalog price change. **Recall deletes the held row before it touches
+  cart state**: `remove()` can fail on a read-only second tab or a moved
+  active store, and the old order left a recalled cart behind a "Failed to
+  recall" toast with the sale still listed as recallable (A-59/A-60 in
+  `docs/FIXED_BUGS.md`).
 - **Every sale line leaves exactly one `stock_movements` row.**
   `recordSaleItemStock()` (`lib/db/queries/inventory.ts`) escalates through
   four lookups — FEFO over positive-stock batches, the most recently touched

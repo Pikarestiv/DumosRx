@@ -16,17 +16,22 @@ export function useStoreImpersonation() {
   const [impersonateTarget, setImpersonateTarget] = useState<AdminStoreSummary | null>(null);
   const impersonateMutation = useImpersonateStoreMutation();
 
-  const environmentMismatchAccepted = () => {
+  const [environmentChallenge, setEnvironmentChallenge] = useState<{
+    store: AdminStoreSummary;
+    message: string;
+  } | null>(null);
+
+  const environmentMismatchMessage = () => {
     const apiEnv = getCurrentEnvironmentName(getBaseURL());
     const appUrl = getAppURL();
 
-    if (apiEnv === "Production Server" || appUrl !== APP_URL) return true;
+    if (apiEnv === "Production Server" || appUrl !== APP_URL) return null;
 
-    return window.confirm(
+    return (
       `You're on ${apiEnv}, but the impersonation "App URL" is still set ` +
-        `to production (${appUrl}). Continuing will send a real handoff ` +
-        `code there. Set the App URL under "Server Config" first unless ` +
-        `you mean to do this. Continue anyway?`,
+      `to production (${appUrl}). Continuing will send a real handoff ` +
+      `code there. Set the App URL under "Server Config" first unless ` +
+      `you mean to do this.`
     );
   };
 
@@ -70,9 +75,7 @@ export function useStoreImpersonation() {
     window.location.href = `${getAppURL()}/auth/callback#code=${encodeURIComponent(userCode)}&return_code=${encodeURIComponent(returnCode)}`;
   };
 
-  const startImpersonation = (store: AdminStoreSummary) => {
-    if (!environmentMismatchAccepted()) return;
-
+  const runImpersonation = (store: AdminStoreSummary) => {
     impersonateMutation.mutate(store.id, {
       onSuccess: (data) => {
         void handOff(data.token, data.user.name).catch(() => {
@@ -89,10 +92,28 @@ export function useStoreImpersonation() {
     });
   };
 
+  const startImpersonation = (store: AdminStoreSummary) => {
+    const message = environmentMismatchMessage();
+    if (message) {
+      setEnvironmentChallenge({ store, message });
+      return;
+    }
+    runImpersonation(store);
+  };
+
+  const confirmEnvironmentChallenge = () => {
+    const pending = environmentChallenge?.store;
+    setEnvironmentChallenge(null);
+    if (pending) runImpersonation(pending);
+  };
+
   return {
     impersonateTarget,
     handleImpersonate: setImpersonateTarget,
     clearImpersonateTarget: () => setImpersonateTarget(null),
     startImpersonation,
+    environmentChallenge,
+    confirmEnvironmentChallenge,
+    dismissEnvironmentChallenge: () => setEnvironmentChallenge(null),
   };
 }

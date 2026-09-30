@@ -362,6 +362,17 @@ export default function StoresManagement() {
           }
         }}
       />
+
+      <ConfirmDialog
+        open={impersonation.environmentChallenge !== null}
+        onOpenChange={(open) => {
+          if (!open) impersonation.dismissEnvironmentChallenge();
+        }}
+        title="Send a handoff code to production?"
+        description={impersonation.environmentChallenge?.message ?? ""}
+        confirmLabel="Continue anyway"
+        onConfirm={impersonation.confirmEnvironmentChallenge}
+      />
     </div>
   );
 }

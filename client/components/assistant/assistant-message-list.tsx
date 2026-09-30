@@ -10,6 +10,7 @@ import { AssistantMessageBubble } from "./assistant-message-bubble";
 interface AssistantMessageListProps {
   messages: AssistantMessage[];
   isThinking: boolean;
+  userInitials: string;
   onActionClick: () => void;
 }
 
@@ -47,6 +48,7 @@ function TypingDots() {
 export function AssistantMessageList({
   messages,
   isThinking,
+  userInitials,
   onActionClick,
 }: AssistantMessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -64,6 +66,7 @@ export function AssistantMessageList({
             key={message.id}
             message={message}
             animate={!preexistingIds.has(message.id)}
+            userInitials={userInitials}
             onActionClick={onActionClick}
           />
         ))}

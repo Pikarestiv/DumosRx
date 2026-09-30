@@ -3768,6 +3768,26 @@ no host-supplied callback.
 - **Action buttons close the panel** (`onActionClick` → `close`): a reply's
   action is a navigation, and leaving a modal open over the page it just
   routed to hides the thing the user asked for.
+- **Both roles have an avatar, and neither is bespoke.** An assistant bubble
+  keeps its `Sparkles`-in-`bg-primary` circle on the *left*; a user bubble
+  gets the app's standard initials avatar on the *right* — the same
+  `Avatar`/`AvatarFallback` + `border border-border` /
+  `bg-primary/10 text-primary text-xs font-semibold` pair
+  `components/dashboard/user-nav.tsx` uses for the sidebar/account menu,
+  sized `h-7 w-7` to match the assistant circle's `size-7` footprint. Don't
+  invent a second avatar treatment here; if that styling changes, change it
+  in both places. The user row is `flex items-start justify-end gap-2` so the
+  two layouts mirror each other.
+- **The initials are threaded down as a prop, not read from context in the
+  bubble.** `assistant-panel.tsx` — the one component wired to global state —
+  calls `useAuth()` alongside `useAssistant()` and computes
+  `getUserInitials(user?.first_name, user?.last_name)` (from `lib/utils.ts`),
+  passing it as `userInitials` through `assistant-message-list.tsx` to
+  `assistant-message-bubble.tsx`. `useAssistant()` reads `useAuth()` too but
+  deliberately does not re-export `user`: its contract is the conversation,
+  not the signed-in identity. `getUserInitials` already returns `"U"` for
+  missing/empty names and a single letter when only one part is known, so no
+  extra guarding is needed at the call site.
 
 **The word-by-word reveal is presentational only — the full text is in the DOM
 from the first frame.** `assistant-message-bubble.tsx` animates a newly

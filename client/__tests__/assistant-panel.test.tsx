@@ -24,7 +24,7 @@ vi.mock("@/components/ui/sheet", () => ({
 
 vi.mock("@/lib/context/auth-context", () => ({
   useAuth: () => ({
-    user: { id: "u1", role: "store_owner" },
+    user: { id: "u1", role: "store_owner", first_name: "Ada", last_name: "Bell" },
     permissionGroup: { permissions: ["view_reports"] },
   }),
 }));
@@ -69,6 +69,17 @@ describe("AssistantPanel", () => {
     });
     const link = await screen.findByRole("link", { name: "Make a sale" });
     expect(link.getAttribute("href")).toBe("/pos");
+  });
+
+  it("labels the user's own message with their account initials", async () => {
+    const { AssistantPanel } = await import("@/components/assistant/assistant-panel");
+    render(<AssistantPanel />);
+
+    const input = screen.getByLabelText("Ask the assistant");
+    fireEvent.change(input, { target: { value: "how do i make a sale" } });
+    fireEvent.submit(input.closest("form")!);
+
+    expect(await screen.findByText("AB")).toBeTruthy();
   });
 
   it("closes the panel when an action link is clicked", async () => {

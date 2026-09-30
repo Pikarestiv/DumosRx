@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { prefersReducedMotion } from "@/lib/prefers-reduced-motion";
 import type { AssistantMessage } from "@/lib/assistant/types";
 
@@ -13,6 +14,7 @@ const MAX_REVEAL_MS = 1500;
 interface AssistantMessageBubbleProps {
   message: AssistantMessage;
   animate: boolean;
+  userInitials: string;
   onActionClick: () => void;
 }
 
@@ -61,6 +63,7 @@ function useWordReveal(total: number, animate: boolean): { revealed: number; lay
 export function AssistantMessageBubble({
   message,
   animate,
+  userInitials,
   onActionClick,
 }: AssistantMessageBubbleProps) {
   const isUser = message.role === "user";
@@ -87,7 +90,7 @@ export function AssistantMessageBubble({
   });
 
   return (
-    <div className={isUser ? "flex justify-end" : "flex items-start gap-2"}>
+    <div className={`flex items-start gap-2 ${isUser ? "justify-end" : ""}`}>
       {!isUser && (
         <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
           <Sparkles className="h-3.5 w-3.5" />
@@ -122,6 +125,13 @@ export function AssistantMessageBubble({
           </div>
         )}
       </div>
+      {isUser && (
+        <Avatar className="mt-0.5 h-7 w-7 border border-border">
+          <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
+            {userInitials}
+          </AvatarFallback>
+        </Avatar>
+      )}
     </div>
   );
 }

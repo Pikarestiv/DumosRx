@@ -19,6 +19,8 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from "@/components/ui/drawer";
+import { useAuth } from "@/lib/context/auth-context";
+import { getUserInitials } from "@/lib/utils";
 import { useAssistant } from "@/lib/hooks/use-assistant";
 import { useAssistantPanel } from "@/lib/store/use-assistant-panel";
 import { AssistantMessageList } from "./assistant-message-list";
@@ -50,6 +52,8 @@ export function AssistantPanel() {
   const isOpen = useAssistantPanel((state) => state.isOpen);
   const close = useAssistantPanel((state) => state.close);
   const { messages, isThinking, suggestions, send } = useAssistant();
+  const { user } = useAuth();
+  const userInitials = getUserInitials(user?.first_name, user?.last_name);
   const { matches: isDesktop, resolved } = useResolvedMediaQuery("(min-width: 768px)");
 
   const handleSend = useCallback(
@@ -76,7 +80,12 @@ export function AssistantPanel() {
         {messages.length === 0 && (
           <AssistantSuggestionChips suggestions={suggestions} onPick={handleSend} />
         )}
-        <AssistantMessageList messages={messages} isThinking={isThinking} onActionClick={close} />
+        <AssistantMessageList
+          messages={messages}
+          isThinking={isThinking}
+          userInitials={userInitials}
+          onActionClick={close}
+        />
       </div>
       <div className="shrink-0">
         <AssistantComposer isThinking={isThinking} onSend={handleSend} />

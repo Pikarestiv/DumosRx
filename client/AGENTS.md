@@ -3472,6 +3472,52 @@ ctx.now)` falling back to `toDateOnly(ctx.now)` for both ends), so
 date-only `transaction_date` (as `finance-reports.test.ts` does) passes
 either way and would not catch a regression here.
 
+## Assistant React state (`lib/store/use-assistant-panel.ts`, `lib/hooks/use-assistant.ts`)
+
+The assistant's React surface is split in two on purpose. `useAssistantPanel`
+is a plain Zustand store (`{ isOpen, messages, open, close, append, clear }`)
+holding only what must survive a component unmounting — the open flag and the
+thread — and `useAssistant()` is the hook every UI piece actually calls,
+returning `{ messages, isThinking, suggestions, send }`. Keeping the thread in
+Zustand rather than in the panel component means closing the panel mid-answer
+does not lose the conversation, and a second entry point (a header button, a
+command palette) can open it onto the same thread. `isThinking` deliberately
+stays component-local `useState`: it belongs to the in-flight `send()` call,
+not to the thread.
+
+- **`buildToolContext()` lives here and nowhere else.** It is the only bridge
+  between the app's contexts and `ToolContext`, and it reads the *real* shapes:
+  `useAuth()` gives `user` and `permissionGroup` (`{ id, permissions } | null`
+  — structurally assignable to `ToolContext`'s `{ permissions } | null`, no
+  cast needed), and `useStore()` gives `storeProfile.currency`,
+  `storeProfile.expiry_warning_days`, and — note — `storeType` as a
+  **top-level** field, not nested under `storeProfile`, plus the terminology
+  function named **`t`**, not `getTerm`. `expiryWarningDays` falls back to 90
+  when the store has not set one, matching the tools' "expiring soon" window.
+- **`now` is minted per call, inside `send()`.** Every date-defaulting intent
+  resolves "today" from `ctx.now`, so a context built once at mount would make
+  an app left open overnight answer yesterday's question. The `suggestions`
+  memo builds its own throwaway context for the same reason it can afford to:
+  `authorizeToolCall` reads only `user`/`permissionGroup`.
+- **Suggestions are permission-filtered, not a static list.** They are the
+  first `examples` entry of each tool the current user is actually allowed to
+  call, capped at 5 — so a cashier is never invited to ask a question that can
+  only be answered with a denial. They go through the same
+  `authorizeToolCall()` the router uses; don't hand-maintain a parallel list,
+  it would drift from the gate the moment a tool's `requiredPermission`
+  changes.
+- **The thread is cleared when the identity changes, not on every render.**
+  The effect compares `${user?.id}:${activeStoreId}` against a ref seeded to
+  `null`, so the first run only records the identity and a genuine
+  user-switch or store-switch wipes the thread. Without this, switching
+  stores would leave the previous store's figures sitting in the transcript
+  looking like answers about the new one.
+- **`send()` can reject.** `answer()` swallows every `execute`/`format` throw
+  into an error reply, but `brain.resolve()` (normalize → `matchIntent` →
+  `buildArgs`) runs outside that `try`, so a malformed capture could still
+  propagate. `isThinking` is cleared in a `finally` either way; the UI calling
+  `send()` should still catch rather than leave a floating rejection.
+
 ## Running things
 
 ```

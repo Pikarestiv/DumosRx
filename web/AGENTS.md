@@ -100,6 +100,22 @@ together). The current design:
   based, has no cookie dependency, and silently refreshes only after 7 days
   via `refreshTokenSilently`.
 
+## Admin nav: one role filter, two renderers (A-96)
+
+`components/admin/sidebar-items.ts` owns both the `sidebarItems` list and
+`visibleSidebarItems(role)`, the single role filter. An item with no `roles`
+field is **super_admin-only** — that's the default, so only list `roles`
+explicitly for what `platform_admin`/`agent` should see. Everything hidden
+here is still enforced per-endpoint server-side; the filter exists so those
+roles don't get dead links that only 403.
+
+Two components render that list and **both must go through
+`visibleSidebarItems`**: `admin-sidebar.tsx` (desktop, `hidden lg:flex`) and
+`admin-header.tsx`'s mobile `Sheet`. The sheet is the *only* navigation below
+1024px, and it previously mapped `sidebarItems` raw — so an agent on a tablet
+saw the whole super_admin nav (A-96). `__tests__/admin-nav-role-visibility.test.tsx`
+asserts both renderers agree; don't reintroduce a second copy of the filter.
+
 ## Admin panel: store owners, staff, and the Store Details page
 
 **The Platform Users list (`app/admin/users/page.tsx`) no longer shows staff

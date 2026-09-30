@@ -3,95 +3,12 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  LayoutDashboard,
-  Users,
-  Store,
-  Package,
-  LogOut,
-  ChevronRight,
-  MessageSquare,
-  Settings,
-  Megaphone,
-  Download,
-  ScrollText,
-  Link2,
-} from "lucide-react";
+import { LogOut, ChevronRight } from "lucide-react";
 import { useAdminAuthStore } from "@/lib/store/use-admin-auth-store";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { APP_VERSION } from "@/lib/constants";
-
-// Everything platform_admin/agent can't reach is still enforced server-side
-// per endpoint (AdminController), but hiding it from nav avoids dead links
-// that just 403. Items with no `roles` are super_admin-only, the default:
-// only explicitly list roles for what platform_admin/agent should see.
-export const sidebarItems = [
-  // Overview's data (admin/summary) is super_admin-only server-side (platform
-  // revenue, etc.). No roles override here, so it stays super_admin-only too.
-  { id: "dashboard", name: "Overview", icon: LayoutDashboard, href: "/admin" },
-  // The full fleet list (GET /admin/stores) surfaces platform-wide revenue
-  // and every store's data, stays super_admin-only. platform_admin/agent
-  // get a direct link to registration instead (create_accounts permission
-  // covers that endpoint), not the list.
-  {
-    id: "stores",
-    name: "Stores",
-    icon: Store,
-    href: "/admin/stores",
-  },
-  {
-    id: "register-store",
-    name: "Register Store",
-    icon: Store,
-    href: "/admin/stores/new",
-    roles: ["platform_admin", "agent"],
-  },
-  {
-    id: "referrals",
-    name: "My Referrals",
-    icon: Link2,
-    href: "/admin/referrals",
-    roles: ["super_admin", "platform_admin", "agent"],
-  },
-  { id: "users", name: "Platform Users", icon: Users, href: "/admin/users" },
-  {
-    id: "products",
-    name: "Global Products",
-    icon: Package,
-    href: "/admin/products",
-  },
-  {
-    id: "communications",
-    name: "Communications",
-    icon: MessageSquare,
-    href: "/admin/communications",
-  },
-  {
-    id: "marketing",
-    name: "Marketing",
-    icon: Megaphone,
-    href: "/admin/marketing",
-  },
-  {
-    id: "activity",
-    name: "Activity Log",
-    icon: ScrollText,
-    href: "/admin/activity",
-  },
-  {
-    id: "settings",
-    name: "Platform Settings",
-    icon: Settings,
-    href: "/admin/settings",
-  },
-  {
-    id: "downloads",
-    name: "System Downloads",
-    icon: Download,
-    href: "/admin/downloads",
-  },
-];
+import { visibleSidebarItems } from "./sidebar-items";
 
 export function AdminSidebar() {
   const pathname = usePathname();
@@ -131,9 +48,7 @@ export function AdminSidebar() {
       </Link>
 
       <nav className="flex-1 px-4 py-4 space-y-1">
-        {sidebarItems
-          .filter((item) => (item.roles || ["super_admin"]).includes(user?.role || ""))
-          .map((item) => {
+        {visibleSidebarItems(user?.role).map((item) => {
           const normalizedPathname = pathname?.replace(/\/$/, "") || "";
           const normalizedHref = item.href.replace(/\/$/, "");
 

@@ -110,12 +110,12 @@ class StorefrontController extends Controller
             return null;
         }
 
-        $verification = $paymentService->verifyTransaction($reference, 'paystack');
+        $verification = $paymentService->verifyTransaction($reference, $intent->provider);
         if (!($verification['success'] ?? false)) {
             return null;
         }
 
-        $refund = $paymentService->refundTransaction($reference, 'paystack');
+        $refund = $paymentService->refundTransaction($reference, $intent->provider);
 
         if (!($refund['success'] ?? false)) {
             Log::error('Storefront refund failed for an unfulfillable paid checkout', [
@@ -411,7 +411,7 @@ class StorefrontController extends Controller
         }
 
         try {
-            $payment = $paymentService->initializeTransaction(
+            $payment = $paymentService->initializeStorefrontTransaction(
                 $totalAmount,
                 $validated['customer_email'],
                 [
@@ -625,7 +625,7 @@ class StorefrontController extends Controller
                 ], 422);
             }
 
-            $verification = $paymentService->verifyTransaction($validated['paystack_reference'], 'paystack');
+            $verification = $paymentService->verifyTransaction($validated['paystack_reference'], $intent->provider);
 
             if ($verification['unknown'] ?? false) {
                 return response()->json([

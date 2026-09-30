@@ -69,7 +69,7 @@ class StorefrontControllerTest extends TestCase
         Store::where('store_slug', $slug)->update(['paystack_subaccount_code' => 'ACCT_test']);
 
         $this->mock(PaymentService::class, function ($mock) use ($reference) {
-            $mock->shouldReceive('initializeTransaction')
+            $mock->shouldReceive('initializeStorefrontTransaction')
                 ->once()
                 ->andReturn([
                     'provider' => 'paystack',

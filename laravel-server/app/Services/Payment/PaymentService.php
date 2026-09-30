@@ -62,6 +62,24 @@ class PaymentService
         }
     }
 
+    /**
+     * The storefront's own initialize: Paystack only, never the
+     * cross-gateway fallback above. A storefront charge carries the store's
+     * payout subaccount and its own currency, neither of which Flutterwave
+     * is wired for here, and the intent it produces is later verified and
+     * refunded by reference — see laravel-server/AGENTS.md (PG-1).
+     */
+    public function initializeStorefrontTransaction($amount, $email, array $metadata, string $callbackUrl, string $subaccount, string $currency)
+    {
+        $systemConfig = \App\Models\SystemConfig::getVal('subscription_plans', []);
+
+        if (!($systemConfig['enable_paystack'] ?? true)) {
+            throw new \Exception('Online storefront payments are currently disabled by the administrator.');
+        }
+
+        return $this->initializePaystack($amount, $email, $metadata, $callbackUrl, $subaccount, $currency);
+    }
+
     private function paystackClient()
     {
         return Http::withToken($this->paystackKey)

@@ -726,6 +726,23 @@ straight to their own bank account.
   which compares against `payment_transactions.currency`. Covered by
   `test_a_non_ngn_store_completes_the_initialize_to_verify_round_trip` and
   `StorefrontPaystackLifecycleTest` (a KES store, end to end).
+- **The storefront charge is pinned to Paystack; nothing hardcodes the
+  provider afterwards.** `PaymentService::initializeTransaction()` falls back
+  to Flutterwave when Paystack's initialize returns a non-2xx, which is
+  intentional for **subscriptions** and wrong for the storefront:
+  `initializeFlutterwave()` takes no `$subaccount` and hardcodes
+  `'currency' => 'NGN'`, so a transient Paystack 5xx used to charge the
+  customer in naira into the platform's own Flutterwave balance with no
+  payout split — and because `checkout()`'s verify and
+  `refundUnfulfillableCheckout()` both passed a literal `'paystack'`, that
+  charge could then never be verified or refunded (PG-1). The storefront now
+  calls **`PaymentService::initializeStorefrontTransaction()`**, which is
+  Paystack-only and throws if the admin has disabled Paystack, and every
+  later lookup of that charge reads **`$intent->provider`** rather than a
+  literal. Do not reintroduce a cross-gateway fallback on the storefront
+  path without also giving Flutterwave a subaccount/currency equivalent.
+  Pinned by `tests/Feature/StorefrontProviderPinningTest.php`, which also
+  asserts the subscription fallback is still in place.
 - **A paid-but-unfulfillable confirm refunds itself.** `checkout()` prices the
   cart and re-checks availability *after* the customer has already paid at
   Paystack (nothing is reserved at initialize time — availability is only

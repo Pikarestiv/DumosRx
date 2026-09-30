@@ -100,6 +100,33 @@ together). The current design:
   based, has no cookie dependency, and silently refreshes only after 7 days
   via `refreshTokenSilently`.
 
+## Numeric platform-config fields: draft/commit, never raw `Number()` (A-97/A-98)
+
+`components/admin/numeric-config-input.tsx` (`NumericConfigInput`) is the only
+way a number should reach platform config state. `onChange={(e) => Number(e.target.value)}`
+is banned on these fields: `Number("") === 0`, so clearing a box to retype it
+used to commit `0` instantly — a zero-day trial, a paid tier admitting no
+staff, a 0% referral reward, a 0% platform commission (A-97). The component
+holds the raw text as a local draft, commits only a value its `isAcceptable`
+predicate accepts, shows the rejection inline, and **discards the draft on
+blur** so what's on screen is always what would be saved (so a test that
+clears a field and then types must clear again after touching another field).
+
+Current call sites: `plan-tier-card.tsx` (prices, staff/store limits),
+`subscription-config-tab.tsx` (`trial_days`), `storefront-commission-card.tsx`,
+`marketing/referrals-settings-form.tsx`. Server-side floors mirror them in
+`laravel-server`'s `SystemConfigController::validatePlanPricing()` /
+`rejectZeroTierLimits()` — a staff/store limit of `0` is rejected outright
+(`-1` means unlimited), as is `trial_days` outside 1–365.
+
+**Storefront Commission has its own card** (`storefront-commission-card.tsx`,
+split out of `subscription-config-tab.tsx`) because it needed the same
+`try`/`catch` + `toast.error` shape as its siblings and a `ConfirmDialog`
+naming the before/after rate: its save previously had no error handling at
+all, so a 422 was indistinguishable from success (A-98). Every save handler
+on this tab surfaces `error.message`; don't pass a bare `async` function to
+`onClick`.
+
 ## Admin nav: one role filter, two renderers (A-96)
 
 `components/admin/sidebar-items.ts` owns both the `sidebarItems` list and

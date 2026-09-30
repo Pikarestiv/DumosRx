@@ -137,6 +137,45 @@ class AdminMoneyValidationTest extends TestCase
         $response->assertOk();
     }
 
+    public function test_zero_trial_days_is_rejected(): void
+    {
+        $payload = $this->plansPayload();
+        $payload['trial_days'] = 0;
+
+        $response = $this->actingAs($this->superAdmin())
+            ->putJson('/api/v1/admin/system-configs/subscription_plans', ['value' => $payload]);
+
+        $response->assertStatus(422);
+        $this->assertNull(SystemConfig::getVal('subscription_plans'));
+    }
+
+    public function test_zero_staff_or_store_limit_is_rejected(): void
+    {
+        foreach (['staff', 'stores'] as $field) {
+            SystemConfig::query()->where('key', 'subscription_plans')->delete();
+            $payload = $this->plansPayload();
+            $payload['tiers']['starter']['limits'][$field] = 0;
+
+            $response = $this->actingAs($this->superAdmin())
+                ->putJson('/api/v1/admin/system-configs/subscription_plans', ['value' => $payload]);
+
+            $response->assertStatus(422);
+            $this->assertNull(SystemConfig::getVal('subscription_plans'));
+        }
+    }
+
+    public function test_unlimited_staff_and_store_limits_are_still_accepted(): void
+    {
+        $payload = $this->plansPayload();
+        $payload['tiers']['enterprise']['limits']['staff'] = -1;
+        $payload['tiers']['enterprise']['limits']['stores'] = -1;
+
+        $response = $this->actingAs($this->superAdmin())
+            ->putJson('/api/v1/admin/system-configs/subscription_plans', ['value' => $payload]);
+
+        $response->assertOk();
+    }
+
     public function test_other_config_keys_remain_free_form(): void
     {
         $response = $this->actingAs($this->superAdmin())

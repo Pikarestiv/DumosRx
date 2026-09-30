@@ -137,7 +137,12 @@ class SystemConfigController extends Controller
             'value.tiers' => 'required|array',
             'value.tiers.*.price_monthly' => 'required|numeric|min:0|max:' . self::MAX_PLAN_PRICE,
             'value.tiers.*.price_yearly' => 'required|numeric|min:0|max:' . self::MAX_PLAN_PRICE,
+            'value.trial_days' => 'sometimes|integer|min:1|max:365',
+            'value.tiers.*.limits.staff' => 'sometimes|integer|min:-1',
+            'value.tiers.*.limits.stores' => 'sometimes|integer|min:-1',
         ]);
+
+        $this->rejectZeroTierLimits($request);
 
         // min:0 above stops a negative price; this stops the other half of the
         // same bug - an *active, non-free* tier published at ₦0, which is what
@@ -155,6 +160,28 @@ class SystemConfigController extends Controller
                     throw ValidationException::withMessages([
                         "value.tiers.{$tierKey}.{$field}" =>
                             "The {$tierKey} plan is active, so its {$field} must be greater than 0.",
+                    ]);
+                }
+            }
+        }
+    }
+
+    /**
+     * A staff/store limit of 0 is never a real entitlement - it is what a
+     * cleared number field used to publish. -1 means unlimited.
+     */
+    private function rejectZeroTierLimits(Request $request): void
+    {
+        foreach ((array) $request->input('value.tiers', []) as $tierKey => $tier) {
+            if (!is_array($tier) || !is_array($tier['limits'] ?? null)) {
+                continue;
+            }
+
+            foreach (['staff', 'stores'] as $field) {
+                if (array_key_exists($field, $tier['limits']) && (int) $tier['limits'][$field] === 0) {
+                    throw ValidationException::withMessages([
+                        "value.tiers.{$tierKey}.limits.{$field}" =>
+                            "The {$tierKey} plan's {$field} limit must be -1 (unlimited) or at least 1.",
                     ]);
                 }
             }

@@ -27,6 +27,8 @@ import {
   useUpdateSystemConfigMutation,
 } from "@/lib/api/hooks";
 import { PlanTierCard } from "./plan-tier-card";
+import { StorefrontCommissionCard } from "./storefront-commission-card";
+import { NumericConfigInput } from "@/components/admin/numeric-config-input";
 import { ConfigLoadError } from "./config-load-error";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { SocialLinksConfigCard } from "./social-links-config-card";
@@ -37,6 +39,8 @@ import {
   mergeSocialLinks,
 } from "@/lib/constants/subscription-config-defaults";
 import type { SubscriptionConfig, SocialLinksConfig } from "@/lib/types/admin";
+
+const MAX_TRIAL_DAYS = 365;
 
 export function SubscriptionConfigTab() {
   const {
@@ -60,26 +64,6 @@ export function SubscriptionConfigTab() {
     | Partial<SocialLinksConfig>
     | undefined;
   const updateMutation = useUpdateSystemConfigMutation();
-
-  const { data: storefrontFeeData } = useSystemConfig(
-    "storefront_platform_fee_percentage",
-  );
-  const [localStorefrontFee, setLocalStorefrontFee] = useState(
-    typeof storefrontFeeData === "number" ? storefrontFeeData : 2,
-  );
-  const [prevStorefrontFeeData, setPrevStorefrontFeeData] = useState(
-    storefrontFeeData,
-  );
-  const updateStorefrontFeeMutation = useUpdateSystemConfigMutation();
-
-  // storefrontFeeData is undefined at mount, so the useState above captures
-  // only the fallback - resync once the real value lands (as social_links does).
-  if (storefrontFeeData !== prevStorefrontFeeData) {
-    setPrevStorefrontFeeData(storefrontFeeData);
-    if (typeof storefrontFeeData === "number") {
-      setLocalStorefrontFee(storefrontFeeData);
-    }
-  }
 
   const [config, setConfig] = useState<SubscriptionConfig>(
     DEFAULT_SUBSCRIPTION_CONFIG,
@@ -252,13 +236,19 @@ export function SubscriptionConfigTab() {
           <div className="border-t pt-6 mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Free Trial Duration (Days)</Label>
-                <Input
-                  type="number"
+                <NumericConfigInput
+                  id="trial-days"
+                  label="Free Trial Duration (Days)"
                   value={config.trial_days}
-                  onChange={(e) =>
-                    setConfig({ ...config, trial_days: Number(e.target.value) })
+                  min={1}
+                  max={MAX_TRIAL_DAYS}
+                  step={1}
+                  isAcceptable={(days) =>
+                    Number.isInteger(days) && days >= 1 && days <= MAX_TRIAL_DAYS
                   }
+                  rejectionHint={`Enter a whole number of trial days between 1 and ${MAX_TRIAL_DAYS}.`}
+                  formatValue={(days) => `${days} days`}
+                  onCommit={(trial_days) => setConfig({ ...config, trial_days })}
                 />
                 <p className="text-xs text-muted-foreground">
                   Length of trial.
@@ -386,46 +376,7 @@ export function SubscriptionConfigTab() {
         </CardFooter>
       </Card>
 
-      <Card className="bg-white dark:bg-slate-900 border-accent/20">
-        <CardHeader>
-          <CardTitle>Storefront Commission</CardTitle>
-          <CardDescription>
-            The percentage DumosRx keeps from every online storefront sale.
-            Changing this updates every store that already has a connected
-            payment account, not just new ones.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2 max-w-xs">
-            <Label htmlFor="storefront-commission">
-              Storefront Commission (%)
-            </Label>
-            <Input
-              id="storefront-commission"
-              type="number"
-              min={0}
-              max={50}
-              step={0.5}
-              value={localStorefrontFee}
-              onChange={(e) => setLocalStorefrontFee(Number(e.target.value))}
-            />
-          </div>
-        </CardContent>
-        <CardFooter>
-          <Button
-            onClick={async () => {
-              await updateStorefrontFeeMutation.mutateAsync({
-                key: "storefront_platform_fee_percentage",
-                value: localStorefrontFee,
-              });
-              toast.success("Storefront commission updated.");
-            }}
-            disabled={updateStorefrontFeeMutation.isPending}
-          >
-            Save Storefront Commission
-          </Button>
-        </CardFooter>
-      </Card>
+      <StorefrontCommissionCard />
 
       <ConfirmDialog
         open={pendingPriceConfirm}

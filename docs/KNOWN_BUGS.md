@@ -16,11 +16,11 @@ This file holds **open** items only. Fixed entries move to `docs/FIXED_BUGS.md` 
 
 **Overall health.** The codebase is unusually well-defended for its size: the sync engine's conflict model, the single-writer tab lock, tenant scoping on the server and the money math have all been through several review-and-fix cycles, and all three packages' test suites pass cleanly. The 2026-09-28 pass's own remediation is complete (nothing from `A-1`…`A-25` is still open). This 2026-09-30 pass was a fresh whole-monorepo sweep, split into three parallel package-scoped reviews (`client/`, `laravel-server/`, `web/`), followed the same day by a full remediation pass across five isolated worktrees (one per package/theme) covering every P1 and P2/P3 it found, plus the two real findings from a same-day follow-up spot-check. Every one of those 44 findings is fixed and documented in `docs/FIXED_BUGS.md` — nothing from this pass is still open in this document.
 
-**Findings this pass, by severity:** 0 **P0**, 0 **P1**, 0 **P2**, 0 **P3** — all 44 findings from the 2026-09-30 three-package sweep (7 P1, 19 P2, 18 P3) plus both real findings from the same-day follow-up spot-check (`A-112`, `A-113` — 46 in total, `A-54`…`A-113` non-contiguous) are fixed — see `docs/FIXED_BUGS.md` for what shipped for each. What remains open in this document is entirely carried from earlier passes: `A-26`, `A-28`, `A-30`, `A-40`, `A-41`, `A-48`, `A-49`, `A-53` from the 2026-09-28/29 passes, and `P2-1`, `P3-1`, `P3-2`, `P3-5`, `PG-1`…`PG-10` from the two earliest passes — all preserved verbatim below. `A-111` (bulk-import movement-type conflation), one of the follow-up spot-check's three claims, was retracted on review — it duplicates the already-fixed `A-52` and was never an open finding.
+**Findings this pass, by severity:** 0 **P0**, 0 **P1**, 0 **P2**, 0 **P3** — all 44 findings from the 2026-09-30 three-package sweep (7 P1, 19 P2, 18 P3) plus both real findings from the same-day follow-up spot-check (`A-112`, `A-113` — 46 in total, `A-54`…`A-113` non-contiguous) are fixed — see `docs/FIXED_BUGS.md` for what shipped for each. What remains open in this document is entirely carried from earlier passes: `A-26`, `A-28`, `A-30`, `A-40`, `A-41`, `A-48`, `A-49`, `A-53` from the 2026-09-28/29 passes, and `P2-1`, `P3-1`, `P3-2`, `P3-5`, `PG-5`…`PG-10` from the two earliest passes — all preserved verbatim below. `PG-1`…`PG-4` (the storefront gateway pinning, the storefront webhook/reconciliation sweep, the subscription mismatch refund/alert, and the hardcoded naira at storefront checkout) were fixed on 2026-09-30 — see `docs/FIXED_BUGS.md`. `A-111` (bulk-import movement-type conflation), one of the follow-up spot-check's three claims, was retracted on review — it duplicates the already-fixed `A-52` and was never an open finding.
 
 **Most important risks, in order:**
 
-1. **PG-2 / PG-1 (carried)** — storefront online payments still have no webhook/reconciliation path and can settle via the wrong gateway; still the largest deferred, user-acknowledged body of work in this document (see `A-95`/`A-105` in `docs/FIXED_BUGS.md` for the two newly found and now-fixed `web/`-side behaviours immediately around this same hole).
+1. **PG-5…PG-10 (carried)** — what is left of the payment-gateway pass after `PG-1`…`PG-4` were fixed on 2026-09-30 (the storefront charge is now pinned to Paystack, reconciled from the provider's webhook plus an hourly stale-intent sweep, a subscription amount/currency mismatch is refunded and alerted, and storefront checkout formats the store's own currency — see `docs/FIXED_BUGS.md`). The residue is smaller in kind: a bank-name lookup oracle (`PG-5`), an unrate-limited webhook route (`PG-8`), unhandled refund/dispute events (`PG-9`), and a plaintext-account-number product decision (`PG-10`).
 
 **The major performance concern** that remains is the whole-blob `db.export()` persistence model already analysed in `docs/DATABASE_CONCURRENCY.md`; the rest of §5's list (boot-time scans, the license-guard sync gate on launch, the 5-second sync-queue poll) is fixed.
 
@@ -153,34 +153,7 @@ None found this pass. No cross-tenant read/write path, payment double-charge, or
 - **Problem:** `manifest.json` hardcodes `theme_color`/`background_color` to white; on Android the install splash is white for dark-mode users.
 - **Status:** Open, intentionally skipped 2026-09-26 per user direction — Web App Manifest spec limitation, no action recommended.
 
-### Still-open findings carried from the 2026-09-27 payment-gateway pass (unchanged, not yet fixed)
-
-#### PG-1. `laravel-server/` — storefront checkout silently falls back to Flutterwave, which drops the store's payout subaccount, forces NGN, and can never be verified or refunded
-- **Category:** Payments / Money-losing — confirmed
-- **Location:** `app/Services/Payment/PaymentService.php:45-58` (silent fallback), `:93-129` (`initializeFlutterwave` takes no `$subaccount`/`$currency`, hardcodes `'currency' => 'NGN'`); `app/Http/Controllers/Api/Public/StorefrontController.php:414-446` (initialize), `:628` (`verifyTransaction($ref, 'paystack')` — provider hardcoded), `:113`/`:118` (refund path, same hardcoding)
-- **Problem:** `initializeTransaction()` is shared between subscriptions and storefront checkout. Both gateways default enabled. Any non-2xx from Paystack's initialize call throws and silently retries on Flutterwave, which (1) drops `$subaccount`, (2) forces NGN, (3) writes `provider = 'flutterwave'` on the intent while `checkout()`'s verify and the refund path hardcode `'paystack'`.
-- **Failure scenario:** A transient Paystack 5xx during storefront checkout → customer pays in full via Flutterwave → "Could not confirm your payment" → no goods, no refund, money in the platform's Flutterwave balance.
-- **Recommended fix:** Pin the storefront call site to Paystack only (no silent fallback), and make `checkout()`/refund read `$intent->provider`.
-- **Confidence:** High. **Status:** Open, logged 2026-09-27.
-
-#### PG-2. `laravel-server`/`web` — storefront payments have no webhook handler and no reconciliation sweep; confirmation depends entirely on the customer's browser session surviving the redirect
-- **Category:** Payments / Money-losing — confirmed
-- **Location:** `web/components/storefront/checkout-form.tsx:87-126, 189-211`; `app/Http/Controllers/Api/Web/PaymentController.php:95-101` (`processSuccessfulPayment` never looks up `StorefrontPaymentIntent`); no sweep command under `app/Console/Commands/`.
-- **Problem:** A genuine Paystack `charge.success` webhook for a storefront payment is discarded; the only confirmation path is the customer's own browser returning with matching `sessionStorage`.
-- **Failure scenario:** Customer pays, then returns in a new tab / another device / after clearing site data, or just closes the tab. The intent stays `pending` forever — no order, no refund, settled money with zero record.
-- **Recommended fix:** Add a storefront branch to the Paystack webhook handler plus a scheduled sweep for stale `pending` intents.
-- **Confidence:** High. **Status:** Open, logged 2026-09-27.
-
-#### PG-3. `laravel-server/` — an under-paying or wrong-currency subscription webhook keeps the money with no refund and no operator alert
-- **Location:** `app/Http/Controllers/Api/Web/PaymentController.php`'s amount/currency-mismatch branch and `SubscriptionController::verifyPayment()`'s, both of which now route through `SubscriptionController::failTransaction()`
-- **Problem:** On amount/currency mismatch the only outcome is `Log::warning` + `status = 'failed'`; no refund, no `AdminAlertService` call.
-- **Recommended fix:** Attempt an automatic refund and/or fire an admin alert on mismatch.
-- **Confidence:** High. **Status:** Open, logged 2026-09-27.
-
-#### PG-4. `web/` — storefront checkout always displays ₦ regardless of the store's actual currency
-- **Location:** `web/components/storefront/checkout-form.tsx:327,350,355`; `app/Http/Controllers/Api/Public/StorefrontController.php:270-282` (`show()` omits `currency`).
-- **Recommended fix:** Add `currency` to the `show()` payload and format from it.
-- **Confidence:** High. **Status:** Open, logged 2026-09-27.
+### Still-open findings carried from the 2026-09-27 payment-gateway pass (`PG-1`…`PG-4` fixed 2026-09-30; the rest unchanged)
 
 #### PG-5. `laravel-server/` — bank-account resolve endpoint is an unbounded name-lookup oracle
 - **Location:** `app/Http/Controllers/Api/Web/StorePaymentAccountController.php:70-86`; route `routes/api.php:148` (`throttle:60,1`)
@@ -213,7 +186,7 @@ None found this pass. No cross-tenant read/write path, payment double-charge, or
 - **Problem:** The store's own transfer-instructions account is stored in full server-side and on every synced device. Reads as an intentional product choice; flagged for confirmation only.
 - **Confidence:** Medium. **Status:** Open — needs a product decision.
 
-**Storefront pass index:** every `SF-*` finding is fixed or explicitly accepted (see `docs/FIXED_BUGS.md`, `docs/STOREFRONT_REVIEW.md`). `SF-P3-5` (slug enumeration) is accepted. A confirmation page / order number for the storefront customer remains unbuilt (feature, not a bug).
+**Storefront pass index:** every `SF-*` finding is fixed or explicitly accepted (see `docs/FIXED_BUGS.md`, `docs/STOREFRONT_REVIEW.md`). `SF-P3-5` (slug enumeration) is accepted. A confirmation page / order number for the storefront customer remains unbuilt (feature, not a bug) — but a customer who never returns at all is no longer invisible, since `PG-2`'s webhook branch and hourly sweep now record and escalate the payment server-side.
 
 ---
 
@@ -279,5 +252,5 @@ Synthetic dataset built from the app's own `SCHEMA_SQL` plus the migration-added
 The 2026-09-28 pass's own remediation is complete — nothing from `A-1`…`A-25` is still open — and the 2026-09-30 three-package sweep (`client/`, `laravel-server/`, `web/`) is a fresh finding set layered on top, not a follow-up to that remediation. What remains open in this document, in priority order:
 
 1. **Every one of this pass's 46 findings is fixed** — all seven P1s (`A-54`, `A-74`, `A-75`, `A-77`, `A-79`, `A-94`, `A-95`), all nineteen P2s and all eighteen P3s from the three-package sweep (44 total), and both real findings from the same-day follow-up spot-check (`A-112`, `A-113`) — each remediated with TDD in its own isolated worktree and merged into `dev` on 2026-09-30. See `docs/FIXED_BUGS.md` for what shipped for each.
-2. **Deferred by user direction: PG-2 then PG-1**, then **PG-3…PG-10** — the storefront webhook/reconciliation path and the gateway pinning first; still the largest previously-identified real-world money-loss surface. Explicitly excluded from the 2026-09-28 remediation series rather than overlooked. `A-105`'s fix note that the checkout button's redirect-race is closed, but the reprice's structural half (the storefront listing endpoint's 300-product cap disagreeing with `checkout()`/`priceCart()`, from `A-106`) was deliberately left as a shallow mitigation — worth a dedicated follow-up if the platform grows stores past that catalogue size.
+2. **`PG-1`…`PG-4` are fixed** (2026-09-30, branch `fix/pg-a-2026-09-30`), leaving **`PG-5`…`PG-10`**. `A-105`'s fix note that the checkout button's redirect-race is closed, but the reprice's structural half (the storefront listing endpoint's 300-product cap disagreeing with `checkout()`/`priceCart()`, from `A-106`) was deliberately left as a shallow mitigation — worth a dedicated follow-up if the platform grows stores past that catalogue size.
 3. **Deliberate non-actions, listed here so they are not re-filed as findings next pass:** **P2-1** is a one-line production `.env` confirmation with zero code change; **P3-1** (bearer token in `localStorage`) needs a dual-path auth design project and has a compensating control in the shipped Tauri CSP; **P3-2** (stale lazy chunk after a deploy) needs deploy-asset retention to close fully; **P3-5** (manifest `theme_color`) is a Web App Manifest spec limitation with no action recommended; **A-26** is the accepted cost of A-9's deterministic receipt ids, worth closing only via a sync-health signal, never by changing the keying. **PG-10** needs a product decision, not a fix.

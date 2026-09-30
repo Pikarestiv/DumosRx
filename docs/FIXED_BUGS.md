@@ -2,6 +2,13 @@
 
 A changelog of bugs that were tracked in `docs/KNOWN_BUGS.md` and have since been fixed. `KNOWN_BUGS.md` only ever holds *open* items — an entry is removed from it outright the moment it's fixed, not marked done in place — so this file is where the record of "what it was and when it got fixed" lives instead. Git history has the exact diffs; this is a scannable index into that history, one entry per fix, newest first.
 
+## 2026-10-01
+
+### P2-1 (ops) — `FLUTTERWAVE_SECRET_HASH` confirmed set in production
+- **Branch:** none — ops action only, no code change (as the finding's own entry required). Carried from the 2026-09-26 pass, where it was intentionally skipped pending confirmation.
+- **What it was.** The Flutterwave webhook handler (`app/Http/Controllers/Api/Web/PaymentController.php`) fails closed (500, webhook rejected) if `FLUTTERWAVE_SECRET_HASH` is empty. The variable was documented in `.env.example` but production `.env` state couldn't be verified from the repo, so every Flutterwave subscription payment risked silently failing to activate.
+- **Resolution.** Confirmed by the user that `FLUTTERWAVE_SECRET_HASH` is set in production. No code was ever at fault — the handler's fail-closed behaviour was correct throughout.
+
 ## 2026-09-30
 
 ### A-53 (P3) — `getLowStockAlerts()` had no `is_active` filter, so the dashboard's low-stock drill-down list could disagree with the card above it

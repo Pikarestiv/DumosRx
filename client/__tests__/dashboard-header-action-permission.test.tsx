@@ -83,9 +83,16 @@ vi.mock("@/components/dashboard/header-store-switcher", () => ({
 }));
 
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
+// The header's AssistantLauncher is tooltip-wrapped, and Radix requires a
+// TooltipProvider ancestor - app/layout.tsx supplies the real one.
 function renderHeader() {
-  return render(<DashboardHeader />);
+  return render(
+    <TooltipProvider>
+      <DashboardHeader />
+    </TooltipProvider>,
+  );
 }
 
 describe("DashboardHeader enforces a route's actionPermission", () => {

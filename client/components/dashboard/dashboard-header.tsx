@@ -11,6 +11,7 @@ import { formatHeaderDate } from "@/lib/utils/date-utils";
 import { getPageInfo, resolveHeaderAction, resolveSecondaryHeaderAction } from "@/lib/constants/dashboard-page-routes";
 import { SyncIndicator } from "./sync-indicator";
 import { NotificationBell } from "./notification-bell";
+import { AssistantLauncher } from "@/components/assistant/assistant-launcher";
 import { UserNav } from "./user-nav";
 import { UserProfileBadge } from "./user-profile-badge";
 import { LiveClock } from "./live-clock";
@@ -115,6 +116,11 @@ export function DashboardHeader({ onOpenFeedback }: DashboardHeaderProps) {
                 {action && <HeaderActionButton action={action} />}
               </>
             )}
+          </div>
+
+          {/* Assistant */}
+          <div className="relative border border-border/50 rounded-full p-0.5">
+            <AssistantLauncher />
           </div>
 
           {/* Notification Bell */}

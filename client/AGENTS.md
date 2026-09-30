@@ -3537,6 +3537,25 @@ take everything through props. Mounting them is a separate concern — the
 panel is designed to be rendered once globally and the launcher wherever an
 entry point is wanted.
 
+**Where they are actually mounted.** `<AssistantPanel />` is rendered exactly
+once, in `components/dashboard/dashboard-layout.tsx` beside `<FeedbackForm />`
+and `<OnlineOrdersModal />`, so it survives route changes and is available on
+every dashboard route. There are two entry points into the same thread:
+`<AssistantLauncher />` in `dashboard-header.tsx` (beside `NotificationBell`,
+in the same rounded-border wrapper), and an "Ask the assistant" action at the
+top of `navActions` in `lib/hooks/use-account-actions.ts`, which reaches every
+account surface at once (desktop dropdown, mobile avatar drawer, the bottom
+nav's "More" sheet). That action calls `useAssistantPanel.getState().open()`
+rather than a hook, because `navActions` is built inside a callback array, and
+it calls `onClose()` first so the drawer it was tapped in is not left stacked
+under the panel. Unlike the `feedback` entry it is not conditional — it needs
+no host-supplied callback.
+
+- **The launcher requires a `TooltipProvider` ancestor.** The real one is
+  global, in `app/layout.tsx`. Any test that renders `DashboardHeader` (or the
+  launcher) must supply its own or Radix throws ``Tooltip` must be used within
+  `TooltipProvider``— see `__tests__/dashboard-header-action-permission.test.tsx`.
+
 - **The panel funnels every send through one guarded `handleSend`.** Both the
   composer and the suggestion chips call it, and it dispatches via
   `Promise.resolve().then(() => send(text)).catch(...)` so a *synchronous*

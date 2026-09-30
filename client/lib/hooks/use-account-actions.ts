@@ -3,12 +3,13 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { LogOut, Repeat, MessageSquare, type LucideIcon } from "lucide-react";
+import { LogOut, Repeat, MessageSquare, Sparkles, type LucideIcon } from "lucide-react";
 import { useAuth } from "@/lib/context/auth-context";
 import { useAutoLockStore } from "@/lib/hooks/use-auto-lock";
 import { getSyncQueueCount } from "@/lib/db/queries/setup";
 import { queryKeys } from "@/lib/query-keys";
 import { clearRecentUsers } from "@/lib/storage-keys";
+import { useAssistantPanel } from "@/lib/store/use-assistant-panel";
 
 export interface NavAction {
   key: string;
@@ -69,6 +70,15 @@ export function useAccountActions({
   };
 
   const navActions: NavAction[] = [
+    {
+      key: "assistant",
+      label: "Ask the assistant",
+      icon: Sparkles,
+      onClick: () => {
+        onClose();
+        useAssistantPanel.getState().open();
+      },
+    },
     ...(onOpenFeedback
       ? [
           {

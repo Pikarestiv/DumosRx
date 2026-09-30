@@ -47,6 +47,42 @@ async function fetchManifest(timeoutMs = 4000) {
   }
 }
 
+// Two-generation retention (P3-2). The prune below used to delete every entry
+// missing from the current build's manifest, which is what let an already-open
+// tab running the previous build's JS 404 on a lazy-loaded chunk the deploy had
+// just removed. Hashed /_next chunks from the immediately-previous build are
+// therefore kept for exactly one more deploy cycle, and the list of what was
+// kept is written back into the cache under RETAINED_RECORD_KEY so the NEXT
+// activation can tell "one generation behind" (keep) from "two generations
+// behind" (delete) and prune itself without any deploy-pipeline change.
+// Deliberately limited to hashed JS/CSS: those are the only entries whose
+// filenames change per build and therefore accumulate, and they are exactly
+// what a stale tab lazy-loads. An HTML document is keyed on its pathname, so a
+// new build overwrites it rather than adding to it - retaining an old copy
+// would only risk serving a previous deploy's shell.
+const RETAINED_RECORD_KEY = "/__sw_retained_chunks.json";
+const RETAINABLE_CHUNK_PATTERN = /^\/_next\/static\/.+\.(js|css)$/;
+
+function computeCachePrunePlan(cachedPathnames, currentUrls, previouslyRetained) {
+  const current = new Set(currentUrls);
+  const alreadyRetainedOnce = new Set(previouslyRetained);
+  const deleted = new Set();
+  const retained = new Set();
+
+  for (const pathname of cachedPathnames) {
+    if (pathname === RETAINED_RECORD_KEY || current.has(pathname)) continue;
+    if (RETAINABLE_CHUNK_PATTERN.test(pathname) && !alreadyRetainedOnce.has(pathname)) {
+      retained.add(pathname);
+    } else {
+      deleted.add(pathname);
+    }
+  }
+
+  return { deleted: [...deleted], retained: [...retained] };
+}
+
+self.__swInternals = { computeCachePrunePlan, RETAINED_RECORD_KEY };
+
 self.addEventListener("install", (event) => {
   event.waitUntil(
     (async () => {
@@ -132,7 +168,8 @@ self.addEventListener("activate", (event) => {
           .map((name) => caches.delete(name)),
       );
 
-      // Prune entries no longer in the current build's manifest.
+      // Prune entries no longer in the current build's manifest, minus the one
+      // generation of hashed chunks computeCachePrunePlan holds back (P3-2).
       // CACHE_VERSION is deliberately not bumped per deploy (see comment
       // above), so without this, every deploy's newly hashed /_next chunks -
       // plus, before the navigate/RSC cache-key normalization above existed,
@@ -145,13 +182,36 @@ self.addEventListener("activate", (event) => {
       try {
         const manifestResponse = await fetchManifest();
         if (manifestResponse.ok) {
-          const currentUrls = new Set(await manifestResponse.json());
+          const currentUrls = await manifestResponse.json();
           const cache = await caches.open(CACHE_VERSION);
+          const retainedRecord = await cache.match(RETAINED_RECORD_KEY);
+          let previouslyRetained = [];
+          if (retainedRecord) {
+            try {
+              previouslyRetained = await retainedRecord.json();
+            } catch {
+              previouslyRetained = [];
+            }
+          }
+
           const requests = await cache.keys();
+          const plan = computeCachePrunePlan(
+            requests.map((req) => new URL(req.url).pathname),
+            currentUrls,
+            Array.isArray(previouslyRetained) ? previouslyRetained : [],
+          );
+
+          const doomed = new Set(plan.deleted);
           await Promise.all(
             requests
-              .filter((req) => !currentUrls.has(new URL(req.url).pathname))
+              .filter((req) => doomed.has(new URL(req.url).pathname))
               .map((req) => cache.delete(req)),
+          );
+          await cache.put(
+            RETAINED_RECORD_KEY,
+            new Response(JSON.stringify(plan.retained), {
+              headers: { "Content-Type": "application/json" },
+            }),
           );
         }
       } catch (err) {

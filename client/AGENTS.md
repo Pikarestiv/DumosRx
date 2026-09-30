@@ -2958,6 +2958,49 @@ request pathname's extension, and HTML is refused only for those requests —
 so a legitimately-HTML response on some other same-origin GET still caches
 as before.
 
+### `activate()`'s prune keeps two generations of chunks (P3-2, 2026-10-01)
+
+`activate()` deletes cache entries missing from the current build's manifest
+(necessary — `CACHE_VERSION` is not bumped per deploy, so without it every
+deploy's newly hashed chunks accumulate until iOS evicts the whole origin).
+That prune was also the mechanism behind `P3-2`: a tab left open across a
+deploy still runs the *previous* build's JS, and the moment it lazy-loads a
+route it doesn't already hold, the chunk is gone from both the cache and the
+server. On this host that doesn't even 404 — the static-export fallback
+returns `index.html` with `200 OK`, which the browser tries to execute as a
+module (hence `chunk-error.ts`'s `Unexpected token '<'` pattern).
+
+`computeCachePrunePlan(cachedPathnames, currentUrls, previouslyRetained)` now
+holds the immediately-previous build's hashed `/_next/static/**.{js,css}` back
+for exactly one more deploy cycle, writes the list of what it kept into the
+cache under `RETAINED_RECORD_KEY` (`/__sw_retained_chunks.json`), and reads
+that record on the next activation to delete anything now two generations
+behind. Storage growth is therefore bounded at roughly two builds' chunks and
+self-prunes with no deploy-pipeline involvement. Retention is deliberately
+limited to hashed JS/CSS: nothing else changes filename per build, so nothing
+else accumulates, and an HTML document is keyed on its pathname (a new build
+overwrites it), so retaining one would only risk serving a previous deploy's
+shell. The record's own key is excluded from both prune and retention.
+
+**Why this rather than deploy-asset retention,** which is what
+`docs/KNOWN_BUGS.md` originally proposed: both `deploy-client.yml` and
+`deploy-dev.yml` publish via `FTP-Deploy-Action`, which mirrors `out/` and
+deletes server-side files by diffing its own remote state file. It has no
+supported "keep N previous builds" mode, so retaining assets there would mean
+hand-rolling an FTP sync and verifying it against the shared host's real
+behaviour — not something reachable or testable from the repo. The service
+worker closes the same gap for every SW-controlled tab without touching the
+pipeline. **Residual gap:** a tab that is not yet SW-controlled (very first
+visit, before registration completes) still goes to the network and can hit
+the removed chunk; `chunk-error.ts`'s one-time auto-reload remains the
+backstop for that case. Tauri is unaffected — it loads `out/` off disk.
+
+`computeCachePrunePlan` is a pure function precisely so it can be tested:
+`__tests__/sw-cache-retention.test.ts` evaluates `public/sw.js` against a stub
+`self` and reads the policy off `self.__swInternals`. The cache plumbing around
+it (`cache.keys()`/`delete`/`put`) is not unit-tested and needs a browser check
+after any change to it.
+
 ## Tauri webview content-security policy
 
 `src-tauri/tauri.conf.json`'s `app.security.csp` is a real policy, not `null`,

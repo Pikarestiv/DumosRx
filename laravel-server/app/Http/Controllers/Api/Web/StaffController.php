@@ -118,11 +118,11 @@ class StaffController extends Controller
     #[OA\Post(
         path: '/staff',
         summary: 'Create a staff account',
-        description: 'Blocked (422) if the store\'s plan staff limit is already reached. If no password is given the account gets none at all and cannot use `/login`; it is PIN-only, which the POS verifies client-side. Set a password here (or later via the update endpoint) to grant web-dashboard access.',
+        description: 'Blocked (422) if the store\'s plan staff limit is already reached. If no password is given the account gets none at all and cannot use `/login`; it is PIN-only, which the POS verifies client-side. Set a password here (or later via the update endpoint) to grant web-dashboard access. `pin` is required and has no default: it is the live POS credential, so an omitted one is a 422 rather than a shared fallback.',
         tags: ['Staff'],
         security: [['sanctum' => []]],
         requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
-            required: ['first_name', 'last_name', 'username', 'role', 'store_id'],
+            required: ['first_name', 'last_name', 'username', 'role', 'pin', 'store_id'],
             properties: [
                 new OA\Property(property: 'first_name', type: 'string'),
                 new OA\Property(property: 'last_name', type: 'string'),
@@ -130,7 +130,7 @@ class StaffController extends Controller
                 new OA\Property(property: 'username', type: 'string', description: 'Unique per store'),
                 new OA\Property(property: 'role', type: 'string', enum: ['admin', 'manager', 'specialist', 'sales_staff', 'auditor']),
                 new OA\Property(property: 'password', type: 'string', nullable: true, minLength: 8),
-                new OA\Property(property: 'pin', type: 'string', nullable: true, minLength: 4, maxLength: 4),
+                new OA\Property(property: 'pin', type: 'string', minLength: 4, maxLength: 4, description: 'The 4-digit POS unlock PIN. Required, with no default.'),
                 new OA\Property(property: 'store_id', type: 'string'),
             ],
         )),
@@ -155,7 +155,7 @@ class StaffController extends Controller
             'username' => ['required', 'string', Rule::unique('users', 'username')->where('store_id', $request->store_id)],
             'role' => 'required|string|in:admin,manager,specialist,sales_staff,auditor',
             'password' => 'nullable|min:8',
-            'pin' => 'nullable|string|size:4',
+            'pin' => 'required|string|size:4',
             'store_id' => 'required|exists:stores,id',
         ]);
 
@@ -194,8 +194,6 @@ class StaffController extends Controller
 
         $roleObj = \App\Models\Role::where('slug', $request->role)->first();
 
-        $pin = $request->pin ?: '1234';
-
         // Never derive this from the PIN: "Staff credentials" in AGENTS.md.
         $password = $request->password ? Hash::make($request->password) : null;
 
@@ -208,7 +206,7 @@ class StaffController extends Controller
             'role' => $request->role,
             'role_id' => $roleObj ? $roleObj->id : null,
             'password' => $password,
-            'pin' => User::hashPin($pin),
+            'pin' => User::hashPin($request->pin),
             'is_active' => true,
         ]);
 

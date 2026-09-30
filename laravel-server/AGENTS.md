@@ -106,6 +106,18 @@ Do not reintroduce a fallback: if a staff member needs the web dashboard, an
 owner sets a real password on create or via `PUT /staff/{id}`. Covered by
 `tests/Feature/StaffPinDerivedPasswordTest.php`.
 
+**The PIN has no default either.** `pin` is **required** on `POST /staff` and a
+missing one is a 422, because the same rule applies with more force to the
+higher-value credential: the PIN is what actually authorises POS actions
+(voids, refunds, sales under that identity, and every `sales.cashier_id` and
+audit-log attribution that follows). The endpoint used to fall back to the
+literal `'1234'`, which the sync pull then shipped to every device as a live,
+publicly-guessable till credential (A-89). `required` rather than a generated
+PIN because no in-repo caller relies on the old default — `web/` has no
+staff-creation form any more and `client/` creates staff locally and syncs
+them — so there is nothing to disrupt and no one-time secret to hand back in a
+response body.
+
 ## No tenant-facing endpoint may create a lockout only a super_admin can undo
 
 `users.is_active = false` and `stores.deleted_at` both make `CheckAccountStatus`

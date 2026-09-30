@@ -7,6 +7,7 @@ import type { StorefrontProduct } from "@/lib/types/storefront";
 interface CatalogResponse {
   products: StorefrontProduct[];
   online_payment_available?: boolean;
+  store?: { currency?: string | null };
 }
 
 /**
@@ -19,6 +20,7 @@ export function useCartRepricing(storeSlug: string) {
   const [pricesLoading, setPricesLoading] = useState(true);
   const [pricesStale, setPricesStale] = useState(false);
   const [onlinePaymentAvailable, setOnlinePaymentAvailable] = useState(false);
+  const [currency, setCurrency] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -36,6 +38,7 @@ export function useCartRepricing(storeSlug: string) {
         if (cancelled) return;
 
         setOnlinePaymentAvailable(!!data.online_payment_available);
+        setCurrency(data.store?.currency ?? null);
 
         const prices: Record<string, number> = {};
         for (const product of data.products ?? []) {
@@ -73,5 +76,5 @@ export function useCartRepricing(storeSlug: string) {
     };
   }, [storeSlug]);
 
-  return { pricesLoading, pricesStale, onlinePaymentAvailable };
+  return { pricesLoading, pricesStale, onlinePaymentAvailable, currency };
 }

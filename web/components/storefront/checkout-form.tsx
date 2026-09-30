@@ -11,6 +11,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { apiClient } from "@/lib/api/base-client";
+import { formatMoney } from "@/lib/utils/currency";
 import {
   FailedConfirmationPanel,
   OrphanReferencePanel,
@@ -43,7 +44,7 @@ export function CheckoutForm({ storeSlug }: CheckoutFormProps) {
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [redirecting, setRedirecting] = useState(false);
-  const { pricesLoading, pricesStale, onlinePaymentAvailable } = useCartRepricing(storeSlug);
+  const { pricesLoading, pricesStale, onlinePaymentAvailable, currency } = useCartRepricing(storeSlug);
   const [orphanReference, setOrphanReference] = useState<string | null>(null);
   const [failedReference, setFailedReference] = useState<string | null>(null);
   const [failedWasRefunded, setFailedWasRefunded] = useState(false);
@@ -319,7 +320,7 @@ export function CheckoutForm({ storeSlug }: CheckoutFormProps) {
                   ? "Redirecting to Paystack..."
                   : pricesLoading
                     ? "Confirming prices..."
-                    : `Place Order (₦${cart.getTotal().toLocaleString()})`}
+                    : `Place Order (${formatMoney(cart.getTotal(), currency)})`}
               </Button>
               {pricesStale && (
                 <p className="text-xs text-amber-600 text-center">
@@ -342,12 +343,12 @@ export function CheckoutForm({ storeSlug }: CheckoutFormProps) {
             {cart.items.map(item => (
               <div key={item.id} className="flex justify-between text-sm">
                 <span>{item.name} (x{item.quantity})</span>
-                <span className="font-medium">₦{(item.price * item.quantity).toLocaleString()}</span>
+                <span className="font-medium">{formatMoney(item.price * item.quantity, currency)}</span>
               </div>
             ))}
             <div className="border-t pt-4 flex justify-between font-bold text-lg">
               <span>Total</span>
-              <span className="text-emerald-600">₦{cart.getTotal().toLocaleString()}</span>
+              <span className="text-emerald-600">{formatMoney(cart.getTotal(), currency)}</span>
             </div>
           </CardContent>
         </Card>

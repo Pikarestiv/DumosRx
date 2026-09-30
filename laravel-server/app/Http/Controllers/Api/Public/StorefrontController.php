@@ -237,7 +237,7 @@ class StorefrontController extends Controller
         parameters: [new OA\Parameter(name: 'store_slug', in: 'path', required: true, schema: new OA\Schema(type: 'string'))],
         responses: [
             new OA\Response(response: 200, description: 'Store + products', content: new OA\JsonContent(properties: [
-                new OA\Property(property: 'store', type: 'object'),
+                new OA\Property(property: 'store', type: 'object', description: "Includes the store's own `currency` (ISO code), which the storefront must format every price with — prices are never naira by default."),
                 new OA\Property(property: 'products', type: 'array', items: new OA\Items(type: 'object')),
             ])),
             new OA\Response(response: 403, description: 'Store is suspended'),
@@ -276,6 +276,7 @@ class StorefrontController extends Controller
                 'phone' => $store->phone,
                 'email' => $store->email,
                 'logo_url' => $store->logo_url,
+                'currency' => $this->storeCurrency($store),
             ],
             'products' => StorefrontProductResource::collection($products),
             'online_payment_available' => (bool) $store->paystack_subaccount_code,

@@ -191,7 +191,7 @@ class StorefrontController extends Controller
     )]
     public function slugs()
     {
-        $stores = Store::where('status', '!=', 'suspended')
+        $stores = Store::notSuspended()
             ->where('online_store_enabled', true)
             ->whereNotNull('store_slug')
             ->get(['store_slug', 'user_id']);
@@ -249,7 +249,7 @@ class StorefrontController extends Controller
         $store = Store::where('store_slug', $store_slug)->firstOrFail();
 
         // Check if store is suspended
-        if ($store->status === 'suspended') {
+        if ($store->isSuspended()) {
             return response()->json(['error' => 'Store unavailable'], 403);
         }
 
@@ -373,7 +373,7 @@ class StorefrontController extends Controller
     {
         $store = Store::where('store_slug', $store_slug)->firstOrFail();
 
-        if ($store->status === 'suspended') {
+        if ($store->isSuspended()) {
             return response()->json(['error' => 'Store unavailable'], 403);
         }
 
@@ -501,7 +501,7 @@ class StorefrontController extends Controller
     {
         $store = Store::where('store_slug', $store_slug)->firstOrFail();
 
-        if ($store->status === 'suspended') {
+        if ($store->isSuspended()) {
             return response()->json(['error' => 'Store unavailable'], 403);
         }
 

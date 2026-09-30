@@ -362,7 +362,8 @@ extending or relying on any of this):
 - **What dirties a storefront.** `Store::boot()`'s `saved()` hook fires on
   `Store::STOREFRONT_PUBLISHED_FIELDS` (`online_store_enabled`, `store_slug`,
   `name`, `logo_url`, `phone`, `email`, `address`, `location` — i.e. exactly
-  what the public page renders) and on a `status` → `suspended` transition.
+  what the public page renders) and on a `status` → suspended transition
+  (tested via `Store::isSuspended()` — see "stores.status casing" below).
   `Product::booted()` mirrors it for the other half of what a customer sees:
   `created` when `show_online`, `updated` on
   `name`/`selling_price`/`show_online`/`is_active`, and `deleted` when
@@ -406,6 +407,40 @@ Note also that the storefront's online-payment flow (`initializeCheckout`/
 per-store Paystack subaccounts — see the dedicated section below for the
 onboarding flow, fee semantics, propagation cadence, and the refund decision.
 Full design: `docs/superpowers/specs/2026-09-26-storefront-paystack-subaccounts-design.md`.
+
+## `stores.status` casing: never compare it with `===`
+
+`stores.status` holds `'Active'`/`'Suspended'` — capitalised. That is the
+canonical *stored* form and must stay that way, because two other packages
+compare it exactly and are deployed separately from this API:
+`client/lib/licensing/licensing-manager.ts` gates its suspension lock screen
+on `profile.status === "Suspended"` (and `client/lib/api/base-client.ts`
+writes that literal locally on an `ACCOUNT_SUSPENDED` 403), and `web/`'s
+admin store table/detail/dashboard badges branch on `=== "Suspended"`.
+Lower-casing the column would silently un-gate the desktop app's lock screen
+on every already-installed client.
+
+Server-side, however, nothing may compare the raw value: `AdminStoreService`
+wrote `'Suspended'` while four read sites compared `=== 'suspended'`, so
+suspension was a complete no-op on the storefront and on the
+`storefront_dirty_at` rebuild trigger for as long as both existed (A-74).
+The rule that replaces it:
+
+- **Reads go through `Store::isSuspended()`** (PHP, `strcasecmp`) or
+  **`Store::scopeNotSuspended()`** (query builder). Never `$store->status ===
+  '…'` and never a bare `where('status', …)` on a suspension check.
+- **Writes go through `Store::STATUS_SUSPENDED`/`STATUS_ACTIVE`**, not
+  string literals.
+- The scope uses `LOWER(...)` deliberately: MySQL's default collation is
+  case-insensitive but SQLite's — which the test suite runs on — is not, so a
+  bare `where('status', '!=', 'suspended')` gives *different answers in test
+  and in production*. That divergence is exactly why the original bug stayed
+  invisible (the slug list looked correct while the live endpoints did not).
+  Any new status comparison must be written so both engines agree.
+- `tests/Feature/StoreSuspensionEnforcementTest.php` pins both halves: the
+  stored value itself (`'Suspended'`, so the casing contract with `client/`
+  and `web/` can't drift) and casing-agnostic enforcement across the
+  storefront, the slug list, `storefront_dirty_at` and `CheckAccountStatus`.
 
 ## Storefront online payment: Paystack subaccounts
 

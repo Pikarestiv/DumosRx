@@ -46,7 +46,7 @@ class CheckAccountStatus
             $store = Store::withTrashed()->where('user_id', $user->id)->first();
         }
 
-        if ($store && $store->status === 'Suspended') {
+        if ($store && $store->isSuspended()) {
             return response()->json([
                 'success' => false,
                 'message' => 'ACCOUNT_SUSPENDED',

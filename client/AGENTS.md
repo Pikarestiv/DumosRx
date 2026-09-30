@@ -3330,6 +3330,32 @@ must use a non-privileged role (e.g. `sales_staff`) with a
 returns `ok`, the tool runs, and the assertion fails against a perfectly
 correct router.
 
+## Assistant data tools (`lib/assistant/tools/inventory-tools.ts`)
+
+A data tool reads the local database through the same query layer the UI
+uses — `productStockTool` calls `getProductsWithStock()` and ranks the
+catalog with `searchProducts()` from `lib/utils/search.ts` rather than
+writing its own `LIKE` query, so the assistant's idea of "which product did
+you mean" is the same one the POS search bar has (exact → starts-with →
+token → fuzzy fallback, in that order), and a tie is reported as
+alternates instead of silently picking one. Tools stay read-only: nothing
+under `tools/` calls `insert`/`update`/`softDelete`.
+
+**Testing a data tool: seed the real schema, not the migrated one.**
+`__tests__/assistant-inventory-tools.test.ts` is the reference harness — a
+throwaway sql.js database running `SCHEMA_SQL`, injected via
+`core.__setDatabaseForTesting()`. The trap is that `SCHEMA_SQL`'s
+`CREATE TABLE products` / `CREATE TABLE stock_batches` have **no
+`store_id` column**: it is one of the columns added at runtime by
+`SYNC_COLUMN_MIGRATIONS` (`lib/db/schema-migrations.ts`), and
+`__setDatabaseForTesting()` deliberately bypasses that migration pass. An
+`INSERT ... (store_id, ...)` against a bare `SCHEMA_SQL` database therefore
+throws `table products has no column named store_id`. Either run the
+migrations too, or — simpler, and what this test does — call
+`core.setActiveStoreId(null)` in `beforeEach` so the query's
+`storeId ? " AND p.store_id = ?" : ""` branch drops out, and seed rows
+without a store.
+
 ## Running things
 
 ```

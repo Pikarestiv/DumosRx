@@ -663,9 +663,12 @@ class SyncController extends Controller
 
             $this->applyStockBatchDeltas($stockBatchDeltas, $failed);
 
-            $this->touchStoreLastSyncAt($request);
+            $firstSyncedStore = $this->touchStoreLastSyncAt($request);
 
             DB::commit();
+
+            $this->sendFirstSyncAlert($firstSyncedStore, $request->user());
+
             return response()->json(['success' => true, 'processed' => $processed, 'failed' => $failed, 'id_map' => $idMapByTable, 'versions' => $versions]);
 
         } catch (\Exception $e) {
@@ -1211,7 +1214,7 @@ class SyncController extends Controller
      * one. Alert failures are swallowed (logged only) — they must never
      * fail the push that triggered them.
      */
-    private function touchStoreLastSyncAt(Request $request): void
+    private function touchStoreLastSyncAt(Request $request): ?Store
     {
         // Update the last sync time for the store the push actually wrote
         // to -- resolved the same way push() itself resolves it, so a
@@ -1230,21 +1233,36 @@ class SyncController extends Controller
                 $store->last_sync_at = now();
                 $store->save();
 
-                if ($isFirstSync) {
-                    try {
-                        \App\Services\AdminAlertService::send(
-                            'First-Time Sync Completed: ' . $store->name,
-                            [
-                                "A user has just successfully completed their first local sync with the DumosRx Cloud.",
-                                "Store: {$store->name}",
-                                "User: {$user->first_name} {$user->last_name} ({$user->email})"
-                            ]
-                        );
-                    } catch (\Exception $e) {
-                        Log::error("Failed to send super admin alert for sync: " . $e->getMessage());
-                    }
-                }
+                return $isFirstSync ? $store : null;
             }
+        }
+
+        return null;
+    }
+
+    /**
+     * Must run AFTER push()'s DB::commit(): AdminAlertService::send() is a
+     * synchronous SMTP send (this repo runs no queue worker), and calling it
+     * inside the transaction held every lockForUpdate() row lock open for the
+     * SMTP timeout, timing the client's batch out against locked rows.
+     */
+    private function sendFirstSyncAlert(?Store $store, $user): void
+    {
+        if (!$store || !$user) {
+            return;
+        }
+
+        try {
+            \App\Services\AdminAlertService::send(
+                'First-Time Sync Completed: ' . $store->name,
+                [
+                    "A user has just successfully completed their first local sync with the DumosRx Cloud.",
+                    "Store: {$store->name}",
+                    "User: {$user->first_name} {$user->last_name} ({$user->email})"
+                ]
+            );
+        } catch (\Exception $e) {
+            Log::error("Failed to send super admin alert for sync: " . $e->getMessage());
         }
     }
 

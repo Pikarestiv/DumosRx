@@ -3808,7 +3808,7 @@ paragraph is a single plain text node.
 
 **Branding: the assistant has a name, and it lives in exactly one place.**
 `components/assistant/assistant-brand.tsx` exports `ASSISTANT_NAME`
-(currently `"DumoAI"`) and `AssistantBetaTag`. Every user-visible mention of the
+(currently `"Dumo"`) and `AssistantBetaTag`. Every user-visible mention of the
 assistant reads that constant — the panel/drawer title, the launcher's tooltip,
 and the `navActions` entry in `lib/hooks/use-account-actions.ts` (which imports
 the constant rather than repeating the string, so a rename is one edit). The

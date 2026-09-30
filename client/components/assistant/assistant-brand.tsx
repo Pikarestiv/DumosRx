@@ -1,4 +1,4 @@
-export const ASSISTANT_NAME = "DumoAI";
+export const ASSISTANT_NAME = "Dumo";
 
 const TAG_CLASS =
   "shrink-0 rounded-full border px-1.5 py-0.5 text-[10px] font-medium uppercase leading-none tracking-wide";

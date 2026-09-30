@@ -513,6 +513,32 @@ The rule that replaces it:
   and `web/` can't drift) and casing-agnostic enforcement across the
   storefront, the slug list, `storefront_dirty_at` and `CheckAccountStatus`.
 
+## `CheckAccountStatus` resolves the store per *request*, not per account
+
+Multi-store is a supported, plan-gated state, so "is this account blocked?"
+has no single answer for an owner: one store can be suspended while another
+trades normally. The middleware therefore resolves **which store this request
+is acting on** exactly the way `SyncController::resolvePushStoreId()` does —
+`X-Store-Id` (or a `store_id` input) when the caller's tenant owns it, else
+the caller's own `users.store_id` — and blocks only on that store. It used to
+take `Store::where('user_id', …)->first()` with no `orderBy`, so which store
+got enforced was whatever the storage engine returned first: suspending one
+store of a two-store account enforced nothing half the time, and archiving
+one 403'd the owner out of the untouched sibling with a message naming a
+store the admin never touched (A-76).
+
+- Every lookup is `withTrashed()`: an archived store must still be able to
+  answer "blocked", otherwise archiving silently un-suspends.
+- A request that names **no** store (an owner calling `/user`,
+  `/dashboard/summary`, …) is blocked only when **every** owned store is
+  suspended or archived. If anything is still in good standing the request
+  proceeds and per-store scoping rejects the rest — an account-wide 403 is
+  never inferred from one store's state.
+- Enforcement and scoping must keep using the same resolution rule. If
+  `resolvePushStoreId()` changes, change this middleware with it, or a store
+  can be synced under a scope whose status was never checked.
+- Pinned by `tests/Feature/MultiStoreAccountStatusTest.php`.
+
 ## Storefront online payment: Paystack subaccounts
 
 Each store that wants to take real money on its storefront gets its own

@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { APP_VERSION } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import {
   Card,
@@ -20,24 +19,15 @@ import {
   Smartphone,
 } from "lucide-react";
 import { ModeToggle } from "@/components/mode-toggle";
-import { usePublicLatestRelease } from "@/lib/api/release-hooks";
+import {
+  usePublicLatestRelease,
+  FALLBACK_RELEASE_LINKS,
+} from "@/lib/api/release-hooks";
 
 export default function DownloadsPage() {
   const { data: links, isLoading } = usePublicLatestRelease();
 
-  const defaultLinks = {
-    windows: `https://downloads.dumosrx.com`,
-    macos: `https://downloads.dumosrx.com`,
-    linux: `https://downloads.dumosrx.com`,
-    android: `https://downloads.dumosrx.com`,
-    version: APP_VERSION,
-    winSize: "---",
-    macSize: "---",
-    linuxSize: "---",
-    androidSize: "---",
-  };
-
-  const currentLinks = links || defaultLinks;
+  const currentLinks = links || FALLBACK_RELEASE_LINKS;
   const linuxAssetExists = !!currentLinks.linux;
   const androidAssetExists = !!currentLinks.android;
 

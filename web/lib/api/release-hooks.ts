@@ -61,6 +61,20 @@ function toReleaseLinks(data: DownloadsManifest): ReleaseLinks {
   };
 }
 
+/** What the Downloads pages render before (or instead of) a manifest fetch:
+ * the download host itself, so a visitor still has somewhere to go. */
+export const FALLBACK_RELEASE_LINKS: ReleaseLinks = {
+  windows: DOWNLOAD_URL,
+  macos: DOWNLOAD_URL,
+  linux: DOWNLOAD_URL,
+  android: DOWNLOAD_URL,
+  version: APP_VERSION,
+  winSize: "---",
+  macSize: "---",
+  linuxSize: "---",
+  androidSize: "---",
+};
+
 function fallbackReleaseLinks(): ReleaseLinks {
   const cleanVersion = APP_VERSION.replace(/^v/, "");
 

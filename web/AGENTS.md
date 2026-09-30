@@ -100,6 +100,19 @@ together). The current design:
   based, has no cookie dependency, and silently refreshes only after 7 days
   via `refreshTokenSilently`.
 
+## Download and site URLs come from `lib/constants.ts` (A-104)
+
+`DOWNLOAD_URL` and `WEB_APP_URL` are env-overridable
+(`NEXT_PUBLIC_DOWNLOAD_URL`, `NEXT_PUBLIC_WEB_APP_URL`), so nothing under
+`app/`, `components/` or `hooks/` may spell those domains out — a hardcoded
+copy silently makes the override a no-op (a staging build pointing testers at
+production binaries). Both Downloads pages now share
+`FALLBACK_RELEASE_LINKS` from `lib/api/release-hooks.ts` instead of their own
+literal defaults, and `app/layout.tsx`'s OpenGraph/Twitter metadata is built
+from `WEB_APP_URL` like `app/sitemap.ts` already was.
+`__tests__/no-hardcoded-domains.test.ts` scans those three directories and
+fails on any new literal.
+
 ## Telemetry redaction and session-end cache hygiene (A-100/A-107)
 
 `lib/api/logger.ts`'s `sanitizePayload` masks (never drops) sensitive values,

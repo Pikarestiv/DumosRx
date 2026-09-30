@@ -106,6 +106,49 @@ Do not reintroduce a fallback: if a staff member needs the web dashboard, an
 owner sets a real password on create or via `PUT /staff/{id}`. Covered by
 `tests/Feature/StaffPinDerivedPasswordTest.php`.
 
+**The PIN has no default either.** `pin` is **required** on `POST /staff` and a
+missing one is a 422, because the same rule applies with more force to the
+higher-value credential: the PIN is what actually authorises POS actions
+(voids, refunds, sales under that identity, and every `sales.cashier_id` and
+audit-log attribution that follows). The endpoint used to fall back to the
+literal `'1234'`, which the sync pull then shipped to every device as a live,
+publicly-guessable till credential (A-89). `required` rather than a generated
+PIN because no in-repo caller relies on the old default — `web/` has no
+staff-creation form any more and `client/` creates staff locally and syncs
+them — so there is nothing to disrupt and no one-time secret to hand back in a
+response body.
+
+## No tenant-facing endpoint may create a lockout only a super_admin can undo
+
+`users.is_active = false` and `stores.deleted_at` both make `CheckAccountStatus`
+403 every request in the protected group, and the only way back out of either
+is a super_admin call (`POST /admin/users/{id}/reactivate`,
+`POST /admin/stores/{id}/restore`). So a self-service endpoint that can reach
+those states from inside the tenant is a support ticket by construction, and
+two of them could:
+
+- **`DELETE /staff/{id}` / `is_active: false` on `PUT /staff/{id}`** refuse two
+  targets with a 422: the **tenant owner** and the **caller themselves**. The
+  owner's own row is deliberately visible and editable through these endpoints
+  (the web staff table's "Main Account"), and `manage_staff` is not
+  owner-exclusive — so any admin- or manager-role staff member could deactivate
+  the owner and take the whole tenant offline, with nobody left inside it able
+  to reverse that (A-85). `AdminUserController::deactivateUser()` refuses
+  self-deactivation for the same reason. Both pinned by
+  `tests/Feature/StaffSelfLockoutGuardTest.php`.
+- **`DELETE /stores/{id}`** refuses with a **409** when it is the caller's last
+  remaining store, because `Store` soft-deletes and one "Remove store" click
+  otherwise bricked a paying single-store account (A-84). When it does archive
+  a store it stamps `deleted_by_id`/`deletion_reason` the way
+  `AdminStoreDeletionService::archiveStore()` does, so the state is not silently
+  different from an admin-archived one.
+
+`CheckAccountStatus`'s `STORE_ARCHIVED` 403 distinguishes the two cases —
+`archived_by: 'owner' | 'administrator'`, with matching `reason` text — since
+telling an owner who just removed a branch themselves that "an administrator
+archived this store" guarantees a support ticket that starts from the wrong
+premise. Pinned by `tests/Feature/StoreSelfDeletionGuardTest.php`.
+
 ## Admin: owner vs. staff accounts, and the store detail endpoint
 
 Two different columns decide what a user "is", and mixing them up has already
@@ -116,6 +159,17 @@ caused one shipped bug (`AdminUsersStoreResolutionTest`):
   (`User::employerStore()`). An owner's `store_id` is never set to their own
   store, so the two are complementary, never overlapping.
 - **Platform account** — neither (super_admin / platform_admin / agent).
+
+Two *other* user columns look adjacent and are not: `referred_by_id` is the
+customer **referral program** pointer (an unrelated store owner who signed up
+through the caller's link) and `registered_by_id` is platform attribution.
+Neither is a staff relationship, and neither may ever widen a staff query:
+`DashboardService::getSummary()`'s `staff` array used to `orWhere(
+'referred_by_id', …)`, so a referred owner was returned to the caller as one
+of their employees, email and last-login included — cross-tenant PII through
+an ordinary authenticated endpoint (A-83). Referral data has its own scoped
+endpoint (`GET /subscription/referral-stats`, name/store/status only).
+Pinned by `tests/Feature/DashboardStaffScopingTest.php`.
 
 `GET /admin/users` exposes that distinction through **`account_type`**
 (`owners` | `staff` | `platform`; omit it for every account, which is what
@@ -167,6 +221,28 @@ array rule (`filters`) makes `$request->validate()`'s return value rebuild
 vanish from `$validated`. `bulkNotify` silently notified every account for one
 commit because of it. Read that kind of bag off `$request->input('filters')`
 after validating, not out of `$validated`.
+
+## A voided sale is not revenue — including on the admin surfaces
+
+`Sale` uses `SoftDeletes`, and a voided or `POST /dashboard/reset`-cleared
+sale is **excluded from every revenue figure the product quotes**, admin panel
+included. The store owner's own dashboard gets that for free (`DashboardService`
+goes through Eloquent, so the global scope applies), but the two admin revenue
+helpers read the table through `DB::table('sales')` for their correlated
+legacy-`cashier_id` fallback and so bypass it: for as long as that went
+unnoticed, the admin fleet list and Store Details page quoted ₦500,000 and 50
+orders for a store whose own dashboard said ₦0, and
+`average_order_value`/`active_days`/the 6-month trend were all derived from
+the inflated numbers (A-86).
+
+Both helpers — `AdminStoreService::revenueSubquery()` and
+`AdminStoreMetricsService::salesQuery()` — now carry
+`->whereNull('sales.deleted_at')`, and they are the single source for every
+consumer of those figures. **Any new raw-builder query over `sales` (or any
+other soft-deleting table) must add that filter explicitly**; prefer Eloquent
+unless a correlated subquery forces the builder. The third revenue site,
+`AdminPlatformService::summary()`, uses Eloquent `Sale::sum()` and already
+agrees. Pinned by `tests/Feature/Admin/AdminStoreSearchAndMetricsTest.php`.
 
 ## Admin auth architecture (redesigned 2026-08-26)
 
@@ -442,6 +518,56 @@ per-store Paystack subaccounts — see the dedicated section below for the
 onboarding flow, fee semantics, propagation cadence, and the refund decision.
 Full design: `docs/superpowers/specs/2026-09-26-storefront-paystack-subaccounts-design.md`.
 
+## `POST /subscription/verify-license` is scoped to the caller's own account
+
+The license key is not a secret in the threat model that matters here: `GET
+/subscription/status` returns it in plaintext to the store's own users, so it
+travels through support chats and screenshots. Verification therefore may
+never be "does this key exist" — it looks the subscription up **by key *and*
+by `user_id`, resolved through `SubscriptionService::getSubscriptionOwner()`**
+so a staff member verifies their employer's key and nobody else's. Before
+that, any authenticated user could present a stranger's `enterprise` key, have
+a `License` row created for *their* `machine_id` against the victim's
+subscription, and be answered `valid: true, plan: enterprise` — an entitlement
+bypass plus a write into another tenant's `licenses` rows (A-87). A key that
+exists but isn't the caller's returns the same 404 as an unknown one, so the
+endpoint never confirms a key as valid-but-not-yours.
+
+`last_check_in` is stamped **after** the `is_active` check, not before: a
+deactivated device must not leave a fresh check-in behind on its way to a 403.
+Pinned by `tests/Feature/VerifyLicenseOwnershipTest.php`. `.agents/AGENTS.md`
+§8 covers the client-side JWT/anti-backdating half of the licensing system.
+
+## Coupon usage is reserved under a lock, not counted at activation
+
+`max_uses`/`max_uses_per_user` are counted from `coupon_usages`, and those rows
+used to be written only when a subscription **activated** — so validity was
+evaluated against a count that moved after the money was already committed, with
+no lock anywhere. Twenty concurrent checkouts on a `max_uses: 1` launch coupon
+all passed, all got the discount, and all activated at it; a double-submitted
+100%-off coupon minted two overlapping active subscriptions (A-80).
+
+The rule now matches the referral-credit one below: **the discount is reserved
+where it is granted.** `SubscriptionService::reserveCoupon()` takes a
+`lockForUpdate()` on the coupon row, re-validates inside that transaction and
+writes the `CouponUsage` row before returning, so a second caller blocks and
+then sees the real count. `initiatePayment()` uses it for both branches, stamps
+`metadata.coupon_usage_id` on the `PaymentTransaction`, and the reservation is
+then either **linked** (`attachCouponUsageToSubscription()`, at
+`$finalAmount <= 0` self-activation and at `activateSubscriptionFromTransaction()`)
+or **released** (`releaseCouponUsage()`, on an `initializeTransaction()` failure
+and in `failTransaction()`, stamped `coupon_usage_released` so it is idempotent
+across the verify and webhook paths). Activation never creates a usage row for a
+transaction that carries a `coupon_usage_id` — the legacy create branch is only
+for transactions started before reservations existed.
+
+**No `UNIQUE (coupon_id, user_id)` index was added**, deliberately:
+`max_uses_per_user` is a column and is legitimately greater than 1, so the index
+would enforce a cap the product does not have. The lock is the enforcement
+point; anything new that grants a coupon discount must go through
+`reserveCoupon()` rather than `validateCoupon()`, which is now only a read-only
+check. Pinned by `tests/Feature/CouponUsageReservationTest.php`.
+
 ## Referral credits on a subscription checkout are reserved, not deferred
 
 `SubscriptionController::initiatePayment()` **deducts** the credits a paid
@@ -512,6 +638,32 @@ The rule that replaces it:
   stored value itself (`'Suspended'`, so the casing contract with `client/`
   and `web/` can't drift) and casing-agnostic enforcement across the
   storefront, the slug list, `storefront_dirty_at` and `CheckAccountStatus`.
+
+## `CheckAccountStatus` resolves the store per *request*, not per account
+
+Multi-store is a supported, plan-gated state, so "is this account blocked?"
+has no single answer for an owner: one store can be suspended while another
+trades normally. The middleware therefore resolves **which store this request
+is acting on** exactly the way `SyncController::resolvePushStoreId()` does —
+`X-Store-Id` (or a `store_id` input) when the caller's tenant owns it, else
+the caller's own `users.store_id` — and blocks only on that store. It used to
+take `Store::where('user_id', …)->first()` with no `orderBy`, so which store
+got enforced was whatever the storage engine returned first: suspending one
+store of a two-store account enforced nothing half the time, and archiving
+one 403'd the owner out of the untouched sibling with a message naming a
+store the admin never touched (A-76).
+
+- Every lookup is `withTrashed()`: an archived store must still be able to
+  answer "blocked", otherwise archiving silently un-suspends.
+- A request that names **no** store (an owner calling `/user`,
+  `/dashboard/summary`, …) is blocked only when **every** owned store is
+  suspended or archived. If anything is still in good standing the request
+  proceeds and per-store scoping rejects the rest — an account-wide 403 is
+  never inferred from one store's state.
+- Enforcement and scoping must keep using the same resolution rule. If
+  `resolvePushStoreId()` changes, change this middleware with it, or a store
+  can be synced under a scope whose status was never checked.
+- Pinned by `tests/Feature/MultiStoreAccountStatusTest.php`.
 
 ## Storefront online payment: Paystack subaccounts
 
@@ -604,6 +756,24 @@ straight to their own bank account.
   that reconcilable. Anything summing paid online orders as revenue must
   therefore treat `'refunded'` as not-revenue rather than assuming three
   values.
+- **The cancel transition is committed under a row lock before the provider is
+  called, and a provider "already refunded" counts as success.** The
+  pending-only guard is a check-then-write, so without a lock two concurrent
+  cancels (staff double-tapping, or the POS retrying a request whose response
+  was lost) both read `pending`, both wrote `cancelled` and both called the
+  refund API — a double payout, or, when Paystack rejected the second, a
+  *correct* refund falling through to the manual-refund flag with
+  `payment_status` still `'paid'` (A-82). `markFulfilled()` now takes the
+  transition inside `DB::transaction()` + `lockForUpdate()` and the loser gets
+  the 409, so only one caller ever reaches the provider; the refund happens
+  after that commit (never with a lock held across a third-party call) and
+  `payment_status` is written in its own short transaction on the outcome.
+  `PaystackSubaccountService::refund()` maps an "already refunded"/"fully
+  reversed" rejection to `success: true, already_refunded: true` — the money is
+  back, which is the outcome asked for — and the duplicate store notification is
+  suppressed for that case. A genuine failure (unknown reference, provider
+  error) still falls through to flag-and-notify. Pinned by
+  `tests/Feature/OnlineOrderCancelRefundLockTest.php`.
 
 **Carbon 3 gotcha:** `diffInMonths()` (and the other `diffIn*` methods)
 return a **signed** value (`$other - $this`) in Carbon 3, unlike Carbon 2's
@@ -710,6 +880,29 @@ shared host): don't dispatch a `ShouldQueue` job for something that must
 actually run — do it synchronously (fast, timeout-guarded) or via
 `routes/console.php`'s `Schedule::command(...)`, which the OS cron does
 reliably run.
+
+**The payment services are no exception, and they are the ones that matter
+most.** Guzzle's default request timeout is 0 — wait forever — and every
+Paystack/Flutterwave call went out that way while every other outbound call in
+the app carried a short one (A-81). `POST /storefront/{slug}/checkout/initialize`
+is unauthenticated, so a blackholed provider socket pinned a PHP-FPM worker per
+hung checkout until the pool (small, on shared hosting) was gone and the whole
+API — sync included — stopped answering. Both `PaymentService` and
+`PaystackSubaccountService` now funnel every call through a single private
+client factory carrying `->timeout(10)->connectTimeout(5)`; add new calls
+through that factory, never a bare `Http::withToken(...)`.
+`tests/Feature/PaymentProviderTimeoutTest.php` asserts that at the source level
+(the options are invisible on a faked request, so behaviour alone can't pin it).
+
+**A verification that never reached the provider is `unknown`, not failed.**
+`verifyPaystack()`/`verifyFlutterwave()` catch `ConnectionException` and return
+`['success' => false, 'unknown' => true]`, and consumers must branch on that
+*before* their failure handling: the money may well have moved, so the correct
+answer is "we don't know yet" — a **503**, no order booked, no
+`PaymentTransaction` marked failed (`failTransaction()` on a timeout would
+declare a possibly-successful payment dead) and a message telling the customer
+not to pay again. `StorefrontController::checkout()` and
+`SubscriptionController::verifyPayment()` both do this.
 
 **Mail is always `Mail::to(...)->send(...)`, never `->queue(...)`** — a
 direct consequence of the constraint above, stated as its own rule because a

@@ -108,7 +108,7 @@ class SubscriptionController extends Controller
                 new OA\Property(property: 'valid', type: 'boolean', example: false),
                 new OA\Property(property: 'message', type: 'string'),
             ])),
-            new OA\Response(response: 404, description: 'Unknown license key', content: new OA\JsonContent(properties: [
+            new OA\Response(response: 404, description: "Unknown license key, or one that does not belong to the caller's own subscription", content: new OA\JsonContent(properties: [
                 new OA\Property(property: 'valid', type: 'boolean', example: false),
                 new OA\Property(property: 'message', type: 'string'),
             ])),
@@ -122,7 +122,11 @@ class SubscriptionController extends Controller
             'machine_id' => 'required|string',
         ]);
 
-        $sub = Subscription::where('license_key', $request->license_key)->first();
+        $owner = app(SubscriptionService::class)->getSubscriptionOwner($request->user());
+
+        $sub = Subscription::where('license_key', $request->license_key)
+            ->where('user_id', $owner->id)
+            ->first();
 
         if (!$sub) {
             return response()->json(['valid' => false, 'message' => 'Invalid license key.'], 404);
@@ -143,11 +147,11 @@ class SubscriptionController extends Controller
             ]
         );
 
-        $license->update(['last_check_in' => now()]);
-
         if (!$license->is_active) {
             return response()->json(['valid' => false, 'message' => 'This device has been deactivated.'], 403);
         }
+
+        $license->update(['last_check_in' => now()]);
 
         return response()->json([
             'valid' => true,
@@ -328,11 +332,13 @@ class SubscriptionController extends Controller
         $baseAmount = (float) ($interval === 'yearly' ? ($tier['price_yearly'] ?? 0) : ($tier['price_monthly'] ?? 0));
 
         $coupon = null;
+        $couponUsageId = null;
         $discountedAmount = $baseAmount;
         if ($request->coupon_code) {
-            $couponResult = $subscriptionService->validateCoupon($user, $request->coupon_code, $planName, $interval);
+            $couponResult = $subscriptionService->reserveCoupon($user, $request->coupon_code, $planName, $interval);
             if ($couponResult['valid']) {
                 $coupon = $couponResult['coupon'];
+                $couponUsageId = $couponResult['usage_id'];
                 if ($coupon->type === 'discount_percent') {
                     $discountedAmount -= $discountedAmount * ($coupon->value / 100);
                 } elseif ($coupon->type === 'discount_amount') {
@@ -371,18 +377,20 @@ class SubscriptionController extends Controller
                 $daysToAdd = $coupon->value;
             }
 
-            $sub = Subscription::create([
-                'user_id' => $user->id,
-                'plan_name' => $planName,
-                'start_date' => now(),
-                'end_date' => now()->addDays($daysToAdd),
-                'status' => 'active',
-                'license_key' => 'DRX-' . strtoupper(bin2hex(random_bytes(8))),
-            ]);
+            $sub = DB::transaction(function () use ($user, $planName, $daysToAdd, $couponUsageId, $subscriptionService) {
+                $created = Subscription::create([
+                    'user_id' => $user->id,
+                    'plan_name' => $planName,
+                    'start_date' => now(),
+                    'end_date' => now()->addDays($daysToAdd),
+                    'status' => 'active',
+                    'license_key' => 'DRX-' . strtoupper(bin2hex(random_bytes(8))),
+                ]);
 
-            if ($coupon) {
-                $subscriptionService->recordCouponUsage($coupon, $user, $sub);
-            }
+                $subscriptionService->attachCouponUsageToSubscription($couponUsageId, $created);
+
+                return $created;
+            });
 
             // Immediately enforce limits since the plan has changed
             $subscriptionService->enforceStaffLimits($user);
@@ -428,6 +436,7 @@ class SubscriptionController extends Controller
                     'plan_name' => $planName,
                     'user_id' => $user->id,
                     'coupon_code' => $request->coupon_code,
+                    'coupon_usage_id' => $couponUsageId,
                     'credits_applied' => $creditsApplied,
                     'credits_reserved' => $creditsApplied > 0,
                     'interval' => $interval
@@ -444,6 +453,8 @@ class SubscriptionController extends Controller
             if ($creditsApplied > 0) {
                 $user->addCredits($creditsApplied, "Released reserved credits for abandoned subscription to " . $planName);
             }
+
+            $subscriptionService->releaseCouponUsage($couponUsageId);
 
             return response()->json([
                 'success' => false,
@@ -532,6 +543,13 @@ class SubscriptionController extends Controller
         // both providers report the settlement currency, so a charge for
         // "13124" of anything other than the naira the transaction was
         // created in must not be allowed to satisfy it.
+        if ($verification['unknown'] ?? false) {
+            return response()->json([
+                'success' => false,
+                'message' => 'We could not reach the payment provider to confirm this payment. It is still being processed — please try again in a moment.',
+            ], 503);
+        }
+
         $verifiedAmount = (float) ($verification['amount'] ?? 0);
         $verifiedCurrency = strtoupper((string) ($verification['currency'] ?? ''));
         $expectedCurrency = strtoupper((string) ($txn->currency ?: 'NGN'));
@@ -646,12 +664,19 @@ class SubscriptionController extends Controller
                 }
             }
 
-            // Record coupon usage if present
+            // initiatePayment() already reserved the usage row, so activation
+            // only links it; the create branch is the legacy path for a
+            // transaction started before reservations existed.
             if (!empty($txn->metadata['coupon_code'])) {
-                $coupon = Coupon::where('code', $txn->metadata['coupon_code'])->first();
-                if ($coupon && $user) {
-                    $subscriptionService = app(SubscriptionService::class);
-                    $subscriptionService->recordCouponUsage($coupon, $user, $sub);
+                $subscriptionService = app(SubscriptionService::class);
+
+                if (!empty($txn->metadata['coupon_usage_id'])) {
+                    $subscriptionService->attachCouponUsageToSubscription($txn->metadata['coupon_usage_id'], $sub);
+                } else {
+                    $coupon = Coupon::where('code', $txn->metadata['coupon_code'])->first();
+                    if ($coupon && $user) {
+                        $subscriptionService->recordCouponUsage($coupon, $user, $sub);
+                    }
                 }
             }
 
@@ -727,6 +752,11 @@ class SubscriptionController extends Controller
                     $user->addCredits($creditsApplied, "Released reserved credits for failed subscription payment " . $locked->provider_reference);
                     $metadata['credits_released'] = true;
                 }
+            }
+
+            if (!empty($metadata['coupon_usage_id']) && !($metadata['coupon_usage_released'] ?? false)) {
+                app(SubscriptionService::class)->releaseCouponUsage($metadata['coupon_usage_id']);
+                $metadata['coupon_usage_released'] = true;
             }
 
             $locked->update([

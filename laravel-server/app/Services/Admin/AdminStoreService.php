@@ -76,11 +76,14 @@ class AdminStoreService
 
     /** Shared by the fleet list and AdminStoreDetailService so both quote the
      * same revenue figure. See getStores() for why it is a correlated
-     * subquery with a legacy cashier fallback rather than withSum('sales'). */
+     * subquery with a legacy cashier fallback rather than withSum('sales').
+     * whereNull('deleted_at') stands in for the SoftDeletes global scope that
+     * DB::table() bypasses — see AGENTS.md's admin-revenue section. */
     public static function revenueSubquery()
     {
         return DB::table('sales')
             ->selectRaw('COALESCE(SUM(sales.total_amount), 0)')
+            ->whereNull('sales.deleted_at')
             ->where(function ($q) {
                 $q->whereColumn('sales.store_id', 'stores.id')
                     ->orWhere(function ($fallback) {

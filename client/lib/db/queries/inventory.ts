@@ -378,14 +378,14 @@ export async function getLowStockAlerts() {
      FROM products m
      LEFT JOIN stock_batches inv ON inv.product_id = m.id
        AND (inv._deleted = 0 OR inv._deleted IS NULL) AND (inv.is_active = 1 OR inv.is_active IS NULL)
-       AND (inv.expiry_date IS NULL OR inv.expiry_date = '' OR date(inv.expiry_date) > date('now'))
+       AND (inv.expiry_date IS NULL OR inv.expiry_date = '' OR date(inv.expiry_date) > date('now'))${storeId ? " AND inv.store_id = ?" : ""}
      WHERE (m._deleted = 0 OR m._deleted IS NULL)
        AND (m.is_active = 1 OR m.is_active IS NULL)${storeId ? " AND m.store_id = ?" : ""}
      GROUP BY m.id
      HAVING COALESCE(SUM(inv.quantity), 0) <= m.reorder_level AND m.reorder_level > 0
      ORDER BY COALESCE(SUM(inv.quantity), 0) ASC
      LIMIT 5`,
-    storeId ? [storeId] : [],
+    storeId ? [storeId, storeId] : [],
   );
 }
 

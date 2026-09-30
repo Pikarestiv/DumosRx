@@ -1804,11 +1804,17 @@ than on history.
   `__tests__/inventory-stock-alerts.test.ts`'s agreement case (which asserts
   the list's length equals the two counts summed) passing. One difference is
   deliberate: the list is `LIMIT 5`, so it is a sample of the count rather
-  than all of it. One is not, and is still open — the stats query scopes
-  `stock_batches.store_id` directly while the list scopes only through
-  `products.store_id`, so a batch attributed to another store but hanging off
-  this store's product counts toward the list's on-hand figure and not the
-  card's (`docs/KNOWN_BUGS.md` `A-120`). The write path can already produce a `0`:
+  than all of it. The other one — the list scoping batches only through
+  `products.store_id` while the stats query scoped `stock_batches.store_id`
+  directly, so a batch attributed to another store but hanging off this
+  store's product inflated the list's on-hand figure and not the card's —
+  was `A-120`, fixed on 2026-10-01: the list's `LEFT JOIN stock_batches`
+  now carries `AND inv.store_id = ?` when a store is active. That is strict
+  equality with **no `IS NULL` fallback**, deliberately, because the stats
+  subquery is strict too — admitting `store_id IS NULL` batches on one side
+  only would recreate exactly the divergence the fix closes, so a legacy
+  `store_id`-less batch is excluded from both the card and the list while a
+  store is active. The write path can already produce a `0`:
   `components/products/add-product-dialog.tsx` sends
   `is_active: status === "active" ? 1 : 0` from a `status` form field (no
   visible control is currently wired to set it to anything but `"active"`,

@@ -79,6 +79,13 @@ export interface AdminStoreBillingHistory {
   transactions: AdminBillingTransaction[];
 }
 
+export interface RestoreStoreResult {
+  message: string;
+  was_suspended: boolean;
+  suspension_reason: string | null;
+  warning: string | null;
+}
+
 export interface SecurityAlert {
   title: string;
   source: string;

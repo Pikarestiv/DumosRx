@@ -12,6 +12,7 @@ import type {
   RegisteredStoreSummary,
   AdminStoreBillingHistory,
   AdminStoreDetail,
+  RestoreStoreResult,
 } from "@/lib/types/admin";
 
 export const useAdminSummary = (options?: { enabled?: boolean }) => {
@@ -273,7 +274,7 @@ export const useRestoreStoreMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) =>
-      webApiClient.request<unknown>(`admin/stores/${id}/restore`, { method: "POST" }),
+      webApiClient.request<RestoreStoreResult>(`admin/stores/${id}/restore`, { method: "POST" }),
     onSuccess: () => invalidateStoreLists(queryClient),
   });
 };

@@ -1096,6 +1096,18 @@ e2e/                       Playwright end-to-end specs
   `min={0}` — a physical count cannot be negative; only the derived delta
   can. See `docs/FIXED_BUGS.md` → A-43.
 
+  **The `Damage` and `Loss` reasons feed the Stock Loss figure.** Their
+  persisted *labels* are listed as `STOCK_LOSS_REASON_LABELS` in
+  `lib/constants/stock-adjustments.ts` (labels, not the form's `value` keys,
+  because `buildAdjustmentReason` writes the label — optionally plus
+  `ADJUSTMENT_REASON_NOTE_SEPARATOR` and a note — into
+  `stock_movements.reason`), and `getStockLossTotal()` in
+  `lib/db/queries/finance.ts` values them for the Analytics → Profit & Loss
+  tab. Adding or renaming a `direction: "decrease"` reason means updating that
+  list in the same change; `adjustment-derivations.test.ts` fails if they
+  drift. Full rationale, including why the figure sits beside the P&L rather
+  than inside Net Profit: `docs/STOCK_LOSS_METRIC.md`.
+
   **The draft is cleared on a store switch and on logout**, via
   `clearStockAdjustmentDraft()` (`lib/hooks/use-stock-adjustment-draft.ts`),
   called from `store-context.tsx` and `auth-context.tsx` beside

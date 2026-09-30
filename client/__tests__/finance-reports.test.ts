@@ -21,6 +21,7 @@ describe("finance.ts / reports.ts financial aggregates", () => {
   let getCurrentMonthExpensesByCategory: typeof import("@/lib/db/queries/finance").getCurrentMonthExpensesByCategory;
   let getSmoothedExpensesTotal: typeof import("@/lib/db/queries/finance").getSmoothedExpensesTotal;
   let getExpensesPage: typeof import("@/lib/db/queries/finance").getExpensesPage;
+  let getStockLossTotal: typeof import("@/lib/db/queries/finance").getStockLossTotal;
   let fetchProfitLossReportData: typeof import("@/lib/db/queries/reports").fetchProfitLossReportData;
   let getBIMetrics: typeof import("@/lib/db/queries/reports").getBIMetrics;
   let getAdvancedMonthlySalesData: typeof import("@/lib/db/queries/reports").getAdvancedMonthlySalesData;
@@ -33,6 +34,7 @@ describe("finance.ts / reports.ts financial aggregates", () => {
     getCurrentMonthExpensesByCategory = finance.getCurrentMonthExpensesByCategory;
     getSmoothedExpensesTotal = finance.getSmoothedExpensesTotal;
     getExpensesPage = finance.getExpensesPage;
+    getStockLossTotal = finance.getStockLossTotal;
 
     const reports = await import("@/lib/db/queries/reports");
     fetchProfitLossReportData = reports.fetchProfitLossReportData;
@@ -51,7 +53,8 @@ describe("finance.ts / reports.ts financial aggregates", () => {
   beforeEach(() => {
     db.run(
       `DELETE FROM sales; DELETE FROM sale_items; DELETE FROM expenses; DELETE FROM users;
-       DELETE FROM returns; DELETE FROM return_items; DELETE FROM stock_batches;`,
+       DELETE FROM returns; DELETE FROM return_items; DELETE FROM stock_batches;
+       DELETE FROM stock_movements;`,
     );
   });
 
@@ -450,6 +453,60 @@ describe("finance.ts / reports.ts financial aggregates", () => {
 
       const everyone = await getExpensesPage();
       expect(everyone.rows).toHaveLength(2);
+    });
+  });
+
+  describe("getStockLossTotal", () => {
+    const insertAdjustment = (
+      id: string,
+      reason: string,
+      quantity: number,
+      unitCost: number,
+      movementDate = "2026-06-10T10:00:00.000Z",
+    ) => {
+      db.run(
+        `INSERT INTO stock_movements (id, product_id, movement_type, quantity, unit_cost, reason, movement_date, _deleted)
+         VALUES (?, 'prod1', 'adjustment', ?, ?, ?, ?, 0)`,
+        [id, quantity, unitCost, reason, movementDate],
+      );
+    };
+
+    const JUNE = { from: "2026-06-01T00:00:00.000Z", to: "2026-06-30T23:59:59.999Z" };
+
+    it("values damage and loss adjustments at their unit cost and sums them", async () => {
+      insertAdjustment("m1", "Damage", -3, 500);
+      insertAdjustment("m2", "Loss", -2, 1500);
+
+      expect(await getStockLossTotal(JUNE)).toBe(4500); // 3*500 + 2*1500
+    });
+
+    it("counts a damage or loss reason that carries a free-text note", async () => {
+      insertAdjustment("m1", "Damage — crushed in transit", -4, 250);
+
+      expect(await getStockLossTotal(JUNE)).toBe(1000);
+    });
+
+    it("ignores receive_items and inventory_count adjustments", async () => {
+      insertAdjustment("m1", "Receive items", 10, 500);
+      insertAdjustment("m2", "Inventory count", -6, 500);
+      insertAdjustment("m3", "Damage", -1, 500);
+
+      expect(await getStockLossTotal(JUNE)).toBe(500);
+    });
+
+    it("excludes movements outside the window and soft-deleted ones", async () => {
+      insertAdjustment("m1", "Damage", -3, 500, "2026-05-31T23:00:00.000Z");
+      insertAdjustment("m2", "Loss", -3, 500, "2026-07-01T00:00:00.000Z");
+      db.run(
+        `INSERT INTO stock_movements (id, product_id, movement_type, quantity, unit_cost, reason, movement_date, _deleted)
+         VALUES ('m3', 'prod1', 'adjustment', -3, 500, 'Damage', '2026-06-10T10:00:00.000Z', 1)`,
+      );
+
+      expect(await getStockLossTotal(JUNE)).toBe(0);
+    });
+
+    it("returns 0, not null, when nothing was written off", async () => {
+      expect(await getStockLossTotal(JUNE)).toBe(0);
     });
   });
 

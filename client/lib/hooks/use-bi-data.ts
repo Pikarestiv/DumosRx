@@ -93,6 +93,9 @@ export function useBIData(
   const totalRevenue = netSales;
   const totalCogs = (metrics?.cogsData[0]?.total || 0) - (metrics?.returnedCogsData[0]?.total || 0);
   const totalExpenses = metrics?.expensesData[0]?.total || 0;
+  // Cost of stock written off as damaged or lost. Reported alongside the P&L
+  // rather than subtracted into netProfit - see docs/STOCK_LOSS_METRIC.md.
+  const stockLoss = metrics?.stockLossData[0]?.total || 0;
 
   const grossProfit = netSales - totalCogs;
   const netProfit = grossProfit - totalExpenses;
@@ -252,6 +255,7 @@ export function useBIData(
     revenueChange,
     totalCogs,
     totalExpenses,
+    stockLoss,
     grossProfit,
     netProfit,
     totalTransactions,

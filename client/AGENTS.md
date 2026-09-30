@@ -3331,6 +3331,11 @@ tie is `ambiguous` (the router renders "Did you mean: …?" from the intents'
 - **Named capture groups feed `buildArgs`**, and under this repo's ES6 target
   they must be built with `new RegExp("…")` rather than a regex literal — see
   "Named capture groups need `new RegExp(...)`" above.
+- **First capture wins, and an unmatched group never overwrites one.**
+  `scoreIntent` merges a phrase's `groups` *under* what it already has and
+  drops empty values, so ordering an intent's phrases most-specific-first is
+  meaningful. Before this, a later broad phrase clobbered a correct capture
+  ("how much ibuprofen do we have left" captured `left`).
 - **Date defaults live in the intent, not the tool.** Every date-taking
   `buildArgs` runs `parseDatePhrase(utterance, ctx.now)` and falls back to
   `toDateOnly(ctx.now)`, so `execute()` always receives an explicit date. The
@@ -3343,17 +3348,57 @@ tie is `ambiguous` (the router renders "Did you mean: …?" from the intents'
   rather than guessing, which is what makes the intent's `ctx.now` fallback
   the single place "no date given" is decided.
 - **The phrase/keyword lists are pinned by a table-driven coverage sweep.**
-  `__tests__/assistant-utterance-coverage.test.ts` runs ~65 realistic
+  `__tests__/assistant-utterance-coverage.test.ts` runs 266 realistic
   utterances through the real `matchIntent`/`INTENTS` (no DB, no context
   beyond what `buildArgs` needs) and asserts the exact intent id each one
-  resolves to, plus three that must stay `none`. It exists because the
-  plan's post-data-tools sweep was skipped once and 26% of realistic
-  phrasings fell through to `buildNoMatchReply` — widen a phrase list and
-  add the utterance here in the same change. The table is also the guard
-  against the *other* failure mode: a widened phrase that ties with another
-  intent and turns a working question permanently `ambiguous` (the reason
-  `sales_summary` has no bare `/\bsales (today|yesterday)\b/` phrase — it
-  would tie with `my_sales_today` on "what are my sales today").
+  resolves to, plus 18 that must stay `none` and a dedicated refund guard.
+  It exists because the plan's post-data-tools sweep was skipped once and
+  26% of realistic phrasings fell through to `buildNoMatchReply` — widen a
+  phrase list and add the utterance here in the same change. A later
+  exhaustiveness trace of 220 fresh phrasings measured a 75.5% miss rate
+  against the original 65-row table, which is why the table is now this
+  large: the canonical phrasings passing says nothing about breadth. The
+  table is also the guard against the *other* failure mode: a widened
+  phrase that ties with another intent and turns a working question
+  permanently `ambiguous`.
+- **Negative guards live inside the phrase regex, not in a separate field.**
+  Three lists need one, and each exists for a measured tie or false
+  positive:
+  - `sales_summary`'s dated form is
+    `new RegExp("(?<!\\bmy )\\bsales (on|for|today|…)\\b")`. Without the
+    lookbehind, "what are my sales today" and "my sales for today" tie
+    `my_sales_today`/`sales_summary` and go permanently `ambiguous`. A
+    lookbehind in a regex *literal* does compile under this repo's ES6
+    target (unlike a named group), but this one is kept in `new RegExp`
+    string form to match the validated phrase list it came from.
+  - `view_reports`'s main phrase is a negative lookahead on
+    `today|yesterday|this month|last month|DD/MM/YYYY|YYYY-MM-DD`, so
+    "show me the sales report for today" stays a `sales_summary` data
+    question while "where can i see the sales report" stays navigation —
+    without it they tie 4/4.
+  - `inventory_status`'s expiry phrase excludes
+    `subscription|licen[cs]e|plan|trial|password|session|token|card`,
+    because a bare `\bexpired\b` answered "my subscription expired" with
+    an inventory report.
+  If a fourth guard appears, promote them to an explicit
+  `excludes?: RegExp[]` on `IntentDefinition` rather than growing the
+  strings further.
+- **`product_stock` builds its `(?<product>…)` group from a per-word stop
+  list** (`STOP_WORDS`/`WORD`/`PRODUCT`/`TAIL` at the top of
+  `intents/inventory-intents.ts`). Every word of the captured product must
+  be a non-stop-word, not just the first: a first-word-only exclusion let
+  `^<product> stock$` swallow "how do i reorder stock", "we good on stock",
+  "i need to buy more stock", "count stock" (tied `start_audit`) and "what
+  products are out of stock" (beat `inventory_status`). The group is lazy
+  and every phrase is anchored with `$` or `TAIL`, which is what keeps
+  "do we have panadol in stock" capturing `panadol` rather than
+  `panadol in stock`.
+- **`stock` must stay out of `inventory_status`'s keywords.** Adding it
+  makes "stock level of paracetamol" score 4 for `inventory_status` against
+  `product_stock`'s 4 — a tie, so a plain product lookup becomes
+  `ambiguous`. Aggregate stock questions are reached by phrases
+  (`how much (stock|inventory) (do we have|…)`, `(inventory|stock)
+  (situation|check|report|…)`) instead.
 - **`NAVIGATION_INTENTS` is derived from `HELP_TOPICS`, not hand-written.**
   `intents/navigation-intents.ts` maps each topic to an intent whose phrases,
   keywords and label are the topic's own, and whose `buildArgs` returns that

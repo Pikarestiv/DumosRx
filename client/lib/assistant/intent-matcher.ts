@@ -26,7 +26,10 @@ function scoreIntent(normalized: string, intent: IntentDefinition): ScoredIntent
     const match = normalized.match(phrase);
     if (match) {
       score += PHRASE_SCORE;
-      if (match.groups) captures = { ...captures, ...match.groups };
+      if (match.groups) {
+        const present = Object.entries(match.groups).filter(([, value]) => value);
+        captures = { ...Object.fromEntries(present), ...captures };
+      }
     }
   }
 

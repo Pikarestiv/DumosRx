@@ -73,6 +73,21 @@ describe("matchIntent", () => {
     if (result.kind === "match") expect(result.captures).toEqual({ product: "paracetamol" });
   });
 
+  it("keeps the first phrase's capture when a later phrase matches with an empty group", () => {
+    const twoPhrase = intent(
+      "stock",
+      "stock_lookup",
+      [
+        new RegExp("\\bstock for (?<product>[a-z]+)$"),
+        new RegExp("\\bstock for (?<product>panadol only)?"),
+      ],
+      [],
+    );
+    const result = matchIntent("stock for paracetamol", [twoPhrase]);
+    expect(result.kind).toBe("match");
+    if (result.kind === "match") expect(result.captures).toEqual({ product: "paracetamol" });
+  });
+
   it("does not break on keywords containing regex metacharacters", () => {
     const priced = intent("priced", "price_lookup", [], ["c++", "n/a", "50%"]);
     expect(() => matchIntent("c++ and n/a and 50%", [priced])).not.toThrow();

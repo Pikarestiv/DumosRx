@@ -594,6 +594,24 @@ The rules that follow from that, all of which matter:
   whichever of the two gets there first. A new failure path must call it
   rather than writing `status` itself. `initiatePayment()`'s own catch block
   releases the reservation too, for a provider that fails at initialization.
+- **An amount/currency mismatch on a SUCCESSFUL charge is refunded, and a
+  human is always told.** Marking the transaction `failed` is not an outcome
+  on its own: the provider says the money moved, so leaving it there kept a
+  customer's payment with no subscription, no refund and nothing but a
+  `Log::warning` (PG-3). Both observers of a mismatch — the webhook's branch
+  in `PaymentController::processSuccessfulPayment()` and
+  `verifyPayment()`'s — now delegate to
+  **`App\Services\Payment\PaymentMismatchHandler`**, which re-reads the
+  transaction and bails if a concurrent observer already activated it (never
+  refund a charge that bought a live subscription), attempts a full refund
+  via `PaymentService::refundTransaction()`, records the outcome under
+  `metadata.mismatch_refund`, and fires an `AdminAlertService` alert **either
+  way** so a failed refund is still chased by hand. A verification that simply
+  answers "not successful" is *not* a mismatch and is not refunded — it still
+  goes straight to `failTransaction()`. Per A-110, the refund (a third-party
+  HTTP call) and the alert (synchronous mail) both happen outside
+  `failTransaction()`'s transaction, never with its row lock held. Pinned by
+  `tests/Feature/PaymentMismatchRefundAlertTest.php`.
 - **`User::addCredits()`/`deductCredits()` take a row lock.** Both are
   read-modify-write on `users.referral_credits`; without
   `lockCreditBalance()` two concurrent grants/spends both read the same

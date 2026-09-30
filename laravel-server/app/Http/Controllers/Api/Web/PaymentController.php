@@ -125,23 +125,8 @@ class PaymentController extends Controller
         // $txn->amount can carry sub-kobo precision from coupon-percentage
         // arithmetic while the provider only ever settles whole kobo.
         if ($reportedCurrency !== $expectedCurrency || $reportedAmount < (float) $txn->amount - 0.01) {
-            Log::warning('Payment webhook amount/currency mismatch; refusing to activate.', [
-                'reference' => $reference,
-                'provider' => $provider,
-                'reported_amount' => $reportedAmount,
-                'reported_currency' => $reportedCurrency,
-                'expected_amount' => (float) $txn->amount,
-                'expected_currency' => $expectedCurrency,
-            ]);
-
-            app(SubscriptionController::class)->failTransaction($txn, [
-                'suspicious_webhook' => [
-                    'reason' => 'amount_or_currency_mismatch',
-                    'reported_amount' => $reportedAmount,
-                    'reported_currency' => $reportedCurrency,
-                    'webhook_data' => $data,
-                ],
-            ]);
+            app(\App\Services\Payment\PaymentMismatchHandler::class)
+                ->handle($txn, $reportedAmount, $reportedCurrency, $data);
 
             // Deliberately not an error response: the payload was genuinely
             // signed, so there is nothing for the provider to retry. Erroring

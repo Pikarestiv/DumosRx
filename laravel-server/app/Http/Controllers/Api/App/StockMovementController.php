@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\App;
 
 use App\Http\Controllers\Concerns\ScopesToTenant;
+use App\Http\Controllers\Concerns\ValidatesPaginationLimit;
 use App\Http\Controllers\Controller;
 use App\Models\StockMovement;
 use App\Models\Store;
@@ -12,7 +13,7 @@ use OpenApi\Attributes as OA;
 
 class StockMovementController extends Controller
 {
-    use ScopesToTenant;
+    use ScopesToTenant, ValidatesPaginationLimit;
 
     /**
      * All user ids whose stock movements belong to "the store" from the
@@ -49,7 +50,7 @@ class StockMovementController extends Controller
     )]
     public function index(Request $request)
     {
-        $limit = $request->get('limit', 50);
+        $limit = $this->paginationLimit($request);
         $userIds = $this->ledgerUserIds($request);
 
         $movements = StockMovement::whereIn('performed_by', $userIds)
@@ -104,7 +105,7 @@ class StockMovementController extends Controller
     )]
     public function adjustments(Request $request)
     {
-        $limit = $request->get('limit', 50);
+        $limit = $this->paginationLimit($request);
         $userIds = $this->ledgerUserIds($request);
 
         $adjustments = StockMovement::whereIn('performed_by', $userIds)

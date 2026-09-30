@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\App;
 
 use App\Http\Controllers\Concerns\ScopesToTenant;
+use App\Http\Controllers\Concerns\ValidatesPaginationLimit;
 use App\Http\Controllers\Controller;
 use App\Models\PurchaseOrder;
 use App\Models\Store;
@@ -12,7 +13,7 @@ use OpenApi\Attributes as OA;
 
 class PurchaseOrderController extends Controller
 {
-    use ScopesToTenant;
+    use ScopesToTenant, ValidatesPaginationLimit;
 
     #[OA\Get(
         path: '/purchase-orders',
@@ -33,7 +34,7 @@ class PurchaseOrderController extends Controller
     )]
     public function index(Request $request)
     {
-        $limit = $request->get('limit', 50);
+        $limit = $this->paginationLimit($request);
 
         // Filter by users across every store owned by the caller's tenant
         // (resolved via ScopesToTenant so a staff caller — whose own id

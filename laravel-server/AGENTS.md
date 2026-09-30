@@ -751,6 +751,20 @@ straight to their own bank account.
   through to its own error) when there is nothing paid to refund, so an
   unpaid/failed reference is never refunded and its intent stays `pending`
   for a retry.
+- **`paystack_reference` is prohibited on a non-Paystack order (PG-6).**
+  `online_orders.paystack_reference` is unique across *every* payment method,
+  and the replay guard in `checkout()` deliberately checks it regardless of
+  `payment_method`. Those two facts together meant a cash/`transfer` order that
+  merely *carried* a reference consumed it permanently — a customer (or
+  anyone) could post `payment_method: in_store` with a reference minted for a
+  real Paystack cart, get a cash order, and leave the genuine paid
+  confirmation to be refused as "already used". The field now carries
+  `prohibited_unless:payment_method,paystack`, so such a request 422s before
+  anything is created or consumed and the reference stays spendable. The
+  prohibition is on a *non-empty* value, so a client that always sends the key
+  as `null` is unaffected. Covered by
+  `test_checkout_rejects_a_paystack_reference_on_a_non_paystack_order` and
+  `test_a_reference_refused_on_a_cash_order_is_still_usable_for_the_real_paystack_checkout`.
 - **Refunds are real, but not clawed back from the store.**
   `OnlineOrderController`'s cancel-a-paid-order path now calls
   `PaymentService::refundTransaction()` (which delegates to

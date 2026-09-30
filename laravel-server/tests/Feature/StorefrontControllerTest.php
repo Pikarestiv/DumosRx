@@ -833,35 +833,69 @@ class StorefrontControllerTest extends TestCase
     /**
      * Regression: the duplicate-reference guard originally only ran (and
      * only handled the unique-index QueryException) when
-     * payment_method === 'paystack'. Since paystack_reference is a plain
-     * optional string accepted for any payment method, and the column's
-     * uniqueness is shared across all of them, an in_store/transfer order
-     * carrying a reference could otherwise let a duplicate slip past the
-     * pre-check and 500 on the QueryException instead of 422ing.
+     * payment_method === 'paystack'. PG-6 closed the hole at the source: a
+     * reference on a non-paystack order is now a 422 before anything is
+     * created or consumed, so the reference can no longer reach the shared
+     * unique column from a cash/transfer order at all.
      */
-    public function test_checkout_rejects_a_duplicate_reference_even_when_the_first_order_was_not_paystack()
+    public function test_checkout_rejects_a_paystack_reference_on_a_non_paystack_order()
     {
         $product = $this->purchasableProduct(['name' => 'Panadol', 'selling_price' => 100, 'user_id' => $this->ownerA->id]);
 
-        $first = $this->postJson('/api/v1/storefront/store-a/checkout', [
+        foreach (['in_store', 'transfer'] as $method) {
+            $response = $this->postJson('/api/v1/storefront/store-a/checkout', [
+                'customer_name' => 'Jane Doe',
+                'customer_phone' => '08000000000',
+                'payment_method' => $method,
+                'paystack_reference' => 'SHARED-REF',
+                'items' => [['product_id' => $product->id, 'quantity' => 1]],
+            ]);
+
+            $response->assertStatus(422);
+            $response->assertJsonValidationErrors('paystack_reference');
+        }
+
+        $this->assertDatabaseCount('online_orders', 0);
+    }
+
+    /**
+     * The reference must stay spendable by the genuine Paystack flow after a
+     * cash order tried to carry it: the point of PG-6 is that the rejected
+     * request burns nothing.
+     */
+    public function test_a_reference_refused_on_a_cash_order_is_still_usable_for_the_real_paystack_checkout()
+    {
+        $product = $this->purchasableProduct(['name' => 'Panadol', 'selling_price' => 100, 'user_id' => $this->ownerA->id]);
+        $items = [['product_id' => $product->id, 'quantity' => 1]];
+
+        $this->postJson('/api/v1/storefront/store-a/checkout', [
             'customer_name' => 'Jane Doe',
             'customer_phone' => '08000000000',
             'payment_method' => 'in_store',
-            'paystack_reference' => 'SHARED-REF',
-            'items' => [['product_id' => $product->id, 'quantity' => 1]],
-        ]);
-        $first->assertStatus(201);
+            'paystack_reference' => 'DRX-SF-REF',
+            'items' => $items,
+        ])->assertStatus(422);
 
-        $second = $this->postJson('/api/v1/storefront/store-a/checkout', [
+        $this->initializePaystackCheckout($items)->assertStatus(200);
+
+        $this->mock(PaymentService::class, function ($mock) {
+            $mock->shouldReceive('verifyTransaction')->once()->andReturn([
+                'success' => true, 'amount' => 100, 'currency' => 'NGN',
+            ]);
+        });
+
+        $response = $this->postJson('/api/v1/storefront/store-a/checkout', [
             'customer_name' => 'Jane Doe',
             'customer_phone' => '08000000000',
-            'payment_method' => 'transfer',
-            'paystack_reference' => 'SHARED-REF',
-            'items' => [['product_id' => $product->id, 'quantity' => 1]],
+            'payment_method' => 'paystack',
+            'paystack_reference' => 'DRX-SF-REF',
+            'items' => $items,
         ]);
 
-        $second->assertStatus(422);
-        $this->assertDatabaseCount('online_orders', 1);
+        $response->assertStatus(201);
+        $this->assertDatabaseHas('online_orders', [
+            'paystack_reference' => 'DRX-SF-REF', 'payment_status' => 'paid',
+        ]);
     }
 
     public function test_checkout_notifies_the_store_owner_and_its_staff()

@@ -25,3 +25,10 @@ export function useUppercaseDisplayClass(): string {
 export function capitalizeWords(s: string): string {
   return s.replace(/\b\w/g, (c) => c.toUpperCase());
 }
+
+/** Capitalizes only the first letter of a string, leaving the rest
+ * unchanged — sentence-style casing, not the per-word title casing of
+ * capitalizeWords() above. */
+export function capitalize(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}

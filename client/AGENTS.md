@@ -3126,7 +3126,7 @@ same tab session still gets its own fresh one-time retry.
   factory shape (`query-keys.test.ts`), and various calculation/parsing
   utilities.
 - `npm run test:e2e`: Playwright, full user flows (auth, sales lifecycle,
-  procurement, products, dashboard, expenses, customers). Since a fresh
+  procurement, products, dashboard, expenses, customers, assistant). Since a fresh
   browser context starts with an empty IndexedDB, don't rely on network
   interception or the "Setup New Store" flow for initial state — a
   `global.setup.ts` script pre-seeds `idb-keyval` with a dedicated test
@@ -3583,6 +3583,14 @@ no host-supplied callback.
   mocks `next/link`. There is no `@testing-library/jest-dom` in this repo, so
   assertions are plain (`toBeTruthy()`, `getAttribute("href")`), not
   `toBeInTheDocument()`/`toHaveAttribute()`.
+- E2E: `e2e/assistant.spec.ts` covers the wired-up panel end to end (launcher →
+  composer → reply → action link navigation). Scope every assertion to
+  `page.getByRole('dialog')` rather than the whole page: the user's own message
+  bubble echoes the question verbatim, so a bare `getByText(/low on stock/)`
+  matches both bubbles and trips Playwright strict mode. For the same reason
+  assert on text unique to the reply (`/Make a sale: Open POS/`,
+  `/product\(s\) low on stock/`), not on the help topic's title — that title is
+  also the action button's label.
 
 ## Running things
 

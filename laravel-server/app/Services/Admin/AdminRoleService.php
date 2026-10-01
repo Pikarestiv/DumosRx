@@ -15,7 +15,7 @@ class AdminRoleService
     public function listRoles(): array
     {
         return Role::with('permissions')
-            ->whereIn('slug', $this->platformRoleSlugs())
+            ->whereIn('slug', $this->matrixRoleSlugs())
             ->get()
             ->map(fn (Role $role) => [
                 'id' => $role->id,
@@ -59,6 +59,9 @@ class AdminRoleService
         $this->assertCatalogSubset($permissionSlugs);
 
         $slug = Str::slug($name, '_');
+        if ($slug === '') {
+            throw ValidationException::withMessages(['name' => 'Use a name with at least two letters or numbers.']);
+        }
         if (Role::where('slug', $slug)->exists()) {
             throw ValidationException::withMessages(['name' => 'A role with this name already exists.']);
         }
@@ -112,10 +115,7 @@ class AdminRoleService
             $action = 'USER_PERMISSION_OVERRIDE_CLEARED';
             $description = "Cleared {$permissionSlug} override for {$user->email}, reverting to role default";
         } else {
-            DB::table('permission_user')->updateOrInsert(
-                ['user_id' => $user->id, 'permission_id' => $permission->id],
-                ['granted' => $granted, 'updated_at' => now(), 'created_at' => now()],
-            );
+            $this->writeOverrideRow($user->id, $permission->id, $granted);
             $action = 'USER_PERMISSION_OVERRIDE_SET';
             $verb = $granted ? 'Granted' : 'Revoked';
             $description = "{$verb} {$permissionSlug} override for {$user->email}";
@@ -132,10 +132,47 @@ class AdminRoleService
         return $user->fresh();
     }
 
+    /** created_at belongs to the INSERT half only: re-setting an existing
+     * override must not rewrite when it was first created. */
+    private function writeOverrideRow(string $userId, $permissionId, bool $granted): void
+    {
+        $existing = DB::table('permission_user')
+            ->where('user_id', $userId)
+            ->where('permission_id', $permissionId)
+            ->exists();
+
+        if ($existing) {
+            DB::table('permission_user')
+                ->where('user_id', $userId)
+                ->where('permission_id', $permissionId)
+                ->update(['granted' => $granted, 'updated_at' => now()]);
+
+            return;
+        }
+
+        DB::table('permission_user')->insert([
+            'user_id' => $userId,
+            'permission_id' => $permissionId,
+            'granted' => $granted,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    /** The Admin Permissions matrix never shows super_admin: the role bypasses
+     * every permission check, so toggling its checkboxes has no effect. */
+    private function matrixRoleSlugs(): array
+    {
+        return array_values(array_filter(
+            $this->platformRoleSlugs(),
+            fn (string $slug) => $slug !== 'super_admin',
+        ));
+    }
+
     private function assertPlatformRole(Role $role): void
     {
-        if (! in_array($role->slug, $this->platformRoleSlugs(), true)) {
-            throw ValidationException::withMessages(['role' => 'This role is not a platform role and cannot have delegated permissions.']);
+        if (! in_array($role->slug, $this->matrixRoleSlugs(), true)) {
+            throw ValidationException::withMessages(['role' => 'This role cannot have delegated permissions edited.']);
         }
     }
 

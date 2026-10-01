@@ -43,6 +43,48 @@ class AdminRoleServiceTest extends TestCase
         $this->assertSame(2, $agent['user_count']);
     }
 
+    public function test_never_lists_super_admin_in_the_matrix_since_its_checkboxes_have_no_runtime_effect(): void
+    {
+        $slugs = collect($this->service->listRoles())->pluck('slug')->all();
+
+        $this->assertNotContains('super_admin', $slugs);
+        $this->assertContains('platform_admin', $slugs);
+        $this->assertContains('agent', $slugs);
+    }
+
+    public function test_refuses_to_edit_super_admins_permission_role_rows_at_all(): void
+    {
+        $this->expectException(ValidationException::class);
+
+        $this->service->updateRolePermissions('super_admin', ['view_platform_data'], $this->actor->id);
+    }
+
+    public function test_rejects_a_role_name_whose_derived_slug_would_be_empty(): void
+    {
+        $this->expectException(ValidationException::class);
+
+        $this->service->createRole('!!! ???', ['view_platform_data'], $this->actor->id);
+    }
+
+    public function test_does_not_rewrite_an_existing_overrides_created_at_when_it_changes(): void
+    {
+        $target = $this->makeUser('platform_admin', Role::where('slug', 'platform_admin')->value('id'));
+        $this->service->setUserPermissionOverride($target->id, 'impersonate_store', true, $this->actor->id);
+
+        $permissionId = \App\Models\Permission::where('slug', 'impersonate_store')->value('id');
+        \Illuminate\Support\Facades\DB::table('permission_user')
+            ->where('user_id', $target->id)->where('permission_id', $permissionId)
+            ->update(['created_at' => '2026-01-01 00:00:00']);
+
+        $this->service->setUserPermissionOverride($target->id, 'impersonate_store', false, $this->actor->id);
+
+        $row = \Illuminate\Support\Facades\DB::table('permission_user')
+            ->where('user_id', $target->id)->where('permission_id', $permissionId)->first();
+
+        $this->assertStringStartsWith('2026-01-01 00:00:00', (string) $row->created_at);
+        $this->assertSame(0, (int) $row->granted);
+    }
+
     public function test_updates_a_roles_permissions_without_touching_its_non_catalog_permissions(): void
     {
         $role = $this->service->updateRolePermissions('agent', ['view_platform_data'], $this->actor->id);

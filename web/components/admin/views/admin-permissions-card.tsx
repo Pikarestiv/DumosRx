@@ -201,6 +201,12 @@ export function AdminPermissionsCard() {
                           variant="ghost"
                           size="icon"
                           aria-label={`Delete ${role.name}`}
+                          disabled={role.user_count > 0}
+                          title={
+                            role.user_count > 0
+                              ? `Reassign the ${role.user_count} admin(s) on this role before deleting it`
+                              : undefined
+                          }
                           onClick={() => setRoleToDelete(role)}
                         >
                           <Trash2 className="h-4 w-4 text-destructive" />
@@ -243,11 +249,11 @@ export function AdminPermissionsCard() {
         open={roleToDelete !== null}
         onOpenChange={(open) => !open && setRoleToDelete(null)}
         title={`Delete role "${roleToDelete?.name}"?`}
-        description={`This permanently removes the "${roleToDelete?.name}" role${
+        description={
           roleToDelete && roleToDelete.user_count > 0
-            ? ` and will leave ${roleToDelete.user_count} admin(s) without it`
-            : ""
-        }.`}
+            ? `${roleToDelete.user_count} admin(s) still hold the "${roleToDelete.name}" role and must be reassigned before it can be deleted.`
+            : `This permanently removes the "${roleToDelete?.name}" role. No admin currently holds it.`
+        }
         confirmLabel="Delete role"
         variant="destructive"
         onConfirm={() => void handleDeleteRole()}

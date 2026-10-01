@@ -1,20 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 
-const { mockUpdateMutateAsync } = vi.hoisted(() => ({
+const { mockUpdateMutateAsync, roleRows } = vi.hoisted(() => ({
   mockUpdateMutateAsync: vi.fn().mockResolvedValue(undefined),
+  roleRows: {
+    current: [
+      { id: 1, name: "Platform Admin", slug: "platform_admin", is_system: true, permissions: ["view_platform_data"], user_count: 2 },
+      { id: 2, name: "Agent", slug: "agent", is_system: true, permissions: ["view_platform_data"], user_count: 1 },
+    ] as Record<string, unknown>[],
+  },
 }));
 
 vi.mock("@/lib/api/admin-hooks-roles", () => ({
-  useAdminRoles: () => ({
-    data: {
-      roles: [
-        { id: 1, name: "Platform Admin", slug: "platform_admin", is_system: true, permissions: ["view_platform_data"], user_count: 2 },
-        { id: 2, name: "Agent", slug: "agent", is_system: true, permissions: ["view_platform_data"], user_count: 1 },
-      ],
-    },
-    isLoading: false,
-  }),
+  useAdminRoles: () => ({ data: { roles: roleRows.current }, isLoading: false }),
   useUpdateRolePermissionsMutation: () => ({ mutateAsync: mockUpdateMutateAsync, isPending: false }),
   useCreateRoleMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useDeleteRoleMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
@@ -22,8 +20,41 @@ vi.mock("@/lib/api/admin-hooks-roles", () => ({
 
 import { AdminPermissionsCard } from "@/components/admin/views/admin-permissions-card";
 
+const BUILT_IN_ROWS = [
+  { id: 1, name: "Platform Admin", slug: "platform_admin", is_system: true, permissions: ["view_platform_data"], user_count: 2 },
+  { id: 2, name: "Agent", slug: "agent", is_system: true, permissions: ["view_platform_data"], user_count: 1 },
+];
+
 beforeEach(() => {
   mockUpdateMutateAsync.mockClear();
+  roleRows.current = [...BUILT_IN_ROWS];
+});
+
+describe("AdminPermissionsCard custom-role deletion", () => {
+  it("disables the delete action while admins still hold the role", () => {
+    roleRows.current = [
+      ...BUILT_IN_ROWS,
+      { id: 3, name: "Support Lead", slug: "support_lead", is_system: false, permissions: [], user_count: 3 },
+    ];
+    render(<AdminPermissionsCard />);
+
+    expect(screen.getByRole("button", { name: /delete support lead/i })).toBeDisabled();
+  });
+
+  it("never promises that deleting will leave admins without the role", () => {
+    roleRows.current = [
+      ...BUILT_IN_ROWS,
+      { id: 4, name: "Billing Lead", slug: "billing_lead", is_system: false, permissions: [], user_count: 0 },
+    ];
+    render(<AdminPermissionsCard />);
+
+    const trigger = screen.getByRole("button", { name: /delete billing lead/i });
+    expect(trigger).not.toBeDisabled();
+    fireEvent.click(trigger);
+
+    expect(screen.queryByText(/without it/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/permanently removes/i)).toBeInTheDocument();
+  });
 });
 
 describe("AdminPermissionsCard", () => {

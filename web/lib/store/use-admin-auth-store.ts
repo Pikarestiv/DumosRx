@@ -32,9 +32,6 @@ export const checkIsSuperAdmin = (role?: string) => role === "super_admin";
 export const checkCanAccessAdmin = (role?: string) =>
   role === "super_admin" || role === "platform_admin" || role === "agent";
 
-/** Checks if a user has a specific permission, bypassing the check for super_admin.
- * Super admins always have all permissions; others are checked against their
- * effective_permissions array. Null/undefined users return false. */
 export function checkHasPermission(user: User | null | undefined, permission: string): boolean {
   if (!user) return false;
   if (checkIsSuperAdmin(user.role)) return true;

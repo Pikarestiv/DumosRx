@@ -5,8 +5,12 @@ import { BroadcastsTab } from "@/components/admin/views/broadcasts-tab";
 import { FeedbackTab } from "@/components/admin/views/feedback-tab";
 import { MailsTab } from "@/components/admin/views/mails-tab";
 import { MessageSquare, Radio, Mail, MessageCircle } from "lucide-react";
+import { useAdminAuthStore, checkIsSuperAdmin } from "@/lib/store/use-admin-auth-store";
 
 export default function CommunicationsPage() {
+  const { user } = useAdminAuthStore();
+  const isSuperAdmin = checkIsSuperAdmin(user?.role);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -27,27 +31,35 @@ export default function CommunicationsPage() {
             <Radio className="h-4 w-4" />
             In-App Broadcasts
           </TabsTrigger>
-          <TabsTrigger value="mails" className="flex items-center gap-2">
-            <Mail className="h-4 w-4" />
-            Email Campaigns
-          </TabsTrigger>
-          <TabsTrigger value="feedback" className="flex items-center gap-2">
-            <MessageCircle className="h-4 w-4" />
-            User Feedback
-          </TabsTrigger>
+          {isSuperAdmin && (
+            <TabsTrigger value="mails" className="flex items-center gap-2">
+              <Mail className="h-4 w-4" />
+              Email Campaigns
+            </TabsTrigger>
+          )}
+          {isSuperAdmin && (
+            <TabsTrigger value="feedback" className="flex items-center gap-2">
+              <MessageCircle className="h-4 w-4" />
+              User Feedback
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="broadcasts" className="focus-visible:outline-none focus-visible:ring-0">
           <BroadcastsTab />
         </TabsContent>
 
-        <TabsContent value="mails" className="focus-visible:outline-none focus-visible:ring-0">
-          <MailsTab />
-        </TabsContent>
+        {isSuperAdmin && (
+          <TabsContent value="mails" className="focus-visible:outline-none focus-visible:ring-0">
+            <MailsTab />
+          </TabsContent>
+        )}
 
-        <TabsContent value="feedback" className="focus-visible:outline-none focus-visible:ring-0">
-          <FeedbackTab />
-        </TabsContent>
+        {isSuperAdmin && (
+          <TabsContent value="feedback" className="focus-visible:outline-none focus-visible:ring-0">
+            <FeedbackTab />
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

@@ -244,6 +244,65 @@ Two components render that list and **both must go through
 saw the whole super_admin nav (A-96). `__tests__/admin-nav-role-visibility.test.tsx`
 asserts both renderers agree; don't reintroduce a second copy of the filter.
 
+## Delegated admin action buttons: hide via `checkHasPermission`, never disable
+
+Every admin UI control that triggers one of the backend's delegated
+`permission:*`-gated routes (suspend/unsuspend a store, deactivate/reactivate
+a user, force a password reset, notify/bulk-notify, impersonate, broadcast
+create/edit/delete/toggle — see `laravel-server/AGENTS.md` for the full
+`permission:*` route list) must be wrapped in
+`checkHasPermission(viewerUser, '<matching slug>')`, not just hidden behind
+the sidebar nav entry (A-96's filter only keeps a role from landing on a page
+it can't use — it does nothing once they're already on it, e.g. via a direct
+URL). `checkHasPermission` (from `use-admin-auth-store.ts`) already returns
+`true` unconditionally for `super_admin`, so callers never need a separate
+`isSuperAdmin ||` check alongside it.
+
+- **Hide the control, never disable it.** Matches the sidebar's own pattern
+  (A-96) and every other role gate in this codebase — no new "disabled +
+  tooltip" affordance was invented for this.
+- **Two valid wiring shapes, pick based on how many permissions a component
+  needs:** a component needing only one or two slugs computes them itself
+  (`const { user } = useAdminAuthStore(); const canX =
+  checkHasPermission(user, "slug")`) right where it's rendered — see
+  `user-table.tsx`, `broadcasts-tab.tsx`, `app/admin/users/page.tsx`. A
+  component whose parent already computes role-derived booleans for other
+  reasons (`store-table.tsx` already computed `isSuperAdmin`/`canGrantTrials`
+  before this convention existed) prop-drills the new booleans alongside the
+  existing ones instead of introducing a second, inconsistent computation
+  style in the same file (`canImpersonate`/`canManageAccountStatus` on
+  `StoreRowActions`).
+- **A super_admin-exclusive action (no `permission:*` slug at all, just
+  `role:super_admin` on the route) still gates on `checkIsSuperAdmin`, not
+  `checkHasPermission`** — don't invent a fake permission slug for it. The
+  Communications page is the example: `admin/mail/send` and `admin/feedback`
+  are both `role:super_admin` in `routes/api.php`, so the Mail Campaigns and
+  User Feedback tabs' triggers and content in
+  `app/admin/communications/page.tsx` are both wrapped in
+  `checkIsSuperAdmin(user?.role)`, while the page itself (and its sibling
+  Broadcasts tab) are reachable by anyone holding `send_notifications`. Any
+  new tab added to a page whose nav entry is keyed off a narrower permission
+  than "every tab inside it needs" has to be gated the same way — the nav
+  filter only controls whether the page is reachable at all, not which of
+  its tabs are.
+- **Confirm/compose dialogs opened by a gated button don't need their own
+  internal permission check** — `reset-password-dialog.tsx`,
+  `deactivate-user-dialog.tsx`, `send-notification-dialog.tsx`,
+  `store-dialogs.tsx`'s `SuspendStoreDialog`, etc. have no independent entry
+  point, so gating lives entirely at the trigger that opens them.
+- **A sidebar item that only exposes one delegated capability needs a
+  matching `permissions: ["<slug>"]` entry**, same as `view_platform_data`
+  already does for Stores/Users/Activity Log — e.g. `communications` needs
+  `permissions: ["send_notifications"]` so a `platform_admin`/`agent` holding
+  it can reach `/admin/communications` at all, even though that page also
+  hosts a super_admin-only tab (gated per the point above, not by hiding the
+  whole page from everyone else).
+
+Covered by `__tests__/admin-action-permission-gating.test.tsx` (per-action
+hidden/shown/super_admin-bypass cases across `StoreRowActions`, `StoreTable`'s
+real slug mapping, `UserTable`, and `BroadcastsTab` including its per-row
+menu) and `__tests__/admin-users-page-notify-all-gating.test.tsx`.
+
 ## Admin panel: store owners, staff, and the Store Details page
 
 **The Platform Users list (`app/admin/users/page.tsx`) no longer shows staff

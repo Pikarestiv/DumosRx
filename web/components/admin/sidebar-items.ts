@@ -73,6 +73,7 @@ export const sidebarItems: AdminSidebarItem[] = [
     name: "Communications",
     icon: MessageSquare,
     href: "/admin/communications",
+    permissions: ["send_notifications"],
   },
   {
     id: "marketing",

@@ -19,4 +19,21 @@ describe("visibleSidebarItems", () => {
     const items = visibleSidebarItems({ role: "agent", effective_permissions: [] });
     expect(items.some((i) => i.id === "stores")).toBe(false);
   });
+
+  it("shows Communications to a platform_admin/agent holding send_notifications", () => {
+    const communications = sidebarItems.find((i) => i.id === "communications");
+    expect(communications?.permissions).toContain("send_notifications");
+
+    for (const role of ["platform_admin", "agent"]) {
+      const items = visibleSidebarItems({ role, effective_permissions: ["send_notifications"] });
+      expect(items.some((i) => i.id === "communications")).toBe(true);
+    }
+  });
+
+  it("hides Communications from a platform_admin/agent lacking send_notifications", () => {
+    for (const role of ["platform_admin", "agent"]) {
+      const items = visibleSidebarItems({ role, effective_permissions: [] });
+      expect(items.some((i) => i.id === "communications")).toBe(false);
+    }
+  });
 });

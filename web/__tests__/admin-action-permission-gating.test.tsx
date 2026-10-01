@@ -2,9 +2,10 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { StoreRowActions } from "@/components/admin/stores/store-row-actions";
+import { StoreTable } from "@/components/admin/stores/store-table";
 import { UserTable } from "@/components/admin/users/user-table";
 import { BroadcastsTab } from "@/components/admin/views/broadcasts-tab";
-import type { AdminStoreSummary, AdminUser } from "@/lib/types/admin";
+import type { AdminBroadcast, AdminStoreSummary, AdminUser } from "@/lib/types/admin";
 import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 
 const { authState } = vi.hoisted(() => ({
@@ -26,13 +27,22 @@ vi.mock("@/lib/store/use-admin-auth-store", () => ({
   },
 }));
 
+const mockBroadcast: AdminBroadcast = {
+  id: "broadcast-1",
+  title: "Scheduled Maintenance",
+  message: "The platform will be briefly unavailable tonight.",
+  type: "info",
+  target_type: "all",
+  is_active: true,
+};
+
 vi.mock("@tanstack/react-query", async () => {
   const actual = await vi.importActual<typeof import("@tanstack/react-query")>(
     "@tanstack/react-query",
   );
   return {
     ...actual,
-    useQuery: () => ({ data: [], isLoading: false }),
+    useQuery: () => ({ data: [mockBroadcast], isLoading: false }),
     useQueryClient: () => ({ invalidateQueries: vi.fn() }),
   };
 });
@@ -121,6 +131,54 @@ describe("StoreRowActions permission gating", () => {
   });
 });
 
+describe("StoreTable real permission-slug mapping", () => {
+  const renderTable = () =>
+    render(
+      <StoreTable
+        storeList={[store]}
+        isLoading={false}
+        pendingStoreId={null}
+        router={{ push: vi.fn() } as unknown as AppRouterInstance}
+        {...rowActionHandlers}
+      />,
+    );
+
+  const openMenu = async () => {
+    await userEvent.click(screen.getByRole("button", { name: /actions for/i }));
+    await screen.findByText("View Store Details");
+  };
+
+  it("hides Impersonate and Suspend for a platform_admin holding neither permission", async () => {
+    authState.user = { role: "platform_admin", effective_permissions: [] };
+    renderTable();
+    await openMenu();
+
+    expect(screen.queryByText("Impersonate (Admin)")).not.toBeInTheDocument();
+    expect(screen.queryByText("Suspend Account")).not.toBeInTheDocument();
+  });
+
+  it("shows Impersonate and Suspend for a platform_admin holding both permissions", async () => {
+    authState.user = {
+      role: "platform_admin",
+      effective_permissions: ["impersonate_store", "manage_account_status"],
+    };
+    renderTable();
+    await openMenu();
+
+    expect(screen.getByText("Impersonate (Admin)")).toBeInTheDocument();
+    expect(screen.getByText("Suspend Account")).toBeInTheDocument();
+  });
+
+  it("shows Impersonate and Suspend for a super_admin regardless of effective_permissions", async () => {
+    authState.user = { role: "super_admin", effective_permissions: [] };
+    renderTable();
+    await openMenu();
+
+    expect(screen.getByText("Impersonate (Admin)")).toBeInTheDocument();
+    expect(screen.getByText("Suspend Account")).toBeInTheDocument();
+  });
+});
+
 const user: AdminUser = {
   id: "user-1",
   name: "Test User",
@@ -186,24 +244,37 @@ describe("UserTable permission gating", () => {
 });
 
 describe("BroadcastsTab permission gating", () => {
-  it("hides New Broadcast and the row action menu without send_notifications", () => {
+  it("hides New Broadcast and the per-row action menu without send_notifications", () => {
     authState.user = { role: "platform_admin", effective_permissions: [] };
     render(<BroadcastsTab />);
 
     expect(screen.queryByText("New Broadcast")).not.toBeInTheDocument();
+    expect(screen.getByText(mockBroadcast.title)).toBeInTheDocument();
+    expect(screen.queryByText("Edit Broadcast")).not.toBeInTheDocument();
   });
 
-  it("shows New Broadcast once send_notifications is granted", () => {
+  it("shows New Broadcast and the per-row action menu once send_notifications is granted", async () => {
     authState.user = { role: "agent", effective_permissions: ["send_notifications"] };
     render(<BroadcastsTab />);
 
     expect(screen.getByText("New Broadcast")).toBeInTheDocument();
+
+    const rowMenuTrigger = screen.getByRole("button", { name: "" });
+    await userEvent.click(rowMenuTrigger);
+
+    expect(await screen.findByText("Edit Broadcast")).toBeInTheDocument();
+    expect(screen.getByText("Delete Permanent")).toBeInTheDocument();
   });
 
-  it("shows New Broadcast to super_admin regardless of effective_permissions", () => {
+  it("shows New Broadcast and the per-row action menu to super_admin regardless of effective_permissions", async () => {
     authState.user = { role: "super_admin", effective_permissions: [] };
     render(<BroadcastsTab />);
 
     expect(screen.getByText("New Broadcast")).toBeInTheDocument();
+
+    const rowMenuTrigger = screen.getByRole("button", { name: "" });
+    await userEvent.click(rowMenuTrigger);
+
+    expect(await screen.findByText("Edit Broadcast")).toBeInTheDocument();
   });
 });

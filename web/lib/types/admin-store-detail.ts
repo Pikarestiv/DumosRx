@@ -123,8 +123,10 @@ export interface AdminStoreDetail {
     customers: number;
     sales: number;
   };
-  business_metrics: AdminStoreBusinessMetrics;
+  /** Omitted entirely for a non-super_admin caller: both blocks carry money
+   * figures, which only super_admin may see. */
+  business_metrics?: AdminStoreBusinessMetrics;
   operational_metrics: AdminStoreOperationalMetrics;
-  recent_transactions: AdminBillingTransaction[];
+  recent_transactions?: AdminBillingTransaction[];
   recent_activity: AdminStoreDetailActivity[];
 }

@@ -44,7 +44,6 @@ class AdminStoreDetailService
 
         $owner = $store->user;
         $manager = AccountManagerController::resolveFor($owner);
-        $billing = $this->adminStoreService->getBillingHistoryForStore($storeId);
 
         $payload = [
             'id' => $store->id,
@@ -99,16 +98,16 @@ class AdminStoreDetailService
             'archived_at' => $store->deleted_at?->format('M d, Y'),
             'deletion_reason' => $store->deletion_reason,
             'counts' => $this->countsPayload($store),
-            'business_metrics' => $this->metricsService->businessMetrics($store),
             'operational_metrics' => $this->metricsService->operationalMetrics($store),
-            'recent_transactions' => collect($billing['transactions'] ?? [])
-                ->take(self::RECENT_TRANSACTION_LIMIT)
-                ->values(),
             'recent_activity' => $this->recentActivity($store->id),
         ];
 
         if ($includeRevenue) {
             $payload['revenue'] = '₦'.number_format($store->total_revenue ?? 0);
+            $payload['business_metrics'] = $this->metricsService->businessMetrics($store);
+            $payload['recent_transactions'] = collect(
+                $this->adminStoreService->getBillingHistoryForStore($storeId)['transactions'] ?? []
+            )->take(self::RECENT_TRANSACTION_LIMIT)->values();
         }
 
         return $payload;

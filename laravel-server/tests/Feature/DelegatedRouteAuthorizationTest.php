@@ -149,6 +149,41 @@ class DelegatedRouteAuthorizationTest extends TestCase
         $this->assertArrayHasKey('revenue', $response->json());
     }
 
+    public function test_an_agent_reading_store_detail_sees_no_business_metrics_or_recent_transactions_block()
+    {
+        $agent = $this->actingAsRole('agent');
+
+        $response = $this->actingAs($agent)->getJson("/api/v1/admin/stores/{$this->store->id}");
+
+        $response->assertOk();
+        $this->assertArrayNotHasKey('business_metrics', $response->json());
+        $this->assertArrayNotHasKey('recent_transactions', $response->json());
+        $this->assertArrayHasKey('operational_metrics', $response->json());
+    }
+
+    public function test_a_platform_admin_reading_store_detail_sees_no_business_metrics_or_recent_transactions_block()
+    {
+        $platformAdmin = $this->actingAsRole('platform_admin', User::DELEGATABLE_PERMISSIONS);
+
+        $response = $this->actingAs($platformAdmin)->getJson("/api/v1/admin/stores/{$this->store->id}");
+
+        $response->assertOk();
+        $this->assertArrayNotHasKey('business_metrics', $response->json());
+        $this->assertArrayNotHasKey('recent_transactions', $response->json());
+    }
+
+    public function test_a_super_admin_reading_store_detail_still_sees_business_metrics_and_recent_transactions()
+    {
+        $superAdmin = $this->actingAsRole('super_admin');
+
+        $response = $this->actingAs($superAdmin)->getJson("/api/v1/admin/stores/{$this->store->id}");
+
+        $response->assertOk();
+        $this->assertArrayHasKey('business_metrics', $response->json());
+        $this->assertArrayHasKey('revenue', $response->json('business_metrics'));
+        $this->assertArrayHasKey('recent_transactions', $response->json());
+    }
+
     public function test_an_agent_can_list_broadcasts_has_send_notifications_by_default()
     {
         $agent = $this->actingAsRole('agent');

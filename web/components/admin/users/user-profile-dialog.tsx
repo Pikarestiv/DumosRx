@@ -7,7 +7,7 @@ import { UserProfileEditForm } from "./user-profile-edit-form";
 import { UserPermissionOverridesForm } from "./user-permission-overrides-form";
 import { useUpdateUserProfileMutation } from "@/lib/api/admin-hooks-users";
 import { checkIsSuperAdmin, useAdminAuthStore } from "@/lib/store/use-admin-auth-store";
-import type { AdminUserProfileUpdate } from "@/lib/types/admin";
+import { PLATFORM_ROLE_SLUGS, type AdminUserProfileUpdate } from "@/lib/types/admin";
 import { StoreStaffList } from "@/components/admin/stores/store-staff-list";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -32,7 +32,10 @@ export function UserProfileDialog({
   const [isEditing, setIsEditing] = useState(false);
   const [isManagingPermissions, setIsManagingPermissions] = useState(false);
   const canManagePermissions =
-    canEdit && selectedUser !== null && selectedUser.role_slug !== "super_admin";
+    canEdit &&
+    selectedUser !== null &&
+    selectedUser.role_slug !== "super_admin" &&
+    (PLATFORM_ROLE_SLUGS as readonly string[]).includes(selectedUser.role_slug ?? "");
 
   const handleOpenChange = (open: boolean) => {
     if (!open) {

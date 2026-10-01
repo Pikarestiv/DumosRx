@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { ShieldCheck } from "lucide-react";
+import { ShieldCheck, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Select,
   SelectContent,
@@ -44,19 +45,28 @@ export function UserPermissionOverridesForm({
       ]),
     ),
   );
+  const [touchedPermissions, setTouchedPermissions] = useState<Set<string>>(new Set());
 
-  const setOverride = (permissionValue: string, state: PermissionOverrideState) =>
+  const setOverride = (permissionValue: string, state: PermissionOverrideState) => {
     setOverrides((current) => ({ ...current, [permissionValue]: state }));
+    setTouchedPermissions((current) => new Set(current).add(permissionValue));
+  };
 
   const handleSave = async () => {
+    if (touchedPermissions.size === 0) {
+      onSaved?.();
+      return;
+    }
+
     const payload = Object.fromEntries(
-      Object.entries(overrides).map(([permissionValue, state]) => [
+      [...touchedPermissions].map((permissionValue) => [
         permissionValue,
-        OVERRIDE_TO_VALUE[state],
+        OVERRIDE_TO_VALUE[overrides[permissionValue]],
       ]),
     );
 
     await updateOverridesMutation.mutateAsync({ id: user.id, overrides: payload });
+    setTouchedPermissions(new Set());
     onSaved?.();
   };
 
@@ -68,6 +78,15 @@ export function UserPermissionOverridesForm({
           Individual Permission Overrides
         </p>
       </div>
+      <Alert>
+        <TriangleAlert />
+        <AlertDescription>
+          This admin&apos;s current override state can&apos;t be confirmed from the server, so
+          every permission below starts at its best-known state, not a verified one. Only the
+          changes you make in this session will be sent when you save — untouched rows are left
+          alone.
+        </AlertDescription>
+      </Alert>
       <div className="space-y-4">
         {PLATFORM_PERMISSION_OPTIONS.map((permission) => (
           <div

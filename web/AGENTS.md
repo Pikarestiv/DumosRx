@@ -276,16 +276,27 @@ guards behind the endpoint. Covered by
 
 **Per-admin permission overrides** use the same mode-toggle shape: a "Manage
 Permissions" button next to "Edit Profile" swaps the body for
-`user-permission-overrides-form.tsx`, gated on `checkIsSuperAdmin(viewer)
-&& selectedUser.role_slug !== "super_admin"` (permissions are meaningless for
-an account that already bypasses every check). Each catalog permission
-(`PLATFORM_PERMISSION_OPTIONS`) gets a 3-state `Select` — Inherited/Granted/
-Revoked, mapping to `null`/`true`/`false` — submitted as one batch via
-`useUpdateUserPermissionOverridesMutation`. Known gap: `GET /admin/users`
-doesn't serialize `effective_permissions`, so the form can only pre-select
-"Granted" when the caller happens to pass it in and otherwise defaults every
-row to "Inherited," even if an override already exists; see `docs/KNOWN_BUGS.md`
-A-133 before relying on this form's initial state as ground truth.
+`user-permission-overrides-form.tsx`, gated on `checkIsSuperAdmin(viewer) &&
+selectedUser.role_slug !== "super_admin" && PLATFORM_ROLE_SLUGS.includes(
+selectedUser.role_slug)` — platform roles only, so the button never appears
+for a store owner or staff account even though neither is `super_admin`.
+Each catalog permission (`PLATFORM_PERMISSION_OPTIONS`) gets a 3-state
+`Select` — Inherited/Granted/Revoked, mapping to `null`/`true`/`false`.
+
+**Only the rows the operator actually touches in that session are submitted**
+(tracked in a `touchedPermissions` set) — this is not a style choice, it's
+load-bearing: `GET /admin/users` doesn't serialize `effective_permissions`
+(see `docs/KNOWN_BUGS.md` A-133), so every row starts at "Inherited" unless
+the caller happens to already know better, and `null` (Inherited) deletes
+that permission's `permission_user` override row server-side
+(`AdminRoleService::setUserPermissionOverride`). Submitting every row
+unconditionally — the first version of this form did — would silently wipe
+out any pre-existing override (including a deliberate revoke) on the very
+first save. The form shows a visible notice that its starting state isn't
+confirmed from the server, for the same reason. Don't "simplify" this back
+to submitting the whole `overrides` object; the display gap in A-133 is
+cosmetic, but reverting the touched-only submission reopens a real
+data-integrity bug.
 
 **Staff are reached from two places instead**, both rendering the same
 `components/admin/stores/store-staff-list.tsx` off the same

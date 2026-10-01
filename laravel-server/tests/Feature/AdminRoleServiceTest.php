@@ -119,7 +119,36 @@ class AdminRoleServiceTest extends TestCase
 
         $this->assertFalse($role->is_system);
         $this->assertSame('support_lead', $role->slug);
-        $this->assertEqualsCanonicalizing(['view_platform_data', 'send_notifications'], $role->permissions->pluck('slug')->all());
+        $slugs = $role->permissions->pluck('slug')->all();
+        $this->assertEqualsCanonicalizing(['view_platform_data', 'send_notifications'], collect($slugs)->intersect(User::DELEGATABLE_PERMISSIONS)->values()->all());
+    }
+
+    public function test_a_newly_created_custom_role_always_carries_manage_platform_so_it_is_never_locked_out_of_the_admin_panel(): void
+    {
+        $role = $this->service->createRole('Support Lead', ['view_platform_data'], $this->actor->id);
+
+        $this->assertContains('manage_platform', $role->permissions->pluck('slug')->all());
+    }
+
+    public function test_manage_platform_never_appears_in_the_catalog_scoped_permissions_list_returned_by_list_roles(): void
+    {
+        $this->service->createRole('Support Lead', ['view_platform_data'], $this->actor->id);
+
+        $roles = $this->service->listRoles();
+        $supportLead = collect($roles)->firstWhere('slug', 'support_lead');
+
+        $this->assertNotContains('manage_platform', $supportLead['permissions']->all());
+    }
+
+    public function test_updating_a_custom_roles_permissions_does_not_strip_its_manage_platform_grant(): void
+    {
+        $this->service->createRole('Support Lead', ['view_platform_data'], $this->actor->id);
+
+        $role = $this->service->updateRolePermissions('support_lead', ['send_notifications'], $this->actor->id);
+
+        $this->assertContains('manage_platform', $role->permissions->pluck('slug')->all());
+        $this->assertContains('send_notifications', $role->permissions->pluck('slug')->all());
+        $this->assertNotContains('view_platform_data', $role->permissions->pluck('slug')->all());
     }
 
     public function test_refuses_to_delete_a_system_role(): void

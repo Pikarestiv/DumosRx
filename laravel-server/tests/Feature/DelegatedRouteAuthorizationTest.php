@@ -232,6 +232,44 @@ class DelegatedRouteAuthorizationTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_a_user_on_a_custom_platform_role_with_view_platform_data_can_reach_the_stores_list()
+    {
+        $superAdmin = $this->actingAsRole('super_admin');
+        $role = app(\App\Services\Admin\AdminRoleService::class)->createRole(
+            'Support Lead',
+            ['view_platform_data'],
+            $superAdmin->id,
+        );
+        $user = User::create([
+            'first_name' => 'Support', 'last_name' => 'Lead',
+            'email' => 'support-lead-'.uniqid().'@dumosrx.com', 'password' => bcrypt('password'),
+            'role' => $role->slug, 'role_id' => $role->id, 'is_active' => true,
+        ]);
+
+        $this->actingAs($user)
+            ->getJson('/api/v1/admin/stores')
+            ->assertOk();
+    }
+
+    public function test_a_user_on_a_custom_platform_role_still_cannot_suspend_a_store_without_manage_account_status()
+    {
+        $superAdmin = $this->actingAsRole('super_admin');
+        $role = app(\App\Services\Admin\AdminRoleService::class)->createRole(
+            'Support Lead',
+            ['view_platform_data'],
+            $superAdmin->id,
+        );
+        $user = User::create([
+            'first_name' => 'Support', 'last_name' => 'Lead',
+            'email' => 'support-lead-'.uniqid().'@dumosrx.com', 'password' => bcrypt('password'),
+            'role' => $role->slug, 'role_id' => $role->id, 'is_active' => true,
+        ]);
+
+        $this->actingAs($user)
+            ->postJson("/api/v1/admin/stores/{$this->store->id}/suspend")
+            ->assertForbidden();
+    }
+
     private function actingAsRole(string $roleSlug, array $extraPermissionSlugs = []): User
     {
         $role = Role::where('slug', $roleSlug)->firstOrFail();

@@ -24,19 +24,19 @@ export interface User {
  * other platform accounts, creating new platform accounts. */
 export const checkIsSuperAdmin = (role?: string) => role === "super_admin";
 
-/** The three platform-level roles (no store of their own) that can reach
- * *some* part of the admin dashboard. super_admin sees everything, while
- * platform_admin/agent see a narrower nav scoped to their own permissions
- * (create_accounts / grant_trials), enforced server-side per endpoint. This
- * only gates whether the dashboard shell loads at all. */
-export const checkCanAccessAdmin = (role?: string) =>
-  role === "super_admin" || role === "platform_admin" || role === "agent";
-
 export function checkHasPermission(user: User | null | undefined, permission: string): boolean {
   if (!user) return false;
   if (checkIsSuperAdmin(user.role)) return true;
   return (user.effective_permissions ?? []).includes(permission);
 }
+
+/** Mirrors the `permission:manage_platform` gate that wraps the entire
+ * `/admin/*` route group server-side (routes/api.php). Any platform role -
+ * built-in or custom, created via AdminRoleService::createRole() - carries
+ * this permission, so checking it here instead of an explicit role-slug
+ * allow-list means a new custom role never needs a frontend change to be
+ * let into the dashboard shell. */
+export const checkCanAccessAdmin = (user?: User | null) => checkHasPermission(user, "manage_platform");
 
 interface AdminAuthState {
   user: User | null;

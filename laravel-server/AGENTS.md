@@ -157,6 +157,35 @@ without updating that.
     and the create-platform-account endpoint validate `role` against, and
     `web/` merges `GET /admin/roles` with its 3 built-ins
     (`mergePlatformRoleOptions()`) rather than hardcoding a whitelist.
+  - **Every custom role carries `manage_platform` too (2026-10-02 fix,
+    A-141).** The entire `/admin/*` route group sits behind
+    `permission:manage_platform` (`routes/api.php`), but `manage_platform`
+    is not one of the 5 catalog slugs `createRole()` accepts — so a role
+    created through the UI with, say, only `view_platform_data` used to get
+    403'd on every single admin call regardless of which catalog slugs it
+    held. `AdminRoleService::createRole()` now always syncs
+    `[...$permissionSlugs, 'manage_platform']`; `updateRolePermissions()`'s
+    existing "preserve non-catalog permission ids" logic (originally there
+    to protect `platform_admin`/`agent`'s `create_accounts`/`grant_trials`)
+    already keeps it from being stripped when the matrix is edited, and
+    `listRoles()`'s catalog intersect already keeps it out of the matrix
+    checkboxes — no new code needed for either. Migration
+    `2026_10_02_000004_backfill_manage_platform_onto_custom_roles` grants it
+    to any custom role created before this fix. `manage_platform` was also
+    added to `User::SERIALIZED_PERMISSIONS` (new `PLATFORM_ACCESS_PERMISSION`
+    const) so it reaches `effective_permissions` the same way `grant_trials`
+    does. Covered by `AdminRoleServiceTest`,
+    `BackfillManagePlatformOntoCustomRolesMigrationTest` and the two new
+    custom-role cases in `DelegatedRouteAuthorizationTest`.
+  - **Frontend gate is `manage_platform`, not a role-slug allow-list.**
+    `web/lib/store/use-admin-auth-store.ts`'s `checkCanAccessAdmin(user)`
+    used to hardcode `role === "super_admin" || "platform_admin" || "agent"`,
+    which bounced any custom-role user at the login form/layout guard even
+    after the backend fix above. It's now
+    `checkHasPermission(user, "manage_platform")` — the literal mirror of
+    the server-side route gate — so a new custom role never needs a
+    frontend change to be let into the dashboard shell. See
+    `web/__tests__/admin-auth-permission-helpers.test.ts`.
 - **Plans/tiers:** `config/plans.php` defines tier limits (`stores`,
   `staff`, `inventories`) and feature flags per tier (`starter`, `pro`,
   ...); `-1` means unlimited. `SubscriptionService` enforces these

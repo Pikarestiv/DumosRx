@@ -67,7 +67,7 @@ class AdminRoleService
         }
 
         $role = Role::create(['name' => $name, 'slug' => $slug, 'is_system' => false]);
-        $permissionIds = Permission::whereIn('slug', $permissionSlugs)->pluck('id');
+        $permissionIds = Permission::whereIn('slug', [...$permissionSlugs, 'manage_platform'])->pluck('id');
         $role->permissions()->sync($permissionIds);
 
         ActivityLog::create([

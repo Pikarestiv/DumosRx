@@ -32,9 +32,12 @@ class User extends Authenticatable
         'grant_trials',
     ];
 
+    public const PLATFORM_ACCESS_PERMISSION = 'manage_platform';
+
     public const SERIALIZED_PERMISSIONS = [
         ...self::DELEGATABLE_PERMISSIONS,
         ...self::PRE_EXISTING_DELEGATED_PERMISSIONS,
+        self::PLATFORM_ACCESS_PERMISSION,
     ];
 
     /**

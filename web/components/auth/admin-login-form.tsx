@@ -62,7 +62,7 @@ export function AdminLoginForm() {
     try {
       const response = await webApiClient.login(values);
       
-      if (!checkCanAccessAdmin(response.user.role)) {
+      if (!checkCanAccessAdmin(response.user)) {
         // The credentials themselves were valid, so the server has already
         // minted an access token and (device_name: "web") a drx_admin_session
         // refresh cookie. Rejecting purely client-side would leave both alive

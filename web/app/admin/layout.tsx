@@ -81,7 +81,7 @@ export default function AdminLayout({
   useEffect(() => {
     if (bypassGuard || verifyingRef.current) return;
 
-    if (!checking && (!sessionVerified || !user || !checkCanAccessAdmin(user.role))) {
+    if (!checking && (!sessionVerified || !user || !checkCanAccessAdmin(user))) {
       router.push("/admin/login");
     }
   }, [user, sessionVerified, checking, router, bypassGuard]);
@@ -99,7 +99,7 @@ export default function AdminLayout({
     );
   }
 
-  if (!sessionVerified || !user || !checkCanAccessAdmin(user.role)) {
+  if (!sessionVerified || !user || !checkCanAccessAdmin(user)) {
     return null;
   }
 

@@ -73,6 +73,18 @@ together). The current design:
   `PersonalAccessToken::findToken()` is called directly, only inside
   `refreshAdminSession()`/`logout()`, on the cookie's raw value.
 
+- **Dashboard-shell access gate (`checkCanAccessAdmin`, fixed 2026-10-02,
+  A-141):** `use-admin-auth-store.ts`'s `checkCanAccessAdmin(user)` decides
+  whether the login form/layout guard let a session into `/admin` at all.
+  It used to hardcode the 3 built-in platform role slugs, which bounced
+  every custom platform role created via the admin-delegation "create
+  role" UI even after the backend granted it access — it is now
+  `checkHasPermission(user, "manage_platform")`, the literal frontend
+  mirror of the `permission:manage_platform` gate wrapping the entire
+  `/admin/*` route group server-side (`laravel-server/AGENTS.md`'s
+  delegation section). Never go back to a role-slug allow-list here: a new
+  custom role must never need a frontend code change to sign in.
+
 **Known adjacent surface that intentionally was *not* touched:**
 - `app/admin/stores/page.tsx` (impersonation) and
   `app/admin/handoff/page.tsx` (return-from-impersonation) use a *different*

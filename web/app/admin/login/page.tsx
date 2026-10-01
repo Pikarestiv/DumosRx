@@ -37,7 +37,7 @@ export default function AdminLoginPage() {
         console.error("Auto-auth check failed:", e);
       } finally {
         const { user: finalUser, sessionVerified } = useAdminAuthStore.getState();
-        if (sessionVerified && checkCanAccessAdmin(finalUser?.role)) {
+        if (sessionVerified && checkCanAccessAdmin(finalUser)) {
           router.push(checkIsSuperAdmin(finalUser?.role) ? "/admin" : "/admin/referrals");
         } else {
           setChecking(false);

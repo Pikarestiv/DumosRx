@@ -72,6 +72,53 @@ class EffectivePermissionsAttributeTest extends TestCase
         $this->assertContains('grant_trials', $user->append('effective_permissions')->toArray()['effective_permissions']);
     }
 
+    public function test_includes_manage_platform_so_the_frontend_can_gate_admin_panel_access_on_it()
+    {
+        $this->artisan('migrate')->run();
+
+        $role = Role::where('slug', 'platform_admin')->firstOrCreate(
+            ['slug' => 'platform_admin'],
+            ['name' => 'Platform Admin']
+        );
+        Permission::firstOrCreate(['slug' => 'manage_platform'], ['name' => 'Manage Platform']);
+        $role->permissions()->syncWithoutDetaching(Permission::where('slug', 'manage_platform')->pluck('id'));
+
+        $user = User::create([
+            'first_name' => 'Test',
+            'last_name' => 'Partner',
+            'email' => 'partner-mp@dumosrx.com',
+            'password' => bcrypt('password'),
+            'role' => 'platform_admin',
+        ]);
+        $user->role_id = $role->id;
+        $user->save();
+
+        $this->assertContains('manage_platform', $user->append('effective_permissions')->toArray()['effective_permissions']);
+    }
+
+    public function test_does_not_include_manage_platform_for_a_role_that_was_never_granted_it()
+    {
+        $this->artisan('migrate')->run();
+
+        $storeOwnerRole = Role::where('slug', 'store_owner')->firstOrCreate(
+            ['slug' => 'store_owner'],
+            ['name' => 'Store Owner']
+        );
+        Permission::firstOrCreate(['slug' => 'manage_platform'], ['name' => 'Manage Platform']);
+
+        $user = User::create([
+            'first_name' => 'Test',
+            'last_name' => 'Owner',
+            'email' => 'owner-mp@dumosrx.com',
+            'password' => bcrypt('password'),
+            'role' => 'store_owner',
+        ]);
+        $user->role_id = $storeOwnerRole->id;
+        $user->save();
+
+        $this->assertNotContains('manage_platform', $user->append('effective_permissions')->toArray()['effective_permissions']);
+    }
+
     public function test_returns_an_empty_array_for_a_super_admin_rather_than_listing_the_whole_catalog()
     {
         $this->artisan('migrate')->run();

@@ -48,6 +48,30 @@ class EffectivePermissionsAttributeTest extends TestCase
         $this->assertNotContains('impersonate_store', $array['effective_permissions']);
     }
 
+    public function test_includes_the_pre_existing_grant_trials_permission_so_the_admin_ui_can_gate_on_it()
+    {
+        $this->artisan('migrate')->run();
+
+        $role = Role::where('slug', 'platform_admin')->firstOrCreate(
+            ['slug' => 'platform_admin'],
+            ['name' => 'Platform Admin']
+        );
+        Permission::firstOrCreate(['slug' => 'grant_trials'], ['name' => 'Grant Trials']);
+        $role->permissions()->syncWithoutDetaching(Permission::where('slug', 'grant_trials')->pluck('id'));
+
+        $user = User::create([
+            'first_name' => 'Test',
+            'last_name' => 'Partner',
+            'email' => 'partner@dumosrx.com',
+            'password' => bcrypt('password'),
+            'role' => 'platform_admin',
+        ]);
+        $user->role_id = $role->id;
+        $user->save();
+
+        $this->assertContains('grant_trials', $user->toArray()['effective_permissions']);
+    }
+
     public function test_returns_an_empty_array_for_a_super_admin_rather_than_listing_the_whole_catalog()
     {
         $this->artisan('migrate')->run();

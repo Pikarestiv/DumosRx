@@ -39,7 +39,7 @@ export function StoreTable({
 }: StoreTableProps) {
   const { user } = useAdminAuthStore();
   const isSuperAdmin = checkIsSuperAdmin(user?.role);
-  const canGrantTrials = isSuperAdmin || user?.role === "platform_admin";
+  const canGrantTrials = checkHasPermission(user, "grant_trials");
   const canImpersonate = checkHasPermission(user, "impersonate_store");
   const canManageAccountStatus = checkHasPermission(user, "manage_account_status");
 

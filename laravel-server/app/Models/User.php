@@ -27,6 +27,16 @@ class User extends Authenticatable
         'impersonate_store',
     ];
 
+    public const PRE_EXISTING_DELEGATED_PERMISSIONS = [
+        'create_accounts',
+        'grant_trials',
+    ];
+
+    public const SERIALIZED_PERMISSIONS = [
+        ...self::DELEGATABLE_PERMISSIONS,
+        ...self::PRE_EXISTING_DELEGATED_PERMISSIONS,
+    ];
+
     /**
      * The attributes that are mass assignable.
      *
@@ -154,7 +164,7 @@ class User extends Authenticatable
         }
 
         return array_values(array_filter(
-            self::DELEGATABLE_PERMISSIONS,
+            self::SERIALIZED_PERMISSIONS,
             fn (string $slug) => $this->hasPermission($slug),
         ));
     }

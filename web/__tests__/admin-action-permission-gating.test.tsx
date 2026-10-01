@@ -169,6 +169,22 @@ describe("StoreTable real permission-slug mapping", () => {
     expect(screen.getByText("Suspend Account")).toBeInTheDocument();
   });
 
+  it("hides Grant Trial from a platform_admin whose grant_trials was revoked", async () => {
+    authState.user = { role: "platform_admin", effective_permissions: ["impersonate_store"] };
+    renderTable();
+    await openMenu();
+
+    expect(screen.queryByText("Grant Trial")).not.toBeInTheDocument();
+  });
+
+  it("shows Grant Trial to an agent granted grant_trials", async () => {
+    authState.user = { role: "agent", effective_permissions: ["grant_trials"] };
+    renderTable();
+    await openMenu();
+
+    expect(screen.getByText("Grant Trial")).toBeInTheDocument();
+  });
+
   it("shows Impersonate and Suspend for a super_admin regardless of effective_permissions", async () => {
     authState.user = { role: "super_admin", effective_permissions: [] };
     renderTable();
@@ -240,6 +256,63 @@ describe("UserTable permission gating", () => {
     expect(screen.getByText("Send Notification")).toBeInTheDocument();
     expect(screen.getByText("Force Password Reset")).toBeInTheDocument();
     expect(screen.getByText("Deactivate Account")).toBeInTheDocument();
+  });
+
+  it("hides Delete Account from a delegated admin holding every delegatable permission", async () => {
+    authState.user = {
+      role: "platform_admin",
+      effective_permissions: [
+        "view_platform_data",
+        "send_notifications",
+        "reset_user_passwords",
+        "manage_account_status",
+        "impersonate_store",
+        "grant_trials",
+      ],
+    };
+    render(<UserTable userList={[user]} {...userTableHandlers} />);
+    await openMenu();
+
+    expect(screen.queryByText("Delete Account")).not.toBeInTheDocument();
+  });
+
+  it("shows Delete Account to a super_admin", async () => {
+    authState.user = { role: "super_admin", effective_permissions: [] };
+    render(<UserTable userList={[user]} {...userTableHandlers} />);
+    await openMenu();
+
+    expect(screen.getByText("Delete Account")).toBeInTheDocument();
+  });
+
+  it("hides Grant Free Trial and Activate Paid Plan from a viewer without grant_trials", async () => {
+    authState.user = { role: "platform_admin", effective_permissions: [] };
+    render(<UserTable userList={[user]} {...userTableHandlers} />);
+    await openMenu();
+
+    expect(screen.queryByText("Grant Free Trial")).not.toBeInTheDocument();
+    expect(screen.queryByText("Activate Paid Plan")).not.toBeInTheDocument();
+  });
+
+  it("shows Grant Free Trial and Activate Paid Plan once the viewer holds grant_trials", async () => {
+    authState.user = { role: "agent", effective_permissions: ["grant_trials"] };
+    render(<UserTable userList={[user]} {...userTableHandlers} />);
+    await openMenu();
+
+    expect(screen.getByText("Grant Free Trial")).toBeInTheDocument();
+    expect(screen.getByText("Activate Paid Plan")).toBeInTheDocument();
+  });
+
+  it("still hides the trial actions for a target account that cannot hold a plan", async () => {
+    authState.user = { role: "super_admin", effective_permissions: [] };
+    render(
+      <UserTable
+        userList={[{ ...user, role_slug: "cashier" }]}
+        {...userTableHandlers}
+      />,
+    );
+    await openMenu();
+
+    expect(screen.queryByText("Grant Free Trial")).not.toBeInTheDocument();
   });
 });
 

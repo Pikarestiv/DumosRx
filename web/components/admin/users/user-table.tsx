@@ -31,7 +31,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { AdminUser } from "@/lib/types/admin";
-import { useAdminAuthStore, checkHasPermission } from "@/lib/store/use-admin-auth-store";
+import { useAdminAuthStore, checkHasPermission, checkIsSuperAdmin } from "@/lib/store/use-admin-auth-store";
 
 interface UserTableProps {
   userList: AdminUser[];
@@ -68,6 +68,8 @@ export function UserTable({
   const canSendNotifications = checkHasPermission(viewerUser, "send_notifications");
   const canResetPasswords = checkHasPermission(viewerUser, "reset_user_passwords");
   const canManageAccountStatus = checkHasPermission(viewerUser, "manage_account_status");
+  const canGrantTrials = checkHasPermission(viewerUser, "grant_trials");
+  const canDeleteAccounts = checkIsSuperAdmin(viewerUser?.role);
 
   if (error) {
     return (
@@ -188,7 +190,7 @@ export function UserTable({
                     </DropdownMenuItem>
                   )}
 
-                  {(user.role_slug === 'store_owner' || user.role_slug === 'admin') && (
+                  {canGrantTrials && (user.role_slug === 'store_owner' || user.role_slug === 'admin') && (
                     <DropdownMenuItem 
                       className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold"
                       onClick={() => {
@@ -201,7 +203,7 @@ export function UserTable({
                     </DropdownMenuItem>
                   )}
 
-                  {(user.role_slug === 'store_owner' || user.role_slug === 'admin') && (
+                  {canGrantTrials && (user.role_slug === 'store_owner' || user.role_slug === 'admin') && (
                     <DropdownMenuItem
                       className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold"
                       onClick={() => {
@@ -241,16 +243,18 @@ export function UserTable({
                       </DropdownMenuItem>
                     ))}
 
-                  <DropdownMenuItem 
-                    className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors mt-1"
-                    onClick={() => {
-                      setSelectedUser(user);
-                      setIsDeleteDialogOpen(true);
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    Delete Account
-                  </DropdownMenuItem>
+                  {canDeleteAccounts && (
+                    <DropdownMenuItem
+                      className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors mt-1"
+                      onClick={() => {
+                        setSelectedUser(user);
+                        setIsDeleteDialogOpen(true);
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Delete Account
+                    </DropdownMenuItem>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             </TableCell>

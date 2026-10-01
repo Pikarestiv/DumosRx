@@ -148,6 +148,7 @@ export interface AdminUser {
   name: string;
   first_name?: string;
   last_name?: string;
+  phone?: string | null;
   email: string;
   /** Humanized for display (e.g. "Store Owner"). Use `role_slug` for any
    * role-gated logic, not this. */
@@ -166,6 +167,22 @@ export interface AdminUser {
   joinedAt?: string;
   status: string;
   deletionRequested?: boolean;
+}
+
+/** The only roles PUT /admin/users/{id} accepts: store-tenant roles are
+ * owned by the tenant and are not assignable from the platform panel. */
+export const PLATFORM_ROLE_SLUGS = ["super_admin", "platform_admin", "agent"] as const;
+
+export type PlatformRoleSlug = (typeof PLATFORM_ROLE_SLUGS)[number];
+
+/** The field scope of PUT /admin/users/{id}. Password, account status and
+ * plan deliberately stay with their own endpoints. */
+export interface AdminUserProfileUpdate {
+  first_name?: string;
+  last_name?: string;
+  phone?: string | null;
+  email?: string;
+  role?: PlatformRoleSlug;
 }
 
 /** `account_type` on GET /admin/users. "owners" own a store, "staff" work at

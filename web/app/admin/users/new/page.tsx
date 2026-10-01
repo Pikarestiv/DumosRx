@@ -42,12 +42,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
-const ROLE_OPTIONS = [
-  { value: "platform_admin", label: "Platform Admin", description: "Partner/co-founder: can register accounts and grant trials" },
-  { value: "agent", label: "Agent", description: "Onboarding agent: can register accounts, has a referral link" },
-  { value: "super_admin", label: "Super Admin", description: "Full platform access, including managing other platform accounts" },
-] as const;
+import { PLATFORM_ROLE_OPTIONS } from "@/lib/constants/platform-roles";
 
 const adminSchema = z
   .object({
@@ -265,7 +260,7 @@ export default function AdminNewUserPage() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {ROLE_OPTIONS.map((opt) => (
+                        {PLATFORM_ROLE_OPTIONS.map((opt) => (
                           <SelectItem key={opt.value} value={opt.value}>
                             <div>
                               <div className="font-semibold">{opt.label}</div>

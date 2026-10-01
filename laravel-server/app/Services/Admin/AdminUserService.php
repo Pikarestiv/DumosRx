@@ -7,6 +7,7 @@ use App\Models\ActivityLog;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\Admin\Concerns\ResolvesTrialDuration;
+use App\Services\Admin\Concerns\UpdatesUserProfiles;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -25,6 +26,7 @@ use Illuminate\Support\Str;
 class AdminUserService
 {
     use ResolvesTrialDuration;
+    use UpdatesUserProfiles;
 
     /** Accounts a platform user (super_admin/platform_admin/agent) either
      * registered directly (AdminStoreController::registerStore) or that
@@ -177,6 +179,9 @@ class AdminUserService
                 return [
                     'id' => $user->id,
                     'name' => $user->first_name.' '.$user->last_name,
+                    'first_name' => $user->first_name,
+                    'last_name' => $user->last_name,
+                    'phone' => $user->phone,
                     'email' => $user->email,
                     'role' => ucwords(str_replace('_', ' ', $user->role)),
                     // Raw slug alongside the humanized label above. The

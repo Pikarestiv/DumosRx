@@ -257,6 +257,23 @@ empty list now. Switching tabs resets the role filter and the page number, and
 the tab is forwarded to `BulkNotifyDialog` as `filters.account_type` so
 "Notify All" reaches exactly the set whose count it quotes.
 
+**Editing a user's profile** lives inside `UserProfileDialog`
+(`components/admin/users/user-profile-dialog.tsx`) as a mode toggle, not a
+separate dialog: the "Edit Profile" button is rendered only when
+`checkIsSuperAdmin(useAdminAuthStore(...).user?.role)` is true, and it swaps
+the read-only body for `user-profile-edit-form.tsx`. Keep the validation and
+payload shaping in `user-profile-edit-validation.ts` (pure, unit-tested)
+rather than in the component —`buildUserProfileUpdate()` sends **only the
+fields that actually changed**, which is what keeps an unedited email from
+tripping the server's uniqueness rule. The role control is a constrained
+`Select` over `lib/constants/platform-roles.ts`'s `PLATFORM_ROLE_OPTIONS`,
+shared with the create-platform-admin page so the two can't drift; never let
+it become free text, and never add password/status/plan fields to this form —
+the server `prohibited`s them and they each have their own row action. See
+`laravel-server/AGENTS.md` for the self-demotion and last-active-super_admin
+guards behind the endpoint. Covered by
+`__tests__/admin-user-profile-edit.test.tsx`.
+
 **Staff are reached from two places instead**, both rendering the same
 `components/admin/stores/store-staff-list.tsx` off the same
 `useStoreStaff(storeId)` hook (`GET /admin/users?account_type=staff&store_id=`):

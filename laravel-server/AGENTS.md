@@ -247,6 +247,52 @@ vanish from `$validated`. `bulkNotify` silently notified every account for one
 commit because of it. Read that kind of bag off `$request->input('filters')`
 after validating, not out of `$validated`.
 
+## Editing a platform user: the two guards that must stay on the service
+
+`PUT /admin/users/{id}` (`AdminUserController::updateUser` →
+`AdminUserService::updateUserProfile()`, implemented in the
+`Concerns\UpdatesUserProfiles` trait) is the only way to edit an existing
+account's profile, and a super_admin may edit *any* account including
+another super_admin's. Two things make that safe, and both live on the
+**service**, not the controller, so a future second call site cannot skip
+them:
+
+- **`assertNotSelfRoleChange()`** — a super_admin cannot change their own
+  `role`. Other fields on their own account are still editable; only the
+  role is frozen. (The pre-existing self-deactivation guard in
+  `deactivateUser` sits on the controller instead; this one deliberately
+  does not follow it down to the layer, because the service is the actual
+  write.)
+- **`assertNotLastActiveSuperAdmin()`** — before any role change away from
+  `super_admin` on *any* user, the count of other `super_admin` rows with
+  `is_active = true` must be non-zero. Deactivated and soft-deleted
+  super_admins do not count, so demoting the last usable one is refused
+  even when dormant rows exist. Nothing enforced this before 2026-10-01 —
+  the platform could be left with no reachable super_admin.
+
+Both throw `ValidationException`, which is why
+`AdminBaseController::withErrorResponse()` now re-throws that one exception
+type instead of folding it into its generic 500: a guard rejection has to
+surface as its own 422 with its message intact.
+
+**Scope is deliberately narrow:** `first_name`, `last_name`, `phone`,
+`email`, `role` only. Password, `is_active`/status and plan/trial fields are
+`prohibited` in the request rules — they each already have a dedicated
+endpoint (`reset-password`, `deactivate`/`reactivate`,
+`grant-trial`/`activate-plan`), and silently ignoring them would let a
+caller think a password change had taken effect. `role` is restricted to
+`AdminUserService::PLATFORM_ROLES` (`super_admin|platform_admin|agent`);
+store-tenant roles are tenant-owned and are not assignable here.
+
+The audit row (`USER_PROFILE_UPDATED`) is the first admin-user action to use
+`activity_logs.properties` for a real before/after diff, and it records
+**only the fields that actually changed** — an update that changes nothing
+writes no log at all. Note `A-131` in `docs/KNOWN_BUGS.md`: the
+`'status' => 'success'` key every one of these `ActivityLog::create()` calls
+passes is not a real column and is silently dropped, so never assert on it.
+
+Covered by `tests/Feature/Admin/AdminUserProfileUpdateTest.php`.
+
 ## A voided sale is not revenue — including on the admin surfaces
 
 `Sale` uses `SoftDeletes`, and a voided or `POST /dashboard/reset`-cleared

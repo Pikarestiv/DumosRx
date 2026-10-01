@@ -210,6 +210,7 @@ Route::prefix('v1')->group(function () {
             Route::get('/health', [AdminPlatformController::class, 'health'])->middleware('role:super_admin');
             Route::get('/errors', [AdminPlatformController::class, 'errors'])->middleware('role:super_admin');
             Route::get('/downloads/manifest', [AdminPlatformController::class, 'downloadsManifest'])->middleware('role:super_admin');
+            Route::put('/users/{id}', [AdminUserController::class, 'updateUser'])->middleware('role:super_admin');
             Route::delete('/users/{id}', [AdminUserController::class, 'deleteUser'])->middleware('role:super_admin');
             Route::post('/users/{id}/deactivate', [AdminUserController::class, 'deactivateUser'])->middleware('role:super_admin');
             Route::post('/users/{id}/reactivate', [AdminUserController::class, 'reactivateUser'])->middleware('role:super_admin');

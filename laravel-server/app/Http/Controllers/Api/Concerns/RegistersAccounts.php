@@ -120,15 +120,9 @@ trait RegistersAccounts
         $roleObj = Role::where('slug', $roleSlug)->first();
         $requireVerification = $this->requiresEmailVerification();
 
-        // User + store + trial + token are one all-or-nothing unit: without
-        // this transaction, a mid-flight failure (timeout, worker kill)
-        // between User::create() and Store::create()/createTrial() left a
-        // committed user row with no store - permanently stuck, since the
-        // unique email index then 422s every retry and the client's own
-        // cloud-restore path also dead-ends with "no stores found" (see
-        // client/AGENTS.md's "Registration is one transaction" note).
-        // Mail sends stay outside the transaction (below) - best-effort,
-        // never worth rolling back a successful signup for.
+        // User+store+trial are one all-or-nothing unit (see
+        // client/AGENTS.md's "Cloud setup/registration network calls").
+        // Mail sends stay outside the transaction, below.
         $verifyToken = null;
         $verificationUrl = null;
         $user = DB::transaction(function () use (

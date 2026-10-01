@@ -142,14 +142,8 @@ export function useOnboarding() {
           const isEmailTaken = status === 422 && err instanceof Error && /email.*already.*taken/i.test(err.message);
           if (!isEmailTaken) throw err;
 
-          // The cloud account already exists - almost always because an
-          // earlier registration attempt from this same flow succeeded
-          // server-side but its response never reached this device (a lost
-          // connection, a retry that gave up). Logging in with the same
-          // credentials and continuing below, instead of dead-ending on
-          // "email already taken", rescues that case without needing a
-          // registration idempotency key: the account is real, it just
-          // needs linking rather than creating again.
+          // Self-heals a lost-response retry instead of dead-ending (see
+          // client/AGENTS.md's "Cloud setup/registration network calls").
           const loginResponse = await withNetworkRetry(() => apiClient.login(email, password));
           response = { token: loginResponse.token, user: { id: loginResponse.user.id } };
         }

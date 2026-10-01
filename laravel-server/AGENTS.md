@@ -1125,11 +1125,28 @@ inspects the `jobs` table, and the caller still reports success. The last two
 failure-escalation path — the mechanism meant to surface *other* silent
 failures) and `Api/Admin/MailController::send()` (the admin broadcast-email
 feature, which additionally returned "Emails have been queued for sending"
-unconditionally). The mailables still `implement ShouldQueue` — harmless, and
-left in place for a future real worker — so that interface's presence is
-**not** a signal that queueing is safe here. Copy the `->send()` pattern from
+unconditionally).
+
+**Five mailables still `implement ShouldQueue`** (`WelcomeEmail`,
+`AdminCustomMail`, `AdminNotification`, `PasswordResetEmail`,
+`PasswordChangedEmail`) despite every call site using `->send()` — and
+Laravel's `Mailer::sendMailable()` queues any `ShouldQueue` mailable
+regardless of which method the caller used, so this is **not** actually
+inert code the way it looks. It only sends immediately today because
+**production's `.env` sets `QUEUE_CONNECTION=sync`** (confirmed 2026-10-01;
+the sync driver executes a "queued" job in the same request, so a mailable
+never actually reaches the `jobs` table) — not because the interface is
+dead weight. The repo's own `.env.example`/local `.env` both default to
+`QUEUE_CONNECTION=database`, which *would* reproduce the exact silent-loss
+failure mode this rule exists to prevent, for any of these five mailables,
+the moment someone "fixes" that drift between local and production without
+also removing `ShouldQueue` or adding a real worker. Confirmed via a
+2026-10-01 investigation that attempted to add `ShouldQueue` to
+`SuperAdminAlertMail` for the same (reverted) reason — see `docs/KNOWN_BUGS.md`'s `A-125`. Copy the `->send()` pattern from
 `RegistersAccounts`/`RecoversPasswords`/`SendEndOfDaySummaries` for any new
-mail path.
+mail path, and don't add `ShouldQueue` to a mailable here on the assumption
+that it's a no-op — it is only a no-op because of this specific, fragile
+production config.
 
 **Corollary — never `->send()` inside an open transaction.** Because the send
 is synchronous, a slow or unreachable SMTP server holds the transaction (and

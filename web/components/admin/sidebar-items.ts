@@ -12,12 +12,15 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
+import { checkHasPermission } from "@/lib/store/use-admin-auth-store";
+
 export interface AdminSidebarItem {
   id: string;
   name: string;
   icon: LucideIcon;
   href: string;
   roles?: string[];
+  permissions?: string[];
 }
 
 const SUPER_ADMIN_ONLY = ["super_admin"];
@@ -29,6 +32,7 @@ export const sidebarItems: AdminSidebarItem[] = [
     name: "Stores",
     icon: Store,
     href: "/admin/stores",
+    permissions: ["view_platform_data"],
   },
   {
     id: "register-store",
@@ -51,7 +55,13 @@ export const sidebarItems: AdminSidebarItem[] = [
     href: "/admin/referrals",
     roles: ["super_admin", "platform_admin", "agent"],
   },
-  { id: "users", name: "Platform Users", icon: Users, href: "/admin/users" },
+  {
+    id: "users",
+    name: "Platform Users",
+    icon: Users,
+    href: "/admin/users",
+    permissions: ["view_platform_data"],
+  },
   {
     id: "products",
     name: "Global Products",
@@ -75,6 +85,7 @@ export const sidebarItems: AdminSidebarItem[] = [
     name: "Activity Log",
     icon: ScrollText,
     href: "/admin/activity",
+    permissions: ["view_platform_data"],
   },
   {
     id: "settings",
@@ -90,8 +101,13 @@ export const sidebarItems: AdminSidebarItem[] = [
   },
 ];
 
-export function visibleSidebarItems(role: string | undefined): AdminSidebarItem[] {
-  return sidebarItems.filter((item) =>
-    (item.roles ?? SUPER_ADMIN_ONLY).includes(role ?? ""),
-  );
+export function visibleSidebarItems(
+  user: { role?: string; effective_permissions?: string[] } | undefined,
+): AdminSidebarItem[] {
+  const role = user?.role ?? "";
+  return sidebarItems.filter((item) => {
+    const roleAllowed = (item.roles ?? SUPER_ADMIN_ONLY).includes(role);
+    if (!item.permissions) return roleAllowed;
+    return roleAllowed || item.permissions.some((p) => checkHasPermission(user as never, p));
+  });
 }

@@ -48,7 +48,7 @@ export function AdminSidebar() {
       </Link>
 
       <nav className="flex-1 px-4 py-4 space-y-1">
-        {visibleSidebarItems(user?.role).map((item) => {
+        {visibleSidebarItems(user ?? undefined).map((item) => {
           const normalizedPathname = pathname?.replace(/\/$/, "") || "";
           const normalizedHref = item.href.replace(/\/$/, "");
 

@@ -4,6 +4,16 @@ A changelog of bugs that were tracked in `docs/KNOWN_BUGS.md` and have since bee
 
 ## 2026-10-01
 
+### A-28 (ops) — production migration confirmed run; `feedback`/`audit_logs` pushes carrying `occurrence_count` now sync
+- **Branch:** none — ops action only, no code change (as the finding's own entry required). Carried from the 2026-09-28/29 passes.
+- **What it was.** The migration adding `occurrence_count` to the production `feedback` table existed in the repo but had never been run against production, so any push carrying that column was rejected with `Unknown column 'occurrence_count' in 'field list'`.
+- **Resolution.** Confirmed by the user that the pending migration has been run on production. No code was ever at fault — the client-side amplification this used to trigger was already closed by `A-27`.
+
+### A-30 (ops) — production `stores` rows' double-encoded `enabled_payment_methods` confirmed normalised
+- **Branch:** none — ops action only, no code change (as the finding's own entry required). Carried from the 2026-09-29 pass, residual cleanup for `A-29`.
+- **What it was.** `SyncController::push()`'s now-fixed double-`json_encode()` bug (`A-29`) left some production `stores` rows storing `"[\"cash\",\"card\"]"` (a JSON string) instead of `["cash","card"]` (a JSON array). The `A-29` code fix already heals these on read, so nothing was functionally broken, but the raw bytes stayed malformed until explicitly repaired.
+- **Resolution.** Confirmed by the user that the repair (`php artisan tinker` round-trip through the model's `JsonList` cast) has been run against the affected rows in production.
+
 ### A-124 (P3) — two more UI surfaces still showed a bulk-import stock correction as a plain "Adjustment," the same gap `A-122` fixed in the Stock Movements table alone
 - **Branch:** none — fixed directly on `dev`. Logged while independently verifying `A-122`'s fix.
 - **Root cause.** `A-122` routed the general Stock Movements table's label through `resolveMovementDisplayType()`, but two other surfaces still read `movement_type` straight off the row: `stock-movement-details-dialog.tsx` passed `movement.movement_type` directly to `getTypeIconBg`/`getTypeIcon`/`getTypeColor`/`getTypeLabel`, and `use-dashboard-overview.ts`'s recent-activity text built its message off `activity.movement_type` the same way.

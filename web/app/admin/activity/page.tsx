@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Search, Filter, Loader2, ScrollText, ShieldAlert, ChevronsUpDown, Check, Store as StoreIcon, User as UserIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -33,6 +33,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { useAdminActivityLogs } from "@/lib/api/admin-activity-hooks";
 import { useAdminStores } from "@/lib/api/admin-hooks-stores";
 import { useAdminUsers } from "@/lib/api/admin-hooks-users";
+import { useAdminRoles } from "@/lib/api/admin-hooks-roles";
 import { PLATFORM_ROLE_OPTIONS } from "@/lib/constants/platform-roles";
 import { formatDateSafe } from "@/lib/utils/date-utils";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -76,11 +77,6 @@ const ACTION_FILTERS = [
   { label: "Account Registered by Staff", value: "ACCOUNT_REGISTERED_BY_STAFF" },
   { label: "Admin Notification Sent", value: "ADMIN_NOTIFICATION" },
   { label: "Bulk Notification Sent", value: "BULK_ADMIN_NOTIFICATION" },
-];
-
-const ROLE_FILTERS = [
-  { label: "All Roles", value: "" },
-  ...PLATFORM_ROLE_OPTIONS.map((opt) => ({ label: opt.label, value: opt.value as string })),
 ];
 
 const ACTION_BADGE_STYLES: Record<string, string> = {
@@ -285,6 +281,19 @@ function AdminActivityLogPageContent() {
   const [dateTo, setDateTo] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
 
+  const { data: rolesData } = useAdminRoles();
+  const roleFilters = useMemo(() => {
+    const platformSlugs = new Set(PLATFORM_ROLE_OPTIONS.map((opt) => opt.value as string));
+    const customRoles = (rolesData?.roles || [])
+      .filter((role) => !platformSlugs.has(role.slug))
+      .map((role) => ({ label: role.name, value: role.slug }));
+    return [
+      { label: "All Roles", value: "" },
+      ...PLATFORM_ROLE_OPTIONS.map((opt) => ({ label: opt.label, value: opt.value as string })),
+      ...customRoles,
+    ];
+  }, [rolesData]);
+
   const debouncedSearch = useDebounce(search, 500);
 
   const { data: response, isLoading, error, refetch } = useAdminActivityLogs(
@@ -415,7 +424,7 @@ function AdminActivityLogPageContent() {
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm" className="font-bold border-2">
                     <Filter className="h-4 w-4 mr-2" />
-                    {ROLE_FILTERS.find((f) => f.value === roleFilter)?.label ||
+                    {roleFilters.find((f) => f.value === roleFilter)?.label ||
                       "All Roles"}
                   </Button>
                 </DropdownMenuTrigger>
@@ -423,7 +432,7 @@ function AdminActivityLogPageContent() {
                   <DropdownMenuLabel className="text-[10px] uppercase tracking-widest text-slate-400 px-3 py-2">
                     Actor Role
                   </DropdownMenuLabel>
-                  {ROLE_FILTERS.map((f) => (
+                  {roleFilters.map((f) => (
                     <DropdownMenuItem
                       key={f.value}
                       className="rounded-xl px-3 py-2 cursor-pointer font-bold"

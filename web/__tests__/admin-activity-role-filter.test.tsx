@@ -29,6 +29,18 @@ vi.mock("@/lib/api/admin-hooks-users", () => ({
   useAdminUsers: () => ({ data: { data: [] }, isLoading: false }),
 }));
 
+vi.mock("@/lib/api/admin-hooks-roles", () => ({
+  useAdminRoles: () => ({
+    data: {
+      roles: [
+        { id: 1, name: "Super Admin", slug: "super_admin", is_system: true, permissions: [], user_count: 1 },
+        { id: 2, name: "Regional Lead", slug: "regional_lead", is_system: false, permissions: [], user_count: 2 },
+      ],
+    },
+    isLoading: false,
+  }),
+}));
+
 vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
 }));
@@ -64,6 +76,34 @@ describe("Activity page actor-role filter", () => {
     await selectAgentRole(user);
 
     expect(screen.getByRole("button", { name: "Agent" })).toBeInTheDocument();
+  });
+
+  it("includes a custom platform role from useAdminRoles alongside the 3 built-ins", async () => {
+    const user = userEvent.setup();
+    render(<ActivityPage />);
+
+    await user.click(screen.getByRole("button", { name: /all roles/i }));
+    await user.click(await screen.findByText("Regional Lead"));
+
+    expect(mockUseAdminActivityLogs).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      "regional_lead",
+    );
+  });
+
+  it("does not duplicate a built-in role slug already covered by useAdminRoles", async () => {
+    const user = userEvent.setup();
+    render(<ActivityPage />);
+
+    await user.click(screen.getByRole("button", { name: /all roles/i }));
+
+    expect(screen.getAllByText("Super Admin")).toHaveLength(1);
   });
 
   it("clears the role filter along with the other filters", async () => {

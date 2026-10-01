@@ -216,6 +216,61 @@ class AdminStoreSearchAndMetricsTest extends TestCase
         $this->assertNotNull($response->json('operational_metrics.last_active_at'));
     }
 
+    /**
+     * A clock-skewed offline POS device can push a created_at that is
+     * genuinely in the future (SyncController trusts the client's
+     * timestamp verbatim). "Last active" must never display a future time.
+     */
+    #[Test]
+    public function last_active_is_clamped_to_now_when_a_synced_record_is_timestamped_in_the_future()
+    {
+        $this->store->forceFill(['last_sync_at' => now()->addHours(6)])->save();
+
+        $response = $this->actingAs($this->superAdmin)
+            ->getJson('/api/v1/admin/stores/'.$this->store->id);
+
+        $response->assertStatus(200);
+
+        $lastActiveAt = \Illuminate\Support\Carbon::parse($response->json('operational_metrics.last_active_at'));
+        $this->assertTrue($lastActiveAt->lessThanOrEqualTo(now()));
+        $this->assertStringNotContainsString('from now', $response->json('operational_metrics.last_active_human'));
+
+        $this->assertStringNotContainsString('from now', $response->json('sync.last_sync_human'));
+    }
+
+    #[Test]
+    public function operational_metrics_report_the_stores_total_stock_value()
+    {
+        $productId = (string) \Illuminate\Support\Str::uuid();
+        DB::table('products')->insert([
+            'id' => $productId,
+            'name' => 'Paracetamol',
+            'store_id' => $this->store->id,
+            'selling_price' => 500,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('stock_batches')->insert([
+            'id' => (string) \Illuminate\Support\Str::uuid(),
+            'product_id' => $productId,
+            'store_id' => $this->store->id,
+            'user_id' => $this->owner->id,
+            'batch_number' => 'B-1',
+            'quantity' => 10,
+            'cost_price' => 250,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $response = $this->actingAs($this->superAdmin)
+            ->getJson('/api/v1/admin/stores/'.$this->store->id);
+
+        $response->assertStatus(200);
+        $this->assertEquals(2500, $response->json('operational_metrics.stock_value_raw'));
+        $this->assertSame('₦2,500', $response->json('counts.stock_value'));
+    }
+
     #[Test]
     public function trading_days_are_counted_against_the_stores_own_calendar_day()
     {

@@ -84,7 +84,7 @@ export function RecentStores({ recentStores, setSelectedStore }: RecentStoresPro
                     <div className="flex items-center justify-end gap-1.5 mt-1">
                       <div className={`h-1.5 w-1.5 rounded-full ${store.sync_status === 'Active' ? 'bg-emerald-500' : store.sync_status === 'Away' ? 'bg-amber-500' : 'bg-slate-300'}`} />
                       <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400" title="How recently this device last synced - not the account status above">
-                        Sync: {store.sync_status}
+                        Sync: {store.last_sync_human ?? store.sync_status}
                       </span>
                     </div>
                   )}

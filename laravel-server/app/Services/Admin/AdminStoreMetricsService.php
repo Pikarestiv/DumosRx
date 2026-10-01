@@ -69,6 +69,7 @@ class AdminStoreMetricsService
         $staffIds = User::where('store_id', $store->id)->where('id', '!=', $store->user_id)->pluck('id');
         $staffCount = $staffIds->count();
         $sessionUserIds = $staffIds->merge([$store->user_id])->filter()->unique();
+        $stockValue = $this->stockValueRaw($store);
 
         $lastSaleAt = $this->salesQuery($store)->max('created_at');
         $lastActivityAt = DB::table('activity_logs')->where('store_id', $store->id)->max('created_at');
@@ -77,6 +78,7 @@ class AdminStoreMetricsService
             $lastSaleAt,
             $lastActivityAt,
         ])->filter()->max();
+        $lastActiveAt = $this->clampToNow($lastActiveAt);
 
         return [
             'staff_count' => $staffCount,
@@ -89,6 +91,8 @@ class AdminStoreMetricsService
                 'suppliers' => $this->countScoped('suppliers', $store->id),
                 'customers' => $this->countScoped('customers', $store->id),
             ],
+            'stock_value_raw' => $stockValue,
+            'stock_value' => $this->money($store, $stockValue),
             'stock_activity' => [
                 'movements' => $this->countScoped('stock_movements', $store->id),
                 'movements_last_window' => $this->countScoped(
@@ -103,8 +107,8 @@ class AdminStoreMetricsService
                     now()->subDays(self::RECENT_WINDOW_DAYS),
                 ),
             ],
-            'last_active_at' => $lastActiveAt ? Carbon::parse($lastActiveAt)->toIso8601String() : null,
-            'last_active_human' => $lastActiveAt ? Carbon::parse($lastActiveAt)->diffForHumans() : 'Never',
+            'last_active_at' => $lastActiveAt?->toIso8601String(),
+            'last_active_human' => $lastActiveAt ? $lastActiveAt->diffForHumans() : 'Never',
             'activity_last_window' => (int) DB::table('activity_logs')
                 ->where('store_id', $store->id)
                 ->where('created_at', '>=', now()->subDays(self::RECENT_WINDOW_DAYS))
@@ -228,6 +232,26 @@ class AdminStoreMetricsService
             ->count();
     }
 
+    /**
+     * Mirrors DashboardService's own inventory-value formula (SUM(quantity
+     * * cost_price) over stock_batches) so the admin panel and the store
+     * owner's dashboard never quote two different stock valuations.
+     */
+    private function stockValueRaw(Store $store): float
+    {
+        if (!Schema::hasTable('stock_batches')) {
+            return 0.0;
+        }
+
+        $total = DB::table('stock_batches')
+            ->where('store_id', $store->id)
+            ->whereNull('deleted_at')
+            ->selectRaw('COALESCE(SUM(quantity * cost_price), 0) as total_value')
+            ->value('total_value');
+
+        return (float) $total;
+    }
+
     private function countScoped(string $table, string $storeId, ?Carbon $since = null): int
     {
         if (!Schema::hasTable($table)) {
@@ -253,13 +277,34 @@ class AdminStoreMetricsService
             return 'Never synced';
         }
 
-        $hours = $store->last_sync_at->diffInHours(now());
+        $hours = $this->clampToNow($store->last_sync_at)->diffInHours(now());
 
         return match (true) {
             $hours < 24 => 'Healthy',
             $hours < 24 * 7 => 'Stale',
             default => 'Dormant',
         };
+    }
+
+    /**
+     * An offline POS device's wall clock can drift or be misconfigured, and
+     * the sync pipeline trusts whatever created_at/updated_at it pushes
+     * (see SyncController::push()) with no server-side validation. A
+     * clock-skewed device can therefore push a timestamp that is genuinely
+     * in the future relative to the server. "Last active"/"last synced"
+     * can never truthfully be later than now, so any such value is clamped
+     * here rather than displayed as a future time.
+     */
+    public function clampToNow(string|Carbon|null $value): ?Carbon
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $parsed = $value instanceof Carbon ? $value : Carbon::parse($value);
+        $now = now();
+
+        return $parsed->greaterThan($now) ? $now : $parsed;
     }
 
     private function growth(float $previous, float $current): ?float

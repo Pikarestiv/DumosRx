@@ -94,6 +94,32 @@ class DelegatedRouteAuthorizationTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_still_forbids_editing_another_admins_profile_for_a_platform_admin_granted_every_delegatable_permission()
+    {
+        $otherAdmin = User::create([
+            'first_name' => 'Other', 'last_name' => 'Admin',
+            'email' => 'other-'.uniqid().'@dumosrx.com', 'password' => bcrypt('password'),
+            'role' => 'agent', 'is_active' => true,
+        ]);
+        $platformAdmin = $this->actingAsRole('platform_admin', User::DELEGATABLE_PERMISSIONS);
+
+        $this->actingAs($platformAdmin)
+            ->putJson("/api/v1/admin/users/{$otherAdmin->id}", ['role' => 'platform_admin', 'first_name' => 'Hijacked'])
+            ->assertForbidden();
+
+        $this->assertSame('Other', $otherAdmin->fresh()->first_name);
+        $this->assertSame('agent', $otherAdmin->fresh()->role);
+    }
+
+    public function test_still_forbids_the_subscription_config_endpoint_for_a_platform_admin_granted_every_delegatable_permission()
+    {
+        $platformAdmin = $this->actingAsRole('platform_admin', User::DELEGATABLE_PERMISSIONS);
+
+        $this->actingAs($platformAdmin)
+            ->putJson('/api/v1/admin/system-configs/subscription_plans', ['value' => []])
+            ->assertForbidden();
+    }
+
     public function test_super_admin_can_still_do_everything_regardless_of_permission_role_or_permission_user_state()
     {
         $superAdmin = $this->actingAsRole('super_admin');

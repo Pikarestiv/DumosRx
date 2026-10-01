@@ -105,6 +105,8 @@ describe("StoreRowActions destructive entries", () => {
         store={{ ...store, ...overrides }}
         isSuperAdmin={isSuperAdmin}
         canGrantTrials={isSuperAdmin}
+        canImpersonate={isSuperAdmin}
+        canManageAccountStatus={isSuperAdmin}
         pendingStoreId={null}
         router={{ push: vi.fn() } as unknown as AppRouterInstance}
         {...rowActionHandlers}

@@ -45,6 +45,8 @@ interface StoreRowActionsProps extends StoreRowActionHandlers {
   store: AdminStoreSummary;
   isSuperAdmin: boolean;
   canGrantTrials: boolean;
+  canImpersonate: boolean;
+  canManageAccountStatus: boolean;
   pendingStoreId: string | null;
   router: AppRouterInstance;
 }
@@ -55,6 +57,8 @@ export function StoreRowActions({
   store,
   isSuperAdmin,
   canGrantTrials,
+  canImpersonate,
+  canManageAccountStatus,
   pendingStoreId,
   router,
   handleImpersonate,
@@ -97,7 +101,7 @@ export function StoreRowActions({
           <StoreIcon className="h-4 w-4 text-slate-500" />
           View Store Details
         </DropdownMenuItem>
-        {isSuperAdmin && (
+        {canImpersonate && (
           <DropdownMenuItem className={ITEM_CLASS} onClick={() => handleImpersonate(store)}>
             <ExternalLink className="h-4 w-4 text-indigo-500" />
             Impersonate (Admin)
@@ -138,52 +142,57 @@ export function StoreRowActions({
             Activate Paid Plan
           </DropdownMenuItem>
         )}
+        {(isSuperAdmin || canManageAccountStatus) && (
+          <DropdownMenuSeparator className="my-2 bg-slate-100 dark:bg-slate-800" />
+        )}
         {isSuperAdmin && (
-          <>
-            <DropdownMenuSeparator className="my-2 bg-slate-100 dark:bg-slate-800" />
+          <DropdownMenuItem
+            className={`${ITEM_CLASS} text-purple-500 hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-500/10 transition-colors`}
+            disabled={isPending}
+            onSelect={(e) => {
+              e.preventDefault();
+              handleToggleDemo(store);
+            }}
+          >
+            {isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <FlaskConical className="h-4 w-4" />
+            )}
+            {store.is_demo ? "Unmark as Demo" : "Mark as Demo"}
+          </DropdownMenuItem>
+        )}
+        {canManageAccountStatus &&
+          (store.status === "Suspended" ? (
             <DropdownMenuItem
-              className={`${ITEM_CLASS} text-purple-500 hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-500/10 transition-colors`}
+              className={`${ITEM_CLASS} text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors`}
               disabled={isPending}
               onSelect={(e) => {
                 e.preventDefault();
-                handleToggleDemo(store);
+                handleUnsuspend(store);
               }}
             >
               {isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                <FlaskConical className="h-4 w-4" />
+                <CheckCircle className="h-4 w-4" />
               )}
-              {store.is_demo ? "Unmark as Demo" : "Mark as Demo"}
+              Unsuspend Account
             </DropdownMenuItem>
-            {store.status === "Suspended" ? (
-              <DropdownMenuItem
-                className={`${ITEM_CLASS} text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors`}
-                disabled={isPending}
-                onSelect={(e) => {
-                  e.preventDefault();
-                  handleUnsuspend(store);
-                }}
-              >
-                {isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <CheckCircle className="h-4 w-4" />
-                )}
-                Unsuspend Account
-              </DropdownMenuItem>
-            ) : (
-              <DropdownMenuItem
-                className={`${ITEM_CLASS} text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors`}
-                onClick={() => {
-                  setSelectedStore(store);
-                  setIsSuspendDialogOpen(true);
-                }}
-              >
-                <Ban className="h-4 w-4" />
-                Suspend Account
-              </DropdownMenuItem>
-            )}
+          ) : (
+            <DropdownMenuItem
+              className={`${ITEM_CLASS} text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors`}
+              onClick={() => {
+                setSelectedStore(store);
+                setIsSuspendDialogOpen(true);
+              }}
+            >
+              <Ban className="h-4 w-4" />
+              Suspend Account
+            </DropdownMenuItem>
+          ))}
+        {isSuperAdmin && (
+          <>
             <DropdownMenuSeparator className="my-2 bg-slate-100 dark:bg-slate-800" />
             {store.is_archived ? (
               <DropdownMenuItem

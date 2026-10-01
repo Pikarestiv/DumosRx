@@ -15,7 +15,11 @@ import {
 import { adminStoreDetailPath } from "@/lib/admin-routes";
 import type { AdminStoreSummary } from "@/lib/types/admin";
 import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
-import { useAdminAuthStore, checkIsSuperAdmin } from "@/lib/store/use-admin-auth-store";
+import {
+  useAdminAuthStore,
+  checkIsSuperAdmin,
+  checkHasPermission,
+} from "@/lib/store/use-admin-auth-store";
 
 interface StoreTableProps extends StoreRowActionHandlers {
   storeList: AdminStoreSummary[];
@@ -36,6 +40,8 @@ export function StoreTable({
   const { user } = useAdminAuthStore();
   const isSuperAdmin = checkIsSuperAdmin(user?.role);
   const canGrantTrials = isSuperAdmin || user?.role === "platform_admin";
+  const canImpersonate = checkHasPermission(user, "impersonate_store");
+  const canManageAccountStatus = checkHasPermission(user, "manage_account_status");
 
   const openStore = (store: AdminStoreSummary) => router.push(adminStoreDetailPath(store.id));
 
@@ -176,6 +182,8 @@ export function StoreTable({
                 store={store}
                 isSuperAdmin={isSuperAdmin}
                 canGrantTrials={canGrantTrials}
+                canImpersonate={canImpersonate}
+                canManageAccountStatus={canManageAccountStatus}
                 pendingStoreId={pendingStoreId}
                 router={router}
                 {...actions}

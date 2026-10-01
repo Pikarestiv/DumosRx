@@ -184,7 +184,7 @@ class User extends Authenticatable
     }
     public function permissions()
     {
-        return $this->belongsToMany(Permission::class);
+        return $this->belongsToMany(Permission::class)->withPivot('granted');
     }
 
     public function hasRole($role)
@@ -212,9 +212,14 @@ class User extends Authenticatable
 
     public function hasPermission($permissionSlug)
     {
-        // Check direct permission first
-        if ($this->permissions()->where('slug', $permissionSlug)->exists()) {
+        if ($this->hasRole('super_admin')) {
             return true;
+        }
+
+        // Check direct permission first
+        $directGrant = $this->permissions()->where('slug', $permissionSlug)->first();
+        if ($directGrant) {
+            return (bool) $directGrant->pivot->granted;
         }
 
         // Check through role relation

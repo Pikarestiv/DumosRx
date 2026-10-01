@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, type ReactNode } from "react";
+import { useCallback, useRef, type ReactNode } from "react";
 import { X } from "lucide-react";
 import { useResolvedMediaQuery } from "@/hooks/use-media-query";
 import {
@@ -28,7 +28,7 @@ import { AssistantComposer } from "./assistant-composer";
 import { AssistantSuggestionChips } from "./assistant-suggestion-chips";
 import { ASSISTANT_NAME, AssistantBetaTag } from "./assistant-brand";
 
-const PANEL_DESCRIPTION = "Ask how to do something, or ask for a quick number.";
+const PANEL_DESCRIPTION = "Ask how to do something, or check your stock and sales.";
 const HEADER_CLASS =
   "flex shrink-0 flex-row items-start justify-between gap-3 space-y-0 bg-primary bg-gradient-to-b from-primary to-primary/85 px-4 py-3 text-left";
 const HEADER_WRAP_CLASS = "shrink-0 bg-primary bg-gradient-to-b from-primary to-primary/85";
@@ -55,6 +55,15 @@ export function AssistantPanel() {
   const { user } = useAuth();
   const userInitials = getUserInitials(user?.first_name, user?.last_name);
   const { matches: isDesktop, resolved } = useResolvedMediaQuery("(min-width: 768px)");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Radix/vaul focus the content container itself on open by default, not
+  // the first focusable child - preventDefault and focusing explicitly is
+  // the documented escape hatch for landing focus on the composer instead.
+  const handleOpenAutoFocus = useCallback((event: Event) => {
+    event.preventDefault();
+    inputRef.current?.focus();
+  }, []);
 
   const handleSend = useCallback(
     (text: string) => {
@@ -88,7 +97,7 @@ export function AssistantPanel() {
         />
       </div>
       <div className="shrink-0">
-        <AssistantComposer isThinking={isThinking} onSend={handleSend} />
+        <AssistantComposer isThinking={isThinking} onSend={handleSend} inputRef={inputRef} />
       </div>
     </>
   );
@@ -99,6 +108,7 @@ export function AssistantPanel() {
         <SheetContent
           side="right"
           hideClose
+          onOpenAutoFocus={handleOpenAutoFocus}
           className="flex w-full flex-col gap-0 overflow-hidden border-l-2 border-primary bg-background/95 p-0 shadow-sm backdrop-blur-sm sm:max-w-md"
           style={{
             paddingTop: "var(--tauri-top, 0px)",
@@ -134,6 +144,7 @@ export function AssistantPanel() {
     <Drawer open={isOpen} onOpenChange={handleOpenChange}>
       <DrawerContent
         hideHandle
+        onOpenAutoFocus={handleOpenAutoFocus}
         className="flex h-[90vh] flex-col overflow-hidden bg-background/95 p-0 backdrop-blur-sm"
       >
         <div className={HEADER_WRAP_CLASS}>

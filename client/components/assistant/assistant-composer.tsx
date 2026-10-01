@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type Ref } from "react";
 import { SendHorizontal } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -8,9 +8,10 @@ import { Button } from "@/components/ui/button";
 interface AssistantComposerProps {
   isThinking: boolean;
   onSend: (text: string) => void | Promise<void>;
+  inputRef?: Ref<HTMLInputElement>;
 }
 
-export function AssistantComposer({ isThinking, onSend }: AssistantComposerProps) {
+export function AssistantComposer({ isThinking, onSend, inputRef }: AssistantComposerProps) {
   const [value, setValue] = useState("");
 
   function handleSubmit(event: FormEvent) {
@@ -29,6 +30,7 @@ export function AssistantComposer({ isThinking, onSend }: AssistantComposerProps
       className="flex items-center gap-2 border-t border-border bg-background/95 p-3 backdrop-blur-sm"
     >
       <Input
+        ref={inputRef}
         aria-label="Ask the assistant"
         value={value}
         onChange={(e) => setValue(e.target.value)}

@@ -15,7 +15,20 @@ vi.mock("@/hooks/use-media-query", () => ({
 vi.mock("@/components/ui/sheet", () => ({
   Sheet: ({ open, children }: { open: boolean; children: React.ReactNode }) =>
     open ? <div role="dialog">{children}</div> : null,
-  SheetContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  // Fires onOpenAutoFocus on mount, same as Radix does when the dialog
+  // content opens, so the panel's auto-focus wiring is exercised for real.
+  SheetContent: ({
+    children,
+    onOpenAutoFocus,
+  }: {
+    children: React.ReactNode;
+    onOpenAutoFocus?: (event: Event) => void;
+  }) => {
+    React.useEffect(() => {
+      onOpenAutoFocus?.(new Event("focus"));
+    }, [onOpenAutoFocus]);
+    return <div>{children}</div>;
+  },
   SheetHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   SheetTitle: ({ children }: { children: React.ReactNode }) => <h2>{children}</h2>,
   SheetDescription: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
@@ -69,6 +82,14 @@ describe("AssistantPanel", () => {
     });
     const link = await screen.findByRole("link", { name: "Make a sale" });
     expect(link.getAttribute("href")).toBe("/pos");
+  });
+
+  it("focuses the composer input as soon as the panel opens", async () => {
+    const { AssistantPanel } = await import("@/components/assistant/assistant-panel");
+    render(<AssistantPanel />);
+
+    const input = screen.getByLabelText("Ask the assistant");
+    expect(document.activeElement).toBe(input);
   });
 
   it("labels the user's own message with their account initials", async () => {

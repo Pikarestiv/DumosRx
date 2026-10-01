@@ -21,7 +21,6 @@ class DelegatedRouteAuthorizationTest extends TestCase
         parent::setUp();
 
         $this->seed(RolesAndPermissionsSeeder::class);
-        $this->seed(\Database\Seeders\SystemConfigSeeder::class);
 
         $owner = User::create([
             'first_name' => 'Store', 'last_name' => 'Owner',

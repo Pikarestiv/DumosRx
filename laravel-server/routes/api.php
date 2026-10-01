@@ -236,7 +236,7 @@ Route::prefix('v1')->group(function () {
             Route::post('/feedback/{id}/status', [\App\Http\Controllers\Api\Web\FeedbackController::class, 'updateStatus'])->middleware('role:super_admin');
 
             // Broadcasts
-            Route::prefix('announcements')->middleware(['subscription:broadcast_create', 'permission:send_notifications'])->group(function () {
+            Route::prefix('announcements')->middleware(['permission:send_notifications'])->group(function () {
                 Route::get('/', [BroadcastController::class, 'adminIndex']);
                 Route::post('/preview-email', [BroadcastController::class, 'previewEmail']);
                 Route::post('/test-email', [BroadcastController::class, 'sendTestEmail']);

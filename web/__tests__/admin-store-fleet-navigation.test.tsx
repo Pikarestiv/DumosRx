@@ -109,6 +109,12 @@ describe("Store Fleet row navigation", () => {
 
     expect(screen.getByText("Archived")).toBeInTheDocument();
   });
+
+  it("shows a placeholder instead of a blank cell when revenue is withheld (agent/platform_admin caller)", () => {
+    renderTable({ revenue: undefined });
+
+    expect(screen.getByText("—")).toBeInTheDocument();
+  });
 });
 
 describe("Recent Stores deep link", () => {

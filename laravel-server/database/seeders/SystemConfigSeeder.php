@@ -44,9 +44,6 @@ class SystemConfigSeeder extends Seeder
                         'ai_assistant' => false,
                         'daily_summary_email' => false,
                         'multi_store' => false,
-                        // Platform-capability gate, not a store feature - see
-                        // laravel-server/AGENTS.md's admin delegation section.
-                        'broadcast_create' => true,
                     ]
                 ],
                 'starter' => [

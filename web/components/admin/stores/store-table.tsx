@@ -150,7 +150,7 @@ export function StoreTable({
               </div>
             </TableCell>
             <TableCell className="text-right pr-4 font-black text-slate-900 dark:text-white">
-              {store.revenue}
+              {store.revenue ?? "—"}
             </TableCell>
             <TableCell className="text-center">
               <Badge

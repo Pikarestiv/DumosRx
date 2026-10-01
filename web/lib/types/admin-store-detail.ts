@@ -34,7 +34,7 @@ export interface AdminStoreDetailActivity {
 
 export interface AdminStoreBusinessMetrics {
   revenue_raw: number;
-  revenue: string;
+  revenue?: string;
   order_count: number;
   average_order_value: string;
   average_order_value_raw: number;
@@ -88,7 +88,7 @@ export interface AdminStoreDetail {
   suspension_reason: string | null;
   is_demo: boolean;
   created_at: string | null;
-  revenue: string;
+  revenue?: string;
   owner: AdminStoreDetailOwner | null;
   subscription: AdminStoreDetailSubscription | null;
   account_manager: { id: string; name: string; email: string } | null;

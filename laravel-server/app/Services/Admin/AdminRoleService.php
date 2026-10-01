@@ -31,6 +31,7 @@ class AdminRoleService
     public function updateRolePermissions(string $roleSlug, array $permissionSlugs, string $actorId): Role
     {
         $role = Role::where('slug', $roleSlug)->firstOrFail();
+        $this->assertPlatformRole($role);
         $this->assertCatalogSubset($permissionSlugs);
 
         $before = $role->permissions()->whereIn('slug', User::DELEGATABLE_PERMISSIONS)->pluck('slug')->sort()->values()->all();
@@ -129,6 +130,13 @@ class AdminRoleService
         ]);
 
         return $user->fresh();
+    }
+
+    private function assertPlatformRole(Role $role): void
+    {
+        if (! in_array($role->slug, $this->platformRoleSlugs(), true)) {
+            throw ValidationException::withMessages(['role' => 'This role is not a platform role and cannot have delegated permissions.']);
+        }
     }
 
     private function assertCatalogSubset(array $permissionSlugs): void

@@ -30,11 +30,17 @@ class AdminRoleServiceTest extends TestCase
 
     public function test_lists_platform_roles_with_only_catalog_permissions_and_a_user_count(): void
     {
+        $agentRole = Role::where('slug', 'agent')->first();
+        $this->makeUser('agent', $agentRole->id);
+        $this->makeUser('agent', $agentRole->id);
+
         $roles = $this->service->listRoles();
         $platformAdmin = collect($roles)->firstWhere('slug', 'platform_admin');
+        $agent = collect($roles)->firstWhere('slug', 'agent');
 
         $this->assertContains('manage_account_status', $platformAdmin['permissions']->all());
         $this->assertNotContains('manage_platform', $platformAdmin['permissions']->all());
+        $this->assertSame(2, $agent['user_count']);
     }
 
     public function test_updates_a_roles_permissions_without_touching_its_non_catalog_permissions(): void
@@ -89,6 +95,23 @@ class AdminRoleServiceTest extends TestCase
         $this->expectException(ValidationException::class);
 
         $this->service->deleteRole('billing_agent', $this->actor->id);
+    }
+
+    public function test_refuses_to_delete_a_custom_role_held_only_via_the_legacy_role_string_column(): void
+    {
+        $this->service->createRole('Legacy Holdout', ['view_platform_data'], $this->actor->id);
+        $this->makeUser('legacy_holdout');
+
+        $this->expectException(ValidationException::class);
+
+        $this->service->deleteRole('legacy_holdout', $this->actor->id);
+    }
+
+    public function test_rejects_updating_permissions_on_a_store_level_role(): void
+    {
+        $this->expectException(ValidationException::class);
+
+        $this->service->updateRolePermissions('admin', ['view_platform_data'], $this->actor->id);
     }
 
     public function test_deletes_a_custom_role_once_no_user_holds_it(): void

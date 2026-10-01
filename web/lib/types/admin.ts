@@ -48,8 +48,13 @@ export interface AdminStoreSummary {
   status: string;
   /** Recent Stores only: a sync-recency signal ("Active"/"Away"/"Inactive"
    * based on how long since the device last synced), deliberately a
-   * separate field from `status` so it's never mistaken for account state. */
+   * separate field from `status` so it's never mistaken for account state.
+   * Drives the status dot's color; the human-readable text is
+   * `last_sync_human` below. */
   sync_status?: string;
+  /** Recent Stores only: "2 minutes ago" / "Never synced" — the text shown
+   * next to the sync_status dot, instead of the bucket name itself. */
+  last_sync_human?: string;
   date: string;
   stores?: number;
   revenue?: string;

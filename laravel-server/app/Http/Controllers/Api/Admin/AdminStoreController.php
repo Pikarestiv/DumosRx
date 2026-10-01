@@ -484,7 +484,6 @@ class AdminStoreController extends AdminBaseController
             'user_id' => $admin->id,
             'action' => 'ADMIN_IMPERSONATION_END',
             'description' => "Admin ended impersonation session",
-            'status' => 'success'
         ]);
 
         // Previously hand-rolled its own SameSite=None cookie call, AND put

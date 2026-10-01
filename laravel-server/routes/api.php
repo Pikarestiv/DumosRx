@@ -207,6 +207,7 @@ Route::prefix('v1')->group(function () {
             Route::get('/products', [AdminPlatformController::class, 'products'])->middleware('role:super_admin');
             Route::post('/products/standardize', [AdminPlatformController::class, 'standardize'])->middleware('role:super_admin');
             Route::get('/users', [AdminUserController::class, 'users'])->middleware('permission:view_platform_data');
+            Route::get('/users/{id}/permissions', [AdminUserController::class, 'effectivePermissions'])->middleware('role:super_admin');
             Route::post('/users', [AdminUserController::class, 'createPlatformAdmin'])->middleware('role:super_admin');
             Route::get('/health', [AdminPlatformController::class, 'health'])->middleware('role:super_admin');
             Route::get('/errors', [AdminPlatformController::class, 'errors'])->middleware('role:super_admin');

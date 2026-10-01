@@ -86,7 +86,11 @@ export function StoreOperationalMetricsCard({ store }: { store: AdminStoreDetail
     <DetailCard title="Operational Metrics" icon={<Activity className="h-4 w-4" />}>
       <div className="grid grid-cols-2 gap-4">
         <Field label="Staff Accounts" value={metrics.staff_count.toLocaleString()} />
-        <Field label="Registered Devices" value={metrics.device_count.toLocaleString()} />
+        {/* A-142: device_count can only ever be 0 or 1 (a single device_id
+            column, not a real per-device table), so it never actually
+            counts anything — show it as the yes/no it really is instead
+            of implying a count that would hide a store's other devices. */}
+        <Field label="Device Registered" value={metrics.device_count > 0 ? "Yes" : "No"} />
         <Field label="Device ID" value={metrics.device_id} mono />
         <Field label="Active Sessions" value={metrics.active_sessions.toLocaleString()} />
         <Field label="Last Active" value={metrics.last_active_human} />

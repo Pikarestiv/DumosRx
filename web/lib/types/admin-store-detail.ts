@@ -58,6 +58,8 @@ export interface AdminStoreOperationalMetrics {
   device_count: number;
   active_sessions: number;
   inventory: { products: number; categories: number; suppliers: number; customers: number };
+  stock_value_raw: number;
+  stock_value: string;
   stock_activity: {
     movements: number;
     movements_last_window: number;
@@ -122,6 +124,7 @@ export interface AdminStoreDetail {
     products: number;
     customers: number;
     sales: number;
+    stock_value: string;
   };
   /** Omitted entirely for a non-super_admin caller: both blocks carry money
    * figures, which only super_admin may see. */

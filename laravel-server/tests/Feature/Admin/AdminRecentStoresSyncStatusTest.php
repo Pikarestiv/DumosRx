@@ -54,5 +54,24 @@ class AdminRecentStoresSyncStatusTest extends TestCase
         $this->assertSame('Away', $stores['Stale']['sync_status']);
         $this->assertSame('Inactive', $stores['Abandoned']['sync_status']);
         $this->assertSame('Inactive', $stores['NeverSynced']['sync_status']);
+
+        $this->assertStringContainsString('minutes ago', $stores['Fresh']['last_sync_human']);
+        $this->assertStringContainsString('hours ago', $stores['Stale']['last_sync_human']);
+        $this->assertSame('Never synced', $stores['NeverSynced']['last_sync_human']);
+    }
+
+    /**
+     * A clock-skewed offline device can push a last_sync_at that is
+     * genuinely in the future (SyncController trusts the client's own
+     * clock verbatim); the dashboard must never show a future sync time.
+     */
+    public function test_a_future_last_sync_at_from_a_clock_skewed_device_is_clamped_to_now(): void
+    {
+        $this->storeLastSyncedAt(now()->addHours(6), 'ClockSkewed');
+
+        $store = $this->recentStores()['ClockSkewed'];
+
+        $this->assertSame('Active', $store['sync_status']);
+        $this->assertStringNotContainsString('from now', $store['last_sync_human']);
     }
 }

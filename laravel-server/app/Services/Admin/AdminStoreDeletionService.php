@@ -56,7 +56,6 @@ class AdminStoreDeletionService
                 'store_id' => $store->id,
                 'action' => 'STORE_ARCHIVED',
                 'description' => "Archived store: {$store->name} ({$store->id}). Reason: ".($reason ?: 'N/A'),
-                'status' => 'success',
             ]);
         });
 
@@ -87,7 +86,6 @@ class AdminStoreDeletionService
                 'action' => 'STORE_RESTORED',
                 'description' => "Restored archived store: {$store->name} ({$store->id})"
                     .$this->suspensionNote($store),
-                'status' => 'success',
             ]);
         });
 
@@ -144,9 +142,12 @@ class AdminStoreDeletionService
                 ActivityLog::create([
                     'user_id' => $actor->id,
                     'action' => 'STORE_PURGED',
-                    'description' => "Permanently deleted store: {$storeName} ({$storeId}). Rows removed: "
-                        .json_encode($removed),
-                    'status' => 'success',
+                    // A-146 (see docs/FIXED_BUGS.md): description is a
+                    // bounded VARCHAR(255); the structured breakdown goes
+                    // in `properties` instead. Still truncated defensively
+                    // here since `name` alone is validated up to 255 chars.
+                    'description' => mb_substr("Permanently deleted store: {$storeName} ({$storeId})", 0, 255),
+                    'properties' => ['rows_removed' => $removed],
                 ]);
             });
         });

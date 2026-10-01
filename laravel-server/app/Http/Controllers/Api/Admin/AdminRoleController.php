@@ -68,11 +68,7 @@ class AdminRoleController extends AdminBaseController
         }
 
         return $this->withErrorResponse('Update User Permission Overrides', 'Failed to update permission overrides', function () use ($validated, $id, $request) {
-            $user = null;
-            foreach ($validated['overrides'] as $slug => $granted) {
-                $user = $this->adminRoleService->setUserPermissionOverride($id, $slug, $granted, $request->user()->id);
-            }
-            $target = $user ?? User::findOrFail($id);
+            $target = $this->adminRoleService->setUserPermissionOverrides($id, $validated['overrides'], $request->user()->id);
             return response()->json(['user' => $target->append('effective_permissions')]);
         });
     }

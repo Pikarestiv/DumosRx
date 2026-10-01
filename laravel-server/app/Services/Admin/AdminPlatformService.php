@@ -62,14 +62,23 @@ class AdminPlatformService
                 // with this recency guess instead, so Recent Stores had no
                 // way to show the real account state and looked
                 // contradictory next to Fleet for the same store.
+                // A clock-skewed offline device can push a last_sync_at in
+                // the future (SyncController trusts the client's own clock);
+                // clamp it to now so this never reads as a future diff.
+                $lastSyncAt = $store->last_sync_at && $store->last_sync_at->isFuture()
+                    ? now()
+                    : $store->last_sync_at;
+
                 $syncStatus = 'Inactive';
-                if ($store->last_sync_at) {
-                    $minutesSinceSync = $store->last_sync_at->diffInMinutes(now());
+                $lastSyncHuman = 'Never synced';
+                if ($lastSyncAt) {
+                    $minutesSinceSync = $lastSyncAt->diffInMinutes(now());
                     if ($minutesSinceSync < 60) {
                         $syncStatus = 'Active';
                     } elseif ($minutesSinceSync < 1440) {
                         $syncStatus = 'Away';
                     }
+                    $lastSyncHuman = $lastSyncAt->diffForHumans();
                 }
 
                 return [
@@ -79,6 +88,7 @@ class AdminPlatformService
                     'plan' => ($store->user && $store->user->subscriptions->isNotEmpty()) ? ucwords($store->user->subscriptions->sortByDesc('created_at')->first()->plan_name) : 'Basic',
                     'status' => $store->status ?: 'Active',
                     'sync_status' => $syncStatus,
+                    'last_sync_human' => $lastSyncHuman,
                     'date' => $store->created_at->diffForHumans(),
                 ];
             });

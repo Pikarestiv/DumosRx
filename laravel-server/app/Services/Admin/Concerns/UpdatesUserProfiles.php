@@ -118,7 +118,6 @@ trait UpdatesUserProfiles
             'user_id' => $actorId,
             'action' => 'USER_PROFILE_UPDATED',
             'description' => 'Updated profile fields ('.implode(', ', array_keys($changes)).") for {$user->email} ({$user->id})",
-            'status' => 'success',
             'properties' => [
                 'before' => array_map(fn ($change) => $change['before'], $changes),
                 'after' => array_map(fn ($change) => $change['after'], $changes),

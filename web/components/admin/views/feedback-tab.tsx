@@ -18,8 +18,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { MessageSquare, Bug, Lightbulb, User, Clock, CheckCircle2, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceSafe } from "@/lib/utils/date-utils";
+import { useAdminAuthStore, checkIsSuperAdmin } from "@/lib/store/use-admin-auth-store";
 
 export function FeedbackTab() {
+  const { user } = useAdminAuthStore();
   const [filter, setFilter] = useState("all");
   const [page, setPage] = useState(1);
   const { data, isLoading } = useAdminFeedback(filter, page);
@@ -52,6 +54,12 @@ export function FeedbackTab() {
       default: return <Badge className="bg-amber-500/10 text-amber-500 hover:bg-amber-500/20">Pending</Badge>;
     }
   };
+
+  // A-135: this tab's only protection used to be its parent page's tab-level
+  // wrapper, deciding whether to render it at all — a future refactor, deep
+  // link, or default-tab change could re-expose it with no client-side
+  // warning. Carry the same check here so it never depends on the caller.
+  if (!checkIsSuperAdmin(user?.role)) return null;
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto py-6">

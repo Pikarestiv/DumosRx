@@ -110,6 +110,32 @@ class AdminRoleControllerTest extends TestCase
             ->assertForbidden();
     }
 
+    /**
+     * A-138: a mid-loop failure (here, a permission slug deleted
+     * concurrently between the client's own validation and the request
+     * being processed) must leave no override applied at all, not a
+     * partially-applied set from whichever writes happened before the
+     * failing one.
+     */
+    public function test_a_mid_loop_failure_leaves_no_permission_override_applied(): void
+    {
+        $target = $this->makeUser('agent', Role::where('slug', 'agent')->value('id'));
+
+        \App\Models\Permission::where('slug', 'reset_user_passwords')->delete();
+
+        $this->actingAs($this->superAdmin)
+            ->putJson("/api/v1/admin/users/{$target->id}/permission-overrides", [
+                'overrides' => [
+                    'impersonate_store' => true,
+                    'reset_user_passwords' => true,
+                ],
+            ])
+            ->assertStatus(500);
+
+        $this->assertFalse($target->fresh()->hasPermission('impersonate_store'));
+        $this->assertDatabaseMissing('permission_user', ['user_id' => $target->id]);
+    }
+
     private function makeUser(string $role, ?string $roleId = null): User
     {
         $user = User::create([

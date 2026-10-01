@@ -216,6 +216,101 @@ class AdminStoreSearchAndMetricsTest extends TestCase
         $this->assertNotNull($response->json('operational_metrics.last_active_at'));
     }
 
+    /**
+     * A clock-skewed offline POS device can push a created_at that is
+     * genuinely in the future (SyncController trusts the client's
+     * timestamp verbatim). "Last active" must never display a future time.
+     */
+    #[Test]
+    public function last_active_is_clamped_to_now_when_a_synced_record_is_timestamped_in_the_future()
+    {
+        $this->store->forceFill(['last_sync_at' => now()->addHours(6)])->save();
+
+        $response = $this->actingAs($this->superAdmin)
+            ->getJson('/api/v1/admin/stores/'.$this->store->id);
+
+        $response->assertStatus(200);
+
+        $lastActiveAt = \Illuminate\Support\Carbon::parse($response->json('operational_metrics.last_active_at'));
+        $this->assertTrue($lastActiveAt->lessThanOrEqualTo(now()));
+        $this->assertStringNotContainsString('from now', $response->json('operational_metrics.last_active_human'));
+
+        $this->assertStringNotContainsString('from now', $response->json('sync.last_sync_human'));
+    }
+
+    #[Test]
+    public function operational_metrics_report_the_stores_total_stock_value()
+    {
+        $productId = (string) \Illuminate\Support\Str::uuid();
+        DB::table('products')->insert([
+            'id' => $productId,
+            'name' => 'Paracetamol',
+            'store_id' => $this->store->id,
+            'selling_price' => 500,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('stock_batches')->insert([
+            'id' => (string) \Illuminate\Support\Str::uuid(),
+            'product_id' => $productId,
+            'store_id' => $this->store->id,
+            'user_id' => $this->owner->id,
+            'batch_number' => 'B-1',
+            'quantity' => 10,
+            'cost_price' => 250,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $response = $this->actingAs($this->superAdmin)
+            ->getJson('/api/v1/admin/stores/'.$this->store->id);
+
+        $response->assertStatus(200);
+        $this->assertEquals(2500, $response->json('operational_metrics.stock_value_raw'));
+        $this->assertSame('₦2,500', $response->json('counts.stock_value'));
+    }
+
+    /**
+     * stock_batches.store_id is not authoritative (frequently null/stale on
+     * real data) — the sync engine itself scopes stock_batches via
+     * product_id -> products.store_id (see SyncController's own comment on
+     * this). A batch with a null/wrong store_id must still count toward its
+     * product's store value, the same way it still counts for that store on
+     * pull().
+     */
+    #[Test]
+    public function stock_value_counts_a_batch_even_when_its_own_store_id_is_missing(): void
+    {
+        $productId = (string) \Illuminate\Support\Str::uuid();
+        DB::table('products')->insert([
+            'id' => $productId,
+            'name' => 'Amoxicillin',
+            'store_id' => $this->store->id,
+            'selling_price' => 500,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('stock_batches')->insert([
+            'id' => (string) \Illuminate\Support\Str::uuid(),
+            'product_id' => $productId,
+            'store_id' => null,
+            'user_id' => $this->owner->id,
+            'batch_number' => 'B-2',
+            'quantity' => 100,
+            'cost_price' => 300,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $response = $this->actingAs($this->superAdmin)
+            ->getJson('/api/v1/admin/stores/'.$this->store->id);
+
+        $response->assertStatus(200);
+        $this->assertEquals(30000, $response->json('operational_metrics.stock_value_raw'));
+    }
+
     #[Test]
     public function trading_days_are_counted_against_the_stores_own_calendar_day()
     {
@@ -263,5 +358,65 @@ class AdminStoreSearchAndMetricsTest extends TestCase
         $this->assertSame(0, $response->json('business_metrics.active_days'));
         $this->assertSame(0, $response->json('operational_metrics.inventory.products'));
         $this->assertSame(0, $response->json('operational_metrics.stock_activity.movements'));
+    }
+
+    /**
+     * A-144: `counts.products`/`counts.customers` read straight off the
+     * table with no deleted_at filter, disagreeing by exactly the
+     * soft-deleted row count with operational_metrics.inventory's
+     * countScoped(), which does filter it. A soft-deleted row is not part
+     * of the store's live catalog and must not be counted by either path.
+     */
+    #[Test]
+    public function soft_deleted_products_and_customers_are_excluded_from_every_count(): void
+    {
+        DB::table('products')->insert([
+            'id' => (string) \Illuminate\Support\Str::uuid(),
+            'name' => 'Live Product',
+            'store_id' => $this->store->id,
+            'selling_price' => 500,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('products')->insert([
+            'id' => (string) \Illuminate\Support\Str::uuid(),
+            'name' => 'Deleted Product',
+            'store_id' => $this->store->id,
+            'selling_price' => 500,
+            'created_at' => now(),
+            'updated_at' => now(),
+            'deleted_at' => now(),
+        ]);
+
+        DB::table('customers')->insert([
+            'id' => (string) \Illuminate\Support\Str::uuid(),
+            'first_name' => 'Live',
+            'last_name' => 'Customer',
+            'store_id' => $this->store->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('customers')->insert([
+            'id' => (string) \Illuminate\Support\Str::uuid(),
+            'first_name' => 'Deleted',
+            'last_name' => 'Customer',
+            'store_id' => $this->store->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+            'deleted_at' => now(),
+        ]);
+
+        $response = $this->actingAs($this->superAdmin)
+            ->getJson('/api/v1/admin/stores/'.$this->store->id);
+
+        $response->assertStatus(200);
+        $this->assertSame(1, $response->json('counts.products'));
+        $this->assertSame(1, $response->json('counts.customers'));
+        $this->assertSame(
+            $response->json('counts.products'),
+            $response->json('operational_metrics.inventory.products'),
+        );
     }
 }

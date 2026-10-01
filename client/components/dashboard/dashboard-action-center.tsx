@@ -2,12 +2,47 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { BellRing } from "lucide-react";
+import {
+  BellRing,
+  Timer,
+  ShieldOff,
+  UserX,
+  Store,
+  PackageSearch,
+  Siren,
+  CalendarClock,
+  CalendarX,
+  Smartphone,
+  CloudUpload,
+  CloudOff,
+  Download,
+} from "lucide-react";
 import { Card } from "@/components/ui/card";
 import {
   useActionCenterAlerts,
   type AlertItem,
 } from "@/lib/hooks/use-action-center-alerts";
+
+// A larger, more evocative icon per alert type for the card's background
+// decoration — deliberately distinct from the small corner badge icon
+// (use-action-center-alerts.ts's `icon`), which stays generic/consistent
+// across priorities. Falls back to the alert's own icon for any id not
+// listed here, so a future alert type never renders without a backdrop.
+const BACKDROP_ICONS: Record<string, React.ElementType> = {
+  "cloud-sync": CloudOff,
+  "subscription-expired": ShieldOff,
+  "subscription-expiring": Timer,
+  "no-staff": UserX,
+  "profile-incomplete": Store,
+  "profile-missing": Store,
+  "expiring-soon": CalendarClock,
+  "low-stock": PackageSearch,
+  oversold: Siren,
+  "missing-expiry": CalendarX,
+  "add-widget": Smartphone,
+  "get-the-app": Download,
+  "pending-sync": CloudUpload,
+};
 
 export interface ActionCenterProps {
   expiringCount: number;
@@ -20,6 +55,7 @@ export interface ActionCenterProps {
 function ActionCenterCard({ alert }: { alert: AlertItem }) {
   const router = useRouter();
   const Icon = alert.icon;
+  const BackdropIcon = BACKDROP_ICONS[alert.id] ?? alert.icon;
 
   const bgStyles = {
     critical: "bg-destructive/10 border-destructive/20 text-destructive",
@@ -39,6 +75,9 @@ function ActionCenterCard({ alert }: { alert: AlertItem }) {
       }}
       className={`w-full h-[80px] border cursor-pointer hover:shadow-md transition-shadow duration-200 group relative overflow-hidden flex flex-col justify-center ${bgStyles[alert.priority]}`}
     >
+      {/* Decorative backdrop icon, per alert type */}
+      <BackdropIcon className="absolute -right-3 -bottom-3 h-16 w-16 opacity-10 group-hover:opacity-15 transition-opacity pointer-events-none" />
+
       {/* Decorative gradient overlay */}
       <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-transparent dark:from-black/20 pointer-events-none" />
 

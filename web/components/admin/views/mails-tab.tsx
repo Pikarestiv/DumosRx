@@ -20,9 +20,11 @@ import { webApiClient } from "@/lib/api/client";
 import { UserSelector } from "@/components/admin/user-selector";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useAdminUsers } from "@/lib/api/admin-hooks";
+import { useAdminAuthStore, checkIsSuperAdmin } from "@/lib/store/use-admin-auth-store";
 import type { AdminUser } from "@/lib/types/admin";
 
 export function MailsTab() {
+  const { user } = useAdminAuthStore();
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
   const [targetType, setTargetType] = useState<"all" | "specific">("all");
@@ -77,6 +79,12 @@ export function MailsTab() {
       user_ids: selectedUsers.map((u) => u.id),
     });
   };
+
+  // A-135: this tab's only protection used to be its parent page's tab-level
+  // wrapper, deciding whether to render it at all — a future refactor, deep
+  // link, or default-tab change could re-expose it with no client-side
+  // warning. Carry the same check here so it never depends on the caller.
+  if (!checkIsSuperAdmin(user?.role)) return null;
 
   return (
     <Card className="bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm border-slate-200 dark:border-slate-800 animate-in fade-in slide-in-from-bottom-4 duration-500">

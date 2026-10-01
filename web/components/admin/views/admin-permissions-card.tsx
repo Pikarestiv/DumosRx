@@ -21,7 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { ShieldCheck, Trash2, Plus, Loader2 } from "lucide-react";
+import { ShieldCheck, Trash2, Plus, Loader2, Save, Undo2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   useAdminRoles,
@@ -42,27 +42,79 @@ export function AdminPermissionsCard() {
   const [newRoleName, setNewRoleName] = useState("");
   const [newRolePermissions, setNewRolePermissions] = useState<string[]>([]);
   const [roleToDelete, setRoleToDelete] = useState<AdminRole | null>(null);
-  const [pendingRoleSlug, setPendingRoleSlug] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  // A-137: one mis-click used to write a role's permissions through
+  // immediately — instantly revoking a capability for every admin holding
+  // that role, platform-wide, with no confirm and no undo. Edits now
+  // accumulate here, keyed by role slug, and only take effect once the
+  // operator explicitly saves; `role.permissions` itself stays the
+  // source of truth until then.
+  const [pendingByRole, setPendingByRole] = useState<Record<string, string[]>>({});
 
   const roles = data?.roles ?? [];
+  const pendingRoleSlugs = Object.keys(pendingByRole);
+  const hasPendingChanges = pendingRoleSlugs.length > 0;
 
-  const togglePermission = async (role: AdminRole, permissionValue: string, checked: boolean) => {
-    const nextPermissions = checked
-      ? [...role.permissions, permissionValue]
-      : role.permissions.filter((permission) => permission !== permissionValue);
+  const displayedPermissions = (role: AdminRole) => pendingByRole[role.slug] ?? role.permissions;
 
-    setPendingRoleSlug(role.slug);
+  const togglePermission = (role: AdminRole, permissionValue: string, checked: boolean) => {
+    const current = displayedPermissions(role);
+    const next = checked
+      ? [...current, permissionValue]
+      : current.filter((permission) => permission !== permissionValue);
+
+    setPendingByRole((state) => {
+      const { [role.slug]: _discard, ...rest } = state;
+      const unchanged =
+        next.length === role.permissions.length &&
+        next.every((permission) => role.permissions.includes(permission));
+      return unchanged ? rest : { ...rest, [role.slug]: next };
+    });
+  };
+
+  const discardPendingChanges = () => setPendingByRole({});
+
+  const saveAllPendingChanges = async () => {
+    setIsSaving(true);
+    // Tracked by slug, not name: a role staged for a change can be deleted
+    // out from under this form by another admin/tab before Save runs, and
+    // a slug is the one identifier still meaningful once the role itself
+    // is gone — matching failures back to pending state by name silently
+    // dropped exactly that edit while still reporting success.
+    const failedSlugs: string[] = [];
     try {
-      await updatePermissionsMutation.mutateAsync({
-        slug: role.slug,
-        permissions: nextPermissions,
-      });
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : `Failed to update ${role.name}'s permissions`,
-      );
+      for (const slug of pendingRoleSlugs) {
+        const role = roles.find((r) => r.slug === slug);
+        if (!role) {
+          failedSlugs.push(slug);
+          continue;
+        }
+        try {
+          await updatePermissionsMutation.mutateAsync({
+            slug,
+            permissions: pendingByRole[slug],
+          });
+        } catch (_error) {
+          failedSlugs.push(slug);
+        }
+      }
+
+      if (failedSlugs.length === 0) {
+        toast.success("Permission changes saved");
+        setPendingByRole({});
+      } else {
+        const failedNames = failedSlugs.map(
+          (slug) => roles.find((r) => r.slug === slug)?.name ?? `${slug} (role no longer exists)`,
+        );
+        toast.error(`Failed to save: ${failedNames.join(", ")}`);
+        // Drop only the roles that saved successfully; leave the failed
+        // ones pending so the operator doesn't lose the edit.
+        setPendingByRole((state) =>
+          Object.fromEntries(Object.entries(state).filter(([slug]) => failedSlugs.includes(slug))),
+        );
+      }
     } finally {
-      setPendingRoleSlug(null);
+      setIsSaving(false);
     }
   };
 
@@ -187,6 +239,32 @@ export function AdminPermissionsCard() {
             </div>
           )}
 
+          {hasPendingChanges && (
+            <div className="flex items-center justify-between gap-4 p-4 rounded-lg border border-amber-300 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/40">
+              <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                Unsaved permission changes for{" "}
+                {pendingRoleSlugs
+                  .map((slug) => roles.find((role) => role.slug === slug)?.name ?? slug)
+                  .join(", ")}
+                . Nothing takes effect until you save.
+              </p>
+              <div className="flex gap-2 shrink-0">
+                <Button variant="ghost" onClick={discardPendingChanges} disabled={isSaving}>
+                  <Undo2 className="w-4 h-4 mr-2" />
+                  Discard
+                </Button>
+                <Button onClick={() => void saveAllPendingChanges()} disabled={isSaving}>
+                  {isSaving ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Save className="w-4 h-4 mr-2" />
+                  )}
+                  Save changes
+                </Button>
+              </div>
+            </div>
+          )}
+
           <Table>
             <TableHeader>
               <TableRow>
@@ -194,7 +272,14 @@ export function AdminPermissionsCard() {
                 {roles.map((role) => (
                   <TableHead key={role.id}>
                     <div className="flex items-center justify-between gap-2">
-                      <span>{role.name}</span>
+                      <span>
+                        {role.name}
+                        {pendingByRole[role.slug] && (
+                          <span className="ml-1.5 text-amber-600 dark:text-amber-400" title="Unsaved changes">
+                            •
+                          </span>
+                        )}
+                      </span>
                       {!role.is_system && (
                         <Button
                           type="button"
@@ -230,10 +315,11 @@ export function AdminPermissionsCard() {
                     <TableCell key={role.id}>
                       <Checkbox
                         aria-label={`${permission.label} for ${role.name}`}
-                        checked={role.permissions.includes(permission.value)}
-                        disabled={pendingRoleSlug === role.slug}
+                        checked={displayedPermissions(role).includes(permission.value)}
+                        disabled={isSaving}
+                        className={pendingByRole[role.slug] ? "border-amber-500" : undefined}
                         onCheckedChange={(checked) =>
-                          void togglePermission(role, permission.value, checked === true)
+                          togglePermission(role, permission.value, checked === true)
                         }
                       />
                     </TableCell>

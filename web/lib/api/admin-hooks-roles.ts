@@ -21,6 +21,21 @@ export const useAdminRoles = (enabled = true) => {
   });
 };
 
+/**
+ * One user's effective_permissions, fetched on demand for the per-admin
+ * permission-override form — deliberately NOT part of the paginated
+ * GET /admin/users list, which would re-run this N+1-prone accessor per
+ * row of every page (see laravel-server's b7a39eea commit).
+ */
+export const useAdminUserEffectivePermissions = (userId: string | undefined, enabled = true) => {
+  return useQuery({
+    queryKey: useScopedKey(["admin-user-effective-permissions", userId]),
+    queryFn: () =>
+      webApiClient.request<{ effective_permissions: string[] }>(`admin/users/${userId}/permissions`),
+    enabled: enabled && !!userId,
+  });
+};
+
 export const useCreateRoleMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({

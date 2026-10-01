@@ -7,7 +7,6 @@ use App\Models\ActivityLog;
 use App\Models\Store;
 use App\Models\Subscription;
 use App\Models\User;
-use Illuminate\Support\Facades\DB;
 
 /**
  * The single-store payload behind the admin panel's Store Details page.
@@ -44,6 +43,8 @@ class AdminStoreDetailService
 
         $owner = $store->user;
         $manager = AccountManagerController::resolveFor($owner);
+        $lastSyncAt = $this->metricsService->clampToNow($store->last_sync_at);
+        $operationalMetrics = $this->metricsService->operationalMetrics($store);
 
         $payload = [
             'id' => $store->id,
@@ -75,8 +76,8 @@ class AdminStoreDetailService
                 'device_id' => $store->device_id,
                 'auto_sync_enabled' => (bool) $store->auto_sync_enabled,
                 'auto_sync_interval' => $store->auto_sync_interval,
-                'last_sync_at' => $store->last_sync_at?->toIso8601String(),
-                'last_sync_human' => $store->last_sync_at?->diffForHumans() ?? 'Never',
+                'last_sync_at' => $lastSyncAt?->toIso8601String(),
+                'last_sync_human' => $lastSyncAt ? $lastSyncAt->diffForHumans() : 'Never',
             ],
             'storefront' => [
                 'online_store_enabled' => (bool) $store->online_store_enabled,
@@ -97,8 +98,8 @@ class AdminStoreDetailService
             'is_archived' => $store->trashed(),
             'archived_at' => $store->deleted_at?->format('M d, Y'),
             'deletion_reason' => $store->deletion_reason,
-            'counts' => $this->countsPayload($store),
-            'operational_metrics' => $this->metricsService->operationalMetrics($store),
+            'counts' => $this->countsPayload($store, $operationalMetrics),
+            'operational_metrics' => $operationalMetrics,
             'recent_activity' => $this->recentActivity($store->id),
         ];
 
@@ -158,13 +159,22 @@ class AdminStoreDetailService
         ];
     }
 
-    private function countsPayload(Store $store): array
+    /**
+     * A-144: 'products'/'customers' here used to read DB::table()->where()
+     * directly, with no deleted_at filter — disagreeing by exactly the
+     * soft-deleted row count with operational_metrics.inventory, which does
+     * filter it. Reads straight off the already-computed $operationalMetrics
+     * instead of re-querying, so the two can never again quote two
+     * different counts for the same store.
+     */
+    private function countsPayload(Store $store, array $operationalMetrics): array
     {
         return [
             'staff' => User::where('store_id', $store->id)->where('id', '!=', $store->user_id)->count(),
-            'products' => DB::table('products')->where('store_id', $store->id)->count(),
-            'customers' => DB::table('customers')->where('store_id', $store->id)->count(),
+            'products' => $operationalMetrics['inventory']['products'],
+            'customers' => $operationalMetrics['inventory']['customers'],
             'sales' => $this->metricsService->salesQuery($store)->count(),
+            'stock_value' => $operationalMetrics['stock_value'],
         ];
     }
 

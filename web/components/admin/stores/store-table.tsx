@@ -61,9 +61,11 @@ export function StoreTable({
           <TableHead className="font-bold text-[10px] uppercase text-slate-400 text-center h-12">
             Fleet Size
           </TableHead>
-          <TableHead className="font-bold text-[10px] uppercase text-slate-400 text-right h-12">
-            Total Revenue
-          </TableHead>
+          {isSuperAdmin && (
+            <TableHead className="font-bold text-[10px] uppercase text-slate-400 text-right h-12">
+              Total Revenue
+            </TableHead>
+          )}
           <TableHead className="font-bold text-[10px] uppercase text-slate-400 text-center h-12">
             Status
           </TableHead>
@@ -155,9 +157,11 @@ export function StoreTable({
                 <StoreIcon className="h-3 w-3 text-slate-400" />
               </div>
             </TableCell>
-            <TableCell className="text-right pr-4 font-black text-slate-900 dark:text-white">
-              {store.revenue ?? "—"}
-            </TableCell>
+            {isSuperAdmin && (
+              <TableCell className="text-right pr-4 font-black text-slate-900 dark:text-white">
+                {store.revenue ?? "—"}
+              </TableCell>
+            )}
             <TableCell className="text-center">
               <Badge
                 className={
@@ -193,7 +197,7 @@ export function StoreTable({
         ))}
         {storeList.length === 0 && !isLoading && (
           <TableRow>
-            <TableCell colSpan={7} className="text-center py-20 text-slate-400 font-medium">
+            <TableCell colSpan={isSuperAdmin ? 7 : 6} className="text-center py-20 text-slate-400 font-medium">
               <div className="flex flex-col items-center gap-2">
                 <StoreIcon className="h-10 w-10 opacity-20" />
                 <span>No stores match your search criteria</span>

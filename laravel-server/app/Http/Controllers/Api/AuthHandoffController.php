@@ -69,6 +69,6 @@ class AuthHandoffController extends Controller
             return response()->json(['error' => 'Token no longer valid.'], 403);
         }
 
-        return response()->json(['token' => $token, 'user' => $user]);
+        return response()->json(['token' => $token, 'user' => $user->append('effective_permissions')]);
     }
 }

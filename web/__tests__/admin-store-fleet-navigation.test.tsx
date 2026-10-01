@@ -16,6 +16,9 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/lib/store/use-admin-auth-store", () => ({
   useAdminAuthStore: () => ({ user: { role: "super_admin" } }),
   checkIsSuperAdmin: (role?: string) => role === "super_admin",
+  checkHasPermission: (
+    user: { role?: string; effective_permissions?: string[] } | null | undefined,
+  ) => user?.role === "super_admin",
 }));
 
 const store: AdminStoreSummary = {
@@ -108,6 +111,12 @@ describe("Store Fleet row navigation", () => {
     renderTable({ is_archived: true });
 
     expect(screen.getByText("Archived")).toBeInTheDocument();
+  });
+
+  it("shows a placeholder instead of a blank cell when revenue is withheld (agent/platform_admin caller)", () => {
+    renderTable({ revenue: undefined });
+
+    expect(screen.getByText("—")).toBeInTheDocument();
   });
 });
 

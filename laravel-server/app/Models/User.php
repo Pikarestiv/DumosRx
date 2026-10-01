@@ -19,6 +19,27 @@ class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable, HasUuids, SoftDeletes;
 
+    public const DELEGATABLE_PERMISSIONS = [
+        'view_platform_data',
+        'send_notifications',
+        'reset_user_passwords',
+        'manage_account_status',
+        'impersonate_store',
+    ];
+
+    public const PRE_EXISTING_DELEGATED_PERMISSIONS = [
+        'create_accounts',
+        'grant_trials',
+    ];
+
+    public const PLATFORM_ACCESS_PERMISSION = 'manage_platform';
+
+    public const SERIALIZED_PERMISSIONS = [
+        ...self::DELEGATABLE_PERMISSIONS,
+        ...self::PRE_EXISTING_DELEGATED_PERMISSIONS,
+        self::PLATFORM_ACCESS_PERMISSION,
+    ];
+
     /**
      * The attributes that are mass assignable.
      *
@@ -139,6 +160,18 @@ class User extends Authenticatable
         return \App\Models\SystemConfig::getVal('require_email_verification', false) === true || \App\Models\SystemConfig::getVal('require_email_verification', false) === 'true';
     }
 
+    public function getEffectivePermissionsAttribute(): array
+    {
+        if ($this->hasRole('super_admin')) {
+            return [];
+        }
+
+        return array_values(array_filter(
+            self::SERIALIZED_PERMISSIONS,
+            fn (string $slug) => $this->hasPermission($slug),
+        ));
+    }
+
     public function store()
     {
         return $this->hasOne(Store::class);
@@ -184,7 +217,7 @@ class User extends Authenticatable
     }
     public function permissions()
     {
-        return $this->belongsToMany(Permission::class);
+        return $this->belongsToMany(Permission::class)->withPivot('granted');
     }
 
     public function hasRole($role)
@@ -212,9 +245,14 @@ class User extends Authenticatable
 
     public function hasPermission($permissionSlug)
     {
-        // Check direct permission first
-        if ($this->permissions()->where('slug', $permissionSlug)->exists()) {
+        if ($this->hasRole('super_admin')) {
             return true;
+        }
+
+        // Check direct permission first
+        $directGrant = $this->permissions()->where('slug', $permissionSlug)->first();
+        if ($directGrant) {
+            return (bool) $directGrant->pivot->granted;
         }
 
         // Check through role relation

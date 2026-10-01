@@ -38,6 +38,12 @@ class RolesAndPermissionsSeeder extends Seeder
             // create accounts but not comp them; only super_admin/platform_admin
             // decide who gets a free trial.
             'grant_trials' => 'Can grant free trial subscriptions to a store',
+            // Delegatable: revocable per-user via permission_user.granted.
+            'view_platform_data' => 'View stores, platform users and activity logs',
+            'send_notifications' => 'Send user notifications and manage broadcasts',
+            'reset_user_passwords' => "Force-reset a user's password",
+            'manage_account_status' => 'Suspend/reactivate a store or user',
+            'impersonate_store' => "View a store's data as if logged in as them",
         ];
 
         foreach ($permissions as $slug => $desc) {
@@ -63,7 +69,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'platform_admin' => [
                 'name' => 'Platform Admin',
                 'description' => 'Platform partner/co-founder: manages accounts and trials, not platform administration itself',
-                'permissions' => ['manage_platform', 'create_accounts', 'grant_trials']
+                'permissions' => ['manage_platform', 'create_accounts', 'grant_trials', 'view_platform_data', 'send_notifications', 'reset_user_passwords', 'manage_account_status', 'impersonate_store']
             ],
             // Platform-level (no store of their own): field agents recruited to
             // onboard new pharmacies. Narrower than platform_admin: can create
@@ -72,7 +78,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'agent' => [
                 'name' => 'Agent',
                 'description' => 'Recruited installer/onboarding agent: registers new stores and tracks their own referrals',
-                'permissions' => ['manage_platform', 'create_accounts']
+                'permissions' => ['manage_platform', 'create_accounts', 'view_platform_data', 'send_notifications']
             ],
             'admin' => [
                 'name' => 'Store Admin',

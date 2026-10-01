@@ -34,7 +34,7 @@ export interface AdminStoreDetailActivity {
 
 export interface AdminStoreBusinessMetrics {
   revenue_raw: number;
-  revenue: string;
+  revenue?: string;
   order_count: number;
   average_order_value: string;
   average_order_value_raw: number;
@@ -88,7 +88,7 @@ export interface AdminStoreDetail {
   suspension_reason: string | null;
   is_demo: boolean;
   created_at: string | null;
-  revenue: string;
+  revenue?: string;
   owner: AdminStoreDetailOwner | null;
   subscription: AdminStoreDetailSubscription | null;
   account_manager: { id: string; name: string; email: string } | null;
@@ -123,8 +123,10 @@ export interface AdminStoreDetail {
     customers: number;
     sales: number;
   };
-  business_metrics: AdminStoreBusinessMetrics;
+  /** Omitted entirely for a non-super_admin caller: both blocks carry money
+   * figures, which only super_admin may see. */
+  business_metrics?: AdminStoreBusinessMetrics;
   operational_metrics: AdminStoreOperationalMetrics;
-  recent_transactions: AdminBillingTransaction[];
+  recent_transactions?: AdminBillingTransaction[];
   recent_activity: AdminStoreDetailActivity[];
 }

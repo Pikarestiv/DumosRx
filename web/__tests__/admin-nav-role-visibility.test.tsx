@@ -32,6 +32,14 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/lib/store/use-admin-auth-store", () => ({
   useAdminAuthStore: () => ({ user: authState.user, logout: vi.fn() }),
   checkIsSuperAdmin: (role?: string) => role === "super_admin",
+  checkHasPermission: (
+    user: { role?: string; effective_permissions?: string[] } | null | undefined,
+    permission: string,
+  ) => {
+    if (!user) return false;
+    if (user.role === "super_admin") return true;
+    return (user.effective_permissions ?? []).includes(permission);
+  },
 }));
 
 vi.mock("@/lib/store/use-admin-store", () => ({
@@ -76,7 +84,9 @@ const superAdminOnlyNames = () =>
 describe("visibleSidebarItems", () => {
   it("hides super_admin-only items from agents and platform admins", () => {
     for (const role of ["agent", "platform_admin"]) {
-      const ids = visibleSidebarItems(role).map((item) => item.id);
+      const ids = visibleSidebarItems({ role, effective_permissions: [] }).map(
+        (item) => item.id,
+      );
       expect(ids).toContain("register-store");
       expect(ids).toContain("referrals");
       expect(ids).not.toContain("settings");
@@ -86,14 +96,16 @@ describe("visibleSidebarItems", () => {
   });
 
   it("hides the agent-only registration shortcut from super_admin", () => {
-    const ids = visibleSidebarItems("super_admin").map((item) => item.id);
+    const ids = visibleSidebarItems({ role: "super_admin" }).map(
+      (item) => item.id,
+    );
     expect(ids).not.toContain("register-store");
     expect(ids).toContain("settings");
   });
 
   it("returns nothing for an unknown or missing role", () => {
     expect(visibleSidebarItems(undefined)).toEqual([]);
-    expect(visibleSidebarItems("store_owner")).toEqual([]);
+    expect(visibleSidebarItems({ role: "store_owner" })).toEqual([]);
   });
 });
 

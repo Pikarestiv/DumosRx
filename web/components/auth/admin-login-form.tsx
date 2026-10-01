@@ -9,6 +9,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { webApiClient } from "@/lib/api/client";
 import { motion } from "framer-motion";
 import { useAdminAuthStore, checkCanAccessAdmin, checkIsSuperAdmin } from "@/lib/store/use-admin-auth-store";
+import { visibleSidebarItems } from "@/components/admin/sidebar-items";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -62,7 +63,7 @@ export function AdminLoginForm() {
     try {
       const response = await webApiClient.login(values);
       
-      if (!checkCanAccessAdmin(response.user.role)) {
+      if (!checkCanAccessAdmin(response.user)) {
         // The credentials themselves were valid, so the server has already
         // minted an access token and (device_name: "web") a drx_admin_session
         // refresh cookie. Rejecting purely client-side would leave both alive
@@ -81,8 +82,13 @@ export function AdminLoginForm() {
       setToken(response.token);
       setUser(response.user);
       // Overview (/admin) is super_admin-only (admin/summary requires it
-      // server-side): platform_admin/agent would land on a 403 immediately.
-      const fallback = checkIsSuperAdmin(response.user.role) ? "/admin" : "/admin/referrals";
+      // server-side): any other role would land on a 403 immediately.
+      // A hardcoded "/admin/referrals" fallback locked out a custom platform
+      // role with no referrals access and no sidebar entry for it (A-141) -
+      // land on whichever page this user's own nav actually shows instead.
+      const fallback = checkIsSuperAdmin(response.user.role)
+        ? "/admin"
+        : (visibleSidebarItems(response.user)[0]?.href ?? "/admin/referrals");
       router.push(resolveRedirect(searchParams?.get("redirect") ?? null, fallback));
       // Left `loading` true on success: see LoginForm for why.
     } catch (err) {

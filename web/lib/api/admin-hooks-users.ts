@@ -4,6 +4,7 @@ import { useScopedKey } from "./query-scope";
 import type {
   AdminAccountType,
   AdminUser,
+  AdminUserProfileUpdate,
   PaginatedResponse,
   PlatformReferrals,
 } from "@/lib/types/admin";
@@ -151,6 +152,18 @@ export const useCreatePlatformAdminMutation = () => {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["admin-users"] });
       void queryClient.invalidateQueries({ queryKey: ["admin-summary"] });
+    },
+  });
+};
+
+export const useUpdateUserProfileMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: AdminUserProfileUpdate }) =>
+      webApiClient.request<unknown>(`admin/users/${id}`, { method: "PUT", body: payload }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-store-staff"] });
     },
   });
 };

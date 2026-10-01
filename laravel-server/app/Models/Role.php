@@ -12,7 +12,11 @@ class Role extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name', 'slug', 'description'];
+    protected $fillable = ['name', 'slug', 'description', 'is_system'];
+
+    protected $casts = [
+        'is_system' => 'boolean',
+    ];
 
     public function users()
     {

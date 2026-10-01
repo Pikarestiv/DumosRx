@@ -42,6 +42,7 @@ import { formatDateSafe } from "@/lib/utils/date-utils";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useDeleteBroadcastMutation } from "@/lib/api/admin-hooks";
+import { useAdminAuthStore, checkHasPermission } from "@/lib/store/use-admin-auth-store";
 import type { AdminBroadcast, AdminUser, BroadcastFormData } from "@/lib/types/admin";
 
 const TYPE_FILTERS = [
@@ -67,6 +68,8 @@ const broadcastStatus = (broadcast: AdminBroadcast): "live" | "inactive" | "expi
 };
 
 export function BroadcastsTab() {
+  const { user: viewerUser } = useAdminAuthStore();
+  const canSendNotifications = checkHasPermission(viewerUser, "send_notifications");
   const queryClient = useQueryClient();
   const { data: response, isLoading } = useQuery({
     queryKey: ["admin-broadcasts"],
@@ -226,26 +229,28 @@ export function BroadcastsTab() {
             Send global alerts and updates to all connected instances
           </p>
         </div>
-        <Button 
-          className="bg-indigo-600 hover:bg-indigo-700 font-bold shadow-lg shadow-indigo-600/20 rounded-2xl h-12"
-          onClick={() => {
-            setSelectedUsers([]);
-            setFormData({
-              title: "",
-              message: "",
-              type: "info",
-              target_type: "all",
-              user_ids: [],
-              expires_at: "",
-              is_active: true,
-              send_email: false
-            });
-            setIsCreateOpen(true);
-          }}
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          New Broadcast
-        </Button>
+        {canSendNotifications && (
+          <Button
+            className="bg-indigo-600 hover:bg-indigo-700 font-bold shadow-lg shadow-indigo-600/20 rounded-2xl h-12"
+            onClick={() => {
+              setSelectedUsers([]);
+              setFormData({
+                title: "",
+                message: "",
+                type: "info",
+                target_type: "all",
+                user_ids: [],
+                expires_at: "",
+                is_active: true,
+                send_email: false
+              });
+              setIsCreateOpen(true);
+            }}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            New Broadcast
+          </Button>
+        )}
       </div>
 
       <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
@@ -369,58 +374,60 @@ export function BroadcastsTab() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
-                            <MoreVertical className="h-4 w-4 text-slate-400" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-48 rounded-xl border-slate-200 dark:border-slate-800 p-1">
-                          <DropdownMenuItem 
-                            className="rounded-lg gap-2 font-bold cursor-pointer"
-                            onClick={() => {
-                              setSelectedBroadcast(broadcast);
-                              // The selector only has ids to work from here, so
-                              // it starts empty; the existing ids are kept in
-                              // formData until the admin picks a new set.
-                              setSelectedUsers([]);
-                              setFormData({
-                                title: broadcast.title,
-                                message: broadcast.message,
-                                type: broadcast.type,
-                                target_type: broadcast.target_type || "all",
-                                user_ids: broadcast.user_ids || [],
-                                // Robust to both "2026-01-01T00:00:00Z" and
-                                // "2026-01-01 00:00:00" (and to garbage).
-                                expires_at: formatDateSafe(broadcast.expires_at, "yyyy-MM-dd", ""),
-                                is_active: broadcast.is_active,
-                                send_email: broadcast.send_email ?? false
-                              });
-                              setIsEditOpen(true);
-                            }}
-                          >
-                            <Edit className="h-4 w-4 text-indigo-500" />
-                            Edit Broadcast
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            className="rounded-lg gap-2 font-bold cursor-pointer"
-                            onClick={() => void handleToggle(broadcast.id)}
-                          >
-                            {broadcast.is_active ? (
-                              <><XCircle className="h-4 w-4 text-amber-500" /> Deactivate</>
-                            ) : (
-                              <><CheckCircle className="h-4 w-4 text-emerald-500" /> Activate</>
-                            )}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            className="rounded-lg gap-2 font-bold text-rose-500 hover:text-rose-600 hover:bg-rose-50 cursor-pointer"
-                            onClick={() => handleDelete(broadcast.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                            Delete Permanent
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      {canSendNotifications && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
+                              <MoreVertical className="h-4 w-4 text-slate-400" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-48 rounded-xl border-slate-200 dark:border-slate-800 p-1">
+                            <DropdownMenuItem
+                              className="rounded-lg gap-2 font-bold cursor-pointer"
+                              onClick={() => {
+                                setSelectedBroadcast(broadcast);
+                                // The selector only has ids to work from here, so
+                                // it starts empty; the existing ids are kept in
+                                // formData until the admin picks a new set.
+                                setSelectedUsers([]);
+                                setFormData({
+                                  title: broadcast.title,
+                                  message: broadcast.message,
+                                  type: broadcast.type,
+                                  target_type: broadcast.target_type || "all",
+                                  user_ids: broadcast.user_ids || [],
+                                  // Robust to both "2026-01-01T00:00:00Z" and
+                                  // "2026-01-01 00:00:00" (and to garbage).
+                                  expires_at: formatDateSafe(broadcast.expires_at, "yyyy-MM-dd", ""),
+                                  is_active: broadcast.is_active,
+                                  send_email: broadcast.send_email ?? false
+                                });
+                                setIsEditOpen(true);
+                              }}
+                            >
+                              <Edit className="h-4 w-4 text-indigo-500" />
+                              Edit Broadcast
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="rounded-lg gap-2 font-bold cursor-pointer"
+                              onClick={() => void handleToggle(broadcast.id)}
+                            >
+                              {broadcast.is_active ? (
+                                <><XCircle className="h-4 w-4 text-amber-500" /> Deactivate</>
+                              ) : (
+                                <><CheckCircle className="h-4 w-4 text-emerald-500" /> Activate</>
+                              )}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="rounded-lg gap-2 font-bold text-rose-500 hover:text-rose-600 hover:bg-rose-50 cursor-pointer"
+                              onClick={() => handleDelete(broadcast.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              Delete Permanent
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))

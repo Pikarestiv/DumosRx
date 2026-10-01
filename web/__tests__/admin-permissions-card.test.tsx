@@ -1,0 +1,92 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, fireEvent } from "@testing-library/react";
+
+const { mockUpdateMutateAsync, roleRows } = vi.hoisted(() => ({
+  mockUpdateMutateAsync: vi.fn().mockResolvedValue(undefined),
+  roleRows: {
+    current: [
+      { id: 1, name: "Platform Admin", slug: "platform_admin", is_system: true, permissions: ["view_platform_data"], user_count: 2 },
+      { id: 2, name: "Agent", slug: "agent", is_system: true, permissions: ["view_platform_data"], user_count: 1 },
+    ] as Record<string, unknown>[],
+  },
+}));
+
+vi.mock("@/lib/api/admin-hooks-roles", () => ({
+  useAdminRoles: () => ({ data: { roles: roleRows.current }, isLoading: false }),
+  useUpdateRolePermissionsMutation: () => ({ mutateAsync: mockUpdateMutateAsync, isPending: false }),
+  useCreateRoleMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useDeleteRoleMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
+}));
+
+import { AdminPermissionsCard } from "@/components/admin/views/admin-permissions-card";
+
+const BUILT_IN_ROWS = [
+  { id: 1, name: "Platform Admin", slug: "platform_admin", is_system: true, permissions: ["view_platform_data"], user_count: 2 },
+  { id: 2, name: "Agent", slug: "agent", is_system: true, permissions: ["view_platform_data"], user_count: 1 },
+];
+
+beforeEach(() => {
+  mockUpdateMutateAsync.mockClear();
+  roleRows.current = [...BUILT_IN_ROWS];
+});
+
+describe("AdminPermissionsCard custom-role deletion", () => {
+  it("disables the delete action while admins still hold the role", () => {
+    roleRows.current = [
+      ...BUILT_IN_ROWS,
+      { id: 3, name: "Support Lead", slug: "support_lead", is_system: false, permissions: [], user_count: 3 },
+    ];
+    render(<AdminPermissionsCard />);
+
+    expect(screen.getByRole("button", { name: /delete support lead/i })).toBeDisabled();
+  });
+
+  it("never promises that deleting will leave admins without the role", () => {
+    roleRows.current = [
+      ...BUILT_IN_ROWS,
+      { id: 4, name: "Billing Lead", slug: "billing_lead", is_system: false, permissions: [], user_count: 0 },
+    ];
+    render(<AdminPermissionsCard />);
+
+    const trigger = screen.getByRole("button", { name: /delete billing lead/i });
+    expect(trigger).not.toBeDisabled();
+    fireEvent.click(trigger);
+
+    expect(screen.queryByText(/without it/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/permanently removes/i)).toBeInTheDocument();
+  });
+});
+
+describe("AdminPermissionsCard", () => {
+  it("renders one row per catalog permission and one column per role", () => {
+    render(<AdminPermissionsCard />);
+    expect(screen.getByText("View Platform Data")).toBeInTheDocument();
+    expect(screen.getByText("Send Notifications")).toBeInTheDocument();
+    expect(screen.getByText("Reset Passwords")).toBeInTheDocument();
+    expect(screen.getByText("Manage Account Status")).toBeInTheDocument();
+    expect(screen.getByText("Store Impersonation")).toBeInTheDocument();
+    expect(screen.getByText("Platform Admin")).toBeInTheDocument();
+    expect(screen.getByText("Agent")).toBeInTheDocument();
+  });
+
+  it("does not show a delete action for a system role", () => {
+    render(<AdminPermissionsCard />);
+    expect(screen.queryByRole("button", { name: /delete platform admin/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /delete agent/i })).not.toBeInTheDocument();
+  });
+
+  it("toggling a cell calls the mutation with the role's full updated permission list", () => {
+    render(<AdminPermissionsCard />);
+
+    const agentSendNotifications = screen.getByRole("checkbox", {
+      name: /send notifications for agent/i,
+    });
+    fireEvent.click(agentSendNotifications);
+
+    expect(mockUpdateMutateAsync).toHaveBeenCalledTimes(1);
+    expect(mockUpdateMutateAsync).toHaveBeenCalledWith({
+      slug: "agent",
+      permissions: ["view_platform_data", "send_notifications"],
+    });
+  });
+});

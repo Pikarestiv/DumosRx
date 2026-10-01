@@ -9,6 +9,7 @@ export function generateStaticParams() {
     { tab: ["templates"] },
     { tab: ["integrations"] },
     { tab: ["security"] },
+    { tab: ["admin-permissions"] },
   ];
 }
 

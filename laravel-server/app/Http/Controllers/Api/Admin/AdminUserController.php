@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Admin;
 use App\Services\Admin\AdminUserService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
 use OpenApi\Attributes as OA;
 
 class AdminUserController extends AdminBaseController
@@ -30,7 +31,7 @@ class AdminUserController extends AdminBaseController
         ],
         responses: [
             new OA\Response(response: 200, description: 'Users', content: new OA\JsonContent(type: 'object')),
-            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Non-super_admin'),
+            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Missing the view_platform_data permission'),
             new OA\Response(response: 422, description: 'Unrecognized account_type'),
             new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
         ],
@@ -249,7 +250,7 @@ class AdminUserController extends AdminBaseController
                 new OA\Property(property: 'email', type: 'string', format: 'email'),
                 new OA\Property(property: 'phone', type: 'string', nullable: true),
                 new OA\Property(property: 'password', type: 'string', format: 'password', minLength: 8),
-                new OA\Property(property: 'role', type: 'string', enum: ['super_admin', 'platform_admin', 'agent'], default: 'platform_admin'),
+                new OA\Property(property: 'role', type: 'string', enum: AdminUserService::PLATFORM_ROLES, default: 'platform_admin', description: 'Also accepts any custom platform role slug; OpenAPI enums are static so only the 3 built-ins are listed here.'),
             ],
         )),
         responses: [
@@ -267,7 +268,7 @@ class AdminUserController extends AdminBaseController
             'email' => 'required|email|unique:users,email',
             'phone' => 'nullable|string',
             'password' => 'required|string|min:8',
-            'role' => 'nullable|string|in:super_admin,platform_admin,agent',
+            'role' => ['nullable', 'string', Rule::in(AdminUserService::platformRoleSlugs())],
         ]);
 
         return $this->withErrorResponse('Create Platform Admin', 'Failed to create platform account', function () use ($request, $validated) {
@@ -279,6 +280,53 @@ class AdminUserController extends AdminBaseController
         });
     }
 
+    #[OA\Put(
+        path: '/admin/users/{id}',
+        summary: "Update a platform user's profile fields",
+        description: 'super_admin only, and able to edit other admins. Scoped to first_name/last_name/phone/email/role; password, account status and plan keep their own endpoints and are rejected here. A super_admin cannot change their own role, nor demote the last active super_admin.',
+        tags: ['Admin'],
+        security: [['sanctum' => []]],
+        parameters: [new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'string'))],
+        requestBody: new OA\RequestBody(content: new OA\JsonContent(properties: [
+            new OA\Property(property: 'first_name', type: 'string', minLength: 2),
+            new OA\Property(property: 'last_name', type: 'string', minLength: 2),
+            new OA\Property(property: 'phone', type: 'string', nullable: true),
+            new OA\Property(property: 'email', type: 'string', format: 'email'),
+            new OA\Property(property: 'role', type: 'string', enum: AdminUserService::PLATFORM_ROLES, description: 'Also accepts any custom platform role slug created via the role-delegation endpoints; OpenAPI enums are static so only the 3 built-ins are listed here.'),
+        ])),
+        responses: [
+            new OA\Response(response: 200, description: 'Updated', content: new OA\JsonContent(type: 'object')),
+            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Non-super_admin'),
+            new OA\Response(response: 422, ref: '#/components/responses/ValidationError'),
+            new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
+        ],
+    )]
+    public function updateUser(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'first_name' => 'sometimes|required|string|min:2',
+            'last_name' => 'sometimes|required|string|min:2',
+            'phone' => 'sometimes|nullable|string',
+            'email' => ['sometimes', 'required', 'email', Rule::unique('users', 'email')->ignore($id)],
+            'role' => ['sometimes', 'required', 'string', Rule::in(AdminUserService::platformRoleSlugs())],
+            'password' => 'prohibited',
+            'password_confirmation' => 'prohibited',
+            'is_active' => 'prohibited',
+            'status' => 'prohibited',
+            'plan' => 'prohibited',
+            'subscription_tier' => 'prohibited',
+            'trial_ends_at' => 'prohibited',
+        ]);
+
+        return $this->withErrorResponse('Update User', 'Failed to update user', function () use ($request, $validated, $id) {
+            $user = $this->adminUserService->updateUserProfile($id, $validated, $request->user()->id);
+            return response()->json([
+                'message' => 'User profile updated successfully',
+                'user' => $user,
+            ]);
+        });
+    }
+
     #[OA\Post(
         path: '/admin/users/{id}/deactivate',
         summary: 'Deactivate a user account',
@@ -287,7 +335,7 @@ class AdminUserController extends AdminBaseController
         parameters: [new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'string'))],
         responses: [
             new OA\Response(response: 200, description: 'Deactivated', content: new OA\JsonContent(ref: '#/components/schemas/MessageOnly')),
-            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Non-super_admin'),
+            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Missing the manage_account_status permission'),
             new OA\Response(response: 422, description: 'Self-deactivation', content: new OA\JsonContent(ref: '#/components/schemas/MessageOnly')),
             new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
         ],
@@ -314,7 +362,7 @@ class AdminUserController extends AdminBaseController
         parameters: [new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'string'))],
         responses: [
             new OA\Response(response: 200, description: 'Reactivated', content: new OA\JsonContent(ref: '#/components/schemas/MessageOnly')),
-            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Non-super_admin'),
+            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Missing the manage_account_status permission'),
             new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
         ],
     )]
@@ -359,7 +407,7 @@ class AdminUserController extends AdminBaseController
                 new OA\Property(property: 'message', type: 'string'),
                 new OA\Property(property: 'temp_password', type: 'string'),
             ])),
-            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Non-super_admin'),
+            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Missing the reset_user_passwords permission'),
             new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
         ],
     )]
@@ -389,7 +437,7 @@ class AdminUserController extends AdminBaseController
         )),
         responses: [
             new OA\Response(response: 200, description: 'Sent', content: new OA\JsonContent(ref: '#/components/schemas/MessageOnly')),
-            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Non-super_admin'),
+            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Missing the send_notifications permission'),
             new OA\Response(response: 422, ref: '#/components/responses/ValidationError'),
             new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
         ],
@@ -425,7 +473,7 @@ class AdminUserController extends AdminBaseController
                 new OA\Property(property: 'message', type: 'string'),
                 new OA\Property(property: 'count', type: 'integer'),
             ])),
-            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Non-super_admin'),
+            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Missing the send_notifications permission'),
             new OA\Response(response: 422, ref: '#/components/responses/ValidationError'),
             new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
         ],

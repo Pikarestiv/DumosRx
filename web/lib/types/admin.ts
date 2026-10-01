@@ -148,6 +148,7 @@ export interface AdminUser {
   name: string;
   first_name?: string;
   last_name?: string;
+  phone?: string | null;
   email: string;
   /** Humanized for display (e.g. "Store Owner"). Use `role_slug` for any
    * role-gated logic, not this. */
@@ -166,6 +167,31 @@ export interface AdminUser {
   joinedAt?: string;
   status: string;
   deletionRequested?: boolean;
+  /** Not yet returned by `GET /admin/users` — see docs/KNOWN_BUGS.md A-133. */
+  effective_permissions?: string[];
+}
+
+/** The 3 built-in platform roles. NOT the full set `PUT /admin/users/{id}`
+ * accepts: that endpoint validates against `UpdatesUserProfiles::platformRoleSlugs()`,
+ * which also includes every custom platform role. Any UI offering or
+ * validating a role must merge these with `useAdminRoles()` (see
+ * `mergePlatformRoleOptions()`); these 3 are only the always-present floor.
+ * Store-tenant roles stay unassignable from the platform panel either way. */
+export const PLATFORM_ROLE_SLUGS = ["super_admin", "platform_admin", "agent"] as const;
+
+export type BuiltInPlatformRoleSlug = (typeof PLATFORM_ROLE_SLUGS)[number];
+
+/** A platform role slug: one of the 3 built-ins or a custom role's slug. */
+export type PlatformRoleSlug = string;
+
+/** The field scope of PUT /admin/users/{id}. Password, account status and
+ * plan deliberately stay with their own endpoints. */
+export interface AdminUserProfileUpdate {
+  first_name?: string;
+  last_name?: string;
+  phone?: string | null;
+  email?: string;
+  role?: PlatformRoleSlug;
 }
 
 /** `account_type` on GET /admin/users. "owners" own a store, "staff" work at
@@ -238,6 +264,7 @@ export interface TierFeatures {
   audit_mode: boolean;
   dark_mode: boolean;
   smart_suggestions: boolean;
+  ai_assistant: boolean;
   auto_lock: boolean;
   barcode_generation: boolean;
   loyalty_program: boolean;

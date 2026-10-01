@@ -120,7 +120,9 @@ function StoreDetailsContent() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
-        <StatTile label="Lifetime Revenue" value={store.revenue} icon={<Banknote className="h-5 w-5" />} />
+        {store.revenue && (
+          <StatTile label="Lifetime Revenue" value={store.revenue} icon={<Banknote className="h-5 w-5" />} />
+        )}
         <StatTile label="Staff" value={store.counts.staff} icon={<Users className="h-5 w-5" />} />
         <StatTile label="Products" value={store.counts.products} icon={<Box className="h-5 w-5" />} />
         <StatTile label="Customers" value={store.counts.customers} icon={<Users className="h-5 w-5" />} />

@@ -100,7 +100,7 @@ class AdminStoreService
             });
     }
 
-    public function getStores($page = 1, $search = null, $status = null, $plan = null, $archived = 'active')
+    public function getStores($page = 1, $search = null, $status = null, $plan = null, $archived = 'active', bool $includeRevenue = false)
     {
         // Correlated subquery instead of a plain withSum('sales', ...), for
         // two reasons:
@@ -157,7 +157,7 @@ class AdminStoreService
         $paginator = $query->latest()->paginate(10, ['*'], 'page', $page);
 
         return [
-            'data' => collect($paginator->items())->map(function ($store) {
+            'data' => collect($paginator->items())->map(function ($store) use ($includeRevenue) {
                 $plan = 'free';
                 if ($store->user && $store->user->subscriptions->isNotEmpty()) {
                     $sub = $store->user->subscriptions->sortByDesc('created_at')->first();
@@ -166,7 +166,7 @@ class AdminStoreService
 
                 $manager = \App\Http\Controllers\Api\AccountManagerController::resolveFor($store->user);
 
-                return [
+                $payload = [
                     'id' => $store->id,
                     'name' => $store->name,
                     'owner' => $store->user ? $store->user->first_name.' '.$store->user->last_name : 'N/A',
@@ -174,7 +174,6 @@ class AdminStoreService
                     'plan' => $plan,
                     'status' => $store->status ?: 'Active',
                     'stores' => 1,
-                    'revenue' => '₦'.number_format($store->total_revenue ?? 0),
                     'date' => $store->created_at->format('M d, Y'),
                     'is_demo' => (bool) $store->is_demo,
                     'device_id' => $store->device_id,
@@ -190,6 +189,12 @@ class AdminStoreService
                     // instead of implying every store was manually assigned.
                     'account_manager_is_explicit' => (bool) ($store->user?->account_manager_id),
                 ];
+
+                if ($includeRevenue) {
+                    $payload['revenue'] = '₦'.number_format($store->total_revenue ?? 0);
+                }
+
+                return $payload;
             }),
             'meta' => [
                 'current_page' => $paginator->currentPage(),

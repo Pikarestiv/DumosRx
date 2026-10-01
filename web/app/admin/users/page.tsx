@@ -54,9 +54,12 @@ import {
   ROLE_FILTER_SLUGS,
   ROLE_LABELS_BY_ACCOUNT_TYPE,
 } from "@/components/admin/users/user-directory-filters";
+import { useAdminAuthStore, checkHasPermission } from "@/lib/store/use-admin-auth-store";
 
 function GlobalUsersDirectoryContent() {
   const router = useRouter();
+  const { user: viewerUser } = useAdminAuthStore();
+  const canSendNotifications = checkHasPermission(viewerUser, "send_notifications");
   const searchParams = useSearchParams();
   const initialSearch = searchParams ? searchParams.get("search") || "" : "";
 
@@ -190,15 +193,17 @@ function GlobalUsersDirectoryContent() {
         </div>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto mt-2 sm:mt-0">
           <div className="flex gap-3 w-full sm:w-auto">
-            <Button
-              variant="secondary"
-              className="rounded-xl font-bold flex-1 sm:flex-none bg-indigo-50 hover:bg-indigo-100 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-400 dark:hover:bg-indigo-500/20"
-              onClick={() => setIsBulkNotifyDialogOpen(true)}
-              title="Notify All Filtered"
-            >
-              <Bell className="h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline">Notify All</span>
-            </Button>
+            {canSendNotifications && (
+              <Button
+                variant="secondary"
+                className="rounded-xl font-bold flex-1 sm:flex-none bg-indigo-50 hover:bg-indigo-100 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-400 dark:hover:bg-indigo-500/20"
+                onClick={() => setIsBulkNotifyDialogOpen(true)}
+                title="Notify All Filtered"
+              >
+                <Bell className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Notify All</span>
+              </Button>
+            )}
             <Button
               variant="outline"
               className="rounded-xl font-bold flex-1 sm:flex-none border-2"

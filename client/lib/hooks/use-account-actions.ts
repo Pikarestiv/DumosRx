@@ -10,7 +10,8 @@ import { getSyncQueueCount } from "@/lib/db/queries/setup";
 import { queryKeys } from "@/lib/query-keys";
 import { clearRecentUsers } from "@/lib/storage-keys";
 import { useAssistantPanel } from "@/lib/store/use-assistant-panel";
-import { ASSISTANT_NAME } from "@/components/assistant/assistant-brand";
+import { ASSISTANT_FEATURE_KEY, ASSISTANT_NAME } from "@/components/assistant/assistant-brand";
+import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 
 export interface NavAction {
   key: string;
@@ -38,6 +39,7 @@ export function useAccountActions({
 }: UseAccountActionsOptions) {
   const { logout } = useAuth();
   const router = useRouter();
+  const { canUseAiAssistant, withRestriction } = useFeatureGate();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const { data: pendingCountData } = useQuery({
@@ -75,10 +77,17 @@ export function useAccountActions({
       key: "assistant",
       label: `Ask ${ASSISTANT_NAME} (Beta)`,
       icon: Sparkles,
-      onClick: () => {
-        onClose();
-        useAssistantPanel.getState().open();
-      },
+      onClick: withRestriction(
+        () => {
+          onClose();
+          useAssistantPanel.getState().open();
+        },
+        {
+          enforceMobileAccess: false,
+          featureAllowed: canUseAiAssistant,
+          featureKey: ASSISTANT_FEATURE_KEY,
+        },
+      ),
     },
     ...(onOpenFeedback
       ? [

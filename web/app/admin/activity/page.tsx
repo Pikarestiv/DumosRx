@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Search, Filter, Loader2, ScrollText, ShieldAlert, ChevronsUpDown, Check, Store as StoreIcon, User as UserIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -33,6 +33,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { useAdminActivityLogs } from "@/lib/api/admin-activity-hooks";
 import { useAdminStores } from "@/lib/api/admin-hooks-stores";
 import { useAdminUsers } from "@/lib/api/admin-hooks-users";
+import { checkIsSuperAdmin, useAdminAuthStore } from "@/lib/store/use-admin-auth-store";
+import { usePlatformRoleOptions } from "@/hooks/use-platform-role-options";
 import { formatDateSafe } from "@/lib/utils/date-utils";
 import { useDebounce } from "@/hooks/use-debounce";
 import { AdminSkeleton } from "@/components/admin/admin-skeleton";
@@ -277,6 +279,17 @@ function AdminActivityLogPageContent() {
   const [userFilter, setUserFilter] = useState<SelectedEntity | null>(null);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [roleFilter, setRoleFilter] = useState("");
+
+  const viewerRole = useAdminAuthStore((state) => state.user?.role);
+  const roleOptions = usePlatformRoleOptions(checkIsSuperAdmin(viewerRole));
+  const roleFilters = useMemo(
+    () => [
+      { label: "All Roles", value: "" },
+      ...roleOptions.map((option) => ({ label: option.label, value: option.value })),
+    ],
+    [roleOptions],
+  );
 
   const debouncedSearch = useDebounce(search, 500);
 
@@ -288,6 +301,7 @@ function AdminActivityLogPageContent() {
     userFilter?.id || "",
     dateFrom,
     dateTo,
+    roleFilter,
   );
 
   const logs = response?.data || [];
@@ -403,7 +417,33 @@ function AdminActivityLogPageContent() {
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
-              {(actionFilter || storeFilter || userFilter || dateFrom || dateTo || search) && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="font-bold border-2">
+                    <Filter className="h-4 w-4 mr-2" />
+                    {roleFilters.find((f) => f.value === roleFilter)?.label ||
+                      "All Roles"}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56 p-2 rounded-2xl shadow-xl max-h-96 overflow-y-auto">
+                  <DropdownMenuLabel className="text-[10px] uppercase tracking-widest text-slate-400 px-3 py-2">
+                    Actor Role
+                  </DropdownMenuLabel>
+                  {roleFilters.map((f) => (
+                    <DropdownMenuItem
+                      key={f.value}
+                      className="rounded-xl px-3 py-2 cursor-pointer font-bold"
+                      onClick={() => {
+                        setRoleFilter(f.value);
+                        setPage(1);
+                      }}
+                    >
+                      {f.label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              {(actionFilter || storeFilter || userFilter || dateFrom || dateTo || search || roleFilter) && (
                 <Button
                   variant="ghost"
                   size="sm"
@@ -415,6 +455,7 @@ function AdminActivityLogPageContent() {
                     setUserFilter(null);
                     setDateFrom("");
                     setDateTo("");
+                    setRoleFilter("");
                     setPage(1);
                   }}
                 >

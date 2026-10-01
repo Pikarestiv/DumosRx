@@ -134,7 +134,7 @@ export function AdminHeader() {
               </SheetTitle>
             </SheetHeader>
             <div className="flex-1 overflow-y-auto py-6 px-4 space-y-1">
-              {visibleSidebarItems(user?.role).map((item) => {
+              {visibleSidebarItems(user ?? undefined).map((item) => {
                 const isActive =
                   pathname === item.href ||
                   (item.href !== "/admin" && pathname?.startsWith(item.href));

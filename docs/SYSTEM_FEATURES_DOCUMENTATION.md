@@ -82,6 +82,8 @@ The desktop application is built for speed, reliability, and ease of use. It con
 
 **Works With No Internet:** Like the rest of the POS, the assistant runs entirely on your store's computer. There is no AI subscription, no API key to buy, and nothing to set up — it works exactly the same on a till that has never been online.
 
+**Included From Pro:** The assistant is part of the Dumos Pro and Enterprise plans, the same as Smart Suggestions. On Free and Starter the icon stays in your header and tells you which plan unlocks it, so you always know it's there. If you'd like it on a different plan for a particular customer, it's a per-plan switch in Platform Settings rather than a code change.
+
 **Respects Your Staff Permissions:** Everyone gets answers to the things they're allowed to see, and only those. A cashier asking about sales gets their *own* sales for the day rather than the store's takings, and profit questions stay with the people you've given financial access to. The suggestions it offers each person are filtered the same way, so nobody is prompted to ask something they'd only be refused.
 
 ---

@@ -8,7 +8,8 @@ import { SubscriptionConfigTab } from "@/components/admin/views/subscription-con
 import { SuggestionsConfigTab } from "@/components/admin/views/suggestions-config-tab";
 import { IntegrationsTab } from "@/components/admin/views/integrations-tab";
 import { SecurityConfigTab } from "@/components/admin/views/security-config-tab";
-import { Settings, Activity, Mail, CreditCard, Sparkles, Plug, ShieldCheck } from "lucide-react";
+import { AdminPermissionsCard } from "@/components/admin/views/admin-permissions-card";
+import { Settings, Activity, Mail, CreditCard, Sparkles, Plug, ShieldCheck, Users } from "lucide-react";
 
 export default function PlatformSettingsPage() {
   const params = useParams();
@@ -64,6 +65,10 @@ export default function PlatformSettingsPage() {
             <ShieldCheck className="h-4 w-4" />
             Security
           </TabsTrigger>
+          <TabsTrigger value="admin-permissions" className="flex items-center gap-2 px-4 shrink-0">
+            <Users className="h-4 w-4" />
+            Admin Permissions
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="health" className="focus-visible:outline-none focus-visible:ring-0">
@@ -88,6 +93,10 @@ export default function PlatformSettingsPage() {
 
         <TabsContent value="security" className="focus-visible:outline-none focus-visible:ring-0">
           <SecurityConfigTab />
+        </TabsContent>
+
+        <TabsContent value="admin-permissions" className="focus-visible:outline-none focus-visible:ring-0">
+          <AdminPermissionsCard />
         </TabsContent>
       </Tabs>
     </div>

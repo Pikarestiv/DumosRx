@@ -31,6 +31,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { AdminUser } from "@/lib/types/admin";
+import { useAdminAuthStore, checkHasPermission, checkIsSuperAdmin } from "@/lib/store/use-admin-auth-store";
 
 interface UserTableProps {
   userList: AdminUser[];
@@ -63,6 +64,13 @@ export function UserTable({
   setIsTrialDialogOpen,
   setIsActivatePlanDialogOpen
 }: UserTableProps) {
+  const { user: viewerUser } = useAdminAuthStore();
+  const canSendNotifications = checkHasPermission(viewerUser, "send_notifications");
+  const canResetPasswords = checkHasPermission(viewerUser, "reset_user_passwords");
+  const canManageAccountStatus = checkHasPermission(viewerUser, "manage_account_status");
+  const canGrantTrials = checkHasPermission(viewerUser, "grant_trials");
+  const canDeleteAccounts = checkIsSuperAdmin(viewerUser?.role);
+
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-4">
@@ -157,28 +165,32 @@ export function UserTable({
                     <Eye className="h-4 w-4 text-indigo-500" />
                     View Detailed Profile
                   </DropdownMenuItem>
-                  <DropdownMenuItem 
-                    className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold"
-                    onClick={() => {
-                      setSelectedUser(user);
-                      setIsNotifyDialogOpen(true);
-                    }}
-                  >
-                    <Mail className="h-4 w-4 text-blue-500" />
-                    Send Notification
-                  </DropdownMenuItem>
-                  <DropdownMenuItem 
-                    className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold"
-                    onClick={() => {
-                      setSelectedUser(user);
-                      setIsResetDialogOpen(true);
-                    }}
-                  >
-                    <Lock className="h-4 w-4 text-amber-500" />
-                    Force Password Reset
-                  </DropdownMenuItem>
-                  
-                  {(user.role_slug === 'store_owner' || user.role_slug === 'admin') && (
+                  {canSendNotifications && (
+                    <DropdownMenuItem
+                      className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold"
+                      onClick={() => {
+                        setSelectedUser(user);
+                        setIsNotifyDialogOpen(true);
+                      }}
+                    >
+                      <Mail className="h-4 w-4 text-blue-500" />
+                      Send Notification
+                    </DropdownMenuItem>
+                  )}
+                  {canResetPasswords && (
+                    <DropdownMenuItem
+                      className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold"
+                      onClick={() => {
+                        setSelectedUser(user);
+                        setIsResetDialogOpen(true);
+                      }}
+                    >
+                      <Lock className="h-4 w-4 text-amber-500" />
+                      Force Password Reset
+                    </DropdownMenuItem>
+                  )}
+
+                  {canGrantTrials && (user.role_slug === 'store_owner' || user.role_slug === 'admin') && (
                     <DropdownMenuItem 
                       className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold"
                       onClick={() => {
@@ -191,7 +203,7 @@ export function UserTable({
                     </DropdownMenuItem>
                   )}
 
-                  {(user.role_slug === 'store_owner' || user.role_slug === 'admin') && (
+                  {canGrantTrials && (user.role_slug === 'store_owner' || user.role_slug === 'admin') && (
                     <DropdownMenuItem
                       className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold"
                       onClick={() => {
@@ -206,40 +218,43 @@ export function UserTable({
 
                   <DropdownMenuSeparator className="my-2 bg-slate-100 dark:bg-slate-800" />
                   
-                  {user.status === 'Inactive' || user.status === 'Suspended' ? (
-                    <DropdownMenuItem 
-                      className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors"
+                  {canManageAccountStatus &&
+                    (user.status === 'Inactive' || user.status === 'Suspended' ? (
+                      <DropdownMenuItem
+                        className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors"
+                        onClick={() => {
+                          setSelectedUser(user);
+                          setIsReactivateDialogOpen(true);
+                        }}
+                      >
+                        <Shield className="h-4 w-4" />
+                        Reactivate Account
+                      </DropdownMenuItem>
+                    ) : (
+                      <DropdownMenuItem
+                        className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors"
+                        onClick={() => {
+                          setSelectedUser(user);
+                          setIsDeactivateDialogOpen(true);
+                        }}
+                      >
+                        <Ban className="h-4 w-4" />
+                        Deactivate Account
+                      </DropdownMenuItem>
+                    ))}
+
+                  {canDeleteAccounts && (
+                    <DropdownMenuItem
+                      className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors mt-1"
                       onClick={() => {
                         setSelectedUser(user);
-                        setIsReactivateDialogOpen(true);
+                        setIsDeleteDialogOpen(true);
                       }}
                     >
-                      <Shield className="h-4 w-4" />
-                      Reactivate Account
-                    </DropdownMenuItem>
-                  ) : (
-                    <DropdownMenuItem 
-                      className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors"
-                      onClick={() => {
-                        setSelectedUser(user);
-                        setIsDeactivateDialogOpen(true);
-                      }}
-                    >
-                      <Ban className="h-4 w-4" />
-                      Deactivate Account
+                      <Trash2 className="h-4 w-4" />
+                      Delete Account
                     </DropdownMenuItem>
                   )}
-
-                  <DropdownMenuItem 
-                    className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors mt-1"
-                    onClick={() => {
-                      setSelectedUser(user);
-                      setIsDeleteDialogOpen(true);
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    Delete Account
-                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </TableCell>

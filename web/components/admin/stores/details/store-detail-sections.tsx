@@ -204,13 +204,17 @@ export function StorePaymentsCard({ store }: { store: AdminStoreDetail }) {
 }
 
 export function StoreRecentTransactionsCard({ store }: { store: AdminStoreDetail }) {
+  const transactions = store.recent_transactions;
+
+  if (!transactions) return null;
+
   return (
     <DetailCard title="Recent Transactions" icon={<Receipt className="h-4 w-4" />}>
-      {store.recent_transactions.length === 0 ? (
+      {transactions.length === 0 ? (
         <p className="text-sm font-medium text-slate-500">No payment transactions recorded.</p>
       ) : (
         <ul className="space-y-2">
-          {store.recent_transactions.map((txn) => (
+          {transactions.map((txn) => (
             <li
               key={txn.id}
               className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 dark:border-slate-800 p-3"

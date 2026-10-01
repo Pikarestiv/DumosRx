@@ -38,11 +38,13 @@ const store: RegisteredStoreSummary = {
 describe("My Stores (scoped registered-store list)", () => {
   it("is in the sidebar for platform_admin and agent only", () => {
     for (const role of ["platform_admin", "agent"]) {
-      expect(visibleSidebarItems(role).map((i) => i.id)).toContain("my-stores");
+      expect(
+        visibleSidebarItems({ role, effective_permissions: [] }).map((i) => i.id),
+      ).toContain("my-stores");
     }
-    expect(visibleSidebarItems("super_admin").map((i) => i.id)).not.toContain(
-      "my-stores",
-    );
+    expect(
+      visibleSidebarItems({ role: "super_admin" }).map((i) => i.id),
+    ).not.toContain("my-stores");
   });
 
   it("lists the caller's registered stores without any revenue column", () => {

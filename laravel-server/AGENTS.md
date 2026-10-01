@@ -83,14 +83,109 @@ without updating that.
   separate from the `role` column), and a special-case alias where
   `role === 'store_owner'` also satisfies `hasRole('admin')`. `super_admin`
   bypasses `CheckPermission` and `CheckSubscription` middleware entirely.
-  `hasPermission($slug)` checks two independent sources: the user's own
-  direct `permissions()` (belongsToMany `Permission`), then falls back to
-  permissions granted through `userRole`. Checked via the `permission:<name>`
-  middleware alias (`CheckPermission.php`) for finer-grained gates
-  (`create_accounts`, `grant_trials`, etc. for `platform_admin`/`agent`).
+  `hasPermission($slug)` resolves in four ordered steps, and the order is the
+  whole security model — do not reorder it:
+  1. `hasRole('super_admin')` → `true` unconditionally, before anything else
+     is read. A super_admin can never be locked out of anything by any
+     permission edit.
+  2. A direct `permission_user` row for this user+slug → return that row's
+     `granted` boolean and stop. **A `granted = false` row denies even when
+     the user's role grants the slug.** This denial-overrides-role rule is
+     the single most important semantic in the delegation feature: the
+     per-admin override UI writes `false` rows, and a role default can never
+     win them back. Deleting the row (not writing a third state) is what
+     restores "inherited".
+  3. The `userRole` relation's `permission_role` rows (plus the
+     `store_owner` → `admin` role alias).
+  4. Finally, a fallback through the flat `role` **string** column, resolved
+     to a `Role` by slug — this exists because plenty of accounts carry a
+     `role` string with a null `role_id`, so skipping it would silently
+     under-grant them.
+  Checked via the `permission:<name>` middleware alias
+  (`CheckPermission.php`), which has the same `super_admin` bypass.
   Account-level gating (`is_active`, subscription status) is separate:
   `account_status` (`CheckAccountStatus`) and `subscription:<feature>`
   (`CheckSubscription`) middleware.
+- **Platform admin delegation (the 5-slug catalog, 2026-10-01).**
+  `User::DELEGATABLE_PERMISSIONS` is the *entire* catalog a superadmin can
+  hand out from the admin panel, and what each slug gates:
+  `view_platform_data` (the stores/users/activity-log read endpoints),
+  `send_notifications` (per-user notify, bulk notify, the broadcast/announcement
+  group), `reset_user_passwords` (force-reset), `manage_account_status`
+  (suspend/reactivate a store or a user) and `impersonate_store`.
+  - **Enforced by omission, not by a deny-list.** A never-delegatable action
+    (delete a user/store, edit another admin's profile/role, coupons and
+    referral payouts, the subscription/platform config endpoints) simply has
+    **no `permission:*` slug wired to its route** — it stays
+    `role:super_admin`. There is therefore no deny-list that a future change
+    could weaken by accident, and no `permission_user` row that could ever
+    grant one. Adding a 6th delegatable slug means: seed the `Permission`,
+    add it to `DELEGATABLE_PERMISSIONS`, put `permission:<slug>` on the route,
+    add it to `web/lib/constants/platform-permissions.ts`, and gate the
+    matching button/nav entry in `web/`. Never introduce a slug for an action
+    on the never-delegatable list.
+  - **`grant_trials` is a pre-existing exception, not part of the catalog.**
+    `RolesAndPermissionsSeeder` has granted it to `platform_admin` since long
+    before the delegation work, and the grant-trial/activate-plan routes are
+    `permission:grant_trials`. It is deliberately not editable from the
+    Admin Permissions matrix (which only ever renders the 5 catalog slugs),
+    but it *is* included in the serialized `effective_permissions` so the UI
+    can gate its buttons on the real capability — see
+    `User::SERIALIZED_PERMISSIONS` (= the 5 catalog slugs plus the
+    pre-existing `create_accounts`/`grant_trials`).
+  - **Two columns back this:** `permission_user.granted` (boolean, default
+    `true` — step 2 above) and `roles.is_system` (`true` for the 3 seeded
+    platform roles, which can never be renamed or deleted; `false` for every
+    custom role created through the UI).
+  - **`AdminRoleController` endpoints, all `role:super_admin`:**
+    `GET /admin/roles` (the matrix; `super_admin`'s own row is deliberately
+    filtered out of `AdminRoleService::listRoles()` because toggling it has no
+    runtime effect), `POST /admin/roles`, `PUT /admin/roles/{role}/permissions`,
+    `DELETE /admin/roles/{role}` (refused while any user still holds it), and
+    `PUT /admin/users/{id}/permission-overrides`.
+  - **`effective_permissions` is appended per response, never globally.** It
+    costs ~4 queries per slug to resolve, so it is NOT in `User::$appends`:
+    the auth responses that the admin panel reads its capability set from
+    (login, `/refresh`, both `/admin/session/refresh` branches, the handoff
+    exchange) and the permission-override response call
+    `->append('effective_permissions')` explicitly. Do not put it back in
+    `$appends` — `StaffController`'s collections and `SyncController`'s
+    `users` pull would each pay it per row. Coverage:
+    `tests/Feature/EffectivePermissionsAppendSitesTest.php`.
+  - The custom-role list is dynamic end to end:
+    `UpdatesUserProfiles::platformRoleSlugs()` is what `PUT /admin/users/{id}`
+    and the create-platform-account endpoint validate `role` against, and
+    `web/` merges `GET /admin/roles` with its 3 built-ins
+    (`mergePlatformRoleOptions()`) rather than hardcoding a whitelist.
+  - **Every custom role carries `manage_platform` too (2026-10-02 fix,
+    A-141).** The entire `/admin/*` route group sits behind
+    `permission:manage_platform` (`routes/api.php`), but `manage_platform`
+    is not one of the 5 catalog slugs `createRole()` accepts — so a role
+    created through the UI with, say, only `view_platform_data` used to get
+    403'd on every single admin call regardless of which catalog slugs it
+    held. `AdminRoleService::createRole()` now always syncs
+    `[...$permissionSlugs, 'manage_platform']`; `updateRolePermissions()`'s
+    existing "preserve non-catalog permission ids" logic (originally there
+    to protect `platform_admin`/`agent`'s `create_accounts`/`grant_trials`)
+    already keeps it from being stripped when the matrix is edited, and
+    `listRoles()`'s catalog intersect already keeps it out of the matrix
+    checkboxes — no new code needed for either. Migration
+    `2026_10_02_000004_backfill_manage_platform_onto_custom_roles` grants it
+    to any custom role created before this fix. `manage_platform` was also
+    added to `User::SERIALIZED_PERMISSIONS` (new `PLATFORM_ACCESS_PERMISSION`
+    const) so it reaches `effective_permissions` the same way `grant_trials`
+    does. Covered by `AdminRoleServiceTest`,
+    `BackfillManagePlatformOntoCustomRolesMigrationTest` and the two new
+    custom-role cases in `DelegatedRouteAuthorizationTest`.
+  - **Frontend gate is `manage_platform`, not a role-slug allow-list.**
+    `web/lib/store/use-admin-auth-store.ts`'s `checkCanAccessAdmin(user)`
+    used to hardcode `role === "super_admin" || "platform_admin" || "agent"`,
+    which bounced any custom-role user at the login form/layout guard even
+    after the backend fix above. It's now
+    `checkHasPermission(user, "manage_platform")` — the literal mirror of
+    the server-side route gate — so a new custom role never needs a
+    frontend change to be let into the dashboard shell. See
+    `web/__tests__/admin-auth-permission-helpers.test.ts`.
 - **Plans/tiers:** `config/plans.php` defines tier limits (`stores`,
   `staff`, `inventories`) and feature flags per tier (`starter`, `pro`,
   ...); `-1` means unlimited. `SubscriptionService` enforces these
@@ -246,6 +341,52 @@ array rule (`filters`) makes `$request->validate()`'s return value rebuild
 vanish from `$validated`. `bulkNotify` silently notified every account for one
 commit because of it. Read that kind of bag off `$request->input('filters')`
 after validating, not out of `$validated`.
+
+## Editing a platform user: the two guards that must stay on the service
+
+`PUT /admin/users/{id}` (`AdminUserController::updateUser` →
+`AdminUserService::updateUserProfile()`, implemented in the
+`Concerns\UpdatesUserProfiles` trait) is the only way to edit an existing
+account's profile, and a super_admin may edit *any* account including
+another super_admin's. Two things make that safe, and both live on the
+**service**, not the controller, so a future second call site cannot skip
+them:
+
+- **`assertNotSelfRoleChange()`** — a super_admin cannot change their own
+  `role`. Other fields on their own account are still editable; only the
+  role is frozen. (The pre-existing self-deactivation guard in
+  `deactivateUser` sits on the controller instead; this one deliberately
+  does not follow it down to the layer, because the service is the actual
+  write.)
+- **`assertNotLastActiveSuperAdmin()`** — before any role change away from
+  `super_admin` on *any* user, the count of other `super_admin` rows with
+  `is_active = true` must be non-zero. Deactivated and soft-deleted
+  super_admins do not count, so demoting the last usable one is refused
+  even when dormant rows exist. Nothing enforced this before 2026-10-01 —
+  the platform could be left with no reachable super_admin.
+
+Both throw `ValidationException`, which is why
+`AdminBaseController::withErrorResponse()` now re-throws that one exception
+type instead of folding it into its generic 500: a guard rejection has to
+surface as its own 422 with its message intact.
+
+**Scope is deliberately narrow:** `first_name`, `last_name`, `phone`,
+`email`, `role` only. Password, `is_active`/status and plan/trial fields are
+`prohibited` in the request rules — they each already have a dedicated
+endpoint (`reset-password`, `deactivate`/`reactivate`,
+`grant-trial`/`activate-plan`), and silently ignoring them would let a
+caller think a password change had taken effect. `role` is restricted to
+`AdminUserService::PLATFORM_ROLES` (`super_admin|platform_admin|agent`);
+store-tenant roles are tenant-owned and are not assignable here.
+
+The audit row (`USER_PROFILE_UPDATED`) is the first admin-user action to use
+`activity_logs.properties` for a real before/after diff, and it records
+**only the fields that actually changed** — an update that changes nothing
+writes no log at all. Note `A-131` in `docs/KNOWN_BUGS.md`: the
+`'status' => 'success'` key every one of these `ActivityLog::create()` calls
+passes is not a real column and is silently dropped, so never assert on it.
+
+Covered by `tests/Feature/Admin/AdminUserProfileUpdateTest.php`.
 
 ## A voided sale is not revenue — including on the admin surfaces
 
@@ -1216,9 +1357,22 @@ itself holds no sending logic.
   neither does this one.
 - **Two compose-time companions, neither of which creates a `Broadcast`.** Both
   live in the same `announcements` route group, so they inherit its
-  `auth:sanctum` + `subscription:broadcast_create` + `role:super_admin` gate
-  unchanged — there is no extra throttling, matching `mail/send` and
-  `users/bulk-notify`, and none was added: the gate is the control.
+  `auth:sanctum` + `permission:send_notifications` gate unchanged (nested
+  inside the outer `permission:manage_platform` group) — there is no extra
+  throttling, matching `mail/send` and `users/bulk-notify`, and none was
+  added: the gate is the control. The platform admin delegation work
+  replaced the group's prior `role:super_admin` with `permission:send_notifications`,
+  so a `platform_admin`/`agent` holding that permission reaches them too.
+  The group briefly also carried `subscription:broadcast_create`, a tenant
+  subscription-feature-flag gate that was dead code under `role:super_admin`
+  (only `super_admin`, who bypasses `CheckSubscription` entirely, ever
+  reached it) and was never actually seeded on any plan tier
+  (`SystemConfigSeeder` has no `broadcast_create` key anywhere) — so once
+  `role:super_admin` was dropped it became a permanent, unconditional 403 for
+  every `platform_admin`/`agent`. Removed entirely rather than patched: this
+  is an authorization concern and `permission:send_notifications` is already
+  the real, functional control, with no `subscription:*` gate paired with a
+  role/permission check anywhere else in this file.
   - `POST /admin/announcements/preview-email` (`previewEmail()` →
     `BroadcastEmailService::renderPreview()`) takes `title`/`message` and
     returns `{subject, html}`, where `html` is

@@ -179,6 +179,7 @@ export function PlanTierCard({
               { key: "audit_mode", label: "Stock Audits" },
               { key: "dark_mode", label: "Dark Mode" },
               { key: "smart_suggestions", label: "Smart Suggestions" },
+              { key: "ai_assistant", label: "AI Assistant" },
               { key: "auto_lock", label: "Auto-Lock" },
               { key: "barcode_generation", label: "Barcode Generation" },
               { key: "loyalty_program", label: "Loyalty Program" },

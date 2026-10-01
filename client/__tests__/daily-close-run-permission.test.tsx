@@ -30,7 +30,7 @@ describe("Daily Close run permission", () => {
   });
 
   it("offers the close actions to a user with run_daily_close", () => {
-    render(<DailyCloseHeader reportDate="28/09/2026" />);
+    render(<DailyCloseHeader reportDate="2026-09-28" />);
     expect(
       screen.getByRole("button", { name: /Download Local Backup/ }),
     ).toBeTruthy();
@@ -39,7 +39,7 @@ describe("Daily Close run permission", () => {
 
   it("hides both close actions from a user without run_daily_close", () => {
     hasPermission.mockImplementation((key: string) => key !== "run_daily_close");
-    render(<DailyCloseHeader reportDate="28/09/2026" />);
+    render(<DailyCloseHeader reportDate="2026-09-28" />);
     expect(
       screen.queryByRole("button", { name: /Download Local Backup/ }),
     ).toBeNull();
@@ -48,13 +48,19 @@ describe("Daily Close run permission", () => {
 
   it("still shows the end-of-day banner itself without the key", () => {
     hasPermission.mockImplementation((key: string) => key !== "run_daily_close");
-    render(<DailyCloseHeader reportDate="28/09/2026" />);
+    render(<DailyCloseHeader reportDate="2026-09-28" />);
     expect(screen.getByText(/Daily Close Ready/)).toBeTruthy();
     expect(screen.getByText(/end of day reconciliation/)).toBeTruthy();
   });
 
   it("checks the run_daily_close key specifically", () => {
-    render(<DailyCloseHeader reportDate="28/09/2026" />);
+    render(<DailyCloseHeader reportDate="2026-09-28" />);
     expect(hasPermission).toHaveBeenCalledWith("run_daily_close");
+  });
+
+  it("renders the report date as a long day-first string, not the raw YYYY-MM-DD", () => {
+    render(<DailyCloseHeader reportDate="2026-09-28" />);
+    expect(screen.getByText(/28th September, 2026/)).toBeTruthy();
+    expect(screen.queryByText(/2026-09-28/)).toBeNull();
   });
 });

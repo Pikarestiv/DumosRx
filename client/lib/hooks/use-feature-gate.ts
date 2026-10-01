@@ -214,6 +214,7 @@ export function useFeatureGate() {
     canRemoveBranding: getFeature('remove_branding', 'white_label', isPro || isEnterprise),
     canUseDarkMode: getFeature('dark_mode', 'dark_mode', !isFree),
     canUseSmartSuggestions: getFeature('smart_suggestions', 'smart_suggestions', isPro || isEnterprise),
+    canUseAiAssistant: getFeature('ai_assistant', 'ai_assistant', isPro || isEnterprise),
     canAutoLock: getFeature('auto_lock', 'auto_lock', !isFree),
     
     // New Features

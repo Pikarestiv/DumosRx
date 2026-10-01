@@ -238,6 +238,7 @@ export interface TierFeatures {
   audit_mode: boolean;
   dark_mode: boolean;
   smart_suggestions: boolean;
+  ai_assistant: boolean;
   auto_lock: boolean;
   barcode_generation: boolean;
   loyalty_program: boolean;

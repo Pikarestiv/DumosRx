@@ -60,7 +60,12 @@ vi.mock("@/lib/context/inventory-audit-context", () => ({
 }));
 
 vi.mock("@/lib/hooks/use-feature-gate", () => ({
-  useFeatureGate: () => ({ canManageMultiStore: false }),
+  useFeatureGate: () => ({
+    canManageMultiStore: false,
+    canUseAiAssistant: true,
+    withRestriction: (action: (...args: unknown[]) => unknown) => action,
+    getUpgradeMessage: () => "",
+  }),
 }));
 
 vi.mock("@/hooks/use-media-query", () => ({

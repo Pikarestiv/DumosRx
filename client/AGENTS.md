@@ -3596,6 +3596,32 @@ query function and is gated by the same `hasPermission()` used everywhere
 else in the app. The sections that follow document each stage; read this one
 first for the decisions that apply to all of them.
 
+- **Plan-gated (Pro/Enterprise), entirely client-side.** The assistant is
+  entitled by the `ai_assistant` plan feature, resolved as
+  `useFeatureGate().canUseAiAssistant` (fallback `isPro || isEnterprise`,
+  matching the `smart_suggestions` split it mirrors). Because the feature
+  has **no backend endpoint at all** — it is rule-based routing over
+  already-synced local data — there is no middleware or server check that
+  could back this up: the client gate is the only enforcement there is, so
+  every entry point has to be covered. There are three, and all three are:
+  the header launcher (`components/assistant/assistant-launcher.tsx`), the
+  account-menu "Ask …" action (`lib/hooks/use-account-actions.ts`), and the
+  panel itself, which is rendered through
+  `components/assistant/gated-assistant-panel.tsx` in `dashboard-layout.tsx`
+  rather than directly. Gating only the launcher would not be enough —
+  `useAssistantPanel.getState().open()` is callable from anywhere, so the
+  panel must refuse to render on its own.
+- **The gate upsells, it does not hide.** The launcher icon stays visible on
+  an unentitled plan, switches to a lock, and routes its click through
+  `withRestriction(..., { enforceMobileAccess: false })` so clicking it
+  raises the standard "Feature Locked" upgrade toast naming the lowest plan
+  that carries it. This is the deliberate choice over
+  `locked-module-overlay.tsx`: that overlay is built for a whole module's
+  page body and is wrong for a single header icon, and silent disappearance
+  would read as a bug to existing Free/Starter stores who already had the
+  feature. Adding a *new* restricted module should still prefer the overlay.
+  Changing the tier split is a Platform Settings toggle per tier
+  (`ai_assistant`), not a code change.
 - **Why deterministic, not an LLM.** No model download, no bundle-size cost,
   no API key, no network: it works identically offline on Tauri, Android and
   the PWA. `AssistantBrain` (`types.ts`) is the only seam a future LLM brain

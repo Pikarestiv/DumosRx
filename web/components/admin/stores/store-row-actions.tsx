@@ -107,10 +107,12 @@ export function StoreRowActions({
             Impersonate (Admin)
           </DropdownMenuItem>
         )}
-        <DropdownMenuItem className={ITEM_CLASS} onClick={() => handleViewBilling(store)}>
-          <CreditCard className="h-4 w-4 text-emerald-500" />
-          View Billing History
-        </DropdownMenuItem>
+        {isSuperAdmin && (
+          <DropdownMenuItem className={ITEM_CLASS} onClick={() => handleViewBilling(store)}>
+            <CreditCard className="h-4 w-4 text-emerald-500" />
+            View Billing History
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem
           className={ITEM_CLASS}
           onClick={() => router.push(adminStoreActivityPath(store.id, store.name))}

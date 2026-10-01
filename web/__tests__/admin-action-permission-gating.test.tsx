@@ -114,6 +114,13 @@ describe("StoreRowActions permission gating", () => {
     expect(screen.queryByText("Suspend Account")).not.toBeInTheDocument();
   });
 
+  it("hides View Billing History from a non-super_admin, whose route is super_admin-only", async () => {
+    renderActions(true, true);
+    await openMenu();
+
+    expect(screen.queryByText("View Billing History")).not.toBeInTheDocument();
+  });
+
   it("shows Impersonate to a role holding impersonate_store", async () => {
     renderActions(true, false);
     await openMenu();
@@ -192,6 +199,7 @@ describe("StoreTable real permission-slug mapping", () => {
 
     expect(screen.getByText("Impersonate (Admin)")).toBeInTheDocument();
     expect(screen.getByText("Suspend Account")).toBeInTheDocument();
+    expect(screen.getByText("View Billing History")).toBeInTheDocument();
   });
 });
 

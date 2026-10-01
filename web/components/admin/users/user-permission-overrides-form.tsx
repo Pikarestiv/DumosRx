@@ -81,10 +81,11 @@ export function UserPermissionOverridesForm({
       <Alert>
         <TriangleAlert />
         <AlertDescription>
-          This admin&apos;s current override state can&apos;t be confirmed from the server, so
-          every permission below starts at its best-known state, not a verified one. Only the
-          changes you make in this session will be sent when you save — untouched rows are left
-          alone.
+          &quot;Granted&quot; below reflects this admin&apos;s actual effective permissions. An
+          explicit revoke can&apos;t yet be told apart from a role that never granted the
+          permission in the first place — both show as &quot;Inherited&quot; until the server
+          exposes the raw override rows. Only the changes you make in this session are sent when
+          you save — untouched rows are left alone.
         </AlertDescription>
       </Alert>
       <div className="space-y-4">

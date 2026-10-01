@@ -1036,8 +1036,14 @@ class SyncController extends Controller
 
         $requestedStoreId = $request->header('X-Store-Id') ?? $request->input('store_id');
         if ($requestedStoreId) {
-            $ownsStore = Store::where('id', $requestedStoreId)->where('user_id', $ownerId)->exists();
-            $storeIds = $ownsStore ? [$requestedStoreId] : [];
+            // A-129: this used to check "does this store belong to the same
+            // owner" (Store::where('user_id', $ownerId)), which let a staff
+            // account read a sibling store's data by sending that store's
+            // id here — any store under the same owner passed. $ownedStoreIds
+            // is already the caller's own correctly-narrowed scope (one
+            // store for staff, every owned store for an owner), exactly
+            // like resolveAllowedOwnershipScope() already enforces for push.
+            $storeIds = in_array($requestedStoreId, $ownedStoreIds, true) ? [$requestedStoreId] : [];
         } else {
             $storeIds = $ownedStoreIds;
         }

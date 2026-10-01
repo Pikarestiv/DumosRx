@@ -318,7 +318,6 @@ class AdminStoreService
                     'user_id' => $registeredById,
                     'action' => 'ACCOUNT_REGISTERED_BY_STAFF',
                     'description' => "Registered store account: {$store->name} ({$store->id}) for {$user->email}",
-                    'status' => 'success',
                 ]);
             }
 
@@ -352,7 +351,6 @@ class AdminStoreService
                 'description' => $suspend
                     ? "Suspended store account: {$store->name} ({$store->id}). Reason: ".($reason ?: 'N/A')
                     : "Unsuspended store account: {$store->name} ({$store->id})",
-                'status' => 'success',
             ]);
 
             return true;
@@ -383,7 +381,6 @@ class AdminStoreService
                 'user_id' => Auth::id(),
                 'action' => $isDemo ? 'STORE_MARKED_DEMO' : 'STORE_UNMARKED_DEMO',
                 'description' => ($isDemo ? 'Marked' : 'Unmarked')." store account as demo: {$store->name} ({$store->id})",
-                'status' => 'success',
             ]);
 
             return true;
@@ -445,7 +442,6 @@ class AdminStoreService
                 'user_id' => Auth::id(),
                 'action' => 'GRANT_FREE_TRIAL',
                 'description' => "Granted {$durationLabel} {$plan} Free Trial to {$store->name} ({$store->id})",
-                'status' => 'success',
             ]);
 
             Notification::create([
@@ -523,7 +519,6 @@ class AdminStoreService
                 'user_id' => Auth::id(),
                 'action' => 'ACTIVATE_PAID_PLAN',
                 'description' => "Activated {$plan} plan ({$billingCycle}) for {$store->name} ({$store->id}) via bank transfer".($reference ? ", ref {$reference}" : ''),
-                'status' => 'success',
             ]);
 
             Notification::create([
@@ -554,7 +549,6 @@ class AdminStoreService
             'user_id' => Auth::id(),
             'action' => 'ADMIN_IMPERSONATION',
             'description' => "Admin impersonating store owner: {$user->email} ({$store->name})",
-            'status' => 'success',
         ]);
 
         return [

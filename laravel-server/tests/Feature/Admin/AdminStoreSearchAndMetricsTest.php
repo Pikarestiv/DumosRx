@@ -271,6 +271,46 @@ class AdminStoreSearchAndMetricsTest extends TestCase
         $this->assertSame('₦2,500', $response->json('counts.stock_value'));
     }
 
+    /**
+     * stock_batches.store_id is not authoritative (frequently null/stale on
+     * real data) — the sync engine itself scopes stock_batches via
+     * product_id -> products.store_id (see SyncController's own comment on
+     * this). A batch with a null/wrong store_id must still count toward its
+     * product's store value, the same way it still counts for that store on
+     * pull().
+     */
+    #[Test]
+    public function stock_value_counts_a_batch_even_when_its_own_store_id_is_missing(): void
+    {
+        $productId = (string) \Illuminate\Support\Str::uuid();
+        DB::table('products')->insert([
+            'id' => $productId,
+            'name' => 'Amoxicillin',
+            'store_id' => $this->store->id,
+            'selling_price' => 500,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('stock_batches')->insert([
+            'id' => (string) \Illuminate\Support\Str::uuid(),
+            'product_id' => $productId,
+            'store_id' => null,
+            'user_id' => $this->owner->id,
+            'batch_number' => 'B-2',
+            'quantity' => 100,
+            'cost_price' => 300,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $response = $this->actingAs($this->superAdmin)
+            ->getJson('/api/v1/admin/stores/'.$this->store->id);
+
+        $response->assertStatus(200);
+        $this->assertEquals(30000, $response->json('operational_metrics.stock_value_raw'));
+    }
+
     #[Test]
     public function trading_days_are_counted_against_the_stores_own_calendar_day()
     {

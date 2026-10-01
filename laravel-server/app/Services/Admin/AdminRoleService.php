@@ -47,7 +47,6 @@ class AdminRoleService
             'user_id' => $actorId,
             'action' => 'ROLE_PERMISSIONS_UPDATED',
             'description' => "Updated delegated permissions for role \"{$role->name}\" ({$role->slug})",
-            'status' => 'success',
             'properties' => ['role_slug' => $role->slug, 'before' => $before, 'after' => $after],
         ]);
 
@@ -74,7 +73,6 @@ class AdminRoleService
             'user_id' => $actorId,
             'action' => 'PLATFORM_ROLE_CREATED',
             'description' => "Created platform role \"{$name}\" ({$slug})",
-            'status' => 'success',
             'properties' => ['role_slug' => $slug, 'permissions' => $permissionSlugs],
         ]);
 
@@ -98,10 +96,30 @@ class AdminRoleService
             'user_id' => $actorId,
             'action' => 'PLATFORM_ROLE_DELETED',
             'description' => "Deleted platform role \"{$role->name}\" ({$role->slug})",
-            'status' => 'success',
         ]);
 
         $role->delete();
+    }
+
+    /**
+     * A-138: the admin panel submits every changed permission for a user in
+     * one request; each override used to be its own write with no
+     * surrounding transaction, so a mid-loop failure left the stored
+     * override set matching neither the previous nor the submitted state,
+     * with a partially-applied audit trail. Owning the transaction here
+     * (rather than in the controller) keeps the controller thin per
+     * `.agents/AGENTS.md` §4.
+     */
+    public function setUserPermissionOverrides(string $userId, array $overrides, string $actorId): User
+    {
+        return DB::transaction(function () use ($userId, $overrides, $actorId) {
+            $user = null;
+            foreach ($overrides as $slug => $granted) {
+                $user = $this->setUserPermissionOverride($userId, $slug, $granted, $actorId);
+            }
+
+            return $user ?? User::findOrFail($userId);
+        });
     }
 
     public function setUserPermissionOverride(string $userId, string $permissionSlug, ?bool $granted, string $actorId): User
@@ -125,7 +143,6 @@ class AdminRoleService
             'user_id' => $actorId,
             'action' => $action,
             'description' => $description,
-            'status' => 'success',
             'properties' => ['target_user_id' => $user->id, 'permission' => $permissionSlug, 'granted' => $granted],
         ]);
 

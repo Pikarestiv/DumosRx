@@ -114,7 +114,6 @@ class AdminUserService
             'user_id' => $callerId,
             'action' => 'REFERRAL_CODE_UPDATED',
             'description' => "Set referral code for {$target->email} ({$target->id}) to \"{$normalized}\"",
-            'status' => 'success',
         ]);
 
         return $target->platform_referral_code;
@@ -199,6 +198,7 @@ class AdminUserService
                     'joinedAt' => $user->created_at->format('M d, Y'),
                     'deletionRequested' => $user->deletion_requested_at ? true : false,
                     'deletionReason' => $user->deletion_reason,
+                    'effective_permissions' => $user->effective_permissions,
                 ];
             }),
             'meta' => [
@@ -250,7 +250,6 @@ class AdminUserService
                 'user_id' => Auth::id(),
                 'action' => 'GRANT_FREE_TRIAL',
                 'description' => "Granted {$durationLabel} {$plan} Free Trial to user {$user->email} ({$user->id})",
-                'status' => 'success',
             ]);
 
             $this->notifyUser(
@@ -318,7 +317,6 @@ class AdminUserService
                 'user_id' => Auth::id(),
                 'action' => 'ACTIVATE_PAID_PLAN',
                 'description' => "Activated {$plan} plan ({$billingCycle}) for user {$user->email} ({$user->id}) via bank transfer".($reference ? ", ref {$reference}" : ''),
-                'status' => 'success',
             ]);
 
             $this->notifyUser(
@@ -353,7 +351,6 @@ class AdminUserService
                 'user_id' => Auth::id(),
                 'action' => 'PLATFORM_ACCOUNT_CREATED',
                 'description' => "Created new {$roleSlug} account: {$user->email} ({$user->id})",
-                'status' => 'success',
             ]);
 
             return $user;
@@ -370,7 +367,6 @@ class AdminUserService
             'user_id' => Auth::id(),
             'action' => 'USER_DEACTIVATION',
             'description' => "Deactivated user account: {$user->email} ({$user->id})",
-            'status' => 'success',
         ]);
 
         return true;
@@ -386,7 +382,6 @@ class AdminUserService
             'user_id' => Auth::id(),
             'action' => 'USER_REACTIVATION',
             'description' => "Reactivated user account: {$user->email} ({$user->id})",
-            'status' => 'success',
         ]);
 
         return true;
@@ -414,7 +409,6 @@ class AdminUserService
                 'user_id' => Auth::id(),
                 'action' => 'USER_DELETION',
                 'description' => "Deleted user account: {$userEmail} ({$id}). Their stores were archived with them.",
-                'status' => 'success',
             ]);
 
             return true;
@@ -445,8 +439,7 @@ class AdminUserService
         ActivityLog::create([
             'user_id' => Auth::id(),
             'action' => 'PASSWORD_RESET_FORCE',
-            'description' => "Forced password reset for user: {$user->email} ({$user->id}). Temporary password: {$tempPassword}",
-            'status' => 'success',
+            'description' => "Forced password reset for user: {$user->email} ({$user->id})",
         ]);
 
         return ['temp_password' => $tempPassword];
@@ -476,7 +469,6 @@ class AdminUserService
             'user_id' => Auth::id(),
             'action' => 'ADMIN_NOTIFICATION',
             'description' => "Sent notification to user {$user->email}: {$message}",
-            'status' => 'success',
         ]);
 
         return true;
@@ -525,7 +517,6 @@ class AdminUserService
             'user_id' => Auth::id(),
             'action' => 'BULK_ADMIN_NOTIFICATION',
             'description' => "Sent bulk notification '{$title}' to {$count} users.",
-            'status' => 'success',
         ]);
 
         return $count;

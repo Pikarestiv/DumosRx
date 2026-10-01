@@ -56,7 +56,6 @@ class AdminStoreDeletionService
                 'store_id' => $store->id,
                 'action' => 'STORE_ARCHIVED',
                 'description' => "Archived store: {$store->name} ({$store->id}). Reason: ".($reason ?: 'N/A'),
-                'status' => 'success',
             ]);
         });
 
@@ -87,7 +86,6 @@ class AdminStoreDeletionService
                 'action' => 'STORE_RESTORED',
                 'description' => "Restored archived store: {$store->name} ({$store->id})"
                     .$this->suspensionNote($store),
-                'status' => 'success',
             ]);
         });
 
@@ -146,7 +144,6 @@ class AdminStoreDeletionService
                     'action' => 'STORE_PURGED',
                     'description' => "Permanently deleted store: {$storeName} ({$storeId}). Rows removed: "
                         .json_encode($removed),
-                    'status' => 'success',
                 ]);
             });
         });

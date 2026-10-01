@@ -2,6 +2,7 @@
 
 namespace App\Services\Admin;
 
+use App\Models\Product;
 use App\Models\Store;
 use App\Models\User;
 use Illuminate\Support\Carbon;
@@ -233,9 +234,17 @@ class AdminStoreMetricsService
     }
 
     /**
-     * Mirrors DashboardService's own inventory-value formula (SUM(quantity
-     * * cost_price) over stock_batches) so the admin panel and the store
-     * owner's dashboard never quote two different stock valuations.
+     * stock_batches.store_id is NOT the authoritative scoping column — it is
+     * frequently null/stale on real data, and every other part of the sync
+     * engine (SyncController::applyPullTenantScope(), its counts() endpoint)
+     * deliberately scopes stock_batches via product_id -> products.store_id
+     * instead, with an explicit comment warning against doing it the naive
+     * way this method originally did. Scoping on stock_batches.store_id
+     * directly undercounted this value by ~400x on a real store during
+     * manual verification of this feature (most of its batches' own
+     * store_id was never backfilled, even though products.store_id was).
+     * A soft-deleted product's batches are correctly excluded too, matching
+     * pull()'s own behavior for discontinued products.
      */
     private function stockValueRaw(Store $store): float
     {
@@ -243,8 +252,10 @@ class AdminStoreMetricsService
             return 0.0;
         }
 
+        $productIds = Product::query()->where('store_id', $store->id)->select('id');
+
         $total = DB::table('stock_batches')
-            ->where('store_id', $store->id)
+            ->whereIn('product_id', $productIds)
             ->whereNull('deleted_at')
             ->selectRaw('COALESCE(SUM(quantity * cost_price), 0) as total_value')
             ->value('total_value');

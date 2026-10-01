@@ -17,16 +17,20 @@ class AdminAlertService
     public static function send($title, $messageLines)
     {
         $emails = config('dumos.admin_emails', []);
-        
-        if (empty($emails)) {
+
+        // One Mail::to() with every address is one SMTP round-trip
+        // regardless of admin count, not N - the registration-latency
+        // concern this call site exists inside (A-125) is N blocking
+        // round-trips, not merely "an email gets sent".
+        $validEmails = array_values(array_filter(
+            array_map('trim', $emails),
+            fn ($email) => filter_var($email, FILTER_VALIDATE_EMAIL),
+        ));
+
+        if (empty($validEmails)) {
             return;
         }
 
-        foreach ($emails as $email) {
-            $email = trim($email);
-            if (filter_var($email, FILTER_VALIDATE_EMAIL)) {
-                Mail::to($email)->send(new SuperAdminAlertMail($title, $messageLines));
-            }
-        }
+        Mail::to($validEmails)->send(new SuperAdminAlertMail($title, $messageLines));
     }
 }

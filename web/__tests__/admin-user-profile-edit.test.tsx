@@ -1,4 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
+
+vi.mock("@/lib/api/admin-hooks-roles", () => ({
+  useAdminRoles: () => ({ data: { roles: [] } }),
+}));
 import { render, screen, fireEvent } from "@testing-library/react";
 import {
   buildUserProfileUpdate,
@@ -77,7 +81,7 @@ describe("buildUserProfileUpdate", () => {
 });
 
 describe("UserProfileEditForm", () => {
-  it("offers only the three platform roles in its role select", () => {
+  it("offers the three built-in platform roles in its role select", () => {
     expect([...PLATFORM_ROLE_OPTIONS].map((o) => o.value).sort()).toEqual(
       [...PLATFORM_ROLE_SLUGS].sort(),
     );

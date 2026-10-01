@@ -250,7 +250,7 @@ class AdminUserController extends AdminBaseController
                 new OA\Property(property: 'email', type: 'string', format: 'email'),
                 new OA\Property(property: 'phone', type: 'string', nullable: true),
                 new OA\Property(property: 'password', type: 'string', format: 'password', minLength: 8),
-                new OA\Property(property: 'role', type: 'string', enum: ['super_admin', 'platform_admin', 'agent'], default: 'platform_admin'),
+                new OA\Property(property: 'role', type: 'string', enum: AdminUserService::PLATFORM_ROLES, default: 'platform_admin', description: 'Also accepts any custom platform role slug; OpenAPI enums are static so only the 3 built-ins are listed here.'),
             ],
         )),
         responses: [
@@ -268,7 +268,7 @@ class AdminUserController extends AdminBaseController
             'email' => 'required|email|unique:users,email',
             'phone' => 'nullable|string',
             'password' => 'required|string|min:8',
-            'role' => 'nullable|string|in:super_admin,platform_admin,agent',
+            'role' => ['nullable', 'string', Rule::in(AdminUserService::platformRoleSlugs())],
         ]);
 
         return $this->withErrorResponse('Create Platform Admin', 'Failed to create platform account', function () use ($request, $validated) {

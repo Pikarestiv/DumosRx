@@ -7,7 +7,8 @@ import { UserProfileEditForm } from "./user-profile-edit-form";
 import { UserPermissionOverridesForm } from "./user-permission-overrides-form";
 import { useUpdateUserProfileMutation } from "@/lib/api/admin-hooks-users";
 import { checkIsSuperAdmin, useAdminAuthStore } from "@/lib/store/use-admin-auth-store";
-import { PLATFORM_ROLE_SLUGS, type AdminUserProfileUpdate } from "@/lib/types/admin";
+import { usePlatformRoleOptions } from "@/hooks/use-platform-role-options";
+import { type AdminUserProfileUpdate } from "@/lib/types/admin";
 import { StoreStaffList } from "@/components/admin/stores/store-staff-list";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -28,6 +29,7 @@ export function UserProfileDialog({
   const ownedStoreId = selectedUser?.is_store_owner ? (selectedUser.store_id ?? null) : null;
   const viewerRole = useAdminAuthStore((state) => state.user?.role);
   const canEdit = checkIsSuperAdmin(viewerRole);
+  const platformRoleSlugs = usePlatformRoleOptions(canEdit).map((option) => option.value);
   const updateMutation = useUpdateUserProfileMutation();
   const [isEditing, setIsEditing] = useState(false);
   const [isManagingPermissions, setIsManagingPermissions] = useState(false);
@@ -35,7 +37,7 @@ export function UserProfileDialog({
     canEdit &&
     selectedUser !== null &&
     selectedUser.role_slug !== "super_admin" &&
-    (PLATFORM_ROLE_SLUGS as readonly string[]).includes(selectedUser.role_slug ?? "");
+    platformRoleSlugs.includes(selectedUser.role_slug ?? "");
 
   const handleOpenChange = (open: boolean) => {
     if (!open) {

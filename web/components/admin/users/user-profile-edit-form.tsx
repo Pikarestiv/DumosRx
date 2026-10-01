@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,8 +9,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PLATFORM_ROLE_OPTIONS } from "@/lib/constants/platform-roles";
-import type { AdminUser, AdminUserProfileUpdate, PlatformRoleSlug } from "@/lib/types/admin";
+import { usePlatformRoleOptions } from "@/hooks/use-platform-role-options";
+import type { AdminUser, AdminUserProfileUpdate } from "@/lib/types/admin";
 import {
   buildUserProfileUpdate,
   toEditValues,
@@ -44,17 +44,31 @@ export function UserProfileEditForm({
   onSave,
   isPending,
 }: UserProfileEditFormProps) {
+  const roleOptions = usePlatformRoleOptions();
+  const allowedRoleSlugs = useMemo(
+    () => roleOptions.map((option) => option.value),
+    [roleOptions],
+  );
   const [values, setValues] = useState<UserProfileEditValues>(() => toEditValues(user));
   const [errors, setErrors] = useState<UserProfileEditErrors>({});
+  const [roleEdited, setRoleEdited] = useState(false);
 
-  const setField = (key: keyof UserProfileEditValues, value: string) =>
+  // The custom roles arrive asynchronously, so until the operator picks a
+  // role themselves the field must re-resolve from the loaded list.
+  const resolvedValues = roleEdited
+    ? values
+    : { ...values, role: toEditValues(user, allowedRoleSlugs).role };
+
+  const setField = (key: keyof UserProfileEditValues, value: string) => {
+    if (key === "role") setRoleEdited(true);
     setValues((current) => ({ ...current, [key]: value }));
+  };
 
   const handleSubmit = () => {
-    const found = validateUserProfileEdit(values);
+    const found = validateUserProfileEdit(resolvedValues, allowedRoleSlugs);
     setErrors(found);
     if (Object.keys(found).length > 0) return;
-    onSave(buildUserProfileUpdate(user, values));
+    onSave(buildUserProfileUpdate(user, resolvedValues, allowedRoleSlugs));
   };
 
   return (
@@ -69,7 +83,7 @@ export function UserProfileEditForm({
               id={`profile-${field.key}`}
               type={field.type ?? "text"}
               className={FIELD_CLASS}
-              value={values[field.key]}
+              value={resolvedValues[field.key]}
               onChange={(e) => setField(field.key, e.target.value)}
             />
             {errors[field.key] ? (
@@ -82,14 +96,14 @@ export function UserProfileEditForm({
             Role
           </Label>
           <Select
-            value={values.role}
-            onValueChange={(value) => setField("role", value as PlatformRoleSlug)}
+            value={resolvedValues.role}
+            onValueChange={(value) => setField("role", value)}
           >
             <SelectTrigger id="profile-role" className={`${FIELD_CLASS} w-full`}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {PLATFORM_ROLE_OPTIONS.map((opt) => (
+              {roleOptions.map((opt) => (
                 <SelectItem key={opt.value} value={opt.value}>
                   <div>
                     <div className="font-semibold">{opt.label}</div>

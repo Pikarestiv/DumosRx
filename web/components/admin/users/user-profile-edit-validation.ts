@@ -5,6 +5,10 @@ import {
   type PlatformRoleSlug,
 } from "@/lib/types/admin";
 
+/** The always-present floor. Any caller that can see the custom platform
+ * roles (via usePlatformRoleOptions) passes the merged set instead. */
+const BUILT_IN_SLUGS: readonly string[] = PLATFORM_ROLE_SLUGS;
+
 export interface UserProfileEditValues {
   first_name: string;
   last_name: string;
@@ -17,7 +21,10 @@ export type UserProfileEditErrors = Partial<Record<keyof UserProfileEditValues, 
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export function validateUserProfileEdit(values: UserProfileEditValues): UserProfileEditErrors {
+export function validateUserProfileEdit(
+  values: UserProfileEditValues,
+  allowedRoleSlugs: readonly string[] = BUILT_IN_SLUGS,
+): UserProfileEditErrors {
   const errors: UserProfileEditErrors = {};
 
   if (values.first_name.trim().length < 2) {
@@ -29,20 +36,23 @@ export function validateUserProfileEdit(values: UserProfileEditValues): UserProf
   if (!EMAIL_PATTERN.test(values.email.trim())) {
     errors.email = "Enter a valid email address.";
   }
-  if (!PLATFORM_ROLE_SLUGS.includes(values.role)) {
+  if (!allowedRoleSlugs.includes(values.role)) {
     errors.role = "Pick one of the platform roles.";
   }
 
   return errors;
 }
 
-export function toEditValues(user: AdminUser): UserProfileEditValues {
+export function toEditValues(
+  user: AdminUser,
+  allowedRoleSlugs: readonly string[] = BUILT_IN_SLUGS,
+): UserProfileEditValues {
   return {
     first_name: user.first_name ?? "",
     last_name: user.last_name ?? "",
     phone: user.phone ?? "",
     email: user.email,
-    role: (PLATFORM_ROLE_SLUGS as readonly string[]).includes(user.role_slug ?? "")
+    role: allowedRoleSlugs.includes(user.role_slug ?? "")
       ? (user.role_slug as PlatformRoleSlug)
       : "platform_admin",
   };
@@ -53,8 +63,9 @@ export function toEditValues(user: AdminUser): UserProfileEditValues {
 export function buildUserProfileUpdate(
   user: AdminUser,
   values: UserProfileEditValues,
+  allowedRoleSlugs: readonly string[] = BUILT_IN_SLUGS,
 ): AdminUserProfileUpdate {
-  const original = toEditValues(user);
+  const original = toEditValues(user, allowedRoleSlugs);
   const payload: AdminUserProfileUpdate = {};
 
   if (values.first_name.trim() !== original.first_name) payload.first_name = values.first_name.trim();

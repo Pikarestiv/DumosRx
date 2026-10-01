@@ -42,7 +42,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PLATFORM_ROLE_OPTIONS } from "@/lib/constants/platform-roles";
+import { usePlatformRoleOptions } from "@/hooks/use-platform-role-options";
 
 const adminSchema = z
   .object({
@@ -54,7 +54,7 @@ const adminSchema = z
       .min(2, { message: "Last name must be at least 2 characters" }),
     email: z.string().email({ message: "Invalid email address" }),
     phone: z.string().optional(),
-    role: z.enum(["super_admin", "platform_admin", "agent"]),
+    role: z.string().min(2, { message: "Pick a platform role" }),
     password: z
       .string()
       .min(8, { message: "Password must be at least 8 characters" })
@@ -81,6 +81,8 @@ export default function AdminNewUserPage() {
   const [pendingSuperAdmin, setPendingSuperAdmin] = useState<AdminFormValues | null>(
     null,
   );
+
+  const roleOptions = usePlatformRoleOptions();
 
   const form = useForm<z.infer<typeof adminSchema>>({
     resolver: zodResolver(adminSchema),
@@ -260,7 +262,7 @@ export default function AdminNewUserPage() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {PLATFORM_ROLE_OPTIONS.map((opt) => (
+                        {roleOptions.map((opt) => (
                           <SelectItem key={opt.value} value={opt.value}>
                             <div>
                               <div className="font-semibold">{opt.label}</div>

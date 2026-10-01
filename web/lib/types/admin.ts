@@ -171,11 +171,18 @@ export interface AdminUser {
   effective_permissions?: string[];
 }
 
-/** The only roles PUT /admin/users/{id} accepts: store-tenant roles are
- * owned by the tenant and are not assignable from the platform panel. */
+/** The 3 built-in platform roles. NOT the full set `PUT /admin/users/{id}`
+ * accepts: that endpoint validates against `UpdatesUserProfiles::platformRoleSlugs()`,
+ * which also includes every custom platform role. Any UI offering or
+ * validating a role must merge these with `useAdminRoles()` (see
+ * `mergePlatformRoleOptions()`); these 3 are only the always-present floor.
+ * Store-tenant roles stay unassignable from the platform panel either way. */
 export const PLATFORM_ROLE_SLUGS = ["super_admin", "platform_admin", "agent"] as const;
 
-export type PlatformRoleSlug = (typeof PLATFORM_ROLE_SLUGS)[number];
+export type BuiltInPlatformRoleSlug = (typeof PLATFORM_ROLE_SLUGS)[number];
+
+/** A platform role slug: one of the 3 built-ins or a custom role's slug. */
+export type PlatformRoleSlug = string;
 
 /** The field scope of PUT /admin/users/{id}. Password, account status and
  * plan deliberately stay with their own endpoints. */

@@ -33,8 +33,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { useAdminActivityLogs } from "@/lib/api/admin-activity-hooks";
 import { useAdminStores } from "@/lib/api/admin-hooks-stores";
 import { useAdminUsers } from "@/lib/api/admin-hooks-users";
-import { useAdminRoles } from "@/lib/api/admin-hooks-roles";
-import { PLATFORM_ROLE_OPTIONS } from "@/lib/constants/platform-roles";
+import { checkIsSuperAdmin, useAdminAuthStore } from "@/lib/store/use-admin-auth-store";
+import { usePlatformRoleOptions } from "@/hooks/use-platform-role-options";
 import { formatDateSafe } from "@/lib/utils/date-utils";
 import { useDebounce } from "@/hooks/use-debounce";
 import { AdminSkeleton } from "@/components/admin/admin-skeleton";
@@ -281,18 +281,15 @@ function AdminActivityLogPageContent() {
   const [dateTo, setDateTo] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
 
-  const { data: rolesData } = useAdminRoles();
-  const roleFilters = useMemo(() => {
-    const platformSlugs = new Set(PLATFORM_ROLE_OPTIONS.map((opt) => opt.value as string));
-    const customRoles = (rolesData?.roles || [])
-      .filter((role) => !platformSlugs.has(role.slug))
-      .map((role) => ({ label: role.name, value: role.slug }));
-    return [
+  const viewerRole = useAdminAuthStore((state) => state.user?.role);
+  const roleOptions = usePlatformRoleOptions(checkIsSuperAdmin(viewerRole));
+  const roleFilters = useMemo(
+    () => [
       { label: "All Roles", value: "" },
-      ...PLATFORM_ROLE_OPTIONS.map((opt) => ({ label: opt.label, value: opt.value as string })),
-      ...customRoles,
-    ];
-  }, [rolesData]);
+      ...roleOptions.map((option) => ({ label: option.label, value: option.value })),
+    ],
+    [roleOptions],
+  );
 
   const debouncedSearch = useDebounce(search, 500);
 

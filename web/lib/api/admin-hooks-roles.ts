@@ -11,10 +11,13 @@ export interface AdminRole {
   user_count: number;
 }
 
-export const useAdminRoles = () => {
+/** GET /admin/roles is `role:super_admin`, so a delegated admin must pass
+ * `enabled: false` rather than firing a request that can only 403. */
+export const useAdminRoles = (enabled = true) => {
   return useQuery({
     queryKey: useScopedKey(["admin-roles"]),
     queryFn: () => webApiClient.request<{ roles: AdminRole[] }>("admin/roles"),
+    enabled,
   });
 };
 

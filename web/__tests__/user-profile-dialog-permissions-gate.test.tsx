@@ -23,6 +23,7 @@ vi.mock("@/lib/api/admin-hooks-users", () => ({
 
 vi.mock("@/lib/api/admin-hooks-roles", () => ({
   useUpdateUserPermissionOverridesMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useAdminRoles: () => ({ data: { roles: [{ name: "Support Lead", slug: "support_lead" }] } }),
 }));
 
 function buildUser(overrides: Partial<AdminUser>): AdminUser {

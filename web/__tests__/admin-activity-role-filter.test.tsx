@@ -29,8 +29,21 @@ vi.mock("@/lib/api/admin-hooks-users", () => ({
   useAdminUsers: () => ({ data: { data: [] }, isLoading: false }),
 }));
 
+const { mockUseAdminRoles, viewerRole } = vi.hoisted(() => ({
+  mockUseAdminRoles: vi.fn(),
+  viewerRole: { current: "super_admin" },
+}));
+
+vi.mock("@/lib/store/use-admin-auth-store", () => ({
+  useAdminAuthStore: (selector?: (state: { user: { role: string } | null }) => unknown) => {
+    const state = { user: { role: viewerRole.current } };
+    return selector ? selector(state) : state;
+  },
+  checkIsSuperAdmin: (role?: string) => role === "super_admin",
+}));
+
 vi.mock("@/lib/api/admin-hooks-roles", () => ({
-  useAdminRoles: () => ({
+  useAdminRoles: (enabled?: boolean) => (mockUseAdminRoles(enabled), {
     data: {
       roles: [
         { id: 1, name: "Super Admin", slug: "super_admin", is_system: true, permissions: [], user_count: 1 },
@@ -51,6 +64,23 @@ const selectAgentRole = async (user: ReturnType<typeof userEvent.setup>) => {
 };
 
 describe("Activity page actor-role filter", () => {
+  it("never fires the super_admin-only roles request for a delegated admin", () => {
+    viewerRole.current = "platform_admin";
+    mockUseAdminRoles.mockClear();
+    render(<ActivityPage />);
+
+    expect(mockUseAdminRoles).toHaveBeenCalledWith(false);
+    viewerRole.current = "super_admin";
+  });
+
+  it("fires the roles request for a super_admin viewer", () => {
+    viewerRole.current = "super_admin";
+    mockUseAdminRoles.mockClear();
+    render(<ActivityPage />);
+
+    expect(mockUseAdminRoles).toHaveBeenCalledWith(true);
+  });
+
   it("passes the selected role through to useAdminActivityLogs as the final argument", async () => {
     const user = userEvent.setup();
     render(<ActivityPage />);

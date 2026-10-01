@@ -14,7 +14,6 @@ import {
   PRODUCT_IMPORT_REFERENCE_TYPE,
 } from "@/lib/constants/stock-adjustments";
 import { parseAdjustmentReason } from "@/components/stock-batch/adjustment-derivations";
-import type { StockMovementDbRow } from "@/lib/types/stock-movement";
 
 export interface StockMovement {
   id: string;
@@ -44,7 +43,11 @@ export const FILTER_TYPES = [
 
 /** Mirrors groupAdjustmentMovements()'s reference_type/reason check so a
  * bulk-import correction (movement_type "adjustment") reads as "Bulk Import" here too (A-122, client/AGENTS.md). */
-export function resolveMovementDisplayType(row: Pick<StockMovementDbRow, "movement_type" | "reference_type" | "reason">): string {
+export function resolveMovementDisplayType(row: {
+  movement_type?: string | null;
+  reference_type?: string | null;
+  reason?: string | null;
+}): string {
   const movementType = row.movement_type || "adjustment";
   if (movementType !== "adjustment") return movementType;
 

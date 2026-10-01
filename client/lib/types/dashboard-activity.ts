@@ -17,6 +17,8 @@ export interface DashboardActivity {
   markup_type?: "reseller" | "store" | null;
   // stock_movement
   movement_type?: string;
+  reference_type?: string | null;
+  reason?: string | null;
   quantity?: number;
   total_cost?: number;
   // prescription

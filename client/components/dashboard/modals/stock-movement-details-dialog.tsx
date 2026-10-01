@@ -12,6 +12,7 @@ import {
   getTypeLabel,
   formatMovementDate,
   formatMovementTime,
+  resolveMovementDisplayType,
 } from "@/components/stock-batch/stock-movement-utils";
 import { DetailRow } from "./detail-row";
 import type { StockMovementHistoryRow } from "@/lib/types/stock-movement";
@@ -40,6 +41,7 @@ export function StockMovementDetailsDialog({
 
   const date = movement.created_at || movement.movement_date;
   const isPositive = movement.quantity > 0;
+  const displayType = resolveMovementDisplayType(movement);
 
   return (
     <ResponsiveModal
@@ -52,9 +54,9 @@ export function StockMovementDetailsDialog({
       <div className="px-5 py-[18px]">
         <div className="flex items-start gap-3 mb-4">
           <div
-            className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${getTypeIconBg(movement.movement_type)}`}
+            className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${getTypeIconBg(displayType)}`}
           >
-            {getTypeIcon(movement.movement_type)}
+            {getTypeIcon(displayType)}
           </div>
           <div className="flex-1 min-w-0">
             <div className="text-[15px] font-semibold truncate">
@@ -72,9 +74,9 @@ export function StockMovementDetailsDialog({
           </div>
           <div className="text-right shrink-0">
             <span
-              className={`text-[11px] font-semibold px-2 py-0.5 rounded-md capitalize inline-block ${getTypeColor(movement.movement_type)}`}
+              className={`text-[11px] font-semibold px-2 py-0.5 rounded-md capitalize inline-block ${getTypeColor(displayType)}`}
             >
-              {getTypeLabel(movement.movement_type)}
+              {getTypeLabel(displayType)}
             </span>
             <div
               className={`text-[18px] font-semibold mt-1 ${isPositive ? "text-emerald-700" : "text-destructive"}`}

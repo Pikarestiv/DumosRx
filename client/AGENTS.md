@@ -1187,15 +1187,16 @@ e2e/                       Playwright end-to-end specs
   **A bulk-import stock correction is written as `movement_type: "adjustment"`
   but must display as "Bulk Import", not "Adjustment".** The general Stock
   Movements table (`stock-movement-utils.tsx`'s `resolveMovementDisplayType()`,
-  called from `stock-movements.tsx`'s `mapMovement()`) and the Adjustments
-  Ledger (`adjustment-derivations.ts`'s `groupAdjustmentMovements()`) each
-  independently check `reference_type`/`reason` to tell the two apart — any
-  **new** surface rendering a raw `movement_type` must go through one of these,
-  not read the column directly, or it reintroduces the gap `A-122` fixed in
-  the Stock Movements table alone (`stock-movement-details-dialog.tsx`,
-  `use-dashboard-overview.ts`'s recent-activity text, and
-  `product-history.tsx`'s timeline still have this gap — logged as `A-124`,
-  not yet fixed).
+  called from `stock-movements.tsx`'s `mapMovement()`), the Adjustments
+  Ledger (`adjustment-derivations.ts`'s `groupAdjustmentMovements()`), the
+  movement details dialog (`stock-movement-details-dialog.tsx`) and the
+  dashboard's recent-activity text (`use-dashboard-overview.ts`) all go
+  through `resolveMovementDisplayType()` or `groupAdjustmentMovements()`
+  rather than reading `movement_type` directly — any **new** surface
+  rendering a raw `movement_type` must do the same, or it reintroduces the
+  gap `A-122`/`A-124` fixed across these four (`product-history.tsx` was
+  checked and never renders the raw type as visible text, so it needed no
+  change).
 
   **The draft is cleared on a store switch and on logout**, via
   `clearStockAdjustmentDraft()` (`lib/hooks/use-stock-adjustment-draft.ts`),

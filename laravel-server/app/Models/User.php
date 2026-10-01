@@ -69,7 +69,7 @@ class User extends Authenticatable
      *
      * @var array
      */
-    protected $appends = ['name', 'require_email_verification', 'effective_permissions'];
+    protected $appends = ['name', 'require_email_verification'];
 
     /**
      * The attributes that should be hidden for serialization.

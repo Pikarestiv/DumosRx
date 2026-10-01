@@ -40,7 +40,7 @@ class EffectivePermissionsAttributeTest extends TestCase
         $user->role_id = $agentRole->id;
         $user->save();
 
-        $array = $user->toArray();
+        $array = $user->append('effective_permissions')->toArray();
 
         $this->assertArrayHasKey('effective_permissions', $array);
         $this->assertContains('view_platform_data', $array['effective_permissions']);
@@ -69,7 +69,7 @@ class EffectivePermissionsAttributeTest extends TestCase
         $user->role_id = $role->id;
         $user->save();
 
-        $this->assertContains('grant_trials', $user->toArray()['effective_permissions']);
+        $this->assertContains('grant_trials', $user->append('effective_permissions')->toArray()['effective_permissions']);
     }
 
     public function test_returns_an_empty_array_for_a_super_admin_rather_than_listing_the_whole_catalog()
@@ -91,6 +91,6 @@ class EffectivePermissionsAttributeTest extends TestCase
         $user->role_id = $superAdminRole->id;
         $user->save();
 
-        $this->assertSame([], $user->toArray()['effective_permissions']);
+        $this->assertSame([], $user->append('effective_permissions')->toArray()['effective_permissions']);
     }
 }

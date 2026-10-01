@@ -134,7 +134,7 @@ trait AuthenticatesSessions
 
         $response = response()->json([
             'message' => 'Login successful',
-            'user' => $user,
+            'user' => $user->append('effective_permissions'),
             'token' => $token,
             'role' => $user->role,
             'require_email_verification' => \App\Models\SystemConfig::getVal('require_email_verification', false) === true || \App\Models\SystemConfig::getVal('require_email_verification', false) === 'true'
@@ -208,7 +208,7 @@ trait AuthenticatesSessions
         // rather than gated, since it never needed to set this cookie.
         return response()->json([
             "token" => $token,
-            "user" => $user,
+            "user" => $user->append('effective_permissions'),
         ]);
     }
 
@@ -268,7 +268,7 @@ trait AuthenticatesSessions
         if ($this->adminRefreshTokenWasRotated($refreshToken)) {
             return response()->json([
                 'token' => $user->createToken('web')->plainTextToken,
-                'user' => $user,
+                'user' => $user->append('effective_permissions'),
             ]);
         }
 
@@ -279,7 +279,7 @@ trait AuthenticatesSessions
 
         return response()->json([
             'token' => $accessToken,
-            'user' => $user,
+            'user' => $user->append('effective_permissions'),
         ])->withCookie($this->buildAdminSessionCookie($request, $newRefreshToken));
     }
 

@@ -72,7 +72,8 @@ class AdminRoleController extends AdminBaseController
             foreach ($validated['overrides'] as $slug => $granted) {
                 $user = $this->adminRoleService->setUserPermissionOverride($id, $slug, $granted, $request->user()->id);
             }
-            return response()->json(['user' => $user ?? User::findOrFail($id)]);
+            $target = $user ?? User::findOrFail($id);
+            return response()->json(['user' => $target->append('effective_permissions')]);
         });
     }
 }

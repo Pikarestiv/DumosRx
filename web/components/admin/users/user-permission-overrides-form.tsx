@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ShieldCheck, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -9,7 +9,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useUpdateUserPermissionOverridesMutation } from "@/lib/api/admin-hooks-roles";
+import {
+  useAdminUserEffectivePermissions,
+  useUpdateUserPermissionOverridesMutation,
+} from "@/lib/api/admin-hooks-roles";
 import { PLATFORM_PERMISSION_OPTIONS } from "@/lib/constants/platform-permissions";
 import type { AdminUser } from "@/lib/types/admin";
 
@@ -21,8 +24,13 @@ const OVERRIDE_TO_VALUE: Record<PermissionOverrideState, boolean | null> = {
   revoked: false,
 };
 
-function initialOverrideState(user: AdminUser, permissionValue: string): PermissionOverrideState {
-  return user.effective_permissions?.includes(permissionValue) ? "granted" : "inherited";
+function buildInitialOverrides(effectivePermissions: string[]): Record<string, PermissionOverrideState> {
+  return Object.fromEntries(
+    PLATFORM_PERMISSION_OPTIONS.map((permission) => [
+      permission.value,
+      effectivePermissions.includes(permission.value) ? "granted" : "inherited",
+    ]),
+  );
 }
 
 interface UserPermissionOverridesFormProps {
@@ -37,15 +45,21 @@ export function UserPermissionOverridesForm({
   onSaved,
 }: UserPermissionOverridesFormProps) {
   const updateOverridesMutation = useUpdateUserPermissionOverridesMutation();
-  const [overrides, setOverrides] = useState<Record<string, PermissionOverrideState>>(() =>
-    Object.fromEntries(
-      PLATFORM_PERMISSION_OPTIONS.map((permission) => [
-        permission.value,
-        initialOverrideState(user, permission.value),
-      ]),
-    ),
-  );
+  // Fetched on demand for this one user rather than carried on the
+  // paginated user list, which would re-run this N+1-prone accessor per
+  // row of every page (see laravel-server's b7a39eea commit).
+  const { data: permissionsData, isLoading: isLoadingPermissions } =
+    useAdminUserEffectivePermissions(user.id);
+  const [overrides, setOverrides] = useState<Record<string, PermissionOverrideState>>({});
+  const [isInitialized, setIsInitialized] = useState(false);
   const [touchedPermissions, setTouchedPermissions] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!isLoadingPermissions && !isInitialized) {
+      setOverrides(buildInitialOverrides(permissionsData?.effective_permissions ?? []));
+      setIsInitialized(true);
+    }
+  }, [isLoadingPermissions, isInitialized, permissionsData]);
 
   const setOverride = (permissionValue: string, state: PermissionOverrideState) => {
     setOverrides((current) => ({ ...current, [permissionValue]: state }));
@@ -69,6 +83,10 @@ export function UserPermissionOverridesForm({
     setTouchedPermissions(new Set());
     onSaved?.();
   };
+
+  if (!isInitialized) {
+    return <div className="p-8 text-sm text-muted-foreground">Loading permissions…</div>;
+  }
 
   return (
     <div className="p-8 space-y-5">

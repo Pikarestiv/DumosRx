@@ -1,14 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 
-const { mockUpdateMutateAsync, roleRows } = vi.hoisted(() => ({
+const { mockUpdateMutateAsync, mockToastError, roleRows } = vi.hoisted(() => ({
   mockUpdateMutateAsync: vi.fn().mockResolvedValue(undefined),
+  mockToastError: vi.fn(),
   roleRows: {
     current: [
       { id: 1, name: "Platform Admin", slug: "platform_admin", is_system: true, permissions: ["view_platform_data"], user_count: 2 },
       { id: 2, name: "Agent", slug: "agent", is_system: true, permissions: ["view_platform_data"], user_count: 1 },
     ] as Record<string, unknown>[],
   },
+}));
+
+vi.mock("sonner", () => ({
+  toast: { success: vi.fn(), error: mockToastError },
 }));
 
 vi.mock("@/lib/api/admin-hooks-roles", () => ({
@@ -27,6 +32,7 @@ const BUILT_IN_ROWS = [
 
 beforeEach(() => {
   mockUpdateMutateAsync.mockClear();
+  mockToastError.mockClear();
   roleRows.current = [...BUILT_IN_ROWS];
 });
 
@@ -113,5 +119,32 @@ describe("AdminPermissionsCard", () => {
     expect(mockUpdateMutateAsync).not.toHaveBeenCalled();
     expect(screen.queryByText(/unsaved permission changes/i)).not.toBeInTheDocument();
     expect(checkbox).not.toBeChecked();
+  });
+
+  /**
+   * Code-review finding on A-137: a role staged for a change could be
+   * deleted (by another admin/tab) before Save ran; the loop's `if
+   * (!role) continue;` skipped it without recording a failure, so the UI
+   * reported success and cleared the staged edit with no warning and no
+   * mutation ever sent for it.
+   */
+  it("warns and keeps the edit staged when its role is deleted before Save runs, instead of silently discarding it", async () => {
+    const { rerender } = render(<AdminPermissionsCard />);
+
+    fireEvent.click(screen.getByRole("checkbox", { name: /send notifications for agent/i }));
+
+    // Simulate the role disappearing (deleted elsewhere) before Save.
+    roleRows.current = BUILT_IN_ROWS.filter((role) => role.slug !== "agent");
+    rerender(<AdminPermissionsCard />);
+
+    fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
+
+    await waitFor(() => {
+      expect(mockToastError).toHaveBeenCalledWith(expect.stringMatching(/failed to save/i));
+    });
+
+    expect(mockUpdateMutateAsync).not.toHaveBeenCalled();
+    // The edit must still be reported as unsaved, not silently cleared.
+    expect(screen.getByText(/unsaved permission changes/i)).toBeInTheDocument();
   });
 });

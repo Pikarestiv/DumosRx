@@ -142,8 +142,12 @@ class AdminStoreDeletionService
                 ActivityLog::create([
                     'user_id' => $actor->id,
                     'action' => 'STORE_PURGED',
-                    'description' => "Permanently deleted store: {$storeName} ({$storeId}). Rows removed: "
-                        .json_encode($removed),
+                    // A-146 (see docs/FIXED_BUGS.md): description is a
+                    // bounded VARCHAR(255); the structured breakdown goes
+                    // in `properties` instead. Still truncated defensively
+                    // here since `name` alone is validated up to 255 chars.
+                    'description' => mb_substr("Permanently deleted store: {$storeName} ({$storeId})", 0, 255),
+                    'properties' => ['rows_removed' => $removed],
                 ]);
             });
         });

@@ -234,17 +234,25 @@ class AdminStoreMetricsService
     }
 
     /**
-     * stock_batches.store_id is NOT the authoritative scoping column — it is
-     * frequently null/stale on real data, and every other part of the sync
+     * stock_batches.store_id is NOT the authoritative scoping column — it
+     * can be null/stale on real data, and every other part of the sync
      * engine (SyncController::applyPullTenantScope(), its counts() endpoint)
      * deliberately scopes stock_batches via product_id -> products.store_id
      * instead, with an explicit comment warning against doing it the naive
-     * way this method originally did. Scoping on stock_batches.store_id
-     * directly undercounted this value by ~400x on a real store during
-     * manual verification of this feature (most of its batches' own
-     * store_id was never backfilled, even though products.store_id was).
-     * A soft-deleted product's batches are correctly excluded too, matching
-     * pull()'s own behavior for discontinued products.
+     * way this method originally did. A soft-deleted product's batches are
+     * correctly excluded too, matching pull()'s own behavior for
+     * discontinued products.
+     *
+     * This scoping fix does NOT, by itself, make this figure trustworthy.
+     * A ~400x undercount observed on a real store traced to a different,
+     * deeper cause: the server never trusts a client-pushed quantity
+     * snapshot for stock_batches — it forces quantity to 0 on INSERT
+     * (SyncController) and only ever moves it via stock_movements deltas.
+     * A batch created by a bulk import that predates commit a36b00e7
+     * (2026-09-19, which started writing the accompanying opening-stock
+     * movement) has no movement to replay and sits at a permanent
+     * server-side quantity of 0, regardless of what the client shows
+     * locally — see docs/KNOWN_BUGS.md for the open finding on this.
      */
     private function stockValueRaw(Store $store): float
     {

@@ -58,6 +58,28 @@ class AdminUserController extends AdminBaseController
     }
 
     #[OA\Get(
+        path: '/admin/users/{id}/permissions',
+        summary: "One user's effective permissions",
+        description: 'Single-user lookup, not folded into GET /admin/users: appending this to every row of a paginated list reintroduced the N+1 that b7a39eea removed (each slug check can run 1-3 queries). Backs the per-admin permission-override form, which needs one user\'s current state, not the whole page\'s.',
+        tags: ['Admin'],
+        security: [['sanctum' => []]],
+        responses: [
+            new OA\Response(response: 200, description: 'effective_permissions for this user', content: new OA\JsonContent(type: 'object')),
+            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Missing the view_platform_data permission'),
+            new OA\Response(response: 404, description: 'No such user'),
+            new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
+        ],
+    )]
+    public function effectivePermissions(string $id)
+    {
+        return $this->withErrorResponse('User Permissions', 'Failed to fetch permissions', function () use ($id) {
+            return response()->json([
+                'effective_permissions' => $this->adminUserService->getEffectivePermissions($id),
+            ]);
+        });
+    }
+
+    #[OA\Get(
         path: '/admin/my-referrals',
         summary: "Accounts the caller registered or that signed up via the caller's referral link",
         description: 'Available to super_admin/platform_admin/agent (the manage_platform gate on this whole route group already covers that). Defaults to the caller\'s own attribution; super_admin may pass user_id to view any platform user\'s.',

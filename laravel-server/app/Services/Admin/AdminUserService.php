@@ -145,6 +145,17 @@ class AdminUserService
         }
     }
 
+    /**
+     * A single user's effective_permissions, for the per-admin
+     * permission-override form — deliberately not folded into
+     * getGlobalUsers()'s per-row mapping, which would re-run this N+1-prone
+     * accessor for every row of a paginated list (see b7a39eea).
+     */
+    public function getEffectivePermissions(string $id): array
+    {
+        return User::findOrFail($id)->effective_permissions;
+    }
+
     public function getGlobalUsers($page = 1, $search = null, $role = null, $accountType = null, $storeId = null)
     {
         $query = User::query();
@@ -198,7 +209,6 @@ class AdminUserService
                     'joinedAt' => $user->created_at->format('M d, Y'),
                     'deletionRequested' => $user->deletion_requested_at ? true : false,
                     'deletionReason' => $user->deletion_reason,
-                    'effective_permissions' => $user->effective_permissions,
                 ];
             }),
             'meta' => [

@@ -89,6 +89,46 @@ class AdminStoreLifecycleAuditTest extends TestCase
         ]);
     }
 
+    /**
+     * A-146: the per-table "rows removed" breakdown used to be JSON-encoded
+     * straight into `description`, a plain VARCHAR(255) column — a store
+     * with enough related rows across enough tables made that string
+     * exceed 255 characters, and MySQL's strict mode turned the truncation
+     * into a hard insert error that rolled back the whole purge
+     * transaction (500, store left un-purged). SQLite (this suite's
+     * connection) doesn't enforce the column length, so this test asserts
+     * on the generated content directly rather than relying on the DB to
+     * reject an overlong value.
+     */
+    #[Test]
+    public function the_rows_removed_breakdown_goes_in_properties_not_the_bounded_description_column(): void
+    {
+        $removed = app(AdminStoreDeletionService::class)->purgeStore($this->store->id, $this->superAdmin);
+
+        $log = ActivityLog::where('action', 'STORE_PURGED')->firstOrFail();
+
+        $this->assertLessThanOrEqual(255, strlen($log->description));
+        $this->assertStringNotContainsString('Rows removed', $log->description);
+        $this->assertSame($removed, $log->properties['rows_removed'] ?? null);
+    }
+
+    /**
+     * Defensive: `description` is truncated to 255 regardless of how long
+     * the store's own (independently validated up to 255 chars) name is,
+     * so a long name alone can't reproduce the A-146 overflow even without
+     * the "rows removed" tail that caused it originally.
+     */
+    #[Test]
+    public function a_very_long_store_name_does_not_overflow_the_purge_audit_description(): void
+    {
+        $this->store->forceFill(['name' => str_repeat('A', 255)])->save();
+
+        app(AdminStoreDeletionService::class)->purgeStore($this->store->id, $this->superAdmin);
+
+        $log = ActivityLog::where('action', 'STORE_PURGED')->firstOrFail();
+        $this->assertLessThanOrEqual(255, strlen($log->description));
+    }
+
     #[Test]
     public function archive_and_restore_audit_rows_carry_the_store_they_describe()
     {

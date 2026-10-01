@@ -359,4 +359,64 @@ class AdminStoreSearchAndMetricsTest extends TestCase
         $this->assertSame(0, $response->json('operational_metrics.inventory.products'));
         $this->assertSame(0, $response->json('operational_metrics.stock_activity.movements'));
     }
+
+    /**
+     * A-144: `counts.products`/`counts.customers` read straight off the
+     * table with no deleted_at filter, disagreeing by exactly the
+     * soft-deleted row count with operational_metrics.inventory's
+     * countScoped(), which does filter it. A soft-deleted row is not part
+     * of the store's live catalog and must not be counted by either path.
+     */
+    #[Test]
+    public function soft_deleted_products_and_customers_are_excluded_from_every_count(): void
+    {
+        DB::table('products')->insert([
+            'id' => (string) \Illuminate\Support\Str::uuid(),
+            'name' => 'Live Product',
+            'store_id' => $this->store->id,
+            'selling_price' => 500,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('products')->insert([
+            'id' => (string) \Illuminate\Support\Str::uuid(),
+            'name' => 'Deleted Product',
+            'store_id' => $this->store->id,
+            'selling_price' => 500,
+            'created_at' => now(),
+            'updated_at' => now(),
+            'deleted_at' => now(),
+        ]);
+
+        DB::table('customers')->insert([
+            'id' => (string) \Illuminate\Support\Str::uuid(),
+            'first_name' => 'Live',
+            'last_name' => 'Customer',
+            'store_id' => $this->store->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('customers')->insert([
+            'id' => (string) \Illuminate\Support\Str::uuid(),
+            'first_name' => 'Deleted',
+            'last_name' => 'Customer',
+            'store_id' => $this->store->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+            'deleted_at' => now(),
+        ]);
+
+        $response = $this->actingAs($this->superAdmin)
+            ->getJson('/api/v1/admin/stores/'.$this->store->id);
+
+        $response->assertStatus(200);
+        $this->assertSame(1, $response->json('counts.products'));
+        $this->assertSame(1, $response->json('counts.customers'));
+        $this->assertSame(
+            $response->json('counts.products'),
+            $response->json('operational_metrics.inventory.products'),
+        );
+    }
 }

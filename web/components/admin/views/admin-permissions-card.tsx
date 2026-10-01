@@ -76,34 +76,41 @@ export function AdminPermissionsCard() {
 
   const saveAllPendingChanges = async () => {
     setIsSaving(true);
-    const failures: string[] = [];
+    // Tracked by slug, not name: a role staged for a change can be deleted
+    // out from under this form by another admin/tab before Save runs, and
+    // a slug is the one identifier still meaningful once the role itself
+    // is gone — matching failures back to pending state by name silently
+    // dropped exactly that edit while still reporting success.
+    const failedSlugs: string[] = [];
     try {
       for (const slug of pendingRoleSlugs) {
         const role = roles.find((r) => r.slug === slug);
-        if (!role) continue;
+        if (!role) {
+          failedSlugs.push(slug);
+          continue;
+        }
         try {
           await updatePermissionsMutation.mutateAsync({
             slug,
             permissions: pendingByRole[slug],
           });
         } catch (_error) {
-          failures.push(role.name);
+          failedSlugs.push(slug);
         }
       }
 
-      if (failures.length === 0) {
+      if (failedSlugs.length === 0) {
         toast.success("Permission changes saved");
         setPendingByRole({});
       } else {
-        toast.error(`Failed to save: ${failures.join(", ")}`);
+        const failedNames = failedSlugs.map(
+          (slug) => roles.find((r) => r.slug === slug)?.name ?? `${slug} (role no longer exists)`,
+        );
+        toast.error(`Failed to save: ${failedNames.join(", ")}`);
         // Drop only the roles that saved successfully; leave the failed
         // ones pending so the operator doesn't lose the edit.
         setPendingByRole((state) =>
-          Object.fromEntries(
-            Object.entries(state).filter(([slug]) =>
-              failures.includes(roles.find((r) => r.slug === slug)?.name ?? ""),
-            ),
-          ),
+          Object.fromEntries(Object.entries(state).filter(([slug]) => failedSlugs.includes(slug))),
         );
       }
     } finally {

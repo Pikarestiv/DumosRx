@@ -33,6 +33,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { useAdminActivityLogs } from "@/lib/api/admin-activity-hooks";
 import { useAdminStores } from "@/lib/api/admin-hooks-stores";
 import { useAdminUsers } from "@/lib/api/admin-hooks-users";
+import { PLATFORM_ROLE_OPTIONS } from "@/lib/constants/platform-roles";
 import { formatDateSafe } from "@/lib/utils/date-utils";
 import { useDebounce } from "@/hooks/use-debounce";
 import { AdminSkeleton } from "@/components/admin/admin-skeleton";
@@ -75,6 +76,11 @@ const ACTION_FILTERS = [
   { label: "Account Registered by Staff", value: "ACCOUNT_REGISTERED_BY_STAFF" },
   { label: "Admin Notification Sent", value: "ADMIN_NOTIFICATION" },
   { label: "Bulk Notification Sent", value: "BULK_ADMIN_NOTIFICATION" },
+];
+
+const ROLE_FILTERS = [
+  { label: "All Roles", value: "" },
+  ...PLATFORM_ROLE_OPTIONS.map((opt) => ({ label: opt.label, value: opt.value as string })),
 ];
 
 const ACTION_BADGE_STYLES: Record<string, string> = {
@@ -277,6 +283,7 @@ function AdminActivityLogPageContent() {
   const [userFilter, setUserFilter] = useState<SelectedEntity | null>(null);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [roleFilter, setRoleFilter] = useState("");
 
   const debouncedSearch = useDebounce(search, 500);
 
@@ -288,6 +295,7 @@ function AdminActivityLogPageContent() {
     userFilter?.id || "",
     dateFrom,
     dateTo,
+    roleFilter,
   );
 
   const logs = response?.data || [];
@@ -403,7 +411,33 @@ function AdminActivityLogPageContent() {
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
-              {(actionFilter || storeFilter || userFilter || dateFrom || dateTo || search) && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="font-bold border-2">
+                    <Filter className="h-4 w-4 mr-2" />
+                    {ROLE_FILTERS.find((f) => f.value === roleFilter)?.label ||
+                      "All Roles"}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56 p-2 rounded-2xl shadow-xl max-h-96 overflow-y-auto">
+                  <DropdownMenuLabel className="text-[10px] uppercase tracking-widest text-slate-400 px-3 py-2">
+                    Actor Role
+                  </DropdownMenuLabel>
+                  {ROLE_FILTERS.map((f) => (
+                    <DropdownMenuItem
+                      key={f.value}
+                      className="rounded-xl px-3 py-2 cursor-pointer font-bold"
+                      onClick={() => {
+                        setRoleFilter(f.value);
+                        setPage(1);
+                      }}
+                    >
+                      {f.label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              {(actionFilter || storeFilter || userFilter || dateFrom || dateTo || search || roleFilter) && (
                 <Button
                   variant="ghost"
                   size="sm"
@@ -415,6 +449,7 @@ function AdminActivityLogPageContent() {
                     setUserFilter(null);
                     setDateFrom("");
                     setDateTo("");
+                    setRoleFilter("");
                     setPage(1);
                   }}
                 >

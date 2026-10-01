@@ -11,9 +11,20 @@ export const useAdminActivityLogs = (
   userId = "",
   dateFrom = "",
   dateTo = "",
+  role = "",
 ) => {
   return useQuery({
-    queryKey: useScopedKey(["admin-activity-logs", page, search, action, storeId, userId, dateFrom, dateTo]),
+    queryKey: useScopedKey([
+      "admin-activity-logs",
+      page,
+      search,
+      action,
+      storeId,
+      userId,
+      dateFrom,
+      dateTo,
+      role,
+    ]),
     queryFn: () =>
       webApiClient.request<PaginatedResponse<ActivityLog>>(
         `admin/activity-logs?page=${page}` +
@@ -22,7 +33,8 @@ export const useAdminActivityLogs = (
           (storeId ? `&store_id=${encodeURIComponent(storeId)}` : "") +
           (userId ? `&user_id=${encodeURIComponent(userId)}` : "") +
           (dateFrom ? `&date_from=${encodeURIComponent(dateFrom)}` : "") +
-          (dateTo ? `&date_to=${encodeURIComponent(dateTo)}` : ""),
+          (dateTo ? `&date_to=${encodeURIComponent(dateTo)}` : "") +
+          (role ? `&role=${encodeURIComponent(role)}` : ""),
       ),
   });
 };

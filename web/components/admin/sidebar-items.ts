@@ -28,6 +28,13 @@ const SUPER_ADMIN_ONLY = ["super_admin"];
 export const sidebarItems: AdminSidebarItem[] = [
   { id: "dashboard", name: "Overview", icon: LayoutDashboard, href: "/admin" },
   {
+    id: "users",
+    name: "Platform Users",
+    icon: Users,
+    href: "/admin/users",
+    permissions: ["view_platform_data"],
+  },
+  {
     id: "stores",
     name: "Stores",
     icon: Store,
@@ -54,13 +61,6 @@ export const sidebarItems: AdminSidebarItem[] = [
     icon: Link2,
     href: "/admin/referrals",
     roles: ["super_admin", "platform_admin", "agent"],
-  },
-  {
-    id: "users",
-    name: "Platform Users",
-    icon: Users,
-    href: "/admin/users",
-    permissions: ["view_platform_data"],
   },
   {
     id: "products",

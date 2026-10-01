@@ -25,14 +25,16 @@ This is **not** the store-level "Roles & Permissions" feature already specced in
 - A fixed set of actions never becomes delegatable through this system at all: granting trials/plans, coupons/referral payouts, editing another user's or admin's profile/role, deleting a user/store, and editing platform/subscription settings (including the plan-feature toggles from `2026_09_27_... ai_assistant` work). These stay hardcoded `role:super_admin`, completely outside this feature's reach — not even expressible as a permission an admin could be granted.
 - A superadmin can filter the existing Activity Log to just what platform_admin/agent accounts have done, to audit delegated work without wading through their own actions.
 - Every admin-facing nav item and action button in `web/` reflects the viewer's actual permissions — nothing renders a control that will just 403 on click (per `laravel-server/AGENTS.md`'s existing "backend verification isn't UI verification" rule).
+- A superadmin can create a new named platform role beyond the 3 built-ins (e.g. "Support Lead"), choosing which of the 5 delegatable capabilities it carries — mirroring the client-side custom permission-group pattern from `2026-09-27-roles-and-permissions-design.md` (name + checkbox set, not a privilege-tier rewrite), scoped to the platform level instead of a store.
 
 ## Non-goals
 
 - No change to the store-level staff permission-groups system (separate spec, separate tables, separate concern).
 - No "undo" or action-reversal tooling. Super_admin's existing unconditional bypass means every delegated action is already independently reversible by the superadmin performing the opposite action themselves (reactivate what was suspended, etc.) — building a parallel undo mechanism would duplicate a capability that already exists.
 - No per-store scoping of admin permissions (an admin with `manage_account_status` can act on any store, not a subset) — this product has no concept of partitioning the platform admin team by store today, and inventing one is out of scope here.
-- No change to the 3-role set itself (`super_admin`/`platform_admin`/`agent`) — no new platform role is introduced.
 - No notification to an admin when their permissions change, and no self-service permission request flow — purely superadmin-driven.
+- No privilege-tier concept for custom platform roles (unlike the store-level feature's `based_on_role`) — there is no multi-level platform staff hierarchy to anchor one to. A custom platform role is just a name plus a subset of the 5 capabilities; it can never include the never-delegatable actions, exactly like `platform_admin`/`agent` can't.
+- No plan-gating on creating a custom platform role — unlike the store-level feature, the superadmin isn't a paying customer of their own admin panel, so the plan-gating concept doesn't apply here.
 
 ## Data model
 
@@ -50,6 +52,8 @@ Five new permission slugs seeded onto `platform_admin` and `agent` via `permissi
 | `manage_account_status` | granted | — |
 | `impersonate_store` | granted | — |
 
+**Custom roles** are ordinary new rows in the existing `roles` table (no schema change — the table already supports an arbitrary slug/name, it's just never been given a creation UI) with their own `permission_role` rows drawn from the same 5 slugs. `super_admin`/`platform_admin`/`agent` gain an `is_system` flag (new column on `roles`, default `true` for the 3 seeded rows, `false` for anything created through this feature) so the UI and the delete endpoint can refuse to rename or delete a built-in role without a separate hardcoded slug check.
+
 ## Enforcement mechanism
 
 `User::hasPermission($slug)` becomes:
@@ -62,11 +66,13 @@ This is a 3-line change to one existing method, not new resolution machinery.
 
 **Route wiring:** the 5 routes behind the capabilities above move from `role:super_admin` to `permission:<slug>`. Every other admin route is untouched — this spec only touches the specific endpoints matching the 5 delegated capabilities, found by cross-referencing the capability list against the route group in `routes/api.php:182-226`.
 
+**Interaction with the just-shipped superadmin profile-edit feature:** `AdminUserService::PLATFORM_ROLES` (the hardcoded `['super_admin', 'platform_admin', 'agent']` whitelist the profile-edit endpoint validates `role` against) must become a dynamic lookup against the `roles` table's platform-scoped rows instead of a fixed array, so a superadmin can actually assign a newly-created custom role to a user through the existing profile-edit UI. This is a required follow-on change to already-merged code, not new surface area — the two self-protection guards (`assertNotSelfRoleChange`, `assertNotLastActiveSuperAdmin`) are untouched, since both key specifically on the literal `super_admin` slug, which remains a fixed concept regardless of how many custom roles exist alongside it.
+
 ## UI
 
 Two additions to the existing `web/` admin panel, both inside Platform Settings (next to the plan-tier editor, not a new top-level section):
 
-**1. "Admin Permissions" card** — a 5-row × 2-column (`platform_admin`, `agent`) checkbox matrix, one row per capability above, editing the role defaults via `permission_role`. Saves through a new endpoint following the existing `subscription-config-tab.tsx` → `PUT /admin/system-configs/{key}`-style pattern (a `PUT /admin/roles/{role}/permissions` endpoint, `role:super_admin`-gated, replacing that role's `permission_role` rows for these 5 slugs in one call).
+**1. "Admin Permissions" card** — a 5-row × N-column checkbox matrix (`platform_admin`, `agent`, plus any custom roles), one row per capability above, editing each role's defaults via `permission_role`. Saves through a new endpoint following the existing `subscription-config-tab.tsx` → `PUT /admin/system-configs/{key}`-style pattern (a `PUT /admin/roles/{role}/permissions` endpoint, `role:super_admin`-gated, replacing that role's `permission_role` rows for these 5 slugs in one call). Toolbar gains **New Role** (name + the same 5-checkbox picker, `POST /admin/roles`) and, per custom-role column only, **Delete Role** (`DELETE /admin/roles/{role}`, blocked with a clear error if any user currently holds it — mirroring the store-level feature's "reassign staff first" rule). Built-in columns (`is_system = true`) show their name as plain text with no delete action, exactly like the store-level feature's default groups.
 
 **2. Per-admin override section**, added to the existing `user-profile-dialog.tsx` (the same dialog Opus just gave an edit mode) as a new "Permissions" tab, shown only when viewing a `platform_admin`/`agent` account (not `super_admin` — super_admin's bypass makes permission editing meaningless for that role, so the tab doesn't render for one). Each of the 5 capabilities shows a 3-state control: **Inherited** (shows the role's current default, greyed, no override row exists), **Granted** (explicit override, writes `permission_user` with `granted=true`), **Revoked** (explicit override, writes `permission_user` with `granted=false`). Returning a row to "Inherited" deletes the override row rather than storing a third state value — the absence of a row *is* "inherited," per the enforcement mechanism above.
 
@@ -79,7 +85,9 @@ Two additions to the existing `web/` admin panel, both inside Platform Settings 
 - **The never-delegatable list is enforced by omission, not by a deny rule** — those actions simply have no `permission:*` slug wired to their route at all, so there is no `permission_user` row that could ever grant them. A superadmin cannot accidentally expose one of them through the override UI because the UI only ever offers the 5 slugs that exist.
 - **Self-service escape hatch check:** can a `platform_admin` with `view_platform_data` + nothing else reach any of the reserved actions indirectly (e.g. via a list endpoint that embeds an action link)? Each of the 5 newly-permission-gated endpoints must be re-verified independently against the full reserved-action list during implementation — this is a review item for the implementation pass, not assumed safe here.
 - **Permission changes are themselves audited:** both the role-default edit and the per-admin override write an `ActivityLog` row (`ROLE_PERMISSIONS_UPDATED`, `USER_PERMISSION_OVERRIDE_SET`/`_CLEARED`), following the existing `ActivityLog::create([...])` convention, with a before/after diff in `properties` — matching the pattern just established by the superadmin profile-edit feature.
-- **No lock-out risk:** `super_admin` never passes through the permission system at all (step 1 of enforcement), so there is no sequence of permission edits that could leave the platform without an admin capable of administering it. The already-shipped "can't demote the last active super_admin" guard (A-127 work) is the relevant safety net for the *role itself*; this feature only touches `platform_admin`/`agent`, where there is no equivalent scarcity concern.
+- **No lock-out risk:** `super_admin` never passes through the permission system at all (step 1 of enforcement), so there is no sequence of permission edits that could leave the platform without an admin capable of administering it. The already-shipped "can't demote the last active super_admin" guard (A-127 work) is the relevant safety net for the *role itself*; this feature only touches `platform_admin`/`agent`/custom roles, where there is no equivalent scarcity concern.
+- **A custom role can never exceed the 5-slug catalog:** `POST /admin/roles`'s permission payload is validated against the same fixed list of 5 slugs as the role-default editor — there is no free-text permission slug field anywhere in this feature, so a custom role creation request can't smuggle in a never-delegatable action by naming it directly.
+- **Built-in role protection:** `PUT`/`DELETE /admin/roles/{role}` reject any request targeting an `is_system = true` role (rename or delete) regardless of payload — the 3 seeded roles are permanent.
 
 ## Testing
 
@@ -91,3 +99,7 @@ Two additions to the existing `web/` admin panel, both inside Platform Settings 
 - Team Activity filter: `actor_role` correctly narrows results; combining it with the existing `user_id`/date filters still works.
 - Web: nav/action items hide correctly per permission (component test using a mocked permission set, following whatever pattern `web/`'s existing admin component tests use); the Permissions tab doesn't render for a `super_admin` target user.
 - A real logged-in browser smoke test (per `laravel-server/AGENTS.md`'s standing rule) covering at least one delegated action end-to-end as a `platform_admin` account: nav item visible, action succeeds, then revoke the permission and confirm the nav item disappears.
+- Custom role creation: a new role with a chosen subset of the 5 slugs behaves identically to a built-in role with the same subset for every permission check above; a payload naming a non-catalog slug is rejected.
+- Built-in role immutability: renaming or deleting `super_admin`/`platform_admin`/`agent` is rejected both via the UI and a direct API call.
+- Custom role deletion is blocked while any user holds it, and succeeds once they're reassigned — mirroring the store-level feature's equivalent test.
+- The profile-edit endpoint's role whitelist accepts a custom role slug once created, and still rejects a store-tenant role slug (regression test for the dynamic-lookup change).
